@@ -28,6 +28,24 @@ fn without_fm(mut payload: Value) -> Value {
     payload
 }
 
+fn without_new_fm_fields(payload: &mut Value) {
+    for slot in payload["runtimeConfig"]["instruments"]
+        .as_array_mut()
+        .unwrap()
+    {
+        if let Some(fm) = slot.get_mut("fm").and_then(Value::as_object_mut) {
+            for field in [
+                "ratioFineCents",
+                "velocityToIndexPct",
+                "modShapePct",
+                "modMixPct",
+            ] {
+                fm.remove(field);
+            }
+        }
+    }
+}
+
 fn explicit_orange_default_payload(mut payload: Value) -> Value {
     payload["revision"] = json!(91);
     payload["system"]["playMode"] = json!("pan");
@@ -283,6 +301,71 @@ fn v2_portable_fm_patch_rejects_unknown_nested_field_against_legacy_current() {
         error.contains("$.runtimeConfig.instruments[0].fm.futureField"),
         "{error}"
     );
+}
+
+#[test]
+fn old_fm_full_and_portable_blocks_reset_new_fields_but_partial_patch_inherits() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut current = runner.config_payload();
+    current["runtimeConfig"]["instruments"][0]["fm"]["ratioFineCents"] = json!(-37);
+    current["runtimeConfig"]["instruments"][0]["fm"]["velocityToIndexPct"] = json!(42);
+    current["runtimeConfig"]["instruments"][0]["fm"]["modShapePct"] = json!(61);
+    current["runtimeConfig"]["instruments"][0]["fm"]["modMixPct"] = json!(73);
+    runner.apply_config_payload(current.clone()).unwrap();
+
+    let mut old_full = current.clone();
+    without_new_fm_fields(&mut old_full);
+    runner.apply_config_payload(old_full).unwrap();
+    for field in [
+        "ratioFineCents",
+        "velocityToIndexPct",
+        "modShapePct",
+        "modMixPct",
+    ] {
+        assert_eq!(runner.instruments[0].fm_config[field], 0, "{field}");
+    }
+
+    let mut current = runner.config_payload();
+    current["runtimeConfig"]["instruments"][0]["fm"]["ratioFineCents"] = json!(-37);
+    current["runtimeConfig"]["instruments"][0]["fm"]["velocityToIndexPct"] = json!(42);
+    current["runtimeConfig"]["instruments"][0]["fm"]["modShapePct"] = json!(61);
+    current["runtimeConfig"]["instruments"][0]["fm"]["modMixPct"] = json!(73);
+    runner.apply_config_payload(current.clone()).unwrap();
+
+    let patch = portable_patch_projection(&current).unwrap();
+    let mut legacy_current = current.clone();
+    without_new_fm_fields(&mut legacy_current);
+    let prepared = prepare_patch_payload(patch.clone(), &legacy_current).unwrap();
+    assert_eq!(
+        prepared.payload["runtimeConfig"]["instruments"][0]["fm"]["ratioFineCents"],
+        -37
+    );
+
+    let mut old_patch = patch.clone();
+    without_new_fm_fields(&mut old_patch);
+    let prepared = prepare_patch_payload(old_patch.clone(), &legacy_current).unwrap();
+    for field in [
+        "ratioFineCents",
+        "velocityToIndexPct",
+        "modShapePct",
+        "modMixPct",
+    ] {
+        assert_eq!(
+            prepared.payload["runtimeConfig"]["instruments"][0]["fm"][field], 0,
+            "{field}"
+        );
+    }
+    runner
+        .apply_patch_payload_preserving_device(old_patch)
+        .unwrap();
+    for field in [
+        "ratioFineCents",
+        "velocityToIndexPct",
+        "modShapePct",
+        "modMixPct",
+    ] {
+        assert_eq!(runner.instruments[0].fm_config[field], 0, "{field}");
+    }
 }
 
 #[test]

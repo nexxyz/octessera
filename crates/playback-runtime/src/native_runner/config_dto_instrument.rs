@@ -117,7 +117,15 @@ pub struct FmDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) ratio: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) ratio_fine_cents: Option<i16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) index: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) velocity_to_index_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) mod_shape_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) mod_mix_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) index_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -139,6 +147,14 @@ pub struct PluckDto {
     pub(super) brightness_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) pick_position_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) pick_depth_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) dispersion_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) body_amount_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) body_frequency_hz: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) amp: Option<SynthAmpDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -179,6 +195,14 @@ pub struct DrumVoiceDto {
     pub(super) tone_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) attack_ms: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) sweep_semis: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) sweep_ms: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) noise_mix_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) level_pct: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

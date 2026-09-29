@@ -1,5 +1,5 @@
 use super::types::{default_synth_config, AmpConfig, EnvConfig, FilterConfig, SynthConfig};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -49,6 +49,18 @@ impl DrumSound {
         }
     }
 
+    pub(super) fn default_sweep_semis(self) -> u8 {
+        self.sweep().0 as u8
+    }
+
+    pub(super) fn default_sweep_ms(self) -> f32 {
+        self.sweep().1
+    }
+
+    pub(super) fn default_noise_mix_pct(self) -> f32 {
+        (self.source_mix().0 * 100.0).round()
+    }
+
     pub(super) fn source_mix(self) -> (f32, f32) {
         match self {
             Self::Kick => (0.12, 0.05),
@@ -77,11 +89,15 @@ impl DrumSound {
             decay_ms,
             tone_pct,
             attack_ms: 0.0,
+            sweep_semis: self.default_sweep_semis(),
+            sweep_ms: self.default_sweep_ms(),
+            noise_mix_pct: self.default_noise_mix_pct(),
+            level_pct: 100.0,
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct DrumVoiceConfig {
     pub sound: DrumSound,
     #[serde(rename = "tuneSemis")]
@@ -92,6 +108,81 @@ pub struct DrumVoiceConfig {
     pub tone_pct: f32,
     #[serde(rename = "attackMs")]
     pub attack_ms: f32,
+    #[serde(rename = "sweepSemis")]
+    pub sweep_semis: u8,
+    #[serde(rename = "sweepMs")]
+    pub sweep_ms: f32,
+    #[serde(rename = "noiseMixPct")]
+    pub noise_mix_pct: f32,
+    #[serde(rename = "levelPct")]
+    pub level_pct: f32,
+}
+
+impl<'de> Deserialize<'de> for DrumVoiceConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Optional<T>(Option<T>);
+
+        impl<T> Default for Optional<T> {
+            fn default() -> Self {
+                Self(None)
+            }
+        }
+
+        impl<'de, T> Deserialize<'de> for Optional<T>
+        where
+            T: Deserialize<'de>,
+        {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                T::deserialize(deserializer).map(|value| Self(Some(value)))
+            }
+        }
+
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct WireVoice {
+            sound: DrumSound,
+            tune_semis: i8,
+            decay_ms: f32,
+            tone_pct: f32,
+            attack_ms: f32,
+            #[serde(default)]
+            sweep_semis: Optional<u8>,
+            #[serde(default)]
+            sweep_ms: Optional<f32>,
+            #[serde(default)]
+            noise_mix_pct: Optional<f32>,
+            #[serde(default)]
+            level_pct: Optional<f32>,
+        }
+
+        let wire = WireVoice::deserialize(deserializer)?;
+        Ok(Self {
+            sound: wire.sound,
+            tune_semis: wire.tune_semis,
+            decay_ms: wire.decay_ms,
+            tone_pct: wire.tone_pct,
+            attack_ms: wire.attack_ms,
+            sweep_semis: wire
+                .sweep_semis
+                .0
+                .unwrap_or_else(|| wire.sound.default_sweep_semis()),
+            sweep_ms: wire
+                .sweep_ms
+                .0
+                .unwrap_or_else(|| wire.sound.default_sweep_ms()),
+            noise_mix_pct: wire
+                .noise_mix_pct
+                .0
+                .unwrap_or_else(|| wire.sound.default_noise_mix_pct()),
+            level_pct: wire.level_pct.0.unwrap_or(100.0),
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -155,6 +246,13 @@ impl DrumConfig {
                 || !(0.0..=100.0).contains(&voice.tone_pct)
                 || !voice.attack_ms.is_finite()
                 || !(0.0..=50.0).contains(&voice.attack_ms)
+                || voice.sweep_semis > 36
+                || !voice.sweep_ms.is_finite()
+                || !(0.0..=200.0).contains(&voice.sweep_ms)
+                || !voice.noise_mix_pct.is_finite()
+                || !(0.0..=100.0).contains(&voice.noise_mix_pct)
+                || !voice.level_pct.is_finite()
+                || !(0.0..=100.0).contains(&voice.level_pct)
             {
                 return Err("invalid Drum voice parameter".into());
             }

@@ -25,6 +25,7 @@ mod duck_source;
 mod dynamic_control;
 #[cfg(test)]
 mod dynamic_control_tests;
+mod fm_render;
 mod inline_source_executor;
 #[cfg(test)]
 mod lifecycle_tests;

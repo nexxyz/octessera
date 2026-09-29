@@ -261,6 +261,19 @@ impl SynthEngine {
         let cfg = self.instruments[slot];
         let amp_env = EnvState::note_on(cfg.amp_env, self.sample_rate);
         let filt_env = EnvState::note_on(cfg.filter_env, self.sample_rate);
+        let pluck = if let render_voice::VoiceSource::Pluck { settings } =
+            self.synth_render_configs[slot].source
+        {
+            crate::synth::pluck_string::PluckState::note_on(
+                freq,
+                self.sample_rate,
+                midi_note,
+                v,
+                settings,
+            )
+        } else {
+            crate::synth::pluck_string::PluckState::off()
+        };
         let mut voice = Voice {
             active: true,
             canonical_lane: None,
@@ -290,26 +303,15 @@ impl SynthEngine {
             } else {
                 crate::synth::drum_state::DrumState::off()
             },
-            pluck: if let render_voice::VoiceSource::Pluck {
-                decay_ms,
-                brightness_pct,
-                pick_position_pct,
-            } = self.synth_render_configs[slot].source
-            {
-                crate::synth::pluck_string::PluckState::note_on(
-                    freq,
-                    self.sample_rate,
-                    midi_note,
-                    v,
-                    decay_ms,
-                    brightness_pct,
-                    pick_position_pct,
-                )
-            } else {
-                crate::synth::pluck_string::PluckState::off()
-            },
+            pluck,
             source_generation: self.synth_render_configs[slot].source_generation,
             fm_index_limit: 0.0,
+            fm_modulator_raw_inc: 0.0,
+            fm_index_fundamental: 0.0,
+            fm_index_second: 0.0,
+            fm_direct_mix: 0.0,
+            fm_normalization: 1.0,
+            fm_neutral: true,
             filter_key_scale: 1.0,
             index_env: if let render_voice::VoiceSource::Fm { index_env, .. } =
                 self.synth_render_configs[slot].source

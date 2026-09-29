@@ -8,6 +8,7 @@ pub(super) struct DrumState {
     pub(super) phase2: f32,
     pub(super) inc1: f32,
     pub(super) inc2: f32,
+    pub(super) max_increment: f32,
     pub(super) sweep_step: f32,
     pub(super) sweep_remaining: u32,
     pub(super) noise_alpha: f32,
@@ -30,6 +31,7 @@ impl DrumState {
             phase2: 0.0,
             inc1: 0.0,
             inc2: 0.0,
+            max_increment: 0.45,
             sweep_step: 1.0,
             sweep_remaining: 0,
             noise_alpha: 0.0,
@@ -57,11 +59,16 @@ impl DrumState {
             + i32::from(local_tune.clamp(-24, 24));
         let hz = (440.0_f32 * 2.0_f32.powf((note as f32 - 69.0) / 12.0))
             .clamp(1.0, sample_rate as f32 * 0.45);
-        let (sweep_st, sweep_ms) = voice.sound.sweep();
+        let sweep_st = f32::from(voice.sweep_semis);
+        let sweep_ms = voice.sweep_ms;
         let sweep_ratio = 2.0_f32.powf(sweep_st / 12.0);
         let sweep_frames = (sweep_ms * sample_rate as f32 * 0.001) as u32;
-        let first_hz = (hz * sweep_ratio).min(sample_rate as f32 * 0.45);
-        let (noise_mix, upper_mix) = voice.sound.source_mix();
+        let first_hz = if sweep_frames > 0 {
+            (hz * sweep_ratio).min(sample_rate as f32 * 0.45)
+        } else {
+            hz
+        };
+        let (_, upper_mix) = voice.sound.source_mix();
         let tone = voice.tone_pct.clamp(0.0, 100.0) * 0.01;
         let decay_frames =
             (voice.decay_ms.clamp(20.0, 2_000.0) * sample_rate as f32 * 0.001).max(1.0);
@@ -73,6 +80,7 @@ impl DrumState {
             } else {
                 0.0
             },
+            max_increment: 0.45,
             sweep_step: if sweep_frames > 0 {
                 (hz / first_hz).powf(1.0 / sweep_frames as f32)
             } else {
@@ -80,9 +88,9 @@ impl DrumState {
             },
             sweep_remaining: sweep_frames,
             noise_alpha: (TAU * (400.0 + tone * 11_600.0) / sample_rate as f32).min(1.0),
-            noise_mix,
+            noise_mix: voice.noise_mix_pct.clamp(0.0, 100.0) / 100.0,
             upper_mix: upper_mix * (0.2 + 0.8 * tone),
-            level: 1.0,
+            level: voice.level_pct.clamp(0.0, 100.0) * 0.01,
             decay_step: (-6.907_755 / decay_frames).exp(),
             attack_frames: (voice.attack_ms.clamp(0.0, 50.0) * sample_rate as f32 * 0.001) as u32,
             burst_frames: (sample_rate as f32 * 0.012) as u32,
@@ -102,8 +110,8 @@ impl DrumState {
         self.phase1 = (self.phase1 + self.inc1).fract();
         self.phase2 = (self.phase2 + self.inc2).fract();
         if self.sweep_remaining > 0 {
-            self.inc1 *= self.sweep_step;
-            self.inc2 *= self.sweep_step;
+            self.inc1 = (self.inc1 * self.sweep_step).min(self.max_increment);
+            self.inc2 = (self.inc2 * self.sweep_step).min(self.max_increment);
             self.sweep_remaining -= 1;
         }
         self.seed ^= self.seed << 13;

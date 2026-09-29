@@ -22,22 +22,43 @@ impl SynthEngine {
         }
         let synth = &mut self.instruments[slot];
         let source = &mut self.synth_render_configs[slot].source;
-        let render_voice::VoiceSource::Pluck {
-            decay_ms,
-            brightness_pct,
-            pick_position_pct,
-        } = source
-        else {
+        let render_voice::VoiceSource::Pluck { settings } = source else {
             return ScalarMutation::Rejected;
         };
         let mutation = match id {
-            PluckParamId::DecayMs => set_clamped_f32(decay_ms, value.round(), 100.0, 5_000.0, 1.0),
+            PluckParamId::DecayMs => {
+                set_clamped_f32(&mut settings.decay_ms, value.round(), 100.0, 5_000.0, 1.0)
+            }
             PluckParamId::BrightnessPct => {
-                set_clamped_f32(brightness_pct, value.round(), 0.0, 100.0, 1.0)
+                set_clamped_f32(&mut settings.brightness_pct, value.round(), 0.0, 100.0, 1.0)
             }
-            PluckParamId::PickPositionPct => {
-                set_clamped_f32(pick_position_pct, value.round(), 5.0, 50.0, 1.0)
+            PluckParamId::PickPositionPct => set_clamped_f32(
+                &mut settings.pick_position_pct,
+                value.round(),
+                5.0,
+                50.0,
+                1.0,
+            ),
+            PluckParamId::PickDepthPct => {
+                set_clamped_f32(&mut settings.pick_depth_pct, value.round(), 0.0, 100.0, 1.0)
             }
+            PluckParamId::DispersionPct => {
+                set_clamped_f32(&mut settings.dispersion_pct, value.round(), 0.0, 100.0, 1.0)
+            }
+            PluckParamId::BodyAmountPct => set_clamped_f32(
+                &mut settings.body_amount_pct,
+                value.round(),
+                0.0,
+                100.0,
+                1.0,
+            ),
+            PluckParamId::BodyFrequencyHz => set_clamped_f32(
+                &mut settings.body_frequency_hz,
+                value.round(),
+                100.0,
+                2000.0,
+                1.0,
+            ),
             PluckParamId::AmpGainPct => {
                 set_clamped_f32(&mut synth.amp.gain_pct, value, 0.0, 100.0, 1.0)
             }

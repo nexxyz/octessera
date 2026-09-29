@@ -334,10 +334,23 @@ fn fm_static_filter_is_prepared_once_and_scalar_edits_do_not_allocate() {
 
 #[test]
 fn fm_block_and_inline_worker_match_scalar_without_callback_allocation() {
-    let mut fm = FmConfig::default();
-    fm.filter.env_amount_pct = 40.0;
-    fm.filter.key_tracking_pct = 100.0;
-    fm.index_env.attack_ms = 3.0;
+    let defaults = FmConfig::default();
+    let fm = FmConfig {
+        ratio_fine_cents: 37,
+        velocity_to_index_pct: 65,
+        mod_shape_pct: 80,
+        mod_mix_pct: 45,
+        filter: FilterConfig {
+            env_amount_pct: 40.0,
+            key_tracking_pct: 100.0,
+            ..defaults.filter
+        },
+        index_env: EnvConfig {
+            attack_ms: 3.0,
+            ..defaults.index_env
+        },
+        ..defaults
+    };
     let mut block = fm_engine(fm, "direct", None);
     let mut scalar = fm_engine(fm, "direct", None);
     let mut worker = fm_engine(fm, "direct", None);

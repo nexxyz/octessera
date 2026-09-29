@@ -58,7 +58,10 @@ fn drum_type_hides_note_mode_and_scrolls_eight_rows() {
             .iter()
             .map(|row| row.label.as_str())
             .collect::<Vec<_>>(),
-        ["Sound", "Tune", "Decay", "Tone", "Attack"]
+        [
+            "Sound", "Tune", "Decay", "Tone", "Attack", "Sweep st", "Sweep ms", "Noise %",
+            "Level %"
+        ]
     );
     assert!(menu.item_for_key("instruments.0.noteBehavior").is_none());
     assert!(menu
@@ -79,6 +82,11 @@ fn drum_type_hides_note_mode_and_scrolls_eight_rows() {
     );
     menu.back();
     assert!(!menu.state.editing);
+    assert!(menu.focus_item_key("instruments.0.drum.voices.0.levelPct"));
+    let snapshot = menu.snapshot();
+    assert_eq!(snapshot.lines.len(), 7);
+    let selected_row = snapshot.selected_row.unwrap();
+    assert!(snapshot.lines[selected_row].starts_with("> Level %"));
 }
 
 #[test]
@@ -89,15 +97,15 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
         matches!(&voice.value, NativeMenuValue::Enum { options, selected }
         if options == &["V1: Kick", "V2: Snare", "V3: Closed Hat", "V4: Open Hat", "V5: Low Tom", "V6: High Tom", "V7: Clap", "V8: Rim"] && *selected == 0)
     );
-    for (index, decay, tone) in [
-        (0, 420, 35),
-        (1, 220, 70),
-        (2, 85, 90),
-        (3, 650, 85),
-        (4, 500, 50),
-        (5, 320, 60),
-        (6, 240, 80),
-        (7, 95, 80),
+    for (index, decay, tone, sweep_semis, sweep_ms, noise_mix_pct, level_pct) in [
+        (0, 420, 35, 24, 55, 12, 100),
+        (1, 220, 70, 3, 25, 80, 100),
+        (2, 85, 90, 0, 0, 95, 100),
+        (3, 650, 85, 0, 0, 95, 100),
+        (4, 500, 50, 8, 70, 15, 100),
+        (5, 320, 60, 6, 50, 15, 100),
+        (6, 240, 80, 0, 0, 95, 100),
+        (7, 95, 80, 0, 0, 35, 100),
     ] {
         let mut cfg = config();
         cfg.instrument_types[0] = "drum".into();
@@ -108,6 +116,10 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
             ("decayMs", decay, 20, 2000, 5),
             ("tonePct", tone, 0, 100, 1),
             ("attackMs", 0, 0, 50, 1),
+            ("sweepSemis", sweep_semis, 0, 36, 1),
+            ("sweepMs", sweep_ms, 0, 200, 1),
+            ("noiseMixPct", noise_mix_pct, 0, 100, 1),
+            ("levelPct", level_pct, 0, 100, 1),
         ] {
             let key = format!("instruments.0.drum.voices.{index}.{field}");
             assert!(
@@ -139,6 +151,17 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
         menu.number_for_key("instruments.0.drum.voices.0.decayMs"),
         Some(314)
     );
+    for (field, value) in [
+        ("sweepSemis", 3),
+        ("sweepMs", 25),
+        ("noiseMixPct", 80),
+        ("levelPct", 100),
+    ] {
+        assert_eq!(
+            menu.number_for_key(&format!("instruments.0.drum.voices.0.{field}")),
+            Some(value)
+        );
+    }
     cfg.instrument_drum_configs[0]["voices"][0] = serde_json::json!({"sound": "clap"});
     menu.rebuild(cfg);
     assert!(menu.focus_item_key("instruments.0.drum.voices.0.sound"));
@@ -159,6 +182,17 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
         menu.number_for_key("instruments.0.drum.voices.0.tonePct"),
         Some(80)
     );
+    for (field, value) in [
+        ("sweepSemis", 0),
+        ("sweepMs", 0),
+        ("noiseMixPct", 95),
+        ("levelPct", 100),
+    ] {
+        assert_eq!(
+            menu.number_for_key(&format!("instruments.0.drum.voices.0.{field}")),
+            Some(value)
+        );
+    }
     assert!(menu
         .item_for_key("instruments.0.synth.amp.gainPct")
         .is_none());
@@ -292,6 +326,11 @@ fn drum_help_covers_voice_edits_actions_and_play_slot() {
     assert!(targets
         .iter()
         .any(|target| target.key == "key:instruments.*.drum.voice"));
+    for field in ["sweepSemis", "sweepMs", "noiseMixPct", "levelPct"] {
+        assert!(targets
+            .iter()
+            .any(|target| { target.key == format!("key:instruments.*.drum.voices.*.{field}") }));
+    }
     assert!(targets
         .iter()
         .any(|target| target.key == "key:play.drums.slot"));

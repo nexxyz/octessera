@@ -218,7 +218,11 @@ fn validate_fm(instrument: &Map<String, Value>, path: &str) -> Result<(), String
         &path,
         &["0.5", "1", "2", "3", "4", "5", "6", "8"],
     )?;
+    signed_field(fm, "ratioFineCents", &path, -100, 100)?;
     unsigned_field(fm, "index", &path, 0, 100)?;
+    unsigned_field(fm, "velocityToIndexPct", &path, 0, 100)?;
+    unsigned_field(fm, "modShapePct", &path, 0, 100)?;
+    unsigned_field(fm, "modMixPct", &path, 0, 100)?;
     validate_env(fm, "indexEnv", &path)?;
     if let Some(amp) = object_field(fm, "amp", &path)? {
         signed_field(amp, "gainPct", &format!("{path}.amp"), 0, 100)?;
@@ -243,6 +247,10 @@ fn validate_pluck(instrument: &Map<String, Value>, path: &str) -> Result<(), Str
     unsigned_field(pluck, "decayMs", &path, 100, 5000)?;
     unsigned_field(pluck, "brightnessPct", &path, 0, 100)?;
     unsigned_field(pluck, "pickPositionPct", &path, 5, 50)?;
+    unsigned_field(pluck, "pickDepthPct", &path, 0, 100)?;
+    unsigned_field(pluck, "dispersionPct", &path, 0, 100)?;
+    unsigned_field(pluck, "bodyAmountPct", &path, 0, 100)?;
+    unsigned_field(pluck, "bodyFrequencyHz", &path, 100, 2000)?;
     if let Some(amp) = object_field(pluck, "amp", &path)? {
         signed_field(amp, "gainPct", &format!("{path}.amp"), 0, 100)?;
         signed_field(
@@ -280,6 +288,10 @@ fn validate_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), Stri
             unsigned_field(voice, "decayMs", &voice_path, 20, 2000)?;
             unsigned_field(voice, "tonePct", &voice_path, 0, 100)?;
             unsigned_field(voice, "attackMs", &voice_path, 0, 50)?;
+            unsigned_field(voice, "sweepSemis", &voice_path, 0, 36)?;
+            unsigned_field(voice, "sweepMs", &voice_path, 0, 200)?;
+            unsigned_field(voice, "noiseMixPct", &voice_path, 0, 100)?;
+            unsigned_field(voice, "levelPct", &voice_path, 0, 100)?;
         }
     }
     if let Some(assignments) = array_field(drum, "assignments", &path, 64)? {

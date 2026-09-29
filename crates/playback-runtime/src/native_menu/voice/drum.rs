@@ -17,12 +17,25 @@ const SOUNDS: [&str; 8] = [
 const DECAY_DEFAULTS: [i32; 8] = [420, 220, 85, 650, 500, 320, 240, 95];
 const TONE_DEFAULTS: [i32; 8] = [35, 70, 90, 85, 50, 60, 80, 80];
 
+fn sweep_defaults(style: usize) -> (i32, i32, i32, i32) {
+    match style {
+        0 => (24, 55, 12, 100),
+        1 => (3, 25, 80, 100),
+        2 | 3 => (0, 0, 95, 100),
+        4 => (8, 70, 15, 100),
+        5 => (6, 50, 15, 100),
+        6 => (0, 0, 95, 100),
+        _ => (0, 0, 35, 100),
+    }
+}
+
 pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let drum = config.drum_config;
     let selected_voice = config.drum_voice.min(7);
     let voice = drum_voice(drum, selected_voice);
     let sound = voice_sound(drum, selected_voice);
     let style = selected_index(&SOUNDS, sound);
+    let (sweep_semis, sweep_ms, noise_mix_pct, level_pct) = sweep_defaults(style);
     let voice_key = format!("{prefix}.drum.voices.{selected_voice}");
     let voice_labels = (0..8)
         .map(|index| format!("V{}: {}", index + 1, sound_label(voice_sound(drum, index))))
@@ -86,6 +99,38 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
                         synth_number(voice, &["attackMs"], 0),
                         0,
                         50,
+                        1,
+                    ),
+                    number_item(
+                        "Sweep st",
+                        format!("{voice_key}.sweepSemis"),
+                        synth_number(voice, &["sweepSemis"], sweep_semis),
+                        0,
+                        36,
+                        1,
+                    ),
+                    number_item(
+                        "Sweep ms",
+                        format!("{voice_key}.sweepMs"),
+                        synth_number(voice, &["sweepMs"], sweep_ms),
+                        0,
+                        200,
+                        1,
+                    ),
+                    number_item(
+                        "Noise %",
+                        format!("{voice_key}.noiseMixPct"),
+                        synth_number(voice, &["noiseMixPct"], noise_mix_pct),
+                        0,
+                        100,
+                        1,
+                    ),
+                    number_item(
+                        "Level %",
+                        format!("{voice_key}.levelPct"),
+                        synth_number(voice, &["levelPct"], level_pct),
+                        0,
+                        100,
                         1,
                     ),
                 ],

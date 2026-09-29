@@ -3,8 +3,26 @@ use super::*;
 #[test]
 fn fm_defaults_validate_and_legacy_config_loads_without_a_schema_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let initial = runner.config_payload();
+    let prepared = prepare_config_payload(initial.clone(), &initial).unwrap();
+    for field in [
+        "ratioFineCents",
+        "velocityToIndexPct",
+        "modShapePct",
+        "modMixPct",
+    ] {
+        assert_eq!(
+            prepared.payload["runtimeConfig"]["instruments"][0]["fm"][field],
+            0
+        );
+    }
+    runner.apply_config_payload(initial).unwrap();
     let defaults = runner.instruments[0].fm_config.clone();
     assert_eq!(defaults["ratio"], "2");
+    assert_eq!(defaults["ratioFineCents"], 0);
+    assert_eq!(defaults["velocityToIndexPct"], 0);
+    assert_eq!(defaults["modShapePct"], 0);
+    assert_eq!(defaults["modMixPct"], 0);
     assert_eq!(defaults["index"], 50);
     assert_eq!(
         defaults["indexEnv"],
@@ -52,6 +70,8 @@ fn fm_defaults_validate_and_legacy_config_loads_without_a_schema_bump() {
 fn fm_full_legacy_load_resets_missing_fm_but_partial_patch_and_slot_preserve_it() {
     for unversioned in [false, true] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        let initial = runner.config_payload();
+        runner.apply_config_payload(initial).unwrap();
         let defaults = runner.instruments[0].fm_config.clone();
         let mut legacy = runner.config_payload();
         for slot in legacy["runtimeConfig"]["instruments"]
@@ -104,6 +124,11 @@ fn fm_schema_bounds_and_selector_reject_invalid_saved_values() {
         ("ratio", json!("7")),
         ("index", json!(-1)),
         ("index", json!(101)),
+        ("ratioFineCents", json!(-101)),
+        ("ratioFineCents", json!(101)),
+        ("velocityToIndexPct", json!(101)),
+        ("modShapePct", json!(101)),
+        ("modMixPct", json!(101)),
     ] {
         let mut payload = initial.clone();
         payload["runtimeConfig"]["instruments"][0]["fm"][path] = bad;
@@ -131,6 +156,66 @@ fn fm_schema_bounds_and_selector_reject_invalid_saved_values() {
     validate_config_payload(&payload).unwrap();
     payload["runtimeConfig"]["instruments"][0]["fm"]["index"] = json!(100);
     validate_config_payload(&payload).unwrap();
+}
+
+#[test]
+fn fm_new_fields_validate_and_legacy_partial_patch_preserves_saved_values() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["instruments"][0]["fm"]["ratioFineCents"] = json!(-37);
+    payload["runtimeConfig"]["instruments"][0]["fm"]["velocityToIndexPct"] = json!(42);
+    payload["runtimeConfig"]["instruments"][0]["fm"]["modShapePct"] = json!(61);
+    payload["runtimeConfig"]["instruments"][0]["fm"]["modMixPct"] = json!(73);
+    runner.apply_config_payload(payload).unwrap();
+    let mut bounds = runner.config_payload();
+    bounds["runtimeConfig"]["instruments"][0]["fm"]["ratioFineCents"] = json!(-100);
+    bounds["runtimeConfig"]["instruments"][0]["fm"]["velocityToIndexPct"] = json!(100);
+    bounds["runtimeConfig"]["instruments"][0]["fm"]["modShapePct"] = json!(0);
+    bounds["runtimeConfig"]["instruments"][0]["fm"]["modMixPct"] = json!(100);
+    validate_config_payload(&bounds).unwrap();
+
+    runner
+        .apply_patch_payload_preserving_device(json!({
+            "kind": "octessera.patch",
+            "schemaVersion": 2,
+            "runtimeConfig": { "instruments": [{ "fm": { "modMixPct": 40 } }] }
+        }))
+        .unwrap();
+    assert_eq!(runner.instruments[0].fm_config["ratioFineCents"], -37);
+    assert_eq!(runner.instruments[0].fm_config["velocityToIndexPct"], 42);
+    assert_eq!(runner.instruments[0].fm_config["modShapePct"], 61);
+    assert_eq!(runner.instruments[0].fm_config["modMixPct"], 40);
+    let saved = runner.config_payload();
+    let decoded = RuntimeConfigDto::from_value(&saved["runtimeConfig"])
+        .unwrap()
+        .to_value()
+        .unwrap();
+    assert_eq!(
+        decoded["instruments"][0]["fm"],
+        runner.instruments[0].fm_config
+    );
+    let mut reloaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    reloaded.apply_config_payload(saved).unwrap();
+    assert_eq!(
+        reloaded.instruments[0].fm_config,
+        runner.instruments[0].fm_config
+    );
+
+    for (field, bad) in [
+        ("ratioFineCents", json!(-101)),
+        ("ratioFineCents", json!(101)),
+        ("velocityToIndexPct", json!(101)),
+        ("modShapePct", json!(101)),
+        ("modMixPct", json!(101)),
+        ("ratioFineCents", json!("10")),
+        ("velocityToIndexPct", json!(-1)),
+    ] {
+        let before = runner.config_payload();
+        let mut invalid = before.clone();
+        invalid["runtimeConfig"]["instruments"][0]["fm"][field] = bad;
+        assert!(runner.apply_config_payload(invalid).is_err(), "{field}");
+        assert_eq!(runner.config_payload(), before, "{field}");
+    }
 }
 
 #[test]
@@ -176,6 +261,20 @@ fn fm_saved_state_survives_type_switch_round_trip_clone_reset_and_audio_payload(
         runner.instruments[1].fm_config,
         super::super::synth_config::fm_default_config()
     );
+    for field in [
+        "ratioFineCents",
+        "velocityToIndexPct",
+        "modShapePct",
+        "modMixPct",
+    ] {
+        assert_eq!(
+            runner.instruments[1].fm_config[field]
+                .as_i64()
+                .unwrap_or_default(),
+            0,
+            "{field}"
+        );
+    }
 }
 
 #[test]

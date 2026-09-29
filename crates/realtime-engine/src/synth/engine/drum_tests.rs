@@ -109,11 +109,16 @@ fn drum_next_hit_scalars_preserve_active_hit_and_other_kit_voices() {
     }
     let old = *engine.synth_voice_pool.lane(0).unwrap();
     let other = engine.drum_voices[0][3];
+    let revision = engine.synth_render_revisions[0];
     for (param, value) in [
         (DrumParamId::TuneSemis, 12.0),
         (DrumParamId::DecayMs, 900.0),
         (DrumParamId::TonePct, 15.0),
         (DrumParamId::AttackMs, 20.0),
+        (DrumParamId::SweepSemis, 35.0),
+        (DrumParamId::SweepMs, 180.0),
+        (DrumParamId::NoiseMixPct, 65.0),
+        (DrumParamId::LevelPct, 70.0),
     ] {
         assert_eq!(
             engine.set_drum_param_typed(0, 2, param, value),
@@ -128,11 +133,103 @@ fn drum_next_hit_scalars_preserve_active_hit_and_other_kit_voices() {
         old.drum.decay_step.to_bits()
     );
     assert_eq!(engine.drum_voices[0][3].decay_ms, other.decay_ms);
+    assert_eq!(engine.drum_voices[0][3].level_pct, other.level_pct);
+    assert_eq!(engine.synth_render_revisions[0], revision);
     engine.drum_hit(0, 2, 0, 120);
     let new_hit = engine.synth_voice_pool.lane(1).unwrap();
     assert_eq!(new_hit.drum.attack_frames, 882);
     assert!(new_hit.drum.decay_step > old.drum.decay_step);
+    assert_eq!(new_hit.drum.sweep_remaining, 7_938);
+    assert_eq!(new_hit.drum.noise_mix, 0.65);
+    assert_eq!(new_hit.drum.level, 0.7);
     assert_eq!(engine.active_voice_count_for_slot(0), 2);
+}
+
+#[test]
+fn drum_new_voice_scalar_paths_are_strict_and_clamp_only_the_selected_voice() {
+    for (path, id) in [
+        ("drum.sweepSemis", DrumParamId::SweepSemis),
+        ("drum.sweepMs", DrumParamId::SweepMs),
+        ("drum.noiseMixPct", DrumParamId::NoiseMixPct),
+        ("drum.levelPct", DrumParamId::LevelPct),
+    ] {
+        assert_eq!(DrumParamId::from_path(path), Some(id));
+        assert!(DrumParamId::from_path(&format!("{path}Extra")).is_none());
+    }
+    let mut engine = drum_engine(DrumConfig::default(), 44_100);
+    assert_eq!(DrumParamId::ALL.len(), 14);
+    assert!(DrumParamId::ALL[..8]
+        .iter()
+        .copied()
+        .all(DrumParamId::is_voice_param));
+    assert!(DrumParamId::ALL[8..]
+        .iter()
+        .copied()
+        .all(|id| !id.is_voice_param()));
+    assert_eq!(
+        engine.set_drum_param_typed(0, 1, DrumParamId::SweepSemis, 99.0),
+        ScalarMutation::Changed
+    );
+    assert_eq!(engine.drum_voices[0][1].sweep_semis, 36);
+    assert_eq!(engine.drum_voices[0][0].sweep_semis, 24);
+    assert_eq!(
+        engine.set_drum_param_typed(0, 1, DrumParamId::SweepMs, f32::INFINITY),
+        ScalarMutation::Rejected
+    );
+    assert_eq!(
+        engine.set_drum_param_typed(0, 1, DrumParamId::LevelPct, -10.0),
+        ScalarMutation::Changed
+    );
+    assert_eq!(engine.drum_voices[0][1].level_pct, 0.0);
+    assert_eq!(
+        engine.set_drum_param_typed(0, 8, DrumParamId::LevelPct, 50.0),
+        ScalarMutation::Rejected
+    );
+}
+
+#[test]
+fn drum_sweep_zero_time_has_no_excursion_and_voice_controls_change_new_hit_timbre() {
+    let mut config = DrumConfig::default();
+    config.voices[0].sweep_semis = 36;
+    config.voices[0].sweep_ms = 0.0;
+    let mut no_sweep = drum_engine(config.clone(), 44_100);
+    let mut neutral = DrumConfig::default();
+    neutral.voices[0].sweep_semis = 0;
+    neutral.voices[0].sweep_ms = 0.0;
+    let mut baseline = drum_engine(neutral, 44_100);
+    no_sweep.drum_hit(0, 0, 0, 120);
+    baseline.drum_hit(0, 0, 0, 120);
+    let hit = no_sweep.synth_voice_pool.lane(0).unwrap();
+    assert_eq!(hit.drum.sweep_remaining, 0);
+    assert_eq!(
+        hit.drum.inc1.to_bits(),
+        baseline
+            .synth_voice_pool
+            .lane(0)
+            .unwrap()
+            .drum
+            .inc1
+            .to_bits()
+    );
+
+    let mut low_noise = config.clone();
+    low_noise.voices[0].sweep_semis = 0;
+    low_noise.voices[0].noise_mix_pct = 0.0;
+    let mut high_noise = low_noise.clone();
+    high_noise.voices[0].noise_mix_pct = 100.0;
+    let mut quiet = low_noise.clone();
+    quiet.voices[0].level_pct = 25.0;
+    let mut tone = drum_engine(low_noise, 44_100);
+    let mut noise = drum_engine(high_noise, 44_100);
+    let mut attenuated = drum_engine(quiet, 44_100);
+    for engine in [&mut tone, &mut noise, &mut attenuated] {
+        engine.drum_hit(0, 0, 0, 120);
+    }
+    let tone_sample = tone.next_sample();
+    let noise_sample = noise.next_sample();
+    let quiet_sample = attenuated.next_sample();
+    assert_ne!(tone_sample.to_bits(), noise_sample.to_bits());
+    assert!((quiet_sample - tone_sample * 0.25).abs() < 1e-7);
 }
 
 #[test]

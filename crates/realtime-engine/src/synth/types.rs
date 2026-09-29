@@ -183,7 +183,15 @@ impl FmRatio {
 #[serde(default)]
 pub struct FmConfig {
     pub ratio: FmRatio,
+    #[serde(rename = "ratioFineCents")]
+    pub ratio_fine_cents: i16,
     pub index: u8,
+    #[serde(rename = "velocityToIndexPct")]
+    pub velocity_to_index_pct: u8,
+    #[serde(rename = "modShapePct")]
+    pub mod_shape_pct: u8,
+    #[serde(rename = "modMixPct")]
+    pub mod_mix_pct: u8,
     #[serde(rename = "indexEnv")]
     pub index_env: EnvConfig,
     pub amp: AmpConfig,
@@ -199,7 +207,11 @@ impl Default for FmConfig {
         let synth = default_synth_config();
         Self {
             ratio: FmRatio::Two,
+            ratio_fine_cents: 0,
             index: 50,
+            velocity_to_index_pct: 0,
+            mod_shape_pct: 0,
+            mod_mix_pct: 0,
             index_env: EnvConfig {
                 attack_ms: 0.0,
                 decay_ms: 250.0,

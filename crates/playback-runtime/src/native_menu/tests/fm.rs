@@ -54,7 +54,21 @@ fn fm_type_and_seven_group_rows_use_standard_navigation() {
         ]
     );
     assert_eq!(fm.children.len(), 7);
-    assert_eq!(fm.children[1].children.len(), 2);
+    assert_eq!(
+        fm.children[1]
+            .children
+            .iter()
+            .map(|item| item.label.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "Ratio",
+            "Fine cents",
+            "Index",
+            "Vel to Index",
+            "Mod Shape",
+            "Mod Mix"
+        ]
+    );
     assert_eq!(fm.children[2].children.len(), 4);
     let fm_bindings = super::super::binding_tree::binding_tree_from_menu_item(fm, "aux.turn.0")
         .expect("FM numeric binding groups");
@@ -183,6 +197,42 @@ fn fm_picker_exposes_only_selected_continuous_controls() {
 }
 
 #[test]
+fn fm_fine_cents_display_signed_values_and_back_returns_to_tone_row() {
+    let mut menu = fm_menu();
+    let key = "instruments.0.fm.ratioFineCents";
+    assert!(menu.focus_item_key(key));
+    let selected_row = menu.snapshot().selected_row.unwrap();
+    assert_eq!(menu.snapshot().lines[selected_row], "> Fine cents +0c");
+
+    let _ = menu.press();
+    menu.turn(25);
+    let snapshot = menu.snapshot();
+    let selected_row = snapshot.selected_row.unwrap();
+    assert_eq!(snapshot.lines[selected_row], "> Fine cents:");
+    assert_eq!(snapshot.lines[selected_row + 1], "    * +25c");
+
+    menu.turn(-50);
+    let snapshot = menu.snapshot();
+    let selected_row = snapshot.selected_row.unwrap();
+    assert_eq!(snapshot.lines[selected_row], "> Fine cents:");
+    assert_eq!(snapshot.lines[selected_row + 1], "    * -25c");
+
+    menu.turn(25);
+    let snapshot = menu.snapshot();
+    let selected_row = snapshot.selected_row.unwrap();
+    assert_eq!(snapshot.lines[selected_row], "> Fine cents:");
+    assert_eq!(snapshot.lines[selected_row + 1], "    * +0c");
+
+    menu.back();
+    let snapshot = menu.snapshot();
+    let selected_row = snapshot.selected_row.unwrap();
+    assert_eq!(snapshot.lines[selected_row], "> Fine cents +0c");
+
+    menu.back();
+    assert_eq!(menu.current_label(), Some("Tone"));
+}
+
+#[test]
 fn fm_defaults_ranges_and_saved_values_are_independent_from_synth() {
     let menu = fm_menu();
     assert!(
@@ -191,6 +241,10 @@ fn fm_defaults_ranges_and_saved_values_are_independent_from_synth() {
     );
     for (field, expected, min, max, step) in [
         ("index", 50, 0, 100, 1),
+        ("ratioFineCents", 0, -100, 100, 1),
+        ("velocityToIndexPct", 0, 0, 100, 1),
+        ("modShapePct", 0, 0, 100, 1),
+        ("modMixPct", 0, 0, 100, 1),
         ("indexEnv.attackMs", 0, 0, 5000, 5),
         ("indexEnv.decayMs", 250, 0, 5000, 5),
         ("indexEnv.sustainPct", 20, 0, 100, 1),
@@ -240,6 +294,17 @@ fn fm_defaults_ranges_and_saved_values_are_independent_from_synth() {
         menu.value_for_key("instruments.0.fm.ratio"),
         Some("0.5".into())
     );
+    for field in [
+        "ratioFineCents",
+        "velocityToIndexPct",
+        "modShapePct",
+        "modMixPct",
+    ] {
+        assert_eq!(
+            menu.number_for_key(&format!("instruments.0.fm.{field}")),
+            Some(0)
+        );
+    }
     assert!(matches!(
         fm_item(&menu, "index").value,
         NativeMenuValue::Number { value: 87, .. }
@@ -270,6 +335,16 @@ fn fm_enum_and_group_help_resolve_to_fm_entries() {
     assert!(targets
         .iter()
         .any(|target| target.key.ends_with(".fm.ratio")));
+    for field in [
+        "ratioFineCents",
+        "velocityToIndexPct",
+        "modShapePct",
+        "modMixPct",
+    ] {
+        assert!(targets
+            .iter()
+            .any(|target| target.key == format!("key:instruments.*.fm.{field}")));
+    }
     assert!(targets
         .iter()
         .any(|target| target.kind == "group" && target.path.ends_with(" > FM")));

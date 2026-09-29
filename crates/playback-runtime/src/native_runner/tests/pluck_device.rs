@@ -35,6 +35,10 @@ fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
         ("decayMs", 1),
         ("brightnessPct", 1),
         ("pickPositionPct", 1),
+        ("pickDepthPct", 1),
+        ("dispersionPct", 1),
+        ("bodyAmountPct", 1),
+        ("bodyFrequencyHz", 1),
         ("amp.gainPct", -1),
         ("amp.velocitySensitivityPct", -1),
         ("ampEnv.releaseMs", 1),
@@ -56,6 +60,10 @@ fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
     assert_eq!(runner.instruments[0].pluck_config["decayMs"], 1505);
     assert_eq!(runner.instruments[0].pluck_config["brightnessPct"], 66);
     assert_eq!(runner.instruments[0].pluck_config["pickPositionPct"], 26);
+    assert_eq!(runner.instruments[0].pluck_config["pickDepthPct"], 66);
+    assert_eq!(runner.instruments[0].pluck_config["dispersionPct"], 1);
+    assert_eq!(runner.instruments[0].pluck_config["bodyAmountPct"], 1);
+    assert_eq!(runner.instruments[0].pluck_config["bodyFrequencyHz"], 501);
     assert_eq!(runner.audio_config_revision, 0);
 }
 

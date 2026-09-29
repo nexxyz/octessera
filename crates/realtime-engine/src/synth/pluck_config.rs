@@ -10,6 +10,14 @@ pub struct PluckConfig {
     pub brightness_pct: f32,
     #[serde(rename = "pickPositionPct")]
     pub pick_position_pct: f32,
+    #[serde(rename = "pickDepthPct")]
+    pub pick_depth_pct: u8,
+    #[serde(rename = "dispersionPct")]
+    pub dispersion_pct: u8,
+    #[serde(rename = "bodyAmountPct")]
+    pub body_amount_pct: u8,
+    #[serde(rename = "bodyFrequencyHz")]
+    pub body_frequency_hz: u16,
     pub amp: AmpConfig,
     #[serde(rename = "ampEnv")]
     pub amp_env: EnvConfig,
@@ -25,6 +33,10 @@ impl Default for PluckConfig {
             decay_ms: 1_500.0,
             brightness_pct: 65.0,
             pick_position_pct: 25.0,
+            pick_depth_pct: 65,
+            dispersion_pct: 0,
+            body_amount_pct: 0,
+            body_frequency_hz: 500,
             amp: synth.amp,
             amp_env: EnvConfig {
                 attack_ms: 0.0,
@@ -54,6 +66,7 @@ impl PluckConfig {
             self.decay_ms,
             self.brightness_pct,
             self.pick_position_pct,
+            self.body_frequency_hz as f32,
             self.amp.gain_pct,
             self.amp.velocity_sensitivity_pct,
             self.amp_env.attack_ms,
@@ -73,6 +86,10 @@ impl PluckConfig {
             || !(100.0..=5_000.0).contains(&self.decay_ms)
             || !(0.0..=100.0).contains(&self.brightness_pct)
             || !(5.0..=50.0).contains(&self.pick_position_pct)
+            || self.pick_depth_pct > 100
+            || self.dispersion_pct > 100
+            || self.body_amount_pct > 100
+            || !(100..=2000).contains(&self.body_frequency_hz)
         {
             return Err("invalid Plucked parameter value".into());
         }

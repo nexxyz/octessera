@@ -23,14 +23,17 @@ pub(super) struct SynthVoiceRenderConfig {
 pub(super) enum VoiceSource {
     Synth,
     Fm {
-        ratio: f32,
+        base_ratio: f32,
+        effective_ratio: f32,
+        ratio_fine_cents: i16,
         index: f32,
+        velocity_to_index: f32,
+        mod_shape: f32,
+        mod_mix: f32,
         index_env: EnvConfig,
     },
     Pluck {
-        decay_ms: f32,
-        brightness_pct: f32,
-        pick_position_pct: f32,
+        settings: crate::synth::pluck_string::PluckStringSettings,
     },
     Drum,
     Disabled,
@@ -72,8 +75,17 @@ impl SynthVoiceRenderConfig {
     pub(super) fn from_fm(cfg: FmConfig) -> Self {
         let mut render = Self::from_config(cfg.common_voice_config());
         render.source = VoiceSource::Fm {
-            ratio: cfg.ratio.value(),
+            base_ratio: cfg.ratio.value(),
+            effective_ratio: if cfg.ratio_fine_cents == 0 {
+                cfg.ratio.value()
+            } else {
+                cfg.ratio.value() * 2.0_f32.powf(cfg.ratio_fine_cents as f32 / 1200.0)
+            },
+            ratio_fine_cents: cfg.ratio_fine_cents,
             index: cfg.index.min(100) as f32 * 0.04,
+            velocity_to_index: cfg.velocity_to_index_pct as f32 * 0.01,
+            mod_shape: cfg.mod_shape_pct as f32 * 0.01,
+            mod_mix: cfg.mod_mix_pct as f32 * 0.01,
             index_env: cfg.index_env,
         };
         render
@@ -82,9 +94,7 @@ impl SynthVoiceRenderConfig {
     pub(super) fn from_pluck(cfg: PluckConfig) -> Self {
         let mut render = Self::from_config(cfg.common_voice_config());
         render.source = VoiceSource::Pluck {
-            decay_ms: cfg.decay_ms,
-            brightness_pct: cfg.brightness_pct,
-            pick_position_pct: cfg.pick_position_pct,
+            settings: cfg.into(),
         };
         render
     }
@@ -133,9 +143,11 @@ pub(super) fn refresh_synth_voice_render_cache(
 ) {
     voice.velocity_norm = (voice.velocity as f32 / 127.0).clamp(0.0, 1.0);
     let (osc1_inc, osc2_inc) = match cfg.source {
-        VoiceSource::Fm { ratio, .. } => (
+        VoiceSource::Fm {
+            effective_ratio, ..
+        } => (
             (voice.freq_hz / sample_rate as f32).clamp(0.0, 0.5),
-            (voice.freq_hz * ratio / sample_rate as f32).clamp(0.0, 0.5),
+            (voice.freq_hz * effective_ratio / sample_rate as f32).clamp(0.0, 0.5),
         ),
         VoiceSource::Pluck { .. } | VoiceSource::Drum => (0.0, 0.0),
         _ => cfg.osc_increments(voice.freq_hz, sample_rate),
@@ -152,15 +164,38 @@ pub(super) fn refresh_synth_voice_render_cache(
     } else {
         0.0
     };
-    if let VoiceSource::Pluck {
-        decay_ms,
-        brightness_pct,
+    if let VoiceSource::Fm {
+        effective_ratio,
+        index,
+        velocity_to_index,
+        mod_shape,
+        mod_mix,
         ..
     } = cfg.source
     {
+        let velocity_scale = if velocity_to_index == 0.0 {
+            1.0
+        } else {
+            (1.0 - velocity_to_index) + velocity_to_index * voice.velocity_norm
+        };
+        let limited_index = (index * velocity_scale).min(voice.fm_index_limit);
+        voice.fm_modulator_raw_inc = voice.freq_hz * effective_ratio / sample_rate as f32;
+        let shape = mod_shape * 0.5;
+        let upper = osc1_inc
+            + 2.0 * voice.fm_modulator_raw_inc
+            + limited_index * voice.fm_modulator_raw_inc * (1.0 + shape);
+        let shaped = shape * crate::synth::engine::fm_render::fade(upper);
+        voice.fm_index_fundamental = limited_index * (1.0 - shaped);
+        voice.fm_index_second = limited_index * shaped;
+        voice.fm_direct_mix =
+            mod_mix * crate::synth::engine::fm_render::fade(voice.fm_modulator_raw_inc);
+        voice.fm_normalization = 1.0 / (1.0 + voice.fm_direct_mix);
+        voice.fm_neutral = velocity_to_index == 0.0 && mod_shape == 0.0 && mod_mix == 0.0;
+    }
+    if let VoiceSource::Pluck { settings } = cfg.source {
         voice
             .pluck
-            .update_coefficients(voice.freq_hz, decay_ms, brightness_pct);
+            .update_coefficients(voice.freq_hz, settings.decay_ms, settings.brightness_pct);
     }
     voice.render_revision = render_revision;
 }
@@ -260,11 +295,29 @@ fn source_sample(
         VoiceSource::Fm { index, .. } => {
             v.phase1 = (v.phase1 + v.osc1_inc).fract();
             v.phase2 = (v.phase2 + v.osc2_inc).fract();
-            (TAU * v.phase1
-                + index.min(v.fm_index_limit) * v.index_env.next() * (TAU * v.phase2).sin())
-            .sin()
+            let modulator = (TAU * v.phase2).sin();
+            if v.fm_neutral {
+                (TAU * v.phase1 + index.min(v.fm_index_limit) * v.index_env.next() * modulator)
+                    .sin()
+            } else {
+                let env = v.index_env.next();
+                crate::synth::engine::fm_render::sample(
+                    TAU * v.phase1,
+                    TAU * v.phase2,
+                    modulator,
+                    env,
+                    v,
+                )
+            }
         }
-        VoiceSource::Pluck { .. } => v.pluck.next(ring),
+        VoiceSource::Pluck { .. } => {
+            let dry = v.pluck.next(ring);
+            if v.pluck.body_amount == 0.0 {
+                dry
+            } else {
+                dry + 0.5 * v.pluck.body_amount * v.pluck.body.process_prepared(dry)
+            }
+        }
         VoiceSource::Drum => v.drum.next(),
         VoiceSource::Disabled => 0.0,
     }
@@ -332,8 +385,32 @@ mod render_voice_tests;
 mod fm_tests;
 
 #[cfg(test)]
+#[path = "fm_core_tests.rs"]
+mod fm_core_tests;
+
+#[cfg(test)]
+#[path = "fm_spectral_tests.rs"]
+mod fm_spectral_tests;
+
+#[cfg(test)]
 #[path = "pluck_tests.rs"]
 mod pluck_tests;
+
+#[cfg(test)]
+#[path = "pluck_dispersion_tests.rs"]
+mod pluck_dispersion_tests;
+
+#[cfg(test)]
+#[path = "pluck_pitch_tests.rs"]
+mod pluck_pitch_tests;
+
+#[cfg(test)]
+#[path = "pluck_modal_tests.rs"]
+mod pluck_modal_tests;
+
+#[cfg(test)]
+#[path = "pluck_pitch_calibration_tests.rs"]
+mod pluck_pitch_calibration_tests;
 
 #[cfg(test)]
 #[path = "pluck_worker_tests.rs"]
