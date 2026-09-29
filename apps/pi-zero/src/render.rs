@@ -34,7 +34,7 @@ pub(crate) use oled::OLED_FRAME_BYTES;
 use oled::{glyph_rows, oled_frame, oled_frame_into};
 pub(crate) use oled_output::physical_oled_publication;
 pub(crate) use oled_output::retry_oled_if_due;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 use oled_output::OledRenderDevice;
 use oled_output::{force_oled_render, render_oled_if_changed};
 pub(crate) use oled_ownership::{

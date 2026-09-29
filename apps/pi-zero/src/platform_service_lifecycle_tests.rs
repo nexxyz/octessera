@@ -9,7 +9,7 @@ fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
     }
     use crate::setup_portal::SetupPortalEnvironment;
     use crate::setup_portal_files::SetupPortalPaths;
-    use playback_runtime::{RuntimePlatformEffect, RuntimeStoreResult};
+    use playback_runtime::{RuntimePlatformEffect, RuntimeSetupPortalPhase, RuntimeStoreResult};
     use std::time::Duration;
 
     let root = std::env::temp_dir().join(format!(
@@ -60,7 +60,25 @@ fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
     });
     std::fs::write(&paths.current, serde_json::to_vec(&starting).unwrap()).unwrap();
     set_mode(&paths.current, 0o640);
-    std::thread::sleep(Duration::from_millis(40));
+    let mut found_starting = false;
+    for _ in 0..200 {
+        found_starting |= service.drain_results(64).into_iter().any(|message| {
+            matches!(
+                message,
+                HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::Identified { request_id, revision, result, .. }
+                } if request_id == "setup-after-queue"
+                    && revision == Some(9)
+                    && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status }
+                        if status.phase == RuntimeSetupPortalPhase::Starting)
+            )
+        });
+        if found_starting {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(found_starting);
     let ready = serde_json::json!({
         "schema": 1,
         "status": {"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}
@@ -76,7 +94,8 @@ fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
                     result: RuntimeStoreResult::Identified { request_id, revision, result, .. }
                 } if request_id == "setup-after-queue"
                     && revision == Some(9)
-                    && matches!(*result, RuntimeStoreResult::SetupPortalStatus { .. })
+                    && matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status }
+                        if status.phase == RuntimeSetupPortalPhase::PortalReady)
             )
         });
         if found {
