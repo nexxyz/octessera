@@ -94,8 +94,14 @@ function Invoke-OrangeIdentity {
   $stdout = Join-Path $Directory "passive.stdout.txt"
   $stderr = Join-Path $Directory "passive.stderr.txt"
   $command = Get-IdentityCommand
-  & $transport -Command ssh -Target $Target $command 1> $stdout 2> $stderr
-  $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+  $payloadPath = Join-Path ([IO.Path]::GetTempPath()) ("octessera-orange-identity-" + [guid]::NewGuid().ToString("N") + ".sh")
+  try {
+    [IO.File]::WriteAllText($payloadPath, $command.Replace("`r`n", "`n"), (New-Object System.Text.UTF8Encoding($false)))
+    & $transport -Command ssh-payload -Target $Target $payloadPath 1> $stdout 2> $stderr
+    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+  } finally {
+    Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
+  }
   if ($exitCode -ne 0) { throw "Orange passive identity collection failed: $exitCode" }
   $identityText = Get-Content -LiteralPath $stdout -Raw
   if ($identityText -notmatch "board_profile=orange-pi-zero-2w" -or $identityText -notmatch "service_active=active" -or $identityText -notmatch "service_enabled=enabled") { throw "Orange passive identity did not prove the fixed board and managed service state." }

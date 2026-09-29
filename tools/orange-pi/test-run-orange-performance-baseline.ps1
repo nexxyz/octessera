@@ -47,6 +47,10 @@ Assert-Throws { & $driver -PrintOnly } "omitted target"
 
 Assert-Contains $driverSource "/etc/octessera/build-metadata.env"
 if ($driverSource -match "/etc/octessera/board-profile\.env") { throw "Orange baseline passive identity regressed to the Raspberry board-profile path." }
+if ($driverSource -notmatch '\$transport -Command ssh-payload -Target \$Target \$payloadPath' -or $driverSource -notmatch 'finally\s*\{\s*Remove-Item -LiteralPath \$payloadPath') { throw "Orange passive identity must use a temporary ssh-payload script and clean it up." }
+Assert-Contains $driverSource '$command.Replace("`r`n", "`n")'
+$crlfIdentityScript = "set -eu`r`nprintf 'payload_transport_ok'"
+if ($crlfIdentityScript.Replace("`r`n", "`n") -cne "set -eu`nprintf 'payload_transport_ok'") { throw "Orange passive identity payload did not normalize CRLF to LF." }
 
 function Write-ManifestCopy {
   param([Parameter(Mandatory)][object]$Value, [Parameter(Mandatory)][string]$Path)
