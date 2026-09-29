@@ -1,9 +1,9 @@
 # Pi and board deployment
 
 Deployment is a state-changing hardware path. Raspberry deployment helpers do
-not deploy to Orange, and Orange input-routing changes use their separate
-board-specific wrapper. SSH reachability, an earlier approval, and a read-only
-probe do not authorize the next state-changing action.
+not deploy to Orange. Orange development deployment and Orange input-routing
+changes have separate board-specific wrappers. SSH reachability, an earlier
+approval, and a read-only probe do not authorize the next state-changing action.
 
 ## Raspberry development deployment
 
@@ -48,6 +48,35 @@ CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardw
 The fast deployment helper transfers Raspberry binary/source content, restarts
 the configured service, and optionally tails logs. Provision separately when
 the OS, boot configuration, splash binary, or splash assets changed.
+
+## Orange development deployment (not a release update)
+
+With fresh authorization for an Orange service interruption, deploy an exact
+Orange cross-built `octessera-pi` runtime candidate to keep a development build
+running after the terminal closes:
+
+```powershell
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release
+./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -LocalBinary target/orange-pi-cross/octessera-pi
+# Explicitly return to the installed release when finished:
+./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -Restore
+```
+
+The build requires a clean source tree; deployment checks HEAD, the exact
+adjacent schema-2 sidecar and binary SHA-256 before touching the service. It
+uses the fixed Orange SSH wrapper, stages under `/opt/octessera/dev/<sha>/`,
+and applies one service drop-in that changes only `ExecStart`. It refuses
+foreign or existing drop-ins, verifies the new process executable, and checks
+for journal warnings. On activation failure it attempts a checked return to
+the installed release; if rollback fails, inspect the service manually before
+continuing. The explicit `-Restore` action verifies the installed executable
+again. This leaves releases, `current`, the installed symlink, updater metadata,
+boot configuration, and the image untouched. `/pi-smoke orange` remains a
+temporary foreground check and must **not** replace the installed service.
+An active process and a journal without warnings do not establish glitch-free
+audio; listen and exercise controls on the board before calling it qualified.
+See [Orange Pi tools](../../tools/orange-pi/README.md) for the full contract.
 
 ## Orange input-routing deployment
 
