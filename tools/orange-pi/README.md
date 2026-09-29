@@ -138,7 +138,7 @@ $OrangeTarget = "octessera@<ORANGE_HOST>"
 
 For input-routing changes, use the [Orange input-routing reference](../../hardware/docs/orange-pi-input-routing.md)
 and its `provision-input-routing.ps1` wrapper. The [deployment workflow](../../docs/workflows/deployment.md)
-covers Raspberry deployment and Orange input routing.
+covers Raspberry deployment, Orange development deployment, and Orange input routing.
 
 ## Cross-build and stage
 
@@ -171,6 +171,39 @@ $OrangeTarget = "octessera@<ORANGE_HOST>"
   target/orange-pi-cross/octessera-pi.metadata.json `
   "${OrangeTarget}:/tmp/octessera-pi.metadata.json"
 ```
+
+### Persistent Orange development runtime (explicit opt-in)
+
+This is **not** the release updater and is separate from the temporary
+foreground `/pi-smoke orange` run. After reviewing the target, artifact, and
+service interruption, use the exact cross-built runtime candidate and its
+unchanged adjacent metadata sidecar:
+
+```powershell
+$OrangeTarget = "octessera@<ORANGE_HOST>"
+./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -LocalBinary target/orange-pi-cross/octessera-pi
+# Later, to return to the installed release:
+./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -Restore
+./tools/orange-pi/test-deploy-opi-fast.ps1
+```
+
+The binary must match the current repository HEAD and be an ELF64 AArch64
+`runtime-candidate` for `orange-pi-zero-2w`, with schema-2 release-profile
+metadata and matching SHA-256. This does **not** promote `runtime_ready` or
+write release/updater metadata. On the board, the tool stages a root-owned
+copy at `/opt/octessera/dev/<source-commit>/octessera-pi` and overrides only
+`ExecStart` using `/etc/systemd/system/octessera.service.d/90-octessera-dev.conf`.
+It refuses a pre-existing drop-in or an unexpected service/executable, checks
+the restarted process, and tries to restore the installed service on activation
+failure. `-Restore` removes only the recognized development override; it does
+not delete the development binary. Neither action touches `current`, releases,
+the installed executable symlink, boot files, or the image. A failure to verify
+rollback requires immediate manual service inspection. Journal errors and
+underruns are reported as warnings; an active service is not proof of clean
+audio. Keep hardware listening and control checks in the operator loop. The
+tool refuses an existing `/opt/octessera/dev/<source-commit>` directory rather
+than overwriting a previously staged build; restore leaves that directory in
+place for explicit operator review or cleanup.
 
 ## Performance tools
 
