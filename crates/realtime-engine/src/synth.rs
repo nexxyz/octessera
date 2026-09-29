@@ -7,6 +7,7 @@ mod fx;
 mod fx_param;
 mod fx_params;
 mod pluck_config;
+mod pluck_dispersion;
 mod pluck_string;
 mod runtime_state;
 mod scalar_param;

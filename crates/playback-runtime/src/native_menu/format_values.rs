@@ -16,6 +16,9 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
             _ => raw,
         };
     }
+    if key.starts_with("instruments.") && key.ends_with(".fm.ratioFineCents") {
+        return format!("{:+}c", raw.parse::<i32>().unwrap_or(0));
+    }
     if key.starts_with("instruments.") && key.ends_with(".type") && raw == "fm" {
         return "FM".into();
     }

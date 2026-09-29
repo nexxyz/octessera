@@ -51,6 +51,22 @@ fn plucked_type_and_six_rows_use_standard_oled_navigation() {
             "Filter Env"
         ]
     );
+    assert_eq!(
+        slot.children[2].children[1]
+            .children
+            .iter()
+            .map(|row| row.label.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "Decay",
+            "Brightness",
+            "Pick Pos",
+            "Pick Depth",
+            "Stiffness",
+            "Body Amt",
+            "Body Hz"
+        ]
+    );
     assert!(menu.focus_current_group_label("Plucked"));
     let _ = menu.press();
     assert_eq!(menu.snapshot().lines.len(), 6);
@@ -75,6 +91,13 @@ fn plucked_type_and_six_rows_use_standard_oled_navigation() {
         menu.number_for_key("instruments.0.pluck.decayMs"),
         Some(1505)
     );
+    assert!(menu.focus_item_key("instruments.0.pluck.bodyFrequencyHz"));
+    let snapshot = menu.snapshot();
+    assert_eq!(snapshot.lines.len(), 7);
+    let selected_row = snapshot.selected_row.unwrap();
+    assert!(snapshot.lines[selected_row].starts_with("> Body Hz"));
+    menu.back();
+    assert_eq!(menu.current_label(), Some("String"));
 }
 
 #[test]
@@ -84,6 +107,10 @@ fn plucked_defaults_ranges_and_saved_values_stay_in_own_block() {
         ("decayMs", 1500, 100, 5000, 5),
         ("brightnessPct", 65, 0, 100, 1),
         ("pickPositionPct", 25, 5, 50, 1),
+        ("pickDepthPct", 65, 0, 100, 1),
+        ("dispersionPct", 0, 0, 100, 1),
+        ("bodyAmountPct", 0, 0, 100, 1),
+        ("bodyFrequencyHz", 500, 100, 2000, 1),
         ("filter.resonance", 20, 0, 255, 1),
         ("filter.envAmountPct", 0, -100, 100, 1),
         ("filter.keyTrackingPct", 0, 0, 100, 1),
@@ -147,6 +174,17 @@ fn plucked_defaults_ranges_and_saved_values_stay_in_own_block() {
         menu.number_for_key("instruments.0.pluck.pickPositionPct"),
         Some(12)
     );
+    for (field, value) in [
+        ("pickDepthPct", 65),
+        ("dispersionPct", 0),
+        ("bodyAmountPct", 0),
+        ("bodyFrequencyHz", 500),
+    ] {
+        assert_eq!(
+            menu.number_for_key(&format!("instruments.0.pluck.{field}")),
+            Some(value)
+        );
+    }
     assert_eq!(
         menu.number_for_key("instruments.0.pluck.amp.gainPct"),
         Some(24)
@@ -248,6 +286,16 @@ fn plucked_help_resolves_for_groups_and_numeric_controls() {
     assert!(targets
         .iter()
         .any(|target| target.key.ends_with(".pluck.pickPositionPct")));
+    for field in [
+        "pickDepthPct",
+        "dispersionPct",
+        "bodyAmountPct",
+        "bodyFrequencyHz",
+    ] {
+        assert!(targets
+            .iter()
+            .any(|target| target.key == format!("key:instruments.*.pluck.{field}")));
+    }
     assert!(targets
         .iter()
         .any(|target| target.kind == "group" && target.path.ends_with(" > Plucked")));

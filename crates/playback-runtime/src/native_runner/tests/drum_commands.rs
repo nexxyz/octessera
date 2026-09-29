@@ -34,23 +34,53 @@ fn sound_is_structural_but_kit_voice_and_common_numeric_edits_are_typed() {
     let mut runner = drum_runner();
     let revision = runner.audio_config_revision;
     let other = runner.instruments[1].clone();
-    for (key, path, voice) in [
-        ("instruments.0.drum.voices.0.decayMs", "drum.decayMs", 0),
-        ("instruments.0.drum.voices.0.tonePct", "drum.tonePct", 0),
-        ("instruments.0.drum.voices.0.attackMs", "drum.attackMs", 0),
-        ("instruments.0.drum.voices.0.tuneSemis", "drum.tuneSemis", 0),
-        ("instruments.0.drum.amp.gainPct", "drum.amp.gainPct", 0),
+    for (key, path, voice, delta) in [
+        ("instruments.0.drum.voices.0.decayMs", "drum.decayMs", 0, 1),
+        ("instruments.0.drum.voices.0.tonePct", "drum.tonePct", 0, 1),
+        (
+            "instruments.0.drum.voices.0.attackMs",
+            "drum.attackMs",
+            0,
+            1,
+        ),
+        (
+            "instruments.0.drum.voices.0.tuneSemis",
+            "drum.tuneSemis",
+            0,
+            1,
+        ),
+        (
+            "instruments.0.drum.voices.0.sweepSemis",
+            "drum.sweepSemis",
+            0,
+            1,
+        ),
+        ("instruments.0.drum.voices.0.sweepMs", "drum.sweepMs", 0, 1),
+        (
+            "instruments.0.drum.voices.0.noiseMixPct",
+            "drum.noiseMixPct",
+            0,
+            1,
+        ),
+        (
+            "instruments.0.drum.voices.0.levelPct",
+            "drum.levelPct",
+            0,
+            -1,
+        ),
+        ("instruments.0.drum.amp.gainPct", "drum.amp.gainPct", 0, 1),
         (
             "instruments.0.drum.filter.resonance",
             "drum.filter.resonance",
             0,
+            1,
         ),
     ] {
         assert!(runner.menu.focus_item_key(key), "{key}");
         runner.menu.state.editing = true;
         let edited = commands(&input(
             &mut runner,
-            json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+            json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
         ));
         assert!(
             matches!(&edited[..], [RuntimeAudioCommand::SetDrumParam {

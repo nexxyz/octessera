@@ -1,4 +1,5 @@
 use super::*;
+use crate::synth::DrumSound;
 
 #[test]
 fn normalizes_shared_config_and_preserves_sample_paths() {
@@ -51,6 +52,10 @@ fn fm_slot_defaults_without_block_and_rejects_unsupported_present_kind() {
     let fm = slot.slot.fm.unwrap_or_default();
     assert_eq!(fm.ratio, super::super::types::FmRatio::Two);
     assert_eq!(fm.index, 50);
+    assert_eq!(fm.ratio_fine_cents, 0);
+    assert_eq!(fm.velocity_to_index_pct, 0);
+    assert_eq!(fm.mod_shape_pct, 0);
+    assert_eq!(fm.mod_mix_pct, 0);
     assert_eq!(fm.index_env.decay_ms, 250.0);
     assert_eq!(fm.amp_env.release_ms, 350.0);
     assert_eq!(fm.filter.cutoff_hz, default_synth_config().filter.cutoff_hz);
@@ -58,6 +63,50 @@ fn fm_slot_defaults_without_block_and_rejects_unsupported_present_kind() {
     assert!(
         normalize_audio_config(&serde_json::json!({"instruments":[{"type":"unknown"}]})).is_err()
     );
+}
+
+#[test]
+fn fm_new_numeric_parameters_default_and_reject_invalid_values() {
+    let old = normalize_instrument_slot_config(&serde_json::json!({
+        "type":"fm", "fm":{"ratio":"2","index":50}
+    }))
+    .unwrap()
+    .slot
+    .fm
+    .unwrap();
+    let neutral = normalize_instrument_slot_config(&serde_json::json!({
+        "type":"fm", "fm":{"ratio":"2","index":50,"ratioFineCents":0,
+        "velocityToIndexPct":0,"modShapePct":0,"modMixPct":0}
+    }))
+    .unwrap()
+    .slot
+    .fm
+    .unwrap();
+    assert_eq!(old.ratio_fine_cents, neutral.ratio_fine_cents);
+    assert_eq!(old.velocity_to_index_pct, neutral.velocity_to_index_pct);
+    assert_eq!(old.mod_shape_pct, neutral.mod_shape_pct);
+    assert_eq!(old.mod_mix_pct, neutral.mod_mix_pct);
+    for (key, value) in [
+        ("ratioFineCents", serde_json::json!(-101)),
+        ("ratioFineCents", serde_json::json!(101)),
+        ("ratioFineCents", serde_json::json!(0.5)),
+        ("ratioFineCents", serde_json::Value::Null),
+        ("velocityToIndexPct", serde_json::json!(101)),
+        ("velocityToIndexPct", serde_json::json!(null)),
+        ("modShapePct", serde_json::json!(101)),
+        ("modMixPct", serde_json::json!(101)),
+        ("modMixPct", serde_json::json!(1e100)),
+    ] {
+        let mut fm = serde_json::Map::new();
+        fm.insert(key.into(), value);
+        assert!(
+            normalize_instrument_slot_config(&serde_json::json!({
+                "type":"fm", "fm":fm
+            }))
+            .is_err(),
+            "accepted {key}"
+        );
+    }
 }
 
 #[test]
@@ -95,6 +144,10 @@ fn pluck_slot_defaults_and_numeric_validation_preserve_other_sources() {
     assert_eq!(pluck.decay_ms, 1500.0);
     assert_eq!(pluck.brightness_pct, 65.0);
     assert_eq!(pluck.pick_position_pct, 25.0);
+    assert_eq!(pluck.pick_depth_pct, 65);
+    assert_eq!(pluck.dispersion_pct, 0);
+    assert_eq!(pluck.body_amount_pct, 0);
+    assert_eq!(pluck.body_frequency_hz, 500);
     assert_eq!(pluck.amp.gain_pct, 80.0);
     assert_eq!(
         (
@@ -143,6 +196,44 @@ fn pluck_slot_defaults_and_numeric_validation_preserve_other_sources() {
 }
 
 #[test]
+fn pluck_new_parameters_default_for_old_payloads_and_reject_invalid_values() {
+    let old: PluckConfig = serde_json::from_value(serde_json::json!({
+        "decayMs":1500,"brightnessPct":65,"pickPositionPct":25
+    }))
+    .unwrap();
+    let explicit: PluckConfig = serde_json::from_value(serde_json::json!({
+        "decayMs":1500,"brightnessPct":65,"pickPositionPct":25,
+        "pickDepthPct":65,"dispersionPct":0,"bodyAmountPct":0,"bodyFrequencyHz":500
+    }))
+    .unwrap();
+    assert_eq!(old.pick_depth_pct, explicit.pick_depth_pct);
+    assert_eq!(old.dispersion_pct, explicit.dispersion_pct);
+    assert_eq!(old.body_amount_pct, explicit.body_amount_pct);
+    assert_eq!(old.body_frequency_hz, explicit.body_frequency_hz);
+    for (key, value) in [
+        ("pickDepthPct", serde_json::json!(101)),
+        ("pickDepthPct", serde_json::json!(null)),
+        ("dispersionPct", serde_json::json!(101)),
+        ("dispersionPct", serde_json::json!(0.5)),
+        ("bodyAmountPct", serde_json::json!(101)),
+        ("bodyAmountPct", serde_json::json!(null)),
+        ("bodyFrequencyHz", serde_json::json!(99)),
+        ("bodyFrequencyHz", serde_json::json!(2001)),
+        ("bodyFrequencyHz", serde_json::json!(1e100)),
+    ] {
+        let mut pluck = serde_json::Map::new();
+        pluck.insert(key.into(), value);
+        assert!(
+            normalize_instrument_slot_config(&serde_json::json!({
+                "type":"pluck", "pluck":pluck
+            }))
+            .is_err(),
+            "accepted {key}"
+        );
+    }
+}
+
+#[test]
 fn drum_default_kit_and_invalid_present_fields_are_checked_without_changing_legacy_slots() {
     let slot = normalize_instrument_slot_config(&serde_json::json!({"type":"drum"})).unwrap();
     assert!(slot.slot.drum.is_none());
@@ -155,6 +246,11 @@ fn drum_default_kit_and_invalid_present_fields_are_checked_without_changing_lega
         ("attackMs", serde_json::json!(51)),
         ("tuneSemis", serde_json::json!(-13)),
         ("sound", serde_json::json!("unknown")),
+        ("sweepSemis", serde_json::json!(37)),
+        ("sweepMs", serde_json::json!(201)),
+        ("sweepMs", serde_json::json!(1e100)),
+        ("noiseMixPct", serde_json::json!(101)),
+        ("levelPct", serde_json::json!(-1)),
     ] {
         let mut drum = serde_json::to_value(&default).unwrap();
         drum["voices"][0][path] = invalid;
@@ -186,4 +282,75 @@ fn drum_default_kit_and_invalid_present_fields_are_checked_without_changing_lega
             .drum
             .is_none()
     );
+}
+
+#[test]
+fn drum_legacy_voice_defaults_follow_sound_when_reordered_and_roundtrip() {
+    let defaults = DrumConfig::default();
+    let mut legacy = serde_json::to_value(&defaults).unwrap();
+    for voice in legacy["voices"].as_array_mut().unwrap() {
+        for key in ["sweepSemis", "sweepMs", "noiseMixPct", "levelPct"] {
+            voice.as_object_mut().unwrap().remove(key);
+        }
+    }
+    legacy["voices"] = serde_json::json!([
+        legacy["voices"][7],
+        legacy["voices"][6],
+        legacy["voices"][5],
+        legacy["voices"][4],
+        legacy["voices"][3],
+        legacy["voices"][2],
+        legacy["voices"][1],
+        legacy["voices"][0]
+    ]);
+    let decoded: DrumConfig = serde_json::from_value(legacy).unwrap();
+    assert_eq!(
+        DrumSound::ALL.map(|sound| sound.default_voice().sweep_semis),
+        [24, 3, 0, 0, 8, 6, 0, 0]
+    );
+    assert_eq!(
+        DrumSound::ALL.map(|sound| sound.default_voice().sweep_ms),
+        [55.0, 25.0, 0.0, 0.0, 70.0, 50.0, 0.0, 0.0]
+    );
+    assert_eq!(
+        DrumSound::ALL.map(|sound| sound.default_voice().noise_mix_pct),
+        [12.0, 80.0, 95.0, 95.0, 15.0, 15.0, 95.0, 35.0]
+    );
+    for (voice, sound) in decoded.voices.iter().zip(DrumSound::ALL.into_iter().rev()) {
+        assert_eq!(voice.sound, sound);
+        let expected = sound.default_voice();
+        assert_eq!(voice.sweep_semis, expected.sweep_semis);
+        assert_eq!(voice.sweep_ms, expected.sweep_ms);
+        assert_eq!(voice.noise_mix_pct, expected.noise_mix_pct);
+        assert_eq!(voice.level_pct, 100.0);
+    }
+    let encoded = serde_json::to_value(&decoded).unwrap();
+    let roundtrip: DrumConfig = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        roundtrip.voices.map(|voice| voice.sweep_semis),
+        decoded.voices.map(|voice| voice.sweep_semis)
+    );
+    assert_eq!(
+        roundtrip.voices.map(|voice| voice.sweep_ms),
+        decoded.voices.map(|voice| voice.sweep_ms)
+    );
+    assert_eq!(
+        roundtrip.voices.map(|voice| voice.noise_mix_pct),
+        decoded.voices.map(|voice| voice.noise_mix_pct)
+    );
+    assert_eq!(
+        roundtrip.voices.map(|voice| voice.level_pct),
+        decoded.voices.map(|voice| voice.level_pct)
+    );
+
+    let mut missing_legacy_field = serde_json::to_value(&defaults).unwrap();
+    missing_legacy_field["voices"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("attackMs");
+    assert!(serde_json::from_value::<DrumConfig>(missing_legacy_field).is_err());
+
+    let mut malformed_new_field = serde_json::to_value(&defaults).unwrap();
+    malformed_new_field["voices"][0]["levelPct"] = serde_json::Value::Null;
+    assert!(serde_json::from_value::<DrumConfig>(malformed_new_field).is_err());
 }

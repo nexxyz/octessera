@@ -20,18 +20,45 @@ impl SynthEngine {
         if self.slot_kind[slot] != InstrumentKind::Fm || !value.is_finite() {
             return ScalarMutation::Rejected;
         }
-        let synth = &mut self.instruments[slot];
         let source = &mut self.synth_render_configs[slot].source;
         let render_voice::VoiceSource::Fm {
-            index, index_env, ..
+            base_ratio,
+            effective_ratio,
+            ratio_fine_cents,
+            index,
+            velocity_to_index,
+            mod_shape,
+            mod_mix,
+            index_env,
         } = source
         else {
             return ScalarMutation::Rejected;
         };
+        let synth = &mut self.instruments[slot];
         let mutation = match id {
+            FmParamId::RatioFineCents => {
+                let mut cents = f32::from(*ratio_fine_cents);
+                let mutation = set_clamped_f32(&mut cents, value.round(), -100.0, 100.0, 1.0);
+                if mutation == ScalarMutation::Changed {
+                    *ratio_fine_cents = cents as i16;
+                    *effective_ratio = if cents == 0.0 {
+                        *base_ratio
+                    } else {
+                        *base_ratio * 2.0_f32.powf(cents / 1200.0)
+                    };
+                }
+                mutation
+            }
             FmParamId::Index => {
                 set_clamped_f32(index, value.round().clamp(0.0, 100.0) * 0.04, 0.0, 4.0, 1.0)
             }
+            FmParamId::VelocityToIndexPct => {
+                set_clamped_f32(velocity_to_index, value.round() * 0.01, 0.0, 1.0, 1.0)
+            }
+            FmParamId::ModShapePct => {
+                set_clamped_f32(mod_shape, value.round() * 0.01, 0.0, 1.0, 1.0)
+            }
+            FmParamId::ModMixPct => set_clamped_f32(mod_mix, value.round() * 0.01, 0.0, 1.0, 1.0),
             FmParamId::IndexEnvAttackMs => {
                 set_clamped_f32(&mut index_env.attack_ms, value, 0.0, 5000.0, 1.0)
             }

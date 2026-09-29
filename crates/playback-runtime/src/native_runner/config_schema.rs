@@ -48,6 +48,9 @@ pub(super) fn prepare_config_payload(
     }
     validate_supplied_audio_outputs(&input)?;
     default_missing_instrument_blocks_in_full_config(&mut input);
+    normalize_missing_pluck_fields(&mut input);
+    super::drum_config::normalize_complete_voice_bank(&mut input);
+    normalize_missing_fm_fields(&mut input);
     let merge_base = current.clone();
     let mut payload = merge_values(&merge_base, &input);
     if version.is_unversioned() {
@@ -102,6 +105,82 @@ fn default_missing_instrument_blocks_in_full_config(input: &mut Value) {
     }
 }
 
+fn normalize_missing_fm_fields(payload: &mut Value) {
+    let Some(instruments) = payload
+        .get_mut("runtimeConfig")
+        .and_then(|runtime| runtime.get_mut("instruments"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for instrument in instruments {
+        let Some(fm) = instrument.get_mut("fm").and_then(Value::as_object_mut) else {
+            continue;
+        };
+        if ![
+            "ratio",
+            "index",
+            "indexEnv",
+            "amp",
+            "ampEnv",
+            "filter",
+            "filterEnv",
+        ]
+        .iter()
+        .all(|field| fm.contains_key(*field))
+        {
+            continue;
+        }
+        for field in [
+            "ratioFineCents",
+            "velocityToIndexPct",
+            "modShapePct",
+            "modMixPct",
+        ] {
+            fm.entry(field).or_insert_with(|| Value::Number(0.into()));
+        }
+    }
+}
+
+fn normalize_missing_pluck_fields(payload: &mut Value) {
+    let Some(instruments) = payload
+        .get_mut("runtimeConfig")
+        .and_then(|runtime| runtime.get_mut("instruments"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for instrument in instruments {
+        let Some(pluck) = instrument.get_mut("pluck").and_then(Value::as_object_mut) else {
+            continue;
+        };
+        if ![
+            "decayMs",
+            "brightnessPct",
+            "pickPositionPct",
+            "amp",
+            "ampEnv",
+            "filter",
+            "filterEnv",
+        ]
+        .iter()
+        .all(|field| pluck.contains_key(*field))
+        {
+            continue;
+        }
+        for (field, value) in [
+            ("pickDepthPct", 65),
+            ("dispersionPct", 0),
+            ("bodyAmountPct", 0),
+            ("bodyFrequencyHz", 500),
+        ] {
+            pluck
+                .entry(field)
+                .or_insert_with(|| Value::Number(value.into()));
+        }
+    }
+}
+
 pub(super) fn prepare_patch_payload(
     input: Value,
     current: &Value,
@@ -112,6 +191,10 @@ pub(super) fn prepare_patch_payload(
     if version == EnvelopeVersion::V2 {
         let mut validation_template = current.clone();
         default_missing_instrument_blocks_in_full_config(&mut validation_template);
+        normalize_missing_pluck_fields(&mut validation_template);
+        super::drum_config::normalize_complete_voice_bank(&mut validation_template);
+        normalize_missing_fm_fields(&mut validation_template);
+        normalize_missing_pluck_fields(&mut input);
         validate_portable_patch_fields(&input, &validation_template)?;
     }
     if version.is_unversioned() {
@@ -120,6 +203,9 @@ pub(super) fn prepare_patch_payload(
         normalize_missing_usb_data_role(&mut input, false);
     }
     strip_device_audio_fields(&mut input);
+    normalize_missing_pluck_fields(&mut input);
+    super::drum_config::normalize_complete_voice_bank(&mut input);
+    normalize_missing_fm_fields(&mut input);
     let mut patch = patch_payload_from_payload(input)?;
     if version.is_unversioned() {
         derived_names::canonicalize_partial_payload_names(&mut patch, current);

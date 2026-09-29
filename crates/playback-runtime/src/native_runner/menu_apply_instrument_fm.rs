@@ -66,6 +66,8 @@ pub(in super::super) fn numeric_field(field: &str) -> Option<(&[&str], i32, i32)
         "index" | "amp.gainPct" | "amp.velocitySensitivityPct" | "filter.keyTrackingPct" => {
             (0, 100)
         }
+        "velocityToIndexPct" | "modShapePct" | "modMixPct" => (0, 100),
+        "ratioFineCents" => (-100, 100),
         "filter.cutoffHz" | "filter.resonance" => (0, 255),
         "filter.envAmountPct" => (-100, 100),
         "indexEnv.attackMs" | "indexEnv.decayMs" | "ampEnv.attackMs" | "ampEnv.decayMs"
@@ -93,7 +95,13 @@ pub(in super::super) fn numeric_field(field: &str) -> Option<(&[&str], i32, i32)
         Some(("filterEnv", "decayMs")) => &["filterEnv", "decayMs"][..],
         Some(("filterEnv", "sustainPct")) => &["filterEnv", "sustainPct"][..],
         Some(("filterEnv", "releaseMs")) => &["filterEnv", "releaseMs"][..],
-        None => &["index"][..],
+        None => match field {
+            "ratioFineCents" => &["ratioFineCents"][..],
+            "velocityToIndexPct" => &["velocityToIndexPct"][..],
+            "modShapePct" => &["modShapePct"][..],
+            "modMixPct" => &["modMixPct"][..],
+            _ => &["index"][..],
+        },
         _ => return None,
     };
     Some((path, range.0, range.1))

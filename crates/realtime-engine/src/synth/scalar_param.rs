@@ -97,7 +97,11 @@ impl SynthParamId {
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum FmParamId {
+    RatioFineCents,
     Index,
+    VelocityToIndexPct,
+    ModShapePct,
+    ModMixPct,
     IndexEnvAttackMs,
     IndexEnvDecayMs,
     IndexEnvSustainPct,
@@ -119,8 +123,12 @@ pub enum FmParamId {
 }
 
 impl FmParamId {
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 23] = [
+        Self::RatioFineCents,
         Self::Index,
+        Self::VelocityToIndexPct,
+        Self::ModShapePct,
+        Self::ModMixPct,
         Self::IndexEnvAttackMs,
         Self::IndexEnvDecayMs,
         Self::IndexEnvSustainPct,
@@ -143,7 +151,11 @@ impl FmParamId {
 
     pub fn from_path(path: &str) -> Option<Self> {
         Some(match path {
+            "fm.ratioFineCents" => Self::RatioFineCents,
             "fm.index" => Self::Index,
+            "fm.velocityToIndexPct" => Self::VelocityToIndexPct,
+            "fm.modShapePct" => Self::ModShapePct,
+            "fm.modMixPct" => Self::ModMixPct,
             "fm.indexEnv.attackMs" => Self::IndexEnvAttackMs,
             "fm.indexEnv.decayMs" => Self::IndexEnvDecayMs,
             "fm.indexEnv.sustainPct" => Self::IndexEnvSustainPct,
@@ -172,6 +184,10 @@ pub enum PluckParamId {
     DecayMs,
     BrightnessPct,
     PickPositionPct,
+    PickDepthPct,
+    DispersionPct,
+    BodyAmountPct,
+    BodyFrequencyHz,
     AmpGainPct,
     AmpVelocitySensitivityPct,
     AmpEnvAttackMs,
@@ -189,10 +205,14 @@ pub enum PluckParamId {
 }
 
 impl PluckParamId {
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 21] = [
         Self::DecayMs,
         Self::BrightnessPct,
         Self::PickPositionPct,
+        Self::PickDepthPct,
+        Self::DispersionPct,
+        Self::BodyAmountPct,
+        Self::BodyFrequencyHz,
         Self::AmpGainPct,
         Self::AmpVelocitySensitivityPct,
         Self::AmpEnvAttackMs,
@@ -214,6 +234,10 @@ impl PluckParamId {
             "pluck.decayMs" => Self::DecayMs,
             "pluck.brightnessPct" => Self::BrightnessPct,
             "pluck.pickPositionPct" => Self::PickPositionPct,
+            "pluck.pickDepthPct" => Self::PickDepthPct,
+            "pluck.dispersionPct" => Self::DispersionPct,
+            "pluck.bodyAmountPct" => Self::BodyAmountPct,
+            "pluck.bodyFrequencyHz" => Self::BodyFrequencyHz,
             "pluck.amp.gainPct" => Self::AmpGainPct,
             "pluck.amp.velocitySensitivityPct" => Self::AmpVelocitySensitivityPct,
             "pluck.ampEnv.attackMs" => Self::AmpEnvAttackMs,
@@ -239,6 +263,10 @@ pub enum DrumParamId {
     DecayMs,
     TonePct,
     AttackMs,
+    SweepSemis,
+    SweepMs,
+    NoiseMixPct,
+    LevelPct,
     AmpGainPct,
     AmpVelocitySensitivityPct,
     FilterCutoffHz,
@@ -248,11 +276,15 @@ pub enum DrumParamId {
 }
 
 impl DrumParamId {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 14] = [
         Self::TuneSemis,
         Self::DecayMs,
         Self::TonePct,
         Self::AttackMs,
+        Self::SweepSemis,
+        Self::SweepMs,
+        Self::NoiseMixPct,
+        Self::LevelPct,
         Self::AmpGainPct,
         Self::AmpVelocitySensitivityPct,
         Self::FilterCutoffHz,
@@ -264,7 +296,14 @@ impl DrumParamId {
     pub fn is_voice_param(self) -> bool {
         matches!(
             self,
-            Self::TuneSemis | Self::DecayMs | Self::TonePct | Self::AttackMs
+            Self::TuneSemis
+                | Self::DecayMs
+                | Self::TonePct
+                | Self::AttackMs
+                | Self::SweepSemis
+                | Self::SweepMs
+                | Self::NoiseMixPct
+                | Self::LevelPct
         )
     }
 
@@ -274,6 +313,10 @@ impl DrumParamId {
             "drum.decayMs" => Self::DecayMs,
             "drum.tonePct" => Self::TonePct,
             "drum.attackMs" => Self::AttackMs,
+            "drum.sweepSemis" => Self::SweepSemis,
+            "drum.sweepMs" => Self::SweepMs,
+            "drum.noiseMixPct" => Self::NoiseMixPct,
+            "drum.levelPct" => Self::LevelPct,
             "drum.amp.gainPct" => Self::AmpGainPct,
             "drum.amp.velocitySensitivityPct" => Self::AmpVelocitySensitivityPct,
             "drum.filter.cutoffHz" => Self::FilterCutoffHz,

@@ -24,6 +24,10 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
     )));
     for (key, delta, path, expected) in [
         ("fm.index", 1, "fm.index", 51.0),
+        ("fm.ratioFineCents", 1, "fm.ratioFineCents", 1.0),
+        ("fm.velocityToIndexPct", 1, "fm.velocityToIndexPct", 1.0),
+        ("fm.modShapePct", 1, "fm.modShapePct", 1.0),
+        ("fm.modMixPct", 1, "fm.modMixPct", 1.0),
         ("fm.indexEnv.attackMs", 1, "fm.indexEnv.attackMs", 5.0),
         ("fm.amp.gainPct", -1, "fm.amp.gainPct", 79.0),
         (
@@ -54,6 +58,7 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
             ))
         )));
     }
+    assert_eq!(runner.instruments[0].fm_config["ratio"], "2");
     for key in ["fm.ratio", "fm.filter.type"] {
         assert!(runner.menu.focus_item_key(&format!("instruments.0.{key}")));
         runner.menu.state.editing = true;
@@ -78,4 +83,92 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
     assert_eq!(runner.instruments[0].kind, "synth");
     turn(&mut runner, 3);
     assert_eq!(runner.instruments[0].fm_config, fm);
+}
+
+#[test]
+fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_commands() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    assert!(runner.menu.focus_item_key("instruments.0.type"));
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "main", "delta": 3 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.instruments[0].kind, "fm");
+
+    let key = "instruments.0.fm.ratioFineCents";
+    assert!(runner.menu.focus_item_key(key));
+    let editing = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&editing);
+    assert!(
+        snapshot["display"]["lines"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("> Fine cents:")),
+        "{snapshot:?}"
+    );
+    assert!(
+        snapshot["display"]["lines"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("    * +0c")),
+        "{snapshot:?}"
+    );
+
+    for (delta, expected, label) in [(25, 25, "+25c"), (-50, -25, "-25c"), (25, 0, "+0c")] {
+        let messages = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
+                request_snapshot: None,
+            })
+            .unwrap();
+        let snapshot = snapshot_from(&messages);
+        assert!(
+            snapshot["display"]["lines"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(format!("    * {label}"))),
+            "{snapshot:?}"
+        );
+        assert_eq!(runner.instruments[0].fm_config["ratioFineCents"], expected);
+        assert!(messages.iter().any(|message| matches!(message,
+            RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(command,
+                RuntimeAudioCommand::SetFmParam { instrument_slot: 0, path, value, .. }
+                    if path == "fm.ratioFineCents" && (*value - expected as f32).abs() < f32::EPSILON
+            ))
+        )), "{messages:?}");
+        assert!(!messages.iter().any(|message| matches!(message,
+            RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(command,
+                RuntimeAudioCommand::SetInstrumentSlot { .. } | RuntimeAudioCommand::SetAudioConfig { .. }
+            ))
+        )), "{messages:?}");
+    }
+
+    let exited = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let snapshot = snapshot_from(&exited);
+    assert!(
+        snapshot["display"]["lines"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("> Fine cents +0c")),
+        "{snapshot:?}"
+    );
 }

@@ -27,6 +27,10 @@ pub(super) fn pluck_default_config() -> Value {
         "decayMs": 1500,
         "brightnessPct": 65,
         "pickPositionPct": 25,
+        "pickDepthPct": 65,
+        "dispersionPct": 0,
+        "bodyAmountPct": 0,
+        "bodyFrequencyHz": 500,
         "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
         "ampEnv": { "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 900 },
         "filter": synth["filter"],
@@ -38,7 +42,11 @@ pub(super) fn fm_default_config() -> Value {
     let synth = synth_preset_config("init");
     json!({
         "ratio": "2",
+        "ratioFineCents": 0,
         "index": 50,
+        "velocityToIndexPct": 0,
+        "modShapePct": 0,
+        "modMixPct": 0,
         "indexEnv": { "attackMs": 0, "decayMs": 250, "sustainPct": 20, "releaseMs": 120 },
         "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
         "ampEnv": { "attackMs": 5, "decayMs": 300, "sustainPct": 70, "releaseMs": 350 },

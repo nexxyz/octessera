@@ -47,6 +47,24 @@ impl SynthEngine {
                 DrumParamId::AttackMs => {
                     set_clamped_f32(&mut kit.attack_ms, value.round(), 0.0, 50.0, 1.0)
                 }
+                DrumParamId::SweepSemis => {
+                    let next = value.round().clamp(0.0, 36.0) as u8;
+                    if kit.sweep_semis == next {
+                        ScalarMutation::Unchanged
+                    } else {
+                        kit.sweep_semis = next;
+                        ScalarMutation::Changed
+                    }
+                }
+                DrumParamId::SweepMs => {
+                    set_clamped_f32(&mut kit.sweep_ms, value.round(), 0.0, 200.0, 1.0)
+                }
+                DrumParamId::NoiseMixPct => {
+                    set_clamped_f32(&mut kit.noise_mix_pct, value.round(), 0.0, 100.0, 1.0)
+                }
+                DrumParamId::LevelPct => {
+                    set_clamped_f32(&mut kit.level_pct, value.round(), 0.0, 100.0, 1.0)
+                }
                 _ => ScalarMutation::Rejected,
             };
         }

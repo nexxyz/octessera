@@ -403,7 +403,12 @@ fn validate_fm_config(fm: &FmConfig) -> Result<(), String> {
         fm.filter_env.sustain_pct,
         fm.filter_env.release_ms,
     ];
-    if fm.index > 100 || values.iter().any(|value| !value.is_finite()) {
+    let percentages = [fm.velocity_to_index_pct, fm.mod_shape_pct, fm.mod_mix_pct];
+    if fm.index > 100
+        || fm.ratio_fine_cents.unsigned_abs() > 100
+        || percentages.iter().any(|value| *value > 100)
+        || values.iter().any(|value| !value.is_finite())
+    {
         return Err("invalid FM parameter value".into());
     }
     Ok(())

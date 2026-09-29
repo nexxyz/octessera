@@ -12,6 +12,9 @@ pub(super) const DRUM_SOUNDS: [&str; 8] = [
 ];
 const DRUM_DECAY_MS: [u16; 8] = [420, 220, 85, 650, 500, 320, 240, 95];
 const DRUM_TONE_PCT: [u8; 8] = [35, 70, 90, 85, 50, 60, 80, 80];
+const DRUM_SWEEP_SEMIS: [u8; 8] = [24, 3, 0, 0, 8, 6, 0, 0];
+const DRUM_SWEEP_MS: [u8; 8] = [55, 25, 0, 0, 70, 50, 0, 0];
+const DRUM_NOISE_MIX_PCT: [u8; 8] = [12, 80, 95, 95, 15, 15, 95, 35];
 
 pub(super) fn drum_voice_default(sound: &str) -> Option<Value> {
     let index = DRUM_SOUNDS.iter().position(|id| *id == sound)?;
@@ -21,7 +24,53 @@ pub(super) fn drum_voice_default(sound: &str) -> Option<Value> {
         "decayMs": DRUM_DECAY_MS[index],
         "tonePct": DRUM_TONE_PCT[index],
         "attackMs": 0,
+        "sweepSemis": DRUM_SWEEP_SEMIS[index],
+        "sweepMs": DRUM_SWEEP_MS[index],
+        "noiseMixPct": DRUM_NOISE_MIX_PCT[index],
+        "levelPct": 100,
     }))
+}
+
+pub(super) fn normalize_complete_voice_bank(payload: &mut Value) {
+    let Some(instruments) = payload
+        .get_mut("runtimeConfig")
+        .and_then(|runtime| runtime.get_mut("instruments"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for instrument in instruments {
+        let Some(voices) = instrument
+            .get_mut("drum")
+            .and_then(|drum| drum.get_mut("voices"))
+            .and_then(Value::as_array_mut)
+        else {
+            continue;
+        };
+        if voices.len() != DRUM_SOUNDS.len()
+            || !voices.iter().all(|voice| {
+                ["sound", "tuneSemis", "decayMs", "tonePct", "attackMs"]
+                    .iter()
+                    .all(|field| voice.get(field).is_some())
+                    && voice
+                        .get("sound")
+                        .and_then(Value::as_str)
+                        .is_some_and(|sound| DRUM_SOUNDS.contains(&sound))
+            })
+        {
+            continue;
+        }
+        for voice in voices {
+            let sound = voice["sound"].as_str().expect("validated drum sound");
+            let defaults = drum_voice_default(sound).expect("validated drum sound");
+            let object = voice.as_object_mut().expect("validated drum voice object");
+            for field in ["sweepSemis", "sweepMs", "noiseMixPct", "levelPct"] {
+                if !object.contains_key(field) {
+                    object.insert(field.into(), defaults[field].clone());
+                }
+            }
+        }
+    }
 }
 
 pub(super) fn drum_default_config() -> Value {
@@ -54,6 +103,9 @@ pub(super) fn voice_numeric_field(field: &str) -> Option<(usize, &str, i32, i32)
         "decayMs" => (20, 2000),
         "tonePct" => (0, 100),
         "attackMs" => (0, 50),
+        "sweepSemis" => (0, 36),
+        "sweepMs" => (0, 200),
+        "noiseMixPct" | "levelPct" => (0, 100),
         _ => return None,
     };
     Some((voice, param, min, max))

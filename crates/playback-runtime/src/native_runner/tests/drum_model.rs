@@ -16,15 +16,15 @@ fn drum_defaults_are_eight_independent_voices_with_empty_assignments_and_own_mix
     let drum = &runner.instruments[0].drum_config;
     assert_eq!(drum["voices"].as_array().unwrap().len(), 8);
     assert_eq!(drum["assignments"], json!([]));
-    for (index, (sound, decay, tone)) in [
-        ("kick", 420, 35),
-        ("snare", 220, 70),
-        ("closed_hat", 85, 90),
-        ("open_hat", 650, 85),
-        ("low_tom", 500, 50),
-        ("high_tom", 320, 60),
-        ("clap", 240, 80),
-        ("rim", 95, 80),
+    for (index, (sound, decay, tone, sweep_semis, sweep_ms, noise_mix_pct)) in [
+        ("kick", 420, 35, 24, 55, 12),
+        ("snare", 220, 70, 3, 25, 80),
+        ("closed_hat", 85, 90, 0, 0, 95),
+        ("open_hat", 650, 85, 0, 0, 95),
+        ("low_tom", 500, 50, 8, 70, 15),
+        ("high_tom", 320, 60, 6, 50, 15),
+        ("clap", 240, 80, 0, 0, 95),
+        ("rim", 95, 80, 0, 0, 35),
     ]
     .into_iter()
     .enumerate()
@@ -33,6 +33,10 @@ fn drum_defaults_are_eight_independent_voices_with_empty_assignments_and_own_mix
             drum["voices"][index],
             json!({
                 "sound": sound, "tuneSemis": 0, "decayMs": decay, "tonePct": tone, "attackMs": 0,
+                "sweepSemis": sweep_semis,
+                "sweepMs": sweep_ms,
+                "noiseMixPct": noise_mix_pct,
+                "levelPct": 100,
             })
         );
     }
@@ -194,6 +198,10 @@ fn drum_config_validation_rejects_out_of_range_duplicate_and_non_eight_voice_ban
         ("decayMs", json!(19)),
         ("tonePct", json!(101)),
         ("attackMs", json!(51)),
+        ("sweepSemis", json!(37)),
+        ("sweepMs", json!(201)),
+        ("noiseMixPct", json!(101)),
+        ("levelPct", json!(101)),
         ("sound", json!("unknown")),
     ] {
         let mut payload = original.clone();
@@ -213,6 +221,148 @@ fn drum_config_validation_rejects_out_of_range_duplicate_and_non_eight_voice_ban
     assert!(validate_config_payload(&repeated)
         .unwrap_err()
         .contains("duplicates a drum cell"));
+}
+
+fn remove_new_drum_fields(payload: &mut Value) {
+    for instrument in payload["runtimeConfig"]["instruments"]
+        .as_array_mut()
+        .unwrap()
+    {
+        if let Some(voices) = instrument
+            .get_mut("drum")
+            .and_then(|drum| drum.get_mut("voices"))
+            .and_then(Value::as_array_mut)
+        {
+            for voice in voices {
+                for field in ["sweepSemis", "sweepMs", "noiseMixPct", "levelPct"] {
+                    voice.as_object_mut().unwrap().remove(field);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn old_complete_drum_config_and_patch_fill_neutral_values_by_saved_sound() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut current = runner.config_payload();
+    current["runtimeConfig"]["instruments"][0]["type"] = json!("drum");
+    for (index, value) in [7, 8, 9, 10, 11, 12, 13, 14].into_iter().enumerate() {
+        current["runtimeConfig"]["instruments"][0]["drum"]["voices"][index]["sweepSemis"] =
+            json!(value);
+    }
+    runner.apply_config_payload(current.clone()).unwrap();
+
+    let mut old_full = current.clone();
+    let voices = old_full["runtimeConfig"]["instruments"][0]["drum"]["voices"]
+        .as_array_mut()
+        .unwrap();
+    voices.swap(0, 1);
+    remove_new_drum_fields(&mut old_full);
+    runner.apply_config_payload(old_full.clone()).unwrap();
+    for voice in runner.instruments[0].drum_config["voices"]
+        .as_array()
+        .unwrap()
+    {
+        let sound = voice["sound"].as_str().unwrap();
+        let defaults = super::super::drum_config::drum_voice_default(sound).unwrap();
+        for field in ["sweepSemis", "sweepMs", "noiseMixPct", "levelPct"] {
+            assert_eq!(voice[field], defaults[field]);
+        }
+    }
+
+    let mut current = runner.config_payload();
+    for (index, value) in [20, 21, 22, 23, 24, 25, 26, 27].into_iter().enumerate() {
+        current["runtimeConfig"]["instruments"][0]["drum"]["voices"][index]["sweepMs"] =
+            json!(value);
+    }
+    runner.apply_config_payload(current.clone()).unwrap();
+    let mut old_patch = portable_patch_projection(&current).unwrap();
+    old_patch["runtimeConfig"]["instruments"][0]["drum"]["voices"]
+        .as_array_mut()
+        .unwrap()
+        .swap(0, 1);
+    remove_new_drum_fields(&mut old_patch);
+    let old_current = {
+        let mut payload = current;
+        remove_new_drum_fields(&mut payload);
+        payload
+    };
+    let prepared = prepare_patch_payload(old_patch.clone(), &old_current).unwrap();
+    for voice in prepared.payload["runtimeConfig"]["instruments"][0]["drum"]["voices"]
+        .as_array()
+        .unwrap()
+    {
+        let sound = voice["sound"].as_str().unwrap();
+        let defaults = super::super::drum_config::drum_voice_default(sound).unwrap();
+        for field in ["sweepSemis", "sweepMs", "noiseMixPct", "levelPct"] {
+            assert_eq!(voice[field], defaults[field]);
+        }
+    }
+    runner
+        .apply_patch_payload_preserving_device(old_patch)
+        .unwrap();
+    for voice in runner.instruments[0].drum_config["voices"]
+        .as_array()
+        .unwrap()
+    {
+        let sound = voice["sound"].as_str().unwrap();
+        let defaults = super::super::drum_config::drum_voice_default(sound).unwrap();
+        for field in ["sweepSemis", "sweepMs", "noiseMixPct", "levelPct"] {
+            assert_eq!(voice[field], defaults[field]);
+        }
+    }
+}
+
+#[test]
+fn partial_drum_edit_inherits_new_values_and_invalid_explicit_values_do_not_commit() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["instruments"][0]["type"] = json!("drum");
+    payload["runtimeConfig"]["instruments"][0]["drum"]["voices"][0]["sweepSemis"] = json!(19);
+    payload["runtimeConfig"]["instruments"][0]["drum"]["voices"][0]["sweepMs"] = json!(87);
+    payload["runtimeConfig"]["instruments"][0]["drum"]["voices"][0]["noiseMixPct"] = json!(61);
+    payload["runtimeConfig"]["instruments"][0]["drum"]["voices"][0]["levelPct"] = json!(73);
+    runner.apply_config_payload(payload).unwrap();
+    runner
+        .apply_patch_payload_preserving_device(json!({
+            "kind": "octessera.patch",
+            "schemaVersion": 2,
+            "runtimeConfig": { "instruments": [{ "drum": { "voices": [{ "tonePct": 44 }] } }] }
+        }))
+        .unwrap();
+    assert_eq!(
+        runner.instruments[0].drum_config["voices"][0]["sweepSemis"],
+        19
+    );
+    let saved = runner.config_payload();
+    let decoded = RuntimeConfigDto::from_value(&saved["runtimeConfig"])
+        .unwrap()
+        .to_value()
+        .unwrap();
+    assert_eq!(
+        decoded["instruments"][0]["drum"],
+        runner.instruments[0].drum_config
+    );
+    let mut reloaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    reloaded.apply_config_payload(saved).unwrap();
+    assert_eq!(
+        reloaded.instruments[0].drum_config,
+        runner.instruments[0].drum_config
+    );
+
+    for (field, bad) in [
+        ("sweepSemis", json!(37)),
+        ("sweepMs", json!(201)),
+        ("noiseMixPct", json!(101)),
+        ("levelPct", json!(101)),
+    ] {
+        let before = runner.config_payload();
+        let mut invalid = before.clone();
+        invalid["runtimeConfig"]["instruments"][0]["drum"]["voices"][0][field] = bad;
+        assert!(runner.apply_config_payload(invalid).is_err(), "{field}");
+        assert_eq!(runner.config_payload(), before, "{field}");
+    }
 }
 
 #[test]

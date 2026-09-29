@@ -79,16 +79,15 @@ fn pluck_held_live_coefficients_and_next_pick_do_not_restart_ring() {
         engine.next_sample();
     }
     let held = *engine.synth_voice_pool.lane(0).unwrap();
-    let VoiceSource::Pluck {
-        decay_ms,
-        brightness_pct,
-        pick_position_pct,
-    } = engine.synth_render_configs[0].source
-    else {
+    let VoiceSource::Pluck { settings } = engine.synth_render_configs[0].source else {
         panic!("expected Plucked source");
     };
     assert_eq!(
-        (decay_ms, brightness_pct, pick_position_pct),
+        (
+            settings.decay_ms,
+            settings.brightness_pct,
+            settings.pick_position_pct
+        ),
         (1500.0, 65.0, 25.0)
     );
     for (id, value) in [
@@ -211,6 +210,13 @@ fn pluck_string_controls_affect_audio_without_unbounded_output() {
             "pick",
             PluckConfig {
                 pick_position_pct: 50.0,
+                ..defaults
+            },
+        ),
+        (
+            "pick depth",
+            PluckConfig {
+                pick_depth_pct: 15,
                 ..defaults
             },
         ),
