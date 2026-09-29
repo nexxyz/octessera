@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 const PI_DEFAULT_BYTES: &[u8] =
     include_bytes!("fixtures/config_persistence/pi_canonical_default.json");
-const PI_DEFAULT_SHA256: &str = "1d6e6ec42c161052f175b028d7bff70e1d59484dde205e3ca7dcf140ce16fa8f";
+const PI_DEFAULT_SHA256: &str = "1c6be6284deb35302a09f38d55d3f41bfc1db6d67f8f754413c8b54262e38d15";
 
 #[test]
 pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
@@ -21,6 +21,19 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
         serde_json::from_str(include_str!("../../../../../config/defaults/desktop.json")).unwrap();
     let pi_override: Value =
         serde_json::from_str(include_str!("../../../../../config/defaults/pi.json")).unwrap();
+
+    let layer_four_cells = base["runtimeConfig"]["layers"][3]["build"]["savedState"]["cells"]
+        .as_array()
+        .unwrap();
+    assert_eq!(layer_four_cells.len(), 64);
+    assert_eq!(
+        layer_four_cells
+            .iter()
+            .enumerate()
+            .filter_map(|(index, cell)| cell.as_bool().unwrap().then_some(index))
+            .collect::<Vec<_>>(),
+        vec![1, 3, 5, 7, 42, 46]
+    );
 
     let mut runner = runner_with_config(base.clone());
     let mut pi_default = pi_default();
