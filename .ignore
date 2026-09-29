@@ -1,5 +1,10 @@
 !.slim/deepwork/
 !.slim/deepwork/**
+# BEGIN oh-my-opencode-slim worktrees
+!.slim/worktrees.json
+!.slim/worktrees/
+!.slim/worktrees/**
+# END oh-my-opencode-slim worktrees
 # BEGIN oh-my-opencode-slim clonedeps
 !.slim/
 !.slim/clonedeps.json

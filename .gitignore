@@ -37,6 +37,10 @@ hardware/Mouser Cart with Components.pdf
 .cargo_vcs_info.json
 !third_party/cpal-0.15.3/.cargo_vcs_info.json
 .slim/deepwork/
+# BEGIN oh-my-opencode-slim worktrees
+.slim/worktrees/
+.slim/worktrees.json
+# END oh-my-opencode-slim worktrees
 # BEGIN oh-my-opencode-slim clonedeps
 .slim/clonedeps/repos/
 # END oh-my-opencode-slim clonedeps
