@@ -471,6 +471,38 @@
         },
         "name": "Plucked",
         "noteBehavior": "hold",
+        "pluck": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 900,
+            "sustainPct": 100
+          },
+          "bodyAmountPct": 81,
+          "bodyFrequencyHz": 884,
+          "brightnessPct": 81,
+          "decayMs": 1500,
+          "dispersionPct": 37,
+          "filter": {
+            "cutoffHz": 16000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 0,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "pickDepthPct": 78,
+          "pickPositionPct": 41
+        },
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -593,6 +625,43 @@
         },
         "name": "FM",
         "noteBehavior": "oneshot",
+        "fm": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 300,
+            "releaseMs": 350,
+            "sustainPct": 70
+          },
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "index": 38,
+          "indexEnv": {
+            "attackMs": 170,
+            "decayMs": 230,
+            "releaseMs": 85,
+            "sustainPct": 54
+          },
+          "modMixPct": 0,
+          "modShapePct": 0,
+          "ratio": "2",
+          "ratioFineCents": 0,
+          "velocityToIndexPct": 0
+        },
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -1980,6 +2049,8 @@
               [],
               [],
               [],
+              [],
+              [],
               [
                 {
                   "cell": 49,
@@ -2076,8 +2147,6 @@
                   "kind": "release"
                 }
               ],
-              [],
-              [],
               [],
               [],
               []
