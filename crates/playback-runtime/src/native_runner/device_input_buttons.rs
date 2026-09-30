@@ -16,15 +16,32 @@ impl NativeRunner {
                 return self.messages_with_effects(vec![effect]);
             }
         } else if id.unwrap_or("main") == "main" {
-            self.reset_menu_scroll();
-            if self.display.help_popup.is_some() {
+            if self.display.help_popup.is_some() && !self.display.aux_mapping_peek_visible {
                 self.display.help_popup = None;
                 return self.messages_with_snapshot();
             }
             if self.display.ui.combined_modifier_held {
+                self.display.aux_mapping_peek_visible = false;
+                self.display.help_popup = None;
                 self.open_contextual_help();
                 return self.messages_with_snapshot();
             }
+            if self.display.ui.fn_held && !self.display.ui.shift_held {
+                if self.display.aux_mapping_peek_visible {
+                    self.display.aux_mapping_peek_visible = false;
+                    self.display.help_popup = None;
+                } else {
+                    self.display.aux_mapping_peek_visible = true;
+                    self.display.help_popup = Some(self.aux_mapping_popup());
+                }
+                return self.messages_with_snapshot();
+            }
+            if self.display.aux_mapping_peek_visible {
+                self.display.aux_mapping_peek_visible = false;
+                self.display.help_popup = None;
+                return self.messages_with_snapshot();
+            }
+            self.reset_menu_scroll();
             let stack_depth_before = self.menu.state.stack.len();
             let selected_root_label = if self.menu.state.stack.is_empty() {
                 self.menu.current_label().map(str::to_string)
@@ -159,6 +176,11 @@ impl NativeRunner {
         pressed: Option<bool>,
     ) -> Result<Vec<RunnerMessage>, String> {
         if !pressed.unwrap_or(true) {
+            return self.messages_with_snapshot();
+        }
+        if self.display.aux_mapping_peek_visible {
+            self.display.aux_mapping_peek_visible = false;
+            self.display.help_popup = None;
             return self.messages_with_snapshot();
         }
         if self.play_fx_assign.is_some() {

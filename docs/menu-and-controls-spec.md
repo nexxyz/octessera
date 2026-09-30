@@ -14,6 +14,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
 | Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
+| Fn + Main press | Aux mappings modal | Opens the scrollable mappings modal from anywhere, whether stopped or playing. Holding Fn alone does not open it.
 | Fn + Main encoder turn right outside edit | Single step | While paused/stopped, advances exactly one behavior generation and remains paused/stopped; while playing, shows `Pause first`. Turning left is consumed with no action. Numeric edit takes priority over this gesture.
 | Main numeric edit turn | Coarse/fine value change | Plain Main is coarse; Fn+Main is fine. Shift+Main and combined Shift+Fn+Main remain coarse. Fn does not change enum, bool, or text edit turns.
 | Aux1–3 numeric turn | Coarse/fine bound value change | Plain turn is coarse and Fn turn fine in the normal custom/auto-map target. Shift is coarse and combined Shift+Fn fine in the shifted custom bank only, with no fallback.
@@ -43,6 +44,7 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Aux encoder 1-3 turn | (simulated) | Adjust a numeric target coarsely, or retain ordinary discrete turns for enum/bool targets; Orange SW1/SW2/SW4 use the native GPIO event path |
 | Aux encoder 1-3 press | (simulated) | Trigger bound press mapping; Orange AUX2's switch line is unavailable only while UART0 TX is active and is enabled by the input-routing overlay |
 | Fn + Aux encoder press | Fn + (simulated) | Alternate action: bind current value as Turn target or current action as `!` press target |
+| Fn + Main encoder press | Fn+Enter | Open/close the Aux mappings modal; holding Fn alone does not open it |
 | Shift + Aux encoder turn/press | Shift + (simulated) | Numeric turns are coarse; use only the shifted aux binding bank |
 | Fn + Aux encoder turn | Fn + (simulated) | Fine numeric turn on the normal custom/auto-map target |
 | Shift + Fn + Aux encoder press | Shift+Ctrl + (simulated) | Bind current value/action into shifted aux binding bank |
@@ -86,6 +88,24 @@ Help popup behavior:
 
 - Main encoder turn scrolls help text
 - Main encoder press closes help
+
+Aux mappings modal behavior:
+
+- Fn + Main encoder press opens the scrollable modal from anywhere, whether transport is stopped or playing. Releasing Fn does not close it; Fn held alone does not open it.
+- The modal shows all 12 mappings, including unbound rows as `-`:
+
+  | Bank | Aux | Turn | Click |
+  |---|---|---|---|
+  | Normal | 1 | Mapping or `-` | Mapping or `-` |
+  | Normal | 2 | Mapping or `-` | Mapping or `-` |
+  | Normal | 3 | Mapping or `-` | Mapping or `-` |
+  | Shifted | 1 | Mapping or `-` | Mapping or `-` |
+  | Shifted | 2 | Mapping or `-` | Mapping or `-` |
+  | Shifted | 3 | Mapping or `-` | Mapping or `-` |
+
+- Normal mappings use a custom binding first, then auto-map; shifted mappings use the shifted custom bank only, with no fallback.
+- Main encoder turn scrolls the modal. Aux turns and clicks do nothing while it is open; they do not affect the underlying menu or bindings.
+- Plain Main press, Fn + Main press again, or Back closes the modal. Shift + Fn + Main press opens context help instead. After closing, normal Main/Shift+Main clicks, Fn fine turns, and Aux bindings work as usual.
 
 ## Transport States
 

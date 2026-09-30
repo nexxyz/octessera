@@ -27,26 +27,24 @@ pub(crate) fn auto_map_context_updates_after_navigation_only_group_enter() {
         slot.turn.as_ref().map(|turn| turn.label.as_str()),
         Some("Step")
     );
-}
 
-#[test]
-pub(crate) fn auto_map_behavior_context_uses_build_label() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let build_items = &runner.menu.root.children[0].children[0].children;
-    let interval_cursor = child_index_by_key(
-        build_items,
-        "layers.0.build.behaviorConfig.randomTickInterval",
+    runner.skip_startup_splash();
+    for input in [
+        json!({ "type": "button_fn", "pressed": true }),
+        json!({ "type": "encoder_press", "id": "main" }),
+        json!({ "type": "button_fn", "pressed": false }),
+    ] {
+        runner
+            .send(HostMessage::DeviceInput {
+                input,
+                request_snapshot: None,
+            })
+            .unwrap();
+    }
+    assert_eq!(
+        runner.display.help_popup.as_ref().unwrap().lines[0],
+        "Build"
     );
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = interval_cursor;
-    runner.display.ui.fn_held = true;
-    runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
-
-    let snapshot = runner.snapshot().unwrap();
-    let lines = snapshot["display"]["lines"].as_array().unwrap();
-
-    assert_eq!(snapshot["display"]["title"], "AUTO MAP");
-    assert_eq!(lines[0], "Build");
 }
 
 #[test]
@@ -211,59 +209,6 @@ pub(crate) fn auto_map_global_fx_covers_vinyl_params() {
             .number_for_key("mixer.master.slots.0.params.cracklePct"),
         Some(9)
     );
-}
-
-#[test]
-pub(crate) fn fn_held_shows_auto_aux_mapping_overlay() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = synth_stack(&runner, "Filter");
-    runner.menu.state.cursor = 1;
-    runner.display.ui.fn_held = true;
-    runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
-
-    let snapshot = runner.snapshot().unwrap();
-    let lines = snapshot["display"]["lines"].as_array().unwrap();
-
-    assert_eq!(snapshot["display"]["title"], "AUTO MAP");
-    assert_eq!(lines[0], "Synth Filter");
-    assert_eq!(lines[1], "A1 Cutoff");
-    assert_eq!(lines[2], "A2 Res");
-    assert_eq!(lines[3], "A3 Env");
-    assert_eq!(lines.len(), 4);
-    assert_eq!(runner.menu.state.stack, synth_stack(&runner, "Filter"));
-    assert_eq!(runner.menu.state.cursor, 1);
-}
-
-#[test]
-pub(crate) fn fn_held_shows_custom_aux_mapping_overlay_when_no_auto_map_applies() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.aux_auto_map_enabled = false;
-    runner.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("masterVolume".into()),
-        press_action: Some(NativeMenuAction::ResetBehavior),
-    });
-    runner.display.ui.fn_held = true;
-    runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
-
-    let snapshot = runner.snapshot().unwrap();
-    let lines = snapshot["display"]["lines"].as_array().unwrap();
-
-    assert_eq!(snapshot["display"]["title"], "CUSTOM MAP");
-    assert_eq!(lines[1], "A1 Master Vol/!Reset");
-    assert_eq!(lines[2], "A2 -");
-}
-
-#[test]
-pub(crate) fn aux_overlay_waits_for_fn_hold_delay() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = synth_stack(&runner, "Filter");
-    runner.menu.state.cursor = 1;
-    runner.display.ui.fn_held = true;
-    runner.display.fn_hold_started_at = Some(Instant::now());
-
-    let snapshot = runner.snapshot().unwrap();
-
-    assert_ne!(snapshot["display"]["title"], "AUTO MAP");
 }
 
 #[test]

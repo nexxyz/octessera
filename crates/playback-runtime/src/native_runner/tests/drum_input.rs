@@ -169,6 +169,70 @@ fn drum_replacement_resets_only_local_tune_and_back_steps_through_cell_tune() {
 }
 
 #[test]
+fn aux_mapping_popup_scroll_does_not_edit_active_drum_cell_tune() {
+    let mut runner = drum_runner();
+    runner.skip_startup_splash();
+    runner
+        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
+            "drum.assign:0:0".into(),
+        ))
+        .unwrap();
+    input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 0 }));
+    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    runner
+        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
+            "drum.cellTune:0".into(),
+        ))
+        .unwrap();
+    input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 0 }));
+    assert_eq!(runner.drum_cell_tune, Some((0, Some((1, 0)))));
+    let assignment = cell(&runner, 1, 0).unwrap();
+    runner.config_dirty = false;
+    runner.dirty_revision = None;
+    runner.pending.pending_save_revision = None;
+    runner.pending.pending_autosave_payload_due_at = None;
+    let config_revision = runner.config_revision;
+
+    input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    input(
+        &mut runner,
+        json!({ "type": "button_fn", "pressed": false }),
+    );
+    let output = input(
+        &mut runner,
+        json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+    );
+
+    assert_eq!(runner.display.help_popup.as_ref().unwrap().scroll, 1);
+    assert_eq!(runner.drum_cell_tune, Some((0, Some((1, 0)))));
+    assert_eq!(cell(&runner, 1, 0).unwrap(), assignment);
+    assert!(!runner.config_dirty);
+    assert_eq!(runner.config_revision, config_revision);
+    assert!(runner.pending.pending_save_revision.is_none());
+    assert!(!output.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(
+                effect,
+                RuntimePlatformEffect::StoreSaveDefault { .. }
+                    | RuntimePlatformEffect::StoreSaveBackup { .. }
+            ))
+    )));
+
+    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    assert!(runner.drum_cell_tune.is_some());
+    input(
+        &mut runner,
+        json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+    );
+    assert_eq!(cell(&runner, 1, 0).unwrap()["tuneSemis"], 1);
+}
+
+#[test]
 fn cell_tune_oled_uses_current_kit_sound_not_fixed_voice_name() {
     let mut runner = drum_runner();
     runner.instruments[0].drum_config["voices"][0]["sound"] = json!("closed_hat");

@@ -61,8 +61,6 @@ impl NativeRunner {
             system_info_modal_display(modal)
         } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
-        } else if let Some((title, lines)) = self.aux_mapping_overlay() {
-            overlay_display(title, lines)
         } else if let Some(display) = drum::cell_tune_display(self) {
             display
         } else {

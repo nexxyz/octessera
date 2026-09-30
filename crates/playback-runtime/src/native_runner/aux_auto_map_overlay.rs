@@ -1,29 +1,26 @@
-use std::time::Duration;
-
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxSlot};
 use super::*;
 use crate::native_menu::section_labels::{BUILD_LABEL, PLAY_LABEL};
-
-const AUX_OVERLAY_DELAY_MS: u64 = 1_500;
+use crate::oled_frame::{wrap_text, MENU_BODY_RECT};
 
 impl NativeRunner {
-    pub(super) fn aux_mapping_overlay(&self) -> Option<(String, Vec<String>)> {
-        if !self.aux_overlay_ready() {
-            return None;
+    pub(super) fn aux_mapping_popup(&self) -> NativeHelpPopup {
+        let normal_slots = self.overlay_aux_slots();
+        let shifted_slots = (0..platform_core::AUX_ENCODER_COUNT)
+            .map(|index| self.resolve_shift_aux_slot(index))
+            .collect::<Vec<_>>();
+        let mut lines = Vec::new();
+        let context = self.aux_overlay_context_label();
+        if context.chars().count() <= MENU_BODY_RECT.columns() {
+            lines.push(context);
         }
-        let slots = self.overlay_aux_slots();
-        if slots.iter().all(aux_slot_is_empty) {
-            return None;
+        append_aux_mapping_lines(&mut lines, &normal_slots, false);
+        append_aux_mapping_lines(&mut lines, &shifted_slots, true);
+        NativeHelpPopup {
+            title: overlay_title().into(),
+            lines,
+            scroll: 0,
         }
-        let title = overlay_title(&slots);
-        let mut lines = vec![self.aux_overlay_context_label()];
-        lines.extend(
-            slots
-                .iter()
-                .enumerate()
-                .map(|(index, slot)| format!("A{} {}", index + 1, aux_slot_body(slot))),
-        );
-        Some((title.into(), lines))
     }
 
     fn aux_overlay_context_label(&self) -> String {
@@ -47,14 +44,6 @@ impl NativeRunner {
         "Aux Map".into()
     }
 
-    fn aux_overlay_ready(&self) -> bool {
-        self.display.ui.fn_held
-            && !self.display.ui.shift_held
-            && !self.display.fn_hold_started_at.is_none_or(|started| {
-                Instant::now().duration_since(started) < Duration::from_millis(AUX_OVERLAY_DELAY_MS)
-            })
-    }
-
     fn overlay_aux_slots(&self) -> Vec<ResolvedAuxSlot> {
         (0..platform_core::AUX_ENCODER_COUNT)
             .map(|index| self.effective_aux_slot(index))
@@ -62,40 +51,51 @@ impl NativeRunner {
     }
 }
 
-fn aux_slot_is_empty(slot: &ResolvedAuxSlot) -> bool {
-    slot.turn.is_none() && slot.press.is_none()
-}
-
-fn overlay_title(slots: &[ResolvedAuxSlot]) -> &'static str {
-    let has_auto = slots.iter().any(|slot| {
-        slot.turn_source == AuxBindingSource::Auto || slot.press_source == AuxBindingSource::Auto
-    });
-    let has_custom = slots.iter().any(|slot| {
-        slot.turn_source == AuxBindingSource::Custom
-            || slot.press_source == AuxBindingSource::Custom
-    });
-    if has_auto {
-        "AUTO MAP"
-    } else if has_custom {
-        "CUSTOM MAP"
-    } else {
-        "AUX MAP"
+fn append_aux_mapping_lines(lines: &mut Vec<String>, slots: &[ResolvedAuxSlot], shifted: bool) {
+    for (index, slot) in slots.iter().enumerate() {
+        append_aux_binding_line(
+            lines,
+            index,
+            shifted,
+            'T',
+            slot.turn.as_ref().map(|turn| turn.label.as_str()),
+            slot.turn_source,
+        );
+        append_aux_binding_line(
+            lines,
+            index,
+            shifted,
+            'C',
+            slot.press.as_ref().map(|press| press.label.as_str()),
+            slot.press_source,
+        );
     }
 }
 
-fn aux_slot_body(slot: &ResolvedAuxSlot) -> String {
-    let mut layers = Vec::new();
-    if let Some(turn) = &slot.turn {
-        layers.push(turn.label.clone());
-    }
-    if let Some(press) = &slot.press {
-        layers.push(format!("!{}", press.label));
-    }
-    if layers.is_empty() {
-        "-".into()
-    } else {
-        layers.join("/")
-    }
+fn append_aux_binding_line(
+    lines: &mut Vec<String>,
+    index: usize,
+    shifted: bool,
+    kind: char,
+    label: Option<&str>,
+    source: AuxBindingSource,
+) {
+    let prefix = format!("{}{} {kind} ", if shifted { 'S' } else { 'A' }, index + 1);
+    let value = match (label, source) {
+        (Some(label), AuxBindingSource::Auto) => format!("auto: {label}"),
+        (Some(label), AuxBindingSource::Custom) => format!("custom: {label}"),
+        _ => "-".into(),
+    };
+    let content_width = MENU_BODY_RECT.columns() - prefix.chars().count();
+    lines.extend(
+        wrap_text(&value, content_width)
+            .into_iter()
+            .map(|row| format!("{prefix}{row}")),
+    );
+}
+
+fn overlay_title() -> &'static str {
+    "AUX MAP"
 }
 
 fn aux_overlay_key_context_label(key: &str) -> Option<&'static str> {
@@ -153,5 +153,102 @@ fn aux_overlay_behavior_context(key: &str) -> Option<&'static str> {
         Some(BUILD_LABEL)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::native_runner::aux_auto_map::{ResolvedAuxPress, ResolvedAuxTurn};
+
+    fn slot(
+        turn_label: Option<&str>,
+        turn_source: AuxBindingSource,
+        press_label: Option<&str>,
+        press_source: AuxBindingSource,
+    ) -> ResolvedAuxSlot {
+        ResolvedAuxSlot {
+            turn: turn_label.map(|label| ResolvedAuxTurn {
+                key: String::new(),
+                label: label.into(),
+            }),
+            press: press_label.map(|label| ResolvedAuxPress {
+                action: NativeMenuAction::NavigateBack,
+                label: label.into(),
+            }),
+            turn_source,
+            press_source,
+        }
+    }
+
+    #[test]
+    fn aux_mapping_rows_keep_all_entries_sources_and_width() {
+        let slots = vec![
+            slot(
+                Some("Cutoff"),
+                AuxBindingSource::Auto,
+                None,
+                AuxBindingSource::None,
+            ),
+            slot(
+                Some("Resonance"),
+                AuxBindingSource::Custom,
+                Some("Panic"),
+                AuxBindingSource::Custom,
+            ),
+            slot(None, AuxBindingSource::None, None, AuxBindingSource::None),
+        ];
+        let mut lines = Vec::new();
+        append_aux_mapping_lines(&mut lines, &slots, false);
+        append_aux_mapping_lines(&mut lines, &slots, true);
+
+        for bank in ['A', 'S'] {
+            for index in 1..=3 {
+                for kind in ['T', 'C'] {
+                    let prefix = format!("{bank}{index} {kind} ");
+                    assert!(lines.iter().any(|line| line.starts_with(&prefix)));
+                }
+            }
+        }
+        assert!(lines
+            .iter()
+            .all(|line| line.chars().count() <= MENU_BODY_RECT.columns()));
+        assert!(lines.iter().any(|line| line == "A1 T auto: Cutoff"));
+        assert!(lines.iter().any(|line| line == "A1 C -"));
+        assert!(lines.iter().any(|line| line == "A2 T custom:"));
+        assert!(lines.iter().any(|line| line == "A2 T Resonance"));
+        assert!(lines.iter().any(|line| line == "A2 C custom: Panic"));
+        assert!(lines.iter().any(|line| line == "S2 C custom: Panic"));
+        assert!(lines.iter().any(|line| line == "S3 T -"));
+    }
+
+    #[test]
+    fn long_aux_mapping_label_wraps_with_identity_and_content() {
+        let label = "Long MIDI Panic Mapping Label";
+        let slots = [slot(
+            Some(label),
+            AuxBindingSource::Custom,
+            None,
+            AuxBindingSource::None,
+        )];
+        let mut lines = Vec::new();
+        append_aux_mapping_lines(&mut lines, &slots, false);
+
+        let wrapped = lines
+            .iter()
+            .filter(|line| line.starts_with("A1 T "))
+            .collect::<Vec<_>>();
+        assert!(wrapped.len() > 1);
+        assert!(wrapped
+            .iter()
+            .all(|line| line.chars().count() <= MENU_BODY_RECT.columns()));
+        assert_eq!(
+            wrapped
+                .iter()
+                .map(|line| line.strip_prefix("A1 T ").unwrap())
+                .collect::<Vec<_>>()
+                .join(" "),
+            format!("custom: {label}")
+        );
     }
 }
