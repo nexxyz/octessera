@@ -76,6 +76,24 @@ selector, or mode. To read help for another item, close help, highlight that
 item, and use the shortcut again. The same shortcuts work on the hardware and
 in the simulator.
 
+## Aux mappings modal
+
+| Control | What it does |
+|---|---|
+| *Fn* + click *Main* | Open the scrollable Aux mappings modal from anywhere, stopped or playing. Let go of *Fn* and the modal stays open. Holding *Fn* alone does not open it. |
+| Turn *Main* | Scroll the modal. |
+| Click *Main*, *Fn* + click *Main* again, or press *Back* | Close the modal. |
+
+The modal lists all three Aux encoders' Turn and Click mappings in both the
+normal and shifted banks, including unbound entries as `-`. Normal mappings use
+custom bindings first, then auto-map. Shifted mappings use custom bindings only.
+Aux turns and clicks do nothing while the modal is open, so they cannot change
+the menu or trigger a binding.
+
+*Shift* + *Fn* + click *Main* opens context help instead. After closing the
+modal, ordinary *Main* and *Shift* + *Main* clicks, *Fn* fine turns, and *Aux*
+bindings work as usual.
+
 ## Grid navigation shortcuts
 
 | Control | Area | What it does |

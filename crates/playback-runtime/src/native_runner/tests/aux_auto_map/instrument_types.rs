@@ -42,17 +42,52 @@ fn turn(runner: &mut NativeRunner, id: &str) -> Vec<RuntimeAudioCommand> {
         .collect()
 }
 
+fn open_aux_map(runner: &mut NativeRunner) {
+    runner.skip_startup_splash();
+    for input in [
+        json!({ "type": "button_fn", "pressed": true }),
+        json!({ "type": "encoder_press", "id": "main" }),
+        json!({ "type": "button_fn", "pressed": false }),
+    ] {
+        runner
+            .send(HostMessage::DeviceInput {
+                input,
+                request_snapshot: None,
+            })
+            .unwrap();
+    }
+}
+
 fn assert_overlay(runner: &mut NativeRunner, title: &str, labels: [&str; 3]) {
-    runner.display.ui.fn_held = true;
-    runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_millis(1600));
+    open_aux_map(runner);
     let snapshot = runner.snapshot().unwrap();
-    assert_eq!(snapshot["display"]["title"], "AUTO MAP");
-    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert_eq!(snapshot["display"]["title"], "AUX MAP");
+    let lines = &runner.display.help_popup.as_ref().unwrap().lines;
     assert_eq!(lines[0], title);
     for (index, label) in labels.into_iter().enumerate() {
-        assert_eq!(lines[index + 1], format!("A{} {label}", index + 1));
+        let prefix = format!("A{} T ", index + 1);
+        let rows = lines
+            .iter()
+            .filter(|line| line.starts_with(&prefix))
+            .collect::<Vec<_>>();
+        if label == "-" {
+            assert!(rows.iter().any(|line| line.ends_with("-")), "{prefix}");
+            continue;
+        }
+        assert!(rows.iter().any(|line| line.contains("auto:")), "{prefix}");
+        for word in label.split_whitespace() {
+            assert!(
+                rows.iter().any(|line| line.contains(word)),
+                "{prefix} {word}"
+            );
+        }
     }
-    runner.display.ui.fn_held = false;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
 }
 
 #[test]

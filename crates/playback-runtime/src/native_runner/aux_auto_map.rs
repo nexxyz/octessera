@@ -55,7 +55,7 @@ impl NativeRunner {
         }
     }
 
-    fn resolve_shift_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
+    pub(super) fn resolve_shift_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
         self.resolve_custom_aux_slot_from(&self.shift_aux_bindings, index)
             .unwrap_or(ResolvedAuxSlot {
                 turn: None,

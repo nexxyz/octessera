@@ -13,7 +13,6 @@ use device_input_wake_trace::{trace_device_input_wake, WakeTraceContext};
 
 impl NativeRunner {
     pub(super) fn refresh_modifier_state(&mut self) {
-        let was_fn_held = self.display.ui.fn_held;
         let was_modifier_held = self.display.ui.fn_held
             || self.display.ui.shift_held
             || self.display.ui.combined_modifier_held;
@@ -26,11 +25,6 @@ impl NativeRunner {
         let modifier_held = self.display.ui.fn_held
             || self.display.ui.shift_held
             || self.display.ui.combined_modifier_held;
-        if self.display.ui.fn_held && !was_fn_held {
-            self.display.fn_hold_started_at = Some(Instant::now());
-        } else if !self.display.ui.fn_held {
-            self.display.fn_hold_started_at = None;
-        }
         if modifier_held && !was_modifier_held {
             self.display.modifier_hint_started_at = Some(Instant::now());
         } else if !modifier_held {
@@ -138,6 +132,15 @@ impl NativeRunner {
         if self.display.system_info_modal.is_some() {
             return self.handle_system_info_modal_input(input);
         }
+        if self.display.aux_mapping_peek_visible
+            && matches!(
+                &input,
+                DeviceInput::EncoderTurn { id, .. } | DeviceInput::EncoderPress { id }
+                    if Self::aux_index(id.as_deref()).is_some()
+            )
+        {
+            return self.messages_with_snapshot();
+        }
         let result = match input {
             DeviceInput::GridPress { x, y } => self.handle_grid_press_input(x, y),
             DeviceInput::GridRelease { x, y } => self.handle_grid_release_input(x, y),
@@ -151,6 +154,12 @@ impl NativeRunner {
             | DeviceInput::ButtonCombinedModifier { .. } => self.messages_with_snapshot(),
             DeviceInput::EncoderTurn { delta, id } => {
                 if id.as_deref().unwrap_or("main") == "main"
+                    && self.display.aux_mapping_peek_visible
+                {
+                    if delta != 0 {
+                        self.turn_help_popup(delta);
+                    }
+                } else if id.as_deref().unwrap_or("main") == "main"
                     && self.drum_cell_tune.is_some_and(|(_, cell)| cell.is_some())
                 {
                     self.turn_drum_cell_tune(delta);

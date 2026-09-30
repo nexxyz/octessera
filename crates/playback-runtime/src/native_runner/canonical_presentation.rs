@@ -13,8 +13,8 @@ impl NativeRunner {
             && self.display.usb_sd_transfer_modal.is_none()
             && self.display.system_info_modal.is_none()
             && self.display.help_popup.is_none()
+            && !self.display.aux_mapping_peek_visible
             && self.display.runtime_error_presentation.is_none()
-            && self.aux_mapping_overlay().is_none()
     }
 }
 
@@ -92,11 +92,7 @@ mod tests {
             },
             |runner| {
                 runner.display.ui.fn_held = true;
-                runner.display.fn_hold_started_at = Some(Instant::now() - Duration::from_secs(2));
-                runner.aux_bindings[0] = Some(NativeAuxBinding {
-                    turn_key: Some("displayBrightness".into()),
-                    press_action: None,
-                });
+                runner.display.aux_mapping_peek_visible = true;
             },
         ];
         for install_modal in modal_factories {

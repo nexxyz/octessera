@@ -5,7 +5,6 @@ use std::time::{Duration, Instant};
 const TOAST_SCROLL_WIDTH: usize = TOAST_RECT.columns();
 const DISPLAY_LINE_WIDTH: usize = 28;
 const MODIFIER_HINT_DELAY: Duration = Duration::from_millis(1_000);
-const AUX_OVERLAY_DELAY: Duration = Duration::from_millis(1_500);
 
 impl NativeRunner {
     pub fn next_timed_display_snapshot_deadline(&self) -> Option<Instant> {
@@ -59,9 +58,6 @@ impl NativeRunner {
             }
             deadline = earliest_deadline(deadline, modifier_hint_deadline, last_snapshot_at);
         }
-        if let Some(aux_overlay_deadline) = self.aux_overlay_deadline() {
-            deadline = earliest_deadline(deadline, aux_overlay_deadline, last_snapshot_at);
-        }
         if let Some(aux_toast_deadline) = self.aux_toast_deadline() {
             deadline = earliest_deadline(deadline, aux_toast_deadline, last_snapshot_at);
         }
@@ -112,19 +108,6 @@ impl NativeRunner {
         })
     }
 
-    fn aux_overlay_deadline(&self) -> Option<Instant> {
-        if !self.display.ui.fn_held
-            || self.display.ui.shift_held
-            || self.display.fn_hold_started_at.is_none()
-            || !self.aux_mapping_overlay_has_content()
-        {
-            return None;
-        }
-        self.display
-            .fn_hold_started_at
-            .map(|started| started + AUX_OVERLAY_DELAY)
-    }
-
     fn aux_toast_deadline(&self) -> Option<Instant> {
         self.pending
             .pending_aux_turn_toast
@@ -166,13 +149,6 @@ impl NativeRunner {
         selected_menu_presentation_line(self, &menu)
             .is_some_and(|line| line.chars().count() > DISPLAY_LINE_WIDTH)
     }
-
-    fn aux_mapping_overlay_has_content(&self) -> bool {
-        (0..platform_core::AUX_ENCODER_COUNT).any(|index| {
-            let slot = self.effective_aux_slot(index);
-            slot.turn.is_some() || slot.press.is_some()
-        })
-    }
 }
 
 fn is_link_instrument_target_key(key: &str) -> bool {
@@ -193,8 +169,7 @@ fn earliest_deadline(
 #[cfg(test)]
 mod tests {
     use super::super::{
-        NativeAuxBinding, NativeParamBinding, NativeRunnerConfig, NativeToast, PendingNativeToast,
-        TransportFlash,
+        NativeParamBinding, NativeRunnerConfig, NativeToast, PendingNativeToast, TransportFlash,
     };
     use super::*;
 
@@ -269,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn delayed_hint_aux_overlay_and_queued_aux_toast_have_one_shot_deadlines() {
+    fn delayed_hint_and_queued_aux_toast_have_one_shot_deadlines() {
         let start = Instant::now();
         let mut runner = runner_at(start);
         runner.display.ui.fn_held = true;
@@ -277,18 +252,6 @@ mod tests {
         assert_eq!(
             runner.next_timed_display_snapshot_deadline(),
             Some(start + MODIFIER_HINT_DELAY)
-        );
-
-        let mut runner = runner_at(start);
-        runner.display.ui.fn_held = true;
-        runner.display.fn_hold_started_at = Some(start);
-        runner.aux_bindings[0] = Some(NativeAuxBinding {
-            turn_key: Some("masterVolume".into()),
-            press_action: None,
-        });
-        assert_eq!(
-            runner.next_timed_display_snapshot_deadline(),
-            Some(start + AUX_OVERLAY_DELAY)
         );
 
         let mut runner = runner_at(start);

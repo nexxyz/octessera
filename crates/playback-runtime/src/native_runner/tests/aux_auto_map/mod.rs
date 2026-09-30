@@ -29,5 +29,6 @@ pub(crate) fn synth_stack(runner: &NativeRunner, label: &str) -> Vec<usize> {
 }
 
 mod instrument_types;
+mod mapping_popup;
 mod section_1;
 mod section_2;
