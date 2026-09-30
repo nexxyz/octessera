@@ -50,6 +50,16 @@ pub(super) fn format_item_lines(
         NativeMenuValue::Enum {
             options,
             selected: current,
+        } if is_link_instrument_target(item) => {
+            let value = options.get(*current).cloned().unwrap_or_default();
+            let compact = value
+                .split_once(':')
+                .map_or(value.as_str(), |(slot, _)| slot);
+            format_link_instrument_lines(&item.label, &value, compact, selected, editing)
+        }
+        NativeMenuValue::Enum {
+            options,
+            selected: current,
         } => format_param_lines(
             &item.label,
             format_display_value(
@@ -91,9 +101,32 @@ pub(super) fn format_item_lines(
     lines
 }
 
+pub(super) fn is_link_instrument_target(item: &NativeMenuItem) -> bool {
+    item.key.as_deref().is_some_and(|key| {
+        key.starts_with("layers.") && key.contains(".link.mapping.") && key.ends_with(".slot")
+    })
+}
+
+fn format_link_instrument_lines(
+    label: &str,
+    full_value: &str,
+    compact_value: &str,
+    selected: bool,
+    editing: bool,
+) -> Vec<String> {
+    if !selected {
+        return format_param_lines(label, compact_value, false, false);
+    }
+    vec![
+        format_menu_line(&format!("{label}:"), false),
+        format!("{}{}", if editing { ">* " } else { "> " }, full_value),
+    ]
+}
+
 pub(super) fn format_item_full_selected_line(
     item: &NativeMenuItem,
     _numeric_display_mode: &str,
+    editing: bool,
 ) -> Option<String> {
     match &item.value {
         NativeMenuValue::Group => {
@@ -115,6 +148,16 @@ pub(super) fn format_item_full_selected_line(
                     )
                 ),
                 true,
+            ))
+        }
+        NativeMenuValue::Enum { options, selected } if is_link_instrument_target(item) => {
+            Some(format!(
+                "{}{}",
+                if editing { ">* " } else { "> " },
+                format_display_value(
+                    item.key.as_deref(),
+                    options.get(*selected).cloned().unwrap_or_default(),
+                )
             ))
         }
         NativeMenuValue::Enum { options, selected } => Some(format_full_param_line(
@@ -168,6 +211,7 @@ pub(super) fn formatted_item_row_count(
     }
     let text_rows = match &item.value {
         NativeMenuValue::Enum { .. } if !item.children.is_empty() => 1,
+        NativeMenuValue::Enum { .. } if selected && is_link_instrument_target(item) => 2,
         NativeMenuValue::Enum { .. }
         | NativeMenuValue::Number { .. }
         | NativeMenuValue::Bool { .. }

@@ -32,6 +32,11 @@ impl NativeRunner {
         &self,
         menu: crate::native_menu::NativeMenuSnapshot,
     ) -> DisplaySnapshot {
+        let selected_link_instrument_target = menu
+            .selected_row
+            .and_then(|row| menu.line_keys.get(row))
+            .and_then(|key| key.as_deref())
+            .is_some_and(is_link_instrument_target_key);
         let mut display = if let Some(restore) = &self.display.user_data_restore {
             user_data_restore_display(restore)
         } else if let Some(confirm) = &self.display.confirm_dialog {
@@ -88,7 +93,9 @@ impl NativeRunner {
                 .take(OLED_BODY_ROWS)
                 .enumerate()
                 .map(|(row, line)| {
-                    if display.selected_row == Some(row) && !self.menu.state.editing {
+                    if display.selected_row == Some(row)
+                        && (!self.menu.state.editing || selected_link_instrument_target)
+                    {
                         clip_display_line(
                             &scroll_display_line_once(
                                 &line,
@@ -108,6 +115,10 @@ impl NativeRunner {
         display.full_lines.truncate(display.lines.len());
         display
     }
+}
+
+fn is_link_instrument_target_key(key: &str) -> bool {
+    key.starts_with("layers.") && key.contains(".link.mapping.") && key.ends_with(".slot")
 }
 
 fn user_data_restore_display(state: &super::NativeUserDataRestoreState) -> DisplaySnapshot {

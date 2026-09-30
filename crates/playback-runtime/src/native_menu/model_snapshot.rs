@@ -189,7 +189,8 @@ fn materialize_item_rows(
 ) {
     let selected = index == model.state.cursor;
     if selected {
-        *selected_row = Some(lines.len());
+        *selected_row =
+            Some(lines.len() + usize::from(super::format::is_link_instrument_target(item)));
     }
     let item_lines = format_item_lines(
         item,
@@ -198,9 +199,10 @@ fn materialize_item_rows(
         &model.numeric_display_mode,
     );
     let item_line_count = item_lines.len();
-    let selected_full_line = (selected && !model.state.editing)
-        .then(|| format_item_full_selected_line(item, &model.numeric_display_mode))
-        .flatten();
+    let selected_full_line = (selected
+        && (!model.state.editing || super::format::is_link_instrument_target(item)))
+    .then(|| format_item_full_selected_line(item, &model.numeric_display_mode, model.state.editing))
+    .flatten();
     let item_color = item_section_color(root_level, section_color, &item.label);
     let line_key = item.key.clone();
     let line_action = selected_action(item);
@@ -216,6 +218,11 @@ fn materialize_item_rows(
         line_actions,
         full_lines,
     );
+    if selected && super::format::is_link_instrument_target(item) {
+        let detail_row = lines.len() - item_line_count + 1;
+        full_lines.swap(detail_row - 1, detail_row);
+        line_keys.swap(detail_row - 1, detail_row);
+    }
     bar_values.extend(format_item_bar_values(
         item,
         item_line_count,

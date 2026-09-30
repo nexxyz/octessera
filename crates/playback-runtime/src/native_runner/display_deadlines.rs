@@ -143,8 +143,7 @@ impl NativeRunner {
     }
 
     fn selected_long_row_scrolling_active(&self) -> bool {
-        if self.menu.state.editing
-            || self.display.user_data_restore.is_some()
+        if self.display.user_data_restore.is_some()
             || self
                 .display
                 .user_data_transfer
@@ -155,6 +154,15 @@ impl NativeRunner {
             return false;
         }
         let menu = self.menu.snapshot();
+        if self.menu.state.editing
+            && !menu
+                .selected_row
+                .and_then(|row| menu.line_keys.get(row))
+                .and_then(|key| key.as_deref())
+                .is_some_and(is_link_instrument_target_key)
+        {
+            return false;
+        }
         selected_menu_presentation_line(self, &menu)
             .is_some_and(|line| line.chars().count() > DISPLAY_LINE_WIDTH)
     }
@@ -165,6 +173,10 @@ impl NativeRunner {
             slot.turn.is_some() || slot.press.is_some()
         })
     }
+}
+
+fn is_link_instrument_target_key(key: &str) -> bool {
+    key.starts_with("layers.") && key.contains(".link.mapping.") && key.ends_with(".slot")
 }
 
 fn earliest_deadline(
