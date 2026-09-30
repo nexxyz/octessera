@@ -112,25 +112,7 @@ impl RaspberryAutoAux {
             };
             autoaux_menu::enable_study_auto_save(playback, runner, &mut dispatch, "Raspberry")?;
             autoaux_menu::navigate_to_cutoff(playback, runner, &mut dispatch, "Raspberry")?;
-            let original = autoaux_menu::cutoff_display_value(playback, "Raspberry")?;
-            dispatch(
-                playback,
-                runner,
-                crate::input::encoder_turn_message("encoder_aux_1", 1),
-            )?;
-            let first = autoaux_menu::cutoff_display_value(playback, "Raspberry")?;
-            if first != original + 1 || first >= 255 {
-                return Err("Raspberry Aux 1 did not change Cutoff by one display step".into());
-            }
-            dispatch(
-                playback,
-                runner,
-                crate::input::encoder_turn_message("encoder_aux_1", -1),
-            )?;
-            if autoaux_menu::cutoff_display_value(playback, "Raspberry")? != original {
-                return Err("Raspberry Aux 1 did not restore the starting Cutoff value".into());
-            }
-            (original, [first, first + 1])
+            autoaux_menu::preflight_aux_cutoff(playback, runner, &mut dispatch, "Raspberry")?
         };
         for pressed in [true, false] {
             let message = crate::input::neokey_message(1, pressed)

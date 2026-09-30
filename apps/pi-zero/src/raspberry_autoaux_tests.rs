@@ -116,7 +116,7 @@ fn native_autoaux_worker_save_result_produces_the_receipt() {
     let root = root();
     let (mut playback, mut runner, mut adapter, _audio_keep_alive) = runtime(&root);
     let worker = scene_worker(&playback, &mut adapter);
-    let original = {
+    let (original, targets) = {
         let mut send = |playback: &mut PlaybackRuntime,
                         runner: &mut NativeRunner,
                         message: HostMessage| {
@@ -127,17 +127,9 @@ fn native_autoaux_worker_save_result_produces_the_receipt() {
             .unwrap();
         autoaux_menu::navigate_to_cutoff(&mut playback, &mut runner, &mut send, "Raspberry")
             .unwrap();
-        autoaux_menu::cutoff_display_value(&playback, "Raspberry").unwrap()
+        autoaux_menu::preflight_aux_cutoff(&mut playback, &mut runner, &mut send, "Raspberry")
+            .unwrap()
     };
-    for delta in [1, -1] {
-        dispatch(
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            crate::input::encoder_turn_message("encoder_aux_1", delta),
-        )
-        .unwrap();
-    }
     for pressed in [true, false] {
         dispatch(
             &mut playback,
@@ -149,7 +141,7 @@ fn native_autoaux_worker_save_result_produces_the_receipt() {
     }
     adapter.begin_autoaux_evidence();
     let mut scenes = NativeScenePump::new(Instant::now());
-    scenes.begin_autoaux_cutoff_evidence([original + 1, original + 2]);
+    scenes.begin_autoaux_cutoff_evidence(targets);
     let mut autoaux = RaspberryAutoAux {
         sequence: AutoAuxSequence::new(Instant::now()),
         starting_cutoff: original,
