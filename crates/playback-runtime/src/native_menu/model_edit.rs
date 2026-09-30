@@ -1,4 +1,35 @@
-use super::{NativeMenuItem, NativeMenuValue};
+use super::numeric_edit::numeric_edit_value;
+use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
+
+impl NativeMenuModel {
+    pub fn turn_with_precision(&mut self, delta: i8, coarse: bool) {
+        if self.state.editing {
+            if let NativeMenuValue::Number {
+                value,
+                min,
+                max,
+                step,
+            } = &mut self.current_item_mut().value
+            {
+                *value = numeric_edit_value(*value, *min, *max, *step, delta, coarse);
+                return;
+            }
+        }
+        self.turn(delta);
+    }
+
+    pub fn turn_key_with_precision(&mut self, key: &str, delta: i8, coarse: bool) -> bool {
+        let changed = if self.current_key() == Some(key) {
+            turn_key_in_item_with_precision(self.current_item_mut(), key, delta, coarse)
+        } else {
+            turn_key_in_item_with_precision(&mut self.root, key, delta, coarse)
+        };
+        if changed {
+            return true;
+        }
+        self.turn_key(key, delta)
+    }
+}
 
 pub(super) fn turn_key_in_item(item: &mut NativeMenuItem, key: &str, delta: i8) -> bool {
     if item.key.as_deref() == Some(key) {
@@ -37,6 +68,30 @@ pub(super) fn turn_key_in_item(item: &mut NativeMenuItem, key: &str, delta: i8) 
     item.children
         .iter_mut()
         .any(|child| turn_key_in_item(child, key, delta))
+}
+
+pub(super) fn turn_key_in_item_with_precision(
+    item: &mut NativeMenuItem,
+    key: &str,
+    delta: i8,
+    coarse: bool,
+) -> bool {
+    if item.key.as_deref() == Some(key) {
+        if let NativeMenuValue::Number {
+            value,
+            min,
+            max,
+            step,
+        } = &mut item.value
+        {
+            *value = numeric_edit_value(*value, *min, *max, *step, delta, coarse);
+            return true;
+        }
+        return false;
+    }
+    item.children
+        .iter_mut()
+        .any(|child| turn_key_in_item_with_precision(child, key, delta, coarse))
 }
 
 pub(super) fn turn_text_value(value: &mut String, max_len: usize, cursor: &mut usize, delta: i8) {

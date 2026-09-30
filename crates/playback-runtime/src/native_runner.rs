@@ -55,6 +55,7 @@ mod aux_auto_map_layouts;
 mod aux_auto_map_overlay;
 mod aux_binding_payload_apply;
 mod aux_generated_behavior_turn;
+mod aux_turn_input;
 mod behavior_config_recomposition;
 mod behavior_menu;
 mod behavior_menu_actions;
@@ -137,6 +138,8 @@ mod music_first_persistence_tests;
 mod music_first_tests;
 #[cfg(test)]
 mod native_persistence_completion_tests;
+#[cfg(test)]
+mod numeric_encoder_tests;
 #[cfg(test)]
 mod persistence_intent_tests;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;

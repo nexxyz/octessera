@@ -159,9 +159,6 @@ impl NativeRunner {
                 } else if id.as_deref().unwrap_or("main") == "main" && delta != 0 {
                     if self.display.help_popup.is_some() {
                         self.turn_help_popup(delta);
-                    } else if self.display.ui.fn_held && delta > 0 {
-                        return self.handle_single_step_input();
-                    } else if self.display.ui.fn_held {
                     } else {
                         let editing = self.menu.state.editing;
                         let editing_key = if editing {
@@ -169,8 +166,24 @@ impl NativeRunner {
                         } else {
                             None
                         };
-                        self.reset_menu_scroll();
-                        self.menu.turn(delta);
+                        if !editing
+                            && self.display.ui.fn_held
+                            && !self.display.ui.shift_held
+                            && !self.display.ui.combined_modifier_held
+                        {
+                            if delta > 0 {
+                                return self.handle_single_step_input();
+                            }
+                        } else {
+                            self.reset_menu_scroll();
+                            if editing {
+                                let coarse = !self.display.ui.fn_held
+                                    || self.display.ui.combined_modifier_held;
+                                self.menu.turn_with_precision(delta, coarse);
+                            } else {
+                                self.menu.turn(delta);
+                            }
+                        }
                         if let Some(key) = editing_key {
                             self.apply_or_schedule_menu_key(&key)?;
                         }

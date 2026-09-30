@@ -40,7 +40,19 @@ pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 2, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -172,7 +184,19 @@ pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 12, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

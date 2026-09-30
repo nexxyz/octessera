@@ -154,9 +154,21 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
 
     assert!(runner.menu.focus_item_key("transport.bpm"));
     runner.menu.state.editing = true;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -60, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

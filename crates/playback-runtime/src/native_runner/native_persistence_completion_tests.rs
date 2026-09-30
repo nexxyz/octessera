@@ -43,6 +43,14 @@ fn send_save_result(
         .unwrap()
 }
 
+fn send_music_first_fn_modifier(runner: &mut NativeRunner, pressed: bool) {
+    let input = HostMessage::DeviceInput {
+        input: json!({ "type": "button_fn", "pressed": pressed }),
+        request_snapshot: Some(false),
+    };
+    runner.send_music_first(input).unwrap();
+}
+
 #[test]
 fn native_registration_and_payload_attachment_are_revision_checked_and_zero_clone() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -189,6 +197,7 @@ fn older_native_arc_completion_after_real_aux_edit_advances_baseline_without_sav
         written_revision,
         Arc::clone(&worker_payload),
     ));
+    send_music_first_fn_modifier(&mut runner, true);
     let serialization_calls = runner.behavior_state_serialization_calls.get();
     let flash_serial = runner.display.auto_save_flash_serial;
     let old_level = runner.instruments[0].synth_config["osc1"]["levelPct"]
@@ -200,6 +209,7 @@ fn older_native_arc_completion_after_real_aux_edit_advances_baseline_without_sav
             request_snapshot: Some(false),
         })
         .unwrap();
+    send_music_first_fn_modifier(&mut runner, false);
     assert!(!edit
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));

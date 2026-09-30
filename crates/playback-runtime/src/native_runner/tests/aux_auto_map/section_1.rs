@@ -51,9 +51,21 @@ pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
     runner.menu.state.stack = synth_stack(&runner, "Filter");
     runner.menu.state.cursor = 1;
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -156,9 +168,21 @@ pub(crate) fn custom_aux_binding_still_works_when_auto_map_is_disabled() {
         press_action: None,
     });
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -176,9 +200,21 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
         press_action: None,
     });
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -202,9 +238,21 @@ pub(crate) fn custom_binding_is_used_on_build_non_mapped_rows_even_when_auto_map
         press_action: None,
     });
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

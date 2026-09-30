@@ -66,7 +66,19 @@ pub(crate) fn looper_length_edit_after_punch_reinitializes_from_config() {
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -107,7 +119,19 @@ pub(crate) fn looper_length_edit_uses_config_defaults_when_mode_is_absent() {
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

@@ -70,7 +70,19 @@ fn fm_tone_auto_map_turns_index_without_replacing_any_slot() {
         ],
     );
     assert_overlay(&mut runner, "Aux Map", ["Index", "Cutoff", "Res"]);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let commands = turn(&mut runner, "aux1");
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
+        })
+        .unwrap();
     assert!(
         matches!(&commands[..], [RuntimeAudioCommand::SetFmParam {
         instrument_slot: 0, path, value: 51.0, ..
@@ -115,7 +127,19 @@ fn plucked_string_auto_map_turns_decay_without_replacing_any_slot() {
         ],
     );
     assert_overlay(&mut runner, "Aux Map", ["Decay", "Bright", "Pick"]);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let commands = turn(&mut runner, "aux1");
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
+        })
+        .unwrap();
     assert!(
         matches!(&commands[..], [RuntimeAudioCommand::SetPluckParam {
         instrument_slot: 0, path, value: 1505.0, ..

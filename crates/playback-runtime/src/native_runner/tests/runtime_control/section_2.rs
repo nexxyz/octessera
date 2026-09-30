@@ -145,9 +145,21 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
     runner.menu.state.editing = true;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -155,9 +167,21 @@ pub(crate) fn system_sound_menu_updates_global_sound_config() {
 
     assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     runner.menu.state.editing = true;
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -4, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

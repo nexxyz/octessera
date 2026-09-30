@@ -13,7 +13,19 @@ fn changed_buffer_runner(auto_save_default: bool) -> NativeRunner {
         .unwrap();
     runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -37,7 +49,19 @@ fn dirty_bpm_hdmi_buffer_runner() -> NativeRunner {
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -72,7 +96,19 @@ fn dirty_bpm_hdmi_buffer_runner() -> NativeRunner {
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -187,6 +223,12 @@ fn repeated_restart_setting_turns_wait_for_main_commit() {
         })
         .unwrap();
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     for _ in 0..2 {
         let messages = runner
             .send(HostMessage::DeviceInput {
@@ -200,6 +242,12 @@ fn repeated_restart_setting_turns_wait_for_main_commit() {
         );
         assert!(runner.display.confirm_dialog.is_none());
     }
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
+        })
+        .unwrap();
     assert_eq!(runner.audio_output_buffer_frames, 1024);
 
     let messages = commit_with_main(&mut runner);

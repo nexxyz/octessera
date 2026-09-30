@@ -214,7 +214,19 @@ pub(crate) fn synth_gain_edits_into_config_payload() {
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -10, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -248,7 +260,19 @@ pub(crate) fn sampler_tune_edits_into_config_payload() {
         .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 7, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

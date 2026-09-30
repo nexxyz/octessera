@@ -287,7 +287,19 @@ fn due_music_first_save_follows_notes_without_snapshot_and_reloads_edited_value(
     });
     runner
         .send_music_first(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    runner
+        .send_music_first(HostMessage::DeviceInput {
             input: json!({"type": "encoder_turn", "id": "aux1", "delta": 1}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: Some(false),
         })
         .unwrap();

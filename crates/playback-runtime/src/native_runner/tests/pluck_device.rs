@@ -51,10 +51,22 @@ fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
         let key = format!("instruments.0.pluck.{field}");
         assert!(runner.menu.focus_item_key(&key), "{key}");
         runner.menu.state.editing = true;
+        runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "button_fn", "pressed": true }),
+                request_snapshot: None,
+            })
+            .unwrap();
         let messages = input(
             &mut runner,
             json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
         );
+        runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "button_fn", "pressed": false }),
+                request_snapshot: None,
+            })
+            .unwrap();
         assert_scalar(&messages, &format!("pluck.{field}"));
     }
     assert_eq!(runner.instruments[0].pluck_config["decayMs"], 1505);
@@ -178,10 +190,22 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
         .menu
         .focus_item_key("instruments.0.pluck.pickPositionPct"));
     runner.menu.state.editing = true;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let pick = input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
     );
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
+        })
+        .unwrap();
     assert_scalar(&pick, "pluck.pickPositionPct");
     assert_eq!(runner.instruments[0].pluck_config["pickPositionPct"], 26);
 }

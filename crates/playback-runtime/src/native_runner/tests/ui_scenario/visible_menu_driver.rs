@@ -33,7 +33,9 @@ impl<'a> VisibleMenuDriver<'a> {
     pub(super) fn edit_number_by(&mut self, label: &str, delta: i32) {
         self.select_visible(label);
         self.device.press_main();
+        self.device.hold_button("fn");
         self.device.turn_main(delta);
+        self.device.release_button("fn");
         self.device.press_main();
         self.ensure_not_editing(label);
     }
