@@ -206,3 +206,151 @@ pub(crate) fn pitch_note_params_use_canonical_note_name_display() {
         .iter()
         .any(|line| line.starts_with("> ") && line.contains("C4 (60)")));
 }
+
+#[test]
+pub(crate) fn link_instrument_targets_use_two_row_selected_presentation() {
+    let mut config = config();
+    config.link_layers[0].scan_mode = "scanning".into();
+    config.instrument_labels[0] = "I1: An Instrument Name Longer Than One OLED Line".into();
+    let mut menu = NativeMenuModel::new(config);
+    let key = "layers.0.link.mapping.scanned.slot";
+    assert!(menu.focus_item_key(key));
+
+    let selected = menu.snapshot();
+    let detail_row = selected.selected_row.expect("selected detail row");
+    assert_eq!(selected.line_keys[detail_row].as_deref(), Some(key));
+    assert_eq!(selected.lines[detail_row - 1], "  Instrument:");
+    assert_eq!(
+        selected.lines[detail_row],
+        "> I1: An Instrument Name Longer Than One OLED Line"
+    );
+    assert_eq!(
+        selected.full_lines[detail_row].as_deref(),
+        Some("> I1: An Instrument Name Longer Than One OLED Line")
+    );
+    assert!(selected.lines.len() <= 7);
+    let scroll = selected.scroll.expect("menu scroll metadata");
+    assert!(scroll.total_rows > scroll.visible_rows);
+
+    menu.state.editing = true;
+    let editing = menu.snapshot();
+    let detail_row = editing.selected_row.expect("selected edit detail row");
+    assert_eq!(editing.line_keys[detail_row].as_deref(), Some(key));
+    assert_eq!(editing.lines.len(), selected.lines.len());
+    assert_eq!(editing.lines[detail_row - 1], "  Instrument:");
+    assert_eq!(
+        editing.lines[detail_row],
+        ">* I1: An Instrument Name Longer Than One OLED Line"
+    );
+    assert_eq!(
+        editing.full_lines[detail_row].as_deref(),
+        Some(">* I1: An Instrument Name Longer Than One OLED Line")
+    );
+
+    let item = menu.current_item();
+    assert!(matches!(
+        &item.value,
+        NativeMenuValue::Enum { options, .. }
+            if options.contains(&"I1: An Instrument Name Longer Than One OLED Line".to_string())
+    ));
+    assert_eq!(
+        super::format::format_item_lines(item, false, false, "bar")[0],
+        "  Instrument I1"
+    );
+}
+
+#[test]
+pub(crate) fn link_named_selectors_outside_instrument_targets_keep_their_display() {
+    let mut menu = NativeMenuModel::new(config());
+    assert!(menu.focus_item_key("layers.0.link.pitch.scale"));
+    assert_eq!(
+        super::format::formatted_item_row_count(menu.current_item(), true, false, "bar"),
+        1
+    );
+}
+
+#[test]
+pub(crate) fn link_event_instrument_targets_keep_item_specific_headings() {
+    let mut menu = NativeMenuModel::new(config());
+    for (key, heading, detail) in [
+        (
+            "layers.0.link.mapping.activate.slot",
+            "On Inst",
+            "> I1: synth",
+        ),
+        (
+            "layers.0.link.mapping.stable.slot",
+            "Hold Inst",
+            "> I1: synth",
+        ),
+        (
+            "layers.0.link.mapping.deactivate.slot",
+            "Off Inst",
+            "> I1: synth",
+        ),
+    ] {
+        assert!(menu.focus_item_key(key));
+        let snapshot = menu.snapshot();
+        let detail_row = snapshot.selected_row.expect("selected detail row");
+        assert_eq!(snapshot.lines[detail_row - 1], format!("  {heading}:"));
+        assert_eq!(snapshot.lines[detail_row], detail);
+    }
+}
+
+#[test]
+pub(crate) fn scanned_empty_instrument_target_keeps_its_heading() {
+    let mut config = config();
+    config.link_layers[0].scan_mode = "scanning".into();
+    let mut menu = NativeMenuModel::new(config);
+    assert!(menu.focus_item_key("layers.0.link.mapping.scanned_empty.slot"));
+    let snapshot = menu.snapshot();
+    let detail_row = snapshot.selected_row.expect("selected detail row");
+    assert_eq!(snapshot.lines[detail_row - 1], "  Empty Inst:");
+    assert_eq!(snapshot.lines[detail_row], "> none");
+}
+
+#[test]
+pub(crate) fn link_instrument_target_row_budgets_match_formatted_rows() {
+    let mut config = config();
+    config.link_layers[0].scan_mode = "scanning".into();
+    let mut menu = NativeMenuModel::new(config);
+    let keys = [
+        "layers.0.link.mapping.scanned.slot",
+        "layers.0.link.mapping.scanned_empty.slot",
+        "layers.0.link.mapping.activate.slot",
+        "layers.0.link.mapping.stable.slot",
+        "layers.0.link.mapping.deactivate.slot",
+    ];
+    for key in keys {
+        assert!(menu.focus_item_key(key));
+        let item = menu.current_item();
+        for (selected, editing) in [(false, false), (true, false), (true, true)] {
+            assert_eq!(
+                super::format::formatted_item_row_count(item, selected, editing, "bar"),
+                super::format::format_item_lines(item, selected, editing, "bar").len(),
+                "row budget for {key}, selected={selected}, editing={editing}"
+            );
+        }
+    }
+}
+
+#[test]
+pub(crate) fn event_section_rows_and_boundary_selection_use_exact_budget() {
+    let mut menu = NativeMenuModel::new(config());
+    assert!(menu.focus_item_key("layers.0.link.eventEnabled"));
+    let events = menu.snapshot();
+    let scroll = events.scroll.expect("Events scroll metadata");
+    assert_eq!(scroll.total_rows, 14);
+    assert_eq!(scroll.visible_rows, 7);
+    assert_eq!(events.lines.len(), 7);
+
+    assert!(menu.focus_item_key("layers.0.link.mapping.deactivate.slot"));
+    let selected = menu.snapshot();
+    let detail_row = selected.selected_row.expect("selected detail row");
+    let scroll = selected.scroll.expect("selected Events scroll metadata");
+    assert_eq!(scroll.total_rows, 15);
+    assert_eq!(scroll.visible_rows, 7);
+    assert!((3..=4).contains(&detail_row));
+    assert_eq!(selected.lines[detail_row - 1], "  Off Inst:");
+    assert_eq!(selected.lines[detail_row], "> I1: synth");
+}
