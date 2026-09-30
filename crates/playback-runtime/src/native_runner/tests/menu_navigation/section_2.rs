@@ -14,11 +14,12 @@ pub(crate) fn system_sound_master_volume_edit_via_menu() {
         .unwrap();
     assert_eq!(snapshot_from(&edit)["display"]["editing"], true);
 
+    let coarse_volume = (i32::from(runner.display.ui.master_volume) + 26 * 5).min(100);
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 26, "id": "main" }),
         request_snapshot: None,
     });
-    assert_eq!(runner.display.ui.master_volume, 99);
+    assert_eq!(i32::from(runner.display.ui.master_volume), coarse_volume);
 
     let exit = runner
         .send(HostMessage::DeviceInput {
@@ -53,9 +54,21 @@ pub(crate) fn fn_aux_binds_selected_param_and_aux_turn_edits_it() {
             request_snapshot: None,
         })
         .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux1", "delta": -10 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

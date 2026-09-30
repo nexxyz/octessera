@@ -112,6 +112,12 @@ fn sixty_user_aux_edits_refresh_only_the_latest_native_persistence_intent() {
         Some("instruments.0.synth.osc1.levelPct")
     );
 
+    runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
     let serialization_calls = runner.behavior_state_serialization_calls.get();
     let started = Instant::now() + Duration::from_millis(10);
     let mut latest_revision = runner.dirty_revision.unwrap_or(runner.config_revision);
@@ -174,6 +180,12 @@ fn sixty_user_aux_edits_refresh_only_the_latest_native_persistence_intent() {
         assert!(repeated_notification.is_empty());
         assert_eq!(runner.display.transients.generation(), generation);
     }
+    runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
 
     let latest = runner.persistence_intent_at(Instant::now()).unwrap();
     assert_eq!(latest.revision(), latest_revision);

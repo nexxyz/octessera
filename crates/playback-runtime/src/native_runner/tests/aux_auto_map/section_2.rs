@@ -64,9 +64,21 @@ pub(crate) fn auto_map_env_and_osc_pages_drive_expected_slots() {
     runner.menu.state.stack = vec![2, 0, 0, synth_group, amp_env_group];
     runner.menu.state.cursor = 0;
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -80,9 +92,21 @@ pub(crate) fn auto_map_env_and_osc_pages_drive_expected_slots() {
     runner.menu.state.stack = vec![2, 0, 0, synth_group, osc1_group];
     runner.menu.state.cursor = 0;
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -116,9 +140,21 @@ pub(crate) fn auto_map_fx_slot_uses_effect_specific_param_layout() {
     runner.menu.state.stack = vec![2, fx_buses_group, bus_group, slot1_group];
     runner.menu.state.cursor = rate_cursor;
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -150,9 +186,21 @@ pub(crate) fn auto_map_global_fx_covers_vinyl_params() {
     runner.menu.state.stack = vec![2, global_fx_group, slot_group];
     runner.menu.state.cursor = mix_cursor;
 
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "aux2", "delta": 1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

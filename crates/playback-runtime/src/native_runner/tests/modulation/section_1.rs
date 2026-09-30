@@ -89,7 +89,19 @@ pub(crate) fn global_lfo_menu_uses_keyed_slots_and_target_only_fast_paths() {
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": -25, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();
@@ -107,7 +119,19 @@ pub(crate) fn global_lfo_menu_uses_keyed_slots_and_target_only_fast_paths() {
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 7, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
             request_snapshot: None,
         })
         .unwrap();

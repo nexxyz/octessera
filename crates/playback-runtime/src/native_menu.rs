@@ -37,6 +37,7 @@ mod model_search;
 mod model_snapshot;
 mod model_values;
 mod note_mapping;
+mod numeric_edit;
 mod options;
 mod play;
 mod sample_browser_menu;
@@ -48,6 +49,8 @@ mod system_saves;
 mod types;
 mod types_config;
 mod voice;
+
+pub(crate) use numeric_edit::numeric_edit_value;
 mod voice_config_read;
 mod voice_env_groups;
 

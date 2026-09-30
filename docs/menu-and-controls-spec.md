@@ -14,7 +14,9 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
 | Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
 | Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
-| Fn + Main encoder turn right | Single step | While paused/stopped, advances exactly one behavior generation and remains paused/stopped; while playing, shows `Pause first`. Turning left is consumed with no action.
+| Fn + Main encoder turn right outside edit | Single step | While paused/stopped, advances exactly one behavior generation and remains paused/stopped; while playing, shows `Pause first`. Turning left is consumed with no action. Numeric edit takes priority over this gesture.
+| Main numeric edit turn | Coarse/fine value change | Plain Main is coarse; Fn+Main is fine. Shift+Main and combined Shift+Fn+Main remain coarse. Fn does not change enum, bool, or text edit turns.
+| Aux1–3 numeric turn | Coarse/fine bound value change | Plain turn is coarse and Fn turn fine in the normal custom/auto-map target. Shift is coarse and combined Shift+Fn fine in the shifted custom bank only, with no fallback.
 | Fn + Space | Reset stop | Stops/resets, silences internal audio, and clears held MIDI notes without broad panic; takes priority over sample preview.
 | Combined modifier + Space | Reserved | No-op.
 | Fn + leftmost grid column | Navigate layers (1..8) | Mirrors `Build > Layer`.
@@ -38,14 +40,16 @@ Platform capability source: `resources/platform-capabilities.json`; generated Ty
 | Fn + Space | Ctrl+Space | Reset stop with internal-audio silence and bounded held-note cleanup |
 | Shift + Fn + Space | Shift+Ctrl+Space | Reserved no-op |
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
-| Aux encoder 1-3 turn | (simulated) | Adjust bound turn mapping; Orange SW1/SW2/SW4 use the native GPIO event path |
+| Aux encoder 1-3 turn | (simulated) | Adjust a numeric target coarsely, or retain ordinary discrete turns for enum/bool targets; Orange SW1/SW2/SW4 use the native GPIO event path |
 | Aux encoder 1-3 press | (simulated) | Trigger bound press mapping; Orange AUX2's switch line is unavailable only while UART0 TX is active and is enabled by the input-routing overlay |
 | Fn + Aux encoder press | Fn + (simulated) | Alternate action: bind current value as Turn target or current action as `!` press target |
-| Shift + Aux encoder turn/press | Shift + (simulated) | Use shifted aux binding bank |
+| Shift + Aux encoder turn/press | Shift + (simulated) | Numeric turns are coarse; use only the shifted aux binding bank |
+| Fn + Aux encoder turn | Fn + (simulated) | Fine numeric turn on the normal custom/auto-map target |
 | Shift + Fn + Aux encoder press | Shift+Ctrl + (simulated) | Bind current value/action into shifted aux binding bank |
+| Shift + Fn + Aux encoder turn | Shift+Ctrl + (simulated) | Fine numeric turn using only the shifted custom bank |
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
-| Fn + Main encoder turn right | Ctrl+→ | Single behavior/world generation step while paused/stopped |
+| Fn + Main encoder turn right outside editing | Ctrl+→ | Single behavior/world generation step while paused/stopped; while editing, numeric values turn finely and other edit types keep their ordinary turn behavior |
 | Fn + leftmost grid column | Ctrl + leftmost grid column | Navigate active layer (1..8); hold Fn to see layer indicators |
 | Fn + rightmost grid column | Ctrl + rightmost grid column | Navigate/activate Play Play page; hold Fn to see page indicators |
 | Shift + Fn + leftmost grid column | Shift+Ctrl + leftmost grid column | Toggle that layer's trigger gate without changing active layer; disabling releases its held Synth, FM, Plucked, Sampler, and external MIDI notes and suppresses future triggers; one-shot Drum hits finish their decay |

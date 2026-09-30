@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuValue;
+use crate::native_menu::{numeric_edit_value, NativeMenuValue};
 
 use super::{NativeRunner, Value};
 
@@ -7,6 +7,7 @@ impl NativeRunner {
         &mut self,
         key: &str,
         delta: i8,
+        coarse: bool,
     ) -> Result<Option<String>, String> {
         let Some(item) = self.generated_behavior_target_item(key) else {
             return Ok(None);
@@ -26,9 +27,7 @@ impl NativeRunner {
                 min,
                 max,
                 step,
-            } => (value + i32::from(delta) * step)
-                .clamp(min, max)
-                .to_string(),
+            } => numeric_edit_value(value, min, max, step, delta, coarse).to_string(),
             NativeMenuValue::Bool { value } => (!value).to_string(),
             _ => return Ok(None),
         };

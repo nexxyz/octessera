@@ -26,14 +26,14 @@ probability, transpose, and Play FX behavior.
 
 | Control | Area | What it does |
 |---|---|---|
-| *Turn main encoder* | **Menu navigation** | Navigate the menu, or change the value currently being edited. |
+| *Turn main encoder* | **Menu navigation/editing** | Navigate the menu; while editing a number, plain turns are coarse and *Fn* turns are fine. *Shift* and combined *Shift*+*Fn* turns remain coarse. Other edit types keep their ordinary turn behavior. |
 | *Click main encoder* | **Menu selection** | Select menu entries, enter groups, edit values, or confirm actions. |
 | *Back* | **Exit current location** | Exit the current edit, leave the current overlay, or go back one menu level. |
 | *Play* / *Space* | **Transport** | Play or pause. |
 | *Play* / *Space* | **Sample browser preview** | In sample browser menus, preview the highlighted sample. |
 | *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms a one-shot resync at the next 96-PPQN (one-bar) boundary instead of stopping the external clock; playback and the grid continue, then the transport origin resets and the arm clears. |
 | *Fn* + *Play* | **Reset stop** | Stop, reset the transport position, and silence Octessera-owned notes. |
-| *Fn* + turn main encoder right | **Single step** | While paused or stopped, advance one step/tick. Turning left is a no-op. |
+| *Fn* + turn main encoder right (not editing) | **Single step** | While paused or stopped, advance one step/tick. Turning left is a no-op; while playing, the OLED asks you to pause first. Editing takes priority: on numbers *Fn* turns are fine, and enums/text keep their ordinary edit behavior. |
 | *Shift* + *Fn* + *Play* | **Reserved** | No action for now. A tiny patch of silence in the shortcut garden. |
 | *Shift* + *Back* | **Clear active layer** | Re-initialize the active layer. Very useful. Also very easy to press on purpose only. |
 | *Shift* + *Fn* + *click main encoder* | **Context help** | Hold *Shift* + *Fn*, then click a menu item with *Main* to open help for that item. |
@@ -96,6 +96,8 @@ Each *Aux encoder* has two possible bindings:
 - **Click binding**: clicking the encoder triggers an action.
 
 You can bind aux controls yourself with *Fn* + *aux encoder click* while a bindable menu item is selected.
+
+On numeric targets, a plain Aux turn is coarse and *Fn*+turn is fine. *Shift* selects the shifted custom bank and stays coarse; combined *Shift*+*Fn* uses that same bank finely. The shifted bank does not fall back to normal bindings or auto-map. Enum and bool targets keep their discrete turns.
 
 How to read OLED markers:
 

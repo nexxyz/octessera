@@ -75,6 +75,12 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
     runner.menu.state.cursor = 2;
     runner.menu.state.editing = true;
 
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
@@ -90,6 +96,12 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
         })
         .unwrap();
     assert_eq!(runner.instruments[0].pan_pos, 12);
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
+        })
+        .unwrap();
 }
 
 #[test]

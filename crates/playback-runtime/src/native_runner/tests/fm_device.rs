@@ -45,7 +45,19 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
             "{key}"
         );
         runner.menu.state.editing = true;
+        let _ = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "button_fn", "pressed": true }),
+                request_snapshot: None,
+            })
+            .unwrap();
         let messages = turn(&mut runner, delta);
+        let _ = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "button_fn", "pressed": false }),
+                request_snapshot: None,
+            })
+            .unwrap();
         assert!(messages.iter().any(|message| matches!(message,
             RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(command,
                 RuntimeAudioCommand::SetFmParam { instrument_slot: 0, path: actual, value, .. }
@@ -129,9 +141,21 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
     );
 
     for (delta, expected, label) in [(25, 25, "+25c"), (-50, -25, "-25c"), (25, 0, "+0c")] {
+        let _ = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "button_fn", "pressed": true }),
+                request_snapshot: None,
+            })
+            .unwrap();
         let messages = runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
+                request_snapshot: None,
+            })
+            .unwrap();
+        let _ = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "button_fn", "pressed": false }),
                 request_snapshot: None,
             })
             .unwrap();

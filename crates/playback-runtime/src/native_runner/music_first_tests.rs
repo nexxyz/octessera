@@ -35,10 +35,22 @@ fn playing_pulses_zero_xy_and_aux_edit_defer_presentation_without_losing_autosav
         turn_key: Some("instruments.0.synth.osc1.levelPct".into()),
         press_action: None,
     });
+    runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({"type": "button_fn", "pressed": true}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
     let marks = runner.fast_autosave_marks;
     let result = runner
         .send_music_first(HostMessage::DeviceInput {
             input: json!({"type": "encoder_turn", "id": "aux1", "delta": 2}),
+            request_snapshot: Some(false),
+        })
+        .unwrap();
+    runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({"type": "button_fn", "pressed": false}),
             request_snapshot: Some(false),
         })
         .unwrap();

@@ -212,6 +212,12 @@ fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
     });
     let before = runner.instruments[0].synth_config["osc1"]["levelPct"].clone();
     assert_eq!(before, 80);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
     let revision = runner.audio_config_revision;
     for _ in 0..2 {
         let messages = runner
@@ -230,6 +236,12 @@ fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
             .unwrap();
         assert!(audio < snapshot);
     }
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_fn", "pressed": false }),
+            request_snapshot: None,
+        })
+        .unwrap();
     assert_eq!(runner.audio_config_revision, revision);
     let scene = runner.capture_presentation_scene(true).unwrap();
     let deferred = scene.into_snapshot();

@@ -66,9 +66,14 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     );
     let untouched = runner.instruments[1].clone();
     runner.transport.transport = RuntimeTransportState::Playing;
+    input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
     let messages = input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+    );
+    input(
+        &mut runner,
+        json!({ "type": "button_fn", "pressed": false }),
     );
     assert_eq!(runner.instruments[0].fm_config["index"], 51);
     assert_only_scalar(&messages, 0, "fm.index");
