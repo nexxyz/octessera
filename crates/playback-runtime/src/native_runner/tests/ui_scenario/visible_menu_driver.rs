@@ -190,9 +190,16 @@ impl<'a> VisibleMenuDriver<'a> {
     }
 
     fn selected_line_contains(&self, label: &str) -> bool {
-        self.lines()
-            .iter()
-            .any(|line| line.starts_with('>') && contains_label(&clean_line(line), label))
+        let lines = self.lines();
+        lines.iter().enumerate().any(|(index, line)| {
+            line.starts_with('>')
+                && (contains_label(&clean_line(line), label)
+                    || (is_link_instrument_detail(line)
+                        && index > 0
+                        && lines[index - 1]
+                            .trim()
+                            .eq_ignore_ascii_case(&format!("{label}:"))))
+        })
     }
 
     fn selected_line_matches_exact(&self, label: &str) -> bool {
@@ -253,6 +260,21 @@ fn row_label(line: &str) -> String {
 fn contains_label(line: &str, label: &str) -> bool {
     line.to_ascii_lowercase()
         .contains(&label.to_ascii_lowercase())
+}
+
+fn is_link_instrument_detail(line: &str) -> bool {
+    let Some(detail) = line.strip_prefix('>').map(str::trim) else {
+        return false;
+    };
+    detail.eq_ignore_ascii_case("none")
+        || detail
+            .strip_prefix('I')
+            .and_then(|slot| slot.split_once(':'))
+            .is_some_and(|(number, name)| {
+                !number.is_empty()
+                    && number.chars().all(|character| character.is_ascii_digit())
+                    && !name.trim().is_empty()
+            })
 }
 
 fn enum_option_matches(line: &str, value: &str) -> bool {
