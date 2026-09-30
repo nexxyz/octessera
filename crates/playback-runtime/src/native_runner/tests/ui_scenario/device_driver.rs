@@ -131,6 +131,11 @@ impl DeviceDriver {
         self.runner.config_payload()
     }
 
+    pub(super) fn apply_config_payload(&mut self, payload: Value) {
+        self.runner.apply_config_payload(payload).unwrap();
+        self.refresh_snapshot();
+    }
+
     pub(super) fn set_preset_draft_name(&mut self, name: &str) {
         self.runner.preset_draft_name = name.into();
         self.runner.menu.rebuild(self.runner.menu_config());
