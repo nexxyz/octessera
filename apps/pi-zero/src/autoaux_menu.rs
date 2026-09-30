@@ -89,6 +89,37 @@ pub(super) fn cutoff_display_value(playback: &PlaybackRuntime, board: &str) -> R
         .ok_or_else(|| format!("{board} Cutoff row has no numeric display value: {line:?}"))
 }
 
+pub(super) fn preflight_aux_cutoff(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    dispatch: &mut DispatchInput<'_>,
+    board: &str,
+) -> Result<(u16, [u16; 2]), String> {
+    let original = cutoff_display_value(playback, board)?;
+    turn_aux(playback, runner, dispatch, 1)?;
+    let first = cutoff_display_value(playback, board)?;
+    turn_aux(playback, runner, dispatch, 1)?;
+    let second = cutoff_display_value(playback, board)?;
+    if !(original < first && first < second && second < 255) {
+        return Err(format!(
+            "{board} Aux 1 Cutoff preflight requires two distinct non-clipped plateaus below 255; got {original}, {first}, {second}"
+        ));
+    }
+    turn_aux(playback, runner, dispatch, -1)?;
+    if cutoff_display_value(playback, board)? != first {
+        return Err(format!(
+            "{board} Aux 1 did not restore the first Cutoff preflight plateau"
+        ));
+    }
+    turn_aux(playback, runner, dispatch, -1)?;
+    if cutoff_display_value(playback, board)? != original {
+        return Err(format!(
+            "{board} Aux 1 did not restore the starting Cutoff value"
+        ));
+    }
+    Ok((original, [first, second]))
+}
+
 pub(super) fn require_stopped_normal_menu(
     playback: &PlaybackRuntime,
     board: &str,
@@ -178,6 +209,19 @@ fn turn_main(
         playback,
         runner,
         encoder_turn_message("encoder_main", delta),
+    )
+}
+
+fn turn_aux(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    dispatch: &mut DispatchInput<'_>,
+    delta: i8,
+) -> Result<(), String> {
+    dispatch(
+        playback,
+        runner,
+        crate::input::encoder_turn_message("encoder_aux_1", delta),
     )
 }
 

@@ -169,10 +169,9 @@ fn autoaux_setup_uses_stopped_native_menu_and_routes_cutoff_turns_through_host()
     ));
     let mut fixture = runtime_fixture(true);
     let timing = prepare_timing(&mut fixture).unwrap().unwrap();
-    assert_eq!(
-        timing.plateau_values,
-        [timing.starting_cutoff + 1, timing.starting_cutoff + 2]
-    );
+    assert!(timing.starting_cutoff < timing.plateau_values[0]);
+    assert!(timing.plateau_values[0] < timing.plateau_values[1]);
+    assert!(timing.plateau_values[1] < 255);
     assert!(fixture
         .playback
         .last_status()

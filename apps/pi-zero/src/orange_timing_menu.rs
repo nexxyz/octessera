@@ -27,8 +27,16 @@ pub(super) fn enable_study_auto_save(
     autoaux_menu::enable_study_auto_save(playback, runner, &mut send, "Orange")
 }
 
-pub(super) fn cutoff_display_value(playback: &PlaybackRuntime) -> Result<u16, String> {
-    autoaux_menu::cutoff_display_value(playback, "Orange")
+pub(super) fn preflight_aux_cutoff(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    host: &mut OrangeHostAdapter,
+) -> Result<(u16, [u16; 2]), String> {
+    let mut send =
+        |playback: &mut PlaybackRuntime, runner: &mut NativeRunner, message: HostMessage| {
+            dispatch(playback, runner, host, message)
+        };
+    autoaux_menu::preflight_aux_cutoff(playback, runner, &mut send, "Orange")
 }
 
 pub(super) fn require_stopped_normal_menu(playback: &PlaybackRuntime) -> Result<(), String> {

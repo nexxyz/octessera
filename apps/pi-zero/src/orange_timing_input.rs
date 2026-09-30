@@ -79,37 +79,14 @@ impl OrangeTimingInput {
 
         timing_menu::enable_study_auto_save(playback, runner, host)?;
         timing_menu::navigate_to_cutoff(playback, runner, host)?;
-        let original = timing_menu::cutoff_display_value(playback)?;
-        dispatch(
-            playback,
-            runner,
-            host,
-            encoder_turn_message("encoder_aux_1", 1),
-        )?;
-        let first = timing_menu::cutoff_display_value(playback)?;
-        if first == original || first >= 255 {
-            return Err("Orange Aux 1 did not change Cutoff by one display step".into());
-        }
-        if first != original + 1 {
-            return Err("Orange Aux 1 did not change Cutoff by exactly one display step".into());
-        }
-        dispatch(
-            playback,
-            runner,
-            host,
-            encoder_turn_message("encoder_aux_1", -1),
-        )?;
-        if timing_menu::cutoff_display_value(playback)? != original {
-            return Err("Orange Aux 1 did not restore the starting Cutoff value".into());
-        }
-        let second = first + 1;
+        let (original, plateau_values) = timing_menu::preflight_aux_cutoff(playback, runner, host)?;
         start_playback(playback, runner, host)?;
         host.begin_autoaux_command_evidence();
         let started_at = Instant::now();
         Ok(Some(Self {
             sequence: AutoAuxSequence::new(started_at),
             starting_cutoff: original,
-            plateau_values: [first, second],
+            plateau_values,
         }))
     }
 
