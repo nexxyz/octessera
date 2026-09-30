@@ -3,7 +3,10 @@ use super::*;
 #[derive(Default)]
 pub(super) struct CapturedOutput {
     pub(super) musical_event_count: usize,
+    pub(super) musical_events: Vec<platform_core::MusicalEvent>,
+    pub(super) audio_commands: Vec<RuntimeAudioCommand>,
     pub(super) midi_event_count: usize,
+    pub(super) midi_events: Vec<platform_core::MusicalEvent>,
     pub(super) drum_hit_count: usize,
     pub(super) platform_effect_count: usize,
     pub(super) audio_command_count: usize,
@@ -16,6 +19,7 @@ pub(super) struct CapturedOutput {
     pub(super) sample_bank_param_count: usize,
     pub(super) momentary_fx_start_count: usize,
     pub(super) momentary_fx_stop_count: usize,
+    pub(super) midi_panic_count: usize,
 }
 
 impl CapturedOutput {
@@ -24,9 +28,11 @@ impl CapturedOutput {
             match message {
                 RunnerMessage::MusicalEvents { events } => {
                     self.musical_event_count += events.len();
+                    self.musical_events.extend(events.iter().cloned());
                 }
                 RunnerMessage::MidiEvents { events } => {
                     self.midi_event_count += events.len();
+                    self.midi_events.extend(events.iter().cloned());
                 }
                 RunnerMessage::DrumHits { hits } => {
                     self.drum_hit_count += hits.len();
@@ -36,6 +42,9 @@ impl CapturedOutput {
                     for effect in effects {
                         if let RuntimePlatformEffect::AudioCommand { command } = effect {
                             self.record_audio_command(command);
+                        }
+                        if matches!(effect, RuntimePlatformEffect::MidiPanic) {
+                            self.midi_panic_count += 1;
                         }
                         if let RuntimePlatformEffect::SampleListRequest {
                             instrument_slot,
@@ -78,6 +87,7 @@ impl CapturedOutput {
     }
 
     fn record_audio_command(&mut self, command: &RuntimeAudioCommand) {
+        self.audio_commands.push(command.clone());
         match command {
             RuntimeAudioCommand::SetInstrumentSlot { .. } => self.set_instrument_slot_count += 1,
             RuntimeAudioCommand::SetSynthParam { .. } => self.synth_param_count += 1,
