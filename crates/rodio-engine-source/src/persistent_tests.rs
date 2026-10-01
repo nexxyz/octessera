@@ -404,7 +404,10 @@ fn source_drop_retires_workers_and_shutdown_owner_joins_off_callback() {
 fn shutdown_owner_drop_returns_without_waiting_for_source_on_another_thread() {
     let (_tx, source, shutdown) = persistent_source(128);
     let owner_thread = thread::spawn(move || drop(shutdown));
-    thread::sleep(Duration::from_millis(5));
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while !owner_thread.is_finished() && std::time::Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(1));
+    }
     assert!(owner_thread.is_finished());
     drop(source);
     assert!(owner_thread.join().is_ok());
