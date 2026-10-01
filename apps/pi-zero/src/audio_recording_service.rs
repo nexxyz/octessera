@@ -138,7 +138,6 @@ impl AudioService {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn is_recording(&self) -> Result<bool, String> {
         self.recorder
             .lock()

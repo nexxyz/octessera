@@ -53,20 +53,11 @@ fn startup_open_classification_is_exhaustive_for_selected_routes() {
             policy,
             super::AudioSink::Jack,
             true,
-            &crate::audio_route::RouteOpenError::Absent,
+            &crate::audio_route::RouteOpenError::Disconnected,
         ),
         super::StartupOpenAction::Fail
     );
     for sink in [super::AudioSink::Usb, super::AudioSink::Hdmi] {
-        assert_eq!(
-            super::startup_open_action(
-                policy,
-                sink,
-                true,
-                &crate::audio_route::RouteOpenError::Absent,
-            ),
-            super::StartupOpenAction::Wait
-        );
         assert_eq!(
             super::startup_open_action(
                 policy,
@@ -224,7 +215,7 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
                 tap_seen.lock().unwrap().push(recording_tap.is_some());
                 mirror_seen.lock().unwrap().push(mirror_consumer.is_some());
                 if attempts.lock().unwrap().len() < 4 {
-                    return Err(crate::audio_route::RouteOpenError::Absent);
+                    return Err(crate::audio_route::RouteOpenError::Disconnected);
                 }
                 let (_tx, rx) = event_queue();
                 let rx = Arc::new(Mutex::new(rx));

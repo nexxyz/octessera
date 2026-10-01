@@ -32,7 +32,7 @@ impl OrangeRecoveryController {
                     "Orange {:?} recovery attempt {attempt} failed: {error}",
                     self.sink
                 );
-                if !matches!(error, RouteOpenError::Absent | RouteOpenError::Disconnected) {
+                if !error.is_waiting() {
                     self.health.mark_terminal();
                     return OrangeRecoveryPhase::Terminal;
                 }

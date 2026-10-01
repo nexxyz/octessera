@@ -146,18 +146,6 @@ mod imp {
 
 pub use imp::HdmiFramebuffer;
 
-#[cfg(any(test, not(target_os = "linux")))]
-#[allow(dead_code)]
-pub fn compose_frame(
-    snapshot: &Value,
-    width: usize,
-    height: usize,
-    bytes_per_pixel: usize,
-) -> Option<Vec<u8>> {
-    let stride = width.checked_mul(bytes_per_pixel)?;
-    compose_frame_with_stride(snapshot, width, height, stride, bytes_per_pixel)
-}
-
 pub fn compose_frame_with_stride(
     snapshot: &Value,
     width: usize,
@@ -420,7 +408,7 @@ mod tests {
         });
 
         assert_eq!(hdmi_signature(&snapshot), 0);
-        assert!(compose_frame(&snapshot, 64, 64, 4).is_none());
+        assert!(compose_frame_with_stride(&snapshot, 64, 64, 256, 4).is_none());
     }
 
     #[test]
