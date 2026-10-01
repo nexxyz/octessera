@@ -437,5 +437,4 @@ fn splitmix64(mut value: u64) -> u64 {
 }
 
 #[cfg(test)]
-#[path = "twinkle_tests.rs"]
 mod tests;

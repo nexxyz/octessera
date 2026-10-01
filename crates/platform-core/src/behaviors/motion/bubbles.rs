@@ -342,5 +342,4 @@ pub fn bubbles_config_menu() -> Vec<BehaviorConfigItem> {
 }
 
 #[cfg(test)]
-#[path = "bubbles_tests.rs"]
 mod tests;

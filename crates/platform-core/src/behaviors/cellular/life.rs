@@ -365,5 +365,4 @@ fn count_neighbors(cells: &[bool], x: usize, y: usize) -> usize {
 }
 
 #[cfg(test)]
-#[path = "life_tests.rs"]
 mod life_tests;
