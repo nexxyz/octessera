@@ -87,21 +87,12 @@ fn platform_request(effect: RuntimePlatformEffect) -> RuntimePlatformRequest {
     RuntimePlatformRequest::new(effect, "test-request".into(), None)
 }
 
-#[path = "host_adapter_audio_tests.rs"]
 mod audio;
-#[path = "host_adapter_drum_tests.rs"]
 mod drum;
-#[path = "host_adapter_momentary_tests.rs"]
 mod momentary;
-#[path = "host_adapter_platform_tests.rs"]
 mod platform;
-#[path = "host_adapter_recording_tests.rs"]
 mod recording;
-#[path = "host_adapter_sampler_tests.rs"]
 mod sampler;
-#[path = "host_adapter_store_tests.rs"]
 mod store;
-#[path = "host_adapter_store_load_admission_tests.rs"]
 mod store_load_admission;
-#[path = "host_adapter_store_split_tests.rs"]
 mod store_split;

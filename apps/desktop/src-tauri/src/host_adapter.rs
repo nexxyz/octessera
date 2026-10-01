@@ -1,7 +1,6 @@
 mod host_adapter_audio;
 mod host_adapter_drum;
 mod host_adapter_musical;
-#[path = "host_adapter_recording.rs"]
 mod host_adapter_recording;
 mod host_adapter_store;
 
@@ -468,5 +467,4 @@ fn open_releases_page() -> RuntimeStoreResult {
 }
 
 #[cfg(test)]
-#[path = "host_adapter_tests.rs"]
 mod host_adapter_tests;
