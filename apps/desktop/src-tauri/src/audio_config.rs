@@ -116,5 +116,4 @@ fn sample_bank_for_slot(
 }
 
 #[cfg(test)]
-#[path = "audio_config_tests.rs"]
 mod tests;

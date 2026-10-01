@@ -332,7 +332,6 @@ fn sample_entries(entries: Vec<samples::SampleEntry>) -> Vec<SampleEntry> {
 }
 
 #[cfg(test)]
-#[path = "desktop_platform_service_admission_tests.rs"]
 mod admission_tests;
 #[cfg(test)]
 mod tests {

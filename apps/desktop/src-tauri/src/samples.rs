@@ -367,5 +367,4 @@ fn reject_symlink_components(root: &Path, rel: &str) -> Result<(), String> {
 }
 
 #[cfg(test)]
-#[path = "samples_tests.rs"]
 mod tests;

@@ -43,5 +43,4 @@ impl SampleDecodeCache {
 }
 
 #[cfg(test)]
-#[path = "sample_decode_cache_tests.rs"]
 mod tests;

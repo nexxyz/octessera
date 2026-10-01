@@ -359,5 +359,4 @@ fn float_to_i16(value: f32) -> i16 {
 }
 
 #[cfg(test)]
-#[path = "recording_tests.rs"]
 mod recording_tests;
