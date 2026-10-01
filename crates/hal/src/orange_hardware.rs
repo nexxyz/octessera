@@ -476,5 +476,4 @@ fn reset_gpio_value(active: bool, plan: OrangeGpioDescriptor) -> Value {
 }
 
 #[cfg(test)]
-#[path = "orange_hardware_tests.rs"]
 mod tests;

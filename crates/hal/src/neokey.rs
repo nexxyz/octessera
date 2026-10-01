@@ -60,7 +60,6 @@ const NEOKEY_INIT_ATTEMPTS: usize = 3;
 const NEOKEY_INIT_RETRY_DELAY: Duration = Duration::from_millis(250);
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
-#[path = "neokey_debounce.rs"]
 mod debounce;
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 use debounce::NeoKeyDebouncer;
@@ -369,5 +368,4 @@ impl std::fmt::Debug for NeoKey {
 }
 
 #[cfg(test)]
-#[path = "neokey_tests.rs"]
 mod tests;
