@@ -273,5 +273,4 @@ fn resize_steps(steps: &mut Vec<Vec<LooperEvent>>, length_steps: usize) {
 }
 
 #[cfg(test)]
-#[path = "looper_tests.rs"]
 mod tests;
