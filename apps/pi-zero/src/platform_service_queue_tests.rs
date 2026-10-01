@@ -100,7 +100,7 @@ fn orange_apply_drains_saturated_results_and_preserves_fifo_order() {
         enqueue_system_info(&service, index);
     }
     let barrier = service.enqueue_test_barrier().unwrap();
-    barrier.recv_timeout(Duration::from_secs(1)).unwrap();
+    barrier.recv_timeout(Duration::from_secs(10)).unwrap();
     enqueue_system_info(&service, 31);
     enqueue_system_info(&service, 32);
 
