@@ -226,6 +226,8 @@ fn full_bank_config(
 fn instrument(kind: &str, route: &str) -> InstrumentSlotConfig {
     InstrumentSlotConfig {
         fm: None,
+        pluck: None,
+        drum: None,
         kind: kind.into(),
         synth: default_synth_config(),
         mixer: Some(realtime_engine::synth::InstrumentMixerConfig {

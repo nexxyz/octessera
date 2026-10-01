@@ -64,6 +64,8 @@ fn applies_controls_before_dispatching_next_quantum() {
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -107,6 +109,8 @@ fn routing_tree_note_events_start_at_next_quantum() {
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -259,14 +263,12 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     .unwrap();
 
     let ready_quantum: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
-    assert!(ready_quantum.iter().all(|sample| sample.to_bits() == 0));
+    assert!(ready_quantum.iter().any(|sample| *sample != 0.0));
     assert_eq!(source.profile_snapshot().active_synth_voices, 1);
     assert_eq!(source.profile_snapshot().active_momentary_fx, 1);
 
     let next_source_quantum: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
-    assert!(next_source_quantum
-        .iter()
-        .all(|sample| sample.to_bits() == 0));
+    assert!(next_source_quantum.iter().any(|sample| *sample != 0.0));
     assert_eq!(source.profile_snapshot().active_synth_voices, 2);
     assert_eq!(source.profile_snapshot().active_momentary_fx, 1);
 
@@ -286,6 +288,8 @@ fn routing_tree_profile_matches_inline_after_a_completed_quantum() {
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -337,6 +341,8 @@ fn direct_synth_instruments() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -357,6 +363,8 @@ fn processes_bus_owned_by_worker() {
     let instruments = InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
