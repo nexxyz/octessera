@@ -1,9 +1,9 @@
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use super::super::routing_tree_worker::RoutingTreeOutputBlock;
 use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 use super::super::source_worker_lifecycle::SourceWorkerLifecycle;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 use super::super::source_worker_load::SourceWorkerLoad;
 use super::super::source_worker_protocol::SourceWorkerMode;
 use super::SourceWorkerRuntime;
@@ -36,7 +36,7 @@ impl SourceWorkerRuntime {
             #[cfg(feature = "source-worker-benchmark-timing")]
             timing_output_sequence: None,
             #[cfg(all(
-                feature = "routing-tree-benchmark",
+                feature = "routing-tree-executor",
                 feature = "source-worker-benchmark-timing"
             ))]
             routing_coordinator_remainder_started_at: None,
@@ -54,20 +54,17 @@ impl SourceWorkerRuntime {
             completed_mask: 0,
             sample_rate: 0,
             lookahead_frames: 0,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_output_spares: None,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_output_stamp: None,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_output_ready: false,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_reprime_pending: false,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_absolute_deadline: None,
-            #[cfg(all(
-                feature = "routing-tree-benchmark",
-                any(test, feature = "test-support")
-            ))]
+            #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
             routing_tree_probe: None,
             load: None,
             source_load_observations: std::array::from_fn(|_| None),
@@ -99,7 +96,7 @@ impl SourceWorkerRuntime {
         )
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(in super::super) fn new_routing_tree(
         lifecycle: &SourceWorkerLifecycle,
         sample_rate: u32,
@@ -114,7 +111,7 @@ impl SourceWorkerRuntime {
         )
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
     fn new_with_mode(
         lifecycle: &SourceWorkerLifecycle,
         sample_rate: u32,
@@ -161,7 +158,7 @@ impl SourceWorkerRuntime {
             #[cfg(feature = "source-worker-benchmark-timing")]
             timing_output_sequence: None,
             #[cfg(all(
-                feature = "routing-tree-benchmark",
+                feature = "routing-tree-executor",
                 feature = "source-worker-benchmark-timing"
             ))]
             routing_coordinator_remainder_started_at: None,
@@ -179,21 +176,18 @@ impl SourceWorkerRuntime {
             completed_mask: 0,
             sample_rate,
             lookahead_frames,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_output_spares: (mode == SourceWorkerMode::RoutingTreePersistent)
                 .then(|| std::array::from_fn(|_| RoutingTreeOutputBlock::new())),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_output_stamp: None,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_output_ready: false,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_reprime_pending: false,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_absolute_deadline: None,
-            #[cfg(all(
-                feature = "routing-tree-benchmark",
-                any(test, feature = "test-support")
-            ))]
+            #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
             routing_tree_probe: None,
             load: Some(SourceWorkerLoad::new(active_frames, sample_rate)),
             source_load_observations: std::array::from_fn(|_| None),

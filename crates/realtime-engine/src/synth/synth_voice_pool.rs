@@ -14,10 +14,10 @@ pub(super) struct SynthVoicePool {
 
 #[path = "synth_voice_pool_identity.rs"]
 mod identity;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "synth_voice_pool_routing.rs"]
 mod routing;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 #[path = "synth_voice_pool_worker.rs"]
 mod worker;
 

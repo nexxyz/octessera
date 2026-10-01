@@ -163,7 +163,7 @@ fn timing_probe_records_both_persistent_worker_waves() {
     assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_timing_evidence_uses_the_absolute_85_percent_deadline() {
     let mut engine = SynthEngine::new(48_000);

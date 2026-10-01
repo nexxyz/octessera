@@ -23,7 +23,7 @@ impl SynthVoicePartition {
         }
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn empty(parity: usize) -> Self {
         Self {
             parity,

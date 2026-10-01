@@ -66,7 +66,7 @@ fn pluck_block_worker_scalar_parity_and_allocation_free_callback() {
     assert_eq!(allocs, 0);
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn pluck_routing_tree_worker_preserves_ring_and_matches_inline() {
     let cfg = PluckConfig::default();

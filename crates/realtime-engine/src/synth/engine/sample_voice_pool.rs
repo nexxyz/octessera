@@ -14,10 +14,10 @@ mod identity;
 #[cfg(any(test, debug_assertions))]
 #[path = "sample_voice_pool_invariants.rs"]
 mod invariants;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "sample_voice_pool_routing.rs"]
 mod routing;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 #[path = "sample_voice_pool_worker.rs"]
 mod worker;
 

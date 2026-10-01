@@ -37,7 +37,7 @@ impl FxBusOutputSpreadState {
         )
     }
 
-    #[cfg(all(test, feature = "routing-tree-benchmark"))]
+    #[cfg(all(test, feature = "routing-tree-executor"))]
     pub(super) fn state_for_test(&self) -> (usize, &[f32]) {
         (self.idx, &self.buf)
     }

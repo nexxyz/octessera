@@ -33,7 +33,7 @@ mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
 mod pitch_shift_control;
-#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod pitch_shift_routing_tree_tests;
 mod prepared_control_apply;
 mod prepared_control_prepare;
@@ -52,15 +52,15 @@ mod render_synth_block_tests;
 mod render_tests;
 mod render_voice;
 mod retired_state;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_admission;
-#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod routing_tree_completion_tests;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_component_renderer;
-#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod routing_tree_control_migration_tests;
-#[cfg(any(test, feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "routing-tree-executor"))]
 mod routing_tree_executor;
 #[cfg(test)]
 mod routing_tree_executor_assignment_tests;
@@ -70,27 +70,27 @@ mod routing_tree_executor_state_tests;
 mod routing_tree_executor_test_support;
 #[cfg(test)]
 mod routing_tree_executor_tests;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_lifecycle;
 #[cfg(test)]
 mod routing_tree_momentary_test_support;
-#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod routing_tree_pipeline_tests;
-#[cfg(any(test, feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "routing-tree-executor"))]
 mod routing_tree_plan;
 #[cfg(test)]
 mod routing_tree_plan_tests;
-#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod routing_tree_retirement_tests;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_source_bank;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_source_renderer;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_state;
 #[cfg(test)]
 mod routing_tree_validation;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_worker;
 #[cfg(test)]
 mod sample_buffer_view_tests;
@@ -100,17 +100,17 @@ mod sample_voice_pool;
 #[cfg(test)]
 mod source_lane_prefix_tests;
 mod source_lane_renderer;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_bus;
 #[cfg(test)]
 mod source_worker_bus_tests;
 #[cfg(test)]
 mod source_worker_carrier_tests;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_carrier_transfer;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_carrier_transfer_bus;
 #[cfg(test)]
 mod source_worker_carrier_transfer_tests;
@@ -119,16 +119,16 @@ mod source_worker_failure_tests;
 mod source_worker_health;
 #[cfg(test)]
 mod source_worker_identity_tests;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_lease;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_lifecycle;
 mod source_worker_load;
 #[cfg(test)]
 mod source_worker_load_integration_tests;
 #[cfg(any(test, feature = "test-support"))]
 mod source_worker_observer;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_owner;
 #[cfg(test)]
 mod source_worker_parity_tests;
@@ -138,14 +138,14 @@ mod source_worker_placement_tests;
 mod source_worker_protocol;
 #[cfg(test)]
 mod source_worker_recovery_tests;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_render;
 #[cfg(test)]
 mod source_worker_residency_tests;
 mod source_worker_retirement;
 #[cfg(test)]
 mod source_worker_retirement_tests;
-#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod source_worker_routing_deadline_tests;
 #[cfg(test)]
 mod source_worker_staging_tests;
@@ -159,7 +159,7 @@ mod source_worker_tests;
 #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
 #[path = "engine/source_worker_timing_integration_tests.rs"]
 mod source_worker_timing_integration_tests;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_transfer;
 #[cfg(test)]
 mod source_worker_two_wave_tests;
@@ -177,15 +177,12 @@ pub use prepared_control_prepare::{
 };
 pub use retired_state::RetiredAudioState;
 use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
-#[cfg(all(
-    feature = "routing-tree-benchmark",
-    any(test, feature = "test-support")
-))]
+#[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
 pub use source_worker::RoutingTreePipelineProbe;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub use source_worker::SourceWorkerRuntime;
 pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub use source_worker_lifecycle::SourceWorkerLifecycle;
 pub use source_worker_load::{
     SourceWorkerLoadSnapshot, SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS,
@@ -196,9 +193,9 @@ pub use source_worker_observer::{
     install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
     SourceWorkerShutdownProbeGuard,
 };
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub use source_worker_protocol::SourceWorkerSetupError;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 pub use source_worker_protocol::SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT;
 pub use source_worker_protocol::{
     SourceWorkerMode, SourceWorkerRenderDisposition, SourceWorkerRetirementError,
@@ -217,7 +214,7 @@ use control::MAX_MOMENTARY_FX;
 use render_plan::RenderPlan;
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use routing_tree_executor::RoutingTreeAssignment;
 #[cfg(test)]
 use routing_tree_executor::RoutingTreeBlockScratch;
@@ -281,15 +278,15 @@ pub struct SynthEngine {
     block_slot_scratch: BlockSlotScratch,
     #[cfg(test)]
     routing_tree_scratch: RoutingTreeBlockScratch,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_tree_assignment: Option<RoutingTreeAssignment>,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_tree_notes_started: bool,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_tree_profile: SynthProfileSnapshot,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_tree_source_event_sample_clock: Option<u64>,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_tree_rejection: bool,
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
@@ -311,7 +308,7 @@ impl SynthEngine {
         if !self.synth_voice_pool.has_home() || !self.sample_voice_pool.has_home() {
             return false;
         }
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -332,7 +329,7 @@ impl SynthEngine {
 
     pub fn profile_snapshot(&self) -> SynthProfileSnapshot {
         if !self.voice_pools_home() {
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             if self.routing_tree_assignment.is_some() {
                 return self.routing_tree_profile;
             }
@@ -412,7 +409,7 @@ impl SynthEngine {
         self.dsp_config
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
     pub(super) fn observe_worker_utilization(
         &mut self,
         utilization_ppm: u32,

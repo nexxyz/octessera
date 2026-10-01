@@ -54,13 +54,13 @@ benchmark-voice-pools-256 = [
 routing-tree-benchmark = [
     "native-audio",
     "source-worker-benchmark-timing",
-    "realtime-engine/routing-tree-benchmark",
-    "rodio-engine-source/routing-tree-benchmark",
+    "realtime-engine/routing-tree-executor",
+    "rodio-engine-source/routing-tree-executor",
     "rodio-engine-source/output-provenance",
 ]
 routing-tree-executor = [
     "native-audio",
-    "realtime-engine/routing-tree-benchmark",
+    "realtime-engine/routing-tree-executor",
     "rodio-engine-source/routing-tree-executor",
 ]
 raspberry-runtime = [

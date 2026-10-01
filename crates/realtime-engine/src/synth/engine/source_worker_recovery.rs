@@ -76,7 +76,7 @@ impl SourceWorkerRuntime {
         let recovered = match phase {
             WorkerPhase::Sources => self.recover_source_wave(engine),
             WorkerPhase::Buses => self.recover_bus_wave(engine, stamp.frames),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             WorkerPhase::RoutingTree => self.recover_routing_tree_wave(),
         };
         if !recovered {
@@ -84,7 +84,7 @@ impl SourceWorkerRuntime {
             return SourceWorkerRenderDisposition::Fatal;
         }
         engine.sample_clock = engine.sample_clock.saturating_add(stamp.frames as u64);
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.mode
             == super::super::source_worker_protocol::SourceWorkerMode::RoutingTreePersistent
         {
@@ -223,7 +223,7 @@ impl SourceWorkerRuntime {
         }
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     fn recover_routing_tree_wave(&mut self) -> bool {
         let Some(mut first) = self.lease_home(0) else {
             return false;
@@ -260,14 +260,14 @@ impl SourceWorkerRuntime {
         self.bus_dispatch_residency = [0; BUS_COUNT];
         self.bus_dispatch_residency_valid = false;
         self.force_fault_mask = 0;
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         self.clear_routing_absolute_deadline();
         #[cfg(feature = "source-worker-benchmark-timing")]
         {
             self.dispatch_started_at = None;
             self.coordinator_remainder_started_at = None;
             self.timing_output_sequence = None;
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             {
                 self.routing_coordinator_remainder_started_at = None;
             }

@@ -5,7 +5,7 @@ use super::super::types::{
 };
 use super::{SynthVoicePartition, SynthVoicePool};
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 impl SynthVoicePool {
     pub(in crate::synth) fn take_routing_bank_into(
         &mut self,
@@ -158,7 +158,7 @@ impl SynthVoicePool {
     }
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 fn routing_bank_is_valid(bank: &[Voice; SYNTH_VOICE_LANE_CAPACITY]) -> bool {
     let mut canonical = [false; SYNTH_VOICE_LANE_CAPACITY];
     bank.iter().enumerate().all(|(lane, voice)| {

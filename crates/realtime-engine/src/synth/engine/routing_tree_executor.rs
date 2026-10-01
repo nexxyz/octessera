@@ -1,6 +1,6 @@
 use super::super::synth_voice_pool::SynthVoicePool;
 use super::super::types::BUS_COUNT;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use super::bus_chain_owner::BusChainOwner;
 use super::render_plan::RenderPlan;
 use super::routing_tree_plan::{RoutingTreePlan, INVALID_COMPONENT_ID, ROUTING_NODE_COUNT};
@@ -9,10 +9,10 @@ use super::source_worker_load::{
     SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS,
 };
 use super::support::InstrumentKind;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use super::SynthEngine;
 use crate::synth::types::INSTRUMENT_SLOT_COUNT;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use crate::synth::types::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};
 
 const WORKER_COUNT: usize = 2;
@@ -22,7 +22,7 @@ const INVALID_WORKER: u8 = u8::MAX;
 #[path = "routing_tree_executor_reference.rs"]
 mod reference;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct RoutingTreeAssignment {
     pub(super) plan: RoutingTreePlan,
@@ -30,7 +30,7 @@ pub(super) struct RoutingTreeAssignment {
     slot_worker: [u8; INSTRUMENT_SLOT_COUNT],
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 impl RoutingTreeAssignment {
     pub(super) fn worker_for_slot(&self, slot: usize) -> Option<usize> {
         let component = self.plan.slot_component.get(slot).copied()?;
@@ -65,12 +65,12 @@ impl RoutingTreeAssignment {
         }
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn has_same_component_worker_mapping(&self, other: &Self) -> bool {
         self.component_worker == other.component_worker && self.slot_worker == other.slot_worker
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn preserve_component_worker_mapping(&mut self, other: &Self) {
         let mut preserved = [INVALID_WORKER; ROUTING_NODE_COUNT];
         for (next_component, preserved_worker) in preserved
@@ -306,7 +306,7 @@ impl RoutingTreeBlockScratch {
         true
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn assignment(&self) -> RoutingTreeAssignment {
         RoutingTreeAssignment {
             plan: self.plan,
@@ -315,13 +315,13 @@ impl RoutingTreeBlockScratch {
         }
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn assignment_for_engine(engine: &SynthEngine) -> Option<RoutingTreeAssignment> {
         let assignment = Self::assignment_for_engine_unvalidated(engine)?;
         assignment.validate_engine(engine).then_some(assignment)
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn assignment_for_engine_unvalidated(
         engine: &SynthEngine,
     ) -> Option<RoutingTreeAssignment> {

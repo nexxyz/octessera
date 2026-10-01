@@ -2,7 +2,7 @@ pub const SOURCE_WORKER_MODE_INLINE: u8 = 0;
 pub const SOURCE_WORKER_MODE_PERSISTENT: u8 = 2;
 pub const SOURCE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-src-0", "oct-dsp-src-1"];
 pub const ROUTING_TREE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-tree-0", "oct-dsp-tree-1"];
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 pub const SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,7 +18,7 @@ pub enum SourceWorkerRenderDisposition {
 pub enum WorkerPhase {
     Sources,
     Buses,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     RoutingTree,
 }
 
@@ -31,7 +31,7 @@ pub struct WorkStamp {
     pub base_sample_clock: u64,
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(super) use super::source_worker_owner::WorkerCommand;
 
 pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
@@ -41,7 +41,7 @@ pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
 pub enum SourceWorkerMode {
     Inline = SOURCE_WORKER_MODE_INLINE,
     Persistent = SOURCE_WORKER_MODE_PERSISTENT,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     RoutingTreePersistent = SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT,
 }
 
@@ -65,7 +65,7 @@ pub enum SourceWorkerRetirementError {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub enum SourceWorkerSetupError {
     WorkerSchedulingUnavailable {
         parity: usize,
@@ -85,6 +85,6 @@ pub enum SourceWorkerSetupError {
         requested: usize,
         max: usize,
     },
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     RoutingTreeAdmissionUnavailable,
 }
