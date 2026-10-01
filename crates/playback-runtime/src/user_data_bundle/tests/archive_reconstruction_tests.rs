@@ -3,7 +3,7 @@ use crate::SystemPatchDocuments;
 use serde_json::{json, Value};
 
 fn canonical_defaults() -> Value {
-    serde_json::from_str(include_str!("../../../../config/defaults/base.json")).unwrap()
+    serde_json::from_str(include_str!("../../../../../config/defaults/base.json")).unwrap()
 }
 
 fn destination_full() -> Value {

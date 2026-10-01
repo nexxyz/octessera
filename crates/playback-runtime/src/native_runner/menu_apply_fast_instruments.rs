@@ -3,11 +3,8 @@ use crate::protocol::RuntimeAudioCommand;
 use super::menu_apply_fast_values::*;
 use super::NativeRunner;
 
-#[path = "menu_apply_instrument_drum.rs"]
 mod drum;
-#[path = "menu_apply_instrument_fm.rs"]
 pub(super) mod fm;
-#[path = "menu_apply_instrument_pluck.rs"]
 pub(super) mod pluck;
 
 impl NativeRunner {

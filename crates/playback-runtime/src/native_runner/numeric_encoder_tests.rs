@@ -1,9 +1,7 @@
 use super::*;
 use crate::native_menu::NativeMenuValue;
 
-#[path = "aux_numeric_encoder_tests.rs"]
-mod aux;
-#[path = "main_numeric_encoder_tests.rs"]
+mod aux_encoder;
 mod main;
 
 fn device_input(runner: &mut NativeRunner, input: Value) {

@@ -292,5 +292,4 @@ impl NativeRunner {
 }
 
 #[cfg(test)]
-#[path = "aux_binding_ownership_tests.rs"]
 mod tests;

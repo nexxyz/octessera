@@ -146,15 +146,12 @@ mod native_persistence_completion_tests;
 #[cfg(test)]
 mod numeric_encoder_tests;
 #[cfg(test)]
-#[path = "native_runner/patch_load_admission_tests.rs"]
 mod patch_load_admission_tests;
 #[cfg(test)]
 mod persistence_intent_tests;
 #[cfg(test)]
-#[path = "native_runner/system_document_tests.rs"]
 mod system_document_tests;
 #[cfg(test)]
-#[path = "native_runner/system_store_result_tests.rs"]
 mod system_store_result_tests;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod error_presentation_results;

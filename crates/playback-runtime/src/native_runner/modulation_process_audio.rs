@@ -3,7 +3,6 @@ use super::{NativeParamBinding, NativeRunner, Value};
 use crate::protocol::RuntimeAudioCommand;
 use std::collections::{BTreeMap, BTreeSet};
 
-#[path = "modulation_instrument_audio_base.rs"]
 mod instrument_base;
 
 pub(super) fn queue_changed_instrument_commands(

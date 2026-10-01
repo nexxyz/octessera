@@ -7,7 +7,6 @@ pub(super) enum NativePresetResultAction {
 }
 
 #[cfg(test)]
-#[path = "preset_native_completion_tests.rs"]
 mod tests;
 
 impl NativeRunner {

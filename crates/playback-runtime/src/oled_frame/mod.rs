@@ -30,7 +30,6 @@ pub use text_layout::{
 };
 
 #[cfg(test)]
-#[path = "error_layout_tests.rs"]
 mod error_layout_tests;
 
 #[cfg(test)]

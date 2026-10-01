@@ -1,7 +1,6 @@
 use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 use crate::protocol::RuntimePlatformEffect;
 
-#[path = "aux_binding_ownership.rs"]
 mod aux_binding_ownership;
 
 use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};

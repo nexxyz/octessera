@@ -482,5 +482,4 @@ fn invalid_identified_result(request: &RuntimePlatformRequest) -> RuntimeStoreRe
 }
 
 #[cfg(test)]
-#[path = "runtime_api_tests.rs"]
 mod tests;
