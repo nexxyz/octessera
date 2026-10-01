@@ -294,6 +294,7 @@ fn routing_tree_reasserts_bus_assignment_before_dispatch() {
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
             .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     let expected_worker = engine
         .routing_tree_assignment
         .as_ref()

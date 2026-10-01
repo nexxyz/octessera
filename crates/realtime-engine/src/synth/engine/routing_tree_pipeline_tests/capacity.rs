@@ -99,6 +99,7 @@ fn routing_tree_synth_note_admission_reaches_global_capacity_without_routing_rej
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
             .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     assert_eq!(
         engine
             .routing_tree_assignment
@@ -162,6 +163,7 @@ fn routing_tree_sample_note_admission_reaches_global_capacity_without_routing_re
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
             .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     assert_eq!(
         engine
             .routing_tree_assignment
