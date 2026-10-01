@@ -358,5 +358,4 @@ pub(super) fn decode_momentary(
 }
 
 #[cfg(test)]
-#[path = "latest_control_encoding_tests.rs"]
 mod tests;

@@ -430,9 +430,7 @@ impl rodio::Source for EngineSource {
 mod tests;
 
 #[cfg(test)]
-#[path = "e2e_tests.rs"]
 mod e2e_tests;
 
 #[cfg(test)]
-#[path = "generation_tests.rs"]
 mod generation_tests;

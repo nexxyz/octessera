@@ -13,7 +13,6 @@ use realtime_engine::synth::{
 
 const LATEST_CONTROL_BUDGET: usize = 32;
 
-#[path = "control_drain_events.rs"]
 mod control_drain_events;
 
 pub(super) struct OwnerGenerations {

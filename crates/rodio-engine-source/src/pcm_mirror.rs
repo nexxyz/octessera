@@ -277,5 +277,4 @@ fn initial_read_sequence(write_sequence: u64) -> u64 {
 }
 
 #[cfg(test)]
-#[path = "pcm_mirror_tests.rs"]
 mod tests;

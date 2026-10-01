@@ -7,7 +7,6 @@ use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
-#[path = "queue_sender.rs"]
 mod sender;
 
 pub const MUSICAL_QUEUE_CAPACITY: usize = 512;
@@ -397,5 +396,4 @@ pub(crate) struct QueueDequeueResult {
 }
 
 #[cfg(test)]
-#[path = "queue_tests.rs"]
 mod tests;
