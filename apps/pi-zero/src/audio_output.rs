@@ -113,8 +113,7 @@ pub struct AudioManager {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     load_status_reset_pending: bool,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    #[allow(dead_code)]
-    optional_recovery: Vec<audio_optional_recovery::OptionalRecoveryWorker>,
+    _optional_recovery: Vec<audio_optional_recovery::OptionalRecoveryWorker>,
 }
 
 #[derive(Clone, Copy)]

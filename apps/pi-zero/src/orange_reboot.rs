@@ -23,7 +23,7 @@ const TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_RESPONSE_BYTES: usize = 32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
+#[cfg_attr(not(unix), allow(dead_code))]
 pub(crate) enum OrangePowerRequestOutcome {
     Accepted,
     Rejected,

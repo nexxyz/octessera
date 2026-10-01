@@ -5,8 +5,6 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RouteOpenError {
-    #[allow(dead_code)]
-    Absent,
     Disconnected,
     Busy,
     Unsupported(String),
@@ -16,20 +14,19 @@ pub(crate) enum RouteOpenError {
 impl RouteOpenError {
     pub(crate) fn status(&self) -> AudioRouteStatus {
         match self {
-            Self::Absent | Self::Disconnected => AudioRouteStatus::Waiting,
+            Self::Disconnected => AudioRouteStatus::Waiting,
             Self::Busy | Self::Unsupported(_) | Self::Fault(_) => AudioRouteStatus::Faulted,
         }
     }
 
     pub(crate) fn is_waiting(&self) -> bool {
-        matches!(self, Self::Absent | Self::Disconnected)
+        matches!(self, Self::Disconnected)
     }
 }
 
 impl std::fmt::Display for RouteOpenError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Absent => formatter.write_str("audio route is absent"),
             Self::Disconnected => formatter.write_str("audio route is disconnected"),
             Self::Busy => formatter.write_str("audio route is busy"),
             Self::Unsupported(message) | Self::Fault(message) => formatter.write_str(message),
@@ -105,8 +102,11 @@ mod tests {
     }
 
     #[test]
-    fn missing_routes_wait_but_stream_and_format_failures_fault() {
-        assert_eq!(RouteOpenError::Absent.status(), AudioRouteStatus::Waiting);
+    fn disconnected_routes_wait_but_stream_and_format_failures_fault() {
+        assert_eq!(
+            RouteOpenError::Disconnected.status(),
+            AudioRouteStatus::Waiting
+        );
         assert_eq!(RouteOpenError::Busy.status(), AudioRouteStatus::Faulted);
         assert_eq!(
             RouteOpenError::Unsupported("format".into()).status(),

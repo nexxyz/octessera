@@ -315,7 +315,7 @@ impl NativeOledGuard {
     pub(crate) fn mark_failed_result(&self) -> Result<(), String> {
         Err("OLED boot handoff requires Unix file locking".into())
     }
-    #[allow(dead_code)]
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn mark_failed(&self) {}
 }
 
