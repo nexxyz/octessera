@@ -1,8 +1,5 @@
-#[path = "audio_prep_config.rs"]
 mod audio_prep_config;
-#[path = "audio_prep_results.rs"]
 mod audio_prep_results;
-#[path = "audio_prep_worker.rs"]
 mod audio_prep_worker;
 
 use crate::sample_decode_cache::SampleDecodeCache;
@@ -316,8 +313,6 @@ fn handle_full_config_request(
 }
 
 #[cfg(test)]
-#[path = "audio_prep_service_tests.rs"]
 mod extra_tests;
 #[cfg(test)]
-#[path = "audio_prep_preview_tests.rs"]
 mod preview_tests;
