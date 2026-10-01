@@ -1,7 +1,6 @@
 use super::*;
 use serde_json::{json, Value};
 
-#[path = "archive_reconstruction_tests.rs"]
 mod archive_reconstruction_tests;
 
 fn canonical_defaults() -> Value {

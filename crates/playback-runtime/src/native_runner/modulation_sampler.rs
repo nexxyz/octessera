@@ -3,10 +3,8 @@ use crate::protocol::DrumHit;
 use platform_core::{CellTriggerIntent, MusicalEvent};
 use std::collections::BTreeMap;
 
-#[path = "modulation_drum.rs"]
 mod drum;
 pub(super) use drum::drum_hit_for_intent;
-#[path = "modulation_intent_values.rs"]
 mod intent_values;
 #[cfg(test)]
 pub(super) use intent_values::value_from_lane;

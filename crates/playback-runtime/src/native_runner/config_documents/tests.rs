@@ -1,8 +1,8 @@
 use super::*;
 use serde_json::json;
 
-const DESKTOP_DEFAULT: &str = include_str!("../../../../config/generated/desktop/default.json");
-const PI_DEFAULT: &str = include_str!("../../../../config/generated/pi/default.json");
+const DESKTOP_DEFAULT: &str = include_str!("../../../../../config/generated/desktop/default.json");
+const PI_DEFAULT: &str = include_str!("../../../../../config/generated/pi/default.json");
 
 fn distinct_full_config(source: &str) -> Value {
     let mut config: Value = serde_json::from_str(source).unwrap();

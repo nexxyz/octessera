@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn runtime_music_first_delivers_host_events_before_scene_capture() {
         let payload: Value =
-            serde_json::from_str(include_str!("../../../config/generated/pi/default.json"))
+            serde_json::from_str(include_str!("../../../../config/generated/pi/default.json"))
                 .unwrap();
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.apply_config_payload(payload).unwrap();

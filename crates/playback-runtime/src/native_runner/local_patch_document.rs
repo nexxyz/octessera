@@ -19,9 +19,7 @@ pub(super) fn prepare_local_patch_payload(
 }
 
 #[cfg(test)]
-#[path = "local_patch_document_tests.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "local_patch_completeness_tests.rs"]
 mod completeness_tests;

@@ -1,6 +1,6 @@
 use super::{
-    timing_probe_cadence::AdvanceCorrelation, EventRecord, TimingProbeCountSummary,
-    TimingProbeReport, TimingProbeScenario, TimingProbeStreamReport, TimingProbeSummary,
+    cadence::AdvanceCorrelation, EventRecord, TimingProbeCountSummary, TimingProbeReport,
+    TimingProbeScenario, TimingProbeStreamReport, TimingProbeSummary,
 };
 use crate::MusicalEvent;
 use std::time::Duration;
@@ -243,7 +243,7 @@ fn parse_duration(value: &str) -> Result<Duration, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::timing_probe_cadence::AdvanceCorrelation;
+    use super::super::cadence::AdvanceCorrelation;
     use super::{
         parse_timing_probe_wake_intervals_ms, summarize_advance_correlations, summarize_counts,
         summarize_ms, summarize_us,

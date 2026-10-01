@@ -8,13 +8,11 @@ use serde_json::Value;
 use std::fs;
 use std::time::{Duration, Instant};
 
-#[path = "timing_probe/cadence.rs"]
-mod timing_probe_cadence;
-#[path = "timing_probe_output.rs"]
+mod cadence;
 mod timing_probe_output;
 mod timing_probe_report;
 
-use timing_probe_cadence::{apply_scenario, observe_advance, AdvanceCorrelation};
+use cadence::{apply_scenario, observe_advance, AdvanceCorrelation};
 use timing_probe_output::process_probe_output;
 use timing_probe_report::{
     event_key, intervals, primary_stream_report, summarize_advance_correlations, summarize_counts,
@@ -315,8 +313,7 @@ fn run_one(
     let realtime_started_at = Instant::now();
     let mut last_realtime_tick = realtime_started_at;
     let mut previous_ms = 0;
-    for endpoint_ms in timing_probe_cadence::wake_endpoints(measured_duration_ms, wake_interval_ms)
-    {
+    for endpoint_ms in cadence::wake_endpoints(measured_duration_ms, wake_interval_ms) {
         if realtime {
             let target = realtime_started_at + Duration::from_millis(endpoint_ms);
             let now = Instant::now();

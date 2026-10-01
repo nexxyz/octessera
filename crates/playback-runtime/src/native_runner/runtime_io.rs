@@ -9,7 +9,6 @@ const OLED_HELP_LINE_WIDTH: usize = 18;
 const EXTERNAL_RESYNC_PPQN: u64 = 96;
 
 #[cfg(test)]
-#[path = "music_first_terminal_tests.rs"]
 mod terminal_tests;
 
 impl NativeRunner {

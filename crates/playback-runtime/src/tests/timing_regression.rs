@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 fn default_playback() -> (PlaybackRuntime, NativeRunner, FakeHost, Instant) {
     let payload: Value =
-        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     assert_eq!(payload["runtimeConfig"]["bpm"], 120);
     assert_eq!(payload["runtimeConfig"]["midi"]["syncMode"], "internal");
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

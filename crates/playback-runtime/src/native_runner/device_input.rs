@@ -7,7 +7,6 @@ use super::{
     SyncSource,
 };
 
-#[path = "device_input_wake_trace.rs"]
 mod device_input_wake_trace;
 use device_input_wake_trace::{trace_device_input_wake, WakeTraceContext};
 

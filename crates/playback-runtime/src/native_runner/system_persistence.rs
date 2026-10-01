@@ -135,8 +135,6 @@ impl SystemPersistenceState {
 }
 
 #[cfg(test)]
-#[path = "system_menu_cutover_tests.rs"]
 mod menu_tests;
 #[cfg(test)]
-#[path = "system_persistence_tests.rs"]
 mod tests;

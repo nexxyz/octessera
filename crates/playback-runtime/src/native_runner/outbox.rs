@@ -2,21 +2,15 @@ use super::instrument_payload_owns_sample_bank;
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 use std::collections::BTreeMap;
 
-#[path = "outbox_coalescing.rs"]
 mod coalescing;
 #[cfg(test)]
-#[path = "outbox_generation_tests.rs"]
 mod generation_tests;
-#[path = "outbox_momentary_epochs.rs"]
 mod momentary_epochs;
 #[cfg(test)]
-#[path = "outbox_momentary_tests.rs"]
 mod momentary_tests;
 #[cfg(test)]
-#[path = "outbox_sample_generation_tests.rs"]
 mod sample_generation_tests;
 #[cfg(test)]
-#[path = "outbox_tests.rs"]
 mod tests;
 
 #[derive(Clone, Default)]

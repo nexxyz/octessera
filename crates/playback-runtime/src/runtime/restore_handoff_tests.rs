@@ -80,7 +80,7 @@ impl HostAdapter for RestoreHost {
 
 pub(super) fn runtime_runner() -> (PlaybackRuntime, NativeRunner, RestoreHost) {
     let full: Value =
-        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(full).unwrap();
     runner.skip_startup_splash();
@@ -98,7 +98,7 @@ pub(super) fn runtime_runner() -> (PlaybackRuntime, NativeRunner, RestoreHost) {
 
 pub(super) fn documents() -> (Value, Value) {
     let full: Value =
-        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     let documents = crate::split_system_patch_documents(&full).unwrap();
     (documents.system, documents.patch)
 }

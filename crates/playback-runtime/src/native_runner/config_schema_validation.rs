@@ -1,23 +1,14 @@
 use super::{Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION};
 use serde_json::Map;
 
-#[path = "config_schema_validation_canonical.rs"]
 mod canonical;
-#[path = "config_schema_validation_device_io.rs"]
 mod device_io;
-#[path = "config_schema_validation_instruments.rs"]
 mod instruments;
-#[path = "config_schema_validation_layers.rs"]
 mod layers;
-#[path = "config_schema_validation_mapping_bindings.rs"]
 mod mapping_bindings;
-#[path = "config_schema_validation_mixer_fx.rs"]
 mod mixer_fx;
-#[path = "config_schema_validation_modulation.rs"]
 mod modulation;
-#[path = "config_schema_validation_orchestration.rs"]
 mod orchestration;
-#[path = "config_schema_validation_scalar.rs"]
 mod scalar;
 
 pub(super) use modulation::validate_canonical_lfo_bank_shape;

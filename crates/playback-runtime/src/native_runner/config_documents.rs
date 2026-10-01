@@ -457,5 +457,4 @@ fn merge_sound(patch: &Value, system: &Value) -> Result<Value, String> {
 }
 
 #[cfg(test)]
-#[path = "config_documents_tests.rs"]
 mod tests;

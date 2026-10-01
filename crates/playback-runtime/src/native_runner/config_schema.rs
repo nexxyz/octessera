@@ -4,7 +4,6 @@ use super::{
     validate_portable_patch_fields, ConfigDto, Value, INSTRUMENT_COUNT,
 };
 
-#[path = "config_schema_derived_names.rs"]
 mod derived_names;
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
