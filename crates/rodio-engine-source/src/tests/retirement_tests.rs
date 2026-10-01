@@ -489,5 +489,4 @@ fn empty_retired_state_is_skipped() {
     assert_eq!(source.retired_backlog_len(), 0);
 }
 
-#[path = "retirement_burst_tests.rs"]
 mod burst_tests;
