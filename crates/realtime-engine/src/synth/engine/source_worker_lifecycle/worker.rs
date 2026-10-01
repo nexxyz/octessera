@@ -15,10 +15,8 @@ use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
-#[path = "source_worker_bus_worker.rs"]
 mod bus_worker;
 #[cfg(feature = "routing-tree-executor")]
-#[path = "source_worker_routing_tree_worker.rs"]
 mod routing_tree;
 
 #[cfg(test)]
@@ -466,5 +464,4 @@ fn finish_worker(state: &SourceWorkerThreadState, exit: Option<WorkerExit>) -> W
 }
 
 #[cfg(test)]
-#[path = "source_worker_worker_tests.rs"]
 mod tests;

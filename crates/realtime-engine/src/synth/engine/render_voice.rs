@@ -1,7 +1,6 @@
 use super::*;
 use std::f32::consts::{PI, TAU};
 
-#[path = "synth_voice_render.rs"]
 pub(super) mod synth_voice_render;
 
 #[derive(Clone, Copy)]
@@ -377,49 +376,37 @@ fn synth_voice_q(cfg: &SynthVoiceRenderConfig, resonance_cc: f32) -> f32 {
 }
 
 #[cfg(test)]
-#[path = "render_voice_tests.rs"]
 mod render_voice_tests;
 
 #[cfg(test)]
-#[path = "fm_tests.rs"]
 mod fm_tests;
 
 #[cfg(test)]
-#[path = "fm_core_tests.rs"]
 mod fm_core_tests;
 
 #[cfg(test)]
-#[path = "fm_spectral_tests.rs"]
 mod fm_spectral_tests;
 
 #[cfg(test)]
-#[path = "pluck_tests.rs"]
 mod pluck_tests;
 
 #[cfg(test)]
-#[path = "pluck_dispersion_tests.rs"]
 mod pluck_dispersion_tests;
 
 #[cfg(test)]
-#[path = "pluck_pitch_tests.rs"]
 mod pluck_pitch_tests;
 
 #[cfg(test)]
-#[path = "pluck_modal_tests.rs"]
 mod pluck_modal_tests;
 
 #[cfg(test)]
-#[path = "pluck_pitch_calibration_tests.rs"]
 mod pluck_pitch_calibration_tests;
 
 #[cfg(test)]
-#[path = "pluck_worker_tests.rs"]
 mod pluck_worker_tests;
 
 #[cfg(test)]
-#[path = "drum_tests.rs"]
 mod drum_tests;
 
 #[cfg(test)]
-#[path = "drum_worker_tests.rs"]
 mod drum_worker_tests;

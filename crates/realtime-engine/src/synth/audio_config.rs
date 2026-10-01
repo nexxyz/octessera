@@ -496,5 +496,4 @@ fn normalize_mixer(config: AudioMixerPayload) -> Result<MixerConfig, String> {
 }
 
 #[cfg(test)]
-#[path = "audio_config_tests.rs"]
 mod tests;

@@ -152,12 +152,10 @@ mod source_worker_staging_tests;
 #[cfg(test)]
 mod source_worker_start_hook_tests;
 #[cfg(test)]
-#[path = "engine/source_worker_test_fixtures.rs"]
 mod source_worker_test_fixtures;
 #[cfg(test)]
 mod source_worker_tests;
 #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
-#[path = "engine/source_worker_timing_integration_tests.rs"]
 mod source_worker_timing_integration_tests;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_transfer;

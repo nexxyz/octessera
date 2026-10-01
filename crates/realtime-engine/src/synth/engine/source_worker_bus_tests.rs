@@ -2,9 +2,7 @@ use super::*;
 use serde_json::json;
 use std::collections::BTreeMap;
 
-#[path = "source_worker_bus_kernel_tests.rs"]
 mod kernel;
-#[path = "source_worker_bus_protocol_tests.rs"]
 mod protocol;
 
 fn bus_config(buses: Vec<Vec<FxBusSlotConfig>>, route: &str) -> InstrumentsConfig {

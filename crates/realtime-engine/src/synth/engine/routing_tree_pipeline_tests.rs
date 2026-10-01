@@ -347,5 +347,4 @@ fn bus_config_with_reverb() -> InstrumentsConfig {
     config
 }
 
-#[path = "routing_tree_capacity_tests.rs"]
 mod capacity;

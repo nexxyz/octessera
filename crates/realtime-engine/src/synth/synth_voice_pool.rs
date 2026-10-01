@@ -12,13 +12,10 @@ pub(super) struct SynthVoicePool {
     lane_slots: [Option<usize>; SYNTH_VOICE_LANE_CAPACITY],
 }
 
-#[path = "synth_voice_pool_identity.rs"]
 mod identity;
 #[cfg(feature = "routing-tree-executor")]
-#[path = "synth_voice_pool_routing.rs"]
 mod routing;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-#[path = "synth_voice_pool_worker.rs"]
 mod worker;
 
 impl SynthVoicePool {
@@ -455,5 +452,4 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "synth_voice_pool_render_tests.rs"]
 mod render_tests;

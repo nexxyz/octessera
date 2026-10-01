@@ -7,18 +7,13 @@ use super::super::types::{
 use super::retired_state::RetiredSampleVoices;
 use super::support::SampleVoice;
 
-#[path = "sample_voice_pool_filter.rs"]
 mod filter;
-#[path = "sample_voice_pool_identity.rs"]
 mod identity;
 #[cfg(any(test, debug_assertions))]
-#[path = "sample_voice_pool_invariants.rs"]
 mod invariants;
 #[cfg(feature = "routing-tree-executor")]
-#[path = "sample_voice_pool_routing.rs"]
 mod routing;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-#[path = "sample_voice_pool_worker.rs"]
 mod worker;
 
 pub(super) struct SampleVoicePartition {
@@ -466,5 +461,4 @@ fn partition_lane(lane: usize) -> Option<(usize, usize)> {
 }
 
 #[cfg(test)]
-#[path = "sample_voice_pool_tests.rs"]
 mod tests;

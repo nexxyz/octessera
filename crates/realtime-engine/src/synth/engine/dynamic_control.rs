@@ -5,11 +5,8 @@ use super::bus_chain_owner::fx_kind_cost;
 use super::*;
 use crate::synth::engine::render_plan::render_plan_fx_slot;
 
-#[path = "drum_param_control.rs"]
 mod drum_param_control;
-#[path = "fm_param_control.rs"]
 mod fm_param_control;
-#[path = "pluck_param_control.rs"]
 mod pluck_param_control;
 
 impl SynthEngine {
