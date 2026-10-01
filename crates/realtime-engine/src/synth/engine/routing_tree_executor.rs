@@ -19,7 +19,6 @@ const WORKER_COUNT: usize = 2;
 const INVALID_WORKER: u8 = u8::MAX;
 
 #[cfg(test)]
-#[path = "routing_tree_executor_reference.rs"]
 mod reference;
 
 #[cfg(feature = "routing-tree-executor")]

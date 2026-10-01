@@ -439,11 +439,8 @@ fn process_pitch_shift(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32
 }
 
 #[cfg(test)]
-#[path = "pitch_shift_release_tests.rs"]
 mod pitch_shift_release_tests;
 #[cfg(test)]
-#[path = "pitch_shift_tests.rs"]
 mod pitch_shift_tests;
 #[cfg(test)]
-#[path = "render_momentary_fx_tests.rs"]
 mod tests;

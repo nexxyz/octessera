@@ -246,7 +246,6 @@ impl RoutingTreeWork {
 }
 
 #[cfg(test)]
-#[path = "source_worker_owner_tests.rs"]
 mod tests;
 
 pub(super) struct CompletedEnvelope {

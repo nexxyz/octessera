@@ -5,7 +5,6 @@ use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::support::stutter_segment_len;
 use super::*;
 
-#[path = "instrument_slot_control.rs"]
 pub(super) mod instrument_slot_control;
 
 pub(super) const MAX_MOMENTARY_FX: usize = 2;

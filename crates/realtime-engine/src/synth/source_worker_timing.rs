@@ -17,7 +17,6 @@ pub(crate) struct SourceWorkerTimingStart {
     cpu_start: u32,
 }
 
-#[path = "source_worker_timing_records.rs"]
 mod records;
 use records::SequenceTimingRecord;
 
@@ -468,9 +467,7 @@ fn duration_ns(duration: Duration) -> u64 {
     duration.as_nanos().min(u128::from(u64::MAX)) as u64
 }
 
-#[path = "source_worker_timing_recovery.rs"]
 mod recovery;
-#[path = "source_worker_timing_snapshot.rs"]
 mod snapshot;
 pub use snapshot::{
     SourceWorkerCoordinatorTimingSnapshot, SourceWorkerTimingSnapshot,
