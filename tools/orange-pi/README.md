@@ -268,12 +268,12 @@ untouched.
 ## Orange Pi USB gadget composer
 
 `orange-pi-usb-gadget.sh` is the Armbian ConfigFS composer. It reads
-`/var/lib/octessera/presets/default.json`; `audioOutputs.usb` selects UAC2 and
+`/var/lib/octessera/presets/system.json`; `audioOutputs.usb` selects UAC2 and
 `usb.midiOutEnabled` selects MIDI. The fixed UDC is `musb-hdrc.4.auto`.
 
 ```sh
 sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh setup \
-  --config /var/lib/octessera/presets/default.json
+  --config /var/lib/octessera/presets/system.json
 sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown
 bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```

@@ -193,51 +193,82 @@ def rectangular_lower_wave_slope_loft(x0: float, x1: float, low_y: float) -> cq.
     bottom_band_t = min(0.45, SOUTH_ROOF_LOW_WALL_BAND / SOUTH_SHOULDER_PLAN_WIDTH)
     for index in range(samples + 1):
         x = x0 + (x1 - x0) * index / samples
-        top_points = []
         bottom_points = []
         for profile_index in range(SLOPE_PROFILE_STEPS + 1):
             t = profile_index / SLOPE_PROFILE_STEPS
-            eased = (1.0 - (1.0 - t) * (1.0 - t)) ** 0.5
-            y = low_y + (high_y - low_y) * t
-            z = LOW_Z + (HIGH_Z - LOW_Z) * eased
-            top_points.append(cq.Vector(x, y, z))
             if t <= bottom_band_t:
                 bottom_z = UNDERSIDE_Z
             else:
                 bottom_t = (t - bottom_band_t) / (1.0 - bottom_band_t)
                 bottom_eased = (1.0 - (1.0 - bottom_t) * (1.0 - bottom_t)) ** 0.5
                 bottom_z = UNDERSIDE_Z + (HIGH_UNDERSIDE_Z - UNDERSIDE_Z) * bottom_eased
+            y = low_y + (high_y - low_y) * t
             bottom_points.append(cq.Vector(x, y, bottom_z))
-        wires.append(cq.Wire.makePolygon([*top_points, *reversed(bottom_points), top_points[0]]))
+        top_points, top_edges = lower_wave_top_profile(x, low_y)
+        edges = [*top_edges]
+        edges.append(cq.Edge.makeLine(top_points[-1], bottom_points[-1]))
+        edges.extend(
+            cq.Edge.makeLine(bottom_points[profile_index], bottom_points[profile_index - 1])
+            for profile_index in range(SLOPE_PROFILE_STEPS, 0, -1)
+        )
+        edges.append(cq.Edge.makeLine(bottom_points[0], top_points[0]))
+        wires.append(cq.Wire.assembleEdges(edges))
     return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True))
+
+
+def lower_wave_top_profile(x: float, low_y: float) -> tuple[list[cq.Vector], list[cq.Edge]]:
+    top_points = []
+    for index in range(SLOPE_PROFILE_STEPS + 1):
+        t = index / SLOPE_PROFILE_STEPS
+        top_points.append(
+            cq.Vector(
+                x,
+                low_y - SOUTH_SHOULDER_PLAN_WIDTH * t,
+                LOW_Z + (HIGH_Z - LOW_Z) * (2.0 * t - t * t) ** 0.5,
+            )
+        )
+    blend_end_t = 4 / SLOPE_PROFILE_STEPS
+    blend_length = SOUTH_SHOULDER_PLAN_WIDTH * blend_end_t
+    blend_height = (HIGH_Z - LOW_Z) * (
+        2.0 * blend_end_t - blend_end_t * blend_end_t
+    ) ** 0.5
+    next_t = 5 / SLOPE_PROFILE_STEPS
+    next_height = (HIGH_Z - LOW_Z) * (2.0 * next_t - next_t * next_t) ** 0.5
+    blend_end_slope = (next_height - blend_height) / (SOUTH_SHOULDER_PLAN_WIDTH / SLOPE_PROFILE_STEPS)
+    control_points = [
+        cq.Vector(x, low_y, LOW_Z),
+        cq.Vector(x, low_y - blend_length / 3.0, LOW_Z),
+        cq.Vector(x, low_y - 2.0 * blend_length / 3.0, LOW_Z + blend_height - blend_end_slope * blend_length / 3.0),
+        top_points[4],
+    ]
+    edges = [cq.Edge.makeBezier(control_points)]
+    edges.extend(
+        cq.Edge.makeLine(top_points[index], top_points[index + 1])
+        for index in range(4, SLOPE_PROFILE_STEPS)
+    )
+    return top_points, edges
 
 
 def west_wave_wall(params: dict, footprint: cq.Workplane) -> cq.Workplane:
     wall = params["wall"]
     low_y = PI_BLOCK_NORTH_Y
-    high_y = PI_BLOCK_NORTH_Y - SOUTH_SHOULDER_PLAN_WIDTH
-    wires = []
-    samples = 24
-    for index in range(samples + 1):
-        y = PI_BLOCK_NORTH_Y * index / samples
-        if y <= high_y:
-            top_z = HIGH_Z
-        else:
-            t = (low_y - y) / (low_y - high_y)
-            eased = (1.0 - (1.0 - t) * (1.0 - t)) ** 0.5
-            top_z = LOW_Z + (HIGH_Z - LOW_Z) * eased
-        wires.append(
-            cq.Wire.makePolygon(
-                [
-                    cq.Vector(-WEST_EXTENSION, y, LOW_Z - 0.05),
-                    cq.Vector(wall + 0.3, y, LOW_Z - 0.05),
-                    cq.Vector(wall + 0.3, y, top_z),
-                    cq.Vector(-WEST_EXTENSION, y, top_z),
-                    cq.Vector(-WEST_EXTENSION, y, LOW_Z - 0.05),
-                ]
-            )
-        )
-    return cq.Workplane("XY").add(cq.Solid.makeLoft(wires, ruled=True)).intersect(footprint).clean()
+    x = -WEST_EXTENSION
+    top_points, top_edges = lower_wave_top_profile(x, low_y)
+    bottom_start = cq.Vector(x, 0, LOW_Z - 0.05)
+    bottom_end = cq.Vector(x, low_y, LOW_Z - 0.05)
+    flat_top = cq.Vector(x, 0, HIGH_Z)
+    edges = [
+        cq.Edge.makeLine(bottom_start, bottom_end),
+        cq.Edge.makeLine(bottom_end, top_points[0]),
+        *top_edges,
+        cq.Edge.makeLine(top_points[-1], flat_top),
+        cq.Edge.makeLine(flat_top, bottom_start),
+    ]
+    profile = cq.Wire.assembleEdges(edges)
+    wall_solid = cq.Solid.extrudeLinear(
+        profile, [], cq.Vector(wall + 0.3 + WEST_EXTENSION, 0, 0)
+    )
+    return cq.Workplane("XY").add(wall_solid).intersect(footprint).clean()
 
 
 def slot_cutter(start: tuple[float, float], end: tuple[float, float], width: float) -> cq.Workplane:
