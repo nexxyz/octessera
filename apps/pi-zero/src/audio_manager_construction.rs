@@ -255,7 +255,7 @@ impl AudioManager {
             _streams: streams,
             service,
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            optional_recovery,
+            _optional_recovery: optional_recovery,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             route_registry,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]

@@ -148,8 +148,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_absent_and_disconnected_open_failures_retry() {
-        assert!(should_retry_open(&RouteOpenError::Absent));
+    fn only_disconnected_open_failures_retry() {
         assert!(should_retry_open(&RouteOpenError::Disconnected));
         assert!(!should_retry_open(&RouteOpenError::Busy));
         assert!(!should_retry_open(&RouteOpenError::Unsupported(

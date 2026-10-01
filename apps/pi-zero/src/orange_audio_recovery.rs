@@ -204,7 +204,6 @@ impl OrangeRecoveryController {
         )
     }
 
-    #[allow(dead_code)]
     pub(super) fn new_optional_initial(
         sink: AudioSink,
         initial: OpenedAudioSink,

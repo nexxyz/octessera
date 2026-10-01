@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use super::modulation_target::TargetValueKind;
 
 #[path = "modulation_instrument_target_fields.rs"]
