@@ -262,7 +262,7 @@ fn named_presets_and_user_data_archives_keep_portable_sample_validation() {
     portable["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"] =
         json!("userdata/User Kit/custom.wav");
     let defaults: Value = serde_json::from_str(include_str!(
-        "../../../../config/generated/desktop/default.json"
+        "../../../../../config/generated/desktop/default.json"
     ))
     .unwrap();
     for media_included in [false, true] {

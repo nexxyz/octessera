@@ -3,7 +3,6 @@ use super::{NativeRunner, OLED_BODY_ROWS};
 use crate::native_menu::{NativeMenuBarValue, NativeMenuSnapshot};
 use crate::oled_frame::OledDisplayLayout;
 
-#[path = "snapshot_display_drum.rs"]
 mod drum;
 
 const DISPLAY_LINE_WIDTH: usize = 28;
@@ -482,5 +481,4 @@ fn prefix_line(line: String, prefix: Option<String>) -> String {
 }
 
 #[cfg(test)]
-#[path = "snapshot_display_tests.rs"]
 mod tests;

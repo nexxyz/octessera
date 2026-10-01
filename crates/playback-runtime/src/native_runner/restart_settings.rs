@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use super::UsbDataRole;
 
-#[path = "restart_settings_write.rs"]
 pub(super) mod write;
 pub(super) use write::{DefaultWrite, DefaultWriteCompletion};
 

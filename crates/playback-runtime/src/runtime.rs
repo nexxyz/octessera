@@ -7,36 +7,23 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::VecDeque;
 
-#[path = "runtime_api.rs"]
 mod api;
 #[cfg(test)]
-#[path = "runtime_default_load_tests.rs"]
 mod default_load_tests;
-#[path = "runtime_dispatch.rs"]
 mod dispatch;
-#[path = "runtime_dispatch_profile.rs"]
 mod dispatch_profile;
-#[path = "runtime_midi.rs"]
 mod midi;
-#[path = "runtime_music_first.rs"]
 mod music_first;
-#[path = "runtime_oled.rs"]
 mod oled;
 #[cfg(test)]
-#[path = "runtime_presentation_state_tests.rs"]
 mod presentation_state_tests;
-#[path = "runtime_pulse_phase.rs"]
 mod pulse_phase;
 #[cfg(test)]
-#[path = "runtime_restore_handoff_tests.rs"]
 mod restore_handoff_tests;
-#[path = "runtime_status.rs"]
 mod status;
 #[cfg(test)]
-#[path = "runtime_system_store_aux_tests.rs"]
 mod system_store_aux_tests;
 #[cfg(test)]
-#[path = "runtime_system_store_tests.rs"]
 mod system_store_tests;
 
 pub use music_first::NativeStoreRequest;

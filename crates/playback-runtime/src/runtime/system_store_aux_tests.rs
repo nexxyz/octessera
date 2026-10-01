@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 #[test]
 fn conflicting_system_aux_load_reaches_outer_status_as_typed_native_failure() {
     let mut full: Value =
-        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     full["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"] = json!("sound.noteLengthMs");
     let documents = crate::split_system_patch_documents(&full).unwrap();
     let mut conflicting_system = documents.system;

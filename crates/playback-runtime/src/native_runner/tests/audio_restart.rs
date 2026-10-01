@@ -406,5 +406,4 @@ fn patch_auto_save_policy_does_not_automatically_apply_system_restart_settings()
     assert!(runner.pending.system_persistence.dirty_revision.is_some());
 }
 
-#[path = "audio_restart_outcome_tests.rs"]
 mod outcome_tests;

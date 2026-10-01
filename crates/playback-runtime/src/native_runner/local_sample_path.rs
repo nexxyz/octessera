@@ -50,5 +50,4 @@ fn is_safe_local_wav_path(path: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "local_sample_path_tests.rs"]
 mod tests;

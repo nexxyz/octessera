@@ -1,9 +1,7 @@
 use super::{NativeMenuBarValue, NativeMenuItem, NativeMenuValue};
 use crate::native_menu::format_values::format_display_value;
 
-#[path = "format_rows.rs"]
 mod format_rows;
-#[path = "format_status.rs"]
 mod format_status;
 
 use format_rows::{

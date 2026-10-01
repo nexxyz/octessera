@@ -5,8 +5,10 @@ use crate::oled_frame::{presentation_input_from_snapshot, render_oled_frame};
 use serde_json::json;
 
 fn shipped_runner() -> NativeRunner {
-    let payload: Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
     let mut runner = NativeRunner::new(super::super::NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();

@@ -1,6 +1,5 @@
 use super::modulation_target::TargetValueKind;
 
-#[path = "modulation_instrument_target_fields.rs"]
 mod instrument_fields;
 use self::instrument_fields::{
     INSTRUMENT_ADDITIVE_FIELDS, INSTRUMENT_BOOL_FIELDS, INSTRUMENT_ENUM_FIELDS, INSTRUMENT_FIELDS,

@@ -30,7 +30,7 @@ fn runtime_with_runner() -> (PlaybackRuntime, NativeRunner, FakeHost) {
 
 fn system_document() -> Value {
     let config: Value =
-        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     let mut system = crate::split_system_patch_documents(&config).unwrap().system;
     system["runtimeConfig"]["displayBrightness"] = json!(29);
     system

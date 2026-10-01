@@ -15,16 +15,13 @@ use crate::oled_frame::{
 use crate::protocol::MidiPort;
 use platform_core::{BehaviorRenderModel, GlobalSoundConfig};
 
-#[path = "snapshot_scene_json.rs"]
 mod conversion;
-#[path = "snapshot_scene_hardware.rs"]
 mod hardware;
 pub use hardware::{
     NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,
     NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation,
 };
 #[cfg(test)]
-#[path = "snapshot_scene_hardware_tests.rs"]
 mod hardware_tests;
 
 struct AudioScene {
