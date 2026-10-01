@@ -81,6 +81,8 @@ run_pre_push_checks() {
   run_check "file length" check_file_length
   run_check "cargo test" \
     cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source
+  run_check "cargo test pi routing-tree executor" \
+    cargo test -p realtime-engine -p rodio-engine-source --features rodio-engine-source/routing-tree-executor
   run_check "enum help coverage" \
     cargo test -p playback-runtime native_menu::tests::help_enum_tests
   run_check "factory patch UI scenario" \
