@@ -254,5 +254,4 @@ fn apply_biquad(x: f32, state: &mut BiquadState, coeffs: BiquadCoeffs) -> f32 {
 }
 
 #[cfg(test)]
-#[path = "eq_tests.rs"]
 mod eq_tests;

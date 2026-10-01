@@ -20,7 +20,6 @@ use crate::synth::{
 use serde_json::json;
 use std::collections::BTreeMap;
 
-#[path = "routing_tree_spread_state_test_support.rs"]
 mod spread_state;
 
 #[test]

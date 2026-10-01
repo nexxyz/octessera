@@ -1,6 +1,4 @@
-#[path = "source_worker_owner_routing.rs"]
 mod owner_routing;
-#[path = "source_worker_startup.rs"]
 mod startup;
 #[cfg(test)]
 use super::source_lane_renderer::SampleSourceContext;
@@ -23,7 +21,6 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-#[path = "source_worker_worker.rs"]
 pub(super) mod worker;
 #[cfg(test)]
 use worker::ReverseCompletionState;

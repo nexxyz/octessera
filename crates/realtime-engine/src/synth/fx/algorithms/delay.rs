@@ -126,5 +126,4 @@ fn read_delay(buf: &[f32], write_idx: usize, delay_samples: f32) -> f32 {
 }
 
 #[cfg(test)]
-#[path = "delay_tests.rs"]
 mod delay_tests;

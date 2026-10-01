@@ -428,7 +428,6 @@ pub(super) fn parse_instrument_kind(kind: &str) -> InstrumentKind {
 }
 
 #[cfg(test)]
-#[path = "support_tests.rs"]
 mod support_tests;
 
 pub(super) fn parse_momentary_fx_kind(kind: &str) -> Option<MomentaryFxKind> {

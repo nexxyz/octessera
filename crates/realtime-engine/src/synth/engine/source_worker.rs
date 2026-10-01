@@ -234,73 +234,53 @@ impl SourceWorkerRuntime {
     }
 }
 
-#[path = "source_worker_mailboxes.rs"]
 mod mailboxes;
 
-#[path = "source_worker_deadlines.rs"]
 mod deadlines;
 
-#[path = "source_worker_quantum.rs"]
 mod quantum;
 
-#[path = "source_worker_dispatch.rs"]
 mod dispatch;
 
-#[path = "source_worker_completion.rs"]
 mod completion;
 
-#[path = "source_worker_controls.rs"]
 mod controls;
 
 #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
-#[path = "source_worker_pipeline_probe.rs"]
 mod pipeline_probe;
 #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
 pub use pipeline_probe::RoutingTreePipelineProbe;
 
-#[path = "source_worker_recovery.rs"]
 mod recovery;
 
 #[cfg(feature = "source-worker-benchmark-timing")]
-#[path = "source_worker_timing_integration.rs"]
 mod timing_integration;
 
-#[path = "source_worker_reduce.rs"]
 mod reduction;
 
 #[cfg(test)]
-#[path = "source_worker_test_support.rs"]
 pub(super) mod test_support;
 
 #[cfg(test)]
-#[path = "source_worker_sample_test_support.rs"]
 mod sample_test_support;
 
 #[cfg(test)]
-#[path = "source_worker_recovery_test_support.rs"]
 mod recovery_test_support;
 
 #[cfg(test)]
-#[path = "source_worker_collection_test_support.rs"]
 mod collection_test_support;
 
 #[cfg(test)]
-#[path = "source_worker_residency_test_support.rs"]
 mod residency_test_support;
 
 #[cfg(any(test, feature = "test-support"))]
-#[path = "source_worker_feature_support.rs"]
 mod feature_support;
 
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_control_gate.rs"]
 mod routing_tree_control_gate;
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_pipeline.rs"]
 mod routing_tree_pipeline;
 
-#[path = "source_worker_runtime_helpers.rs"]
 mod runtime_helpers;
 
-#[path = "source_worker_construction.rs"]
 mod construction;

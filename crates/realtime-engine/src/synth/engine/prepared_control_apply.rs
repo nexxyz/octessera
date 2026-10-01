@@ -460,20 +460,15 @@ fn preserve_spread_state(
 }
 
 #[cfg(test)]
-#[path = "prepared_control_tests.rs"]
 mod prepared_control_tests;
 
-#[path = "prepared_instrument_owner.rs"]
 mod prepared_instrument_owner;
 
 #[cfg(test)]
-#[path = "prepared_instrument_owner_tests.rs"]
 mod prepared_instrument_owner_tests;
 
 #[cfg(test)]
-#[path = "momentary_control_tests.rs"]
 mod momentary_control_tests;
 
 #[cfg(all(test, feature = "routing-tree-executor"))]
-#[path = "routing_tree_prepared_tests.rs"]
 mod routing_tree_prepared_tests;

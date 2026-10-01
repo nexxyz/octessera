@@ -479,5 +479,4 @@ fn owner_identity(owner: &OwnerEnvelope) -> SourceWorkerOwnerIdentity {
 }
 
 #[cfg(test)]
-#[path = "source_worker_completion_tests.rs"]
 mod completion_tests;

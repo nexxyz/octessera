@@ -374,5 +374,4 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "source_lane_renderer_render_tests.rs"]
 mod render_tests;
