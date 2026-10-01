@@ -128,11 +128,14 @@ fn routing_tree_timing_records_output_pipeline_stages() {
 fn routing_tree_timing_failure_recovers_and_resumes_fresh_output() {
     let (control_tx, rx) = event_queue();
     control_tx
-        .send(EngineEvent::SetPreparedInstruments(
-            prepare_instruments_config(
+        .send(EngineEvent::SetPreparedInstruments {
+            generation: 0,
+            config: prepare_instruments_config(
                 InstrumentsConfig {
                     instruments: vec![InstrumentSlotConfig {
                         fm: None,
+                        pluck: None,
+                        drum: None,
                         kind: "synth".into(),
                         synth: default_synth_config(),
                         mixer: None,
@@ -143,7 +146,7 @@ fn routing_tree_timing_failure_recovers_and_resumes_fresh_output() {
                 },
                 48_000,
             ),
-        ))
+        })
         .unwrap();
     let probe = Arc::new(SourceWorkerTimingProbe::new(None));
     let (mut source, shutdown_owner) =
