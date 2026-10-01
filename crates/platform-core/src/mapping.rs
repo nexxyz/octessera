@@ -235,5 +235,4 @@ fn modulo(value: i32, base: i32) -> i32 {
 }
 
 #[cfg(test)]
-#[path = "mapping_tests.rs"]
 mod mapping_tests;

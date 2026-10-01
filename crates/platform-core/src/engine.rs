@@ -381,5 +381,4 @@ fn apply_note_behavior_with_event_intents(
 }
 
 #[cfg(test)]
-#[path = "engine_tests.rs"]
 mod tests;

@@ -304,5 +304,4 @@ pub fn forest_fire_config_menu() -> Vec<BehaviorConfigItem> {
 }
 
 #[cfg(test)]
-#[path = "forest_fire_tests.rs"]
 mod tests;
