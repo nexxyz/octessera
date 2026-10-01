@@ -128,6 +128,8 @@ jobs:
         run: cargo clippy --workspace --exclude octessera-desktop --exclude rodio-engine-source --all-targets -- -D warnings
       - name: Run rodio engine source clippy
         run: cargo clippy -p rodio-engine-source --all-targets -- -D warnings
+      - name: Run Pi routing-tree executor clippy
+        run: cargo clippy -p realtime-engine -p rodio-engine-source --features rodio-engine-source/routing-tree-executor --all-targets -- -D warnings
       - name: Run production cognitive clippy (exclude platform audio apps)
         run: cargo clippy --workspace --exclude octessera-desktop --exclude rodio-engine-source --lib --bins -- -W clippy::cognitive_complexity -D warnings
       - name: Run production cognitive clippy (rodio engine source)
@@ -151,6 +153,8 @@ jobs:
         run: cargo test -p playback-runtime native_menu::tests::help_enum_tests
       - name: Run rodio engine source tests
         run: cargo test -p rodio-engine-source
+      - name: Run Pi routing-tree executor tests
+        run: cargo test -p realtime-engine -p rodio-engine-source --features rodio-engine-source/routing-tree-executor
       - name: Run vendored CPAL ALSA unit tests
         run: bash tools/quality/test-vendored-cpal-alsa.sh
       - name: Detect parity-sensitive changes

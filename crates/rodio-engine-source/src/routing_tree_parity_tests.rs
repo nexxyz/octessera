@@ -94,6 +94,8 @@ fn threaded_parity_config() -> InstrumentsConfig {
         instruments: vec![
             InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -104,6 +106,8 @@ fn threaded_parity_config() -> InstrumentsConfig {
             },
             InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -114,6 +118,8 @@ fn threaded_parity_config() -> InstrumentsConfig {
             },
             InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -124,6 +130,8 @@ fn threaded_parity_config() -> InstrumentsConfig {
             },
             InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {

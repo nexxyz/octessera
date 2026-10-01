@@ -308,6 +308,8 @@ fn initial_routing_config() -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             fm: None,
+            pluck: None,
+            drum: None,
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -440,6 +442,8 @@ fn routing_status_config() -> realtime_engine::synth::PreparedAudioConfig {
         instruments: vec![
             InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
@@ -450,6 +454,8 @@ fn routing_status_config() -> realtime_engine::synth::PreparedAudioConfig {
             },
             InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: "sampler".into(),
                 synth: default_synth_config(),
                 mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
