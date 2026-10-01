@@ -411,5 +411,4 @@ fn is_lower_hex_commit(value: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "orange_metadata_tests.rs"]
 mod tests;

@@ -420,5 +420,4 @@ impl std::fmt::Debug for NeoTrellis {
 }
 
 #[cfg(test)]
-#[path = "neotrellis_tests.rs"]
 mod tests;

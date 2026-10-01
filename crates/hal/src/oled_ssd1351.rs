@@ -452,5 +452,4 @@ impl fmt::Debug for OledSsd1351 {
 }
 
 #[cfg(test)]
-#[path = "oled_frame_transform_tests.rs"]
 mod oled_frame_transform_tests;
