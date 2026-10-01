@@ -85,7 +85,11 @@ corepack pnpm --filter @octessera/desktop test
 cargo fmt --all --check
 cargo test -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop
 cargo clippy -p platform-core -p playback-runtime -p realtime-engine -p octessera-desktop --all-targets -- -D warnings
+cargo test -p realtime-engine -p rodio-engine-source --features rodio-engine-source/routing-tree-executor
 ```
+
+The last command covers the routing-tree executor that production Pi builds
+use; default-feature tests do not compile it.
 
 These checks keep native runtime behavior in `platform-core` and
 `playback-runtime`, internal Synth, FM, Plucked, Drum, and Sampler paths in
