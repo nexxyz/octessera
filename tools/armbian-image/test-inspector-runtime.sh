@@ -58,6 +58,36 @@ device_apply_service_unit="$root/userpatches/overlay/etc/systemd/system/octesser
 device_config_validator="$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
 device_apply_helper="$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot"
 pi_default="$root/config/generated/pi/default.json"
+image_inspector="$root/tools/armbian-image/inspect-built-image.sh"
+for required in \
+  'usr/share/octessera/defaults/pi-system.json' \
+  'usr/share/octessera/defaults/pi-default.patch.json' \
+  'validate_save_document usr/share/octessera/defaults/pi-system.json octessera.system 1' \
+  'validate_save_document usr/share/octessera/defaults/pi-default.patch.json octessera.patch 2'; do
+  grep -qF "$required" "$image_inspector" || { echo "Image inspector omits split save-document contract: $required" >&2; exit 1; }
+done
+for required in \
+  'usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json' \
+  'usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/MANIFEST.tsv'; do
+  grep -qF "$required" "$image_inspector" || { echo "Image inspector omits split save-document ownership checks: $required" >&2; exit 1; }
+done
+eval "$(sed -n '/^validate_save_document() {/,/^}/p' "$image_inspector")"
+inspected_save_document=
+read_file() { printf '%s\n' "$inspected_save_document"; }
+inspected_save_document='{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{}}'
+validate_save_document usr/share/octessera/defaults/pi-system.json octessera.system 1
+inspected_save_document='{"kind":"octessera.patch","schemaVersion":2,"runtimeConfig":{}}'
+validate_save_document usr/share/octessera/defaults/pi-default.patch.json octessera.patch 2
+for invalid_document in \
+  '{"runtimeConfig":{}}' \
+  '{"kind":"octessera.system","schemaVersion":2,"runtimeConfig":{}}' \
+  '{broken'; do
+  inspected_save_document="$invalid_document"
+  if validate_save_document usr/share/octessera/defaults/pi-system.json octessera.system 1; then
+    echo 'Image inspector accepted a mixed, wrong-version, or malformed save document.' >&2
+    exit 1
+  fi
+done
 mkdir -p "$fake_image/etc/systemd/system/sockets.target.wants"
 ln -s ../octessera-device-apply-reboot.socket "$fake_image/etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket"
 runtime_rejected_paths=()

@@ -98,6 +98,10 @@ mod orange_oled_suspend_policy;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_reboot;
 mod persistence;
+#[cfg(feature = "native-audio")]
+mod pi_boot_config;
+#[cfg(test)]
+mod pi_store_test_support;
 mod platform_service;
 mod power_lifecycle;
 #[cfg(any(
@@ -338,21 +342,13 @@ fn main() {
     println!("octessera - Pi native runtime");
 
     let store_dir = default_store_dir();
-    let usb_config = match usb_config::read_usb_runtime_config(&store_dir) {
+    let (usb_config, audio_optimization) = match usb_config::read_boot_runtime_config(&store_dir) {
         Ok(config) => config,
         Err(error) => {
-            eprintln!("USB runtime configuration is unavailable: {error}");
+            eprintln!("Pi System/Patch boot configuration is unavailable: {error}");
             std::process::exit(2);
         }
     };
-    let audio_optimization =
-        match usb_config::read_audio_optimization_from_default_config(&store_dir) {
-            Ok(optimization) => optimization,
-            Err(error) => {
-                eprintln!("Audio optimization configuration is unavailable: {error}");
-                std::process::exit(2);
-            }
-        };
     let hardware = match init_hardware(handoff_mode == boot_oled_handoff::HandoffMode::Direct) {
         Ok(devices) => devices,
         Err(fault) => hardware_fault::run_hardware_fault_mode(fault),

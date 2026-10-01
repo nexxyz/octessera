@@ -13,6 +13,8 @@ mod input_tests;
 #[cfg(windows)]
 #[path = "platform_native_preset_io_tests.rs"]
 mod io_tests;
+#[path = "platform_native_preset_local_sample_tests.rs"]
+mod local_sample_tests;
 #[cfg(test)]
 #[path = "platform_native_preset_result_tests.rs"]
 mod result_tests;
@@ -65,8 +67,17 @@ fn service_and_root(label: &str) -> (crate::platform_service::PiPlatformService,
             .unwrap()
             .as_nanos()
     ));
-    let service =
-        crate::platform_service::PiPlatformService::new(root.join("store"), root.join("samples"));
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let full: serde_json::Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(&full).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    let service = crate::platform_service::PiPlatformService::new(store, root.join("samples"));
     (service, root)
 }
 

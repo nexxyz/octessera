@@ -70,7 +70,7 @@ fn desktop_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&desktop, "Saves > Default"),
-        vec!["Auto Save", "Backups", "Save Default", "Load Default"]
+        vec!["Auto Save", "Backups", "Save Patch", "Load Patch"]
     );
     assert!(NativeMenuModel::new(desktop)
         .item_for_key("usb.midiOutEnabled")

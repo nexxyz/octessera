@@ -27,8 +27,12 @@ def _reject_constant(value):
 
 
 def parse_config(payload):
-    if not isinstance(payload, dict) or "runtimeConfig" not in payload:
-        raise ConfigError("runtimeConfig must be present")
+    if (not isinstance(payload, dict)
+            or payload.get("kind") != "octessera.system"
+            or type(payload.get("schemaVersion")) is not int
+            or payload["schemaVersion"] != 1
+            or "runtimeConfig" not in payload):
+        raise ConfigError("a System document v1 is required")
     runtime = payload["runtimeConfig"]
     if not isinstance(runtime, dict):
         raise ConfigError("runtimeConfig must be an object")

@@ -1,13 +1,32 @@
 use super::*;
 use std::sync::{Arc, Mutex};
 
-fn role_payload(role: UsbDataRole) -> serde_json::Value {
-    serde_json::json!({
-        "runtimeConfig": {
-            "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
-            "usb": { "dataRole": role.as_str(), "midiOutEnabled": false }
-        }
-    })
+fn system_patch(role: UsbDataRole) -> (serde_json::Value, serde_json::Value) {
+    let mut full = crate::user_data_archive::canonical_defaults();
+    full["runtimeConfig"]["usb"]["dataRole"] = serde_json::json!(role.as_str());
+    if role == UsbDataRole::Host {
+        full["runtimeConfig"]["audioOutputs"]["usb"] = serde_json::json!(false);
+        full["runtimeConfig"]["usb"]["midiOutEnabled"] = serde_json::json!(false);
+    }
+    let documents = playback_runtime::split_system_patch_documents(&full).unwrap();
+    (documents.system, documents.patch)
+}
+
+fn write_pair(root: &std::path::Path, role: UsbDataRole) -> (serde_json::Value, serde_json::Value) {
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let (system, patch) = system_patch(role);
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        crate::platform_service::default_patch_path(&store),
+        serde_json::to_vec(&patch).unwrap(),
+    )
+    .unwrap();
+    (system, patch)
 }
 
 fn transaction_adapter(
@@ -68,112 +87,111 @@ fn raspberry_host_role_rejects_sd2_before_audio_or_midi_actions() {
 }
 
 #[test]
-fn default_role_changes_are_serialized_and_leave_the_last_default() {
-    let root = std::env::temp_dir().join(format!("octessera-pi-role-queue-{}", std::process::id()));
+fn saving_system_role_does_not_apply_it_or_modify_the_patch() {
+    let root = std::env::temp_dir().join(format!("octessera-pi-role-save-{}", std::process::id()));
     let calls = Arc::new(Mutex::new(Vec::new()));
     let observed = calls.clone();
+    let (host_system, patch) = write_pair(&root, UsbDataRole::Gadget);
+    let mut requested_system = host_system;
+    requested_system["runtimeConfig"]["usb"]["dataRole"] =
+        serde_json::json!(UsbDataRole::Host.as_str());
     let mut adapter = transaction_adapter(&root, move |role| {
         observed.lock().unwrap().push(role);
         Ok(())
     });
-    for (id, role) in [("host", UsbDataRole::Host), ("gadget", UsbDataRole::Gadget)] {
-        assert!(adapter
-            .handle_platform_effect(&RuntimePlatformRequest::new(
-                RuntimePlatformEffect::StoreSaveDefault {
-                    payload: role_payload(role),
-                    mode: None,
-                },
-                id.into(),
-                None,
-            ))
-            .unwrap()
-            .is_empty());
-    }
-    let barrier = adapter.platform_service.enqueue_test_barrier().unwrap();
-    barrier
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap();
-    assert_eq!(
-        &*calls.lock().unwrap(),
-        &[UsbDataRole::Host, UsbDataRole::Gadget]
-    );
-    let saved: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(root.join("store/default.json")).unwrap()).unwrap();
-    assert_eq!(saved["runtimeConfig"]["usb"]["dataRole"], "gadget");
-    let _ = std::fs::remove_dir_all(root);
-}
-
-#[test]
-fn failed_role_change_restores_prior_default_bytes() {
-    let root =
-        std::env::temp_dir().join(format!("octessera-pi-role-rollback-{}", std::process::id()));
-    std::fs::create_dir_all(root.join("store")).unwrap();
-    let prior = serde_json::to_vec(&role_payload(UsbDataRole::Gadget)).unwrap();
-    std::fs::write(root.join("store/default.json"), &prior).unwrap();
-    let mut adapter = transaction_adapter(&root, |_| Err("helper failed".into()));
-    assert!(adapter
+    let result = adapter
         .handle_platform_effect(&RuntimePlatformRequest::new(
-            RuntimePlatformEffect::StoreSaveDefault {
-                payload: role_payload(UsbDataRole::Host),
-                mode: None,
+            RuntimePlatformEffect::StoreSaveSystem {
+                payload: requested_system.clone(),
             },
-            "rollback".into(),
-            Some(9),
-        ))
-        .unwrap()
-        .is_empty());
-    let barrier = adapter.platform_service.enqueue_test_barrier().unwrap();
-    barrier
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap();
-    let results = adapter.drain_platform_results(2);
-    assert!(matches!(
-        results.as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { request_id, revision: Some(9), result }
-        }] if request_id == "rollback" && matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { .. })
-    ));
-    assert_eq!(
-        std::fs::read(root.join("store/default.json")).unwrap(),
-        prior
-    );
-    let _ = std::fs::remove_dir_all(root);
-}
-
-#[test]
-fn active_sd2_state_rejects_same_host_save_before_default_write() {
-    let root =
-        std::env::temp_dir().join(format!("octessera-pi-role-active-{}", std::process::id()));
-    std::fs::create_dir_all(root.join("store")).unwrap();
-    let prior = serde_json::to_vec(&role_payload(UsbDataRole::Host)).unwrap();
-    std::fs::write(root.join("store/default.json"), &prior).unwrap();
-    std::fs::write(root.join("storage.state"), b"active").unwrap();
-    let mut adapter = transaction_adapter(&root, |_| panic!("role applier was called"));
-    assert!(adapter
-        .handle_platform_effect(&RuntimePlatformRequest::new(
-            RuntimePlatformEffect::StoreSaveDefault {
-                payload: role_payload(UsbDataRole::Host),
-                mode: None,
-            },
-            "active".into(),
+            "system-save".into(),
             None,
         ))
-        .unwrap()
-        .is_empty());
-    let barrier = adapter.platform_service.enqueue_test_barrier().unwrap();
-    barrier
-        .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap();
-    let results = adapter.drain_platform_results(2);
     assert!(matches!(
-        results.as_slice(),
+        result.as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { result, .. }
-        }] if matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { .. })
+            result: RuntimeStoreResult::SaveSystemResult { ok: true }
+        }]
+    ));
+    assert!(calls.lock().unwrap().is_empty());
+    assert!(adapter.power_request.is_none());
+    assert_eq!(
+        crate::platform_service::load_json(&root.join("store/system.json")).unwrap(),
+        Some(requested_system)
+    );
+    assert_eq!(
+        crate::platform_service::load_json(&root.join("store/default.patch.json")).unwrap(),
+        Some(patch)
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn failed_device_apply_restores_prior_system_bytes_without_touching_patch() {
+    let root =
+        std::env::temp_dir().join(format!("octessera-pi-role-rollback-{}", std::process::id()));
+    let (prior_system, patch) = write_pair(&root, UsbDataRole::Gadget);
+    let prior_system_bytes = std::fs::read(root.join("store/system.json")).unwrap();
+    let mut adapter = transaction_adapter(&root, |_| Err("helper failed".into()));
+    let mut next_system = prior_system;
+    next_system["runtimeConfig"]["usb"]["dataRole"] = serde_json::json!(UsbDataRole::Host.as_str());
+    let result = adapter
+        .handle_platform_effect(&RuntimePlatformRequest::new(
+            RuntimePlatformEffect::ApplyDeviceConfigReboot {
+                payload: next_system,
+            },
+            "apply".into(),
+            Some(9),
+        ))
+        .unwrap();
+    assert!(matches!(
+        result.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::StoreError { .. }
+        }]
     ));
     assert_eq!(
-        std::fs::read(root.join("store/default.json")).unwrap(),
-        prior
+        std::fs::read(root.join("store/system.json")).unwrap(),
+        prior_system_bytes
+    );
+    assert_eq!(
+        crate::platform_service::load_json(&root.join("store/default.patch.json")).unwrap(),
+        Some(patch)
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn active_sd2_state_rejects_device_apply_before_system_write() {
+    let root =
+        std::env::temp_dir().join(format!("octessera-pi-role-active-{}", std::process::id()));
+    let (prior_system, patch) = write_pair(&root, UsbDataRole::Host);
+    let prior_system_bytes = std::fs::read(root.join("store/system.json")).unwrap();
+    std::fs::write(root.join("storage.state"), b"active").unwrap();
+    let mut adapter = transaction_adapter(&root, |_| panic!("role applier was called"));
+    let result = adapter
+        .handle_platform_effect(&RuntimePlatformRequest::new(
+            RuntimePlatformEffect::ApplyDeviceConfigReboot {
+                payload: prior_system,
+            },
+            "active-apply".into(),
+            None,
+        ))
+        .unwrap();
+    assert!(matches!(
+        result.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::StoreError { .. }
+        }]
+    ));
+    assert_eq!(
+        std::fs::read(root.join("store/system.json")).unwrap(),
+        prior_system_bytes
+    );
+    assert_eq!(
+        crate::platform_service::load_json(&root.join("store/default.patch.json")).unwrap(),
+        Some(patch)
     );
     let _ = std::fs::remove_dir_all(root);
 }

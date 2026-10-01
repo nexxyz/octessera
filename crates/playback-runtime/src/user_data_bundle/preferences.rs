@@ -61,6 +61,21 @@ pub(super) fn projection(runtime: &Map<String, Value>) -> BTreeMap<String, Value
     output
 }
 
+pub(super) fn overlay_projection(system: &mut Value, restored: &Value) -> Result<(), String> {
+    let runtime = system
+        .get_mut("runtimeConfig")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "target System document is missing runtimeConfig object".to_string())?;
+    let restored_runtime = restored
+        .get("runtimeConfig")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "restored config is missing runtimeConfig object".to_string())?;
+    for (key, value) in projection(restored_runtime) {
+        merge_value(runtime.entry(key).or_insert(Value::Null), &value);
+    }
+    Ok(())
+}
+
 pub(super) fn shape(delta: &UserPreferenceDelta) -> Result<(), String> {
     for (key, value) in &delta.values {
         if SCALARS.contains(&key.as_str()) {

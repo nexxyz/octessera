@@ -16,7 +16,7 @@ use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
 use crate::seesaw_io::{self, SeesawIo};
-use crate::usb_config::{read_audio_optimization_from_default_config, read_usb_runtime_config};
+use crate::usb_config::read_boot_runtime_config;
 use octessera_hal::board_profiles::{SeesawInputMode, ORANGE_PI_ZERO_2W_DEVICES};
 use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351, OrangeEncoderGpio};
@@ -89,19 +89,12 @@ pub fn run() -> Result<(), OrangeRunError> {
             format!("Orange startup recovery failed: {error}"),
         )
     })?;
-    let usb_config = read_usb_runtime_config(&store_dir).map_err(|error| {
-        startup_failure(
-            handoff_mode,
-            StartupFatalCode::StartupFailed,
-            format!("Orange USB runtime configuration is unavailable: {error}"),
-        )
-    })?;
-    let audio_optimization =
-        read_audio_optimization_from_default_config(&store_dir).map_err(|error| {
+    let (usb_config, audio_optimization) =
+        read_boot_runtime_config(&store_dir).map_err(|error| {
             startup_failure(
                 handoff_mode,
                 StartupFatalCode::StartupFailed,
-                format!("Orange DSP mode configuration is unavailable: {error}"),
+                format!("Orange System/Patch boot configuration is unavailable: {error}"),
             )
         })?;
     let profile = crate::audio::orange_profile(audio_optimization);

@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 
-CONFIG_PATH = "/var/lib/octessera/presets/default.json"
+CONFIG_PATH = "/var/lib/octessera/presets/system.json"
 SYSTEMCTL_PATH = "/usr/bin/systemctl"
 REBOOT_REQUEST = b"reboot\n"
 POWEROFF_REQUEST = b"poweroff\n"

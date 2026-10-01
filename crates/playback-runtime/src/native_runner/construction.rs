@@ -1,5 +1,6 @@
 use super::construction_seed::NativeRunnerConstructionSeed;
 use super::*;
+use std::sync::Arc;
 
 impl NativeRunner {
     pub fn new(config: NativeRunnerConfig) -> Result<Self, String> {
@@ -187,7 +188,10 @@ impl NativeRunner {
             .engine
             .set_interpretation_profile(runner.interpretation_profile.clone());
         runner.menu.rebuild(runner.menu_config());
-        runner.restart_settings = RestartSettingsState::new(runner.config_payload());
+        let documents = super::split_system_patch_documents(&runner.config_payload())?;
+        runner.restart_settings = RestartSettingsState::new(documents.system.clone());
+        runner.pending.system_persistence.saved_baseline = Some(Arc::new(documents.system));
+        runner.pending.saved_patch_baseline = Some(Arc::new(documents.patch));
         Ok(runner)
     }
 }

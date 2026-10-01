@@ -226,19 +226,49 @@ impl HostAdapter for OrangeHostAdapter {
         }
         let result = match &request.effect {
             RuntimePlatformEffect::StoreLoadDefault => {
-                self.pending_default_save.cancel();
-                let payload = self
-                    .platform_service
-                    .load_default_now()
-                    .map_err(RuntimeAdapterError::operation_failed)?;
-                RuntimeStoreResult::LoadDefaultResult { payload }
-            }
-            RuntimePlatformEffect::StoreSaveDefault { payload, .. } => {
-                if let Err(message) =
-                    crate::usb_config_validation::validate_pi_audio_outputs_payload(payload)
+                if self.pending_default_save.has_default_pending()
+                    && !self.platform_service.store_writes_blocked()
                 {
+                    orange_pending_save_failure(request)
+                } else {
+                    match self.platform_service.load_default_now() {
+                        Ok(payload) => RuntimeStoreResult::LoadDefaultResult { payload },
+                        Err(message) => RuntimeStoreResult::RuntimeFailure {
+                            error: request.failure_facts(message),
+                        },
+                    }
+                }
+            }
+            RuntimePlatformEffect::StoreLoadPreset { name } => {
+                if self.pending_default_save.has_default_pending() {
+                    orange_pending_save_failure(request)
+                } else {
+                    match self.platform_service.load_preset_now(name) {
+                        Ok(payload) => RuntimeStoreResult::LoadPresetResult {
+                            payload,
+                            name: name.clone(),
+                        },
+                        Err(message) => RuntimeStoreResult::RuntimeFailure {
+                            error: request.failure_facts(message),
+                        },
+                    }
+                }
+            }
+            RuntimePlatformEffect::StoreLoadSystem => {
+                match self.platform_service.load_system_now() {
+                    Ok(payload) => RuntimeStoreResult::LoadSystemResult { payload },
+                    Err(message) => {
+                        return Ok(vec![failure_message(request, message)]);
+                    }
+                }
+            }
+            RuntimePlatformEffect::StoreSaveSystem { payload } => {
+                if let Err(message) = self.platform_service.save_system_now(payload) {
                     return Ok(vec![failure_message(request, message)]);
                 }
+                RuntimeStoreResult::SaveSystemResult { ok: true }
+            }
+            RuntimePlatformEffect::StoreSaveDefault { payload, .. } => {
                 if self.platform_service.store_writes_blocked() {
                     return Ok(vec![failure_message(
                         request,
@@ -391,6 +421,12 @@ fn failure_message(request: &RuntimePlatformRequest, message: String) -> HostMes
     }
 }
 
+fn orange_pending_save_failure(request: &RuntimePlatformRequest) -> RuntimeStoreResult {
+    RuntimeStoreResult::RuntimeFailure {
+        error: request.failure_facts("Save pending, try again".into()),
+    }
+}
+
 fn recording_finalization_error(error: String) -> RuntimeAdapterError {
     RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
         RuntimeErrorDomain::Recording,
@@ -403,6 +439,9 @@ fn recording_finalization_error(error: String) -> RuntimeAdapterError {
 #[cfg(test)]
 #[path = "orange_host_adapter_apply_tests.rs"]
 mod apply_tests;
+#[cfg(test)]
+#[path = "orange_host_adapter_system_store_tests.rs"]
+mod system_store_tests;
 #[cfg(test)]
 #[path = "orange_host_adapter_tests.rs"]
 mod tests;

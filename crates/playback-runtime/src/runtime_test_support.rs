@@ -129,6 +129,13 @@ impl CoreRunner for FakeRunner {
             | HostMessage::MidiRealtimeContinue => Ok(vec![]),
         }
     }
+
+    fn send_system_store_result(
+        &mut self,
+        _message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String> {
+        Ok((Vec::new(), None))
+    }
 }
 
 #[derive(Default)]

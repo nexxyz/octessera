@@ -212,7 +212,7 @@ pub(crate) fn auto_map_global_fx_covers_vinyl_params() {
 }
 
 #[test]
-pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
+pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_system_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("masterVolume"));
     runner.display.ui.fn_held = true;
@@ -228,7 +228,7 @@ pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_config_dirty() {
         runner.display.toast.as_ref().unwrap().message,
         "Clk-1: Bound turn: Master Vol"
     );
-    assert!(runner.config_dirty);
+    assert!(runner.pending.system_persistence.dirty_revision.is_some());
 }
 
 #[test]

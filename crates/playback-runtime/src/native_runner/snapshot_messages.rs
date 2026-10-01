@@ -84,7 +84,7 @@ impl NativeRunner {
         self.advance_toast_state();
         let snapshot = self.next_snapshot()?;
         self.display.transients.acknowledge_snapshot_pending();
-        let persistence_effects = self.pending_persistence_effects();
+        let (persistence_effects, _) = self.pending_persistence_effects();
         let mut messages = Vec::with_capacity(5);
         self.append_pending_transpose_note_offs(&mut messages);
         self.append_pending_drum_hits(&mut messages);
@@ -112,9 +112,9 @@ impl NativeRunner {
         Ok(messages)
     }
 
-    pub(super) fn pending_persistence_effects(&mut self) -> Vec<RuntimePlatformEffect> {
+    pub(super) fn pending_persistence_effects(&mut self) -> (Vec<RuntimePlatformEffect>, bool) {
         if self.pending.external_autosave_deferred {
-            return Vec::new();
+            return (Vec::new(), false);
         }
         let restore_blocks_config_writes = self.restore_blocks_config_writes();
         let autosave_pending = self.pending.pending_autosave_payload_due_at.is_some();
@@ -132,25 +132,29 @@ impl NativeRunner {
                 .pending_save_revision
                 .zip(self.dirty_revision)
                 .is_some_and(|(pending, dirty)| pending == dirty);
-        let payload = if (self.auto_save_default
+        let autosave_due = self.auto_save_default
             && !restore_blocks_config_writes
             && self.config_dirty
             && !autosave_pending
-            && !save_pending)
-            || backup_due
-        {
-            Some(self.config_payload())
+            && !save_pending;
+        let payload = if autosave_due || backup_due {
+            match super::system_persistence::SystemPersistenceState::patch_document(self) {
+                Ok(payload) => Some(payload),
+                Err(error) => {
+                    let operation = if autosave_due {
+                        crate::RuntimeOperation::StoreSaveDefault
+                    } else {
+                        crate::RuntimeOperation::StoreSaveBackup
+                    };
+                    let _ = self.present_patch_persistence_error(operation, error);
+                    return (Vec::new(), true);
+                }
+            }
         } else {
             None
         };
         let mut effects = Vec::with_capacity(2);
-        if self.auto_save_default
-            && !restore_blocks_config_writes
-            && self.config_dirty
-            && !self.restart_settings.is_editing()
-            && !autosave_pending
-            && !save_pending
-        {
+        if autosave_due && !self.restart_settings.is_editing() {
             let autosave_payload = payload.clone().expect("autosave payload");
             if self.register_default_write(autosave_payload, DefaultSaveScope::Autosave) {
                 self.pending.pending_save_revision = Some(self.config_revision);
@@ -166,7 +170,7 @@ impl NativeRunner {
                 payload: payload.expect("backup payload"),
             });
         }
-        effects
+        (effects, false)
     }
 
     pub(super) fn messages_without_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {

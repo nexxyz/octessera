@@ -82,7 +82,7 @@ fn queue_failure_returns_an_identified_error_without_retrying() {
     )
     .is_empty());
     assert!(service.native_default_write().is_none());
-    assert!(!root.join("store/default.json").exists());
+    assert!(!root.join("store/default.patch.json").exists());
     let _ = std::fs::remove_dir_all(root);
 }
 
@@ -90,7 +90,7 @@ fn queue_failure_returns_an_identified_error_without_retrying() {
 fn worker_failure_is_reported_without_an_automatic_retry() {
     let (service, root) = service_and_root("worker-retry");
     let store = root.join("store");
-    std::fs::create_dir_all(store.join("default.json")).unwrap();
+    std::fs::create_dir_all(store.join("default.patch.json")).unwrap();
     let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let mut runner = runner_with_aux_mapping(true, false);
     let mut pending = PendingPiPersistence::default();
@@ -115,7 +115,7 @@ fn worker_failure_is_reported_without_an_automatic_retry() {
     ));
     assert!(service.native_default_write().is_none());
     assert!(!pending.is_pending());
-    std::fs::remove_dir(store.join("default.json")).unwrap();
+    std::fs::remove_dir(store.join("default.patch.json")).unwrap();
 
     assert!(apply_autosave_at(
         &mut pending,
@@ -126,7 +126,7 @@ fn worker_failure_is_reported_without_an_automatic_retry() {
     )
     .is_empty());
     assert!(service.native_default_write().is_none());
-    assert!(!store.join("default.json").exists());
+    assert!(!store.join("default.patch.json").exists());
     let _ = std::fs::remove_dir_all(root);
 }
 

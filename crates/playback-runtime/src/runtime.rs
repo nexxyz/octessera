@@ -1,6 +1,6 @@
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorMetadata,
-    RuntimeOperation, RuntimePlatformRequest, RuntimeStatus, SyncSource,
+    RuntimeOperation, RuntimePlatformRequest, RuntimeStatus, RuntimeStoreResult, SyncSource,
 };
 use platform_core::MusicalEvent;
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,9 @@ use std::collections::VecDeque;
 
 #[path = "runtime_api.rs"]
 mod api;
+#[cfg(test)]
+#[path = "runtime_default_load_tests.rs"]
+mod default_load_tests;
 #[path = "runtime_dispatch.rs"]
 mod dispatch;
 #[path = "runtime_dispatch_profile.rs"]
@@ -24,8 +27,17 @@ mod oled;
 mod presentation_state_tests;
 #[path = "runtime_pulse_phase.rs"]
 mod pulse_phase;
+#[cfg(test)]
+#[path = "runtime_restore_handoff_tests.rs"]
+mod restore_handoff_tests;
 #[path = "runtime_status.rs"]
 mod status;
+#[cfg(test)]
+#[path = "runtime_system_store_aux_tests.rs"]
+mod system_store_aux_tests;
+#[cfg(test)]
+#[path = "runtime_system_store_tests.rs"]
+mod system_store_tests;
 
 pub use music_first::NativeStoreRequest;
 
@@ -103,6 +115,33 @@ pub trait CoreRunner {
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String>;
 
     fn register_platform_request(&mut self, _request: &RuntimePlatformRequest) {}
+
+    fn send_system_store_result(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String>;
+
+    fn send_store_result_handoff(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>, bool), String> {
+        let is_system_result = matches!(&message,
+            HostMessage::RuntimeResult { result }
+                if matches!(result.operation(), RuntimeOperation::StoreLoadSystem | RuntimeOperation::StoreSaveSystem));
+        if is_system_result {
+            let (messages, accepted) = self.send_system_store_result(message)?;
+            return Ok((messages, accepted, false));
+        }
+        let accepted = match &message {
+            HostMessage::RuntimeResult { result }
+                if result.operation() == RuntimeOperation::StoreLoadDefault =>
+            {
+                Some(result.clone())
+            }
+            _ => None,
+        };
+        Ok((self.send(message)?, accepted, false))
+    }
 }
 
 pub trait HostAdapter {

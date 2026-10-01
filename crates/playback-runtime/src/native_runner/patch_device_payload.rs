@@ -1,6 +1,6 @@
 use super::{
-    supported_param_binding_key, validate_portable_patch_sample_paths, DeviceRuntimeConfigDto,
-    RuntimeConfigDto, Value,
+    supported_param_binding_key, validate_local_patch_sample_paths, validate_patch_fields,
+    validate_portable_patch_sample_paths, DeviceRuntimeConfigDto, RuntimeConfigDto, Value,
 };
 use serde_json::json;
 
@@ -31,6 +31,13 @@ pub(super) fn portable_patch_bytes(payload: &Value) -> Result<Vec<u8>, String> {
 pub(super) fn portable_patch_payload_for_save(payload: &Value) -> Result<Value, String> {
     let patch = portable_patch_projection(payload)?;
     validate_portable_patch_sample_paths(&patch, None)?;
+    Ok(patch)
+}
+
+pub(super) fn local_patch_payload_for_save(payload: &Value) -> Result<Value, String> {
+    let patch = portable_patch_projection(payload)?;
+    validate_patch_fields(&patch, &patch)?;
+    validate_local_patch_sample_paths(&patch)?;
     Ok(patch)
 }
 
@@ -185,7 +192,7 @@ fn merge_aux_side(
     }
 }
 
-fn is_musical_aux_turn_key(key: &str) -> bool {
+pub(super) fn is_musical_aux_turn_key(key: &str) -> bool {
     supported_param_binding_key(key)
         || key.starts_with("layers.")
         || key.starts_with("linkLfos.")
@@ -194,7 +201,7 @@ fn is_musical_aux_turn_key(key: &str) -> bool {
         || key.starts_with("play.")
 }
 
-fn is_musical_aux_press_action(value: &Value) -> bool {
+pub(super) fn is_musical_aux_press_action(value: &Value) -> bool {
     if value.get("kind").and_then(Value::as_str) == Some("platform_effect") {
         return value
             .get("action")
@@ -213,8 +220,33 @@ fn is_musical_aux_press_action(value: &Value) -> bool {
     ) || value.get("actionType").is_some()
 }
 
+pub(super) fn is_musical_aux_click_action(action: &crate::native_menu::NativeMenuAction) -> bool {
+    let value = match action {
+        crate::native_menu::NativeMenuAction::BehaviorAction(action) => {
+            json!({ "kind": "behavior_action", "actionType": action })
+        }
+        crate::native_menu::NativeMenuAction::PlatformEffect(action) => {
+            json!({ "kind": "platform_effect", "action": action })
+        }
+        crate::native_menu::NativeMenuAction::CloneInstrument { index } => {
+            json!({ "kind": "instrument_clone", "slot": index })
+        }
+        crate::native_menu::NativeMenuAction::ResetInstrument { index } => {
+            json!({ "kind": "instrument_reset", "slot": index })
+        }
+        crate::native_menu::NativeMenuAction::ResetBehavior => json!({ "kind": "reset_behavior" }),
+        _ => Value::Null,
+    };
+    is_musical_aux_press_action(&value)
+}
+
 fn is_musical_platform_effect_action(action: &str) -> bool {
     action == "play.fx.map"
+        || action == "default.save"
+        || action == "default.load"
+        || action == "factory.load"
+        || action == "system.clearAll"
+        || action.starts_with("preset.")
         || action.starts_with("sample.assign:")
         || action.starts_with("trigger.probability.assign:")
         || action.starts_with("synth.preset:")

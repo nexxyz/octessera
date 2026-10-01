@@ -37,6 +37,13 @@ impl NativeRunner {
         self.config_dirty = true;
     }
 
+    pub fn mark_system_dirty(&mut self) {
+        self.config_revision = self.config_revision.saturating_add(1);
+        self.pending
+            .system_persistence
+            .mark_dirty(self.config_revision);
+    }
+
     pub(super) fn mark_fast_autosave_dirty(&mut self) {
         #[cfg(test)]
         {
@@ -122,7 +129,17 @@ impl NativeRunner {
             return Ok(Vec::new());
         }
         let due = self.pending.pending_autosave_payload_due_at.take();
-        let effects = self.pending_persistence_effects();
+        let (effects, serialization_failed) = self.pending_persistence_effects();
+        if serialization_failed {
+            return Ok(vec![
+                crate::protocol::RunnerMessage::Snapshot {
+                    snapshot: self.snapshot()?,
+                },
+                crate::protocol::RunnerMessage::RuntimeStatus {
+                    status: self.status(),
+                },
+            ]);
+        }
         if due.is_some()
             && self.auto_save_default
             && !effects.iter().any(|effect| {
@@ -183,11 +200,11 @@ impl NativeRunner {
         self.display.toast_expires_at = Some(Instant::now() + Duration::from_millis(1800));
     }
 
-    pub(super) fn show_saved_default_feedback(&mut self) {
+    pub(super) fn show_saved_patch_feedback(&mut self) {
         self.display.auto_save_flash_serial = self.display.auto_save_flash_serial.wrapping_add(1);
         self.display.auto_save_flash_until =
             Some(Instant::now() + Duration::from_millis(AUTO_SAVE_FLASH_MS));
-        self.show_toast("Saved default");
+        self.show_toast("Saved Patch");
     }
 
     pub(super) fn auto_save_flash_active(&self) -> bool {

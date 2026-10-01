@@ -139,6 +139,32 @@ impl NativeRunner {
         Ok(())
     }
 
+    pub(super) fn apply_system_sound_payload(&mut self, runtime: &Value) {
+        if let Some(master) = runtime.get("masterVolume").and_then(Value::as_u64) {
+            if let Ok(master) = u8::try_from(master) {
+                self.display.ui.master_volume = master.min(100);
+            }
+        }
+        let sound = runtime.get("sound");
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("audioOutputBufferFrames"))
+            .and_then(Value::as_u64)
+        {
+            if let Ok(value) = u32::try_from(value) {
+                self.audio_output_buffer_frames =
+                    super::normalize_audio_output_buffer_frames(value);
+            }
+        }
+        if let Some(value) = sound
+            .and_then(|sound| sound.get("optimizeFor"))
+            .and_then(Value::as_str)
+        {
+            if let Some(optimization) = AudioOptimization::from_wire_name(value) {
+                self.audio_optimization = optimization;
+            }
+        }
+    }
+
     fn apply_dsp_payload(&mut self, runtime: &Value) -> Result<(), String> {
         let Some(dsp) = runtime.get("dsp") else {
             return Ok(());
@@ -154,7 +180,10 @@ impl NativeRunner {
         self.apply_runtime_transport_payload(runtime);
     }
 
-    fn apply_display_payload(&mut self, runtime: &Value) {
+    pub(super) fn apply_display_payload(&mut self, runtime: &Value) {
+        if let Some(value) = runtime.get("ghostCells").and_then(Value::as_bool) {
+            self.display.ui.ghost_cells = value;
+        }
         if let Some(value) = runtime.get("displayBrightness").and_then(Value::as_u64) {
             if let Ok(value) = u8::try_from(value) {
                 self.display.ui.display_brightness = value.min(100);
@@ -195,7 +224,7 @@ impl NativeRunner {
             .unwrap_or(true);
     }
 
-    fn apply_runtime_input_payload(&mut self, runtime: &Value) {
+    pub(super) fn apply_runtime_input_payload(&mut self, runtime: &Value) {
         if let Some(value) = runtime
             .get("inputEventsWhilePaused")
             .and_then(Value::as_bool)
@@ -204,7 +233,7 @@ impl NativeRunner {
         }
     }
 
-    fn apply_aux_mapping_payload(&mut self, runtime: &Value) {
+    pub(super) fn apply_aux_mapping_payload(&mut self, runtime: &Value) {
         if let Some(value) = runtime.get("auxAutoMapEnabled").and_then(Value::as_bool) {
             self.aux_auto_map_enabled = value;
         }
@@ -249,7 +278,7 @@ impl NativeRunner {
         }
     }
 
-    fn apply_midi_payload(&mut self, runtime: &Value) {
+    pub(super) fn apply_midi_payload(&mut self, runtime: &Value) {
         let Some(midi) = runtime.get("midi") else {
             return;
         };
@@ -259,7 +288,7 @@ impl NativeRunner {
         self.queue_midi_selection_effects();
     }
 
-    fn apply_usb_payload(&mut self, runtime: &Value) {
+    pub(super) fn apply_usb_payload(&mut self, runtime: &Value) {
         if let Some(audio_outputs) = runtime.get("audioOutputs") {
             if let Ok(audio_outputs) = AudioOutputSet::decode(audio_outputs) {
                 self.audio_outputs = audio_outputs;
@@ -282,7 +311,7 @@ impl NativeRunner {
         }
     }
 
-    fn apply_recording_payload(&mut self, runtime: &Value) {
+    pub(super) fn apply_recording_payload(&mut self, runtime: &Value) {
         let Some(recording) = runtime.get("recording") else {
             return;
         };

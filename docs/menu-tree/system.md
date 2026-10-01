@@ -66,11 +66,14 @@ System
 │   │   ├── Delete (group)               ← dynamic: one action per preset
 │   │   ├── Save Current: (action)
 │   │   └── Refresh List: (action)
-│   └── Default (group)
-│       ├── Auto Save: [on | off]
-│       ├── Backups: [on | off]
-│       ├── Save Default: (action)
-│       └── Load Default: (action)
+│   ├── Default (group)
+│   │   ├── Auto Save: [on | off]
+│   │   ├── Backups: [on | off]
+│   │   ├── Save Patch: (action)
+│   │   └── Load Patch: (action)
+│   └── System (group)
+│       ├── Save System: (action)
+│       └── Load System: (action)
 ├── Setup (group)
 │   ├── USB Role: [Gadget | Host]         ← Raspberry capability only
 │   ├── Updates (group)
@@ -142,13 +145,13 @@ Raspberry Host
 
 `MIDI Active` is the global runtime MIDI gate and does not select a port or device. Desktop and Orange expose `MIDI Host`, whose children are `MIDI Out` followed by `MIDI In`. Raspberry exposes `MIDI Host` only in Host role and `USB Device` only in Gadget role; Orange exposes both. `USB Device` is the computer-facing gadget interface and contains `USB MIDI`, which automatically owns both Gadget MIDI directions while enabled. Host-selected input and output IDs are ignored during that time; Orange retains them for later use after USB Device MIDI is disabled.
 
-For ordinary recursive menu groups, parameter rows and submenus precede action rows. This puts `Name` before `Save`, `Auto Save` and `Backups` before the default actions, the `Updates` submenu before the Setup actions, and `Save Current` after the Library submenus. Dynamic preset workflows are the exception: `Rename` retains its existing preset-selection rows before `New Name` and `Apply`. There is no duplicate direct `System > Save Current` row.
+For ordinary recursive menu groups, parameter rows and submenus precede action rows. This puts `Name` before `Save`, `Auto Save` and `Backups` before the Default actions, the `Updates` submenu before the Setup actions, and `Save Current` after the Library submenus. Dynamic preset workflows are the exception: `Rename` retains its existing preset-selection rows before `New Name` and `Apply`. There is no duplicate direct `System > Save Current` row.
 
 `System > Audio > Master Vol` keeps key `masterVolume` and its existing range. `System > Notes` keeps the existing note-length, velocity-scale, and velocity-curve keys and semantics. Audio output rows remain restart-sensitive where they were, and all existing action/config keys, values, persistence, effects, confirmations, and Host disabling remain unchanged.
 
 `Setup` keeps the existing USB role, Wi-Fi, Backup / Restore, Updates, and Hardware Test actions without changing their keys. `USB Role` is Raspberry-capability-only and precedes `Updates`. `Configure WiFi` and Backup / Restore retain their existing native behavior. `Reset > Load Empty` and `Reset > Load Factory` retain their existing confirmation and reset behavior.
 
-`System > Saves > Library` keeps dynamic Load, Rename, and Delete rows. `System > Saves > Default` keeps rolling `Backups`, while `Auto Save`, Save Default, and Load Default retain their existing persistence behavior. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown remain the final System actions.
+`System > Saves > System` contains explicit Save System and Load System actions for local device settings. System Load applies settings without stopping music or silently rebooting; restart-sensitive changes require confirmed Apply that saves only the System setting and preserves unsaved music. `System > Saves > Default` holds Auto Save, Backups, Save Patch, and Load Patch. `default.patch.json` may retain safe local/SD sample references; named Library presets remain portable and require shipped-library sample IDs. Autosave, rolling backups, and recovery saves are patch-only. A confirmed Patch or named-preset Load stops/resets music and sends MIDI panic while retaining local System settings and ports. A load already blocked by a pending patch write or Auto Save-eligible dirty edit refuses before confirmation with `Save pending, try again`; the same check after confirmation catches a newly pending save. With Auto Save off and no pending write, confirmation may discard dirty patch edits. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown remain the final System actions.
 
 `System > SD Card 2` and `System > HDMI Video` are omitted on desktop. Raspberry Host hides USB Audio, USB MIDI, and SD2 Start Transfer while retaining HDMI Audio and SD2 Stop Transfer for cleanup. Raspberry Gadget shows USB Device and SD2 Start Transfer. Orange shows both MIDI Host and USB Device and has no USB Role row. Desktop shows MIDI Host and no USB Device.
 
@@ -160,6 +163,6 @@ For ordinary recursive menu groups, parameter rows and submenus precede action r
 
 `System > Setup > Configure WiFi` is confirmed as `Open Portal`. The confirmation stops and resets playback, clears note state, and sends MIDI panic/all-notes-off cleanup; playback does not auto-resume. It then emits the typed setup portal effect. The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `failed`, `timed_out`, or desktop `unsupported`. Browser Applying is provisional and an AP disconnect is expected; the OLED result is authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a default route, DNS, or ICMP. Success and timeout cards auto-hide, failure remains dismissible, and a new `Open Portal` action retries. The portal can change Wi-Fi, hostname, SSH, and the board's admin login (`pi` on Raspberry; `octessera` on Orange), with no reboot. Configure WiFi does not start or advertise Backup / Restore. The setup modal takes priority over system info and help.
 
-`System > Setup > Backup / Restore` is a direct, unconfirmed action with stable key `system.backupRestore`. On Pi it uses the existing authenticated service at `http://<regular-ip>:8081`, selected from usable regular `wlan0` IPv4, with a generated 10-character code and 15-minute lifetime. The OLED card shows IP, port, code, expiry, and `> Stop service`; Back hides it while the service continues, and Stop closes it and revokes the code. Desktop is unsupported. This action is separate from rolling `System > Saves > Default > Backups`.
+`System > Setup > Backup / Restore` is a direct, unconfirmed action with stable key `system.backupRestore`. On Pi it uses the existing authenticated service at `http://<regular-ip>:8081`, selected from usable regular `wlan0` IPv4, with a generated 10-character code and 15-minute lifetime. The OLED card shows IP, port, code, expiry, and `> Stop service`; Back hides it while the service continues, and Stop closes it and revokes the code. Desktop is unsupported. The `.oct` archive carries music, selected portable preferences, and optionally media; it is not a complete device backup. Destination-local USB role, MIDI/audio endpoint IDs, and favourites remain local. Rolling `Default > Backups` are patch-only, not full System snapshots.
 
 `System > HDMI Video > Mode` displays `Terminal` for the canonical stored/runtime value `none`. Terminal releases and disables Octessera framebuffer output so Linux terminal ownership can show, while snapshots retain the black/inactive HDMI grid for compatibility. `Bars per cycle` appears only for `cycle-behaviors` and sets how many musical bars each behavior remains shown before Cycle Behaviors advances.

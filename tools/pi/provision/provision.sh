@@ -69,6 +69,46 @@ if [ ! -f "$GROUP_TARGET" ] || [ -L "$GROUP_TARGET" ] || [ "$input_group_count" 
     exit 1
 fi
 
+presets_directory=$(target_path /home/pi/presets)
+device_config="$presets_directory/system.json"
+default_patch="$presets_directory/default.patch.json"
+legacy_default="$presets_directory/default.json"
+if [ -e "$legacy_default" ] || [ -L "$legacy_default" ]; then
+    echo "Raspberry presets contain a legacy mixed default; refusing provisioning." >&2
+    exit 1
+fi
+for document in "$device_config" "$default_patch"; do
+    if [ ! -f "$document" ] || [ -L "$document" ]; then
+        echo "Raspberry split save document is missing or unsafe: $document" >&2
+        exit 1
+    fi
+done
+desired_usb_role=$(python3 "$IMAGE_ROOT/usr/local/lib/octessera/device_config.py" --data-role "$device_config")
+python3 - "$default_patch" <<'PY'
+import json
+import sys
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        document = json.load(handle, object_pairs_hook=unique_object)
+except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+    raise SystemExit(f"Raspberry default Patch document is invalid: {error}") from error
+if (not isinstance(document, dict)
+        or document.get("kind") != "octessera.patch"
+        or type(document.get("schemaVersion")) is not int
+        or document["schemaVersion"] != 2
+        or not isinstance(document.get("runtimeConfig"), dict)):
+    raise SystemExit("Raspberry default Patch document v2 is required")
+PY
+
 missing_tools=0
 for command in python3 curl flock sha256sum unzip visudo systemctl; do
     if ! command -v "$command" >/dev/null 2>&1; then
@@ -367,11 +407,6 @@ else
     echo "Skipping initramfs update; pass -UpdateInitramfs when an OS or boot change requires a rebuild."
 fi
 
-desired_usb_role=gadget
-device_config=$(target_path /home/pi/presets/default.json)
-if [ -e "$device_config" ] || [ -L "$device_config" ]; then
-    desired_usb_role=$(python3 "$IMAGE_ROOT/usr/local/lib/octessera/device_config.py" --data-role "$device_config")
-fi
 normalize_raspberry_usb_role "$BOOT_CONFIG" "$desired_usb_role"
 
 ensure_raspberry_uart_inactive

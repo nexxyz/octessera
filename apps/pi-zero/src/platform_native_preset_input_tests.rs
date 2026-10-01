@@ -413,9 +413,19 @@ fn playing_save_as_save_current_and_rename_follow_device_input_and_refresh_catal
             .unwrap()
             .as_nanos()
     ));
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let defaults: serde_json::Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(&defaults).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
     let mut host = crate::host_adapter::PiPlaybackHostAdapter::new(
         None,
-        root.join("store"),
+        store,
         root.join("samples"),
         Arc::new(|_| {}),
         false,

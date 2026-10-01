@@ -1,6 +1,9 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use crate::persistence::{atomic_write_json, preset_name_from_file_name, preset_patch_file_path};
-use playback_runtime::{HostMessage, RuntimePlatformRequest, RuntimeStoreResult};
+use playback_runtime::{
+    HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
+    RuntimePlatformRequest, RuntimeStoreResult,
+};
 use std::time::{Duration, Instant};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -8,7 +11,52 @@ const DEFERRED_DEFAULT_SAVE_MS: u64 = 2_000;
 
 impl DesktopPlaybackHostAdapter {
     pub(super) fn save_default_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
-        atomic_write_json(&self.store_dir.join("default.json"), payload)
+        atomic_write_json(&self.store_dir.join("default.patch.json"), payload)
+    }
+
+    pub(super) fn load_system_result(&self, request: &RuntimePlatformRequest) -> Vec<HostMessage> {
+        let result = match self.load_system_payload() {
+            Ok(payload) => RuntimeStoreResult::LoadSystemResult { payload },
+            Err(error) => RuntimeStoreResult::RuntimeFailure {
+                error: RuntimeErrorFacts::new(
+                    RuntimeErrorDomain::Storage,
+                    RuntimeErrorCode::OperationFailed,
+                    RuntimeOperation::StoreLoadSystem,
+                    Some(format!("System load failed: {error}")),
+                ),
+            },
+        };
+        vec![HostMessage::RuntimeResult {
+            result: result.with_identity(request.request_id.clone(), request.revision),
+        }]
+    }
+
+    pub(super) fn save_system_result(
+        &self,
+        request: &RuntimePlatformRequest,
+        payload: &serde_json::Value,
+    ) -> Vec<HostMessage> {
+        let result = RuntimeStoreResult::SaveSystemResult {
+            ok: self.save_system_payload(payload).is_ok(),
+        };
+        vec![HostMessage::RuntimeResult {
+            result: result.with_identity(request.request_id.clone(), request.revision),
+        }]
+    }
+
+    pub(super) fn save_system_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
+        atomic_write_json(&self.store_dir.join("system.json"), payload)
+    }
+
+    fn load_system_payload(&self) -> Result<Option<serde_json::Value>, String> {
+        let path = self.store_dir.join("system.json");
+        if !path.is_file() {
+            return Ok(None);
+        }
+        let content = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
+        serde_json::from_str(&content)
+            .map(Some)
+            .map_err(|error| error.to_string())
     }
 
     pub(super) fn list_preset_names(&self) -> Result<Vec<String>, String> {
@@ -29,6 +77,27 @@ impl DesktopPlaybackHostAdapter {
             }
         }
         Ok(names.into_iter().collect())
+    }
+
+    pub(super) fn load_preset_result(
+        &self,
+        request: &RuntimePlatformRequest,
+        name: &str,
+    ) -> Result<Vec<HostMessage>, String> {
+        if self.pending_default_save.is_pending() {
+            return Ok(vec![HostMessage::RuntimeResult {
+                result: pending_patch_load_failure(RuntimeOperation::StoreLoadPreset)
+                    .with_identity(request.request_id.clone(), request.revision),
+            }]);
+        }
+        let payload = self.load_preset_payload(name)?;
+        Ok(vec![HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::LoadPresetResult {
+                name: name.to_string(),
+                payload,
+            }
+            .with_identity(request.request_id.clone(), request.revision),
+        }])
     }
 
     pub(super) fn load_preset_payload(
@@ -64,16 +133,31 @@ impl DesktopPlaybackHostAdapter {
         Ok(false)
     }
 
-    pub(super) fn load_default_result(&mut self) -> Result<Vec<HostMessage>, String> {
-        self.pending_default_save.cancel();
+    pub(super) fn load_default_result(
+        &mut self,
+        request: &RuntimePlatformRequest,
+    ) -> Result<Vec<HostMessage>, String> {
+        if self.pending_default_save.is_pending() {
+            return Ok(vec![HostMessage::RuntimeResult {
+                result: pending_patch_load_failure(RuntimeOperation::StoreLoadDefault)
+                    .with_identity(request.request_id.clone(), request.revision),
+            }]);
+        }
         match self.load_default_payload()? {
             Ok(payload) => Ok(vec![HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::LoadDefaultResult { payload },
+                result: RuntimeStoreResult::LoadDefaultResult { payload }
+                    .with_identity(request.request_id.clone(), request.revision),
             }]),
             Err(error) => Ok(vec![HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::StoreError {
-                    message: format!("Default load failed: {error}"),
-                },
+                result: RuntimeStoreResult::RuntimeFailure {
+                    error: RuntimeErrorFacts::new(
+                        RuntimeErrorDomain::Storage,
+                        RuntimeErrorCode::OperationFailed,
+                        RuntimeOperation::StoreLoadDefault,
+                        Some(format!("Default load failed: {error}")),
+                    ),
+                }
+                .with_identity(request.request_id.clone(), request.revision),
             }]),
         }
     }
@@ -114,11 +198,11 @@ impl DesktopPlaybackHostAdapter {
     }
 
     pub(super) fn save_recovery_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
-        atomic_write_json(&self.store_dir.join("recovery-save.json"), payload)
+        atomic_write_json(&self.store_dir.join("recovery-save.patch.json"), payload)
     }
 
     fn load_default_payload(&self) -> Result<Result<Option<serde_json::Value>, String>, String> {
-        let path = self.store_dir.join("default.json");
+        let path = self.store_dir.join("default.patch.json");
         if !path.is_file() {
             return Ok(Ok(None));
         }
@@ -126,6 +210,17 @@ impl DesktopPlaybackHostAdapter {
         Ok(serde_json::from_str(&content)
             .map(Some)
             .map_err(|e| e.to_string()))
+    }
+}
+
+fn pending_patch_load_failure(operation: RuntimeOperation) -> RuntimeStoreResult {
+    RuntimeStoreResult::RuntimeFailure {
+        error: RuntimeErrorFacts::new(
+            RuntimeErrorDomain::Storage,
+            RuntimeErrorCode::OperationFailed,
+            operation,
+            Some("Save pending, try again".to_string()),
+        ),
     }
 }
 

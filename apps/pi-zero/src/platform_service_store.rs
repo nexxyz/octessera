@@ -12,6 +12,44 @@ pub(crate) fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String
         .map_err(|error| error.to_string())
 }
 
+pub(crate) fn default_patch_path(store_dir: &Path) -> PathBuf {
+    store_dir.join("default.patch.json")
+}
+
+pub(crate) fn current_patch_path(store_dir: &Path) -> PathBuf {
+    store_dir.join("current.json")
+}
+
+pub(crate) fn recovery_patch_path(store_dir: &Path) -> PathBuf {
+    store_dir.join("recovery-save.json")
+}
+
+pub(crate) fn load_current_patch(store_dir: &Path) -> Result<Option<serde_json::Value>, String> {
+    load_json(&current_patch_path(store_dir))
+}
+
+pub(crate) fn load_recovery_patch(store_dir: &Path) -> Result<Option<serde_json::Value>, String> {
+    load_json(&recovery_patch_path(store_dir))
+}
+
+pub(crate) fn validate_patch_document(
+    store_dir: &Path,
+    patch: &serde_json::Value,
+) -> Result<(), String> {
+    let system = load_json(&store_dir.join("system.json"))?
+        .ok_or_else(|| "System settings are missing".to_string())?;
+    playback_runtime::compose_local_system_patch_documents(&system, patch).map(|_| ())
+}
+
+pub(crate) fn validate_named_preset_document(
+    store_dir: &Path,
+    patch: &serde_json::Value,
+) -> Result<(), String> {
+    let system = load_json(&store_dir.join("system.json"))?
+        .ok_or_else(|| "System settings are missing".to_string())?;
+    playback_runtime::compose_system_patch_documents(&system, patch).map(|_| ())
+}
+
 pub(crate) fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
     atomic_write_json(path, payload)
 }

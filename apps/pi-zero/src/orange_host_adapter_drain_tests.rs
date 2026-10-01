@@ -5,6 +5,11 @@ use crate::audio::test_service_with_prep_sender;
 fn ordinary_runtime_drain_keeps_platform_results_first() {
     let (audio, _control_rx, _event_rx, result_tx) = test_service_with_prep_sender();
     let (store, samples) = directories();
+    let defaults = crate::user_data_archive::canonical_defaults();
+    crate::pi_store_test_support::write_pair(&store, &defaults);
+    let payload = crate::platform_service::load_json(&store.join("default.patch.json"))
+        .unwrap()
+        .unwrap();
     let mut adapter = OrangeHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
@@ -17,7 +22,7 @@ fn ordinary_runtime_drain_keeps_platform_results_first() {
         .handle_platform_effect(&request(
             RuntimePlatformEffect::StoreSavePreset {
                 name: "platform-first".into(),
-                payload: serde_json::json!({"runtimeConfig": {"bpm": 120}}),
+                payload,
                 mode: None,
             },
             "platform-first",

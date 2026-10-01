@@ -24,6 +24,7 @@ spec = importlib.util.spec_from_loader("orange_device_apply", SourceFileLoader("
 assert spec is not None and spec.loader is not None
 helper = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helper)
+assert helper.CONFIG_PATH == "/var/lib/octessera/presets/system.json"
 
 calls = []
 validate_config = helper._validate_config
@@ -37,8 +38,8 @@ def successful_reboot(command, check):
 setattr(helper.subprocess, "run", successful_reboot)
 
 valid_directory = tempfile.TemporaryDirectory()
-valid_config = Path(valid_directory.name) / "default.json"
-valid_config.write_text('{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}', encoding="utf-8")
+valid_config = Path(valid_directory.name) / "system.json"
+valid_config.write_text('{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}', encoding="utf-8")
 valid_config.chmod(0o644)
 valid_owner = valid_config.stat()
 setattr(helper, "CONFIG_PATH", str(valid_config))

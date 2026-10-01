@@ -234,10 +234,11 @@ run_teardown_with_unbind_write_error() {
         FAKE_EXPECTED_UDC=musb-hdrc.4.auto run_teardown "$root" > "$output" 2>&1
 }
 
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":true},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-midi.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-uac2.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-combined.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-none.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-invalid.json"
+grep -qFx 'CONFIG=/var/lib/octessera/presets/system.json' "$SCRIPT"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":true},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-midi.json"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-uac2.json"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-combined.json"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-none.json"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":false,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":true,"dataRole":"gadget"}}}' > "$TEST_ROOT/config-invalid.json"
 printf '%s\n' '{' > "$TEST_ROOT/config-malformed.json"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget","unexpected":true}}}' > "$TEST_ROOT/config-unknown-usb.json"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget","unexpected":true}}}' > "$TEST_ROOT/config-unknown-usb.json"

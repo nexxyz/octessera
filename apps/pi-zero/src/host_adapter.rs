@@ -315,9 +315,13 @@ impl HostAdapter for PiPlaybackHostAdapter {
         if let Some(messages) = dispatch_midi_effect_messages(&mut self.midi, &request.effect)? {
             return Ok(messages);
         }
+        if let Some(messages) = self.handle_system_store_effect(request) {
+            return Ok(messages);
+        }
         let effect = &request.effect;
         let result = match effect {
-            RuntimePlatformEffect::StoreLoadDefault => self.load_default_result()?,
+            RuntimePlatformEffect::StoreLoadDefault
+            | RuntimePlatformEffect::StoreLoadPreset { .. } => self.load_patch_result(request),
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
                 match self.save_default_result(request, payload, mode.as_deref())? {
                     Some(result) => result,
@@ -483,6 +487,9 @@ fn identified_failure(request: &RuntimePlatformRequest, message: String) -> Host
 #[cfg(test)]
 #[path = "host_adapter_power_tests.rs"]
 mod power_tests;
+#[cfg(test)]
+#[path = "host_adapter_system_store_tests.rs"]
+mod system_store_tests;
 #[cfg(test)]
 #[path = "host_adapter_tests.rs"]
 mod tests;

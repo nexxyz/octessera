@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use super::restart_settings::{DefaultSaveScope, DefaultWriteCompletion, RestartSetting};
 use super::UsbDataRole;
-use super::{validate_config_payload, NativeConfirmDialog, NativeRunner, NativeToast};
+use super::{NativeConfirmDialog, NativeManualSaveRequest, NativeRunner, NativeToast};
 
 impl NativeRunner {
     pub(super) fn finish_restart_sensitive_edit(&mut self, key: &str) {
@@ -19,44 +19,40 @@ impl NativeRunner {
     }
 
     pub(super) fn commit_restart_sensitive_setting(&mut self, setting: RestartSetting) {
-        self.mark_config_dirty();
+        self.mark_system_dirty();
         if self.menu.state.editing {
             return;
         }
         let current = self.config_payload();
-        let has_pending_write = self.restart_settings.has_pending_write();
-        if has_pending_write && self.auto_save_default {
-            self.restart_settings.defer_restart_after_pending_write();
+        if self.restart_settings.is_saving() {
+            self.show_toast("System Apply save pending, try again");
             return;
         }
-        let setting_payload = (!has_pending_write)
+        let setting_payload = (!self.restart_settings.has_pending_write())
             .then(|| self.setting_payload_for_restart(&current, setting))
             .flatten();
-        if self.auto_save_default && !has_pending_write {
-            self.start_restart_default_save(current, DefaultSaveScope::RestartEverything);
-        } else {
-            self.restart_settings
-                .open_save_choice(setting, setting_payload.clone());
-            self.display.confirm_dialog = Some(self.save_choice_dialog());
-        }
+        self.restart_settings
+            .open_save_choice(setting, setting_payload);
+        self.display.confirm_dialog = Some(self.save_choice_dialog());
     }
 
-    pub(super) fn start_restart_default_save(&mut self, payload: Value, scope: DefaultSaveScope) {
+    pub(super) fn start_restart_system_save(&mut self, payload: Value, scope: DefaultSaveScope) {
+        if self.restart_settings.has_pending_write()
+            || self.pending.system_persistence.has_pending_request()
+        {
+            self.show_toast("System save pending, try again");
+            return;
+        }
         if !self
             .restart_settings
-            .start_write(payload.clone(), scope, self.config_revision)
+            .start_write(payload.clone(), scope, self.config_revision, None)
         {
             self.display.confirm_dialog = Some(self.save_choice_dialog());
             return;
         }
-        self.pending.pending_autosave_payload_due_at = None;
-        self.pending.pending_save_revision = Some(self.config_revision);
         self.display.confirm_dialog = Some(saving_dialog());
         self.outbox
-            .push_platform_effect(RuntimePlatformEffect::StoreSaveDefault {
-                payload,
-                mode: scope.mode(),
-            });
+            .push_platform_effect(RuntimePlatformEffect::StoreSaveSystem { payload });
     }
 
     pub fn register_native_default_write(
@@ -72,7 +68,12 @@ impl NativeRunner {
         };
         if !self
             .restart_settings
-            .register_native_write(request_id, revision, scope)
+            .register_native_write_with_patch_revision(
+                request_id,
+                revision,
+                scope,
+                self.dirty_revision,
+            )
         {
             return false;
         }
@@ -86,6 +87,13 @@ impl NativeRunner {
         revision: u64,
         payload: Arc<Value>,
     ) -> bool {
+        let Ok(system) = super::system_persistence::SystemPersistenceState::system_document(self)
+        else {
+            return false;
+        };
+        if super::compose_local_system_patch_documents(&system, &payload).is_err() {
+            return false;
+        }
         self.restart_settings
             .attach_native_payload(request_id, revision, payload)
     }
@@ -99,7 +107,8 @@ impl NativeRunner {
             .get("revision")
             .and_then(Value::as_u64)
             .unwrap_or(self.config_revision);
-        self.restart_settings.track_write(payload, scope, revision)
+        self.restart_settings
+            .track_write(payload, scope, revision, self.dirty_revision)
     }
 
     pub(super) fn register_default_write_request(
@@ -116,7 +125,46 @@ impl NativeRunner {
 
     pub(super) fn abandon_pending_default_write(&mut self) {
         self.restart_settings.abandon_pending_write();
+        self.restart_settings.cancel();
         self.pending.pending_save_revision = None;
+        self.display.confirm_dialog = None;
+    }
+
+    pub(super) fn reboot_blocked_by_pending_saves(&self) -> Option<&'static str> {
+        if self.pending.system_persistence.has_pending_request() {
+            return Some("System save pending, try again");
+        }
+        if self.pending.system_persistence.dirty_revision.is_some() {
+            return Some("Save or apply System settings before reboot");
+        }
+        if self.restart_settings.has_pending_patch_write()
+            || self.pending.pending_save_revision.is_some()
+            || matches!(
+                &self.pending.manual_save_request,
+                Some(NativeManualSaveRequest::Default)
+            )
+        {
+            return Some("Patch save pending, try again");
+        }
+        if self.pending.native_preset_write.is_some()
+            || matches!(
+                &self.pending.manual_save_request,
+                Some(NativeManualSaveRequest::Preset { .. })
+            )
+        {
+            return Some("Preset save pending, try again");
+        }
+        self.config_dirty.then_some(if self.auto_save_default {
+            "Patch save pending, try again"
+        } else {
+            "Save or discard Patch before reboot"
+        })
+    }
+
+    pub(super) fn system_apply_pending(&self) -> bool {
+        self.restart_settings
+            .pending_write_scope()
+            .is_some_and(DefaultSaveScope::is_restart)
     }
 
     pub(super) fn apply_restart_default_save_result(
@@ -128,27 +176,42 @@ impl NativeRunner {
         if result.operation() != crate::RuntimeOperation::StoreSaveDefault {
             return None;
         }
-        let completion = self.restart_settings.acknowledge_write(
+        self.apply_restart_save_completion(result, request_id, revision, true)
+    }
+
+    pub(super) fn apply_restart_system_save_result(
+        &mut self,
+        result: &RuntimeStoreResult,
+        request_id: &str,
+        revision: Option<u64>,
+    ) -> Option<DefaultWriteCompletion> {
+        if result.operation() != crate::RuntimeOperation::StoreSaveSystem {
+            return None;
+        }
+        self.apply_restart_save_completion(result, request_id, revision, false)
+    }
+
+    fn apply_restart_save_completion(
+        &mut self,
+        result: &RuntimeStoreResult,
+        request_id: &str,
+        revision: Option<u64>,
+        retry_patch_autosave: bool,
+    ) -> Option<DefaultWriteCompletion> {
+        let completion = self.restart_settings.acknowledge_request(
             request_id,
             revision,
             result.error_facts().is_none(),
             self.config_revision,
         )?;
-        if self.pending.pending_save_revision == revision {
+        if self.pending.pending_save_revision == Some(completion.revision) {
             self.pending.pending_save_revision = None;
         }
-        let restart_after_pending_write =
-            completion.succeeded && self.restart_settings.take_restart_after_pending_write();
-        if !completion.succeeded && self.auto_save_default {
+        if retry_patch_autosave && !completion.succeeded && self.auto_save_default {
             self.pending.pending_autosave_payload_due_at =
                 Some(std::time::Instant::now() + std::time::Duration::from_millis(150));
         }
-        if restart_after_pending_write && completion.succeeded {
-            self.start_restart_default_save(
-                self.config_payload(),
-                DefaultSaveScope::RestartEverything,
-            );
-        } else if completion.restart_flow {
+        if completion.restart_flow {
             if completion.succeeded {
                 if completion.scope == DefaultSaveScope::RestartSetting {
                     self.reconcile_dirty_with_persisted_default();
@@ -185,7 +248,7 @@ impl NativeRunner {
                 let Some(payload) = self.restart_settings.save_choice_setting_payload() else {
                     return Ok(None);
                 };
-                self.start_restart_default_save(payload, DefaultSaveScope::RestartSetting);
+                self.start_restart_system_save(payload, DefaultSaveScope::RestartSetting);
                 Ok(None)
             }
             "restart.saveEverything" => {
@@ -196,10 +259,9 @@ impl NativeRunner {
                     self.display.confirm_dialog = Some(self.save_choice_dialog());
                     return Ok(None);
                 }
-                self.start_restart_default_save(
-                    self.config_payload(),
-                    DefaultSaveScope::RestartEverything,
-                );
+                let payload =
+                    super::system_persistence::SystemPersistenceState::system_document(self)?;
+                self.start_restart_system_save(payload, DefaultSaveScope::RestartEverything);
                 Ok(None)
             }
             "restart.reboot" if self.restart_settings.is_restart_choice() => {
@@ -211,18 +273,14 @@ impl NativeRunner {
     }
 
     fn reconcile_dirty_with_persisted_default(&mut self) {
-        let mut current = self.config_payload();
-        let mut baseline = (*self.restart_settings.persisted_default).clone();
-        if let (Some(current), Some(baseline)) = (current.as_object_mut(), baseline.as_object_mut())
+        if let Ok(current) =
+            super::system_persistence::SystemPersistenceState::system_document(self)
         {
-            current.remove("revision");
-            baseline.remove("revision");
-        }
-        if current == baseline {
-            self.config_dirty = false;
-            self.dirty_revision = None;
-        } else {
-            self.config_dirty = true;
+            if current == *self.restart_settings.persisted_default {
+                self.pending.system_persistence.dirty_revision = None;
+            } else if self.pending.system_persistence.dirty_revision.is_none() {
+                self.mark_system_dirty();
+            }
         }
     }
 
@@ -231,11 +289,13 @@ impl NativeRunner {
         current: &Value,
         setting: RestartSetting,
     ) -> Option<Value> {
-        self.restart_settings
-            .setting_payload(current, setting, self.config_revision)
-            .filter(|payload| {
-                !setting.is_audio_output() || validate_config_payload(payload).is_ok()
-            })
+        let payload = self.restart_settings.setting_payload(current, setting)?;
+        let patch = super::split_local_system_patch_documents(current)
+            .ok()?
+            .patch;
+        super::compose_local_system_patch_documents(&payload, &patch)
+            .is_ok()
+            .then_some(payload)
     }
 
     fn refresh_restart_save_choice(&mut self) {
@@ -264,11 +324,11 @@ impl NativeRunner {
 fn save_choice_dialog(can_save_setting: bool, host_role: bool) -> NativeConfirmDialog {
     let mut options = vec!["Cancel".into()];
     if can_save_setting {
-        options.push("Save this setting".into());
+        options.push("Save this one".into());
     }
-    options.push("Save everything".into());
+    options.push("Save System".into());
     NativeConfirmDialog {
-        title: "Save Setting".into(),
+        title: "Apply System".into(),
         lines: if host_role {
             vec![
                 "Restart required.".into(),
@@ -304,14 +364,14 @@ fn restart_choice_dialog(host_role: bool) -> NativeConfirmDialog {
         title: "Restart?".into(),
         lines: if host_role {
             vec![
-                "Saved. Reboot to".into(),
-                "apply?".into(),
+                "System saved.".into(),
+                "Reboot to apply?".into(),
                 "Unplug computer USB".into(),
                 "before Host reboot.".into(),
                 "Audio/MIDI/SD2 off.".into(),
             ]
         } else {
-            vec!["Saved. Reboot to".into(), "apply?".into()]
+            vec!["System saved.".into(), "Reboot to apply?".into()]
         },
         options: vec!["Continue".into(), "Reboot now".into()],
         cursor: 0,

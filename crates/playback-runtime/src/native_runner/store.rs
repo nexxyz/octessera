@@ -3,13 +3,14 @@ use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use super::preset_native_completion::NativePresetResultAction;
 use super::restart_settings::DefaultSaveScope;
 use super::{
-    clean_preset_name, native_factory_payload, portable_patch_payload_for_save, NativeRunner,
-    NativeToast,
+    clean_preset_name, native_factory_payload, portable_patch_payload_for_save,
+    NativeManualSaveRequest, NativeRunner, NativeToast,
 };
 
 impl NativeRunner {
     pub(super) fn apply_factory_payload(&mut self) -> Result<(), String> {
-        self.apply_config_payload(native_factory_payload())?;
+        let patch = portable_patch_payload_for_save(&native_factory_payload())?;
+        self.apply_patch_payload_preserving_device(patch)?;
         self.stop_for_config_load();
         self.display.toast = Some(NativeToast {
             message: "Factory loaded".into(),
@@ -24,13 +25,29 @@ impl NativeRunner {
     ) -> Result<Option<RuntimePlatformEffect>, String> {
         let effect = match action {
             "preset.refresh" => Some(RuntimePlatformEffect::StoreListPresets),
-            "default.load" => Some(RuntimePlatformEffect::StoreLoadDefault),
+            "default.load" => {
+                if self.reject_patch_load_while_save_pending() {
+                    None
+                } else {
+                    Some(RuntimePlatformEffect::StoreLoadDefault)
+                }
+            }
             "default.save" => {
-                if self.restart_settings.has_pending_write() {
+                if self.restart_settings.has_pending_patch_write() {
                     self.show_toast("Save in progress");
                     return Ok(None);
                 }
-                let payload = self.config_payload();
+                let payload =
+                    match super::system_persistence::SystemPersistenceState::patch_document(self) {
+                        Ok(payload) => payload,
+                        Err(error) => {
+                            self.present_patch_persistence_error(
+                                crate::RuntimeOperation::StoreSaveDefault,
+                                error,
+                            )?;
+                            return Ok(None);
+                        }
+                    };
                 if !self.register_default_write(payload.clone(), DefaultSaveScope::Ordinary) {
                     self.show_toast("Save in progress");
                     return Ok(None);
@@ -39,6 +56,31 @@ impl NativeRunner {
                     payload,
                     mode: None,
                 })
+            }
+            "system.save" => {
+                if self.pending.system_persistence.has_pending_request()
+                    || self.system_apply_pending()
+                {
+                    self.show_toast("System save pending, try again");
+                    None
+                } else {
+                    Some(RuntimePlatformEffect::StoreSaveSystem {
+                        payload:
+                            super::system_persistence::SystemPersistenceState::system_document(
+                                self,
+                            )?,
+                    })
+                }
+            }
+            "system.load" => {
+                if self.pending.system_persistence.has_pending_request()
+                    || self.system_apply_pending()
+                {
+                    self.show_toast("System operation pending, try again");
+                    None
+                } else {
+                    Some(RuntimePlatformEffect::StoreLoadSystem)
+                }
             }
             "preset.saveAs" => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.preset_draft_name),
@@ -58,19 +100,31 @@ impl NativeRunner {
                 }),
                 None => None,
             },
-            action if action.starts_with("preset.load:") => action
-                .strip_prefix("preset.load:")
-                .map(|name| RuntimePlatformEffect::StoreLoadPreset { name: name.into() }),
+            action if action.starts_with("preset.load:") => {
+                if self.reject_patch_load_while_save_pending() {
+                    None
+                } else {
+                    action
+                        .strip_prefix("preset.load:")
+                        .map(|name| RuntimePlatformEffect::StoreLoadPreset { name: name.into() })
+                }
+            }
             action if action.starts_with("preset.delete:") => action
                 .strip_prefix("preset.delete:")
                 .map(|name| RuntimePlatformEffect::StoreDeletePreset { name: name.into() }),
             "midi.panic" => Some(RuntimePlatformEffect::MidiPanic),
-            "system.reboot" => Some(RuntimePlatformEffect::StoreSaveRecovery {
-                payload: self.config_payload(),
-            }),
-            "system.shutdown" => Some(RuntimePlatformEffect::StoreSaveRecovery {
-                payload: self.config_payload(),
-            }),
+            "system.reboot" | "system.shutdown" => {
+                match super::system_persistence::SystemPersistenceState::patch_document(self) {
+                    Ok(payload) => Some(RuntimePlatformEffect::StoreSaveRecovery { payload }),
+                    Err(error) => {
+                        self.present_patch_persistence_error(
+                            crate::RuntimeOperation::StoreSaveRecovery,
+                            error,
+                        )?;
+                        None
+                    }
+                }
+            }
             "usb.sdTransferStart" => Some(RuntimePlatformEffect::UsbSdTransferStart),
             "usb.sdTransferStop" => Some(RuntimePlatformEffect::UsbSdTransferStop),
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
@@ -104,7 +158,26 @@ impl NativeRunner {
         Ok(effect)
     }
 
+    pub(super) fn reject_patch_load_while_save_pending(&mut self) -> bool {
+        let save_pending = self.restart_settings.has_pending_patch_write()
+            || self.pending.pending_save_revision.is_some()
+            || matches!(
+                &self.pending.manual_save_request,
+                Some(NativeManualSaveRequest::Default)
+            )
+            || (self.auto_save_default
+                && (self.pending.pending_autosave_payload_due_at.is_some() || self.config_dirty));
+        if save_pending {
+            self.show_toast("Save pending, try again");
+        }
+        save_pending
+    }
+
     pub(super) fn apply_store_result(&mut self, result: RuntimeStoreResult) -> Result<(), String> {
+        if is_system_store_operation(&result.operation()) {
+            self.apply_system_store_result(result)?;
+            return Ok(());
+        }
         match result {
             RuntimeStoreResult::Identified {
                 result,
@@ -178,6 +251,7 @@ impl NativeRunner {
                         self.apply_store_persistence_result_with_default_feedback(
                             *result,
                             restart_completion
+                                .as_ref()
                                 .is_some_and(|completion| completion.show_saved_feedback),
                         )
                     }
@@ -210,9 +284,9 @@ impl NativeRunner {
                     self.acknowledge_config_save(revision);
                 }
                 if let Some(completion) = restart_completion {
-                    if completion.succeeded && completion.scope != DefaultSaveScope::RestartSetting
-                    {
-                        self.acknowledge_config_save(revision);
+                    if completion.succeeded && completion.scope.is_patch() {
+                        self.pending.saved_patch_baseline = completion.saved_patch_payload;
+                        self.acknowledge_patch_save(completion.captured_patch_dirty_revision);
                     }
                 }
             }
@@ -299,8 +373,19 @@ impl NativeRunner {
             RuntimeStoreResult::Identified { .. }
             | RuntimeStoreResult::OperationSucceeded { .. }
             | RuntimeStoreResult::SamplePreviewError { .. } => Ok(()),
+            result @ (RuntimeStoreResult::LoadSystemResult { .. }
+            | RuntimeStoreResult::SaveSystemResult { .. }) => {
+                self.apply_system_store_result(result).map(|_| ())
+            }
         }
     }
+}
+
+pub(super) fn is_system_store_operation(operation: &crate::RuntimeOperation) -> bool {
+    matches!(
+        operation,
+        crate::RuntimeOperation::StoreLoadSystem | crate::RuntimeOperation::StoreSaveSystem
+    )
 }
 
 #[cfg(test)]

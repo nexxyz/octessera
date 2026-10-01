@@ -265,17 +265,17 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
 }
 
 #[test]
-pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
+pub(crate) fn recovery_and_backup_payloads_are_patch_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let effect = runner.platform_effect_for_action("system.reboot").unwrap();
     let payload = match effect {
         Some(RuntimePlatformEffect::StoreSaveRecovery { payload }) => payload,
         _ => panic!("unexpected effect"),
     };
-    assert_eq!(payload["kind"], "octessera.config");
+    assert_eq!(payload["kind"], "octessera.patch");
     assert_eq!(payload["schemaVersion"], 2);
-    assert!(!payload["runtimeConfig"]["usb"].is_null());
-    assert!(!payload["runtimeConfig"]["midi"].is_null());
+    assert!(payload["runtimeConfig"].get("usb").is_none());
+    assert!(payload["runtimeConfig"].get("midi").is_none());
 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.config_dirty = true;
@@ -286,10 +286,10 @@ pub(crate) fn recovery_usb_reboot_and_backup_remain_full_payloads() {
             if effects.iter().any(|effect| matches!(
                 effect,
                 RuntimePlatformEffect::StoreSaveBackup { payload }
-                    if payload["kind"] == "octessera.config"
+                    if payload["kind"] == "octessera.patch"
                         && payload["schemaVersion"] == 2
-                        && !payload["runtimeConfig"]["usb"].is_null()
-                        && !payload["runtimeConfig"]["midi"].is_null()
+                        && payload["runtimeConfig"].get("usb").is_none()
+                        && payload["runtimeConfig"].get("midi").is_none()
             ))
     )));
 }

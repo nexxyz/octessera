@@ -7,6 +7,10 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+#[cfg(test)]
+#[path = "user_data_restore_store_validation_tests.rs"]
+mod store_validation_tests;
+
 struct Fixture {
     root: PathBuf,
     store: PathBuf,
@@ -27,9 +31,22 @@ impl Fixture {
             fs::create_dir_all(path).unwrap();
         }
         let defaults = user_data_archive::canonical_defaults();
-        let defaults_bytes = serde_json::to_vec(&defaults).unwrap();
-        fs::write(store.join("default.json"), &defaults_bytes).unwrap();
-        fs::write(store.join("current.json"), defaults_bytes).unwrap();
+        let documents = playback_runtime::split_system_patch_documents(&defaults).unwrap();
+        fs::write(
+            store.join("system.json"),
+            serde_json::to_vec(&documents.system).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            crate::platform_service::default_patch_path(&store),
+            serde_json::to_vec(&documents.patch).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            crate::platform_service::current_patch_path(&store),
+            serde_json::to_vec(&documents.patch).unwrap(),
+        )
+        .unwrap();
         fs::write(samples.join("live-sample.wav"), b"live sample").unwrap();
         fs::write(recordings.join("live-take.wav"), b"live recording").unwrap();
         fs::write(
@@ -361,7 +378,6 @@ fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
         json!({ "dac": false, "usb": true, "hdmi": false }),
     );
     let mut current_patch = staged.bundle.current_state.patch.clone();
-    current_patch["runtimeConfig"]["masterVolume"] = json!(1);
     current_patch["runtimeConfig"]["linkLfos"][0] = json!({
         "enabled": true,
         "target": { "key": "instruments.0.mixer.volume", "kind": "number" },
@@ -378,12 +394,13 @@ fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
             "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
         }
     });
+    current_patch["runtimeConfig"]["instruments"][0]["sample"]["assignments"] =
+        json!([{ "level": null, "sampleSlot": 3, "x": 2, "y": 4 }]);
     staged.bundle.current_state.patch = current_patch;
-    staged.bundle.default_state.patch = json!({
-        "kind": "octessera.patch",
-        "schemaVersion": 2,
-        "runtimeConfig": {}
-    });
+    let mut default_patch = staged.bundle.default_state.patch.clone();
+    default_patch["runtimeConfig"]["instruments"][0]["sample"]["assignments"] =
+        json!([{ "level": null, "sampleSlot": 5, "x": 6, "y": 1 }]);
+    staged.bundle.default_state.patch = default_patch;
 
     super::restore(
         &fixture.store,
@@ -395,18 +412,20 @@ fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
     )
     .unwrap();
 
-    let current: Value =
-        serde_json::from_slice(&fs::read(fixture.store.join("current.json")).unwrap()).unwrap();
-    let default: Value =
-        serde_json::from_slice(&fs::read(fixture.store.join("default.json")).unwrap()).unwrap();
-    assert_eq!(current["runtimeConfig"]["displayBrightness"], 42);
+    let system: Value =
+        serde_json::from_slice(&fs::read(fixture.store.join("system.json")).unwrap()).unwrap();
+    let current: Value = serde_json::from_slice(
+        &fs::read(crate::platform_service::current_patch_path(&fixture.store)).unwrap(),
+    )
+    .unwrap();
+    let default: Value = serde_json::from_slice(
+        &fs::read(crate::platform_service::default_patch_path(&fixture.store)).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(system["runtimeConfig"]["displayBrightness"], 42);
     assert_eq!(
-        current["runtimeConfig"]["audioOutputs"],
+        system["runtimeConfig"]["audioOutputs"],
         json!({ "dac": false, "usb": true, "hdmi": false })
-    );
-    assert_eq!(
-        current["runtimeConfig"]["masterVolume"],
-        canonical["runtimeConfig"]["masterVolume"]
     );
     assert_eq!(current["runtimeConfig"]["linkLfos"][0]["enabled"], true);
     assert_eq!(current["runtimeConfig"]["linkLfos"][0]["depthPct"], 37);
@@ -418,11 +437,15 @@ fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
         current["runtimeConfig"]["auxBindings"]["aux2"],
         canonical["runtimeConfig"]["auxBindings"]["aux2"]
     );
-    let mut expected_default = canonical.clone();
-    expected_default["runtimeConfig"]["displayBrightness"] = json!(42);
-    expected_default["runtimeConfig"]["audioOutputs"] =
-        json!({ "dac": false, "usb": true, "hdmi": false });
-    assert_eq!(default, expected_default);
+    assert_eq!(default["kind"], "octessera.patch");
+    assert_eq!(
+        current["runtimeConfig"]["instruments"][0]["sample"]["assignments"][0]["sampleSlot"],
+        3
+    );
+    assert_eq!(
+        default["runtimeConfig"]["instruments"][0]["sample"]["assignments"][0]["sampleSlot"],
+        5
+    );
 }
 
 #[test]
@@ -432,19 +455,39 @@ fn restore_preserves_target_host_role_and_keeps_backup_role_free() {
     host["runtimeConfig"]["audioOutputs"]["usb"] = json!(false);
     host["runtimeConfig"]["usb"]["dataRole"] = json!("host");
     host["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(false);
-    let bytes = serde_json::to_vec(&host).unwrap();
-    fs::write(fixture.store.join("default.json"), &bytes).unwrap();
-    fs::write(fixture.store.join("current.json"), bytes).unwrap();
+    host["runtimeConfig"]["midi"]["inId"] = json!("local-midi-in");
+    host["runtimeConfig"]["midi"]["outId"] = json!("local-midi-out");
+    let documents = playback_runtime::split_system_patch_documents(&host).unwrap();
+    fs::write(
+        fixture.store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(&fixture.store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::current_patch_path(&fixture.store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
 
     fixture.restore("host-role", false).unwrap();
+    fixture.assert_live_media_data();
 
-    for name in ["default.json", "current.json"] {
-        let payload: Value =
-            serde_json::from_slice(&fs::read(fixture.store.join(name)).unwrap()).unwrap();
-        assert_eq!(payload["runtimeConfig"]["usb"]["dataRole"], "host");
-        assert_eq!(payload["runtimeConfig"]["audioOutputs"]["usb"], false);
-        assert_eq!(payload["runtimeConfig"]["usb"]["midiOutEnabled"], false);
-    }
+    let payload: Value =
+        serde_json::from_slice(&fs::read(fixture.store.join("system.json")).unwrap()).unwrap();
+    assert_eq!(payload["runtimeConfig"]["usb"]["dataRole"], "host");
+    assert_eq!(payload["runtimeConfig"]["audioOutputs"]["usb"], false);
+    assert_eq!(payload["runtimeConfig"]["usb"]["midiOutEnabled"], false);
+    assert_eq!(payload["runtimeConfig"]["midi"]["inId"], "local-midi-in");
+    assert_eq!(payload["runtimeConfig"]["midi"]["outId"], "local-midi-out");
+    assert_eq!(
+        payload["runtimeConfig"]["displayBrightness"],
+        user_data_archive::canonical_defaults()["runtimeConfig"]["displayBrightness"]
+    );
     let backup = fs::read(fixture.root.join("octessera-pre-restore-host-role.oct")).unwrap();
     assert!(!backup
         .windows(b"dataRole".len())

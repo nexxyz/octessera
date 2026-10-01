@@ -90,7 +90,12 @@ fn orange_apply_drains_saturated_results_and_preserves_fifo_order() {
             .unwrap()
             .as_nanos()
     ));
-    let service = PiPlatformService::new(root.join("store"), root.join("samples"));
+    let store = root.join("store");
+    let documents = crate::pi_store_test_support::write_pair(
+        &store,
+        &crate::user_data_archive::canonical_defaults(),
+    );
+    let service = PiPlatformService::new(store, root.join("samples"));
     for index in 0..31 {
         enqueue_system_info(&service, index);
     }
@@ -100,7 +105,7 @@ fn orange_apply_drains_saturated_results_and_preserves_fifo_order() {
     enqueue_system_info(&service, 32);
 
     service
-        .prepare_orange_device_apply(&serde_json::json!({"applied": true}))
+        .prepare_orange_device_apply(&documents.system)
         .unwrap();
 
     assert!(!service.preserved_results.lock().unwrap().is_empty());

@@ -205,10 +205,12 @@ fn storage_check(context: &CheckContext) -> CheckOutcome {
     let store = Path::new(context.board.store_dir);
     let samples = Path::new(context.board.samples_dir);
     let backup = store.join("backups");
-    if !store.is_dir() || !samples.is_dir() || !store.join("default.json").is_file() {
+    let system_path = store.join("system.json");
+    let patch_path = crate::platform_service::default_patch_path(store);
+    if !store.is_dir() || !samples.is_dir() || !system_path.is_file() || !patch_path.is_file() {
         return outcome(
             CheckStatus::Fail,
-            "store, samples, or default preset path is not ready",
+            "store, samples, System settings, or default patch path is not ready",
             "04-storage.txt",
         );
     }
@@ -219,20 +221,28 @@ fn storage_check(context: &CheckContext) -> CheckOutcome {
             "04-storage.txt",
         );
     }
-    match read_small(&store.join("default.json")) {
-        Ok(payload) if serde_json::from_str::<Value>(&payload).is_ok() => outcome(
+    let result = read_small(&system_path)
+        .and_then(|system| {
+            serde_json::from_str::<Value>(&system).map_err(|error| error.to_string())
+        })
+        .and_then(|system| {
+            read_small(&patch_path)
+                .and_then(|patch| {
+                    serde_json::from_str::<Value>(&patch).map_err(|error| error.to_string())
+                })
+                .and_then(|patch| {
+                    playback_runtime::compose_system_patch_documents(&system, &patch).map(|_| ())
+                })
+        });
+    match result {
+        Ok(()) => outcome(
             CheckStatus::Pass,
-            "store and backup paths are safe to inspect",
-            "04-storage.txt",
-        ),
-        Ok(_) => outcome(
-            CheckStatus::Fail,
-            "default preset is not valid JSON",
+            "System/Patch documents compose and backup paths are safe to inspect",
             "04-storage.txt",
         ),
         Err(error) => outcome(
             CheckStatus::Fail,
-            &format!("cannot read default preset: {error}"),
+            &format!("System/Patch store is invalid: {error}"),
             "04-storage.txt",
         ),
     }

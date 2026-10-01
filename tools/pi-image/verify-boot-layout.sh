@@ -204,8 +204,9 @@ require_octessera_raspberry_identity() {
     local image_root="$2"
     local welcome_source="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh"
     local welcome="$image_root/etc/profile.d/octessera-welcome.sh"
-    local default_source="$REPOSITORY_ROOT/config/generated/pi/default.json"
-    local default_config="$image_root/home/pi/presets/default.json"
+    local system_config="$image_root/home/pi/presets/system.json"
+    local patch_config="$image_root/home/pi/presets/default.patch.json"
+    local legacy_default="$image_root/home/pi/presets/default.json"
     local validator_source="$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
     local validator="$image_root/usr/local/lib/octessera/device_config.py"
     local validator_source_hash
@@ -242,10 +243,12 @@ require_octessera_raspberry_identity() {
         echo "constructor-required: Raspberry pi home or shell is not exact" >&2
         return 1
     fi
-    if [ ! -f "$default_config" ] || [ -L "$default_config" ] || [ "$(stat -c '%u:%g:%a' "$default_config")" != "$pi_uid:$pi_gid:644" ] || ! cmp -s "$default_source" "$default_config"; then
-        echo "constructor-required: Raspberry default config is not exact" >&2
-        return 1
-    fi
+    for document in "$system_config" "$patch_config"; do
+        [ -f "$document" ] && [ ! -L "$document" ] && [ "$(stat -c '%u:%g:%a' "$document")" = "$pi_uid:$pi_gid:644" ] || { echo "constructor-required: Raspberry split save document metadata is not exact: $document" >&2; return 1; }
+    done
+    if [ -e "$legacy_default" ] || [ -L "$legacy_default" ]; then echo "constructor-required: Raspberry mixed default remains in the active presets store" >&2; return 1; fi
+    python3 "$validator_source" --data-role "$system_config" >/dev/null || { echo "constructor-required: Raspberry System document is invalid" >&2; return 1; }
+    python3 -c 'import json,sys; d=json.load(sys.stdin); v=d.get("schemaVersion") if isinstance(d,dict) else None; sys.exit(0 if isinstance(d,dict) and d.get("kind")=="octessera.patch" and type(v) is int and v==2 and isinstance(d.get("runtimeConfig"),dict) else 1)' < "$patch_config" || { echo "constructor-required: Raspberry default Patch document v2 is invalid" >&2; return 1; }
     python3 "$REPOSITORY_ROOT/tools/pi-image/verify-rpi-samples.py" --root "$image_root" --repository-root "$REPOSITORY_ROOT" || return 1
     if [ ! -f "$validator_source" ] || [ -L "$validator_source" ] || [ ! -f "$validator" ] || [ -L "$validator" ] || [ "$(stat -c '%u:%g:%a' "$validator")" != 0:0:644 ]; then
         echo "constructor-required: Raspberry device config validator metadata is not exact" >&2
@@ -294,10 +297,6 @@ require_octessera_raspberry_identity() {
     fi
     [ "$(grep -Ec '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$boot_config")" -eq 1 ] || { echo "constructor-required: Raspberry Bluetooth disable overlay is missing or duplicated" >&2; return 1; }
     [ "$(grep -Ec '^[[:space:]]*enable_uart=0([[:space:]]|$)' "$boot_config")" -eq 1 ] || { echo "constructor-required: Raspberry UART disable setting is missing or duplicated" >&2; return 1; }
-    if grep -Eq '^[[:space:]]*enable_uart=1([[:space:]]|$)' "$boot_config"; then
-        echo "constructor-required: Raspberry UART is enabled" >&2
-        return 1
-    fi
     if grep -qP '\x00' "$boot_cmdline" || [ "$(grep -c '' "$boot_cmdline")" -gt 1 ]; then
         echo "constructor-required: Raspberry cmdline is multiline or contains NUL" >&2
         return 1

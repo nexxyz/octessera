@@ -189,6 +189,7 @@ pub fn initialize_host_state(
     let output = playback.dispatch_runner_messages(
         vec![playback_runtime::RunnerMessage::PlatformEffects {
             effects: vec![
+                RuntimePlatformEffect::StoreLoadSystem,
                 RuntimePlatformEffect::StoreLoadDefault,
                 RuntimePlatformEffect::MidiListOutputsRequest,
                 RuntimePlatformEffect::MidiListInputsRequest,
@@ -245,6 +246,19 @@ mod tests {
                 }]),
                 _ => Ok(Vec::new()),
             }
+        }
+
+        fn send_system_store_result(
+            &mut self,
+            _message: HostMessage,
+        ) -> Result<
+            (
+                Vec<RunnerMessage>,
+                Option<playback_runtime::RuntimeStoreResult>,
+            ),
+            String,
+        > {
+            Err("System store result not supported by fake runner".into())
         }
     }
 
@@ -309,6 +323,19 @@ mod tests {
                 }
                 _ => Ok(Vec::new()),
             }
+        }
+
+        fn send_system_store_result(
+            &mut self,
+            _message: HostMessage,
+        ) -> Result<
+            (
+                Vec<RunnerMessage>,
+                Option<playback_runtime::RuntimeStoreResult>,
+            ),
+            String,
+        > {
+            Err("System store result not supported by fake runner".into())
         }
     }
 

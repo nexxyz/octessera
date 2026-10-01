@@ -14,6 +14,13 @@ impl CoreRunner for RuntimeTickRunner {
     fn send(&mut self, _message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
         Ok(std::mem::take(&mut self.response))
     }
+
+    fn send_system_store_result(
+        &mut self,
+        _message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+        Ok((Vec::new(), None))
+    }
 }
 
 fn running_status(current_ppqn_pulse: u64) -> RuntimeStatus {
@@ -247,6 +254,13 @@ fn internal_musical_events_use_host_audio_path_and_forward_audio_commands() {
                 },
             ])
         }
+
+        fn send_system_store_result(
+            &mut self,
+            _message: HostMessage,
+        ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+            Ok((Vec::new(), None))
+        }
     }
 
     let mut runtime = PlaybackRuntime::new(RuntimeConfig {
@@ -294,6 +308,13 @@ fn midi_only_events_send_midi_without_host_audio_and_schedule_note_off() {
                     duration_ms: Some(30),
                 }],
             }])
+        }
+
+        fn send_system_store_result(
+            &mut self,
+            _message: HostMessage,
+        ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+            Ok((Vec::new(), None))
         }
     }
 
@@ -373,6 +394,13 @@ fn host_effect_results_round_trip_back_into_runner() {
                 _ => Ok(vec![]),
             }
         }
+
+        fn send_system_store_result(
+            &mut self,
+            _message: HostMessage,
+        ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+            Ok((Vec::new(), None))
+        }
     }
 
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
@@ -414,6 +442,13 @@ fn dispatch_consumes_native_runtime_config_publication() {
                     midi_out_enabled: true,
                 },
             }])
+        }
+
+        fn send_system_store_result(
+            &mut self,
+            _message: HostMessage,
+        ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+            Ok((Vec::new(), None))
         }
     }
 

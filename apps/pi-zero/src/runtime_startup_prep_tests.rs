@@ -76,9 +76,15 @@ fn pi_v1_persisted_startup_sleep_remains_due_after_scheduler_creation() {
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     payload["runtimeConfig"]["screenSleepSeconds"] = serde_json::json!(10);
     payload["runtimeConfig"]["dimTimerSeconds"] = serde_json::json!(0);
+    let documents = playback_runtime::split_system_patch_documents(&payload).unwrap();
     std::fs::write(
-        store.join("default.json"),
-        serde_json::to_vec(&payload).unwrap(),
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&documents.patch).unwrap(),
     )
     .unwrap();
 
@@ -202,10 +208,17 @@ fn prepared_runtime(
     root: &std::path::Path,
     marker: Option<std::path::PathBuf>,
 ) -> PreparedRuntime {
+    let defaults: serde_json::Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    crate::pi_store_test_support::write_pair(&root.join("store"), &defaults);
+    let samples = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../samples")
+        .canonicalize()
+        .unwrap();
     let mut adapter = PiPlaybackHostAdapter::new(
         Some(audio),
         root.join("store"),
-        root.join("samples"),
+        samples,
         Arc::new(|_| {}),
         false,
         playback_runtime::AudioOutputSet::jack(),

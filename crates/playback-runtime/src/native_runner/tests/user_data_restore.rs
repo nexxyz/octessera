@@ -1,7 +1,7 @@
 use super::*;
-use crate::{RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus};
+use crate::{RuntimePlatformRequest, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus};
 
-fn restore_status(phase: RuntimeUserDataRestorePhase) -> RuntimeStoreResult {
+pub(super) fn restore_status(phase: RuntimeUserDataRestorePhase) -> RuntimeStoreResult {
     RuntimeStoreResult::UserDataRestoreStatus {
         status: RuntimeUserDataRestoreStatus { phase },
     }
@@ -17,7 +17,10 @@ fn display_lines(messages: &[RunnerMessage]) -> Vec<String> {
         .collect()
 }
 
-fn has_platform_effect(messages: &[RunnerMessage], expected: RuntimePlatformEffect) -> bool {
+pub(super) fn has_platform_effect(
+    messages: &[RunnerMessage],
+    expected: RuntimePlatformEffect,
+) -> bool {
     messages.iter().any(|message| {
         matches!(
             message,
@@ -35,7 +38,7 @@ fn input(runner: &mut NativeRunner, value: Value) -> Vec<RunnerMessage> {
         .unwrap()
 }
 
-fn has_default_save(messages: &[RunnerMessage], mode: Option<&str>) -> bool {
+pub(super) fn has_default_save(messages: &[RunnerMessage], mode: Option<&str>) -> bool {
     messages.iter().any(|message| {
         matches!(
             message,
@@ -125,99 +128,78 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
                     .unwrap();
                 assert!(has_platform_effect(
                     &succeeded,
+                    RuntimePlatformEffect::StoreLoadSystem
+                ));
+                assert!(!has_platform_effect(
+                    &succeeded,
                     RuntimePlatformEffect::StoreLoadDefault
                 ));
+                let request = RuntimePlatformRequest::new(
+                    RuntimePlatformEffect::StoreLoadSystem,
+                    "restore-system-load".into(),
+                    None,
+                );
+                runner.register_platform_request(&request);
                 let result = if outcome == "missing" {
-                    RuntimeStoreResult::LoadDefaultResult { payload: None }
+                    RuntimeStoreResult::LoadSystemResult { payload: None }
                 } else {
-                    RuntimeStoreResult::LoadDefaultResult {
+                    RuntimeStoreResult::LoadSystemResult {
                         payload: Some(json!({ "runtimeConfig": "invalid" })),
                     }
                 };
-                let error = runner
-                    .send(HostMessage::RuntimeResult { result })
-                    .unwrap_err();
-                assert!(!error.is_empty());
-                Vec::new()
+                let rejected = runner
+                    .send(HostMessage::RuntimeResult {
+                        result: result.with_identity(request.request_id.clone(), request.revision),
+                    })
+                    .unwrap();
+                assert!(!has_platform_effect(
+                    &rejected,
+                    RuntimePlatformEffect::StoreLoadDefault
+                ));
+                assert!(!runner.restore_rehydration_pending());
+                rejected
             }
             _ => unreachable!(),
         };
 
-        if outcome == "failed" {
-            assert!(has_default_save(&failure_messages, Some("deferred")));
-            let recovery_revision = runner.restart_settings.pending_write_revision().unwrap();
-            runner.register_default_write_request("restore-retry", Some(recovery_revision));
-            let recovery = runner
-                .send(identified_default_save("restore-retry", recovery_revision))
+        if has_default_save(&failure_messages, Some("deferred")) {
+            assert!(runner.restart_settings.has_pending_write(), "{outcome}");
+            let pending_patch_revision = runner.pending_default_write_revision().unwrap();
+            runner.register_default_write_request("restore-retry", Some(pending_patch_revision));
+            let retry = runner
+                .send(identified_default_save(
+                    "restore-retry",
+                    pending_patch_revision,
+                ))
                 .unwrap();
-            assert!(!has_default_save(&recovery, Some("restart-everything")));
+            assert!(
+                !has_default_save(&retry, Some("restart-everything")),
+                "{outcome}"
+            );
+            assert!(!runner.restart_settings.has_pending_write(), "{outcome}");
+            assert!(runner.pending.pending_save_revision.is_none(), "{outcome}");
+            assert!(!runner.config_dirty, "{outcome}");
+        } else {
+            assert!(!runner.restart_settings.has_pending_write(), "{outcome}");
+            assert!(runner.pending.pending_save_revision.is_none(), "{outcome}");
+            assert!(runner.config_dirty, "{outcome}");
         }
-
-        assert!(!runner.restart_settings.has_pending_write(), "{outcome}");
-        assert!(runner.pending.pending_save_revision.is_none(), "{outcome}");
         assert!(!runner.restore_rehydration_pending(), "{outcome}");
         assert_eq!(runner.transport.bpm, bpm, "{outcome}");
         assert_eq!(runner.audio_output_buffer_frames, buffer, "{outcome}");
-        if outcome != "failed" {
-            assert!(runner.config_dirty, "{outcome}");
-        }
 
-        let dismissed = input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+        for _ in 0..2 {
+            if runner.display.user_data_restore.is_none() {
+                break;
+            }
+            let _ = input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+        }
         assert!(runner.display.user_data_restore.is_none(), "{outcome}");
-        if has_default_save(&dismissed, Some("deferred")) {
-            let recovery_revision = runner.restart_settings.pending_write_revision().unwrap();
-            runner.register_default_write_request("restore-retry", Some(recovery_revision));
-            let recovery = runner
-                .send(identified_default_save("restore-retry", recovery_revision))
-                .unwrap();
-            assert!(!has_default_save(&recovery, Some("restart-everything")));
-        }
-        assert!(runner.menu.focus_item_key("default.save"));
-        let _ = input(
-            &mut runner,
-            json!({ "type": "encoder_press", "id": "main" }),
-        );
-        let _ = input(
-            &mut runner,
-            json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-        );
-        let messages = input(
-            &mut runner,
-            json!({ "type": "encoder_press", "id": "main" }),
-        );
-        assert!(has_default_save(&messages, None), "{outcome}");
-        let revision = runner.restart_settings.pending_write_revision().unwrap();
-        runner.register_default_write_request("future-default", Some(revision));
-        let messages = runner
-            .send(identified_default_save("future-default", revision))
-            .unwrap();
-        assert!(
-            !has_default_save(&messages, Some("restart-everything")),
-            "{outcome}"
-        );
-
-        assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
-        let _ = input(
-            &mut runner,
-            json!({ "type": "encoder_press", "id": "main" }),
-        );
-        let _ = input(
-            &mut runner,
-            json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-        );
-        let messages = input(
-            &mut runner,
-            json!({ "type": "encoder_press", "id": "main" }),
-        );
-        assert!(
-            has_default_save(&messages, Some("restart-everything")),
-            "{outcome}"
-        );
     }
 }
 
 #[test]
-pub(crate) fn restore_lifecycle_is_typed_blocking_and_bounded() {
+pub(crate) fn restore_lifecycle_stays_visible_until_patch_rehydration_finishes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let restoring = runner
         .send(HostMessage::RuntimeResult {
@@ -257,15 +239,16 @@ pub(crate) fn restore_lifecycle_is_typed_blocking_and_bounded() {
         .iter()
         .all(|line| line.chars().count() <= 20));
 
-    let closed = runner
+    let still_blocked = runner
         .send(HostMessage::DeviceInput {
             input: json!({"type":"button_a","pressed":true}),
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.display.user_data_restore.is_none());
-    assert_ne!(
-        snapshot_from(&closed)["display"]["title"],
+    assert!(runner.restore_rehydration_pending());
+    assert!(runner.display.user_data_restore.is_some());
+    assert_eq!(
+        snapshot_from(&still_blocked)["display"]["title"],
         "Restore complete"
     );
 }
@@ -293,85 +276,6 @@ pub(crate) fn restore_failure_is_distinct_and_terminal_status_does_not_rewind() 
         display_lines(&messages),
         vec!["Pre-restore kept", "> Close"]
     );
-}
-
-#[test]
-pub(crate) fn successful_restore_rehydrates_live_runner() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut restored = runner.config_payload();
-    restored["runtimeConfig"]["masterVolume"] = json!(81);
-
-    let status_messages = runner
-        .send(HostMessage::RuntimeResult {
-            result: restore_status(RuntimeUserDataRestorePhase::Succeeded),
-        })
-        .unwrap();
-    assert!(has_platform_effect(
-        &status_messages,
-        RuntimePlatformEffect::StoreLoadDefault
-    ));
-    assert!(runner.restore_rehydration_pending());
-
-    let applied_messages = runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::LoadDefaultResult {
-                payload: Some(restored.clone()),
-            },
-        })
-        .unwrap();
-    assert_eq!(runner.config_payload()["runtimeConfig"]["masterVolume"], 81);
-    assert!(!runner.restore_rehydration_pending());
-    assert!(applied_messages
-        .iter()
-        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-}
-
-#[test]
-pub(crate) fn failed_restore_rehydration_marks_failure_and_retries_dirty_save() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.auto_save_default = true;
-    runner.config_dirty = true;
-    runner.dirty_revision = Some(7);
-    runner.pending.pending_save_revision = Some(7);
-    runner
-        .send(HostMessage::RuntimeResult {
-            result: restore_status(RuntimeUserDataRestorePhase::Succeeded),
-        })
-        .unwrap();
-
-    let error = runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::LoadDefaultResult {
-                payload: Some(json!({"runtimeConfig": "invalid"})),
-            },
-        })
-        .unwrap_err();
-    assert!(!error.is_empty());
-    assert_eq!(
-        runner
-            .display
-            .user_data_restore
-            .as_ref()
-            .map(|restore| restore.status.phase.clone()),
-        Some(RuntimeUserDataRestorePhase::Failed)
-    );
-    assert!(!runner.restore_rehydration_pending());
-    assert!(runner.pending.pending_save_revision.is_none());
-    assert!(runner
-        .messages_with_snapshot()
-        .unwrap()
-        .iter()
-        .any(|message| {
-            matches!(
-                message,
-                RunnerMessage::PlatformEffects { effects }
-                    if effects.iter().any(|effect| matches!(
-                        effect,
-                        RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. }
-                            if mode == "deferred"
-                    ))
-            )
-        }));
 }
 
 #[test]

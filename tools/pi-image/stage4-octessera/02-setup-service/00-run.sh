@@ -311,9 +311,16 @@ done
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
 bash "$LEGAL_REPOSITORY_ROOT/tools/pi-image/install-musical-assets.sh" "$STAGE_FILES/root" "$ROOTFS_DIR"
 install -d -m 0755 "$ROOTFS_DIR/home/pi/presets"
-install -D -o root -g root -m 0644 \
-    "$LEGAL_REPOSITORY_ROOT/config/generated/pi/default.json" \
-    "$ROOTFS_DIR/home/pi/presets/default.json"
+save_documents="$LEGAL_REPOSITORY_ROOT/target/save-documents/pi"
+for save_document in system.json default.patch.json; do
+    if [ ! -f "$save_documents/$save_document" ] || [ -L "$save_documents/$save_document" ]; then
+        echo "Raspberry image setup requires projected save document $save_documents/$save_document." >&2
+        exit 2
+    fi
+    install -D -o root -g root -m 0644 \
+        "$save_documents/$save_document" \
+        "$ROOTFS_DIR/home/pi/presets/$save_document"
+done
 pi_record="$(awk -F: '$1 == "pi" { print; count++ } END { if (count != 1) exit 1 }' "$ROOTFS_DIR/etc/passwd")"
 IFS=: read -r pi_user _ pi_uid pi_gid _ pi_home pi_shell <<< "$pi_record"
 if [ "$pi_home" != /home/pi ] || [ "$pi_shell" != /bin/bash ] || [ ! -d "$ROOTFS_DIR$pi_home" ] || [ -L "$ROOTFS_DIR$pi_home" ]; then
@@ -335,4 +342,4 @@ if [ -f "$bashrc" ] && [ ! -L "$bashrc" ]; then
 fi
 chroot "$ROOTFS_DIR" chown "$pi_user:$pi_user" "$pi_home/.hushlogin"
 chroot "$ROOTFS_DIR" chown -R pi:pi /home/pi/samples /home/pi/presets
-chroot "$ROOTFS_DIR" chmod 0644 /home/pi/presets/default.json
+chroot "$ROOTFS_DIR" chmod 0644 /home/pi/presets/system.json /home/pi/presets/default.patch.json

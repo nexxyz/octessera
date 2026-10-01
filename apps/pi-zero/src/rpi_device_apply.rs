@@ -1,80 +1,39 @@
-use crate::platform_service::{PiPlatformService, USB_STORAGE_STATE_PATH};
+use crate::platform_service::PiPlatformService;
 use playback_runtime::{RuntimePlatformRequest, RuntimeStoreResult, UsbDataRole};
 use serde_json::Value;
 use std::path::Path;
 use std::process::Command;
 
-const MAX_DEFAULT_BYTES: usize = 1024 * 1024;
+const MAX_SYSTEM_BYTES: usize = 1024 * 1024;
 pub(crate) fn apply(service: &PiPlatformService, payload: &Value) -> Result<(), String> {
     service.apply_device_config(payload)
 }
 
-pub(crate) fn apply_locked(store_dir: &Path, payload: &Value) -> Result<(), String> {
+pub(crate) fn apply_locked(
+    store_dir: &Path,
+    payload: &Value,
+    storage_state: &Path,
+    apply_role: &dyn Fn(UsbDataRole) -> Result<(), String>,
+) -> Result<(), String> {
     crate::usb_config_validation::validate_pi_audio_outputs_payload(payload)?;
     let role = parse_role(payload)?;
-    ensure_storage_inactive(role, Path::new(USB_STORAGE_STATE_PATH))?;
-    let prior = read_default_bytes(store_dir)?;
-    let new_default = serde_json::to_vec_pretty(payload)
+    ensure_storage_inactive(role, storage_state)?;
+    let patch = crate::platform_service::load_json(&crate::platform_service::default_patch_path(
+        store_dir,
+    ))?
+    .ok_or_else(|| "Default patch is missing".to_string())?;
+    playback_runtime::compose_local_system_patch_documents(payload, &patch)?;
+    let prior = read_system_bytes(store_dir)?;
+    let new_system = serde_json::to_vec_pretty(payload)
         .map_err(|error| format!("device configuration cannot be serialized: {error}"))?;
-    if new_default.len() > MAX_DEFAULT_BYTES {
+    if new_system.len() > MAX_SYSTEM_BYTES {
         return Err("device configuration is too large".into());
     }
-    apply_transaction(store_dir, &new_default, prior, role, apply_usb_role)
+    apply_transaction(store_dir, &new_system, prior, role, apply_role)
 }
 
 pub(crate) type UsbRoleApplier =
     std::sync::Arc<dyn Fn(UsbDataRole) -> Result<(), String> + Send + Sync>;
-
-pub(crate) fn save_default_if_role_changed(
-    store_dir: &Path,
-    payload: &Value,
-    is_auto: Option<bool>,
-    storage_state: &Path,
-    apply_role: &dyn Fn(UsbDataRole) -> Result<(), String>,
-) -> Option<RuntimeStoreResult> {
-    if let Err(message) = crate::usb_config_validation::validate_pi_audio_outputs_payload(payload) {
-        return Some(store_error(message));
-    }
-    let new_role = match parse_role(payload) {
-        Ok(role) => role,
-        Err(message) => return Some(store_error(message)),
-    };
-    let prior = match read_default_bytes(store_dir) {
-        Ok(prior) => prior,
-        Err(message) => return Some(store_error(message)),
-    };
-    let prior_role = match prior.as_deref() {
-        Some(bytes) => match serde_json::from_slice::<Value>(bytes)
-            .map_err(|error| format!("default configuration cannot be parsed: {error}"))
-            .and_then(|payload| parse_role(&payload))
-        {
-            Ok(role) => role,
-            Err(message) => return Some(store_error(message)),
-        },
-        None => UsbDataRole::Gadget,
-    };
-    if let Err(message) = ensure_storage_inactive(new_role, storage_state) {
-        return Some(store_error(message));
-    }
-    if prior_role == new_role {
-        return None;
-    }
-    let new_default = match serde_json::to_vec_pretty(payload) {
-        Ok(bytes) if bytes.len() <= MAX_DEFAULT_BYTES => bytes,
-        Ok(_) => return Some(store_error("device configuration is too large".into())),
-        Err(error) => {
-            return Some(store_error(format!(
-                "device configuration cannot be serialized: {error}"
-            )))
-        }
-    };
-    Some(
-        match apply_transaction(store_dir, &new_default, prior, new_role, apply_role) {
-            Ok(()) => RuntimeStoreResult::SaveDefaultResult { ok: true, is_auto },
-            Err(message) => store_error(format!("Save default failed: {message}")),
-        },
-    )
-}
 
 fn ensure_storage_inactive(role: UsbDataRole, storage_state: &Path) -> Result<(), String> {
     if role != UsbDataRole::Host {
@@ -91,7 +50,7 @@ fn ensure_storage_inactive(role: UsbDataRole, storage_state: &Path) -> Result<()
 
 fn apply_transaction<F>(
     store_dir: &Path,
-    new_default: &[u8],
+    new_system: &[u8],
     prior: Option<Vec<u8>>,
     role: UsbDataRole,
     apply_role: F,
@@ -99,22 +58,22 @@ fn apply_transaction<F>(
 where
     F: FnOnce(UsbDataRole) -> Result<(), String>,
 {
-    save_default_bytes(store_dir, new_default)?;
+    save_system_bytes(store_dir, new_system)?;
     if let Err(error) = apply_role(role) {
-        return match restore_default(store_dir, prior) {
+        return match restore_system(store_dir, prior) {
             Ok(()) => Err(format!("USB data-role apply failed: {error}")),
             Err(rollback) => Err(format!(
-                "USB data-role apply failed: {error}; default rollback failed: {rollback}"
+                "USB data-role apply failed: {error}; System rollback failed: {rollback}"
             )),
         };
     }
     Ok(())
 }
 
-fn restore_default(store_dir: &Path, prior: Option<Vec<u8>>) -> Result<(), String> {
+fn restore_system(store_dir: &Path, prior: Option<Vec<u8>>) -> Result<(), String> {
     match prior {
-        Some(bytes) => save_default_bytes(store_dir, &bytes),
-        None => remove_default(store_dir),
+        Some(bytes) => save_system_bytes(store_dir, &bytes),
+        None => remove_system(store_dir),
     }
 }
 
@@ -124,43 +83,35 @@ fn parse_role(payload: &Value) -> Result<UsbDataRole, String> {
         .map_err(|error| error.to_string())
 }
 
-fn read_default_bytes(store_dir: &Path) -> Result<Option<Vec<u8>>, String> {
-    let path = store_dir.join("default.json");
+fn read_system_bytes(store_dir: &Path) -> Result<Option<Vec<u8>>, String> {
+    let path = store_dir.join("system.json");
     let metadata = match std::fs::symlink_metadata(&path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => {
-            return Err(format!(
-                "default configuration cannot be inspected: {error}"
-            ))
-        }
+        Err(error) => return Err(format!("System settings cannot be inspected: {error}")),
     };
     if !metadata.is_file() || metadata.file_type().is_symlink() {
-        return Err("default configuration is not a regular file".into());
+        return Err("System settings are not a regular file".into());
     }
     std::fs::read(path)
         .map(Some)
-        .map_err(|error| format!("default configuration cannot be read: {error}"))
+        .map_err(|error| format!("System settings cannot be read: {error}"))
 }
 
-fn save_default_bytes(store_dir: &Path, bytes: &[u8]) -> Result<(), String> {
-    crate::persistence::atomic_write_bytes(&store_dir.join("default.json"), bytes, 0o644)
+fn save_system_bytes(store_dir: &Path, bytes: &[u8]) -> Result<(), String> {
+    crate::persistence::atomic_write_bytes(&store_dir.join("system.json"), bytes, 0o644)
 }
 
-fn remove_default(store_dir: &Path) -> Result<(), String> {
-    let path = store_dir.join("default.json");
+fn remove_system(store_dir: &Path) -> Result<(), String> {
+    let path = store_dir.join("system.json");
     match std::fs::symlink_metadata(&path) {
         Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
             std::fs::remove_file(&path).map_err(|error| error.to_string())
         }
-        Ok(_) => Err("default configuration is not a regular file".into()),
+        Ok(_) => Err("System settings are not a regular file".into()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error.to_string()),
     }
-}
-
-fn store_error(message: String) -> RuntimeStoreResult {
-    RuntimeStoreResult::StoreError { message }
 }
 
 pub(crate) fn apply_usb_role(role: UsbDataRole) -> Result<(), String> {
@@ -214,10 +165,10 @@ mod tests {
     }
 
     #[test]
-    fn role_helper_failure_restores_prior_default_bytes() {
+    fn role_helper_failure_restores_prior_system_bytes() {
         let (_service, root) = service();
         let prior = br#"{"prior":true}"#.to_vec();
-        save_default_bytes(&root.join("store"), &prior).unwrap();
+        save_system_bytes(&root.join("store"), &prior).unwrap();
         let error = apply_transaction(
             &root.join("store"),
             br#"{"new":true}"#,
@@ -228,14 +179,14 @@ mod tests {
         .unwrap_err();
         assert!(error.contains("helper failed"));
         assert_eq!(
-            std::fs::read(root.join("store/default.json")).unwrap(),
+            std::fs::read(root.join("store/system.json")).unwrap(),
             prior
         );
         let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
-    fn successful_role_apply_leaves_new_default_and_no_power_result() {
+    fn successful_role_apply_leaves_new_system_and_no_power_result() {
         let (_service, root) = service();
         apply_transaction(
             &root.join("store"),
@@ -246,8 +197,58 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            std::fs::read(root.join("store/default.json")).unwrap(),
+            std::fs::read(root.join("store/system.json")).unwrap(),
             br#"{"new":true}"#
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn device_apply_accepts_local_samples_in_assigned_and_unassigned_slots() {
+        let (_service, root) = service();
+        let store = root.join("store");
+        let mut full: Value =
+            serde_json::from_str(include_str!("../../../config/generated/pi/default.json"))
+                .unwrap();
+        full["runtimeConfig"]["instruments"][0]["type"] = serde_json::json!("sampler");
+        full["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"] =
+            serde_json::json!("userdata/User Kit/custom.wav");
+        full["runtimeConfig"]["instruments"][0]["sample"]["slots"][4]["path"] =
+            serde_json::json!("sd-card/octessera/samples/kick.wav");
+        full["runtimeConfig"]["instruments"][0]["sample"]["assignments"] = serde_json::json!([
+            { "level": null, "sampleSlot": 0, "x": 0, "y": 0 }
+        ]);
+        let documents = playback_runtime::split_local_system_patch_documents(&full).unwrap();
+        std::fs::write(
+            crate::platform_service::default_patch_path(&store),
+            serde_json::to_vec(&documents.patch).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            store.join("system.json"),
+            serde_json::to_vec(&documents.system).unwrap(),
+        )
+        .unwrap();
+
+        apply_locked(
+            &store,
+            &documents.system,
+            &root.join("storage.state"),
+            &|_| Ok(()),
+        )
+        .unwrap();
+        let patch = crate::platform_service::load_json(
+            &crate::platform_service::default_patch_path(&store),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            patch["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"],
+            "userdata/User Kit/custom.wav"
+        );
+        assert_eq!(
+            patch["runtimeConfig"]["instruments"][0]["sample"]["slots"][4]["path"],
+            "sd-card/octessera/samples/kick.wav"
         );
         let _ = std::fs::remove_dir_all(root);
     }

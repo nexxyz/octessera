@@ -55,9 +55,13 @@ impl NativeRunner {
         } else if let Some(name) = action_type.strip_prefix("preset.delete:") {
             ("Confirm Delete", format!("Delete preset {name}?"))
         } else if action_type == "default.save" {
-            ("Confirm Default", "Save current default?".into())
+            ("Confirm Patch", "Save current patch?".into())
         } else if action_type == "default.load" {
-            ("Confirm Default", "Load saved default?".into())
+            ("Confirm Patch", "Load saved patch?".into())
+        } else if action_type == "system.save" {
+            ("Confirm System", "Save System settings?".into())
+        } else if action_type == "system.load" {
+            ("Confirm System", "Load System settings?".into())
         } else if action_type == "factory.load" {
             ("Confirm Factory", "Load factory settings?".into())
         } else if action_type == "system.clearAll" {
@@ -122,9 +126,14 @@ impl NativeRunner {
             (title, format!("Load I{slot} {kind} {choice}?"))
         };
         let options = vec!["Cancel".into(), "Confirm".into()];
+        let detail_width = if matches!(action_type.as_str(), "system.save" | "system.load") {
+            19
+        } else {
+            28
+        };
         Some(NativeConfirmDialog {
             title: title.into(),
-            lines: wrap_help_text(&detail, 28),
+            lines: wrap_help_text(&detail, detail_width),
             options,
             cursor: 0,
             action: action.clone(),

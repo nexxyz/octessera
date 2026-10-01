@@ -94,6 +94,8 @@ export type RuntimePlatformEffect =
     }
   | { type: "store_delete_preset"; name: string }
   | { type: "store_load_default" }
+  | { type: "store_load_system" }
+  | { type: "store_save_system"; payload: Record<string, unknown> }
   | {
       type: "store_save_default";
       payload: Record<string, unknown>;
@@ -145,6 +147,8 @@ export type RuntimeStoreResult =
     }
   | { type: "delete_preset_result"; name: string; ok: boolean }
   | { type: "load_default_result"; payload: Record<string, unknown> | null }
+  | { type: "load_system_result"; payload: Record<string, unknown> | null }
+  | { type: "save_system_result"; ok: boolean }
   | { type: "save_default_result"; ok: boolean; isAuto?: boolean }
   | { type: "save_backup_result"; ok: boolean }
   | { type: "save_recovery_result"; ok: boolean }

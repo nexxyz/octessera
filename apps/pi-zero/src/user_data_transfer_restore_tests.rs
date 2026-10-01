@@ -34,9 +34,23 @@ fn restore_service(name: &str) -> (UserDataTransferService, PathBuf) {
     fs::create_dir_all(&samples).unwrap();
     fs::create_dir_all(root.join("recordings")).unwrap();
     fs::create_dir_all(root.join("screen-recordings")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
     fs::write(
-        store.join("default.json"),
-        serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap(),
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(&store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::current_patch_path(&store),
+        serde_json::to_vec(&documents.patch).unwrap(),
     )
     .unwrap();
     (
@@ -108,11 +122,11 @@ fn upload_requires_limits_and_physical_cancel_before_mutation() {
     let (service, root) = restore_service("cancel");
     service.start().unwrap();
     let code = service.test_code().unwrap();
-    let original = fs::read(service.inner.store_dir.join("default.json")).unwrap();
+    let original = fs::read(service.inner.store_dir.join("system.json")).unwrap();
     let invalid = restore_request(&service, "POST", "/restore", &code, b"invalid");
     assert_eq!(invalid.0, 400);
     assert_eq!(
-        fs::read(service.inner.store_dir.join("default.json")).unwrap(),
+        fs::read(service.inner.store_dir.join("system.json")).unwrap(),
         original
     );
     let oversized = {
@@ -154,7 +168,7 @@ fn upload_requires_limits_and_physical_cancel_before_mutation() {
     assert_eq!(status.0, 200);
     assert!(String::from_utf8(status.1).unwrap().contains("cancelled"));
     assert_eq!(
-        fs::read(service.inner.store_dir.join("default.json")).unwrap(),
+        fs::read(service.inner.store_dir.join("system.json")).unwrap(),
         original
     );
     service.stop();
@@ -182,7 +196,14 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
     .unwrap();
     fs::write(
         service.inner.store_dir.join("recovery-save.json"),
-        serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap(),
+        serde_json::to_vec(
+            &playback_runtime::split_system_patch_documents(
+                &crate::user_data_archive::canonical_defaults(),
+            )
+            .unwrap()
+            .patch,
+        )
+        .unwrap(),
     )
     .unwrap();
     service.start().unwrap();
@@ -213,10 +234,17 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
     assert!(status_body.contains("restored"), "{status_body}");
     assert!(service.store_write_barrier().is_blocked());
     service.store_write_barrier().acknowledge();
-    let default = crate::platform_service::load_json(&service.inner.store_dir.join("default.json"))
+    let system = crate::platform_service::load_json(&service.inner.store_dir.join("system.json"))
         .unwrap()
         .unwrap();
-    assert_eq!(default["kind"], "octessera.config");
+    let default_patch = crate::platform_service::load_json(
+        &crate::platform_service::default_patch_path(&service.inner.store_dir),
+    )
+    .unwrap()
+    .unwrap();
+    let composed =
+        playback_runtime::compose_system_patch_documents(&system, &default_patch).unwrap();
+    assert_eq!(composed["kind"], "octessera.config");
     assert_eq!(
         fs::read(service.inner.samples_dir.join("User.wav")).unwrap(),
         b"custom sample"
@@ -235,7 +263,10 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
     );
     assert_eq!(
         fs::read(service.inner.store_dir.join("recovery-save.json")).unwrap(),
-        serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap()
+        fs::read(crate::platform_service::current_patch_path(
+            &service.inner.store_dir
+        ))
+        .unwrap()
     );
     assert!(fs::read_dir(&root)
         .unwrap()
@@ -261,7 +292,7 @@ fn active_recording_restore_is_rejected_before_tree_mutation() {
         }
         Ok(())
     }));
-    let original = fs::read(service.inner.store_dir.join("default.json")).unwrap();
+    let original = fs::read(service.inner.store_dir.join("system.json")).unwrap();
     service.start().unwrap();
     let code = service.test_code().unwrap();
     let archive = restore_archive(&service, false);
@@ -289,7 +320,7 @@ fn active_recording_restore_is_rejected_before_tree_mutation() {
     );
     assert!(!service.store_write_barrier().is_blocked());
     assert_eq!(
-        fs::read(service.inner.store_dir.join("default.json")).unwrap(),
+        fs::read(service.inner.store_dir.join("system.json")).unwrap(),
         original
     );
     assert!(!root
@@ -396,5 +427,59 @@ fn confirmation_input_is_consumed_when_restore_finishes_immediately() {
         "id":"main"
     })));
     service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn failed_restore_tree_swap_rolls_back_exact_split_store_bytes() {
+    let root = restore_root("split-store-rollback");
+    let store = root.join("store");
+    let replacement = root.join("store-new");
+    let old = root.join("store-old");
+    let samples = root.join("samples");
+    let new_samples = root.join("samples-new");
+    let old_samples = root.join("samples-old");
+    for path in [&store, &replacement, &samples, &new_samples] {
+        fs::create_dir_all(path).unwrap();
+    }
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
+    let originals = [
+        (
+            "system.json",
+            serde_json::to_vec(&documents.system).unwrap(),
+        ),
+        (
+            "default.patch.json",
+            serde_json::to_vec(&documents.patch).unwrap(),
+        ),
+        ("current.json", b"current patch bytes".to_vec()),
+        ("recovery-save.json", b"recovery patch bytes".to_vec()),
+    ];
+    for (name, bytes) in &originals {
+        fs::write(store.join(name), bytes).unwrap();
+        fs::write(replacement.join(name), b"new bytes").unwrap();
+    }
+    let trees = [
+        (store.as_path(), replacement.as_path(), old.as_path()),
+        (
+            samples.as_path(),
+            new_samples.as_path(),
+            old_samples.as_path(),
+        ),
+    ];
+    let mut faults = crate::user_data_restore::FaultInjection {
+        replacement_failure_at: Some(1),
+        ..crate::user_data_restore::FaultInjection::default()
+    };
+    assert!(crate::user_data_restore::replace_trees_with_faults(&trees, &mut faults).is_err());
+    for (name, bytes) in &originals {
+        assert_eq!(
+            fs::read(store.join(name)).unwrap().as_slice(),
+            bytes.as_slice()
+        );
+    }
     let _ = fs::remove_dir_all(root);
 }

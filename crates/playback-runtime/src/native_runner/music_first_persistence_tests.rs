@@ -11,17 +11,15 @@ fn native_save_result_is_music_first_without_snapshot_or_payload_serialization()
     assert!(!runner.display_scene_pending());
     runner.mark_config_dirty();
     let revision = runner.config_revision;
-    let serialization_calls = runner.behavior_state_serialization_calls.get();
-    let worker_payload = Arc::new(json!({
-        "revision": revision,
-        "runtimeConfig": { "usb": { "dataRole": "device" } }
-    }));
+    let worker_payload =
+        Arc::new(super::portable_patch_payload_for_save(&runner.config_payload()).unwrap());
     assert!(runner.register_native_default_write("native-music-save", revision, true));
     assert!(runner.attach_native_default_write_payload(
         "native-music-save",
         revision,
         Arc::clone(&worker_payload),
     ));
+    let serialization_calls = runner.behavior_state_serialization_calls.get();
     let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
     let mut host = FakeHost::default();
 
@@ -60,10 +58,10 @@ fn native_save_result_is_music_first_without_snapshot_or_payload_serialization()
             .toast
             .as_ref()
             .map(|toast| toast.message.as_str()),
-        Some("Saved default")
+        Some("Saved Patch")
     );
     assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
         &worker_payload
     ));
     assert!(!runner.config_dirty);
@@ -75,7 +73,7 @@ fn native_save_result_is_music_first_without_snapshot_or_payload_serialization()
     let saved_scene = runner.capture_display_scene().unwrap();
     let saved_generation = saved_scene.generation();
     let scene_snapshot = saved_scene.into_snapshot();
-    assert_eq!(scene_snapshot["display"]["toast"], "Saved default");
+    assert_eq!(scene_snapshot["display"]["toast"], "Saved Patch");
     assert_eq!(scene_snapshot["settings"]["autoSaveFlash"], "flash");
     runner.acknowledge_display_scene(saved_generation);
     assert!(!runner.display_scene_pending());
@@ -125,7 +123,8 @@ fn stale_unidentified_and_mismatched_native_default_successes_remain_synchronous
         runner.mark_config_dirty();
         let revision = runner.config_revision;
         let baseline = Arc::clone(&runner.restart_settings.persisted_default);
-        let worker_payload = Arc::new(json!({ "revision": revision }));
+        let worker_payload =
+            Arc::new(super::portable_patch_payload_for_save(&runner.config_payload()).unwrap());
         assert!(runner.register_native_default_write("native-current", revision, true));
         assert!(runner.attach_native_default_write_payload(
             "native-current",
@@ -361,7 +360,9 @@ fn due_music_first_save_follows_notes_without_snapshot_and_reloads_edited_value(
         81
     );
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    restored.apply_config_payload(payload).unwrap();
+    restored
+        .apply_patch_payload_preserving_device(payload)
+        .unwrap();
     assert_eq!(restored.instruments[0].synth_config["osc1"]["levelPct"], 81);
 }
 

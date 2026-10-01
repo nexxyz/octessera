@@ -86,6 +86,14 @@ fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     let mut payload = payload;
     payload["runtimeConfig"]["auxAutoMapEnabled"] = serde_json::json!(aux_auto_map);
+    let documents = playback_runtime::split_system_patch_documents(&payload).unwrap();
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();

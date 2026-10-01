@@ -5,6 +5,10 @@ use playback_runtime::{
 };
 use std::time::Instant;
 
+#[cfg(test)]
+#[path = "host_adapter_load_admission_tests.rs"]
+mod load_admission_tests;
+
 impl PiPlaybackHostAdapter {
     pub(crate) fn flush_native_persistence_at(
         &mut self,
@@ -59,10 +63,77 @@ impl PiPlaybackHostAdapter {
         results
     }
 
-    pub(super) fn load_default_result(&mut self) -> Result<RuntimeStoreResult, String> {
-        self.pending_default_save.cancel();
-        let payload = self.platform_service.load_default_now()?;
-        Ok(RuntimeStoreResult::LoadDefaultResult { payload })
+    pub(super) fn load_default_result(
+        &mut self,
+        request: &RuntimePlatformRequest,
+    ) -> RuntimeStoreResult {
+        if self.pending_default_save.has_default_pending()
+            && !self.platform_service.store_writes_blocked()
+        {
+            return pending_save_failure(request);
+        }
+        match self.platform_service.load_default_now() {
+            Ok(payload) => RuntimeStoreResult::LoadDefaultResult { payload },
+            Err(message) => RuntimeStoreResult::RuntimeFailure {
+                error: request.failure_facts(message),
+            },
+        }
+    }
+
+    pub(super) fn load_preset_result(
+        &self,
+        request: &RuntimePlatformRequest,
+        name: &str,
+    ) -> RuntimeStoreResult {
+        if self.pending_default_save.has_default_pending() {
+            return pending_save_failure(request);
+        }
+        match self.platform_service.load_preset_now(name) {
+            Ok(payload) => RuntimeStoreResult::LoadPresetResult {
+                payload,
+                name: name.to_string(),
+            },
+            Err(message) => RuntimeStoreResult::RuntimeFailure {
+                error: request.failure_facts(message),
+            },
+        }
+    }
+
+    pub(super) fn load_patch_result(
+        &mut self,
+        request: &RuntimePlatformRequest,
+    ) -> RuntimeStoreResult {
+        match &request.effect {
+            playback_runtime::RuntimePlatformEffect::StoreLoadDefault => {
+                self.load_default_result(request)
+            }
+            playback_runtime::RuntimePlatformEffect::StoreLoadPreset { name } => {
+                self.load_preset_result(request, name)
+            }
+            _ => unreachable!("non-patch load effect"),
+        }
+    }
+
+    pub(super) fn handle_system_store_effect(
+        &self,
+        request: &RuntimePlatformRequest,
+    ) -> Option<Vec<HostMessage>> {
+        let result = match &request.effect {
+            playback_runtime::RuntimePlatformEffect::StoreLoadSystem => self
+                .platform_service
+                .load_system_now()
+                .map(|payload| RuntimeStoreResult::LoadSystemResult { payload }),
+            playback_runtime::RuntimePlatformEffect::StoreSaveSystem { payload } => self
+                .platform_service
+                .save_system_now(payload)
+                .map(|()| RuntimeStoreResult::SaveSystemResult { ok: true }),
+            _ => return None,
+        };
+        Some(vec![HostMessage::RuntimeResult {
+            result: result.unwrap_or_else(|message| RuntimeStoreResult::RuntimeFailure {
+                error: request.failure_facts(message),
+            }),
+        }])
     }
 
     pub(super) fn save_default_result(
@@ -71,12 +142,6 @@ impl PiPlaybackHostAdapter {
         payload: &serde_json::Value,
         _mode: Option<&str>,
     ) -> Result<Option<RuntimeStoreResult>, String> {
-        if let Err(message) = crate::usb_config_validation::validate_raspberry_usb_payload(payload)
-        {
-            return Ok(Some(RuntimeStoreResult::RuntimeFailure {
-                error: request.failure_facts(message),
-            }));
-        }
         if self.platform_service.store_writes_blocked() {
             return Ok(Some(RuntimeStoreResult::RuntimeFailure {
                 error: request.failure_facts(
@@ -98,5 +163,11 @@ impl PiPlaybackHostAdapter {
             }));
         }
         Ok(None)
+    }
+}
+
+pub(super) fn pending_save_failure(request: &RuntimePlatformRequest) -> RuntimeStoreResult {
+    RuntimeStoreResult::RuntimeFailure {
+        error: request.failure_facts("Save pending, try again".into()),
     }
 }

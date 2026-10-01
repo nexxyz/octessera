@@ -53,14 +53,29 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     bool_item("Auto Save", "autoSaveDefault", config.auto_save_default),
                     bool_item("Backups", "rollingBackups", config.rolling_backups),
                     action_item(
-                        "Save Default",
+                        "Save Patch",
                         "default.save",
                         NativeMenuAction::PlatformEffect("default.save".into()),
                     ),
                     action_item(
-                        "Load Default",
+                        "Load Patch",
                         "default.load",
                         NativeMenuAction::PlatformEffect("default.load".into()),
+                    ),
+                ],
+            ),
+            group(
+                "System",
+                vec![
+                    action_item(
+                        "Save System",
+                        "system.save",
+                        NativeMenuAction::PlatformEffect("system.save".into()),
+                    ),
+                    action_item(
+                        "Load System",
+                        "system.load",
+                        NativeMenuAction::PlatformEffect("system.load".into()),
                     ),
                 ],
             ),

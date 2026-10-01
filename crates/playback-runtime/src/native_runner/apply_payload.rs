@@ -237,6 +237,23 @@ impl NativeRunner {
         Ok(())
     }
 
+    pub(super) fn apply_local_patch_payload_preserving_device(
+        &mut self,
+        payload: Value,
+    ) -> Result<(), String> {
+        let current = self.config_payload();
+        let before = self.configuration_aggregate();
+        let prepared = super::prepare_local_patch_payload(payload, &current)?;
+        let candidate = self.build_transaction_candidate(&prepared, false)?;
+        let plan = before.resolve_plan(
+            &candidate.configuration_aggregate(),
+            self.audio_config_revision,
+        );
+        let source_revision = prepared.source_revision;
+        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
+        Ok(())
+    }
+
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn apply_device_config_payload_preserving_patch(
         &mut self,
@@ -255,7 +272,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    fn apply_hdmi_payload(&mut self, runtime: &Value) {
+    pub(super) fn apply_hdmi_payload(&mut self, runtime: &Value) {
         let Some(hdmi) = runtime.get("hdmi") else {
             return;
         };

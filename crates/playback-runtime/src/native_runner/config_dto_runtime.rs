@@ -69,7 +69,7 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_auto_map_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) bpm: Option<f64>,
+    pub(super) bpm: Option<serde_json::Number>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) swing_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]

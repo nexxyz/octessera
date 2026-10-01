@@ -91,6 +91,7 @@ mod trigger_gates;
 mod twinkle;
 mod ui_scenario;
 mod user_data_restore;
+mod user_data_restore_rehydration;
 mod user_data_transfer;
 mod xy_smoothing;
 

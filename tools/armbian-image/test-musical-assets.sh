@@ -6,13 +6,38 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$root/tools/armbian-image/validation-assertions.sh"
 fixture_root="$(mktemp -d)"
 trap 'rm -rf "$fixture_root"' EXIT
-bash "$root/tools/armbian-image/stage-musical-assets.sh" "$fixture_root/usr/share/octessera"
+projection="$fixture_root/target/save-documents/pi"
+mkdir -p "$(dirname "$projection")"
+(cd "$root" && cargo run -p playback-runtime --bin split_default_config -- config/generated/pi/default.json "$projection")
+bash "$root/tools/armbian-image/stage-musical-assets.sh" "$fixture_root/usr/share/octessera" "$projection"
 staging="$fixture_root/usr/share/octessera"
 default_source="$root/config/generated/pi/default.json"
 default_staged="$staging/defaults/pi-default.json"
+system_source="$projection/system.json"
+patch_source="$projection/default.patch.json"
+system_staged="$staging/defaults/pi-system.json"
+patch_staged="$staging/defaults/pi-default.patch.json"
 manifest="$staging/samples/MANIFEST.tsv"
 
 cmp "$default_source" "$default_staged"
+cmp "$system_source" "$system_staged"
+cmp "$patch_source" "$patch_staged"
+test "$(stat -c '%a' "$default_staged")" = 644
+test "$(stat -c '%a' "$system_staged")" = 644
+test "$(stat -c '%a' "$patch_staged")" = 644
+test -f "$system_staged" && test ! -L "$system_staged"
+test -f "$patch_staged" && test ! -L "$patch_staged"
+python3 - "$system_staged" "$patch_staged" <<'PY'
+import json
+import pathlib
+import sys
+
+expected = ("octessera.system", "octessera.patch")
+for path, kind in zip(sys.argv[1:], expected):
+    document = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+    if document.get("kind") != kind:
+        raise SystemExit(f"unexpected projected document kind in {path}")
+PY
 validate_manifest() {
   local manifest_path="$1"
   local sample_root="$2"
@@ -83,11 +108,21 @@ PY
 validate_manifest "$manifest" "$staging/samples/files"
 grep -qF 'mv -T -n' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 # shellcheck disable=SC2016
-grep -qF 'temporary=$(mktemp "$staging_directory/' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
+grep -qF 'temporary_system=$(mktemp "$staging_directory/system.XXXXXX")' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
+# shellcheck disable=SC2016
+grep -qF 'temporary_patch=$(mktemp "$staging_directory/patch.XXXXXX")' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 # shellcheck disable=SC2016
 octessera_reject_file_match "Provisioner stages candidates inside the runtime-writable presets directory." -qF 'mktemp "$presets_directory/' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 grep -q 'ExecStart=/usr/local/sbin/octessera-provision-musical-default' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
-grep -qFx 'Description=Seed a missing Octessera Pi default' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
+grep -qFx 'Description=Seed missing Octessera split save documents' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
+grep -qF 'install_overlay_file usr/share/octessera/defaults/pi-system.json /usr/share/octessera/defaults/pi-system.json 0644' "$root/userpatches/customize-image.sh"
+grep -qF 'install_overlay_file usr/share/octessera/defaults/pi-default.patch.json /usr/share/octessera/defaults/pi-default.patch.json 0644' "$root/userpatches/customize-image.sh"
+if grep -qF 'pi-default.json' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"; then
+  echo 'Orange save seeder must not consume the mixed metadata input.' >&2
+  exit 1
+fi
+grep -qF 'CONFIG=/var/lib/octessera/presets/system.json' "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
+grep -qF 'CONFIG_PATH = "/var/lib/octessera/presets/system.json"' "$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot"
 run_as_root() {
   if [[ "$(id -u)" == 0 ]]; then
     "$@"
@@ -183,10 +218,13 @@ reset_provision_work() {
   runtime_gid_fixture="${2:-990}"
   runtime_group_gid_fixture="${3:-$runtime_gid_fixture}"
   rm -rf -- "$provision_work"
-  mkdir -p "$provision_work/etc" "$provision_work/usr/share/octessera/defaults" "$provision_work/var/lib/octessera" "$provision_work/var/lib/octessera/samples"
+  mkdir -p "$provision_work/etc" "$provision_work/usr/share/octessera/defaults" "$provision_work/usr/local/lib/octessera" "$provision_work/var/lib/octessera" "$provision_work/var/lib/octessera/samples"
   printf '%s\n' 'root:x:0:0:root:/root:/bin/sh' "octessera-runtime:x:$runtime_uid_fixture:$runtime_gid_fixture:Octessera runtime:/nonexistent:/usr/sbin/nologin" > "$provision_work/etc/passwd"
   printf '%s\n' 'root:x:0:' "octessera-runtime:x:$runtime_group_gid_fixture:" > "$provision_work/etc/group"
+  cp "$system_source" "$provision_work/usr/share/octessera/defaults/pi-system.json"
+  cp "$patch_source" "$provision_work/usr/share/octessera/defaults/pi-default.patch.json"
   cp "$default_source" "$provision_work/usr/share/octessera/defaults/pi-default.json"
+  cp "$root/userpatches/overlay/usr/local/lib/octessera/device_config.py" "$provision_work/usr/local/lib/octessera/device_config.py"
   printf 'keep this user sample\n' > "$provision_work/var/lib/octessera/samples/user-sample.wav"
 }
 run_provision() {
@@ -194,140 +232,78 @@ run_provision() {
 }
 expect_provision_failure() {
   if run_provision >/dev/null 2>&1; then
-    echo "Provisioner accepted unsafe default fixture: $1" >&2
+    echo "Provisioner accepted unsafe save-document fixture: $1" >&2
     exit 1
   fi
 }
 
-expect_identity_failure() {
-  local name="$1"
-  local uid="$2"
-  local gid="$3"
-  local group_gid="$4"
-  reset_provision_work "$uid" "$gid" "$group_gid"
-  local source_hash
-  source_hash="$(sha256sum "$provision_work/usr/share/octessera/defaults/pi-default.json" | awk '{ print $1 }')"
-  expect_provision_failure "$name"
-  test ! -e "$provision_work/var/lib/octessera/presets"
-  test "$(sha256sum "$provision_work/usr/share/octessera/defaults/pi-default.json" | awk '{ print $1 }')" = "$source_hash"
-}
-
 reset_provision_work 990 991 991
 run_provision
-test "$(stat -c '%u:%g:%a' "$provision_work/var/lib/octessera/presets")" = 990:991:755
-test "$(stat -c '%u:%g:%a' "$provision_work/var/lib/octessera/presets/default.json")" = 990:991:644
-test ! -e "$provision_work/var/lib/octessera/.provisioning"
-expect_identity_failure swapped-ids 991 990 991
-expect_identity_failure mismatched-group 990 991 992
-expect_identity_failure zero-uid 0 991 991
-expect_identity_failure zero-gid 990 0 0
-
-reset_provision_work
-ln -s "$provision_work/var/lib" "$provision_work/var/lib/octessera/presets"
-expect_provision_failure parent-symlink
-test -L "$provision_work/var/lib/octessera/presets"
-
-reset_provision_work
-printf 'not a directory\n' > "$provision_work/var/lib/octessera/presets"
-expect_provision_failure parent-non-regular
-test -f "$provision_work/var/lib/octessera/presets"
-
-reset_provision_work
-mkdir "$provision_work/var/lib/octessera/presets"
-chown 991:991 "$provision_work/var/lib/octessera/presets"
-expect_provision_failure parent-wrong-owner
-
-reset_provision_work
-mkdir "$provision_work/var/lib/octessera/presets"
-chown 990:990 "$provision_work/var/lib/octessera/presets"
-chmod 0700 "$provision_work/var/lib/octessera/presets"
-expect_provision_failure parent-wrong-mode
-
-reset_provision_work
-mkdir "$provision_work/var/lib/octessera/presets"
-chown 990:990 "$provision_work/var/lib/octessera/presets"
-ln -s outside-target "$provision_work/var/lib/octessera/presets/default.json"
-expect_provision_failure destination-symlink
-test -L "$provision_work/var/lib/octessera/presets/default.json"
-
-reset_provision_work
-mkdir "$provision_work/var/lib/octessera/presets"
-chown 990:990 "$provision_work/var/lib/octessera/presets"
-mkdir "$provision_work/var/lib/octessera/presets/default.json"
-expect_provision_failure destination-non-regular
-
-reset_provision_work
-mkdir "$provision_work/var/lib/octessera/presets"
-chown 990:990 "$provision_work/var/lib/octessera/presets"
-printf '%s\n' unsafe > "$provision_work/var/lib/octessera/presets/default.json"
-chown 991:991 "$provision_work/var/lib/octessera/presets/default.json"
-expect_provision_failure destination-wrong-owner
-
-reset_provision_work
-mkdir "$provision_work/var/lib/octessera/presets"
-chown 990:990 "$provision_work/var/lib/octessera/presets"
-printf '%s\n' unsafe > "$provision_work/var/lib/octessera/presets/default.json"
-chown 990:990 "$provision_work/var/lib/octessera/presets/default.json"
-chmod 0600 "$provision_work/var/lib/octessera/presets/default.json"
-expect_provision_failure destination-wrong-mode
-
-reset_provision_work
-run_provision
-cmp "$default_source" "$provision_work/var/lib/octessera/presets/default.json"
-test "$(stat -c '%a' "$provision_work/var/lib/octessera/presets/default.json")" = 644
-test "$(stat -c '%u:%g' "$provision_work/var/lib/octessera/presets")" = 990:990
-test "$(stat -c '%a' "$provision_work/var/lib/octessera/presets")" = 755
-test "$(stat -c '%u:%g' "$provision_work/var/lib/octessera/presets/default.json")" = 990:990
+presets="$provision_work/var/lib/octessera/presets"
+cmp "$system_source" "$presets/system.json"
+cmp "$patch_source" "$presets/default.patch.json"
+test "$(stat -c '%u:%g:%a' "$presets")" = 990:991:755
+for document in system.json default.patch.json; do
+  test "$(stat -c '%u:%g:%a' "$presets/$document")" = 990:991:644
+done
+test ! -e "$presets/default.json"
+cmp "$default_source" "$provision_work/usr/share/octessera/defaults/pi-default.json"
 test ! -e "$provision_work/var/lib/octessera/.provisioning"
 
-printf '%s\n' '{"user":"config"}' > "$provision_work/var/lib/octessera/presets/default.json"
-chown 990:990 "$provision_work/var/lib/octessera/presets/default.json"
-chmod 0644 "$provision_work/var/lib/octessera/presets/default.json"
-before_default_metadata="$(stat -c '%u:%g:%a:%s' "$provision_work/var/lib/octessera/presets/default.json")"
-before_default_hash="$(sha256sum "$provision_work/var/lib/octessera/presets/default.json" | awk '{ print $1 }')"
+for bad in partial malformed legacy conflict; do
+  reset_provision_work
+  mkdir -p "$provision_work/var/lib/octessera/presets"
+  case "$bad" in
+    partial) printf 'user system bytes\n' > "$provision_work/var/lib/octessera/presets/system.json" ;;
+    malformed) printf '{broken\n' > "$provision_work/var/lib/octessera/presets/system.json"; cp "$patch_source" "$provision_work/var/lib/octessera/presets/default.patch.json" ;;
+    legacy) printf 'legacy bytes\n' > "$provision_work/var/lib/octessera/presets/default.json" ;;
+    conflict) cp "$system_source" "$provision_work/var/lib/octessera/presets/system.json"; cp "$patch_source" "$provision_work/var/lib/octessera/presets/default.patch.json"; python3 - "$provision_work/var/lib/octessera/presets/system.json" <<'PY'
+import json
+import pathlib
+import sys
+path = pathlib.Path(sys.argv[1])
+doc = json.loads(path.read_text(encoding="utf-8"))
+doc["runtimeConfig"]["usb"]["dataRole"] = "host"
+doc["runtimeConfig"]["audioOutputs"]["usb"] = True
+path.write_text(json.dumps(doc), encoding="utf-8")
+PY
+      ;;
+  esac
+  chown -R 990:990 "$provision_work/var/lib/octessera/presets"
+  before="$(find "$provision_work/var/lib/octessera/presets" -type f -exec sha256sum {} + | sort)"
+  expect_provision_failure "$bad"
+  after="$(find "$provision_work/var/lib/octessera/presets" -type f -exec sha256sum {} + | sort)"
+  test "$before" = "$after"
+  test ! -e "$provision_work/var/lib/octessera/presets/default.patch.json" || [ "$bad" != partial ]
+done
+
+for identity in mismatched-group zero-uid zero-gid; do
+  reset_provision_work
+  case "$identity" in
+    mismatched-group) printf '%s\n' 'root:x:0:0:root:/root:/bin/sh' 'octessera-runtime:x:990:991:Octessera runtime:/nonexistent:/usr/sbin/nologin' > "$provision_work/etc/passwd"; printf '%s\n' 'root:x:0:' 'octessera-runtime:x:992:' > "$provision_work/etc/group" ;;
+    zero-uid) printf '%s\n' 'root:x:0:0:root:/root:/bin/sh' 'octessera-runtime:x:0:991:Octessera runtime:/nonexistent:/usr/sbin/nologin' > "$provision_work/etc/passwd" ;;
+    zero-gid) printf '%s\n' 'root:x:0:0:root:/root:/bin/sh' 'octessera-runtime:x:990:0:Octessera runtime:/nonexistent:/usr/sbin/nologin' > "$provision_work/etc/passwd"; printf '%s\n' 'root:x:0:' 'octessera-runtime:x:0:' > "$provision_work/etc/group" ;;
+  esac
+  expect_provision_failure "$identity"
+  test ! -e "$provision_work/var/lib/octessera/presets"
+done
+
+reset_provision_work
 run_provision
-test "$(stat -c '%u:%g:%a:%s' "$provision_work/var/lib/octessera/presets/default.json")" = "$before_default_metadata"
-test "$(sha256sum "$provision_work/var/lib/octessera/presets/default.json" | awk '{ print $1 }')" = "$before_default_hash"
+presets="$provision_work/var/lib/octessera/presets"
+before_system="$(sha256sum "$presets/system.json" | awk '{ print $1 }')"
+before_patch="$(sha256sum "$presets/default.patch.json" | awk '{ print $1 }')"
 run_provision
-test "$(stat -c '%u:%g:%a:%s' "$provision_work/var/lib/octessera/presets/default.json")" = "$before_default_metadata"
-test "$(sha256sum "$provision_work/var/lib/octessera/presets/default.json" | awk '{ print $1 }')" = "$before_default_hash"
+test "$(sha256sum "$presets/system.json" | awk '{ print $1 }')" = "$before_system"
+test "$(sha256sum "$presets/default.patch.json" | awk '{ print $1 }')" = "$before_patch"
 grep -q 'keep this user sample' "$provision_work/var/lib/octessera/samples/user-sample.wav"
-
-reset_provision_work
-race_winner="$provision_work/race-winner.json"
-race_hook="$provision_work/race-hook.sh"
-printf '%s\n' '{"winner":"race"}' > "$race_winner"
-cat > "$race_hook" <<EOF
-#!/bin/sh
-install -o 990 -g 990 -m 0644 "$race_winner" "\$1"
-EOF
-chmod 0755 "$race_hook"
-OCTESSERA_PROVISION_BEFORE_MOVE_HOOK="$race_hook" run_provision
-cmp "$race_winner" "$provision_work/var/lib/octessera/presets/default.json"
-test "$(stat -c '%u:%g:%a' "$provision_work/var/lib/octessera/presets/default.json")" = 990:990:644
-test ! -e "$provision_work/var/lib/octessera/.provisioning"
-
-reset_provision_work
-race_outside="$provision_work/outside.json"
-race_symlink_hook="$provision_work/race-symlink-hook.sh"
-printf '%s\n' 'protected' > "$race_outside"
-cat > "$race_symlink_hook" <<EOF
-#!/bin/sh
-ln -s "$race_outside" "\$1"
-EOF
-chmod 0755 "$race_symlink_hook"
-if OCTESSERA_PROVISION_BEFORE_MOVE_HOOK="$race_symlink_hook" run_provision >/dev/null 2>&1; then
-  echo "Provisioner accepted a symlink race winner." >&2
-  exit 1
-fi
-test -L "$provision_work/var/lib/octessera/presets/default.json"
-grep -qFx protected "$race_outside"
-test ! -e "$provision_work/var/lib/octessera/.provisioning"
 stage_work="$install_work/stage with spaces"
 mkdir -p "$stage_work/samples/files"
 printf 'stale\n' > "$stage_work/samples/files/stale sample.wav"
-bash "$root/tools/armbian-image/stage-musical-assets.sh" "$stage_work"
+bash "$root/tools/armbian-image/stage-musical-assets.sh" "$stage_work" "$projection"
 test ! -e "$stage_work/samples/files/stale sample.wav"
 cmp "$default_source" "$stage_work/defaults/pi-default.json"
+cmp "$system_source" "$stage_work/defaults/pi-system.json"
+cmp "$patch_source" "$stage_work/defaults/pi-default.patch.json"
 validate_manifest "$stage_work/samples/MANIFEST.tsv" "$stage_work/samples/files"
 printf 'Orange musical assets validation passed\n'

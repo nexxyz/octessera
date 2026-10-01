@@ -33,6 +33,21 @@ fn directories() -> (PathBuf, PathBuf) {
 fn adapter() -> (OrangeHostAdapter, PathBuf, PathBuf) {
     let (store, samples) = directories();
     let (audio, _, _) = test_service();
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
+    std::fs::create_dir_all(&store).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
     let adapter = OrangeHostAdapter::with_directories(
         audio,
         store.clone(),
@@ -71,11 +86,12 @@ fn unwrap_result(message: HostMessage) -> RuntimeStoreResult {
 #[test]
 fn first_backup_effect_does_not_latch_an_error() {
     let (mut adapter, store, samples) = adapter();
+    let patch = crate::platform_service::load_json(&store.join("default.patch.json"))
+        .unwrap()
+        .unwrap();
     let response = adapter
         .handle_platform_effect(&request(
-            RuntimePlatformEffect::StoreSaveBackup {
-                payload: json!({"runtimeConfig": {"bpm": 120}}),
-            },
+            RuntimePlatformEffect::StoreSaveBackup { payload: patch },
             "backup-1",
         ))
         .unwrap();
@@ -88,7 +104,11 @@ fn first_backup_effect_does_not_latch_an_error() {
 #[test]
 fn default_and_preset_round_trips_use_atomic_service() {
     let (mut adapter, store, samples) = adapter();
-    let payload = json!({"runtimeConfig": {"bpm": 99}});
+    let mut full = crate::user_data_archive::canonical_defaults();
+    full["runtimeConfig"]["bpm"] = json!(99);
+    let payload = playback_runtime::split_system_patch_documents(&full)
+        .unwrap()
+        .patch;
     assert!(adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::StoreSaveDefault {
@@ -140,7 +160,7 @@ fn default_and_preset_round_trips_use_atomic_service() {
             .file_name()
             .to_string_lossy()
             .contains(".tmp-")));
-    assert!(adapter
+    let loaded = adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::StoreLoadPreset {
                 name: "round-trip".into(),
@@ -148,8 +168,8 @@ fn default_and_preset_round_trips_use_atomic_service() {
             "preset-load",
         ))
         .unwrap()
-        .is_empty());
-    let load_result = unwrap_result(wait_for_result(&adapter).remove(0));
+        .remove(0);
+    let load_result = unwrap_result(loaded);
     assert!(matches!(
         load_result,
         RuntimeStoreResult::LoadPresetResult { payload: Some(value), .. }
@@ -196,9 +216,15 @@ fn runtime_restore_loads_default_before_orange_barrier_acknowledgement() {
     let (mut adapter, store, samples) = adapter();
     let mut payload = crate::user_data_archive::canonical_defaults();
     payload["runtimeConfig"]["masterVolume"] = json!(81);
+    let documents = playback_runtime::split_system_patch_documents(&payload).unwrap();
     std::fs::write(
-        store.join("default.json"),
-        serde_json::to_vec(&payload).unwrap(),
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&documents.patch).unwrap(),
     )
     .unwrap();
     adapter.platform_service.invalidate_store_writes_for_test();
@@ -233,7 +259,11 @@ fn runtime_restore_loads_default_before_orange_barrier_acknowledgement() {
 fn failed_runtime_restore_apply_keeps_orange_barrier_blocked() {
     let (mut adapter, store, samples) = adapter();
     let recovery = br#"{"recovery":true}"#;
-    std::fs::write(store.join("default.json"), br#"{"runtimeConfig":"bad"}"#).unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        br#"{"runtimeConfig":"bad"}"#,
+    )
+    .unwrap();
     std::fs::write(store.join("recovery-save.json"), recovery).unwrap();
     adapter.platform_service.invalidate_store_writes_for_test();
 
@@ -268,6 +298,10 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
     use std::time::{Duration, Instant};
 
     let (store, samples) = directories();
+    crate::pi_store_test_support::write_pair(
+        &store,
+        &crate::user_data_archive::canonical_defaults(),
+    );
     let (audio, control_rx, mut event_rx, prep_tx) = crate::audio::test_service_with_prep_sender();
     let mut adapter = OrangeHostAdapter::with_directories(
         audio,

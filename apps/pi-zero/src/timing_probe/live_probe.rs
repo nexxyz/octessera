@@ -146,6 +146,19 @@ impl playback_runtime::CoreRunner for LiveProbeRunner {
         }
         Ok(responses)
     }
+
+    fn send_system_store_result(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<
+        (
+            Vec<RunnerMessage>,
+            Option<playback_runtime::RuntimeStoreResult>,
+        ),
+        String,
+    > {
+        playback_runtime::CoreRunner::send_system_store_result(&mut self.inner, message)
+    }
 }
 
 impl HostAdapter for LiveProbeHost {

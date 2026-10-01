@@ -257,6 +257,7 @@ impl RuntimeWorker {
         let output = self.playback.dispatch_runner_messages(
             vec![RunnerMessage::PlatformEffects {
                 effects: vec![
+                    playback_runtime::RuntimePlatformEffect::StoreLoadSystem,
                     playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
                     playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
                     playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,

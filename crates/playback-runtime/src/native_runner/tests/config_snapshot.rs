@@ -22,6 +22,23 @@ fn captured_config_uses_the_existing_portable_patch_projection() {
 }
 
 #[test]
+fn captured_local_patch_accepts_safe_relative_samples_without_weakening_portable_patch() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[1].sample_paths[0] = Some("userdata/User Kit/custom.wav".into());
+    let snapshot = runner.capture_config_snapshot();
+    let portable = runner
+        .capture_config_snapshot()
+        .into_portable_patch_payload();
+    let local = snapshot.into_local_patch_payload().unwrap();
+
+    assert!(portable.is_err());
+    assert_eq!(
+        local["runtimeConfig"]["instruments"][1]["sample"]["slots"][0]["path"],
+        "userdata/User Kit/custom.wav"
+    );
+}
+
+#[test]
 pub(crate) fn config_snapshot_capture_is_owned_and_matches_frozen_payload_fields() {
     assert_send_static::<NativeConfigSnapshot>();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

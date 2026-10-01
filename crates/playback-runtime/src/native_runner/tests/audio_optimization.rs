@@ -166,7 +166,7 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
         Some("capacity".into())
     );
     let snapshot = snapshot_from(&messages);
-    assert_ne!(snapshot["display"]["title"], "Save Setting");
+    assert_ne!(snapshot["display"]["title"], "Apply System");
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -174,11 +174,11 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
         })
         .unwrap();
     let committed_snapshot = snapshot_from(&messages);
-    assert_eq!(committed_snapshot["display"]["title"], "Save Setting");
+    assert_eq!(committed_snapshot["display"]["title"], "Apply System");
     let lines = committed_snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines.iter().any(|line| line == "> Cancel"));
-    assert!(lines.iter().any(|line| line == "  Save this setting"));
-    assert!(runner.config_dirty);
+    assert!(lines.iter().any(|line| line == "  Save this one"));
+    assert!(runner.pending.system_persistence.dirty_revision.is_some());
 }
 
 #[test]

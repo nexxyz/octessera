@@ -3,6 +3,7 @@ use crate::native_runner::{
     apply_user_data_patch_payload, normalize_user_data_patch_payload,
     validate_user_data_config_payload,
 };
+use crate::{compose_system_patch_documents, split_system_patch_documents};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -92,6 +93,13 @@ pub struct UserDataManifestEntry {
 pub struct UserPreferenceDelta {
     #[serde(flatten)]
     pub values: BTreeMap<String, Value>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct UserDataArchiveReconstruction {
+    pub system: Value,
+    pub current_patch: Value,
+    pub default_patch: Value,
 }
 
 impl UserPreferenceDelta {
@@ -298,6 +306,48 @@ pub fn apply_user_data_patch_and_preferences(
 ) -> Result<Value, String> {
     let base = apply_user_preference_delta(canonical_defaults, preferences)?;
     apply_user_data_patch_payload(patch.clone(), &base)
+}
+
+pub fn reconstruct_user_data_archive(
+    canonical_defaults: &Value,
+    target_system: &Value,
+    target_patch: &Value,
+    archive_current_patch: &Value,
+    archive_default_patch: &Value,
+    preferences: &UserPreferenceDelta,
+) -> Result<UserDataArchiveReconstruction, String> {
+    compose_system_patch_documents(target_system, target_patch)?;
+
+    let restored_current = apply_user_data_patch_and_preferences(
+        canonical_defaults,
+        archive_current_patch,
+        preferences,
+    )?;
+    let restored_default = apply_user_data_patch_and_preferences(
+        canonical_defaults,
+        archive_default_patch,
+        preferences,
+    )?;
+    let current = split_system_patch_documents(&restored_current)?;
+    let default = split_system_patch_documents(&restored_default)?;
+    if current.system != default.system {
+        return Err("archive current and default states produce different System documents".into());
+    }
+
+    let mut system = target_system.clone();
+    preferences::overlay_projection(&mut system, &restored_current)?;
+    if system["runtimeConfig"]["usb"]["dataRole"].as_str() == Some("host") {
+        system["runtimeConfig"]["usb"]["midiOutEnabled"] = Value::Bool(false);
+        system["runtimeConfig"]["audioOutputs"]["usb"] = Value::Bool(false);
+    }
+
+    compose_system_patch_documents(&system, &current.patch)?;
+    compose_system_patch_documents(&system, &default.patch)?;
+    Ok(UserDataArchiveReconstruction {
+        system,
+        current_patch: current.patch,
+        default_patch: default.patch,
+    })
 }
 
 fn manifest_for_validated_user_data_bundle(

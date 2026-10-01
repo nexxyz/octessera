@@ -101,3 +101,7 @@ mod recording;
 mod sampler;
 #[path = "host_adapter_store_tests.rs"]
 mod store;
+#[path = "host_adapter_store_load_admission_tests.rs"]
+mod store_load_admission;
+#[path = "host_adapter_store_split_tests.rs"]
+mod store_split;

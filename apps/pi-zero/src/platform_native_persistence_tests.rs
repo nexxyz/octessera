@@ -36,6 +36,21 @@ fn adapter() -> (PiPlaybackHostAdapter, std::path::PathBuf) {
         false,
         UsbAudioOut::Jack,
     );
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let full: serde_json::Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(&full).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        crate::platform_service::default_patch_path(&store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
     (adapter, root)
 }
 
@@ -50,6 +65,9 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
     use playback_runtime::RuntimeOperation;
 
     let (mut adapter, root) = adapter();
+    let store = root.join("store");
+    let prior_patch_bytes =
+        std::fs::read(crate::platform_service::default_patch_path(&store)).unwrap();
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
@@ -129,7 +147,10 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
             .unwrap();
         assert!(!playback.latched_errors().is_empty());
         assert!(adapter.platform_service.native_default_write().is_none());
-        assert!(!root.join("store/default.json").exists());
+        assert_eq!(
+            std::fs::read(crate::platform_service::default_patch_path(&store)).unwrap(),
+            prior_patch_bytes
+        );
         requests.push(request);
     }
 
@@ -184,14 +205,13 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
         std::thread::sleep(Duration::from_millis(5));
     }
     assert!(saved);
-    assert_eq!(
-        adapter
-            .platform_service
-            .load_default_now()
-            .unwrap()
-            .unwrap()["revision"],
-        json!(latest.revision())
-    );
+    let saved_patch = adapter
+        .platform_service
+        .load_default_now()
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved_patch["kind"], "octessera.patch");
+    assert!(saved_patch.get("revision").is_none());
     cleanup(root);
 }
 

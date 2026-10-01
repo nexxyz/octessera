@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum NativeOledMode {
@@ -28,6 +29,9 @@ pub(super) struct NativeUiState {
 #[derive(Clone, Default)]
 pub(super) struct NativePendingState {
     pub(super) pending_save_revision: Option<u64>,
+    pub(super) pending_default_load_request: Option<(String, Option<u64>)>,
+    pub(super) saved_patch_baseline: Option<Arc<Value>>,
+    pub(super) system_persistence: super::system_persistence::SystemPersistenceState,
     pub(super) pending_autosave_payload_due_at: Option<Instant>,
     pub(super) autosave_payload_notified_at: Option<Instant>,
     pub(super) manual_save_request: Option<NativeManualSaveRequest>,
@@ -122,14 +126,6 @@ pub(super) struct NativeUserDataTransferState {
     pub(super) request_id: Option<String>,
     pub(super) revision: Option<u64>,
     pub(super) visible: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct NativeUserDataRestoreState {
-    pub(super) status: RuntimeUserDataRestoreStatus,
-    pub(super) request_id: Option<String>,
-    pub(super) revision: Option<u64>,
-    pub(super) rehydration_pending: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

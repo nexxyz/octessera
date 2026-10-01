@@ -4,6 +4,11 @@ pub(super) fn validate_portable_patch_fields(
     payload: &Value,
     current: &Value,
 ) -> Result<(), String> {
+    validate_patch_fields(payload, current)?;
+    validate_portable_patch_sample_paths(payload, Some(current))
+}
+
+pub(super) fn validate_patch_fields(payload: &Value, current: &Value) -> Result<(), String> {
     let object = payload
         .as_object()
         .ok_or_else(|| "portable patch must be an object".to_string())?;
@@ -28,7 +33,6 @@ pub(super) fn validate_portable_patch_fields(
             _ => return Err(format!("$.{key} is unknown in a v2 portable patch")),
         }
     }
-    validate_portable_patch_sample_paths(payload, Some(current))?;
     Ok(())
 }
 

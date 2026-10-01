@@ -135,10 +135,6 @@ fn edit_buffer_and_commit(
     let _ = press(runtime, runner, host);
 }
 
-fn identified_save(request: &RuntimePlatformRequest, ok: bool) -> HostMessage {
-    identified_save_with_identity(&request.request_id, request.revision, ok)
-}
-
 fn identified_save_with_identity(request_id: &str, revision: Option<u64>, ok: bool) -> HostMessage {
     HostMessage::RuntimeResult {
         result: RuntimeStoreResult::Identified {
@@ -149,218 +145,93 @@ fn identified_save_with_identity(request_id: &str, revision: Option<u64>, ok: bo
     }
 }
 
-#[test]
-fn autosave_restart_intent_survives_an_older_default_write() {
-    for deferred in [false, true] {
-        let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-        let mut runner = if deferred {
-            super::super::music_first_tests::playing_default()
-        } else {
-            NativeRunner::new(NativeRunnerConfig::default()).unwrap()
-        };
-        runner.auto_save_default = true;
-        runner.menu.rebuild(runner.menu_config());
-        let mut host = ReplayHost::default();
-        let (older_request_id, older_revision) = if deferred {
-            runner.mark_config_dirty();
-            let revision = runner.config_revision;
-            let native_request =
-                runtime.next_native_store_request(RuntimeOperation::StoreSaveDefault, revision);
-            let payload = std::sync::Arc::new(runner.capture_config_snapshot().into_payload());
-            assert!(runner.register_native_default_write(
-                native_request.request_id(),
-                revision,
-                true,
-            ));
-            assert!(runner.attach_native_default_write_payload(
-                native_request.request_id(),
-                revision,
-                payload,
-            ));
-            (native_request.request_id().to_owned(), Some(revision))
-        } else {
-            let older = start_ordinary_write(&mut runtime, &mut runner, &mut host);
-            (older.request_id, older.revision)
-        };
-
-        edit_buffer_and_commit(&mut runtime, &mut runner, &mut host);
-        assert!(
-            runner.display.confirm_dialog.is_none(),
-            "auto save opened a manual choice for {deferred:?}"
-        );
-        if deferred {
-            assert!(runner.restart_settings.has_restart_after_pending_write());
-        }
-
-        let result = identified_save_with_identity(&older_request_id, older_revision, true);
-        if deferred {
-            let output = runtime
-                .dispatch_host_message_music_first(result, &mut runner, &mut host)
-                .unwrap();
-            assert!(output
-                .messages
-                .iter()
-                .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-            let snapshot = snapshot_from(&output.messages);
-            assert_eq!(snapshot["display"]["title"], "Saving...");
-            assert_ne!(snapshot["display"]["toast"], "Saved default");
-            assert!(!runner.restart_settings.has_restart_after_pending_write());
-        } else {
-            let _ = runtime
-                .dispatch_host_message(result, &mut runner, &mut host)
-                .unwrap();
-        }
-        let restart_requests: Vec<_> = host
-            .requests
-            .iter()
-            .filter(|request| {
-                matches!(
-                    request.effect,
-                    RuntimePlatformEffect::StoreSaveDefault {
-                        mode: Some(ref mode),
-                        ..
-                    } if mode == "restart-everything"
-                )
-            })
-            .collect();
-        assert_eq!(restart_requests.len(), 1, "{deferred:?}");
-        let restart_request = restart_requests[0];
-        assert_eq!(
-            runner
-                .display
-                .confirm_dialog
-                .as_ref()
-                .map(|dialog| dialog.title.as_str()),
-            Some("Saving...")
-        );
-        assert_eq!(
-            restart_request.effect,
-            RuntimePlatformEffect::StoreSaveDefault {
-                payload: runner.config_payload(),
-                mode: Some("restart-everything".into()),
-            }
-        );
-        assert_eq!(restart_request.revision, Some(runner.config_revision));
-
-        let output = runtime
-            .dispatch_host_message(
-                identified_save(restart_request, true),
-                &mut runner,
-                &mut host,
-            )
-            .unwrap();
-        assert_eq!(
-            snapshot_from(&output.messages)["display"]["title"],
-            "Restart?"
-        );
-        assert_eq!(
-            host.requests
-                .iter()
-                .filter(|request| request.operation() == RuntimeOperation::StoreSaveDefault)
-                .count(),
-            if deferred { 1 } else { 2 },
-            "{deferred:?}"
-        );
-        assert!(!host.requests.iter().any(|request| matches!(
-            request.effect,
-            RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown
-        )));
+fn identified_system_save(request: &RuntimePlatformRequest, ok: bool) -> HostMessage {
+    HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::SaveSystemResult { ok }
+            .with_identity(request.request_id.clone(), request.revision),
     }
 }
 
 #[test]
-fn default_load_is_blocked_during_default_write_and_abandons_loaded_ownership() {
+fn restart_sensitive_system_apply_waits_for_patch_save_then_persists_system_only() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let old_revision = {
-        assert!(runner.menu.focus_item_key("default.save"));
-        let _ = direct_input(
-            &mut runner,
-            json!({ "type": "encoder_press", "id": "main" }),
-        );
-        let _ = direct_input(
-            &mut runner,
-            json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-        );
-        let _ = direct_input(
-            &mut runner,
-            json!({ "type": "encoder_press", "id": "main" }),
-        );
-        runner.restart_settings.pending_write_revision().unwrap()
-    };
-    runner.register_default_write_request("old-default", Some(old_revision));
+    runner.auto_save_default = true;
+    runner.menu.rebuild(runner.menu_config());
+    let mut host = ReplayHost::default();
+    let patch_request = start_ordinary_write(&mut runtime, &mut runner, &mut host);
 
-    assert!(runner.menu.focus_item_key("default.load"));
-    let _ = direct_input(
-        &mut runner,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    let _ = direct_input(
-        &mut runner,
-        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-    );
-    let messages = direct_input(
-        &mut runner,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    assert!(!messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreLoadDefault))
-    )));
-    assert!(runner.restart_settings.has_pending_write());
-
-    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let payload = loaded.config_payload();
-    assert!(loaded.menu.focus_item_key("default.save"));
-    let _ = direct_input(
-        &mut loaded,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    let _ = direct_input(
-        &mut loaded,
-        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-    );
-    let _ = direct_input(
-        &mut loaded,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    assert!(loaded.restart_settings.has_pending_write());
-    let _ = loaded
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::LoadDefaultResult {
-                payload: Some(payload),
-            },
-        })
-        .unwrap();
-    assert!(!loaded.restart_settings.has_pending_write());
-    assert!(loaded.pending.pending_save_revision.is_none());
-
-    assert!(loaded.menu.focus_item_key("default.save"));
-    let _ = direct_input(
-        &mut loaded,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    let _ = direct_input(
-        &mut loaded,
-        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-    );
-    let messages = direct_input(
-        &mut loaded,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(
-                effect,
-                RuntimePlatformEffect::StoreSaveDefault { mode: None, .. }
-            ))
-    )));
-
+    edit_buffer_and_commit(&mut runtime, &mut runner, &mut host);
     assert_eq!(
-        old_revision,
-        runner.restart_settings.pending_write_revision().unwrap()
+        runner
+            .display
+            .confirm_dialog
+            .as_ref()
+            .map(|dialog| dialog.title.as_str()),
+        Some("Apply System")
     );
+    assert!(!host
+        .requests
+        .iter()
+        .any(|request| request.operation() == RuntimeOperation::StoreSaveSystem));
+
+    let _ = runtime
+        .dispatch_host_message(
+            identified_save_with_identity(&patch_request.request_id, patch_request.revision, true),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert_eq!(
+        runner
+            .display
+            .confirm_dialog
+            .as_ref()
+            .map(|dialog| dialog.title.as_str()),
+        Some("Apply System")
+    );
+    assert!(runner
+        .restart_settings
+        .save_choice_setting_payload()
+        .is_some());
+    let _ = turn(&mut runtime, &mut runner, &mut host, 1);
+    let _ = press(&mut runtime, &mut runner, &mut host);
+    let system_request = host
+        .requests
+        .iter()
+        .find(|request| request.operation() == RuntimeOperation::StoreSaveSystem)
+        .cloned()
+        .expect("System Apply request");
+    assert!(matches!(
+        &system_request.effect,
+        RuntimePlatformEffect::StoreSaveSystem { payload }
+            if payload["kind"] == "octessera.system"
+                && payload["runtimeConfig"]["sound"]["audioOutputBufferFrames"].is_number()
+    ));
+    assert_eq!(system_request.revision, None);
+
+    let output = runtime
+        .dispatch_host_message(
+            identified_system_save(&system_request, true),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert_eq!(
+        snapshot_from(&output.messages)["display"]["title"],
+        "Restart?"
+    );
+    assert_eq!(
+        host.requests
+            .iter()
+            .filter(|request| request.operation() == RuntimeOperation::StoreSaveSystem)
+            .count(),
+        1
+    );
+    assert!(!host.requests.iter().any(|request| matches!(
+        request.effect,
+        RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown
+    )));
 }
 
 #[test]
@@ -398,22 +269,29 @@ fn duplicate_setting_only_success_does_not_reconcile_unrelated_dirty_state() {
         &mut runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
-    let _ = direct_input(
+    let applied = direct_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    let revision = runner.restart_settings.pending_write_revision().unwrap();
-    runner.register_default_write_request("setting-only", Some(revision));
+    let effect = applied
+        .iter()
+        .find_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => effects.iter().find_map(|effect| {
+                matches!(effect, RuntimePlatformEffect::StoreSaveSystem { .. })
+                    .then(|| effect.clone())
+            }),
+            _ => None,
+        })
+        .expect("System Apply save effect");
+    runner.register_platform_request(&RuntimePlatformRequest::new(
+        effect,
+        "setting-only".into(),
+        None,
+    ));
 
     let result = || HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::Identified {
-            result: Box::new(RuntimeStoreResult::SaveDefaultResult {
-                ok: true,
-                is_auto: None,
-            }),
-            request_id: "setting-only".into(),
-            revision: Some(revision),
-        },
+        result: RuntimeStoreResult::SaveSystemResult { ok: true }
+            .with_identity("setting-only".into(), None),
     };
     let _ = runner.send(result()).unwrap();
     assert!(runner.pending.pending_save_revision.is_none());

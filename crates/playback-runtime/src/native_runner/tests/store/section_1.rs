@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn system_menu_save_default_emits_native_config_payload() {
+pub(crate) fn system_menu_save_default_emits_portable_patch_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("default.save"));
 
@@ -11,10 +11,7 @@ pub(crate) fn system_menu_save_default_emits_native_config_payload() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(
-        snapshot_from(&opened)["display"]["title"],
-        "Confirm Default"
-    );
+    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Patch");
     let messages = confirm_current_dialog(&mut runner);
 
     let payload = messages
@@ -28,8 +25,10 @@ pub(crate) fn system_menu_save_default_emits_native_config_payload() {
             }
             _ => None,
         })
-        .expect("save default payload");
-    assert!(payload["activeBehavior"].is_null());
+        .expect("save patch payload");
+    assert_eq!(payload["kind"], "octessera.patch");
+    assert_eq!(payload["schemaVersion"], 2);
+    assert!(payload.get("revision").is_none());
     assert_eq!(payload["runtimeConfig"]["activeBehavior"], "life");
     assert!(payload["runtimeConfig"]["playXyTouch"].is_null());
     assert!(
@@ -43,29 +42,23 @@ pub(crate) fn system_menu_save_default_emits_native_config_payload() {
 }
 
 #[test]
-pub(crate) fn load_default_result_applies_native_config_payload() {
+pub(crate) fn load_default_result_applies_patch_without_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.current_ppqn_pulse = 96;
-    let payload = json!({
-        "activeBehavior": "sequencer",
-        "runtimeConfig": {
-            "activeLayerIndex": 1,
-            "layers": [
-                { "build": { "behaviorId": "life" }, "name": "life" },
-                { "build": { "behaviorId": "sequencer" }, "name": "sequencer" }
-            ],
-            "instruments": [
-                { "type": "sampler", "name": "Sampler", "noteBehavior": "hold", "autoName": true, "mixer": { "volume": 70, "panPos": 10 } }
-            ],
-            "masterVolume": 88,
-            "displayBrightness": 66,
-            "buttonBrightness": 55,
-            "playMode": "pan",
-            "midi": { "enabled": true, "syncMode": "external" }
-        },
-        "mappingConfig": platform_core::default_mapping_config()
-    });
+    runner.midi_enabled = true;
+    let mut full = runner.config_payload();
+    full["runtimeConfig"]["activeLayerIndex"] = json!(1);
+    full["runtimeConfig"]["activeBehavior"] = json!("sequencer");
+    full["runtimeConfig"]["layers"][1]["build"]["behaviorId"] = json!("sequencer");
+    full["runtimeConfig"]["instruments"][0]["noteBehavior"] = json!("hold");
+    full["runtimeConfig"]["masterVolume"] = json!(88);
+    full["runtimeConfig"]["displayBrightness"] = json!(66);
+    full["runtimeConfig"]["buttonBrightness"] = json!(55);
+    full["runtimeConfig"]["playMode"] = json!("pan");
+    full["runtimeConfig"]["midi"]["enabled"] = json!(true);
+    full["runtimeConfig"]["midi"]["syncMode"] = json!("external");
+    let payload = portable_patch_payload_for_save(&full).unwrap();
 
     let messages = runner
         .send(HostMessage::RuntimeResult {
@@ -77,11 +70,13 @@ pub(crate) fn load_default_result_applies_native_config_payload() {
 
     assert_eq!(runner.active_layer_index, 1);
     assert_eq!(runner.behavior.id(), "sequencer");
-    assert_eq!(runner.instruments[0].kind, "sampler");
     assert_eq!(runner.instruments[0].note_behavior, "hold");
     assert_eq!(runner.note_behaviors[0], NoteBehavior::Hold);
-    assert_eq!(runner.display.ui.master_volume, 88);
-    assert_eq!(runner.transport.sync_source, SyncSource::External);
+    assert_ne!(runner.display.ui.master_volume, 88);
+    assert_eq!(runner.display.ui.master_volume, 73);
+    assert_eq!(runner.display.ui.display_brightness, 75);
+    assert_eq!(runner.display.ui.button_brightness, 35);
+    assert_eq!(runner.transport.sync_source, SyncSource::Internal);
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
     assert_eq!(runner.transport.current_ppqn_pulse, 0);
     assert!(messages.iter().any(|message| matches!(

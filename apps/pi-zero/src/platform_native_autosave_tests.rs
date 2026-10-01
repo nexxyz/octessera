@@ -8,6 +8,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 mod backup_tests;
 #[path = "platform_native_autosave_failure_tests.rs"]
 mod failure_tests;
+#[path = "platform_native_load_admission_tests.rs"]
+mod load_admission_tests;
+#[path = "platform_local_patch_worker_tests.rs"]
+mod local_patch_worker_tests;
 
 fn runner_with_aux_mapping(auto_save: bool, backups: bool) -> NativeRunner {
     runner_with_aux_mapping_in_state(auto_save, backups, true)
@@ -15,21 +19,16 @@ fn runner_with_aux_mapping(auto_save: bool, backups: bool) -> NativeRunner {
 
 fn runner_with_aux_mapping_in_state(auto_save: bool, backups: bool, playing: bool) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut full: Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    full["runtimeConfig"]["autoSaveDefault"] = json!(auto_save);
+    full["runtimeConfig"]["rollingBackups"] = json!(backups);
+    runner.apply_config_payload(full).unwrap();
     runner.skip_startup_splash();
     runner
         .test_focus_menu_item("aux:0:turn.instruments.0.synth.osc1.levelPct")
         .unwrap();
     input(&mut runner, json!({"type":"encoder_press","id":"main"}));
-    let mut payload = runner.capture_config_snapshot().into_payload();
-    payload["runtimeConfig"]["autoSaveDefault"] = json!(auto_save);
-    payload["runtimeConfig"]["rollingBackups"] = json!(backups);
-    runner
-        .send_music_first(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::LoadDefaultResult {
-                payload: Some(payload),
-            },
-        })
-        .unwrap();
     if playing {
         input(&mut runner, json!({"type":"button_s","pressed":true}));
         input(&mut runner, json!({"type":"button_s","pressed":false}));
@@ -70,7 +69,17 @@ fn service_and_root(name: &str) -> (PiPlatformService, PathBuf) {
             .unwrap()
             .as_nanos()
     ));
-    let service = PiPlatformService::new(root.join("store"), root.join("samples"));
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let full: Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(&full).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    let service = PiPlatformService::new(store, root.join("samples"));
     (service, root)
 }
 
@@ -148,7 +157,7 @@ fn aux_revisions_coalesce_and_worker_persists_the_latest_default_and_backup() {
         .is_none());
     assert_eq!(pending.snapshot_captures(), 0);
     assert!(service.native_default_write().is_none());
-    assert!(!root.join("store/default.json").exists());
+    assert!(!root.join("store/default.patch.json").exists());
 
     std::thread::sleep(Duration::from_millis(1_800));
     aux_turn(&mut runner, -1);
@@ -185,9 +194,12 @@ fn aux_revisions_coalesce_and_worker_persists_the_latest_default_and_backup() {
         .is_none());
     assert_eq!(pending.snapshot_captures(), 0);
     assert!(service.native_default_write().is_none());
-    assert!(!root.join("store/default.json").exists());
+    assert!(!root.join("store/default.patch.json").exists());
 
-    let expected = runner.capture_config_snapshot().into_payload();
+    let expected = runner
+        .capture_config_snapshot()
+        .into_local_patch_payload()
+        .unwrap();
     assert!(apply_autosave_at(
         &mut pending,
         &service,
@@ -213,7 +225,8 @@ fn aux_revisions_coalesce_and_worker_persists_the_latest_default_and_backup() {
             if matches!(result.as_ref(), RuntimeStoreResult::SaveBackupResult { ok: true })
     )));
     assert_eq!(
-        super::super::platform_service_store::load_json(&root.join("store/default.json")).unwrap(),
+        super::super::platform_service_store::load_json(&root.join("store/default.patch.json"))
+            .unwrap(),
         Some(expected.clone())
     );
     let backups = std::fs::read_dir(root.join("store/backups"))
@@ -240,7 +253,10 @@ fn playing_edit_keeps_native_deadline_when_input_stops_transport() {
     std::thread::sleep(Duration::from_millis(160));
     let eligible_at = Instant::now();
     let intent = runner.persistence_intent_at(eligible_at).unwrap();
-    let expected = runner.capture_config_snapshot().into_payload();
+    let expected = runner
+        .capture_config_snapshot()
+        .into_local_patch_payload()
+        .unwrap();
     assert!(apply_autosave_at(
         &mut pending,
         &service,
@@ -279,7 +295,8 @@ fn playing_edit_keeps_native_deadline_when_input_stops_transport() {
     assert_eq!(pending.snapshot_captures(), 1);
     collect_results(&service, &mut runner, 1);
     assert_eq!(
-        super::super::platform_service_store::load_json(&root.join("store/default.json")).unwrap(),
+        super::super::platform_service_store::load_json(&root.join("store/default.patch.json"))
+            .unwrap(),
         Some(expected)
     );
     let _ = std::fs::remove_dir_all(root);
@@ -319,7 +336,10 @@ fn older_default_completion_does_not_clear_a_newer_dirty_aux_revision() {
     aux_turn(&mut runner, -1);
     std::thread::sleep(Duration::from_millis(160));
     assert!(runner.persistence_intent_at(Instant::now()).is_none());
-    let latest_payload = runner.capture_config_snapshot().into_payload();
+    let latest_payload = runner
+        .capture_config_snapshot()
+        .into_local_patch_payload()
+        .unwrap();
     drop(store_guard);
 
     let first_completion = collect_results(&service, &mut runner, 1);
@@ -352,7 +372,8 @@ fn older_default_completion_does_not_clear_a_newer_dirty_aux_revision() {
     );
     collect_results(&service, &mut runner, 1);
     assert_eq!(
-        super::super::platform_service_store::load_json(&root.join("store/default.json")).unwrap(),
+        super::super::platform_service_store::load_json(&root.join("store/default.patch.json"))
+            .unwrap(),
         Some(latest_payload)
     );
     let _ = std::fs::remove_dir_all(root);

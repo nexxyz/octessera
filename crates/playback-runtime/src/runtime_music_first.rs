@@ -53,6 +53,20 @@ impl CoreRunner for MusicFirstRunner<'_> {
     fn register_platform_request(&mut self, request: &RuntimePlatformRequest) {
         self.0.register_platform_request(request);
     }
+
+    fn send_system_store_result(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+        <NativeRunner as CoreRunner>::send_system_store_result(self.0, message)
+    }
+
+    fn send_store_result_handoff(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>, bool), String> {
+        <NativeRunner as CoreRunner>::send_store_result_handoff(self.0, message)
+    }
 }
 
 impl PlaybackRuntime {

@@ -20,16 +20,74 @@ fn boot(index: char) -> &'static str {
     }
 }
 
+fn write_default_patch(directory: &Path) -> Value {
+    let full: Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(&full).unwrap();
+    fs::create_dir_all(directory.join("patches")).unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(directory),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+    documents.system
+}
+
+fn prepare_valid(directory: &Path, boot_id: char) -> (OrangeDeviceApplyTransaction, Value) {
+    let system = write_default_patch(directory);
+    let transaction = prepare_at(directory, &system, boot(boot_id)).unwrap();
+    (transaction, system)
+}
+
+#[test]
+fn device_apply_accepts_local_samples_in_assigned_and_unassigned_slots() {
+    let directory = root("local-sample-paths");
+    let mut full: Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    full["runtimeConfig"]["instruments"][0]["type"] = serde_json::json!("sampler");
+    full["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"] =
+        serde_json::json!("userdata/User Kit/custom.wav");
+    full["runtimeConfig"]["instruments"][0]["sample"]["slots"][4]["path"] =
+        serde_json::json!("sd-card/octessera/samples/kick.wav");
+    full["runtimeConfig"]["instruments"][0]["sample"]["assignments"] = serde_json::json!([
+        { "level": null, "sampleSlot": 0, "x": 0, "y": 0 }
+    ]);
+    let documents = playback_runtime::split_local_system_patch_documents(&full).unwrap();
+    fs::create_dir_all(&directory).unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(&directory),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+
+    let transaction = prepare_at(&directory, &documents.system, boot('a')).unwrap();
+    transaction.rollback().unwrap();
+    let patch = crate::platform_service::load_json(&crate::platform_service::default_patch_path(
+        &directory,
+    ))
+    .unwrap()
+    .unwrap();
+    assert_eq!(
+        patch["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"],
+        "userdata/User Kit/custom.wav"
+    );
+    assert_eq!(
+        patch["runtimeConfig"]["instruments"][0]["sample"]["slots"][4]["path"],
+        "sd-card/octessera/samples/kick.wav"
+    );
+    let _ = fs::remove_dir_all(directory);
+}
+
 #[test]
 fn apply_rolls_back_exact_bytes_and_restores_mode() {
     let directory = root("bytes");
-    let default = default_path(&directory);
+    let default = system_path(&directory);
     let prior = b"{\n  \"not-json\": [1, 2, 3]\n}\0";
     fs::write(&default, prior).unwrap();
-    let transaction = prepare_at(&directory, &serde_json::json!({"new": true}), boot('a')).unwrap();
+    let (transaction, system) = prepare_valid(&directory, 'a');
     assert_eq!(
         fs::read(&default).unwrap(),
-        serde_json::to_vec_pretty(&serde_json::json!({"new": true})).unwrap()
+        serde_json::to_vec_pretty(&system).unwrap()
     );
     transaction.rollback().unwrap();
     assert_eq!(fs::read(&default).unwrap(), prior);
@@ -49,17 +107,17 @@ fn apply_rolls_back_exact_bytes_and_restores_mode() {
 fn recovery_restores_same_boot_and_retains_different_boot() {
     let directory = root("recovery");
     let prior = b"old bytes";
-    fs::write(default_path(&directory), prior).unwrap();
-    prepare_at(&directory, &serde_json::json!({"new": true}), boot('a')).unwrap();
+    fs::write(system_path(&directory), prior).unwrap();
+    prepare_valid(&directory, 'a');
     recover_startup_at(&directory, boot('a')).unwrap();
-    assert_eq!(fs::read(default_path(&directory)).unwrap(), prior);
+    assert_eq!(fs::read(system_path(&directory)).unwrap(), prior);
     assert!(!transaction_path(&directory).exists());
 
-    prepare_at(&directory, &serde_json::json!({"new": false}), boot('a')).unwrap();
+    let (_, system) = prepare_valid(&directory, 'a');
     recover_startup_at(&directory, boot('b')).unwrap();
     assert_eq!(
-        fs::read(default_path(&directory)).unwrap(),
-        b"{\n  \"new\": false\n}"
+        fs::read(system_path(&directory)).unwrap(),
+        serde_json::to_vec_pretty(&system).unwrap()
     );
     assert!(!transaction_path(&directory).exists());
     let _ = fs::remove_dir_all(directory);
@@ -69,23 +127,24 @@ fn recovery_restores_same_boot_and_retains_different_boot() {
 fn record_left_before_new_write_is_recovered_idempotently() {
     let directory = root("crash-before-default");
     let prior = b"prior";
-    fs::write(default_path(&directory), prior).unwrap();
+    fs::write(system_path(&directory), prior).unwrap();
+    write_default_patch(&directory);
     let record = OrangeApplyRecord {
         schema: 1,
         boot_id: boot('a').into(),
-        prior_default_bytes: Some(prior.into()),
+        prior_system_bytes: Some(prior.into()),
     };
     write_record(&directory, &record).unwrap();
     recover_startup_at(&directory, boot('a')).unwrap();
     recover_startup_at(&directory, boot('a')).unwrap();
-    assert_eq!(fs::read(default_path(&directory)).unwrap(), prior);
+    assert_eq!(fs::read(system_path(&directory)).unwrap(), prior);
     let _ = fs::remove_dir_all(directory);
 }
 
 #[test]
 fn malformed_transaction_fails_closed_without_touching_default() {
     let directory = root("malformed");
-    let default = default_path(&directory);
+    let default = system_path(&directory);
     fs::write(&default, b"new config").unwrap();
     fs::write(
         transaction_path(&directory),
@@ -143,8 +202,8 @@ impl OrangeApplyHost for FailingHost {
 #[test]
 fn apply_orders_panic_silence_reboot_request_then_teardown() {
     let directory = root("order");
-    fs::write(default_path(&directory), b"old").unwrap();
-    let transaction = prepare_at(&directory, &serde_json::json!({"new": true}), boot('a')).unwrap();
+    fs::write(system_path(&directory), b"old").unwrap();
+    let (transaction, _) = prepare_valid(&directory, 'a');
     let events = Arc::new(Mutex::new(Vec::new()));
     let mut host = OrderedHost {
         events: events.clone(),
@@ -181,9 +240,8 @@ fn apply_outcome_matrix_has_expected_exit_policy() {
         (OrangePowerRequestOutcome::Indeterminate, 78, false),
     ] {
         let directory = root("matrix");
-        fs::write(default_path(&directory), b"old").unwrap();
-        let transaction =
-            prepare_at(&directory, &serde_json::json!({"new": true}), boot('a')).unwrap();
+        fs::write(system_path(&directory), b"old").unwrap();
+        let (transaction, _) = prepare_valid(&directory, 'a');
         let mut host = OrderedHost {
             events: Arc::new(Mutex::new(Vec::new())),
         };
@@ -197,7 +255,7 @@ fn apply_outcome_matrix_has_expected_exit_policy() {
             code
         );
         assert_eq!(
-            fs::read(default_path(&directory)).unwrap() == b"old",
+            fs::read(system_path(&directory)).unwrap() == b"old",
             restores
         );
         let _ = fs::remove_dir_all(directory);
@@ -207,8 +265,8 @@ fn apply_outcome_matrix_has_expected_exit_policy() {
 #[test]
 fn silence_failure_rolls_back_before_ordinary_exit() {
     let directory = root("silence-failure");
-    fs::write(default_path(&directory), b"old").unwrap();
-    let transaction = prepare_at(&directory, &serde_json::json!({"new": true}), boot('a')).unwrap();
+    fs::write(system_path(&directory), b"old").unwrap();
+    let (transaction, _) = prepare_valid(&directory, 'a');
     let mut host = FailingHost {
         events: Arc::new(Mutex::new(Vec::new())),
         panic_failure: false,
@@ -221,17 +279,17 @@ fn silence_failure_rolls_back_before_ordinary_exit() {
     )
     .unwrap_err();
     assert_eq!(result.exit_code(), 1);
-    assert_eq!(fs::read(default_path(&directory)).unwrap(), b"old");
+    assert_eq!(fs::read(system_path(&directory)).unwrap(), b"old");
     let _ = fs::remove_dir_all(directory);
 }
 
 #[test]
 fn rollback_failure_is_special_exit_78() {
     let directory = root("rollback-failure");
-    fs::write(default_path(&directory), b"old").unwrap();
-    let transaction = prepare_at(&directory, &serde_json::json!({"new": true}), boot('a')).unwrap();
-    fs::remove_file(default_path(&directory)).unwrap();
-    fs::create_dir(default_path(&directory)).unwrap();
+    fs::write(system_path(&directory), b"old").unwrap();
+    let (transaction, _) = prepare_valid(&directory, 'a');
+    fs::remove_file(system_path(&directory)).unwrap();
+    fs::create_dir(system_path(&directory)).unwrap();
     let mut host = OrderedHost {
         events: Arc::new(Mutex::new(Vec::new())),
     };
