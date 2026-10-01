@@ -327,5 +327,4 @@ impl LatestCursor {
 }
 
 #[cfg(test)]
-#[path = "latest_controls_tests.rs"]
 mod tests;

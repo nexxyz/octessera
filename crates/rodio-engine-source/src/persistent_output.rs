@@ -1,6 +1,5 @@
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use super::control_drain;
-#[path = "output_provenance.rs"]
 mod output_provenance;
 use super::telemetry::DrainedControlEvents;
 #[cfg(any(test, feature = "routing-tree-executor"))]
@@ -483,5 +482,4 @@ impl EngineSource {
 }
 
 #[cfg(test)]
-#[path = "persistent_output_tests.rs"]
 mod tests;

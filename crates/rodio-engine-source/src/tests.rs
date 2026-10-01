@@ -392,41 +392,29 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
     let _ = report_rx.recv().unwrap();
 }
 
-#[path = "retirement_tests.rs"]
 mod retirement_tests;
 
-#[path = "prepared_instrument_owner_tests.rs"]
 mod prepared_instrument_owner_tests;
 
-#[path = "shutdown_handoff_tests.rs"]
 mod shutdown_handoff_tests;
 
-#[path = "retirement_storage_tests.rs"]
 mod retirement_storage_tests;
 
-#[path = "persistent_tests.rs"]
 mod persistent_tests;
 
-#[path = "barrier_tests.rs"]
 mod barrier_tests;
 
-#[path = "persistent_profile_tests.rs"]
 mod persistent_profile_tests;
 
-#[path = "persistent_terminal_tests.rs"]
 mod persistent_terminal_tests;
 
-#[path = "persistent_output_integration_tests.rs"]
 mod persistent_output_integration_tests;
 
 #[cfg(feature = "output-provenance")]
-#[path = "persistent_output_rebase_tests.rs"]
 mod persistent_output_rebase_tests;
 
-#[path = "pcm_mirror_integration_tests.rs"]
 mod pcm_mirror_integration_tests;
 
-#[path = "persistent_flash_tests.rs"]
 mod persistent_flash_tests;
 
 #[test]
@@ -448,36 +436,27 @@ fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
     }
 }
 
-#[path = "benchmark_tests.rs"]
 mod benchmark_tests;
 
 #[cfg(feature = "source-worker-benchmark-timing")]
-#[path = "persistent_timing_tests.rs"]
 mod persistent_timing_tests;
 
-#[path = "block_configuration_tests.rs"]
 mod block_configuration_tests;
 
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_tests.rs"]
 mod routing_tree_tests;
 
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_status_tests.rs"]
 mod routing_tree_status_tests;
 
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_parity_tests.rs"]
 mod routing_tree_parity_tests;
 
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_recovery_tests.rs"]
 mod routing_tree_recovery_tests;
 
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_factory_tests.rs"]
 mod routing_tree_factory_tests;
 
 #[cfg(feature = "routing-tree-executor")]
-#[path = "routing_tree_control_tests.rs"]
 mod routing_tree_control_tests;
