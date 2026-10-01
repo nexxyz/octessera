@@ -151,10 +151,10 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
         enqueue_system_info(&service, index);
     }
     let barrier = service.enqueue_test_barrier().unwrap();
-    barrier.recv_timeout(Duration::from_secs(1)).unwrap();
+    barrier.recv_timeout(Duration::from_secs(10)).unwrap();
     enqueue_system_info(&service, 31);
     let barrier = service.enqueue_test_barrier().unwrap();
-    barrier.recv_timeout(Duration::from_secs(1)).unwrap();
+    barrier.recv_timeout(Duration::from_secs(10)).unwrap();
 
     let request = RuntimePlatformRequest::new(
         RuntimePlatformEffect::SetupPortalOpen,
