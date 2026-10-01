@@ -3,7 +3,7 @@ use super::*;
 use std::time::Instant;
 
 impl SourceWorkerRuntime {
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn routing_tree_worker_outputs_for_test(
         &self,
         frame: usize,
@@ -50,7 +50,7 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         wait: bool,
     ) -> Option<bool> {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.expected_phase == Some(WorkerPhase::RoutingTree) {
             return Some(self.collect_routing_tree_output(engine, wait).is_some());
         }

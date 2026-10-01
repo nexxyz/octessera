@@ -14,7 +14,7 @@ impl SynthEngine {
         &mut self,
         prepared: PreparedAudioConfig,
     ) -> RetiredAudioState {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && !self.routing_tree_prepared_audio_allowed(&prepared)
         {
@@ -53,7 +53,7 @@ impl SynthEngine {
         mut prepared: PreparedInstrumentsConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && !self.routing_tree_prepared_instruments_allowed(&prepared)
         {
@@ -156,7 +156,7 @@ impl SynthEngine {
         retired.prepared_slots = prepared.slots;
         retired.displaced_master_fx_states = prepared.displaced_master_fx_states;
         retired.render_plan = Some(self.render_plan.install_complete(next_render_plan));
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() && !self.refresh_routing_tree_assignment() {
             return retired;
         }
@@ -172,7 +172,7 @@ impl SynthEngine {
         if index >= INSTRUMENT_SLOT_COUNT {
             return retired;
         }
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && !self.routing_tree_prepared_instrument_slot_allowed(index, &prepared)
         {
@@ -207,7 +207,7 @@ impl SynthEngine {
         });
         self.render_plan.install_instrument_slot(index, render_plan);
         self.refresh_routed_bus_slot_count();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
             let _ = self.refresh_routing_tree_assignment();
         }
@@ -220,7 +220,7 @@ impl SynthEngine {
         bank: SampleBankConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -248,7 +248,7 @@ impl SynthEngine {
         prepared: PreparedMomentaryFxStart,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -277,7 +277,7 @@ impl SynthEngine {
         &mut self,
         update: PreparedMomentaryFxUpdate,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -301,7 +301,7 @@ impl SynthEngine {
         mut prepared: PreparedFxBusSlot,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && !self.routing_tree_prepared_fx_bus_slot_allowed(bus_index, slot_index, &prepared)
         {
@@ -353,7 +353,7 @@ impl SynthEngine {
         ));
         self.render_plan
             .install_bus_fx_slot(bus_index, slot_index, prepared.render_plan);
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
             let _ = self.refresh_routing_tree_assignment();
         }
@@ -392,7 +392,7 @@ impl SynthEngine {
     }
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 fn retired_rejected_instruments(
     prepared: PreparedInstrumentsConfig,
     sample_banks: Option<Vec<SampleBankConfig>>,
@@ -474,6 +474,6 @@ mod prepared_instrument_owner_tests;
 #[path = "momentary_control_tests.rs"]
 mod momentary_control_tests;
 
-#[cfg(all(test, feature = "routing-tree-benchmark"))]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 #[path = "routing_tree_prepared_tests.rs"]
 mod routing_tree_prepared_tests;

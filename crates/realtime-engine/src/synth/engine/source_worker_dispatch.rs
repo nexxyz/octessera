@@ -183,7 +183,7 @@ impl SourceWorkerRuntime {
                 self.latch_dispatch_failure(1 << parity);
                 false
             }
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             Err(
                 TrySendError::Full(WorkerCommand::RoutingTree { .. })
                 | TrySendError::Disconnected(WorkerCommand::RoutingTree { .. }),
@@ -241,7 +241,7 @@ impl SourceWorkerRuntime {
                 TrySendError::Full(WorkerCommand::Sources { .. })
                 | TrySendError::Disconnected(WorkerCommand::Sources { .. }),
             ) => unreachable!("bus dispatch only creates bus commands"),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             Err(
                 TrySendError::Full(WorkerCommand::RoutingTree { .. })
                 | TrySendError::Disconnected(WorkerCommand::RoutingTree { .. }),

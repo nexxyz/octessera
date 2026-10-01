@@ -25,7 +25,7 @@ impl SynthEngine {
         params: BTreeMap<String, Value>,
         target: MomentaryFxTarget,
     ) {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -55,7 +55,7 @@ impl SynthEngine {
 
     pub fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
         let retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -70,7 +70,7 @@ impl SynthEngine {
 
     pub fn momentary_fx_stop_by_epoch(&mut self, epoch: u64) -> RetiredAudioState {
         let retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -117,7 +117,7 @@ impl SynthEngine {
     }
 
     pub fn momentary_fx_update(&mut self, id: &str, params: &BTreeMap<String, Value>) {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -174,7 +174,7 @@ impl SynthEngine {
     }
 
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -187,7 +187,7 @@ impl SynthEngine {
                 .as_ref()
                 .is_some_and(|mixer| mixer.buses.len() > limit)
         }) {
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             self.reject_routing_tree_mutation_for_control();
             return;
         }
@@ -216,7 +216,7 @@ impl SynthEngine {
             };
         }
         next_render_plan.normalize_routes();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && !self.routing_tree_render_plan_allowed(&next_render_plan)
         {
@@ -262,7 +262,7 @@ impl SynthEngine {
         self.master_activity_frames = 0;
         self.bus_mono_scratch.resize(self.bus_chains.len(), 0.0);
         drop(self.render_plan.install_complete(next_render_plan));
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
             let _ = self.refresh_routing_tree_assignment();
         }
@@ -278,7 +278,7 @@ impl SynthEngine {
     }
 
     pub fn set_instrument_slot(&mut self, index: usize, slot: InstrumentSlotConfig) {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -286,14 +286,14 @@ impl SynthEngine {
             return;
         }
         if index >= INSTRUMENT_SLOT_COUNT {
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             if self.routing_tree_assignment.is_some() {
                 self.reject_routing_tree_mutation_for_control();
             }
             return;
         }
         let render_plan = prepared_instrument_topology(&slot);
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
             let mut next_render_plan = self.render_plan.clone();
             next_render_plan.install_instrument_slot(index, render_plan);
@@ -314,7 +314,7 @@ impl SynthEngine {
         });
         self.render_plan.install_instrument_slot(index, render_plan);
         self.refresh_routed_bus_slot_count();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
             let _ = self.refresh_routing_tree_assignment();
         }

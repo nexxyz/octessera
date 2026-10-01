@@ -52,7 +52,7 @@ fn drum_inline_block_and_worker_match_without_callback_allocation() {
     assert_eq!(allocations, 0);
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn drum_routing_tree_worker_matches_inline_for_distinct_hits() {
     let mut worker = drum_engine(DrumConfig::default(), 44_100);

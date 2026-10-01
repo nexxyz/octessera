@@ -1,7 +1,7 @@
 use super::SynthEngine;
 
 pub(super) fn worker_for_slot(engine: &SynthEngine, slot: usize) -> Option<usize> {
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     if let Some(assignment) = engine.routing_tree_assignment.as_ref() {
         return assignment.worker_for_slot(slot);
     }

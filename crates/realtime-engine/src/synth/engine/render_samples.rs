@@ -82,10 +82,10 @@ impl SynthEngine {
             self.record_voice_admission_drop();
             return;
         };
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         let routing_control = self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_some();
-        #[cfg(not(feature = "routing-tree-benchmark"))]
+        #[cfg(not(feature = "routing-tree-executor"))]
         let routing_control = false;
         let required_worker = source_worker_placement::worker_for_slot(self, slot);
         let lane = if routing_control {
@@ -106,13 +106,13 @@ impl SynthEngine {
                 )
             };
             let Some(lane) = lane else {
-                #[cfg(feature = "routing-tree-benchmark")]
+                #[cfg(feature = "routing-tree-executor")]
                 if required_worker.is_some() && first_inactive_lane.is_some() {
                     self.reject_routing_tree_mutation_for_control();
                 } else {
                     self.record_voice_admission_drop();
                 }
-                #[cfg(not(feature = "routing-tree-benchmark"))]
+                #[cfg(not(feature = "routing-tree-executor"))]
                 self.record_voice_admission_drop();
                 return;
             };
@@ -237,7 +237,7 @@ impl SynthEngine {
     }
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) fn render_preview_sample_voices_block_into(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
     filters: &[(f32, f32); INSTRUMENT_SLOT_COUNT],

@@ -4,7 +4,7 @@ use super::*;
 use crate::synth::SampleBuffer;
 use std::collections::BTreeMap;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) fn engine_source_state_signature(engine: &SynthEngine) -> String {
     format!(
         "{:?}|{:?}|{:?}",

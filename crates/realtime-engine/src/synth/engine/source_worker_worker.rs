@@ -17,7 +17,7 @@ use std::time::Instant;
 
 #[path = "source_worker_bus_worker.rs"]
 mod bus_worker;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "source_worker_routing_tree_worker.rs"]
 mod routing_tree;
 
@@ -321,7 +321,7 @@ fn worker_loop(
             }
             continue;
         }
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if matches!(command, WorkerCommand::RoutingTree { .. }) {
             if let Some(exit) = routing_tree::process(command, parity, &done_tx, &state) {
                 return exit;

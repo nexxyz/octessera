@@ -175,7 +175,7 @@ fn master_and_mixer_scalar_updates_handle_invalid_partial_fields() {
     );
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_tree_typed_synth_scalar_control_preserves_owner_pair() {
     use std::time::Duration;

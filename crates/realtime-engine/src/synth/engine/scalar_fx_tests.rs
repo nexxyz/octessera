@@ -115,7 +115,7 @@ fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
     assert_eq!(compressor_threshold(&engine.master_slot_params[0]), -39.0);
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_tree_scalar_control_returns_the_same_owner_pair() {
     use std::time::Duration;

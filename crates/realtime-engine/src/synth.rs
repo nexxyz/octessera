@@ -29,15 +29,12 @@ pub use audio_config::{
     NormalizedSampleConfig,
 };
 pub use dsp_config::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
-#[cfg(all(
-    feature = "routing-tree-benchmark",
-    any(test, feature = "test-support")
-))]
+#[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
 pub use engine::RoutingTreePipelineProbe;
 #[cfg(any(test, feature = "test-support"))]
 pub use engine::SourceWorkerHoldControl;
 pub use engine::ROUTING_TREE_WORKER_THREAD_NAMES;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 pub use engine::SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT;
 #[cfg(any(test, feature = "test-support"))]
 pub use engine::{
@@ -57,7 +54,7 @@ pub use engine::{
     SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT, SOURCE_WORKER_SAMPLE_COST_UNITS,
     SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
 };
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};
 pub use fx_param::{FxParamId, FxParamMutation};
 pub use scalar_param::{

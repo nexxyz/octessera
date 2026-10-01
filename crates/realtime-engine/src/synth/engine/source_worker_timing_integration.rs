@@ -58,7 +58,7 @@ impl SourceWorkerRuntime {
         self.coordinator_remainder_started_at.take()
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn take_routing_coordinator_remainder_started_at(
         &mut self,
     ) -> Option<(u64, Instant)> {
@@ -99,7 +99,7 @@ impl SourceWorkerRuntime {
         }
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn record_routing_coordinator_remainder(&self, timing: Option<(u64, Instant)>) {
         if let (Some(probe), Some((sequence, started_at))) = (self.timing_probe.as_ref(), timing) {
             probe.record_coordinator_remainder(sequence, started_at.elapsed());

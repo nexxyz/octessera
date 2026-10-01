@@ -25,7 +25,7 @@ impl SynthEngine {
     }
 
     pub fn set_master_volume(&mut self, volume_pct: f32) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -41,7 +41,7 @@ impl SynthEngine {
         volume_pct: Option<f32>,
         pan_pos: Option<usize>,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -73,7 +73,7 @@ impl SynthEngine {
         pan_pos: Option<usize>,
         volume_pct: Option<f32>,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -113,7 +113,7 @@ impl SynthEngine {
         id: SynthParamId,
         value: f32,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -221,7 +221,7 @@ impl SynthEngine {
         id: SampleBankParamId,
         value: f32,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {
@@ -347,7 +347,7 @@ impl SynthEngine {
         id: FxParamId,
         value: f32,
     ) -> FxParamMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && (self.routing_tree_source_event_sample_clock.is_none() || self.bus_chains.is_empty())
         {
@@ -366,7 +366,7 @@ impl SynthEngine {
         id: FxParamId,
         value: f32,
     ) -> FxParamMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {

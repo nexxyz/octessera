@@ -3,7 +3,7 @@ use super::super::fx::{fx_bus_state_can_preserve, process_fx_bus_slot, FxBusStat
 use super::super::fx_param::{apply_fx_param, FxParamId, FxParamMutation};
 use super::super::fx_params::{FxBusParams, FxKind};
 use super::super::types::BUS_SLOTS_PER_BUS;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 use super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
 
 pub const BUS_CHAIN_SLOT_COST_UNITS: u16 = 4;
@@ -27,7 +27,7 @@ pub(super) struct BusChainFrameOutput {
     pub(super) spread: f32,
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(super) struct BusChainBlockScratch {
     pub(super) input: Vec<f32>,
     pub(super) resolved_duck: [Vec<f32>; BUS_SLOTS_PER_BUS],
@@ -39,7 +39,7 @@ pub(super) struct BusChainBlockScratch {
     pub(super) executed: bool,
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 impl BusChainBlockScratch {
     pub(super) fn new() -> Self {
         Self {
@@ -85,23 +85,23 @@ impl BusChainBlockScratch {
     }
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(super) struct BusChainCarrier {
     pub(super) logical_bus_id: usize,
     pub(super) owner: Option<BusChainOwner>,
     pub(super) scratch: BusChainBlockScratch,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) routing_tree_spread_state: Option<super::render_routing::FxBusOutputSpreadState>,
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 impl BusChainCarrier {
     pub(super) fn new(logical_bus_id: usize, owner: Option<BusChainOwner>) -> Self {
         Self {
             logical_bus_id,
             owner,
             scratch: BusChainBlockScratch::new(),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_spread_state: None,
         }
     }
@@ -221,7 +221,7 @@ impl BusChainOwner {
         }
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
     pub(super) fn process_block(
         &mut self,
         scratch: &mut BusChainBlockScratch,
