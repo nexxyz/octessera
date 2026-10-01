@@ -9,7 +9,7 @@ impl SynthEngine {
         id: FmParamId,
         value: f32,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_none()
         {

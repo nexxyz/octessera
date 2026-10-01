@@ -79,13 +79,13 @@ impl SourceWorkerRuntime {
     ) -> bool {
         let parity = completion.owner.parity;
         let worker_mask = worker_mask(parity);
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         let max_cost_units = if completion.phase == WorkerPhase::RoutingTree {
             super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS
         } else {
             super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS
         };
-        #[cfg(not(feature = "routing-tree-benchmark"))]
+        #[cfg(not(feature = "routing-tree-executor"))]
         let max_cost_units = super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
         parity < SOURCE_WORKER_COUNT
             && channel_parity == parity

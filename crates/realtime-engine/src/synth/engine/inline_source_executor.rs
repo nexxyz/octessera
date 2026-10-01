@@ -65,7 +65,7 @@ impl InlineSourceExecutor {
         true
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+    #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
     pub(super) fn into_partition_scratch(
         self,
     ) -> (

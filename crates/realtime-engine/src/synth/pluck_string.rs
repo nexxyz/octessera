@@ -1,6 +1,6 @@
 pub(super) const RING_LEN: usize = 8192;
 pub(super) type PluckRing = [f32; RING_LEN];
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) type PluckRings = [Option<Box<PluckRing>>; super::types::SYNTH_VOICE_LANE_CAPACITY];
 
 #[derive(Clone, Copy, Debug)]

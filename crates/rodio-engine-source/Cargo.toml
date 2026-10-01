@@ -10,8 +10,7 @@ path = "src/lib.rs"
 [features]
 output-provenance = ["routing-tree-executor"]
 source-worker-benchmark-timing = ["realtime-engine/source-worker-benchmark-timing"]
-routing-tree-executor = ["realtime-engine/routing-tree-benchmark"]
-routing-tree-benchmark = ["routing-tree-executor"]
+routing-tree-executor = ["realtime-engine/routing-tree-executor"]
 benchmark-voice-pools-128 = ["realtime-engine/benchmark-voice-pools-128"]
 benchmark-voice-pools-256 = ["realtime-engine/benchmark-voice-pools-256"]
 

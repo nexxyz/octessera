@@ -4,7 +4,7 @@ use super::super::super::types::{
 use super::super::support::SampleVoice;
 use super::{SampleVoicePartition, SampleVoicePool};
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 impl SampleVoicePool {
     pub(in crate::synth::engine) fn take_routing_bank_into(
         &mut self,
@@ -114,7 +114,7 @@ impl SampleVoicePool {
     }
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 fn routing_bank_is_valid(bank: &[SampleVoice; SAMPLE_VOICE_LANE_CAPACITY]) -> bool {
     let mut canonical = [false; SAMPLE_VOICE_LANE_CAPACITY];
     bank.iter().enumerate().all(|(lane, voice)| {

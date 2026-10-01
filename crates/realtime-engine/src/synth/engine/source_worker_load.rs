@@ -12,14 +12,14 @@ pub const SOURCE_WORKER_MAX_COST_UNITS: u16 = ((super::super::types::SYNTH_VOICE
         * super::super::types::BUS_SLOTS_PER_BUS
         * BUS_CHAIN_SLOT_COST_UNITS as usize) as u16;
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 #[path = "source_worker_load_observation.rs"]
 mod observation;
 #[cfg(test)]
 pub(in crate::synth::engine) use observation::{
     ewma_coefficient_ppm, render_quantum_ns, EWMA_SCALE, EWMA_WINDOW_NS,
 };
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-benchmark"))]
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(in crate::synth::engine) use observation::{SourceWorkerLoad, SourceWorkerLoadObservation};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

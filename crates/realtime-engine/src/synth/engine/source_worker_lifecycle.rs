@@ -346,7 +346,7 @@ impl SourceWorkerLifecycle {
             },
             scratch: SourceWorkerScratch::new(),
             bus_carriers: std::array::from_fn(|_| None),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree: None,
         };
         let work = WorkerCommand::Sources {
@@ -399,7 +399,7 @@ impl SourceWorkerLifecycle {
             .store(enabled, Ordering::Release);
     }
 
-    #[cfg(all(test, feature = "routing-tree-benchmark"))]
+    #[cfg(all(test, feature = "routing-tree-executor"))]
     pub(crate) fn take_reverse_completion_order_for_test(&self) -> Vec<usize> {
         std::mem::take(
             &mut *self
@@ -476,7 +476,7 @@ pub(super) fn owner_for_test(parity: usize) -> OwnerEnvelope {
         },
         scratch: SourceWorkerScratch::new(),
         bus_carriers: std::array::from_fn(|_| None),
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         routing_tree: None,
     }
 }

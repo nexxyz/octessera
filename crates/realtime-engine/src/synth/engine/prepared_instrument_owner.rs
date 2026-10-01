@@ -15,7 +15,7 @@ impl SynthEngine {
             retired.sample_bank = sample_bank;
             return retired;
         }
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
             && !self.routing_tree_prepared_instrument_slot_allowed(index, &prepared)
         {
@@ -25,7 +25,7 @@ impl SynthEngine {
             return retired;
         }
         if sample_bank.is_some() && !self.sample_voice_pool.has_home() {
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             self.reject_routing_tree_mutation_for_control();
             retired.prepared_instrument_slot = Some(prepared);
             retired.sample_bank = sample_bank;
@@ -60,7 +60,7 @@ impl SynthEngine {
         });
         self.render_plan.install_instrument_slot(index, render_plan);
         self.refresh_routed_bus_slot_count();
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
             let _ = self.refresh_routing_tree_assignment();
         }

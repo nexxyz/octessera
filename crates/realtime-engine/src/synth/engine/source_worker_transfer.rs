@@ -261,7 +261,7 @@ impl SourceWorkerLifecycle {
                 partitions: home_partitions.0,
                 scratch: first_scratch,
                 bus_carriers: first_carriers,
-                #[cfg(feature = "routing-tree-benchmark")]
+                #[cfg(feature = "routing-tree-executor")]
                 routing_tree: None,
             },
             OwnerEnvelope {
@@ -270,7 +270,7 @@ impl SourceWorkerLifecycle {
                 partitions: home_partitions.1,
                 scratch: second_scratch,
                 bus_carriers: second_carriers,
-                #[cfg(feature = "routing-tree-benchmark")]
+                #[cfg(feature = "routing-tree-executor")]
                 routing_tree: None,
             },
         ]) {

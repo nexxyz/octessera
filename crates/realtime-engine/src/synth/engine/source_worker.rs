@@ -1,6 +1,6 @@
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::source_worker_timing::SourceWorkerTimingProbe;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use super::routing_tree_worker::RoutingTreeOutputBlock;
 use super::source_worker_health::{
     SourceWorkerHealth, SourceWorkerHealthSnapshot, SourceWorkerHealthState,
@@ -48,7 +48,7 @@ pub struct SourceWorkerRuntime {
     #[cfg(feature = "source-worker-benchmark-timing")]
     timing_output_sequence: Option<u64>,
     #[cfg(all(
-        feature = "routing-tree-benchmark",
+        feature = "routing-tree-executor",
         feature = "source-worker-benchmark-timing"
     ))]
     routing_coordinator_remainder_started_at: Option<(u64, Instant)>,
@@ -66,20 +66,17 @@ pub struct SourceWorkerRuntime {
     completed_mask: u8,
     sample_rate: u32,
     lookahead_frames: usize,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_output_spares: Option<[RoutingTreeOutputBlock; SOURCE_WORKER_COUNT]>,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_output_stamp: Option<WorkStamp>,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_output_ready: bool,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_tree_reprime_pending: bool,
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     routing_absolute_deadline: Option<Instant>,
-    #[cfg(all(
-        feature = "routing-tree-benchmark",
-        any(test, feature = "test-support")
-    ))]
+    #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
     routing_tree_probe: Option<Arc<RoutingTreePipelineProbe>>,
     load: Option<SourceWorkerLoad>,
     source_load_observations:
@@ -109,7 +106,7 @@ impl SourceWorkerRuntime {
     pub fn retire(mut self) -> SourceWorkerRetirement {
         #[cfg(feature = "source-worker-benchmark-timing")]
         self.freeze_timing(self.health.status().is_terminal(), None);
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         self.clear_routing_absolute_deadline();
         let Some(close) = self.runtime_close.take() else {
             return SourceWorkerRetirement::inline();
@@ -255,16 +252,10 @@ mod completion;
 #[path = "source_worker_controls.rs"]
 mod controls;
 
-#[cfg(all(
-    feature = "routing-tree-benchmark",
-    any(test, feature = "test-support")
-))]
+#[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
 #[path = "source_worker_pipeline_probe.rs"]
 mod pipeline_probe;
-#[cfg(all(
-    feature = "routing-tree-benchmark",
-    any(test, feature = "test-support")
-))]
+#[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
 pub use pipeline_probe::RoutingTreePipelineProbe;
 
 #[path = "source_worker_recovery.rs"]
@@ -301,10 +292,10 @@ mod residency_test_support;
 #[path = "source_worker_feature_support.rs"]
 mod feature_support;
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "routing_tree_control_gate.rs"]
 mod routing_tree_control_gate;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 #[path = "routing_tree_pipeline.rs"]
 mod routing_tree_pipeline;
 

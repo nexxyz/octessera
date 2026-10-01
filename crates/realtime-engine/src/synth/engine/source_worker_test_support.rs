@@ -265,7 +265,7 @@ impl SourceWorkerRuntime {
         })
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn set_home_bus_assignment_for_test(&self, bus: usize, worker: usize) {
         let mut owners = self.take_home_owners_for_test().expect("worker homes");
         for owner in &mut owners {

@@ -55,15 +55,15 @@ impl SynthEngine {
             block_slot_scratch: BlockSlotScratch::new(),
             #[cfg(test)]
             routing_tree_scratch: RoutingTreeBlockScratch::new(),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_assignment: None,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_notes_started: false,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_profile: SynthProfileSnapshot::default(),
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_source_event_sample_clock: None,
-            #[cfg(feature = "routing-tree-benchmark")]
+            #[cfg(feature = "routing-tree-executor")]
             routing_tree_rejection: false,
             dsp_config: DspRuntimeConfig::default(),
             worker_utilization_ppm: None,

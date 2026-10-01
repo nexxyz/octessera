@@ -2,7 +2,7 @@ use super::super::dsp_config::BusIdleThreshold;
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::synth_voice_pool::SynthVoicePartition;
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use super::sample_voice_pool::SampleVoicePartition;
 use super::source_lane_renderer::{
@@ -60,7 +60,7 @@ pub(super) struct OwnerEnvelope {
     pub(super) scratch: SourceWorkerScratch,
     pub(super) bus_carriers:
         [Option<super::bus_chain_owner::BusChainCarrier>; super::super::types::BUS_COUNT],
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) routing_tree: Option<RoutingTreeOwnerData>,
 }
 
@@ -89,7 +89,7 @@ pub(super) enum WorkerCommand {
         #[cfg(feature = "source-worker-benchmark-timing")]
         timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     },
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     RoutingTree {
         stamp: WorkStamp,
         owner: OwnerEnvelope,
@@ -112,7 +112,7 @@ pub(super) struct SourceWork {
     pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) struct RoutingTreeWork {
     pub(super) owner: OwnerEnvelope,
     pub(super) stamp: WorkStamp,
@@ -150,7 +150,7 @@ impl WorkerCommand {
         })
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn into_routing_tree_work(self) -> Option<RoutingTreeWork> {
         let Self::RoutingTree {
             owner,
@@ -210,7 +210,7 @@ impl SourceWork {
     }
 }
 
-#[cfg(feature = "routing-tree-benchmark")]
+#[cfg(feature = "routing-tree-executor")]
 impl RoutingTreeWork {
     pub(super) fn render(&mut self) -> Result<u16, ()> {
         super::routing_tree_worker::render_owner(&mut self.owner, self.context, self.stamp)
@@ -304,7 +304,7 @@ impl CompletedEnvelope {
         }
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn from_routing_tree_work(
         work: RoutingTreeWork,
         worker_exited: bool,

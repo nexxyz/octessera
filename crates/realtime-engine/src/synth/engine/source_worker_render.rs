@@ -39,7 +39,7 @@ impl SynthEngine {
             self.render_interleaved_block(frames, left, right, out);
             return SourceWorkerRenderDisposition::Fresh;
         }
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if runtime.mode() == SourceWorkerMode::RoutingTreePersistent {
             let _ = runtime.refresh_recovery_disposition(self);
             return self.render_interleaved_block_with_source_runtime_ready(
@@ -68,7 +68,7 @@ impl SynthEngine {
         )
     }
 
-    #[cfg(feature = "routing-tree-benchmark")]
+    #[cfg(feature = "routing-tree-executor")]
     pub fn render_interleaved_block_with_source_runtime_ready_with_controls(
         &mut self,
         runtime: &mut SourceWorkerRuntime,
@@ -100,7 +100,7 @@ impl SynthEngine {
     where
         F: FnOnce(&mut SynthEngine) -> Result<(), ()>,
     {
-        #[cfg(not(feature = "routing-tree-benchmark"))]
+        #[cfg(not(feature = "routing-tree-executor"))]
         let _ = &apply_controls;
         if runtime.mode() == SourceWorkerMode::Inline {
             self.render_interleaved_block(frames, left, right, out);
@@ -118,7 +118,7 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
-        #[cfg(feature = "routing-tree-benchmark")]
+        #[cfg(feature = "routing-tree-executor")]
         if runtime.mode() == SourceWorkerMode::RoutingTreePersistent {
             let disposition = runtime.render_routing_tree_persistent_block(
                 self,
@@ -128,7 +128,7 @@ impl SynthEngine {
                 apply_controls,
             );
             #[cfg(all(
-                feature = "routing-tree-benchmark",
+                feature = "routing-tree-executor",
                 feature = "source-worker-benchmark-timing"
             ))]
             let routing_coordinator_remainder_started_at =
@@ -139,7 +139,7 @@ impl SynthEngine {
             }
             crate::simd::interleave_stereo(left, right, out);
             #[cfg(all(
-                feature = "routing-tree-benchmark",
+                feature = "routing-tree-executor",
                 feature = "source-worker-benchmark-timing"
             ))]
             if disposition == SourceWorkerRenderDisposition::Fresh {
