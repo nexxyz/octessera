@@ -14,9 +14,9 @@ use std::sync::Mutex;
 pub(crate) use crate::orange_reboot::OrangePowerRequestOutcome;
 
 pub(crate) const TRANSACTION_FILE_NAME: &str = "orange-device-config-reboot.transaction";
-const DEFAULT_FILE_NAME: &str = "default.json";
+const SYSTEM_FILE_NAME: &str = "system.json";
 const MAX_TRANSACTION_BYTES: u64 = 8 * 1024 * 1024;
-const MAX_DEFAULT_BYTES: usize = 1024 * 1024;
+const MAX_SYSTEM_BYTES: usize = 1024 * 1024;
 
 #[derive(Debug)]
 pub(crate) enum OrangeRunError {
@@ -51,7 +51,7 @@ impl From<String> for OrangeRunError {
 pub(crate) struct OrangeDeviceApplyTransaction {
     store_dir: PathBuf,
     boot_id: String,
-    prior_default_bytes: Option<Vec<u8>>,
+    prior_system_bytes: Option<Vec<u8>>,
     store_lock: Option<Arc<Mutex<()>>>,
 }
 
@@ -67,7 +67,8 @@ pub(crate) enum OrangeShutdownRequest {
 struct OrangeApplyRecord {
     schema: u8,
     boot_id: String,
-    prior_default_bytes: Option<Vec<u8>>,
+    #[serde(rename = "prior_default_bytes")]
+    prior_system_bytes: Option<Vec<u8>>,
 }
 
 pub(crate) trait OrangeApplyHost {
@@ -103,26 +104,31 @@ fn prepare_at(
 ) -> Result<OrangeDeviceApplyTransaction, String> {
     crate::usb_config_validation::validate_pi_audio_outputs_payload(payload)?;
     validate_boot_id(boot_id)?;
-    let default_path = default_path(store_dir);
-    let prior_default_bytes = read_default_bytes(&default_path)?;
-    if prior_default_bytes
+    let system_path = system_path(store_dir);
+    let patch = crate::platform_service::load_json(&crate::platform_service::default_patch_path(
+        store_dir,
+    ))?
+    .ok_or_else(|| "Default patch is missing".to_string())?;
+    playback_runtime::compose_local_system_patch_documents(payload, &patch)?;
+    let prior_system_bytes = read_system_bytes(&system_path)?;
+    if prior_system_bytes
         .as_ref()
-        .is_some_and(|bytes| bytes.len() > MAX_DEFAULT_BYTES)
+        .is_some_and(|bytes| bytes.len() > MAX_SYSTEM_BYTES)
     {
         return Err("Orange default configuration is too large to transact".into());
     }
-    let new_default_bytes = serde_json::to_vec_pretty(payload)
+    let new_system_bytes = serde_json::to_vec_pretty(payload)
         .map_err(|error| format!("Orange device configuration cannot be serialized: {error}"))?;
-    if new_default_bytes.len() > MAX_DEFAULT_BYTES {
+    if new_system_bytes.len() > MAX_SYSTEM_BYTES {
         return Err("Orange device configuration is too large to transact".into());
     }
     let record = OrangeApplyRecord {
         schema: 1,
         boot_id: boot_id.into(),
-        prior_default_bytes: prior_default_bytes.clone(),
+        prior_system_bytes: prior_system_bytes.clone(),
     };
     write_record(store_dir, &record)?;
-    if let Err(error) = atomic_write_bytes(&default_path, &new_default_bytes, 0o644) {
+    if let Err(error) = atomic_write_bytes(&system_path, &new_system_bytes, 0o644) {
         let cleanup = restore_record(store_dir, &record);
         return match cleanup {
             Ok(()) => Err(format!("Orange device configuration write failed: {error}")),
@@ -134,7 +140,7 @@ fn prepare_at(
     Ok(OrangeDeviceApplyTransaction {
         store_dir: store_dir.to_path_buf(),
         boot_id: boot_id.into(),
-        prior_default_bytes,
+        prior_system_bytes,
         store_lock: None,
     })
 }
@@ -187,7 +193,7 @@ impl OrangeDeviceApplyTransaction {
         let record = OrangeApplyRecord {
             schema: 1,
             boot_id: self.boot_id,
-            prior_default_bytes: self.prior_default_bytes,
+            prior_system_bytes: self.prior_system_bytes,
         };
         restore_record(&self.store_dir, &record)?;
         remove_transaction(&transaction_path(&self.store_dir))
@@ -233,42 +239,42 @@ fn read_record(path: &Path) -> Result<Option<OrangeApplyRecord>, String> {
     }
     validate_boot_id(&record.boot_id)?;
     if record
-        .prior_default_bytes
+        .prior_system_bytes
         .as_ref()
-        .is_some_and(|bytes| bytes.len() > MAX_DEFAULT_BYTES)
+        .is_some_and(|bytes| bytes.len() > MAX_SYSTEM_BYTES)
     {
-        return Err("Orange device apply transaction contains an oversized default".into());
+        return Err("Orange device apply transaction contains oversized System settings".into());
     }
     Ok(Some(record))
 }
 
 fn restore_record(store_dir: &Path, record: &OrangeApplyRecord) -> Result<(), String> {
-    let path = default_path(store_dir);
-    match &record.prior_default_bytes {
+    let path = system_path(store_dir);
+    match &record.prior_system_bytes {
         Some(bytes) => atomic_write_bytes(&path, bytes, 0o644),
         None => remove_default(&path),
     }
 }
 
-fn read_default_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
+fn read_system_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
             return Err(format!(
-                "Orange default configuration cannot be inspected: {error}"
+                "Orange System settings cannot be inspected: {error}"
             ))
         }
     };
     if !metadata.is_file() {
-        return Err("Orange default configuration is not a regular file".into());
+        return Err("Orange System settings are not a regular file".into());
     }
-    if metadata.len() > MAX_DEFAULT_BYTES as u64 {
-        return Err("Orange default configuration is too large to transact".into());
+    if metadata.len() > MAX_SYSTEM_BYTES as u64 {
+        return Err("Orange System settings are too large to transact".into());
     }
     fs::read(path)
         .map(Some)
-        .map_err(|error| format!("Orange default configuration cannot be read: {error}"))
+        .map_err(|error| format!("Orange System settings cannot be read: {error}"))
 }
 
 fn remove_default(path: &Path) -> Result<(), String> {
@@ -299,8 +305,8 @@ fn transaction_path(store_dir: &Path) -> PathBuf {
     store_dir.join(TRANSACTION_FILE_NAME)
 }
 
-fn default_path(store_dir: &Path) -> PathBuf {
-    store_dir.join(DEFAULT_FILE_NAME)
+fn system_path(store_dir: &Path) -> PathBuf {
+    store_dir.join(SYSTEM_FILE_NAME)
 }
 
 #[cfg(unix)]

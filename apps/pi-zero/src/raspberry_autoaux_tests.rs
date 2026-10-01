@@ -43,6 +43,9 @@ fn runtime(
     PiPlaybackHostAdapter,
     AudioKeepAlive,
 ) {
+    let payload: serde_json::Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    crate::pi_store_test_support::write_pair(&root.join("store"), &payload);
     let (audio, control_rx, event_rx, prep_tx) =
         crate::audio::test_service_with_recording_dir(root.join("recording"));
     let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
@@ -54,8 +57,6 @@ fn runtime(
         playback_runtime::AudioOutputSet::jack(),
         UsbDataRole::Gadget,
     );
-    let payload: serde_json::Value =
-        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
@@ -180,7 +181,7 @@ fn native_autoaux_worker_save_result_produces_the_receipt() {
     assert!(*elapsed >= Duration::from_secs(2));
     assert!(*elapsed < crate::autoaux_sequence::SAVE_COMPLETION_TIMEOUT);
     assert!(autoaux.sequence.final_revision.is_some());
-    assert!(root.join("store/default.json").is_file());
+    assert!(root.join("store/default.patch.json").is_file());
     assert!(scenes.autoaux_cutoff_acceptances().is_some());
     assert!(!adapter.autoaux_active());
     adapter.begin_autoaux_evidence();

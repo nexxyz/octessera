@@ -137,8 +137,13 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
     set_mode(paths.request.parent().unwrap(), 0o700);
     std::fs::create_dir_all(&paths.public).unwrap();
     set_mode(&paths.public, 0o750);
+    let store = root.join("store");
+    let documents = crate::pi_store_test_support::write_pair(
+        &store,
+        &crate::user_data_archive::canonical_defaults(),
+    );
     let service = PiPlatformService::new_with_setup_environment(
-        root.join("store"),
+        store,
         root.join("samples"),
         SetupPortalEnvironment::test(paths.clone(), 0),
     );
@@ -183,7 +188,7 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
     enqueue_system_info(&service, 32);
 
     service
-        .prepare_orange_device_apply(&serde_json::json!({"applied": true}))
+        .prepare_orange_device_apply(&documents.system)
         .unwrap();
 
     let results = service.drain_results(64);

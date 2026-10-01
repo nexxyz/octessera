@@ -86,6 +86,12 @@ pub enum RuntimeStoreResult {
         #[serde(default, rename = "isAuto")]
         is_auto: Option<bool>,
     },
+    LoadSystemResult {
+        payload: Option<Value>,
+    },
+    SaveSystemResult {
+        ok: bool,
+    },
     SaveBackupResult {
         ok: bool,
     },
@@ -213,6 +219,8 @@ impl RuntimeStoreResult {
             Self::DeletePresetResult { .. } => RuntimeOperation::StoreDeletePreset,
             Self::LoadDefaultResult { .. } => RuntimeOperation::StoreLoadDefault,
             Self::SaveDefaultResult { .. } => RuntimeOperation::StoreSaveDefault,
+            Self::LoadSystemResult { .. } => RuntimeOperation::StoreLoadSystem,
+            Self::SaveSystemResult { .. } => RuntimeOperation::StoreSaveSystem,
             Self::SaveBackupResult { .. } => RuntimeOperation::StoreSaveBackup,
             Self::SaveRecoveryResult { .. } => RuntimeOperation::StoreSaveRecovery,
             Self::StoreError { .. } => RuntimeOperation::Store,
@@ -253,6 +261,7 @@ impl RuntimeStoreResult {
             Self::StoreError { message } => (RuntimeErrorDomain::Storage, message.clone()),
             Self::DeletePresetResult { ok: false, .. }
             | Self::SaveDefaultResult { ok: false, .. }
+            | Self::SaveSystemResult { ok: false }
             | Self::SaveBackupResult { ok: false }
             | Self::SaveRecoveryResult { ok: false } => {
                 (RuntimeErrorDomain::Storage, "operation failed".into())

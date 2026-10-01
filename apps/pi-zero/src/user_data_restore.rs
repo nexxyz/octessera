@@ -1,6 +1,5 @@
 use crate::persistence::atomic_write_json;
 use crate::user_data_archive::{self, StagedRestore};
-use playback_runtime::{apply_user_data_patch_and_preferences, UsbDataRole};
 use serde_json::Value;
 use std::fs::{self, File};
 use std::io;
@@ -21,6 +20,16 @@ pub(crate) fn restore(
     session: &str,
     staged: StagedRestore,
 ) -> Result<(), String> {
+    let canonical = user_data_archive::canonical_defaults();
+    let (target_system, target_patch) = read_target_pair(store_dir)?;
+    let restored = playback_runtime::user_data_bundle::reconstruct_user_data_archive(
+        &canonical,
+        &target_system,
+        &target_patch,
+        &staged.bundle.current_state.patch,
+        &staged.bundle.default_state.patch,
+        &staged.bundle.preferences,
+    )?;
     let parent = store_dir
         .parent()
         .ok_or_else(|| "store path has no parent".to_string())?;
@@ -40,20 +49,6 @@ pub(crate) fn restore(
         &backup_path,
     )?;
 
-    let canonical = user_data_archive::canonical_defaults();
-    let target_role = target_usb_role(store_dir, &canonical)?;
-    let mut current = apply_user_data_patch_and_preferences(
-        &canonical,
-        &staged.bundle.current_state.patch,
-        &staged.bundle.preferences,
-    )?;
-    let mut default = apply_user_data_patch_and_preferences(
-        &canonical,
-        &staged.bundle.default_state.patch,
-        &staged.bundle.preferences,
-    )?;
-    preserve_target_usb_role(&mut current, target_role)?;
-    preserve_target_usb_role(&mut default, target_role)?;
     let new_store = parent.join(format!(".octessera-store-new-{session}"));
     let new_samples = parent.join(format!(".octessera-samples-new-{session}"));
     let old_store = parent.join(format!(".octessera-store-old-{session}"));
@@ -80,7 +75,7 @@ pub(crate) fn restore(
         }
     }
     let result = (|| {
-        build_store_tree(store_dir, &new_store, &staged.bundle, &current, &default)?;
+        build_store_tree(store_dir, &new_store, &staged.bundle, &restored)?;
         build_samples_tree(
             samples_dir,
             &new_samples,
@@ -120,37 +115,18 @@ pub(crate) fn restore(
     result
 }
 
-fn target_usb_role(store_dir: &Path, canonical: &Value) -> Result<UsbDataRole, String> {
-    let payload = crate::platform_service::load_json(&store_dir.join("default.json"))?
-        .unwrap_or_else(|| canonical.clone());
-    crate::usb_config::parse_usb_runtime_config(&payload)
-        .map(|config| config.data_role)
-        .map_err(|error| error.to_string())
-}
-
-fn preserve_target_usb_role(payload: &mut Value, role: UsbDataRole) -> Result<(), String> {
-    let runtime = payload
-        .get_mut("runtimeConfig")
-        .and_then(Value::as_object_mut)
-        .ok_or_else(|| "restored runtime configuration is missing runtimeConfig".to_string())?;
-    if role == UsbDataRole::Host {
-        let outputs = runtime
-            .entry("audioOutputs")
-            .or_insert_with(|| Value::Object(Default::default()))
-            .as_object_mut()
-            .ok_or_else(|| "restored runtimeConfig.audioOutputs is not an object".to_string())?;
-        outputs.insert("usb".into(), Value::Bool(false));
+fn read_target_pair(store_dir: &Path) -> Result<(Value, Value), String> {
+    if store_dir.join("default.json").exists() {
+        return Err("legacy mixed store cannot be restored over".into());
     }
-    let usb = runtime
-        .entry("usb")
-        .or_insert_with(|| Value::Object(Default::default()))
-        .as_object_mut()
-        .ok_or_else(|| "restored runtimeConfig.usb is not an object".to_string())?;
-    usb.insert("dataRole".into(), Value::String(role.as_str().into()));
-    if role == UsbDataRole::Host {
-        usb.insert("midiOutEnabled".into(), Value::Bool(false));
-    }
-    Ok(())
+    let system = crate::platform_service::load_json(&store_dir.join("system.json"))?
+        .ok_or_else(|| "System settings are missing".to_string())?;
+    let patch = crate::platform_service::load_json(&crate::platform_service::default_patch_path(
+        store_dir,
+    ))?
+    .ok_or_else(|| "Default patch is missing".to_string())?;
+    crate::platform_service::validate_patch_document(store_dir, &patch)?;
+    Ok((system, patch))
 }
 
 fn write_pre_restore_backup(
@@ -192,19 +168,41 @@ fn build_store_tree(
     old_store: &Path,
     new_store: &Path,
     bundle: &playback_runtime::UserDataBundle,
-    current: &Value,
-    default: &Value,
+    restored: &playback_runtime::user_data_bundle::UserDataArchiveReconstruction,
 ) -> Result<(), String> {
     fs::create_dir_all(new_store.join("patches")).map_err(io_error)?;
-    atomic_write_json(&new_store.join("default.json"), default)?;
-    atomic_write_json(&new_store.join("current.json"), current)?;
+    atomic_write_json(&new_store.join("system.json"), &restored.system)?;
+    atomic_write_json(
+        &crate::platform_service::default_patch_path(new_store),
+        &restored.default_patch,
+    )?;
+    atomic_write_json(
+        &crate::platform_service::current_patch_path(new_store),
+        &restored.current_patch,
+    )?;
+    atomic_write_json(
+        &crate::platform_service::recovery_patch_path(new_store),
+        &restored.current_patch,
+    )?;
+    let system = crate::platform_service::load_json(&new_store.join("system.json"))?
+        .ok_or_else(|| "staged System settings are missing".to_string())?;
+    for patch_path in [
+        crate::platform_service::default_patch_path(new_store),
+        crate::platform_service::current_patch_path(new_store),
+        crate::platform_service::recovery_patch_path(new_store),
+    ] {
+        let patch = crate::platform_service::load_json(&patch_path)?
+            .ok_or_else(|| format!("staged patch is missing: {}", patch_path.display()))?;
+        playback_runtime::compose_system_patch_documents(&system, &patch)?;
+    }
     for preset in &bundle.presets {
         let path = crate::platform_service::preset_patch_path(new_store, &preset.display_name)?;
         atomic_write_json(&path, &preset.patch)?;
     }
-    for name in ["device.json", "recovery-save.json"] {
-        copy_regular_if_present(&old_store.join(name), &new_store.join(name))?;
-    }
+    copy_regular_if_present(
+        &old_store.join("device.json"),
+        &new_store.join("device.json"),
+    )?;
     copy_tree_if_present(&old_store.join("backups"), &new_store.join("backups"))
 }
 

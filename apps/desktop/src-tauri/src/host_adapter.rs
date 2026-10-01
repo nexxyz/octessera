@@ -168,13 +168,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::StoreLoadPreset { name } => {
-                let payload = self.load_preset_payload(name)?;
-                Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::LoadPresetResult {
-                        name: name.clone(),
-                        payload,
-                    },
-                }])
+                Ok(self.load_preset_result(request, name)?)
             }
             RuntimePlatformEffect::StoreSavePreset {
                 name,
@@ -198,9 +192,13 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     },
                 }])
             }
-            RuntimePlatformEffect::StoreLoadDefault => Ok(self.load_default_result()?),
+            RuntimePlatformEffect::StoreLoadDefault => Ok(self.load_default_result(request)?),
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
                 Ok(self.save_default_result(request, payload, mode.as_deref())?)
+            }
+            RuntimePlatformEffect::StoreLoadSystem => Ok(self.load_system_result(request)),
+            RuntimePlatformEffect::StoreSaveSystem { payload } => {
+                Ok(self.save_system_result(request, payload))
             }
             RuntimePlatformEffect::StoreSaveBackup { payload } => {
                 self.save_backup_payload(payload)?;
@@ -217,7 +215,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 let recording_result =
                     host_adapter_recording::finalize_for_shutdown(&self.audio.recording, request)?;
-                self.save_default_result(request, payload, Some("overwrite"))?;
+                self.save_system_payload(payload)?;
                 self.shutdown_requested = true;
                 Ok(recording_result
                     .into_iter()

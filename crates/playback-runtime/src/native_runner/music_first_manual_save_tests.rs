@@ -130,7 +130,12 @@ fn default_save_with_an_accepted_write_keeps_the_save_in_progress_feedback() {
     let mut runner = playing_keys_runner(&mut runtime, &mut host);
     runner.mark_config_dirty();
     let revision = runner.config_revision;
-    let payload = std::sync::Arc::new(runner.capture_config_snapshot().into_payload());
+    let payload = std::sync::Arc::new(
+        runner
+            .capture_config_snapshot()
+            .into_portable_patch_payload()
+            .unwrap(),
+    );
     assert!(runner.register_native_default_write("accepted-default", revision, true));
     assert!(runner.attach_native_default_write_payload("accepted-default", revision, payload,));
     runner.menu.rebuild(runner.menu_config());

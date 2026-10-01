@@ -41,6 +41,29 @@ fn save_results_have_exactly_one_identity_layer() {
 }
 
 #[test]
+fn system_save_request_does_not_inherit_payload_revision() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let request = runtime.next_platform_request(RuntimePlatformEffect::StoreSaveSystem {
+        payload: serde_json::json!({"revision": 42}),
+    });
+    assert_eq!(request.operation(), RuntimeOperation::StoreSaveSystem);
+    assert_eq!(request.revision, None);
+
+    let HostMessage::RuntimeResult { result } = runtime.identify_result(
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveSystemResult { ok: true },
+        },
+        &request,
+    ) else {
+        panic!("expected runtime result");
+    };
+    assert!(matches!(
+        result,
+        RuntimeStoreResult::Identified { revision: None, .. }
+    ));
+}
+
+#[test]
 fn identify_result_normalizes_unwrapped_and_matching_results() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let request = runtime.next_platform_request(RuntimePlatformEffect::SetupPortalOpen);

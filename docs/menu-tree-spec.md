@@ -86,10 +86,12 @@ The System section's `HDMI Video` group displays `Terminal` for the stored/runti
 value `none`; its `Bars per cycle` row is conditional on `cycle-behaviors`.
 See the split-out tree for the framebuffer ownership and snapshot semantics.
 
-Within `System > Saves > Library`, Save As, Load, Rename, and Delete precede Save Current and Refresh
-List. Within Default, Auto Save and Backups precede Save Default and Load Default. Within
+Within `System > Saves`, Library precedes Default, then System. Library's Save As,
+Load, Rename, and Delete precede Save Current and Refresh List. Within Default,
+Auto Save and Backups precede Save Patch and Load Patch; System contains Save System
+and Load System. Within
 `System > Setup`, conditional USB Role and the Updates submenu precede Configure WiFi, Backup /
-Restore, and Hardware Test. These rows retain their existing action/config keys. `Configure WiFi`
+Restore, and Hardware Test. Setup rows retain their existing action/config keys. `Configure WiFi`
 uses stable key `system.configureWifi`. After confirmation, native runtime stops and resets playback,
 sends MIDI panic/note cleanup, never auto-resumes, and emits the typed
 setup portal effect. The setup modal reports `starting`, `portal_ready` with
@@ -100,4 +102,4 @@ the four-character code and `192.168.42.1` for 10 minutes, `finalizing`,
 key `system.backupRestore`. On Pi it opens the existing authenticated service
 on `http://<regular-ip>:8081` using a generated 10-character code and a
 15-minute lifetime. Desktop is unsupported, and the action is separate from
-rolling `System > Saves > Default > Backups`.
+rolling `System > Saves > Default > Backups`, which stores patch-only rolling backups.

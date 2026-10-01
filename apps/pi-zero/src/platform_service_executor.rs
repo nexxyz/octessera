@@ -1,5 +1,5 @@
 use super::platform_service_store::{
-    delete_preset_payload, list_presets, load_json, preset_patch_path, save_backup, save_json,
+    delete_preset_payload, list_presets, preset_patch_path, save_backup, save_json,
 };
 use crate::device_update;
 use crate::sample_browser::sample_entries;
@@ -28,17 +28,15 @@ pub(super) fn handle_job(
             Ok(names) => RuntimeStoreResult::ListPresetsResult { names },
             Err(message) => store_error(format!("Preset list failed: {message}")),
         },
-        PlatformJobKind::LoadPreset { name } => {
-            match preset_patch_path(store_dir, &name).and_then(|path| load_json(&path)) {
-                Ok(payload) => RuntimeStoreResult::LoadPresetResult { payload, name },
-                Err(message) => store_error(format!("Load {name} failed: {message}")),
-            }
-        }
         PlatformJobKind::SavePreset { name, payload } => {
             match preset_patch_path(store_dir, &name) {
                 Ok(path) => {
                     let existed = path.is_file();
-                    match save_json(&path, &payload) {
+                    match super::platform_service_store::validate_named_preset_document(
+                        store_dir, &payload,
+                    )
+                    .and_then(|()| save_json(&path, &payload))
+                    {
                         Ok(()) => RuntimeStoreResult::SavePresetResult {
                             name,
                             outcome: if existed { "overwritten" } else { "created" }.into(),
@@ -54,9 +52,13 @@ pub(super) fn handle_job(
             name,
         },
         PlatformJobKind::SaveDefault { payload, is_auto } => {
-            match crate::usb_config_validation::validate_pi_audio_outputs_payload(&payload)
-                .and_then(|()| save_json(&store_dir.join("default.json"), &payload))
-            {
+            match super::platform_service_store::validate_patch_document(store_dir, &payload)
+                .and_then(|()| {
+                    save_json(
+                        &super::platform_service_store::default_patch_path(store_dir),
+                        &payload,
+                    )
+                }) {
                 Ok(()) => RuntimeStoreResult::SaveDefaultResult { ok: true, is_auto },
                 Err(message) => store_error(format!("Save default failed: {message}")),
             }
@@ -65,10 +67,14 @@ pub(super) fn handle_job(
         PlatformJobKind::PrepareOrangeDeviceApply { .. } => {
             unreachable!("Orange device apply jobs are completed by the platform worker")
         }
-        PlatformJobKind::SaveBackup { payload } => match save_backup(store_dir, &payload) {
-            Ok(()) => RuntimeStoreResult::SaveBackupResult { ok: true },
-            Err(message) => store_error(format!("Save backup failed: {message}")),
-        },
+        PlatformJobKind::SaveBackup { payload } => {
+            match super::platform_service_store::validate_patch_document(store_dir, &payload)
+                .and_then(|()| save_backup(store_dir, &payload))
+            {
+                Ok(()) => RuntimeStoreResult::SaveBackupResult { ok: true },
+                Err(message) => store_error(format!("Save backup failed: {message}")),
+            }
+        }
         PlatformJobKind::ListSamples {
             instrument_slot,
             sample_slot,

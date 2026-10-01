@@ -9,37 +9,32 @@ pub(super) struct PlatformWorkerConfig {
     pub(super) storage_state: PathBuf,
 }
 
-pub(super) fn spawn(
-    store_dir: PathBuf,
-    samples_dir: PathBuf,
-    jobs: Receiver<PlatformWorkItem>,
-    results: Arc<PlatformResultLane>,
-    store_lock: Arc<Mutex<()>>,
-    store_write_barrier: StoreWriteBarrier,
-    worker_config: PlatformWorkerConfig,
-) {
-    thread::spawn(move || {
-        run(
-            store_dir,
-            samples_dir,
-            jobs,
-            results,
-            store_lock,
-            store_write_barrier,
-            worker_config,
-        )
-    });
+pub(super) struct PlatformWorkerContext {
+    pub(super) store_dir: PathBuf,
+    pub(super) samples_dir: PathBuf,
+    pub(super) jobs: Receiver<PlatformWorkItem>,
+    pub(super) results: Arc<PlatformResultLane>,
+    pub(super) store_lock: Arc<Mutex<()>>,
+    pub(super) store_write_barrier: StoreWriteBarrier,
+    pub(super) legacy_patch_writes: Arc<Mutex<super::LegacyPatchWrites>>,
+    pub(super) update_executor: Arc<dyn device_update::UpdateExecutor>,
 }
 
-fn run(
-    store_dir: PathBuf,
-    samples_dir: PathBuf,
-    jobs: Receiver<PlatformWorkItem>,
-    results: Arc<PlatformResultLane>,
-    store_lock: Arc<Mutex<()>>,
-    store_write_barrier: StoreWriteBarrier,
-    worker_config: PlatformWorkerConfig,
-) {
+pub(super) fn spawn(context: PlatformWorkerContext) {
+    thread::spawn(move || run(context));
+}
+
+fn run(context: PlatformWorkerContext) {
+    let PlatformWorkerContext {
+        store_dir,
+        samples_dir,
+        jobs,
+        results,
+        store_lock,
+        store_write_barrier,
+        legacy_patch_writes,
+        update_executor,
+    } = context;
     while let Ok(item) = jobs.recv() {
         let job = match item {
             PlatformWorkItem::Legacy(job) => job,
@@ -55,7 +50,6 @@ fn run(
                     generation,
                     &store_lock,
                     &store_write_barrier,
-                    &worker_config,
                 );
                 if results
                     .send_platform(PlatformResult::NativeDefaultCompletion(
@@ -94,7 +88,6 @@ fn run(
                     write,
                     &store_lock,
                     &store_write_barrier,
-                    &worker_config,
                 );
                 for result in native_results {
                     if results.send_platform(result).is_err() {
@@ -133,18 +126,20 @@ fn run(
         let result = if job_requires_store_lock(&job.kind) {
             match store_lock.lock() {
                 Ok(_guard) => {
-                    if let Some(result) = superseded_store_write(&job, &store_write_barrier) {
-                        result
-                    } else {
-                        handle_job(
-                            &store_dir,
-                            &samples_dir,
-                            job,
-                            worker_config.update_executor.as_ref(),
-                            &worker_config.role_applier,
-                            &worker_config.storage_state,
-                        )
-                    }
+                    let write_kind = legacy_patch_write_kind(&job.kind);
+                    let result =
+                        if let Some(result) = superseded_store_write(&job, &store_write_barrier) {
+                            result
+                        } else {
+                            platform_service_executor::handle_job(
+                                &store_dir,
+                                &samples_dir,
+                                job,
+                                update_executor.as_ref(),
+                            )
+                        };
+                    decrement_legacy_patch_write(&legacy_patch_writes, write_kind);
+                    result
                 }
                 Err(_) => RuntimeStoreResult::RuntimeFailure {
                     error: job.request.failure_facts("pi store is unavailable".into()),
@@ -155,7 +150,7 @@ fn run(
                 &store_dir,
                 &samples_dir,
                 job,
-                worker_config.update_executor.as_ref(),
+                update_executor.as_ref(),
             )
         };
         if results
@@ -169,6 +164,25 @@ fn run(
     }
 }
 
+fn legacy_patch_write_kind(kind: &PlatformJobKind) -> Option<bool> {
+    match kind {
+        PlatformJobKind::SaveDefault { .. } => Some(false),
+        PlatformJobKind::SavePreset { .. } => Some(true),
+        _ => None,
+    }
+}
+
+fn decrement_legacy_patch_write(
+    pending: &Arc<Mutex<super::LegacyPatchWrites>>,
+    kind: Option<bool>,
+) {
+    if let Some(named) = kind {
+        if let Ok(mut pending) = pending.lock() {
+            pending.decrement(named);
+        }
+    }
+}
+
 fn native_default_completion(
     store_dir: &Path,
     request: NativeStoreRequest,
@@ -176,39 +190,22 @@ fn native_default_completion(
     generation: u64,
     store_lock: &Mutex<()>,
     store_write_barrier: &StoreWriteBarrier,
-    worker_config: &PlatformWorkerConfig,
 ) -> (RuntimeStoreResult, Option<Arc<serde_json::Value>>) {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    let _ = worker_config;
     let result = match store_lock.lock() {
         Ok(_guard)
             if generation == store_write_barrier.current_generation()
                 && !store_write_barrier.is_blocked() =>
         {
-            let payload = snapshot.into_payload();
-            let saved = crate::usb_config_validation::validate_pi_audio_outputs_payload(&payload)
-                .and_then(|()| {
-                    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                    if let Some(result) = crate::rpi_device_apply::save_default_if_role_changed(
-                        store_dir,
-                        &payload,
-                        None,
-                        &worker_config.storage_state,
-                        worker_config.role_applier.as_ref(),
-                    ) {
-                        return match result {
-                            RuntimeStoreResult::SaveDefaultResult { ok: true, .. } => Ok(()),
-                            RuntimeStoreResult::StoreError { message } => Err(message),
-                            _ => Err("default save did not complete".into()),
-                        };
-                    }
-                    super::platform_service_store::save_json(
-                        &store_dir.join("default.json"),
-                        &payload,
-                    )
-                });
+            let saved = snapshot.into_local_patch_payload().and_then(|payload| {
+                super::platform_service_store::validate_patch_document(store_dir, &payload)?;
+                super::platform_service_store::save_json(
+                    &super::platform_service_store::default_patch_path(store_dir),
+                    &payload,
+                )?;
+                Ok(payload)
+            });
             match saved {
-                Ok(()) => (
+                Ok(payload) => (
                     RuntimeStoreResult::SaveDefaultResult {
                         ok: true,
                         is_auto: None,
@@ -319,6 +316,8 @@ fn save_native_preset(
     let payload = snapshot
         .into_portable_patch_payload()
         .map_err(|error| format!("Save {name} failed: {error}"))?;
+    super::platform_service_store::validate_named_preset_document(store_dir, &payload)
+        .map_err(|error| format!("Save {name} failed: {error}"))?;
     super::platform_service_store::save_json(&target, &payload)
         .map_err(|error| format!("Save {name} failed: {error}"))?;
     let cleanup_error = rename_from
@@ -343,41 +342,9 @@ fn save_native_preset(
     })
 }
 
-fn handle_job(
-    store_dir: &Path,
-    samples_dir: &Path,
-    job: PlatformJob,
-    update_executor: &dyn device_update::UpdateExecutor,
-    role_applier: &super::UsbRoleApplier,
-    storage_state: &Path,
-) -> RuntimeStoreResult {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    let _ = (role_applier, storage_state);
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    if let PlatformJobKind::SaveDefault { payload, is_auto } = &job.kind {
-        if let Some(result) = crate::rpi_device_apply::save_default_if_role_changed(
-            store_dir,
-            payload,
-            *is_auto,
-            storage_state,
-            role_applier.as_ref(),
-        ) {
-            let result = match result {
-                RuntimeStoreResult::StoreError { message } => RuntimeStoreResult::RuntimeFailure {
-                    error: job.request.failure_facts(message),
-                },
-                result => result,
-            };
-            return result.with_identity(job.request.request_id.clone(), job.request.revision);
-        }
-    }
-    platform_service_executor::handle_job(store_dir, samples_dir, job, update_executor)
-}
-
 fn job_requires_store_lock(kind: &PlatformJobKind) -> bool {
     match kind {
         PlatformJobKind::ListPresets
-        | PlatformJobKind::LoadPreset { .. }
         | PlatformJobKind::SavePreset { .. }
         | PlatformJobKind::DeletePreset { .. }
         | PlatformJobKind::SaveDefault { .. }

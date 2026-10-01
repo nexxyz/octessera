@@ -6,7 +6,7 @@ mod factory_instrument_load;
 use super::play_fx_config::play_fx_type;
 use super::{
     derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
-    NativeAuxBinding, NativeInstrumentSlot, NativeManualSaveRequest, NativeRunner, NativeToast,
+    NativeInstrumentSlot, NativeManualSaveRequest, NativeRunner, NativeToast,
     RuntimeTransportState, Value, GRID_HEIGHT,
 };
 
@@ -150,13 +150,15 @@ impl NativeRunner {
         action: NativeMenuAction,
         confirmed: bool,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
-        if matches!(&action, NativeMenuAction::PlatformEffect(action) if action == "default.load")
-            && self.restart_settings.has_pending_write()
-        {
-            self.show_toast("Save in progress");
-            return Ok(None);
-        }
         if !confirmed {
+            let is_patch_load = matches!(
+                &action,
+                NativeMenuAction::PlatformEffect(action_type)
+                    if action_type == "default.load" || action_type.starts_with("preset.load:")
+            );
+            if is_patch_load && self.reject_patch_load_while_save_pending() {
+                return Ok(None);
+            }
             if let Some(confirm) = self.confirmation_for_action(&action) {
                 self.display.confirm_dialog = Some(confirm);
                 return Ok(None);
@@ -340,6 +342,13 @@ impl NativeRunner {
         &mut self,
         action_type: &str,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
+        if action_type == "system.reboot" {
+            if let Some(message) = self.reboot_blocked_by_pending_saves() {
+                self.display.confirm_dialog = None;
+                self.show_toast(message);
+                return Ok(None);
+            }
+        }
         self.display.oled_mode = super::NativeOledMode::Splash;
         self.display.oled_splash_text = super::OLED_SHUTDOWN_SPLASH_KEY.into();
         self.display.oled_splash_until = Some(
@@ -395,50 +404,10 @@ impl NativeRunner {
     }
 
     fn set_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
-        if index >= self.aux_bindings.len() {
-            return;
-        }
-        let turn_key = self
-            .aux_bindings
-            .get(index)
-            .and_then(|binding| binding.as_ref())
-            .and_then(|binding| binding.turn_key.clone());
-        self.aux_bindings[index] = if turn_key.is_some() || action.is_some() {
-            Some(NativeAuxBinding {
-                turn_key,
-                press_action: action.clone(),
-            })
-        } else {
-            None
-        };
-        self.display.toast = Some(NativeToast {
-            message: format!("Aux {} click mapped", index + 1),
-            offset: 0,
-        });
-        self.mark_config_dirty();
+        self.set_aux_click_binding(index, false, action);
     }
 
     fn set_shift_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
-        if index >= self.shift_aux_bindings.len() {
-            return;
-        }
-        let turn_key = self
-            .shift_aux_bindings
-            .get(index)
-            .and_then(|binding| binding.as_ref())
-            .and_then(|binding| binding.turn_key.clone());
-        self.shift_aux_bindings[index] = if turn_key.is_some() || action.is_some() {
-            Some(NativeAuxBinding {
-                turn_key,
-                press_action: action.clone(),
-            })
-        } else {
-            None
-        };
-        self.display.toast = Some(NativeToast {
-            message: format!("Aux {} S+Clk mapped", index + 1),
-            offset: 0,
-        });
-        self.mark_config_dirty();
+        self.set_aux_click_binding(index, true, action);
     }
 }

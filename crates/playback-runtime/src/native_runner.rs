@@ -46,6 +46,7 @@ mod apply_payload_instrument_values;
 mod apply_payload_instruments;
 mod apply_payload_layers;
 mod apply_payload_mixer_values;
+mod apply_system_document;
 mod audio_optimization;
 mod audio_outputs;
 mod aux_auto_map;
@@ -65,6 +66,8 @@ mod binding_specs;
 mod canonical_presentation;
 mod clear_patch_state;
 mod config;
+mod config_document_presence;
+mod config_documents;
 mod config_dto;
 mod config_schema;
 mod config_schema_validation;
@@ -100,6 +103,8 @@ mod layer_state;
 mod led_color;
 mod link_arp;
 mod link_routing;
+mod local_patch_document;
+mod local_sample_path;
 mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;
@@ -141,7 +146,16 @@ mod native_persistence_completion_tests;
 #[cfg(test)]
 mod numeric_encoder_tests;
 #[cfg(test)]
+#[path = "native_runner/patch_load_admission_tests.rs"]
+mod patch_load_admission_tests;
+#[cfg(test)]
 mod persistence_intent_tests;
+#[cfg(test)]
+#[path = "native_runner/system_document_tests.rs"]
+mod system_document_tests;
+#[cfg(test)]
+#[path = "native_runner/system_store_result_tests.rs"]
+mod system_store_result_tests;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod error_presentation_results;
 mod link_config;
@@ -173,6 +187,7 @@ mod overlays_fn;
 mod pan_mapping;
 mod pan_position;
 mod patch_device_payload;
+mod patch_persistence_error;
 mod payload_assign;
 mod persistence_intent;
 mod play_control;
@@ -209,6 +224,7 @@ mod store;
 mod store_persistence_results;
 mod synth_config;
 mod system_info;
+mod system_persistence;
 #[cfg(any(test, feature = "test-support"))]
 mod test_support;
 mod toast_state;
@@ -216,6 +232,7 @@ mod toast_text;
 mod trigger_probability;
 mod trigger_probability_payload;
 mod usb_data_role;
+mod user_data_patch_document;
 mod user_data_restore_results;
 mod user_data_restore_state;
 mod user_data_transfer_results;
@@ -228,6 +245,10 @@ pub use audio_optimization::AudioOptimization;
 pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
+pub use config_documents::{
+    compose_local_system_patch_documents, compose_system_patch_documents,
+    split_local_system_patch_documents, split_system_patch_documents, SystemPatchDocuments,
+};
 pub use config_snapshot::NativeConfigSnapshot;
 pub use persistence_intent::NativePersistenceIntent;
 pub use runner_config::NativeRunnerConfig;
@@ -236,6 +257,10 @@ pub use snapshot_scene::{
     NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation, PresentationScene,
 };
 pub use usb_data_role::UsbDataRole;
+pub(crate) use user_data_patch_document::{
+    apply_user_data_patch_payload, normalize_user_data_patch_payload,
+    validate_user_data_config_payload,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeManualSaveRequest {
@@ -266,6 +291,8 @@ use json_path::*;
 use link_arp::LINK_ARP_RANDOM_SEED;
 use link_config::*;
 use link_payload::*;
+use local_patch_document::*;
+use local_sample_path::*;
 use menu_value_apply::*;
 use modulation_instrument_numeric::*;
 use modulation_process::ModulationProcessState;
@@ -283,33 +310,9 @@ use state_types::*;
 use synth_config::*;
 use system_info::*;
 use trigger_probability_payload::*;
+use user_data_restore_state::*;
 use velocity_curve::*;
 use xy_smoothing::*;
-
-pub(crate) fn normalize_user_data_patch_payload(
-    payload: Value,
-    canonical_defaults: &Value,
-) -> Result<Value, String> {
-    let prepared = apply_user_data_patch_payload(payload, canonical_defaults)?;
-    portable_patch_projection(&prepared)
-}
-
-pub(crate) fn apply_user_data_patch_payload(
-    payload: Value,
-    canonical_defaults: &Value,
-) -> Result<Value, String> {
-    let payload = if payload.get("kind").and_then(Value::as_str) == Some(CONFIG_KIND) {
-        let prepared_full_config = prepare_config_payload(payload, canonical_defaults)?.payload;
-        portable_patch_payload_for_save(&prepared_full_config)?
-    } else {
-        payload
-    };
-    Ok(prepare_patch_payload(payload, canonical_defaults)?.payload)
-}
-
-pub(crate) fn validate_user_data_config_payload(payload: &Value) -> Result<(), String> {
-    validate_config_payload(payload)
-}
 
 const DEFAULT_ALGORITHM_STEP_RED: u32 = 12;
 const DEFAULT_XY_SMOOTHING_MS: u16 = 80;

@@ -117,6 +117,8 @@ impl PlaybackRuntime {
                     | RuntimeOperation::StoreDeletePreset
                     | RuntimeOperation::StoreLoadDefault
                     | RuntimeOperation::StoreSaveDefault
+                    | RuntimeOperation::StoreLoadSystem
+                    | RuntimeOperation::StoreSaveSystem
                     | RuntimeOperation::StoreSaveBackup
                     | RuntimeOperation::StoreSaveRecovery
             ) {
@@ -126,6 +128,7 @@ impl PlaybackRuntime {
                 operation.clone(),
                 RuntimeOperation::StoreSavePreset
                     | RuntimeOperation::StoreSaveDefault
+                    | RuntimeOperation::StoreSaveSystem
                     | RuntimeOperation::StoreSaveBackup
                     | RuntimeOperation::StoreSaveRecovery
             ) {

@@ -64,13 +64,27 @@ pub(crate) fn build_export_plan(
     screen_recordings_dir: &Path,
     include_media: bool,
 ) -> Result<ExportPlan, String> {
+    if store_dir.join("default.json").exists() {
+        return Err("legacy mixed store cannot be exported".into());
+    }
     let canonical = canonical_defaults();
-    let default_state = read_config_or_default(&store_dir.join("default.json"), &canonical)?;
-    let current_state = first_existing_config(
-        store_dir,
-        &["current.json", "recovery-save.json", "default.json"],
-        &canonical,
+    let system = read_required_config(&store_dir.join("system.json"), "System settings")?;
+    let default_patch = read_required_config(
+        &crate::platform_service::default_patch_path(store_dir),
+        "Default patch",
     )?;
+    crate::platform_service::validate_patch_document(store_dir, &default_patch)?;
+    let current_patch = validate_optional_patch(
+        store_dir,
+        crate::platform_service::load_current_patch(store_dir)?,
+    )?
+    .or(validate_optional_patch(
+        store_dir,
+        crate::platform_service::load_recovery_patch(store_dir)?,
+    )?)
+    .unwrap_or_else(|| default_patch.clone());
+    let default_state = playback_runtime::compose_system_patch_documents(&system, &default_patch)?;
+    let current_state = playback_runtime::compose_system_patch_documents(&system, &current_patch)?;
     let presets = crate::platform_service::list_presets(store_dir)?
         .into_iter()
         .map(|display_name| {
@@ -268,22 +282,19 @@ pub(crate) fn stage_archive(
     })
 }
 
-fn first_existing_config(
-    store_dir: &Path,
-    names: &[&str],
-    canonical: &Value,
-) -> Result<Value, String> {
-    for name in names {
-        let path = store_dir.join(name);
-        if path.is_file() {
-            return read_config_or_default(&path, canonical);
-        }
-    }
-    Ok(canonical.clone())
+fn read_required_config(path: &Path, label: &str) -> Result<Value, String> {
+    crate::platform_service::load_json(path)?.ok_or_else(|| format!("{label} is missing"))
 }
 
-fn read_config_or_default(path: &Path, canonical: &Value) -> Result<Value, String> {
-    crate::platform_service::load_json(path).map(|value| value.unwrap_or_else(|| canonical.clone()))
+fn validate_optional_patch(
+    store_dir: &Path,
+    patch: Option<Value>,
+) -> Result<Option<Value>, String> {
+    let Some(patch) = patch else {
+        return Ok(None);
+    };
+    crate::platform_service::validate_patch_document(store_dir, &patch)?;
+    Ok(Some(patch))
 }
 
 fn copy_exact<R: Read, W: Write>(

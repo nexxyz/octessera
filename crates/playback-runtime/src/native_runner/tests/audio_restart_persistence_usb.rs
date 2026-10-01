@@ -1,5 +1,6 @@
 use super::audio_restart_persistence::{enter_edit, press, turn};
 use super::*;
+use crate::RuntimePlatformRequest;
 
 fn save_setting_payload(
     runner: &mut NativeRunner,
@@ -16,26 +17,26 @@ fn save_setting_payload(
         .iter()
         .find_map(|message| match message {
             RunnerMessage::PlatformEffects { effects } => effects.iter().find_map(|effect| {
-                let RuntimePlatformEffect::StoreSaveDefault { payload, mode } = effect else {
+                let RuntimePlatformEffect::StoreSaveSystem { payload } = effect else {
                     return None;
                 };
-                (mode.as_deref() == Some("restart-setting")).then_some(payload.clone())
+                Some(payload.clone())
             }),
             _ => None,
         })
-        .expect("restart setting save effect");
-    let revision = runner.restart_settings.pending_write_revision().unwrap();
-    runner.register_default_write_request(request_id, Some(revision));
+        .expect("System Apply save effect");
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreSaveSystem {
+            payload: payload.clone(),
+        },
+        request_id.into(),
+        None,
+    );
+    runner.register_platform_request(&request);
     runner
         .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified {
-                result: Box::new(RuntimeStoreResult::SaveDefaultResult {
-                    ok: true,
-                    is_auto: None,
-                }),
-                request_id: request_id.into(),
-                revision: Some(revision),
-            },
+            result: RuntimeStoreResult::SaveSystemResult { ok: true }
+                .with_identity(request_id.into(), None),
         })
         .unwrap();
     payload
@@ -69,17 +70,24 @@ fn midi_restart_runner(boot_applied: bool, editable: bool) -> NativeRunner {
     runner
 }
 
-fn reload_default_payload(payload: Value) -> NativeRunner {
+fn reload_system_payload(payload: Value) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreLoadSystem,
+        "reload-system".into(),
+        None,
+    );
+    runner.register_platform_request(&request);
     runner
         .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::LoadDefaultResult {
+            result: RuntimeStoreResult::LoadSystemResult {
                 payload: Some(payload),
-            },
+            }
+            .with_identity(request.request_id, request.revision),
         })
         .unwrap();
     runner
@@ -95,7 +103,7 @@ fn usb_midi_setting_survives_unrelated_restart_setting_save_and_reload() {
     let usb_payload = save_setting_payload(&mut runner, "usb.midiOutEnabled", 1, "usb-save");
     assert_eq!(usb_payload["runtimeConfig"]["usb"]["midiOutEnabled"], true);
 
-    let mut runner = reload_default_payload(usb_payload);
+    let mut runner = reload_system_payload(usb_payload);
     assert_eq!(
         runner.test_config_payload()["runtimeConfig"]["usb"]["midiOutEnabled"],
         true
@@ -107,7 +115,7 @@ fn usb_midi_setting_survives_unrelated_restart_setting_save_and_reload() {
         "buffer-save",
     );
 
-    let reloaded = reload_default_payload(buffer_payload);
+    let reloaded = reload_system_payload(buffer_payload);
     assert_eq!(
         reloaded.test_config_payload()["runtimeConfig"]["usb"]["midiOutEnabled"],
         true
@@ -180,9 +188,9 @@ fn host_role_stages_gadget_outputs_off_and_saves_the_compound_setting() {
     );
     assert_eq!(
         runner.display.confirm_dialog.as_ref().unwrap().options,
-        vec!["Cancel", "Save this setting", "Save everything"]
+        vec!["Cancel", "Save this one", "Save System"]
     );
-    assert_eq!(snapshot_from(&messages)["display"]["title"], "Save Setting");
+    assert_eq!(snapshot_from(&messages)["display"]["title"], "Apply System");
 
     turn(&mut runner, 1);
     let messages = press(&mut runner);
@@ -190,10 +198,10 @@ fn host_role_stages_gadget_outputs_off_and_saves_the_compound_setting() {
         .iter()
         .find_map(|message| match message {
             RunnerMessage::PlatformEffects { effects } => effects.iter().find_map(|effect| {
-                let RuntimePlatformEffect::StoreSaveDefault { payload, mode } = effect else {
+                let RuntimePlatformEffect::StoreSaveSystem { payload } = effect else {
                     return None;
                 };
-                (mode.as_deref() == Some("restart-setting")).then_some(payload)
+                Some(payload)
             }),
             _ => None,
         })
@@ -349,7 +357,11 @@ fn orange_usb_device_disable_and_restart_restores_host_midi_selections() {
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(false);
     runner.apply_config_payload(payload).unwrap();
-    let reloaded = reload_default_payload(runner.config_payload());
+    let reloaded = reload_system_payload(
+        split_system_patch_documents(&runner.config_payload())
+            .unwrap()
+            .system,
+    );
 
     assert_eq!(
         reloaded.selected_midi_output_id.as_deref(),
@@ -410,13 +422,13 @@ fn inactive_midi_retains_host_ids_through_usb_status_and_reload() {
     );
 
     let baseline = runner.config_payload();
-    let mut runner = reload_default_payload(baseline);
+    let mut runner = reload_system_payload(split_system_patch_documents(&baseline).unwrap().system);
     let saved = save_setting_payload(&mut runner, "usb.midiOutEnabled", -1, "inactive-usb-save");
     assert_eq!(saved["runtimeConfig"]["midi"]["outId"], "name:Host Out");
     assert_eq!(saved["runtimeConfig"]["midi"]["inId"], "name:Host In");
     assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], false);
 
-    let reloaded = reload_default_payload(saved);
+    let reloaded = reload_system_payload(saved);
     assert!(!reloaded.midi_enabled);
     assert!(!reloaded.usb_midi_out_enabled);
     assert_eq!(

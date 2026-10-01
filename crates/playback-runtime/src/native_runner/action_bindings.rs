@@ -1,14 +1,17 @@
 use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 use crate::protocol::RuntimePlatformEffect;
 
+#[path = "aux_binding_ownership.rs"]
+mod aux_binding_ownership;
+
 use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
 use super::modulation_assignment_validation::{
     inert_sample_binding_key, validate_binding_changes, BindingChange, BindingValidationError,
 };
 use super::modulation_source::{ModulationAxis, ModulationSourceId};
 use super::{
-    native_binding_from_spec, parse_sample_action, NativeAuxBinding, NativeParamBinding,
-    NativeRunner, NativeToast, GRID_HEIGHT,
+    native_binding_from_spec, parse_sample_action, NativeParamBinding, NativeRunner, NativeToast,
+    GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -22,6 +25,10 @@ impl NativeRunner {
             .is_some_and(|binding| inert_sample_binding_key(&binding.key))
         {
             self.show_toast(BindingValidationError::UnsupportedTarget.toast_message());
+            return;
+        }
+        if let Some((index, shifted)) = aux_turn_target(target) {
+            self.set_aux_turn_binding(index, shifted, binding);
             return;
         }
         if is_modulation_binding_target(target) {
@@ -65,52 +72,6 @@ impl NativeRunner {
                     if lfo.target.is_none() {
                         lfo.enabled = false;
                     }
-                }
-            }
-        } else if let Some(rest) = target.strip_prefix("aux:") {
-            let parts = rest.split(':').collect::<Vec<_>>();
-            if parts.len() == 2 && parts[1] == "turn" {
-                let index = parts[0].parse::<usize>().unwrap_or(0);
-                if let Some(slot) = self.aux_bindings.get_mut(index) {
-                    let press_action = slot
-                        .as_ref()
-                        .and_then(|binding| binding.press_action.clone());
-                    *slot = if let Some(binding) = binding.clone() {
-                        Some(NativeAuxBinding {
-                            turn_key: Some(binding.key),
-                            press_action,
-                        })
-                    } else if press_action.is_some() {
-                        Some(NativeAuxBinding {
-                            turn_key: None,
-                            press_action,
-                        })
-                    } else {
-                        None
-                    };
-                }
-            }
-        } else if let Some(rest) = target.strip_prefix("shiftAux:") {
-            let parts = rest.split(':').collect::<Vec<_>>();
-            if parts.len() == 2 && parts[1] == "turn" {
-                let index = parts[0].parse::<usize>().unwrap_or(0);
-                if let Some(slot) = self.shift_aux_bindings.get_mut(index) {
-                    let press_action = slot
-                        .as_ref()
-                        .and_then(|binding| binding.press_action.clone());
-                    *slot = if let Some(binding) = binding.clone() {
-                        Some(NativeAuxBinding {
-                            turn_key: Some(binding.key),
-                            press_action,
-                        })
-                    } else if press_action.is_some() {
-                        Some(NativeAuxBinding {
-                            turn_key: None,
-                            press_action,
-                        })
-                    } else {
-                        None
-                    };
                 }
             }
         }
@@ -241,49 +202,6 @@ impl NativeRunner {
             .ok()?
             .checked_sub(1)?;
         (index < platform_core::AUX_ENCODER_COUNT).then_some(index)
-    }
-
-    fn bind_aux_from_current(&mut self, index: usize, shifted: bool) -> bool {
-        let (turn_key, press_action) = self.menu.current_binding_target();
-        if turn_key.as_deref().is_some_and(inert_sample_binding_key) {
-            self.show_toast(BindingValidationError::UnsupportedTarget.toast_message());
-            return false;
-        }
-        let prefix = if shifted { "S+Clk" } else { "Clk" };
-        if turn_key.is_none() && press_action.is_none() {
-            self.show_toast(format!("{prefix}-{}: No binding", index + 1));
-            return false;
-        }
-        let message = if let Some(key) = turn_key.as_deref() {
-            format!(
-                "{prefix}-{}: Bound turn: {}",
-                index + 1,
-                self.aux_binding_key_label(key)
-            )
-        } else if let Some(action) = press_action.as_ref() {
-            format!(
-                "{prefix}-{}: Bound click: {}",
-                index + 1,
-                self.aux_binding_action_label(action)
-            )
-        } else {
-            format!("{prefix}-{}: Bound", index + 1)
-        };
-        let bindings = if shifted {
-            &mut self.shift_aux_bindings
-        } else {
-            &mut self.aux_bindings
-        };
-        if let Some(slot) = bindings.get_mut(index) {
-            *slot = Some(NativeAuxBinding {
-                turn_key,
-                press_action,
-            });
-            self.show_toast(message);
-            self.mark_config_dirty();
-            return true;
-        }
-        false
     }
 
     pub(super) fn handle_param_mod_grid_press(&mut self, x: usize, y: usize) -> bool {
@@ -449,4 +367,17 @@ fn is_modulation_binding_target(target: &str) -> bool {
         || target == "xy:x"
         || target == "xy:y"
         || (target.starts_with("linkLfos.") && target.ends_with(".target"))
+}
+
+fn aux_turn_target(target: &str) -> Option<(usize, bool)> {
+    let (rest, shifted) = if let Some(rest) = target.strip_prefix("shiftAux:") {
+        (rest, true)
+    } else {
+        (target.strip_prefix("aux:")?, false)
+    };
+    let (index, side) = rest.split_once(':')?;
+    if side != "turn" {
+        return None;
+    }
+    Some((index.parse().ok()?, shifted))
 }

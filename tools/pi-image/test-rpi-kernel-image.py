@@ -254,11 +254,16 @@ def _main() -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, path)
             os.chmod(path, mode)
-        default_config = image / "home/pi/presets/default.json"
-        default_config.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(HERE.parents[1] / "config/generated/pi/default.json", default_config)
-        os.chmod(default_config, 0o644)
-        os.chown(default_config, 1000, 1000)  # type: ignore[attr-defined]
+        presets = image / "home/pi/presets"
+        presets.mkdir(parents=True, exist_ok=True)
+        for name, document in (
+            ("system.json", {"kind": "octessera.system", "schemaVersion": 1, "runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "gadget"}}}),
+            ("default.patch.json", {"kind": "octessera.patch", "schemaVersion": 2, "runtimeConfig": {}}),
+        ):
+            path = presets / name
+            path.write_text(json.dumps(document), encoding="utf-8")
+            os.chmod(path, 0o644)
+            os.chown(path, 1000, 1000)  # type: ignore[attr-defined]
         validator_path = image / "usr/local/lib/octessera/device_config.py"
         validator_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(HERE / "stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", validator_path)

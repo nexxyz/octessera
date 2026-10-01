@@ -110,7 +110,7 @@ fn preset_store_uses_only_canonical_patch_files() {
 #[test]
 fn atomic_json_write_overwrites_existing_file() {
     let dir = temp_store_dir("atomic-overwrite");
-    let path = dir.join("default.json");
+    let path = dir.join("default.patch.json");
     std::fs::write(&path, "{\"old\":true}").unwrap();
 
     atomic_write_json(&path, &serde_json::json!({ "new": true })).unwrap();
@@ -200,7 +200,7 @@ fn deferred_default_save_flushes_runtime_result() {
             is_auto: Some(true),
         }
     ));
-    assert!(temp_dir.join("default.json").is_file());
+    assert!(temp_dir.join("default.patch.json").is_file());
     let _ = std::fs::remove_dir_all(temp_dir);
 }
 
@@ -228,6 +228,34 @@ fn immediate_default_save_returns_raw_result_for_runtime_identity() {
 }
 
 #[test]
+fn failed_system_save_reports_storage_failure_with_operation_identity() {
+    let (mut adapter, _) = test_adapter();
+    let temp_dir = temp_store_dir("system-save-failure");
+    let system_path = temp_dir.join("system.json");
+    std::fs::create_dir(&system_path).unwrap();
+    let old_path = system_path.join("old-bytes");
+    std::fs::write(&old_path, b"keep me").unwrap();
+    adapter.store_dir = temp_dir.clone();
+
+    let result = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveSystem {
+            payload: serde_json::json!({ "deviceName": "Octessera" }),
+        }))
+        .unwrap();
+    assert!(matches!(
+        result.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { request_id, result, .. }
+        }] if request_id == "test-request"
+            && matches!(result.as_ref(), RuntimeStoreResult::SaveSystemResult { ok: false })
+            && result.operation() == playback_runtime::RuntimeOperation::StoreSaveSystem
+            && result.error_facts().is_some_and(|error| error.domain == playback_runtime::RuntimeErrorDomain::Storage)
+    ));
+    assert_eq!(std::fs::read(old_path).unwrap(), b"keep me");
+    let _ = std::fs::remove_dir_all(temp_dir);
+}
+
+#[test]
 fn pending_default_save_flushes_immediately_on_shutdown() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = std::env::temp_dir().join(format!(
@@ -249,7 +277,7 @@ fn pending_default_save_flushes_immediately_on_shutdown() {
 
     adapter.flush_pending_default_save_now().unwrap();
 
-    let saved = std::fs::read_to_string(temp_dir.join("default.json")).unwrap();
+    let saved = std::fs::read_to_string(temp_dir.join("default.patch.json")).unwrap();
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
         payload
@@ -279,23 +307,63 @@ fn failed_deferred_default_save_retains_pending_payload_for_retry() {
 }
 
 #[test]
-fn malformed_default_load_returns_store_error() {
+fn malformed_default_load_returns_identified_storage_failure_without_mutation() {
     let (mut adapter, _) = test_adapter();
-    let temp_dir = std::env::temp_dir().join(format!(
-        "octessera-host-adapter-bad-default-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&temp_dir).unwrap();
-    std::fs::write(temp_dir.join("default.json"), "not json").unwrap();
+    let temp_dir = temp_store_dir("bad-default-load");
+    let system_payload = serde_json::json!({ "deviceName": "unchanged" });
+    std::fs::write(
+        temp_dir.join("system.json"),
+        serde_json::to_vec(&system_payload).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        temp_dir.join("default.patch.json"),
+        r#"{"kind":"octessera.patch"}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        temp_dir.join("default.json"),
+        r#"{"legacy":"must not load"}"#,
+    )
+    .unwrap();
     adapter.store_dir = temp_dir.clone();
-    let follow_ups = adapter
-        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreLoadDefault))
-        .unwrap();
-    assert!(
-        matches!(&follow_ups[..], [HostMessage::RuntimeResult { result: RuntimeStoreResult::StoreError { message } }] if message.starts_with("Default load failed:"))
+    std::fs::write(temp_dir.join("default.patch.json"), "not json").unwrap();
+    let request = playback_runtime::RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreLoadDefault,
+        "default-load-identified".into(),
+        Some(23),
+    );
+
+    let follow_ups = adapter.handle_platform_effect(&request).unwrap();
+    assert!(matches!(
+        follow_ups.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified {
+                request_id,
+                revision: Some(23),
+                result,
+            }
+        }] if request_id == "default-load-identified"
+            && matches!(
+                result.as_ref(),
+                RuntimeStoreResult::RuntimeFailure { error }
+                    if error.domain == playback_runtime::RuntimeErrorDomain::Storage
+                        && error.code == playback_runtime::RuntimeErrorCode::OperationFailed
+                        && error.operation == playback_runtime::RuntimeOperation::StoreLoadDefault
+                        && error.message.as_deref().is_some_and(|message| message.starts_with("Default load failed:"))
+            )
+    ));
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(
+            &std::fs::read(temp_dir.join("system.json")).unwrap()
+        )
+        .unwrap(),
+        system_payload
+    );
+    assert!(!adapter.pending_default_save.is_pending());
+    assert_eq!(
+        std::fs::read_to_string(temp_dir.join("default.json")).unwrap(),
+        r#"{"legacy":"must not load"}"#
     );
     let _ = std::fs::remove_dir_all(temp_dir);
 }
@@ -320,7 +388,8 @@ fn recovery_save_effect_writes_recovery_save_file() {
             result: RuntimeStoreResult::SaveRecoveryResult { ok: true }
         }]
     ));
-    let saved = std::fs::read_to_string(adapter.store_dir.join("recovery-save.json")).unwrap();
+    let saved =
+        std::fs::read_to_string(adapter.store_dir.join("recovery-save.patch.json")).unwrap();
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
         payload

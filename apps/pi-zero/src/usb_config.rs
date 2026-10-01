@@ -64,41 +64,31 @@ impl Display for UsbConfigError {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn read_usb_runtime_config(
     store_dir: &Path,
 ) -> Result<UsbRuntimeConfig, UsbConfigError> {
-    let path = store_dir.join("default.json");
-    let path_display = path.display().to_string();
-    let payload = std::fs::read_to_string(&path).map_err(|error| UsbConfigError::Read {
-        path: path_display.clone(),
-        message: error.to_string(),
-    })?;
-    let payload = serde_json::from_str::<serde_json::Value>(&payload).map_err(|error| {
-        UsbConfigError::Parse {
-            path: path_display,
-            message: error.to_string(),
-        }
-    })?;
+    let payload = crate::pi_boot_config::read_composed_runtime_config(store_dir)?;
     parse_usb_runtime_config(&payload)
 }
 
-#[cfg(feature = "native-audio")]
-pub(crate) fn read_audio_optimization_from_default_config(
+#[cfg(test)]
+pub(crate) fn read_audio_optimization_from_system_config(
     store_dir: &Path,
 ) -> Result<AudioOptimization, UsbConfigError> {
-    let path = store_dir.join("default.json");
-    let path_display = path.display().to_string();
-    let payload = std::fs::read_to_string(&path).map_err(|error| UsbConfigError::Read {
-        path: path_display.clone(),
-        message: error.to_string(),
-    })?;
-    let payload = serde_json::from_str::<serde_json::Value>(&payload).map_err(|error| {
-        UsbConfigError::Parse {
-            path: path_display,
-            message: error.to_string(),
-        }
-    })?;
+    let payload = crate::pi_boot_config::read_composed_runtime_config(store_dir)?;
     parse_audio_optimization(&payload)
+}
+
+#[cfg(feature = "native-audio")]
+pub(crate) fn read_boot_runtime_config(
+    store_dir: &Path,
+) -> Result<(UsbRuntimeConfig, AudioOptimization), UsbConfigError> {
+    let payload = crate::pi_boot_config::read_composed_runtime_config(store_dir)?;
+    Ok((
+        parse_usb_runtime_config(&payload)?,
+        parse_audio_optimization(&payload)?,
+    ))
 }
 
 #[cfg(any(test, feature = "native-audio"))]
@@ -136,9 +126,8 @@ pub(crate) fn parse_audio_optimization(
 }
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) fn audio_output_buffer_frames_from_default_config(store_dir: &Path) -> Option<u32> {
-    let payload = std::fs::read_to_string(store_dir.join("default.json")).ok()?;
-    let payload: serde_json::Value = serde_json::from_str(&payload).ok()?;
+pub(crate) fn audio_output_buffer_frames_from_system_patch_config(store_dir: &Path) -> Option<u32> {
+    let payload = crate::pi_boot_config::read_composed_runtime_config(store_dir).ok()?;
     payload
         .get("runtimeConfig")
         .unwrap_or(&payload)
@@ -345,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn reads_audio_policy_from_the_persisted_default_store() {
+    fn reads_audio_policy_from_the_persisted_system_patch_pair() {
         let store_dir = std::env::temp_dir().join(format!(
             "octessera-usb-config-{}-{}",
             std::process::id(),
@@ -355,11 +344,12 @@ mod tests {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&store_dir).unwrap();
-        std::fs::write(
-            store_dir.join("default.json"),
-            r#"{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":true,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}"#,
-        )
-        .unwrap();
+        let full: serde_json::Value =
+            serde_json::from_str(include_str!("../../../config/generated/pi/default.json"))
+                .unwrap();
+        let mut pair = playback_runtime::split_system_patch_documents(&full).unwrap();
+        pair.system["runtimeConfig"]["audioOutputs"]["usb"] = serde_json::json!(true);
+        write_pair(&store_dir, &pair.system, &pair.patch);
 
         assert_eq!(
             read_usb_runtime_config(&store_dir).unwrap().audio_outputs,
@@ -471,9 +461,22 @@ mod tests {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&malformed).unwrap();
-        std::fs::write(malformed.join("default.json"), "{").unwrap();
+        std::fs::write(malformed.join("system.json"), "{").unwrap();
         let error = read_usb_runtime_config(&malformed).unwrap_err();
         assert!(matches!(error, UsbConfigError::Parse { .. }));
         let _ = std::fs::remove_dir_all(malformed);
+    }
+
+    fn write_pair(store: &Path, system: &serde_json::Value, patch: &serde_json::Value) {
+        std::fs::write(
+            store.join("system.json"),
+            serde_json::to_vec(system).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            store.join("default.patch.json"),
+            serde_json::to_vec(patch).unwrap(),
+        )
+        .unwrap();
     }
 }

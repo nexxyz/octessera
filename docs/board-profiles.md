@@ -100,17 +100,20 @@ port is present.
 
 ### Raspberry USB data role
 
-On Raspberry, `usb.dataRole` selects the next-boot USB data role. `gadget` is
-the default and enables the image-side Audio/MIDI gadget and SD2 transfer path;
+Raspberry's local settings file is `/home/pi/presets/system.json`;
+`usb.dataRole` selects the next-boot USB data role. `gadget` is the default and
+enables the image-side Audio/MIDI gadget and SD2 transfer path;
 `host` disables those paths and requires USB Audio and USB MIDI to be off.
-Applying a role is a serialized save, checked exact `[all]` boot-config
-mutation, and reboot transaction; an active authoritative SD2 transfer rejects
-Host before the default is written. It is not a live USB switch. Full image
+Applying a role is a confirmed System-only save, checked exact `[all]`
+boot-config mutation, and reboot transaction; an active authoritative SD2
+transfer rejects Host before `system.json` is written. It is not a live USB switch. Full image
 construction or Pi provisioning installs the role helper and boot contract.
 Runtime updates and fast binary deployment do not change boot configuration.
 
-The Orange image-side USB gadget reads the persisted default at
-`/var/lib/octessera/presets/default.json`. `audioOutputs.usb` enables the fixed
+The Orange image-side USB gadget reads local System settings at
+`/var/lib/octessera/presets/system.json`. The staged
+`usr/share/octessera/defaults/pi-default.json` is immutable image-build metadata,
+not an active runtime default. `audioOutputs.usb` enables the fixed
 44.1 kHz stereo UAC2 function and `usb.midiOutEnabled` enables the fixed MIDI
 function. The valid compositions are no gadget, MIDI only, UAC2 only, and
 combined; HDMI and Jack do not change gadget composition. USB Audio and USB

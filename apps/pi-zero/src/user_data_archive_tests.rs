@@ -16,6 +16,25 @@ fn root(name: &str) -> PathBuf {
     root
 }
 
+fn write_split_store(store: &Path, full: &Value) {
+    let documents = playback_runtime::split_system_patch_documents(full).unwrap();
+    fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::current_patch_path(store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+}
+
 #[test]
 fn export_preserves_exact_names_and_optional_custom_samples() {
     let root = root("export");
@@ -28,14 +47,13 @@ fn export_preserves_exact_names_and_optional_custom_samples() {
     fs::create_dir_all(&recordings).unwrap();
     fs::create_dir_all(&screen_recordings).unwrap();
     let defaults = canonical_defaults();
-    fs::write(
-        store.join("default.json"),
-        serde_json::to_vec(&defaults).unwrap(),
-    )
-    .unwrap();
+    write_split_store(&store, &defaults);
+    let patch = playback_runtime::split_system_patch_documents(&defaults)
+        .unwrap()
+        .patch;
     fs::write(
         store.join("patches").join("Soft Kit 01.json"),
-        serde_json::to_vec(&defaults).unwrap(),
+        serde_json::to_vec(&patch).unwrap(),
     )
     .unwrap();
     fs::write(samples.join("My Kick.wav"), b"custom sample").unwrap();
@@ -73,6 +91,100 @@ fn export_preserves_exact_names_and_optional_custom_samples() {
 }
 
 #[test]
+fn export_composes_split_documents_before_portable_patch_and_preferences() {
+    let root = root("split-export");
+    let store = root.join("store");
+    fs::create_dir_all(&store).unwrap();
+    let mut full = canonical_defaults();
+    full["runtimeConfig"]["displayBrightness"] = serde_json::json!(47);
+    full["runtimeConfig"]["midi"]["inId"] = serde_json::json!("local-midi-in");
+    full["runtimeConfig"]["midi"]["outId"] = serde_json::json!("local-midi-out");
+    full["runtimeConfig"]["usb"]["dataRole"] = serde_json::json!("host");
+    full["runtimeConfig"]["audioOutputs"]["usb"] = serde_json::json!(false);
+    full["runtimeConfig"]["instruments"][0]["sample"]["assignments"] =
+        serde_json::json!([{ "level": null, "sampleSlot": 5, "x": 6, "y": 1 }]);
+    let mut current = full.clone();
+    current["runtimeConfig"]["instruments"][0]["sample"]["assignments"] =
+        serde_json::json!([{ "level": null, "sampleSlot": 3, "x": 2, "y": 4 }]);
+    let default_documents = playback_runtime::split_system_patch_documents(&full).unwrap();
+    let current_documents = playback_runtime::split_system_patch_documents(&current).unwrap();
+    let system = default_documents.system;
+    let default_patch = default_documents.patch;
+    let current_patch = current_documents.patch;
+    fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&system).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(&store),
+        serde_json::to_vec(&default_patch).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::current_patch_path(&store),
+        serde_json::to_vec(&current_patch).unwrap(),
+    )
+    .unwrap();
+
+    let plan = build_export_plan(
+        &store,
+        &root.join("samples"),
+        &root.join("recordings"),
+        &root.join("screen-recordings"),
+        false,
+    )
+    .unwrap();
+    let archived = &plan.bundle.current_state.patch;
+    assert_eq!(archived["kind"], "octessera.patch");
+    assert_eq!(
+        archived["runtimeConfig"]["instruments"][0]["sample"]["assignments"][0]["sampleSlot"],
+        3
+    );
+    assert!(archived["runtimeConfig"]["midi"].get("inId").is_none());
+    assert!(archived["runtimeConfig"]["midi"].get("outId").is_none());
+    assert_eq!(plan.bundle.preferences.values["displayBrightness"], 47);
+    assert!(!plan.bundle.preferences.values.contains_key("midi"));
+    assert!(!plan.bundle.preferences.values.contains_key("usb"));
+    assert!(!plan.bundle.preferences.values.contains_key("audioOutputs"));
+    assert_eq!(
+        plan.bundle.default_state.patch["runtimeConfig"]["instruments"][0]["sample"]["assignments"]
+            [0]["sampleSlot"],
+        5
+    );
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn export_refuses_partial_malformed_and_legacy_store_documents() {
+    let root = root("invalid-split-export");
+    let store = root.join("store");
+    fs::create_dir_all(&store).unwrap();
+    let samples = root.join("samples");
+    let recordings = root.join("recordings");
+    let screen = root.join("screen");
+    assert!(build_export_plan(&store, &samples, &recordings, &screen, false).is_err());
+
+    let documents = playback_runtime::split_system_patch_documents(&canonical_defaults()).unwrap();
+    fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    fs::write(crate::platform_service::default_patch_path(&store), b"{").unwrap();
+    assert!(build_export_plan(&store, &samples, &recordings, &screen, false).is_err());
+
+    fs::write(store.join("default.json"), b"legacy").unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(&store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+    assert!(build_export_plan(&store, &samples, &recordings, &screen, false).is_err());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn archive_round_trip_stages_media_and_rejects_mutation_on_invalid_archive() {
     let root = root("stage");
     let store = root.join("store");
@@ -81,11 +193,7 @@ fn archive_round_trip_stages_media_and_rejects_mutation_on_invalid_archive() {
     let screen_recordings = root.join("screen-recordings");
     fs::create_dir_all(store.join("patches")).unwrap();
     fs::create_dir_all(&samples).unwrap();
-    fs::write(
-        store.join("default.json"),
-        serde_json::to_vec(&canonical_defaults()).unwrap(),
-    )
-    .unwrap();
+    write_split_store(&store, &canonical_defaults());
     fs::write(samples.join("User.wav"), b"sample bytes").unwrap();
     let plan = build_export_plan(&store, &samples, &recordings, &screen_recordings, true).unwrap();
     let archive_path = root.join("bundle.oct");

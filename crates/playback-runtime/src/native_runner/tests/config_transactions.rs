@@ -96,7 +96,7 @@ pub(crate) fn config_envelope_round_trips_without_reinterpreting_state() {
 }
 
 #[test]
-pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
+pub(crate) fn patch_save_and_load_preserve_local_audio_outputs() {
     let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut default_payload = source.config_payload();
     default_payload["runtimeConfig"]["audioOutputs"] = json!({
@@ -105,11 +105,8 @@ pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
         "hdmi": false
     });
 
-    source
-        .apply_store_result(RuntimeStoreResult::LoadDefaultResult {
-            payload: Some(default_payload),
-        })
-        .unwrap();
+    let patch = portable_patch_projection(&default_payload).unwrap();
+    source.apply_patch_payload_preserving_device(patch).unwrap();
     let RuntimePlatformEffect::StoreSaveDefault { payload, .. } = source
         .platform_effect_for_action("default.save")
         .unwrap()
@@ -118,13 +115,13 @@ pub(crate) fn canonical_audio_outputs_survive_default_load_save_reload() {
         panic!("expected default save effect");
     };
 
-    assert_eq!(
-        payload["runtimeConfig"]["audioOutputs"],
-        json!({ "dac": false, "usb": true, "hdmi": false })
-    );
+    assert!(payload["runtimeConfig"].get("audioOutputs").is_none());
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    restored.apply_config_payload(payload).unwrap();
+    restored.audio_outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
+    restored
+        .apply_patch_payload_preserving_device(payload)
+        .unwrap();
     assert_eq!(
         restored.config_payload()["runtimeConfig"]["audioOutputs"],
         json!({ "dac": false, "usb": true, "hdmi": false })

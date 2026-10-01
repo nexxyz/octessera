@@ -149,7 +149,7 @@ impl NativeRunner {
         };
         if self.transport.sync_source != sync_source {
             self.transport.sync_source = sync_source;
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -202,7 +202,7 @@ impl NativeRunner {
                 self.drain_all_layer_engine_notes();
                 self.drain_all_play_transpose_notes();
             }
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -222,7 +222,7 @@ impl NativeRunner {
         };
         let value = value.parse::<u16>().unwrap_or(10).clamp(1, 120);
         if value_changed(&mut self.recording_max_minutes, value) {
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -253,7 +253,7 @@ impl NativeRunner {
                 generation: 0,
                 config,
             });
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -263,7 +263,7 @@ impl NativeRunner {
             return false;
         };
         if value_changed(&mut self.display.ui.display_brightness, value) {
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -273,7 +273,7 @@ impl NativeRunner {
             return false;
         };
         if value_changed(&mut self.display.ui.button_brightness, value) {
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -287,7 +287,7 @@ impl NativeRunner {
             return false;
         };
         if apply(self, value) {
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -301,7 +301,7 @@ impl NativeRunner {
             return false;
         };
         if apply(self, value) {
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -315,7 +315,7 @@ impl NativeRunner {
             return false;
         };
         if apply(self, value) {
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
         }
         true
     }
@@ -476,7 +476,7 @@ impl NativeRunner {
         };
         if self.display.ui.master_volume != master_volume {
             self.display.ui.master_volume = master_volume;
-            self.mark_fast_autosave_dirty();
+            self.mark_system_dirty();
             self.queue_audio_command(RuntimeAudioCommand::SetMasterVolume {
                 generation: 0,
                 volume_pct: f32::from(master_volume),

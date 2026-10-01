@@ -1,6 +1,6 @@
 use super::super::{NativeRunner, NativeRunnerConfig};
 use super::prefix_line;
-use crate::native_menu::{NativeMenuItem, NativeMenuValue};
+use crate::native_menu::{NativeMenuAction, NativeMenuItem, NativeMenuValue};
 use std::time::{Duration, Instant};
 
 const SNAPSHOT_TICK: Duration = Duration::from_millis(33);
@@ -44,6 +44,31 @@ fn auto_mapped_value_rows_keep_turn_prefix_alignment() {
         prefix_line("  Cutoff".into(), Some("1-".into())),
         "1-Cutoff"
     );
+}
+
+#[test]
+fn system_save_and_load_confirmations_render_complete_nineteen_column_details() {
+    for (action_type, detail) in [
+        ("system.save", "Save System"),
+        ("system.load", "Load System"),
+    ] {
+        let mut runner = runner_at(Instant::now());
+        let action = NativeMenuAction::PlatformEffect(action_type.into());
+        runner.display.confirm_dialog = runner.confirmation_for_action(&action);
+        let snapshot = runner.snapshot().unwrap();
+        let lines = snapshot["display"]["lines"].as_array().unwrap();
+
+        assert_eq!(snapshot["display"]["title"], "Confirm System");
+        assert_eq!(lines.len(), 4);
+        assert_eq!(lines[0], detail);
+        assert_eq!(lines[1], "settings?");
+        assert_eq!(lines[2], "> Cancel");
+        assert_eq!(lines[3], "  Confirm");
+        assert!(lines.len() <= 7);
+        assert!(lines
+            .iter()
+            .all(|line| line.as_str().unwrap().chars().count() <= 19));
+    }
 }
 
 #[test]

@@ -17,6 +17,13 @@ impl CoreRunner for TestRunner {
     fn send(&mut self, _message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
         Ok(Vec::new())
     }
+
+    fn send_system_store_result(
+        &mut self,
+        _message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String> {
+        Err("System store result not supported by fake runner".into())
+    }
 }
 
 impl HostAdapter for TestHost {

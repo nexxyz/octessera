@@ -51,7 +51,7 @@ run_provision default
 expect_rc "sc-stock-gadget-repeat" 0
 cmp -s "$TMP/stock-gadget-config" "$FIXTURE/boot/firmware/config.txt"
 mkdir -p "$FIXTURE/home/pi/presets"
-printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/system.json"
 run_provision default
 expect_rc "sc-stock-host" 75
 assert_stock_non_all "$TMP/stock-config-before" "$FIXTURE/boot/firmware/config.txt"
@@ -61,3 +61,35 @@ run_provision default
 expect_rc "sc-stock-host-repeat" 0
 cmp -s "$TMP/stock-host-config" "$FIXTURE/boot/firmware/config.txt"
 pass "exact stock config preserves [cm5] across gadget and host idempotence"
+
+for save_case in missing-system missing-patch symlink-system symlink-patch malformed-patch wrong-patch missing-patch-runtime legacy; do
+  new_fixture
+  case "$save_case" in
+    missing-system) rm "$FIXTURE/home/pi/presets/system.json" ;;
+    missing-patch) rm "$FIXTURE/home/pi/presets/default.patch.json" ;;
+    symlink-system) rm "$FIXTURE/home/pi/presets/system.json"; ln -s outside.json "$FIXTURE/home/pi/presets/system.json" ;;
+    symlink-patch) rm "$FIXTURE/home/pi/presets/default.patch.json"; ln -s outside.json "$FIXTURE/home/pi/presets/default.patch.json" ;;
+    malformed-patch) printf '%s\n' '{broken' > "$FIXTURE/home/pi/presets/default.patch.json" ;;
+    wrong-patch) printf '%s\n' '{"kind":"octessera.config","schemaVersion":2}' > "$FIXTURE/home/pi/presets/default.patch.json" ;;
+    missing-patch-runtime) printf '%s\n' '{"kind":"octessera.patch","schemaVersion":2}' > "$FIXTURE/home/pi/presets/default.patch.json" ;;
+    legacy) printf '%s\n' '{"legacy":"user data"}' > "$FIXTURE/home/pi/presets/default.json" ;;
+  esac
+  case "$save_case" in
+    missing-system|missing-patch|symlink-system|symlink-patch) expected_save_error='Raspberry split save document' ;;
+    malformed-patch|wrong-patch|missing-patch-runtime) expected_save_error='Raspberry default Patch document' ;;
+    legacy) expected_save_error='legacy mixed default' ;;
+  esac
+  before_store="$(find "$FIXTURE/home/pi/presets" -type f -exec sha256sum {} + | sort)"
+  before_boot_config="$(sha256sum "$FIXTURE/boot/firmware/config.txt" | awk '{print $1}')"
+  before_boot_cmdline="$(sha256sum "$FIXTURE/boot/firmware/cmdline.txt" | awk '{print $1}')"
+  run_provision default
+  expect_rc "sc-save-$save_case" 1
+  expect_err_match "sc-save-$save_case" "$expected_save_error"
+  after_store="$(find "$FIXTURE/home/pi/presets" -type f -exec sha256sum {} + | sort)"
+  [[ "$before_store" == "$after_store" ]]
+  [[ "$(sha256sum "$FIXTURE/boot/firmware/config.txt" | awk '{print $1}')" == "$before_boot_config" ]]
+  [[ "$(sha256sum "$FIXTURE/boot/firmware/cmdline.txt" | awk '{print $1}')" == "$before_boot_cmdline" ]]
+  test ! -e "$FIXTURE/etc/systemd/system/octessera.service"
+  test ! -e "$FAKE_STATE/systemctl.log"
+done
+pass "incomplete, malformed, symlinked, and legacy save stores fail before provisioning mutations"

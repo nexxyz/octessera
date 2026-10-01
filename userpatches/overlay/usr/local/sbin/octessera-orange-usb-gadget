@@ -7,7 +7,7 @@ CONFIGFS_ROOT=/sys/kernel/config
 UDC_ROOT=/sys/class/udc
 REQUIRED_UDC=musb-hdrc.4.auto
 LOCK_FILE=/run/lock/octessera-orange-usb-gadget.lock
-CONFIG=/var/lib/octessera/presets/default.json
+CONFIG=/var/lib/octessera/presets/system.json
 DEVICE_CONFIG_VALIDATOR=${OCTESSERA_DEVICE_CONFIG_VALIDATOR:-/usr/local/lib/octessera/device_config.py}
 ACTION=
 MODE=
@@ -21,7 +21,7 @@ Usage:
   $0 teardown [options]
 
 Options:
-  --config <path>         Persisted device config (default: /var/lib/octessera/presets/default.json)
+  --config <path>         Persisted System document (default: /var/lib/octessera/presets/system.json)
   --configfs-root <path>  Configfs mount root (default: /sys/kernel/config)
   --udc-root <path>       UDC sysfs root (default: /sys/class/udc)
   --lock-file <path>      Lifecycle lock path (default: /run/lock/octessera-orange-usb-gadget.lock)
@@ -122,7 +122,7 @@ GADGET=$GADGET_ROOT/$GADGET_NAME
 UDC_PATH=$UDC_ROOT/$UDC
 
 if [ "$ACTION" = teardown ]; then
-    [ "$CONFIG" = /var/lib/octessera/presets/default.json ] || die "--config is valid only for setup"
+    [ "$CONFIG" = /var/lib/octessera/presets/system.json ] || die "--config is valid only for setup"
 fi
 
 read_device_config() {

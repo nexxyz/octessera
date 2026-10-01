@@ -40,13 +40,6 @@ pub(crate) fn dispatch(
             failure_style,
             "Preset list".into(),
         )),
-        RuntimePlatformEffect::StoreLoadPreset { name } => Some(enqueue(
-            service,
-            request,
-            PlatformJobKind::LoadPreset { name: name.clone() },
-            failure_style,
-            preset_operation(failure_style, format!("Load {name}"), "Load preset"),
-        )),
         RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => Some(enqueue(
             service,
             request,

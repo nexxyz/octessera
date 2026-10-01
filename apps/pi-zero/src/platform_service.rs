@@ -31,8 +31,12 @@ pub(crate) mod platform_native_persistence;
 mod platform_result_lane;
 #[path = "platform_service_dispatcher.rs"]
 mod platform_service_dispatcher;
+#[path = "platform_service_document_store.rs"]
+mod platform_service_document_store;
 #[path = "platform_service_executor.rs"]
 mod platform_service_executor;
+#[path = "platform_service_load_admission.rs"]
+mod platform_service_load_admission;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[path = "platform_service_orange_apply.rs"]
 mod platform_service_orange_apply;
@@ -64,9 +68,14 @@ use platform_service_executor::handle_job;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[cfg(test)]
 use platform_service_executor::usb_storage_message;
+use platform_service_load_admission::LegacyPatchWrites;
 #[cfg(test)]
 use platform_service_store::delete_preset_payload;
-pub(crate) use platform_service_store::{list_presets, load_json, preset_patch_path, save_json};
+pub(crate) use platform_service_store::{
+    current_patch_path, default_patch_path, list_presets, load_current_patch, load_json,
+    load_recovery_patch, preset_patch_path, recovery_patch_path, save_json,
+    validate_named_preset_document, validate_patch_document,
+};
 pub(crate) use system_info::{regular_wlan0_ipv4, RegularWlan0Ipv4};
 const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
@@ -86,6 +95,11 @@ pub struct PiPlatformService {
     result_lane: Arc<PlatformResultLane>,
     store_lock: Arc<Mutex<()>>,
     store_write_barrier: StoreWriteBarrier,
+    legacy_patch_writes: Arc<Mutex<LegacyPatchWrites>>,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    role_applier: UsbRoleApplier,
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    storage_state: PathBuf,
     native_default_write: Mutex<Option<NativeStoreRequest>>,
     native_preset_write: Mutex<Option<NativePresetWrite>>,
     setup_portal: SetupPortalService,
@@ -196,6 +210,7 @@ impl PiPlatformService {
         let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
         let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
         let result_lane = Arc::new(PlatformResultLane::new(results_tx));
+        let legacy_patch_writes = Arc::new(Mutex::new(LegacyPatchWrites::default()));
         let worker_store_dir = store_dir.clone();
         let setup_portal_stop = Arc::new(AtomicBool::new(false));
         setup_portal_worker::spawn(
@@ -203,15 +218,23 @@ impl PiPlatformService {
             setup_portal.clone(),
             setup_portal_stop.clone(),
         );
-        platform_service_worker::spawn(
-            worker_store_dir,
+        let platform_service_worker::PlatformWorkerConfig {
+            update_executor,
+            role_applier,
+            storage_state,
+        } = worker_config;
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let _ = (role_applier, storage_state);
+        platform_service_worker::spawn(platform_service_worker::PlatformWorkerContext {
+            store_dir: worker_store_dir,
             samples_dir,
-            jobs_rx,
-            result_lane.clone(),
-            store_lock.clone(),
-            store_write_barrier.clone(),
-            worker_config,
-        );
+            jobs: jobs_rx,
+            results: result_lane.clone(),
+            store_lock: store_lock.clone(),
+            store_write_barrier: store_write_barrier.clone(),
+            legacy_patch_writes: legacy_patch_writes.clone(),
+            update_executor,
+        });
         Self {
             store_dir,
             jobs: jobs_tx,
@@ -221,6 +244,11 @@ impl PiPlatformService {
             result_lane,
             store_lock,
             store_write_barrier,
+            legacy_patch_writes,
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            role_applier,
+            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            storage_state,
             native_default_write: Mutex::new(None),
             native_preset_write: Mutex::new(None),
             setup_portal,
@@ -262,22 +290,6 @@ impl PiPlatformService {
         )
     }
 
-    pub fn save_recovery_now(&self, payload: &serde_json::Value) -> Result<(), String> {
-        let _guard = self
-            .store_lock
-            .lock()
-            .map_err(|_| "pi store is unavailable".to_string())?;
-        save_json(&self.store_dir.join("recovery-save.json"), payload)
-    }
-
-    pub(crate) fn load_default_now(&self) -> Result<Option<serde_json::Value>, String> {
-        let _guard = self
-            .store_lock
-            .lock()
-            .map_err(|_| "pi store is unavailable".to_string())?;
-        load_json(&self.store_dir.join("default.json"))
-    }
-
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn apply_device_config(&self, payload: &serde_json::Value) -> Result<(), String> {
         let generation = self.store_write_barrier.current_generation();
@@ -291,10 +303,27 @@ impl PiPlatformService {
         if generation != self.store_write_barrier.current_generation() {
             return Err("store write was superseded by restore".into());
         }
-        crate::rpi_device_apply::apply_locked(&self.store_dir, payload)
+        crate::rpi_device_apply::apply_locked(
+            &self.store_dir,
+            payload,
+            &self.storage_state,
+            self.role_applier.as_ref(),
+        )
     }
 
     pub fn enqueue(&self, mut job: PlatformJob) -> Result<(), String> {
+        let _store_guard = if matches!(
+            job.kind,
+            PlatformJobKind::SaveDefault { .. } | PlatformJobKind::SavePreset { .. }
+        ) {
+            Some(
+                self.store_lock
+                    .lock()
+                    .map_err(|_| "pi store is unavailable".to_string())?,
+            )
+        } else {
+            None
+        };
         if job.kind.is_store_write() {
             if self.store_write_barrier.is_blocked() {
                 return Err("restore is awaiting restored-state acknowledgement".into());
@@ -303,11 +332,29 @@ impl PiPlatformService {
                 job.store_write_generation = Some(self.store_write_barrier.current_generation());
             }
         }
+        let write_kind = match &job.kind {
+            PlatformJobKind::SaveDefault { .. } => Some(false),
+            PlatformJobKind::SavePreset { .. } => Some(true),
+            _ => None,
+        };
+        if let Some(named) = write_kind {
+            self.legacy_patch_writes
+                .lock()
+                .map_err(|_| "pi store write state is unavailable".to_string())?
+                .increment(named);
+        }
         self.jobs
             .try_send(PlatformWorkItem::Legacy(job))
-            .map_err(|error| match error {
-                TrySendError::Full(_) => "pi platform service queue is full".to_string(),
-                TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
+            .map_err(|error| {
+                if let Some(named) = write_kind {
+                    if let Ok(mut pending) = self.legacy_patch_writes.lock() {
+                        pending.decrement(named);
+                    }
+                }
+                match error {
+                    TrySendError::Full(_) => "pi platform service queue is full".to_string(),
+                    TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
+                }
             })
     }
 
@@ -376,9 +423,6 @@ pub struct PlatformJob {
 
 pub enum PlatformJobKind {
     ListPresets,
-    LoadPreset {
-        name: String,
-    },
     SavePreset {
         name: String,
         payload: serde_json::Value,

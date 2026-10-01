@@ -37,6 +37,8 @@ export const RUNTIME_OPERATIONS = [
   "store_save_preset",
   "store_delete_preset",
   "store_load_default",
+  "store_load_system",
+  "store_save_system",
   "store_save_default",
   "store_save_backup",
   "store_save_recovery",

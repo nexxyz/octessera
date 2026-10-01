@@ -303,13 +303,6 @@ pub(crate) fn finish_platform_result(
                         "native default result is missing its revision",
                     );
                 };
-                if prepared.get("revision").and_then(Value::as_u64) != Some(revision) {
-                    return malformed_current(
-                        service,
-                        &current,
-                        "native default prepared payload has the wrong revision",
-                    );
-                }
                 if !runner.attach_native_default_write_payload(request_id, revision, prepared) {
                     return malformed_current(
                         service,

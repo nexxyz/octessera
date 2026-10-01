@@ -262,11 +262,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
     });
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::LoadDefaultResult {
-                payload: Some(payload),
-            },
-        })
+        .apply_patch_payload_preserving_device(portable_patch_projection(&payload).unwrap())
         .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
 

@@ -60,10 +60,10 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         &mut fixture.host,
     )
     .unwrap();
-    assert!(!fixture.root.join("store/default.json").exists());
+    assert!(!fixture.root.join("store/default.patch.json").exists());
     let mut profiler = crate::ui_profile::UiProfiler::from_controls(None, false);
     let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline && !fixture.root.join("store/default.json").exists() {
+    while Instant::now() < deadline && !fixture.root.join("store/default.patch.json").exists() {
         super::super::super::host_work::flush_native_persistence(
             &mut fixture.playback,
             &mut fixture.runner,
@@ -80,7 +80,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         std::thread::sleep(Duration::from_millis(2));
     }
     assert!(
-        crate::platform_service::load_json(&fixture.root.join("store/default.json"))
+        crate::platform_service::load_json(&fixture.root.join("store/default.patch.json"))
             .unwrap()
             .is_some()
     );

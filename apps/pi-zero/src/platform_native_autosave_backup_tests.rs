@@ -29,7 +29,7 @@ fn backup_only_remains_due_while_default_write_is_pending_without_acknowledging_
         results[0].operation(),
         RuntimeOperation::StoreSaveBackup
     ));
-    assert!(!root.join("store/default.json").exists());
+    assert!(!root.join("store/default.patch.json").exists());
     let backup_dir = root.join("store/backups");
     assert_eq!(std::fs::read_dir(backup_dir).unwrap().count(), 1);
     assert!(runner.persistence_intent_at(due).is_none());
@@ -80,7 +80,7 @@ fn backup_due_during_continuous_edits_does_not_wait_for_default_coalescing() {
         result[0].operation(),
         RuntimeOperation::StoreSaveBackup
     ));
-    assert!(!root.join("store/default.json").exists());
+    assert!(!root.join("store/default.patch.json").exists());
     assert_eq!(
         std::fs::read_dir(root.join("store/backups"))
             .unwrap()

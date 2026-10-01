@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"
 STAGER = ROOT / "tools/armbian-image/stage-device-config.py"
+OVERLAY = ROOT / "userpatches/overlay/usr/local/lib/octessera/device_config.py"
 
 
 def load(path, name):
@@ -24,7 +25,8 @@ def load(path, name):
 def test_helper(path, index):
     helper = load(path, f"device_config_{index}")
     with tempfile.TemporaryDirectory() as directory:
-        config = Path(directory) / "default.json"
+        config = Path(directory) / "system.json"
+        system = lambda runtime: {"kind": "octessera.system", "schemaVersion": 1, "runtimeConfig": runtime}
         cases = (
             ({"dac": True, "usb": False, "hdmi": False}, False, (True, False, False, False)),
             ({"dac": True, "usb": True, "hdmi": False}, True, (True, True, False, True)),
@@ -32,23 +34,26 @@ def test_helper(path, index):
             ({"dac": True, "usb": True, "hdmi": True}, True, (True, True, True, True)),
         )
         for audio, midi, expected in cases:
-            config.write_text(json.dumps({"runtimeConfig": {"audioOutputs": audio, "usb": {"midiOutEnabled": midi, "dataRole": "gadget"}}}), encoding="utf-8")
+            config.write_text(json.dumps(system({"audioOutputs": audio, "usb": {"midiOutEnabled": midi, "dataRole": "gadget"}})), encoding="utf-8")
             assert tuple(helper.load_config(config).values()) == expected
 
         invalid = (
             {},
-            {"runtimeConfig": {}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": []}},
-            {"runtimeConfig": {"usb": {"midiOutEnabled": False}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": False, "usb": False, "hdmi": False}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": False, "usb": True, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "gadget"}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False, "extra": False}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"unexpected": True}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"dataRole": "gadget"}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"midiOutEnabled": False}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": 1}}},
-            {"runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": 1}}},
+            {},
+            {"kind": "octessera.config", "schemaVersion": 2, "runtimeConfig": {}},
+            {"kind": "octessera.system", "schemaVersion": 2, "runtimeConfig": {}},
+            system({}),
+            system({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}}),
+            system({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": []}),
+            system({"usb": {"midiOutEnabled": False}}),
+            system({"audioOutputs": {"dac": False, "usb": False, "hdmi": False}}),
+            system({"audioOutputs": {"dac": False, "usb": True, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "gadget"}}),
+            system({"audioOutputs": {"dac": True, "usb": False, "hdmi": False, "extra": False}}),
+            system({"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"unexpected": True}}),
+            system({"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"dataRole": "gadget"}}),
+            system({"audioOutputs": {"dac": True, "usb": True, "hdmi": False}, "usb": {"midiOutEnabled": False}}),
+            system({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": 1}}),
+            system({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": 1}}),
         )
         for payload in invalid:
             config.write_text(json.dumps(payload), encoding="utf-8")
@@ -64,7 +69,7 @@ def test_helper(path, index):
             ({"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "host"}}, "host"),
         )
         for runtime, expected in role_cases:
-            config.write_text(json.dumps({"runtimeConfig": runtime}), encoding="utf-8")
+            config.write_text(json.dumps(system(runtime)), encoding="utf-8")
             assert helper.load_data_role(config) == expected
             result = subprocess.run([sys.executable, str(path), str(config)], capture_output=True, text=True, check=True)
             assert result.stdout.strip() == "0 0"
@@ -82,7 +87,7 @@ def test_helper(path, index):
             else:
                 raise AssertionError(runtime)
 
-        config.write_text('{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"audioOutputs":{"dac":true,"usb":false,"hdmi":false}}}', encoding="utf-8")
+        config.write_text('{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"audioOutputs":{"dac":true,"usb":false,"hdmi":false}}}', encoding="utf-8")
         try:
             helper.load_config(config)
         except helper.ConfigError:
@@ -97,5 +102,6 @@ with tempfile.TemporaryDirectory() as staging:
     assert SOURCE.read_bytes() == staged.read_bytes()
     test_helper(SOURCE, 0)
     test_helper(staged, 1)
+    test_helper(OVERLAY, 2)
 
 print("strict device config validator tests passed")

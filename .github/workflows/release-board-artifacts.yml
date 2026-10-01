@@ -240,6 +240,17 @@ jobs:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
       - run: test "$(git rev-parse HEAD)" = "${{ inputs.source_sha }}"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Project Raspberry save documents
+        run: |
+          set -euo pipefail
+          mkdir -p target/save-documents
+          cargo run --locked -p playback-runtime --bin split_default_config -- \
+            config/generated/pi/default.json target/save-documents/pi
+          for document in system.json default.patch.json; do
+            test -f "target/save-documents/pi/$document"
+            test ! -L "target/save-documents/pi/$document"
+          done
       - uses: actions/download-artifact@v4
         with:
           name: octessera-raspberry-runtime

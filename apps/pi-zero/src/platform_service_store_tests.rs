@@ -131,3 +131,197 @@ fn store_job_waits_for_store_lock() {
     assert!(found);
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn default_load_rejects_queued_legacy_save_without_cancelling_it() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-default-load-pending-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let store = root.join("store");
+    let service = PiPlatformService::new(store.clone(), root.join("samples"));
+    std::fs::create_dir_all(&store).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
+    let mut prior = documents.patch.clone();
+    prior["runtimeConfig"]["bpm"] = serde_json::json!(90);
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&prior).unwrap(),
+    )
+    .unwrap();
+    let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+    let (release_tx, release_rx) = mpsc::channel();
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "gate".into(),
+                None,
+            ),
+            PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+    let mut payload = documents.patch;
+    payload["runtimeConfig"]["bpm"] = serde_json::json!(111);
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::StoreSaveDefault {
+                    payload: payload.clone(),
+                    mode: None,
+                },
+                "default-save".into(),
+                None,
+            ),
+            PlatformJobKind::SaveDefault {
+                payload: payload.clone(),
+                is_auto: None,
+            },
+        ))
+        .unwrap();
+    assert_eq!(
+        service.load_default_now().unwrap_err(),
+        "Save pending, try again"
+    );
+    assert_eq!(
+        load_json(&store.join("default.patch.json")).unwrap(),
+        Some(prior)
+    );
+    assert_eq!(
+        service.load_system_now().unwrap(),
+        Some(documents.system),
+        "System Load must not be blocked by a patch save"
+    );
+    release_tx.send(()).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut completed = false;
+    while std::time::Instant::now() < deadline && !completed {
+        completed = service.drain_results(4).iter().any(|message| {
+            matches!(
+                message,
+                HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::Identified { request_id, result, .. }
+                } if request_id == "default-save"
+                    && matches!(result.as_ref(), RuntimeStoreResult::SaveDefaultResult { ok: true, .. })
+            )
+        });
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    assert!(completed);
+    assert_eq!(
+        load_json(&store.join("default.patch.json")).unwrap(),
+        Some(payload)
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn named_preset_load_rejects_queued_named_save_without_cancelling_it() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-preset-load-pending-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let store = root.join("store");
+    let service = PiPlatformService::new(store.clone(), root.join("samples"));
+    std::fs::create_dir_all(store.join("patches")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    let mut prior = documents.patch.clone();
+    prior["runtimeConfig"]["bpm"] = serde_json::json!(90);
+    std::fs::write(
+        store.join("patches").join("preset.json"),
+        serde_json::to_vec(&prior).unwrap(),
+    )
+    .unwrap();
+    let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+    let (release_tx, release_rx) = mpsc::channel();
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "gate".into(),
+                None,
+            ),
+            PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+    let mut payload = documents.patch;
+    payload["runtimeConfig"]["bpm"] = serde_json::json!(111);
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::StoreSavePreset {
+                    name: "preset".into(),
+                    payload: payload.clone(),
+                    mode: None,
+                },
+                "preset-save".into(),
+                None,
+            ),
+            PlatformJobKind::SavePreset {
+                name: "preset".into(),
+                payload: payload.clone(),
+            },
+        ))
+        .unwrap();
+    assert_eq!(
+        service.load_preset_now("preset").unwrap_err(),
+        "Save pending, try again"
+    );
+    release_tx.send(()).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut completed = false;
+    while std::time::Instant::now() < deadline && !completed {
+        completed = service.drain_results(4).iter().any(|message| {
+            matches!(
+                message,
+                HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::Identified { request_id, result, .. }
+                } if request_id == "preset-save"
+                    && matches!(result.as_ref(), RuntimeStoreResult::SavePresetResult { .. })
+            )
+        });
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    assert!(completed);
+    assert_eq!(
+        load_json(&preset_patch_path(&store, "preset").unwrap()).unwrap(),
+        Some(payload)
+    );
+    let _ = std::fs::remove_dir_all(root);
+}

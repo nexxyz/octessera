@@ -43,23 +43,69 @@ fn changed_buffer_runner(auto_save: bool) -> NativeRunner {
 }
 
 fn choose_save_everything(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
-    turn(runner, 2);
+    let delta = if runner
+        .display
+        .confirm_dialog
+        .as_ref()
+        .is_some_and(|dialog| dialog.options.len() == 3)
+    {
+        2
+    } else {
+        1
+    };
+    turn(runner, delta);
     press(runner)
 }
 
 fn send_identified_save_result(
     runner: &mut NativeRunner,
     request_id: &str,
-    revision: u64,
+    _revision: u64,
     ok: bool,
 ) -> Vec<RunnerMessage> {
+    if runner
+        .restart_settings
+        .pending_write_scope()
+        .is_some_and(|scope| scope.is_restart())
+    {
+        send_system_apply_result(runner, request_id, ok)
+    } else {
+        runner.register_default_write_request(request_id, None);
+        runner
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::SaveDefaultResult { ok, is_auto: None }
+                    .with_identity(request_id.into(), None),
+            })
+            .unwrap()
+    }
+}
+
+fn system_apply_request(runner: &mut NativeRunner, request_id: &str) -> RuntimePlatformRequest {
+    let payload = runner
+        .restart_settings
+        .pending_write_payload()
+        .expect("System Apply payload");
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreSaveSystem {
+            payload: payload.as_ref().clone(),
+        },
+        request_id.into(),
+        None,
+    );
+    runner.register_platform_request(&request);
+    request
+}
+
+fn send_system_apply_result(
+    runner: &mut NativeRunner,
+    request_id: &str,
+    ok: bool,
+) -> Vec<RunnerMessage> {
+    let request = system_apply_request(runner, request_id);
     runner
         .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified {
-                result: Box::new(RuntimeStoreResult::SaveDefaultResult { ok, is_auto: None }),
-                request_id: request_id.into(),
-                revision: Some(revision),
-            },
+            result: RuntimeStoreResult::SaveSystemResult { ok }
+                .with_identity(request.request_id, request.revision),
         })
         .unwrap()
 }
@@ -79,6 +125,7 @@ fn assert_menu_lines_fit(runner: &NativeRunner) {
 #[derive(Default)]
 struct ImmediateFailureHost {
     default_save_calls: usize,
+    system_save_calls: usize,
 }
 
 impl HostAdapter for ImmediateFailureHost {
@@ -95,7 +142,13 @@ impl HostAdapter for ImmediateFailureHost {
             RuntimePlatformEffect::StoreSaveDefault { .. }
         ) {
             self.default_save_calls += 1;
-            Err(RuntimeAdapterError::from("default save failed immediately"))
+            Err(RuntimeAdapterError::from("Patch save failed immediately"))
+        } else if matches!(
+            request.effect,
+            RuntimePlatformEffect::StoreSaveSystem { .. }
+        ) {
+            self.system_save_calls += 1;
+            Err(RuntimeAdapterError::from("System save failed immediately"))
         } else {
             Ok(Vec::new())
         }
@@ -127,7 +180,7 @@ fn start_ordinary_default_write(runner: &mut NativeRunner, request_id: &str) -> 
     turn(runner, 1);
     press(runner);
     let revision = runner.restart_settings.pending_write_revision().unwrap();
-    runner.register_default_write_request(request_id, Some(revision));
+    runner.register_default_write_request(request_id, None);
     revision
 }
 
@@ -140,13 +193,20 @@ fn restart_save_waits_for_pending_ordinary_write_without_overwriting_it() {
     let _ = press(&mut runner);
 
     let snapshot = runner.snapshot().unwrap();
+    assert_eq!(snapshot["display"]["title"], "Apply System");
     assert!(!snapshot["display"]["lines"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save this setting"));
+        .any(|line| line == "  Save this one"));
     assert!(runner.restart_settings.has_pending_write());
-    let _ = choose_save_everything(&mut runner);
+    let blocked_apply = choose_save_everything(&mut runner);
+    assert!(!blocked_apply.iter().any(|message| matches!(message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects.iter().any(|effect| matches!(effect,
+                RuntimePlatformEffect::StoreSaveSystem { .. }
+            ))
+    )));
     assert_eq!(
         runner.restart_settings.pending_write_revision(),
         Some(ordinary_revision)
@@ -157,11 +217,11 @@ fn restart_save_waits_for_pending_ordinary_write_without_overwriting_it() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save this setting"));
+        .any(|line| line == "  Save this one"));
     let messages = choose_save_everything(&mut runner);
     assert_eq!(messages
         .iter()
-        .filter(|message| matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. } if mode == "restart-everything"))))
+        .filter(|message| matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveSystem { .. }))))
         .count(), 1);
 }
 
@@ -186,101 +246,30 @@ fn restart_cancel_does_not_cancel_pending_ordinary_write() {
 }
 
 #[test]
-fn pending_deferred_write_survives_restart_edit_and_starts_one_restart_save() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.auto_save_default = true;
-    enter_edit(&mut runner, "transport.bpm");
-    turn(&mut runner, 1);
-    runner.make_deferred_menu_apply_due_for_test();
-    let deferred = runner.flush_deferred_menu_apply().unwrap();
-    assert!(deferred.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. } if mode == "deferred"))
-    )));
-    let revision = runner.restart_settings.pending_write_revision().unwrap();
-    runner.register_default_write_request("deferred-1", Some(revision));
-
-    enter_edit(&mut runner, "sound.audioOutputBufferFrames");
-    turn(&mut runner, 1);
-    let _ = press(&mut runner);
-    let snapshot = runner.snapshot().unwrap();
-    assert_eq!(snapshot["display"]["title"], "/SYS/Audio/Engine");
-    assert!(runner.display.confirm_dialog.is_none());
-    runner.make_deferred_menu_apply_due_for_test();
-    let deferred = runner.flush_deferred_menu_apply().unwrap();
-    assert!(!deferred.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { .. }))
-    )));
-    back(&mut runner);
-    assert!(runner.restart_settings.has_pending_write());
-
-    let messages = send_identified_save_result(&mut runner, "deferred-1", revision, true);
-    let follow_up_revision = runner.restart_settings.pending_write_revision().unwrap();
-    assert_eq!(
-        messages
-            .iter()
-            .filter(|message| matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. } if mode == "deferred"))))
-            .count(),
-        0
-    );
-    assert_eq!(
-        messages
-            .iter()
-            .filter(|message| matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. } if mode == "restart-everything"))))
-            .count(),
-        1
-    );
-    runner.register_default_write_request("deferred-2", Some(follow_up_revision));
-    let messages = send_identified_save_result(&mut runner, "deferred-2", follow_up_revision, true);
-    assert!(!runner.restart_settings.has_pending_write());
-    assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Restart?");
-    assert!(!messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { .. }))
-    )));
-}
-
-#[test]
 fn restart_results_require_the_unique_identified_transaction() {
     let mut runner = changed_buffer_runner(true);
-    let messages = press(&mut runner);
-    let revision = runner.restart_settings.pending_write_revision().unwrap();
-    assert!(messages.iter().any(|message| matches!(
-        message,
+    let _ = press(&mut runner);
+    let messages = choose_save_everything(&mut runner);
+    assert!(messages.iter().any(|message| matches!(message,
         RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. } if mode == "restart-everything"))
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveSystem { .. }))
     )));
-    runner.register_default_write_request("restart-1", Some(revision));
+    let request = system_apply_request(&mut runner, "restart-1");
+    assert!(runner.restart_settings.has_pending_write());
+    assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Saving...");
 
-    runner
+    let _ = runner
         .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveDefaultResult {
-                ok: true,
-                is_auto: Some(true),
-            },
+            result: RuntimeStoreResult::SaveSystemResult { ok: false }
+                .with_identity("wrong-id".into(), request.revision),
         })
         .unwrap();
     assert!(runner.restart_settings.has_pending_write());
     assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Saving...");
-
-    send_identified_save_result(&mut runner, "wrong-id", revision, false);
-    assert!(runner.restart_settings.has_pending_write());
-    assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Saving...");
-    let stale_revision = revision.saturating_sub(1);
-    runner
+    let _ = runner
         .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified {
-                result: Box::new(RuntimeStoreResult::SaveDefaultResult {
-                    ok: false,
-                    is_auto: Some(true),
-                }),
-                request_id: "restart-1".into(),
-                revision: Some(stale_revision),
-            },
+            result: RuntimeStoreResult::SaveSystemResult { ok: false }
+                .with_identity("restart-1".into(), Some(1)),
         })
         .unwrap();
     assert!(runner.restart_settings.has_pending_write());
@@ -292,9 +281,19 @@ fn restart_results_require_the_unique_identified_transaction() {
             if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { .. }))
     )));
 
-    let _ = send_identified_save_result(&mut runner, "restart-1", revision, true);
+    let _ = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveSystemResult { ok: true }
+                .with_identity(request.request_id.clone(), request.revision),
+        })
+        .unwrap();
     assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Restart?");
-    let duplicate = send_identified_save_result(&mut runner, "restart-1", revision, true);
+    let duplicate = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveSystemResult { ok: true }
+                .with_identity(request.request_id, request.revision),
+        })
+        .unwrap();
     assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Restart?");
     assert!(!duplicate.iter().any(|message| matches!(
         message,
@@ -324,12 +323,12 @@ fn invalid_audio_baseline_omits_setting_only_save() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save this setting"));
+        .any(|line| line == "  Save this one"));
     let messages = choose_save_everything(&mut runner);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. } if mode == "restart-everything"))
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveSystem { .. }))
     )));
 }
 
@@ -348,9 +347,7 @@ fn restart_dialogs_and_sound_rows_fit_the_oled_body() {
     let messages = press(&mut runner);
     assert_dialog_lines_fit(&snapshot_from(&messages));
     let _ = choose_save_everything(&mut runner);
-    let revision = runner.restart_settings.pending_write_revision().unwrap();
-    runner.register_default_write_request("fit-1", Some(revision));
-    let messages = send_identified_save_result(&mut runner, "fit-1", revision, true);
+    let messages = send_system_apply_result(&mut runner, "fit-1", true);
     assert_dialog_lines_fit(&snapshot_from(&messages));
 }
 
@@ -380,7 +377,7 @@ fn back_during_save_and_restart_choice_only_cancels_restart_ui() {
 }
 
 #[test]
-fn immediate_default_save_adapter_failure_exits_saving() {
+fn immediate_system_apply_adapter_failure_exits_saving() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut host = ImmediateFailureHost::default();
@@ -416,6 +413,7 @@ fn immediate_default_save_adapter_failure_exits_saving() {
 
     assert!(runner.display.confirm_dialog.is_none());
     assert!(!runner.restart_settings.has_pending_write());
+    assert_eq!(host.system_save_calls, 1);
     assert!(output.messages.iter().any(|message| matches!(
         message,
         RunnerMessage::RuntimeStatus { status } if status.error.is_some()

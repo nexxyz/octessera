@@ -299,6 +299,9 @@ fn raspberry_power_request_requires_recovery_save_before_acceptance() {
     std::fs::create_dir_all(&root).unwrap();
     std::fs::create_dir_all(root.join("store")).unwrap();
     std::fs::create_dir_all(root.join("samples")).unwrap();
+    let full: serde_json::Value =
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
+    let documents = crate::pi_store_test_support::write_pair(&root.join("store"), &full);
     let mut adapter = PiPlaybackHostAdapter::new(
         None,
         root.join("store"),
@@ -313,7 +316,7 @@ fn raspberry_power_request_requires_recovery_save_before_acceptance() {
 
     let recovery = RuntimePlatformRequest::new(
         RuntimePlatformEffect::StoreSaveRecovery {
-            payload: serde_json::json!({"runtimeConfig": {}}),
+            payload: documents.patch,
         },
         "recovery".into(),
         None,

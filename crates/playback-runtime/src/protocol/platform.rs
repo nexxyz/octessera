@@ -24,6 +24,10 @@ pub enum RuntimePlatformEffect {
         #[serde(default)]
         mode: Option<String>,
     },
+    StoreLoadSystem,
+    StoreSaveSystem {
+        payload: Value,
+    },
     StoreSaveBackup {
         payload: Value,
     },
@@ -85,6 +89,8 @@ impl RuntimePlatformEffect {
             Self::StoreDeletePreset { .. } => RuntimeOperation::StoreDeletePreset,
             Self::StoreLoadDefault => RuntimeOperation::StoreLoadDefault,
             Self::StoreSaveDefault { .. } => RuntimeOperation::StoreSaveDefault,
+            Self::StoreLoadSystem => RuntimeOperation::StoreLoadSystem,
+            Self::StoreSaveSystem { .. } => RuntimeOperation::StoreSaveSystem,
             Self::StoreSaveBackup { .. } => RuntimeOperation::StoreSaveBackup,
             Self::StoreSaveRecovery { .. } => RuntimeOperation::StoreSaveRecovery,
             Self::MidiListOutputsRequest => RuntimeOperation::MidiListOutputs,
@@ -150,6 +156,8 @@ impl RuntimePlatformEffect {
             | Self::StoreDeletePreset { .. }
             | Self::StoreLoadDefault
             | Self::StoreSaveDefault { .. }
+            | Self::StoreLoadSystem
+            | Self::StoreSaveSystem { .. }
             | Self::StoreSaveBackup { .. }
             | Self::StoreSaveRecovery { .. } => RuntimeErrorDomain::Storage,
             Self::SystemInfoRequest => RuntimeErrorDomain::Runtime,

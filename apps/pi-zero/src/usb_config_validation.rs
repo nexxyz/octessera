@@ -24,7 +24,7 @@ pub(crate) fn validate_pi_audio_outputs_payload(payload: &serde_json::Value) -> 
     Ok(())
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) fn validate_raspberry_usb_payload(payload: &serde_json::Value) -> Result<(), String> {
     crate::usb_config::parse_usb_runtime_config(payload)
         .map(|_| ())

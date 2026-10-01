@@ -29,7 +29,7 @@ pub(crate) fn requested() -> bool {
 pub(super) fn options_from_env_and_args() -> Result<TimingProbeOptions, String> {
     let mut options = TimingProbeOptions {
         realtime: true,
-        config: default_config_path(),
+        config: default_patch_path(),
         ..TimingProbeOptions::default()
     };
     if let Ok(value) = std::env::var("OCTESSERA_PI_TIMING_PROBE_DURATIONS") {
@@ -183,8 +183,8 @@ fn audio_drain_interval() -> Duration {
     Duration::from_millis(millis)
 }
 
-fn default_config_path() -> Option<String> {
-    let path: PathBuf = default_store_dir().join("default.json");
+fn default_patch_path() -> Option<String> {
+    let path: PathBuf = default_store_dir().join("default.patch.json");
     path.exists().then(|| path.to_string_lossy().into_owned())
 }
 

@@ -1,8 +1,12 @@
 # Data backup and restore
 
-Use `System > Setup > Backup / Restore` on a Pi before reflashing. It moves your
-Octessera settings, patches, and other user data from one installation to
-another.
+Use `System > Setup > Backup / Restore` on a Pi before reflashing. The `.oct`
+archive carries music, selected portable preferences such as brightness, and
+optionally user media.
+It is not a complete System backup or a device clone: USB role, MIDI/audio
+endpoint IDs, and favourite folders stay with the destination instrument.
+System settings are saved separately with `System > Saves > System > Save
+System`; rolling saves and recovery backups protect the musical patch only.
 
 ## Back up your data
 
@@ -23,6 +27,11 @@ another.
    downloaded `octessera-user-data.oct` somewhere safe before removing or
    flashing the source card.
 
+   A patch that assigns a local or SD-card sample cannot go into a portable
+   `.oct` archive, even with `media=1`. Export refuses that patch instead of
+   silently dropping its assignment. Keep a separate copy of those WAVs; use
+   shipped-library samples when you want the patch itself to travel.
+
 If no regular network address is available, the action cannot start. **Back**
 hides the Ready card while the transfer remains available. Choose **> Stop service**
 when you are finished; the code also expires automatically.
@@ -32,8 +41,8 @@ when you are finished; the code also expires automatically.
 Restoring replaces the destination's current user data. Export it first if
 there is anything on the fresh board you want to keep.
 
-1. Export from the old board before flashing it. Include media if you need custom
-   samples or saved recordings.
+1. Export from the old board before flashing it. Include media for supported
+   extra files and saved recordings; see the local-sample warning above.
 2. Save `octessera-user-data.oct` somewhere off the board.
 3. Flash the matching Raspberry or Orange image and complete its normal first
    boot and network setup.
@@ -50,12 +59,17 @@ there is anything on the fresh board you want to keep.
    cancel. During the restore, the OLED shows `Restoring...` and `Please wait`,
    and normal input is blocked.
 6. Wait for the final result before stopping the service or powering down. An
-   invalid or failed restore leaves the existing data in place.
+   invalid upload or a failure before applying it leaves the destination data
+   in place. If reloading fails after the store tree is replaced, the
+   instrument reports failure and blocks saves; it does not automatically
+   roll back to the old tree. Keep your source card and downloaded archive.
 
 Never remove power, the storage card, or the board's microSD card during a
 transfer or restore. Do not erase the source card until the backup file is
 downloaded and safely stored.
 
-The `System > Saves > Default > Backups` setting is a separate rolling local
-backup. The OLED SD2 `octessera/saves` directory is also separate; copy it
-manually when you want to preserve those files.
+`System > Saves > Default > Backups` controls rolling local patch backups, not
+System settings. Keep a separate copy of any device settings you need to record;
+the `.oct` archive is portable by design, not a full instrument clone. The OLED
+SD2 `octessera/saves` directory is also separate; copy it manually when you
+want to preserve those files.

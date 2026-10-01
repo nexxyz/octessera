@@ -70,7 +70,7 @@ pub(crate) fn rolling_backups_false_suppresses_backup_effects() {
 pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
-    assert!(runner.menu.focus_item_key("masterVolume"));
+    assert!(runner.menu.focus_item_key("transport.bpm"));
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_press", "id": "main" }),
         request_snapshot: None,
@@ -86,6 +86,10 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
         input: json!({ "type": "encoder_turn", "delta": -20, "id": "main" }),
         request_snapshot: None,
     });
+    assert!(runner.config_dirty);
+    assert!(runner.auto_save_default);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+    assert!(!runner.restart_settings.has_pending_write());
 
     assert!(!messages.iter().any(|message| matches!(
         message,
@@ -114,11 +118,8 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
             }
             _ => None,
         })
-        .expect("deferred save payload");
-    assert_eq!(
-        saved_payload["runtimeConfig"]["masterVolume"],
-        runner.display.ui.master_volume
-    );
+        .expect("deferred patch save payload");
+    assert_eq!(saved_payload, &runner.patch_payload().unwrap());
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }

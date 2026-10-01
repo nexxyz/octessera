@@ -3,7 +3,7 @@ set -eu
 
 CONFIGFS_ROOT=${OCTESSERA_USB_CONFIGFS_ROOT:-/sys/kernel/config}
 G=${OCTESSERA_USB_GADGET_ROOT:-$CONFIGFS_ROOT/usb_gadget/octessera}
-CONFIG=${OCTESSERA_USB_CONFIG:-/home/pi/presets/default.json}
+CONFIG=${OCTESSERA_USB_CONFIG:-/home/pi/presets/system.json}
 DEVICE_CONFIG_VALIDATOR=${OCTESSERA_DEVICE_CONFIG_VALIDATOR:-/usr/local/lib/octessera/device_config.py}
 UDC_ROOT=${OCTESSERA_USB_UDC_ROOT:-/sys/class/udc}
 STORAGE_CONFIG=${OCTESSERA_USB_STORAGE_CONFIG:-/etc/octessera/usb-storage.conf}

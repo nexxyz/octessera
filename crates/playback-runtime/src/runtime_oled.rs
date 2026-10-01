@@ -304,6 +304,8 @@ fn error_operation_name(operation: &RuntimeOperation) -> &'static str {
         RuntimeOperation::StoreDeletePreset => "store_delete_preset",
         RuntimeOperation::StoreLoadDefault => "store_load_default",
         RuntimeOperation::StoreSaveDefault => "store_save_default",
+        RuntimeOperation::StoreLoadSystem => "store_load_system",
+        RuntimeOperation::StoreSaveSystem => "store_save_system",
         RuntimeOperation::StoreSaveBackup => "store_save_backup",
         RuntimeOperation::StoreSaveRecovery => "store_save_recovery",
         RuntimeOperation::RuntimeEmission => "runtime_emission",

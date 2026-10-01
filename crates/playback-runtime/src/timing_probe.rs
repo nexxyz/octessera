@@ -184,6 +184,17 @@ impl CoreRunner for ProbeRunner {
         });
         Ok(responses)
     }
+
+    fn register_platform_request(&mut self, request: &RuntimePlatformRequest) {
+        self.inner.register_platform_request(request);
+    }
+
+    fn send_system_store_result(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+        <NativeRunner as CoreRunner>::send_system_store_result(&mut self.inner, message)
+    }
 }
 
 impl HostAdapter for ProbeHost {

@@ -1,5 +1,5 @@
 [Unit]
-Description=Seed a missing Octessera Pi default
+Description=Seed missing Octessera split save documents
 Before=octessera.service
 After=local-fs.target
 

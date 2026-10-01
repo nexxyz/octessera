@@ -74,13 +74,28 @@ impl PlaybackRuntime {
                 },
                 None => next,
             };
-            self.observe_host_message(&next, None);
-            let acknowledge_restored_state = successful_default_load(&next);
+            let store_result_handoff = is_store_result_handoff(&next);
+            if !store_result_handoff {
+                self.observe_host_message(&next, None);
+            }
+            let mut acknowledge_restored_state = false;
             let send_started = self
                 .dispatch_profile
                 .as_ref()
                 .and_then(|profile| profile.start());
-            let responses = runner.send(next);
+            let responses = if store_result_handoff {
+                runner.send_store_result_handoff(next).map(
+                    |(responses, accepted, rehydration_accepted)| {
+                        if let Some(accepted) = accepted.as_ref() {
+                            self.apply_runtime_result(accepted, None);
+                        }
+                        acknowledge_restored_state = rehydration_accepted;
+                        responses
+                    },
+                )
+            } else {
+                runner.send(next)
+            };
             if let Some(profile) = self.dispatch_profile.as_mut() {
                 profile.record(Stage::Runner, send_started);
             }
@@ -263,6 +278,7 @@ impl PlaybackRuntime {
                                 if matches!(
                                     request.operation(),
                                     RuntimeOperation::StoreSaveDefault
+                                        | RuntimeOperation::StoreSaveSystem
                                         | RuntimeOperation::Recording
                                 ) || recording_finalization_failed
                                 {
@@ -440,16 +456,10 @@ impl PlaybackRuntime {
     }
 }
 
-fn successful_default_load(message: &crate::protocol::HostMessage) -> bool {
-    let crate::protocol::HostMessage::RuntimeResult { result } = message else {
-        return false;
-    };
-    let result = match result {
-        crate::protocol::RuntimeStoreResult::Identified { result, .. } => result.as_ref(),
-        result => result,
-    };
-    matches!(
-        result,
-        crate::protocol::RuntimeStoreResult::LoadDefaultResult { payload: Some(_) }
-    )
+fn is_store_result_handoff(message: &HostMessage) -> bool {
+    matches!(message, HostMessage::RuntimeResult { result }
+        if matches!(result.operation(),
+            RuntimeOperation::StoreLoadSystem
+                | RuntimeOperation::StoreSaveSystem
+                | RuntimeOperation::StoreLoadDefault))
 }

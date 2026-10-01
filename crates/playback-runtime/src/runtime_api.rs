@@ -56,6 +56,7 @@ impl PlaybackRuntime {
             | RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
                 payload.get("revision").and_then(Value::as_u64)
             }
+            RuntimePlatformEffect::StoreSaveSystem { .. } => None,
             _ => None,
         };
         RuntimePlatformRequest::new(

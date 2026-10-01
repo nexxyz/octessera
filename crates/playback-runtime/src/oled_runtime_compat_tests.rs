@@ -33,6 +33,13 @@ impl CoreRunner for ChangedSnapshotRunner {
             },
         ])
     }
+
+    fn send_system_store_result(
+        &mut self,
+        _message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+        Ok((Vec::new(), None))
+    }
 }
 
 fn assert_delivered_frames_cover_snapshots(

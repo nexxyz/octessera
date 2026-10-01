@@ -428,9 +428,15 @@ mod tests {
         payload["runtimeConfig"]["audioOutputs"]["usb"] = json!(true);
         payload["runtimeConfig"]["midi"]["enabled"] = json!(true);
         payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(true);
+        let documents = playback_runtime::split_system_patch_documents(&payload).unwrap();
         std::fs::write(
-            store.join("default.json"),
-            serde_json::to_vec(&payload).unwrap(),
+            store.join("system.json"),
+            serde_json::to_vec(&documents.system).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            store.join("default.patch.json"),
+            serde_json::to_vec(&documents.patch).unwrap(),
         )
         .unwrap();
 

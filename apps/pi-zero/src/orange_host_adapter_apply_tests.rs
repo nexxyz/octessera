@@ -21,9 +21,39 @@ fn request(effect: RuntimePlatformEffect, id: &str) -> RuntimePlatformRequest {
     RuntimePlatformRequest::new(effect, id.into(), Some(1))
 }
 
+fn documents() -> playback_runtime::SystemPatchDocuments {
+    let full = crate::user_data_archive::canonical_defaults();
+    playback_runtime::split_system_patch_documents(&full).unwrap()
+}
+
+fn system_for_apply() -> serde_json::Value {
+    let mut system = documents().system;
+    system["runtimeConfig"]["screenSleepSeconds"] = json!(45);
+    system
+}
+
+fn seed_store(store: &std::path::Path) {
+    crate::pi_store_test_support::write_pair(
+        store,
+        &crate::user_data_archive::canonical_defaults(),
+    );
+}
+
 fn adapter(label: &str) -> (OrangeHostAdapter, PathBuf) {
     let (root, store, samples) = directories(label);
     let (audio, _, _) = test_service();
+    let documents = documents();
+    std::fs::create_dir_all(&store).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        crate::platform_service::default_patch_path(&store),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
     let adapter =
         OrangeHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false)
             .unwrap();
@@ -35,7 +65,7 @@ fn arm_recovery_save(adapter: &mut OrangeHostAdapter, id: &str) {
         adapter
             .handle_platform_effect(&request(
                 RuntimePlatformEffect::StoreSaveRecovery {
-                    payload: json!({"runtimeConfig": {}}),
+                    payload: documents().patch,
                 },
                 id,
             ))
@@ -48,8 +78,10 @@ fn arm_recovery_save(adapter: &mut OrangeHostAdapter, id: &str) {
 #[test]
 fn apply_waits_behind_queued_default_save() {
     let (mut adapter, root) = adapter("fifo");
-    let earlier = json!({"earlier": true});
-    let applied = json!({"applied": true});
+    let prior_system_bytes = std::fs::read(root.join("store/system.json")).unwrap();
+    let mut earlier = documents().patch;
+    earlier["runtimeConfig"]["bpm"] = json!(110);
+    let applied = system_for_apply();
     assert!(adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::StoreSaveDefault {
@@ -82,10 +114,17 @@ fn apply_waits_behind_queued_default_save() {
         .iter()
         .map(|byte| byte.as_u64().unwrap() as u8)
         .collect();
-    assert_eq!(prior, serde_json::to_vec_pretty(&earlier).unwrap());
+    assert_eq!(prior, prior_system_bytes);
     assert_eq!(
-        std::fs::read(store.join("default.json")).unwrap(),
-        serde_json::to_vec_pretty(&applied).unwrap()
+        crate::platform_service::load_json(&store.join("default.patch.json")).unwrap(),
+        Some(earlier)
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(
+            &std::fs::read(store.join("system.json")).unwrap()
+        )
+        .unwrap(),
+        applied
     );
     let _ = std::fs::remove_dir_all(root);
 }
@@ -93,7 +132,7 @@ fn apply_waits_behind_queued_default_save() {
 #[test]
 fn later_saves_and_applies_are_rejected_while_shutdown_is_pending() {
     let (mut adapter, root) = adapter("reject");
-    let applied = json!({"applied": true});
+    let applied = system_for_apply();
     assert!(adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::ApplyDeviceConfigReboot {
@@ -123,8 +162,11 @@ fn later_saves_and_applies_are_rejected_while_shutdown_is_pending() {
         .unwrap()
         .is_empty());
     assert_eq!(
-        std::fs::read(root.join("store/default.json")).unwrap(),
-        serde_json::to_vec_pretty(&applied).unwrap()
+        serde_json::from_slice::<serde_json::Value>(
+            &std::fs::read(root.join("store/system.json")).unwrap()
+        )
+        .unwrap(),
+        applied
     );
     let _ = std::fs::remove_dir_all(root);
 }
@@ -132,6 +174,7 @@ fn later_saves_and_applies_are_rejected_while_shutdown_is_pending() {
 #[test]
 fn pending_apply_suppresses_later_musical_output() {
     let (root, store, samples) = directories("silent");
+    seed_store(&store);
     let (audio, _, mut event_rx) = test_service();
     let mut adapter =
         OrangeHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false)
@@ -139,7 +182,7 @@ fn pending_apply_suppresses_later_musical_output() {
     assert!(adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::ApplyDeviceConfigReboot {
-                payload: json!({"applied": true}),
+                payload: system_for_apply(),
             },
             "apply",
         ))
@@ -163,6 +206,7 @@ fn pending_apply_suppresses_later_musical_output() {
 #[test]
 fn pending_reboot_suppresses_later_musical_output() {
     let (root, store, samples) = directories("reboot-silent");
+    seed_store(&store);
     let (audio, _, mut event_rx) = test_service();
     let mut adapter =
         OrangeHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false)

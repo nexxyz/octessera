@@ -16,7 +16,8 @@ pub(crate) enum DesktopStoreStartupError {
     CreateStoreDirectory { path: PathBuf, source: String },
     CreatePresetDirectory { path: PathBuf, source: String },
     ParseBundledDefault { source: String },
-    SeedDefault { path: PathBuf, source: String },
+    SeedDocument { path: PathBuf, source: String },
+    InvalidStore { detail: String },
 }
 
 impl fmt::Display for DesktopStoreStartupError {
@@ -40,10 +41,14 @@ impl fmt::Display for DesktopStoreStartupError {
                 formatter,
                 "desktop startup store initialization failed: unable to parse bundled default: {source}"
             ),
-            Self::SeedDefault { path, source } => write!(
+            Self::SeedDocument { path, source } => write!(
                 formatter,
-                "desktop startup store initialization failed: unable to atomically seed bundled default {}: {source}",
+                "desktop startup store initialization failed: unable to atomically seed split document {}: {source}",
                 path.display()
+            ),
+            Self::InvalidStore { detail } => write!(
+                formatter,
+                "desktop storage requires supervised conversion or repair: {detail}"
             ),
         }
     }
@@ -80,28 +85,125 @@ fn ensure_store_dir_at(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError
         }
     })?;
     let presets_dir = dir.join("presets");
+    if presets_dir.is_file() {
+        std::fs::create_dir_all(&presets_dir).map_err(|error| {
+            DesktopStoreStartupError::CreatePresetDirectory {
+                path: presets_dir.clone(),
+                source: error.to_string(),
+            }
+        })?;
+    }
+    ensure_split_documents(&dir)?;
     std::fs::create_dir_all(&presets_dir).map_err(|error| {
         DesktopStoreStartupError::CreatePresetDirectory {
             path: presets_dir.clone(),
             source: error.to_string(),
         }
     })?;
-    let default_path = dir.join("default.json");
-    if !default_path.is_file() {
-        let bundled: serde_json::Value =
-            serde_json::from_str(BUNDLED_DEFAULT_CONFIG).map_err(|error| {
-                DesktopStoreStartupError::ParseBundledDefault {
-                    source: error.to_string(),
+    Ok(dir)
+}
+
+fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStartupError> {
+    use playback_runtime::{compose_system_patch_documents, split_system_patch_documents};
+
+    let system_path = dir.join("system.json");
+    let patch_path = dir.join("default.patch.json");
+    let legacy_path = dir.join("default.json");
+    if legacy_path.exists() {
+        return Err(DesktopStoreStartupError::InvalidStore {
+            detail: format!(
+                "legacy mixed default.json is present at {}; preserve it and use the supervised conversion process",
+                legacy_path.display()
+            ),
+        });
+    }
+    match (system_path.is_file(), patch_path.is_file()) {
+        (true, true) => {
+            let system = read_document(&system_path)?;
+            let patch = read_document(&patch_path)?;
+            compose_system_patch_documents(&system, &patch).map_err(|error| {
+                DesktopStoreStartupError::InvalidStore {
+                    detail: format!("split documents are invalid; preserve both files: {error}"),
                 }
             })?;
-        persistence::atomic_write_json(&default_path, &bundled).map_err(|source| {
-            DesktopStoreStartupError::SeedDefault {
-                path: default_path.clone(),
-                source,
+            Ok(())
+        }
+        (false, false) if fresh_store_root(dir)? => {
+            let bundled: serde_json::Value = serde_json::from_str(BUNDLED_DEFAULT_CONFIG)
+                .map_err(|error| DesktopStoreStartupError::ParseBundledDefault {
+                    source: error.to_string(),
+                })?;
+            let documents = split_system_patch_documents(&bundled).map_err(|error| {
+                DesktopStoreStartupError::ParseBundledDefault { source: error }
+            })?;
+            persistence::atomic_write_json(&system_path, &documents.system).map_err(|source| {
+                DesktopStoreStartupError::SeedDocument {
+                    path: system_path.clone(),
+                    source,
+                }
+            })?;
+            persistence::atomic_write_json(&patch_path, &documents.patch).map_err(|source| {
+                DesktopStoreStartupError::SeedDocument {
+                    path: patch_path.clone(),
+                    source,
+                }
+            })?;
+            let system = read_document(&system_path)?;
+            let patch = read_document(&patch_path)?;
+            compose_system_patch_documents(&system, &patch).map_err(|error| {
+                DesktopStoreStartupError::InvalidStore {
+                    detail: format!("seeded split documents failed readback validation: {error}"),
+                }
+            })?;
+            if system != documents.system || patch != documents.patch {
+                return Err(DesktopStoreStartupError::InvalidStore {
+                    detail: "seeded split documents differ from the native projection".into(),
+                });
             }
-        })?;
+            Ok(())
+        }
+        (system_exists, patch_exists) => Err(DesktopStoreStartupError::InvalidStore {
+            detail: format!(
+                "split store is incomplete (system.json: {system_exists}, default.patch.json: {patch_exists}); preserve existing bytes and use supervised conversion or repair"
+            ),
+        }),
     }
-    Ok(dir)
+}
+
+fn read_document(path: &std::path::Path) -> Result<serde_json::Value, DesktopStoreStartupError> {
+    let content =
+        std::fs::read_to_string(path).map_err(|error| DesktopStoreStartupError::InvalidStore {
+            detail: format!("unable to read {}: {error}", path.display()),
+        })?;
+    serde_json::from_str(&content).map_err(|error| DesktopStoreStartupError::InvalidStore {
+        detail: format!(
+            "invalid JSON in {}; preserve existing bytes: {error}",
+            path.display()
+        ),
+    })
+}
+
+fn fresh_store_root(dir: &std::path::Path) -> Result<bool, DesktopStoreStartupError> {
+    for entry in std::fs::read_dir(dir).map_err(|error| DesktopStoreStartupError::InvalidStore {
+        detail: format!("unable to inspect store root: {error}"),
+    })? {
+        let entry = entry.map_err(|error| DesktopStoreStartupError::InvalidStore {
+            detail: format!("unable to inspect store root: {error}"),
+        })?;
+        if entry.file_name() != "presets" || !entry.path().is_dir() {
+            return Ok(false);
+        }
+        if std::fs::read_dir(entry.path())
+            .map_err(|error| DesktopStoreStartupError::InvalidStore {
+                detail: format!("unable to inspect preset directory: {error}"),
+            })?
+            .next()
+            .is_some()
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -155,12 +257,13 @@ mod tests {
     }
 
     #[test]
-    fn malformed_existing_default_is_preserved() {
+    fn legacy_mixed_default_is_refused_and_preserved() {
         let root = unique_temp_dir("octessera-malformed-default");
         let original = b"{ malformed";
         fs::write(root.join("default.json"), original).expect("malformed default");
 
-        ensure_store_dir_at(root.clone()).expect("existing malformed default");
+        let error = ensure_store_dir_at(root.clone()).expect_err("legacy file needs conversion");
+        assert!(error.to_string().contains("supervised conversion"));
 
         assert_eq!(
             fs::read(root.join("default.json")).expect("existing default"),
@@ -170,38 +273,82 @@ mod tests {
     }
 
     #[test]
-    fn seed_write_failure_is_reported() {
-        let root = unique_temp_dir("octessera-seed-write-failure");
-        fs::create_dir(root.join("default.json")).expect("default path directory");
-
-        let error = ensure_store_dir_at(root.clone()).expect_err("seed write must fail");
-
-        assert!(error.to_string().starts_with(
-            "desktop startup store initialization failed: unable to atomically seed bundled default"
-        ));
-        remove_temp_dir(&root);
-    }
-
-    #[test]
-    fn valid_first_seed_creates_default_and_presets() {
+    fn valid_first_seed_creates_native_split_pair_and_presets() {
         let root = unique_temp_dir("octessera-valid-first-seed");
 
         ensure_store_dir_at(root.clone()).expect("first seed");
 
-        let payload: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(root.join("default.json")).expect("seeded default"),
+        let expected = playback_runtime::split_system_patch_documents(
+            &serde_json::from_str(BUNDLED_DEFAULT_CONFIG).expect("bundled default"),
         )
-        .expect("parse seeded default");
-        assert_eq!(payload["runtimeConfig"]["layers"][3]["autoName"], true);
-        assert_eq!(payload["runtimeConfig"]["displayBrightness"], 100);
-        assert_eq!(payload["runtimeConfig"]["gridBrightness"], 100);
-        assert_eq!(payload["runtimeConfig"]["buttonBrightness"], 100);
+        .expect("native projection");
+        let system = read_document(&root.join("system.json")).expect("seeded system");
+        let patch = read_document(&root.join("default.patch.json")).expect("seeded patch");
+        assert_eq!(system, expected.system);
+        assert_eq!(patch, expected.patch);
+        assert!(playback_runtime::compose_system_patch_documents(&system, &patch).is_ok());
+        assert!(!root.join("default.json").exists());
         assert!(root.join("presets").is_dir());
         remove_temp_dir(&root);
     }
 
     #[test]
-    fn valid_existing_custom_default_is_preserved() {
+    fn complete_valid_pair_is_accepted_without_rewriting_documents() {
+        let root = unique_temp_dir("octessera-complete-pair");
+        let bundled: serde_json::Value =
+            serde_json::from_str(BUNDLED_DEFAULT_CONFIG).expect("bundled default");
+        let documents =
+            playback_runtime::split_system_patch_documents(&bundled).expect("native projection");
+        persistence::atomic_write_json(&root.join("system.json"), &documents.system).unwrap();
+        persistence::atomic_write_json(&root.join("default.patch.json"), &documents.patch).unwrap();
+        let system_bytes = fs::read(root.join("system.json")).unwrap();
+        let patch_bytes = fs::read(root.join("default.patch.json")).unwrap();
+
+        ensure_store_dir_at(root.clone()).expect("valid complete pair");
+
+        assert_eq!(fs::read(root.join("system.json")).unwrap(), system_bytes);
+        assert_eq!(
+            fs::read(root.join("default.patch.json")).unwrap(),
+            patch_bytes
+        );
+        remove_temp_dir(&root);
+    }
+
+    #[test]
+    fn partial_or_corrupt_pair_is_refused_without_changing_bytes() {
+        let root = unique_temp_dir("octessera-partial-pair");
+        let original = b"not json";
+        fs::write(root.join("system.json"), original).expect("system bytes");
+
+        let error = ensure_store_dir_at(root.clone()).expect_err("partial pair must fail");
+
+        assert!(error.to_string().contains("incomplete"));
+        assert_eq!(fs::read(root.join("system.json")).unwrap(), original);
+        assert!(!root.join("default.patch.json").exists());
+        remove_temp_dir(&root);
+    }
+
+    #[test]
+    fn complete_invalid_pair_is_refused_without_changing_bytes() {
+        let root = unique_temp_dir("octessera-invalid-pair");
+        let system_bytes = b"{}";
+        let patch_bytes = b"{}";
+        fs::write(root.join("system.json"), system_bytes).expect("system bytes");
+        fs::write(root.join("default.patch.json"), patch_bytes).expect("patch bytes");
+
+        let error = ensure_store_dir_at(root.clone()).expect_err("corrupt pair must fail");
+
+        assert!(error.to_string().contains("split documents are invalid"));
+        assert_eq!(fs::read(root.join("system.json")).unwrap(), system_bytes);
+        assert_eq!(
+            fs::read(root.join("default.patch.json")).unwrap(),
+            patch_bytes
+        );
+        remove_temp_dir(&root);
+    }
+
+    #[test]
+    fn existing_legacy_default_is_refused_without_overwriting() {
         let root = unique_temp_dir("octessera-existing-custom-default");
         let custom = serde_json::json!({ "kept": true });
         fs::write(
@@ -210,13 +357,14 @@ mod tests {
         )
         .expect("write custom default");
 
-        ensure_store_dir_at(root.clone()).expect("existing custom default");
-
-        let actual: serde_json::Value = serde_json::from_str(
-            &fs::read_to_string(root.join("default.json")).expect("custom default"),
-        )
-        .expect("parse custom default");
-        assert_eq!(actual, custom);
+        let error = ensure_store_dir_at(root.clone()).expect_err("legacy file needs conversion");
+        assert!(error.to_string().contains("supervised conversion"));
+        assert_eq!(
+            fs::read(root.join("default.json")).unwrap(),
+            serde_json::to_vec(&custom).unwrap()
+        );
+        assert!(!root.join("system.json").exists());
+        assert!(!root.join("default.patch.json").exists());
         remove_temp_dir(&root);
     }
 
@@ -229,7 +377,8 @@ mod tests {
         .expect("explicit store root");
 
         ensure_store_dir_at(selected.clone()).expect("explicit store root initialization");
-        assert!(selected.join("default.json").is_file());
+        assert!(selected.join("system.json").is_file());
+        assert!(selected.join("default.patch.json").is_file());
         remove_temp_dir(&root);
     }
 

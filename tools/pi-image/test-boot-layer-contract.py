@@ -85,7 +85,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
     live_inputs = document["live_parity_inputs"]
     if live_inputs != [
         {"path": "tools/pi/deploy-pi.sh", "sha256": "54ea212f4fefa218315d3a9a9e982e3cfcc311cea832be339e8733ce6b1179ce", "size": 17245},
-        {"path": "tools/pi/provision/provision.sh", "sha256": "fac1e6475820231f96dd5b89448a84c1f9cd156b8e80091416217d242bb450a4", "size": 18831},
+        {"path": "tools/pi/provision/provision.sh", "sha256": "73aa73a6c1b5a3e912aa8d2f5ba2a87ef4534b8b9b6f7005a1332355b7d62652", "size": 20154},
     ]:
         raise ValueError("Raspberry live parity input identities are not exact")
     for source in live_inputs:
@@ -187,8 +187,14 @@ def validate(document: dict[str, Any], root: Path) -> None:
         output_paths.add(output["path"])
         if output_type == "file" and any(not isinstance(output[key], int) or output[key] < 0 for key in ("mode", "uid", "gid")):
             raise ValueError("managed output metadata is invalid")
-    if {"classification": "pi-default-config", "path": "home/pi/presets/default.json", "type": "file", "mode": 420, "uid": 1000, "gid": 1000} not in outputs:
-        raise ValueError("Raspberry default managed output is not exact")
+    for expected in (
+        {"classification": "pi-system-config", "path": "home/pi/presets/system.json", "type": "file", "mode": 420, "uid": 1000, "gid": 1000},
+        {"classification": "pi-default-patch-config", "path": "home/pi/presets/default.patch.json", "type": "file", "mode": 420, "uid": 1000, "gid": 1000},
+    ):
+        if expected not in outputs:
+            raise ValueError(f"Raspberry split save-document managed output is not exact: {expected['path']}")
+    if any(output["path"] == "home/pi/presets/default.json" for output in outputs):
+        raise ValueError("Raspberry mixed default must not be an active managed preset output")
     if {"classification": "usb-gadget-composer", "path": "usr/local/sbin/octessera-usb-gadget", "type": "file", "mode": 493, "uid": 0, "gid": 0} not in outputs:
         raise ValueError("Raspberry USB gadget composer managed output is not exact")
     for expected in (

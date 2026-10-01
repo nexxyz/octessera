@@ -140,7 +140,7 @@ pub(crate) fn disabling_global_midi_drains_held_midi_notes_before_gate_changes()
 }
 
 #[test]
-pub(crate) fn midi_enabled_user_edit_marks_auto_save_dirty() {
+pub(crate) fn midi_enabled_user_edit_marks_system_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
     runner.config_dirty = false;
@@ -161,8 +161,9 @@ pub(crate) fn midi_enabled_user_edit_marks_auto_save_dirty() {
         .unwrap();
 
     assert!(runner.midi_enabled);
-    assert!(runner.config_dirty);
-    assert_eq!(runner.fast_autosave_marks, marks_before + 1);
+    assert!(runner.pending.system_persistence.dirty_revision.is_some());
+    assert_eq!(runner.fast_autosave_marks, marks_before);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_none());
 }
 
 #[test]

@@ -14,7 +14,37 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
     ));
     let store = root.join("store");
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
-    let store_guard = service.store_lock.lock().unwrap();
+    std::fs::create_dir_all(store.join("patches")).unwrap();
+    let mut restored_full = crate::user_data_archive::canonical_defaults();
+    restored_full["runtimeConfig"]["bpm"] = serde_json::json!(88);
+    let restored_documents =
+        playback_runtime::split_system_patch_documents(&restored_full).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&restored_documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&restored_documents.patch).unwrap(),
+    )
+    .unwrap();
+    let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "restore-gate".into(),
+                None,
+            ),
+            PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
     service
         .enqueue(PlatformJob::new(
             RuntimePlatformRequest::new(
@@ -49,8 +79,11 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
         ))
         .unwrap();
     service.store_write_barrier.invalidate();
-    drop(store_guard);
-
+    assert_eq!(
+        service.load_default_now().unwrap(),
+        Some(restored_documents.patch.clone())
+    );
+    release_tx.send(()).unwrap();
     let barrier = service.enqueue_test_barrier().unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     let results = service.drain_results(8);
@@ -71,12 +104,22 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
             .collect::<Vec<_>>(),
         vec!["stale-default", "stale-preset"]
     );
-    assert!(!store.join("default.json").exists());
+    assert_eq!(
+        load_json(&store.join("default.patch.json")).unwrap(),
+        Some(restored_documents.patch)
+    );
     assert!(!store.join("patches").join("stale-preset.json").exists());
+    assert!(service
+        .save_system_now(&serde_json::json!({"stale": true}))
+        .is_err());
 
     service.acknowledge_restored_state();
     std::fs::create_dir_all(store.join("patches")).unwrap();
-    let fresh_payload = crate::user_data_archive::canonical_defaults();
+    let fresh_payload = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap()
+    .patch;
     service
         .enqueue(PlatformJob::new(
             RuntimePlatformRequest::new(
@@ -96,7 +139,7 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
     let barrier = service.enqueue_test_barrier().unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(
-        load_json(&store.join("default.json")).unwrap(),
+        load_json(&store.join("default.patch.json")).unwrap(),
         Some(fresh_payload)
     );
     let _ = std::fs::remove_dir_all(root);
@@ -146,7 +189,7 @@ fn restore_barrier_cancels_native_default_snapshot_waiting_in_worker() {
             if request_id == request.request_id()
                 && matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { .. })
     ));
-    assert!(!store.join("default.json").exists());
+    assert!(!store.join("default.patch.json").exists());
     drop(service);
     let _ = std::fs::remove_dir_all(root);
 }
@@ -197,7 +240,7 @@ fn native_default_registration_rejection_does_not_queue_or_replace_default() {
         .recv_timeout(Duration::from_secs(1))
         .unwrap();
     assert_eq!(
-        std::fs::read(root.join("store/default.json")).unwrap(),
+        std::fs::read(root.join("store/default.patch.json")).unwrap(),
         original_bytes
     );
     assert!(adapter.platform_service.native_default_write().is_none());
@@ -283,7 +326,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
         }
     }
     assert_eq!(
-        std::fs::read(root.join("store/default.json")).unwrap(),
+        std::fs::read(root.join("store/default.patch.json")).unwrap(),
         original_bytes
     );
 
@@ -344,10 +387,18 @@ fn native_default_test_adapter() -> (
             .unwrap()
             .as_nanos()
     ));
-    let original_bytes =
-        serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
+    let original_bytes = serde_json::to_vec(&documents.patch).unwrap();
     std::fs::create_dir_all(root.join("store")).unwrap();
-    std::fs::write(root.join("store/default.json"), &original_bytes).unwrap();
+    std::fs::write(
+        root.join("store/system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(root.join("store/default.patch.json"), &original_bytes).unwrap();
     let adapter = crate::host_adapter::PiPlaybackHostAdapter::new(
         None,
         root.join("store"),

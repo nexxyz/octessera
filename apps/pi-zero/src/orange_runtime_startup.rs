@@ -174,6 +174,7 @@ fn initialize_host_state(
     let output = playback.dispatch_runner_messages(
         vec![playback_runtime::RunnerMessage::PlatformEffects {
             effects: vec![
+                playback_runtime::RuntimePlatformEffect::StoreLoadSystem,
                 playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
                 playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
                 playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,

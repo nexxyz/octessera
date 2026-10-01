@@ -300,6 +300,13 @@ impl CoreRunner for RecordingNativeRunner {
     fn register_platform_request(&mut self, request: &RuntimePlatformRequest) {
         self.inner.register_platform_request(request);
     }
+
+    fn send_system_store_result(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+        <NativeRunner as CoreRunner>::send_system_store_result(&mut self.inner, message)
+    }
 }
 
 fn run_native_partition(interval_ms: u64) -> (u64, Vec<MusicalEvent>) {

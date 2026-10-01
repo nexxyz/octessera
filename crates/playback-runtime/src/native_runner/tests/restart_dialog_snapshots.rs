@@ -1,4 +1,5 @@
 use super::*;
+use crate::RuntimePlatformRequest;
 
 const HOST_SAVE_LINES: [&str; 4] = [
     "Restart required.",
@@ -7,13 +8,13 @@ const HOST_SAVE_LINES: [&str; 4] = [
     "Audio/MIDI/SD2 off.",
 ];
 const HOST_RESTART_LINES: [&str; 5] = [
-    "Saved. Reboot to",
-    "apply?",
+    "System saved.",
+    "Reboot to apply?",
     "Unplug computer USB",
     "before Host reboot.",
     "Audio/MIDI/SD2 off.",
 ];
-const SAVE_OPTIONS: [&str; 3] = ["Cancel", "Save this setting", "Save everything"];
+const SAVE_OPTIONS: [&str; 3] = ["Cancel", "Save this one", "Save System"];
 const RESTART_OPTIONS: [&str; 2] = ["Continue", "Reboot now"];
 
 fn host_runner(auto_save_default: bool) -> NativeRunner {
@@ -31,18 +32,21 @@ fn host_runner(auto_save_default: bool) -> NativeRunner {
 }
 
 fn acknowledge_save(runner: &mut NativeRunner, request_id: &str) {
-    let revision = runner.restart_settings.pending_write_revision().unwrap();
-    runner.register_default_write_request(request_id, Some(revision));
+    let payload = runner
+        .restart_settings
+        .pending_write_payload()
+        .expect("System Apply payload");
+    runner.register_platform_request(&RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreSaveSystem {
+            payload: payload.as_ref().clone(),
+        },
+        request_id.into(),
+        None,
+    ));
     runner
         .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified {
-                result: Box::new(RuntimeStoreResult::SaveDefaultResult {
-                    ok: true,
-                    is_auto: None,
-                }),
-                request_id: request_id.into(),
-                revision: Some(revision),
-            },
+            result: RuntimeStoreResult::SaveSystemResult { ok: true }
+                .with_identity(request_id.into(), None),
         })
         .unwrap();
 }
@@ -60,10 +64,16 @@ fn manual_host_restart_choice() -> NativeRunner {
     runner
 }
 
-fn auto_host_restart_choice() -> NativeRunner {
+fn host_restart_choice_with_auto_save_enabled() -> NativeRunner {
     let mut runner = host_runner(true);
-    runner.messages_with_snapshot().unwrap();
-    acknowledge_save(&mut runner, "host-auto-save");
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 2;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    acknowledge_save(&mut runner, "host-system-save");
     runner
 }
 
@@ -155,7 +165,7 @@ fn host_restart_snapshot_renders_all_options_and_markers_at_each_cursor() {
 
 #[test]
 fn auto_save_host_restart_snapshot_includes_post_save_warning() {
-    let mut runner = auto_host_restart_choice();
+    let mut runner = host_restart_choice_with_auto_save_enabled();
     assert_eq!(runner.usb_data_role, UsbDataRole::Host);
     assert_dialog_snapshot(&mut runner, &HOST_RESTART_LINES, &RESTART_OPTIONS, 0);
 }
@@ -174,7 +184,7 @@ fn non_host_restart_snapshot_keeps_existing_dialog_at_each_cursor() {
     for cursor in 0..RESTART_OPTIONS.len() {
         assert_dialog_snapshot(
             &mut runner,
-            &["Saved. Reboot to", "apply?"],
+            &["System saved.", "Reboot to apply?"],
             &RESTART_OPTIONS,
             cursor,
         );

@@ -45,6 +45,8 @@ pub enum RuntimeOperation {
     StoreDeletePreset,
     StoreLoadDefault,
     StoreSaveDefault,
+    StoreLoadSystem,
+    StoreSaveSystem,
     StoreSaveBackup,
     StoreSaveRecovery,
     RuntimeEmission,

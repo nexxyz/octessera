@@ -1,15 +1,26 @@
 use super::music_first_tests::playing_default;
-use super::restart_settings::DefaultSaveScope;
 use super::*;
 use crate::tests::support::FakeHost;
 use std::sync::Arc;
 use std::time::Duration;
 
-fn payload(revision: u64) -> Arc<Value> {
-    Arc::new(json!({
-        "revision": revision,
-        "runtimeConfig": { "usb": { "dataRole": "device" } }
-    }))
+fn payload(_revision: u64) -> Arc<Value> {
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    Arc::new(
+        runner
+            .capture_config_snapshot()
+            .into_portable_patch_payload()
+            .unwrap(),
+    )
+}
+
+fn current_patch_payload(runner: &NativeRunner) -> Arc<Value> {
+    Arc::new(
+        runner
+            .capture_config_snapshot()
+            .into_portable_patch_payload()
+            .unwrap(),
+    )
 }
 
 fn send_save_result(
@@ -83,7 +94,7 @@ fn native_registration_and_payload_attachment_are_revision_checked_and_zero_clon
     assert!(!runner.attach_native_default_write_payload(
         "native-save-1",
         revision,
-        payload(revision + 1),
+        Arc::new(json!({ "kind": "octessera.patch", "schemaVersion": 1 })),
     ));
     let worker_payload = payload(revision);
     assert!(runner.attach_native_default_write_payload(
@@ -94,7 +105,7 @@ fn native_registration_and_payload_attachment_are_revision_checked_and_zero_clon
 }
 
 #[test]
-fn native_success_installs_the_same_worker_arc_and_clears_only_its_revision() {
+fn native_success_installs_the_same_worker_patch_arc_and_clears_only_its_revision() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.mark_config_dirty();
     let revision = runner.config_revision;
@@ -109,7 +120,7 @@ fn native_success_installs_the_same_worker_arc_and_clears_only_its_revision() {
     send_save_result(&mut runner, "native-save-2", revision, true);
 
     assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
         &worker_payload
     ));
     assert!(runner.restart_settings.pending_write_revision().is_none());
@@ -134,20 +145,21 @@ fn native_manual_write_uses_the_existing_ordinary_save_scope() {
     send_save_result(&mut runner, "native-manual-save", revision, true);
 
     assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
         &worker_payload
     ));
     assert!(!runner.config_dirty);
 }
 
 #[test]
-fn old_native_success_keeps_newer_edit_dirty() {
+fn old_native_success_advances_patch_baseline_but_keeps_newer_patch_edit_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.mark_config_dirty();
     let old_revision = runner.config_revision;
-    let baseline = Arc::clone(&runner.restart_settings.persisted_default);
+    let system_baseline = Arc::clone(&runner.restart_settings.persisted_default);
+    let patch_baseline = Arc::clone(runner.pending.saved_patch_baseline.as_ref().unwrap());
     assert!(runner.register_native_default_write("native-save-old", old_revision, true));
-    let old_payload = payload(old_revision);
+    let old_payload = current_patch_payload(&runner);
     assert!(runner.attach_native_default_write_payload(
         "native-save-old",
         old_revision,
@@ -159,12 +171,16 @@ fn old_native_success_keeps_newer_edit_dirty() {
     send_save_result(&mut runner, "native-save-old", old_revision, true);
 
     assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
         &old_payload
     ));
-    assert!(!Arc::ptr_eq(
+    assert!(Arc::ptr_eq(
         &runner.restart_settings.persisted_default,
-        &baseline
+        &system_baseline
+    ));
+    assert!(!Arc::ptr_eq(
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
+        &patch_baseline
     ));
     assert_eq!(runner.pending.pending_save_revision, None);
     assert!(runner.config_dirty);
@@ -172,7 +188,7 @@ fn old_native_success_keeps_newer_edit_dirty() {
 }
 
 #[test]
-fn older_native_arc_completion_after_real_aux_edit_advances_baseline_without_saved_feedback() {
+fn older_native_arc_completion_advances_patch_baseline_without_clearing_newer_edit() {
     let mut runner = playing_default();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
@@ -186,7 +202,7 @@ fn older_native_arc_completion_after_real_aux_edit_advances_baseline_without_sav
         .unwrap();
     runner.mark_config_dirty();
     let written_revision = runner.config_revision;
-    let worker_payload = Arc::new(json!({ "revision": written_revision }));
+    let worker_payload = current_patch_payload(&runner);
     assert!(runner.register_native_default_write(
         "native-older-completion",
         written_revision,
@@ -251,7 +267,7 @@ fn older_native_arc_completion_after_real_aux_edit_advances_baseline_without_sav
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
     assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
         &worker_payload
     ));
     assert!(runner.config_dirty);
@@ -372,7 +388,7 @@ fn duplicate_native_success_after_pending_write_is_gone_does_not_repeat_saved_fe
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
     assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
         &payload
     ));
     assert!(!runner.config_dirty);
@@ -388,7 +404,7 @@ fn duplicate_native_success_after_pending_write_is_gone_does_not_repeat_saved_fe
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
     assert_eq!(runner.display.auto_save_flash_serial, saved_flash_serial);
     assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
+        runner.pending.saved_patch_baseline.as_ref().unwrap(),
         &payload
     ));
     assert!(!runner.config_dirty);
@@ -402,6 +418,7 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
         runner.mark_config_dirty();
         let revision = runner.config_revision;
         let baseline = Arc::clone(&runner.restart_settings.persisted_default);
+        let patch_baseline = Arc::clone(runner.pending.saved_patch_baseline.as_ref().unwrap());
         assert!(runner.register_native_default_write("native-save-fail", revision, true));
         if attach_payload {
             assert!(runner.attach_native_default_write_payload(
@@ -417,6 +434,10 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
             &runner.restart_settings.persisted_default,
             &baseline
         ));
+        assert!(Arc::ptr_eq(
+            runner.pending.saved_patch_baseline.as_ref().unwrap(),
+            &patch_baseline
+        ));
         assert!(runner.config_dirty);
         assert!(runner.pending.pending_autosave_payload_due_at.is_some());
         assert!(runner.restart_settings.pending_write_revision().is_none());
@@ -431,6 +452,7 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
     missing.mark_config_dirty();
     let revision = missing.config_revision;
     let baseline = Arc::clone(&missing.restart_settings.persisted_default);
+    let patch_baseline = Arc::clone(missing.pending.saved_patch_baseline.as_ref().unwrap());
     assert!(missing.register_native_default_write("native-save-missing", revision, true));
 
     let _messages = send_save_result(&mut missing, "native-save-missing", revision, true);
@@ -439,51 +461,14 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
         &missing.restart_settings.persisted_default,
         &baseline
     ));
+    assert!(Arc::ptr_eq(
+        missing.pending.saved_patch_baseline.as_ref().unwrap(),
+        &patch_baseline
+    ));
     assert!(missing.config_dirty);
     assert!(missing.pending.pending_autosave_payload_due_at.is_some());
     assert!(missing.restart_settings.pending_write_revision().is_none());
     assert!(missing.display.runtime_error_presentation.is_some());
-}
-
-#[test]
-fn attached_native_host_role_is_used_for_existing_restart_follow_up() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.mark_config_dirty();
-    let revision = runner.config_revision;
-    assert!(runner.restart_settings.register_native_write(
-        "native-host-save",
-        revision,
-        DefaultSaveScope::RestartEverything,
-    ));
-    runner.pending.pending_save_revision = Some(revision);
-    let host_payload = Arc::new(json!({
-        "revision": revision,
-        "runtimeConfig": { "usb": { "dataRole": "host" } }
-    }));
-    assert!(runner.attach_native_default_write_payload(
-        "native-host-save",
-        revision,
-        Arc::clone(&host_payload),
-    ));
-
-    send_save_result(&mut runner, "native-host-save", revision, true);
-
-    assert!(Arc::ptr_eq(
-        &runner.restart_settings.persisted_default,
-        &host_payload
-    ));
-    assert!(
-        runner
-            .display
-            .confirm_dialog
-            .as_ref()
-            .unwrap()
-            .lines
-            .iter()
-            .any(|line| line == "Unplug computer USB"),
-        "{:?}",
-        runner.display.confirm_dialog
-    );
 }
 
 #[test]

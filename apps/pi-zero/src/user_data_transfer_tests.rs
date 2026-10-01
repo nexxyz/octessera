@@ -31,9 +31,18 @@ fn service(name: &str) -> (UserDataTransferService, PathBuf) {
     fs::create_dir_all(&samples).unwrap();
     fs::create_dir_all(root.join("recordings")).unwrap();
     fs::create_dir_all(root.join("screen-recordings")).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
     fs::write(
-        store.join("default.json"),
-        serde_json::to_vec(&crate::user_data_archive::canonical_defaults()).unwrap(),
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        crate::platform_service::default_patch_path(&store),
+        serde_json::to_vec(&documents.patch).unwrap(),
     )
     .unwrap();
     (

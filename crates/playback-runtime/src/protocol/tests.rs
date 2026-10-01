@@ -130,6 +130,46 @@ fn device_update_protocol_is_dedicated_and_requires_status_fields() {
 }
 
 #[test]
+fn system_store_protocol_has_distinct_wire_and_error_identity() {
+    let save = RuntimePlatformEffect::StoreSaveSystem {
+        payload: json!({"kind": "octessera.system"}),
+    };
+    assert_eq!(
+        serde_json::to_value(&save).unwrap(),
+        json!({"type": "store_save_system", "payload": {"kind": "octessera.system"}})
+    );
+    assert_eq!(save.operation(), RuntimeOperation::StoreSaveSystem);
+    assert_eq!(save.error_domain(), RuntimeErrorDomain::Storage);
+    let facts = save.failure_facts("disk full".into());
+    assert_eq!(facts.operation, RuntimeOperation::StoreSaveSystem);
+    assert_eq!(facts.domain, RuntimeErrorDomain::Storage);
+
+    assert_eq!(
+        serde_json::to_value(RuntimePlatformEffect::StoreLoadSystem).unwrap(),
+        json!({"type": "store_load_system"})
+    );
+    assert_eq!(
+        serde_json::to_value(RuntimeStoreResult::LoadSystemResult {
+            payload: Some(json!({"kind": "octessera.system"})),
+        })
+        .unwrap(),
+        json!({"type": "load_system_result", "payload": {"kind": "octessera.system"}})
+    );
+    assert_eq!(
+        serde_json::to_value(RuntimeStoreResult::SaveSystemResult { ok: true }).unwrap(),
+        json!({"type": "save_system_result", "ok": true})
+    );
+    let identified = RuntimeStoreResult::SaveSystemResult { ok: false }
+        .with_identity("system-save-4".into(), None);
+    assert_eq!(identified.operation(), RuntimeOperation::StoreSaveSystem);
+    let error = identified.error_facts().unwrap();
+    assert_eq!(error.domain, RuntimeErrorDomain::Storage);
+    assert_eq!(error.operation, RuntimeOperation::StoreSaveSystem);
+    assert_eq!(error.request_id.as_deref(), Some("system-save-4"));
+    assert_eq!(error.revision, None);
+}
+
+#[test]
 fn runtime_protocol_json_uses_public_field_names_and_defaults() {
     assert_eq!(
         serde_json::to_value(HostMessage::DeviceInput {

@@ -2,18 +2,22 @@
 set -eu
 
 root_prefix=${OCTESSERA_PROVISION_ROOT:-}
-source_default="${root_prefix}/usr/share/octessera/defaults/pi-default.json"
+source_system="${root_prefix}/usr/share/octessera/defaults/pi-system.json"
+source_patch="${root_prefix}/usr/share/octessera/defaults/pi-default.patch.json"
 state_directory="${root_prefix}/var/lib/octessera"
 presets_directory="$state_directory/presets"
-destination_default="$presets_directory/default.json"
+destination_system="$presets_directory/system.json"
+destination_patch="$presets_directory/default.patch.json"
+legacy_default="$presets_directory/default.json"
 staging_directory="$state_directory/.provisioning"
-race_hook=${OCTESSERA_PROVISION_BEFORE_MOVE_HOOK:-}
 
 [ "$(id -u)" = 0 ] || { echo "musical default provisioning requires root" >&2; exit 1; }
-if [ ! -f "$source_default" ] || [ -L "$source_default" ]; then
-  echo "packaged Pi default is missing or unsafe: $source_default" >&2
-  exit 1
-fi
+for source in "$source_system" "$source_patch"; do
+  if [ ! -f "$source" ] || [ -L "$source" ]; then
+    echo "packaged Pi save document is missing or unsafe: $source" >&2
+    exit 1
+  fi
+done
 
 identity_file() {
   if [ -n "$root_prefix" ]; then
@@ -88,26 +92,59 @@ ensure_directory() {
 ensure_directory "$state_directory" 0 0 755
 ensure_directory "$presets_directory" "$runtime_uid" "$runtime_gid" 755
 
-validate_default() {
+validate_document() {
   path=$1
   if [ ! -f "$path" ] || [ -L "$path" ]; then
-    echo "default destination is not a regular file: $path" >&2
+    echo "save document is not a regular file: $path" >&2
     exit 1
   fi
-  [ "$(stat -c '%u:%g:%a' "$path")" = "$runtime_uid:$runtime_gid:644" ] || { echo "default destination ownership or mode is unsafe: $path" >&2; exit 1; }
+  [ "$(stat -c '%u:%g:%a' "$path")" = "$runtime_uid:$runtime_gid:644" ] || { echo "save document ownership or mode is unsafe: $path" >&2; exit 1; }
 }
 
-if [ -e "$destination_default" ] || [ -L "$destination_default" ]; then
-  validate_default "$destination_default"
-  exit 0
-fi
+validate_pair() {
+  system_path=$1
+  patch_path=$2
+  python3 "$root_prefix/usr/local/lib/octessera/device_config.py" --data-role "$system_path" >/dev/null
+  python3 - "$patch_path" <<'PY'
+import json
+import sys
 
-if [ -n "$race_hook" ]; then
-  [ -n "$root_prefix" ] || { echo "provision race hook is only allowed for rooted fixtures" >&2; exit 1; }
-  if [ ! -x "$race_hook" ] || [ -L "$race_hook" ]; then
-    echo "provision race hook is unsafe: $race_hook" >&2
-    exit 1
-  fi
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    document = json.load(handle, object_pairs_hook=unique_object)
+if (not isinstance(document, dict)
+        or document.get("kind") != "octessera.patch"
+        or type(document.get("schemaVersion")) is not int
+        or document.get("schemaVersion") != 2
+        or not isinstance(document.get("runtimeConfig"), dict)):
+    raise SystemExit("default patch document v2 is invalid")
+PY
+}
+
+if [ -e "$legacy_default" ] || [ -L "$legacy_default" ]; then
+  echo "legacy mixed default exists; refusing to seed split save documents." >&2
+  exit 1
+fi
+has_system=0
+has_patch=0
+[ ! -e "$destination_system" ] && [ ! -L "$destination_system" ] || has_system=1
+[ ! -e "$destination_patch" ] && [ ! -L "$destination_patch" ] || has_patch=1
+if [ "$has_system" -ne "$has_patch" ]; then
+  echo "incomplete split save-document store; refusing to seed." >&2
+  exit 1
+fi
+if [ "$has_system" -eq 1 ]; then
+  validate_document "$destination_system"
+  validate_document "$destination_patch"
+  validate_pair "$destination_system" "$destination_patch"
+  exit 0
 fi
 
 if [ -e "$staging_directory" ] || [ -L "$staging_directory" ]; then
@@ -121,22 +158,20 @@ if find -P "$staging_directory" -mindepth 1 -print -quit | grep -q .; then
   exit 1
 fi
 
-temporary=$(mktemp "$staging_directory/default.XXXXXX")
+temporary_system=$(mktemp "$staging_directory/system.XXXXXX")
+temporary_patch=$(mktemp "$staging_directory/patch.XXXXXX")
 cleanup() {
-  rm -f -- "$temporary"
+  rm -f -- "$temporary_system" "$temporary_patch"
   rmdir -- "$staging_directory" 2>/dev/null || true
 }
 trap cleanup EXIT
-install_runtime -m 0644 "$source_default" "$temporary"
+install_runtime -m 0644 "$source_system" "$temporary_system"
+install_runtime -m 0644 "$source_patch" "$temporary_patch"
+validate_pair "$temporary_system" "$temporary_patch"
 
-if [ -n "$race_hook" ]; then
-  "$race_hook" "$destination_default"
-fi
-
-move_status=0
-mv -T -n -- "$temporary" "$destination_default" || move_status=$?
-if [ "$move_status" != 0 ] && [ ! -e "$destination_default" ] && [ ! -L "$destination_default" ]; then
-  echo "default destination move failed: $destination_default" >&2
-  exit "$move_status"
-fi
-validate_default "$destination_default"
+for pair in "$temporary_system:$destination_system" "$temporary_patch:$destination_patch"; do
+  temporary=${pair%%:*}
+  destination=${pair#*:}
+  mv -T -n -- "$temporary" "$destination"
+  validate_document "$destination"
+done

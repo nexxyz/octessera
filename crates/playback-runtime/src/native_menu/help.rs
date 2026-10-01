@@ -165,6 +165,8 @@ fn default_system_effect_help_key(effect: &str) -> Option<String> {
     match effect {
         "default.save" => Some("action:default_save".into()),
         "default.load" => Some("action:default_load".into()),
+        "system.save" => Some("action:system_save".into()),
+        "system.load" => Some("action:system_load".into()),
         "factory.load" => Some("action:factory_load".into()),
         "system.clearAll" => Some("action:system_clear_all".into()),
         "system.reboot" => Some("action:system_reboot".into()),

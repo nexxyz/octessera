@@ -24,6 +24,10 @@ impl PendingPiPersistence {
         self.pending = None;
     }
 
+    pub(crate) fn has_default_pending(&self) -> bool {
+        self.pending.is_some_and(|native| native.default_eligible)
+    }
+
     pub(crate) fn cancel_if_invalid(&mut self, generation: u64, blocked: bool) {
         if blocked
             || self
