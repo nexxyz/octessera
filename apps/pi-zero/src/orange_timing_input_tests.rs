@@ -131,7 +131,7 @@ fn valid_environment(store: Option<&str>) -> EnvironmentRestore {
     EnvironmentRestore::set(&[
         ("OCTESSERA_TIMING_AUTOAUX", Some("1")),
         ("OCTESSERA_TIMING_AUTOPLAY", Some("1")),
-        ("OCTESSERA_PI_TIMING_KEEP_AWAKE", Some("1")),
+        ("OCTESSERA_TIMING_KEEP_AWAKE", Some("1")),
         ("OCTESSERA_PI_UI_PROFILE", Some("1")),
         ("OCTESSERA_PI_STORE_DIR", store),
     ])
@@ -154,7 +154,7 @@ fn timing_tick(
     at: Instant,
 ) -> bool {
     let revision = fixture.playback.last_snapshot_revision();
-    let previous_turns = timing.aux_turns;
+    let previous_turns = timing.sequence.aux_turns;
     let finished = timing
         .tick(
             at,
@@ -163,7 +163,7 @@ fn timing_tick(
             &mut fixture.host,
         )
         .unwrap();
-    assert!(timing.aux_turns.saturating_sub(previous_turns) <= 1);
+    assert!(timing.sequence.aux_turns.saturating_sub(previous_turns) <= 1);
     assert_eq!(fixture.playback.last_snapshot_revision(), revision);
     finished
 }
@@ -255,7 +255,7 @@ fn autoaux_command_profile_ignores_runner_commands_rejected_by_host() {
         .expect("AutoAux command profile should remain active");
     assert_eq!(evidence.cutoff_command_count(), 0);
     assert_eq!(evidence.cutoff_values(), [None, None]);
-    assert_eq!(timing.rapid_turns, 0);
+    assert_eq!(timing.sequence.rapid_turns, 0);
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
@@ -301,14 +301,14 @@ fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
         &profiler,
         start + BASELINE + PLATEAU + PLATEAU + TURN_INTERVAL
     ));
-    assert_eq!(timing.rapid_turns, 1);
+    assert_eq!(timing.sequence.rapid_turns, 1);
     assert!(!timing_tick(
         &mut fixture,
         &mut timing,
         &profiler,
         start + BASELINE + PLATEAU + PLATEAU + Duration::from_millis(200)
     ));
-    assert_eq!(timing.rapid_turns, 2);
+    assert_eq!(timing.sequence.rapid_turns, 2);
     let rapid_start = start + BASELINE + PLATEAU + PLATEAU;
     assert!(!timing_tick(
         &mut fixture,
@@ -316,7 +316,7 @@ fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
         &profiler,
         rapid_start + RAPID
     ));
-    assert!(timing.missed_turns > 0);
+    assert!(timing.sequence.missed_turns > 0);
 
     std::thread::sleep(Duration::from_millis(160));
     super::host_work::drain_host_work(
@@ -332,8 +332,8 @@ fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
         &profiler,
         rapid_start + RAPID + Duration::from_secs(1)
     ));
-    assert!(timing.final_revision.is_some());
-    assert!(timing.save_completion.is_none());
+    assert!(timing.sequence.final_revision.is_some());
+    assert!(timing.sequence.save_completion.is_none());
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
@@ -346,10 +346,13 @@ fn autoaux_accepts_only_automatic_success_for_the_final_revision() {
     let mut fixture = runtime_fixture(true);
     let mut timing = prepare_timing(&mut fixture).unwrap().unwrap();
     let started = Instant::now() - Duration::from_secs(3);
-    timing.phase = Phase::AwaitSave { started };
-    timing.final_revision = Some(91);
+    timing.sequence.phase = Phase::AwaitSave { started };
+    timing.sequence.final_revision = Some(91);
     let wrong = identified_auto_save(90, true);
-    timing.accept_store_result(&wrong, Instant::now()).unwrap();
+    timing
+        .sequence
+        .accept_store_result(&wrong, Instant::now())
+        .unwrap();
     let manual = RuntimeStoreResult::Identified {
         result: Box::new(RuntimeStoreResult::SaveDefaultResult {
             ok: true,
@@ -358,28 +361,34 @@ fn autoaux_accepts_only_automatic_success_for_the_final_revision() {
         request_id: "manual".into(),
         revision: Some(91),
     };
-    timing.accept_store_result(&manual, Instant::now()).unwrap();
+    timing
+        .sequence
+        .accept_store_result(&manual, Instant::now())
+        .unwrap();
     let unidentified = RuntimeStoreResult::SaveDefaultResult {
         ok: true,
         is_auto: Some(true),
     };
     timing
+        .sequence
         .accept_store_result(&unidentified, Instant::now())
         .unwrap();
-    assert!(timing.save_completion.is_none());
+    assert!(timing.sequence.save_completion.is_none());
 
     let success = identified_auto_save(91, true);
     timing
+        .sequence
         .accept_store_result(&success, Instant::now())
         .unwrap();
     assert_eq!(
         timing
+            .sequence
             .save_completion
             .as_ref()
             .map(|completion| completion.0.as_str()),
         Some("native-default-91")
     );
-    assert!(timing.save_completion.as_ref().unwrap().1 >= Duration::from_secs(3));
+    assert!(timing.sequence.save_completion.as_ref().unwrap().1 >= Duration::from_secs(3));
     assert!(timing_tick(
         &mut fixture,
         &mut timing,
@@ -398,15 +407,16 @@ fn autoaux_matching_failure_and_completion_timeout_are_errors() {
     let mut fixture = runtime_fixture(true);
     let mut timing = prepare_timing(&mut fixture).unwrap().unwrap();
     let started = Instant::now();
-    timing.phase = Phase::AwaitSave { started };
-    timing.final_revision = Some(92);
+    timing.sequence.phase = Phase::AwaitSave { started };
+    timing.sequence.final_revision = Some(92);
     let failure = identified_auto_save(92, false);
     assert!(timing
+        .sequence
         .accept_store_result(&failure, started + Duration::from_secs(3))
         .is_err());
-    assert!(timing.save_completion.is_none());
+    assert!(timing.sequence.save_completion.is_none());
 
-    timing.phase = Phase::AwaitSave { started };
+    timing.sequence.phase = Phase::AwaitSave { started };
     assert!(timing
         .tick(
             started + SAVE_COMPLETION_TIMEOUT,
@@ -415,7 +425,7 @@ fn autoaux_matching_failure_and_completion_timeout_are_errors() {
             &mut fixture.host,
         )
         .is_err());
-    assert!(timing.save_completion.is_none());
+    assert!(timing.sequence.save_completion.is_none());
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
@@ -425,7 +435,7 @@ fn autoaux_refuses_missing_gates_wrong_focus_and_unbound_aux() {
     let missing = EnvironmentRestore::set(&[
         ("OCTESSERA_TIMING_AUTOAUX", Some("1")),
         ("OCTESSERA_TIMING_AUTOPLAY", None),
-        ("OCTESSERA_PI_TIMING_KEEP_AWAKE", None),
+        ("OCTESSERA_TIMING_KEEP_AWAKE", None),
         ("OCTESSERA_PI_UI_PROFILE", None),
         ("OCTESSERA_PI_STORE_DIR", None),
     ]);

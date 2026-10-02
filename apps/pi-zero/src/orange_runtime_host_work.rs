@@ -34,6 +34,9 @@ pub(super) fn flush_native_persistence(
     host: &mut OrangeHostAdapter,
 ) -> Result<(), String> {
     for result in host.flush_native_persistence_at(playback, runner, Instant::now()) {
+        if let Some(evidence) = crate::timing_input::TimingHost::timing_evidence(host) {
+            evidence.record_host_message(&result);
+        }
         super::dispatch(playback, runner, host, result)?;
     }
     Ok(())

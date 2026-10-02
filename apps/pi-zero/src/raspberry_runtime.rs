@@ -19,6 +19,9 @@ use std::time::Instant;
 
 #[path = "runtime_startup.rs"]
 mod startup;
+#[cfg(test)]
+#[path = "raspberry_timing_input_tests.rs"]
+mod timing_input_tests;
 pub(crate) use startup::{prepare, PreparedRuntime};
 
 struct SchedulerState {
@@ -74,7 +77,6 @@ pub(crate) fn run(config: RaspberryRuntimeConfig, render_worker: RenderWorker) {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn run_scheduler(
     prepared: PreparedRuntime,
     render_worker: RenderWorker,
@@ -92,8 +94,6 @@ fn run_scheduler(
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx,
     } = prepared;
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-    let audio_load_rx = audio_load_rx;
     let audio = adapter.audio_service();
     let mut state = SchedulerState::new(initial_rendered_revision);
     let profile_enabled = state.profile_enabled();

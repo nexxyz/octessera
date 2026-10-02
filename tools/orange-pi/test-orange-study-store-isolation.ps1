@@ -107,7 +107,7 @@ try {
   Assert-PlanContains $plan 'Display scenario: AWAKE'
   Assert-PlanContains $plan 'scenario=AWAKE'
   Assert-PlanContains $plan '"store_dir=$study_store"'
-  Assert-PlanContains $plan '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_PI_TIMING_KEEP_AWAKE=1'
+  Assert-PlanContains $plan '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_TIMING_KEEP_AWAKE=1'
   if ($autoAuxWithoutKeepAwake.Contains('OCTESSERA_TIMING_AUTOAUX')) { throw "AutoAux environment was injected without -KeepAwake." }
   if ($plan.Contains('OCTESSERA_TIMING_AUTOAUX')) { throw "AutoAux environment was injected without the workstation opt-in." }
   $autoAuxStudyStart = $autoAuxAwake.IndexOf("Study payload:`n", [StringComparison]::Ordinal) + "Study payload:`n".Length
