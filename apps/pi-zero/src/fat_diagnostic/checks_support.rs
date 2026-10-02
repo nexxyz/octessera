@@ -22,19 +22,17 @@ const UTILITY_MODE_ENVIRONMENT: &[&str] = &[
 ];
 
 pub(super) fn artifact_check(context: &CheckContext) -> CheckOutcome {
-    let mut artifact = String::new();
-    for path in [context.board.profile_contract_path] {
-        match read_small(Path::new(path)) {
-            Ok(value) => artifact.push_str(&format!("== {path} ==\n{value}\n")),
-            Err(error) => {
-                return outcome(
-                    CheckStatus::Fail,
-                    &format!("mandatory artifact/log collection failed: {error}"),
-                    "10-artifacts.txt",
-                )
-            }
+    let path = context.board.profile_contract_path;
+    let mut artifact = match read_small(Path::new(path)) {
+        Ok(value) => format!("== {path} ==\n{value}\n"),
+        Err(error) => {
+            return outcome(
+                CheckStatus::Fail,
+                &format!("mandatory artifact/log collection failed: {error}"),
+                "10-artifacts.txt",
+            )
         }
-    }
+    };
     if let Ok(value) = read_small(Path::new("/etc/armbian-release")) {
         artifact.push_str(&format!("== /etc/armbian-release ==\n{value}\n"));
     }
