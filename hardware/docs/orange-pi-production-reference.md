@@ -173,10 +173,13 @@ built in or modular: a modular build installs `mmc_spi` through
 `/etc/modules-load.d/octessera-orange-sd-card.conf`; a built-in build does not
 install a module-load entry or an `mmc_spi` module.
 
-The image stages the complete 320-file sample library and only seeds the default
-preset when `/var/lib/octessera/presets/default.json` is absent. Boot does not
-copy or replace sample media. The technical manifest records each file's path,
-size, and SHA-256.
+The image stages the complete 320-file sample library. The musical-default
+provisioner seeds `system.json` and `default.patch.json` when both are missing,
+and validates an existing pair without replacing it. It refuses a legacy mixed
+`default.json` or an incomplete pair. Boot does not copy or replace sample
+media. The build preserves the mixed `pi-default.json` as inert image metadata;
+it is not an active preset. The technical manifest records each sample file's
+path, size, and SHA-256.
 
 Stage and inspect those assets before an Armbian build:
 
