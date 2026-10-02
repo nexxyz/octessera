@@ -1,15 +1,18 @@
-use super::*;
-use crate::autoaux_sequence::Phase;
+use crate::autoaux_menu;
+use crate::autoaux_sequence::{AutoAuxSequence, Phase};
 use crate::hardware_runtime_scheduler::DisplaySnapshotDue;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::raspberry_native_scene::NativeScenePump;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
+use crate::timing_input::{complete_study, fail_study, TimingInput, TimingStudyEvidence};
+use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use playback_runtime::{NativeRunnerConfig, RuntimeConfig, SyncSource, UsbDataRole};
 use std::path::Path;
 use std::process::Command;
 use std::sync::mpsc;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 const FAIL_CHILD_ENV: &str = "OCTESSERA_TEST_TIMING_FAILURE_CHILD";
 
@@ -41,7 +44,7 @@ fn runtime(
     AudioKeepAlive,
 ) {
     let payload: serde_json::Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+        serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     crate::pi_store_test_support::write_pair(&root.join("store"), &payload);
     let (audio, control_rx, event_rx, prep_tx) =
         crate::audio::test_service_with_recording_dir(root.join("recording"));
@@ -165,11 +168,11 @@ fn native_worker_save_result_produces_the_receipt() {
         assert!(Instant::now() < deadline, "native timing save timed out");
         std::thread::sleep(Duration::from_millis(2));
     }
-    let (request_id, elapsed) = timing.save_completion.clone().unwrap();
+    let (request_id, elapsed) = timing.sequence.save_completion.clone().unwrap();
     assert!(!request_id.is_empty());
     assert!(elapsed >= Duration::from_secs(2));
     assert!(elapsed < crate::autoaux_sequence::SAVE_COMPLETION_TIMEOUT);
-    assert!(timing.final_revision.is_some());
+    assert!(timing.sequence.final_revision.is_some());
     assert!(root.join("store/default.patch.json").is_file());
     complete_study(&timing, &mut adapter, scenes.timing_cutoff_acceptances()).unwrap();
     assert!(adapter.timing_evidence.is_none());
@@ -177,9 +180,9 @@ fn native_worker_save_result_produces_the_receipt() {
     adapter.timing_evidence = Some(TimingStudyEvidence::default());
     let started = Instant::now() - Duration::from_secs(3);
     let mut no_commands = TimingInput::for_test(AutoAuxSequence::new(started), original);
-    no_commands.phase = Phase::AwaitSave { started };
-    no_commands.final_revision = Some(999);
-    no_commands.save_completion = Some(("not-a-real-save".into(), Duration::from_secs(1)));
+    no_commands.sequence.phase = Phase::AwaitSave { started };
+    no_commands.sequence.final_revision = Some(999);
+    no_commands.sequence.save_completion = Some(("not-a-real-save".into(), Duration::from_secs(1)));
     assert!(complete_study(
         &no_commands,
         &mut adapter,
@@ -199,9 +202,9 @@ fn completed_save_cannot_pass_without_physical_scene_acknowledgements() {
     let scenes = NativeScenePump::new(Instant::now());
     let started = Instant::now() - Duration::from_secs(3);
     let mut timing = TimingInput::for_test(AutoAuxSequence::new(started), 90);
-    timing.phase = Phase::AwaitSave { started };
-    timing.final_revision = Some(8);
-    timing.save_completion = Some(("save-8".into(), Duration::from_secs(1)));
+    timing.sequence.phase = Phase::AwaitSave { started };
+    timing.sequence.final_revision = Some(8);
+    timing.sequence.save_completion = Some(("save-8".into(), Duration::from_secs(1)));
     assert!(
         complete_study(&timing, &mut adapter, scenes.timing_cutoff_acceptances())
             .unwrap_err()
@@ -217,7 +220,7 @@ fn study_failure_prints_one_board_marker_and_exits_two() {
     }
     let output = Command::new(std::env::current_exe().unwrap())
         .arg("--exact")
-        .arg("timing_input::raspberry_tests::study_failure_prints_one_board_marker_and_exits_two")
+        .arg("raspberry_runtime::timing_input_tests::study_failure_prints_one_board_marker_and_exits_two")
         .arg("--nocapture")
         .env(FAIL_CHILD_ENV, "1")
         .output()

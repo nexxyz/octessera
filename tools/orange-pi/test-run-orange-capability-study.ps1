@@ -175,12 +175,12 @@ $autoPlayLive = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Art
 $awake = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; UiProfile = $true; AutoPlay = $true; KeepAwake = $true; LiveSeconds = 30 }
 $live120 = Invoke-StudyPrintOnly -Parameters @{ Mode = "LiveCandidate"; Artifact = $missingArtifact; AllowServiceInterruption = $true; PrintOnly = $true; LiveSeconds = 120 }
 Assert-Contains $awake 'Display scenario: AWAKE'
-Assert-Contains $awake '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_PI_TIMING_KEEP_AWAKE=1'
-Assert-NotContains $autoPlayLive 'OCTESSERA_PI_TIMING_KEEP_AWAKE'
+Assert-Contains $awake '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_TIMING_KEEP_AWAKE=1'
+Assert-NotContains $autoPlayLive 'OCTESSERA_TIMING_KEEP_AWAKE'
 Assert-NotContains $autoPlayLive 'scenario=AWAKE'
 Assert-NotContains $autoPlayLive 'study_store'
-Assert-NotContains $profiledLive 'OCTESSERA_PI_TIMING_KEEP_AWAKE'
-Assert-NotContains $live 'OCTESSERA_PI_TIMING_KEEP_AWAKE'
+Assert-NotContains $profiledLive 'OCTESSERA_TIMING_KEEP_AWAKE'
+Assert-NotContains $live 'OCTESSERA_TIMING_KEEP_AWAKE'
 foreach ($mode in @("PassiveBaseline", "ProfileBaseline", "Dsp64", "Dsp256", "LiveAudioBenchmark")) {
   Assert-Throws { Invoke-StudyPrintOnly -Parameters @{ Mode = $mode; KeepAwake = $true; PrintOnly = $true } | Out-Null }
 }

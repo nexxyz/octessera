@@ -130,7 +130,7 @@ cleanup_study_store() {
   $study = Replace-OrangeAwakeAnchor $study 'candidate_status=0' "$storeFunctions`ncandidate_status=0"
   $study = Replace-OrangeAwakeAnchor $study 'sudo -n systemctl stop "$service"' "prepare_study_store`nsudo -n systemctl stop `"`$service`""
   $study = Replace-OrangeAwakeAnchor $study "'store_dir=/var/lib/octessera/presets'" '"store_dir=$study_store"'
-  $storeEnvironment = '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_PI_TIMING_KEEP_AWAKE=1' + $timingAutoAuxEnvironment
+  $storeEnvironment = '--setenv=OCTESSERA_PI_STORE_DIR="$study_store" --setenv=OCTESSERA_TIMING_KEEP_AWAKE=1' + $timingAutoAuxEnvironment
   $study = Replace-OrangeAwakeAnchor $study '--setenv=OCTESSERA_PI_STORE_DIR=/var/lib/octessera/presets' $storeEnvironment
   $study = Replace-OrangeAwakeAnchor $study '      ready=1' @'
       if ! sudo -n systemctl show "$unit" --property=Environment --value | tr ' ' '\n' | grep -Fxq "OCTESSERA_PI_STORE_DIR=$study_store"; then

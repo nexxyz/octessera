@@ -192,7 +192,7 @@ candidate_pid=
   Assert-Contains $successful.Output "service_active=active"
   Assert-Contains $successful.Output "wake_trace=OCTESSERA_WAKE_TRACE=1"
   $candidateArgs = Get-Content -LiteralPath (Join-Path $successful.State "systemd-run-args") -Raw
-  foreach ($contract in @("OCTESSERA_TIMING_AUTOAUX=1", "OCTESSERA_TIMING_AUTOPLAY=1", "OCTESSERA_PI_UI_PROFILE=1", "OCTESSERA_PI_TIMING_KEEP_AWAKE=1", "OCTESSERA_PI_SAMPLES_DIR=/home/pi/samples", "OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w")) { Assert-Contains $candidateArgs $contract }
+  foreach ($contract in @("OCTESSERA_TIMING_AUTOAUX=1", "OCTESSERA_TIMING_AUTOPLAY=1", "OCTESSERA_PI_UI_PROFILE=1", "OCTESSERA_TIMING_KEEP_AWAKE=1", "OCTESSERA_PI_SAMPLES_DIR=/home/pi/samples", "OCTESSERA_EXPECTED_BOARD_PROFILE=raspberry-pi-zero-2w")) { Assert-Contains $candidateArgs $contract }
   if (Test-Path -LiteralPath (Join-Path $studyDirectory "octessera-study-$($successful.RunId).service")) { throw "Successful restored study retained its isolated clone." }
   $sudoLog = Get-Content -LiteralPath (Join-Path $successful.State "sudo.log") -Raw
   Assert-Contains $sudoLog "install -d -o root -g root -m 0755"

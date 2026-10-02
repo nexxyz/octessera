@@ -110,9 +110,12 @@ the current clean source, then run the candidate against an isolated preset clon
 ```
 
 Raspberry and Orange share one Aux timing driver (`OCTESSERA_TIMING_AUTOAUX=1`
-with `OCTESSERA_TIMING_AUTOPLAY=1`) and one report format; only the
-`raspberry-autoaux`/`orange-autoaux` prefix differs. Raspberry baselines
-captured before this driver used `oled_frame_*`/`synth_cutoff_commands` keys.
+with `OCTESSERA_TIMING_AUTOPLAY=1` and `OCTESSERA_TIMING_KEEP_AWAKE=1`) and one
+report format; only the `raspberry-autoaux`/`orange-autoaux` prefix differs.
+On both boards `OCTESSERA_TIMING_AUTOPLAY=1` alone starts playback at boot,
+and `OCTESSERA_TIMING_KEEP_AWAKE=1` stops startup unless the loaded settings
+keep the display awake. Raspberry baselines captured before this driver used
+`oled_frame_*`/`synth_cutoff_commands` keys.
 
 This one-shot study stops and restores the installed service. It requires a
 matching final automatic-save receipt and verifies that the original presets

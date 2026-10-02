@@ -87,6 +87,9 @@ pub fn handle_deferred_host_work(
         return Ok(());
     }
     for result in adapter.flush_native_persistence_at(playback, runner, Instant::now()) {
+        if let Some(evidence) = adapter.timing_evidence.as_mut() {
+            evidence.record_host_message(&result);
+        }
         dispatch_runtime_message(playback, runner, adapter, result)?;
     }
     for result in adapter.drain_platform_results_for_runner(runner, PLATFORM_RESULT_BUDGET) {

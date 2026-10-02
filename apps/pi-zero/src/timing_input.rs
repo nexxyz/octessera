@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 const AUTOAUX_ENV: &str = "OCTESSERA_TIMING_AUTOAUX";
 const AUTOPLAY_ENV: &str = "OCTESSERA_TIMING_AUTOPLAY";
-const KEEP_AWAKE_ENV: &str = "OCTESSERA_PI_TIMING_KEEP_AWAKE";
+const KEEP_AWAKE_ENV: &str = "OCTESSERA_TIMING_KEEP_AWAKE";
 const UI_PROFILE_ENV: &str = "OCTESSERA_PI_UI_PROFILE";
 const STUDY_STORE_PREFIX: &str = "/var/lib/octessera/study-stores/";
 
@@ -89,20 +89,6 @@ pub(crate) struct TimingInput {
     pub(crate) sequence: AutoAuxSequence,
     pub(crate) starting_cutoff: u16,
     pub(crate) plateau_values: [u16; 2],
-}
-
-impl std::ops::Deref for TimingInput {
-    type Target = AutoAuxSequence;
-
-    fn deref(&self) -> &Self::Target {
-        &self.sequence
-    }
-}
-
-impl std::ops::DerefMut for TimingInput {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sequence
-    }
 }
 
 impl TimingInput {
@@ -354,6 +340,3 @@ fn is_study_store(path: &str) -> bool {
     };
     id.len() == 32 && id.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-mod raspberry_tests;
