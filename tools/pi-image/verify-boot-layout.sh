@@ -244,7 +244,10 @@ require_octessera_raspberry_identity() {
         return 1
     fi
     for document in "$system_config" "$patch_config"; do
-        [ -f "$document" ] && [ ! -L "$document" ] && [ "$(stat -c '%u:%g:%a' "$document")" = "$pi_uid:$pi_gid:644" ] || { echo "constructor-required: Raspberry split save document metadata is not exact: $document" >&2; return 1; }
+        if [ ! -f "$document" ] || [ -L "$document" ] || [ "$(stat -c '%u:%g:%a' "$document")" != "$pi_uid:$pi_gid:644" ]; then
+            echo "constructor-required: Raspberry split save document metadata is not exact: $document" >&2
+            return 1
+        fi
     done
     if [ -e "$legacy_default" ] || [ -L "$legacy_default" ]; then echo "constructor-required: Raspberry mixed default remains in the active presets store" >&2; return 1; fi
     python3 "$validator_source" --data-role "$system_config" >/dev/null || { echo "constructor-required: Raspberry System document is invalid" >&2; return 1; }
