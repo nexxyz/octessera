@@ -8,7 +8,6 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 release="$root/.github/workflows/release-artifacts.yml"
 boards="$root/.github/workflows/release-board-artifacts.yml"
 action="$root/.github/actions/build-armbian-image/action.yml"
-bootstrap="$root/.github/workflows/orange-rolling-pin-bootstrap.yml"
 assembler="$root/tools/release/assemble_release_assets.py"
 board_release="$root/tools/release/board_image_release.py"
 desktop_verifier="$root/tools/release/verify_desktop_artifact.py"
@@ -64,18 +63,9 @@ assert_order() {
 
 assert_contains "$release" 'workflow_dispatch:'
 assert_contains "$boards" 'workflow_call:'
-[[ -f "$bootstrap" ]] || { echo 'Missing Orange rolling-pin bootstrap workflow.' >&2; exit 1; }
-assert_absent "$boards" 'rolling_pin_bootstrap: true'
-assert_absent "$release" 'orange-rolling-pin-bootstrap'
-assert_absent "$boards" 'orange-rolling-pin-bootstrap'
 assert_contains "$boards" 'armbian_build_ref: 3da49cffcb8ac58a919d86816fec4659c410ff1e'
 assert_contains "$boards" 'ARMBIAN_BUILD_REF: 3da49cffcb8ac58a919d86816fec4659c410ff1e'
 assert_absent "$boards" 'fa7a7b2294d9e760a77630950afd460b7a0b2a26'
-mapfile -t bootstrap_workflows < <(grep -RIlF --include='*.yml' --include='*.yaml' -- 'rolling_pin_bootstrap: true' "$root/.github/workflows" || true)
-[[ "${#bootstrap_workflows[@]}" == 1 && "${bootstrap_workflows[0]}" == "$bootstrap" ]] || {
-    echo 'Exactly one workflow may enable rolling-pin bootstrap, and it must be the bootstrap workflow.' >&2
-    exit 1
-}
 armbian_inputs="$root/.github/workflows/armbian-image.yml"
 [[ "$(sed -n '/^    inputs:/,/^permissions:/p' "$armbian_inputs" | grep -cE '^      [A-Za-z0-9_-]+:$')" == 10 ]] || {
     echo 'Armbian workflow_dispatch must retain exactly ten inputs.' >&2

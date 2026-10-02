@@ -353,11 +353,6 @@ jobs:
           sudo env "PATH=$PATH" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" bash tools/armbian-image/test-musical-assets.sh
           bash tools/armbian-image/test-inspector.sh
 
-      - name: Test Orange rolling-pin bootstrap
-        run: |
-          shellcheck -x tools/armbian-image/prepare-orange-rolling-pin-bootstrap.sh tools/armbian-image/capture-orange-rolling-pin-bootstrap.sh tools/armbian-image/test-orange-rolling-pin-bootstrap.sh
-          bash tools/armbian-image/test-orange-rolling-pin-bootstrap.sh
-
   board_profile_powershell:
     name: Board profile PowerShell checks
     runs-on: windows-latest
@@ -459,7 +454,7 @@ jobs:
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Lint workflows and every embedded shell script
         run: |
-          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml .github/workflows/orange-rolling-pin-bootstrap.yml
+          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml
       - name: Compile all image respin Python files
         run: python3 -m py_compile tools/image-respin/*.py
       - name: Run disk and runtime image respin tests as root
