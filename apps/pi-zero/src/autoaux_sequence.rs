@@ -85,12 +85,7 @@ impl AutoAuxSequence {
                 next_turn, delta, ..
             } if now >= next_turn => Ok(AutoAuxAction::Turn(delta)),
             Phase::AwaitSave { started } => {
-                if self.final_revision.is_none() {
-                    self.final_revision = runner
-                        .persistence_intent_at(now)
-                        .filter(|intent| intent.default_eligible())
-                        .map(|intent| intent.revision());
-                }
+                self.refresh_final_revision(now, runner);
                 if self
                     .save_completion
                     .as_ref()
@@ -100,13 +95,23 @@ impl AutoAuxSequence {
                     return Ok(AutoAuxAction::Completed);
                 }
                 if now.duration_since(started) >= SAVE_COMPLETION_TIMEOUT {
-                    return Err("Orange Aux timing smoke timed out waiting for the final automatic default save completion".into());
+                    return Err("Aux timing smoke timed out waiting for the final automatic default save completion".into());
                 }
                 Ok(AutoAuxAction::None)
             }
             Phase::Done => Ok(AutoAuxAction::None),
             _ => Ok(AutoAuxAction::None),
         }
+    }
+
+    pub(super) fn refresh_final_revision(&mut self, now: Instant, runner: &NativeRunner) {
+        if self.final_revision.is_some() || !matches!(self.phase, Phase::AwaitSave { .. }) {
+            return;
+        }
+        self.final_revision = runner
+            .persistence_intent_at(now)
+            .filter(|intent| intent.default_eligible())
+            .map(|intent| intent.revision());
     }
 
     pub(super) fn turn_issued(&mut self, now: Instant) {
@@ -177,7 +182,7 @@ impl AutoAuxSequence {
                 if result.operation() == RuntimeOperation::StoreSaveDefault =>
             {
                 Err(format!(
-                    "Orange Aux timing smoke final automatic default save failed for revision {expected_revision} ({request_id})"
+                    "Aux timing smoke final automatic default save failed for revision {expected_revision} ({request_id})"
                 ))
             }
             _ => Ok(()),

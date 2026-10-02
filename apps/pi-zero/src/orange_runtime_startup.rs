@@ -59,26 +59,6 @@ impl OrangeStartupReadinessGate {
     }
 }
 
-pub(super) fn ensure_timing_keep_awake(playback: &PlaybackRuntime) -> Result<(), String> {
-    if std::env::var("OCTESSERA_PI_TIMING_KEEP_AWAKE").as_deref() != Ok("1") {
-        return Ok(());
-    }
-    let snapshot = playback
-        .last_snapshot()
-        .ok_or("Orange AWAKE candidate has no native snapshot")?;
-    if !is_awake_menu_snapshot(snapshot) {
-        return Err("Orange AWAKE candidate did not load awake settings".into());
-    }
-    Ok(())
-}
-
-fn is_awake_menu_snapshot(snapshot: &serde_json::Value) -> bool {
-    is_normal_menu_snapshot(snapshot)
-        && snapshot["settings"]["dimTimerSeconds"] == 0
-        && snapshot["settings"]["screenSleepSeconds"] == 0
-        && snapshot["settings"]["ledsDimmed"] == false
-}
-
 pub(crate) fn prepare_runtime(
     audio: AudioService,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -198,6 +178,7 @@ pub(crate) fn publish_prepared_acknowledged_snapshot(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::timing_input::is_awake_menu_snapshot;
     use serde_json::json;
     use std::sync::Arc;
 

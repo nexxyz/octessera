@@ -9,14 +9,13 @@ pub(super) fn drain_host_work(
     host: &mut OrangeHostAdapter,
     _ui_profiler: &mut crate::ui_profile::UiProfiler,
 ) -> Result<(), String> {
-    drain_host_work_with_autoaux(playback, runner, host, None)
+    drain_pending_host_work(playback, runner, host)
 }
 
-pub(super) fn drain_host_work_with_autoaux(
+pub(super) fn drain_pending_host_work(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     host: &mut OrangeHostAdapter,
-    timing: Option<&mut super::timing_input::OrangeTimingInput>,
 ) -> Result<(), String> {
     let responses = runner.poll_deferred_menu_apply_music_first()?;
     if !responses.is_empty() {
@@ -26,10 +25,7 @@ pub(super) fn drain_host_work_with_autoaux(
     if host.shutdown_pending() {
         return Ok(());
     }
-    match timing {
-        Some(timing) => drain_host_results_with_autoaux(playback, runner, host, timing),
-        None => drain_host_results(playback, runner, host),
-    }
+    drain_host_results(playback, runner, host)
 }
 
 pub(super) fn flush_native_persistence(
@@ -49,26 +45,10 @@ pub(crate) fn drain_host_results(
     host: &mut OrangeHostAdapter,
 ) -> Result<(), String> {
     for result in host.drain_results_for_runner(runner, super::super::HOST_RESULT_BUDGET) {
-        super::dispatch(playback, runner, host, result)?;
-    }
-    Ok(())
-}
-
-fn drain_host_results_with_autoaux(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
-    timing: &mut super::timing_input::OrangeTimingInput,
-) -> Result<(), String> {
-    for message in host.drain_results_for_runner(runner, super::super::HOST_RESULT_BUDGET) {
-        let completion = match &message {
-            playback_runtime::HostMessage::RuntimeResult { result } => Some(result.clone()),
-            _ => None,
-        };
-        super::dispatch(playback, runner, host, message)?;
-        if let Some(result) = completion {
-            timing.accept_store_result(&result, Instant::now())?;
+        if let Some(evidence) = crate::timing_input::TimingHost::timing_evidence(host) {
+            evidence.record_host_message(&result);
         }
+        super::dispatch(playback, runner, host, result)?;
     }
     Ok(())
 }

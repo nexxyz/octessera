@@ -9,10 +9,9 @@ mod host_work;
 #[cfg(test)]
 #[path = "orange_runtime_keyboard_tests.rs"]
 mod keyboard_tests;
-#[path = "orange_timing_input.rs"]
-mod timing_input;
-#[path = "orange_timing_menu.rs"]
-mod timing_menu;
+#[cfg(test)]
+#[path = "orange_timing_input_tests.rs"]
+mod timing_input_tests;
 #[cfg(test)]
 pub(crate) use host_work::drain_host_results;
 
@@ -77,19 +76,22 @@ pub(crate) fn run_prepared_runtime(
         ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
         audio.ensure_route_readiness()?;
         audio_manager.ensure_selected_routes()?;
-        let timing_autoaux = timing_input::validate_startup(&playback)?;
+        let timing_autoaux = crate::timing_input::validate_startup(&playback)?;
         readiness_gate.try_mark_ready(
             audio_manager.required_jack_runtime_status(),
             candidate_readiness,
         )?;
         let mut ui_profiler = crate::ui_profile::UiProfiler::from_process();
-        let mut timing_input = timing_input::OrangeTimingInput::prepare(
+        let mut timing_input = crate::timing_input::TimingInput::prepare(
             timing_autoaux,
             &mut playback,
             &mut runner,
             &mut host,
         )?;
-        timing_input::configure_scene_diagnostics(&timing_input, &mut native_scenes, &ui_profiler);
+        native_scenes.set_capture_profile_enabled(ui_profiler.enabled());
+        if let Some(timing) = &timing_input {
+            native_scenes.set_timing_cutoff_targets(timing.plateau_values());
+        }
         let profile_enabled = ui_profiler.enabled();
         let mut last_loop_start = profile_enabled.then(Instant::now);
         while !signal::interrupted() {
@@ -117,12 +119,7 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            host_work::drain_host_work_with_autoaux(
-                &mut playback,
-                &mut runner,
-                &mut host,
-                timing_input.as_mut(),
-            )?;
+            host_work::drain_pending_host_work(&mut playback, &mut runner, &mut host)?;
             if host.shutdown_pending() {
                 break;
             }
@@ -141,12 +138,12 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            timing_input::tick_if_active(
+            crate::timing_input::tick_if_active(
                 &mut timing_input,
                 &mut playback,
                 &mut runner,
                 &mut host,
-                &native_scenes,
+                native_scenes.timing_cutoff_acceptances(),
             )?;
             let (runtime_snapshot_requested, runtime_advanced) = if let Some(advance) = scheduler
                 .next_runtime_advance(Instant::now(), &playback, runner.next_xy_glide_deadline())
@@ -193,12 +190,7 @@ pub(crate) fn run_prepared_runtime(
                     &mut host,
                 )?;
                 process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                host_work::drain_host_work_with_autoaux(
-                    &mut playback,
-                    &mut runner,
-                    &mut host,
-                    timing_input.as_mut(),
-                )?;
+                host_work::drain_pending_host_work(&mut playback, &mut runner, &mut host)?;
             }
             if host.shutdown_pending() {
                 break;
@@ -228,12 +220,7 @@ pub(crate) fn run_prepared_runtime(
             audio_manager.report_runtime_terminal_diagnostics();
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
             host_work::flush_native_persistence(&mut playback, &mut runner, &mut host)?;
-            host_work::drain_host_work_with_autoaux(
-                &mut playback,
-                &mut runner,
-                &mut host,
-                timing_input.as_mut(),
-            )?;
+            host_work::drain_pending_host_work(&mut playback, &mut runner, &mut host)?;
             if runtime_advanced {
                 scheduler.record_runtime_advance_complete(
                     Instant::now(),
