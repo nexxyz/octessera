@@ -168,6 +168,7 @@ fn routing_tree_reverse_completion_preserves_four_bus_output_parity() {
         vec![1, 0],
         "reverse routing-tree completion order"
     );
+    assert!(normal_runtime.collect_wait_for_test(&mut normal));
     let final_normal_state = recovered_source_state_signature(&mut normal_runtime, &mut normal);
     let final_reverse_state =
         recovered_source_state_signature(&mut reverse_runtime, &mut forced_reverse);
