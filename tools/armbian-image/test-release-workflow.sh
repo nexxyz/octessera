@@ -259,7 +259,7 @@ printf '%s\n' '[[{"tag_name":"v0.7.5","id":42,"draft":true,"assets":[{"name":"st
     echo 'The later-page-shaped draft fixture did not resolve exactly one empty draft.' >&2
     exit 1
 }
-if jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/zero.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/duplicate.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/non-draft.json" >/dev/null || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/non-empty.json" >/dev/null; then
+if jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/zero.json" >/dev/null 2>&1 || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/duplicate.json" >/dev/null 2>&1 || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/non-draft.json" >/dev/null 2>&1 || jq -e --arg tag v0.7.5 "$jq_draft_filter" "$fixture_dir/non-empty.json" >/dev/null 2>&1; then
     echo 'Draft resolver fixtures must reject zero, duplicate, non-draft, and non-empty matches.' >&2
     exit 1
 fi
