@@ -33,7 +33,7 @@ fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
         UsbDataRole::Gadget,
     );
     let legacy_pixels = vec![0x11; playback_runtime::oled_frame::OLED_FRAME_BYTES];
-    adapter.ingest_oled_frame(&RunnerMessage::OledFrame {
+    adapter.core.ingest_oled_frame(&RunnerMessage::OledFrame {
         revision: 1,
         width: 128,
         height: 128,
@@ -41,9 +41,14 @@ fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
         pixels: legacy_pixels.clone(),
     });
     let legacy_snapshot = serde_json::json!({"oledFrameRevision": 1});
-    adapter.accept_oled_frame_reference(&legacy_snapshot);
+    adapter.core.accept_oled_frame_reference(&legacy_snapshot);
     assert_eq!(
-        adapter.oled_frame_cache.accepted_frame().unwrap().pixels(),
+        adapter
+            .core
+            .oled_frame_cache
+            .accepted_frame()
+            .unwrap()
+            .pixels(),
         legacy_pixels
     );
 

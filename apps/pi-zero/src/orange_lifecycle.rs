@@ -48,7 +48,10 @@ impl PowerLifecycleCallbacks for OrangePowerCallbacks<'_> {
             .last_snapshot()
             .cloned()
             .ok_or_else(|| "Orange power request has no latest native snapshot".to_string())?;
-        let oled = self.host.oled_publication_for_snapshot(&snapshot, false)?;
+        let oled = self
+            .host
+            .core
+            .oled_publication_for_snapshot(&snapshot, false)?;
         self.render.publish_terminal_preserving(snapshot, oled)
     }
 

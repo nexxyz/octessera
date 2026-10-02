@@ -23,7 +23,7 @@ fn accepted_snapshot_ingestion_updates_orange_keyboard_gate() {
     )
     .unwrap();
     let control = crate::usb_keyboard::KeyboardCaptureControl::new(true);
-    host.set_keyboard_capture_control(control.clone());
+    host.core.set_keyboard_capture_control(control.clone());
     ingest_oled_messages(
         &mut host,
         &[RunnerMessage::Snapshot {

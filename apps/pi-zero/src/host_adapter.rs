@@ -1,9 +1,5 @@
 #[path = "host_adapter_construction.rs"]
 mod host_adapter_construction;
-#[path = "host_adapter_keyboard.rs"]
-mod host_adapter_keyboard;
-#[path = "host_adapter_oled.rs"]
-mod host_adapter_oled;
 #[path = "host_adapter_recording.rs"]
 mod host_adapter_recording;
 #[path = "host_adapter_store.rs"]
@@ -12,11 +8,13 @@ mod host_adapter_store;
 use crate::audio::AudioService;
 use crate::audio_event::{drum_hit_to_engine_event, musical_event_to_engine_event};
 use crate::host_audio_command::send_audio_command;
-use crate::midi_host::{MidiHost, RuntimeOutputSink};
-use crate::oled_frame_cache::OledFrameCache;
+use crate::midi_host::RuntimeOutputSink;
+use crate::pi_host_core::{
+    failure_message, power_save_result, shutdown_pending_messages, unsupported_messages, PiHostCore,
+};
 use crate::platform_service::{
-    dispatch_midi_effect_messages, dispatch_shared_effect, usb_sd_transfer_output_block_reason,
-    PendingPiPersistence, PiPlatformService, PlatformJob, PlatformJobKind, QueueFailureStyle,
+    dispatch_midi_effect_messages, dispatch_shared_effect, enqueue_job,
+    usb_sd_transfer_output_block_reason, PiPlatformService, PlatformJobKind,
 };
 use playback_runtime::{
     AudioOutputSet, DrumHit, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
@@ -30,16 +28,11 @@ use std::sync::Arc;
 pub struct PiPlaybackHostAdapter {
     audio: Option<AudioService>,
     samples_dir: PathBuf,
-    pub(crate) platform_service: PiPlatformService,
-    pending_default_save: PendingPiPersistence,
-    midi: MidiHost,
+    pub(crate) core: PiHostCore,
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
     usb_data_role: UsbDataRole,
     power_request: Option<PiPowerRequest>,
-    recovery_save_status: Option<Result<(), String>>,
-    pub(crate) oled_frame_cache: OledFrameCache,
-    keyboard_control: Option<crate::usb_keyboard::KeyboardCaptureControl>,
     pub(super) timing_evidence: Option<crate::timing_input::TimingStudyEvidence>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,19 +58,12 @@ impl PiPlaybackHostAdapter {
         }
     }
 
-    pub(crate) fn handle_transfer_input(&self, message: &playback_runtime::HostMessage) -> bool {
-        if let playback_runtime::HostMessage::DeviceInput { input, .. } = message {
-            return self.platform_service.handle_transfer_input(input);
-        }
-        true
+    pub(crate) fn handle_transfer_input(&self, message: &HostMessage) -> bool {
+        self.core.handle_transfer_input(message)
     }
 
     pub(crate) fn take_transfer_status(&mut self) -> Option<HostMessage> {
-        self.pending_default_save.cancel_if_invalid(
-            self.platform_service.store_write_generation(),
-            self.platform_service.store_writes_blocked(),
-        );
-        self.platform_service.take_transfer_status()
+        self.core.take_transfer_status()
     }
 
     pub fn new<T: Into<AudioOutputSet>>(
@@ -108,29 +94,18 @@ impl PiPlaybackHostAdapter {
     }
 
     pub(crate) fn save_recovery_for_power(&mut self) -> Result<(), String> {
-        let recovery = self
-            .recovery_save_status
-            .take()
-            .unwrap_or_else(|| Err("recovery save did not complete".into()));
+        let recovery = self.core.take_recovery_save_status();
         let recording = self
             .audio
             .as_ref()
             .map_or(Ok(()), AudioService::stop_recording);
-        match (recovery, recording) {
-            (Ok(()), Ok(())) => Ok(()),
-            (Err(recovery), Ok(())) => Err(recovery),
-            (Ok(()), Err(recording)) => Err(format!("recording stop failed: {recording}")),
-            (Err(recovery), Err(recording)) => {
-                Err(format!("{recovery}; recording stop failed: {recording}"))
-            }
-        }
+        power_save_result(recovery, recording)
     }
 
-    fn recovery_save_ready(&self) -> Result<(), String> {
-        self.recovery_save_status
+    pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {
+        self.audio
             .as_ref()
-            .cloned()
-            .unwrap_or_else(|| Err("recovery save did not complete".into()))
+            .and_then(AudioService::poll_recording_status)
     }
 
     pub(crate) fn audio_service(&self) -> Option<AudioService> {
@@ -138,7 +113,7 @@ impl PiPlaybackHostAdapter {
     }
 
     pub fn drain_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
-        let mut results = self.platform_service.drain_results(max_results);
+        let mut results = self.core.platform_service.drain_results(max_results);
         if results.len() < max_results {
             if let Some(audio) = &self.audio {
                 results.extend(audio.drain_prep_results(max_results - results.len()));
@@ -152,8 +127,8 @@ impl PiPlaybackHostAdapter {
         request: &RuntimePlatformRequest,
         power_request: PiPowerRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
-        if let Err(error) = self.recovery_save_ready() {
-            return Ok(vec![identified_failure(request, error)]);
+        if let Err(error) = self.core.recovery_save_ready() {
+            return Ok(vec![failure_message(request, error)]);
         }
         let recording_result = self.stop_recording_for_transition(request)?;
         self.power_request = Some(power_request);
@@ -173,7 +148,7 @@ impl PiPlaybackHostAdapter {
         if let Some(reason) =
             usb_sd_transfer_output_block_reason(self.audio_outputs.usb(), self.usb_midi_out_enabled)
         {
-            return Ok(vec![store_error(reason.into())]);
+            return Ok(vec![failure_message(request, reason.into())]);
         }
         if self
             .audio
@@ -182,21 +157,19 @@ impl PiPlaybackHostAdapter {
             .transpose()?
             .unwrap_or(false)
         {
-            return Ok(vec![store_error(
+            return Ok(vec![failure_message(
+                request,
                 "USB SD2 transfer blocked while recording is active".into(),
             )]);
         }
         self.silence_internal_audio()?;
         self.panic_external_midi()?;
-        if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-            request.clone(),
+        Ok(enqueue_job(
+            &self.core.platform_service,
+            request,
             PlatformJobKind::UsbSdTransferStart,
-        )) {
-            return Ok(vec![store_error(format!(
-                "USB SD2 transfer start queued failed: {message}"
-            ))]);
-        }
-        Ok(Vec::new())
+            "USB SD2 transfer start".into(),
+        ))
     }
 }
 
@@ -232,57 +205,37 @@ impl HostAdapter for PiPlaybackHostAdapter {
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
         if self.shutdown_pending() {
-            return match &request.effect {
-                RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown => {
-                    Ok(vec![identified_failure(
-                        request,
-                        "ordinary power request is already pending".into(),
-                    )])
-                }
-                _ => Ok(Vec::new()),
-            };
+            return Ok(shutdown_pending_messages(request));
         }
-        if let Some(result) =
-            dispatch_shared_effect(&self.platform_service, request, QueueFailureStyle::Pi)
-        {
+        if let Some(result) = dispatch_shared_effect(&self.core.platform_service, request) {
             return Ok(result);
         }
-        if let Some(messages) = dispatch_midi_effect_messages(&mut self.midi, &request.effect)? {
+        if let Some(messages) = dispatch_midi_effect_messages(&mut self.core.midi, &request.effect)?
+        {
             return Ok(messages);
         }
-        if let Some(messages) = self.handle_system_store_effect(request) {
+        if let Some(messages) = self.core.handle_store_effect(request) {
             return Ok(messages);
         }
-        let effect = &request.effect;
-        let result = match effect {
-            RuntimePlatformEffect::StoreLoadDefault
-            | RuntimePlatformEffect::StoreLoadPreset { .. } => self.load_patch_result(request),
-            RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
-                match self.save_default_result(request, payload, mode.as_deref())? {
-                    Some(result) => result,
-                    None => return Ok(Vec::new()),
-                }
-            }
+        let result = match &request.effect {
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
-                self.pending_default_save.cancel();
+                self.core.pending_default_save.cancel();
                 let recording_result = self.stop_recording_for_transition(request)?;
+                let mut messages = recording_result
+                    .into_iter()
+                    .map(|result| HostMessage::RuntimeResult { result })
+                    .collect::<Vec<_>>();
                 if let Err(message) =
-                    crate::rpi_device_apply::apply(&self.platform_service, payload)
+                    crate::rpi_device_apply::apply(&self.core.platform_service, payload)
                 {
-                    let mut messages = recording_result
-                        .into_iter()
-                        .map(|result| HostMessage::RuntimeResult { result })
-                        .collect::<Vec<_>>();
-                    messages.push(store_error(format!(
-                        "device/audio apply save failed: {message}"
-                    )));
+                    messages.push(failure_message(
+                        request,
+                        format!("device/audio apply save failed: {message}"),
+                    ));
                     return Ok(messages);
                 }
                 self.power_request = Some(PiPowerRequest::ApplyDeviceConfigReboot);
-                return Ok(recording_result
-                    .into_iter()
-                    .map(|result| HostMessage::RuntimeResult { result })
-                    .collect());
+                return Ok(messages);
             }
             RuntimePlatformEffect::RecordingStartAudio { .. }
             | RuntimePlatformEffect::RecordingStartAudioOled { .. }
@@ -290,45 +243,9 @@ impl HostAdapter for PiPlaybackHostAdapter {
             RuntimePlatformEffect::UsbSdTransferStart => {
                 return self.start_usb_sd_transfer(request);
             }
-            RuntimePlatformEffect::UsbSdTransferStop => {
-                if let Err(message) = self.platform_service.enqueue(PlatformJob::new(
-                    request.clone(),
-                    PlatformJobKind::UsbSdTransferStop,
-                )) {
-                    return Ok(vec![store_error(format!(
-                        "USB SD2 transfer stop queued failed: {message}"
-                    ))]);
-                }
-                return Ok(Vec::new());
-            }
-            RuntimePlatformEffect::StoreSaveRecovery { payload } => {
-                let result = self
-                    .platform_service
-                    .save_recovery_now(payload)
-                    .map_err(|message| format!("Save recovery failed: {message}"));
-                self.recovery_save_status = Some(result.clone());
-                return match result {
-                    Ok(()) => Ok(vec![HostMessage::RuntimeResult {
-                        result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
-                    }]),
-                    Err(error) => {
-                        eprintln!("pi recovery save failed: {error}");
-                        Ok(vec![store_error(error)])
-                    }
-                };
-            }
             RuntimePlatformEffect::MidiPanic => {
-                let audio_error = self.silence_internal_audio().err();
-                let midi_error = self.panic_external_midi().err();
-                if let Some(error) = audio_error.or(midi_error) {
-                    return Err(error);
-                }
-                RuntimeStoreResult::MidiStatus {
-                    ok: true,
-                    message: Some("Panic sent".into()),
-                    selected_out_id: self.midi.selected_output_id(),
-                    selected_in_id: self.midi.selected_input_id(),
-                }
+                self.silence_internal_audio()?;
+                self.core.midi_panic_status()
             }
             RuntimePlatformEffect::Reboot => {
                 return self.request_power(request, PiPowerRequest::Reboot);
@@ -344,13 +261,13 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 self.handle_audio_command(command)?;
                 return Ok(Vec::new());
             }
-            _ => unreachable!("shared platform effect was not dispatched"),
+            _ => return Ok(unsupported_messages(request)),
         };
         Ok(vec![HostMessage::RuntimeResult { result }])
     }
 
     fn acknowledge_restored_state(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.platform_service.acknowledge_restored_state();
+        self.core.platform_service.acknowledge_restored_state();
         Ok(())
     }
 
@@ -371,9 +288,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
         if self.shutdown_pending() {
             return Ok(());
         }
-        self.midi
-            .send(bytes)
-            .map_err(RuntimeAdapterError::operation_failed)
+        self.core.send_midi(bytes)
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
@@ -384,9 +299,7 @@ impl HostAdapter for PiPlaybackHostAdapter {
     }
 
     fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.midi
-            .panic()
-            .map_err(RuntimeAdapterError::operation_failed)
+        self.core.panic_midi()
     }
 }
 
@@ -398,20 +311,6 @@ impl RuntimeOutputSink for PiPlaybackHostAdapter {
         output: playback_runtime::RuntimeIngest,
     ) -> Result<(), String> {
         crate::runtime_loop::process_runtime_output(playback, runner, self, output)
-    }
-}
-
-fn store_error(message: String) -> HostMessage {
-    HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::StoreError { message },
-    }
-}
-
-fn identified_failure(request: &RuntimePlatformRequest, message: String) -> HostMessage {
-    HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::RuntimeFailure {
-            error: request.failure_facts(message),
-        },
     }
 }
 

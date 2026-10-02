@@ -1,8 +1,8 @@
 use super::PiPlaybackHostAdapter;
 use media_recording::RecordingStartError;
 use playback_runtime::{
-    HostMessage, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
-    RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
+    HostMessage, RuntimeAdapterError, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult,
 };
 
 impl PiPlaybackHostAdapter {
@@ -18,7 +18,7 @@ impl PiPlaybackHostAdapter {
             .map(|outcome| {
                 outcome.map(|outcome| crate::audio_recording::recording_status(outcome.status))
             })
-            .map_err(recording_finalization_error)
+            .map_err(crate::audio_recording::recording_finalization_error)
     }
 
     pub(super) fn handle_recording_effect(
@@ -58,13 +58,4 @@ impl PiPlaybackHostAdapter {
 
 fn recording_unavailable() -> RecordingStartError {
     RecordingStartError::Io("audio recording unavailable".into())
-}
-
-fn recording_finalization_error(error: String) -> RuntimeAdapterError {
-    RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
-        RuntimeErrorDomain::Recording,
-        RuntimeErrorCode::OperationFailed,
-        RuntimeOperation::Recording,
-        Some(error),
-    ))
 }

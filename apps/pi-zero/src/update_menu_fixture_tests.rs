@@ -198,6 +198,7 @@ impl UpdateMenuFixture {
     fn wait_for_service_barrier(&self) {
         let completed = self
             .adapter
+            .core
             .platform_service
             .enqueue_test_barrier()
             .unwrap();

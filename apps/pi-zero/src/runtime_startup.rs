@@ -59,7 +59,9 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
         audio_outputs,
         usb_data_role,
     );
-    adapter.set_keyboard_capture_control(keyboard.control());
+    adapter
+        .core
+        .set_keyboard_capture_control(keyboard.control());
     initialize_host_state(&mut playback, &mut runner, &mut adapter)?;
     let message = HostMessage::TransportPulseStep {
         pulses: 0,
@@ -114,6 +116,7 @@ impl PreparedRuntime {
         }
         let oled = self
             .adapter
+            .core
             .oled_publication_for_snapshot(&snapshot, true)?;
         render_worker.publish_acknowledged_snapshot(snapshot, oled)?;
         let (frame_revision, pixels) = render_worker.take_acknowledged_startup_oled_frame()?;
@@ -429,6 +432,7 @@ mod tests {
         assert!(is_normal_menu_snapshot(snapshot));
         assert!(runner.is_canonical_menu_presentation());
         assert!(adapter
+            .core
             .oled_publication_for_snapshot(snapshot, true)
             .is_ok());
         let _ = std::fs::remove_dir_all(root);

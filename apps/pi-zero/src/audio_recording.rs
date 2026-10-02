@@ -204,6 +204,15 @@ pub(crate) fn recording_owner(_outputs: playback_runtime::AudioOutputSet) -> Opt
     Some(AudioSink::Jack)
 }
 
+pub(crate) fn recording_finalization_error(error: String) -> playback_runtime::RuntimeAdapterError {
+    playback_runtime::RuntimeAdapterError::from_facts(playback_runtime::RuntimeErrorFacts::new(
+        playback_runtime::RuntimeErrorDomain::Recording,
+        playback_runtime::RuntimeErrorCode::OperationFailed,
+        playback_runtime::RuntimeOperation::Recording,
+        Some(error),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

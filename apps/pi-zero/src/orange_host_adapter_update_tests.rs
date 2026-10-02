@@ -57,7 +57,7 @@ fn orange_update_effects_use_the_native_updater_worker() {
     )
     .unwrap();
     let executor = Arc::new(ScriptedExecutor::new());
-    adapter.platform_service = PiPlatformService::new_with_update_executor(
+    adapter.core.platform_service = PiPlatformService::new_with_update_executor(
         root.join("store"),
         root.join("samples"),
         executor.clone(),
@@ -79,7 +79,11 @@ fn orange_update_effects_use_the_native_updater_worker() {
     }
     assert!(!adapter.shutdown_pending());
 
-    let barrier = adapter.platform_service.enqueue_test_barrier().unwrap();
+    let barrier = adapter
+        .core
+        .platform_service
+        .enqueue_test_barrier()
+        .unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     let results = adapter.drain_results(8);
     assert_eq!(

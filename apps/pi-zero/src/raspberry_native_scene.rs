@@ -148,7 +148,9 @@ impl NativeScenePump {
         let cutoff_value = self
             .timing_cutoff_targets
             .and_then(|_| selected_cutoff_display_value(&scene, metrics.clone(), error.clone()));
-        adapter.observe_keyboard_capture_mode(scene.hdmi_mode());
+        adapter
+            .core
+            .observe_keyboard_capture_mode(scene.hdmi_mode());
         if let Ok(receiver) = worker.publish_native_scene(scene, metrics, error) {
             self.pending.push(PendingNativeScene {
                 generation,

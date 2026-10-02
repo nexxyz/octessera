@@ -224,7 +224,7 @@ fn native_default_registration_rejection_does_not_queue_or_replace_default() {
         false,
     ));
     let failure = crate::platform_service::platform_native_persistence::submit_native_default(
-        &adapter.platform_service,
+        &adapter.core.platform_service,
         &mut runner,
         rejected.clone(),
         snapshot,
@@ -245,6 +245,7 @@ fn native_default_registration_rejection_does_not_queue_or_replace_default() {
     ));
     dispatch_result(&mut playback, &mut runner, &mut adapter, failure);
     adapter
+        .core
         .platform_service
         .enqueue_test_barrier()
         .unwrap()
@@ -254,7 +255,11 @@ fn native_default_registration_rejection_does_not_queue_or_replace_default() {
         std::fs::read(root.join("store/default.patch.json")).unwrap(),
         original_bytes
     );
-    assert!(adapter.platform_service.native_default_write().is_none());
+    assert!(adapter
+        .core
+        .platform_service
+        .native_default_write()
+        .is_none());
     let _ = std::fs::remove_dir_all(root);
 }
 
@@ -274,6 +279,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::channel();
     adapter
+        .core
         .platform_service
         .enqueue(PlatformJob::new(
             RuntimePlatformRequest::new(
@@ -290,6 +296,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
     entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
     for index in 0..32 {
         adapter
+            .core
             .platform_service
             .enqueue(PlatformJob::new(
                 RuntimePlatformRequest::new(
@@ -306,7 +313,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
 
     let (queue_rejected, snapshot) = next_native_default_request(&mut playback, &runner);
     let failure = crate::platform_service::platform_native_persistence::submit_native_default(
-        &adapter.platform_service,
+        &adapter.core.platform_service,
         &mut runner,
         queue_rejected.clone(),
         snapshot,
@@ -321,11 +328,15 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
                 if error.operation == RuntimeOperation::StoreSaveDefault)
     ));
     dispatch_result(&mut playback, &mut runner, &mut adapter, failure);
-    assert!(adapter.platform_service.native_default_write().is_none());
+    assert!(adapter
+        .core
+        .platform_service
+        .native_default_write()
+        .is_none());
     release_tx.send(()).unwrap();
     let barrier_deadline = Instant::now() + Duration::from_secs(2);
     loop {
-        match adapter.platform_service.enqueue_test_barrier() {
+        match adapter.core.platform_service.enqueue_test_barrier() {
             Ok(barrier) => {
                 barrier.recv_timeout(Duration::from_secs(1)).unwrap();
                 break;
@@ -344,7 +355,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
     let (retry, snapshot) = next_native_default_request(&mut playback, &runner);
     assert!(
         crate::platform_service::platform_native_persistence::submit_native_default(
-            &adapter.platform_service,
+            &adapter.core.platform_service,
             &mut runner,
             retry.clone(),
             snapshot,
@@ -352,7 +363,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
         .is_none()
     );
     assert_eq!(
-        adapter.platform_service.native_default_write(),
+        adapter.core.platform_service.native_default_write(),
         Some(retry.clone())
     );
 
@@ -377,6 +388,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
     }
     assert!(saved, "retry after queue rejection did not complete");
     assert!(adapter
+        .core
         .platform_service
         .load_default_now()
         .unwrap()

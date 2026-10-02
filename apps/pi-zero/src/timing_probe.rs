@@ -380,20 +380,21 @@ fn process_live_output(
     output: RuntimeIngest,
 ) -> Result<(), String> {
     for message in &output.messages {
-        host.inner.ingest_oled_frame(message);
+        host.inner.core.ingest_oled_frame(message);
         if let RunnerMessage::Snapshot { snapshot } = message {
-            host.inner.accept_oled_frame_reference(snapshot);
+            host.inner.core.accept_oled_frame_reference(snapshot);
         }
     }
     let fault = host
         .inner
+        .core
         .oled_frame_fault()
         .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
     let fault_output = playback.report_oled_cache_fault(fault);
     for message in &fault_output.messages {
-        host.inner.ingest_oled_frame(message);
+        host.inner.core.ingest_oled_frame(message);
         if let RunnerMessage::Snapshot { snapshot } = message {
-            host.inner.accept_oled_frame_reference(snapshot);
+            host.inner.core.accept_oled_frame_reference(snapshot);
         }
     }
     for follow_up in fault_output.follow_ups {

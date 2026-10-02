@@ -23,14 +23,16 @@ fn orange_audio_oled_start_seeds_latest_physical_frame_not_legacy_cache() {
         false,
     )
     .unwrap();
-    adapter.ingest_oled_frame(&RunnerMessage::OledFrame {
+    adapter.core.ingest_oled_frame(&RunnerMessage::OledFrame {
         revision: 1,
         width: 128,
         height: 128,
         format: "rgb565be".into(),
         pixels: stale,
     });
-    adapter.accept_oled_frame_reference(&serde_json::json!({"oledFrameRevision": 1}));
+    adapter
+        .core
+        .accept_oled_frame_reference(&serde_json::json!({"oledFrameRevision": 1}));
 
     let started = adapter
         .handle_platform_effect(&request(

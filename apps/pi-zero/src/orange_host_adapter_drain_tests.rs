@@ -29,7 +29,11 @@ fn ordinary_runtime_drain_keeps_platform_results_first() {
         ))
         .unwrap()
         .is_empty());
-    let barrier = adapter.platform_service.enqueue_test_barrier().unwrap();
+    let barrier = adapter
+        .core
+        .platform_service
+        .enqueue_test_barrier()
+        .unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     result_tx
         .send(HostMessage::RuntimeResult {

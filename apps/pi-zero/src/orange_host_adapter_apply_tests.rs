@@ -101,7 +101,7 @@ fn apply_waits_behind_queued_default_save() {
         ))
         .unwrap()
         .is_empty());
-    assert!(!adapter.pending_default_save.is_pending());
+    assert!(!adapter.core.pending_default_save.is_pending());
 
     let store = root.join("store");
     let record: serde_json::Value = serde_json::from_slice(
@@ -247,17 +247,22 @@ fn shutdown_effect_maps_to_typed_orange_shutdown_request() {
 }
 
 #[test]
-fn pending_shutdown_suppresses_a_second_shutdown_request() {
+fn pending_shutdown_rejects_a_second_shutdown_request() {
     let (mut adapter, root) = adapter("shutdown-pending");
     arm_recovery_save(&mut adapter, "recovery");
     assert!(adapter
         .handle_platform_effect(&request(RuntimePlatformEffect::Shutdown, "first"))
         .unwrap()
         .is_empty());
-    assert!(adapter
+    let second = adapter
         .handle_platform_effect(&request(RuntimePlatformEffect::Shutdown, "second"))
-        .unwrap()
-        .is_empty());
+        .unwrap();
+    assert!(matches!(
+        second.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure { .. }
+        }]
+    ));
     assert!(matches!(
         adapter.take_shutdown_request(),
         Some(OrangeShutdownRequest::Shutdown)

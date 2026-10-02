@@ -1,4 +1,5 @@
 use super::*;
+use crate::midi_host::MidiHost;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 use crate::usb_config::UsbAudioOut;
 
@@ -62,16 +63,14 @@ impl PiPlaybackHostAdapter {
         Self {
             audio,
             samples_dir,
-            platform_service,
-            pending_default_save: PendingPiPersistence::default(),
-            midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
+            core: PiHostCore::new(
+                platform_service,
+                MidiHost::new(midi_in_handler, usb_midi_out_enabled),
+            ),
             usb_midi_out_enabled,
             audio_outputs,
             usb_data_role,
             power_request: None,
-            recovery_save_status: None,
-            oled_frame_cache: OledFrameCache::default(),
-            keyboard_control: None,
             timing_evidence: None,
         }
     }
@@ -133,7 +132,8 @@ impl PiPlaybackHostAdapter {
         input_names: impl IntoIterator<Item = String>,
         results: impl IntoIterator<Item = Result<(), String>>,
     ) {
-        self.midi
+        self.core
+            .midi
             .set_test_backend(output_names, input_names, results);
     }
 }

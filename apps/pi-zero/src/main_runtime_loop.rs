@@ -269,7 +269,7 @@ fn service_render_if_due(
     let Some(snapshot) = crate::runtime_loop::latest_snapshot(playback).cloned() else {
         return;
     };
-    let oled = match adapter.oled_publication_for_snapshot(&snapshot, false) {
+    let oled = match adapter.core.oled_publication_for_snapshot(&snapshot, false) {
         Ok(oled) => oled,
         Err(error) => {
             eprintln!("pi OLED publication unavailable: {error}");
@@ -342,6 +342,7 @@ impl PowerLifecycleCallbacks for RaspberryPowerCallbacks<'_> {
             .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
         let oled = self
             .adapter
+            .core
             .oled_publication_for_snapshot(&snapshot, false)?;
         self.render_worker
             .publish_terminal_preserving(snapshot, oled)
@@ -377,7 +378,9 @@ fn finalize_device_apply_power_request(
             .last_snapshot()
             .cloned()
             .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
-        let oled = adapter.oled_publication_for_snapshot(&snapshot, false)?;
+        let oled = adapter
+            .core
+            .oled_publication_for_snapshot(&snapshot, false)?;
         render_worker.publish_terminal_preserving(snapshot, oled)
     })();
     if let Err(error) = terminal {

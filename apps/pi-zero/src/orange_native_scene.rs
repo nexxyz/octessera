@@ -123,7 +123,7 @@ impl OrangeNativeScenePump {
             .and_then(|_| selected_cutoff_display_value(&scene, metrics.clone(), error.clone()));
         let captured_at = Instant::now();
         self.last_submission = captured_at;
-        host.observe_keyboard_capture_mode(scene.hdmi_mode());
+        host.core.observe_keyboard_capture_mode(scene.hdmi_mode());
         if let Ok(receiver) = worker.publish_native_scene(scene, metrics, error) {
             self.pending.push(PendingNativeScene {
                 generation,

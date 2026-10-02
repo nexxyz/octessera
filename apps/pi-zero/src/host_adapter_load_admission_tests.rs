@@ -1,6 +1,9 @@
 use super::*;
 use crate::usb_config::UsbAudioOut;
-use playback_runtime::{HostAdapter, NativeRunner, NativeRunnerConfig, RuntimePlatformEffect};
+use playback_runtime::{
+    HostAdapter, NativeRunner, NativeRunnerConfig, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeStoreResult,
+};
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Instant;
@@ -66,13 +69,13 @@ fn deferred_default_autosave_rejects_load_without_cancelling_or_reading_file() {
     let now = Instant::now();
     let intent = runner.persistence_intent_at(now).unwrap();
     assert!(intent.default_eligible());
-    adapter.pending_default_save.observe_native(
+    adapter.core.pending_default_save.observe_native(
         Some(intent),
         now,
-        adapter.platform_service.store_write_generation(),
+        adapter.core.platform_service.store_write_generation(),
         false,
     );
-    assert!(adapter.pending_default_save.has_default_pending());
+    assert!(adapter.core.pending_default_save.has_default_pending());
 
     let messages = adapter
         .handle_platform_effect(&RuntimePlatformRequest::new(
@@ -89,7 +92,7 @@ fn deferred_default_autosave_rejects_load_without_cancelling_or_reading_file() {
         }] if error.operation == playback_runtime::RuntimeOperation::StoreLoadDefault
             && error.message.as_deref() == Some("Save pending, try again")
     ));
-    assert!(adapter.pending_default_save.has_default_pending());
+    assert!(adapter.core.pending_default_save.has_default_pending());
     assert_eq!(
         std::fs::read(store.join("default.patch.json")).unwrap(),
         prior
@@ -109,7 +112,10 @@ fn deferred_default_autosave_rejects_load_without_cancelling_or_reading_file() {
         serde_json::to_vec(&restored_documents.patch).unwrap(),
     )
     .unwrap();
-    adapter.platform_service.invalidate_store_writes_for_test();
+    adapter
+        .core
+        .platform_service
+        .invalidate_store_writes_for_test();
     let rehydrated = adapter
         .handle_platform_effect(&RuntimePlatformRequest::new(
             RuntimePlatformEffect::StoreLoadDefault,
@@ -123,8 +129,8 @@ fn deferred_default_autosave_rejects_load_without_cancelling_or_reading_file() {
             result: RuntimeStoreResult::LoadDefaultResult { payload: Some(value) }
         }] if value == &restored_documents.patch
     ));
-    assert!(adapter.platform_service.store_writes_blocked());
+    assert!(adapter.core.platform_service.store_writes_blocked());
     adapter.acknowledge_restored_state().unwrap();
-    assert!(!adapter.platform_service.store_writes_blocked());
+    assert!(!adapter.core.platform_service.store_writes_blocked());
     let _ = std::fs::remove_dir_all(root);
 }

@@ -113,7 +113,11 @@ fn stopped_edit_survives_play_transition_and_native_save_completes() {
         .capture_config_snapshot()
         .into_local_patch_payload()
         .unwrap();
-    assert!(adapter.platform_service.native_default_write().is_none());
+    assert!(adapter
+        .core
+        .platform_service
+        .native_default_write()
+        .is_none());
 
     input(
         &mut playback,
