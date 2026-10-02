@@ -248,6 +248,7 @@ pub use config_documents::{
     compose_local_system_patch_documents, compose_system_patch_documents,
     split_local_system_patch_documents, split_system_patch_documents, SystemPatchDocuments,
 };
+pub use config_schema_validation::is_valid_fx_string_param;
 pub use config_snapshot::NativeConfigSnapshot;
 pub use persistence_intent::NativePersistenceIntent;
 pub use runner_config::NativeRunnerConfig;

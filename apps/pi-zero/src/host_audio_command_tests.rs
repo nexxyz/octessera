@@ -439,3 +439,39 @@ fn wav_bytes() -> Vec<u8> {
     }
     bytes
 }
+
+fn duck_slot(params: serde_json::Value, fx_type: &str) -> RuntimeAudioCommand {
+    RuntimeAudioCommand::SetFxBusSlot {
+        bus_index: 2,
+        slot_index: 0,
+        generation: 17,
+        fx_type: fx_type.into(),
+        params: serde_json::from_value(params).unwrap(),
+    }
+}
+
+#[test]
+fn pi_accepts_duck_slot_with_source_and_tap_strings() {
+    let command = duck_slot(
+        serde_json::json!({ "amountPct": 60, "attackMs": 8, "releaseMs": 160, "source": "I1", "sourceTap": "pre", "threshold": 0.08 }),
+        "duck",
+    );
+    send_audio_command(None, &command, Path::new("samples")).unwrap();
+}
+
+#[test]
+fn pi_rejects_invalid_duck_strings_and_strings_on_other_fx() {
+    for (fx_type, params) in [
+        ("duck", serde_json::json!({ "source": "I99" })),
+        ("duck", serde_json::json!({ "sourceTap": "sideways" })),
+        ("delay", serde_json::json!({ "source": "I1" })),
+    ] {
+        let error = send_audio_command(None, &duck_slot(params, fx_type), Path::new("samples"))
+            .unwrap_err();
+        assert_eq!(
+            error.facts.code,
+            RuntimeErrorCode::InvalidPayload,
+            "{fx_type}"
+        );
+    }
+}
