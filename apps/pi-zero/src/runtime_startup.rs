@@ -1,4 +1,4 @@
-use super::RuntimeThreadConfig;
+use super::RaspberryRuntimeConfig;
 use crate::candidate_readiness::CandidateReadiness;
 use crate::host_adapter::PiPlaybackHostAdapter;
 use crate::input::MidiMessage;
@@ -13,7 +13,6 @@ use playback_runtime::{
     RuntimeConfig, SyncSource,
 };
 use std::sync::mpsc;
-use std::thread::JoinHandle;
 
 pub(crate) struct PreparedRuntime {
     pub(super) midi_rx: mpsc::Receiver<MidiMessage>,
@@ -28,8 +27,8 @@ pub(crate) struct PreparedRuntime {
     pub(super) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
 }
 
-pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, String> {
-    let RuntimeThreadConfig {
+pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime, String> {
+    let RaspberryRuntimeConfig {
         audio,
         store_dir,
         samples_dir,
@@ -132,15 +131,8 @@ impl PreparedRuntime {
         self.candidate_readiness.mark_ready()
     }
 
-    pub(crate) fn spawn_after_initial(
-        self,
-        render_worker: RenderWorker,
-        revision: u64,
-    ) -> JoinHandle<()> {
-        std::thread::Builder::new()
-            .name("octessera-runtime".into())
-            .spawn(move || super::run_scheduler(self, render_worker, revision))
-            .expect("pi runtime thread should start")
+    pub(crate) fn run_after_initial(self, render_worker: RenderWorker, revision: u64) {
+        super::run_scheduler(self, render_worker, revision);
     }
 
     pub(crate) fn run(mut self, render_worker: RenderWorker) {

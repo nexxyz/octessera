@@ -13,7 +13,7 @@ use playback_runtime::{AudioOptimization, HostMessage, NativeRunner, PlaybackRun
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Arc;
-use std::thread::{self, JoinHandle};
+use std::thread;
 use std::time::Instant;
 
 #[path = "runtime_startup.rs"]
@@ -53,7 +53,7 @@ impl SchedulerState {
     }
 }
 
-pub(crate) struct RuntimeThreadConfig {
+pub(crate) struct RaspberryRuntimeConfig {
     pub(crate) audio: Option<AudioService>,
     pub(crate) store_dir: PathBuf,
     pub(crate) samples_dir: PathBuf,
@@ -71,17 +71,14 @@ pub(crate) struct RuntimeThreadConfig {
     pub(crate) keyboard: KeyboardCapture,
 }
 
-pub(crate) fn spawn(config: RuntimeThreadConfig, render_worker: RenderWorker) -> JoinHandle<()> {
-    thread::Builder::new()
-        .name("octessera-runtime".into())
-        .spawn(move || match prepare(config) {
-            Ok(prepared) => prepared.run(render_worker),
-            Err(error) => {
-                eprintln!("pi runtime preparation failed: {error}");
-                let _ = render_worker.publish_shutdown();
-            }
-        })
-        .expect("pi runtime thread should start")
+pub(crate) fn run(config: RaspberryRuntimeConfig, render_worker: RenderWorker) {
+    match prepare(config) {
+        Ok(prepared) => prepared.run(render_worker),
+        Err(error) => {
+            eprintln!("pi runtime preparation failed: {error}");
+            let _ = render_worker.publish_shutdown();
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
