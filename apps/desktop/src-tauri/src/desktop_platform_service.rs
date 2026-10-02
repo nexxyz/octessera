@@ -1,10 +1,13 @@
 use crate::midi;
+use crate::persistence::atomic_write_json;
 use crate::samples;
 use playback_runtime::{
-    HostMessage, MidiPort, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfo,
+    HostMessage, MidiPort, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeOperation, RuntimePlatformRequest, RuntimeStoreResult, RuntimeSystemInfo,
     RuntimeSystemInfoError, SampleEntry,
 };
 use std::net::UdpSocket;
+use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::thread;
 
@@ -26,6 +29,15 @@ pub(crate) enum DesktopPlatformServiceKind {
     MidiListOutputs,
     MidiListInputs,
     SystemInfo,
+    SaveSystem {
+        store_dir: PathBuf,
+        payload: serde_json::Value,
+    },
+    #[cfg(test)]
+    WorkerGate {
+        started: SyncSender<()>,
+        release: std::sync::Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>,
+    },
 }
 
 impl DesktopPlatformServiceRequest {
@@ -96,6 +108,19 @@ pub(crate) fn shape_service_result(request: DesktopPlatformServiceRequest) -> Ve
         }
         DesktopPlatformServiceKind::MidiListInputs => shape_midi_inputs_result(midi::list_inputs),
         DesktopPlatformServiceKind::SystemInfo => shape_system_info_result(collect_system_info),
+        DesktopPlatformServiceKind::SaveSystem { store_dir, payload } => {
+            shape_save_system_result(&store_dir, &payload)
+        }
+        #[cfg(test)]
+        DesktopPlatformServiceKind::WorkerGate { started, release } => {
+            let _ = started.send(());
+            let (lock, condition) = &*release;
+            let mut released = lock.lock().unwrap();
+            while !*released {
+                released = condition.wait(released).unwrap();
+            }
+            Vec::new()
+        }
     };
     identify_service_messages(messages, &runtime_request)
 }
@@ -127,8 +152,33 @@ pub(crate) fn shape_service_unavailable_result(
                 error: RuntimeSystemInfoError::unavailable(message),
             },
         }],
+        DesktopPlatformServiceKind::SaveSystem { .. } => vec![HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure {
+                error: runtime_request.failure_facts(message),
+            },
+        }],
+        #[cfg(test)]
+        DesktopPlatformServiceKind::WorkerGate { .. } => Vec::new(),
     };
     identify_service_messages(messages, &runtime_request)
+}
+
+fn shape_save_system_result(
+    store_dir: &std::path::Path,
+    payload: &serde_json::Value,
+) -> Vec<HostMessage> {
+    let result = match atomic_write_json(&store_dir.join("system.json"), payload) {
+        Ok(()) => RuntimeStoreResult::SaveSystemResult { ok: true },
+        Err(message) => RuntimeStoreResult::RuntimeFailure {
+            error: RuntimeErrorFacts::new(
+                RuntimeErrorDomain::Storage,
+                RuntimeErrorCode::OperationFailed,
+                RuntimeOperation::StoreSaveSystem,
+                Some(message),
+            ),
+        },
+    };
+    vec![HostMessage::RuntimeResult { result }]
 }
 
 fn identify_service_messages(
@@ -334,164 +384,5 @@ fn sample_entries(entries: Vec<samples::SampleEntry>) -> Vec<SampleEntry> {
 #[cfg(test)]
 mod admission_tests;
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn only_result(messages: Vec<HostMessage>) -> RuntimeStoreResult {
-        assert_eq!(messages.len(), 1);
-        match messages.into_iter().next().unwrap() {
-            HostMessage::RuntimeResult { result } => match result {
-                RuntimeStoreResult::Identified { result, .. } => *result,
-                result => result,
-            },
-            _ => panic!("expected one runtime result"),
-        }
-    }
-
-    #[test]
-    fn sample_list_error_shapes_runtime_error() {
-        let result = only_result(shape_sample_list_result(1, 2, "bad".into(), |_| {
-            Err("nope".into())
-        }));
-        assert!(
-            matches!(result, RuntimeStoreResult::SampleListError { instrument_slot: 1, sample_slot: 2, dir, message } if dir == "bad" && message == "nope")
-        );
-    }
-    #[test]
-    fn midi_output_error_returns_only_store_error() {
-        let result = only_result(shape_midi_outputs_result(|| Err("midi unavailable".into())));
-        assert!(
-            matches!(result, RuntimeStoreResult::StoreError { message } if message == "midi unavailable")
-        );
-    }
-    #[test]
-    fn midi_input_error_returns_only_store_error() {
-        let result = only_result(shape_midi_inputs_result(|| Err("midi unavailable".into())));
-        assert!(
-            matches!(result, RuntimeStoreResult::StoreError { message } if message == "midi unavailable")
-        );
-    }
-    #[test]
-    fn midi_empty_lists_remain_successful_results() {
-        let outputs = only_result(shape_midi_outputs_result(|| Ok(Vec::new())));
-        assert!(
-            matches!(outputs, RuntimeStoreResult::MidiListOutputsResult { outputs } if outputs.is_empty())
-        );
-
-        let inputs = only_result(shape_midi_inputs_result(|| Ok(Vec::new())));
-        assert!(
-            matches!(inputs, RuntimeStoreResult::MidiListInputsResult { inputs } if inputs.is_empty())
-        );
-    }
-    #[test]
-    fn service_unavailable_midi_requests_return_only_store_error() {
-        let outputs = only_result(shape_service_unavailable_result(
-            DesktopPlatformServiceRequest::new(
-                RuntimePlatformRequest::new(
-                    playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
-                    "test-output".into(),
-                    None,
-                ),
-                DesktopPlatformServiceKind::MidiListOutputs,
-            ),
-            "service down".into(),
-        ));
-        assert!(
-            matches!(outputs, RuntimeStoreResult::RuntimeFailure { error } if error.message.as_deref() == Some("service down"))
-        );
-
-        let inputs = only_result(shape_service_unavailable_result(
-            DesktopPlatformServiceRequest::new(
-                RuntimePlatformRequest::new(
-                    playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
-                    "test-input".into(),
-                    None,
-                ),
-                DesktopPlatformServiceKind::MidiListInputs,
-            ),
-            "service down".into(),
-        ));
-        assert!(
-            matches!(inputs, RuntimeStoreResult::RuntimeFailure { error } if error.message.as_deref() == Some("service down"))
-        );
-    }
-
-    #[test]
-    fn service_unavailable_shapes_sample_list_error() {
-        let result = only_result(shape_service_unavailable_result(
-            DesktopPlatformServiceRequest::new(
-                RuntimePlatformRequest::new(
-                    playback_runtime::RuntimePlatformEffect::SampleListRequest {
-                        instrument_slot: 2,
-                        sample_slot: 3,
-                        dir: "kits".into(),
-                    },
-                    "test-sample".into(),
-                    None,
-                ),
-                DesktopPlatformServiceKind::SampleList {
-                    instrument_slot: 2,
-                    sample_slot: 3,
-                    dir: "kits".into(),
-                },
-            ),
-            "service down".into(),
-        ));
-
-        assert!(
-            matches!(result, RuntimeStoreResult::SampleListError { instrument_slot: 2, sample_slot: 3, dir, message } if dir == "kits" && message == "service down")
-        );
-    }
-
-    #[test]
-    fn system_info_service_sanitizes_successful_adapter_data() {
-        let messages = shape_system_info_result(|| {
-            Ok(RuntimeSystemInfo {
-                os: "Linux\nnoise".into(),
-                os_version: "6.6".into(),
-                octessera_version: "0.7.0".into(),
-                primary_ip: None,
-                primary_mac: None,
-                hostname: "octessera".into(),
-                board_profile: "desktop".into(),
-            })
-        });
-        let result = only_result(messages);
-        assert!(matches!(
-            result,
-            RuntimeStoreResult::SystemInfoResult { info }
-                if info.os == "Linuxnoise" && info.board_profile == "desktop"
-        ));
-    }
-
-    #[test]
-    fn system_info_service_shapes_typed_unavailable_error() {
-        let result = only_result(shape_system_info_result(|| Err("service down".into())));
-        assert!(matches!(
-            result,
-            RuntimeStoreResult::SystemInfoError { error }
-                if error.code == playback_runtime::RuntimeErrorCode::Unavailable
-                    && error.message == "service down"
-        ));
-    }
-
-    #[test]
-    fn system_info_service_result_keeps_request_identity() {
-        let messages = shape_service_result(DesktopPlatformServiceRequest::new(
-            RuntimePlatformRequest::new(
-                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
-                "system-info-test".into(),
-                Some(4),
-            ),
-            DesktopPlatformServiceKind::SystemInfo,
-        ));
-        assert!(matches!(
-            messages.as_slice(),
-            [HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::Identified { request_id, revision, result }
-            }] if request_id == "system-info-test"
-                && *revision == Some(4)
-                && matches!(result.as_ref(), RuntimeStoreResult::SystemInfoResult { .. })
-        ));
-    }
-}
+#[path = "desktop_platform_service_tests.rs"]
+mod tests;

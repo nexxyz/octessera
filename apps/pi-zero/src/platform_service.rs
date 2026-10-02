@@ -434,6 +434,9 @@ pub enum PlatformJobKind {
         payload: serde_json::Value,
         is_auto: Option<bool>,
     },
+    SaveSystem {
+        payload: serde_json::Value,
+    },
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     PrepareOrangeDeviceApply {
         payload: serde_json::Value,
@@ -481,6 +484,7 @@ impl PlatformJobKind {
             Self::SavePreset { .. }
             | Self::DeletePreset { .. }
             | Self::SaveDefault { .. }
+            | Self::SaveSystem { .. }
             | Self::SaveBackup { .. } => true,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             Self::PrepareOrangeDeviceApply { .. } => true,

@@ -262,10 +262,15 @@ impl HostAdapter for OrangeHostAdapter {
                 }
             }
             RuntimePlatformEffect::StoreSaveSystem { payload } => {
-                if let Err(message) = self.platform_service.save_system_now(payload) {
-                    return Ok(vec![failure_message(request, message)]);
-                }
-                RuntimeStoreResult::SaveSystemResult { ok: true }
+                return Ok(enqueue_job(
+                    &self.platform_service,
+                    request,
+                    PlatformJobKind::SaveSystem {
+                        payload: payload.clone(),
+                    },
+                    QueueFailureStyle::Orange,
+                    "Save system".into(),
+                ));
             }
             RuntimePlatformEffect::StoreSaveDefault { payload, .. } => {
                 if self.platform_service.store_writes_blocked() {

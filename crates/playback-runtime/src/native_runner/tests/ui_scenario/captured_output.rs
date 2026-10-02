@@ -14,6 +14,7 @@ pub(super) struct CapturedOutput {
     pub(super) sample_list_requests: Vec<(usize, usize, String)>,
     pub(super) load_preset_requests: Vec<String>,
     pub(super) saved_presets: Vec<(String, Value)>,
+    pub(super) saved_systems: Vec<Value>,
     pub(super) set_instrument_slot_count: usize,
     pub(super) synth_param_count: usize,
     pub(super) sample_bank_param_count: usize,
@@ -59,6 +60,9 @@ impl CapturedOutput {
                             ));
                         }
                         match effect {
+                            RuntimePlatformEffect::StoreSaveSystem { payload } => {
+                                self.saved_systems.push(payload.clone());
+                            }
                             RuntimePlatformEffect::StoreLoadPreset { name } => {
                                 self.load_preset_requests.push(name.clone());
                             }

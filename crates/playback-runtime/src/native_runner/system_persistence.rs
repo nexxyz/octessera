@@ -10,6 +10,16 @@ pub(super) struct SystemPersistenceState {
     pub(super) dirty_revision: Option<u64>,
     pub(super) saved_baseline: Option<Arc<Value>>,
     pending_request: Option<PendingSystemStoreRequest>,
+    edit_initial_value: Option<(String, Value)>,
+    waiting_auto_save: Option<CompletedSystemSave>,
+    next_captured_revision: Option<u64>,
+    auto_save_request_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct CompletedSystemSave {
+    payload: Value,
+    dirty_revision: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -45,11 +55,29 @@ impl SystemPersistenceState {
         ) {
             return;
         }
+        let queued_auto_revision = self.next_captured_revision;
+        let captured_system_dirty_revision = if save_payload.is_some() {
+            self.next_captured_revision.take().or(self.dirty_revision)
+        } else {
+            None
+        };
+        if let Some(payload) = save_payload.as_deref() {
+            let is_auto_save = queued_auto_revision == captured_system_dirty_revision
+                && queued_auto_revision.is_some()
+                && self.waiting_auto_save.as_ref().is_none_or(|waiting| {
+                    waiting.payload == *payload
+                        && Some(waiting.dirty_revision) == captured_system_dirty_revision
+                });
+            if is_auto_save {
+                self.auto_save_request_ids.push(request.request_id.clone());
+                self.waiting_auto_save = None;
+            }
+        }
         self.pending_request = Some(PendingSystemStoreRequest {
             operation,
             request_id: request.request_id.clone(),
             revision: request.revision,
-            captured_system_dirty_revision: save_payload.as_ref().and(self.dirty_revision),
+            captured_system_dirty_revision,
             save_payload,
             apply_scope,
         });
@@ -72,6 +100,10 @@ impl SystemPersistenceState {
     pub(super) fn record_system_load(&mut self, payload: &Value) -> Arc<Value> {
         self.saved_baseline = Some(Arc::new(payload.clone()));
         self.dirty_revision = None;
+        self.edit_initial_value = None;
+        self.waiting_auto_save = None;
+        self.next_captured_revision = None;
+        self.auto_save_request_ids.clear();
         Arc::clone(
             self.saved_baseline
                 .as_ref()
@@ -98,6 +130,64 @@ impl SystemPersistenceState {
 
     pub(super) fn has_pending_request(&self) -> bool {
         self.pending_request.is_some()
+    }
+
+    pub(super) fn has_pending_save(&self) -> bool {
+        self.pending_request
+            .as_ref()
+            .is_some_and(|request| request.operation == RuntimeOperation::StoreSaveSystem)
+    }
+
+    pub(super) fn has_completed_auto_save(&self) -> bool {
+        self.waiting_auto_save.is_some() || self.next_captured_revision.is_some()
+    }
+
+    pub(super) fn clear_dirty_if_matches_baseline(&mut self, live_document: &Value) {
+        if !self.has_pending_request()
+            && !self.has_completed_auto_save()
+            && self.saved_baseline.as_deref() == Some(live_document)
+        {
+            self.dirty_revision = None;
+        }
+    }
+
+    pub(super) fn begin_edit(&mut self, key: &str, value: Value) {
+        self.edit_initial_value = Some((key.into(), value));
+    }
+
+    pub(super) fn finish_edit(&mut self, key: &str, value: &Value) -> bool {
+        self.edit_initial_value
+            .take()
+            .is_some_and(|(edit_key, initial)| edit_key == key && initial != *value)
+    }
+
+    pub(super) fn complete_auto_save(&mut self, payload: Value, dirty_revision: u64) -> bool {
+        let completed = CompletedSystemSave {
+            payload,
+            dirty_revision,
+        };
+        if self.has_pending_request() {
+            self.waiting_auto_save = Some(completed);
+            false
+        } else {
+            self.next_captured_revision = Some(dirty_revision);
+            self.waiting_auto_save = Some(completed);
+            true
+        }
+    }
+
+    pub(super) fn take_waiting_auto_save(&mut self) -> Option<(Value, u64)> {
+        let completed = self.waiting_auto_save.take()?;
+        self.next_captured_revision = Some(completed.dirty_revision);
+        Some((completed.payload, completed.dirty_revision))
+    }
+
+    pub(super) fn is_auto_save_request(&self, request_id: &str) -> bool {
+        self.auto_save_request_ids.iter().any(|id| id == request_id)
+    }
+
+    pub(super) fn finish_auto_save_request(&mut self, request_id: &str) {
+        self.auto_save_request_ids.retain(|id| id != request_id);
     }
 
     pub(super) fn has_saved_aux_side(&self, bank: &str, slot: usize, side: &str) -> bool {
@@ -168,6 +258,54 @@ impl SystemPersistenceState {
         }))
     }
 
+    pub(super) fn document_for_ordinary_save(runner: &NativeRunner) -> Result<Value, String> {
+        let mut document = Self::system_document(runner)?;
+        for (parent, leaf) in [
+            ("audioOutputs", "dac"),
+            ("audioOutputs", "usb"),
+            ("audioOutputs", "hdmi"),
+            ("usb", "midiOutEnabled"),
+            ("usb", "dataRole"),
+            ("sound", "audioOutputBufferFrames"),
+            ("sound", "optimizeFor"),
+        ] {
+            let Some(value) = runner
+                .restart_settings
+                .persisted_default
+                .get("runtimeConfig")
+                .and_then(|runtime| runtime.get(parent))
+                .and_then(|group| group.get(leaf))
+                .cloned()
+            else {
+                continue;
+            };
+            if let Some(group) = document
+                .get_mut("runtimeConfig")
+                .and_then(|runtime| runtime.get_mut(parent))
+                .and_then(Value::as_object_mut)
+            {
+                group.insert(leaf.into(), value);
+            }
+        }
+        Ok(document)
+    }
+
+    pub(super) fn ordinary_system_value(document: &Value, key: &str) -> Option<Value> {
+        let alias = match key {
+            "midiEnabled" => Some(["midi", "enabled"]),
+            "midiSyncMode" => Some(["midi", "syncMode"]),
+            _ => None,
+        };
+        let path = alias
+            .map(|path| path.to_vec())
+            .unwrap_or_else(|| key.split('.').collect());
+        let mut value = document.get("runtimeConfig")?;
+        for segment in path {
+            value = value.get(segment)?;
+        }
+        Some(value.clone())
+    }
+
     pub(super) fn patch_document(runner: &NativeRunner) -> Result<Value, String> {
         super::local_patch_payload_for_save(&runner.config_payload())
     }
@@ -182,6 +320,8 @@ impl SystemPersistenceState {
     }
 }
 
+#[cfg(test)]
+mod edit_exit_tests;
 #[cfg(test)]
 mod menu_tests;
 #[cfg(test)]

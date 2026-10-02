@@ -63,6 +63,13 @@ pub(super) fn handle_job(
                 Err(message) => store_error(format!("Save default failed: {message}")),
             }
         }
+        PlatformJobKind::SaveSystem { payload } => {
+            match super::platform_service_document_store::save_system_document(store_dir, &payload)
+            {
+                Ok(()) => RuntimeStoreResult::SaveSystemResult { ok: true },
+                Err(message) => store_error(format!("Save system failed: {message}")),
+            }
+        }
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         PlatformJobKind::PrepareOrangeDeviceApply { .. } => {
             unreachable!("Orange device apply jobs are completed by the platform worker")

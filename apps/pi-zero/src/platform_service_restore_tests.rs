@@ -110,7 +110,18 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
     );
     assert!(!store.join("patches").join("stale-preset.json").exists());
     assert!(service
-        .save_system_now(&serde_json::json!({"stale": true}))
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::StoreSaveSystem {
+                    payload: serde_json::json!({"stale": true}),
+                },
+                "blocked-system".into(),
+                None,
+            ),
+            PlatformJobKind::SaveSystem {
+                payload: serde_json::json!({"stale": true}),
+            },
+        ))
         .is_err());
 
     service.acknowledge_restored_state();

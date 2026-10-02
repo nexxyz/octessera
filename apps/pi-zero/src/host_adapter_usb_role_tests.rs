@@ -108,11 +108,19 @@ fn saving_system_role_does_not_apply_it_or_modify_the_patch() {
             None,
         ))
         .unwrap();
+    assert!(result.is_empty());
+    adapter
+        .platform_service
+        .enqueue_test_barrier()
+        .unwrap()
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
     assert!(matches!(
-        result.as_slice(),
+        adapter.platform_service.drain_results(4).as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveSystemResult { ok: true }
-        }]
+            result: RuntimeStoreResult::Identified { request_id, result, .. }
+        }] if request_id == "system-save"
+            && matches!(result.as_ref(), RuntimeStoreResult::SaveSystemResult { ok: true })
     ));
     assert!(calls.lock().unwrap().is_empty());
     assert!(adapter.power_request.is_none());

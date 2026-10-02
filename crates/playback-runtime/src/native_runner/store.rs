@@ -59,6 +59,7 @@ impl NativeRunner {
             }
             "system.save" => {
                 if self.pending.system_persistence.has_pending_request()
+                    || self.pending.system_persistence.has_completed_auto_save()
                     || self.system_apply_pending()
                 {
                     self.show_toast("System save pending, try again");
@@ -66,7 +67,7 @@ impl NativeRunner {
                 } else {
                     Some(RuntimePlatformEffect::StoreSaveSystem {
                         payload:
-                            super::system_persistence::SystemPersistenceState::system_document(
+                            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(
                                 self,
                             )?,
                     })
@@ -74,6 +75,7 @@ impl NativeRunner {
             }
             "system.load" => {
                 if self.pending.system_persistence.has_pending_request()
+                    || self.pending.system_persistence.has_completed_auto_save()
                     || self.system_apply_pending()
                 {
                     self.show_toast("System operation pending, try again");

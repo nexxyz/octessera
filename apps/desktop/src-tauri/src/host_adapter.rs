@@ -196,9 +196,14 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                 Ok(self.save_default_result(request, payload, mode.as_deref())?)
             }
             RuntimePlatformEffect::StoreLoadSystem => Ok(self.load_system_result(request)),
-            RuntimePlatformEffect::StoreSaveSystem { payload } => {
-                Ok(self.save_system_result(request, payload))
-            }
+            RuntimePlatformEffect::StoreSaveSystem { payload } => Ok(self
+                .enqueue_platform_service_request(
+                    request,
+                    DesktopPlatformServiceKind::SaveSystem {
+                        store_dir: self.store_dir.clone(),
+                        payload: payload.clone(),
+                    },
+                )),
             RuntimePlatformEffect::StoreSaveBackup { payload } => {
                 self.save_backup_payload(payload)?;
                 Ok(vec![HostMessage::RuntimeResult {

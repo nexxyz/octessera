@@ -59,11 +59,20 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
             payload: system.clone(),
         }))
         .unwrap();
+    assert!(saved.is_empty());
+    adapter
+        .platform_service
+        .enqueue_test_barrier()
+        .unwrap()
+        .recv_timeout(Duration::from_secs(1))
+        .unwrap();
+    let completions = adapter.platform_service.drain_results(4);
     assert!(matches!(
-        saved.as_slice(),
+        completions.as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveSystemResult { ok: true }
-        }]
+            result: RuntimeStoreResult::Identified { request_id, result, revision: Some(1) }
+        }] if request_id == "system-test"
+            && matches!(result.as_ref(), RuntimeStoreResult::SaveSystemResult { ok: true })
     ));
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(
@@ -168,5 +177,54 @@ fn system_save_is_rejected_while_restore_blocks_store_writes() {
     ));
     assert_eq!(std::fs::read(path).unwrap(), prior);
     assert!(adapter.shutdown_request.is_none());
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn system_save_reports_identified_queue_full_failure() {
+    let (mut adapter, root) = adapter("queue-full");
+    let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    adapter
+        .platform_service
+        .enqueue(crate::platform_service::PlatformJob::new(
+            request(RuntimePlatformEffect::SystemInfoRequest),
+            crate::platform_service::PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    for index in 0..32 {
+        adapter
+            .platform_service
+            .enqueue(crate::platform_service::PlatformJob::new(
+                RuntimePlatformRequest::new(
+                    RuntimePlatformEffect::SystemInfoRequest,
+                    format!("fill-{index}"),
+                    None,
+                ),
+                crate::platform_service::PlatformJobKind::SystemInfo,
+            ))
+            .unwrap();
+    }
+    let failed = adapter
+        .handle_platform_effect(&RuntimePlatformRequest::new(
+            RuntimePlatformEffect::StoreSaveSystem {
+                payload: serde_json::json!({"after": true}),
+            },
+            "queue-full-system".into(),
+            Some(4),
+        ))
+        .unwrap();
+    assert!(matches!(
+        failed.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure { error }
+        }] if error.operation == RuntimeOperation::StoreSaveSystem
+            && error.request_id.as_deref() == Some("queue-full-system")
+    ));
+    release_tx.send(()).unwrap();
     let _ = std::fs::remove_dir_all(root);
 }
