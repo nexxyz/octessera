@@ -46,7 +46,7 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
         false,
         outputs,
     );
-    crate::runtime_loop::initialize_host_state(&mut playback, &mut runner, &mut host).unwrap();
+    crate::runtime_output::initialize_host_state(&mut playback, &mut runner, &mut host).unwrap();
     crate::runtime_loop::dispatch_runtime_message(
         &mut playback,
         &mut runner,

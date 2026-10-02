@@ -1,9 +1,7 @@
 use crate::host_adapter::PiPlaybackHostAdapter;
 #[cfg(test)]
 use playback_runtime::{CoreRunner, HostAdapter};
-use playback_runtime::{
-    HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimePlatformEffect,
-};
+use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage};
 #[cfg(any(
     feature = "hardware-raspberry-pi-zero-2w",
     all(test, not(feature = "hardware-orange-pi-zero-2w"))
@@ -12,7 +10,48 @@ use playback_runtime::{RuntimeOperation, RuntimeStoreResult};
 use serde_json::Value;
 use std::time::Instant;
 
+pub(crate) use crate::runtime_output::process_runtime_output;
+
 const PLATFORM_RESULT_BUDGET: usize = 4;
+
+impl crate::runtime_output::PiRuntimeHost for PiPlaybackHostAdapter {
+    const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
+        crate::initial_audio_prep::InitialAudioPrepBoard::Pi;
+
+    fn dispatch(
+        playback: &mut PlaybackRuntime,
+        runner: &mut NativeRunner,
+        host: &mut Self,
+        message: HostMessage,
+    ) -> Result<(), String> {
+        dispatch_runtime_message(playback, runner, host, message)
+    }
+    fn ingest_oled_frame(&mut self, message: &RunnerMessage) {
+        PiPlaybackHostAdapter::ingest_oled_frame(self, message);
+    }
+    fn observe_keyboard_capture_snapshot(&self, snapshot: &Value) {
+        PiPlaybackHostAdapter::observe_keyboard_capture_snapshot(self, snapshot);
+    }
+    fn accept_oled_frame_reference(&mut self, snapshot: &Value) {
+        PiPlaybackHostAdapter::accept_oled_frame_reference(self, snapshot);
+    }
+    fn oled_frame_fault(&self) -> Option<crate::oled_frame_cache::OledFrameCacheFault> {
+        PiPlaybackHostAdapter::oled_frame_fault(self)
+    }
+    fn shutdown_pending(&self) -> bool {
+        PiPlaybackHostAdapter::shutdown_pending(self)
+    }
+    fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
+        PiPlaybackHostAdapter::poll_recording_status(self)
+    }
+    fn prep_audio_service(&self) -> crate::audio::AudioService {
+        self.audio_service()
+            .expect("initial Pi audio preparation requires an audio service")
+    }
+    fn drain_prep_host_results(&self, max_results: usize) -> Vec<HostMessage> {
+        self.drain_platform_results(max_results)
+    }
+}
 
 pub fn dispatch_runtime_message(
     playback: &mut PlaybackRuntime,
@@ -103,56 +142,6 @@ pub fn report_autoaux_runtime_failure(
     eprintln!("{prefix}: {error}");
 }
 
-pub fn process_runtime_output(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
-    output: playback_runtime::RuntimeIngest,
-) -> Result<(), String> {
-    ingest_oled_messages(adapter, &output.messages);
-    let fault = adapter
-        .oled_frame_fault()
-        .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
-    let fault_output = playback.report_oled_cache_fault(fault);
-    ingest_oled_messages(adapter, &fault_output.messages);
-    if adapter.shutdown_pending() {
-        return Ok(());
-    }
-    for follow_up in fault_output.follow_ups {
-        if adapter.shutdown_pending() {
-            break;
-        }
-        dispatch_runtime_message(playback, runner, adapter, follow_up)?;
-    }
-    for follow_up in output.follow_ups {
-        if adapter.shutdown_pending() {
-            break;
-        }
-        dispatch_runtime_message(playback, runner, adapter, follow_up)?;
-    }
-    if !adapter.shutdown_pending() {
-        if let Some(result) = adapter.poll_recording_status() {
-            dispatch_runtime_message(
-                playback,
-                runner,
-                adapter,
-                HostMessage::RuntimeResult { result },
-            )?;
-        }
-    }
-    Ok(())
-}
-
-fn ingest_oled_messages(adapter: &mut PiPlaybackHostAdapter, messages: &[RunnerMessage]) {
-    for message in messages {
-        adapter.ingest_oled_frame(message);
-        if let RunnerMessage::Snapshot { snapshot } = message {
-            adapter.observe_keyboard_capture_snapshot(snapshot);
-            adapter.accept_oled_frame_reference(snapshot);
-        }
-    }
-}
-
 pub fn handle_deferred_host_work(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -179,26 +168,6 @@ pub fn handle_deferred_host_work(
         dispatch_runtime_message(playback, runner, adapter, result)?;
     }
     Ok(())
-}
-
-pub fn initialize_host_state(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
-) -> Result<(), String> {
-    let output = playback.dispatch_runner_messages(
-        vec![playback_runtime::RunnerMessage::PlatformEffects {
-            effects: vec![
-                RuntimePlatformEffect::StoreLoadSystem,
-                RuntimePlatformEffect::StoreLoadDefault,
-                RuntimePlatformEffect::MidiListOutputsRequest,
-                RuntimePlatformEffect::MidiListInputsRequest,
-            ],
-        }],
-        runner,
-        adapter,
-    )?;
-    process_runtime_output(playback, runner, adapter, output)
 }
 
 pub fn latest_snapshot(playback: &PlaybackRuntime) -> Option<&Value> {
@@ -228,8 +197,10 @@ fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime_output::ingest_oled_messages;
     use platform_core::MusicalEvent;
     use playback_runtime::RuntimeConfig;
+    use playback_runtime::RuntimePlatformEffect;
     use serde_json::json;
 
     #[derive(Default)]

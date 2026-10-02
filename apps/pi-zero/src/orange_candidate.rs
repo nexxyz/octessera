@@ -26,8 +26,7 @@ use playback_runtime::{
 };
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::sync::Arc;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[path = "orange_candidate_handoff.rs"]
 mod handoff;
@@ -41,12 +40,15 @@ mod runtime_loop;
 mod signal;
 #[path = "orange_runtime_startup.rs"]
 mod startup;
+pub(crate) use crate::runtime_output::{
+    initialize_host_state, process_runtime_output, wait_for_initial_audio_prep,
+};
 #[cfg(test)]
 pub(crate) use runtime_loop::drain_host_results;
-pub(crate) use runtime_loop::{dispatch, process_runtime_output, run_prepared_runtime};
+pub(crate) use runtime_loop::{dispatch, run_prepared_runtime};
 pub(crate) use startup::{
-    prepare_runtime, publish_prepared_acknowledged_snapshot, wait_for_initial_audio_prep,
-    OrangeStartupReadinessGate, PreparedRuntime,
+    prepare_runtime, publish_prepared_acknowledged_snapshot, OrangeStartupReadinessGate,
+    PreparedRuntime,
 };
 const HOST_RESULT_BUDGET: usize = 4;
 const ORANGE_UART0_ACTIVE: bool = false;

@@ -353,6 +353,44 @@ fn drain_inputs(
     Ok(())
 }
 
+impl crate::runtime_output::PiRuntimeHost for OrangeHostAdapter {
+    const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
+        crate::initial_audio_prep::InitialAudioPrepBoard::Orange;
+
+    fn dispatch(
+        playback: &mut PlaybackRuntime,
+        runner: &mut NativeRunner,
+        host: &mut Self,
+        message: HostMessage,
+    ) -> Result<(), String> {
+        dispatch(playback, runner, host, message)
+    }
+    fn ingest_oled_frame(&mut self, message: &playback_runtime::RunnerMessage) {
+        OrangeHostAdapter::ingest_oled_frame(self, message);
+    }
+    fn observe_keyboard_capture_snapshot(&self, snapshot: &serde_json::Value) {
+        OrangeHostAdapter::observe_keyboard_capture_snapshot(self, snapshot);
+    }
+    fn accept_oled_frame_reference(&mut self, snapshot: &serde_json::Value) {
+        OrangeHostAdapter::accept_oled_frame_reference(self, snapshot);
+    }
+    fn oled_frame_fault(&self) -> Option<crate::oled_frame_cache::OledFrameCacheFault> {
+        OrangeHostAdapter::oled_frame_fault(self)
+    }
+    fn shutdown_pending(&self) -> bool {
+        OrangeHostAdapter::shutdown_pending(self)
+    }
+    fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
+        OrangeHostAdapter::poll_recording_status(self)
+    }
+    fn prep_audio_service(&self) -> AudioService {
+        self.audio_service()
+    }
+    fn drain_prep_host_results(&self, max_results: usize) -> Vec<HostMessage> {
+        self.drain_results(max_results)
+    }
+}
+
 pub(crate) fn dispatch(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -382,56 +420,6 @@ pub(crate) fn dispatch(
         process_runtime_output(playback, runner, host, output)?;
     }
     Ok(())
-}
-
-pub(crate) fn process_runtime_output(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
-    output: playback_runtime::RuntimeIngest,
-) -> Result<(), String> {
-    ingest_oled_messages(host, &output.messages);
-    let fault = host
-        .oled_frame_fault()
-        .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
-    let fault_output = playback.report_oled_cache_fault(fault);
-    ingest_oled_messages(host, &fault_output.messages);
-    for follow_up in fault_output.follow_ups {
-        if host.shutdown_pending() {
-            break;
-        }
-        dispatch(playback, runner, host, follow_up)?;
-    }
-    for follow_up in output.follow_ups {
-        if host.shutdown_pending() {
-            break;
-        }
-        dispatch(playback, runner, host, follow_up)?;
-    }
-    if !host.shutdown_pending() {
-        if let Some(result) = host.poll_recording_status() {
-            dispatch(
-                playback,
-                runner,
-                host,
-                HostMessage::RuntimeResult { result },
-            )?;
-        }
-    }
-    Ok(())
-}
-
-fn ingest_oled_messages(
-    host: &mut OrangeHostAdapter,
-    messages: &[playback_runtime::RunnerMessage],
-) {
-    for message in messages {
-        host.ingest_oled_frame(message);
-        if let playback_runtime::RunnerMessage::Snapshot { snapshot } = message {
-            host.observe_keyboard_capture_snapshot(snapshot);
-            host.accept_oled_frame_reference(snapshot);
-        }
-    }
 }
 
 fn publish_snapshot(

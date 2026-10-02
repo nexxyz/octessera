@@ -17,6 +17,15 @@ impl InitialAudioPrepBoard {
             Self::Orange => "initial Orange audio preparation failed",
         }
     }
+
+    pub(crate) fn timeout_message(self) -> &'static str {
+        match self {
+            #[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
+            Self::Pi => "initial Pi audio preparation timed out",
+            #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
+            Self::Orange => "initial Orange audio preparation timed out",
+        }
+    }
 }
 
 pub(crate) fn interpret_initial_audio_prep(
