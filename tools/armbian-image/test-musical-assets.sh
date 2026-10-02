@@ -224,7 +224,7 @@ reset_provision_work() {
   cp "$system_source" "$provision_work/usr/share/octessera/defaults/pi-system.json"
   cp "$patch_source" "$provision_work/usr/share/octessera/defaults/pi-default.patch.json"
   cp "$default_source" "$provision_work/usr/share/octessera/defaults/pi-default.json"
-  cp "$root/userpatches/overlay/usr/local/lib/octessera/device_config.py" "$provision_work/usr/local/lib/octessera/device_config.py"
+  cp "$root/tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" "$provision_work/usr/local/lib/octessera/device_config.py"
   printf 'keep this user sample\n' > "$provision_work/var/lib/octessera/samples/user-sample.wav"
 }
 run_provision() {
