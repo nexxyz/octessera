@@ -19,9 +19,9 @@ candidate_stop_failed=0
 service_stopped=0
 restore_status=0
 original_binary_hash=
-original_default_hash=
-original_recovery_hash=
-original_recovery_present=0
+store_documents=(default.json system.json default.patch.json recovery-save.json)
+declare -A original_store_hashes=()
+settings_document=
 samples_dir=
 working_directory=
 journal_since=0
@@ -45,13 +45,14 @@ except Exception: ok=False
 raise SystemExit(0 if ok else 1)
 PY
 }
+store_document_hash() {
+  if sudo_n test -e "$default_store/$1"; then hash_store "$default_store/$1" 2>/dev/null || printf unreadable; else printf absent; fi
+}
 verify_original_store() {
-  [ "$(hash_store "$default_file" 2>/dev/null || true)" = "$original_default_hash" ] || return 1
-  if [ "$original_recovery_present" -eq 1 ]; then
-    [ "$(hash_store "$recovery_file" 2>/dev/null || true)" = "$original_recovery_hash" ] || return 1
-  else
-    sudo_n test ! -e "$recovery_file" || return 1
-  fi
+  local document
+  for document in "${store_documents[@]}"; do
+    [ "$(store_document_hash "$document")" = "${original_store_hashes[$document]}" ] || return 1
+  done
 }
 
 restore_service() {
@@ -186,17 +187,21 @@ samples_dir="$(printf '%s\n' "$installed_environment" | sed -n 's/^OCTESSERA_PI_
 working_directory="$(service_value WorkingDirectory)"
 test -n "$samples_dir" || die 'managed service does not define OCTESSERA_PI_SAMPLES_DIR'
 test -n "$working_directory" && test -d "$working_directory" || die 'managed service working directory is missing'
-default_file="$default_store/default.json"
-recovery_file="$default_store/recovery-save.json"
 test -d "$default_store" || die "normal runtime store directory is missing: $default_store"
 [ ! -L "$default_store" ] || die "normal runtime store directory is a symlink: $default_store"
-test -f "$default_file" && [ ! -L "$default_file" ] || die 'normal runtime default store is missing or a symlink'
 if sudo_n find "$default_store" -type l -print -quit | grep -q .; then die 'normal runtime store contains a symlink'; fi
-original_default_hash="$(hash_store "$default_file")"
-if sudo_n test -e "$recovery_file"; then
-sudo_n test -f "$recovery_file" && sudo_n test ! -L "$recovery_file" || die 'recovery store is not a regular file'
-  original_recovery_present=1
-  original_recovery_hash="$(hash_store "$recovery_file")"
+for document in "${store_documents[@]}"; do
+  if sudo_n test -e "$default_store/$document"; then
+    sudo_n test -f "$default_store/$document" || die "store document is not a regular file: $document"
+  fi
+  original_store_hashes[$document]="$(store_document_hash "$document")"
+done
+if [ "${original_store_hashes[system.json]}" != absent ] && [ "${original_store_hashes[default.patch.json]}" != absent ]; then
+  settings_document=system.json
+elif [ "${original_store_hashes[default.json]}" != absent ]; then
+  settings_document=default.json
+else
+  die 'normal runtime store has neither split System/patch documents nor a legacy default.json'
 fi
 sudo_n test ! -e "$store_dir" || die 'unique study store path already exists'
 study_parent="$(dirname "$store_dir")"
@@ -226,8 +231,8 @@ sudo_n install -d -o pi -g pi -m 0750 "$store_dir"
 sudo_n cp -a -- "$default_store/." "$store_dir/"
 sudo_n chown -R pi:pi "$store_dir"
 if sudo_n find "$store_dir" -type l -print -quit | grep -q .; then die 'isolated store clone contains a symlink'; fi
-sudo_n test -f "$store_dir/default.json" && sudo_n test ! -L "$store_dir/default.json" || die 'isolated default store is not a regular file'
-sudo_n -u pi python3 - "$store_dir/default.json" <<'PY'
+sudo_n test -f "$store_dir/$settings_document" && sudo_n test ! -L "$store_dir/$settings_document" || die 'isolated settings document is not a regular file'
+sudo_n -u pi python3 - "$store_dir/$settings_document" <<'PY'
 import json,sys
 p=sys.argv[1]
 with open(p, encoding='utf-8') as f: data=json.load(f)
@@ -240,7 +245,7 @@ runtime['screenSleepSeconds']=0
 runtime['autoSaveDefault']=True
 with open(p,'w',encoding='utf-8') as f: json.dump(data,f,separators=(',',':'))
 PY
-sudo_n test "$(hash_store "$default_file")" = "$original_default_hash" || die 'original default store drifted during clone setup'
+verify_original_store || die 'original store drifted during clone setup'
 sudo_n test "$(hash_store "$installed_binary")" = "$original_binary_hash" || die 'installed binary changed during preflight'
 journal_since="$(date +%s)"
 service_stopped=1

@@ -19,7 +19,7 @@ import stat
 import sys
 
 mode, source, clone, evidence = sys.argv[1:]
-names = ("default.json", "recovery-save.json")
+names = ("default.json", "system.json", "default.patch.json", "recovery-save.json")
 if not re.fullmatch(r"octessera-study-[0-9a-f]{32}\.service", os.path.basename(clone)):
     raise ValueError("AWAKE clone path must match the transient unit")
 
@@ -40,12 +40,18 @@ if mode == "prepare":
         raise ValueError("AWAKE source store is not a directory")
     if not stat.S_ISDIR(os.lstat(os.path.dirname(clone)).st_mode):
         raise ValueError("AWAKE clone parent is not a directory")
-    original = {name: regular_bytes(os.path.join(source, name), name == "default.json") for name in names}
-    payload = json.loads(original["default.json"])
+    original = {name: regular_bytes(os.path.join(source, name), False) for name in names}
+    if original["system.json"] is not None and original["default.patch.json"] is not None:
+        settings = "system.json"
+    elif original["default.json"] is not None:
+        settings = "default.json"
+    else:
+        raise ValueError("AWAKE source has neither split System/patch documents nor a legacy default.json")
+    payload = json.loads(original[settings])
     runtime = payload.get("runtimeConfig") if isinstance(payload, dict) else None
     keys = ("dimTimerSeconds", "screenSleepSeconds")
     if not isinstance(runtime, dict) or any(type(runtime.get(key)) is not int for key in keys):
-        raise ValueError("AWAKE default must contain both numeric timers")
+        raise ValueError("AWAKE settings document must contain both numeric timers")
     timers = {key: runtime[key] for key in keys}
     runtime.update({key: 0 for key in keys})
     awake = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
@@ -54,7 +60,7 @@ if mode == "prepare":
                                           for name, data in original.items()}}), flush=True)
     os.mkdir(clone, 0o700)
     for name in names:
-        data = awake if name == "default.json" else original[name]
+        data = awake if name == settings else original[name]
         if data is not None:
             fd = os.open(os.path.join(clone, name), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(fd, "wb") as handle:
