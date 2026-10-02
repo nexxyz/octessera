@@ -1,4 +1,6 @@
-use super::host_adapter_audio::{ensure_finite, invalid_audio_command, validate_instrument_slot};
+use super::host_adapter_audio_validation::{
+    ensure_finite, invalid_audio_command, validate_instrument_slot,
+};
 use super::host_adapter_musical::{
     invalid_musical_event, validate_musical_channel, validate_musical_range,
 };
