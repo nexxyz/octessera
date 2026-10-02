@@ -99,6 +99,11 @@ fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
         serde_json::to_vec(&documents.system).unwrap(),
     )
     .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();

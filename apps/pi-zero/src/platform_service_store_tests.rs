@@ -325,3 +325,164 @@ fn named_preset_load_rejects_queued_named_save_without_cancelling_it() {
     );
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn system_save_runs_off_thread_and_returns_one_identified_completion() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-system-save-worker-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let store = root.join("store");
+    let service = PiPlatformService::new(store.clone(), root.join("samples"));
+    std::fs::create_dir_all(&store).unwrap();
+    let documents = playback_runtime::split_system_patch_documents(
+        &crate::user_data_archive::canonical_defaults(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+    let mut next_system = documents.system.clone();
+    next_system["runtimeConfig"]["screenSleepSeconds"] = serde_json::json!(45);
+    let prior_bytes = std::fs::read(store.join("system.json")).unwrap();
+    let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "gate".into(),
+                None,
+            ),
+            PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::StoreSaveSystem {
+                    payload: next_system.clone(),
+                },
+                "system-save".into(),
+                Some(7),
+            ),
+            PlatformJobKind::SaveSystem {
+                payload: next_system.clone(),
+            },
+        ))
+        .unwrap();
+    assert_eq!(
+        std::fs::read(store.join("system.json")).unwrap(),
+        prior_bytes
+    );
+    release_tx.send(()).unwrap();
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut completions = Vec::new();
+    while std::time::Instant::now() < deadline && completions.is_empty() {
+        completions.extend(service.drain_results(4));
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    assert!(matches!(
+        completions.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { request_id, revision: Some(7), result }
+        }] if request_id == "system-save"
+            && matches!(result.as_ref(), RuntimeStoreResult::SaveSystemResult { ok: true })
+    ));
+    assert_eq!(
+        load_json(&store.join("system.json")).unwrap(),
+        Some(next_system)
+    );
+    assert!(service.drain_results(4).is_empty());
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn queued_system_save_is_cancelled_by_restore_generation() {
+    let root = std::env::temp_dir().join(format!(
+        "octessera-pi-system-save-cancel-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let store = root.join("store");
+    let service = PiPlatformService::new(store.clone(), root.join("samples"));
+    std::fs::create_dir_all(&store).unwrap();
+    let prior = br#"{"before":true}"#;
+    std::fs::write(store.join("system.json"), prior).unwrap();
+    let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "gate".into(),
+                None,
+            ),
+            PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::StoreSaveSystem {
+                    payload: serde_json::json!({"after": true}),
+                },
+                "cancelled-system-save".into(),
+                Some(9),
+            ),
+            PlatformJobKind::SaveSystem {
+                payload: serde_json::json!({"after": true}),
+            },
+        ))
+        .unwrap();
+    service.store_write_barrier.invalidate();
+    release_tx.send(()).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut completion = None;
+    while std::time::Instant::now() < deadline && completion.is_none() {
+        completion = service.drain_results(4).into_iter().find(|message| {
+            matches!(message, HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::Identified { request_id, .. }
+            } if request_id == "cancelled-system-save")
+        });
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    assert!(matches!(
+        completion,
+        Some(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { request_id, revision: Some(9), result }
+        }) if request_id == "cancelled-system-save"
+            && matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { error }
+                if error.operation == playback_runtime::RuntimeOperation::StoreSaveSystem
+                    && error.request_id.as_deref() == Some("cancelled-system-save"))
+    ));
+    assert_eq!(std::fs::read(store.join("system.json")).unwrap(), prior);
+    let _ = std::fs::remove_dir_all(root);
+}

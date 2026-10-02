@@ -4,6 +4,28 @@ use std::time::Instant;
 use super::{DeviceInput, NativeRunner, RuntimeTransportState};
 
 impl NativeRunner {
+    pub(crate) fn send_system_store_result_music_first(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String> {
+        let was_deferred = self.pending.external_autosave_deferred;
+        self.pending.external_autosave_deferred = true;
+        let result = <Self as super::CoreRunner>::send_system_store_result(self, message);
+        self.pending.external_autosave_deferred = was_deferred;
+        result
+    }
+
+    pub(crate) fn send_store_result_handoff_music_first(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>, bool), String> {
+        let was_deferred = self.pending.external_autosave_deferred;
+        self.pending.external_autosave_deferred = true;
+        let result = <Self as super::CoreRunner>::send_store_result_handoff(self, message);
+        self.pending.external_autosave_deferred = was_deferred;
+        result
+    }
+
     pub fn send_music_first(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
         self.pending.external_autosave_deferred = true;
         let result = self.send_music_first_scoped(message);

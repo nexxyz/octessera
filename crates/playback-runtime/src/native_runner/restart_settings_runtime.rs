@@ -8,6 +8,54 @@ use super::UsbDataRole;
 use super::{NativeConfirmDialog, NativeManualSaveRequest, NativeRunner, NativeToast};
 
 impl NativeRunner {
+    pub(super) fn begin_system_parameter_edit(&mut self, key: &str) {
+        if let Ok(document) =
+            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)
+        {
+            if let Some(value) =
+                super::system_persistence::SystemPersistenceState::ordinary_system_value(
+                    &document, key,
+                )
+            {
+                self.pending.system_persistence.begin_edit(key, value);
+            }
+        }
+    }
+
+    pub(super) fn finish_system_parameter_edit(&mut self, key: &str) {
+        let Ok(document) =
+            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)
+        else {
+            return;
+        };
+        let Some(value) = super::system_persistence::SystemPersistenceState::ordinary_system_value(
+            &document, key,
+        ) else {
+            return;
+        };
+        if !self.pending.system_persistence.finish_edit(key, &value) {
+            if let Ok(live_document) =
+                super::system_persistence::SystemPersistenceState::system_document(self)
+            {
+                self.pending
+                    .system_persistence
+                    .clear_dirty_if_matches_baseline(&live_document);
+            }
+            return;
+        }
+        let Some(dirty_revision) = self.pending.system_persistence.dirty_revision else {
+            return;
+        };
+        if self
+            .pending
+            .system_persistence
+            .complete_auto_save(document.clone(), dirty_revision)
+        {
+            self.outbox
+                .push_platform_effect(RuntimePlatformEffect::StoreSaveSystem { payload: document });
+        }
+    }
+
     pub(super) fn finish_restart_sensitive_edit(&mut self, key: &str) {
         let Some(setting) = RestartSetting::from_key(key) else {
             return;
@@ -39,6 +87,7 @@ impl NativeRunner {
     pub(super) fn start_restart_system_save(&mut self, payload: Value, scope: DefaultSaveScope) {
         if self.restart_settings.has_pending_write()
             || self.pending.system_persistence.has_pending_request()
+            || self.pending.system_persistence.has_completed_auto_save()
         {
             self.show_toast("System save pending, try again");
             return;
@@ -131,7 +180,9 @@ impl NativeRunner {
     }
 
     pub(super) fn reboot_blocked_by_pending_saves(&self) -> Option<&'static str> {
-        if self.pending.system_persistence.has_pending_request() {
+        if self.pending.system_persistence.has_pending_request()
+            || self.pending.system_persistence.has_completed_auto_save()
+        {
             return Some("System save pending, try again");
         }
         if self.pending.system_persistence.dirty_revision.is_some() {
@@ -245,7 +296,12 @@ impl NativeRunner {
                     self.display.confirm_dialog = Some(self.save_choice_dialog());
                     return Ok(None);
                 }
-                let Some(payload) = self.restart_settings.save_choice_setting_payload() else {
+                let Some(setting) = self.restart_settings.save_choice_setting() else {
+                    return Ok(None);
+                };
+                let Some(payload) =
+                    self.setting_payload_for_restart(&self.config_payload(), setting)
+                else {
                     return Ok(None);
                 };
                 self.start_restart_system_save(payload, DefaultSaveScope::RestartSetting);

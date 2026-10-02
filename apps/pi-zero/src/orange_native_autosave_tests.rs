@@ -7,6 +7,10 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         "/var/lib/octessera/study-stores/octessera-study-abcdef0123456789abcdef0123456789.service",
     ));
     let mut fixture = runtime_fixture(true);
+    let patch_path = fixture.root.join("store/default.patch.json");
+    let original_patch = crate::platform_service::load_json(&patch_path)
+        .unwrap()
+        .unwrap();
     let mut payload = fixture.runner.capture_config_snapshot().into_payload();
     payload["runtimeConfig"]["autoSaveDefault"] = serde_json::json!(true);
     fixture.runner.apply_config_payload(payload).unwrap();
@@ -61,10 +65,20 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         &mut fixture.host,
     )
     .unwrap();
-    assert!(!fixture.root.join("store/default.patch.json").exists());
+    assert_eq!(
+        crate::platform_service::load_json(&patch_path)
+            .unwrap()
+            .as_ref(),
+        Some(&original_patch)
+    );
     let mut profiler = crate::ui_profile::UiProfiler::from_controls(None, false);
     let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline && !fixture.root.join("store/default.patch.json").exists() {
+    while Instant::now() < deadline
+        && crate::platform_service::load_json(&patch_path)
+            .unwrap()
+            .as_ref()
+            == Some(&original_patch)
+    {
         super::super::host_work::flush_native_persistence(
             &mut fixture.playback,
             &mut fixture.runner,
@@ -80,10 +94,11 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         .unwrap();
         std::thread::sleep(Duration::from_millis(2));
     }
-    assert!(
-        crate::platform_service::load_json(&fixture.root.join("store/default.patch.json"))
+    assert_ne!(
+        crate::platform_service::load_json(&patch_path)
             .unwrap()
-            .is_some()
+            .unwrap(),
+        original_patch
     );
     let _ = std::fs::remove_dir_all(fixture.root);
 }
