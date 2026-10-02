@@ -21,9 +21,11 @@ from pathlib import Path
 try:
     from .disk_layout import assert_no_drift
     from .disk_mount import mounted_runtime, require_linux_root
+    from .runtime_bundle import RuntimeBundleError, validate_bundle
 except ImportError:
     from disk_layout import assert_no_drift
     from disk_mount import mounted_runtime, require_linux_root
+    from runtime_bundle import RuntimeBundleError, validate_bundle
 
 BOARD = "orange-pi-zero-2w"
 VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
@@ -158,8 +160,10 @@ def respin(parent_record: Path, parent_image: Path, bundle: Path, version: str, 
     expected_name = f"octessera-{version}-{BOARD}-derived-runtime-respin.img.xz"
     if output.name != expected_name or output.exists():
         raise RespinError(f"output must be a new {expected_name}")
-    if sorted(path.name for path in bundle.iterdir()) != sorted(BUNDLE_MODES):
-        raise RespinError("runtime bundle must contain exactly the release files")
+    try:
+        validate_bundle(bundle, version, BOARD, sha256_file(bundle / "octessera-pi"))
+    except (RuntimeBundleError, OSError) as exc:
+        raise RespinError(f"runtime bundle does not match {BOARD} {version}: {exc}") from exc
 
     work = Path(tempfile.mkdtemp(prefix="octessera-respin-"))
     try:

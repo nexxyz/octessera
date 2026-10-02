@@ -65,7 +65,7 @@ def _write_exact(path: Path, payload: bytes, mode: int) -> None:
     os.chmod(path, mode)
 
 
-def _validate_bundle(output: Path, version: str, board: str, binary_hash: str) -> None:
+def validate_bundle(output: Path, version: str, board: str, binary_hash: str) -> None:
     if output.is_symlink() or not output.is_dir():
         raise RuntimeBundleError("runtime bundle output is not a real directory")
     directory_mode = stat.S_IMODE(output.stat().st_mode)
@@ -136,7 +136,7 @@ def create_bundle(binary: Path, board: str, version: str, output: Path) -> Path:
             0o644,
         )
         _write_exact(output / "SHA256SUMS", f"{binary_hash}  octessera-pi\n".encode(), 0o644)
-        _validate_bundle(output, version, board, binary_hash)
+        validate_bundle(output, version, board, binary_hash)
         return output
     except Exception:
         shutil.rmtree(output, ignore_errors=True)
