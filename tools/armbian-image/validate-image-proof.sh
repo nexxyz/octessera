@@ -14,7 +14,7 @@ run_root_test() {
   if (( EUID == 0 )); then
     "$@"
   elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
-    sudo -n "$@"
+    sudo -n env "PATH=$PATH" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" "$@"
   else
     echo "$description require root execution; run as root or configure passwordless sudo -n." >&2
     exit 1
