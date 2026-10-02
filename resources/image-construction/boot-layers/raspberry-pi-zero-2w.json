@@ -48,7 +48,7 @@
     {"path": "tools/pi-image/rpi_kernel_payload_proof.py", "sha256": "07aa3455ecc66259d114abf2c37d7fade32b05729e879b8d658d2b4af62731d8", "size": 3316},
     {"path": "tools/pi-image/rpi_kernel_stock_recovery.py", "sha256": "57344adbcc39bd067c77f2ee06822e9b9fb808d7ab9cf3a4ba4b755f7c505ac4", "size": 2406},
     {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "22d8ba31cf016c665f562d3fa7b9004e00c280984eef08d646f86862b1093d32", "size": 23278},
-    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "0088e82cbcca331823a85abe10d4ff044f3c1ee4b86e61d9044a3492a4cd2eba", "size": 23243},
+    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "e810fe0789d048ea39d5e57a238be2b17accd3b5a44bc11d455a5aed21b81b74", "size": 23279},
     {"path": "tools/pi-image/verify-rpi-samples.py", "sha256": "050085e8a6832a9da114cc2b53902fe7cb3bd9d96bcc6b06c11fc46fe7aca9e4", "size": 3338},
     {"path": "tools/pi/provision/files/boot/config.txt.initramfs.append", "sha256": "c14d03356c1edcbf170d91c4eda896705fda0930ac8b61b9c631a5ebec89fe92", "size": 73},
     {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "418ebfce6cd6acbacb410614be576524263a00f4cd56fe10503d67b004837960", "size": 355},

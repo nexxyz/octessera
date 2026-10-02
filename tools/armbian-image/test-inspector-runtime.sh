@@ -73,6 +73,7 @@ for required in \
 done
 eval "$(sed -n '/^validate_save_document() {/,/^}/p' "$image_inspector")"
 inspected_save_document=
+# shellcheck disable=SC2317 # called by the eval'd validate_save_document
 read_file() { printf '%s\n' "$inspected_save_document"; }
 inspected_save_document='{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{}}'
 validate_save_document usr/share/octessera/defaults/pi-system.json octessera.system 1
