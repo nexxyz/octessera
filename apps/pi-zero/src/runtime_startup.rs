@@ -1,12 +1,11 @@
 use super::RuntimeThreadConfig;
 use crate::candidate_readiness::CandidateReadiness;
 use crate::host_adapter::PiPlaybackHostAdapter;
-use crate::initial_audio_prep::{interpret_initial_audio_prep, InitialAudioPrepBoard};
 use crate::input::MidiMessage;
 use crate::main_paths::ensure_samples_dir;
 use crate::normal_menu::is_normal_menu_snapshot;
 use crate::render_loop::RenderWorker;
-use crate::runtime_loop::initialize_host_state;
+use crate::runtime_output::{initialize_host_state, wait_for_initial_audio_prep};
 use crate::sample_browser::builtin_favourite_dirs;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{
@@ -15,10 +14,6 @@ use playback_runtime::{
 };
 use std::sync::mpsc;
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
-
-const INITIAL_AUDIO_PREP_TIMEOUT: Duration = Duration::from_secs(10);
-const INITIAL_AUDIO_PREP_POLL: Duration = Duration::from_millis(10);
 
 pub(crate) struct PreparedRuntime {
     pub(super) midi_rx: mpsc::Receiver<MidiMessage>,
@@ -96,51 +91,6 @@ pub(crate) fn prepare(config: RuntimeThreadConfig) -> Result<PreparedRuntime, St
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx,
     })
-}
-
-fn wait_for_initial_audio_prep(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
-) -> Result<(), String> {
-    let deadline = Instant::now() + INITIAL_AUDIO_PREP_TIMEOUT;
-    loop {
-        let audio = adapter
-            .audio_service()
-            .expect("initial Pi audio preparation requires an audio service");
-        if let Some(message) = audio.drain_prep_results(1).into_iter().next() {
-            let outcome = interpret_initial_audio_prep(
-                &message,
-                audio
-                    .config_revision
-                    .load(std::sync::atomic::Ordering::SeqCst),
-                InitialAudioPrepBoard::Pi,
-            );
-            crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)?;
-            if let Some(outcome) = outcome {
-                return outcome;
-            }
-        }
-        for message in adapter.drain_platform_results(4) {
-            let outcome = interpret_initial_audio_prep(
-                &message,
-                adapter
-                    .audio_service()
-                    .expect("initial Pi audio preparation requires an audio service")
-                    .config_revision
-                    .load(std::sync::atomic::Ordering::SeqCst),
-                InitialAudioPrepBoard::Pi,
-            );
-            crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)?;
-            if let Some(outcome) = outcome {
-                return outcome;
-            }
-        }
-        if Instant::now() >= deadline {
-            return Err("initial Pi audio preparation timed out".into());
-        }
-        std::thread::sleep(INITIAL_AUDIO_PREP_POLL);
-    }
 }
 
 impl PreparedRuntime {
@@ -244,6 +194,7 @@ mod tests {
     use playback_runtime::{RuntimeOperation, RuntimeStoreResult};
     use serde_json::json;
     use std::sync::Arc;
+    use std::time::Duration;
 
     #[test]
     fn pi_startup_waits_for_the_identified_audio_prep_result() {
