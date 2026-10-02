@@ -77,7 +77,24 @@ pub(crate) fn run(config: RaspberryRuntimeConfig, render_worker: RenderWorker) {
     }
 }
 
+// Keep the scheduler off the main thread: on-board AutoAux studies measured
+// ~50 us higher runtime lateness and occasional underruns when it ran inline.
 fn run_scheduler(
+    prepared: PreparedRuntime,
+    render_worker: RenderWorker,
+    initial_rendered_revision: u64,
+) {
+    let runtime = thread::Builder::new()
+        .name("octessera-runtime".into())
+        .spawn(move || scheduler_loop(prepared, render_worker, initial_rendered_revision))
+        .expect("pi runtime thread should start");
+    if runtime.join().is_err() {
+        eprintln!("pi runtime thread panicked");
+        std::process::exit(1);
+    }
+}
+
+fn scheduler_loop(
     prepared: PreparedRuntime,
     render_worker: RenderWorker,
     initial_rendered_revision: u64,
