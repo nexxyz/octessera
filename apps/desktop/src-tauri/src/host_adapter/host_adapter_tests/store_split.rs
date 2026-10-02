@@ -1,5 +1,7 @@
 use super::{platform_request, temp_store_dir, test_adapter};
+use crate::desktop_platform_service::shape_service_result;
 use playback_runtime::{HostAdapter, HostMessage, RuntimePlatformEffect, RuntimeStoreResult};
+use std::sync::mpsc;
 use std::time::Instant;
 
 #[test]
@@ -7,6 +9,8 @@ fn system_load_and_save_leave_pending_patch_save_intact() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = temp_store_dir("system-store");
     adapter.store_dir = temp_dir.clone();
+    let (platform_service_tx, platform_service_rx) = mpsc::sync_channel(32);
+    adapter.platform_service_tx = platform_service_tx;
     let system_payload = serde_json::json!({ "deviceName": "Octessera", "nested": [1, true] });
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
@@ -20,8 +24,10 @@ fn system_load_and_save_leave_pending_patch_save_intact() {
             payload: system_payload.clone(),
         }))
         .unwrap();
+    assert!(saved.is_empty());
+    let completion = shape_service_result(platform_service_rx.try_recv().unwrap());
     assert!(matches!(
-        saved.as_slice(),
+        completion.as_slice(),
         [HostMessage::RuntimeResult {
             result: RuntimeStoreResult::Identified { result, .. }
         }] if matches!(result.as_ref(), RuntimeStoreResult::SaveSystemResult { ok: true })

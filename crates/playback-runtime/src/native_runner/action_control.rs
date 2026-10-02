@@ -342,6 +342,14 @@ impl NativeRunner {
         &mut self,
         action_type: &str,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
+        if matches!(action_type, "system.reboot" | "system.shutdown")
+            && (self.pending.system_persistence.has_pending_save()
+                || self.pending.system_persistence.has_completed_auto_save())
+        {
+            self.display.confirm_dialog = None;
+            self.show_toast("System save pending, try again");
+            return Ok(None);
+        }
         if action_type == "system.reboot" {
             if let Some(message) = self.reboot_blocked_by_pending_saves() {
                 self.display.confirm_dialog = None;

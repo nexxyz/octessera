@@ -143,7 +143,8 @@ fn run(context: PlatformWorkerContext) {
                 }
                 Err(_) => RuntimeStoreResult::RuntimeFailure {
                     error: job.request.failure_facts("pi store is unavailable".into()),
-                },
+                }
+                .with_identity(job.request.request_id.clone(), job.request.revision),
             }
         } else {
             platform_service_executor::handle_job(
@@ -348,6 +349,7 @@ fn job_requires_store_lock(kind: &PlatformJobKind) -> bool {
         | PlatformJobKind::SavePreset { .. }
         | PlatformJobKind::DeletePreset { .. }
         | PlatformJobKind::SaveDefault { .. }
+        | PlatformJobKind::SaveSystem { .. }
         | PlatformJobKind::SaveBackup { .. }
         | PlatformJobKind::ListSamples { .. } => true,
         #[cfg(feature = "hardware-orange-pi-zero-2w")]

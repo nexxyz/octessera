@@ -242,15 +242,12 @@ fn failed_system_save_reports_storage_failure_with_operation_identity() {
             payload: serde_json::json!({ "deviceName": "Octessera" }),
         }))
         .unwrap();
-    assert!(matches!(
-        result.as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { request_id, result, .. }
-        }] if request_id == "test-request"
-            && matches!(result.as_ref(), RuntimeStoreResult::SaveSystemResult { ok: false })
-            && result.operation() == playback_runtime::RuntimeOperation::StoreSaveSystem
-            && result.error_facts().is_some_and(|error| error.domain == playback_runtime::RuntimeErrorDomain::Storage)
-    ));
+    assert!(matches!(result.as_slice(), [HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::Identified { request_id, result, .. }
+    }] if request_id == "test-request"
+        && matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { error }
+            if error.domain == playback_runtime::RuntimeErrorDomain::Storage
+                && error.operation == playback_runtime::RuntimeOperation::StoreSaveSystem)));
     assert_eq!(std::fs::read(old_path).unwrap(), b"keep me");
     let _ = std::fs::remove_dir_all(temp_dir);
 }

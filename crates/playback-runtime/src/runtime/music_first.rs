@@ -58,14 +58,14 @@ impl CoreRunner for MusicFirstRunner<'_> {
         &mut self,
         message: HostMessage,
     ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
-        <NativeRunner as CoreRunner>::send_system_store_result(self.0, message)
+        self.0.send_system_store_result_music_first(message)
     }
 
     fn send_store_result_handoff(
         &mut self,
         message: HostMessage,
     ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>, bool), String> {
-        <NativeRunner as CoreRunner>::send_store_result_handoff(self.0, message)
+        self.0.send_store_result_handoff_music_first(message)
     }
 }
 

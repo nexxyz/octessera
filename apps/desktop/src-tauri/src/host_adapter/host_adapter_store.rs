@@ -31,19 +31,6 @@ impl DesktopPlaybackHostAdapter {
         }]
     }
 
-    pub(super) fn save_system_result(
-        &self,
-        request: &RuntimePlatformRequest,
-        payload: &serde_json::Value,
-    ) -> Vec<HostMessage> {
-        let result = RuntimeStoreResult::SaveSystemResult {
-            ok: self.save_system_payload(payload).is_ok(),
-        };
-        vec![HostMessage::RuntimeResult {
-            result: result.with_identity(request.request_id.clone(), request.revision),
-        }]
-    }
-
     pub(super) fn save_system_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
         atomic_write_json(&self.store_dir.join("system.json"), payload)
     }

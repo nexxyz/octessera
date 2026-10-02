@@ -167,3 +167,44 @@ fn full_platform_request_shapes_each_service_kind() {
         }
     }
 }
+
+#[test]
+fn system_save_admission_failures_are_identified_storage_failures() {
+    let (sender, _receiver) = mpsc::sync_channel(DESKTOP_PLATFORM_REQUEST_QUEUE_CAPACITY);
+    for index in 0..DESKTOP_PLATFORM_REQUEST_QUEUE_CAPACITY {
+        assert!(admit_platform_service_request(&sender, system_info_request(index)).is_ok());
+    }
+    let save_request = || {
+        DesktopPlatformServiceRequest::new(
+            RuntimePlatformRequest::new(
+                RuntimePlatformEffect::StoreSaveSystem {
+                    payload: serde_json::json!({ "new": true }),
+                },
+                "save-system".into(),
+                Some(8),
+            ),
+            DesktopPlatformServiceKind::SaveSystem {
+                store_dir: std::path::PathBuf::from("unused"),
+                payload: serde_json::json!({ "new": true }),
+            },
+        )
+    };
+
+    let (_, _, full) =
+        identified_result(admit_platform_service_request(&sender, save_request()).unwrap_err());
+    assert!(matches!(full, RuntimeStoreResult::RuntimeFailure { error }
+        if error.domain == playback_runtime::RuntimeErrorDomain::Storage
+            && error.operation == playback_runtime::RuntimeOperation::StoreSaveSystem
+            && error.message.as_deref() == Some("Desktop platform service queue is full.")));
+
+    let (sender, receiver) = mpsc::sync_channel(DESKTOP_PLATFORM_REQUEST_QUEUE_CAPACITY);
+    drop(receiver);
+    let (_, _, disconnected) =
+        identified_result(admit_platform_service_request(&sender, save_request()).unwrap_err());
+    assert!(
+        matches!(disconnected, RuntimeStoreResult::RuntimeFailure { error }
+        if error.domain == playback_runtime::RuntimeErrorDomain::Storage
+            && error.operation == playback_runtime::RuntimeOperation::StoreSaveSystem
+            && error.message.as_deref() == Some("Desktop platform service unavailable"))
+    );
+}

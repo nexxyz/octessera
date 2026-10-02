@@ -46,6 +46,10 @@ impl NativeRunner {
         };
         let operation_for_restart = operation.clone();
         let request_id_for_restart = request_id.clone();
+        let is_auto_save = self
+            .pending
+            .system_persistence
+            .is_auto_save_request(&request_id);
 
         let accepted = match result {
             RuntimeStoreResult::LoadSystemResult {
@@ -80,10 +84,12 @@ impl NativeRunner {
                     .acknowledge_system_save(&pending);
                 self.restart_settings
                     .update_system_baseline(Arc::clone(&baseline));
-                self.display.toast = Some(NativeToast {
-                    message: "System saved".into(),
-                    offset: 0,
-                });
+                if !is_auto_save {
+                    self.display.toast = Some(NativeToast {
+                        message: "System saved".into(),
+                        offset: 0,
+                    });
+                }
                 system_store_success(operation, request_id, revision)
             }
             RuntimeStoreResult::SaveSystemResult { ok: false } => self.system_store_failure(
@@ -113,6 +119,15 @@ impl NativeRunner {
             && pending.apply_scope.is_some()
         {
             self.apply_restart_system_save_result(&accepted, &request_id_for_restart, revision);
+        }
+        if operation_for_restart == crate::RuntimeOperation::StoreSaveSystem {
+            self.pending
+                .system_persistence
+                .finish_auto_save_request(&request_id_for_restart);
+            if let Some((payload, _)) = self.pending.system_persistence.take_waiting_auto_save() {
+                self.outbox
+                    .push_platform_effect(RuntimePlatformEffect::StoreSaveSystem { payload });
+            }
         }
         Ok(Some(accepted))
     }

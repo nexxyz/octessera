@@ -140,6 +140,8 @@ mod music_first_manual_save_tests;
 #[cfg(test)]
 mod music_first_persistence_tests;
 #[cfg(test)]
+mod music_first_system_result_tests;
+#[cfg(test)]
 mod music_first_tests;
 #[cfg(test)]
 mod native_persistence_completion_tests;

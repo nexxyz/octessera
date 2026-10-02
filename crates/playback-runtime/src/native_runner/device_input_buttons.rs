@@ -110,6 +110,10 @@ impl NativeRunner {
                             {
                                 self.restart_settings
                                     .begin_edit(&self.config_payload(), setting);
+                            } else if selected_group_key.is_some() {
+                                if let Some(key) = selected_group_key.as_deref() {
+                                    self.begin_system_parameter_edit(key);
+                                }
                             }
                         }
                     }
@@ -120,6 +124,9 @@ impl NativeRunner {
                 if let Some(key) = selected_group_key.as_deref() {
                     self.apply_or_schedule_menu_key(key)?;
                     self.finish_restart_sensitive_edit(key);
+                    if super::restart_settings::RestartSetting::from_key(key).is_none() {
+                        self.finish_system_parameter_edit(key);
+                    }
                 } else {
                     return Err("cannot apply menu edit: current row has no key".into());
                 }
@@ -225,6 +232,9 @@ impl NativeRunner {
             if let Some(key) = editing_key {
                 self.apply_or_schedule_menu_key(&key)?;
                 self.finish_restart_sensitive_edit(&key);
+                if super::restart_settings::RestartSetting::from_key(&key).is_none() {
+                    self.finish_system_parameter_edit(&key);
+                }
             }
         }
         self.messages_with_snapshot()

@@ -123,10 +123,24 @@ impl PiPlaybackHostAdapter {
                 .platform_service
                 .load_system_now()
                 .map(|payload| RuntimeStoreResult::LoadSystemResult { payload }),
-            playback_runtime::RuntimePlatformEffect::StoreSaveSystem { payload } => self
-                .platform_service
-                .save_system_now(payload)
-                .map(|()| RuntimeStoreResult::SaveSystemResult { ok: true }),
+            playback_runtime::RuntimePlatformEffect::StoreSaveSystem { payload } => {
+                return Some(
+                    match self.platform_service.enqueue(PlatformJob::new(
+                        request.clone(),
+                        PlatformJobKind::SaveSystem {
+                            payload: payload.clone(),
+                        },
+                    )) {
+                        Ok(()) => Vec::new(),
+                        Err(message) => vec![HostMessage::RuntimeResult {
+                            result: RuntimeStoreResult::RuntimeFailure {
+                                error: request
+                                    .failure_facts(format!("Save system queued failed: {message}")),
+                            },
+                        }],
+                    },
+                );
+            }
             _ => return None,
         };
         Some(vec![HostMessage::RuntimeResult {

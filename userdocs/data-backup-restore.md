@@ -5,16 +5,20 @@ archive carries music, selected portable preferences such as brightness, and
 optionally user media.
 It is not a complete System backup or a device clone: USB role, MIDI/audio
 endpoint IDs, and favourite folders stay with the destination instrument.
-System settings are saved separately with `System > Saves > System > Save
-System`; rolling saves and recovery backups protect the musical patch only.
+Ordinary System preferences save separately from the musical patch. Rolling
+saves and recovery backups protect the musical patch only.
 
 ## Save local settings and music
 
-Use `System > Saves > System > Save System` to save and
-`System > Saves > System > Load System` to load local device settings such as
-ports and audio choices. System settings do not autosave, so save them
-explicitly. Load System asks for confirmation but does not stop music or
-silently reboot; restart-sensitive **Apply** is a separate action.
+Changed ordinary local preferences, such as display brightness and Auto Save,
+save once when you leave their editor with Main or Back, not on every turn;
+unchanged or reverted edits do not save. You can still use
+`System > Saves > System > Save System` to save settings explicitly, or
+`System > Saves > System > Load System` to load them. Load System asks for
+confirmation but does not stop music or silently reboot. Restart-sensitive
+USB and audio-output choices save only after confirmed **Apply**. If a System
+save is still underway, Reboot and Shutdown refuse with `System save pending,
+try again`; press again once it finishes.
 
 Use `System > Saves > Default > Save Patch` to save and
 `System > Saves > Default > Load Patch` to load the local musical default, not
@@ -24,7 +28,9 @@ an Auto Save-eligible edit is still dirty, it refuses with `Save pending, try
 again`. With Auto Save off and no pending write, confirmation may discard
 unsaved music. Named presets under `System > Saves > Library` are musical and portable.
 Patch autosaves, rolling backups, and recovery copies protect patches only;
-they do not back up System settings.
+they do not back up System settings. Changing the Auto Save preference is a
+System setting: it saves after a changed editor exit and does not immediately
+save the musical Patch.
 
 ## Back up your data
 
