@@ -19,7 +19,7 @@
         <section>
           <h2>Regular controls</h2>
           <table><tbody>
-            <tr><th><i>Turn Main</i></th><td><b>Menu navigation</b>  /  navigate menu / edit value</td></tr>
+            <tr><th><i>Turn Main</i></th><td><b>Navigate/edit.</b> Numeric: plain coarse; <i>Fn</i> fine; <i>Shift</i> and <i>Shift</i>+<i>Fn</i> stay coarse. Enum, boolean, and text turns stay ordinary.</td></tr>
             <tr><th><i>Click Main</i></th><td><b>Menu selection</b>  /  select, edit, confirm</td></tr>
             <tr><th><i>Back</i></th><td><b>Exit location</b>  /  exit edit, overlay, or menu level</td></tr>
             <tr><th><i>Play</i></th><td><b>Transport</b>  /  play or pause</td></tr>
@@ -37,8 +37,10 @@
             <tr><th><i>Hold</i> <i>Fn</i></th><td><b>Preview</b>  /  layers and Play pages</td></tr>
             <tr><th><i>Fn</i> + right column</th><td><b>Navigate Play pages</b>  /  exits if already active</td></tr>
             <tr><th><i>Fn</i> + <i>Aux click</i></th><td><b>Bind focused value/action</b>  /  value to turn, action to click</td></tr>
+            <tr><th><i>Fn</i> + click <i>Main</i></th><td><b>Open Aux mapping</b>  /  12-slot scrollable modal</td></tr>
           </tbody></table>
-          <p class="compact">Auto-map maps <i>Aux 1-3</i> to important values/actions in the current menu area. It temporarily overrides manual bindings.</p>
+          <p class="compact"><b>Aux map:</b> Release <i>Fn</i> to keep its 12-slot scrollable modal open; turn <i>Main</i> to scroll, click <i>Main</i> or press <i>Back</i> to close. <i>Fn</i> alone previews navigation only.</p>
+          <p class="compact">Auto-map fills unbound <i>Aux 1-3</i> slots with values/actions for this menu area; manual bindings take priority.</p>
           <p class="chips"><span>1-Cutoff</span> <i>Aux 1</i> turn <span class="action-chip">1!Assign</span> <i>Aux 1</i> click</p>
         </section>
         <section>
@@ -50,10 +52,7 @@
             <tr><th>Play Mix</th><td>Grid becomes a mixer for each layer's volume</td></tr>
             <tr><th>Play Pan</th><td>Grid moves around layers' stereo positions</td></tr>
             <tr><th>Play FX</th><td>Press mapped cells to trigger live effects</td></tr>
-            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per layer</td></tr>
-            <tr><th>Transpose</th><td>Synth, FM, Plucked &amp; enabled MIDI; not Sampler/Drum</td></tr>
-            <tr><th>XY</th><td>Mappable two-axis surface for live-manipulating parameters</td></tr>
-            <tr><th>Play Drums</th><td>Tap assigned cells for the selected Drum slot, even while stopped</td></tr>
+            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per layer. <i>Shift</i>+<i>Fn</i> together + left layer cell toggles its gate.</td></tr>
           </tbody></table>
         </section>
       </div>
@@ -80,6 +79,14 @@
           </tbody></table>
         </section>
         <section>
+          <h2>Other Play controls</h2>
+          <table><tbody>
+            <tr><th>XY</th><td>Mappable two-axis surface for live-manipulating parameters</td></tr>
+            <tr><th>Play Drums</th><td>Tap assigned cells for the selected Drum slot, even while stopped</td></tr>
+            <tr><th>Transpose</th><td>Synth, FM, Plucked &amp; enabled MIDI; not Sampler/Drum</td></tr>
+          </tbody></table>
+        </section>
+        <section>
           <h2>Patch orientation</h2>
           <ol>
             <li>Route <b>sequencer</b> or <b>looper</b> to <b>sampler</b> for a rhythm loop.</li>
@@ -87,6 +94,7 @@
             <li>Use probability on sequencer cells so patterns feel alive.</li>
             <li>Bind aux encoders to parameters or actions you keep reaching for.</li>
           </ol>
+          <p class="compact"><b>Aux turns:</b> Normal target: plain coarse, <i>Fn</i> fine. Shifted custom bank: <i>Shift</i> coarse, <i>Shift</i>+<i>Fn</i> fine; no fallback. Other turns are discrete. <i>Shift</i>+<i>Fn</i> is one combined modifier.</p>
           <p class="compact">Factory preset hint: <b>life</b> on Layer 1, <b>sequencer</b> rhythm on Layer 2.</p>
           <p class="compact"><b>Sample browser:</b> <code>..</code> parent; <code>[folder]</code> folder; file rows are samples; <code>(empty)</code> means no entries. <i>Play</i> / <i>Space</i> previews the highlighted sample. Long names clip or scroll without overlapping other OLED text.</p>
           <p class="compact"><b>Bench safety:</b> Power through the enclosure USB-C breakout; remove both the board microSD card and OLED microSD card before closing the case.</p>
