@@ -2,9 +2,9 @@ use super::OrangeHostAdapter;
 use crate::audio::AudioService;
 use crate::main_paths::{default_samples_dir, default_store_dir};
 use crate::midi_host::MidiHost;
-use crate::oled_frame_cache::OledFrameCache;
 use crate::orange_audio::OrangeAudioHost;
-use crate::platform_service::{PendingPiPersistence, PiPlatformService};
+use crate::pi_host_core::PiHostCore;
+use crate::platform_service::PiPlatformService;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -38,13 +38,11 @@ impl OrangeHostAdapter {
         Ok(Self {
             audio: audio.clone(),
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
-            platform_service,
-            pending_default_save: PendingPiPersistence::default(),
-            midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
-            oled_frame_cache: OledFrameCache::default(),
+            core: PiHostCore::new(
+                platform_service,
+                MidiHost::new(midi_in_handler, usb_midi_out_enabled),
+            ),
             shutdown_request: None,
-            recovery_save_status: None,
-            keyboard_control: None,
         })
     }
 
@@ -69,13 +67,11 @@ impl OrangeHostAdapter {
         Ok(Self {
             audio: audio.clone(),
             audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
-            platform_service,
-            pending_default_save: PendingPiPersistence::default(),
-            midi: MidiHost::new(midi_in_handler, usb_midi_out_enabled),
-            oled_frame_cache: OledFrameCache::default(),
+            core: PiHostCore::new(
+                platform_service,
+                MidiHost::new(midi_in_handler, usb_midi_out_enabled),
+            ),
             shutdown_request: None,
-            recovery_save_status: None,
-            keyboard_control: None,
         })
     }
 }

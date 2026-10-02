@@ -352,17 +352,11 @@ impl crate::runtime_output::PiRuntimeHost for OrangeHostAdapter {
     ) -> Result<(), String> {
         dispatch(playback, runner, host, message)
     }
-    fn ingest_oled_frame(&mut self, message: &playback_runtime::RunnerMessage) {
-        OrangeHostAdapter::ingest_oled_frame(self, message);
+    fn core(&self) -> &crate::pi_host_core::PiHostCore {
+        &self.core
     }
-    fn observe_keyboard_capture_snapshot(&self, snapshot: &serde_json::Value) {
-        OrangeHostAdapter::observe_keyboard_capture_snapshot(self, snapshot);
-    }
-    fn accept_oled_frame_reference(&mut self, snapshot: &serde_json::Value) {
-        OrangeHostAdapter::accept_oled_frame_reference(self, snapshot);
-    }
-    fn oled_frame_fault(&self) -> Option<crate::oled_frame_cache::OledFrameCacheFault> {
-        OrangeHostAdapter::oled_frame_fault(self)
+    fn core_mut(&mut self) -> &mut crate::pi_host_core::PiHostCore {
+        &mut self.core
     }
     fn shutdown_pending(&self) -> bool {
         OrangeHostAdapter::shutdown_pending(self)
@@ -430,7 +424,10 @@ fn publish_snapshot(
     {
         return Err("Orange initial snapshot is not a canonical normal menu".into());
     }
-    let oled = match host.oled_publication_for_snapshot(&snapshot, wait_for_render) {
+    let oled = match host
+        .core
+        .oled_publication_for_snapshot(&snapshot, wait_for_render)
+    {
         Ok(oled) => oled,
         Err(error) if wait_for_render => return Err(error),
         Err(error) => {

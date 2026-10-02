@@ -49,14 +49,16 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         .unwrap();
     let mut initial_snapshot = playback.last_snapshot().unwrap().clone();
     initial_snapshot["oledFrameRevision"] = serde_json::json!(1);
-    adapter.ingest_oled_frame(&playback_runtime::RunnerMessage::OledFrame {
-        revision: 1,
-        width: 128,
-        height: 128,
-        format: "rgb565be".into(),
-        pixels: vec![0; crate::render::OLED_FRAME_BYTES],
-    });
-    adapter.accept_oled_frame_reference(&initial_snapshot);
+    adapter
+        .core
+        .ingest_oled_frame(&playback_runtime::RunnerMessage::OledFrame {
+            revision: 1,
+            width: 128,
+            height: 128,
+            format: "rgb565be".into(),
+            pixels: vec![0; crate::render::OLED_FRAME_BYTES],
+        });
+    adapter.core.accept_oled_frame_reference(&initial_snapshot);
 
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
@@ -66,6 +68,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
     let initial_oled = adapter
+        .core
         .oled_publication_for_snapshot(&initial_snapshot, true)
         .unwrap();
     let source_oled_revision = initial_oled.revision().unwrap();
@@ -136,6 +139,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
     let error_revision = playback.last_snapshot_revision();
     assert!(error_revision > initial_revision);
     let error_oled = adapter
+        .core
         .oled_publication_for_snapshot(&error_snapshot, false)
         .unwrap();
     let error_pixels = error_oled.pixels().unwrap().to_vec();
@@ -174,6 +178,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
     let cleared_revision = playback.last_snapshot_revision();
     assert!(cleared_revision > error_revision);
     let cleared_oled = adapter
+        .core
         .oled_publication_for_snapshot(&cleared_snapshot, false)
         .unwrap();
     let cleared_pixels = cleared_oled.pixels().unwrap().to_vec();

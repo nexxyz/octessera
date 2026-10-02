@@ -98,7 +98,8 @@ fn start_playing(
 fn gate_worker(host: &crate::host_adapter::PiPlaybackHostAdapter) -> mpsc::Sender<()> {
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::channel();
-    host.platform_service
+    host.core
+        .platform_service
         .enqueue(crate::platform_service::PlatformJob::new(
             RuntimePlatformRequest::new(
                 RuntimePlatformEffect::SystemInfoRequest,
@@ -294,14 +295,14 @@ fn receive_partial_rename(
 ) -> (String, String, String) {
     let deadline = Instant::now() + Duration::from_secs(2);
     while Instant::now() < deadline {
-        for result in host.platform_service.drain_platform_results(8) {
+        for result in host.core.platform_service.drain_platform_results(8) {
             match result {
                 PlatformResult::NativePresetCompletion(completion) => {
                     let cleanup_error = completion.cleanup_error.clone().unwrap();
                     assert!(cleanup_error.contains(source_name));
                     assert!(cleanup_error.contains("does not exist"));
                     let message = finish_platform_result(
-                        &host.platform_service,
+                        &host.core.platform_service,
                         runner,
                         PlatformResult::NativePresetCompletion(completion),
                     )
@@ -324,7 +325,7 @@ fn receive_partial_rename(
                 }
                 result => {
                     if let Some(message) =
-                        finish_platform_result(&host.platform_service, runner, result)
+                        finish_platform_result(&host.core.platform_service, runner, result)
                     {
                         if let HostMessage::RuntimeResult {
                             result: RuntimeStoreResult::Identified { result, .. },
@@ -385,7 +386,7 @@ fn rename_after_source_disappears(
     let release = gate_worker(host);
     confirm_action(playback, runner, host, "preset.rename.apply");
     assert!(matches!(
-        host.platform_service.native_preset_write().unwrap().manual,
+        host.core.platform_service.native_preset_write().unwrap().manual,
         NativeManualSaveRequest::Preset {
             mode: None,
             rename_from: Some(ref source),
@@ -486,6 +487,6 @@ fn playing_save_as_save_current_and_rename_follow_device_input_and_refresh_catal
     let (current_name, current_outcome) = save_current(&mut playback, &mut runner, &mut host);
     assert_eq!(current_name, target_name);
     assert_eq!(current_outcome, "overwritten");
-    assert!(host.platform_service.native_preset_write().is_none());
+    assert!(host.core.platform_service.native_preset_write().is_none());
     let _ = std::fs::remove_dir_all(root);
 }

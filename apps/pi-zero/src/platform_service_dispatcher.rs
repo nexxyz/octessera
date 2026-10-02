@@ -7,13 +7,6 @@ use playback_runtime::{
 
 use super::{PiPlatformService, PlatformJob, PlatformJobKind};
 
-#[derive(Clone, Copy)]
-pub(crate) enum QueueFailureStyle {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    Pi,
-    Orange,
-}
-
 pub(crate) fn usb_sd_transfer_output_block_reason(
     usb_audio_enabled: bool,
     usb_midi_enabled: bool,
@@ -30,47 +23,42 @@ pub(crate) fn usb_sd_transfer_output_block_reason(
 pub(crate) fn dispatch(
     service: &PiPlatformService,
     request: &RuntimePlatformRequest,
-    failure_style: QueueFailureStyle,
 ) -> Option<Vec<HostMessage>> {
     let result = match &request.effect {
-        RuntimePlatformEffect::StoreListPresets => Some(enqueue(
+        RuntimePlatformEffect::StoreListPresets => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::ListPresets,
-            failure_style,
             "Preset list".into(),
         )),
-        RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => Some(enqueue(
+        RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::SavePreset {
                 name: name.clone(),
                 payload: payload.clone(),
             },
-            failure_style,
-            preset_operation(failure_style, format!("Save {name}"), "Save preset"),
+            format!("Save {name}"),
         )),
-        RuntimePlatformEffect::StoreDeletePreset { name } => Some(enqueue(
+        RuntimePlatformEffect::StoreDeletePreset { name } => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::DeletePreset { name: name.clone() },
-            failure_style,
-            preset_operation(failure_style, format!("Delete {name}"), "Delete preset"),
+            format!("Delete {name}"),
         )),
-        RuntimePlatformEffect::StoreSaveBackup { payload } => Some(enqueue(
+        RuntimePlatformEffect::StoreSaveBackup { payload } => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::SaveBackup {
                 payload: payload.clone(),
             },
-            failure_style,
             "Save backup".into(),
         )),
         RuntimePlatformEffect::SampleListRequest {
             instrument_slot,
             sample_slot,
             dir,
-        } => Some(enqueue(
+        } => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::ListSamples {
@@ -78,35 +66,30 @@ pub(crate) fn dispatch(
                 sample_slot: *sample_slot,
                 dir: dir.clone(),
             },
-            failure_style,
             "Sample list".into(),
         )),
-        RuntimePlatformEffect::SystemInfoRequest => Some(enqueue(
+        RuntimePlatformEffect::SystemInfoRequest => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::SystemInfo,
-            QueueFailureStyle::Orange,
             "System info".into(),
         )),
-        RuntimePlatformEffect::UpdateCheck => Some(enqueue(
+        RuntimePlatformEffect::UpdateCheck => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::UpdateCheck,
-            QueueFailureStyle::Orange,
             "Update check".into(),
         )),
-        RuntimePlatformEffect::UpdateApply => Some(enqueue(
+        RuntimePlatformEffect::UpdateApply => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::UpdateApply,
-            QueueFailureStyle::Orange,
             "Update apply".into(),
         )),
-        RuntimePlatformEffect::Rollback => Some(enqueue(
+        RuntimePlatformEffect::Rollback => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::Rollback,
-            QueueFailureStyle::Orange,
             "Rollback".into(),
         )),
         RuntimePlatformEffect::SetupPortalOpen => Some(match service.start_setup_portal(request) {
@@ -184,54 +167,18 @@ pub(crate) fn dispatch_midi_effect_messages(
     }
 }
 
-fn enqueue(
+pub(crate) fn enqueue_job(
     service: &PiPlatformService,
     request: &RuntimePlatformRequest,
     kind: PlatformJobKind,
-    failure_style: QueueFailureStyle,
     operation: String,
 ) -> Vec<HostMessage> {
     match service.enqueue(PlatformJob::new(request.clone(), kind)) {
         Ok(()) => Vec::new(),
         Err(message) => vec![failure_message(
             request,
-            format!(
-                "{operation} {}: {message}",
-                queue_failure_suffix(failure_style)
-            ),
+            format!("{operation} queue failed: {message}"),
         )],
-    }
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-pub(crate) fn enqueue_job(
-    service: &PiPlatformService,
-    request: &RuntimePlatformRequest,
-    kind: PlatformJobKind,
-    failure_style: QueueFailureStyle,
-    operation: String,
-) -> Vec<HostMessage> {
-    enqueue(service, request, kind, failure_style, operation)
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn preset_operation(style: QueueFailureStyle, pi: String, orange: &str) -> String {
-    match style {
-        QueueFailureStyle::Pi => pi,
-        QueueFailureStyle::Orange => orange.into(),
-    }
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-fn preset_operation(_style: QueueFailureStyle, _pi: String, orange: &str) -> String {
-    orange.into()
-}
-
-fn queue_failure_suffix(style: QueueFailureStyle) -> &'static str {
-    match style {
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        QueueFailureStyle::Pi => "queued failed",
-        QueueFailureStyle::Orange => "queue failed",
     }
 }
 

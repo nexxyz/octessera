@@ -64,12 +64,13 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
         .unwrap()
         .is_empty());
     adapter
+        .core
         .platform_service
         .enqueue_test_barrier()
         .unwrap()
         .recv_timeout(Duration::from_secs(1))
         .unwrap();
-    let completions = adapter.platform_service.drain_results(4);
+    let completions = adapter.core.platform_service.drain_results(4);
     assert!(matches!(
         completions.as_slice(),
         [HostMessage::RuntimeResult {
@@ -106,6 +107,7 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
     assert!(adapter.power_request.is_none());
 
     adapter
+        .core
         .platform_service
         .enqueue_test_barrier()
         .unwrap()
@@ -142,7 +144,10 @@ fn system_save_is_rejected_while_restore_blocks_store_writes() {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let prior = br#"{"before":true}"#;
     std::fs::write(&path, prior).unwrap();
-    adapter.platform_service.invalidate_store_writes_for_test();
+    adapter
+        .core
+        .platform_service
+        .invalidate_store_writes_for_test();
 
     let result = adapter
         .handle_platform_effect(&request(RuntimePlatformEffect::StoreSaveSystem {
@@ -166,6 +171,7 @@ fn system_save_reports_identified_queue_full_failure() {
     let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     adapter
+        .core
         .platform_service
         .enqueue(crate::platform_service::PlatformJob::new(
             request(RuntimePlatformEffect::SystemInfoRequest),
@@ -178,6 +184,7 @@ fn system_save_reports_identified_queue_full_failure() {
     entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
     for index in 0..32 {
         adapter
+            .core
             .platform_service
             .enqueue(crate::platform_service::PlatformJob::new(
                 RuntimePlatformRequest::new(

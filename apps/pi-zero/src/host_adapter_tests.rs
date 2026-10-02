@@ -8,12 +8,12 @@ use std::time::{Duration, Instant};
 
 fn assert_sd2_store_error(response: &[HostMessage], message: &str) {
     let [HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::StoreError { message: actual },
+        result: RuntimeStoreResult::RuntimeFailure { error },
     }] = response
     else {
         panic!("expected one SD2 gate failure");
     };
-    assert_eq!(actual, message);
+    assert_eq!(error.message.as_deref(), Some(message));
 }
 
 #[test]

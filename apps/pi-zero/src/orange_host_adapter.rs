@@ -1,54 +1,42 @@
 #[path = "orange_host_adapter_construction.rs"]
 mod construction;
-#[path = "orange_host_adapter_keyboard.rs"]
-mod keyboard;
 #[path = "orange_host_adapter_native_persistence.rs"]
 mod native_persistence;
-#[path = "orange_host_adapter_oled.rs"]
-mod oled;
 
 use crate::audio::AudioService;
-use crate::midi_host::{MidiHost, RuntimeOutputSink};
-use crate::oled_frame_cache::OledFrameCache;
+use crate::midi_host::RuntimeOutputSink;
 use crate::orange_audio::OrangeAudioHost;
 use crate::orange_device_apply::OrangeShutdownRequest;
+use crate::pi_host_core::{
+    failure_message, power_save_result, shutdown_pending_messages, unsupported_messages, PiHostCore,
+};
 use crate::platform_service::{
     dispatch_midi_effect_messages, dispatch_shared_effect, enqueue_job,
-    usb_sd_transfer_output_block_reason, PendingPiPersistence, PiPlatformService, PlatformJobKind,
-    QueueFailureStyle,
+    usb_sd_transfer_output_block_reason, PlatformJobKind,
 };
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 
 pub(crate) struct OrangeHostAdapter {
     audio: AudioService,
     audio_host: OrangeAudioHost,
-    platform_service: PiPlatformService,
-    pending_default_save: PendingPiPersistence,
-    midi: MidiHost,
-    oled_frame_cache: OledFrameCache,
+    pub(crate) core: PiHostCore,
     shutdown_request: Option<OrangeShutdownRequest>,
-    recovery_save_status: Option<Result<(), String>>,
-    keyboard_control: Option<crate::usb_keyboard::KeyboardCaptureControl>,
 }
 
 impl OrangeHostAdapter {
     pub(crate) fn handle_transfer_input(&self, message: &HostMessage) -> bool {
-        if let HostMessage::DeviceInput { input, .. } = message {
-            return self.platform_service.handle_transfer_input(input);
-        }
-        true
+        self.core.handle_transfer_input(message)
     }
 
     pub(crate) fn take_transfer_status(&mut self) -> Option<HostMessage> {
-        self.pending_default_save.cancel_if_invalid(
-            self.platform_service.store_write_generation(),
-            self.platform_service.store_writes_blocked(),
-        );
-        self.platform_service.take_transfer_status()
+        self.core.take_transfer_status()
+    }
+
+    pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {
+        self.audio.poll_recording_status()
     }
 
     pub(crate) fn audio_service(&self) -> AudioService {
@@ -64,29 +52,11 @@ impl OrangeHostAdapter {
     }
 
     pub(crate) fn save_recovery_for_power(&mut self) -> Result<(), String> {
-        let recovery = self
-            .recovery_save_status
-            .take()
-            .unwrap_or_else(|| Err("recovery save did not complete".into()));
-        let recording = self.audio.stop_recording();
-        match (recovery, recording) {
-            (Ok(()), Ok(())) => Ok(()),
-            (Err(recovery), Ok(())) => Err(recovery),
-            (Ok(()), Err(recording)) => Err(format!("recording stop failed: {recording}")),
-            (Err(recovery), Err(recording)) => {
-                Err(format!("{recovery}; recording stop failed: {recording}"))
-            }
-        }
-    }
-
-    fn recovery_save_ready(&self) -> Result<(), String> {
-        self.recovery_save_status
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| Err("recovery save did not complete".into()))
+        let recovery = self.core.take_recovery_save_status();
+        power_save_result(recovery, self.audio.stop_recording())
     }
     pub(crate) fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
-        let mut results = self.platform_service.drain_results(max_results);
+        let mut results = self.core.platform_service.drain_results(max_results);
         if results.len() < max_results {
             results.extend(
                 self.audio
@@ -97,23 +67,7 @@ impl OrangeHostAdapter {
     }
 
     pub(crate) fn drain_startup_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
-        self.platform_service.drain_results(max_results)
-    }
-
-    fn midi_status(&self, ok: bool, message: Option<String>) -> RuntimeStoreResult {
-        RuntimeStoreResult::MidiStatus {
-            ok,
-            message,
-            selected_out_id: self.midi.selected_output_id(),
-            selected_in_id: self.midi.selected_input_id(),
-        }
-    }
-    fn unsupported(&self, request: &RuntimePlatformRequest, message: &str) -> Vec<HostMessage> {
-        vec![HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RuntimeFailure {
-                error: request.unsupported_facts(message.to_string()),
-            },
-        }]
+        self.core.platform_service.drain_results(max_results)
     }
 
     fn request_power(
@@ -121,7 +75,7 @@ impl OrangeHostAdapter {
         request: &RuntimePlatformRequest,
         shutdown_request: OrangeShutdownRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
-        if let Err(error) = self.recovery_save_ready() {
+        if let Err(error) = self.core.recovery_save_ready() {
             return Ok(vec![failure_message(request, error)]);
         }
         let recording_result = self.stop_recording_for_transition(request)?;
@@ -141,7 +95,7 @@ impl OrangeHostAdapter {
             .map(|outcome| {
                 outcome.map(|outcome| crate::audio_recording::recording_status(outcome.status))
             })
-            .map_err(recording_finalization_error)
+            .map_err(crate::audio_recording::recording_finalization_error)
     }
 
     fn start_usb_sd_transfer(
@@ -150,7 +104,7 @@ impl OrangeHostAdapter {
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
         if let Some(reason) = usb_sd_transfer_output_block_reason(
             self.audio.usb_output_enabled(),
-            self.midi.usb_midi_out_enabled(),
+            self.core.midi.usb_midi_out_enabled(),
         ) {
             return Ok(vec![failure_message(request, reason.into())]);
         }
@@ -163,10 +117,9 @@ impl OrangeHostAdapter {
         self.silence_internal_audio()?;
         self.panic_external_midi()?;
         Ok(enqueue_job(
-            &self.platform_service,
+            &self.core.platform_service,
             request,
             PlatformJobKind::UsbSdTransferStart,
-            QueueFailureStyle::Orange,
             "USB SD2 transfer start".into(),
         ))
     }
@@ -204,112 +157,24 @@ impl HostAdapter for OrangeHostAdapter {
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
         if self.shutdown_pending() {
-            return match &request.effect {
-                RuntimePlatformEffect::StoreSaveDefault { .. }
-                | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. } => {
-                    Ok(vec![failure_message(
-                        request,
-                        "Orange shutdown request is already pending".into(),
-                    )])
-                }
-                _ => Ok(Vec::new()),
-            };
+            return Ok(shutdown_pending_messages(request));
         }
-        if let Some(result) =
-            dispatch_shared_effect(&self.platform_service, request, QueueFailureStyle::Orange)
-        {
+        if let Some(result) = dispatch_shared_effect(&self.core.platform_service, request) {
             return Ok(result);
         }
-        if let Some(messages) = dispatch_midi_effect_messages(&mut self.midi, &request.effect)? {
+        if let Some(messages) = dispatch_midi_effect_messages(&mut self.core.midi, &request.effect)?
+        {
+            return Ok(messages);
+        }
+        if let Some(messages) = self.core.handle_store_effect(request) {
             return Ok(messages);
         }
         let result = match &request.effect {
-            RuntimePlatformEffect::StoreLoadDefault => {
-                if self.pending_default_save.has_default_pending()
-                    && !self.platform_service.store_writes_blocked()
-                {
-                    orange_pending_save_failure(request)
-                } else {
-                    match self.platform_service.load_default_now() {
-                        Ok(payload) => RuntimeStoreResult::LoadDefaultResult { payload },
-                        Err(message) => RuntimeStoreResult::RuntimeFailure {
-                            error: request.failure_facts(message),
-                        },
-                    }
-                }
-            }
-            RuntimePlatformEffect::StoreLoadPreset { name } => {
-                if self.pending_default_save.has_default_pending() {
-                    orange_pending_save_failure(request)
-                } else {
-                    match self.platform_service.load_preset_now(name) {
-                        Ok(payload) => RuntimeStoreResult::LoadPresetResult {
-                            payload,
-                            name: name.clone(),
-                        },
-                        Err(message) => RuntimeStoreResult::RuntimeFailure {
-                            error: request.failure_facts(message),
-                        },
-                    }
-                }
-            }
-            RuntimePlatformEffect::StoreLoadSystem => {
-                match self.platform_service.load_system_now() {
-                    Ok(payload) => RuntimeStoreResult::LoadSystemResult { payload },
-                    Err(message) => {
-                        return Ok(vec![failure_message(request, message)]);
-                    }
-                }
-            }
-            RuntimePlatformEffect::StoreSaveSystem { payload } => {
-                return Ok(enqueue_job(
-                    &self.platform_service,
-                    request,
-                    PlatformJobKind::SaveSystem {
-                        payload: payload.clone(),
-                    },
-                    QueueFailureStyle::Orange,
-                    "Save system".into(),
-                ));
-            }
-            RuntimePlatformEffect::StoreSaveDefault { payload, .. } => {
-                if self.platform_service.store_writes_blocked() {
-                    return Ok(vec![failure_message(
-                        request,
-                        "Save default blocked while restore awaits restored-state acknowledgement"
-                            .into(),
-                    )]);
-                }
-                self.pending_default_save.cancel();
-                return Ok(enqueue_job(
-                    &self.platform_service,
-                    request,
-                    PlatformJobKind::SaveDefault {
-                        payload: payload.clone(),
-                        is_auto: None,
-                    },
-                    QueueFailureStyle::Orange,
-                    "Save default".into(),
-                ));
-            }
-            RuntimePlatformEffect::StoreSaveRecovery { payload } => {
-                let result = self
-                    .platform_service
-                    .save_recovery_now(payload)
-                    .map_err(|error| format!("Save recovery failed: {error}"));
-                self.recovery_save_status = Some(result.clone());
-                match result {
-                    Ok(()) => RuntimeStoreResult::SaveRecoveryResult { ok: true },
-                    Err(error) => {
-                        eprintln!("Orange recovery save failed: {error}");
-                        return Ok(vec![failure_message(request, error)]);
-                    }
-                }
-            }
             RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
-                self.pending_default_save.cancel();
+                self.core.pending_default_save.cancel();
                 let recording_result = self.stop_recording_for_transition(request)?;
                 let transaction = self
+                    .core
                     .platform_service
                     .prepare_orange_device_apply(payload)
                     .map_err(RuntimeAdapterError::operation_failed)?;
@@ -327,8 +192,7 @@ impl HostAdapter for OrangeHostAdapter {
             }
             RuntimePlatformEffect::MidiPanic => {
                 self.silence_internal_audio()?;
-                let result = self.midi.panic();
-                self.midi_status(result.is_ok(), result.err())
+                self.core.midi_panic_status()
             }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
@@ -357,22 +221,13 @@ impl HostAdapter for OrangeHostAdapter {
             RuntimePlatformEffect::UsbSdTransferStart => {
                 return self.start_usb_sd_transfer(request);
             }
-            RuntimePlatformEffect::UsbSdTransferStop => {
-                return Ok(enqueue_job(
-                    &self.platform_service,
-                    request,
-                    PlatformJobKind::UsbSdTransferStop,
-                    QueueFailureStyle::Orange,
-                    "USB SD2 transfer stop".into(),
-                ));
-            }
-            _ => return Ok(self.unsupported(request, "unsupported in Orange foreground runtime")),
+            _ => return Ok(unsupported_messages(request)),
         };
         Ok(vec![HostMessage::RuntimeResult { result }])
     }
 
     fn acknowledge_restored_state(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.platform_service.acknowledge_restored_state();
+        self.core.platform_service.acknowledge_restored_state();
         Ok(())
     }
 
@@ -390,9 +245,7 @@ impl HostAdapter for OrangeHostAdapter {
         if self.shutdown_pending() {
             return Ok(());
         }
-        self.midi
-            .send(bytes)
-            .map_err(RuntimeAdapterError::operation_failed)
+        self.core.send_midi(bytes)
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
@@ -400,9 +253,7 @@ impl HostAdapter for OrangeHostAdapter {
     }
 
     fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.midi
-            .panic()
-            .map_err(RuntimeAdapterError::operation_failed)
+        self.core.panic_midi()
     }
 }
 
@@ -415,29 +266,6 @@ impl RuntimeOutputSink for OrangeHostAdapter {
     ) -> Result<(), String> {
         crate::orange_candidate::process_runtime_output(playback, runner, self, output)
     }
-}
-
-fn failure_message(request: &RuntimePlatformRequest, message: String) -> HostMessage {
-    HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::RuntimeFailure {
-            error: request.failure_facts(message),
-        },
-    }
-}
-
-fn orange_pending_save_failure(request: &RuntimePlatformRequest) -> RuntimeStoreResult {
-    RuntimeStoreResult::RuntimeFailure {
-        error: request.failure_facts("Save pending, try again".into()),
-    }
-}
-
-fn recording_finalization_error(error: String) -> RuntimeAdapterError {
-    RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
-        RuntimeErrorDomain::Recording,
-        RuntimeErrorCode::OperationFailed,
-        RuntimeOperation::Recording,
-        Some(error),
-    ))
 }
 
 #[cfg(test)]

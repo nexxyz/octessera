@@ -139,6 +139,7 @@ fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
     );
     let source_oled = prepared
         .adapter
+        .core
         .oled_publication_for_snapshot(&snapshot, true)
         .unwrap();
     let source_revision = source_oled.revision().unwrap();

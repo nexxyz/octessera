@@ -57,11 +57,9 @@ use platform_native_persistence::{
     PlatformWorkItem,
 };
 pub(crate) use platform_result_lane::PlatformResultLane;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-pub(crate) use platform_service_dispatcher::enqueue_job;
 pub(crate) use platform_service_dispatcher::{
-    dispatch as dispatch_shared_effect, dispatch_midi_effect_messages,
-    usb_sd_transfer_output_block_reason, QueueFailureStyle,
+    dispatch as dispatch_shared_effect, dispatch_midi_effect_messages, enqueue_job,
+    usb_sd_transfer_output_block_reason,
 };
 #[cfg(test)]
 use platform_service_executor::handle_job;

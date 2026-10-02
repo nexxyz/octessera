@@ -1,7 +1,7 @@
 use crate::host_adapter::PiPlaybackHostAdapter;
 #[cfg(test)]
-use playback_runtime::{CoreRunner, HostAdapter};
-use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage};
+use playback_runtime::{CoreRunner, HostAdapter, RunnerMessage};
+use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use serde_json::Value;
 use std::time::Instant;
 
@@ -21,17 +21,11 @@ impl crate::runtime_output::PiRuntimeHost for PiPlaybackHostAdapter {
     ) -> Result<(), String> {
         dispatch_runtime_message(playback, runner, host, message)
     }
-    fn ingest_oled_frame(&mut self, message: &RunnerMessage) {
-        PiPlaybackHostAdapter::ingest_oled_frame(self, message);
+    fn core(&self) -> &crate::pi_host_core::PiHostCore {
+        &self.core
     }
-    fn observe_keyboard_capture_snapshot(&self, snapshot: &Value) {
-        PiPlaybackHostAdapter::observe_keyboard_capture_snapshot(self, snapshot);
-    }
-    fn accept_oled_frame_reference(&mut self, snapshot: &Value) {
-        PiPlaybackHostAdapter::accept_oled_frame_reference(self, snapshot);
-    }
-    fn oled_frame_fault(&self) -> Option<crate::oled_frame_cache::OledFrameCacheFault> {
-        PiPlaybackHostAdapter::oled_frame_fault(self)
+    fn core_mut(&mut self) -> &mut crate::pi_host_core::PiHostCore {
+        &mut self.core
     }
     fn shutdown_pending(&self) -> bool {
         PiPlaybackHostAdapter::shutdown_pending(self)
@@ -350,7 +344,7 @@ mod tests {
             playback_runtime::UsbDataRole::Host,
         );
         let control = crate::usb_keyboard::KeyboardCaptureControl::new(true);
-        adapter.set_keyboard_capture_control(control.clone());
+        adapter.core.set_keyboard_capture_control(control.clone());
         ingest_oled_messages(
             &mut adapter,
             &[RunnerMessage::Snapshot {

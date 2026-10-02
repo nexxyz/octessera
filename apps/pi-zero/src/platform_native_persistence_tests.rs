@@ -73,6 +73,7 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::channel();
     adapter
+        .core
         .platform_service
         .enqueue(crate::platform_service::PlatformJob::new(
             RuntimePlatformRequest::new(
@@ -95,7 +96,7 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
             .next_native_store_request(RuntimeOperation::StoreSaveDefault, snapshot.revision());
         assert!(
             crate::platform_service::platform_native_persistence::submit_native_default(
-                &adapter.platform_service,
+                &adapter.core.platform_service,
                 &mut runner,
                 request.clone(),
                 snapshot,
@@ -114,7 +115,7 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
             ),
         };
         let failure = finish_platform_result(
-            &adapter.platform_service,
+            &adapter.core.platform_service,
             &mut runner,
             PlatformResult::NativeDefaultCompletion(NativeDefaultCompletion {
                 result: RuntimeStoreResult::Identified {
@@ -146,7 +147,11 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
             .dispatch_host_message_music_first(failure, &mut runner, &mut adapter)
             .unwrap();
         assert!(!playback.latched_errors().is_empty());
-        assert!(adapter.platform_service.native_default_write().is_none());
+        assert!(adapter
+            .core
+            .platform_service
+            .native_default_write()
+            .is_none());
         assert_eq!(
             std::fs::read(crate::platform_service::default_patch_path(&store)).unwrap(),
             prior_patch_bytes
@@ -159,7 +164,7 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
         playback.next_native_store_request(RuntimeOperation::StoreSaveDefault, snapshot.revision());
     assert!(
         crate::platform_service::platform_native_persistence::submit_native_default(
-            &adapter.platform_service,
+            &adapter.core.platform_service,
             &mut runner,
             latest.clone(),
             snapshot,
@@ -178,10 +183,11 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
         prepared: Some(Arc::new(json!({"revision": requests[0].revision()}))),
     });
     assert!(
-        finish_platform_result(&adapter.platform_service, &mut runner, stale_success).is_none()
+        finish_platform_result(&adapter.core.platform_service, &mut runner, stale_success)
+            .is_none()
     );
     assert_eq!(
-        adapter.platform_service.native_default_write(),
+        adapter.core.platform_service.native_default_write(),
         Some(latest.clone())
     );
     assert!(!runner.register_native_default_write("stale-probe", latest.revision(), false,));
@@ -206,6 +212,7 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
     }
     assert!(saved);
     let saved_patch = adapter
+        .core
         .platform_service
         .load_default_now()
         .unwrap()
@@ -253,6 +260,7 @@ fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() 
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::channel();
     adapter
+        .core
         .platform_service
         .enqueue(crate::platform_service::PlatformJob::new(
             RuntimePlatformRequest::new(
@@ -334,6 +342,7 @@ fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() 
     }
     assert!(completed, "native default save completion did not arrive");
     let loaded = adapter
+        .core
         .platform_service
         .load_default_now()
         .unwrap()

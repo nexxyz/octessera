@@ -92,6 +92,7 @@ mod orange_reboot;
 mod persistence;
 #[cfg(feature = "native-audio")]
 mod pi_boot_config;
+mod pi_host_core;
 #[cfg(test)]
 mod pi_store_test_support;
 mod platform_service;

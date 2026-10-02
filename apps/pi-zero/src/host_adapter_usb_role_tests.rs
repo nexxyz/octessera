@@ -110,13 +110,14 @@ fn saving_system_role_does_not_apply_it_or_modify_the_patch() {
         .unwrap();
     assert!(result.is_empty());
     adapter
+        .core
         .platform_service
         .enqueue_test_barrier()
         .unwrap()
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap();
     assert!(matches!(
-        adapter.platform_service.drain_results(4).as_slice(),
+        adapter.core.platform_service.drain_results(4).as_slice(),
         [HostMessage::RuntimeResult {
             result: RuntimeStoreResult::Identified { request_id, result, .. }
         }] if request_id == "system-save"
@@ -156,7 +157,7 @@ fn failed_device_apply_restores_prior_system_bytes_without_touching_patch() {
     assert!(matches!(
         result.as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::StoreError { .. }
+            result: RuntimeStoreResult::RuntimeFailure { .. }
         }]
     ));
     assert_eq!(
@@ -190,7 +191,7 @@ fn active_sd2_state_rejects_device_apply_before_system_write() {
     assert!(matches!(
         result.as_slice(),
         [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::StoreError { .. }
+            result: RuntimeStoreResult::RuntimeFailure { .. }
         }]
     ));
     assert_eq!(

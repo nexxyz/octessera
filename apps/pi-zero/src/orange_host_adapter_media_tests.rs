@@ -265,7 +265,7 @@ fn orange_power_save_stops_recording_before_power_submission() {
     )
     .unwrap();
     audio.start_recording(1).unwrap();
-    adapter.recovery_save_status = Some(Ok(()));
+    adapter.core.recovery_save_status = Some(Ok(()));
 
     assert_eq!(adapter.save_recovery_for_power(), Ok(()));
     assert!(!audio.is_recording().unwrap());

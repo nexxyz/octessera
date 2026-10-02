@@ -104,6 +104,7 @@ fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiPlaybackHostAdapter)
     });
     let snapshot = playback.last_snapshot().unwrap().clone();
     let oled = adapter
+        .core
         .oled_publication_for_snapshot(&snapshot, true)
         .unwrap();
     worker

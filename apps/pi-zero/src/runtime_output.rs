@@ -1,11 +1,11 @@
 use crate::audio::AudioService;
 use crate::initial_audio_prep::{interpret_initial_audio_prep, InitialAudioPrepBoard};
 use crate::oled_frame_cache::OledFrameCacheFault;
+use crate::pi_host_core::PiHostCore;
 use playback_runtime::{
     HostAdapter, HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeIngest,
     RuntimePlatformEffect, RuntimeStoreResult,
 };
-use serde_json::Value;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
@@ -22,10 +22,8 @@ pub(crate) trait PiRuntimeHost: HostAdapter + Sized {
         host: &mut Self,
         message: HostMessage,
     ) -> Result<(), String>;
-    fn ingest_oled_frame(&mut self, message: &RunnerMessage);
-    fn observe_keyboard_capture_snapshot(&self, snapshot: &Value);
-    fn accept_oled_frame_reference(&mut self, snapshot: &Value);
-    fn oled_frame_fault(&self) -> Option<OledFrameCacheFault>;
+    fn core(&self) -> &PiHostCore;
+    fn core_mut(&mut self) -> &mut PiHostCore;
     fn shutdown_pending(&self) -> bool;
     fn poll_recording_status(&self) -> Option<RuntimeStoreResult>;
     fn prep_audio_service(&self) -> AudioService;
@@ -60,6 +58,7 @@ pub(crate) fn process_runtime_output<H: PiRuntimeHost>(
 ) -> Result<(), String> {
     ingest_oled_messages(host, &output.messages);
     let fault = host
+        .core()
         .oled_frame_fault()
         .map(OledFrameCacheFault::into_runtime_fault);
     let fault_output = playback.report_oled_cache_fault(fault);
@@ -85,10 +84,10 @@ pub(crate) fn process_runtime_output<H: PiRuntimeHost>(
 
 pub(crate) fn ingest_oled_messages<H: PiRuntimeHost>(host: &mut H, messages: &[RunnerMessage]) {
     for message in messages {
-        host.ingest_oled_frame(message);
+        host.core_mut().ingest_oled_frame(message);
         if let RunnerMessage::Snapshot { snapshot } = message {
-            host.observe_keyboard_capture_snapshot(snapshot);
-            host.accept_oled_frame_reference(snapshot);
+            host.core().observe_keyboard_capture_snapshot(snapshot);
+            host.core_mut().accept_oled_frame_reference(snapshot);
         }
     }
 }

@@ -179,7 +179,7 @@ fn run_scheduler(
             }
             let snapshot = playback.last_snapshot().cloned();
             if let Some(snapshot) = snapshot {
-                if let Ok(oled) = adapter.oled_publication_for_snapshot(&snapshot, false) {
+                if let Ok(oled) = adapter.core.oled_publication_for_snapshot(&snapshot, false) {
                     if let Err(error) = render_worker.publish_snapshot_with_ack(snapshot, oled) {
                         eprintln!("pi audio fault snapshot publication failed: {error}");
                     }

@@ -113,7 +113,7 @@ pub(crate) fn prepare_runtime(
         OrangeHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?
     };
     if let Some(control) = keyboard_control {
-        host.set_keyboard_capture_control(control);
+        host.core.set_keyboard_capture_control(control);
     }
     initialize_host_state(&mut playback, &mut runner, &mut host)?;
     drain_startup_host_work(&mut playback, &mut runner, &mut host)?;
@@ -172,6 +172,7 @@ pub(crate) fn publish_prepared_acknowledged_snapshot(
     }
     let oled = prepared
         .host
+        .core
         .oled_publication_for_snapshot(&snapshot, true)?;
     render.publish_acknowledged_snapshot(snapshot, oled)?;
     let audio = prepared.host.audio_service();

@@ -49,7 +49,7 @@ fn raspberry_power_finalizes_recording_before_power_submission() {
     let (audio, _, _, _) = crate::audio::test_service_with_recording_dir(recordings);
     let mut adapter = test_adapter(audio.clone(), &root);
     audio.start_recording(1).unwrap();
-    adapter.recovery_save_status = Some(Ok(()));
+    adapter.core.recovery_save_status = Some(Ok(()));
 
     let mut callbacks = PowerTestCallbacks {
         adapter: &mut adapter,
@@ -89,7 +89,7 @@ fn raspberry_power_combines_recovery_and_recording_failures_without_submission()
     let partial_name = partial.file_name().unwrap().to_str().unwrap();
     let recording_name = partial_name.strip_suffix(".partial.wav").unwrap();
     std::fs::create_dir(partial.with_file_name(format!("{recording_name}.wav"))).unwrap();
-    adapter.recovery_save_status = Some(Err("recovery failed".into()));
+    adapter.core.recovery_save_status = Some(Err("recovery failed".into()));
 
     let mut callbacks = PowerTestCallbacks {
         adapter: &mut adapter,

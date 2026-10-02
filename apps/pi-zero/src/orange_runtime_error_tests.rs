@@ -101,14 +101,15 @@ fn orange_loop_publishes_changed_error_and_clear_snapshots_while_playing() {
     if let Some(snapshot) = playback.last_snapshot() {
         let mut initial = snapshot.clone();
         initial["oledFrameRevision"] = serde_json::json!(1);
-        host.ingest_oled_frame(&playback_runtime::RunnerMessage::OledFrame {
-            revision: 1,
-            width: 128,
-            height: 128,
-            format: "rgb565be".into(),
-            pixels: vec![0; crate::render::OLED_FRAME_BYTES],
-        });
-        host.accept_oled_frame_reference(&initial);
+        host.core
+            .ingest_oled_frame(&playback_runtime::RunnerMessage::OledFrame {
+                revision: 1,
+                width: 128,
+                height: 128,
+                format: "rgb565be".into(),
+                pixels: vec![0; crate::render::OLED_FRAME_BYTES],
+            });
+        host.core.accept_oled_frame_reference(&initial);
     }
     dispatch(
         &mut playback,

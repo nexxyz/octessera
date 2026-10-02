@@ -65,6 +65,7 @@ fn request(effect: RuntimePlatformEffect, id: &str) -> RuntimePlatformRequest {
 
 fn wait_for_result(adapter: &OrangeHostAdapter) -> Vec<HostMessage> {
     adapter
+        .core
         .platform_service
         .enqueue_test_barrier()
         .unwrap()
@@ -227,7 +228,10 @@ fn runtime_restore_loads_default_before_orange_barrier_acknowledgement() {
         serde_json::to_vec(&documents.patch).unwrap(),
     )
     .unwrap();
-    adapter.platform_service.invalidate_store_writes_for_test();
+    adapter
+        .core
+        .platform_service
+        .invalidate_store_writes_for_test();
 
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -241,12 +245,12 @@ fn runtime_restore_loads_default_before_orange_barrier_acknowledgement() {
             .with_identity("restore-e2e".into(), Some(3)),
         })
         .unwrap();
-    assert!(adapter.platform_service.store_writes_blocked());
+    assert!(adapter.core.platform_service.store_writes_blocked());
     playback
         .dispatch_runner_messages(status_messages, &mut runner, &mut adapter)
         .unwrap();
 
-    assert!(!adapter.platform_service.store_writes_blocked());
+    assert!(!adapter.core.platform_service.store_writes_blocked());
     assert_eq!(
         playback.last_snapshot().unwrap()["settings"]["masterVolume"],
         81
@@ -265,7 +269,10 @@ fn failed_runtime_restore_apply_keeps_orange_barrier_blocked() {
     )
     .unwrap();
     std::fs::write(store.join("recovery-save.json"), recovery).unwrap();
-    adapter.platform_service.invalidate_store_writes_for_test();
+    adapter
+        .core
+        .platform_service
+        .invalidate_store_writes_for_test();
 
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -283,7 +290,7 @@ fn failed_runtime_restore_apply_keeps_orange_barrier_blocked() {
         .dispatch_runner_messages(status_messages, &mut runner, &mut adapter)
         .unwrap();
 
-    assert!(adapter.platform_service.store_writes_blocked());
+    assert!(adapter.core.platform_service.store_writes_blocked());
     assert_eq!(
         std::fs::read(store.join("recovery-save.json")).unwrap(),
         recovery
@@ -346,6 +353,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::channel();
     adapter
+        .core
         .platform_service
         .enqueue(crate::platform_service::PlatformJob::new(
             request(
