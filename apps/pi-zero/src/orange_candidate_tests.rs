@@ -137,7 +137,7 @@ fn orange_prepare_runtime_preserves_audio_prep_for_startup_wait() {
             result: RuntimeStoreResult::OperationSucceeded {
                 operation: RuntimeOperation::AudioCommand,
                 request_id: None,
-                revision: Some(0),
+                revision: Some(1),
             },
         })
         .unwrap();
