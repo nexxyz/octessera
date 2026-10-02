@@ -51,7 +51,6 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/orange_phase5_proof.py",
     "tools/armbian-image/orange_audio_proof.py",
     "tools/armbian-image/orange_sd_card_proof.py",
-    "tools/armbian-image/orange_trusted_parent_proof.py",
     "tools/armbian-image/verify_runtime_account.py",
     "tools/storage/octessera-sd-card",
     "tools/storage/octessera-sd-card-lib.sh",
