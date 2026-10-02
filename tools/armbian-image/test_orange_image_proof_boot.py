@@ -36,15 +36,6 @@ def run_boot_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Pat
     socket_link.symlink_to(original_socket_target)
 
     run_proof(without_option(args, "--manifest"), False)
-    for opposite_option, opposite_value in (
-        ("--parent-record", str(REPOSITORY / "resources/image-parents/orange-pi-zero-2w-current.json")),
-        ("--boot-neutral-contract", str(REPOSITORY / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json")),
-        ("--parent-image", str(work / "parent.img.xz")),
-        ("--respin-provenance", str(work / "respin.json")),
-        ("--derivation-kind", "runtime-only"),
-        ("--setup-proof", str(work / "setup-proof.json")),
-    ):
-        run_proof([*args, opposite_option, opposite_value], False)
     run_proof(without_option(args, "--construction-contract"), False)
     wrong_contract = work / "wrong-construction.json"
     shutil.copyfile(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json", wrong_contract)

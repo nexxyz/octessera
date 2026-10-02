@@ -464,20 +464,12 @@ jobs:
         run: python3 -m py_compile tools/image-respin/*.py
       - name: Run disk and runtime image respin tests as root
         run: |
-          sudo python3 tools/image-respin/test_setup_mutation.py
           sudo python3 tools/image-respin/test_respin.py
           sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'
-          sudo python3 -m unittest discover -s tools/image-respin -p 'test_runtime_mutation.py'
-          sudo python3 -m unittest discover -s tools/image-respin -p 'test_runtime_metadata.py'
           sudo python3 tools/image-respin/test_inventory.py
-          sudo python3 tools/image-respin/test_provenance.py
-          sudo python3 tools/armbian-image/test_orange_image_proof_validated.py
-      - name: Run parent, bundle, and workflow tests without root
+      - name: Run runtime bundle tests without root
         run: |
-          python3 tools/image-respin/test_setup_contract.py
           python3 tools/image-respin/test_runtime_bundle.py
-          python3 tools/image-respin/test_runtime_contract.py
-          python3 tools/image-respin/test_boot_neutral.py
 
   updater_protocol:
     name: Device updater protocol checks

@@ -98,13 +98,11 @@ bytes. There is no sudo fallback or command discovery.
 
 ## Setup portal and production inputs
 
-The Orange source tree is `userpatches/overlay`; its exact setup assets,
-preconditions, paths, digests, modes, preimages, stale markers, and enabled-unit
-differences are bound by
-`resources/image-mutations/orange-pi-zero-2w-setup.json`. The Raspberry source
-tree is `tools/pi-image/stage4-octessera/files/root`, bound by the matching
-Raspberry contract. Setup mutation and runtime-only contracts are separate;
-setup is opt-in, while runtime-only is the default.
+The Orange source tree is `userpatches/overlay`, bound by the Orange
+boot-layer contract in `resources/image-construction/boot-layers/`. The
+Raspberry source tree is `tools/pi-image/stage4-octessera/files/root`. Setup
+changes ship through a full constructor image; the respin lane only replaces
+the runtime release.
 
 The setup constructor requires the parent to already contain
 `openssh-server`, `network-manager`, `dnsmasq`, `python3-minimal`,

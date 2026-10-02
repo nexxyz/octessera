@@ -254,15 +254,11 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-http.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-flow.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-state.py
 bash tools/armbian-image/validate.sh
-python3 tools/image-respin/test_setup_contract.py
-python3 tools/armbian-image/test_orange_image_proof_validated.py
-python3 tools/image-respin/test_runtime_contract.py
 node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 ```
 
 Root-required mutation and disk fixtures run in CI as
-`sudo python3 tools/image-respin/test_respin.py`,
-`sudo python3 tools/image-respin/test_setup_mutation.py`, and
+`sudo python3 tools/image-respin/test_respin.py` and
 `sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
 The current-parent exercise is the Orange runtime-only path for boot-neutral
 updates. It does not replace a constructor image or a hardware test.

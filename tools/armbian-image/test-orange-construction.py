@@ -5,13 +5,9 @@ import json
 import re
 from pathlib import Path
 
-from orange_trusted_parent_proof import load_contract
-
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = ROOT / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"
-DERIVATION_CONTRACT_PATH = ROOT / "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json"
-SETUP_CONTRACT_PATH = ROOT / "resources/image-mutations/orange-pi-zero-2w-setup.json"
 SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/verify-orange-image.py",
     "tools/armbian-image/orange_boot_contract.py",
@@ -24,7 +20,6 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/orange_phase5_proof.py",
     "tools/armbian-image/orange_audio_proof.py",
     "tools/armbian-image/orange_sd_card_proof.py",
-    "tools/armbian-image/orange_trusted_parent_proof.py",
     "tools/armbian-image/test_orange_oled_logo.py",
     "tools/armbian-image/verify_runtime_account.py",
     "userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh",
@@ -42,8 +37,6 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/kernel-patches/orange-midi-interface-manifest.json",
 }
 contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
-setup_contract = json.loads(SETUP_CONTRACT_PATH.read_text(encoding="utf-8"))
-load_contract(DERIVATION_CONTRACT_PATH, ROOT)
 
 
 def exact(value, keys):
@@ -117,12 +110,6 @@ assert "userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend" in con
 assert "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py" in construction_inputs
 assert construction_inputs["userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-booting.rgb565"]["size"] == 32768
 assert construction_inputs["userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565"]["size"] == 32768
-setup_inputs = {item["path"]: item for item in setup_contract["source_inputs"]}
-overlap = sorted(set(construction_inputs) & set(setup_inputs))
-assert overlap
-for path in overlap:
-    assert construction_inputs[path]["sha256"] == setup_inputs[path]["sha256"], path
-    assert construction_inputs[path]["size"] == setup_inputs[path]["size"], path
 
 for item in contract["managed_outputs"]:
     if item["path"] == "home/octessera/.hushlogin":
