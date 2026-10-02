@@ -95,7 +95,7 @@ pub(super) fn merge_preserved_aux_payloads(payload: &mut Value, preserved: &Valu
     }
 }
 
-fn split_aux_payloads(object: &mut serde_json::Map<String, Value>, musical: bool) {
+pub(super) fn split_aux_payloads(object: &mut serde_json::Map<String, Value>, musical: bool) {
     for key in ["auxBindings", "shiftAuxBindings"] {
         if let Some(value) = object.get_mut(key) {
             *value = split_aux_payload(value, musical);
