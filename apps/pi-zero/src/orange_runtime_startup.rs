@@ -96,6 +96,12 @@ pub(crate) fn prepare_runtime(
                 .as_nanos(),
             NEXT_TEST_STORE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
+        #[cfg(test)]
+        crate::pi_store_test_support::write_pair(
+            &root.join("presets"),
+            &serde_json::from_str(include_str!("../../../config/generated/pi/default.json"))
+                .map_err(|error: serde_json::Error| error.to_string())?,
+        );
         OrangeHostAdapter::with_directories(
             audio,
             root.join("presets"),
