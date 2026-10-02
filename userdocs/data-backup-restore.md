@@ -8,6 +8,24 @@ endpoint IDs, and favourite folders stay with the destination instrument.
 System settings are saved separately with `System > Saves > System > Save
 System`; rolling saves and recovery backups protect the musical patch only.
 
+## Save local settings and music
+
+Use `System > Saves > System > Save System` to save and
+`System > Saves > System > Load System` to load local device settings such as
+ports and audio choices. System settings do not autosave, so save them
+explicitly. Load System asks for confirmation but does not stop music or
+silently reboot; restart-sensitive **Apply** is a separate action.
+
+Use `System > Saves > Default > Save Patch` to save and
+`System > Saves > Default > Load Patch` to load the local musical default, not
+device settings. An eligible Load Patch asks for confirmation; a confirmed load
+stops and resets playback and clears held notes. If a patch save is pending or
+an Auto Save-eligible edit is still dirty, it refuses with `Save pending, try
+again`. With Auto Save off and no pending write, confirmation may discard
+unsaved music. Named presets under `System > Saves > Library` are musical and portable.
+Patch autosaves, rolling backups, and recovery copies protect patches only;
+they do not back up System settings.
+
 ## Back up your data
 
 1. On the Pi, choose `System > Setup > Backup / Restore`.
