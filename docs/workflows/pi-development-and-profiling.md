@@ -109,6 +109,11 @@ the current clean source, then run the candidate against an isolated preset clon
 ./tools/pi/run-pi-autoaux-study.ps1 -Target $PiTarget -Artifact target/pi-cross/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json -LiveSeconds 30 -AllowServiceInterruption
 ```
 
+Raspberry and Orange share one Aux timing driver (`OCTESSERA_TIMING_AUTOAUX=1`
+with `OCTESSERA_TIMING_AUTOPLAY=1`) and one report format; only the
+`raspberry-autoaux`/`orange-autoaux` prefix differs. Raspberry baselines
+captured before this driver used `oled_frame_*`/`synth_cutoff_commands` keys.
+
 This one-shot study stops and restores the installed service. It requires a
 matching final automatic-save receipt and verifies that the original presets
 remain unchanged. Inspect its staged candidate and kernel journals for timing

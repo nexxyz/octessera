@@ -1,14 +1,19 @@
 #![cfg(feature = "hardware-orange-pi-zero-2w")]
 
-use super::*;
-use crate::input::encoder_press_message;
+use crate::autoaux_sequence::{
+    Phase, BASELINE, PLATEAU, RAPID, SAVE_COMPLETION_TIMEOUT, TURN_INTERVAL,
+};
+use crate::input::{encoder_press_message, encoder_turn_message};
 use crate::orange_host_adapter::OrangeHostAdapter;
+use crate::timing_input::TimingInput;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage,
     RuntimeAudioCommand, RuntimeConfig,
 };
+use playback_runtime::{RuntimeStoreResult, RuntimeTransportState};
 use std::ffi::OsString;
 use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 static ENVIRONMENT_LOCK: Mutex<()> = Mutex::new(());
 
@@ -119,7 +124,7 @@ fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
 
 fn valid_environment(store: Option<&str>) -> EnvironmentRestore {
     EnvironmentRestore::set(&[
-        (AUTOAUX_ENV, Some("1")),
+        ("OCTESSERA_TIMING_AUTOAUX", Some("1")),
         ("OCTESSERA_TIMING_AUTOPLAY", Some("1")),
         ("OCTESSERA_PI_TIMING_KEEP_AWAKE", Some("1")),
         ("OCTESSERA_PI_UI_PROFILE", Some("1")),
@@ -127,9 +132,9 @@ fn valid_environment(store: Option<&str>) -> EnvironmentRestore {
     ])
 }
 
-fn prepare_timing(fixture: &mut RuntimeFixture) -> Result<Option<OrangeTimingInput>, String> {
-    let auto_aux = OrangeTimingInput::validate_opt_in()?;
-    OrangeTimingInput::prepare(
+fn prepare_timing(fixture: &mut RuntimeFixture) -> Result<Option<TimingInput>, String> {
+    let auto_aux = TimingInput::validate_opt_in()?;
+    TimingInput::prepare(
         auto_aux,
         &mut fixture.playback,
         &mut fixture.runner,
@@ -139,7 +144,7 @@ fn prepare_timing(fixture: &mut RuntimeFixture) -> Result<Option<OrangeTimingInp
 
 fn timing_tick(
     fixture: &mut RuntimeFixture,
-    timing: &mut OrangeTimingInput,
+    timing: &mut TimingInput,
     _profiler: &crate::ui_profile::UiProfiler,
     at: Instant,
 ) -> bool {
@@ -201,14 +206,13 @@ fn autoaux_setup_uses_stopped_native_menu_and_routes_cutoff_turns_through_host()
         )
         .unwrap();
     }
-    let audio = fixture
-        .host
-        .take_autoaux_command_evidence()
+    let audio = crate::timing_input::TimingHost::timing_evidence(&mut fixture.host)
+        .take()
         .expect("AutoAux host command profiling should be armed after Play");
-    assert!(audio.successful_count >= 2);
-    assert!(audio.distinct_values[0].is_some());
-    assert!(audio.distinct_values[1].is_some());
-    assert_ne!(audio.distinct_values[0], audio.distinct_values[1]);
+    assert!(audio.cutoff_command_count() >= 2);
+    assert!(audio.cutoff_values()[0].is_some());
+    assert!(audio.cutoff_values()[1].is_some());
+    assert_ne!(audio.cutoff_values()[0], audio.cutoff_values()[1]);
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
@@ -241,12 +245,11 @@ fn autoaux_command_profile_ignores_runner_commands_rejected_by_host() {
         .playback
         .dispatch_runner_messages(messages, &mut fixture.runner, &mut fixture.host)
         .unwrap();
-    let evidence = fixture
-        .host
-        .take_autoaux_command_evidence()
+    let evidence = crate::timing_input::TimingHost::timing_evidence(&mut fixture.host)
+        .take()
         .expect("AutoAux command profile should remain active");
-    assert_eq!(evidence.successful_count, 0);
-    assert_eq!(evidence.distinct_values, [None, None]);
+    assert_eq!(evidence.cutoff_command_count(), 0);
+    assert_eq!(evidence.cutoff_values(), [None, None]);
     assert_eq!(timing.rapid_turns, 0);
     let _ = std::fs::remove_dir_all(fixture.root);
 }
@@ -311,7 +314,7 @@ fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
     assert!(timing.missed_turns > 0);
 
     std::thread::sleep(Duration::from_millis(160));
-    super::super::host_work::drain_host_work(
+    super::host_work::drain_host_work(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
@@ -415,7 +418,7 @@ fn autoaux_matching_failure_and_completion_timeout_are_errors() {
 #[test]
 fn autoaux_refuses_missing_gates_wrong_focus_and_unbound_aux() {
     let missing = EnvironmentRestore::set(&[
-        (AUTOAUX_ENV, Some("1")),
+        ("OCTESSERA_TIMING_AUTOAUX", Some("1")),
         ("OCTESSERA_TIMING_AUTOPLAY", None),
         ("OCTESSERA_PI_TIMING_KEEP_AWAKE", None),
         ("OCTESSERA_PI_UI_PROFILE", None),

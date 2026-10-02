@@ -9,26 +9,14 @@ pub(crate) struct NativeScenePump {
     pending: Vec<PendingNativeScene>,
     generation: Option<u64>,
     last_submission: Instant,
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    autoaux_targets: Option<[u16; 2]>,
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    autoaux_acceptances: [Option<(u64, u16)>; 2],
+    timing_cutoff_targets: Option<[u16; 2]>,
+    timing_cutoff_acceptances: [Option<(u64, u16)>; 2],
     #[cfg(test)]
     capture_count: usize,
 }
 
 struct PendingNativeScene {
     generation: u64,
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
     cutoff_value: Option<u16>,
     receiver: mpsc::Receiver<crate::render_loop_queue::NativeSceneCompletion>,
 }
@@ -41,36 +29,19 @@ impl NativeScenePump {
             last_submission: now
                 .checked_sub(crate::hardware_runtime_scheduler::SNAPSHOT_TICK)
                 .unwrap_or(now),
-            #[cfg(any(
-                feature = "hardware-raspberry-pi-zero-2w",
-                all(test, not(feature = "hardware-orange-pi-zero-2w"))
-            ))]
-            autoaux_targets: None,
-            #[cfg(any(
-                feature = "hardware-raspberry-pi-zero-2w",
-                all(test, not(feature = "hardware-orange-pi-zero-2w"))
-            ))]
-            autoaux_acceptances: [None, None],
+            timing_cutoff_targets: None,
+            timing_cutoff_acceptances: [None, None],
             #[cfg(test)]
             capture_count: 0,
         }
     }
 
     pub(crate) fn poll(&mut self, runner: &mut NativeRunner) {
-        #[cfg(any(
-            feature = "hardware-raspberry-pi-zero-2w",
-            all(test, not(feature = "hardware-orange-pi-zero-2w"))
-        ))]
-        if self.autoaux_targets.is_some() {
-            self.poll_autoaux(runner);
+        if self.timing_cutoff_targets.is_some() {
+            self.poll_timing_cutoff(runner);
         } else {
             self.poll_regular(runner);
         }
-        #[cfg(not(any(
-            feature = "hardware-raspberry-pi-zero-2w",
-            all(test, not(feature = "hardware-orange-pi-zero-2w"))
-        )))]
-        self.poll_regular(runner);
     }
 
     fn poll_regular(&mut self, runner: &mut NativeRunner) {
@@ -98,27 +69,11 @@ impl NativeScenePump {
             });
     }
 
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    fn poll_autoaux(&mut self, runner: &mut NativeRunner) {
-        #[cfg(any(
-            feature = "hardware-raspberry-pi-zero-2w",
-            all(test, not(feature = "hardware-orange-pi-zero-2w"))
-        ))]
+    fn poll_timing_cutoff(&mut self, runner: &mut NativeRunner) {
         let mut completed = Vec::new();
-        #[cfg(any(
-            feature = "hardware-raspberry-pi-zero-2w",
-            all(test, not(feature = "hardware-orange-pi-zero-2w"))
-        ))]
         self.pending
             .retain(|pending| match pending.receiver.try_recv() {
                 Ok(receipt) => {
-                    #[cfg(any(
-                        feature = "hardware-raspberry-pi-zero-2w",
-                        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-                    ))]
                     completed.push((pending.generation, pending.cutoff_value, receipt));
                     false
                 }
@@ -136,7 +91,7 @@ impl NativeScenePump {
                 debug_assert!(receipt.frame_revision.is_some());
                 if receipt.generation == pending_generation {
                     if let (Some(value), Some(revision)) = (cutoff_value, receipt.frame_revision) {
-                        self.record_autoaux_cutoff(revision, value);
+                        self.record_timing_cutoff_acceptance(revision, value);
                     }
                 }
             }
@@ -190,21 +145,13 @@ impl NativeScenePump {
         let captured_at = Instant::now();
         self.last_submission = captured_at;
         let (metrics, error) = playback.native_presentation_state();
-        #[cfg(any(
-            feature = "hardware-raspberry-pi-zero-2w",
-            all(test, not(feature = "hardware-orange-pi-zero-2w"))
-        ))]
         let cutoff_value = self
-            .autoaux_targets
+            .timing_cutoff_targets
             .and_then(|_| selected_cutoff_display_value(&scene, metrics.clone(), error.clone()));
         adapter.observe_keyboard_capture_mode(scene.hdmi_mode());
         if let Ok(receiver) = worker.publish_native_scene(scene, metrics, error) {
             self.pending.push(PendingNativeScene {
                 generation,
-                #[cfg(any(
-                    feature = "hardware-raspberry-pi-zero-2w",
-                    all(test, not(feature = "hardware-orange-pi-zero-2w"))
-                ))]
                 cutoff_value,
                 receiver,
             });
@@ -213,42 +160,29 @@ impl NativeScenePump {
         Some(captured_at)
     }
 
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    pub(crate) fn begin_autoaux_cutoff_evidence(&mut self, targets: [u16; 2]) {
-        self.autoaux_targets = (targets[0] != targets[1]).then_some(targets);
-        self.autoaux_acceptances = [None, None];
+    pub(crate) fn set_timing_cutoff_targets(&mut self, targets: [u16; 2]) {
+        self.timing_cutoff_targets = (targets[0] != targets[1]).then_some(targets);
+        self.timing_cutoff_acceptances = [None, None];
     }
 
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    pub(crate) fn autoaux_cutoff_acceptances(&self) -> Option<[(u64, u16); 2]> {
-        Some([self.autoaux_acceptances[0]?, self.autoaux_acceptances[1]?])
+    pub(crate) fn timing_cutoff_acceptances(&self) -> Option<[(u64, u16); 2]> {
+        Some([
+            self.timing_cutoff_acceptances[0]?,
+            self.timing_cutoff_acceptances[1]?,
+        ])
     }
 
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    fn record_autoaux_cutoff(&mut self, revision: u64, value: u16) {
+    fn record_timing_cutoff_acceptance(&mut self, revision: u64, value: u16) {
         let Some(index) = self
-            .autoaux_targets
+            .timing_cutoff_targets
             .and_then(|targets| targets.iter().position(|target| *target == value))
         else {
             return;
         };
-        self.autoaux_acceptances[index].get_or_insert((revision, value));
+        self.timing_cutoff_acceptances[index].get_or_insert((revision, value));
     }
 }
 
-#[cfg(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    all(test, not(feature = "hardware-orange-pi-zero-2w"))
-))]
 fn selected_cutoff_display_value(
     scene: &playback_runtime::PresentationScene,
     metrics: playback_runtime::oled_frame::OledPresentationMetrics,

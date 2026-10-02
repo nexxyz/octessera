@@ -55,16 +55,6 @@ impl OrangeHostAdapter {
         self.audio.clone()
     }
 
-    pub(crate) fn begin_autoaux_command_evidence(&mut self) {
-        self.audio_host.begin_autoaux_command_evidence();
-    }
-
-    pub(crate) fn take_autoaux_command_evidence(
-        &mut self,
-    ) -> Option<crate::orange_audio::AutoAuxCommandEvidence> {
-        self.audio_host.take_autoaux_command_evidence()
-    }
-
     pub(crate) fn shutdown_pending(&self) -> bool {
         self.shutdown_request.is_some()
     }
@@ -179,6 +169,15 @@ impl OrangeHostAdapter {
             QueueFailureStyle::Orange,
             "USB SD2 transfer start".into(),
         ))
+    }
+}
+
+impl crate::timing_input::TimingHost for OrangeHostAdapter {
+    const STUDY_BOARD: &'static str = "Orange";
+    const REPORT_PREFIX: &'static str = "orange-autoaux";
+
+    fn timing_evidence(&mut self) -> &mut Option<crate::timing_input::TimingStudyEvidence> {
+        self.audio_host.timing_evidence()
     }
 }
 

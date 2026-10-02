@@ -1,4 +1,5 @@
 use super::*;
+use playback_runtime::RuntimeTransportState;
 
 #[test]
 fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
@@ -38,7 +39,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
     std::thread::sleep(Duration::from_millis(160));
     let eligible_at = Instant::now();
     assert!(fixture.runner.persistence_intent_at(eligible_at).is_some());
-    super::super::super::host_work::flush_native_persistence(
+    super::super::host_work::flush_native_persistence(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
@@ -54,7 +55,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         .unwrap();
     }
     std::thread::sleep(Duration::from_millis(1_800));
-    super::super::super::host_work::flush_native_persistence(
+    super::super::host_work::flush_native_persistence(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
@@ -64,13 +65,13 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
     let mut profiler = crate::ui_profile::UiProfiler::from_controls(None, false);
     let deadline = Instant::now() + Duration::from_secs(2);
     while Instant::now() < deadline && !fixture.root.join("store/default.patch.json").exists() {
-        super::super::super::host_work::flush_native_persistence(
+        super::super::host_work::flush_native_persistence(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,
         )
         .unwrap();
-        super::super::super::host_work::drain_host_work(
+        super::super::host_work::drain_host_work(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,

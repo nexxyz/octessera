@@ -9,7 +9,7 @@ use crate::power_lifecycle::{
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{
     dispatch_runtime_message, handle_deferred_host_work, process_runtime_output,
-    report_autoaux_runtime_failure as report_runtime_failure,
+    report_runtime_failure,
 };
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
