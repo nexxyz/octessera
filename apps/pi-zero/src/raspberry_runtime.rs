@@ -6,6 +6,7 @@ use crate::input::MidiMessage;
 use crate::main_runtime_loop::{drain_encoder_events, drain_host_messages, maybe_advance_runtime};
 use crate::midi_host::drain_midi_messages;
 use crate::render_loop::RenderWorker;
+use crate::timing_input::{fail_study, TimingInput};
 use crate::ui_profile::UiProfiler;
 use crate::usb_keyboard::KeyboardCapture;
 use octessera_hal::encoder_gpio::HardwareEvent;
@@ -25,11 +26,7 @@ struct SchedulerState {
     pending_encoder_turns: PendingEncoderTurns,
     ui_profiler: UiProfiler,
     native_scenes: crate::raspberry_native_scene::NativeScenePump,
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    autoaux: Option<crate::raspberry_autoaux::RaspberryAutoAux>,
+    timing: Option<TimingInput>,
 }
 
 impl SchedulerState {
@@ -40,11 +37,7 @@ impl SchedulerState {
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler: UiProfiler::from_process(),
             native_scenes: crate::raspberry_native_scene::NativeScenePump::new(now),
-            #[cfg(any(
-                feature = "hardware-raspberry-pi-zero-2w",
-                all(test, not(feature = "hardware-orange-pi-zero-2w"))
-            ))]
-            autoaux: None,
+            timing: None,
         }
     }
 
@@ -104,29 +97,25 @@ fn run_scheduler(
     let audio = adapter.audio_service();
     let mut state = SchedulerState::new(initial_rendered_revision);
     let profile_enabled = state.profile_enabled();
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    {
-        state.autoaux = match crate::raspberry_autoaux::RaspberryAutoAux::prepare(
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            &mut state.native_scenes,
-            profile_enabled,
-        ) {
-            Ok(autoaux) => autoaux,
-            Err(error) if std::env::var_os("OCTESSERA_PI_TIMING_AUTOAUX").is_some() => {
-                crate::raspberry_autoaux::fail_autoaux(error)
-            }
-            Err(error) => {
-                eprintln!("pi AutoAux setup failed: {error}");
-                let _ = keyboard.shutdown();
-                let _ = render_worker.publish_shutdown();
-                return;
-            }
-        };
+    let timing = crate::timing_input::validate_startup(&playback).and_then(|auto_aux| {
+        TimingInput::prepare(auto_aux, &mut playback, &mut runner, &mut adapter)
+    });
+    state.timing = match timing {
+        Ok(timing) => timing,
+        Err(error) if std::env::var_os("OCTESSERA_TIMING_AUTOAUX").is_some() => {
+            fail_study::<PiPlaybackHostAdapter>(error)
+        }
+        Err(error) => {
+            eprintln!("pi timing input setup failed: {error}");
+            let _ = keyboard.shutdown();
+            let _ = render_worker.publish_shutdown();
+            return;
+        }
+    };
+    if let Some(timing) = &state.timing {
+        state
+            .native_scenes
+            .set_timing_cutoff_targets(timing.plateau_values());
     }
     let mut last_loop_start = profile_enabled.then(Instant::now);
 
@@ -154,12 +143,8 @@ fn run_scheduler(
                 &mut adapter,
                 output,
             ) {
-                #[cfg(any(
-                    feature = "hardware-raspberry-pi-zero-2w",
-                    all(test, not(feature = "hardware-orange-pi-zero-2w"))
-                ))]
-                if adapter.autoaux_active() {
-                    crate::raspberry_autoaux::fail_autoaux(error);
+                if adapter.timing_evidence.is_some() {
+                    fail_study::<PiPlaybackHostAdapter>(error);
                 }
                 eprintln!("pi audio load-status output processing failed: {error}");
             }
@@ -170,12 +155,8 @@ fn run_scheduler(
                 .then(|| "required Jack audio stream faulted".to_string())
         });
         if let Some(message) = audio_fault {
-            #[cfg(any(
-                feature = "hardware-raspberry-pi-zero-2w",
-                all(test, not(feature = "hardware-orange-pi-zero-2w"))
-            ))]
-            if state.autoaux.is_some() {
-                crate::raspberry_autoaux::fail_autoaux(message);
+            if state.timing.is_some() {
+                fail_study::<PiPlaybackHostAdapter>(message);
             }
             let error = playback_runtime::RuntimeErrorFacts::new(
                 playback_runtime::RuntimeErrorDomain::Audio,
@@ -229,23 +210,14 @@ fn run_scheduler(
             &mut runner,
             &mut adapter,
         );
-        #[cfg(any(
-            feature = "hardware-raspberry-pi-zero-2w",
-            all(test, not(feature = "hardware-orange-pi-zero-2w"))
-        ))]
-        if let Some(autoaux) = state.autoaux.as_mut() {
-            let now = Instant::now();
-            match autoaux.tick(
-                now,
-                &mut playback,
-                &mut runner,
-                &mut adapter,
-                &state.native_scenes,
-            ) {
-                Ok(true) => state.autoaux = None,
-                Ok(false) => {}
-                Err(error) => crate::raspberry_autoaux::fail_autoaux(error),
-            }
+        if let Err(error) = crate::timing_input::tick_if_active(
+            &mut state.timing,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            state.native_scenes.timing_cutoff_acceptances(),
+        ) {
+            fail_study::<PiPlaybackHostAdapter>(error);
         }
         if advance(
             &mut state,
@@ -296,12 +268,8 @@ fn advance(
         &mut state.ui_profiler,
         &mut state.native_scenes,
     );
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        all(test, not(feature = "hardware-orange-pi-zero-2w"))
-    ))]
-    if shutdown && state.autoaux.is_some() {
-        crate::raspberry_autoaux::fail_autoaux("runtime requested shutdown during the study");
+    if shutdown && state.timing.is_some() {
+        fail_study::<PiPlaybackHostAdapter>("runtime requested shutdown during the study");
     }
     shutdown
 }

@@ -72,21 +72,7 @@ impl PiPlaybackHostAdapter {
             recovery_save_status: None,
             oled_frame_cache: OledFrameCache::default(),
             keyboard_control: None,
-            #[cfg(any(
-                feature = "hardware-raspberry-pi-zero-2w",
-                all(test, not(feature = "hardware-orange-pi-zero-2w"))
-            ))]
-            autoaux_audio_evidence: None,
-            #[cfg(any(
-                feature = "hardware-raspberry-pi-zero-2w",
-                all(test, not(feature = "hardware-orange-pi-zero-2w"))
-            ))]
-            autoaux_store_result: None,
-            #[cfg(any(
-                feature = "hardware-raspberry-pi-zero-2w",
-                all(test, not(feature = "hardware-orange-pi-zero-2w"))
-            ))]
-            autoaux_expected_revision: None,
+            timing_evidence: None,
         }
     }
 
