@@ -35,48 +35,27 @@ assert_action_contains '"HOST=octessera-opi"'
 octessera_reject_file_match 'Ordinary Armbian builds must not retain the old Armbian revision.' -qF 'REVISION=26.8.0-trunk.417' "$action"
 octessera_reject_file_match 'Ordinary Armbian builds must not retain the old KERNELBRANCH pin.' -qF 'KERNELBRANCH=commit:e46dc0adfe39724bcf52cea47b8f9c9aed86a394' "$action"
 octessera_reject_file_match 'Armbian build action must not pass KERNELBRANCH.' -qF 'KERNELBRANCH=' "$action"
-[[ "$(grep -cF 'ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e' "$action")" == 4 ]] || {
-    echo 'All action validation branches must require the reviewed Armbian ref.' >&2
+[[ "$(grep -cF 'ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e' "$action")" == 2 ]] || {
+    echo 'Both action validation points must require the reviewed Armbian ref.' >&2
     exit 1
 }
 assert_action_contains 'OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current'
-assert_action_contains 'rolling_pin_bootstrap:'
-assert_action_contains 'default: false'
-assert_action_contains 'prepare-orange-rolling-pin-bootstrap.sh'
-assert_action_contains 'capture-orange-rolling-pin-bootstrap.sh'
-assert_action_contains 'Rolling-pin bootstrap is allowed only from workflow_dispatch.'
 assert_action_contains 'Stage reviewed Orange source lock'
 assert_action_contains 'userpatches/config/sources/git_sources.json'
 assert_action_contains 'build/config/sources/git_sources.json'
 assert_action_contains 'e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30'
 assert_action_contains 'cmp -- "$source_lock" "$effective_source_lock"'
 assert_action_contains 'install -m 0644 "$source_lock" "$effective_source_lock"'
-stage_lock_block="$(sed -n '/^    - name: Stage reviewed Orange source lock$/,/^    - name:/p' "$action")"
-grep -qF "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}" <<< "$stage_lock_block" || {
-    echo 'Reviewed source lock staging must skip bootstrap discovery.' >&2
-    exit 1
-}
+stage_lock_block="$(sed -n '/^    - name: Stage reviewed Orange source lock$/,/^    - name: Validate built Orange kernel package$/p' "$action")"
 octessera_require_text_match 'Reviewed source lock staging must reject symlink replacement.' "$stage_lock_block" -qF '! -L "$effective_source_lock"'
-bootstrap_prepare_block="$(sed -n '/^    - name: Prepare rolling-pin candidate source lock$/,/^    - name:/p' "$action")"
-grep -qF "if: \${{ inputs.rolling_pin_bootstrap == 'true' }}" <<< "$bootstrap_prepare_block" || {
-    echo 'Rolling-pin source discovery must remain bootstrap-only.' >&2
-    exit 1
-}
-assert_action_contains "effective_extensions\" == 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'"
-assert_action_contains "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}"
-inspect_condition="$(sed -n '/^    - name: Inspect built image$/,/^      shell: bash$/p' "$action")"
-grep -qF "if: \${{ inputs.rolling_pin_bootstrap != 'true' }}" <<< "$inspect_condition" || {
-    echo 'Bootstrap builds must skip the old manifest-bound image inspection.' >&2
-    exit 1
-}
 octessera_reject_file_match 'Armbian build action must not contain the rolling-pin source-lock implementation.' -qF 'artifact-config-dump-json' "$action"
 octessera_reject_file_match 'Armbian build action must not contain the rolling-pin evidence implementation.' -qF 'dpkg-deb -f' "$action"
-bootstrap_build_step="$(sed -n '/^    - name: Build image$/,/^    - name: Capture rolling-pin bootstrap evidence$/p' "$action")"
-grep -qF 'build_args+=(REVISION=26.11.0-trunk.22)' <<< "$bootstrap_build_step" || {
+build_step="$(sed -n '/^    - name: Build image$/,/^    - name: Validate built Orange kernel package$/p' "$action")"
+grep -qF 'build_args+=(REVISION=26.11.0-trunk.22)' <<< "$build_step" || {
     echo 'Armbian build must use the reviewed candidate revision.' >&2
     exit 1
 }
-octessera_reject_text_match 'Bootstrap build must omit KERNELBRANCH.' "$bootstrap_build_step" -qF 'KERNELBRANCH='
+octessera_reject_text_match 'Armbian build must omit KERNELBRANCH.' "$build_step" -qF 'KERNELBRANCH='
 assert_action_contains 'image_kind:'
 assert_action_contains 'default: diagnostic'
 assert_action_contains 'runtime_bundle_path:'

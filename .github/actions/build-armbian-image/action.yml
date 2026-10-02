@@ -44,10 +44,6 @@ inputs:
   construction_contract:
     required: true
     description: Exact Orange Phase 5 construction contract path
-  rolling_pin_bootstrap:
-    required: false
-    default: false
-    description: Temporary non-release rolling-pin discovery lane; only the exact candidate framework SHA is accepted
 runs:
   using: composite
   steps:
@@ -70,7 +66,6 @@ runs:
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
         OCTESSERA_BOOT_PROOF_MODE: ${{ inputs.boot_proof_mode }}
         OCTESSERA_CONSTRUCTION_CONTRACT: ${{ inputs.construction_contract }}
-        OCTESSERA_ROLLING_PIN_BOOTSTRAP: ${{ inputs.rolling_pin_bootstrap }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
@@ -87,9 +82,6 @@ runs:
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_audio([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_audio.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_sd2([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_sd2.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
-        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
-          [[ "$effective_extensions" == 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' ]] || { echo 'Rolling-pin bootstrap requires the exact effective extension set.' >&2; exit 1; }
-        fi
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
         [[ "$OCTESSERA_IMAGE_KIND" == diagnostic || "$OCTESSERA_IMAGE_KIND" == production ]] || { echo 'image_kind must be diagnostic or production.' >&2; exit 1; }
         if [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -n "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]]; then
@@ -107,16 +99,7 @@ runs:
         [[ "$OCTESSERA_BOOT_PROOF_MODE" == phase5-constructor ]] || { echo 'Orange image proof mode must be phase5-constructor.' >&2; exit 1; }
         [[ "$OCTESSERA_CONSTRUCTION_CONTRACT" == resources/image-construction/boot-layers/orange-pi-zero-2w.json ]] || { echo 'Orange construction contract path is not exact.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
-        [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true || "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == false ]] || { echo 'rolling_pin_bootstrap must be true or false.' >&2; exit 1; }
-        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
-          [[ "${GITHUB_EVENT_NAME:-}" == workflow_dispatch ]] || { echo 'Rolling-pin bootstrap is allowed only from workflow_dispatch.' >&2; exit 1; }
-          [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w && "$OCTESSERA_ARMBIAN_RELEASE" == trixie && "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current ]] || { echo 'Rolling-pin bootstrap requires the exact Orange trixie/current build tuple.' >&2; exit 1; }
-          [[ "$OCTESSERA_ARMBIAN_UI" == minimal && "$OCTESSERA_ARMBIAN_COMPRESSION" == sha,img,xz && "$OCTESSERA_ARMBIAN_SHARE_LOG" == yes ]] || { echo 'Rolling-pin bootstrap requires the exact diagnostic/minimal build settings.' >&2; exit 1; }
-          [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -z "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Rolling-pin bootstrap requires a diagnostic image without a runtime bundle.' >&2; exit 1; }
-          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Rolling-pin bootstrap requires the exact candidate Armbian source pin.' >&2; exit 1; }
-        else
-          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
-        fi
+        [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
     - name: Free runner disk space
       shell: bash
       run: |
@@ -213,7 +196,6 @@ runs:
         sudo ./compile.sh requirements
         sudo chown -R "$USER:$USER" .
     - name: Stage reviewed Orange source lock
-      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -231,14 +213,6 @@ runs:
         [[ -f "$effective_source_lock" && ! -L "$effective_source_lock" ]] || { echo 'Effective Orange source lock is missing or symlinked after staging.' >&2; exit 1; }
         cmp -- "$source_lock" "$effective_source_lock"
         printf '%s  %s\n' "$expected_source_lock_sha256" "$effective_source_lock" | sha256sum -c -
-    - name: Prepare rolling-pin candidate source lock
-      if: ${{ inputs.rolling_pin_bootstrap == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
-        bash "$custom_root/tools/armbian-image/prepare-orange-rolling-pin-bootstrap.sh" \
-          "$GITHUB_WORKSPACE/build" "$GITHUB_WORKSPACE/rolling-pin-bootstrap-capture"
     - name: Build image
       shell: bash
       env:
@@ -251,7 +225,6 @@ runs:
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
-        OCTESSERA_ROLLING_PIN_BOOTSTRAP: ${{ inputs.rolling_pin_bootstrap }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
@@ -267,20 +240,9 @@ runs:
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_midi([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_midi.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_audio([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_audio.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
-        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
-          [[ "$effective_extensions" == 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' ]] || { echo 'Rolling-pin bootstrap requires the exact effective extension set.' >&2; exit 1; }
-        fi
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
-        [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true || "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == false ]] || { echo 'rolling_pin_bootstrap must be true or false.' >&2; exit 1; }
-        if [[ "$OCTESSERA_ROLLING_PIN_BOOTSTRAP" == true ]]; then
-          [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w && "$OCTESSERA_ARMBIAN_RELEASE" == trixie && "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current ]] || { echo 'Rolling-pin bootstrap requires the exact Orange trixie/current build tuple.' >&2; exit 1; }
-          [[ "$OCTESSERA_ARMBIAN_UI" == minimal && "$OCTESSERA_ARMBIAN_COMPRESSION" == sha,img,xz && "$OCTESSERA_ARMBIAN_SHARE_LOG" == yes ]] || { echo 'Rolling-pin bootstrap requires the exact diagnostic/minimal build settings.' >&2; exit 1; }
-          [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -z "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Rolling-pin bootstrap requires a diagnostic image without a runtime bundle.' >&2; exit 1; }
-          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Rolling-pin bootstrap requires the exact candidate Armbian source pin.' >&2; exit 1; }
-        else
-          [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
-        fi
+        [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
         cd build
         build_desktop=no
         build_minimal=no
@@ -313,18 +275,7 @@ runs:
           EXPERT=yes
         )
         ./compile.sh "${build_args[@]}"
-    - name: Capture rolling-pin bootstrap evidence
-      if: ${{ inputs.rolling_pin_bootstrap == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
-        bash "$custom_root/tools/armbian-image/capture-orange-rolling-pin-bootstrap.sh" \
-          "$GITHUB_WORKSPACE/build" \
-          "$GITHUB_WORKSPACE/rolling-pin-bootstrap-capture/captured-candidate-source-lock.json" \
-          "$GITHUB_WORKSPACE/build/output/bootstrap-evidence"
     - name: Validate built Orange kernel package
-      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -336,7 +287,6 @@ runs:
           "${linux_kernel_packages[0]}" "${linux_kernel_packages[1]}" \
           --evidence-output "$package_evidence"
     - name: Stage canonical Orange kernel packages for release handoff
-      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -363,7 +313,6 @@ runs:
           install -m 0644 "${linux_kernel_packages[$index]}" "$destination"
         done
     - name: Inspect built image
-      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       env:
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
@@ -387,7 +336,6 @@ runs:
           )
         done
     - name: Record qualification provenance
-      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       env:
         GITHUB_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
@@ -405,7 +353,6 @@ runs:
           build/output/images/octessera-qualification-metadata.txt \
           build/output/images/octessera-orange-kernel-evidence.env build '' build/output/images
     - name: Prove final Orange image against exact packages
-      if: ${{ inputs.rolling_pin_bootstrap != 'true' }}
       shell: bash
       env:
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
