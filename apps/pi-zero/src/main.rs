@@ -117,6 +117,8 @@ mod rpi_device_apply;
 mod rpi_oled_handoff_runtime;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod runtime_loop;
+#[cfg(feature = "native-audio")]
+mod runtime_output;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod runtime_thread;
 mod sample_browser;
