@@ -88,6 +88,7 @@ fn platform_request(effect: RuntimePlatformEffect) -> RuntimePlatformRequest {
 }
 
 mod audio;
+mod audio_validation;
 mod drum;
 mod momentary;
 mod platform;
