@@ -11,6 +11,106 @@ fn runner() -> NativeRunner {
     NativeRunner::new(NativeRunnerConfig::default()).unwrap()
 }
 
+#[test]
+fn system_document_matches_the_device_projection_for_mixed_runtime_config() {
+    let mut runner = runner();
+    runner.display.ui.master_volume = 37;
+    runner.display.ui.display_brightness = 61;
+    runner.display.ui.numeric_display_mode = "hex".into();
+    runner.sample_favourite_dirs = vec!["/samples/favourites".into()];
+    runner.auto_save_default = true;
+    runner.rolling_backups = false;
+    runner.midi_enabled = true;
+    runner.selected_midi_output_id = Some("midi-out-2".into());
+    runner.selected_midi_input_id = Some("midi-in-3".into());
+    runner.audio_output_buffer_frames = 256;
+    runner.recording_max_minutes = 23;
+    runner.aux_bindings[0] = Some(crate::native_runner::NativeAuxBinding {
+        turn_key: Some("displayBrightness".into()),
+        press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
+            "midi.panic".into(),
+        )),
+    });
+    runner.aux_bindings[1] = Some(crate::native_runner::NativeAuxBinding {
+        turn_key: Some("layers.0.algorithmStep".into()),
+        press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
+            "midi.panic".into(),
+        )),
+    });
+    runner.shift_aux_bindings[0] = Some(crate::native_runner::NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
+            "preset.load".into(),
+        )),
+    });
+    runner.shift_aux_bindings[1] = Some(crate::native_runner::NativeAuxBinding {
+        turn_key: Some("instruments.0.synth.osc1.levelPct".into()),
+        press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
+            "midi.panic".into(),
+        )),
+    });
+
+    let expected =
+        super::super::device_config_payload_from_payload(runner.config_payload()).unwrap();
+    runner.behavior_state_serialization_calls.set(0);
+
+    let actual = SystemPersistenceState::system_document(&runner).unwrap();
+
+    assert_eq!(
+        actual,
+        json!({
+            "kind": "octessera.system",
+            "schemaVersion": 1,
+            "runtimeConfig": expected["runtimeConfig"],
+        })
+    );
+    assert_eq!(runner.behavior_state_serialization_calls.get(), 0);
+    assert_eq!(
+        actual["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
+        "displayBrightness"
+    );
+    assert_eq!(
+        actual["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"]["action"],
+        "midi.panic"
+    );
+    assert_eq!(
+        actual["runtimeConfig"]["auxBindings"]["aux2"]["turnKey"],
+        Value::Null
+    );
+    assert_eq!(
+        actual["runtimeConfig"]["auxBindings"]["aux2"]["pressAction"]["action"],
+        "midi.panic"
+    );
+    assert_eq!(
+        actual["runtimeConfig"]["shiftAuxBindings"]["aux1"]["turnKey"],
+        "masterVolume"
+    );
+    assert_eq!(
+        actual["runtimeConfig"]["shiftAuxBindings"]["aux1"]["pressAction"],
+        Value::Null
+    );
+    assert_eq!(
+        actual["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"],
+        Value::Null
+    );
+    assert_eq!(
+        actual["runtimeConfig"]["shiftAuxBindings"]["aux2"]["pressAction"]["action"],
+        "midi.panic"
+    );
+}
+
+#[test]
+fn system_document_does_not_serialize_musical_behavior_state() {
+    let runner = runner();
+    runner.config_payload();
+    assert!(runner.behavior_state_serialization_calls.get() > 0);
+    runner.behavior_state_serialization_calls.set(0);
+
+    SystemPersistenceState::system_document(&runner).unwrap();
+
+    assert_eq!(runner.behavior_state_serialization_calls.get(), 0);
+}
+
 fn mark_patch_revision(runner: &mut NativeRunner, revision: u64) {
     while runner.config_revision < revision {
         runner.mark_config_dirty();

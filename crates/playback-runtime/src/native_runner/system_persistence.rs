@@ -112,11 +112,59 @@ impl SystemPersistenceState {
     }
 
     pub(super) fn system_document(runner: &NativeRunner) -> Result<Value, String> {
-        let device = super::device_config_payload_from_payload(runner.config_payload())?;
+        let mut runtime = json!({
+            "masterVolume": runner.display.ui.master_volume,
+            "sampleFavouriteDirs": runner.sample_favourite_dirs,
+            "hdmi": {
+                "mode": runner.display.hdmi.mode,
+                "showGridlines": runner.display.hdmi.show_gridlines,
+                "cycleMeasures": runner.display.hdmi.cycle_measures,
+            },
+            "ghostCells": runner.display.ui.ghost_cells,
+            "inputEventsWhilePaused": runner.input_events_while_paused,
+            "numericDisplayMode": runner.display.ui.numeric_display_mode,
+            "dimTimerSeconds": runner.display.ui.dim_timer_seconds,
+            "screenSleepSeconds": runner.display.ui.screen_sleep_seconds,
+            "displayBrightness": runner.display.ui.display_brightness,
+            "dsp": runner.dsp_config,
+            "gridBrightness": runner.display.ui.grid_brightness,
+            "buttonBrightness": runner.display.ui.button_brightness,
+            "autoSaveDefault": runner.auto_save_default,
+            "rollingBackups": runner.rolling_backups,
+            "auxAutoMapEnabled": runner.aux_auto_map_enabled,
+            "auxBindings": super::aux_bindings_payload(&runner.aux_bindings),
+            "shiftAuxBindings": super::aux_bindings_payload(&runner.shift_aux_bindings),
+            "midi": {
+                "enabled": runner.midi_enabled,
+                "outId": runner.selected_midi_output_id,
+                "inId": runner.selected_midi_input_id,
+                "syncMode": match runner.transport.sync_source {
+                    super::SyncSource::Internal => "internal",
+                    super::SyncSource::External => "external",
+                },
+                "clockOutEnabled": runner.midi_clock_out_enabled,
+                "clockInEnabled": runner.midi_clock_in_enabled,
+                "respondToStartStop": runner.midi_respond_to_start_stop,
+            },
+            "usb": {
+                "dataRole": runner.usb_data_role,
+                "midiOutEnabled": runner.usb_midi_out_enabled,
+            },
+            "audioOutputs": runner.audio_outputs.as_value(),
+            "sound": {
+                "audioOutputBufferFrames": runner.audio_output_buffer_frames,
+                "optimizeFor": runner.audio_optimization,
+            },
+            "recording": { "maxMinutes": runner.recording_max_minutes },
+        });
+        super::split_aux_payloads(
+            runtime.as_object_mut().expect("runtime is an object"),
+            false,
+        );
         Ok(json!({
             "kind": "octessera.system",
             "schemaVersion": 1,
-            "runtimeConfig": device["runtimeConfig"],
+            "runtimeConfig": runtime,
         }))
     }
 
