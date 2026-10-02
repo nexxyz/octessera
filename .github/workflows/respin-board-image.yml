@@ -16,7 +16,6 @@ jobs:
       BOARD: orange-pi-zero-2w
       SOURCE_SHA: ${{ github.sha }}
       PARENT_RECORD: resources/image-parents/orange-pi-zero-2w-current.json
-      BOOT_NEUTRAL_CONTRACT: resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json
       PARENT_ASSETS: parent-assets
       RUNTIME_BUNDLE: runtime-bundle
       RESPIN_OUTPUT: respin-output
@@ -39,20 +38,22 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           echo "OCTESSERA_VERSION=$version" >> "$GITHUB_ENV"
 
-      - name: Acquire the exact reviewed current parent
+      - name: Acquire the reviewed current parent image
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python3 tools/image-respin/current_parent.py \
-            --repository nexxyz/octessera \
-            --record "$PARENT_RECORD" \
-            --output "$PARENT_ASSETS"
+          artifact_id="$(jq -r '.artifact.id' "$PARENT_RECORD")"
+          image_name="$(jq -r '.image.name' "$PARENT_RECORD")"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" > "$RUNNER_TEMP/parent.zip"
+          mkdir -p "$PARENT_ASSETS"
+          unzip -j "$RUNNER_TEMP/parent.zip" "$image_name" -d "$PARENT_ASSETS"
+          echo "PARENT_IMAGE=$PARENT_ASSETS/$image_name" >> "$GITHUB_ENV"
 
       - name: Install image respin dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cpio dosfstools e2fsprogs initramfs-tools-core kpartx unzip util-linux xz-utils zstd
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends e2fsprogs unzip util-linux xz-utils
 
       - name: Setup Rust cross target
         uses: dtolnay/rust-toolchain@stable
@@ -75,11 +76,9 @@ jobs:
         run: |
           set -euo pipefail
           docker pull rust:1-bookworm
-          feature_command='cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w'
           cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w
           git diff --exit-code
           test -z "$(git status --porcelain --untracked-files=no)"
-          echo "FEATURE_COMMAND=$feature_command" >> "$GITHUB_ENV"
 
       - name: Create exact production runtime bundle
         run: |
@@ -90,143 +89,19 @@ jobs:
             --version "$OCTESSERA_VERSION" \
             --output "$RUNTIME_BUNDLE"
 
-      - name: Record requested build identity
-        run: |
-          set -euo pipefail
-          mkdir -p "$RESPIN_OUTPUT"
-          rustc -vV > "$RUNNER_TEMP/rustc-vV.txt"
-          cargo --version > "$RUNNER_TEMP/cargo-version.txt"
-          cross --version > "$RUNNER_TEMP/cross-version.txt"
-          docker run --rm octessera-pi-cross rustc -vV > "$RUNNER_TEMP/container-rustc-vV.txt"
-          docker run --rm octessera-pi-cross cargo --version > "$RUNNER_TEMP/container-cargo-version.txt"
-          cross_image_id="$(docker image inspect octessera-pi-cross --format '{{.Id}}')"
-          cross_image_repo_digests="$(docker image inspect octessera-pi-cross --format '{{json .RepoDigests}}')"
-          base_image_id="$(docker image inspect rust:1-bookworm --format '{{.Id}}')"
-          base_image_repo_digests="$(docker image inspect rust:1-bookworm --format '{{json .RepoDigests}}')"
-          [[ -n "$cross_image_id" && -n "$base_image_id" ]] || { echo "Required Docker image identity is missing" >&2; exit 1; }
-          package_args=()
-          for package in cpio zstd dosfstools e2fsprogs initramfs-tools-core kpartx unzip util-linux xz-utils; do
-            status="$(dpkg-query -W -f='${Status}' "$package")"
-            [[ "$status" == 'install ok installed' ]] || { echo "Required proof package is not installed: $package" >&2; exit 1; }
-            package_version="$(dpkg-query -W -f='${Version}' "$package")"
-            [[ -n "$package_version" ]] || { echo "Required proof package version is missing: $package" >&2; exit 1; }
-            package_args+=(--proof-package "$package=$package_version")
-          done
-          python3 tools/image-respin/workflow_records.py requested \
-            --source-sha "$SOURCE_SHA" \
-            --version "$OCTESSERA_VERSION" \
-            --board "$BOARD" \
-            --feature-command "$FEATURE_COMMAND" \
-            --input-file Cargo.lock \
-            --input-file Cargo.toml \
-            --input-file package.json \
-            --input-file pnpm-workspace.yaml \
-            --input-file apps/desktop/package.json \
-            --input-file packages/device-contracts/package.json \
-            --input-file apps/desktop/src-tauri/Cargo.toml \
-            --input-file apps/desktop/src-tauri/tauri.conf.json \
-            --input-file crates/platform-capabilities-build/Cargo.toml \
-            --input-file crates/platform-core/Cargo.toml \
-            --input-file crates/playback-runtime/Cargo.toml \
-            --input-file crates/realtime-engine/Cargo.toml \
-            --input-file crates/rodio-engine-source/Cargo.toml \
-            --input-file crates/hal/Cargo.toml \
-            --input-file apps/pi-zero/Cargo.toml \
-            --input-file Cross.toml \
-            --input-file Dockerfile.pi-zero \
-            --input-file .github/workflows/respin-board-image.yml \
-            --input-file tools/image-respin/runtime_bundle.py \
-            --input-file tools/image-respin/boot_neutral.py \
-            --input-file tools/image-respin/current_parent.py \
-            --input-file tools/release/check_version_consistency.py \
-            --parent-record "$PARENT_RECORD" \
-            --rustc-version-file "$RUNNER_TEMP/rustc-vV.txt" \
-            --cargo-version-file "$RUNNER_TEMP/cargo-version.txt" \
-            --cross-version-file "$RUNNER_TEMP/cross-version.txt" \
-            --container-rustc-version-file "$RUNNER_TEMP/container-rustc-vV.txt" \
-            --container-cargo-version-file "$RUNNER_TEMP/container-cargo-version.txt" \
-            --cross-image-id "$cross_image_id" \
-            --cross-image-repo-digests "$cross_image_repo_digests" \
-            --base-image-id "$base_image_id" \
-            --base-image-repo-digests "$base_image_repo_digests" \
-            "${package_args[@]}" \
-            --root "$GITHUB_WORKSPACE" \
-            --output "$RESPIN_OUTPUT/requested-build.json"
-
-      - name: Respin the trusted parent image
+      - name: Respin the reviewed parent image
         run: |
           set -euo pipefail
           mkdir -p "$RESPIN_OUTPUT"
           output="$RESPIN_OUTPUT/octessera-$OCTESSERA_VERSION-$BOARD-derived-runtime-respin.img.xz"
-          sudo python3 tools/image-respin/disk_respin.py \
-            --board "$BOARD" \
-            --assets-directory "$PARENT_ASSETS" \
+          sudo python3 tools/image-respin/respin.py \
             --parent-record "$PARENT_RECORD" \
+            --parent-image "$PARENT_IMAGE" \
             --runtime-bundle "$RUNTIME_BUNDLE" \
             --version "$OCTESSERA_VERSION" \
-            --source-identity "$SOURCE_SHA" \
-            --boot-neutral-contract "$BOOT_NEUTRAL_CONTRACT" \
             --output "$output"
-          sudo chown "$(id -u):$(id -g)" "$output" "$output.provenance.json"
-          echo "RESPIN_ARTIFACT=$output" >> "$GITHUB_ENV"
-
-      - name: Re-run exact Orange production proof
-        run: |
-          set -euo pipefail
-          proof="$RESPIN_OUTPUT/orange-image-proof.json"
-          parent_image="$(jq -r '.image.name' "$PARENT_RECORD")"
-          sudo bash tools/armbian-image/verify-orange-image.sh \
-            --image "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT" \
-            --boot-proof-mode validated-parent \
-            --boot-neutral-contract "$BOOT_NEUTRAL_CONTRACT" \
-            --parent-image "$GITHUB_WORKSPACE/$PARENT_ASSETS/$parent_image" \
-            --parent-record "$GITHUB_WORKSPACE/$PARENT_RECORD" \
-            --respin-provenance "$GITHUB_WORKSPACE/$RESPIN_ARTIFACT.provenance.json" \
-            --derivation-kind runtime-only \
-            --output "$GITHUB_WORKSPACE/$proof"
-          sudo chown "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/$proof"
-
-      - name: Generate and validate post-proof record
-        run: |
-          set -euo pipefail
-          mapfile -t companion_names < <(jq -r '.artifact.entries[]' "$PARENT_RECORD")
-          companion_args=()
-          for asset_name in "${companion_names[@]}"; do companion_args+=(--companion "$PARENT_ASSETS/$asset_name"); done
-          orange_proof="$RESPIN_OUTPUT/orange-image-proof.json"
-          proof_output_args=(--proof-output "orange-image=$orange_proof")
-          proof_template_args=(--proof-template "orange-image=orange-production")
-          python3 tools/image-respin/workflow_records.py post-proof \
-            --root "$GITHUB_WORKSPACE" \
-            --requested-build "$RESPIN_OUTPUT/requested-build.json" \
-            --parent-record "$PARENT_RECORD" \
-            --board "$BOARD" \
-            --runtime-bundle "$RUNTIME_BUNDLE" \
-            --artifact "$RESPIN_ARTIFACT" \
-            --respin-provenance "$RESPIN_ARTIFACT.provenance.json" \
-            "${proof_output_args[@]}" \
-            "${proof_template_args[@]}" \
-            "${companion_args[@]}" \
-            --workflow .github/workflows/respin-board-image.yml \
-            --output "$RESPIN_OUTPUT/post-proof.json"
-          python3 tools/image-respin/workflow_records.py verify-post \
-            --root "$GITHUB_WORKSPACE" \
-            --record "$RESPIN_OUTPUT/post-proof.json"
-
-      - name: Generate and validate board-qualified respin checksums
-        run: |
-          set -euo pipefail
-          output_dir="$GITHUB_WORKSPACE/$RESPIN_OUTPUT"
-          artifact_name="$(basename "$RESPIN_ARTIFACT")"
-          sums_name="SHA256SUMS-$BOARD.txt"
-          record_name=post-proof.json
-          proof_names=(orange-image-proof.json)
-          (cd "$output_dir" && sha256sum requested-build.json "$record_name" "$artifact_name" "$artifact_name.provenance.json" "${proof_names[@]}" > "$sums_name" && sha256sum -c "$sums_name")
-          mapfile -t non_files < <(find "$output_dir" -mindepth 1 -maxdepth 1 ! -type f -printf '%f\n')
-          [[ "${#non_files[@]}" == 0 ]] || { echo "Respin output contains a non-file entry" >&2; exit 1; }
-          mapfile -t actual < <(find "$output_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
-          expected=(requested-build.json "$record_name" "$artifact_name" "$artifact_name.provenance.json" "${proof_names[@]}" "$sums_name")
-          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
-          [[ "${actual[*]}" == "${expected_sorted[*]}" ]] || { echo "Respin output entries are not exact" >&2; exit 1; }
+          sudo chown "$(id -u):$(id -g)" "$output"
+          (cd "$RESPIN_OUTPUT" && sha256sum "$(basename "$output")" > "SHA256SUMS-$BOARD.txt" && sha256sum -c "SHA256SUMS-$BOARD.txt")
 
       - name: Upload derived respin artifact only
         uses: actions/upload-artifact@v7

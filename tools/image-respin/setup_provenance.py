@@ -12,7 +12,7 @@ except ImportError:
 
 
 SETUP_TOOL_CODE_SCHEMA = "octessera.image-setup-finalizer-tool-code/v1"
-SETUP_TOOL_CODE_FILES = ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "disk_setup_respin.py", "boot_neutral.py")
+SETUP_TOOL_CODE_FILES = ("inventory.py", "provenance.py", "runtime_contract_schema.py", "runtime_contract.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "setup_contract_schema.py", "setup_contract.py", "setup_provenance.py", "setup_mutation.py", "setup_proof.py", "boot_neutral.py")
 
 
 def _canonical(value: object) -> bytes:

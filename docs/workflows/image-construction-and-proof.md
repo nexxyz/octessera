@@ -82,9 +82,8 @@ artifact directly:
 tools/armbian-image/inspect-built-image.sh --verification-profile full-constructor <rootfs-dir-or-ext4-image>
 ```
 
-Use `full-constructor` for source-built images. Orange runtime-only respins use
-the `validated-parent` mode and the exact current parent record; their boot
-integrity comes from the separate boot-neutral check.
+Use `full-constructor` for source-built images. Orange runtime-only respins are
+checked by `tools/image-respin/respin.py` itself (see below).
 
 ## Source-bound constructor procedure
 
@@ -116,8 +115,27 @@ Dispatch the Orange runtime-only workflow for a boot-neutral refresh:
 gh workflow run respin-board-image.yml --ref main
 ```
 
-This path does not change the kernel, device tree, initramfs, or base OS. Those
-changes require the full constructor workflow.
+The workflow downloads the parent image named in
+`resources/image-parents/orange-pi-zero-2w-current.json`, checks its sha256
+against that record, and runs `tools/image-respin/respin.py`. The respin
+installs the new runtime release, flips the `current` and binary links, and
+updates `update-state.json` and the runtime keys in `build-metadata.env`. It
+fails if the partition table, the pre-partition bytes, or any file under
+`/boot` changes, so this path cannot change the kernel, device tree,
+initramfs, or base OS. Those changes require the full constructor workflow.
+
+To try a respin locally (Linux or WSL, as root), download the parent artifact
+and run:
+
+```bash
+sudo python3 tools/image-respin/respin.py \
+  --parent-record resources/image-parents/orange-pi-zero-2w-current.json \
+  --parent-image <parent .img.xz> --runtime-bundle <runtime_bundle.py output> \
+  --version <x.y.z> --output <dir>/octessera-<x.y.z>-orange-pi-zero-2w-derived-runtime-respin.img.xz
+```
+
+The parent is a GitHub Actions artifact and expires on the date in its record;
+refresh the record from a new constructor run before then.
 
 ## Board image dispatch
 
@@ -239,13 +257,12 @@ bash tools/armbian-image/validate.sh
 python3 tools/image-respin/test_setup_contract.py
 python3 tools/armbian-image/test_orange_image_proof_validated.py
 python3 tools/image-respin/test_runtime_contract.py
-python3 tools/image-respin/test_workflow_records.py
-python3 tools/image-respin/test_workflow_static.py
 node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 ```
 
 Root-required mutation and disk fixtures run in CI as
-`sudo python3 tools/image-respin/test_setup_mutation.py` and
+`sudo python3 tools/image-respin/test_respin.py`,
+`sudo python3 tools/image-respin/test_setup_mutation.py`, and
 `sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
 The current-parent exercise is the Orange runtime-only path for boot-neutral
 updates. It does not replace a constructor image or a hardware test.

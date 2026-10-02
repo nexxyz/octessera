@@ -15,7 +15,7 @@ PROOF_SCHEMA = "octessera.image-mutation-provenance.v2"
 TOOL_IDENTITY = "octessera-image-respin-runtime-mutation/1"
 RUNTIME_TOOL_IDENTITY = "octessera-image-respin-runtime-mutation/2"
 TOOL_CODE_SCHEMA = "octessera-image-respin-tool-code/v1"
-TOOL_CODE_FILES = ("inventory.py", "provenance.py", "current_parent.py", "runtime_bundle.py", "runtime_contract.py", "runtime_contract_schema.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "disk_provenance.py", "disk_respin.py", "boot_neutral.py")
+TOOL_CODE_FILES = ("inventory.py", "provenance.py", "current_parent.py", "runtime_bundle.py", "runtime_contract.py", "runtime_contract_schema.py", "runtime_payload.py", "runtime_transaction.py", "runtime_mutation.py", "disk_layout.py", "disk_mount.py", "disk_packaging.py", "boot_neutral.py")
 TOOL_CODE_EXTERNAL_FILES = ("tools/armbian-image/orange_boot_contract.py", "tools/armbian-image/orange_boot_inventory.py", "tools/armbian-image/orange_boot_selection.py", "tools/armbian-image/orange_image_mount.py", "tools/armbian-image/orange_trusted_parent_proof.py", "tools/armbian-image/verify-orange-image.py", "tools/armbian-image/verify-orange-image.sh", "tools/armbian-image/verify_runtime_account.py", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "resources/image-derivations/boot-neutral/orange-pi-zero-2w-v0.8.1.json")
 
 
