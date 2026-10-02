@@ -77,9 +77,9 @@ class RuntimeBundleTests(unittest.TestCase):
                 create_bundle(root / "linked", BOARDS[0], "1.2.3", root / "linked-bundle")
             (output / "extra").write_bytes(b"extra")
             with self.assertRaises(RuntimeBundleError):
-                from runtime_bundle import _validate_bundle
+                from runtime_bundle import validate_bundle
 
-                _validate_bundle(output, "1.2.3", BOARDS[0], metadata_hash(output))
+                validate_bundle(output, "1.2.3", BOARDS[0], metadata_hash(output))
 
 
 def metadata_hash(bundle: Path) -> str:
