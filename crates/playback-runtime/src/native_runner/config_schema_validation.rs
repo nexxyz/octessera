@@ -11,6 +11,7 @@ mod modulation;
 mod orchestration;
 mod scalar;
 
+pub use mixer_fx::is_valid_fx_string_param;
 pub(super) use modulation::validate_canonical_lfo_bank_shape;
 
 pub(super) fn validate_config_payload(payload: &Value) -> Result<(), String> {

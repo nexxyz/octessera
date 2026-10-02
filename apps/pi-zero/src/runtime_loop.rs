@@ -109,6 +109,9 @@ pub fn latest_snapshot(playback: &PlaybackRuntime) -> Option<&Value> {
 }
 
 #[cfg(test)]
+#[path = "runtime_loop_duck_slot_tests.rs"]
+mod duck_slot_tests;
+#[cfg(test)]
 #[path = "runtime_loop_native_autosave_tests.rs"]
 mod native_autosave_tests;
 

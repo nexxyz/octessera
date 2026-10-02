@@ -252,7 +252,7 @@ impl DesktopPlaybackHostAdapter {
                 validate_bus_index(*bus_index)?;
                 validate_bus_slot(*slot_index)?;
                 validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-                validate_param_values(params)?;
+                validate_param_values(fx_type, params)?;
                 prep_result(
                     self.audio.audio_control.enqueue_fx_bus_slot(
                         *bus_index,
@@ -272,7 +272,7 @@ impl DesktopPlaybackHostAdapter {
             } => {
                 validate_global_slot(*slot_index)?;
                 validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-                validate_param_values(params)?;
+                validate_param_values(fx_type, params)?;
                 prep_result(
                     self.audio.audio_control.enqueue_global_fx_slot(
                         *slot_index,
@@ -440,8 +440,20 @@ fn ensure_optional_finite(value: Option<f32>, name: &str) -> Result<(), RuntimeA
     value.map_or(Ok(()), |value| ensure_finite(value, name))
 }
 
-fn validate_param_values(params: &BTreeMap<String, Value>) -> Result<(), RuntimeAdapterError> {
+fn validate_param_values(
+    fx_type: &str,
+    params: &BTreeMap<String, Value>,
+) -> Result<(), RuntimeAdapterError> {
     params.iter().try_for_each(|(key, value)| {
+        if let Some(text) = value.as_str() {
+            return playback_runtime::is_valid_fx_string_param(fx_type, key, text)
+                .then_some(())
+                .ok_or_else(|| {
+                    invalid_audio_command(format!(
+                        "FX parameter `{key}` is not valid for {fx_type}"
+                    ))
+                });
+        }
         let finite = value
             .as_f64()
             .map(|value| (value as f32).is_finite())

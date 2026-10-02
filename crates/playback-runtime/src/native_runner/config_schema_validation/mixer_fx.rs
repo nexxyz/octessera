@@ -115,6 +115,14 @@ fn validate_fx_slot_value(
     Ok(())
 }
 
+pub fn is_valid_fx_string_param(fx_type: &str, key: &str, value: &str) -> bool {
+    match (fx_type, key) {
+        ("duck", "source") => valid_duck_source(Some(value)),
+        ("duck", "sourceTap") => matches!(value, "pre" | "post"),
+        _ => false,
+    }
+}
+
 fn valid_duck_source(source: Option<&str>) -> bool {
     let Some(source) = source else {
         return false;

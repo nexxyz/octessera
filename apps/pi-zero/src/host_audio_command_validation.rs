@@ -95,7 +95,7 @@ pub(super) fn validate_audio_command(
         } => {
             validate_fx_bus_slot(*bus_index, *slot_index)?;
             validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-            validate_params(params)?;
+            validate_params(fx_type, params)?;
         }
         RuntimeAudioCommand::SetGlobalFxSlot {
             slot_index,
@@ -105,7 +105,7 @@ pub(super) fn validate_audio_command(
         } => {
             validate_global_fx_slot(*slot_index)?;
             validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-            validate_params(params)?;
+            validate_params(fx_type, params)?;
         }
         RuntimeAudioCommand::MomentaryFxStart {
             fx_type,
@@ -114,10 +114,10 @@ pub(super) fn validate_audio_command(
             ..
         } => {
             validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
-            validate_params(params)?;
+            validate_params(fx_type, params)?;
             validate_momentary_target(target)?;
         }
-        RuntimeAudioCommand::MomentaryFxUpdate { params, .. } => validate_params(params)?,
+        RuntimeAudioCommand::MomentaryFxUpdate { params, .. } => validate_params("", params)?,
         RuntimeAudioCommand::SetMasterVolume { volume_pct, .. } => {
             ensure_finite(*volume_pct, "master volume")?;
         }
@@ -213,9 +213,18 @@ fn ensure_finite(value: f32, label: &str) -> Result<(), RuntimeAdapterError> {
 }
 
 fn validate_params(
+    fx_type: &str,
     params: &std::collections::BTreeMap<String, serde_json::Value>,
 ) -> Result<(), RuntimeAdapterError> {
     for (key, value) in params {
+        if let Some(text) = value.as_str() {
+            if playback_runtime::is_valid_fx_string_param(fx_type, key, text) {
+                continue;
+            }
+            return Err(invalid_audio_command(format!(
+                "FX parameter `{key}` is not valid for {fx_type}"
+            )));
+        }
         if !value
             .as_f64()
             .map(|number| (number as f32).is_finite())
