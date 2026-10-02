@@ -112,6 +112,8 @@ mod raspberry_autoaux;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod raspberry_native_scene;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod raspberry_runtime;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_device_apply;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
@@ -119,8 +121,6 @@ mod rpi_oled_handoff_runtime;
 mod runtime_loop;
 #[cfg(feature = "native-audio")]
 mod runtime_output;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod runtime_thread;
 mod sample_browser;
 mod setup_portal;
 mod setup_portal_files;
@@ -394,7 +394,7 @@ fn main() {
 
     let samples_dir = default_samples_dir();
     ensure_runtime_dirs(&store_dir, &samples_dir);
-    let runtime_config = runtime_thread::RuntimeThreadConfig {
+    let runtime_config = raspberry_runtime::RaspberryRuntimeConfig {
         audio: audio.as_ref().map(AudioManager::service),
         store_dir,
         samples_dir,
@@ -424,10 +424,7 @@ fn main() {
             oled_handoff: None,
             hdmi,
         });
-        let runtime = runtime_thread::spawn(runtime_config, render_worker);
-        if runtime.join().is_err() {
-            eprintln!("pi runtime thread panicked");
-        }
+        raspberry_runtime::run(runtime_config, render_worker);
     }
 }
 

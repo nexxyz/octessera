@@ -3,11 +3,11 @@ use crate::seesaw_io::SeesawCommand;
 use octessera_hal::OledSsd1351;
 
 pub(crate) fn run(
-    runtime_config: runtime_thread::RuntimeThreadConfig,
+    runtime_config: raspberry_runtime::RaspberryRuntimeConfig,
     seesaw_tx: mpsc::Sender<SeesawCommand>,
     hdmi: render::hdmi::HdmiFramebuffer,
 ) {
-    let mut prepared = match runtime_thread::prepare(runtime_config) {
+    let mut prepared = match raspberry_runtime::prepare(runtime_config) {
         Ok(prepared) => prepared,
         Err(error) => {
             eprintln!("pi runtime preparation failed: {error}");
@@ -58,8 +58,5 @@ pub(crate) fn run(
         eprintln!("pi candidate readiness publication failed: {error}");
         return;
     }
-    let runtime = prepared.spawn_after_initial(render_worker, revision);
-    if runtime.join().is_err() {
-        eprintln!("pi runtime thread panicked");
-    }
+    prepared.run_after_initial(render_worker, revision);
 }
