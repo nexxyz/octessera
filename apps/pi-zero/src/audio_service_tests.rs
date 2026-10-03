@@ -66,8 +66,7 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
             velocity: 100,
         })
         .unwrap();
-    let replay = audio.replay_events.lock().unwrap();
-    let events = crate::audio_replay::collect_replay_events(&replay);
+    let events = audio.engine.replay_events();
     assert!(events.iter().any(|event| matches!(event,
         EngineEvent::SetFmParam {
             instrument_slot: 0, generation: 42, param: FmParamId::Index, value,
@@ -105,9 +104,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
     let (control_tx, _control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
     let service = AudioService {
-        realtime_txs: Arc::new(Mutex::new(Vec::new())),
-        replay_events: Arc::new(Mutex::new(ReplayCache::default())),
-        attach_gate: crate::audio_sink_registry::new_attach_gate(),
+        engine: crate::audio_engine_owner::AudioEngineOwner::new(Default::default()),
         control_tx,
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -138,9 +135,7 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
     let (control_tx, control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
     let service = AudioService {
-        realtime_txs: Arc::new(Mutex::new(Vec::new())),
-        replay_events: Arc::new(Mutex::new(ReplayCache::default())),
-        attach_gate: crate::audio_sink_registry::new_attach_gate(),
+        engine: crate::audio_engine_owner::AudioEngineOwner::new(Default::default()),
         control_tx,
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -200,9 +195,7 @@ pub(crate) fn test_service_with_recording_dir(
     let (control_tx, control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
     let service = AudioService {
-        realtime_txs: Arc::new(Mutex::new(vec![test_sink_sender(event_tx)])),
-        replay_events: Arc::new(Mutex::new(ReplayCache::default())),
-        attach_gate: crate::audio_sink_registry::new_attach_gate(),
+        engine: crate::audio_engine_owner::AudioEngineOwner::attached(event_tx),
         control_tx,
         config_revision: Arc::new(AtomicU64::new(0)),
         sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),

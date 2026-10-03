@@ -2,16 +2,13 @@ use super::audio_output_open::open_orange_audio_sink_with_health;
 use super::audio_output_open::OpenedAudioSink;
 use super::audio_profile::OrangeAudioProfile;
 use super::{AudioSink, OrangeDacStatus, RecordingTapState};
-use crate::audio_replay::ReplayCache;
+use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_route::RouteOpenError;
-use crate::audio_sink_registry::{
-    attach_sink_atomic, remove_sink_atomic, AudioAttachGate, SinkSender,
-};
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
 use rodio_engine_source::{
     AudioLoadStatusSender, PcmMirrorConsumer, PcmMirrorProducer, PcmMirrorProducers,
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const ORANGE_RECOVERY_RETRY_INTERVAL: Duration = Duration::from_millis(50);
@@ -81,9 +78,7 @@ pub(super) struct OrangeRecoveryController {
     current: Option<OpenedAudioSink>,
     phase: OrangeRecoveryPhase,
     profile: OrangeAudioProfile,
-    realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-    replay_events: Arc<Mutex<ReplayCache>>,
-    attach_gate: AudioAttachGate,
+    engine: AudioEngineOwner,
     recording_tap: Option<RecordingTapState>,
     mirror_producer: Option<PcmMirrorProducer>,
     mirror_producers: PcmMirrorProducers,
@@ -93,9 +88,7 @@ pub(super) struct OrangeRecoveryController {
 
 pub(super) struct OrangeRecoveryDependencies {
     pub(super) profile: OrangeAudioProfile,
-    pub(super) realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-    pub(super) replay_events: Arc<Mutex<ReplayCache>>,
-    pub(super) attach_gate: AudioAttachGate,
+    pub(super) engine: AudioEngineOwner,
     pub(super) recording_tap: Option<RecordingTapState>,
     pub(super) mirror_producer: Option<PcmMirrorProducer>,
     pub(super) mirror_producers: PcmMirrorProducers,
@@ -106,17 +99,13 @@ pub(super) struct OrangeRecoveryDependencies {
 impl OrangeRecoveryDependencies {
     fn production(
         profile: OrangeAudioProfile,
-        realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-        replay_events: Arc<Mutex<ReplayCache>>,
+        engine: AudioEngineOwner,
         recording_tap: Option<RecordingTapState>,
-        attach_gate: AudioAttachGate,
         mirror_producers: PcmMirrorProducers,
     ) -> Self {
         Self {
             profile,
-            realtime_txs,
-            replay_events,
-            attach_gate,
+            engine,
             recording_tap,
             mirror_producer: None,
             mirror_producers,
@@ -133,10 +122,8 @@ impl OrangeRecoveryController {
     pub(super) fn new_required(
         initial: OpenedAudioSink,
         profile: OrangeAudioProfile,
-        realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-        replay_events: Arc<Mutex<ReplayCache>>,
+        engine: AudioEngineOwner,
         recording_tap: Option<RecordingTapState>,
-        attach_gate: AudioAttachGate,
         mirror_producers: PcmMirrorProducers,
     ) -> Result<Self, String> {
         let controller = Self::new_with_dependencies(
@@ -147,18 +134,12 @@ impl OrangeRecoveryController {
             OrangeRecoveryPhase::Healthy,
             OrangeRecoveryDependencies::production(
                 profile,
-                realtime_txs,
-                replay_events,
+                engine,
                 recording_tap,
-                attach_gate,
                 mirror_producers,
             ),
         );
-        attach_sink_atomic(
-            &controller.attach_gate,
-            &controller.realtime_txs,
-            &controller.replay_events,
-            AudioSink::Jack,
+        controller.engine.attach(
             controller
                 .current
                 .as_ref()
@@ -174,9 +155,7 @@ impl OrangeRecoveryController {
     pub(super) fn new_optional_missing(
         sink: AudioSink,
         profile: OrangeAudioProfile,
-        realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-        replay_events: Arc<Mutex<ReplayCache>>,
-        attach_gate: AudioAttachGate,
+        engine: AudioEngineOwner,
         mirror_producer: PcmMirrorProducer,
     ) -> Self {
         let clock = system_clock();
@@ -192,9 +171,7 @@ impl OrangeRecoveryController {
             },
             OrangeRecoveryDependencies {
                 profile,
-                realtime_txs,
-                replay_events,
-                attach_gate,
+                engine,
                 recording_tap: None,
                 mirror_producer: Some(mirror_producer),
                 mirror_producers: [None, None],
@@ -208,9 +185,7 @@ impl OrangeRecoveryController {
         sink: AudioSink,
         initial: OpenedAudioSink,
         profile: OrangeAudioProfile,
-        realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-        replay_events: Arc<Mutex<ReplayCache>>,
-        attach_gate: AudioAttachGate,
+        engine: AudioEngineOwner,
         mirror_producer: PcmMirrorProducer,
     ) -> Result<Self, String> {
         let controller = Self::new_with_dependencies(
@@ -221,9 +196,7 @@ impl OrangeRecoveryController {
             OrangeRecoveryPhase::Healthy,
             OrangeRecoveryDependencies {
                 profile,
-                realtime_txs,
-                replay_events,
-                attach_gate,
+                engine,
                 recording_tap: None,
                 mirror_producer: Some(mirror_producer),
                 mirror_producers: [None, None],
@@ -263,9 +236,7 @@ impl OrangeRecoveryController {
     ) -> Self {
         let OrangeRecoveryDependencies {
             profile,
-            realtime_txs,
-            replay_events,
-            attach_gate,
+            engine,
             recording_tap,
             mirror_producer,
             mirror_producers,
@@ -279,9 +250,7 @@ impl OrangeRecoveryController {
             current,
             phase,
             profile,
-            realtime_txs,
-            replay_events,
-            attach_gate,
+            engine,
             recording_tap,
             mirror_producer,
             mirror_producers,
@@ -294,8 +263,7 @@ impl OrangeRecoveryController {
     pub(super) fn new_optional_missing_with_dependencies(
         sink: AudioSink,
         profile: OrangeAudioProfile,
-        realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-        replay_events: Arc<Mutex<ReplayCache>>,
+        engine: AudioEngineOwner,
         opener: OrangeRecoveryOpener,
         clock: OrangeRecoveryClock,
         mirror_producer: Option<PcmMirrorProducer>,
@@ -312,9 +280,7 @@ impl OrangeRecoveryController {
             },
             OrangeRecoveryDependencies {
                 profile,
-                realtime_txs,
-                replay_events,
-                attach_gate: crate::audio_sink_registry::new_attach_gate(),
+                engine,
                 recording_tap: None,
                 mirror_producer,
                 mirror_producers: [None, None],
@@ -428,13 +394,7 @@ impl OrangeRecoveryController {
                 drop(opened);
                 return OrangeRecoveryPhase::Terminal;
             };
-            if let Err(error) = attach_sink_atomic(
-                &self.attach_gate,
-                &self.realtime_txs,
-                &self.replay_events,
-                self.sink,
-                engine_tx.clone(),
-            ) {
+            if let Err(error) = self.engine.attach(engine_tx.clone()) {
                 eprintln!("Orange {:?} recovery replay failed: {error}", self.sink);
                 self.health.mark_terminal();
                 drop(opened);
@@ -473,7 +433,7 @@ impl OrangeRecoveryController {
 
     fn detach_current(&mut self) {
         if self.mode == OrangeRecoveryMode::Required {
-            let _ = remove_sink_atomic(&self.attach_gate, &self.realtime_txs, self.sink);
+            self.engine.detach();
         }
         drop(self.current.take());
     }

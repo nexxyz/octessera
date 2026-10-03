@@ -2,7 +2,6 @@ use super::audio_output_open::{AudioConstructionConfig, OpenedAudioSink};
 use super::audio_profile::OrangeAudioProfile;
 use super::{AudioManager, AudioOpenPolicy, AudioSink};
 use crate::audio_route::{self, AudioRouteStatus, RouteOpenError};
-use crate::audio_sink_registry::new_attach_gate;
 use crate::audio_stream_health::AudioStreamHealth;
 use playback_runtime::AudioOptimization;
 use rodio_engine_source::event_queue;
@@ -23,7 +22,6 @@ fn orange_optional_terminal_startup_failures_do_not_block_jack() {
         AudioOpenPolicy::Outputs(outputs),
         terminal_failure_opener,
         audio_route::new_registry(outputs),
-        new_attach_gate(),
     )
     .unwrap();
 

@@ -4,9 +4,9 @@ use super::orange_audio_recovery::{
     OrangeRecoveryClock, OrangeRecoveryController, OrangeRecoveryDependencies, OrangeRecoveryOpener,
 };
 use super::AudioSink;
+use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_replay::ReplayCache;
 use crate::audio_route::RouteOpenError;
-use crate::audio_sink_registry::{has_sink, new_attach_gate, register_sink};
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
 use realtime_engine::synth::{
     default_synth_config, prepare_instrument_slot_config, InstrumentSlotConfig, SampleBankConfig,
@@ -47,8 +47,7 @@ fn opened(
 #[test]
 fn worker_terminal_stays_separate_from_orange_route_recovery() {
     let (jack_tx, _jack_rx) = event_queue();
-    let jack_sinks = Arc::new(Mutex::new(Vec::new()));
-    register_sink(&jack_sinks, AudioSink::Jack, jack_tx.clone());
+    let jack_engine = AudioEngineOwner::new(ReplayCache::default());
     let jack_health = AudioStreamHealth::new("Jack".into());
     let (jack_opener, jack_calls) = opener_with_calls();
     let mut jack_controller = OrangeRecoveryController::new_initial_with_dependencies(
@@ -59,9 +58,7 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
             profile: OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Capacity,
             ),
-            realtime_txs: jack_sinks.clone(),
-            replay_events: Arc::new(Mutex::new(ReplayCache::default())),
-            attach_gate: new_attach_gate(),
+            engine: jack_engine.clone(),
             recording_tap: None,
             mirror_producer: None,
             mirror_producers: [None, None],
@@ -80,7 +77,7 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     assert_eq!(jack_health.external_status(), AudioStreamStatus::Healthy);
     assert_eq!(jack_health.runtime_status(), AudioStreamStatus::Healthy);
     assert_eq!(jack_health.worker_health(), SourceWorkerHealth::Healthy);
-    assert!(has_sink(&jack_sinks, AudioSink::Jack));
+    assert!(jack_engine.is_attached());
 
     jack_health.mark_worker_health(SourceWorkerHealth::CompletionFailed);
     jack_controller.recover_if_due();
@@ -90,7 +87,7 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
         jack_controller.runtime_status(),
         AudioStreamStatus::Terminal
     );
-    assert!(has_sink(&jack_sinks, AudioSink::Jack));
+    assert!(jack_engine.is_attached());
 
     let usb_health = AudioStreamHealth::optional("USB".into());
     let (usb_opener, usb_calls) = opener_with_calls();
@@ -108,9 +105,7 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
             profile: OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Capacity,
             ),
-            realtime_txs: Arc::new(Mutex::new(Vec::new())),
-            replay_events: Arc::new(Mutex::new(ReplayCache::default())),
-            attach_gate: new_attach_gate(),
+            engine: AudioEngineOwner::new(ReplayCache::default()),
             recording_tap: None,
             mirror_producer: Some(usb_mirror.producer),
             mirror_producers: [None, None],
@@ -160,9 +155,7 @@ fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
             profile: OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Capacity,
             ),
-            realtime_txs: Arc::new(Mutex::new(Vec::new())),
-            replay_events: Arc::new(Mutex::new(ReplayCache::default())),
-            attach_gate: new_attach_gate(),
+            engine: AudioEngineOwner::new(ReplayCache::default()),
             recording_tap: None,
             mirror_producer: None,
             mirror_producers: [None, None],
@@ -198,9 +191,7 @@ fn optional_initial_mirror_does_not_require_an_event_sink_registration() {
             profile: OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Capacity,
             ),
-            realtime_txs: Arc::new(Mutex::new(Vec::new())),
-            replay_events: Arc::new(Mutex::new(ReplayCache::default())),
-            attach_gate: new_attach_gate(),
+            engine: AudioEngineOwner::new(ReplayCache::default()),
             recording_tap: None,
             mirror_producer: Some(pair.producer),
             mirror_producers: [None, None],
@@ -267,7 +258,6 @@ fn required_recovery_replays_preserved_sample_bank_before_synth_owner() {
     let now = Arc::new(Mutex::new(Instant::now()));
     let clock_now = now.clone();
     let clock: OrangeRecoveryClock = Arc::new(move || *clock_now.lock().unwrap());
-    let realtime_txs = Arc::new(Mutex::new(Vec::new()));
     let initial = opened(initial_tx, health.clone());
     let mut controller = OrangeRecoveryController::new_initial_with_dependencies(
         AudioSink::Jack,
@@ -277,9 +267,7 @@ fn required_recovery_replays_preserved_sample_bank_before_synth_owner() {
             profile: OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Capacity,
             ),
-            realtime_txs,
-            replay_events: Arc::new(Mutex::new(replay)),
-            attach_gate: new_attach_gate(),
+            engine: AudioEngineOwner::new(replay),
             recording_tap: None,
             mirror_producer: None,
             mirror_producers: [None, None],

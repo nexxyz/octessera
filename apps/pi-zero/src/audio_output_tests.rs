@@ -1,7 +1,7 @@
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use crate::audio_replay::ReplayCache;
+use crate::audio_engine_owner::AudioEngineOwner;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use crate::audio_sink_registry::{has_sink, register_sink};
+use crate::audio_replay::ReplayCache;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use media_recording::RecorderService;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -236,22 +236,20 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
     let clock: super::orange_audio_recovery::OrangeRecoveryClock =
         Arc::new(move || *clock_now.lock().unwrap());
     let (dac_tx, _dac_rx) = event_queue();
-    let sinks = Arc::new(Mutex::new(Vec::new()));
-    register_sink(&sinks, super::AudioSink::Jack, dac_tx);
     let mut replay = ReplayCache::default();
     replay.remember(&EngineEvent::SetMasterVolume {
         generation: 0,
         volume_pct: 72.0,
     });
-    let replay_events = Arc::new(Mutex::new(replay));
+    let engine = AudioEngineOwner::new(replay);
+    engine.attach(dac_tx).unwrap();
     let mut controller = super::orange_audio_recovery::OrangeRecoveryController::
         new_optional_missing_with_dependencies(
             super::AudioSink::Usb,
             super::audio_profile::OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Latency,
             ),
-            sinks.clone(),
-            replay_events,
+            engine.clone(),
             opener,
             clock,
             Some(rodio_engine_source::new_pcm_mirror().producer),
@@ -272,14 +270,7 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
     );
     assert_eq!(tap_seen.lock().unwrap().as_slice(), &[false; 4]);
     assert_eq!(mirror_seen.lock().unwrap().as_slice(), &[true; 4]);
-    let registered = sinks.lock().unwrap();
-    assert!(registered
-        .iter()
-        .any(|entry| entry.sink == super::AudioSink::Jack));
-    assert!(!registered
-        .iter()
-        .any(|entry| entry.sink == super::AudioSink::Usb));
-    drop(registered);
+    assert!(engine.is_attached());
     let receiver = replay_receiver.lock().unwrap().take().unwrap();
     let mut receiver = receiver.lock().unwrap();
     assert!(receiver.try_recv().is_err());
@@ -306,8 +297,7 @@ fn orange_optional_terminal_open_failure_is_attempted_once() {
             super::audio_profile::OrangeAudioProfile::from_optimization(
                 playback_runtime::AudioOptimization::Latency,
             ),
-            Arc::new(Mutex::new(Vec::new())),
-            Arc::new(Mutex::new(ReplayCache::default())),
+            AudioEngineOwner::new(ReplayCache::default()),
             opener,
             clock,
             None,
@@ -325,8 +315,7 @@ fn orange_optional_terminal_open_failure_is_attempted_once() {
 #[test]
 fn orange_required_controller_detaches_after_device_loss_without_opening_hardware() {
     let (tx, _rx) = event_queue();
-    let sinks = Arc::new(Mutex::new(Vec::new()));
-    register_sink(&sinks, super::AudioSink::Jack, tx.clone());
+    let engine = AudioEngineOwner::new(ReplayCache::default());
     let health = crate::audio_stream_health::AudioStreamHealth::new("Jack".into());
     let initial = crate::audio::audio_output::audio_output_open::OpenedAudioSink {
         engine_tx: Some(tx),
@@ -334,17 +323,13 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
         health: health.clone(),
         _test_engine_rx: None,
     };
-    let replay_events = Arc::new(Mutex::new(ReplayCache::default()));
-    let attach_gate = crate::audio_sink_registry::new_attach_gate();
     let mut controller = super::orange_audio_recovery::OrangeRecoveryController::new_required(
         initial,
         super::audio_profile::OrangeAudioProfile::from_optimization(
             playback_runtime::AudioOptimization::Latency,
         ),
-        sinks.clone(),
-        replay_events,
+        engine.clone(),
         None,
-        attach_gate,
         [None, None],
     )
     .unwrap();
@@ -353,7 +338,7 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
     controller.recover_if_due();
 
     assert_eq!(controller.device_status(), super::OrangeDacStatus::Terminal);
-    assert!(!has_sink(&sinks, super::AudioSink::Jack));
+    assert!(!engine.is_attached());
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -376,7 +361,6 @@ fn orange_multiple_selected_routes_open_one_recording_tap_owner() {
         super::AudioOpenPolicy::Outputs(outputs),
         orange_test_opener,
         crate::audio_route::new_registry(outputs),
-        crate::audio_sink_registry::new_attach_gate(),
     )
     .unwrap();
 

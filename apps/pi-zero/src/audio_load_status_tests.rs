@@ -3,7 +3,6 @@ use super::audio_output_open::OpenedAudioSink;
 use super::audio_profile::OrangeAudioProfile;
 use super::{AudioManager, AudioOpenPolicy, AudioSink};
 use crate::audio_route::new_registry;
-use crate::audio_sink_registry::new_attach_gate;
 use crate::audio_stream_health::AudioStreamHealth;
 use crate::orange_host_adapter::OrangeHostAdapter;
 use playback_runtime::{
@@ -28,7 +27,6 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
         AudioOpenPolicy::Outputs(outputs),
         test_opener,
         new_registry(outputs),
-        new_attach_gate(),
     )
     .unwrap();
     let (mut playback, mut runner, mut host, root) = runtime_with_snapshot(manager.service());
@@ -93,7 +91,6 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
         AudioOpenPolicy::Outputs(outputs),
         test_opener,
         new_registry(outputs),
-        new_attach_gate(),
     )
     .unwrap();
     let (mut playback, mut runner, mut host, root) = runtime_with_snapshot(manager.service());
