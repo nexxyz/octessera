@@ -466,6 +466,11 @@ pub(crate) use dsp_worker_scheduling::benchmark_worker_start_hook;
     feature = "hardware-raspberry-pi-zero-2w"
 ))]
 pub(crate) use dsp_worker_scheduling::pi_worker_start_hook;
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+pub(crate) use dsp_worker_scheduling::pin_audio_prep_worker;
 #[cfg(test)]
 pub(crate) use dsp_worker_scheduling::{ORANGE_WORKER_CPUS, ORANGE_WORKER_PRIORITY};
 #[cfg(feature = "source-worker-benchmark-timing")]

@@ -31,3 +31,32 @@ pub(crate) fn benchmark_worker_start_hook(parity: usize) -> Result<(), ()> {
 pub(crate) fn pi_worker_start_hook(parity: usize) -> Result<(), ()> {
     benchmark_worker_start_hook(parity)
 }
+
+// Bulk sample decoding on CPU0 delays the audio interrupt's wakeup of the
+// callback; keep it on the DSP cores, where the realtime workers preempt it.
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+pub(crate) fn pin_audio_prep_worker() {
+    #[cfg(all(not(test), target_os = "linux"))]
+    {
+        let mut mask = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
+        for cpu in DSP_WORKER_CPUS {
+            unsafe { libc::CPU_SET(cpu, &mut mask) };
+        }
+        let result = unsafe {
+            libc::pthread_setaffinity_np(
+                libc::pthread_self(),
+                std::mem::size_of::<libc::cpu_set_t>(),
+                &mask,
+            )
+        };
+        if result != 0 {
+            eprintln!(
+                "audio prep worker affinity failed: {}",
+                std::io::Error::from_raw_os_error(result)
+            );
+        }
+    }
+}
