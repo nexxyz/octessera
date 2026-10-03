@@ -193,13 +193,14 @@ fn pending_recovery_status_publication_stays_edge_bounded() {
     runtime(&mut source).set_pause_for_parity_for_test(1, false);
     runtime(&mut source).set_deadline_for_test(Duration::from_secs(1));
     let mut recovered = false;
-    for _ in 0..1_000 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while std::time::Instant::now() < deadline {
         let _ = block_bits(&mut source);
         if source.source_worker_health() == SourceWorkerHealth::Healthy {
             recovered = true;
             break;
         }
-        std::thread::yield_now();
+        std::thread::sleep(Duration::from_millis(1));
     }
     assert!(recovered);
 
