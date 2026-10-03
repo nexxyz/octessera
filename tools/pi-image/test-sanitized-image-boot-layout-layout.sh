@@ -65,6 +65,9 @@ if [ "$(id -u)" -eq 0 ]; then
     for unit in serial0 ttyAMA0 ttyS0; do
         ln -s /dev/null "$fixture/root/etc/systemd/system/serial-getty@$unit.service"
     done
+    mkdir -p "$fixture/root/etc/systemd/system/bluetooth.target.wants" "$fixture/root/etc/bluetooth"
+    ln -s /lib/systemd/system/bluetooth.service "$fixture/root/etc/systemd/system/bluetooth.target.wants/bluetooth.service"
+    printf '%s\n' '[Policy]' 'AutoEnable=false' > "$fixture/root/etc/bluetooth/main.conf"
     printf '%s\n' 'stale user rename configuration' > "$fixture/root/etc/ssh/sshd_config.d/rename_user.conf"
     ln -s ../userconfig.service "$fixture/root/etc/systemd/system/multi-user.target.wants/userconfig.service"
     printf '%s\n' '[Service]' > "$fixture/root/etc/systemd/system/userconfig.service.d/local.conf"
@@ -239,13 +242,13 @@ if [ "$(id -u)" -eq 0 ]; then
     rm "$fixture/boot/config.txt"
     write_constructor_fat_pair
 
-    printf '%s\n' '# octessera hardware configuration' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' > "$fixture/boot/config.txt"
+    printf '%s\n' '# octessera hardware configuration' '[all]' 'enable_uart=0' > "$fixture/boot/config.txt"
     mkdir -p "$fixture/root/boot/firmware"
     printf '%s\n' '# --- octessera additions ---' > "$fixture/root/boot/firmware/config.txt"
     expect_boot_config_failure 'Boot config accepted a hidden marker for a marker-less FAT config.'
     expect_constructor_identity_failure 'Constructor identity accepted a marker-less FAT config with hidden firmware content.'
     rm -rf "$fixture/root/boot/firmware"
-    printf '%s\n' '# octessera hardware configuration' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' > "$fixture/boot/config.txt"
+    printf '%s\n' '# octessera hardware configuration' '[all]' 'enable_uart=0' > "$fixture/boot/config.txt"
     expect_boot_config_failure 'Boot config accepted a marker-less FAT config.'
     write_constructor_fat_pair
 

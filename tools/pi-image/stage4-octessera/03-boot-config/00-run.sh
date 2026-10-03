@@ -58,7 +58,10 @@ if [[ "$(grep -oE '(^|[[:space:]])console=tty1([[:space:]]|$)' "$cmdline" | wc -
     echo "Raspberry Pi kernel command line must contain exactly one console=tty1 token." >&2
     exit 1
 fi
-grep -qxF 'dtoverlay=disable-bt' "$BOOT_DIR/config.txt"
+if grep -qxF 'dtoverlay=disable-bt' "$BOOT_DIR/config.txt"; then
+    echo "Raspberry Bluetooth must not be disabled in config.txt." >&2
+    exit 1
+fi
 grep -qxF 'enable_uart=0' "$BOOT_DIR/config.txt"
 
 install -d "$BOOT_DIR/octessera/overlays"

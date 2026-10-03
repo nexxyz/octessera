@@ -40,7 +40,8 @@ rm -f /run/octessera/setup-portal.request /run/octessera-setup-request/inbox/sta
 rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-status /run/octessera-setup-queue /run/octessera-setup-request
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc
+apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc bluez
+sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' /etc/bluetooth/main.conf
 octessera_load_image_contract "$overlay_dir"
 if [[ "$OCTESSERA_IMAGE_MODE" == production && ( -n "${OCTESSERA_PAYLOAD_URL:-}" || -n "${OCTESSERA_PAYLOAD_SHA256:-}" ) ]]; then
   echo "Production Orange images do not accept payload URLs or payload hashes." >&2

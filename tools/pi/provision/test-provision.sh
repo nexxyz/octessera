@@ -153,11 +153,12 @@ chmod +x "$FAKE_BIN"/*
 
 new_fixture() {
   FIXTURE="$TMP/fixture-$RANDOM"
-  mkdir -p "$FIXTURE/boot/firmware" "$FIXTURE/home/pi/presets" "$FIXTURE/etc/octessera"
+  mkdir -p "$FIXTURE/boot/firmware" "$FIXTURE/home/pi/presets" "$FIXTURE/etc/octessera" "$FIXTURE/etc/bluetooth"
   printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$FIXTURE/home/pi/presets/system.json"
   printf '%s\n' '{"kind":"octessera.patch","schemaVersion":2,"runtimeConfig":{}}' > "$FIXTURE/home/pi/presets/default.patch.json"
   printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'input:x:104:' > "$FIXTURE/etc/group"
-  printf '# fixture boot config\narm_64bit=1\n' > "$FIXTURE/boot/firmware/config.txt"
+  printf '# fixture boot config\narm_64bit=1\ndtoverlay=disable-bt\n' > "$FIXTURE/boot/firmware/config.txt"
+  printf '[Policy]\nAutoEnable=true\n' > "$FIXTURE/etc/bluetooth/main.conf"
   printf 'console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet\n' \
     > "$FIXTURE/boot/firmware/cmdline.txt"
   export FAKE_STATE="$TMP/state-$RANDOM"
@@ -223,7 +224,7 @@ assert_file() {
 
 assert_mode() {
   local label="$1" path="$2" mode="$3" actual
-  actual="$(stat -c '%a' "$path")"
+  actual="$(stat -c '%a' "$path" 2>/dev/null || echo missing)"
   if [ "$actual" != "$mode" ]; then
     printf 'FAIL[%s]: %s mode %s, expected %s\n' "$label" "$path" "$actual" "$mode" >&2
     exit 1
@@ -360,15 +361,10 @@ printf '%s\n' legacy-script > "$FIXTURE/etc/initramfs-tools/scripts/init-premoun
 run_provision default
 expect_rc "sc4" 75
 expect_err_match "sc4" "Boot configuration changed"
-assert_file "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-gadget"
 assert_mode "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-gadget" 755
-assert_file "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-role"
 assert_mode "sc4" "$FIXTURE/usr/local/sbin/octessera-usb-role" 755
-assert_file "sc4" "$FIXTURE/usr/local/lib/octessera/device_config.py"
 assert_mode "sc4" "$FIXTURE/usr/local/lib/octessera/device_config.py" 644
-assert_file "sc4" "$FIXTURE/etc/sudoers.d/octessera-usb-role"
 assert_mode "sc4" "$FIXTURE/etc/sudoers.d/octessera-usb-role" 440
-assert_file "sc4" "$FIXTURE/etc/systemd/system/octessera.service"
 assert_mode "sc4" "$FIXTURE/etc/systemd/system/octessera.service" 644
 assert_mode "sc4" "$FIXTURE/home/pi/octessera-dev" 755
 assert_file "sc4" "$FIXTURE/etc/systemd/system/octessera.service.d/audio-realtime.conf"
@@ -387,7 +383,8 @@ assert_log_contains "sc4" "chown.log" "chown pi:pi"
 assert_log_contains "sc4" "usb-role.log" "gadget"
 assert_contains "sc4" "$FIXTURE/etc/octessera/board-profile.env" "OCTESSERA_BOARD_PROFILE_ID=raspberry-pi-zero-2w"
 assert_contains "sc4" "$FIXTURE/etc/systemd/system/octessera.service" '^WorkingDirectory=/home/pi/octessera-dev$'
-assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^dtoverlay=disable-bt$"
+assert_not_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^dtoverlay=disable-bt$"
+assert_contains "sc4" "$FIXTURE/etc/bluetooth/main.conf" "^AutoEnable=false$"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^enable_uart=0$"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^\[all\]$"
 [[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=(peripheral|host)$' "$FIXTURE/boot/firmware/config.txt")" == 1 ]]

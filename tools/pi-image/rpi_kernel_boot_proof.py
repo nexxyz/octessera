@@ -166,7 +166,7 @@ def load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str,
         if source_path.stat().st_size != source["size"]:
             raise ImageProofError("Raspberry boot-layer source input size changed")
     live_parity = contract.get("live_parity_inputs")
-    expected = [{"path": "tools/pi/deploy-pi.sh", "sha256": "316143de5fb5ace0b29fcc78f27f53c6f3886315317ad4806a2e715bd625c600", "size": 17480}, {"path": "tools/pi/provision/provision.sh", "sha256": "73aa73a6c1b5a3e912aa8d2f5ba2a87ef4534b8b9b6f7005a1332355b7d62652", "size": 20154}]
+    expected = [{"path": "tools/pi/deploy-pi.sh", "sha256": "dbb8f03cc3f49d3f8f5c1bf58c95dd60ede418288dc49107e5226421883b62a0", "size": 17635}, {"path": "tools/pi/provision/provision.sh", "sha256": "b6ecff758a0e9231f644bad62aad3972f300efaf87aac78e449116b19f222dbd", "size": 20303}]
     if not isinstance(live_parity, list) or live_parity != expected:
         raise ImageProofError("Raspberry live parity inputs changed")
     for source in live_parity:
@@ -183,7 +183,7 @@ def load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str,
         validate_selected_initramfs_contract(selected)
     except ValueError as error:
         raise ImageProofError(str(error)) from error
-    if contract.get("uart_invariants") != {"required_config": ["dtoverlay=disable-bt", "enable_uart=0"], "forbidden_config": ["enable_uart=1"], "required_cmdline": ["console=tty1"], "forbidden_cmdline_prefixes": ["console=serial0", "console=ttyAMA0", "console=ttyS0"], "masks": ["serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service"], "disabled_services": ["bluetooth.service", "hciuart.service"]}:
+    if contract.get("uart_invariants") != {"required_config": ["enable_uart=0"], "forbidden_config": ["enable_uart=1", "dtoverlay=disable-bt"], "required_cmdline": ["console=tty1"], "forbidden_cmdline_prefixes": ["console=serial0", "console=ttyAMA0", "console=ttyS0"], "masks": ["serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service"], "disabled_services": ["hciuart.service"]}:
         raise ImageProofError("Raspberry UART invariants changed")
     return contract
 

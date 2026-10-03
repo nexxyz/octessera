@@ -15,7 +15,7 @@
     {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "83ccbe017e1427356fca926bc5eae0b66b2a8d2b9a97cf543b5d75c37d7e5677", "size": 684},
     {"path": "resources/legal/notice-bundle.json", "sha256": "dcbf060708aaf79dbd3f9cf9905a89b098c2490c7102c15828660e43492335aa", "size": 6237},
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320},
-    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "4fb0d00870e87fe58e87d5d165ac80ab816b2edff084d577d034f158df10eea3", "size": 18643},
+    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "c9151883765a09e8974825bfe55e4b92743539500511e4f14c58464bb37b4160", "size": 19080},
     {"path": "tools/pi-image/export-image-octessera/02-sanitize-userconf/00-run.sh", "sha256": "1a0c67406da2699bb4a1e92ca483c524f2c24b14aebc2722729f140c3b55a42e", "size": 835},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup", "sha256": "0a9a1487b458a92c7fb72d7b0ec2b77b6b4010505d095ce91024de759d31c1c5", "size": 19147},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py", "sha256": "4d7f72bcfbaee29a16bd7e2397cb3f054f5add63fc8ffb54de1a0eb0385d0be5", "size": 12732},
@@ -34,8 +34,8 @@
     {"path": "config/generated/pi/default.json", "sha256": "b52be0e4729a281f28a91b57e10b7c72108ac53a6285a7a0d65777eacd1df31b", "size": 85576},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "eec1f981dabd13cc96cb30eb7ecdd943591bbbdb8ea131f4eb3532b09cefd8b3", "size": 4146},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget", "sha256": "dd4c4afb7b08aa767140abe05b293fccf4b268ee7a2467d3b31b74ab64eb76dd", "size": 16685},
-    {"path": "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh", "sha256": "e6ab306cbe8bcb2e0b90f192f0bec15e4655d9a3d9ddeab5bbc57ad48679830d", "size": 2414},
-    {"path": "tools/pi-image/stage4-octessera/files/boot/config.txt.append", "sha256": "fa4a91ff8c368b5ea129c502e0ddd5390293d0ee6d0bfa1dc52eb40d13c8c439", "size": 383},
+    {"path": "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh", "sha256": "f1c0a8580720794a1defec2825f694019d8584f6ee76fe3f1348bc64f687a298", "size": 2508},
+    {"path": "tools/pi-image/stage4-octessera/files/boot/config.txt.append", "sha256": "87da8ab112669072063b6c676ae826c615bc313cb1879e1a18e29556b661cb6c", "size": 362},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/hooks/octessera-boot-splash", "sha256": "088dabf06daff71e192aca28860dd3bcee910135ad13f356406609fd4272833d", "size": 1229},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "sha256": "f016d0be1aaeef4c0d60f745f149374837f975ddb4ab2bf87eefeca7a2c2b65e", "size": 1535},
@@ -44,23 +44,23 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf", "sha256": "8ae8a03c4a95d70dd2de829aa6e01b20187dcf1cbd7b92e5f7a07ce337a6186f", "size": 184},
     {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "620e6fc8a651e7f47317fb97871a6961a481899fa75d9f1dbe1b4b4aef580dcc", "size": 6403},
     {"path": "tools/pi-image/rpi_kernel_image_mount.py", "sha256": "e665a41335a1cb8998e8072829ddcb12eb21749acea94845ce1836d082d67df2", "size": 3678},
-    {"path": "tools/pi-image/rpi_kernel_boot_proof.py", "sha256": "b1ffef49eef75a0eb49b1b08cdfe557a6008da56636b6871a66715ed4a05a8d7", "size": 16713},
+    {"path": "tools/pi-image/rpi_kernel_boot_proof.py", "sha256": "0e17121b25003da8db0aaefc5c131b224ea58f8e851b4d99530a2a052d6bc0f2", "size": 16692},
     {"path": "tools/pi-image/rpi_kernel_payload_proof.py", "sha256": "5c5cfeb792bd83420046350a5ad8a80ba3416c7355c106022cc83d89a76b485f", "size": 3346},
     {"path": "tools/pi-image/rpi_kernel_stock_recovery.py", "sha256": "57344adbcc39bd067c77f2ee06822e9b9fb808d7ab9cf3a4ba4b755f7c505ac4", "size": 2406},
     {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "22d8ba31cf016c665f562d3fa7b9004e00c280984eef08d646f86862b1093d32", "size": 23278},
-    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "19d6b8f458e27ec97609f1e0b990e05bd8ad3e71d10193d4a82d4bec4f4f8d94", "size": 23296},
+    {"path": "tools/pi-image/verify-boot-layout.sh", "sha256": "8722036153d1ae3b4a8a0c7f9416e7bb56b4ba621b1554a2b9fccb491de8c8f9", "size": 23394},
     {"path": "tools/pi-image/verify-rpi-samples.py", "sha256": "050085e8a6832a9da114cc2b53902fe7cb3bd9d96bcc6b06c11fc46fe7aca9e4", "size": 3338},
     {"path": "tools/pi/provision/files/boot/config.txt.initramfs.append", "sha256": "c14d03356c1edcbf170d91c4eda896705fda0930ac8b61b9c631a5ebec89fe92", "size": 73},
-    {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "fa4a91ff8c368b5ea129c502e0ddd5390293d0ee6d0bfa1dc52eb40d13c8c439", "size": 383},
+    {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "87da8ab112669072063b6c676ae826c615bc313cb1879e1a18e29556b661cb6c", "size": 362},
     {"path": "tools/pi/provision/files/etc/systemd/system/octessera.service.template", "sha256": "e12f4bac1a05f29154b29908167acf090c26def8f89179e49948cbca17177782", "size": 1130},
-    {"path": "tools/pi/provision/provision.sh", "sha256": "73aa73a6c1b5a3e912aa8d2f5ba2a87ef4534b8b9b6f7005a1332355b7d62652", "size": 20154},
+    {"path": "tools/pi/provision/provision.sh", "sha256": "b6ecff758a0e9231f644bad62aad3972f300efaf87aac78e449116b19f222dbd", "size": 20303},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role", "sha256": "1c0a0b8c563590ccfbacfda35c58f9372f94ace8378b68d84b0d214deec5bde5", "size": 6530},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-gadget.service", "sha256": "0dd6ac8ee02d8fe3dd24c340ea19a000db52753f634e30c491fc7bf0242acff0", "size": 466},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role", "sha256": "882734cfa1d9ad9127689474e4be530f4ec89f3466809af766ced2a3fcd37dc4", "size": 154}
   ],
   "live_parity_inputs": [
-    {"path": "tools/pi/deploy-pi.sh", "sha256": "316143de5fb5ace0b29fcc78f27f53c6f3886315317ad4806a2e715bd625c600", "size": 17480},
-    {"path": "tools/pi/provision/provision.sh", "sha256": "73aa73a6c1b5a3e912aa8d2f5ba2a87ef4534b8b9b6f7005a1332355b7d62652", "size": 20154}
+    {"path": "tools/pi/deploy-pi.sh", "sha256": "dbb8f03cc3f49d3f8f5c1bf58c95dd60ede418288dc49107e5226421883b62a0", "size": 17635},
+    {"path": "tools/pi/provision/provision.sh", "sha256": "b6ecff758a0e9231f644bad62aad3972f300efaf87aac78e449116b19f222dbd", "size": 20303}
   ],
   "notice_bundle": {
     "manifest": "resources/legal/notice-bundle.json",
@@ -124,12 +124,12 @@
     "required_module_names": ["spi-bcm2835", "spidev"]
   },
   "uart_invariants": {
-    "required_config": ["dtoverlay=disable-bt", "enable_uart=0"],
-    "forbidden_config": ["enable_uart=1"],
+    "required_config": ["enable_uart=0"],
+    "forbidden_config": ["enable_uart=1", "dtoverlay=disable-bt"],
     "required_cmdline": ["console=tty1"],
     "forbidden_cmdline_prefixes": ["console=serial0", "console=ttyAMA0", "console=ttyS0"],
     "masks": ["serial-getty@serial0.service", "serial-getty@ttyAMA0.service", "serial-getty@ttyS0.service"],
-    "disabled_services": ["bluetooth.service", "hciuart.service"]
+    "disabled_services": ["hciuart.service"]
   },
   "proofs": [
     {"name": "initramfs-watchdog", "path": "tools/pi-image/test-rpi-boot-splash.sh"},

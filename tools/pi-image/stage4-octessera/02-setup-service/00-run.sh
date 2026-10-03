@@ -299,14 +299,19 @@ rm -f \
     "$ROOTFS_DIR/etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/ssh.service" "$ROOTFS_DIR/etc/systemd/system/ssh.socket"
 
-rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/bluetooth.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/hciuart.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/getty.target.wants"/serial-getty@*.service
-for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service bluetooth.service hciuart.service; do
+for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service hciuart.service; do
     rm -f "$ROOTFS_DIR/etc/systemd/system/$unit"
     ln -s /dev/null "$ROOTFS_DIR/etc/systemd/system/$unit"
     test "$(readlink "$ROOTFS_DIR/etc/systemd/system/$unit")" = /dev/null
 done
+# BlueZ runs, but the controller stays unpowered until System > Bluetooth is On.
+rm -f "$ROOTFS_DIR/etc/systemd/system/bluetooth.service"
+install -d "$ROOTFS_DIR/etc/systemd/system/bluetooth.target.wants"
+ln -sf /lib/systemd/system/bluetooth.service "$ROOTFS_DIR/etc/systemd/system/bluetooth.target.wants/bluetooth.service"
+ln -sf /lib/systemd/system/bluetooth.service "$ROOTFS_DIR/etc/systemd/system/dbus-org.bluez.service"
+sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$ROOTFS_DIR/etc/bluetooth/main.conf"
 
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
 bash "$LEGAL_REPOSITORY_ROOT/tools/pi-image/install-musical-assets.sh" "$STAGE_FILES/root" "$ROOTFS_DIR"

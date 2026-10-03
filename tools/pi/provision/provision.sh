@@ -141,7 +141,6 @@ ensure_boot_config_line() {
 
 ensure_raspberry_uart_inactive() {
     sudo sed -i -E '/^[[:space:]]*(dtoverlay=disable-bt|enable_uart=)/d' "$BOOT_CONFIG"
-    ensure_boot_config_line "dtoverlay=disable-bt"
     ensure_boot_config_line "enable_uart=0"
     while grep -Eq '(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)' "$CMDLINE"; do
         sudo sed -i -E 's/(^|[[:space:]])console=(serial0|ttyAMA0|ttyS0)(,[^[:space:]]+)?([[:space:]]|$)/\1\4/' "$CMDLINE"
@@ -150,10 +149,13 @@ ensure_raspberry_uart_inactive() {
         echo "Serial console token remains in the Raspberry Pi kernel command line." >&2
         exit 1
     fi
-    for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service bluetooth.service hciuart.service; do
+    for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service hciuart.service; do
         sudo systemctl mask --now "$unit" >/dev/null
         test "$(sudo systemctl is-enabled "$unit")" = masked
     done
+    sudo systemctl unmask bluetooth.service >/dev/null
+    sudo systemctl enable bluetooth.service >/dev/null 2>&1
+    sudo sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$(target_path /etc/bluetooth/main.conf)"
     sudo rm -f "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
     test ! -e "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
 }
@@ -275,7 +277,7 @@ fi
 while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
         ''|'#'*) continue ;;
-        dtoverlay=disable-bt|dtoverlay=dwc2,dr_mode=peripheral|enable_uart=0|\[all\]) continue ;;
+        dtoverlay=dwc2,dr_mode=peripheral|enable_uart=0|\[all\]) continue ;;
     esac
     ensure_boot_config_line "$line"
 done < "$PROVISION_ROOT/boot/config.txt.append"

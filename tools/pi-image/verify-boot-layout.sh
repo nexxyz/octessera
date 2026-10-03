@@ -298,7 +298,7 @@ require_octessera_raspberry_identity() {
         echo "constructor-required: Raspberry UART enablement remains" >&2
         return 1
     fi
-    [ "$(grep -Ec '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$boot_config")" -eq 1 ] || { echo "constructor-required: Raspberry Bluetooth disable overlay is missing or duplicated" >&2; return 1; }
+    ! grep -Eq '^[[:space:]]*dtoverlay=disable-bt([[:space:]]|$)' "$boot_config" || { echo "constructor-required: Raspberry Bluetooth disable overlay remains" >&2; return 1; }
     [ "$(grep -Ec '^[[:space:]]*enable_uart=0([[:space:]]|$)' "$boot_config")" -eq 1 ] || { echo "constructor-required: Raspberry UART disable setting is missing or duplicated" >&2; return 1; }
     if grep -qP '\x00' "$boot_cmdline" || [ "$(grep -c '' "$boot_cmdline")" -gt 1 ]; then
         echo "constructor-required: Raspberry cmdline is multiline or contains NUL" >&2
@@ -341,13 +341,11 @@ require_octessera_raspberry_identity() {
         echo "constructor-required: tty1 getty enablement is masked" >&2
         return 1
     fi
-    for unit in hciuart bluetooth; do
-        enablement="$image_root/etc/systemd/system/multi-user.target.wants/$unit.service"
-        if [ -e "$enablement" ] || [ -L "$enablement" ]; then
-            echo "constructor-required: Bluetooth service remains enabled: $unit" >&2
-            return 1
-        fi
-    done
+    local systemd_dir="$image_root/etc/systemd/system"
+    if [ -e "$systemd_dir/multi-user.target.wants/hciuart.service" ] || [ -L "$systemd_dir/bluetooth.service" ] || [ ! -L "$systemd_dir/bluetooth.target.wants/bluetooth.service" ] || ! grep -qxF 'AutoEnable=false' "$image_root/etc/bluetooth/main.conf"; then
+        echo "constructor-required: Raspberry Bluetooth must run with the controller unpowered at boot" >&2
+        return 1
+    fi
     if [ -e "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ] || [ -L "$image_root/usr/local/lib/octessera/rpi_uart_release.py" ]; then
         echo "constructor-required: removed Raspberry UART release utility remains" >&2
         return 1

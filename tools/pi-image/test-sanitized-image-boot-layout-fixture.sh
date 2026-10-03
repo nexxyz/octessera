@@ -16,7 +16,7 @@ reset_fixture() {
 }
 
 write_constructor_fat_pair() {
-    printf '%s\n' '# --- octessera additions ---' '# octessera hardware configuration' '[cm5]' 'dtoverlay=dwc2,dr_mode=host' '[all]' 'dtoverlay=disable-bt' 'enable_uart=0' 'dtoverlay=dwc2,dr_mode=peripheral' > "$fixture/boot/config.txt"
+    printf '%s\n' '# --- octessera additions ---' '# octessera hardware configuration' '[cm5]' 'dtoverlay=dwc2,dr_mode=host' '[all]' 'enable_uart=0' 'dtoverlay=dwc2,dr_mode=peripheral' > "$fixture/boot/config.txt"
     printf '%s\n' 'console=tty1 root=/dev/mmcblk0p2' > "$fixture/boot/cmdline.txt"
 }
 
