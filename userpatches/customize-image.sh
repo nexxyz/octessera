@@ -183,7 +183,7 @@ command -v fdtget >/dev/null 2>&1 || { echo "fdtget is required for SPI overlay 
 
 spi_dtbo_tmp="$(mktemp "$spi_overlay_dir/.${spi_overlay_name}.dtbo.XXXXXX")"
 octessera_run_strict_diagnostic "$spi_work" compile_spi_overlay dtc -@ -I dts -O dtb -o "$spi_dtbo_tmp" "$spi_dts" || exit 1
-octessera_run_strict_diagnostic "$spi_work" inspect_spi_overlay dtc -I dtb -O dts -o "$spi_work/$spi_overlay_name.dts" "$spi_dtbo_tmp" || exit 1
+octessera_run_strict_diagnostic "$spi_work" inspect_spi_overlay dtc -W no-gpios_property -I dtb -O dts -o "$spi_work/$spi_overlay_name.dts" "$spi_dtbo_tmp" || exit 1
 stock_i2c1_merged_dtb="$spi_work/stock-i2c1-merged.dtb"
 octessera_run_strict_diagnostic "$spi_work" merge_stock_i2c1_overlay fdtoverlay -i "$spi_base_dtb" -o "$stock_i2c1_merged_dtb" "$stock_i2c1_dtbo" || exit 1
 octessera_run_dtc_inspection "$spi_work" inspect_stock_i2c1_overlay dtc -q -I dtb -O dts -o "$spi_work/stock-i2c1-merged.dts" "$stock_i2c1_merged_dtb" || exit 1

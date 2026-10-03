@@ -174,6 +174,7 @@ octessera_assert_spi1_merge() {
   local spi1_cs0_phandle
   local spi1_cs1_phandle
   local spi1_pinctrl
+  local pio_phandle
   local image
   for image in "$base" "$merged"; do
     octessera_require_fdt_strings "$image" "$spi1_pins_path" pins 'PH6 PH7 PH8' || return 1
@@ -207,6 +208,8 @@ octessera_assert_spi1_merge() {
   octessera_require_fdt_numbers "$merged" "$spi1_path/mmc@1" reg 1 || return 1
   octessera_require_fdt_numbers "$merged" "$spi1_path/mmc@1" spi-max-frequency 10000000 || return 1
   octessera_require_fdt_numbers "$merged" "$spi1_path/mmc@1" voltage-ranges 3300 3300 || return 1
+  pio_phandle="$(fdtget -t u "$merged" "${spi1_pins_path%/*}" phandle)" || return 1
+  octessera_require_fdt_numbers "$merged" "$spi1_path/mmc@1" gpios "$pio_phandle" 8 4 16 || return 1
   [[ "$(fdtget -l "$merged" "$spi1_path" | sort)" == $'mmc@1\nspidev@0' ]] || {
     echo "Merged ${context} SPI1 node has an unexpected child set." >&2
     return 1

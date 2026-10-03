@@ -113,10 +113,14 @@ grep -Eq '^[[:space:]]*compatible = "mmc-spi-slot";$' "$spi_dts"
 grep -Eq '^[[:space:]]*reg = <1>;$' "$spi_dts"
 grep -Eq '^[[:space:]]*spi-max-frequency = <10000000>;$' "$spi_dts"
 grep -Eq '^[[:space:]]*voltage-ranges = <3300 3300>;$' "$spi_dts"
+[[ "$(grep -Ec '^[[:space:]]*gpios = <&pio 8 4 0x10>;$' "$spi_dts")" == 1 ]] || { echo 'SPI1 SD2 card detect must be exactly PI4 active-high with pull-up.' >&2; exit 1; }
+spi_dts_without_card_detect="$(mktemp)"
+grep -vE '^[[:space:]]*gpios = <&pio 8 4 0x10>;$' "$spi_dts" > "$spi_dts_without_card_detect"
 grep -Eq '^[[:space:]]*#address-cells = <1>;$' "$spi_dts"
 grep -Eq '^[[:space:]]*#size-cells = <0>;$' "$spi_dts"
-octessera_reject_file_match 'SPI1 overlay contains an unrelated bus, runtime, service, or authorization change.' -nEi 'spi0|spi2|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$spi_dts"
-octessera_reject_file_match 'SPI1 image integration contains an unexpected CS, GPIO, or fallback path.' -nE 'spidev@[1-9]|reg = <[2-9]|target-path|cs-gpios|gpio-' "$spi_dts" "$root/userpatches/customize-image.sh"
+octessera_reject_file_match 'SPI1 overlay contains an unrelated bus, runtime, service, or authorization change.' -nEi 'spi0|spi2|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$spi_dts_without_card_detect"
+octessera_reject_file_match 'SPI1 image integration contains an unexpected CS, GPIO, or fallback path.' -nE 'spidev@[1-9]|reg = <[2-9]|target-path|cs-gpios|gpio-' "$spi_dts_without_card_detect" "$root/userpatches/customize-image.sh"
+rm -f "$spi_dts_without_card_detect"
 input_references="$(grep -oE '&[A-Za-z0-9_]+' "$input_dts" | sort -u)"
 expected_input_references="$(printf '%s\n' '&uart0' '&pio' '&octessera_uart0_released' | sort -u)"
 [[ "$input_references" == "$expected_input_references" ]]
@@ -176,7 +180,7 @@ mkdir -p "$dtb_work/missing/boot"
 assert_dtb_failure missing "$dtb_work/missing"
 
 octessera_run_strict_diagnostic "$work" compile_spi_overlay dtc -@ -I dts -O dtb -o "$work/$spi_name.dtbo" "$spi_dts"
-octessera_run_strict_diagnostic "$work" inspect_spi_overlay dtc -I dtb -O dts -o "$work/$spi_name.dts" "$work/$spi_name.dtbo"
+octessera_run_strict_diagnostic "$work" inspect_spi_overlay dtc -W no-gpios_property -I dtb -O dts -o "$work/$spi_name.dts" "$work/$spi_name.dtbo"
 octessera_run_strict_diagnostic "$work" compile_h618_fixture dtc -@ -I dts -O dtb -o "$work/h618-spi-base.dtb" "$spi_fixture"
 octessera_run_strict_diagnostic "$work" merge_spi_fixture fdtoverlay -i "$work/h618-spi-base.dtb" -o "$work/h618-spi-merged.dtb" "$work/$spi_name.dtbo"
 octessera_run_dtc_inspection "$work" inspect_merged_spi_fixture dtc -q -I dtb -O dts -o "$work/h618-spi-merged.dts" "$work/h618-spi-merged.dtb"
@@ -188,7 +192,12 @@ fixture_spi0_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ spi0)"
 fixture_i2c1_path="$(fdtget -t s "$work/h618-spi-base.dtb" /__symbols__ i2c1)"
 [[ -n "$fixture_spi1_path" && -n "$fixture_spi1_pins_path" && -n "$fixture_spi1_cs0_path" && -n "$fixture_spi1_cs1_path" && -n "$fixture_spi0_path" && -n "$fixture_i2c1_path" ]]
 octessera_assert_spi1_merge "$work/h618-spi-base.dtb" "$work/h618-spi-merged.dtb" "$fixture_spi1_path" "$fixture_spi1_pins_path" "$fixture_spi1_cs0_path" "$fixture_spi1_cs1_path" "$fixture_spi0_path" "$fixture_i2c1_path" fixture
-octessera_reject_file_match 'Compiled SPI1 overlay contains an unrelated bus, runtime, service, or authorization change.' -nEi 'spi0|spi2|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$work/$spi_name.dts"
+compiled_card_detect='^[[:space:]]*gpios = <0xffffffff 0x0*8 0x0*4 0x0*10>;$'
+compiled_card_detect_fixup='^[[:space:]]*pio = "/fragment@0:target:0\\0/fragment@1/__overlay__/mmc@1:gpios:0";$'
+[[ "$(grep -Ec "$compiled_card_detect" "$work/$spi_name.dts")" == 1 ]] || { echo 'Compiled SPI1 overlay lacks the exact SD2 card detect.' >&2; exit 1; }
+[[ "$(grep -Ec "$compiled_card_detect_fixup" "$work/$spi_name.dts")" == 1 ]] || { echo 'Compiled SPI1 overlay lacks the exact SD2 card-detect fixup.' >&2; exit 1; }
+grep -vE "$compiled_card_detect|$compiled_card_detect_fixup" "$work/$spi_name.dts" > "$work/$spi_name.without-card-detect.dts"
+octessera_reject_file_match 'Compiled SPI1 overlay contains an unrelated bus, runtime, service, or authorization change.' -nEi 'spi0|spi2|gpio|spidev1_0|runtime|systemd|service|authorized|ssh|password|sudo' "$work/$spi_name.without-card-detect.dts"
 fixup_keys="$(awk '/^[[:space:]]*__fixups__[[:space:]]*\{/ { inside=1; next } inside && /^[[:space:]]*};/ { exit } inside && /^[[:space:]]*[A-Za-z0-9_]+[[:space:]]*=/{ line=$0; sub(/^[[:space:]]*/,"",line); sub(/[[:space:]]*=.*/,"",line); print line }' "$work/$spi_name.dts" | sort)"
 [[ "$fixup_keys" == "$(printf '%s\n' pio spi1 spi1_cs0_pin spi1_pins | sort)" ]]
 grep -Eq '^[[:space:]]*spi1 = "/fragment@1:target:0";$' "$work/$spi_name.dts"
