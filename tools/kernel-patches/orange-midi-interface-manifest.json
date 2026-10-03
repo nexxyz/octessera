@@ -1,10 +1,11 @@
 {
   "schema": 1,
-  "purpose": "Octessera USB MIDI interface_string source gate",
+  "purpose": "Octessera kernel patch source gate (USB MIDI interface_string, mmc_spi card-detect delay)",
   "patch_root": "userpatches/kernel/archive/sunxi-6.18",
   "patch_order": [
     "zzzz-0001-usb-gadget-f-midi-configfs-interface-string.patch",
-    "zzzz-0002-usb-gadget-f-midi-instance-local-string.patch"
+    "zzzz-0002-usb-gadget-f-midi-instance-local-string.patch",
+    "zzzz-0003-mmc-spi-card-detect-insert-delay.patch"
   ],
   "patches": {
     "accepted_upstream": {
@@ -16,6 +17,10 @@
     "octessera_follow_up": {
       "subject": "usb: gadget: f_midi: keep interface strings instance-owned",
       "sha256": "ccb8865274cfe2daa74c89ce258095bfd624ac38ea4418bfe65b3f492fc5e7f7"
+    },
+    "octessera_mmc_spi_card_detect": {
+      "subject": "mmc: mmc_spi: give a freshly inserted card time to power up",
+      "sha256": "689d78c26d22508a69a988eff70984127e6c743f6ff2659677aec5d0507f8a9a"
     }
   },
   "source_lock": {

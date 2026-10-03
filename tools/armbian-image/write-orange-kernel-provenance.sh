@@ -82,6 +82,7 @@ armbian = manifest["build_frameworks"]["armbian"]
 orange = manifest["kernels"]["orange"]
 accepted_patch = manifest["patches"]["accepted_upstream"]
 follow_up_patch = manifest["patches"]["octessera_follow_up"]
+mmc_spi_patch = manifest["patches"]["octessera_mmc_spi_card_detect"]
 expected_revision = "26.11.0-trunk.22"
 expected_release = "6.18.46-current-sunxi64"
 expected_source_repository = "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git"
@@ -224,8 +225,11 @@ if not config_hash_match:
 patch_root = root / "userpatches/kernel/archive/sunxi-6.18"
 patch_one = patch_root / "zzzz-0001-usb-gadget-f-midi-configfs-interface-string.patch"
 patch_two = patch_root / "zzzz-0002-usb-gadget-f-midi-instance-local-string.patch"
+patch_three = patch_root / "zzzz-0003-mmc-spi-card-detect-insert-delay.patch"
 if sha256(patch_one) != accepted_patch["sha256"] or sha256(patch_two) != follow_up_patch["sha256"]:
     raise SystemExit("Orange MIDI patch SHA-256 does not match the manifest")
+if sha256(patch_three) != mmc_spi_patch["sha256"]:
+    raise SystemExit("Orange mmc_spi patch SHA-256 does not match the manifest")
 
 if armbian_build_directory:
     actual_build_commit = subprocess.check_output(
@@ -326,6 +330,8 @@ lines = [
     f"accepted_upstream_patch_sha256={accepted_patch['sha256']}",
     "octessera_follow_up_patch=zzzz-0002-usb-gadget-f-midi-instance-local-string.patch",
     f"octessera_follow_up_patch_sha256={follow_up_patch['sha256']}",
+    "octessera_mmc_spi_patch=zzzz-0003-mmc-spi-card-detect-insert-delay.patch",
+    f"octessera_mmc_spi_patch_sha256={mmc_spi_patch['sha256']}",
     f"usb_f_midi_module={evidence['module_relative_path']}",
     f"usb_f_midi_module_compressed_sha256={evidence['module_compressed_sha256']}",
     f"usb_f_midi_module_decompressed_sha256={evidence['module_decompressed_sha256']}",
