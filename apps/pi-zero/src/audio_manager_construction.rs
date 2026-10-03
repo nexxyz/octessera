@@ -9,7 +9,6 @@ impl AudioManager {
         policy: AudioOpenPolicy,
         open_sink: AudioSinkOpener,
         route_registry: AudioRouteRegistry,
-        attach_gate: AudioAttachGate,
     ) -> Result<Self, String> {
         let AudioOpenPolicy::Outputs(outputs) = policy;
         require_jack_output(outputs)?;
@@ -53,8 +52,7 @@ impl AudioManager {
                 mirror_consumers[index] = Some(pair.consumer);
             }
         }
-        let realtime_txs = Arc::new(Mutex::new(Vec::new()));
-        let replay_events = Arc::new(Mutex::new(default_replay_events()));
+        let engine = AudioEngineOwner::new(ReplayCache::default());
         let recorder = Arc::new(Mutex::new(RecordingServices::new(
             recordings_dir(),
             screen_recordings_dir(),
@@ -112,14 +110,7 @@ impl AudioManager {
                                 ._stream
                                 .expect("Raspberry audio stream must be present"),
                         );
-                        attach_sink_atomic(
-                            &attach_gate,
-                            &realtime_txs,
-                            &replay_events,
-                            sink,
-                            opened.engine_tx.expect("Jack engine event sender"),
-                        )
-                        .map_err(|error| error.to_string())?;
+                        engine.attach(opened.engine_tx.expect("Jack engine event sender"))?;
                     }
                 }
                 Err(error)
@@ -153,9 +144,7 @@ impl AudioManager {
             return Err("no requested audio outputs opened".into());
         }
         let service = AudioService {
-            realtime_txs: realtime_txs.clone(),
-            replay_events: replay_events.clone(),
-            attach_gate: attach_gate.clone(),
+            engine: engine.clone(),
             control_tx,
             config_revision: Arc::new(AtomicU64::new(0)),
             sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -206,10 +195,8 @@ impl AudioManager {
                 OrangeRecoveryController::new_required(
                     opened,
                     profile,
-                    realtime_txs.clone(),
-                    replay_events.clone(),
+                    engine.clone(),
                     Some(recording_tap.clone()),
-                    attach_gate.clone(),
                     mirror_producers_for_recovery.clone(),
                 )
             })
@@ -231,9 +218,7 @@ impl AudioManager {
                         sink,
                         opened,
                         profile,
-                        realtime_txs.clone(),
-                        replay_events.clone(),
-                        attach_gate.clone(),
+                        engine.clone(),
                         mirror_producers_for_recovery[mirror_index(sink).expect("optional mirror")]
                             .clone()
                             .expect("optional mirror producer"),
@@ -241,9 +226,7 @@ impl AudioManager {
                     None => Ok(OrangeRecoveryController::new_optional_missing(
                         sink,
                         profile,
-                        realtime_txs.clone(),
-                        replay_events.clone(),
-                        attach_gate.clone(),
+                        engine.clone(),
                         mirror_producers_for_recovery[mirror_index(sink).expect("optional mirror")]
                             .clone()
                             .expect("optional mirror producer"),

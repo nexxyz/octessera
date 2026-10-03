@@ -1,13 +1,10 @@
+use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_recording::RecordingServices;
-use crate::audio_replay::ReplayCache;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::audio_route::readiness as route_readiness;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::audio_route::status as route_status;
 use crate::audio_route::AudioRouteRegistry;
-#[cfg(test)]
-use crate::audio_sink_registry::test_sink_sender;
-use crate::audio_sink_registry::{broadcast_event_atomic, AudioAttachGate, SinkSender};
 pub(crate) use crate::audio_stream_health::AudioStreamHealth;
 #[cfg(any(
     feature = "hardware-orange-pi-zero-2w",
@@ -82,9 +79,7 @@ impl Default for AudioGenerationState {
 
 #[derive(Clone)]
 pub struct AudioService {
-    realtime_txs: Arc<Mutex<Vec<SinkSender>>>,
-    replay_events: Arc<Mutex<ReplayCache>>,
-    attach_gate: AudioAttachGate,
+    engine: AudioEngineOwner,
     pub control_tx: SyncSender<AudioControlRequest>,
     pub config_revision: Arc<AtomicU64>,
     pub sample_cache:
@@ -160,23 +155,11 @@ pub(crate) fn orange_profile(optimization: AudioOptimization) -> OrangeAudioProf
 
 impl AudioService {
     pub fn send(&self, event: EngineEvent) -> Result<(), RuntimeAdapterError> {
-        broadcast_event_atomic(
-            &self.attach_gate,
-            &self.realtime_txs,
-            &self.replay_events,
-            event,
-        )
-        .map_err(audio_queue_error)
+        self.engine.send(event).map_err(audio_queue_error)
     }
 
     pub fn send_realtime(&self, event: EngineEvent) -> Result<(), RuntimeAdapterError> {
-        broadcast_event_atomic(
-            &self.attach_gate,
-            &self.realtime_txs,
-            &self.replay_events,
-            event,
-        )
-        .map_err(audio_queue_error)
+        self.engine.send(event).map_err(audio_queue_error)
     }
 
     pub fn remember_momentary_fx_type(
@@ -390,13 +373,7 @@ impl AudioService {
 
 impl AudioService {
     pub(crate) fn broadcast(&self, event: EngineEvent) -> Result<(), String> {
-        broadcast_event_atomic(
-            &self.attach_gate,
-            &self.realtime_txs,
-            &self.replay_events,
-            event,
-        )
-        .map_err(|error| error.to_string())
+        self.engine.send(event).map_err(|error| error.to_string())
     }
 }
 

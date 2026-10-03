@@ -3,13 +3,8 @@ use realtime_engine::synth::{
     prepare_instruments_config, DrumParamId, FmParamId, FxParamId, PluckParamId, SampleBankConfig,
     SampleBankParamId, SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE,
 };
-use rodio_engine_source::{EngineEvent, EngineEventSender};
+use rodio_engine_source::EngineEvent;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
-
-pub(crate) fn default_replay_events() -> ReplayCache {
-    ReplayCache::default()
-}
 
 #[derive(Clone, Default)]
 pub(crate) struct ReplayCache {
@@ -155,7 +150,7 @@ impl ReplayCache {
         );
     }
 
-    fn events(&self) -> Vec<EngineEvent> {
+    pub(crate) fn events(&self) -> Vec<EngineEvent> {
         let mut events = vec![self
             .audio_config
             .as_ref()
@@ -240,19 +235,6 @@ impl ReplayCache {
             },
         );
     }
-}
-
-pub(crate) fn replay_to_sink(
-    tx: &EngineEventSender,
-    replay_events: &Arc<Mutex<ReplayCache>>,
-) -> Result<(), String> {
-    let events = replay_events
-        .lock()
-        .map_err(|_| "audio replay cache lock failed".to_string())?;
-    for event in events.events() {
-        tx.send(event).map_err(|error| error.to_string())?;
-    }
-    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]

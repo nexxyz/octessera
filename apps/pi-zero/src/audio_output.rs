@@ -1,9 +1,7 @@
 use super::{AudioControlRequest, AudioService};
-use crate::audio_replay::default_replay_events;
+use crate::audio_engine_owner::AudioEngineOwner;
+use crate::audio_replay::ReplayCache;
 use crate::audio_route::{new_registry, set_status, AudioRouteRegistry};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use crate::audio_sink_registry::attach_sink_atomic;
-use crate::audio_sink_registry::{new_attach_gate, AudioAttachGate};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(crate) use crate::audio_stream_health::AudioStreamStatus as OrangeDacStatus;
 mod audio_sink;
@@ -225,7 +223,6 @@ impl AudioManager {
             AudioOpenPolicy::Outputs(outputs),
             open_audio_sink,
             route_registry.clone(),
-            new_attach_gate(),
         )
     }
 
@@ -248,7 +245,6 @@ impl AudioManager {
             AudioOpenPolicy::Outputs(outputs),
             open_orange_audio_sink,
             route_registry.clone(),
-            new_attach_gate(),
         )
         .map_err(OrangeAudioInitError::Open)
     }

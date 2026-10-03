@@ -23,13 +23,7 @@ pub(super) fn new_initial_with_dependencies(
             .as_ref()
             .expect("initial Jack engine event sender")
             .clone();
-        attach_sink_atomic(
-            &controller.attach_gate,
-            &controller.realtime_txs,
-            &controller.replay_events,
-            sink,
-            engine_tx,
-        )?;
+        controller.engine.attach(engine_tx)?;
     }
     Ok(controller)
 }

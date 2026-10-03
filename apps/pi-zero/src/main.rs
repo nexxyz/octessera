@@ -14,6 +14,8 @@ mod audio;
 #[cfg(feature = "native-audio")]
 mod audio_config_parse;
 #[cfg(feature = "native-audio")]
+mod audio_engine_owner;
+#[cfg(feature = "native-audio")]
 mod audio_event;
 #[cfg(feature = "native-audio")]
 mod audio_priority;
@@ -23,8 +25,6 @@ mod audio_recording;
 mod audio_replay;
 #[cfg(feature = "native-audio")]
 mod audio_route;
-#[cfg(feature = "native-audio")]
-mod audio_sink_registry;
 #[cfg(feature = "native-audio")]
 mod audio_stream_health;
 #[cfg(feature = "native-audio")]
