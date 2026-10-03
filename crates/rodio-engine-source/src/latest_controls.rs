@@ -79,6 +79,9 @@ impl LatestCell {
 
 pub(super) struct LatestControls {
     cells: Box<[LatestCell]>,
+    /// Bumped after every cell publish so the audio thread can skip scanning
+    /// all cells when nothing changed since its last empty scan.
+    publications: AtomicU64,
     momentary: MomentaryLatestTable,
 }
 
@@ -88,6 +91,7 @@ impl LatestControls {
             cells: std::iter::repeat_with(LatestCell::new)
                 .take(NORMAL_CELL_COUNT)
                 .collect(),
+            publications: AtomicU64::new(0),
             momentary: MomentaryLatestTable::new(),
         }
     }
@@ -228,7 +232,11 @@ impl LatestControls {
     }
 
     fn publish(&self, index: usize, generation: u64, value: u64) -> bool {
-        self.cells[index].publish(generation, value)
+        let published = self.cells[index].publish(generation, value);
+        if published {
+            self.publications.fetch_add(1, Ordering::Release);
+        }
+        published
     }
 
     pub(super) fn cancel_epoch(&self, epoch: u64) {
@@ -252,6 +260,11 @@ impl LatestControls {
     }
 
     pub(super) fn candidate(&self, cursor: &mut LatestCursor) -> Option<LatestCandidate> {
+        let publications = self.publications.load(Ordering::Acquire);
+        if publications == cursor.seen_publications {
+            return (0..MOMENTARY_SLOT_COUNT)
+                .find_map(|index| self.momentary_candidate(cursor, index));
+        }
         for offset in 0..TOTAL_CELL_COUNT {
             let index = (cursor.next + offset) % TOTAL_CELL_COUNT;
             if index < NORMAL_CELL_COUNT {
@@ -269,31 +282,41 @@ impl LatestControls {
                     momentary: None,
                 });
             }
-            let momentary_index = index - NORMAL_CELL_COUNT;
-            let Some((revision, epoch, update)) = self
-                .momentary
-                .snapshot(momentary_index, cursor.momentary_applied[momentary_index])
-            else {
-                continue;
-            };
-            cursor.next = (index + 1) % TOTAL_CELL_COUNT;
-            return Some(LatestCandidate {
-                key: LatestKey::MomentaryUpdate(momentary_index),
-                revision,
-                generation: epoch,
-                value: 0,
-                momentary: Some(update),
-            });
+            if let Some(candidate) = self.momentary_candidate(cursor, index - NORMAL_CELL_COUNT) {
+                cursor.next = (index + 1) % TOTAL_CELL_COUNT;
+                return Some(candidate);
+            }
         }
+        cursor.seen_publications = publications;
         None
+    }
+
+    fn momentary_candidate(
+        &self,
+        cursor: &LatestCursor,
+        momentary_index: usize,
+    ) -> Option<LatestCandidate> {
+        let (revision, epoch, update) = self
+            .momentary
+            .snapshot(momentary_index, cursor.momentary_applied[momentary_index])?;
+        Some(LatestCandidate {
+            key: LatestKey::MomentaryUpdate(momentary_index),
+            revision,
+            generation: epoch,
+            value: 0,
+            momentary: Some(update),
+        })
     }
 
     #[cfg(feature = "routing-tree-executor")]
     pub(super) fn has_pending(&self, cursor: &LatestCursor) -> bool {
-        self.cells
-            .iter()
-            .zip(cursor.applied)
-            .any(|(cell, applied)| cell.has_pending(applied))
+        let cells_changed = self.publications.load(Ordering::Acquire) != cursor.seen_publications;
+        (cells_changed
+            && self
+                .cells
+                .iter()
+                .zip(cursor.applied)
+                .any(|(cell, applied)| cell.has_pending(applied)))
             || self.momentary.has_pending(&cursor.momentary_applied)
     }
 
@@ -312,6 +335,7 @@ impl LatestControls {
 
 pub(super) struct LatestCursor {
     next: usize,
+    seen_publications: u64,
     applied: [u64; NORMAL_CELL_COUNT],
     momentary_applied: [u64; MOMENTARY_SLOT_COUNT],
 }
@@ -320,6 +344,7 @@ impl LatestCursor {
     pub(super) fn new() -> Self {
         Self {
             next: 0,
+            seen_publications: 0,
             applied: [0; NORMAL_CELL_COUNT],
             momentary_applied: [0; MOMENTARY_SLOT_COUNT],
         }

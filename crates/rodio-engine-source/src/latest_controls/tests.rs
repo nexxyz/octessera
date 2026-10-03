@@ -56,6 +56,26 @@ fn fm_index_coalesces_in_its_own_instrument_cell() {
 }
 
 #[test]
+fn publish_after_an_empty_scan_is_still_found() {
+    let (sender, mut receiver) = crate::event_queue();
+    let volume = |generation, volume_pct| EngineEvent::SetMasterVolume {
+        generation,
+        volume_pct,
+    };
+    sender.send(volume(1, 40.0)).unwrap();
+    let first = receiver.take_latest_candidate().unwrap();
+    receiver.mark_latest_applied(first);
+    assert!(receiver.take_latest_candidate().is_none());
+    assert!(receiver.take_latest_candidate().is_none());
+
+    sender.send(volume(2, 55.0)).unwrap();
+    let second = receiver.take_latest_candidate().unwrap();
+    assert_eq!(second.generation, 2);
+    receiver.mark_latest_applied(second);
+    assert!(receiver.take_latest_candidate().is_none());
+}
+
+#[test]
 fn pluck_decay_coalesces_without_colliding_with_brightness_or_other_slots() {
     let (sender, mut receiver) = crate::event_queue();
     for value in [200.0, 1_500.0] {
