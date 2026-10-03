@@ -62,6 +62,7 @@ mod host_audio_prep;
 mod initial_audio_prep;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod input;
+mod keyboard_capture;
 #[cfg(any(
     feature = "hardware-orange-pi-zero-2w",
     all(
@@ -127,7 +128,6 @@ mod update_menu_fixture_tests;
 mod usb_config;
 #[cfg(feature = "native-audio")]
 mod usb_config_validation;
-mod usb_keyboard;
 mod user_data_archive;
 mod user_data_restore;
 mod user_data_transfer;

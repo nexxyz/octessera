@@ -1,5 +1,5 @@
 use crate::bluetooth::BluetoothHandle;
-use crate::usb_keyboard::KeyboardCaptureControl;
+use crate::keyboard_capture::KeyboardCaptureControl;
 use crate::midi_host::MidiHost;
 use crate::oled_frame_cache::{OledFrameCache, OledFrameCacheFault, OledFramePublication};
 use crate::platform_service::{

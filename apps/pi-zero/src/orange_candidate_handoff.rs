@@ -71,7 +71,7 @@ pub(crate) fn run(
             format!("Orange control startup failed: {error}"),
         )
     })?;
-    let keyboard = crate::usb_keyboard::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
+    let keyboard = crate::keyboard_capture::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
     let prepared = match prepare_runtime(
         audio.service(),
         midi_handler,

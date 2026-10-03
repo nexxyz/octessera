@@ -140,7 +140,7 @@ pub fn run() -> Result<(), OrangeRunError> {
     )?;
     let (encoder_rx, _encoders) = init_encoders()?;
     let seesaw = seesaw_io::spawn_polling(trellis, neokey)?;
-    let keyboard = crate::usb_keyboard::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
+    let keyboard = crate::keyboard_capture::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
     let render = RenderWorker::spawn(HardwareRenderTargets {
         oled,
         seesaw_tx: seesaw.command_tx.clone(),
@@ -194,7 +194,7 @@ fn run_runtime(
     audio_manager: &mut AudioManager,
     candidate_readiness: &mut CandidateReadiness,
     audio_optimization: playback_runtime::AudioOptimization,
-    keyboard_control: crate::usb_keyboard::KeyboardCaptureControl,
+    keyboard_control: crate::keyboard_capture::KeyboardCaptureControl,
     services: OrangeRuntimeServices,
 ) -> Result<crate::orange_device_apply::OrangeShutdownResolution, OrangeRunError> {
     let OrangeRuntimeServices {

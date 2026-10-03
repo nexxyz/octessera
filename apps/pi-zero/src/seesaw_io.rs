@@ -71,8 +71,8 @@ impl SeesawIo {
     pub(crate) fn spawn_keyboard(
         &self,
         role: playback_runtime::UsbDataRole,
-    ) -> crate::usb_keyboard::KeyboardCapture {
-        crate::usb_keyboard::KeyboardCapture::spawn(
+    ) -> crate::keyboard_capture::KeyboardCapture {
+        crate::keyboard_capture::KeyboardCapture::spawn(
             self.input_tx.clone(),
             role == playback_runtime::UsbDataRole::Host,
         )

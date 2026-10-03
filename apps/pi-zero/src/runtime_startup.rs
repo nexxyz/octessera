@@ -22,7 +22,7 @@ pub(crate) struct PreparedRuntime {
     pub(super) runner: NativeRunner,
     pub(super) adapter: PiPlaybackHostAdapter,
     pub(super) candidate_readiness: CandidateReadiness,
-    pub(super) keyboard: crate::usb_keyboard::KeyboardCapture,
+    pub(super) keyboard: crate::keyboard_capture::KeyboardCapture,
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     pub(super) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
 }
@@ -321,7 +321,7 @@ mod tests {
                 Some(marker.clone()),
                 "pi-route-readiness".into(),
             ),
-            keyboard: crate::usb_keyboard::KeyboardCapture::spawn(input_tx, false),
+            keyboard: crate::keyboard_capture::KeyboardCapture::spawn(input_tx, false),
             #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
             audio_load_rx: None,
         };

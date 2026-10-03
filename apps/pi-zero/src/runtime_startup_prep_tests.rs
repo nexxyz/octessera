@@ -252,7 +252,7 @@ fn prepared_runtime(
         runner,
         adapter,
         candidate_readiness: CandidateReadiness::new(marker, "pi-recording-test".into()),
-        keyboard: crate::usb_keyboard::KeyboardCapture::spawn(input_tx, false),
+        keyboard: crate::keyboard_capture::KeyboardCapture::spawn(input_tx, false),
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         audio_load_rx: None,
     }

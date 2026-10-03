@@ -1,12 +1,9 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 
 #[cfg(target_os = "linux")]
-#[path = "usb_keyboard_evdev.rs"]
 mod evdev;
-#[path = "usb_keyboard_mapping.rs"]
 mod mapping;
 #[cfg(any(target_os = "linux", test))]
-#[path = "usb_keyboard_worker.rs"]
 mod worker;
 
 #[cfg(test)]
@@ -245,8 +242,6 @@ fn run_worker(control: KeyboardCaptureControl, _input_tx: Sender<HostMessage>) {
 }
 
 #[cfg(test)]
-#[path = "usb_keyboard_tests.rs"]
 mod tests;
 #[cfg(test)]
-#[path = "usb_keyboard_worker_tests.rs"]
 mod worker_tests;

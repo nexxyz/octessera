@@ -65,7 +65,7 @@ pub(crate) fn prepare_runtime(
     usb_midi_out_enabled: bool,
     audio_optimization: AudioOptimization,
     skip_startup_splash: bool,
-    keyboard_control: Option<crate::usb_keyboard::KeyboardCaptureControl>,
+    keyboard_control: Option<crate::keyboard_capture::KeyboardCaptureControl>,
 ) -> Result<PreparedRuntime, String> {
     let mut playback = PlaybackRuntime::new(RuntimeConfig {
         bpm: 120.0,
