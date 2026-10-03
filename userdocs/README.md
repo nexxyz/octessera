@@ -85,7 +85,10 @@ The default library has 320 media files: 318 WAV files available to the
 sampler, plus two AIFF files outside the WAV-only browser. You can add your own
 samples through the desktop sample browser or the board sample paths.
 
-For the optional OLED microSD card, label it `OCTESSERA_SD`. This is SD2; the
-selected board's boot card is SD1. Put WAV files under `octessera/samples`. If
-you use **System > SD Card 2 > Start Transfer**, eject the host drive before
+For the optional OLED microSD card, format it as FAT32 or exFAT and name the
+volume `OCTESSERA`; the instrument only picks up a card with exactly that name.
+This is SD2; the selected board's boot card is SD1. Put WAV files under
+`octessera/samples`. You can swap the card while the instrument is on; give it
+a couple of seconds to show up. If you use **System > SD Card 2 > Start
+Transfer**, eject the host drive before
 pressing **Back** or **Main** to stop the transfer.

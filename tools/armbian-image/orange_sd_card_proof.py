@@ -150,7 +150,7 @@ def verify_orange_sd_card(
     require(library.read_text(encoding="utf-8") == (repository_root / "tools/storage/octessera-sd-card-lib.sh").read_text(encoding="utf-8"), "Orange SD helper library differs from its canonical source")
     require("SD_MOUNT=${OCTESSERA_SD_MOUNT:?OCTESSERA_SD_MOUNT must be set}" in helper_text, "Orange SD helper mount configuration is not explicit")
     require("SD_OWNER=${OCTESSERA_SD_OWNER:?OCTESSERA_SD_OWNER must be set}" in helper_text, "Orange SD helper owner configuration is not explicit")
-    require("/dev/disk/by-label/OCTESSERA_SD" not in helper_text and "mmcblk" not in helper_text, "Orange SD helper uses a device-index fallback")
+    require("/dev/disk/by-label/OCTESSERA" not in helper_text and "mmcblk" not in helper_text, "Orange SD helper uses a device-index fallback")
     service_text = service.read_text(encoding="utf-8")
     for line in (
         "User=root",
@@ -161,7 +161,7 @@ def verify_orange_sd_card(
         require(line in service_text.splitlines(), f"Orange SD service is missing: {line}")
     require(
         rule.read_text(encoding="utf-8")
-        == 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA_SD", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"\n',
+        == 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"\n',
         "Orange SD udev rule is not label-bound",
     )
     require("/usr/local/lib/octessera/octessera-sd-card-lib.sh" in helper_text, "Orange SD helper does not use the shared library")

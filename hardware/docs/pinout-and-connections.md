@@ -73,6 +73,8 @@ is `0x3F`.
 image leaves the UART inactive (`enable_uart=0` and no serial-console kernel
 token) so GPIO14 remains an encoder input. `GPIO20` is reserved for OLED
 microSD card detect; keep it free from I2S overlays and encoder inputs.
+The Raspberry image's `octessera-oled-sd` overlay turns SPI0 CS1 into the
+SD2 slot with `GPIO20` as its card detect (high when a card is present).
 
 ### Other connections
 

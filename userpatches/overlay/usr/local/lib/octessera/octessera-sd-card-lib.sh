@@ -35,13 +35,13 @@ safe_partition() {
 }
 
 configured_device() {
-  devices="$(blkid -t LABEL=OCTESSERA_SD -o device 2>/dev/null || true)"
+  devices="$(blkid -t LABEL=OCTESSERA -o device 2>/dev/null || true)"
   count="$(printf '%s\n' "$devices" | awk 'NF { count++ } END { print count + 0 }')"
   case "$count" in
     0) return 1 ;;
     1) canonical_block "$devices" ;;
     *)
-      log "refusing duplicate OCTESSERA_SD labels"
+      log "refusing duplicate OCTESSERA labels"
       return 2
       ;;
   esac
@@ -136,10 +136,10 @@ mount_card() {
     status=$?
     if [ "$status" = 1 ]; then
       if mountpoint -q "$SD_MOUNT"; then
-        log "$SD_MOUNT is mounted but no OCTESSERA_SD card is present"
+        log "$SD_MOUNT is mounted but no OCTESSERA card is present"
         return 1
       fi
-      log "no OCTESSERA_SD card found"
+      log "no OCTESSERA card found"
       return 0
     fi
     return "$status"

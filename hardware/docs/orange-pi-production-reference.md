@@ -255,7 +255,7 @@ The Orange combined configfs service accepts only the verified UDC
 existing configfs gadget fails closed. It creates only UAC2 and MIDI functions,
 binds the UDC last, and exposes no mass storage during normal operation.
 SD2 transfer is a separate fixed root-owned storage-control action using the
-same UDC and lifecycle lock. It unmounts the label-safe `OCTESSERA_SD` card
+same UDC and lifecycle lock. It unmounts the label-safe `OCTESSERA` card
 before binding a writable/removable mass-storage LUN and restores the normal
 UAC2/MIDI gadget after host eject and stop. The fake-configfs composer follows
 the same lifecycle. Teardown unbinds first, removes configuration links and functions,

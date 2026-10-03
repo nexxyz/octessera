@@ -10,6 +10,7 @@ dtoverlay=disable-bt
 dtoverlay=dwc2,dr_mode=peripheral
 enable_uart=0
 dtoverlay=i2s-dac-no20
+dtoverlay=octessera-oled-sd
 
 # Increase GPU memory for display (if using OLED via SPI)
 gpu_mem=32

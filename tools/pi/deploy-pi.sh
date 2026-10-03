@@ -142,6 +142,10 @@ sudo dtc -@ -I dts -O dtb \
     /boot/firmware/overlays/i2s-dac-no20.dts
 sudo sed -i -E 's/^dtoverlay=hifiberry-dac/#dtoverlay=hifiberry-dac/; s/^dtoverlay=i2s-no-gpio20/#dtoverlay=i2s-no-gpio20/' "$BOOT_CONFIG"
 ensure_boot_config_line "dtoverlay=i2s-dac-no20"
+sudo dtc -@ -I dts -O dtb \
+    -o /boot/firmware/overlays/octessera-oled-sd.dtbo \
+    "$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/boot/overlays/octessera-oled-sd.dts"
+ensure_boot_config_line "dtoverlay=octessera-oled-sd"
 ensure_boot_config_line "dtparam=spi=on"
 ensure_boot_config_line "dtparam=i2c_arm=on"
 if [ "$BOOT_STATE_BEFORE" != "$(sha256sum "$BOOT_CONFIG" "$CMDLINE")" ]; then

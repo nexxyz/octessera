@@ -264,7 +264,7 @@ if [[ "$sd_card_required" == true ]]; then
   printf '%s\n' "$sd_service" | grep -qFx 'Environment=OCTESSERA_SD_MOUNT=/var/lib/octessera/samples/sd-card'
   printf '%s\n' "$sd_service" | grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime'
   printf '%s\n' "$sd_service" | grep -qFx 'ExecStart=/usr/local/sbin/octessera-sd-card mount'
-  expected_sd_rule='ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA_SD", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"'
+  expected_sd_rule='ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"'
   [[ "$(read_file etc/udev/rules.d/99-octessera-orange-sd-card.rules)" == "$expected_sd_rule" ]]
 fi
 
