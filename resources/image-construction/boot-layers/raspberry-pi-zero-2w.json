@@ -22,7 +22,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_http.py", "sha256": "702f7e47c559ec438baf858036c2ecc043cc2252fa8f80c5522761bb1d62f52a", "size": 4217},
     {"path": "tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh", "sha256": "32c990467e6a4b62205f1527615620f0441b18173e453998a8eb3cb520f8daa1", "size": 1288},
     {"path": "tools/storage/octessera-sd-card", "sha256": "8f08ca0639407af3405ca9b99513879a1ab0b8f3d236a2af4e020be59db0b65c", "size": 553},
-    {"path": "tools/storage/octessera-sd-card-lib.sh", "sha256": "3abd11b562c606de57554052eaa6d428ac5c7f9e8c46c0f73cf1f222c00b7eb2", "size": 4307},
+    {"path": "tools/storage/octessera-sd-card-lib.sh", "sha256": "f560e32dd48f736a3dab3858a7ed5326b4209f988c0a04507f7f09884272a702", "size": 5066},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-sd-card.service", "sha256": "1488ec09569922c2ac71473c217c70a11b9898f07696869c74909c41417560b2", "size": 301},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d/99-octessera-sd-card.rules", "sha256": "c534c12669e12086a7787c026075da2c5fe5e425765073737c4c78f200ba6bf5", "size": 164},
     {"path": "tools/pi-image/validate-rpi-parent-sudoers.sh", "sha256": "c081a49547efb9ed53581688a328db551f47df7ab3d096016a7df0c8d55035f2", "size": 689},

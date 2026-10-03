@@ -100,9 +100,30 @@ blkid() {
     *'-s TYPE'*) printf '%s\n' vfat ;;
   esac
 }
+SD_DISKSEQ_STATE="$work/diskseq"
+card_sequence=7
+disk_sequence() { printf '%s
+' "$card_sequence"; }
+if mounted_card_was_replaced /dev/sdb1; then
+  echo 'SD helper treated an unrecorded mount as a removed card.' >&2
+  exit 1
+fi
 mount_card
 test -e "$mount_marker"
 test -d "$OCTESSERA_SD_MOUNT/octessera/samples"
 test -d "$OCTESSERA_SD_MOUNT/octessera/saves"
+test "$(cat "$SD_DISKSEQ_STATE")" = 7
 
-echo 'Octessera shared SD helper, service, udev, safety, label, mount, and folder tests passed.'
+lazy_unmounts=0
+mounted_device() { printf '%s
+' /dev/sdb1; }
+umount() { test "$1" = -l && lazy_unmounts=$((lazy_unmounts + 1)) && rm -f "$mount_marker"; }
+mount_card
+test "$lazy_unmounts" = 0
+card_sequence=8
+mount_card
+test "$lazy_unmounts" = 1
+test -e "$mount_marker"
+test "$(cat "$SD_DISKSEQ_STATE")" = 8
+
+echo 'Octessera shared SD helper, service, udev, safety, label, mount, replaced-card, and folder tests passed.'

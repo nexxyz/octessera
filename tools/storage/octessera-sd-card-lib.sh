@@ -5,6 +5,7 @@ ROOT_OCTESSERA=octessera
 SAMPLES_SUBDIR=$ROOT_OCTESSERA/samples
 SAVES_SUBDIR=$ROOT_OCTESSERA/saves
 LOG=octessera-sd-card
+SD_DISKSEQ_STATE=${SD_DISKSEQ_STATE:-/run/octessera-sd-card.diskseq}
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
 canonical_block() { readlink -f "$1"; }
@@ -61,6 +62,15 @@ prepare_folders() {
 }
 
 transfer_active() { [ -e "$STORAGE_STATE" ]; }
+
+# The kernel gives every newly inserted card a new disk sequence number, which
+# tells a mount of a since-removed card apart from a healthy one.
+disk_sequence() { cat "/sys/class/block/$(parent_disk "$1")/diskseq" 2>/dev/null || true; }
+remember_disk_sequence() { disk_sequence "$1" >"$SD_DISKSEQ_STATE"; }
+mounted_card_was_replaced() {
+  recorded="$(cat "$SD_DISKSEQ_STATE" 2>/dev/null || true)"
+  [ -n "$recorded" ] && [ "$recorded" != "$(disk_sequence "$1")" ]
+}
 
 mount_options_for() {
   fstype="$(blkid -o value -s TYPE "$1" 2>/dev/null || true)"
@@ -122,6 +132,7 @@ remount_card() {
     fi
   fi
   prepare_folders
+  remember_disk_sequence "$dev"
 }
 
 mount_card() {
@@ -152,8 +163,14 @@ mount_card() {
       log "$SD_MOUNT is mounted from $mounted_dev, expected $dev"
       return 1
     }
-    prepare_folders
-    return 0
+    if mounted_card_was_replaced "$dev"; then
+      log "$SD_MOUNT still holds a removed card; remounting"
+      umount -l "$SD_MOUNT"
+    else
+      prepare_folders
+      remember_disk_sequence "$dev"
+      return 0
+    fi
   fi
   remount_card "$dev"
   log "mounted OLED SD card $dev at $SD_MOUNT"
