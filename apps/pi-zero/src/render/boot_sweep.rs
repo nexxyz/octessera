@@ -12,7 +12,7 @@ pub(crate) const BOOT_SWEEP_SEPARATOR_COLOR: u16 = 0xFFFF;
 pub(crate) const BOOT_SWEEP_TRAIN_WIDTH: i32 = 48;
 pub(crate) const BOOT_SWEEP_LEAN_NUMERATOR: i32 = -1;
 pub(crate) const BOOT_SWEEP_LEAN_DENOMINATOR: i32 = 1;
-pub(crate) const BOOT_SWEEP_COLORS: [u16; 4] = [0xF81F, 0x07E0, 0xFFE0, 0x07FF];
+pub(crate) const BOOT_SWEEP_COLORS: [u16; 4] = [0xFFE0, 0x07FF, 0xF81F, 0x07E0];
 
 pub(crate) fn render_boot_splash(oled: &mut OledSsd1351) -> Result<(), String> {
     let frames = boot_sweep_frames();

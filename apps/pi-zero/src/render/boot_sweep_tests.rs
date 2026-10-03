@@ -20,7 +20,7 @@ fn sweep_contract_is_deterministic_and_twenty_five_fps() {
     assert_eq!(BOOT_SWEEP_TRAIN_WIDTH, 48);
     assert_eq!(BOOT_SWEEP_LEAN_NUMERATOR, -1);
     assert_eq!(BOOT_SWEEP_LEAN_DENOMINATOR, 1);
-    assert_eq!(BOOT_SWEEP_COLORS, [0xF81F, 0x07E0, 0xFFE0, 0x07FF]);
+    assert_eq!(BOOT_SWEEP_COLORS, [0xFFE0, 0x07FF, 0xF81F, 0x07E0]);
     assert_eq!(boot_sweep_frame(3), boot_sweep_frame(3));
 }
 
@@ -78,25 +78,25 @@ fn sweep_matches_palette_boundaries_and_top_slant() {
     for (x, expected) in [
         (99, 0xFFFF),
         (102, 0xFFFF),
-        (103, 0xF81F),
-        (110, 0xF81F),
+        (103, 0xFFE0),
+        (110, 0xFFE0),
         (111, 0xFFFF),
         (114, 0xFFFF),
-        (115, 0x07E0),
-        (122, 0x07E0),
+        (115, 0x07FF),
+        (122, 0x07FF),
         (123, 0xFFFF),
         (126, 0xFFFF),
-        (127, 0xFFE0),
+        (127, 0xF81F),
     ] {
         assert_eq!(rgb565_at(&frame, x, 0), expected, "bottom row x={x}");
     }
     for (x, expected) in [
-        (0, 0xFFE0),
-        (7, 0xFFE0),
+        (0, 0xF81F),
+        (7, 0xF81F),
         (8, 0xFFFF),
         (11, 0xFFFF),
-        (12, 0x07FF),
-        (19, 0x07FF),
+        (12, 0x07E0),
+        (19, 0x07E0),
     ] {
         assert_eq!(rgb565_at(&frame, x, 127), expected, "top row x={x}");
     }

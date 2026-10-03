@@ -55,12 +55,15 @@ The contract describes a 128×128 physical post-rotation frame with rightward X
 travel and bottom-to-top Y coordinates. Only source-white RGB565 pixels
 (`FFFF`) may be recolored; every other source pixel is preserved.
 
-The moving train is four 8 px bands, in order:
+The moving train is four 8 px bands, in contract order (leading band first):
 
-1. magenta (`F81F`)
-2. green (`07E0`)
-3. yellow (`FFE0`)
-4. cyan (`07FF`)
+1. yellow (`FFE0`)
+2. cyan (`07FF`)
+3. magenta (`F81F`)
+4. green (`07E0`)
+
+On the mounted panel this reads left to right as green, magenta, cyan, yellow:
+the Build, Link, Shape, and Play menu colors.
 
 The 48 px train has 8 px color bands with 4 px white separators and forms a
 panel-facing top-right slash. In canonical bottom-to-top coordinates it uses
