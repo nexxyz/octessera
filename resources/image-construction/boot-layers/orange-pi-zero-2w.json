@@ -62,7 +62,7 @@
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh", "sha256": "667823491f46945e25c98404198dc3f62e8a4a16cc255b2df3d4f62b4ea0ad8d", "size": 1837, "mode": 493},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/orange-ahub-overlay-validation.sh", "sha256": "35d59d676558de1071b12623491685e032f2ea04a8b0ad8ebfbb1ad25da583c5", "size": 7696, "mode": 493},
     {"path": "userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh", "sha256": "c3a02f04d22e6ef6d0c1c73a7dea8a5c5a2f2f3f37aa9a0104c88f1ab3166a12", "size": 4618, "mode": 493},
-    {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo", "sha256": "63695817d9b7c5507dac40420d5508c5fb581ca1ae2aa4074c4c6caa5164012c", "size": 18378, "mode": 493},
+    {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo", "sha256": "c56bc10e1bd7e401ec0bd95c3eafcb4e53d98da4aa8ebb2da9574c30d4bd987d", "size": 18378, "mode": 493},
     {"path": "tools/armbian-image/test_orange_oled_logo.py", "sha256": "c248f0983f6d971780bce5e8ded385477650f3e41e3bde4ddc156e7bf248985b", "size": 25786, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py", "sha256": "a7f658b1db70ebcd5884f084c0077db51bda73df52dd47427c8bceb7b09707ec", "size": 17416, "mode": 420},
     {"path": "userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py", "sha256": "a3a6db464c13dde4497ace6e84d3cd268cf045aedca346bdd1a6bcaefd4ac058", "size": 19200, "mode": 420},

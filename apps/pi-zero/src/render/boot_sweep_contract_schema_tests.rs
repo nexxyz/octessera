@@ -103,10 +103,10 @@ fn validate_bands(value: &serde_json::Value) {
     );
     assert_eq!(bands["train_width_px"], 48);
     let expected_items = [
-        (0, "magenta", "F81F"),
-        (1, "green", "07E0"),
-        (2, "yellow", "FFE0"),
-        (3, "cyan", "07FF"),
+        (0, "yellow", "FFE0"),
+        (1, "cyan", "07FF"),
+        (2, "magenta", "F81F"),
+        (3, "green", "07E0"),
     ];
     let items = bands["items"].as_array().unwrap();
     assert_eq!(items.len(), expected_items.len());
