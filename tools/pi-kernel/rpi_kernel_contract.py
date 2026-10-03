@@ -11,6 +11,7 @@ from typing import Any
 EXPECTED_PATCH_ORDER = (
     "zzzz-0001-usb-gadget-f-midi-configfs-interface-string.patch",
     "zzzz-0002-usb-gadget-f-midi-instance-local-string.patch",
+    "zzzz-0003-mmc-spi-card-detect-insert-delay.patch",
 )
 EXPECTED_SOURCE_COMMIT = "d8ab4e908235da7727f22dd36ad5af224671677d"
 EXPECTED_SOURCE_RELEASE = "6.12.93"
@@ -50,6 +51,7 @@ EXPECTED_PACKAGE_BUILDER = {
 EXPECTED_PATCH_SHA256 = (
     "bd0f3cbb15b29561849b3d68ae5fc4443fb056d083bf89fa6e5272d072a10df0",
     "ccb8865274cfe2daa74c89ce258095bfd624ac38ea4418bfe65b3f492fc5e7f7",
+    "689d78c26d22508a69a988eff70984127e6c743f6ff2659677aec5d0507f8a9a",
 )
 EXPECTED_PAYLOAD = (
     f"boot/vmlinuz-{EXPECTED_KERNEL_RELEASE}",
@@ -215,6 +217,7 @@ def load_contract(root: Path, manifest_path: Path | None = None) -> Contract:
     follow_up = patches.get("octessera_follow_up", {})
     _require(accepted.get("sha256") == EXPECTED_PATCH_SHA256[0], "unexpected accepted patch hash in manifest")
     _require(follow_up.get("sha256") == EXPECTED_PATCH_SHA256[1], "unexpected follow-up patch hash in manifest")
+    _require(patches.get("octessera_mmc_spi_card_detect", {}).get("sha256") == EXPECTED_PATCH_SHA256[2], "unexpected mmc_spi patch hash in manifest")
     _require(HEX40.fullmatch(accepted.get("commit", "")) is not None, "accepted patch commit is not a full SHA")
 
     raspberry = manifest.get("kernels", {}).get("raspberry", {})

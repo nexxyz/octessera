@@ -14,6 +14,7 @@ PATCH_TARGETS = (
     "drivers/usb/gadget/function/u_midi.h",
     "Documentation/ABI/testing/configfs-usb-gadget-midi",
     "Documentation/usb/gadget-testing.rst",
+    "drivers/mmc/host/mmc_spi.c",
 )
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SERIES_PATH = "patch/kernel/archive/sunxi-6.18/series.conf"
@@ -49,9 +50,10 @@ def load_manifest(root):
     expected_order = [
         "zzzz-0001-usb-gadget-f-midi-configfs-interface-string.patch",
         "zzzz-0002-usb-gadget-f-midi-instance-local-string.patch",
+        "zzzz-0003-mmc-spi-card-detect-insert-delay.patch",
     ]
     if manifest.get("patch_order") != expected_order:
-        fail("manifest patch order is not the required two-patch order")
+        fail("manifest patch order is not the required patch order")
     patch_root = root / manifest.get("patch_root", "")
     if not patch_root.is_dir():
         fail(f"missing patch root: {patch_root}")
@@ -71,6 +73,8 @@ def load_manifest(root):
         fail("accepted upstream patch SHA-256 does not match the manifest")
     if follow_up.get("sha256") != sha256(patch_root / expected_order[1]):
         fail("Octessera follow-up patch SHA-256 does not match the manifest")
+    if patches.get("octessera_mmc_spi_card_detect", {}).get("sha256") != sha256(patch_root / expected_order[2]):
+        fail("Octessera mmc_spi patch SHA-256 does not match the manifest")
     require_commit(accepted.get("commit"), "accepted upstream commit")
     if not accepted.get("url", "").endswith(accepted["commit"] + ".patch"):
         fail("accepted upstream patch URL is not pinned to its commit")
@@ -225,6 +229,10 @@ def apply_patch(source, patch, label, target):
     allowed_offsets = target == "raspberry" and label == "Octessera safety patch" and offsets == ("-1",) * 6
     if offsets and not allowed_offsets:
         fail(f"{target}: {label} applied with unexpected offset output\n{output}")
+def validate_mmc_spi_patch(patch):
+    paths = [tuple(field[2:] for field in line.split()[2:4]) for line in patch.read_text().splitlines() if line.startswith("diff --git ")]
+    if paths != [("drivers/mmc/host/mmc_spi.c", "drivers/mmc/host/mmc_spi.c")]:
+        fail("mmc_spi patch modifies more than mmc_spi.c")
 def validate_follow_up_patch(patch):
     paths = []
     for line in patch.read_text().splitlines():
@@ -405,6 +413,9 @@ def validate_final_source(source, target):
     header = (source / "drivers/usb/gadget/function/u_midi.h").read_text()
     validate_final_text(midi, header, target)
     validate_negative_mutation_fixtures(midi, header, target)
+    mmc_spi = (source / "drivers/mmc/host/mmc_spi.c").read_text()
+    if mmc_spi.count("mmc_gpiod_request_cd(mmc, NULL, 0, false, 2000000);") != 1:
+        fail(f"{target}: mmc_spi does not wait 2 s after card detect")
 def validate_config_bases(manifest, armbian_repo, raspberry_repo):
     armbian = manifest["build_frameworks"]["armbian"]
     orange_config = armbian["config_base"]
@@ -426,6 +437,7 @@ def main():
     try:
         manifest, patch_root, order = load_manifest(root)
         validate_follow_up_patch(patch_root / order[1])
+        validate_mmc_spi_patch(patch_root / order[2])
         with tempfile.TemporaryDirectory(prefix="octessera-midi-source-gate-") as temp:
             temp_root = Path(temp)
             kernels = manifest["kernels"]
@@ -457,7 +469,7 @@ def main():
             for target, repo in (("orange", orange_repo), ("raspberry", raspberry_repo)):
                 source = temp_root / f"{target}-staged"
                 stage_source(repo, kernels[target]["commit"], source)
-                for label, patch_name in zip(("accepted upstream patch", "Octessera safety patch"), order):
+                for label, patch_name in zip(("accepted upstream patch", "Octessera safety patch", "Octessera mmc_spi patch"), order):
                     apply_patch(source, patch_root / patch_name, label, target)
                 validate_final_source(source, target)
     except GateFailure as error:

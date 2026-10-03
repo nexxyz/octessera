@@ -1,0 +1,26 @@
+From: Octessera kernel maintainers <kernel@octessera.invalid>
+Subject: [PATCH] mmc: mmc_spi: give a freshly inserted card time to power up
+
+mmc_spi requests a 1 ms card-detect debounce. Pin controllers without
+hardware debounce turn that into the core detect delay, so a card is
+initialised 1 ms after the slot switch closes, before it has powered up,
+and the one attempt fails until the card is reinserted. Wait 2 s instead.
+
+diff --git a/drivers/mmc/host/mmc_spi.c b/drivers/mmc/host/mmc_spi.c
+--- a/drivers/mmc/host/mmc_spi.c
++++ b/drivers/mmc/host/mmc_spi.c
+@@ -1266,10 +1266,11 @@ static int mmc_spi_probe(struct spi_device *spi)
+ 		goto fail_glue_init;
+ 
+ 	/*
+-	 * Index 0 is card detect
+-	 * Old boardfiles were specifying 1 ms as debounce
++	 * Index 0 is card detect. Without hardware debounce this value becomes
++	 * the core's detect delay; a freshly inserted card needs time to power
++	 * up, so wait 2 s before probing it.
+ 	 */
+-	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1000);
++	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 2000000);
+ 	if (status == -EPROBE_DEFER)
+ 		goto fail_gpiod_request;
+ 	if (!status) {
