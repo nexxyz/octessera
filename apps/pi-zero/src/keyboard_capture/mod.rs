@@ -47,7 +47,17 @@ struct KeyboardCaptureShared {
 #[derive(Default)]
 struct KeyboardCaptureState {
     enabled: bool,
+    hdmi_allows: bool,
+    bluetooth: bool,
     shutdown: bool,
+}
+
+/// Which keyboard buses capture accepts: USB in USB host mode, Bluetooth
+/// while System > Bluetooth is On.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct KeyboardBuses {
+    pub(crate) usb: bool,
+    pub(crate) bluetooth: bool,
 }
 
 impl KeyboardCaptureControl {
@@ -62,21 +72,33 @@ impl KeyboardCaptureControl {
     }
 
     pub(crate) fn observe_snapshot(&self, snapshot: &Value) {
-        let enabled = capture_enabled_for_snapshot(self.shared.board_host_enabled, snapshot);
-        self.set_enabled(enabled);
+        self.update(|state| state.hdmi_allows = hdmi_snapshot_allows_capture(snapshot));
     }
 
     pub(crate) fn observe_hdmi_mode(&self, mode: playback_runtime::NativeHdmiMode) {
-        self.set_enabled(
-            self.shared.board_host_enabled && mode != playback_runtime::NativeHdmiMode::None,
-        );
+        self.update(|state| state.hdmi_allows = mode != playback_runtime::NativeHdmiMode::None);
     }
 
-    fn set_enabled(&self, enabled: bool) {
+    pub(crate) fn observe_bluetooth(&self, enabled: bool) {
+        self.update(|state| state.bluetooth = enabled);
+    }
+
+    fn update(&self, change: impl FnOnce(&mut KeyboardCaptureState)) {
         let mut state = self.shared.state.lock().unwrap();
+        change(&mut state);
+        let enabled = !state.shutdown
+            && state.hdmi_allows
+            && (self.shared.board_host_enabled || state.bluetooth);
         if state.enabled != enabled {
             state.enabled = enabled;
             self.shared.wake.notify_one();
+        }
+    }
+
+    pub(crate) fn buses(&self) -> KeyboardBuses {
+        KeyboardBuses {
+            usb: self.shared.board_host_enabled,
+            bluetooth: self.shared.state.lock().unwrap().bluetooth,
         }
     }
 
@@ -160,14 +182,13 @@ impl Drop for KeyboardCapture {
     }
 }
 
-pub(crate) fn capture_enabled_for_snapshot(board_host_enabled: bool, snapshot: &Value) -> bool {
-    board_host_enabled
-        && snapshot
-            .get("hdmi")
-            .and_then(Value::as_object)
-            .and_then(|hdmi| hdmi.get("mode"))
-            .and_then(Value::as_str)
-            .is_some_and(|mode| ALLOWED_HDMI_MODES.contains(&mode))
+pub(crate) fn hdmi_snapshot_allows_capture(snapshot: &Value) -> bool {
+    snapshot
+        .get("hdmi")
+        .and_then(Value::as_object)
+        .and_then(|hdmi| hdmi.get("mode"))
+        .and_then(Value::as_str)
+        .is_some_and(|mode| ALLOWED_HDMI_MODES.contains(&mode))
 }
 
 pub(crate) fn sorted_event_nodes(paths: impl IntoIterator<Item = PathBuf>) -> Vec<PathBuf> {

@@ -1,9 +1,10 @@
+use crate::bluetooth::BluetoothHandle;
+use crate::usb_keyboard::KeyboardCaptureControl;
 use crate::midi_host::MidiHost;
 use crate::oled_frame_cache::{OledFrameCache, OledFrameCacheFault, OledFramePublication};
 use crate::platform_service::{
     enqueue_job, PendingPiPersistence, PiPlatformService, PlatformJobKind,
 };
-use crate::usb_keyboard::KeyboardCaptureControl;
 use playback_runtime::{
     HostMessage, NativeHdmiMode, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeAdapterError,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
@@ -20,6 +21,8 @@ pub(crate) struct PiHostCore {
     pub(crate) oled_frame_cache: OledFrameCache,
     pub(crate) recovery_save_status: Option<Result<(), String>>,
     keyboard_control: Option<KeyboardCaptureControl>,
+    bluetooth: Option<BluetoothHandle>,
+    bluetooth_enabled: Option<bool>,
 }
 
 impl PiHostCore {
@@ -31,16 +34,36 @@ impl PiHostCore {
             oled_frame_cache: OledFrameCache::default(),
             recovery_save_status: None,
             keyboard_control: None,
+            bluetooth: if cfg!(test) {
+                None
+            } else {
+                BluetoothHandle::spawn_system()
+            },
+            bluetooth_enabled: None,
         }
     }
 
     pub(crate) fn set_keyboard_capture_control(&mut self, control: KeyboardCaptureControl) {
+        control.observe_bluetooth(self.bluetooth_enabled.unwrap_or(false));
         self.keyboard_control = Some(control);
     }
 
     pub(crate) fn observe_keyboard_capture_snapshot(&self, snapshot: &Value) {
         if let Some(control) = &self.keyboard_control {
             control.observe_snapshot(snapshot);
+        }
+    }
+
+    /// Follows the System setting; only a change reaches the worker and keyboard capture.
+    pub(crate) fn observe_bluetooth_enabled(&mut self, enabled: bool) {
+        if self.bluetooth_enabled.replace(enabled) == Some(enabled) {
+            return;
+        }
+        if let Some(control) = &self.keyboard_control {
+            control.observe_bluetooth(enabled);
+        }
+        if let Some(bluetooth) = &self.bluetooth {
+            bluetooth.set_enabled(enabled);
         }
     }
 
@@ -91,6 +114,10 @@ impl PiHostCore {
         runner: &mut NativeRunner,
         max_results: usize,
     ) -> Vec<HostMessage> {
+        let bluetooth = self
+            .bluetooth
+            .iter()
+            .flat_map(BluetoothHandle::drain_status);
         self.platform_service
             .drain_platform_results(max_results)
             .into_iter()
@@ -101,6 +128,7 @@ impl PiHostCore {
                     result,
                 )
             })
+            .chain(bluetooth)
             .collect()
     }
 
@@ -171,6 +199,13 @@ impl PiHostCore {
         &mut self,
         request: &RuntimePlatformRequest,
     ) -> Option<Vec<HostMessage>> {
+        if self
+            .bluetooth
+            .as_ref()
+            .is_some_and(|bluetooth| bluetooth.handle_effect(&request.effect))
+        {
+            return Some(Vec::new());
+        }
         let result = match &request.effect {
             RuntimePlatformEffect::StoreLoadDefault => {
                 if self.pending_default_save.has_default_pending()

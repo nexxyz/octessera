@@ -31,6 +31,7 @@ mod audio_stream_health;
 mod autoaux_menu;
 #[cfg(feature = "native-audio")]
 mod autoaux_sequence;
+mod bluetooth;
 mod boot_oled_handoff;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod boot_startup_delayed;

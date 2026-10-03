@@ -13,8 +13,11 @@ pub(super) struct EvdevAcquirer;
 impl super::worker::KeyboardAcquirer for EvdevAcquirer {
     type Device = EvdevKeyboard;
 
-    fn discover_first(&mut self) -> super::worker::Acquisition<Self::Device> {
-        discover_keyboard()
+    fn discover_first(
+        &mut self,
+        buses: super::KeyboardBuses,
+    ) -> super::worker::Acquisition<Self::Device> {
+        discover_keyboard(buses)
     }
 }
 
@@ -47,7 +50,9 @@ impl super::worker::KeyboardDevice for EvdevKeyboard {
     }
 }
 
-pub(super) fn discover_keyboard() -> super::worker::Acquisition<EvdevKeyboard> {
+pub(super) fn discover_keyboard(
+    buses: super::KeyboardBuses,
+) -> super::worker::Acquisition<EvdevKeyboard> {
     use super::worker::Acquisition::{GrabFailed, None, Ready};
 
     let paths = fs::read_dir("/dev/input")
@@ -60,7 +65,7 @@ pub(super) fn discover_keyboard() -> super::worker::Acquisition<EvdevKeyboard> {
         let Ok(mut device) = Device::open(&path) else {
             continue;
         };
-        if !is_supported_keyboard(&device) {
+        if !is_supported_keyboard(&device, buses) {
             continue;
         }
         if device.set_nonblocking(true).is_err() {
@@ -74,13 +79,16 @@ pub(super) fn discover_keyboard() -> super::worker::Acquisition<EvdevKeyboard> {
     None
 }
 
-fn is_supported_keyboard(device: &Device) -> bool {
+fn is_supported_keyboard(device: &Device, buses: super::KeyboardBuses) -> bool {
     let Some(keys) = device.supported_keys() else {
         return false;
     };
-    super::worker::accepts_keyboard(device.input_id().bus_type() == BusType::BUS_USB, |key| {
-        keys.contains(evdev_key(key))
-    })
+    let bus_allowed = match device.input_id().bus_type() {
+        BusType::BUS_USB => buses.usb,
+        BusType::BUS_BLUETOOTH => buses.bluetooth,
+        _ => false,
+    };
+    super::worker::accepts_keyboard(bus_allowed, |key| keys.contains(evdev_key(key)))
 }
 
 pub(super) fn evdev_key(key: KeyboardKey) -> KeyCode {

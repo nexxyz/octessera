@@ -1,4 +1,6 @@
-use super::{emit, release_held_inputs, KeyboardCaptureControl, KeyboardKey, KeyboardState};
+use super::{
+    emit, release_held_inputs, KeyboardBuses, KeyboardCaptureControl, KeyboardKey, KeyboardState,
+};
 use playback_runtime::HostMessage;
 use std::io;
 use std::sync::mpsc::Sender;
@@ -12,7 +14,7 @@ pub(super) enum Acquisition<Device> {
 pub(super) trait KeyboardAcquirer {
     type Device: KeyboardDevice;
 
-    fn discover_first(&mut self) -> Acquisition<Self::Device>;
+    fn discover_first(&mut self, buses: KeyboardBuses) -> Acquisition<Self::Device>;
 }
 
 pub(super) trait KeyboardDevice {
@@ -21,10 +23,10 @@ pub(super) trait KeyboardDevice {
 }
 
 pub(super) fn accepts_keyboard(
-    usb_bus: bool,
+    bus_allowed: bool,
     mut supports_key: impl FnMut(KeyboardKey) -> bool,
 ) -> bool {
-    usb_bus && REQUIRED_KEYS.iter().copied().all(&mut supports_key)
+    bus_allowed && REQUIRED_KEYS.iter().copied().all(&mut supports_key)
 }
 
 const REQUIRED_KEYS: [KeyboardKey; 21] = [
@@ -78,7 +80,7 @@ pub(super) fn run_with_acquirer<A>(
             continue;
         }
         if device.is_none() {
-            match acquirer.discover_first() {
+            match acquirer.discover_first(control.buses()) {
                 Acquisition::Ready(next) => device = Some(next),
                 Acquisition::None | Acquisition::GrabFailed => {
                     control.wait_for_change(true, Some(super::DISCOVERY_WAIT));

@@ -57,6 +57,8 @@ pub(crate) fn process_runtime_output<H: PiRuntimeHost>(
     output: RuntimeIngest,
 ) -> Result<(), String> {
     ingest_oled_messages(host, &output.messages);
+    host.core_mut()
+        .observe_bluetooth_enabled(runner.bluetooth_enabled());
     let fault = host
         .core()
         .oled_frame_fault()

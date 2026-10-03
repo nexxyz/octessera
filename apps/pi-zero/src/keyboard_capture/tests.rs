@@ -243,15 +243,14 @@ fn shift_space_keeps_shift_and_space_order_and_meaning() {
 }
 
 #[test]
-fn gate_allows_only_graphical_hdmi_snapshots_and_honors_board_role() {
+fn gate_allows_only_graphical_hdmi_snapshots() {
     for mode in [
         "live-grid",
         "plain-grid",
         "active-behavior",
         "cycle-behaviors",
     ] {
-        assert!(capture_enabled_for_snapshot(
-            true,
+        assert!(hdmi_snapshot_allows_capture(
             &json!({ "hdmi": { "mode": mode } })
         ));
     }
@@ -264,14 +263,32 @@ fn gate_allows_only_graphical_hdmi_snapshots_and_honors_board_role() {
         json!({ "hdmi": { "mode": "unknown" } }),
         json!({ "hdmi": [] }),
     ] {
-        assert!(!capture_enabled_for_snapshot(true, &snapshot));
+        assert!(!hdmi_snapshot_allows_capture(&snapshot));
     }
-    assert!(!capture_enabled_for_snapshot(
-        false,
-        &json!({
-            "hdmi": { "mode": "live-grid" }
-        })
-    ));
+}
+
+#[test]
+fn bluetooth_lets_a_board_without_usb_host_capture_keyboards() {
+    let control = KeyboardCaptureControl::new(false);
+    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::LiveGrid);
+    assert!(!control.is_enabled());
+    assert_eq!(control.buses(), KeyboardBuses::default());
+
+    control.observe_bluetooth(true);
+    assert!(control.is_enabled());
+    assert_eq!(
+        control.buses(),
+        KeyboardBuses {
+            usb: false,
+            bluetooth: true
+        }
+    );
+
+    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::None);
+    assert!(
+        !control.is_enabled(),
+        "terminal mode hands keyboards to the console"
+    );
 }
 
 #[test]

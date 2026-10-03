@@ -1,6 +1,8 @@
 #[cfg(not(target_os = "linux"))]
 use super::KeyboardCapture;
-use super::{worker, HostMessage, KeyboardCaptureControl, KeyboardInput, KeyboardKey};
+use super::{
+    worker, HostMessage, KeyboardBuses, KeyboardCaptureControl, KeyboardInput, KeyboardKey,
+};
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::io;
@@ -67,7 +69,7 @@ struct FakeAcquirer {
 impl worker::KeyboardAcquirer for FakeAcquirer {
     type Device = FakeDevice;
 
-    fn discover_first(&mut self) -> worker::Acquisition<Self::Device> {
+    fn discover_first(&mut self, _buses: KeyboardBuses) -> worker::Acquisition<Self::Device> {
         self.attempts.fetch_add(1, Ordering::SeqCst);
         self.outcomes
             .pop_front()
