@@ -26,5 +26,7 @@
         reg = <1>;
         spi-max-frequency = <10000000>;
         voltage-ranges = <3300 3300>;
+        /* Card detect on header pin 38 (PI4), high when a card is present, pull-up. */
+        gpios = <&pio 8 4 0x10>;
     };
 };

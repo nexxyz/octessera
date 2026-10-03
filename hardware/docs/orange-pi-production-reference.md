@@ -144,8 +144,12 @@ The production image's SPI1 OLED+SD2 overlay is board-specific:
 
 It enables SPI1 data plus CS0 and CS1 on the reviewed H618 pin groups, creates
 one `rohm,dh2228fv` OLED device capped at 16 MHz, and creates an
-`mmc-spi-slot` SD2 device on CS1 capped at 10 MHz. It does not add GPIO chip
-select, card-detect, broken-card-detect, or non-removable properties. Image customization resolves the
+`mmc-spi-slot` SD2 device on CS1 capped at 10 MHz. Its card detect is the
+OLED module's CD line on header pin 38 (H618 PI4, pull-up, high when a card is
+present), set through the binding's legacy `gpios` property. Without it the
+kernel polls the empty slot over SPI1 many times a second, which floods the
+journal on the debug-enabled Armbian kernel. It does not add GPIO chip select,
+broken-card-detect, or non-removable properties. Image customization resolves the
 boot-selected DTB and records non-secret DTS/DTBO hashes in
 `/etc/octessera/build-metadata.env`; DTBO and boot-environment writes are
 atomic. Before any OLED transfer, verify the live SPI1 node and pinmux and keep
