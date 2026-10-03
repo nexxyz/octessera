@@ -61,14 +61,14 @@ fi
 grep -qxF 'dtoverlay=disable-bt' "$BOOT_DIR/config.txt"
 grep -qxF 'enable_uart=0' "$BOOT_DIR/config.txt"
 
-if [ -f "$STAGE_FILES/boot/overlays/i2s-dac-no20.dts" ]; then
-    install -d "$BOOT_DIR/octessera/overlays"
-    if [ ! -e "$BOOT_DIR/octessera/overlays/i2s-dac-no20.dtbo" ]; then
+install -d "$BOOT_DIR/octessera/overlays"
+for overlay in i2s-dac-no20 octessera-oled-sd; do
+    if [ ! -e "$BOOT_DIR/octessera/overlays/$overlay.dtbo" ]; then
         dtc -@ -I dts -O dtb \
-            -o "$BOOT_DIR/octessera/overlays/i2s-dac-no20.dtbo" \
-            "$STAGE_FILES/boot/overlays/i2s-dac-no20.dts"
+            -o "$BOOT_DIR/octessera/overlays/$overlay.dtbo" \
+            "$STAGE_FILES/boot/overlays/$overlay.dts"
     fi
-fi
+done
 
 rm -f "$BOOT_DIR/ssh" "$BOOT_DIR/ssh.txt"
 rm -f "$BOOT_DIR/wpa_supplicant.conf" "$BOOT_DIR/network-config" "$BOOT_DIR/user-data"

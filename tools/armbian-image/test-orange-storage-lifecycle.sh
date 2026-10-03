@@ -92,7 +92,7 @@ EOF
 cat > "$bin/blkid" <<'EOF'
 #!/bin/sh
 case "$*" in
-  *LABEL=OCTESSERA_SD*)
+  *LABEL=OCTESSERA*)
     case "${BLKID_MODE:-one}" in
       one) printf '%s\n' "$TEST_DEV" ;;
       duplicate) printf '%s\n' "$TEST_DEV" /dev/sdc1 ;;

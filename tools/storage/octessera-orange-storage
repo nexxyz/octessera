@@ -241,7 +241,7 @@ storage_start_unlocked() {
     :
   else
     status=$?
-    [ "$status" = 1 ] && storage_log "no OCTESSERA_SD card found"
+    [ "$status" = 1 ] && storage_log "no OCTESSERA card found"
     return 1
   fi
   safe_partition "$dev" || { storage_log "refusing unsafe SD candidate $dev"; return 1; }

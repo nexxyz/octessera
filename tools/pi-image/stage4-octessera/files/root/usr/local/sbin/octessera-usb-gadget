@@ -252,12 +252,12 @@ configured_storage_device() {
     sed -n 's/^BACKING_DEVICE=//p' "$STORAGE_CONFIG" | head -n 1
     return 0
   fi
-  if [ -e /dev/disk/by-label/OCTESSERA_SD ]; then
-    canonical_block /dev/disk/by-label/OCTESSERA_SD
+  if [ -e /dev/disk/by-label/OCTESSERA ]; then
+    canonical_block /dev/disk/by-label/OCTESSERA
     return 0
   fi
   source="$(findmnt -nro SOURCE --mountpoint "$SD_MOUNT" 2>/dev/null || true)"
-  [ -n "$source" ] || { log "no USB storage backing configured; set $STORAGE_CONFIG or label media OCTESSERA_SD"; return 1; }
+  [ -n "$source" ] || { log "no USB storage backing configured; set $STORAGE_CONFIG or label media OCTESSERA"; return 1; }
   printf '%s\n' "$source"
 }
 
