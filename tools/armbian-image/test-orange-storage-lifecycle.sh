@@ -16,7 +16,7 @@ real_rm="$(command -v rm)"
 real_readlink="$(command -v readlink)"
 real_stat="$(command -v stat)"
 export REAL_MKDIR="$real_mkdir" REAL_RMDIR="$real_rmdir" REAL_RM="$real_rm" REAL_READLINK="$real_readlink" REAL_STAT="$real_stat"
-export TEST_WORK="$fixture" TEST_DEV=/dev/sdb1
+export TEST_WORK="$fixture" TEST_DEV=/dev/sdb1 SD_DISKSEQ_STATE="$fixture/diskseq"
 
 cat > "$bin/mkdir" <<'EOF'
 #!/bin/sh
