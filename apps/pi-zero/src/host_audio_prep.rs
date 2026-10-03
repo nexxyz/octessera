@@ -25,7 +25,17 @@ pub fn spawn_audio_control_worker(
     audio: AudioService,
     result_tx: Sender<HostMessage>,
 ) {
-    std::thread::spawn(move || audio_control_loop(rx, audio, result_tx));
+    std::thread::Builder::new()
+        .name("octessera-audio-prep".into())
+        .spawn(move || {
+            #[cfg(any(
+                feature = "hardware-orange-pi-zero-2w",
+                feature = "hardware-raspberry-pi-zero-2w"
+            ))]
+            crate::audio_priority::pin_audio_prep_worker();
+            audio_control_loop(rx, audio, result_tx)
+        })
+        .expect("audio prep worker should start");
 }
 
 fn audio_control_loop(
