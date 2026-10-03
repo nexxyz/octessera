@@ -31,12 +31,12 @@ The Shape FX bus tree stores Duck `Source Tap` as `pre|post` and displays it as 
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 
 The System section puts the dynamic Load Preset shortcut first, followed by Recording, Notes, MIDI,
-Audio, UI, conditional SD Card 2, conditional HDMI Video, Saves, Setup, and Reset. The direct actions
+Audio, UI, conditional SD Card 2, conditional HDMI Video, conditional Bluetooth, Saves, Setup, and Reset. The direct actions
 Panic, Sys. Info, Basic Help, Reboot, and Shutdown follow the groups in that order. There is no
 duplicate direct Save Current row; `System > Saves > Library > Save Current` is the only Save Current
 row. Audio orders conditional USB Audio, conditional HDMI Audio, Master Vol, conditional Perf. Mode,
 Polyphony, and Engine; Master Vol keeps key `masterVolume`.
-SD Card 2 and HDMI Video are board-only groups and are omitted on desktop. USB Role is a
+SD Card 2, HDMI Video, and Bluetooth are board-only groups and are omitted on desktop. USB Role is a
 Raspberry-capability-only child of Setup before Updates. The complete resolved System order and every
 recursive branch are in the [System split-out tree](menu-tree/system.md).
 
@@ -66,7 +66,8 @@ Updates. Host hides and disables USB Audio, USB MIDI, and SD Card 2 Start Transf
 and Stop Transfer remain available for cleanup. Gadget does not restore previously disabled outputs.
 `System > SD Card 2` contains Start Transfer and Stop Transfer; it exposes the second card to a USB
 host only while conflicting USB audio, MIDI, and recording are inactive. HDMI Video contains the
-existing Mode, Bars per cycle, and Grid Lines controls.
+existing Mode, Bars per cycle, and Grid Lines controls. Bluetooth contains the Bluetooth toggle and,
+only while it is On, Devices, Pair New, and Forget.
 USB and HDMI audio mirror the canonical Jack mix and do not replace it; HDMI audio remains
 separate from HDMI video. Restart-sensitive edits use the native Save Setting flow shared with
 Audio.

@@ -56,6 +56,11 @@ System
 │   ├── Mode: [Terminal | live-grid | plain-grid | active-behavior | cycle-behaviors]
 │   ├── Bars per cycle: [1..64] bars    ← cycle-behaviors only
 │   └── Grid Lines: [on | off]
+├── Bluetooth (group)                    ← Raspberry and Orange
+│   ├── Bluetooth: [Off | On]
+│   ├── Devices (group)                  ← On only; dynamic: one connect/disconnect action per paired device
+│   ├── Pair New (group)                 ← On only; searches while open; one pair action per found keyboard
+│   └── Forget (group)                   ← On only; dynamic: one forget action per paired device
 ├── Saves (group)
 │   ├── Library (group)
 │   │   ├── Save As (group)
@@ -102,15 +107,15 @@ Panic, Sys. Info, Basic Help, Reboot, Shutdown
 
 Orange:
 Load Preset, Recording, Notes, MIDI, Audio, UI, SD Card 2, HDMI Video,
-Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
+Bluetooth, Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
 
 Raspberry Gadget:
 Load Preset, Recording, Notes, MIDI, Audio, UI, SD Card 2, HDMI Video,
-Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
+Bluetooth, Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
 
 Raspberry Host:
 Load Preset, Recording, Notes, MIDI, Audio, UI, SD Card 2, HDMI Video,
-Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
+Bluetooth, Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
 ```
 
 The conditional child branches resolve as follows:
@@ -126,6 +131,7 @@ Orange
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   SD Card 2: Start Transfer; Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
+  Bluetooth: Bluetooth; Devices, Pair New, Forget when On
   Setup: Updates (Check, Apply, Rollback); Configure WiFi; Backup / Restore; Hardware Test
 
 Raspberry Gadget
@@ -133,6 +139,7 @@ Raspberry Gadget
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   SD Card 2: Start Transfer; Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
+  Bluetooth: Bluetooth; Devices, Pair New, Forget when On
   Setup: USB Role; Updates (Check, Apply, Rollback); Configure WiFi; Backup / Restore; Hardware Test
 
 Raspberry Host
@@ -140,6 +147,7 @@ Raspberry Host
   Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   SD Card 2: Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
+  Bluetooth: Bluetooth; Devices, Pair New, Forget when On
   Setup: USB Role; Updates (Check, Apply, Rollback); Configure WiFi; Backup / Restore; Hardware Test
 ```
 

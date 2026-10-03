@@ -59,6 +59,7 @@ controls rather than becoming a tiny typing machine:
 | *Shift* | *Shift* modifier. |
 | *Control* | *Fn* modifier. |
 
+A paired [Bluetooth keyboard](bluetooth-keyboards.md) uses the same map.
 Only the first supported keyboard gets the controls. For host-role, mode-gating,
 and shortcut details, see the [menu and controls specification](../docs/menu-and-controls-spec.md).
 On Linux, the physical Aux 3 left key is bound as `KEY_Z` even on a QWERTZ

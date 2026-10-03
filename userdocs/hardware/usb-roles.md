@@ -41,6 +41,8 @@ and grabs it exclusively while capture is active. A second keyboard waits until
 the first one is unplugged. Plugging in or unplugging a keyboard takes effect
 while the instrument is running.
 
+A [Bluetooth keyboard](../bluetooth-keyboards.md) works in either role.
+
 Keyboard capture is available only when `System > HDMI Video > Mode` is a
 graphical mode: `live-grid`, `plain-grid`, `active-behavior`, or
 `cycle-behaviors`. `Terminal` releases capture; changing back to a graphical
