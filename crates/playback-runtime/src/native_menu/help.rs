@@ -139,10 +139,16 @@ fn platform_effect_help_key(effect: &str) -> String {
     preset_effect_help_key(effect)
         .or_else(|| default_system_effect_help_key(effect))
         .or_else(|| midi_effect_help_key(effect))
+        .or_else(|| bluetooth_effect_help_key(effect))
         .or_else(|| sample_effect_help_key(effect))
         .or_else(|| synth_effect_help_key(effect))
         .or_else(|| trigger_probability_effect_help_key(effect))
         .unwrap_or_else(|| format!("action:{effect}"))
+}
+
+fn bluetooth_effect_help_key(effect: &str) -> Option<String> {
+    let (verb, _) = effect.strip_prefix("bluetooth.")?.split_once(':')?;
+    Some(format!("action:bluetooth_{verb}:*"))
 }
 
 fn preset_effect_help_key(effect: &str) -> Option<String> {

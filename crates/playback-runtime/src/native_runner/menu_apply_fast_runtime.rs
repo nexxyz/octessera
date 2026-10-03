@@ -47,6 +47,13 @@ impl NativeRunner {
             "hdmi.showGridlines" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.display.hdmi.show_gridlines, value)
             })),
+            "bluetooth.enabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                let changed = bool_changed(&mut runner.bluetooth.enabled, value);
+                if changed {
+                    runner.rematerialize_menu_around_key(key);
+                }
+                changed
+            })),
             "hdmi.cycleMeasures" => Some(self.fast_number_menu_key(key, |runner, value| {
                 value_changed(
                     &mut runner.display.hdmi.cycle_measures,

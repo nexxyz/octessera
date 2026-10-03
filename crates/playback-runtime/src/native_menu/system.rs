@@ -126,6 +126,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
     if config.jack_audio_required {
         children.push(sd_card_2_group(host_role));
         children.push(hdmi_video_group(config));
+        children.push(super::system_bluetooth::bluetooth_group(config));
     }
     children.extend([
         saves_group(config),

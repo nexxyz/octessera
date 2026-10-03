@@ -32,6 +32,7 @@ impl NativeRunner {
         config_changed |= self.apply_midi_menu_flags();
         config_changed |= self.apply_audio_outputs_menu_state();
         config_changed |= self.apply_hdmi_menu_state();
+        config_changed |= self.apply_bluetooth_menu_state();
         config_changed |= self.apply_recording_menu_state();
         if let Some(play_mode) = self.menu.selected_play_mode() {
             let changed = self.play_mode != play_mode;

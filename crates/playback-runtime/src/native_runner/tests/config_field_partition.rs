@@ -14,6 +14,7 @@ const FULL_FIELDS: &[&str] = &[
     "xyRelease",
     "sampleFavouriteDirs",
     "hdmi",
+    "bluetooth",
     "instruments",
     "mixer",
     "masterVolume",
@@ -65,6 +66,7 @@ const PATCH_FIELDS: &[&str] = &[
 
 const PREFERENCE_FIELDS: &[&str] = &[
     "hdmi",
+    "bluetooth",
     "masterVolume",
     "ghostCells",
     "inputEventsWhilePaused",
@@ -86,6 +88,7 @@ const DEVICE_FIELDS: &[&str] = &["sampleFavouriteDirs", "dsp"];
 const SHARED_FIELDS: &[&str] = &["sound", "auxBindings", "shiftAuxBindings", "midi"];
 const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "hdmi",
+    "bluetooth",
     "masterVolume",
     "ghostCells",
     "inputEventsWhilePaused",
@@ -128,6 +131,7 @@ const PORTABLE_FIELDS: &[&str] = &[
 const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "sampleFavouriteDirs",
     "hdmi",
+    "bluetooth",
     "masterVolume",
     "ghostCells",
     "inputEventsWhilePaused",
@@ -245,6 +249,9 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["autoSaveDefault"] = alternate_bool(&canonical_runtime["autoSaveDefault"]);
     source_runtime["rollingBackups"] = alternate_bool(&canonical_runtime["rollingBackups"]);
     source_runtime["auxAutoMapEnabled"] = alternate_bool(&canonical_runtime["auxAutoMapEnabled"]);
+    source_runtime["bluetooth"] = json!({
+        "enabled": alternate_bool(&canonical_runtime["bluetooth"]["enabled"])
+    });
     source_runtime["hdmi"] = json!({
         "mode": alternate_enum(&canonical_runtime["hdmi"]["mode"], "none", "live-grid"),
         "showGridlines": alternate_bool(&canonical_runtime["hdmi"]["showGridlines"]),

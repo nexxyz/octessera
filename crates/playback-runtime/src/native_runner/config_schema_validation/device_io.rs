@@ -88,6 +88,13 @@ pub(super) fn validate_hdmi(runtime: &Map<String, Value>) -> Result<(), String> 
     unsigned_field(hdmi, "cycleMeasures", "runtimeConfig.hdmi", 1, 64)
 }
 
+pub(super) fn validate_bluetooth(runtime: &Map<String, Value>) -> Result<(), String> {
+    let Some(bluetooth) = object_field(runtime, "bluetooth", "runtimeConfig")? else {
+        return Ok(());
+    };
+    bool_field(bluetooth, "enabled", "runtimeConfig.bluetooth")
+}
+
 pub(super) fn validate_recording(runtime: &Map<String, Value>) -> Result<(), String> {
     let Some(recording) = object_field(runtime, "recording", "runtimeConfig")? else {
         return Ok(());

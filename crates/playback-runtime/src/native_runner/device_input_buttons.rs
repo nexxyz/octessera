@@ -91,6 +91,9 @@ impl NativeRunner {
                             Some("MIDI In") => {
                                 effects.push(RuntimePlatformEffect::MidiListInputsRequest)
                             }
+                            Some(super::bluetooth::PAIR_NEW_LABEL) => {
+                                effects.push(RuntimePlatformEffect::BluetoothScan { active: true })
+                            }
                             _ => {}
                         }
                         if let Some(key) = selected_group_key.as_deref() {
@@ -227,6 +230,7 @@ impl NativeRunner {
                 .editing
                 .then(|| self.menu.current_key().map(str::to_owned))
                 .flatten();
+            let was_in_pair_page = self.in_bluetooth_pair_page();
             self.reset_menu_scroll();
             self.menu.back();
             if let Some(key) = editing_key {
@@ -235,6 +239,11 @@ impl NativeRunner {
                 if super::restart_settings::RestartSetting::from_key(&key).is_none() {
                     self.finish_system_parameter_edit(&key);
                 }
+            }
+            if was_in_pair_page && !self.in_bluetooth_pair_page() {
+                return self.messages_with_effects(vec![RuntimePlatformEffect::BluetoothScan {
+                    active: false,
+                }]);
             }
         }
         self.messages_with_snapshot()

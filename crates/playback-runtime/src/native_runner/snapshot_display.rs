@@ -58,6 +58,8 @@ impl NativeRunner {
             usb_sd_transfer_modal_display(modal)
         } else if let Some(modal) = &self.display.system_info_modal {
             system_info_modal_display(modal)
+        } else if let Some(pairing) = self.bluetooth.pairing() {
+            super::bluetooth::bluetooth_pairing_display(pairing)
         } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
         } else if let Some(display) = drum::cell_tune_display(self) {

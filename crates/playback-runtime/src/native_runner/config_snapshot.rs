@@ -21,6 +21,7 @@ pub struct NativeConfigSnapshot {
     hdmi_mode: String,
     hdmi_show_gridlines: bool,
     hdmi_cycle_measures: u8,
+    bluetooth_enabled: bool,
     instruments: Vec<NativeInstrumentSlot>,
     fx_buses: Vec<NativeFxBus>,
     global_fx_slots: Vec<String>,
@@ -151,6 +152,7 @@ impl NativeConfigSnapshot {
                     "showGridlines": self.hdmi_show_gridlines,
                     "cycleMeasures": self.hdmi_cycle_measures
                 },
+                "bluetooth": { "enabled": self.bluetooth_enabled },
                 "instruments": self.instruments.iter().map(instrument_audio_payload).collect::<Vec<_>>(),
                 "mixer": super::snapshot_audio_settings::mixer_payload(
                     &self.fx_buses,
@@ -311,6 +313,7 @@ impl NativeConfigSnapshot {
             hdmi_mode: runner.display.hdmi.mode.clone(),
             hdmi_show_gridlines: runner.display.hdmi.show_gridlines,
             hdmi_cycle_measures: runner.display.hdmi.cycle_measures,
+            bluetooth_enabled: runner.bluetooth.enabled,
             instruments: runner.instruments.clone(),
             fx_buses: runner.fx_buses.clone(),
             global_fx_slots: runner.global_fx_slots.clone(),

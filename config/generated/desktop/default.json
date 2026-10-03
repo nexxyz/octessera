@@ -62,6 +62,9 @@
       "aux3": null
     },
     "bpm": 120,
+    "bluetooth": {
+      "enabled": false
+    },
     "buttonBrightness": 100,
     "dimTimerSeconds": 60,
     "displayBrightness": 100,

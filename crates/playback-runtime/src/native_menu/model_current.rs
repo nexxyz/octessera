@@ -38,7 +38,7 @@ impl NativeMenuModel {
         canonicalize_help_path(&labels.join(" > "))
     }
 
-    pub(super) fn current_group_path(&self) -> String {
+    pub(crate) fn current_group_path(&self) -> String {
         canonicalize_help_path(&self.stack_labels_with_menu().join(" > "))
     }
 

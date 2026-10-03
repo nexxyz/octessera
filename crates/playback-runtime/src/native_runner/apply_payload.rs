@@ -184,6 +184,7 @@ impl NativeRunner {
         }
         self.resample_xy_runtime_sources();
         self.apply_hdmi_payload(runtime);
+        self.apply_bluetooth_payload(runtime);
         self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
             .layer_behavior_ids

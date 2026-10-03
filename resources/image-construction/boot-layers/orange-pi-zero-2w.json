@@ -20,7 +20,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh", "sha256": "342bfa48eafc350f5125e3757df902d51df74d1889b0e6062844eb691aa767ba", "size": 911, "mode": 420},
     {"path": "userpatches/overlay/etc/default/locale", "sha256": "a168159d33de0c86614b65ea1e6d2165c79ea7c05372d36a4794e108d8ddf8f0", "size": 45, "mode": 420},
     {"path": "tools/armbian-image/stage-canonical-welcome.sh", "sha256": "1048803ddfe6132d4906444d29fe16065445eafc5080bcf6d8fff999762f321b", "size": 593, "mode": 493},
-    {"path": "config/generated/pi/default.json", "sha256": "b52be0e4729a281f28a91b57e10b7c72108ac53a6285a7a0d65777eacd1df31b", "size": 85576, "mode": 420},
+    {"path": "config/generated/pi/default.json", "sha256": "e0bb8030c6aa1ccda3113596f653792deac0ce9af5f195d25fbbf30747c5881e", "size": 85625, "mode": 420},
     {"path": "userpatches/customize-image.sh", "sha256": "7fd3945e52ffcc861674e9378d7df68bb6c0baa4f8d1fea018ed1a08d07daeb7", "size": 31419, "mode": 493},
     {"path": "userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf", "sha256": "8e28cd9b704d7be60e9b467ecc62bffb58578d8add8c9c88e5015771a8a7b2d4", "size": 66, "mode": 420},
     {"path": "userpatches/overlay/usr/local/lib/octessera/setup-image-layer.sh", "sha256": "df0629b19e20294075f66f9fd2c988b753da1f0d227fa7a4b0c82bfdbefa57c0", "size": 3213, "mode": 420},

@@ -19,6 +19,7 @@ const SCALARS: &[&str] = &[
 ];
 const OBJECTS: &[(&str, &[&str])] = &[
     ("hdmi", &["mode", "showGridlines", "cycleMeasures"]),
+    ("bluetooth", &["enabled"]),
     (
         "midi",
         &[

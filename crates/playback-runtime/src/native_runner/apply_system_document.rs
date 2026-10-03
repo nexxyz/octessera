@@ -62,6 +62,7 @@ impl NativeRunner {
         self.audio_outputs = audio_outputs;
         self.apply_recording_payload(runtime);
         self.apply_hdmi_payload(runtime);
+        self.apply_bluetooth_payload(runtime);
         self.apply_sample_browser_favourites_payload(runtime);
         let plan = before.resolve_plan(&self.configuration_aggregate(), self.audio_config_revision);
         self.commit_configuration_runtime_plan(&plan);

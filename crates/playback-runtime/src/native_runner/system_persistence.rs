@@ -210,6 +210,7 @@ impl SystemPersistenceState {
                 "showGridlines": runner.display.hdmi.show_gridlines,
                 "cycleMeasures": runner.display.hdmi.cycle_measures,
             },
+            "bluetooth": { "enabled": runner.bluetooth.enabled },
             "ghostCells": runner.display.ui.ghost_cells,
             "inputEventsWhilePaused": runner.input_events_while_paused,
             "numericDisplayMode": runner.display.ui.numeric_display_mode,

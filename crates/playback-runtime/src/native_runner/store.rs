@@ -155,7 +155,7 @@ impl NativeRunner {
                     id: if id.is_empty() { None } else { Some(id.into()) },
                 })
             }
-            _ => None,
+            action => self.bluetooth_effect_for_action(action),
         };
         Ok(effect)
     }
@@ -364,6 +364,10 @@ impl NativeRunner {
             }
             result @ RuntimeStoreResult::UserDataTransferStatus { .. } => {
                 self.apply_user_data_transfer_result(result)
+            }
+            result @ RuntimeStoreResult::BluetoothStatus { .. } => {
+                self.apply_bluetooth_result(result);
+                Ok(())
             }
             result @ (RuntimeStoreResult::StoreError { .. }
             | RuntimeStoreResult::DeviceUpdateStatus { .. }

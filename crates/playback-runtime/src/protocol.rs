@@ -1,4 +1,5 @@
 mod audio;
+mod bluetooth;
 mod messages;
 mod oled;
 mod platform;
@@ -20,6 +21,10 @@ mod user_data_restore_tests;
 mod user_data_transfer_tests;
 
 pub use audio::{RuntimeAudioCommand, RuntimeMomentaryFxTarget};
+pub use bluetooth::{
+    RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind,
+    RuntimeBluetoothPairing, RuntimeBluetoothStatus,
+};
 pub use messages::{DrumHit, HostMessage, RunnerMessage};
 pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{

@@ -352,6 +352,14 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             RuntimePlatformEffect::UpdateCheck => Ok(vec![HostMessage::RuntimeResult {
                 result: open_releases_page(),
             }]),
+            RuntimePlatformEffect::BluetoothScan { .. }
+            | RuntimePlatformEffect::BluetoothDevice { .. } => {
+                Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::RuntimeFailure {
+                        error: request.unsupported_facts("Bluetooth is Pi-only".into()),
+                    },
+                }])
+            }
             RuntimePlatformEffect::UpdateApply => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::RuntimeFailure {
                     error: request.unsupported_facts(

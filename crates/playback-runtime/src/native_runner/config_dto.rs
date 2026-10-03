@@ -12,7 +12,8 @@ pub(super) use instrument::InstrumentDto;
 pub(super) use layer::LayerDto;
 pub(super) use mixer::MixerDto;
 pub(super) use runtime::{
-    AudioOutputsDto, AuxBindingDto, HdmiDto, MidiDto, ParamModsDto, RuntimeConfigDto, UsbDto,
+    AudioOutputsDto, AuxBindingDto, BluetoothDto, HdmiDto, MidiDto, ParamModsDto, RuntimeConfigDto,
+    UsbDto,
 };
 
 #[derive(Clone, Debug, PartialEq)]

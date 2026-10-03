@@ -63,6 +63,7 @@ mod behavior_menu_actions;
 mod behavior_target_menu;
 mod binding_payload;
 mod binding_specs;
+mod bluetooth;
 mod canonical_presentation;
 mod clear_patch_state;
 mod config;
@@ -385,6 +386,7 @@ pub struct NativeRunner {
     midi_outputs: Vec<MidiPort>,
     midi_inputs: Vec<MidiPort>,
     midi_status: Option<String>,
+    bluetooth: bluetooth::NativeBluetoothState,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     input_events_while_paused: bool,

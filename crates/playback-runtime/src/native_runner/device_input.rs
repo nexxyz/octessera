@@ -128,6 +128,9 @@ impl NativeRunner {
         if self.display.usb_sd_transfer_modal.is_some() {
             return self.handle_usb_sd_transfer_modal_input(input);
         }
+        if self.bluetooth.pairing().is_some() {
+            return self.handle_bluetooth_pairing_input(input);
+        }
         if self.display.system_info_modal.is_some() {
             return self.handle_system_info_modal_input(input);
         }

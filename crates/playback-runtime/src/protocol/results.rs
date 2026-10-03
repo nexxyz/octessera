@@ -1,7 +1,7 @@
 use super::{
-    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
-    RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeUserDataRestoreStatus,
-    RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus,
+    RuntimeBluetoothStatus, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeOperation, RuntimeSetupPortalPhase, RuntimeSetupPortalStatus,
+    RuntimeUserDataRestoreStatus, RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -186,6 +186,9 @@ pub enum RuntimeStoreResult {
         active: bool,
         message: String,
     },
+    BluetoothStatus {
+        status: RuntimeBluetoothStatus,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -242,7 +245,9 @@ impl RuntimeStoreResult {
             Self::SetupPortalStatus { .. } => RuntimeOperation::SetupPortal,
             Self::UserDataRestoreStatus { .. } => RuntimeOperation::Persistence,
             Self::UserDataTransferStatus { .. } => RuntimeOperation::UserDataTransfer,
-            Self::UsbSdTransferStatus { .. } => RuntimeOperation::RuntimeDispatch,
+            Self::UsbSdTransferStatus { .. } | Self::BluetoothStatus { .. } => {
+                RuntimeOperation::RuntimeDispatch
+            }
         }
     }
 

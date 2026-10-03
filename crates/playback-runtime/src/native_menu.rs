@@ -45,6 +45,7 @@ pub(crate) mod section_labels;
 mod synth_preset_items;
 mod system;
 mod system_aux;
+mod system_bluetooth;
 mod system_saves;
 mod types;
 mod types_config;

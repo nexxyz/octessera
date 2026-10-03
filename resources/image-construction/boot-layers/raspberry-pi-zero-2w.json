@@ -31,7 +31,7 @@
     {"path": "tools/pi-image/install-musical-assets.sh", "sha256": "f12d7adecea5903d7893e5a8c5c5c2310337b3fe93e342f00ed9867adafdab50", "size": 1480},
     {"path": "tools/samples/sample_library.py", "sha256": "ab7ed89c5fd3819af94ee98f3e097cb103bf210e0a1af08d98aeb70badcb6c4a", "size": 11668},
     {"path": "samples/MANIFEST.tsv", "sha256": "1f058d1cf61984bc396ebf05716dd8d866780332f9727d80a21fbfd230eb0b9b", "size": 35245},
-    {"path": "config/generated/pi/default.json", "sha256": "b52be0e4729a281f28a91b57e10b7c72108ac53a6285a7a0d65777eacd1df31b", "size": 85576},
+    {"path": "config/generated/pi/default.json", "sha256": "e0bb8030c6aa1ccda3113596f653792deac0ce9af5f195d25fbbf30747c5881e", "size": 85625},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", "sha256": "eec1f981dabd13cc96cb30eb7ecdd943591bbbdb8ea131f4eb3532b09cefd8b3", "size": 4146},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget", "sha256": "dd4c4afb7b08aa767140abe05b293fccf4b268ee7a2467d3b31b74ab64eb76dd", "size": 16685},
     {"path": "tools/pi-image/stage4-octessera/03-boot-config/00-run.sh", "sha256": "f1c0a8580720794a1defec2825f694019d8584f6ee76fe3f1348bc64f687a298", "size": 2508},

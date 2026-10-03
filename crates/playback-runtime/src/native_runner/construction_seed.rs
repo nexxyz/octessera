@@ -264,6 +264,9 @@ impl NativeRunnerConstructionSeed {
                 .iter()
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
+            bluetooth_enabled: false,
+            bluetooth_paired: Vec::new(),
+            bluetooth_found: Vec::new(),
             play_mode: self.play_mode.clone(),
             play_drum_selected_slot: self
                 .instruments

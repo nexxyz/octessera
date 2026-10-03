@@ -1,4 +1,7 @@
-use super::{RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation};
+use super::{
+    RuntimeAudioCommand, RuntimeBluetoothDeviceAction, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeOperation,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -40,6 +43,13 @@ pub enum RuntimePlatformEffect {
     },
     UsbSdTransferStart,
     UsbSdTransferStop,
+    BluetoothScan {
+        active: bool,
+    },
+    BluetoothDevice {
+        address: String,
+        action: RuntimeBluetoothDeviceAction,
+    },
     RecordingStartAudio {
         #[serde(rename = "maxMinutes")]
         max_minutes: u16,
@@ -109,6 +119,8 @@ impl RuntimePlatformEffect {
             Self::ApplyDeviceConfigReboot { .. }
             | Self::UsbSdTransferStart
             | Self::UsbSdTransferStop
+            | Self::BluetoothScan { .. }
+            | Self::BluetoothDevice { .. }
             | Self::Reboot
             | Self::Shutdown
             | Self::HardwareTest => RuntimeOperation::RuntimeDispatch,
