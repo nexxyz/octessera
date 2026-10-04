@@ -3,9 +3,7 @@ use crate::audio_stream_health::AudioStreamStatus as OrangeDacStatus;
 use crate::boot_oled_handoff::{HandoffMode, StartupFatalCode};
 use crate::candidate_readiness::CandidateReadiness;
 use crate::encoder_queue::PendingEncoderTurns;
-use crate::hardware_runtime_scheduler::{
-    is_playing, prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
-};
+use crate::hardware_runtime_scheduler::{is_playing, DisplaySnapshotDue, HardwareRuntimeScheduler};
 use crate::host_adapter::PiHostAdapter;
 use crate::input::{midi_realtime_message, MidiMessage};
 use crate::main_paths::default_store_dir;
@@ -38,12 +36,11 @@ mod runtime_loop;
 mod signal;
 #[path = "orange_runtime_startup.rs"]
 mod startup;
+pub(crate) use crate::runtime_loop::{dispatch, handle_deferred_host_work};
 pub(crate) use crate::runtime_output::{
     initialize_host_state, process_runtime_output, wait_for_initial_audio_prep,
 };
-#[cfg(test)]
-pub(crate) use runtime_loop::drain_host_results;
-pub(crate) use runtime_loop::{dispatch, run_prepared_runtime};
+pub(crate) use runtime_loop::run_prepared_runtime;
 pub(crate) use startup::{
     prepare_runtime, publish_prepared_acknowledged_snapshot, OrangeStartupReadinessGate,
     PreparedRuntime,

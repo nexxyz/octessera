@@ -4,16 +4,12 @@ use super::*;
 #[path = "orange_runtime_error_tests.rs"]
 mod error_tests;
 
-#[path = "orange_runtime_host_work.rs"]
-mod host_work;
 #[cfg(test)]
 #[path = "orange_runtime_keyboard_tests.rs"]
 mod keyboard_tests;
 #[cfg(test)]
 #[path = "orange_timing_input_tests.rs"]
 mod timing_input_tests;
-#[cfg(test)]
-pub(crate) use host_work::drain_host_results;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_prepared_runtime(
@@ -121,7 +117,7 @@ pub(crate) fn run_prepared_runtime(
             if host.shutdown_pending() {
                 break;
             }
-            host_work::drain_pending_host_work(&mut playback, &mut runner, &mut host)?;
+            handle_deferred_host_work(&mut playback, &mut runner, &mut host)?;
             if host.shutdown_pending() {
                 break;
             }
@@ -192,7 +188,7 @@ pub(crate) fn run_prepared_runtime(
                     &mut host,
                 )?;
                 process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                host_work::drain_pending_host_work(&mut playback, &mut runner, &mut host)?;
+                handle_deferred_host_work(&mut playback, &mut runner, &mut host)?;
             }
             if host.shutdown_pending() {
                 break;
@@ -221,8 +217,7 @@ pub(crate) fn run_prepared_runtime(
             process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
             audio_manager.report_runtime_terminal_diagnostics();
             ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
-            host_work::flush_native_persistence(&mut playback, &mut runner, &mut host)?;
-            host_work::drain_pending_host_work(&mut playback, &mut runner, &mut host)?;
+            handle_deferred_host_work(&mut playback, &mut runner, &mut host)?;
             if runtime_advanced {
                 scheduler.record_runtime_advance_complete(
                     Instant::now(),
@@ -336,70 +331,6 @@ fn drain_inputs(
         |message| dispatch(playback, runner, host, message),
         |_| {},
     )?;
-    Ok(())
-}
-
-impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
-    const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
-        crate::initial_audio_prep::InitialAudioPrepBoard::Orange;
-
-    fn dispatch(
-        playback: &mut PlaybackRuntime,
-        runner: &mut NativeRunner,
-        host: &mut Self,
-        message: HostMessage,
-    ) -> Result<(), String> {
-        dispatch(playback, runner, host, message)
-    }
-    fn core(&self) -> &crate::pi_host_core::PiHostCore {
-        &self.core
-    }
-    fn core_mut(&mut self) -> &mut crate::pi_host_core::PiHostCore {
-        &mut self.core
-    }
-    fn shutdown_pending(&self) -> bool {
-        PiHostAdapter::shutdown_pending(self)
-    }
-    fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
-        PiHostAdapter::poll_recording_status(self)
-    }
-    fn prep_audio_service(&self) -> AudioService {
-        self.audio_service()
-            .expect("Orange host always owns its audio service")
-    }
-    fn drain_prep_host_results(&self, max_results: usize) -> Vec<HostMessage> {
-        self.drain_platform_results(max_results)
-    }
-}
-
-pub(crate) fn dispatch(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut PiHostAdapter,
-    message: HostMessage,
-) -> Result<(), String> {
-    if host.shutdown_pending() {
-        return Ok(());
-    }
-    let dispatch_input = host.handle_transfer_input(&message);
-    while let Some(status) = host.take_transfer_status() {
-        let output = playback.dispatch(
-            playback_runtime::RuntimeDispatchInput::HostMessage(status),
-            runner,
-            host,
-        )?;
-        process_runtime_output(playback, runner, host, output)?;
-    }
-    if !dispatch_input {
-        return Ok(());
-    }
-    let message = prepare_dispatch_message(playback, message);
-    let output = playback.dispatch_host_message_music_first(message, runner, host)?;
-    process_runtime_output(playback, runner, host, output)?;
-    if let Some(message) = host.take_manual_save(playback, runner) {
-        let output = playback.dispatch_host_message_music_first(message, runner, host)?;
-        process_runtime_output(playback, runner, host, output)?;
-    }
     Ok(())
 }
 

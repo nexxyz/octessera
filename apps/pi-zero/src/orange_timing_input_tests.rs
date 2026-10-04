@@ -259,7 +259,7 @@ fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
     let mut fixture = runtime_fixture(true);
     let mut timing = prepare_timing(&mut fixture).unwrap().unwrap();
     assert!(PLATEAU > crate::hardware_runtime_scheduler::SNAPSHOT_TICK * 2);
-    let mut profiler = crate::ui_profile::UiProfiler::from_controls(Some("1"), false);
+    let profiler = crate::ui_profile::UiProfiler::from_controls(Some("1"), false);
     let start = Instant::now();
     assert!(!timing_tick(
         &mut fixture,
@@ -310,11 +310,10 @@ fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
     assert!(timing.sequence.missed_turns > 0);
 
     std::thread::sleep(Duration::from_millis(160));
-    super::host_work::drain_host_work(
+    crate::runtime_loop::handle_deferred_host_work(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
-        &mut profiler,
     )
     .unwrap();
     assert!(!timing_tick(

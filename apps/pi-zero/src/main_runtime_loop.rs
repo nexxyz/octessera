@@ -1,15 +1,12 @@
 use crate::encoder_queue::PendingEncoderTurns;
-use crate::hardware_runtime_scheduler::{
-    is_playing, prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
-};
+use crate::hardware_runtime_scheduler::{is_playing, DisplaySnapshotDue, HardwareRuntimeScheduler};
 use crate::host_adapter::{PiHostAdapter, PowerRequest};
 use crate::power_lifecycle::{
     PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
 };
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{
-    dispatch_runtime_message, handle_deferred_host_work, process_runtime_output,
-    report_runtime_failure,
+    handle_deferred_host_work, process_runtime_output, report_runtime_failure,
 };
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
@@ -240,16 +237,7 @@ fn dispatch_or_log(
     adapter: &mut PiHostAdapter,
     message: HostMessage,
 ) {
-    if adapter.shutdown_pending() {
-        return;
-    }
-    let dispatch = adapter.handle_transfer_input(&message);
-    dispatch_transfer_statuses(playback, runner, adapter);
-    if !dispatch {
-        return;
-    }
-    let message = prepare_dispatch_message(playback, message);
-    if let Err(error) = dispatch_runtime_message(playback, runner, adapter, message) {
+    if let Err(error) = crate::runtime_loop::dispatch(playback, runner, adapter, message) {
         report_runtime_failure(adapter, "pi runtime dispatch failed", error);
     }
 }
@@ -269,7 +257,7 @@ fn service_render_if_due(
     }
     scheduler.record_snapshot_publication_attempt(now);
     let snapshot_revision = playback.last_snapshot_revision();
-    let Some(snapshot) = crate::runtime_loop::latest_snapshot(playback).cloned() else {
+    let Some(snapshot) = playback.last_snapshot().cloned() else {
         return;
     };
     let oled = match adapter.core.oled_publication_for_snapshot(&snapshot, false) {
@@ -394,19 +382,6 @@ fn finalize_device_apply_power_request(
         eprintln!("pi device-apply power request failed: {error}");
     }
     true
-}
-
-fn dispatch_transfer_statuses(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiHostAdapter,
-) {
-    while let Some(status) = adapter.take_transfer_status() {
-        if let Err(error) = dispatch_runtime_message(playback, runner, adapter, status) {
-            eprintln!("pi transfer status dispatch failed: {error}");
-            break;
-        }
-    }
 }
 
 fn power_pi_system(_request: PowerRequest) -> Result<(), String> {

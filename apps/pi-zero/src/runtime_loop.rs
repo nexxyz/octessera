@@ -1,8 +1,7 @@
 use crate::host_adapter::PiHostAdapter;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 use playback_runtime::{CoreRunner, HostAdapter, RunnerMessage};
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
-use serde_json::Value;
 use std::time::Instant;
 
 pub(crate) use crate::runtime_output::process_runtime_output;
@@ -10,8 +9,12 @@ pub(crate) use crate::runtime_output::process_runtime_output;
 const PLATFORM_RESULT_BUDGET: usize = 4;
 
 impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
         crate::initial_audio_prep::InitialAudioPrepBoard::Pi;
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
+        crate::initial_audio_prep::InitialAudioPrepBoard::Orange;
 
     fn dispatch(
         playback: &mut PlaybackRuntime,
@@ -42,6 +45,27 @@ impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
     }
 }
 
+/// Input path for both boards: transfer input first, then the runtime.
+pub(crate) fn dispatch(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    message: HostMessage,
+) -> Result<(), String> {
+    if adapter.shutdown_pending() {
+        return Ok(());
+    }
+    let dispatch_input = adapter.handle_transfer_input(&message);
+    while let Some(status) = adapter.take_transfer_status() {
+        dispatch_runtime_message(playback, runner, adapter, status)?;
+    }
+    if !dispatch_input {
+        return Ok(());
+    }
+    let message = crate::hardware_runtime_scheduler::prepare_dispatch_message(playback, message);
+    dispatch_runtime_message(playback, runner, adapter, message)
+}
+
 pub fn dispatch_runtime_message(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -57,6 +81,7 @@ pub fn dispatch_runtime_message(
     Ok(())
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub fn report_runtime_failure(adapter: &PiHostAdapter, prefix: &str, error: String) {
     if adapter.timing_evidence.is_some() {
         crate::timing_input::fail_study::<PiHostAdapter>(error);
@@ -98,18 +123,14 @@ pub fn handle_deferred_host_work(
     Ok(())
 }
 
-pub fn latest_snapshot(playback: &PlaybackRuntime) -> Option<&Value> {
-    playback.last_snapshot()
-}
-
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "runtime_loop_duck_slot_tests.rs"]
 mod duck_slot_tests;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "runtime_loop_native_autosave_tests.rs"]
 mod native_autosave_tests;
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
     playback: &mut PlaybackRuntime,
     runner: &mut R,
@@ -125,7 +146,7 @@ fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
         .map(|_| ())
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod tests {
     use super::*;
     use crate::runtime_output::ingest_oled_messages;
