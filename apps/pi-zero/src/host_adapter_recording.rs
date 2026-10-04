@@ -1,11 +1,11 @@
-use super::PiPlaybackHostAdapter;
+use super::PiHostAdapter;
 use media_recording::RecordingStartError;
 use playback_runtime::{
     HostMessage, RuntimeAdapterError, RuntimePlatformEffect, RuntimePlatformRequest,
     RuntimeStoreResult,
 };
 
-impl PiPlaybackHostAdapter {
+impl PiHostAdapter {
     pub(super) fn stop_recording_for_transition(
         &self,
         _request: &RuntimePlatformRequest,

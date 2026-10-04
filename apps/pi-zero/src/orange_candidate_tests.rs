@@ -7,7 +7,7 @@ use crate::audio::test_service_with_prep_sender;
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
 use crate::candidate_readiness::CandidateReadiness;
 use crate::hardware_runtime_scheduler::{MAINTENANCE_TICK, PLAYBACK_TICK, SNAPSHOT_TICK};
-use crate::orange_host_adapter::OrangeHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
     CoreRunner, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
     PlaybackRuntime, RunnerMessage, RuntimeAudioCommand, RuntimeConfig, RuntimeDispatchInput,
@@ -16,9 +16,9 @@ use playback_runtime::{
 use std::path::PathBuf;
 use std::sync::Arc;
 
-fn test_host(audio: crate::audio::AudioService) -> (OrangeHostAdapter, PathBuf) {
+fn test_host(audio: crate::audio::AudioService) -> (PiHostAdapter, PathBuf) {
     let root = crate::test_temp_dir::unique_temp_path("octessera-orange-candidate");
-    let host = OrangeHostAdapter::with_directories(
+    let host = PiHostAdapter::with_directories(
         audio,
         root.join("store"),
         root.join("samples"),
@@ -70,7 +70,7 @@ fn orange_sample_root_creation_failure_does_not_publish_candidate_ready() {
     let _readiness = CandidateReadiness::new(Some(marker.clone()), "orange-root-failure".into());
     let (audio, _, _) = crate::audio::test_service();
 
-    let error = match OrangeHostAdapter::with_directories(
+    let error = match PiHostAdapter::with_directories(
         audio,
         root.join("store"),
         samples,
@@ -111,7 +111,7 @@ fn orange_startup_waits_for_the_identified_audio_prep_result() {
 
     wait_for_initial_audio_prep(&mut playback, &mut runner, &mut host).unwrap();
 
-    assert!(host.drain_results(1).is_empty());
+    assert!(host.drain_platform_results(1).is_empty());
     let _ = std::fs::remove_dir_all(root);
 }
 

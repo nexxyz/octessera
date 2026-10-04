@@ -1,4 +1,4 @@
-use super::{OrangeApplyHost, OrangeDeviceApplyTransaction, OrangeRunError, OrangeShutdownRequest};
+use super::{OrangeApplyHost, OrangeDeviceApplyTransaction, OrangeRunError, PowerRequest};
 use crate::orange_reboot::{self, OrangePowerRequestOutcome};
 
 #[derive(Debug)]
@@ -7,14 +7,14 @@ pub(crate) enum OrangeShutdownResolution {
 }
 
 pub(crate) fn resolve_shutdown_request<H: OrangeApplyHost>(
-    request: OrangeShutdownRequest,
+    request: PowerRequest,
     host: &mut H,
 ) -> Result<OrangeShutdownResolution, OrangeRunError> {
     resolve_shutdown_request_with_reboot_request(request, host, orange_reboot::request_reboot)
 }
 
 pub(crate) fn resolve_shutdown_request_with_reboot_request<H, F>(
-    request: OrangeShutdownRequest,
+    request: PowerRequest,
     host: &mut H,
     reboot_request: F,
 ) -> Result<OrangeShutdownResolution, OrangeRunError>
@@ -23,12 +23,10 @@ where
     F: FnOnce() -> OrangePowerRequestOutcome,
 {
     match request {
-        OrangeShutdownRequest::Reboot | OrangeShutdownRequest::Shutdown => {
-            Err(OrangeRunError::Ordinary(
-                "ordinary power requests use the shared power lifecycle".into(),
-            ))
-        }
-        OrangeShutdownRequest::ApplyDeviceConfig(transaction) => {
+        PowerRequest::Reboot | PowerRequest::Shutdown => Err(OrangeRunError::Ordinary(
+            "ordinary power requests use the shared power lifecycle".into(),
+        )),
+        PowerRequest::ApplyDeviceConfig(transaction) => {
             let panic_error = host.panic_external_midi().err();
             let silence_error = host.silence_internal_audio().err();
             if let Some(error) = panic_error {
@@ -59,15 +57,13 @@ where
 }
 
 pub(crate) fn abort_shutdown_request<H: OrangeApplyHost>(
-    request: OrangeShutdownRequest,
+    request: PowerRequest,
     runtime_error: String,
     host: &mut H,
 ) -> OrangeRunError {
     match request {
-        OrangeShutdownRequest::Reboot | OrangeShutdownRequest::Shutdown => {
-            OrangeRunError::Ordinary(runtime_error)
-        }
-        OrangeShutdownRequest::ApplyDeviceConfig(transaction) => {
+        PowerRequest::Reboot | PowerRequest::Shutdown => OrangeRunError::Ordinary(runtime_error),
+        PowerRequest::ApplyDeviceConfig(transaction) => {
             let panic_error = host.panic_external_midi().err();
             let silence_error = host.silence_internal_audio().err();
             let reason = combine_safety_failures(panic_error, silence_error)

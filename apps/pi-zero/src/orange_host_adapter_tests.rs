@@ -23,7 +23,7 @@ fn directories() -> (PathBuf, PathBuf) {
     (root.join("store"), root.join("samples"))
 }
 
-fn adapter() -> (OrangeHostAdapter, PathBuf, PathBuf) {
+fn adapter() -> (PiHostAdapter, PathBuf, PathBuf) {
     let (store, samples) = directories();
     let (audio, _, _) = test_service();
     let documents = playback_runtime::split_system_patch_documents(
@@ -41,7 +41,7 @@ fn adapter() -> (OrangeHostAdapter, PathBuf, PathBuf) {
         serde_json::to_vec(&documents.patch).unwrap(),
     )
     .unwrap();
-    let adapter = OrangeHostAdapter::with_directories(
+    let adapter = PiHostAdapter::with_directories(
         audio,
         store.clone(),
         samples.clone(),
@@ -56,7 +56,7 @@ fn request(effect: RuntimePlatformEffect, id: &str) -> RuntimePlatformRequest {
     RuntimePlatformRequest::new(effect, id.into(), Some(1))
 }
 
-fn wait_for_result(adapter: &OrangeHostAdapter) -> Vec<HostMessage> {
+fn wait_for_result(adapter: &PiHostAdapter) -> Vec<HostMessage> {
     adapter
         .core
         .platform_service
@@ -64,7 +64,7 @@ fn wait_for_result(adapter: &OrangeHostAdapter) -> Vec<HostMessage> {
         .unwrap()
         .recv_timeout(Duration::from_secs(1))
         .unwrap();
-    adapter.drain_results(4)
+    adapter.drain_platform_results(4)
 }
 
 fn unwrap_result(message: HostMessage) -> RuntimeStoreResult {
@@ -177,7 +177,7 @@ fn default_and_preset_round_trips_use_atomic_service() {
 fn midi_panic_and_clear_selection_succeed_without_selected_ports() {
     let (store, samples) = directories();
     let (audio, _, _event_rx) = test_service();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio,
         store.clone(),
         samples.clone(),
@@ -303,7 +303,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
         &crate::user_data_archive::canonical_defaults(),
     );
     let (audio, control_rx, mut event_rx, prep_tx) = crate::audio::test_service_with_prep_sender();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio,
         store.clone(),
         samples.clone(),
@@ -416,7 +416,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
     let deadline = Instant::now() + Duration::from_secs(2);
     let mut saved_name = None;
     while Instant::now() < deadline && saved_name.is_none() {
-        for message in adapter.drain_results_for_runner(&mut runner, 8) {
+        for message in adapter.drain_platform_results_for_runner(&mut runner, 8) {
             if let HostMessage::RuntimeResult {
                 result:
                     RuntimeStoreResult::Identified {

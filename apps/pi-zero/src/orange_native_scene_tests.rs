@@ -1,6 +1,6 @@
 use super::*;
 use crate::hardware_runtime_scheduler::{HardwareRuntimeScheduler, PLAYBACK_TICK, SNAPSHOT_TICK};
-use crate::orange_host_adapter::OrangeHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::render_loop::RenderWorker;
 use crate::ui_profile::UiProfiler;
 use playback_runtime::{
@@ -60,9 +60,9 @@ fn opted_in_profile_counts_successful_and_failed_scene_capture_calls() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-fn adapter(root: &std::path::Path) -> OrangeHostAdapter {
+fn adapter(root: &std::path::Path) -> PiHostAdapter {
     let (audio, _, _, _) = crate::audio::test_service_with_recording_dir(root.join("recording"));
-    OrangeHostAdapter::with_directories(
+    PiHostAdapter::with_directories(
         audio,
         root.join("store"),
         root.join("samples"),

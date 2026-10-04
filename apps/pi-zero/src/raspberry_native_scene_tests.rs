@@ -1,6 +1,6 @@
 use super::*;
 use crate::hardware_runtime_scheduler::{HardwareRuntimeScheduler, PLAYBACK_TICK, SNAPSHOT_TICK};
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::render::{HardwareRenderTargets, OLED_FRAME_BYTES};
 use crate::render_loop::RenderWorker;
 use playback_runtime::{
@@ -85,11 +85,8 @@ fn startup_snapshot() -> serde_json::Value {
     })
 }
 
-fn adapter(
-    root: &std::path::Path,
-    audio: Option<crate::audio::AudioService>,
-) -> PiPlaybackHostAdapter {
-    PiPlaybackHostAdapter::new_with_data_role(
+fn adapter(root: &std::path::Path, audio: Option<crate::audio::AudioService>) -> PiHostAdapter {
+    PiHostAdapter::new_with_data_role(
         audio,
         root.join("store"),
         root.join("samples"),
@@ -100,9 +97,7 @@ fn adapter(
     )
 }
 
-pub(super) fn playing_runner(
-    adapter: &mut PiPlaybackHostAdapter,
-) -> (PlaybackRuntime, NativeRunner) {
+pub(super) fn playing_runner(adapter: &mut PiHostAdapter) -> (PlaybackRuntime, NativeRunner) {
     let payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

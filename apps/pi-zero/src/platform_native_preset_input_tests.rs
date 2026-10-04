@@ -7,7 +7,7 @@ use std::sync::mpsc;
 fn input(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
     value: serde_json::Value,
 ) {
     crate::runtime_loop::dispatch_runtime_message(
@@ -25,7 +25,7 @@ fn input(
 fn confirm_action(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
     key: &str,
 ) {
     runner.test_focus_menu_item(key).unwrap();
@@ -39,7 +39,7 @@ fn confirm_action(
 }
 
 fn next_preset_result(
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
 ) -> (String, String) {
@@ -78,7 +78,7 @@ fn next_preset_result(
 fn start_playing(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
 ) {
     runner.skip_startup_splash();
     for value in [
@@ -95,7 +95,7 @@ fn start_playing(
     );
 }
 
-fn gate_worker(host: &crate::host_adapter::PiPlaybackHostAdapter) -> mpsc::Sender<()> {
+fn gate_worker(host: &crate::host_adapter::PiHostAdapter) -> mpsc::Sender<()> {
     let (entered_tx, entered_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::channel();
     host.core
@@ -119,7 +119,7 @@ fn gate_worker(host: &crate::host_adapter::PiPlaybackHostAdapter) -> mpsc::Sende
 fn keep_playing_while_save_is_queued(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
 ) {
     input(
         playback,
@@ -167,7 +167,7 @@ fn keep_playing_while_save_is_queued(
 fn save_current(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
 ) -> (String, String) {
     confirm_action(playback, runner, host, "preset.saveCurrent");
     next_preset_result(host, playback, runner)
@@ -176,7 +176,7 @@ fn save_current(
 fn stop_playing(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
 ) {
     for value in [
         json!({"type":"button_shift","pressed":true}),
@@ -196,7 +196,7 @@ fn edit_rename_target(
     source_name: &str,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
 ) {
     runner
         .test_focus_menu_item(&format!("preset.renamePick.{source_name}"))
@@ -255,7 +255,7 @@ fn edit_rename_target(
 fn save_as_with_held_worker(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
 ) -> (String, serde_json::Value) {
     let expected = runner
         .capture_config_snapshot()
@@ -288,7 +288,7 @@ fn check_catalog_rows(runner: &mut NativeRunner, name: &str) {
 }
 
 fn receive_partial_rename(
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     source_name: &str,
@@ -374,7 +374,7 @@ fn rename_after_source_disappears(
     source_path: &std::path::Path,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
 ) -> (String, String, serde_json::Value) {
     stop_playing(playback, runner, host);
     edit_rename_target(source_name, playback, runner, host);
@@ -417,7 +417,7 @@ fn playing_save_as_save_current_and_rename_follow_device_input_and_refresh_catal
         serde_json::to_vec(&documents.system).unwrap(),
     )
     .unwrap();
-    let mut host = crate::host_adapter::PiPlaybackHostAdapter::new(
+    let mut host = crate::host_adapter::PiHostAdapter::new(
         None,
         store,
         root.join("samples"),

@@ -83,7 +83,7 @@ fn orange_loop_publishes_changed_error_and_clear_snapshots_while_playing() {
         status.transport == playback_runtime::RuntimeTransportState::Playing
     }));
     let (audio, _, _, _) = test_service_with_recording_dir(root.join("recordings"));
-    let mut host = crate::orange_host_adapter::OrangeHostAdapter::with_directories(
+    let mut host = crate::host_adapter::PiHostAdapter::with_directories(
         audio,
         root.join("store"),
         root.join("samples"),

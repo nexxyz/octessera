@@ -1,4 +1,5 @@
-use crate::orange_host_adapter::OrangeHostAdapter;
+use crate::host_adapter::PiHostAdapter;
+use crate::host_adapter::PowerRequest;
 use crate::persistence::atomic_write_bytes;
 use playback_runtime::HostAdapter;
 use serde::{Deserialize, Serialize};
@@ -55,13 +56,6 @@ pub(crate) struct OrangeDeviceApplyTransaction {
     store_lock: Option<Arc<Mutex<()>>>,
 }
 
-#[derive(Debug)]
-pub(crate) enum OrangeShutdownRequest {
-    Reboot,
-    Shutdown,
-    ApplyDeviceConfig(OrangeDeviceApplyTransaction),
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct OrangeApplyRecord {
@@ -76,7 +70,7 @@ pub(crate) trait OrangeApplyHost {
     fn silence_internal_audio(&mut self) -> Result<(), String>;
 }
 
-impl OrangeApplyHost for OrangeHostAdapter {
+impl OrangeApplyHost for PiHostAdapter {
     fn panic_external_midi(&mut self) -> Result<(), String> {
         HostAdapter::panic_external_midi(self).map_err(|error| error.to_string())
     }

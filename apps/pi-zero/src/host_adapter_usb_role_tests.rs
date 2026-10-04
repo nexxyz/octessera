@@ -32,13 +32,13 @@ fn write_pair(root: &std::path::Path, role: UsbDataRole) -> (serde_json::Value, 
 fn transaction_adapter(
     root: &std::path::Path,
     apply_role: impl Fn(UsbDataRole) -> Result<(), String> + Send + Sync + 'static,
-) -> PiPlaybackHostAdapter {
+) -> PiHostAdapter {
     let service = PiPlatformService::new_with_role_applier(
         root.join("store"),
         root.join("samples"),
         Arc::new(apply_role),
     );
-    PiPlaybackHostAdapter::with_platform_service_and_role(
+    PiHostAdapter::with_platform_service_and_role(
         None,
         root.join("samples"),
         Arc::new(|_| {}),
@@ -52,7 +52,7 @@ fn transaction_adapter(
 #[test]
 fn raspberry_host_role_rejects_sd2_before_audio_or_midi_actions() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-host-role");
-    let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+    let mut adapter = PiHostAdapter::new_with_data_role(
         None,
         root.join("store"),
         root.join("samples"),

@@ -1,4 +1,4 @@
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 #[cfg(test)]
 use playback_runtime::{CoreRunner, HostAdapter, RunnerMessage};
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
@@ -9,7 +9,7 @@ pub(crate) use crate::runtime_output::process_runtime_output;
 
 const PLATFORM_RESULT_BUDGET: usize = 4;
 
-impl crate::runtime_output::PiRuntimeHost for PiPlaybackHostAdapter {
+impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
     const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
         crate::initial_audio_prep::InitialAudioPrepBoard::Pi;
 
@@ -28,10 +28,10 @@ impl crate::runtime_output::PiRuntimeHost for PiPlaybackHostAdapter {
         &mut self.core
     }
     fn shutdown_pending(&self) -> bool {
-        PiPlaybackHostAdapter::shutdown_pending(self)
+        PiHostAdapter::shutdown_pending(self)
     }
     fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
-        PiPlaybackHostAdapter::poll_recording_status(self)
+        PiHostAdapter::poll_recording_status(self)
     }
     fn prep_audio_service(&self) -> crate::audio::AudioService {
         self.audio_service()
@@ -45,7 +45,7 @@ impl crate::runtime_output::PiRuntimeHost for PiPlaybackHostAdapter {
 pub fn dispatch_runtime_message(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     host_message: HostMessage,
 ) -> Result<(), String> {
     let output = playback.dispatch_host_message_music_first(host_message, runner, adapter)?;
@@ -57,9 +57,9 @@ pub fn dispatch_runtime_message(
     Ok(())
 }
 
-pub fn report_runtime_failure(adapter: &PiPlaybackHostAdapter, prefix: &str, error: String) {
+pub fn report_runtime_failure(adapter: &PiHostAdapter, prefix: &str, error: String) {
     if adapter.timing_evidence.is_some() {
-        crate::timing_input::fail_study::<PiPlaybackHostAdapter>(error);
+        crate::timing_input::fail_study::<PiHostAdapter>(error);
     }
     eprintln!("{prefix}: {error}");
 }
@@ -67,7 +67,7 @@ pub fn report_runtime_failure(adapter: &PiPlaybackHostAdapter, prefix: &str, err
 pub fn handle_deferred_host_work(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
 ) -> Result<(), String> {
     if adapter.shutdown_pending() {
         return Ok(());
@@ -327,7 +327,7 @@ mod tests {
     #[test]
     fn accepted_snapshot_ingestion_updates_raspberry_keyboard_gate() {
         let root = crate::test_temp_dir::unique_temp_path("octessera-pi-keyboard-snapshot");
-        let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+        let mut adapter = PiHostAdapter::new_with_data_role(
             None,
             root.join("store"),
             root.join("samples"),

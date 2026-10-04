@@ -5,12 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn fixture() -> (
-    PlaybackRuntime,
-    NativeRunner,
-    PiPlaybackHostAdapter,
-    PathBuf,
-) {
+fn fixture() -> (PlaybackRuntime, NativeRunner, PiHostAdapter, PathBuf) {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-playing-legacy-autosave");
     let mut full_default: Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
@@ -32,7 +27,7 @@ fn fixture() -> (
     crate::pi_store_test_support::write_pair(&store, &full_default);
     std::fs::remove_file(store.join("default.patch.json")).unwrap();
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         None,
         store,
         root.join("samples"),
@@ -51,7 +46,7 @@ fn fixture() -> (
 fn input(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     input: Value,
 ) {
     dispatch_runtime_message(
@@ -75,7 +70,7 @@ fn read_default(path: &std::path::Path) -> Option<Value> {
 fn wait_for_default(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     path: &std::path::Path,
     expected: &Value,
 ) {

@@ -1,7 +1,7 @@
 use super::audio_output_open::{load_status_sender_for_sink, AudioConstructionConfig};
 use super::audio_profile::RaspberryAudioProfile;
 use super::AudioSink;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
     AudioOptimization, AudioOutputSet, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
     RuntimeConfig, SyncSource,
@@ -31,7 +31,7 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    let mut host = PiPlaybackHostAdapter::new(
+    let mut host = PiHostAdapter::new(
         None,
         root.join("store"),
         root.join("samples"),

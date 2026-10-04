@@ -15,7 +15,7 @@ use std::time::Duration;
 fn pi_startup_accepts_the_native_runner_initial_audio_result_shape() {
     let audio = test_service_with_prep_worker();
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-native-runner-prep");
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         Some(audio),
         root.join("store"),
         root.join("samples"),
@@ -74,7 +74,7 @@ fn pi_v1_persisted_startup_sleep_remains_due_after_scheduler_creation() {
     )
     .unwrap();
 
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         None,
         store,
         root.join("samples"),
@@ -188,7 +188,7 @@ fn prepared_runtime(
         .join("../../samples")
         .canonicalize()
         .unwrap();
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         Some(audio),
         root.join("store"),
         samples,

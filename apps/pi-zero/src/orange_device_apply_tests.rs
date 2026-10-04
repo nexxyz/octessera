@@ -203,7 +203,7 @@ fn apply_orders_panic_silence_reboot_request_then_teardown() {
     };
     let reboot_request_events = events.clone();
     resolve_shutdown_request_with_reboot_request(
-        OrangeShutdownRequest::ApplyDeviceConfig(transaction),
+        PowerRequest::ApplyDeviceConfig(transaction),
         &mut host,
         move || {
             reboot_request_events.lock().unwrap().push("reboot-request");
@@ -239,7 +239,7 @@ fn apply_outcome_matrix_has_expected_exit_policy() {
             events: Arc::new(Mutex::new(Vec::new())),
         };
         let result = resolve_shutdown_request_with_reboot_request(
-            OrangeShutdownRequest::ApplyDeviceConfig(transaction),
+            PowerRequest::ApplyDeviceConfig(transaction),
             &mut host,
             || outcome,
         );
@@ -266,7 +266,7 @@ fn silence_failure_rolls_back_before_ordinary_exit() {
         silence_failure: true,
     };
     let result = resolve_shutdown_request_with_reboot_request(
-        OrangeShutdownRequest::ApplyDeviceConfig(transaction),
+        PowerRequest::ApplyDeviceConfig(transaction),
         &mut host,
         || panic!("reboot request must not run after silence failure"),
     )
@@ -287,7 +287,7 @@ fn rollback_failure_is_special_exit_78() {
         events: Arc::new(Mutex::new(Vec::new())),
     };
     let result = resolve_shutdown_request_with_reboot_request(
-        OrangeShutdownRequest::ApplyDeviceConfig(transaction),
+        PowerRequest::ApplyDeviceConfig(transaction),
         &mut host,
         || OrangePowerRequestOutcome::Rejected,
     )

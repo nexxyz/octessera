@@ -1,14 +1,12 @@
-use super::OrangeHostAdapter;
+use super::PiHostAdapter;
 use crate::audio::AudioService;
 use crate::main_paths::{default_samples_dir, default_store_dir};
-use crate::midi_host::MidiHost;
-use crate::orange_audio::OrangeAudioHost;
-use crate::pi_host_core::PiHostCore;
 use crate::platform_service::PiPlatformService;
+use playback_runtime::UsbDataRole;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-impl OrangeHostAdapter {
+impl PiHostAdapter {
     pub(crate) fn new(
         audio: AudioService,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -33,17 +31,16 @@ impl OrangeHostAdapter {
         let store_dir = prepare_directory(&store_dir, "Orange store")?;
         let samples_dir = prepare_directory(&samples_dir, "Orange samples")?;
         let platform_service = PiPlatformService::new(store_dir.clone(), samples_dir.clone());
-        let restore_audio = audio.clone();
-        platform_service.set_restore_preflight(Arc::new(move || restore_audio.prepare_restore()));
-        Ok(Self {
-            audio: audio.clone(),
-            audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
-            core: PiHostCore::new(
-                platform_service,
-                MidiHost::new(midi_in_handler, usb_midi_out_enabled),
-            ),
-            shutdown_request: None,
-        })
+        let audio_outputs = audio.audio_outputs();
+        Ok(Self::with_platform_service_and_role(
+            Some(audio),
+            samples_dir,
+            midi_in_handler,
+            usb_midi_out_enabled,
+            audio_outputs,
+            platform_service,
+            UsbDataRole::Gadget,
+        ))
     }
 
     #[cfg(all(test, any(unix, windows)))]
@@ -62,17 +59,16 @@ impl OrangeHostAdapter {
             samples_dir.clone(),
             environment,
         );
-        let restore_audio = audio.clone();
-        platform_service.set_restore_preflight(Arc::new(move || restore_audio.prepare_restore()));
-        Ok(Self {
-            audio: audio.clone(),
-            audio_host: OrangeAudioHost::new(audio, samples_dir.clone()),
-            core: PiHostCore::new(
-                platform_service,
-                MidiHost::new(midi_in_handler, usb_midi_out_enabled),
-            ),
-            shutdown_request: None,
-        })
+        let audio_outputs = audio.audio_outputs();
+        Ok(Self::with_platform_service_and_role(
+            Some(audio),
+            samples_dir,
+            midi_in_handler,
+            usb_midi_out_enabled,
+            audio_outputs,
+            platform_service,
+            UsbDataRole::Gadget,
+        ))
     }
 }
 

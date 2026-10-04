@@ -1,6 +1,6 @@
 use super::{playing_runner, worker_with_recording};
 use crate::hardware_runtime_scheduler::SNAPSHOT_TICK;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
     HostAdapter, RunnerMessage, RuntimePlatformEffect, RuntimePlatformRequest, UsbDataRole,
 };
@@ -16,7 +16,7 @@ fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
     let mut event_adapter = super::adapter(&root, None);
     let (playback, mut runner) = playing_runner(&mut event_adapter);
     let (audio, _, _, _) = crate::audio::test_service_with_recording_dir(actual_root.clone());
-    let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+    let mut adapter = PiHostAdapter::new_with_data_role(
         Some(audio.clone()),
         root.join("store"),
         root.join("samples"),
@@ -118,7 +118,7 @@ fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
 }
 
 fn start_oled_recording(
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     id: &str,
 ) -> Vec<playback_runtime::HostMessage> {
     let response = adapter

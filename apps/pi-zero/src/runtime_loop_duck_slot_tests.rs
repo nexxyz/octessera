@@ -1,5 +1,5 @@
 use super::{dispatch_runtime_message, handle_deferred_host_work, process_runtime_output};
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
     RuntimeTransportState, SyncSource, UsbDataRole,
@@ -10,7 +10,7 @@ use std::sync::Arc;
 struct Replay {
     playback: PlaybackRuntime,
     runner: NativeRunner,
-    adapter: PiPlaybackHostAdapter,
+    adapter: PiHostAdapter,
     _keep: (
         std::sync::mpsc::Receiver<crate::audio::AudioControlRequest>,
         rodio_engine_source::EngineEventReceiver,
@@ -26,7 +26,7 @@ impl Replay {
         crate::pi_store_test_support::write_pair(&root.join("store"), &payload);
         let (audio, control_rx, event_rx, prep_tx) =
             crate::audio::test_service_with_recording_dir(root.join("recording"));
-        let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+        let mut adapter = PiHostAdapter::new_with_data_role(
             Some(audio),
             root.join("store"),
             root.join("samples"),

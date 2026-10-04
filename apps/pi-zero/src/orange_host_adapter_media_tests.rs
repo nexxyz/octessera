@@ -19,7 +19,7 @@ fn assert_sd2_start_rejected(response: &[HostMessage], message: &str) {
 fn orange_sd2_start_rejects_active_usb_audio() {
     let (store, samples) = directories();
     let audio = test_service_with_outputs(AudioOutputSet::from_flags(false, true, false).unwrap());
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio,
         store.clone(),
         samples.clone(),
@@ -46,7 +46,7 @@ fn orange_sd2_start_rejects_active_usb_audio() {
 fn orange_sd2_start_rejects_enabled_usb_midi() {
     let (audio, _, _) = test_service();
     let (store, samples) = directories();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio,
         store.clone(),
         samples.clone(),
@@ -75,7 +75,7 @@ fn orange_sd2_start_rejects_active_recording() {
     let recordings = store.parent().unwrap().join("recordings");
     let (audio, _, _, _) = test_service_with_recording_dir(recordings);
     audio.start_recording(1).unwrap();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),
@@ -105,7 +105,7 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
     let (store, samples) = directories();
     let recordings = store.parent().unwrap().join("recordings");
     let (audio, _, _, _) = test_service_with_recording_dir(recordings.clone());
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),
@@ -183,7 +183,7 @@ fn orange_recording_directory_failure_is_typed_and_does_not_stop_runtime() {
     std::fs::create_dir_all(store.parent().unwrap()).unwrap();
     std::fs::write(&recordings, b"not a directory").unwrap();
     let (audio, _, _, _) = test_service_with_recording_dir(recordings);
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),
@@ -224,7 +224,7 @@ fn orange_recording_stop_failure_preserves_error_detail() {
         .trim_end_matches(".partial.wav")
         .to_string();
     std::fs::create_dir(recordings.join(format!("{stem}.wav"))).unwrap();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),
@@ -256,7 +256,7 @@ fn orange_power_save_stops_recording_before_power_submission() {
     let (store, samples) = directories();
     let recordings = store.parent().unwrap().join("recordings");
     let (audio, _, _, _) = test_service_with_recording_dir(recordings);
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),

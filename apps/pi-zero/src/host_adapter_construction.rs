@@ -3,7 +3,8 @@ use crate::midi_host::MidiHost;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 use crate::usb_config::UsbAudioOut;
 
-impl PiPlaybackHostAdapter {
+impl PiHostAdapter {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn new_with_data_role<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -25,6 +26,7 @@ impl PiPlaybackHostAdapter {
         )
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(super) fn with_platform_service(
         audio: Option<AudioService>,
         samples_dir: PathBuf,
@@ -75,7 +77,7 @@ impl PiPlaybackHostAdapter {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
     pub(crate) fn new_with_update_executor(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -100,7 +102,7 @@ impl PiPlaybackHostAdapter {
         )
     }
 
-    #[cfg(all(test, any(unix, windows)))]
+    #[cfg(all(test, any(unix, windows), not(feature = "hardware-orange-pi-zero-2w")))]
     pub(crate) fn new_with_setup_environment(
         audio: Option<AudioService>,
         store_dir: PathBuf,

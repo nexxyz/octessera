@@ -1,6 +1,6 @@
 use crate::audio::AudioManager;
 use crate::main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
-use crate::{host_adapter::PiPlaybackHostAdapter, sample_browser::builtin_favourite_dirs};
+use crate::{host_adapter::PiHostAdapter, sample_browser::builtin_favourite_dirs};
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage, RuntimeConfig,
     RuntimeIngest, RuntimePlatformEffect, SyncSource, TimingProbeOptions, TimingProbeScenario,
@@ -99,7 +99,7 @@ fn run_live_one(
     ensure_runtime_dirs(&store_dir, &samples_dir);
     let midi_handler = Arc::new(|_bytes: Vec<u8>| {});
     let mut host = LiveProbeHost {
-        inner: PiPlaybackHostAdapter::new(
+        inner: PiHostAdapter::new(
             Some(audio.service()),
             store_dir,
             samples_dir,

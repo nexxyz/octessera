@@ -1,5 +1,5 @@
 use crate::hardware_runtime_scheduler::DisplaySnapshotDue;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::render_loop::RenderWorker;
 use playback_runtime::{NativeRunner, PlaybackRuntime};
 use std::sync::mpsc::{self, TryRecvError};
@@ -107,7 +107,7 @@ impl NativeScenePump {
         due: DisplaySnapshotDue,
         playback: &PlaybackRuntime,
         runner: &mut NativeRunner,
-        adapter: &mut PiPlaybackHostAdapter,
+        adapter: &mut PiHostAdapter,
         worker: &RenderWorker,
     ) -> Option<Instant> {
         if playback

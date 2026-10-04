@@ -1,5 +1,5 @@
 use crate::platform_service::PiPlatformService;
-use playback_runtime::{RuntimePlatformRequest, RuntimeStoreResult, UsbDataRole};
+use playback_runtime::UsbDataRole;
 use serde_json::Value;
 use std::path::Path;
 use std::process::Command;
@@ -128,20 +128,6 @@ pub(crate) fn apply_usb_role(role: UsbDataRole) -> Result<(), String> {
         } else {
             detail.trim().to_string()
         })
-    }
-}
-
-pub(crate) fn unavailable(request: &RuntimePlatformRequest) -> playback_runtime::HostMessage {
-    playback_runtime::HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::RuntimeFailure {
-            error: playback_runtime::RuntimeErrorFacts::new(
-                playback_runtime::RuntimeErrorDomain::Runtime,
-                playback_runtime::RuntimeErrorCode::Unavailable,
-                playback_runtime::RuntimeOperation::RuntimeDispatch,
-                Some("USB SD2 transfer is unavailable while USB data role is host".into()),
-            )
-            .with_identity(Some(request.request_id.clone()), request.revision),
-        },
     }
 }
 

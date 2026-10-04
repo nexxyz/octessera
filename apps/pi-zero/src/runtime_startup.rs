@@ -1,6 +1,6 @@
 use super::RaspberryRuntimeConfig;
 use crate::candidate_readiness::CandidateReadiness;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::input::MidiMessage;
 use crate::main_paths::ensure_samples_dir;
 use crate::normal_menu::is_normal_menu_snapshot;
@@ -20,7 +20,7 @@ pub(crate) struct PreparedRuntime {
     pub(super) encoder_rx: mpsc::Receiver<HardwareEvent>,
     pub(super) playback: PlaybackRuntime,
     pub(super) runner: NativeRunner,
-    pub(super) adapter: PiPlaybackHostAdapter,
+    pub(super) adapter: PiHostAdapter,
     pub(super) candidate_readiness: CandidateReadiness,
     pub(super) keyboard: crate::keyboard_capture::KeyboardCapture,
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
@@ -50,7 +50,7 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
     if early_boot_splash {
         runner.skip_startup_splash();
     }
-    let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+    let mut adapter = PiHostAdapter::new_with_data_role(
         audio,
         store_dir,
         samples_dir,
@@ -195,7 +195,7 @@ mod tests {
     fn pi_startup_waits_for_the_identified_audio_prep_result() {
         let (audio, result_tx) = test_service_with_prep_result_sender();
         let root = crate::test_temp_dir::unique_temp_path("octessera-pi-startup-prep");
-        let mut adapter = PiPlaybackHostAdapter::new(
+        let mut adapter = PiHostAdapter::new(
             Some(audio),
             root.join("store"),
             root.join("samples"),
@@ -235,7 +235,7 @@ mod tests {
     fn pi_initial_audio_prep_failure_does_not_publish_candidate_ready() {
         let (audio, result_tx) = test_service_with_prep_result_sender();
         let root = crate::test_temp_dir::unique_temp_path("octessera-pi-startup-prep-failure");
-        let mut adapter = PiPlaybackHostAdapter::new(
+        let mut adapter = PiHostAdapter::new(
             Some(audio),
             root.join("store"),
             root.join("samples"),
@@ -276,7 +276,7 @@ mod tests {
     fn pi_candidate_readiness_rechecks_selected_audio_routes() {
         let (audio, _result_tx) = test_service_with_prep_result_sender();
         let root = crate::test_temp_dir::unique_temp_path("octessera-pi-route-readiness");
-        let adapter = PiPlaybackHostAdapter::new(
+        let adapter = PiHostAdapter::new(
             Some(audio),
             root.join("store"),
             root.join("samples"),
@@ -363,7 +363,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let audio = crate::audio::test_service_with_prep_worker();
-        let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+        let mut adapter = PiHostAdapter::new_with_data_role(
             Some(audio),
             store,
             samples,

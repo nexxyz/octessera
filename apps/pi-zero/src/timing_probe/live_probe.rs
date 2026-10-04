@@ -1,5 +1,5 @@
 use super::cadence::AdvanceCorrelation;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent, NativeRunner, RunnerMessage, RuntimeAudioCommand,
     RuntimePlatformRequest,
@@ -104,7 +104,7 @@ pub(super) struct SlowSendReport {
 }
 
 pub(super) struct LiveProbeHost {
-    pub(super) inner: PiPlaybackHostAdapter,
+    pub(super) inner: PiHostAdapter,
     pub(super) event_started_at: Instant,
     pub(super) events: Vec<LiveEventRecord>,
     pub(super) audio_send_us: Vec<f64>,

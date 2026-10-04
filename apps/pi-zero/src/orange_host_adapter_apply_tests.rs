@@ -33,7 +33,7 @@ fn seed_store(store: &std::path::Path) {
     );
 }
 
-fn adapter(label: &str) -> (OrangeHostAdapter, PathBuf) {
+fn adapter(label: &str) -> (PiHostAdapter, PathBuf) {
     let (root, store, samples) = directories(label);
     let (audio, _, _) = test_service();
     let documents = documents();
@@ -49,12 +49,11 @@ fn adapter(label: &str) -> (OrangeHostAdapter, PathBuf) {
     )
     .unwrap();
     let adapter =
-        OrangeHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false)
-            .unwrap();
+        PiHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false).unwrap();
     (adapter, root)
 }
 
-fn arm_recovery_save(adapter: &mut OrangeHostAdapter, id: &str) {
+fn arm_recovery_save(adapter: &mut PiHostAdapter, id: &str) {
     assert_eq!(
         adapter
             .handle_platform_effect(&request(
@@ -171,8 +170,7 @@ fn pending_apply_suppresses_later_musical_output() {
     seed_store(&store);
     let (audio, _, mut event_rx) = test_service();
     let mut adapter =
-        OrangeHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false)
-            .unwrap();
+        PiHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false).unwrap();
     assert!(adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::ApplyDeviceConfigReboot {
@@ -203,8 +201,7 @@ fn pending_reboot_suppresses_later_musical_output() {
     seed_store(&store);
     let (audio, _, mut event_rx) = test_service();
     let mut adapter =
-        OrangeHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false)
-            .unwrap();
+        PiHostAdapter::with_directories(audio, store, samples, Arc::new(|_| {}), false).unwrap();
     arm_recovery_save(&mut adapter, "recovery");
     assert!(adapter
         .handle_platform_effect(&request(RuntimePlatformEffect::Reboot, "reboot"))
@@ -234,8 +231,8 @@ fn shutdown_effect_maps_to_typed_orange_shutdown_request() {
         .unwrap()
         .is_empty());
     assert!(matches!(
-        adapter.take_shutdown_request(),
-        Some(OrangeShutdownRequest::Shutdown)
+        adapter.take_power_request(),
+        Some(PowerRequest::Shutdown)
     ));
     let _ = std::fs::remove_dir_all(root);
 }
@@ -258,8 +255,8 @@ fn pending_shutdown_rejects_a_second_shutdown_request() {
         }]
     ));
     assert!(matches!(
-        adapter.take_shutdown_request(),
-        Some(OrangeShutdownRequest::Shutdown)
+        adapter.take_power_request(),
+        Some(PowerRequest::Shutdown)
     ));
     let _ = std::fs::remove_dir_all(root);
 }

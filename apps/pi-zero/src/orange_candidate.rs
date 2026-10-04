@@ -6,12 +6,12 @@ use crate::encoder_queue::PendingEncoderTurns;
 use crate::hardware_runtime_scheduler::{
     is_playing, prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
 };
+use crate::host_adapter::PiHostAdapter;
 use crate::input::{midi_realtime_message, MidiMessage};
 use crate::main_paths::default_store_dir;
 use crate::midi_host::drain_midi_messages;
 use crate::normal_menu::is_normal_menu_snapshot;
 pub(crate) use crate::orange_device_apply::OrangeRunError;
-use crate::orange_host_adapter::OrangeHostAdapter;
 use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;

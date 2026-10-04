@@ -5,7 +5,7 @@ use playback_runtime::AudioOptimization;
 pub(crate) struct PreparedRuntime {
     pub(super) playback: PlaybackRuntime,
     pub(super) runner: NativeRunner,
-    pub(super) host: OrangeHostAdapter,
+    pub(super) host: PiHostAdapter,
 }
 
 pub(crate) struct OrangeStartupReadinessGate {
@@ -102,7 +102,7 @@ pub(crate) fn prepare_runtime(
             &serde_json::from_str(include_str!("../../../config/generated/pi/default.json"))
                 .map_err(|error: serde_json::Error| error.to_string())?,
         );
-        OrangeHostAdapter::with_directories(
+        PiHostAdapter::with_directories(
             audio,
             root.join("presets"),
             root.join("samples"),
@@ -110,7 +110,7 @@ pub(crate) fn prepare_runtime(
             usb_midi_out_enabled,
         )?
     } else {
-        OrangeHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?
+        PiHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?
     };
     if let Some(control) = keyboard_control {
         host.core.set_keyboard_capture_control(control);
@@ -138,14 +138,14 @@ pub(crate) fn prepare_runtime(
 fn drain_startup_host_work(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
+    host: &mut PiHostAdapter,
 ) -> Result<(), String> {
     let responses = runner.poll_deferred_menu_apply_music_first()?;
     if !responses.is_empty() {
         let output = playback.dispatch_runner_messages(responses, runner, host)?;
         process_runtime_output(playback, runner, host, output)?;
     }
-    for result in host.drain_startup_platform_results(HOST_RESULT_BUDGET) {
+    for result in host.core.platform_service.drain_results(HOST_RESULT_BUDGET) {
         dispatch(playback, runner, host, result)?;
     }
     Ok(())
@@ -175,7 +175,10 @@ pub(crate) fn publish_prepared_acknowledged_snapshot(
         .core
         .oled_publication_for_snapshot(&snapshot, true)?;
     render.publish_acknowledged_snapshot(snapshot, oled)?;
-    let audio = prepared.host.audio_service();
+    let audio = prepared
+        .host
+        .audio_service()
+        .expect("Orange host always owns its audio service");
     let (frame_revision, pixels) = render.take_acknowledged_startup_oled_frame()?;
     audio.submit_accepted_oled_frame_shared(frame_revision, pixels)?;
     render.set_recording_audio(audio);

@@ -2,7 +2,7 @@ use crate::encoder_queue::PendingEncoderTurns;
 use crate::hardware_runtime_scheduler::{
     is_playing, prepare_dispatch_message, DisplaySnapshotDue, HardwareRuntimeScheduler,
 };
-use crate::host_adapter::{PiPlaybackHostAdapter, PiPowerRequest};
+use crate::host_adapter::{PiHostAdapter, PowerRequest};
 use crate::power_lifecycle::{
     PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
 };
@@ -31,7 +31,7 @@ pub(crate) fn drain_host_messages(
     input_rx: &mpsc::Receiver<HostMessage>,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
 ) {
     if adapter.shutdown_pending() {
         return;
@@ -49,7 +49,7 @@ pub(crate) fn drain_encoder_events(
     pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
 ) {
     if adapter.shutdown_pending() {
         return;
@@ -72,7 +72,7 @@ pub(crate) fn maybe_advance_runtime(
     scheduler: &mut HardwareRuntimeScheduler,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
     ui_profiler: &mut UiProfiler,
     native_scenes: &mut crate::raspberry_native_scene::NativeScenePump,
@@ -147,7 +147,7 @@ pub(crate) fn maybe_advance_runtime(
 fn service_xy_glide_tick(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
 ) {
     if runner.next_xy_glide_deadline().is_none() {
         return;
@@ -179,7 +179,7 @@ fn advance_playback_if_due(
     request_snapshot: bool,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     ui_profiler: &mut UiProfiler,
 ) {
     if adapter.shutdown_pending() {
@@ -211,7 +211,7 @@ fn request_periodic_snapshot_if_due(
     scheduler: &mut HardwareRuntimeScheduler,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
 ) {
     if adapter.shutdown_pending() || is_playing(playback) {
         return;
@@ -234,7 +234,7 @@ fn request_periodic_snapshot_if_due(
 fn dispatch_or_log(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     message: HostMessage,
 ) {
     if adapter.shutdown_pending() {
@@ -255,7 +255,7 @@ fn service_render_if_due(
     now: Instant,
     scheduler: &mut HardwareRuntimeScheduler,
     playback: &mut PlaybackRuntime,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
 ) {
     if adapter.shutdown_pending() {
@@ -286,18 +286,18 @@ fn service_render_if_due(
 
 fn shutdown_if_requested(
     playback: &PlaybackRuntime,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
 ) -> bool {
     let Some(request) = adapter.take_power_request() else {
         return false;
     };
     match request {
-        PiPowerRequest::Reboot | PiPowerRequest::Shutdown => {
+        PowerRequest::Reboot | PowerRequest::Shutdown => {
             let action = match request {
-                PiPowerRequest::Reboot => PowerAction::Reboot,
-                PiPowerRequest::Shutdown => PowerAction::Shutdown,
-                PiPowerRequest::ApplyDeviceConfigReboot => unreachable!(),
+                PowerRequest::Reboot => PowerAction::Reboot,
+                PowerRequest::Shutdown => PowerAction::Shutdown,
+                PowerRequest::ApplyDeviceConfig(()) => unreachable!(),
             };
             let mut callbacks = RaspberryPowerCallbacks {
                 playback,
@@ -308,7 +308,7 @@ fn shutdown_if_requested(
             let mut lifecycle = PowerLifecycle::default();
             report_power_lifecycle_result(lifecycle.execute(action, &mut callbacks))
         }
-        PiPowerRequest::ApplyDeviceConfigReboot => {
+        PowerRequest::ApplyDeviceConfig(()) => {
             finalize_device_apply_power_request(playback, adapter, render_worker, request)
         }
     }
@@ -316,9 +316,9 @@ fn shutdown_if_requested(
 
 struct RaspberryPowerCallbacks<'a> {
     playback: &'a PlaybackRuntime,
-    adapter: &'a mut PiPlaybackHostAdapter,
+    adapter: &'a mut PiHostAdapter,
     render_worker: &'a RenderWorker,
-    request: PiPowerRequest,
+    request: PowerRequest,
 }
 
 impl PowerLifecycleCallbacks for RaspberryPowerCallbacks<'_> {
@@ -369,9 +369,9 @@ fn report_power_lifecycle_result(result: PowerLifecycleResult) -> bool {
 
 fn finalize_device_apply_power_request(
     playback: &PlaybackRuntime,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
-    request: PiPowerRequest,
+    request: PowerRequest,
 ) -> bool {
     let terminal = (|| {
         let snapshot = playback
@@ -396,7 +396,7 @@ fn finalize_device_apply_power_request(
 fn dispatch_transfer_statuses(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
 ) {
     while let Some(status) = adapter.take_transfer_status() {
         if let Err(error) = dispatch_runtime_message(playback, runner, adapter, status) {
@@ -406,7 +406,7 @@ fn dispatch_transfer_statuses(
     }
 }
 
-fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
+fn power_pi_system(_request: PowerRequest) -> Result<(), String> {
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     {
         let attempts = power_command_attempts(_request);
@@ -425,10 +425,10 @@ fn power_pi_system(_request: PiPowerRequest) -> Result<(), String> {
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         {
             match _request {
-                PiPowerRequest::Reboot => {
+                PowerRequest::Reboot => {
                     orange_power_result("reboot", crate::orange_reboot::request_reboot())
                 }
-                PiPowerRequest::Shutdown => {
+                PowerRequest::Shutdown => {
                     orange_power_result("poweroff", crate::orange_reboot::request_shutdown())
                 }
             }
@@ -462,10 +462,10 @@ fn orange_power_result(
 
 #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
 fn power_command_attempts(
-    request: PiPowerRequest,
+    request: PowerRequest,
 ) -> &'static [(&'static str, &'static [&'static str])] {
     match request {
-        PiPowerRequest::Reboot => &[
+        PowerRequest::Reboot => &[
             ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
             ("sudo", &["-n", "/bin/systemctl", "reboot"]),
             ("sudo", &["-n", "/usr/sbin/reboot"]),
@@ -475,7 +475,7 @@ fn power_command_attempts(
             ("/usr/sbin/reboot", &[]),
             ("/sbin/reboot", &[]),
         ],
-        PiPowerRequest::Shutdown => &[
+        PowerRequest::Shutdown => &[
             ("sudo", &["-n", "/usr/bin/systemctl", "poweroff"]),
             ("sudo", &["-n", "/bin/systemctl", "poweroff"]),
             ("sudo", &["-n", "/usr/sbin/poweroff"]),
@@ -485,7 +485,7 @@ fn power_command_attempts(
             ("/usr/sbin/poweroff", &[]),
             ("/sbin/poweroff", &[]),
         ],
-        PiPowerRequest::ApplyDeviceConfigReboot => &[
+        PowerRequest::ApplyDeviceConfig(()) => &[
             ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
             ("sudo", &["-n", "/bin/systemctl", "reboot"]),
             ("sudo", &["-n", "/usr/sbin/reboot"]),

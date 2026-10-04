@@ -7,10 +7,10 @@ use serde_json::json;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-fn adapter(label: &str) -> (PiPlaybackHostAdapter, PathBuf) {
+fn adapter(label: &str) -> (PiHostAdapter, PathBuf) {
     let root =
         crate::test_temp_dir::unique_temp_path(&format!("octessera-pi-system-store-{label}"));
-    let adapter = PiPlaybackHostAdapter::new(
+    let adapter = PiHostAdapter::new(
         None,
         root.join("store"),
         root.join("samples"),

@@ -21,7 +21,7 @@ fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
     let root = std::env::temp_dir().join(format!("octessera-pi-drum-host-{}", std::process::id()));
     let (audio, _, mut rx, _) =
         crate::audio::test_service_with_recording_dir(root.join("recordings"));
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         Some(audio),
         root.join("store"),
         root.join("samples"),
@@ -77,7 +77,7 @@ fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
 fn raspberry_sd2_start_rejects_active_usb_audio() {
     let root =
         std::env::temp_dir().join(format!("octessera-pi-sd2-usb-audio-{}", std::process::id()));
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         None,
         root.join("store"),
         root.join("samples"),
@@ -102,7 +102,7 @@ fn raspberry_sd2_start_rejects_active_usb_audio() {
 fn raspberry_sd2_start_rejects_enabled_usb_midi() {
     let root =
         std::env::temp_dir().join(format!("octessera-pi-sd2-usb-midi-{}", std::process::id()));
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         None,
         root.join("store"),
         root.join("samples"),
@@ -129,7 +129,7 @@ fn raspberry_sd2_start_rejects_active_recording() {
         std::env::temp_dir().join(format!("octessera-pi-sd2-recording-{}", std::process::id()));
     let audio = crate::audio::test_service_with_prep_worker();
     audio.start_recording(1).unwrap();
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         Some(audio.clone()),
         root.join("store"),
         root.join("samples"),
@@ -156,7 +156,7 @@ fn raspberry_sd2_start_rejects_active_recording() {
 fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
     let root = std::env::temp_dir().join(format!("octessera-pi-audio-oled-{}", std::process::id()));
     let audio = crate::audio::test_service_with_prep_worker();
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         Some(audio.clone()),
         root.join("store"),
         root.join("samples"),
@@ -239,7 +239,7 @@ fn raspberry_recording_stop_failure_preserves_error_detail() {
         .trim_end_matches(".partial.wav")
         .to_string();
     std::fs::create_dir(recordings.join(format!("{stem}.wav"))).unwrap();
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         Some(audio.clone()),
         root.join("store"),
         root.join("samples"),
@@ -269,7 +269,7 @@ fn raspberry_recording_stop_failure_preserves_error_detail() {
 #[test]
 fn preset_patch_path_rejects_unsafe_names() {
     let store_dir = PathBuf::from("store");
-    let _adapter = PiPlaybackHostAdapter::new(
+    let _adapter = PiHostAdapter::new(
         None,
         PathBuf::from("store"),
         PathBuf::from("samples"),
@@ -295,7 +295,7 @@ fn raspberry_power_request_requires_recovery_save_before_acceptance() {
     let full: serde_json::Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     let documents = crate::pi_store_test_support::write_pair(&root.join("store"), &full);
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         None,
         root.join("store"),
         root.join("samples"),
@@ -317,7 +317,7 @@ fn raspberry_power_request_requires_recovery_save_before_acceptance() {
     assert_eq!(adapter.handle_platform_effect(&recovery).unwrap().len(), 1);
     assert!(adapter.handle_platform_effect(&reboot).unwrap().is_empty());
     assert!(!adapter.handle_platform_effect(&reboot).unwrap().is_empty());
-    assert_eq!(adapter.take_power_request(), Some(PiPowerRequest::Reboot));
+    assert_eq!(adapter.take_power_request(), Some(PowerRequest::Reboot));
     assert_eq!(adapter.save_recovery_for_power(), Ok(()));
     let _ = std::fs::remove_dir_all(root);
 }
@@ -348,7 +348,7 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     fs::set_permissions(paths.request.parent().unwrap(), permissions(0o700)).unwrap();
     fs::set_permissions(&paths.public, permissions(0o750)).unwrap();
     let environment = SetupPortalEnvironment::test(paths.clone(), 0);
-    let mut adapter = PiPlaybackHostAdapter::new_with_setup_environment(
+    let mut adapter = PiHostAdapter::new_with_setup_environment(
         None,
         root.join("store"),
         root.join("samples"),
@@ -402,7 +402,7 @@ fn raspberry_adapter_supports_setup_portal_effect() {
 }
 
 fn wait_for_setup_portal_phase(
-    adapter: &PiPlaybackHostAdapter,
+    adapter: &PiHostAdapter,
     expected_phase: RuntimeSetupPortalPhase,
     expected_suffix: Option<&str>,
 ) {

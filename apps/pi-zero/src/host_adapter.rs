@@ -4,6 +4,9 @@ mod host_adapter_construction;
 mod host_adapter_recording;
 #[path = "host_adapter_store.rs"]
 mod host_adapter_store;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[path = "orange_host_adapter_construction.rs"]
+mod orange_construction;
 
 use crate::audio::AudioService;
 use crate::audio_event::{drum_hit_to_engine_event, musical_event_to_engine_event};
@@ -25,24 +28,54 @@ use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub struct PiPlaybackHostAdapter {
+/// The one host adapter for both boards; board differences live in the
+/// device-apply handoff and the board's own construction.
+pub struct PiHostAdapter {
     audio: Option<AudioService>,
     samples_dir: PathBuf,
     pub(crate) core: PiHostCore,
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
     usb_data_role: UsbDataRole,
-    power_request: Option<PiPowerRequest>,
-    pub(super) timing_evidence: Option<crate::timing_input::TimingStudyEvidence>,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PiPowerRequest {
-    Reboot,
-    Shutdown,
-    ApplyDeviceConfigReboot,
+    power_request: Option<PowerRequest>,
+    pub(crate) timing_evidence: Option<crate::timing_input::TimingStudyEvidence>,
 }
 
-impl PiPlaybackHostAdapter {
+/// What a confirmed device/audio apply hands to the power path: Raspberry has
+/// already saved the new boot config; Orange carries its apply transaction.
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) type DeviceApplyHandoff = ();
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) type DeviceApplyHandoff = crate::orange_device_apply::OrangeDeviceApplyTransaction;
+
+#[derive(Debug)]
+#[cfg_attr(
+    not(feature = "hardware-orange-pi-zero-2w"),
+    derive(Clone, Copy, PartialEq, Eq)
+)]
+pub enum PowerRequest {
+    Reboot,
+    Shutdown,
+    ApplyDeviceConfig(DeviceApplyHandoff),
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn prepare_device_apply(
+    platform_service: &PiPlatformService,
+    payload: &serde_json::Value,
+) -> Result<DeviceApplyHandoff, String> {
+    crate::rpi_device_apply::apply(platform_service, payload)
+}
+
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+fn prepare_device_apply(
+    platform_service: &PiPlatformService,
+    payload: &serde_json::Value,
+) -> Result<DeviceApplyHandoff, String> {
+    platform_service.prepare_orange_device_apply(payload)
+}
+
+impl PiHostAdapter {
     pub(crate) fn handle_runtime_drum_hit(
         &mut self,
         hit: &DrumHit,
@@ -66,6 +99,7 @@ impl PiPlaybackHostAdapter {
         self.core.take_transfer_status()
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub fn new<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -85,7 +119,7 @@ impl PiPlaybackHostAdapter {
         )
     }
 
-    pub fn take_power_request(&mut self) -> Option<PiPowerRequest> {
+    pub(crate) fn take_power_request(&mut self) -> Option<PowerRequest> {
         self.power_request.take()
     }
 
@@ -112,7 +146,7 @@ impl PiPlaybackHostAdapter {
         self.audio.clone()
     }
 
-    pub fn drain_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
+    pub(crate) fn drain_platform_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut results = self.core.platform_service.drain_results(max_results);
         if results.len() < max_results {
             if let Some(audio) = &self.audio {
@@ -125,7 +159,7 @@ impl PiPlaybackHostAdapter {
     fn request_power(
         &mut self,
         request: &RuntimePlatformRequest,
-        power_request: PiPowerRequest,
+        power_request: PowerRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
         if let Err(error) = self.core.recovery_save_ready() {
             return Ok(vec![failure_message(request, error)]);
@@ -143,7 +177,7 @@ impl PiPlaybackHostAdapter {
         request: &RuntimePlatformRequest,
     ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
         if self.usb_data_role == UsbDataRole::Host {
-            return Ok(vec![crate::rpi_device_apply::unavailable(request)]);
+            return Ok(vec![usb_sd_transfer_unavailable(request)]);
         }
         if let Some(reason) =
             usb_sd_transfer_output_block_reason(self.audio_outputs.usb(), self.usb_midi_out_enabled)
@@ -173,16 +207,36 @@ impl PiPlaybackHostAdapter {
     }
 }
 
-impl crate::timing_input::TimingHost for PiPlaybackHostAdapter {
+fn usb_sd_transfer_unavailable(request: &RuntimePlatformRequest) -> HostMessage {
+    HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::RuntimeFailure {
+            error: playback_runtime::RuntimeErrorFacts::new(
+                playback_runtime::RuntimeErrorDomain::Runtime,
+                playback_runtime::RuntimeErrorCode::Unavailable,
+                playback_runtime::RuntimeOperation::RuntimeDispatch,
+                Some("USB SD2 transfer is unavailable while USB data role is host".into()),
+            )
+            .with_identity(Some(request.request_id.clone()), request.revision),
+        },
+    }
+}
+
+impl crate::timing_input::TimingHost for PiHostAdapter {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     const STUDY_BOARD: &'static str = "Raspberry";
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     const REPORT_PREFIX: &'static str = "raspberry-autoaux";
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    const STUDY_BOARD: &'static str = "Orange";
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    const REPORT_PREFIX: &'static str = "orange-autoaux";
 
     fn timing_evidence(&mut self) -> &mut Option<crate::timing_input::TimingStudyEvidence> {
         &mut self.timing_evidence
     }
 }
 
-impl HostAdapter for PiPlaybackHostAdapter {
+impl HostAdapter for PiHostAdapter {
     fn handle_musical_event(
         &mut self,
         event: &RuntimeMusicalEvent,
@@ -225,16 +279,15 @@ impl HostAdapter for PiPlaybackHostAdapter {
                     .into_iter()
                     .map(|result| HostMessage::RuntimeResult { result })
                     .collect::<Vec<_>>();
-                if let Err(message) =
-                    crate::rpi_device_apply::apply(&self.core.platform_service, payload)
-                {
-                    messages.push(failure_message(
+                match prepare_device_apply(&self.core.platform_service, payload) {
+                    Ok(handoff) => {
+                        self.power_request = Some(PowerRequest::ApplyDeviceConfig(handoff));
+                    }
+                    Err(message) => messages.push(failure_message(
                         request,
                         format!("device/audio apply save failed: {message}"),
-                    ));
-                    return Ok(messages);
+                    )),
                 }
-                self.power_request = Some(PiPowerRequest::ApplyDeviceConfigReboot);
                 return Ok(messages);
             }
             RuntimePlatformEffect::RecordingStartAudio { .. }
@@ -248,14 +301,10 @@ impl HostAdapter for PiPlaybackHostAdapter {
                 self.core.midi_panic_status()
             }
             RuntimePlatformEffect::Reboot => {
-                return self.request_power(request, PiPowerRequest::Reboot);
+                return self.request_power(request, PowerRequest::Reboot);
             }
             RuntimePlatformEffect::Shutdown => {
-                return self.request_power(request, PiPowerRequest::Shutdown);
-            }
-            RuntimePlatformEffect::HardwareTest => {
-                println!("system.hardwareTest requested (planned guided hardware diagnostic)");
-                return Ok(Vec::new());
+                return self.request_power(request, PowerRequest::Shutdown);
             }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;
@@ -303,26 +352,38 @@ impl HostAdapter for PiPlaybackHostAdapter {
     }
 }
 
-impl RuntimeOutputSink for PiPlaybackHostAdapter {
+impl RuntimeOutputSink for PiHostAdapter {
     fn dispatch_output(
         &mut self,
         playback: &mut playback_runtime::PlaybackRuntime,
         runner: &mut playback_runtime::NativeRunner,
         output: playback_runtime::RuntimeIngest,
     ) -> Result<(), String> {
-        crate::runtime_loop::process_runtime_output(playback, runner, self, output)
+        crate::runtime_output::process_runtime_output(playback, runner, self, output)
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[path = "orange_host_adapter_apply_tests.rs"]
+mod orange_apply_tests;
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[path = "orange_host_adapter_system_store_tests.rs"]
+mod orange_system_store_tests;
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[path = "orange_host_adapter_tests.rs"]
+mod orange_tests;
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[path = "orange_host_adapter_update_tests.rs"]
+mod orange_update_tests;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "host_adapter_power_tests.rs"]
 mod power_tests;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "host_adapter_system_store_tests.rs"]
 mod system_store_tests;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "host_adapter_tests.rs"]
 mod tests;
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "host_adapter_usb_role_tests.rs"]
 mod usb_role_tests;

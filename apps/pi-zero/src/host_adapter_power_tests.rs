@@ -5,7 +5,7 @@ use crate::power_lifecycle::{
 use std::path::{Path, PathBuf};
 
 struct PowerTestCallbacks<'a> {
-    adapter: &'a mut PiPlaybackHostAdapter,
+    adapter: &'a mut PiHostAdapter,
     events: Vec<&'static str>,
     recording_active_at_submit: Option<bool>,
 }
@@ -110,8 +110,8 @@ fn raspberry_power_combines_recovery_and_recording_failures_without_submission()
     remove_root(root);
 }
 
-fn test_adapter(audio: crate::audio::AudioService, root: &Path) -> PiPlaybackHostAdapter {
-    PiPlaybackHostAdapter::new(
+fn test_adapter(audio: crate::audio::AudioService, root: &Path) -> PiHostAdapter {
+    PiHostAdapter::new(
         Some(audio),
         root.join("store"),
         root.join("samples"),

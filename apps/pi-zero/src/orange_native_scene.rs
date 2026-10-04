@@ -1,5 +1,5 @@
 use crate::hardware_runtime_scheduler::DisplaySnapshotDue;
-use crate::orange_host_adapter::OrangeHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::render_loop::RenderWorker;
 use playback_runtime::{NativeRunner, PlaybackRuntime};
 use std::sync::mpsc::{self, TryRecvError};
@@ -76,7 +76,7 @@ impl OrangeNativeScenePump {
         due: DisplaySnapshotDue,
         playback: &PlaybackRuntime,
         runner: &mut NativeRunner,
-        host: &mut OrangeHostAdapter,
+        host: &mut PiHostAdapter,
         worker: &RenderWorker,
     ) -> Option<Instant> {
         self.capture_duration = None;

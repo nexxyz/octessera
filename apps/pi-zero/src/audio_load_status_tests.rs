@@ -4,7 +4,7 @@ use super::audio_profile::OrangeAudioProfile;
 use super::{AudioManager, AudioOpenPolicy, AudioSink};
 use crate::audio_route::new_registry;
 use crate::audio_stream_health::AudioStreamHealth;
-use crate::orange_host_adapter::OrangeHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage, RuntimeConfig,
     RuntimePlatformEffect, SyncSource,
@@ -154,12 +154,12 @@ fn status(
 
 fn runtime_with_snapshot(
     audio: super::super::AudioService,
-) -> (PlaybackRuntime, NativeRunner, OrangeHostAdapter, PathBuf) {
+) -> (PlaybackRuntime, NativeRunner, PiHostAdapter, PathBuf) {
     let root = crate::test_temp_dir::unique_temp_path("octessera-orange-audio-status");
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    let mut host = OrangeHostAdapter::with_directories(
+    let mut host = PiHostAdapter::with_directories(
         audio,
         root.join("store"),
         root.join("samples"),

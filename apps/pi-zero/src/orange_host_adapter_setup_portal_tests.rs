@@ -27,7 +27,7 @@ fn orange_adapter_supports_setup_portal_effect() {
     fs::set_permissions(&paths.public, permissions(0o750)).unwrap();
     let environment = SetupPortalEnvironment::test(paths.clone(), status_group);
     let (audio, _, _) = test_service();
-    let mut adapter = OrangeHostAdapter::with_setup_environment(
+    let mut adapter = PiHostAdapter::with_setup_environment(
         audio,
         root.join("store"),
         root.join("samples"),
@@ -68,7 +68,7 @@ fn orange_adapter_supports_setup_portal_effect() {
     publish_setup_status(&paths, &payload);
     let mut responses = Vec::new();
     for _ in 0..100 {
-        responses = adapter.drain_results(4);
+        responses = adapter.drain_platform_results(4);
         if !responses.is_empty() {
             break;
         }
@@ -92,7 +92,7 @@ fn orange_adapter_supports_setup_portal_effect() {
     publish_setup_status(&paths, &current);
     responses.clear();
     for _ in 0..100 {
-        responses = adapter.drain_results(4);
+        responses = adapter.drain_platform_results(4);
         if !responses.is_empty() {
             break;
         }
@@ -116,7 +116,7 @@ fn orange_adapter_supports_setup_portal_effect() {
     publish_setup_status(&paths, &succeeded);
     responses.clear();
     for _ in 0..100 {
-        responses = adapter.drain_results(4);
+        responses = adapter.drain_platform_results(4);
         if !responses.is_empty() {
             break;
         }

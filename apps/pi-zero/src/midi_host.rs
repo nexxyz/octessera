@@ -319,11 +319,6 @@ impl MidiHost {
             None
         }
     }
-
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    pub(crate) fn usb_midi_out_enabled(&self) -> bool {
-        self.usb_midi_out_enabled
-    }
 }
 
 fn resolve_port_id(requested: &str, ids: &[String]) -> Result<String, String> {

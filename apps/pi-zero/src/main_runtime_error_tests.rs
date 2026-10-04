@@ -2,7 +2,7 @@ use super::*;
 use crate::hardware_runtime_scheduler::{
     DisplaySnapshotDue, HardwareRuntimeScheduler, SNAPSHOT_TICK,
 };
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::raspberry_native_scene::NativeScenePump;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-playing-runtime-error");
     let audio = crate::audio::test_service_with_prep_worker();
-    let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+    let mut adapter = PiHostAdapter::new_with_data_role(
         Some(audio.clone()),
         root.join("store"),
         root.join("samples"),

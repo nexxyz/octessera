@@ -359,8 +359,8 @@ impl AudioService {
     }
 
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    pub(crate) fn usb_output_enabled(&self) -> bool {
-        self.audio_outputs.usb()
+    pub(crate) fn audio_outputs(&self) -> AudioOutputSet {
+        self.audio_outputs
     }
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

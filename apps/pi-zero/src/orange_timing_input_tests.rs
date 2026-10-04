@@ -3,8 +3,8 @@
 use crate::autoaux_sequence::{
     Phase, BASELINE, PLATEAU, RAPID, SAVE_COMPLETION_TIMEOUT, TURN_INTERVAL,
 };
+use crate::host_adapter::PiHostAdapter;
 use crate::input::{encoder_press_message, encoder_turn_message};
-use crate::orange_host_adapter::OrangeHostAdapter;
 use crate::timing_input::TimingInput;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage,
@@ -62,7 +62,7 @@ impl Drop for EnvironmentRestore {
 struct RuntimeFixture {
     playback: PlaybackRuntime,
     runner: NativeRunner,
-    host: OrangeHostAdapter,
+    host: PiHostAdapter,
     _control_rx: std::sync::mpsc::Receiver<crate::audio::AudioControlRequest>,
     _event_rx: rodio_engine_source::EngineEventReceiver,
     root: std::path::PathBuf,
@@ -72,7 +72,7 @@ fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
     let root = crate::test_temp_dir::unique_temp_path("octessera-orange-autoaux");
     let (audio, control_rx, event_rx, _prep_result_tx) =
         crate::audio::test_service_with_recording_dir(root.join("recording"));
-    let mut host = OrangeHostAdapter::with_directories(
+    let mut host = PiHostAdapter::with_directories(
         audio.clone(),
         root.join("store"),
         root.join("samples"),

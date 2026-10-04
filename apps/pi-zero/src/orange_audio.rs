@@ -1,26 +1,12 @@
-use crate::audio::AudioService;
-use crate::audio_event::{drum_hit_to_engine_event, musical_event_to_engine_event};
 use crate::audio_route::RouteOpenError;
-use crate::host_audio_command::send_audio_command;
-use crate::timing_input::TimingStudyEvidence;
 use cpal::traits::DeviceTrait;
 use cpal::{SampleFormat, StreamConfig};
-#[cfg(test)]
-use playback_runtime::RuntimeErrorCode;
-use playback_runtime::{
-    HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
-};
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
-use rodio_engine_source::EngineEvent;
-use std::path::PathBuf;
 
 pub(crate) const ORANGE_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_JACK_PCM;
 pub(crate) const ORANGE_UAC2_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_USB_PCM;
 pub(crate) const ORANGE_HDMI_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_HDMI_PCM;
 pub(crate) const ORANGE_AUDIO_CHANNELS: u16 = 2;
-pub(crate) const ORANGE_UNAVAILABLE_STATUS: &str =
-    "unavailable in Orange foreground runtime-candidate";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct OrangeOutputConfigCandidate {
@@ -126,33 +112,6 @@ fn map_supported_configs_error(error: cpal::SupportedStreamConfigsError) -> Rout
     }
 }
 
-pub(crate) struct OrangeAudioHost {
-    audio: AudioService,
-    samples_dir: PathBuf,
-    timing_evidence: Option<TimingStudyEvidence>,
-}
-
-impl OrangeAudioHost {
-    pub(crate) fn new(audio: AudioService, samples_dir: PathBuf) -> Self {
-        Self {
-            audio,
-            samples_dir,
-            timing_evidence: None,
-        }
-    }
-
-    pub(crate) fn timing_evidence(&mut self) -> &mut Option<TimingStudyEvidence> {
-        &mut self.timing_evidence
-    }
-
-    pub(crate) fn handle_runtime_drum_hit(
-        &mut self,
-        hit: &playback_runtime::DrumHit,
-    ) -> Result<(), RuntimeAdapterError> {
-        self.audio.send_realtime(drum_hit_to_engine_event(hit)?)
-    }
-}
-
 fn orange_sample_format_rank(sample_format: SampleFormat) -> Option<u8> {
     match sample_format {
         SampleFormat::F32 => Some(0),
@@ -162,63 +121,9 @@ fn orange_sample_format_rank(sample_format: SampleFormat) -> Option<u8> {
     }
 }
 
-impl HostAdapter for OrangeAudioHost {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
-        self.audio
-            .send_realtime(musical_event_to_engine_event(event))
-    }
-
-    fn handle_drum_hit(
-        &mut self,
-        hit: &playback_runtime::DrumHit,
-    ) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_drum_hit(hit)
-    }
-
-    fn handle_platform_effect(
-        &mut self,
-        request: &RuntimePlatformRequest,
-    ) -> Result<Vec<HostMessage>, RuntimeAdapterError> {
-        if let RuntimePlatformEffect::AudioCommand { command } = &request.effect {
-            self.handle_audio_command(command)?;
-            return Ok(Vec::new());
-        }
-        Ok(vec![HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RuntimeFailure {
-                error: request.unsupported_facts(ORANGE_UNAVAILABLE_STATUS.into()),
-            },
-        }])
-    }
-
-    fn handle_audio_command(
-        &mut self,
-        command: &RuntimeAudioCommand,
-    ) -> Result<(), RuntimeAdapterError> {
-        send_audio_command(Some(self.audio.clone()), command, &self.samples_dir)?;
-        if let Some(evidence) = &mut self.timing_evidence {
-            evidence.record_command(command);
-        }
-        Ok(())
-    }
-
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
-        Ok(())
-    }
-
-    fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.audio.send_realtime(EngineEvent::AllNotesOff)
-    }
-
-    fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audio::{test_service, AudioControlRequest};
-    use playback_runtime::RuntimeAudioCommand;
 
     #[test]
     fn orange_selection_requests_exact_pcm_ids_without_enumeration() {
@@ -283,88 +188,5 @@ mod tests {
             sample_format: SampleFormat::F32,
         }])
         .is_err());
-    }
-
-    #[test]
-    fn orange_audio_host_forwards_events_commands_and_silence() {
-        let (audio, command_rx, mut event_rx) = test_service();
-        let mut host = OrangeAudioHost::new(audio, PathBuf::from("samples"));
-        host.handle_musical_event(&MusicalEvent::NoteOn {
-            channel: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: Some(25),
-        })
-        .unwrap();
-        assert!(matches!(
-            event_rx.try_recv(),
-            Ok(EngineEvent::NoteOn { note: 60, .. })
-        ));
-        host.handle_runtime_drum_hit(&playback_runtime::DrumHit {
-            instrument_slot: 2,
-            voice: 3,
-            tune_semis: -24,
-            velocity: 110,
-        })
-        .unwrap();
-        assert!(matches!(
-            event_rx.try_recv(),
-            Ok(EngineEvent::DrumHit {
-                instrument_slot: 2,
-                voice: 3,
-                tune_semis: -24,
-                velocity: 110,
-            })
-        ));
-
-        host.handle_audio_command(&RuntimeAudioCommand::SetFxBusSlot {
-            bus_index: 0,
-            slot_index: 0,
-            generation: 0,
-            fx_type: "delay".into(),
-            params: Default::default(),
-        })
-        .unwrap();
-        assert!(matches!(
-            command_rx.recv().unwrap(),
-            AudioControlRequest::FxBusSlot {
-                bus_index: 0,
-                slot_index: 0,
-                generation: 0,
-                ..
-            }
-        ));
-
-        host.silence_internal_audio().unwrap();
-        assert!(matches!(event_rx.try_recv(), Ok(EngineEvent::AllNotesOff)));
-        assert!(event_rx.try_recv().is_err());
-    }
-
-    #[test]
-    fn orange_midi_is_a_disabled_noop() {
-        let (audio, _, _) = test_service();
-        let mut host = OrangeAudioHost::new(audio, PathBuf::from("samples"));
-        host.handle_midi_message(&[0x90, 60, 100]).unwrap();
-        host.panic_external_midi().unwrap();
-    }
-
-    #[test]
-    fn orange_midi_platform_effect_is_typed_unavailable() {
-        let (audio, _, _) = test_service();
-        let mut host = OrangeAudioHost::new(audio, PathBuf::from("samples"));
-        let request = RuntimePlatformRequest::new(
-            RuntimePlatformEffect::MidiListOutputsRequest,
-            "test".into(),
-            None,
-        );
-        let responses = host.handle_platform_effect(&request).unwrap();
-        let [HostMessage::RuntimeResult { result }] = responses.as_slice() else {
-            panic!("expected one unavailable result");
-        };
-        assert!(matches!(
-            result,
-            RuntimeStoreResult::RuntimeFailure { error }
-                if error.code == RuntimeErrorCode::Unsupported
-        ));
     }
 }

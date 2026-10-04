@@ -1,5 +1,5 @@
 use crate::device_update::UpdateExecutor;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::runtime_loop::handle_deferred_host_work;
 use crate::usb_config::UsbAudioOut;
 use platform_core::DeviceInput;
@@ -85,7 +85,7 @@ struct UpdateMenuFixture {
     executor: Arc<ScriptedExecutor>,
     playback: PlaybackRuntime,
     runner: NativeRunner,
-    adapter: PiPlaybackHostAdapter,
+    adapter: PiHostAdapter,
     platform_effects: Vec<RuntimePlatformEffect>,
 }
 
@@ -100,7 +100,7 @@ impl UpdateMenuFixture {
             root: root.clone(),
             executor: executor.clone(),
             playback: PlaybackRuntime::new(RuntimeConfig::default()),
-            adapter: PiPlaybackHostAdapter::new_with_update_executor(
+            adapter: PiHostAdapter::new_with_update_executor(
                 None,
                 root.join("presets"),
                 root.join("samples"),

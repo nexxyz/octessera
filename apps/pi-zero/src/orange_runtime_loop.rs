@@ -31,7 +31,9 @@ pub(crate) fn run_prepared_runtime(
         mut runner,
         mut host,
     } = prepared;
-    let audio = host.audio_service();
+    let audio = host
+        .audio_service()
+        .expect("Orange host always owns its audio service");
     let initial_published_revision = if initial_rendered {
         playback.last_snapshot_revision()
     } else {
@@ -265,20 +267,18 @@ pub(crate) fn run_prepared_runtime(
         }
         Ok::<(), String>(())
     })();
-    match (result, host.take_shutdown_request()) {
+    match (result, host.take_power_request()) {
         (
             Ok(()),
             Some(
-                request @ (crate::orange_device_apply::OrangeShutdownRequest::Reboot
-                | crate::orange_device_apply::OrangeShutdownRequest::Shutdown),
+                request @ (crate::host_adapter::PowerRequest::Reboot
+                | crate::host_adapter::PowerRequest::Shutdown),
             ),
         ) => {
             let action = match request {
-                crate::orange_device_apply::OrangeShutdownRequest::Reboot => PowerAction::Reboot,
-                crate::orange_device_apply::OrangeShutdownRequest::Shutdown => {
-                    PowerAction::Shutdown
-                }
-                crate::orange_device_apply::OrangeShutdownRequest::ApplyDeviceConfig(_) => {
+                crate::host_adapter::PowerRequest::Reboot => PowerAction::Reboot,
+                crate::host_adapter::PowerRequest::Shutdown => PowerAction::Shutdown,
+                crate::host_adapter::PowerRequest::ApplyDeviceConfig(_) => {
                     unreachable!("ordinary power branch excludes device apply")
                 }
             };
@@ -302,12 +302,11 @@ pub(crate) fn run_prepared_runtime(
             .silence_internal_audio()
             .map(|_| crate::orange_device_apply::OrangeShutdownResolution::Complete)
             .map_err(|error| OrangeRunError::Ordinary(error.to_string())),
-        (
-            Err(error),
-            Some(request @ crate::orange_device_apply::OrangeShutdownRequest::ApplyDeviceConfig(_)),
-        ) => Err(crate::orange_device_apply::abort_shutdown_request(
-            request, error, &mut host,
-        )),
+        (Err(error), Some(request @ crate::host_adapter::PowerRequest::ApplyDeviceConfig(_))) => {
+            Err(crate::orange_device_apply::abort_shutdown_request(
+                request, error, &mut host,
+            ))
+        }
         (Err(error), Some(_ordinary_request)) => Err(OrangeRunError::Ordinary(error)),
         (Err(error), None) => {
             let _ = host.silence_internal_audio();
@@ -322,7 +321,7 @@ fn drain_inputs(
     pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
+    host: &mut PiHostAdapter,
 ) -> Result<(), String> {
     for _ in 0..32 {
         let message = match seesaw.input_rx.try_recv() {
@@ -340,7 +339,7 @@ fn drain_inputs(
     Ok(())
 }
 
-impl crate::runtime_output::PiRuntimeHost for OrangeHostAdapter {
+impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
     const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
         crate::initial_audio_prep::InitialAudioPrepBoard::Orange;
 
@@ -359,23 +358,24 @@ impl crate::runtime_output::PiRuntimeHost for OrangeHostAdapter {
         &mut self.core
     }
     fn shutdown_pending(&self) -> bool {
-        OrangeHostAdapter::shutdown_pending(self)
+        PiHostAdapter::shutdown_pending(self)
     }
     fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
-        OrangeHostAdapter::poll_recording_status(self)
+        PiHostAdapter::poll_recording_status(self)
     }
     fn prep_audio_service(&self) -> AudioService {
         self.audio_service()
+            .expect("Orange host always owns its audio service")
     }
     fn drain_prep_host_results(&self, max_results: usize) -> Vec<HostMessage> {
-        self.drain_results(max_results)
+        self.drain_platform_results(max_results)
     }
 }
 
 pub(crate) fn dispatch(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    host: &mut OrangeHostAdapter,
+    host: &mut PiHostAdapter,
     message: HostMessage,
 ) -> Result<(), String> {
     if host.shutdown_pending() {
@@ -406,7 +406,7 @@ pub(crate) fn dispatch(
 fn publish_snapshot(
     playback: &mut PlaybackRuntime,
     runner: &NativeRunner,
-    host: &mut OrangeHostAdapter,
+    host: &mut PiHostAdapter,
     render: &RenderWorker,
     scheduler: &mut HardwareRuntimeScheduler,
     wait_for_render: bool,

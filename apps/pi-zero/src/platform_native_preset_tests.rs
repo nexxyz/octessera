@@ -116,7 +116,7 @@ fn cleanup(root: PathBuf) {
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn refresh_preset_catalog(
-    host: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    host: &mut crate::host_adapter::PiHostAdapter,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
 ) {

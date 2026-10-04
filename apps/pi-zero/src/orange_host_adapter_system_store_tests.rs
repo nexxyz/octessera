@@ -9,11 +9,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-fn adapter(label: &str) -> (OrangeHostAdapter, PathBuf) {
+fn adapter(label: &str) -> (PiHostAdapter, PathBuf) {
     let root =
         crate::test_temp_dir::unique_temp_path(&format!("octessera-orange-system-store-{label}"));
     let (audio, _, _) = test_service();
-    let adapter = OrangeHostAdapter::with_directories(
+    let adapter = PiHostAdapter::with_directories(
         audio,
         root.join("store"),
         root.join("samples"),
@@ -100,7 +100,7 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
         loaded.as_slice(),
         [HostMessage::RuntimeResult { result: RuntimeStoreResult::LoadSystemResult { payload: Some(value) } }] if value == &system
     ));
-    assert!(adapter.shutdown_request.is_none());
+    assert!(adapter.power_request.is_none());
 
     let deadline = Instant::now() + Duration::from_secs(2);
     let mut saved_default = None;
@@ -146,7 +146,7 @@ fn missing_and_corrupt_system_store_are_not_replaced_with_default() {
     };
     assert_eq!(error.operation, RuntimeOperation::StoreLoadSystem);
     assert_eq!(error.request_id.as_deref(), Some("system-test"));
-    assert!(adapter.shutdown_request.is_none());
+    assert!(adapter.power_request.is_none());
     let _ = std::fs::remove_dir_all(root);
 }
 
@@ -174,7 +174,7 @@ fn system_save_is_rejected_while_restore_blocks_store_writes() {
         }]
     ));
     assert_eq!(std::fs::read(path).unwrap(), prior);
-    assert!(adapter.shutdown_request.is_none());
+    assert!(adapter.power_request.is_none());
     let _ = std::fs::remove_dir_all(root);
 }
 

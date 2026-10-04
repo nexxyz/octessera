@@ -10,7 +10,7 @@ fn ordinary_runtime_drain_keeps_platform_results_first() {
     let payload = crate::platform_service::load_json(&store.join("default.patch.json"))
         .unwrap()
         .unwrap();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),
@@ -45,7 +45,7 @@ fn ordinary_runtime_drain_keeps_platform_results_first() {
         })
         .unwrap();
 
-    let results = adapter.drain_results(1);
+    let results = adapter.drain_platform_results(1);
 
     assert!(matches!(
         results.as_slice(),

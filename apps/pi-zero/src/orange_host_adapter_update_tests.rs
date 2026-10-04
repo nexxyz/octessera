@@ -1,4 +1,4 @@
-use super::OrangeHostAdapter;
+use super::PiHostAdapter;
 use crate::audio::test_service;
 use crate::device_update::UpdateExecutor;
 use crate::platform_service::PiPlatformService;
@@ -48,7 +48,7 @@ impl UpdateExecutor for ScriptedExecutor {
 fn orange_update_effects_use_the_native_updater_worker() {
     let root = temporary_root();
     let (audio, _, _) = test_service();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio,
         root.join("store"),
         root.join("samples"),
@@ -85,7 +85,7 @@ fn orange_update_effects_use_the_native_updater_worker() {
         .enqueue_test_barrier()
         .unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
-    let results = adapter.drain_results(8);
+    let results = adapter.drain_platform_results(8);
     assert_eq!(
         executor.calls(),
         vec![

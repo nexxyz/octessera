@@ -1,7 +1,7 @@
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use super::*;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use crate::usb_config::UsbAudioOut;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -19,9 +19,9 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn adapter() -> (PiPlaybackHostAdapter, std::path::PathBuf) {
+fn adapter() -> (PiHostAdapter, std::path::PathBuf) {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-native-save");
-    let adapter = PiPlaybackHostAdapter::new(
+    let adapter = PiHostAdapter::new(
         None,
         root.join("store"),
         root.join("samples"),

@@ -386,7 +386,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
 fn native_default_test_adapter() -> (
     std::path::PathBuf,
     Vec<u8>,
-    crate::host_adapter::PiPlaybackHostAdapter,
+    crate::host_adapter::PiHostAdapter,
 ) {
     let root = crate::test_temp_dir::unique_temp_path("octessera-native-default-rejection");
     let documents = playback_runtime::split_system_patch_documents(
@@ -401,7 +401,7 @@ fn native_default_test_adapter() -> (
     )
     .unwrap();
     std::fs::write(root.join("store/default.patch.json"), &original_bytes).unwrap();
-    let adapter = crate::host_adapter::PiPlaybackHostAdapter::new(
+    let adapter = crate::host_adapter::PiHostAdapter::new(
         None,
         root.join("store"),
         root.join("samples"),
@@ -432,7 +432,7 @@ fn next_native_default_request(
 fn dispatch_result(
     playback: &mut playback_runtime::PlaybackRuntime,
     runner: &mut playback_runtime::NativeRunner,
-    adapter: &mut crate::host_adapter::PiPlaybackHostAdapter,
+    adapter: &mut crate::host_adapter::PiHostAdapter,
     result: playback_runtime::HostMessage,
 ) {
     playback

@@ -1,7 +1,7 @@
 use crate::autoaux_menu;
 use crate::autoaux_sequence::{AutoAuxSequence, Phase};
 use crate::hardware_runtime_scheduler::DisplaySnapshotDue;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::raspberry_native_scene::NativeScenePump;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
@@ -26,20 +26,13 @@ fn root() -> std::path::PathBuf {
     crate::test_temp_dir::unique_temp_path("octessera-raspberry-autoaux")
 }
 
-fn runtime(
-    root: &Path,
-) -> (
-    PlaybackRuntime,
-    NativeRunner,
-    PiPlaybackHostAdapter,
-    AudioKeepAlive,
-) {
+fn runtime(root: &Path) -> (PlaybackRuntime, NativeRunner, PiHostAdapter, AudioKeepAlive) {
     let payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     crate::pi_store_test_support::write_pair(&root.join("store"), &payload);
     let (audio, control_rx, event_rx, prep_tx) =
         crate::audio::test_service_with_recording_dir(root.join("recording"));
-    let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
+    let mut adapter = PiHostAdapter::new_with_data_role(
         Some(audio),
         root.join("store"),
         root.join("samples"),
@@ -79,13 +72,13 @@ fn runtime(
 fn dispatch(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     message: HostMessage,
 ) -> Result<(), String> {
     crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)
 }
 
-fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiPlaybackHostAdapter) -> RenderWorker {
+fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiHostAdapter) -> RenderWorker {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
         oled: crate::render::test_oled_output::fake_oled_output(),
@@ -208,7 +201,7 @@ fn completed_save_cannot_pass_without_physical_scene_acknowledgements() {
 #[test]
 fn study_failure_prints_one_board_marker_and_exits_two() {
     if std::env::var_os(FAIL_CHILD_ENV).is_some() {
-        fail_study::<PiPlaybackHostAdapter>("child failure");
+        fail_study::<PiHostAdapter>("child failure");
     }
     let output = Command::new(std::env::current_exe().unwrap())
         .arg("--exact")

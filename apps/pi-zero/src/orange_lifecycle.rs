@@ -1,5 +1,5 @@
+use crate::host_adapter::PiHostAdapter;
 use crate::orange_device_apply::{OrangeRunError, OrangeShutdownResolution};
-use crate::orange_host_adapter::OrangeHostAdapter;
 use crate::power_lifecycle::{
     PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
 };
@@ -8,7 +8,7 @@ use playback_runtime::PlaybackRuntime;
 
 pub(crate) fn run_ordinary_power_lifecycle(
     playback: &PlaybackRuntime,
-    host: &mut OrangeHostAdapter,
+    host: &mut PiHostAdapter,
     render: &RenderWorker,
     action: PowerAction,
 ) -> PowerLifecycleResult {
@@ -23,7 +23,7 @@ pub(crate) fn run_ordinary_power_lifecycle(
 
 struct OrangePowerCallbacks<'a> {
     playback: &'a PlaybackRuntime,
-    host: &'a mut OrangeHostAdapter,
+    host: &'a mut PiHostAdapter,
     render: &'a RenderWorker,
 }
 

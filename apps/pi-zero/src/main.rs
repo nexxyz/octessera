@@ -52,7 +52,6 @@ mod hardware_test;
 mod hardware_test_noise;
 #[cfg(feature = "native-audio")]
 mod hdmi_connector;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod host_adapter;
 #[cfg(feature = "native-audio")]
 mod host_audio_command;
@@ -83,8 +82,6 @@ mod oled_frame_cache;
 mod oled_utility;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_audio;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-mod orange_host_adapter;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_oled_suspend;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]

@@ -15,7 +15,7 @@ fn orange_audio_oled_start_seeds_latest_physical_frame_not_legacy_cache() {
     audio
         .submit_accepted_oled_frame_shared(42, Arc::from(current.clone()))
         .unwrap();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),

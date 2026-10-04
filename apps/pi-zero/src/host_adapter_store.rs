@@ -1,12 +1,12 @@
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::time::Instant;
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "host_adapter_load_admission_tests.rs"]
 mod load_admission_tests;
 
-impl PiPlaybackHostAdapter {
+impl PiHostAdapter {
     pub(crate) fn flush_native_persistence_at(
         &mut self,
         playback: &mut PlaybackRuntime,

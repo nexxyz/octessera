@@ -1,6 +1,6 @@
 use super::{request, unwrap_result};
 use crate::audio::{test_service_with_prep_sender, AudioControlRequest};
-use crate::orange_host_adapter::OrangeHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
     HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
     RuntimeDispatchInput, RuntimeOperation, RuntimePlatformEffect, RuntimeStoreResult,
@@ -32,7 +32,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     )
     .unwrap();
     let (audio, control_rx, mut event_rx, prep_tx) = test_service_with_prep_sender();
-    let mut adapter = OrangeHostAdapter::with_directories(
+    let mut adapter = PiHostAdapter::with_directories(
         audio.clone(),
         store.clone(),
         samples.clone(),
@@ -111,7 +111,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     let prep_result = (0..500)
         .find_map(|_| {
             adapter
-                .drain_results(4)
+                .drain_platform_results(4)
                 .into_iter()
                 .map(unwrap_result)
                 .find(|result| result.operation() == RuntimeOperation::AudioCommand)

@@ -26,7 +26,7 @@ fn deferred_default_autosave_rejects_load_without_cancelling_or_reading_file() {
     )
     .unwrap();
     std::fs::write(store.join("default.patch.json"), prior).unwrap();
-    let mut adapter = PiPlaybackHostAdapter::new(
+    let mut adapter = PiHostAdapter::new(
         None,
         store.clone(),
         root.join("samples"),

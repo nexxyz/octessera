@@ -1,7 +1,7 @@
 use crate::audio::AudioService;
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
-use crate::host_adapter::PiPlaybackHostAdapter;
+use crate::host_adapter::PiHostAdapter;
 use crate::input::MidiMessage;
 use crate::keyboard_capture::KeyboardCapture;
 use crate::main_runtime_loop::{drain_encoder_events, drain_host_messages, maybe_advance_runtime};
@@ -113,7 +113,7 @@ fn scheduler_loop(
     state.timing = match timing {
         Ok(timing) => timing,
         Err(error) if std::env::var_os("OCTESSERA_TIMING_AUTOAUX").is_some() => {
-            fail_study::<PiPlaybackHostAdapter>(error)
+            fail_study::<PiHostAdapter>(error)
         }
         Err(error) => {
             eprintln!("pi timing input setup failed: {error}");
@@ -154,7 +154,7 @@ fn scheduler_loop(
                 output,
             ) {
                 if adapter.timing_evidence.is_some() {
-                    fail_study::<PiPlaybackHostAdapter>(error);
+                    fail_study::<PiHostAdapter>(error);
                 }
                 eprintln!("pi audio load-status output processing failed: {error}");
             }
@@ -166,7 +166,7 @@ fn scheduler_loop(
         });
         if let Some(message) = audio_fault {
             if state.timing.is_some() {
-                fail_study::<PiPlaybackHostAdapter>(message);
+                fail_study::<PiHostAdapter>(message);
             }
             let error = playback_runtime::RuntimeErrorFacts::new(
                 playback_runtime::RuntimeErrorDomain::Audio,
@@ -227,7 +227,7 @@ fn scheduler_loop(
             &mut adapter,
             state.native_scenes.timing_cutoff_acceptances(),
         ) {
-            fail_study::<PiPlaybackHostAdapter>(error);
+            fail_study::<PiHostAdapter>(error);
         }
         if advance(
             &mut state,
@@ -266,7 +266,7 @@ fn advance(
     state: &mut SchedulerState,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
-    adapter: &mut PiPlaybackHostAdapter,
+    adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
 ) -> bool {
     let shutdown = maybe_advance_runtime(
@@ -279,7 +279,7 @@ fn advance(
         &mut state.native_scenes,
     );
     if shutdown && state.timing.is_some() {
-        fail_study::<PiPlaybackHostAdapter>("runtime requested shutdown during the study");
+        fail_study::<PiHostAdapter>("runtime requested shutdown during the study");
     }
     shutdown
 }
