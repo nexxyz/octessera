@@ -280,7 +280,6 @@ pub(crate) fn complete_study<H: TimingHost>(
     Ok(())
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn fail_study<H: TimingHost>(message: impl std::fmt::Display) -> ! {
     eprintln!("{}-failed: {message}", H::REPORT_PREFIX);
     std::process::exit(2)

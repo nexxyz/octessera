@@ -72,7 +72,7 @@ mod keyboard_capture;
 ))]
 mod live_audio_benchmark;
 mod main_paths;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(feature = "native-audio")]
 mod main_runtime_loop;
 #[cfg(feature = "external-midi")]
 mod midi_host;
@@ -97,6 +97,8 @@ mod pi_host_core;
 mod pi_store_test_support;
 mod platform_service;
 mod power_lifecycle;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod raspberry_power;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod raspberry_runtime;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -130,7 +132,6 @@ mod user_data_archive;
 mod user_data_restore;
 mod user_data_transfer;
 mod utility_mode;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod wake_trace;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use audio::AudioManager;

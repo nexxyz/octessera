@@ -1,28 +1,167 @@
+//! The runtime loop both boards run on the octessera-runtime thread. Board
+//! differences are limited to audio upkeep and what a power request does.
+
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::hardware_runtime_scheduler::{is_playing, DisplaySnapshotDue, HardwareRuntimeScheduler};
-use crate::host_adapter::{PiHostAdapter, PowerRequest};
-use crate::power_lifecycle::{
-    PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
-};
+use crate::host_adapter::PiHostAdapter;
+use crate::input::MidiMessage;
+use crate::native_scene_pump::NativeScenePump;
 use crate::render_loop::RenderWorker;
 use crate::runtime_loop::{
     handle_deferred_host_work, process_runtime_output, report_runtime_failure,
 };
+use crate::timing_input::{fail_study, TimingInput};
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
-use playback_runtime::{HostAdapter, HostMessage, NativeRunner, PlaybackRuntime};
+use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 const HARDWARE_EVENT_BUDGET: usize = 16;
 
-#[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
-#[path = "main_runtime_power_tests.rs"]
-mod tests;
-
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[path = "main_runtime_error_tests.rs"]
 mod error_tests;
+
+pub(crate) trait BoardLoop {
+    /// Per-iteration audio upkeep; an error ends the loop as an audio fault.
+    fn service_audio(
+        &mut self,
+        playback: &mut PlaybackRuntime,
+        runner: &mut NativeRunner,
+        adapter: &mut PiHostAdapter,
+    ) -> Result<(), String>;
+
+    /// Reacts to a pending power request; `true` ends the loop.
+    fn handle_power_request(
+        &mut self,
+        playback: &PlaybackRuntime,
+        adapter: &mut PiHostAdapter,
+        render_worker: &RenderWorker,
+    ) -> bool;
+
+    fn interrupted(&self) -> bool {
+        false
+    }
+}
+
+pub(crate) struct LoopState {
+    pub(crate) scheduler: HardwareRuntimeScheduler,
+    pending_encoder_turns: PendingEncoderTurns,
+    pub(crate) ui_profiler: UiProfiler,
+    pub(crate) native_scenes: NativeScenePump,
+    pub(crate) timing: Option<TimingInput>,
+}
+
+impl LoopState {
+    pub(crate) fn new(scheduler: HardwareRuntimeScheduler, timing: Option<TimingInput>) -> Self {
+        let ui_profiler = UiProfiler::from_process();
+        let mut native_scenes = NativeScenePump::new(Instant::now());
+        native_scenes.set_capture_profile_enabled(ui_profiler.enabled());
+        if let Some(timing) = &timing {
+            native_scenes.set_timing_cutoff_targets(timing.plateau_values());
+        }
+        Self {
+            scheduler,
+            pending_encoder_turns: PendingEncoderTurns::default(),
+            ui_profiler,
+            native_scenes,
+            timing,
+        }
+    }
+}
+
+pub(crate) struct LoopInputs<'a> {
+    pub(crate) midi_rx: &'a mpsc::Receiver<MidiMessage>,
+    pub(crate) input_rx: &'a mpsc::Receiver<HostMessage>,
+    pub(crate) encoder_rx: &'a mpsc::Receiver<HardwareEvent>,
+}
+
+/// Runs until a power request or interrupt ends it (`Ok`) or audio upkeep
+/// fails (`Err` with the fault).
+pub(crate) fn run_runtime_loop(
+    state: &mut LoopState,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    render_worker: &RenderWorker,
+    inputs: &LoopInputs<'_>,
+    board: &mut impl BoardLoop,
+) -> Result<(), String> {
+    let profile_enabled = state.ui_profiler.enabled();
+    let mut last_loop_start = profile_enabled.then(Instant::now);
+    loop {
+        let loop_start = profile_enabled.then(Instant::now);
+        let loop_gap = loop_start
+            .zip(last_loop_start)
+            .map(|(loop_start, last)| loop_start.duration_since(last));
+        last_loop_start = loop_start;
+        if board.interrupted() || advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        if let Err(error) = board.service_audio(playback, runner, adapter) {
+            if state.timing.is_some() {
+                fail_study::<PiHostAdapter>(&error);
+            }
+            return Err(error);
+        }
+        crate::midi_host::drain_midi_messages(inputs.midi_rx, playback, runner, adapter);
+        let host_input_started = profile_enabled.then(Instant::now);
+        drain_host_messages(inputs.input_rx, playback, runner, adapter);
+        if let Some(started) = host_input_started {
+            state.ui_profiler.record_host_input(started.elapsed());
+        }
+        if advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        drain_encoder_events(
+            inputs.encoder_rx,
+            &mut state.pending_encoder_turns,
+            playback,
+            runner,
+            adapter,
+        );
+        if let Err(error) = crate::timing_input::tick_if_active(
+            &mut state.timing,
+            playback,
+            runner,
+            adapter,
+            state.native_scenes.timing_cutoff_acceptances(),
+        ) {
+            fail_study::<PiHostAdapter>(error);
+        }
+        if advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
+            state.ui_profiler.record_loop(gap, started.elapsed());
+            state.ui_profiler.maybe_report();
+        }
+        if advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        std::thread::sleep(
+            state
+                .scheduler
+                .sleep_duration(Instant::now(), playback, runner),
+        );
+    }
+}
+
+fn advance(
+    state: &mut LoopState,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    render_worker: &RenderWorker,
+    board: &mut impl BoardLoop,
+) -> bool {
+    let stop = maybe_advance_runtime(state, playback, runner, adapter, render_worker, board);
+    if stop && state.timing.is_some() {
+        fail_study::<PiHostAdapter>("runtime requested shutdown during the study");
+    }
+    stop
+}
 
 pub(crate) fn drain_host_messages(
     input_rx: &mpsc::Receiver<HostMessage>,
@@ -66,16 +205,21 @@ pub(crate) fn drain_encoder_events(
 }
 
 pub(crate) fn maybe_advance_runtime(
-    scheduler: &mut HardwareRuntimeScheduler,
+    state: &mut LoopState,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
-    ui_profiler: &mut UiProfiler,
-    native_scenes: &mut crate::native_scene_pump::NativeScenePump,
+    board: &mut impl BoardLoop,
 ) -> bool {
+    let LoopState {
+        scheduler,
+        ui_profiler,
+        native_scenes,
+        ..
+    } = state;
     if adapter.shutdown_pending() {
-        return shutdown_if_requested(playback, adapter, render_worker);
+        return board.handle_power_request(playback, adapter, render_worker);
     }
     let now = Instant::now();
     let runtime_snapshot_requested = if let Some(advance) =
@@ -111,7 +255,7 @@ pub(crate) fn maybe_advance_runtime(
             runner.next_xy_glide_deadline(),
         );
         if adapter.shutdown_pending() {
-            return shutdown_if_requested(playback, adapter, render_worker);
+            return board.handle_power_request(playback, adapter, render_worker);
         }
         request_snapshot
     } else {
@@ -141,7 +285,7 @@ pub(crate) fn maybe_advance_runtime(
         ui_profiler.record_scene_capture(duration);
     }
     service_render_if_due(now, scheduler, playback, adapter, render_worker);
-    shutdown_if_requested(playback, adapter, render_worker)
+    adapter.shutdown_pending() && board.handle_power_request(playback, adapter, render_worker)
 }
 
 fn service_xy_glide_tick(
@@ -272,206 +416,5 @@ fn service_render_if_due(
         eprintln!("pi render worker rejected snapshot publication");
     } else {
         scheduler.record_snapshot_publication_accepted(snapshot_revision);
-    }
-}
-
-fn shutdown_if_requested(
-    playback: &PlaybackRuntime,
-    adapter: &mut PiHostAdapter,
-    render_worker: &RenderWorker,
-) -> bool {
-    let Some(request) = adapter.take_power_request() else {
-        return false;
-    };
-    match request {
-        PowerRequest::Reboot | PowerRequest::Shutdown => {
-            let action = match request {
-                PowerRequest::Reboot => PowerAction::Reboot,
-                PowerRequest::Shutdown => PowerAction::Shutdown,
-                PowerRequest::ApplyDeviceConfig(()) => unreachable!(),
-            };
-            let mut callbacks = RaspberryPowerCallbacks {
-                playback,
-                adapter,
-                render_worker,
-                request,
-            };
-            let mut lifecycle = PowerLifecycle::default();
-            report_power_lifecycle_result(lifecycle.execute(action, &mut callbacks))
-        }
-        PowerRequest::ApplyDeviceConfig(()) => {
-            finalize_device_apply_power_request(playback, adapter, render_worker, request)
-        }
-    }
-}
-
-struct RaspberryPowerCallbacks<'a> {
-    playback: &'a PlaybackRuntime,
-    adapter: &'a mut PiHostAdapter,
-    render_worker: &'a RenderWorker,
-    request: PowerRequest,
-}
-
-impl PowerLifecycleCallbacks for RaspberryPowerCallbacks<'_> {
-    fn save_recovery(&mut self) -> Result<(), String> {
-        self.adapter.save_recovery_for_power()
-    }
-
-    fn panic_external_midi(&mut self) -> Result<(), String> {
-        HostAdapter::panic_external_midi(self.adapter).map_err(|error| error.to_string())
-    }
-
-    fn silence_internal_audio(&mut self) -> Result<(), String> {
-        HostAdapter::silence_internal_audio(self.adapter).map_err(|error| error.to_string())
-    }
-
-    fn acknowledge_terminal(&mut self, _action: PowerAction) -> Result<(), String> {
-        let snapshot = self
-            .playback
-            .last_snapshot()
-            .cloned()
-            .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
-        let oled = self
-            .adapter
-            .core
-            .oled_publication_for_snapshot(&snapshot, false)?;
-        self.render_worker
-            .publish_terminal_preserving(snapshot, oled)
-    }
-
-    fn submit_power(&mut self, _action: PowerAction) -> Result<(), String> {
-        power_pi_system(self.request)
-    }
-}
-
-fn report_power_lifecycle_result(result: PowerLifecycleResult) -> bool {
-    match result {
-        PowerLifecycleResult::Submitted => true,
-        PowerLifecycleResult::Failed(failure) => {
-            eprintln!("pi power lifecycle failed: {failure}");
-            failure.accepted
-        }
-        PowerLifecycleResult::Duplicate => {
-            eprintln!("pi power lifecycle rejected a duplicate request");
-            true
-        }
-    }
-}
-
-fn finalize_device_apply_power_request(
-    playback: &PlaybackRuntime,
-    adapter: &mut PiHostAdapter,
-    render_worker: &RenderWorker,
-    request: PowerRequest,
-) -> bool {
-    let terminal = (|| {
-        let snapshot = playback
-            .last_snapshot()
-            .cloned()
-            .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
-        let oled = adapter
-            .core
-            .oled_publication_for_snapshot(&snapshot, false)?;
-        render_worker.publish_terminal_preserving(snapshot, oled)
-    })();
-    if let Err(error) = terminal {
-        eprintln!("pi device-apply terminal render failed: {error}");
-        return true;
-    }
-    if let Err(error) = power_pi_system(request) {
-        eprintln!("pi device-apply power request failed: {error}");
-    }
-    true
-}
-
-fn power_pi_system(_request: PowerRequest) -> Result<(), String> {
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-    {
-        let attempts = power_command_attempts(_request);
-        let mut errors = Vec::new();
-        for (command, args) in attempts {
-            match std::process::Command::new(command).args(*args).status() {
-                Ok(status) if status.success() => return Ok(()),
-                Ok(status) => errors.push(format!("{command} {args:?} exited with {status}")),
-                Err(error) => errors.push(format!("{command} {args:?} failed to launch: {error}")),
-            }
-        }
-        Err(errors.join("; "))
-    }
-    #[cfg(not(feature = "hardware-raspberry-pi-zero-2w"))]
-    {
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        {
-            match _request {
-                PowerRequest::Reboot => {
-                    orange_power_result("reboot", crate::orange_reboot::request_reboot())
-                }
-                PowerRequest::Shutdown => {
-                    orange_power_result("poweroff", crate::orange_reboot::request_shutdown())
-                }
-            }
-        }
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        {
-            let _ = _request;
-            Err("power request is unavailable in this profile".into())
-        }
-    }
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-fn orange_power_result(
-    action: &str,
-    outcome: crate::orange_reboot::OrangePowerRequestOutcome,
-) -> Result<(), String> {
-    match outcome {
-        crate::orange_reboot::OrangePowerRequestOutcome::Accepted => Ok(()),
-        crate::orange_reboot::OrangePowerRequestOutcome::Rejected => {
-            Err(format!("Orange {action} request was rejected"))
-        }
-        crate::orange_reboot::OrangePowerRequestOutcome::NotSubmitted => {
-            Err(format!("Orange {action} request was not submitted"))
-        }
-        crate::orange_reboot::OrangePowerRequestOutcome::Indeterminate => {
-            Err(format!("Orange {action} request outcome is indeterminate"))
-        }
-    }
-}
-
-#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-fn power_command_attempts(
-    request: PowerRequest,
-) -> &'static [(&'static str, &'static [&'static str])] {
-    match request {
-        PowerRequest::Reboot => &[
-            ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
-            ("sudo", &["-n", "/bin/systemctl", "reboot"]),
-            ("sudo", &["-n", "/usr/sbin/reboot"]),
-            ("sudo", &["-n", "/sbin/reboot"]),
-            ("/usr/bin/systemctl", &["reboot"]),
-            ("/bin/systemctl", &["reboot"]),
-            ("/usr/sbin/reboot", &[]),
-            ("/sbin/reboot", &[]),
-        ],
-        PowerRequest::Shutdown => &[
-            ("sudo", &["-n", "/usr/bin/systemctl", "poweroff"]),
-            ("sudo", &["-n", "/bin/systemctl", "poweroff"]),
-            ("sudo", &["-n", "/usr/sbin/poweroff"]),
-            ("sudo", &["-n", "/sbin/poweroff"]),
-            ("/usr/bin/systemctl", &["poweroff"]),
-            ("/bin/systemctl", &["poweroff"]),
-            ("/usr/sbin/poweroff", &[]),
-            ("/sbin/poweroff", &[]),
-        ],
-        PowerRequest::ApplyDeviceConfig(()) => &[
-            ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
-            ("sudo", &["-n", "/bin/systemctl", "reboot"]),
-            ("sudo", &["-n", "/usr/sbin/reboot"]),
-            ("sudo", &["-n", "/sbin/reboot"]),
-            ("/usr/bin/systemctl", &["reboot"]),
-            ("/bin/systemctl", &["reboot"]),
-            ("/usr/sbin/reboot", &[]),
-            ("/sbin/reboot", &[]),
-        ],
     }
 }

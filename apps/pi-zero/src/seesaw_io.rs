@@ -458,7 +458,6 @@ fn scan_inputs(
         .map_err(|error| format!("NeoTrellis input scan failed: {error}"))?;
     {
         for (x, y, pressed) in presses {
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             crate::wake_trace::log_trellis_event(x, y, pressed);
             let _ = input_tx.send(grid_message(x, y, pressed));
         }
@@ -476,7 +475,6 @@ fn scan_inputs(
                 continue;
             }
             previous_neokey[index] = pressed;
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             crate::wake_trace::log_neokey_transition(key, pressed);
             if let Some(message) = neokey_message(key, pressed) {
                 let _ = input_tx.send(message);

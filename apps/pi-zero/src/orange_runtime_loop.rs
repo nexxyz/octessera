@@ -1,4 +1,5 @@
 use super::*;
+use crate::main_runtime_loop::{run_runtime_loop, BoardLoop, LoopInputs, LoopState};
 
 #[cfg(test)]
 #[path = "orange_runtime_error_tests.rs"]
@@ -37,8 +38,6 @@ pub(crate) fn run_prepared_runtime(
     };
     let mut scheduler = HardwareRuntimeScheduler::new(Instant::now(), initial_published_revision);
     let mut readiness_gate = OrangeStartupReadinessGate::new(initial_rendered);
-    let mut pending_encoder_turns = PendingEncoderTurns::default();
-    let mut native_scenes = crate::native_scene_pump::NativeScenePump::new(Instant::now());
     audio_manager.report_runtime_terminal_diagnostics();
     ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
     audio.ensure_route_readiness()?;
@@ -79,187 +78,33 @@ pub(crate) fn run_prepared_runtime(
             audio_manager.required_jack_runtime_status(),
             candidate_readiness,
         )?;
-        let mut ui_profiler = crate::ui_profile::UiProfiler::from_process();
-        let mut timing_input = crate::timing_input::TimingInput::prepare(
+        let timing_input = crate::timing_input::TimingInput::prepare(
             timing_autoaux,
             &mut playback,
             &mut runner,
             &mut host,
         )?;
-        native_scenes.set_capture_profile_enabled(ui_profiler.enabled());
-        if let Some(timing) = &timing_input {
-            native_scenes.set_timing_cutoff_targets(timing.plateau_values());
-        }
-        let profile_enabled = ui_profiler.enabled();
-        let mut last_loop_start = profile_enabled.then(Instant::now);
-        while !signal::interrupted() {
-            let loop_start = profile_enabled.then(Instant::now);
-            let loop_gap = loop_start
-                .zip(last_loop_start)
-                .map(|(now, last)| now.duration_since(last));
-            last_loop_start = loop_start;
-            if host.shutdown_pending() {
-                break;
-            }
-            native_scenes.poll(&mut runner);
-            audio_manager.recover_audio_if_due();
-            let metrics = audio_manager.drain_audio_load_status(&mut playback);
-            process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
-            audio_manager.report_runtime_terminal_diagnostics();
-            ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
-            audio.ensure_route_readiness()?;
-            audio_manager.ensure_selected_routes()?;
-            readiness_gate.try_mark_ready(
-                audio_manager.required_jack_runtime_status(),
-                candidate_readiness,
-            )?;
-            drain_midi_messages(&midi_rx, &mut playback, &mut runner, &mut host);
-            if host.shutdown_pending() {
-                break;
-            }
-            handle_deferred_host_work(&mut playback, &mut runner, &mut host)?;
-            if host.shutdown_pending() {
-                break;
-            }
-            let input_started = profile_enabled.then(Instant::now);
-            drain_inputs(
-                seesaw,
-                encoder_rx,
-                &mut pending_encoder_turns,
-                &mut playback,
-                &mut runner,
-                &mut host,
-            )?;
-            if let Some(started) = input_started {
-                ui_profiler.record_host_input(started.elapsed());
-            }
-            if host.shutdown_pending() {
-                break;
-            }
-            crate::timing_input::tick_if_active(
-                &mut timing_input,
-                &mut playback,
-                &mut runner,
-                &mut host,
-                native_scenes.timing_cutoff_acceptances(),
-            )?;
-            let (runtime_snapshot_requested, runtime_advanced) = if let Some(advance) = scheduler
-                .next_runtime_advance(Instant::now(), &playback, runner.next_xy_glide_deadline())
-            {
-                let revision_before = playback.last_snapshot_revision();
-                if advance.request_snapshot {
-                    playback.request_next_snapshot();
-                }
-                let advance_started = profile_enabled.then(Instant::now);
-                let output = playback.advance_duration_music_first_with_output(
-                    advance.elapsed,
-                    &mut runner,
-                    &mut host,
-                )?;
-                if let Some(started) = advance_started {
-                    ui_profiler.record_runtime(advance.lateness, started.elapsed());
-                }
-                process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                let revision_after = playback.last_snapshot_revision();
-                let completed_at = Instant::now();
-                if advance.request_snapshot {
-                    scheduler.record_snapshot_attempt(
-                        completed_at,
-                        DisplaySnapshotDue::default(),
-                        revision_before,
-                        revision_after,
-                    );
-                } else {
-                    scheduler.observe_snapshot_revision(
-                        completed_at,
-                        revision_before,
-                        revision_after,
-                    );
-                }
-                (advance.request_snapshot, true)
-            } else {
-                scheduler.observe_snapshot(Instant::now(), &playback);
-                (false, false)
-            };
-            if runner.next_xy_glide_deadline().is_some() {
-                let output = playback.dispatch_host_message_music_first(
-                    scheduler.display_snapshot_message(&playback),
-                    &mut runner,
-                    &mut host,
-                )?;
-                process_runtime_output(&mut playback, &mut runner, &mut host, output)?;
-                handle_deferred_host_work(&mut playback, &mut runner, &mut host)?;
-            }
-            if host.shutdown_pending() {
-                break;
-            }
-            let scene_capture_now = Instant::now();
-            let typed_display_due = if is_playing(&playback) {
-                scheduler.display_snapshot_due(scene_capture_now, &runner, &playback)
-            } else {
-                DisplaySnapshotDue::default()
-            };
-            let captured = native_scenes.submit(
-                scene_capture_now,
-                typed_display_due,
-                &playback,
-                &mut runner,
-                &mut host,
-                render,
-            );
-            if let Some(duration) = native_scenes.take_capture_duration() {
-                ui_profiler.record_scene_capture(duration);
-            }
-            if let Some(captured_at) = captured {
-                scheduler.record_native_scene_capture(captured_at);
-            }
-            let metrics = audio_manager.drain_audio_load_status(&mut playback);
-            process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
-            audio_manager.report_runtime_terminal_diagnostics();
-            ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
-            handle_deferred_host_work(&mut playback, &mut runner, &mut host)?;
-            if runtime_advanced {
-                scheduler.record_runtime_advance_complete(
-                    Instant::now(),
-                    &playback,
-                    runner.next_xy_glide_deadline(),
-                );
-            }
-            if host.shutdown_pending() {
-                break;
-            }
-            let display_now = Instant::now();
-            let display_due = scheduler.display_snapshot_due(display_now, &runner, &playback);
-            if !runtime_snapshot_requested && !is_playing(&playback) && display_due.any() {
-                let message = scheduler.display_snapshot_message(&playback);
-                let revision_before = playback.last_snapshot_revision();
-                let dispatch_result = dispatch(&mut playback, &mut runner, &mut host, message);
-                let revision_after = playback.last_snapshot_revision();
-                scheduler.record_snapshot_attempt(
-                    display_now,
-                    display_due,
-                    revision_before,
-                    revision_after,
-                );
-                dispatch_result?;
-            }
-            let publish_now = Instant::now();
-            if scheduler.snapshot_publication_due(publish_now, &playback) {
-                publish_snapshot(
-                    &mut playback,
-                    &runner,
-                    &mut host,
-                    render,
-                    &mut scheduler,
-                    false,
-                )?;
-            }
-            if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
-                ui_profiler.record_loop(gap, started.elapsed());
-                ui_profiler.maybe_report();
-            }
-            std::thread::sleep(scheduler.sleep_duration(Instant::now(), &playback, &runner));
-        }
+        let mut state = LoopState::new(scheduler, timing_input);
+        let mut board = OrangeBoardLoop {
+            audio_manager: &mut *audio_manager,
+            audio: &audio,
+            readiness_gate: &mut readiness_gate,
+            candidate_readiness: &mut *candidate_readiness,
+        };
+        let inputs = LoopInputs {
+            midi_rx: &midi_rx,
+            input_rx: &seesaw.input_rx,
+            encoder_rx,
+        };
+        run_runtime_loop(
+            &mut state,
+            &mut playback,
+            &mut runner,
+            &mut host,
+            render,
+            &inputs,
+            &mut board,
+        )?;
         Ok::<(), String>(())
     })();
     match (result, host.take_power_request()) {
@@ -310,30 +155,6 @@ pub(crate) fn run_prepared_runtime(
     }
 }
 
-fn drain_inputs(
-    seesaw: &SeesawIo,
-    encoder_rx: &Receiver<HardwareEvent>,
-    pending_encoder_turns: &mut PendingEncoderTurns,
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut PiHostAdapter,
-) -> Result<(), String> {
-    for _ in 0..32 {
-        let message = match seesaw.input_rx.try_recv() {
-            Ok(message) => message,
-            Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
-        };
-        dispatch(playback, runner, host, message)?;
-    }
-    crate::encoder_queue::drain_encoder_events(
-        encoder_rx,
-        pending_encoder_turns,
-        |message| dispatch(playback, runner, host, message),
-        |_| {},
-    )?;
-    Ok(())
-}
-
 fn publish_snapshot(
     playback: &mut PlaybackRuntime,
     runner: &NativeRunner,
@@ -377,4 +198,45 @@ fn publish_snapshot(
         scheduler.record_snapshot_publication_accepted(snapshot_revision);
     }
     Ok(true)
+}
+
+struct OrangeBoardLoop<'a> {
+    audio_manager: &'a mut AudioManager,
+    audio: &'a AudioService,
+    readiness_gate: &'a mut OrangeStartupReadinessGate,
+    candidate_readiness: &'a mut CandidateReadiness,
+}
+
+impl BoardLoop for OrangeBoardLoop<'_> {
+    fn service_audio(
+        &mut self,
+        playback: &mut PlaybackRuntime,
+        runner: &mut NativeRunner,
+        adapter: &mut PiHostAdapter,
+    ) -> Result<(), String> {
+        self.audio_manager.recover_audio_if_due();
+        let metrics = self.audio_manager.drain_audio_load_status(playback);
+        process_runtime_output(playback, runner, adapter, metrics)?;
+        self.audio_manager.report_runtime_terminal_diagnostics();
+        ensure_required_audio_health(self.audio_manager.required_jack_runtime_status())?;
+        self.audio.ensure_route_readiness()?;
+        self.audio_manager.ensure_selected_routes()?;
+        self.readiness_gate.try_mark_ready(
+            self.audio_manager.required_jack_runtime_status(),
+            self.candidate_readiness,
+        )
+    }
+
+    fn handle_power_request(
+        &mut self,
+        _playback: &PlaybackRuntime,
+        adapter: &mut PiHostAdapter,
+        _render_worker: &RenderWorker,
+    ) -> bool {
+        adapter.shutdown_pending()
+    }
+
+    fn interrupted(&self) -> bool {
+        signal::interrupted()
+    }
 }

@@ -81,7 +81,6 @@ pub fn dispatch_runtime_message(
     Ok(())
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub fn report_runtime_failure(adapter: &PiHostAdapter, prefix: &str, error: String) {
     if adapter.timing_evidence.is_some() {
         crate::timing_input::fail_study::<PiHostAdapter>(error);

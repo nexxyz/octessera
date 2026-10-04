@@ -3,7 +3,6 @@ use crate::hardware_runtime_scheduler::{
     DisplaySnapshotDue, HardwareRuntimeScheduler, SNAPSHOT_TICK,
 };
 use crate::host_adapter::PiHostAdapter;
-use crate::native_scene_pump::NativeScenePump;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
 use playback_runtime::{
@@ -78,13 +77,13 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
     worker.mark_first_menu_rendered().unwrap();
     let initial_revision = playback.last_snapshot_revision();
     let before_error_frame = audio.latest_physical_oled_frame().unwrap();
-    let mut scheduler = HardwareRuntimeScheduler::new(
+    let scheduler = HardwareRuntimeScheduler::new(
         Instant::now()
             .checked_sub(Duration::from_millis(500))
             .expect("test clock should accommodate the initial Play interval"),
         initial_revision,
     );
-    let mut native_scenes = NativeScenePump::new(Instant::now() - SNAPSHOT_TICK);
+    let mut state = crate::main_runtime_loop::LoopState::new(scheduler, None);
     let (input_tx, input_rx) = mpsc::channel();
     for message in [
         HostMessage::DeviceInput {
@@ -114,16 +113,19 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         &mut runner,
         &mut adapter,
     );
-    let mut ui_profiler = crate::ui_profile::UiProfiler::from_process();
     assert!(!crate::main_runtime_loop::maybe_advance_runtime(
-        &mut scheduler,
+        &mut state,
         &mut playback,
         &mut runner,
         &mut adapter,
         &worker,
-        &mut ui_profiler,
-        &mut native_scenes,
+        &mut NoPowerBoard,
     ));
+    let crate::main_runtime_loop::LoopState {
+        scheduler,
+        native_scenes,
+        ..
+    } = &mut state;
     assert!(playback.last_status().is_some_and(|status| {
         status.transport == playback_runtime::RuntimeTransportState::Playing
     }));
@@ -195,7 +197,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         )
         .unwrap();
     scheduler.record_native_scene_capture(ordinary);
-    service_render_if_due(due_at, &mut scheduler, &mut playback, &mut adapter, &worker);
+    service_render_if_due(due_at, scheduler, &mut playback, &mut adapter, &worker);
     wait_for_latest_frame(&audio, |revision, pixels| {
         revision > before_clear_frame.0 && pixels == cleared_pixels
     });
@@ -215,4 +217,26 @@ fn wait_for_latest_frame(audio: &crate::audio::AudioService, matches: impl Fn(u6
         std::thread::sleep(Duration::from_millis(1));
     }
     panic!("render worker did not accept the expected physical OLED frame");
+}
+
+struct NoPowerBoard;
+
+impl crate::main_runtime_loop::BoardLoop for NoPowerBoard {
+    fn service_audio(
+        &mut self,
+        _playback: &mut PlaybackRuntime,
+        _runner: &mut NativeRunner,
+        _adapter: &mut PiHostAdapter,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn handle_power_request(
+        &mut self,
+        _playback: &PlaybackRuntime,
+        _adapter: &mut PiHostAdapter,
+        _render_worker: &RenderWorker,
+    ) -> bool {
+        false
+    }
 }

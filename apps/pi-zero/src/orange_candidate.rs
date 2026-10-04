@@ -2,12 +2,10 @@ use crate::audio::{AudioManager, AudioService};
 use crate::audio_stream_health::AudioStreamStatus as OrangeDacStatus;
 use crate::boot_oled_handoff::{HandoffMode, StartupFatalCode};
 use crate::candidate_readiness::CandidateReadiness;
-use crate::encoder_queue::PendingEncoderTurns;
-use crate::hardware_runtime_scheduler::{is_playing, DisplaySnapshotDue, HardwareRuntimeScheduler};
+use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::host_adapter::PiHostAdapter;
 use crate::input::{midi_realtime_message, MidiMessage};
 use crate::main_paths::default_store_dir;
-use crate::midi_host::drain_midi_messages;
 use crate::normal_menu::is_normal_menu_snapshot;
 pub(crate) use crate::orange_device_apply::OrangeRunError;
 use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
@@ -22,7 +20,7 @@ use playback_runtime::{
     HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
     SyncSource,
 };
-use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -36,7 +34,7 @@ mod runtime_loop;
 mod signal;
 #[path = "orange_runtime_startup.rs"]
 mod startup;
-pub(crate) use crate::runtime_loop::{dispatch, handle_deferred_host_work};
+pub(crate) use crate::runtime_loop::dispatch;
 pub(crate) use crate::runtime_output::{
     initialize_host_state, process_runtime_output, wait_for_initial_audio_prep,
 };
