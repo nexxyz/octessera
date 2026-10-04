@@ -1,69 +1,15 @@
-use crate::host_adapter::PiHostAdapter;
 use crate::orange_device_apply::{OrangeRunError, OrangeShutdownResolution};
-use crate::power_lifecycle::{
-    PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
-};
+use crate::power_lifecycle::PowerAction;
 use crate::render_loop::RenderWorker;
-use playback_runtime::PlaybackRuntime;
 
-pub(crate) fn run_ordinary_power_lifecycle(
-    playback: &PlaybackRuntime,
-    host: &mut PiHostAdapter,
-    render: &RenderWorker,
-    action: PowerAction,
-) -> PowerLifecycleResult {
-    let mut callbacks = OrangePowerCallbacks {
-        playback,
-        host,
-        render,
+pub(crate) fn submit_orange_power(action: PowerAction) -> Result<(), String> {
+    let outcome = match action {
+        PowerAction::Reboot => crate::orange_reboot::request_reboot(),
+        PowerAction::Shutdown => crate::orange_reboot::request_shutdown(),
     };
-    let mut lifecycle = PowerLifecycle::default();
-    lifecycle.execute(action, &mut callbacks)
-}
-
-struct OrangePowerCallbacks<'a> {
-    playback: &'a PlaybackRuntime,
-    host: &'a mut PiHostAdapter,
-    render: &'a RenderWorker,
-}
-
-impl PowerLifecycleCallbacks for OrangePowerCallbacks<'_> {
-    fn save_recovery(&mut self) -> Result<(), String> {
-        self.host.save_recovery_for_power()
-    }
-
-    fn panic_external_midi(&mut self) -> Result<(), String> {
-        playback_runtime::HostAdapter::panic_external_midi(self.host)
-            .map_err(|error| error.to_string())
-    }
-
-    fn silence_internal_audio(&mut self) -> Result<(), String> {
-        playback_runtime::HostAdapter::silence_internal_audio(self.host)
-            .map_err(|error| error.to_string())
-    }
-
-    fn acknowledge_terminal(&mut self, _action: PowerAction) -> Result<(), String> {
-        let snapshot = self
-            .playback
-            .last_snapshot()
-            .cloned()
-            .ok_or_else(|| "Orange power request has no latest native snapshot".to_string())?;
-        let oled = self
-            .host
-            .core
-            .oled_publication_for_snapshot(&snapshot, false)?;
-        self.render.publish_terminal_preserving(snapshot, oled)
-    }
-
-    fn submit_power(&mut self, action: PowerAction) -> Result<(), String> {
-        let outcome = match action {
-            PowerAction::Reboot => crate::orange_reboot::request_reboot(),
-            PowerAction::Shutdown => crate::orange_reboot::request_shutdown(),
-        };
-        match outcome {
-            crate::orange_reboot::OrangePowerRequestOutcome::Accepted => Ok(()),
-            outcome => Err(format!("Orange power request outcome: {outcome:?}")),
-        }
+    match outcome {
+        crate::orange_reboot::OrangePowerRequestOutcome::Accepted => Ok(()),
+        outcome => Err(format!("Orange power request outcome: {outcome:?}")),
     }
 }
 

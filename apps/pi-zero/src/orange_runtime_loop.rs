@@ -122,7 +122,13 @@ pub(crate) fn run_prepared_runtime(
                     unreachable!("ordinary power branch excludes device apply")
                 }
             };
-            match lifecycle::run_ordinary_power_lifecycle(&playback, &mut host, render, action) {
+            match crate::host_power_lifecycle::run_ordinary_power_lifecycle(
+                &playback,
+                &mut host,
+                render,
+                action,
+                lifecycle::submit_orange_power,
+            ) {
                 PowerLifecycleResult::Submitted => {
                     Ok(crate::orange_device_apply::OrangeShutdownResolution::Complete)
                 }

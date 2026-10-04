@@ -2,11 +2,10 @@
 //! device-apply reboot, both ending in a systemctl/reboot command.
 
 use crate::host_adapter::{PiHostAdapter, PowerRequest};
-use crate::power_lifecycle::{
-    PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
-};
+use crate::host_power_lifecycle::{publish_terminal_frame, run_ordinary_power_lifecycle};
+use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render_loop::RenderWorker;
-use playback_runtime::{HostAdapter, PlaybackRuntime};
+use playback_runtime::PlaybackRuntime;
 
 #[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
 #[path = "raspberry_power_tests.rs"]
@@ -27,57 +26,17 @@ pub(crate) fn shutdown_if_requested(
                 PowerRequest::Shutdown => PowerAction::Shutdown,
                 PowerRequest::ApplyDeviceConfig(()) => unreachable!(),
             };
-            let mut callbacks = RaspberryPowerCallbacks {
+            report_power_lifecycle_result(run_ordinary_power_lifecycle(
                 playback,
                 adapter,
                 render_worker,
-                request,
-            };
-            let mut lifecycle = PowerLifecycle::default();
-            report_power_lifecycle_result(lifecycle.execute(action, &mut callbacks))
+                action,
+                |_| power_pi_system(request),
+            ))
         }
         PowerRequest::ApplyDeviceConfig(()) => {
             finalize_device_apply_power_request(playback, adapter, render_worker, request)
         }
-    }
-}
-
-struct RaspberryPowerCallbacks<'a> {
-    playback: &'a PlaybackRuntime,
-    adapter: &'a mut PiHostAdapter,
-    render_worker: &'a RenderWorker,
-    request: PowerRequest,
-}
-
-impl PowerLifecycleCallbacks for RaspberryPowerCallbacks<'_> {
-    fn save_recovery(&mut self) -> Result<(), String> {
-        self.adapter.save_recovery_for_power()
-    }
-
-    fn panic_external_midi(&mut self) -> Result<(), String> {
-        HostAdapter::panic_external_midi(self.adapter).map_err(|error| error.to_string())
-    }
-
-    fn silence_internal_audio(&mut self) -> Result<(), String> {
-        HostAdapter::silence_internal_audio(self.adapter).map_err(|error| error.to_string())
-    }
-
-    fn acknowledge_terminal(&mut self, _action: PowerAction) -> Result<(), String> {
-        let snapshot = self
-            .playback
-            .last_snapshot()
-            .cloned()
-            .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
-        let oled = self
-            .adapter
-            .core
-            .oled_publication_for_snapshot(&snapshot, false)?;
-        self.render_worker
-            .publish_terminal_preserving(snapshot, oled)
-    }
-
-    fn submit_power(&mut self, _action: PowerAction) -> Result<(), String> {
-        power_pi_system(self.request)
     }
 }
 
@@ -101,17 +60,7 @@ fn finalize_device_apply_power_request(
     render_worker: &RenderWorker,
     request: PowerRequest,
 ) -> bool {
-    let terminal = (|| {
-        let snapshot = playback
-            .last_snapshot()
-            .cloned()
-            .ok_or_else(|| "pi power request has no latest native snapshot".to_string())?;
-        let oled = adapter
-            .core
-            .oled_publication_for_snapshot(&snapshot, false)?;
-        render_worker.publish_terminal_preserving(snapshot, oled)
-    })();
-    if let Err(error) = terminal {
+    if let Err(error) = publish_terminal_frame(playback, adapter, render_worker) {
         eprintln!("pi device-apply terminal render failed: {error}");
         return true;
     }

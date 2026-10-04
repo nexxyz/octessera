@@ -58,6 +58,8 @@ mod host_audio_command;
 #[cfg(feature = "native-audio")]
 mod host_audio_prep;
 #[cfg(feature = "native-audio")]
+mod host_power_lifecycle;
+#[cfg(feature = "native-audio")]
 mod initial_audio_prep;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod input;
