@@ -324,7 +324,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
         json!({"type":"grid_press","x":2,"y":3}),
         json!({"type":"grid_release","x":2,"y":3}),
     ] {
-        crate::orange_candidate::dispatch(
+        crate::runtime_loop::dispatch(
             &mut playback,
             &mut runner,
             &mut adapter,
@@ -367,7 +367,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
         json!({"type":"encoder_turn","id":"main","delta":1}),
         json!({"type":"encoder_press","id":"main"}),
     ] {
-        crate::orange_candidate::dispatch(
+        crate::runtime_loop::dispatch(
             &mut playback,
             &mut runner,
             &mut adapter,
@@ -380,7 +380,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
     }
     for _ in 0..4 {
         let source = playback.config().sync_source.clone();
-        crate::orange_candidate::dispatch(
+        crate::runtime_loop::dispatch(
             &mut playback,
             &mut runner,
             &mut adapter,
@@ -430,7 +430,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
                     }
                 }
             }
-            crate::orange_candidate::dispatch(&mut playback, &mut runner, &mut adapter, message)
+            crate::runtime_loop::dispatch(&mut playback, &mut runner, &mut adapter, message)
                 .unwrap();
         }
         std::thread::sleep(Duration::from_millis(2));

@@ -104,7 +104,7 @@ fn orange_loop_publishes_changed_error_and_clear_snapshots_while_playing() {
             });
         host.core.accept_oled_frame_reference(&initial);
     }
-    dispatch(
+    crate::runtime_loop::dispatch(
         &mut playback,
         &mut runner,
         &mut host,
@@ -135,7 +135,7 @@ fn orange_loop_publishes_changed_error_and_clear_snapshots_while_playing() {
     .unwrap());
     assert_eq!(scheduler.published_snapshot_revision(), error_revision);
 
-    dispatch(
+    crate::runtime_loop::dispatch(
         &mut playback,
         &mut runner,
         &mut host,

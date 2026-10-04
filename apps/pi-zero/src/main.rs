@@ -105,6 +105,8 @@ mod raspberry_runtime;
 mod rpi_device_apply;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
+#[cfg(feature = "native-audio")]
+mod runtime_init;
 mod runtime_loop;
 #[cfg(feature = "native-audio")]
 mod runtime_output;

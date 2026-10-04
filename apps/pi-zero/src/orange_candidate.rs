@@ -16,10 +16,7 @@ use crate::usb_config::read_boot_runtime_config;
 use octessera_hal::board_profiles::{SeesawInputMode, ORANGE_PI_ZERO_2W_DEVICES};
 use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351, OrangeEncoderGpio};
-use playback_runtime::{
-    HostAdapter, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
-    SyncSource,
-};
+use playback_runtime::{HostAdapter, NativeRunner, PlaybackRuntime};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
 use std::time::Instant;
@@ -34,16 +31,12 @@ mod runtime_loop;
 mod signal;
 #[path = "orange_runtime_startup.rs"]
 mod startup;
-pub(crate) use crate::runtime_loop::dispatch;
-pub(crate) use crate::runtime_output::{
-    initialize_host_state, process_runtime_output, wait_for_initial_audio_prep,
-};
+pub(crate) use crate::runtime_output::{process_runtime_output, wait_for_initial_audio_prep};
 pub(crate) use runtime_loop::run_prepared_runtime;
 pub(crate) use startup::{
     prepare_runtime, publish_prepared_acknowledged_snapshot, OrangeStartupReadinessGate,
     PreparedRuntime,
 };
-const HOST_RESULT_BUDGET: usize = 4;
 const ORANGE_UART0_ACTIVE: bool = false;
 
 fn startup_failure(

@@ -3,15 +3,16 @@ use crate::candidate_readiness::CandidateReadiness;
 use crate::host_adapter::PiHostAdapter;
 use crate::input::MidiMessage;
 use crate::main_paths::ensure_samples_dir;
+#[cfg(test)]
 use crate::normal_menu::is_normal_menu_snapshot;
 use crate::render_loop::RenderWorker;
-use crate::runtime_output::{initialize_host_state, wait_for_initial_audio_prep};
-use crate::sample_browser::builtin_favourite_dirs;
+#[cfg(test)]
+use crate::runtime_output::initialize_host_state;
+use crate::runtime_output::wait_for_initial_audio_prep;
 use octessera_hal::encoder_gpio::HardwareEvent;
-use playback_runtime::{
-    AudioOptimization, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
-    RuntimeConfig, SyncSource,
-};
+#[cfg(test)]
+use playback_runtime::{AudioOptimization, NativeRunnerConfig, RuntimeConfig, SyncSource};
+use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::sync::mpsc;
 
 pub(crate) struct PreparedRuntime {
@@ -46,7 +47,8 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
         keyboard,
     } = config;
     ensure_samples_dir(&samples_dir)?;
-    let (mut playback, mut runner) = init_runtime(audio_optimization, usb_midi_out_enabled);
+    let (mut playback, mut runner) =
+        crate::runtime_init::new_runtime(audio_optimization, usb_midi_out_enabled, true)?;
     if early_boot_splash {
         runner.skip_startup_splash();
     }
@@ -62,21 +64,7 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
     adapter
         .core
         .set_keyboard_capture_control(keyboard.control());
-    initialize_host_state(&mut playback, &mut runner, &mut adapter)?;
-    let message = HostMessage::TransportPulseStep {
-        pulses: 0,
-        source: playback.config().sync_source.clone(),
-        at_ppqn_pulse: playback
-            .last_status()
-            .map(|status| status.current_ppqn_pulse),
-        request_snapshot: Some(true),
-    };
-    crate::runtime_loop::dispatch_runtime_message(
-        &mut playback,
-        &mut runner,
-        &mut adapter,
-        message,
-    )?;
+    crate::runtime_init::start_host(&mut playback, &mut runner, &mut adapter)?;
     if adapter.audio_service().is_some() {
         wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter)?;
     }
@@ -99,32 +87,12 @@ impl PreparedRuntime {
         &mut self,
         render_worker: &RenderWorker,
     ) -> Result<u64, String> {
-        let snapshot = self
-            .playback
-            .last_snapshot()
-            .cloned()
-            .ok_or_else(|| "pi initial snapshot is missing".to_string())?;
-        if !is_normal_menu_snapshot(&snapshot) {
-            return Err("pi initial snapshot is not a normal menu".into());
-        }
-        if !self.runner.is_canonical_menu_presentation() {
-            return Err("pi native runner is not presenting the canonical menu".into());
-        }
-        let revision = self.playback.last_snapshot_revision();
-        if revision == 0 {
-            return Err("pi initial snapshot revision is missing".into());
-        }
-        let oled = self
-            .adapter
-            .core
-            .oled_publication_for_snapshot(&snapshot, true)?;
-        render_worker.publish_acknowledged_snapshot(snapshot, oled)?;
-        let (frame_revision, pixels) = render_worker.take_acknowledged_startup_oled_frame()?;
-        if let Some(audio) = self.adapter.audio_service() {
-            audio.submit_accepted_oled_frame_shared(frame_revision, pixels)?;
-            render_worker.set_recording_audio(audio);
-        }
-        Ok(revision)
+        crate::runtime_init::publish_initial_snapshot(
+            &self.playback,
+            &self.runner,
+            &mut self.adapter,
+            render_worker,
+        )
     }
 
     pub(crate) fn mark_candidate_ready(&mut self) -> Result<(), String> {
@@ -157,28 +125,13 @@ impl PreparedRuntime {
     }
 }
 
+#[cfg(test)]
 fn init_runtime(
     audio_optimization: AudioOptimization,
     boot_applied_usb_midi_out_enabled: bool,
 ) -> (PlaybackRuntime, NativeRunner) {
-    let playback = PlaybackRuntime::new(RuntimeConfig {
-        bpm: 120.0,
-        sync_source: SyncSource::Internal,
-        midi_clock_out_enabled: false,
-        midi_out_enabled: false,
-    });
-    let runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "sequencer".into(),
-        sample_builtin_favourite_dirs: builtin_favourite_dirs(),
-        audio_optimization,
-        audio_optimization_capacity_available: true,
-        jack_audio_required: true,
-        usb_data_role_available: true,
-        boot_applied_usb_midi_out_enabled,
-        ..NativeRunnerConfig::default()
-    })
-    .expect("native runner should initialize");
-    (playback, runner)
+    crate::runtime_init::new_runtime(audio_optimization, boot_applied_usb_midi_out_enabled, true)
+        .expect("native runner should initialize")
 }
 
 #[cfg(test)]

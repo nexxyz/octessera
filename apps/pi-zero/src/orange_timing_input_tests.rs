@@ -194,7 +194,7 @@ fn autoaux_setup_uses_stopped_native_menu_and_routes_cutoff_turns_through_host()
         Some(timing.starting_cutoff)
     );
     for delta in [1, -1] {
-        crate::orange_candidate::dispatch(
+        crate::runtime_loop::dispatch(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,
@@ -452,14 +452,14 @@ fn autoaux_refuses_missing_gates_wrong_focus_and_unbound_aux() {
         "/var/lib/octessera/study-stores/octessera-study-0123456789abcdef0123456789abcdef.service",
     ));
     let mut wrong_focus = runtime_fixture(true);
-    crate::orange_candidate::dispatch(
+    crate::runtime_loop::dispatch(
         &mut wrong_focus.playback,
         &mut wrong_focus.runner,
         &mut wrong_focus.host,
         encoder_turn_message("encoder_main", 2),
     )
     .unwrap();
-    crate::orange_candidate::dispatch(
+    crate::runtime_loop::dispatch(
         &mut wrong_focus.playback,
         &mut wrong_focus.runner,
         &mut wrong_focus.host,

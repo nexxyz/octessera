@@ -1,5 +1,4 @@
 use super::*;
-use crate::sample_browser::builtin_favourite_dirs;
 use playback_runtime::AudioOptimization;
 
 pub(crate) struct PreparedRuntime {
@@ -67,21 +66,8 @@ pub(crate) fn prepare_runtime(
     skip_startup_splash: bool,
     keyboard_control: Option<crate::keyboard_capture::KeyboardCaptureControl>,
 ) -> Result<PreparedRuntime, String> {
-    let mut playback = PlaybackRuntime::new(RuntimeConfig {
-        bpm: 120.0,
-        sync_source: SyncSource::Internal,
-        midi_clock_out_enabled: false,
-        midi_out_enabled: usb_midi_out_enabled,
-    });
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "sequencer".into(),
-        sample_builtin_favourite_dirs: builtin_favourite_dirs(),
-        audio_optimization,
-        audio_optimization_capacity_available: true,
-        jack_audio_required: true,
-        boot_applied_usb_midi_out_enabled: usb_midi_out_enabled,
-        ..NativeRunnerConfig::default()
-    })?;
+    let (mut playback, mut runner) =
+        crate::runtime_init::new_runtime(audio_optimization, usb_midi_out_enabled, false)?;
     if skip_startup_splash {
         runner.skip_startup_splash();
     }
@@ -115,19 +101,7 @@ pub(crate) fn prepare_runtime(
     if let Some(control) = keyboard_control {
         host.core.set_keyboard_capture_control(control);
     }
-    initialize_host_state(&mut playback, &mut runner, &mut host)?;
-    drain_startup_host_work(&mut playback, &mut runner, &mut host)?;
-    dispatch(
-        &mut playback,
-        &mut runner,
-        &mut host,
-        HostMessage::TransportPulseStep {
-            pulses: 0,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(true),
-        },
-    )?;
+    crate::runtime_init::start_host(&mut playback, &mut runner, &mut host)?;
     Ok(PreparedRuntime {
         playback,
         runner,
@@ -135,54 +109,16 @@ pub(crate) fn prepare_runtime(
     })
 }
 
-fn drain_startup_host_work(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    host: &mut PiHostAdapter,
-) -> Result<(), String> {
-    let responses = runner.poll_deferred_menu_apply_music_first()?;
-    if !responses.is_empty() {
-        let output = playback.dispatch_runner_messages(responses, runner, host)?;
-        process_runtime_output(playback, runner, host, output)?;
-    }
-    for result in host.core.platform_service.drain_results(HOST_RESULT_BUDGET) {
-        dispatch(playback, runner, host, result)?;
-    }
-    Ok(())
-}
-
 pub(crate) fn publish_prepared_acknowledged_snapshot(
     prepared: &mut PreparedRuntime,
     render: &RenderWorker,
 ) -> Result<u64, String> {
-    let snapshot = prepared
-        .playback
-        .last_snapshot()
-        .cloned()
-        .ok_or_else(|| "Orange initial snapshot is missing".to_string())?;
-    if !is_normal_menu_snapshot(&snapshot) {
-        return Err("Orange initial snapshot is not a normal menu".into());
-    }
-    if !prepared.runner.is_canonical_menu_presentation() {
-        return Err("Orange native runner is not presenting the canonical menu".into());
-    }
-    let revision = prepared.playback.last_snapshot_revision();
-    if revision == 0 {
-        return Err("Orange initial snapshot revision is missing".into());
-    }
-    let oled = prepared
-        .host
-        .core
-        .oled_publication_for_snapshot(&snapshot, true)?;
-    render.publish_acknowledged_snapshot(snapshot, oled)?;
-    let audio = prepared
-        .host
-        .audio_service()
-        .expect("Orange host always owns its audio service");
-    let (frame_revision, pixels) = render.take_acknowledged_startup_oled_frame()?;
-    audio.submit_accepted_oled_frame_shared(frame_revision, pixels)?;
-    render.set_recording_audio(audio);
-    Ok(revision)
+    crate::runtime_init::publish_initial_snapshot(
+        &prepared.playback,
+        &prepared.runner,
+        &mut prepared.host,
+        render,
+    )
 }
 
 #[cfg(test)]

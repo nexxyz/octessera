@@ -21,7 +21,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         crate::input::neokey_message(1, false).unwrap(),
         crate::input::neokey_message(2, false).unwrap(),
     ] {
-        crate::orange_candidate::dispatch(
+        crate::runtime_loop::dispatch(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,
@@ -33,7 +33,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         .playback
         .last_status()
         .is_some_and(|status| status.transport == RuntimeTransportState::Stopped));
-    crate::orange_candidate::dispatch(
+    crate::runtime_loop::dispatch(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
@@ -50,7 +50,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
     )
     .unwrap();
     for pressed in [true, false] {
-        crate::orange_candidate::dispatch(
+        crate::runtime_loop::dispatch(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,

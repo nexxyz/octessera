@@ -182,7 +182,7 @@ fn runtime_with_snapshot(
         .unwrap();
     crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
-    crate::orange_candidate::dispatch(
+    crate::runtime_loop::dispatch(
         &mut playback,
         &mut runner,
         &mut host,
