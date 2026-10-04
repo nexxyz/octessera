@@ -239,9 +239,20 @@ fn main() {
     }
     #[cfg(feature = "native-audio")]
     pin_normal_startup_thread();
-    if let Err(error) = orange_candidate::run() {
-        eprintln!("Orange foreground candidate failed: {error}");
-        std::process::exit(error.exit_code());
+    let runtime = std::thread::Builder::new()
+        .name("octessera-runtime".into())
+        .spawn(orange_candidate::run)
+        .expect("Orange runtime thread should start");
+    match runtime.join() {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => {
+            eprintln!("Orange foreground candidate failed: {error}");
+            std::process::exit(error.exit_code());
+        }
+        Err(_) => {
+            eprintln!("Orange runtime thread panicked");
+            std::process::exit(1);
+        }
     }
 }
 
