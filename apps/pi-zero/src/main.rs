@@ -74,8 +74,6 @@ mod keyboard_capture;
 ))]
 mod live_audio_benchmark;
 mod main_paths;
-#[cfg(feature = "native-audio")]
-mod main_runtime_loop;
 #[cfg(feature = "external-midi")]
 mod midi_host;
 mod native_scene_pump;
@@ -107,8 +105,10 @@ mod raspberry_runtime;
 mod rpi_device_apply;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
+mod runtime_dispatch;
 #[cfg(feature = "native-audio")]
 mod runtime_init;
+#[cfg(feature = "native-audio")]
 mod runtime_loop;
 #[cfg(feature = "native-audio")]
 mod runtime_output;

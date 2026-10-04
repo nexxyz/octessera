@@ -40,7 +40,7 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
         outputs,
     );
     crate::runtime_output::initialize_host_state(&mut playback, &mut runner, &mut host).unwrap();
-    crate::runtime_loop::dispatch_runtime_message(
+    crate::runtime_dispatch::dispatch_runtime_message(
         &mut playback,
         &mut runner,
         &mut host,
@@ -56,7 +56,7 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
     let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
     assert!(load_tx.try_send(status(Some(0.9), true, true)));
     let output = crate::audio::drain_audio_load_status(&load_rx, &mut playback, false);
-    crate::runtime_loop::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+    crate::runtime_dispatch::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
 
     let snapshot = playback.last_snapshot().expect("runtime snapshot");

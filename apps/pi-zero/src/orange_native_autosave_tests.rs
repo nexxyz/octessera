@@ -21,7 +21,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         crate::input::neokey_message(1, false).unwrap(),
         crate::input::neokey_message(2, false).unwrap(),
     ] {
-        crate::runtime_loop::dispatch(
+        crate::runtime_dispatch::dispatch(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,
@@ -33,7 +33,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         .playback
         .last_status()
         .is_some_and(|status| status.transport == RuntimeTransportState::Stopped));
-    crate::runtime_loop::dispatch(
+    crate::runtime_dispatch::dispatch(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
@@ -43,14 +43,14 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
     std::thread::sleep(Duration::from_millis(160));
     let eligible_at = Instant::now();
     assert!(fixture.runner.persistence_intent_at(eligible_at).is_some());
-    crate::runtime_loop::handle_deferred_host_work(
+    crate::runtime_dispatch::handle_deferred_host_work(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
     )
     .unwrap();
     for pressed in [true, false] {
-        crate::runtime_loop::dispatch(
+        crate::runtime_dispatch::dispatch(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,
@@ -59,7 +59,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
         .unwrap();
     }
     std::thread::sleep(Duration::from_millis(1_800));
-    crate::runtime_loop::handle_deferred_host_work(
+    crate::runtime_dispatch::handle_deferred_host_work(
         &mut fixture.playback,
         &mut fixture.runner,
         &mut fixture.host,
@@ -78,7 +78,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
             .as_ref()
             == Some(&original_patch)
     {
-        crate::runtime_loop::handle_deferred_host_work(
+        crate::runtime_dispatch::handle_deferred_host_work(
             &mut fixture.playback,
             &mut fixture.runner,
             &mut fixture.host,

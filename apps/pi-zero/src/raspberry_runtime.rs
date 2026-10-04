@@ -3,8 +3,8 @@ use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::host_adapter::PiHostAdapter;
 use crate::input::MidiMessage;
 use crate::keyboard_capture::KeyboardCapture;
-use crate::main_runtime_loop::{run_runtime_loop, BoardLoop, LoopInputs, LoopState};
 use crate::render_loop::RenderWorker;
+use crate::runtime_loop::{run_runtime_loop, BoardLoop, LoopInputs, LoopState};
 use crate::runtime_output::process_runtime_output;
 use crate::timing_input::{fail_study, TimingInput};
 use octessera_hal::encoder_gpio::HardwareEvent;
@@ -143,7 +143,7 @@ impl BoardLoop for RaspberryBoardLoop {
         if let Some(load_rx) = self.audio_load_rx.as_ref() {
             let output = crate::audio::drain_audio_load_status(load_rx, _playback, false);
             if let Err(error) = process_runtime_output(_playback, _runner, _adapter, output) {
-                crate::runtime_loop::report_runtime_failure(
+                crate::runtime_dispatch::report_runtime_failure(
                     _adapter,
                     "pi audio load-status output processing failed",
                     error,

@@ -337,7 +337,7 @@ mod tests {
         runner.skip_startup_splash();
 
         initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
-        crate::runtime_loop::dispatch_runtime_message(
+        crate::runtime_dispatch::dispatch_runtime_message(
             &mut playback,
             &mut runner,
             &mut adapter,

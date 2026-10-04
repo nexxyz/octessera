@@ -1,377 +1,420 @@
+//! The runtime loop both boards run on the octessera-runtime thread. Board
+//! differences are limited to audio upkeep and what a power request does.
+
+use crate::encoder_queue::PendingEncoderTurns;
+use crate::hardware_runtime_scheduler::{is_playing, DisplaySnapshotDue, HardwareRuntimeScheduler};
 use crate::host_adapter::PiHostAdapter;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-use playback_runtime::{CoreRunner, HostAdapter, RunnerMessage};
+use crate::input::MidiMessage;
+use crate::native_scene_pump::NativeScenePump;
+use crate::render_loop::RenderWorker;
+use crate::runtime_dispatch::{
+    handle_deferred_host_work, process_runtime_output, report_runtime_failure,
+};
+use crate::timing_input::{fail_study, TimingInput};
+use crate::ui_profile::UiProfiler;
+use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
-use std::time::Instant;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
-pub(crate) use crate::runtime_output::process_runtime_output;
+const HARDWARE_EVENT_BUDGET: usize = 16;
 
-const PLATFORM_RESULT_BUDGET: usize = 4;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[path = "runtime_loop_error_tests.rs"]
+mod error_tests;
 
-impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
-        crate::initial_audio_prep::InitialAudioPrepBoard::Pi;
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
-        crate::initial_audio_prep::InitialAudioPrepBoard::Orange;
-
-    fn dispatch(
+pub(crate) trait BoardLoop {
+    /// Per-iteration audio upkeep; an error ends the loop as an audio fault.
+    fn service_audio(
+        &mut self,
         playback: &mut PlaybackRuntime,
         runner: &mut NativeRunner,
-        host: &mut Self,
-        message: HostMessage,
-    ) -> Result<(), String> {
-        dispatch_runtime_message(playback, runner, host, message)
-    }
-    fn core(&self) -> &crate::pi_host_core::PiHostCore {
-        &self.core
-    }
-    fn core_mut(&mut self) -> &mut crate::pi_host_core::PiHostCore {
-        &mut self.core
-    }
-    fn shutdown_pending(&self) -> bool {
-        PiHostAdapter::shutdown_pending(self)
-    }
-    fn poll_recording_status(&self) -> Option<playback_runtime::RuntimeStoreResult> {
-        PiHostAdapter::poll_recording_status(self)
-    }
-    fn prep_audio_service(&self) -> crate::audio::AudioService {
-        self.audio_service()
-            .expect("initial Pi audio preparation requires an audio service")
-    }
-    fn drain_prep_host_results(&self, max_results: usize) -> Vec<HostMessage> {
-        self.drain_platform_results(max_results)
+        adapter: &mut PiHostAdapter,
+    ) -> Result<(), String>;
+
+    /// Reacts to a pending power request; `true` ends the loop.
+    fn handle_power_request(
+        &mut self,
+        playback: &PlaybackRuntime,
+        adapter: &mut PiHostAdapter,
+        render_worker: &RenderWorker,
+    ) -> bool;
+
+    fn interrupted(&self) -> bool {
+        false
     }
 }
 
-/// Input path for both boards: transfer input first, then the runtime.
-pub(crate) fn dispatch(
+pub(crate) struct LoopState {
+    pub(crate) scheduler: HardwareRuntimeScheduler,
+    pending_encoder_turns: PendingEncoderTurns,
+    pub(crate) ui_profiler: UiProfiler,
+    pub(crate) native_scenes: NativeScenePump,
+    pub(crate) timing: Option<TimingInput>,
+}
+
+impl LoopState {
+    pub(crate) fn new(scheduler: HardwareRuntimeScheduler, timing: Option<TimingInput>) -> Self {
+        let ui_profiler = UiProfiler::from_process();
+        let mut native_scenes = NativeScenePump::new(Instant::now());
+        native_scenes.set_capture_profile_enabled(ui_profiler.enabled());
+        if let Some(timing) = &timing {
+            native_scenes.set_timing_cutoff_targets(timing.plateau_values());
+        }
+        Self {
+            scheduler,
+            pending_encoder_turns: PendingEncoderTurns::default(),
+            ui_profiler,
+            native_scenes,
+            timing,
+        }
+    }
+}
+
+pub(crate) struct LoopInputs<'a> {
+    pub(crate) midi_rx: &'a mpsc::Receiver<MidiMessage>,
+    pub(crate) input_rx: &'a mpsc::Receiver<HostMessage>,
+    pub(crate) encoder_rx: &'a mpsc::Receiver<HardwareEvent>,
+}
+
+/// Runs until a power request or interrupt ends it (`Ok`) or audio upkeep
+/// fails (`Err` with the fault).
+pub(crate) fn run_runtime_loop(
+    state: &mut LoopState,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    render_worker: &RenderWorker,
+    inputs: &LoopInputs<'_>,
+    board: &mut impl BoardLoop,
+) -> Result<(), String> {
+    let profile_enabled = state.ui_profiler.enabled();
+    let mut last_loop_start = profile_enabled.then(Instant::now);
+    loop {
+        let loop_start = profile_enabled.then(Instant::now);
+        let loop_gap = loop_start
+            .zip(last_loop_start)
+            .map(|(loop_start, last)| loop_start.duration_since(last));
+        last_loop_start = loop_start;
+        if board.interrupted() || advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        if let Err(error) = board.service_audio(playback, runner, adapter) {
+            if state.timing.is_some() {
+                fail_study::<PiHostAdapter>(&error);
+            }
+            return Err(error);
+        }
+        crate::midi_host::drain_midi_messages(inputs.midi_rx, playback, runner, adapter);
+        let host_input_started = profile_enabled.then(Instant::now);
+        drain_host_messages(inputs.input_rx, playback, runner, adapter);
+        if let Some(started) = host_input_started {
+            state.ui_profiler.record_host_input(started.elapsed());
+        }
+        if advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        drain_encoder_events(
+            inputs.encoder_rx,
+            &mut state.pending_encoder_turns,
+            playback,
+            runner,
+            adapter,
+        );
+        if let Err(error) = crate::timing_input::tick_if_active(
+            &mut state.timing,
+            playback,
+            runner,
+            adapter,
+            state.native_scenes.timing_cutoff_acceptances(),
+        ) {
+            fail_study::<PiHostAdapter>(error);
+        }
+        if advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        if let (Some(gap), Some(started)) = (loop_gap, loop_start) {
+            state.ui_profiler.record_loop(gap, started.elapsed());
+            state.ui_profiler.maybe_report();
+        }
+        if advance(state, playback, runner, adapter, render_worker, board) {
+            return Ok(());
+        }
+        std::thread::sleep(
+            state
+                .scheduler
+                .sleep_duration(Instant::now(), playback, runner),
+        );
+    }
+}
+
+fn advance(
+    state: &mut LoopState,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    render_worker: &RenderWorker,
+    board: &mut impl BoardLoop,
+) -> bool {
+    let stop = maybe_advance_runtime(state, playback, runner, adapter, render_worker, board);
+    if stop && state.timing.is_some() {
+        fail_study::<PiHostAdapter>("runtime requested shutdown during the study");
+    }
+    stop
+}
+
+pub(crate) fn drain_host_messages(
+    input_rx: &mpsc::Receiver<HostMessage>,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+) {
+    if adapter.shutdown_pending() {
+        return;
+    }
+    for _ in 0..HARDWARE_EVENT_BUDGET {
+        let Ok(message) = input_rx.try_recv() else {
+            break;
+        };
+        dispatch_or_log(playback, runner, adapter, message);
+    }
+}
+
+pub(crate) fn drain_encoder_events(
+    event_rx: &mpsc::Receiver<HardwareEvent>,
+    pending_encoder_turns: &mut PendingEncoderTurns,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+) {
+    if adapter.shutdown_pending() {
+        return;
+    }
+    let _ = crate::encoder_queue::drain_encoder_events(
+        event_rx,
+        pending_encoder_turns,
+        |message| {
+            if adapter.shutdown_pending() {
+                return Err(());
+            }
+            dispatch_or_log(playback, runner, adapter, message);
+            Ok::<(), ()>(())
+        },
+        crate::wake_trace::log_encoder_event,
+    );
+}
+
+pub(crate) fn maybe_advance_runtime(
+    state: &mut LoopState,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    render_worker: &RenderWorker,
+    board: &mut impl BoardLoop,
+) -> bool {
+    let LoopState {
+        scheduler,
+        ui_profiler,
+        native_scenes,
+        ..
+    } = state;
+    if adapter.shutdown_pending() {
+        return board.handle_power_request(playback, adapter, render_worker);
+    }
+    let now = Instant::now();
+    let runtime_snapshot_requested = if let Some(advance) =
+        scheduler.next_runtime_advance(now, playback, runner.next_xy_glide_deadline())
+    {
+        let request_snapshot = advance.request_snapshot;
+        let revision_before = playback.last_snapshot_revision();
+        advance_playback_if_due(
+            advance.elapsed,
+            advance.lateness,
+            request_snapshot,
+            playback,
+            runner,
+            adapter,
+            ui_profiler,
+        );
+        service_xy_glide_tick(playback, runner, adapter);
+        let revision_after = playback.last_snapshot_revision();
+        let completed_at = Instant::now();
+        if request_snapshot {
+            scheduler.record_snapshot_attempt(
+                completed_at,
+                DisplaySnapshotDue::default(),
+                revision_before,
+                revision_after,
+            );
+        } else {
+            scheduler.observe_snapshot_revision(completed_at, revision_before, revision_after);
+        }
+        scheduler.record_runtime_advance_complete(
+            completed_at,
+            playback,
+            runner.next_xy_glide_deadline(),
+        );
+        if adapter.shutdown_pending() {
+            return board.handle_power_request(playback, adapter, render_worker);
+        }
+        request_snapshot
+    } else {
+        scheduler.observe_snapshot(Instant::now(), playback);
+        false
+    };
+    if !runtime_snapshot_requested {
+        request_periodic_snapshot_if_due(now, scheduler, playback, runner, adapter);
+    }
+    native_scenes.poll(runner);
+    let native_display_due = if is_playing(playback) {
+        scheduler.display_snapshot_due(Instant::now(), runner, playback)
+    } else {
+        DisplaySnapshotDue::default()
+    };
+    if let Some(captured_at) = native_scenes.submit(
+        Instant::now(),
+        native_display_due,
+        playback,
+        runner,
+        adapter,
+        render_worker,
+    ) {
+        scheduler.record_native_scene_capture(captured_at);
+    }
+    if let Some(duration) = native_scenes.take_capture_duration() {
+        ui_profiler.record_scene_capture(duration);
+    }
+    service_render_if_due(now, scheduler, playback, adapter, render_worker);
+    adapter.shutdown_pending() && board.handle_power_request(playback, adapter, render_worker)
+}
+
+fn service_xy_glide_tick(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+) {
+    if runner.next_xy_glide_deadline().is_none() {
+        return;
+    }
+    let message = HostMessage::TransportPulseStep {
+        pulses: 0,
+        source: playback.config().sync_source.clone(),
+        at_ppqn_pulse: playback
+            .last_status()
+            .map(|status| status.current_ppqn_pulse),
+        request_snapshot: Some(false),
+    };
+    match playback.dispatch_host_message_music_first(message, runner, adapter) {
+        Ok(output) => {
+            if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
+                report_runtime_failure(adapter, "pi XY glide output processing failed", error);
+            }
+        }
+        Err(error) => report_runtime_failure(adapter, "pi XY glide runtime tick failed", error),
+    }
+    if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
+        report_runtime_failure(adapter, "pi XY glide deferred host work failed", error);
+    }
+}
+
+fn advance_playback_if_due(
+    elapsed: Duration,
+    lateness: Duration,
+    request_snapshot: bool,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    ui_profiler: &mut UiProfiler,
+) {
+    if adapter.shutdown_pending() {
+        return;
+    }
+    let profile_enabled = ui_profiler.enabled();
+    if request_snapshot {
+        playback.request_next_snapshot();
+    }
+    let advance_started = profile_enabled.then(Instant::now);
+    match playback.advance_duration_music_first_with_output(elapsed, runner, adapter) {
+        Ok(output) => {
+            if let Err(error) = process_runtime_output(playback, runner, adapter, output) {
+                report_runtime_failure(adapter, "pi playback output processing failed", error);
+            }
+        }
+        Err(error) => report_runtime_failure(adapter, "pi playback advance failed", error),
+    }
+    if let Err(error) = handle_deferred_host_work(playback, runner, adapter) {
+        report_runtime_failure(adapter, "pi deferred host work failed", error);
+    }
+    if let Some(started) = advance_started {
+        ui_profiler.record_runtime(lateness, started.elapsed());
+    }
+}
+
+fn request_periodic_snapshot_if_due(
+    now: Instant,
+    scheduler: &mut HardwareRuntimeScheduler,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+) {
+    if adapter.shutdown_pending() || is_playing(playback) {
+        return;
+    }
+    let due = scheduler.display_snapshot_due(now, runner, playback);
+    if !due.any() {
+        return;
+    }
+    let revision_before = playback.last_snapshot_revision();
+    dispatch_or_log(
+        playback,
+        runner,
+        adapter,
+        scheduler.display_snapshot_message(playback),
+    );
+    let revision_after = playback.last_snapshot_revision();
+    scheduler.record_snapshot_attempt(now, due, revision_before, revision_after);
+}
+
+fn dispatch_or_log(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,
     message: HostMessage,
-) -> Result<(), String> {
-    if adapter.shutdown_pending() {
-        return Ok(());
+) {
+    if let Err(error) = crate::runtime_dispatch::dispatch(playback, runner, adapter, message) {
+        report_runtime_failure(adapter, "pi runtime dispatch failed", error);
     }
-    let dispatch_input = adapter.handle_transfer_input(&message);
-    while let Some(status) = adapter.take_transfer_status() {
-        dispatch_runtime_message(playback, runner, adapter, status)?;
-    }
-    if !dispatch_input {
-        return Ok(());
-    }
-    let message = crate::hardware_runtime_scheduler::prepare_dispatch_message(playback, message);
-    dispatch_runtime_message(playback, runner, adapter, message)
 }
 
-pub fn dispatch_runtime_message(
+fn service_render_if_due(
+    now: Instant,
+    scheduler: &mut HardwareRuntimeScheduler,
     playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,
-    host_message: HostMessage,
-) -> Result<(), String> {
-    let output = playback.dispatch_host_message_music_first(host_message, runner, adapter)?;
-    process_runtime_output(playback, runner, adapter, output)?;
-    if let Some(message) = adapter.take_manual_save(playback, runner) {
-        let output = playback.dispatch_host_message_music_first(message, runner, adapter)?;
-        process_runtime_output(playback, runner, adapter, output)?;
-    }
-    Ok(())
-}
-
-pub fn report_runtime_failure(adapter: &PiHostAdapter, prefix: &str, error: String) {
-    if adapter.timing_evidence.is_some() {
-        crate::timing_input::fail_study::<PiHostAdapter>(error);
-    }
-    eprintln!("{prefix}: {error}");
-}
-
-pub fn handle_deferred_host_work(
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
-    adapter: &mut PiHostAdapter,
-) -> Result<(), String> {
+    render_worker: &RenderWorker,
+) {
     if adapter.shutdown_pending() {
-        return Ok(());
+        return;
     }
-    let responses = runner.poll_deferred_menu_apply_music_first()?;
-    if !responses.is_empty() {
-        let output = playback.dispatch_runner_messages(responses, runner, adapter)?;
-        process_runtime_output(playback, runner, adapter, output)?;
+    if !scheduler.snapshot_publication_due(now, playback) {
+        return;
     }
-    if adapter.shutdown_pending() {
-        return Ok(());
-    }
-    for result in adapter.flush_native_persistence_at(playback, runner, Instant::now()) {
-        if let Some(evidence) = adapter.timing_evidence.as_mut() {
-            evidence.record_host_message(&result);
+    scheduler.record_snapshot_publication_attempt(now);
+    let snapshot_revision = playback.last_snapshot_revision();
+    let Some(snapshot) = playback.last_snapshot().cloned() else {
+        return;
+    };
+    let oled = match adapter.core.oled_publication_for_snapshot(&snapshot, false) {
+        Ok(oled) => oled,
+        Err(error) => {
+            eprintln!("pi OLED publication unavailable: {error}");
+            return;
         }
-        dispatch_runtime_message(playback, runner, adapter, result)?;
-    }
-    for result in adapter.drain_platform_results_for_runner(runner, PLATFORM_RESULT_BUDGET) {
-        if adapter.shutdown_pending() {
-            break;
-        }
-        if let Some(evidence) = adapter.timing_evidence.as_mut() {
-            evidence.record_host_message(&result);
-        }
-        dispatch_runtime_message(playback, runner, adapter, result)?;
-    }
-    Ok(())
-}
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "runtime_loop_duck_slot_tests.rs"]
-mod duck_slot_tests;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "runtime_loop_native_autosave_tests.rs"]
-mod native_autosave_tests;
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
-    playback: &mut PlaybackRuntime,
-    runner: &mut R,
-    adapter: &mut H,
-    host_message: HostMessage,
-) -> Result<(), String> {
-    playback
-        .dispatch(
-            playback_runtime::RuntimeDispatchInput::HostMessage(host_message),
-            runner,
-            adapter,
-        )
-        .map(|_| ())
-}
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-mod tests {
-    use super::*;
-    use crate::runtime_output::ingest_oled_messages;
-    use platform_core::MusicalEvent;
-    use playback_runtime::RuntimeConfig;
-    use playback_runtime::RuntimePlatformEffect;
-    use serde_json::json;
-
-    #[derive(Default)]
-    struct FakeRunner;
-
-    impl CoreRunner for FakeRunner {
-        fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-            match message {
-                HostMessage::DeviceInput { .. } => Ok(vec![RunnerMessage::AudioCommands {
-                    commands: vec![playback_runtime::RuntimeAudioCommand::SetMasterVolume {
-                        generation: 0,
-                        volume_pct: 75.0,
-                    }],
-                }]),
-                _ => Ok(Vec::new()),
-            }
-        }
-
-        fn send_system_store_result(
-            &mut self,
-            _message: HostMessage,
-        ) -> Result<
-            (
-                Vec<RunnerMessage>,
-                Option<playback_runtime::RuntimeStoreResult>,
-            ),
-            String,
-        > {
-            Err("System store result not supported by fake runner".into())
-        }
-    }
-
-    #[derive(Default)]
-    struct CountingHostAdapter {
-        audio_commands: usize,
-    }
-
-    impl HostAdapter for CountingHostAdapter {
-        fn handle_musical_event(
-            &mut self,
-            _event: &MusicalEvent,
-        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-
-        fn handle_platform_effect(
-            &mut self,
-            _request: &playback_runtime::RuntimePlatformRequest,
-        ) -> Result<Vec<HostMessage>, playback_runtime::RuntimeAdapterError> {
-            Ok(Vec::new())
-        }
-
-        fn handle_audio_command(
-            &mut self,
-            _command: &playback_runtime::RuntimeAudioCommand,
-        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            self.audio_commands += 1;
-            Ok(())
-        }
-
-        fn handle_midi_message(
-            &mut self,
-            _bytes: &[u8],
-        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-
-        fn silence_internal_audio(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-
-        fn panic_external_midi(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-    }
-
-    #[derive(Default)]
-    struct FollowUpRunner {
-        runtime_results: usize,
-    }
-
-    impl CoreRunner for FollowUpRunner {
-        fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-            match message {
-                HostMessage::DeviceInput { .. } => Ok(vec![RunnerMessage::PlatformEffects {
-                    effects: vec![RuntimePlatformEffect::StoreLoadDefault],
-                }]),
-                HostMessage::RuntimeResult { .. } => {
-                    self.runtime_results += 1;
-                    Ok(Vec::new())
-                }
-                _ => Ok(Vec::new()),
-            }
-        }
-
-        fn send_system_store_result(
-            &mut self,
-            _message: HostMessage,
-        ) -> Result<
-            (
-                Vec<RunnerMessage>,
-                Option<playback_runtime::RuntimeStoreResult>,
-            ),
-            String,
-        > {
-            Err("System store result not supported by fake runner".into())
-        }
-    }
-
-    #[derive(Default)]
-    struct FollowUpHostAdapter;
-
-    impl HostAdapter for FollowUpHostAdapter {
-        fn handle_musical_event(
-            &mut self,
-            _event: &MusicalEvent,
-        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-
-        fn handle_platform_effect(
-            &mut self,
-            _request: &playback_runtime::RuntimePlatformRequest,
-        ) -> Result<Vec<HostMessage>, playback_runtime::RuntimeAdapterError> {
-            Ok(vec![HostMessage::RuntimeResult {
-                result: playback_runtime::RuntimeStoreResult::LoadDefaultResult { payload: None },
-            }])
-        }
-
-        fn handle_audio_command(
-            &mut self,
-            _command: &playback_runtime::RuntimeAudioCommand,
-        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-
-        fn handle_midi_message(
-            &mut self,
-            _bytes: &[u8],
-        ) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-
-        fn silence_internal_audio(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-
-        fn panic_external_midi(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn dispatch_ingests_runner_responses_once() {
-        let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
-        let mut runner = FakeRunner;
-        let mut adapter = CountingHostAdapter::default();
-
-        dispatch_and_ingest(
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            HostMessage::DeviceInput {
-                input: json!({}),
-                request_snapshot: None,
-            },
-        )
-        .unwrap();
-
-        assert_eq!(adapter.audio_commands, 1);
-    }
-
-    #[test]
-    fn dispatch_processes_platform_effect_follow_ups() {
-        let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
-        let mut runner = FollowUpRunner::default();
-        let mut adapter = FollowUpHostAdapter;
-
-        dispatch_and_ingest(
-            &mut playback,
-            &mut runner,
-            &mut adapter,
-            HostMessage::DeviceInput {
-                input: json!({}),
-                request_snapshot: None,
-            },
-        )
-        .unwrap();
-
-        assert_eq!(runner.runtime_results, 1);
-    }
-
-    #[test]
-    fn accepted_snapshot_ingestion_updates_raspberry_keyboard_gate() {
-        let root = crate::test_temp_dir::unique_temp_path("octessera-pi-keyboard-snapshot");
-        let mut adapter = PiHostAdapter::new_with_data_role(
-            None,
-            root.join("store"),
-            root.join("samples"),
-            std::sync::Arc::new(|_| {}),
-            false,
-            playback_runtime::AudioOutputSet::jack(),
-            playback_runtime::UsbDataRole::Host,
-        );
-        let control = crate::keyboard_capture::KeyboardCaptureControl::new(true);
-        adapter.core.set_keyboard_capture_control(control.clone());
-        ingest_oled_messages(
-            &mut adapter,
-            &[RunnerMessage::Snapshot {
-                snapshot: json!({ "hdmi": { "mode": "live-grid" } }),
-            }],
-        );
-        assert!(control.is_enabled());
-        ingest_oled_messages(
-            &mut adapter,
-            &[RunnerMessage::Snapshot {
-                snapshot: json!({ "hdmi": { "mode": "none" } }),
-            }],
-        );
-        assert!(!control.is_enabled());
-        let _ = std::fs::remove_dir_all(root);
+    };
+    let accepted = render_worker.publish_snapshot(snapshot, oled);
+    if !accepted {
+        eprintln!("pi render worker rejected snapshot publication");
+    } else {
+        scheduler.record_snapshot_publication_accepted(snapshot_revision);
     }
 }

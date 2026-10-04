@@ -1,6 +1,6 @@
 use crate::device_update::UpdateExecutor;
 use crate::host_adapter::PiHostAdapter;
-use crate::runtime_loop::handle_deferred_host_work;
+use crate::runtime_dispatch::handle_deferred_host_work;
 use crate::usb_config::UsbAudioOut;
 use platform_core::DeviceInput;
 use playback_runtime::{

@@ -121,7 +121,7 @@ fn refresh_preset_catalog(
     runner: &mut NativeRunner,
 ) {
     runner.test_focus_menu_item("preset.refresh").unwrap();
-    crate::runtime_loop::dispatch_runtime_message(
+    crate::runtime_dispatch::dispatch_runtime_message(
         playback,
         runner,
         host,

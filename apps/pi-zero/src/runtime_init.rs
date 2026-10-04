@@ -55,7 +55,7 @@ pub(crate) fn start_host(
         .platform_service
         .drain_results(STARTUP_RESULT_BUDGET)
     {
-        crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, result)?;
+        crate::runtime_dispatch::dispatch_runtime_message(playback, runner, adapter, result)?;
     }
     let message = HostMessage::TransportPulseStep {
         pulses: 0,
@@ -65,7 +65,7 @@ pub(crate) fn start_host(
             .map(|status| status.current_ppqn_pulse),
         request_snapshot: Some(true),
     };
-    crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)
+    crate::runtime_dispatch::dispatch_runtime_message(playback, runner, adapter, message)
 }
 
 /// Renders the first normal-menu snapshot and hands its frame to recording.

@@ -10,7 +10,7 @@ fn input(
     host: &mut crate::host_adapter::PiHostAdapter,
     value: serde_json::Value,
 ) {
-    crate::runtime_loop::dispatch_runtime_message(
+    crate::runtime_dispatch::dispatch_runtime_message(
         playback,
         runner,
         host,
@@ -249,7 +249,7 @@ fn edit_rename_target(
     let output = playback
         .dispatch_runner_messages(responses, runner, host)
         .unwrap();
-    crate::runtime_loop::process_runtime_output(playback, runner, host, output).unwrap();
+    crate::runtime_dispatch::process_runtime_output(playback, runner, host, output).unwrap();
 }
 
 fn save_as_with_held_worker(

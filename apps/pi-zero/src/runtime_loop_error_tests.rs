@@ -83,7 +83,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
             .expect("test clock should accommodate the initial Play interval"),
         initial_revision,
     );
-    let mut state = crate::main_runtime_loop::LoopState::new(scheduler, None);
+    let mut state = crate::runtime_loop::LoopState::new(scheduler, None);
     let (input_tx, input_rx) = mpsc::channel();
     for message in [
         HostMessage::DeviceInput {
@@ -107,13 +107,8 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
     ] {
         input_tx.send(message).unwrap();
     }
-    crate::main_runtime_loop::drain_host_messages(
-        &input_rx,
-        &mut playback,
-        &mut runner,
-        &mut adapter,
-    );
-    assert!(!crate::main_runtime_loop::maybe_advance_runtime(
+    crate::runtime_loop::drain_host_messages(&input_rx, &mut playback, &mut runner, &mut adapter);
+    assert!(!crate::runtime_loop::maybe_advance_runtime(
         &mut state,
         &mut playback,
         &mut runner,
@@ -121,7 +116,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         &worker,
         &mut NoPowerBoard,
     ));
-    let crate::main_runtime_loop::LoopState {
+    let crate::runtime_loop::LoopState {
         scheduler,
         native_scenes,
         ..
@@ -158,7 +153,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         )
         .is_none());
 
-    crate::runtime_loop::dispatch_runtime_message(
+    crate::runtime_dispatch::dispatch_runtime_message(
         &mut playback,
         &mut runner,
         &mut adapter,
@@ -221,7 +216,7 @@ fn wait_for_latest_frame(audio: &crate::audio::AudioService, matches: impl Fn(u6
 
 struct NoPowerBoard;
 
-impl crate::main_runtime_loop::BoardLoop for NoPowerBoard {
+impl crate::runtime_loop::BoardLoop for NoPowerBoard {
     fn service_audio(
         &mut self,
         _playback: &mut PlaybackRuntime,

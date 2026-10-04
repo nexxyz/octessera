@@ -234,7 +234,7 @@ fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() 
         json!({"type":"grid_press","x":2,"y":3}),
         json!({"type":"grid_release","x":2,"y":3}),
     ] {
-        crate::runtime_loop::dispatch_runtime_message(
+        crate::runtime_dispatch::dispatch_runtime_message(
             &mut playback,
             &mut runner,
             &mut adapter,
@@ -275,7 +275,7 @@ fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() 
         json!({"type":"encoder_turn","id":"main","delta":1}),
         json!({"type":"encoder_press","id":"main"}),
     ] {
-        crate::runtime_loop::dispatch_runtime_message(
+        crate::runtime_dispatch::dispatch_runtime_message(
             &mut playback,
             &mut runner,
             &mut adapter,
@@ -287,7 +287,7 @@ fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() 
         .unwrap();
     }
     let source = playback.config().sync_source.clone();
-    crate::runtime_loop::dispatch_runtime_message(
+    crate::runtime_dispatch::dispatch_runtime_message(
         &mut playback,
         &mut runner,
         &mut adapter,
@@ -323,7 +323,7 @@ fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() 
                     result: RuntimeStoreResult::Identified { result, .. }
                 } if matches!(result.as_ref(), RuntimeStoreResult::SaveDefaultResult { ok: true, .. })
             );
-            crate::runtime_loop::dispatch_runtime_message(
+            crate::runtime_dispatch::dispatch_runtime_message(
                 &mut playback,
                 &mut runner,
                 &mut adapter,

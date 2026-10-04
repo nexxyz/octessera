@@ -313,7 +313,8 @@ fn orange_audio_prep_results_are_redispatched_to_runtime() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let (mut host, root) = test_host(audio.clone());
 
-    crate::runtime_loop::handle_deferred_host_work(&mut playback, &mut runner, &mut host).unwrap();
+    crate::runtime_dispatch::handle_deferred_host_work(&mut playback, &mut runner, &mut host)
+        .unwrap();
 
     assert!(audio.drain_prep_results(1).is_empty());
     let _ = std::fs::remove_dir_all(root);

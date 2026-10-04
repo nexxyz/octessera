@@ -55,8 +55,13 @@ fn runtime(root: &Path) -> (PlaybackRuntime, NativeRunner, PiHostAdapter, AudioK
             &mut adapter,
         )
         .unwrap();
-    crate::runtime_loop::process_runtime_output(&mut playback, &mut runner, &mut adapter, output)
-        .unwrap();
+    crate::runtime_dispatch::process_runtime_output(
+        &mut playback,
+        &mut runner,
+        &mut adapter,
+        output,
+    )
+    .unwrap();
     (
         playback,
         runner,
@@ -75,7 +80,7 @@ fn dispatch(
     adapter: &mut PiHostAdapter,
     message: HostMessage,
 ) -> Result<(), String> {
-    crate::runtime_loop::dispatch_runtime_message(playback, runner, adapter, message)
+    crate::runtime_dispatch::dispatch_runtime_message(playback, runner, adapter, message)
 }
 
 fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiHostAdapter) -> RenderWorker {
@@ -103,11 +108,15 @@ fn native_worker_save_result_produces_the_receipt() {
     let (mut playback, mut runner, mut adapter, _audio_keep_alive) = runtime(&root);
     let worker = scene_worker(&playback, &mut adapter);
     let (original, targets) = {
-        let mut send = |playback: &mut PlaybackRuntime,
-                        runner: &mut NativeRunner,
-                        message: HostMessage| {
-            crate::runtime_loop::dispatch_runtime_message(playback, runner, &mut adapter, message)
-        };
+        let mut send =
+            |playback: &mut PlaybackRuntime, runner: &mut NativeRunner, message: HostMessage| {
+                crate::runtime_dispatch::dispatch_runtime_message(
+                    playback,
+                    runner,
+                    &mut adapter,
+                    message,
+                )
+            };
         autoaux_menu::require_stopped_normal_menu(&playback, "Raspberry").unwrap();
         autoaux_menu::enable_study_auto_save(&mut playback, &mut runner, &mut send, "Raspberry")
             .unwrap();
@@ -135,8 +144,12 @@ fn native_worker_save_result_produces_the_receipt() {
         let completed = timing
             .tick(Instant::now(), &mut playback, &mut runner, &mut adapter)
             .unwrap();
-        crate::runtime_loop::handle_deferred_host_work(&mut playback, &mut runner, &mut adapter)
-            .unwrap();
+        crate::runtime_dispatch::handle_deferred_host_work(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+        )
+        .unwrap();
         if let Some(captured_at) = scenes.submit(
             Instant::now() + crate::hardware_runtime_scheduler::SNAPSHOT_TICK,
             DisplaySnapshotDue::default(),
