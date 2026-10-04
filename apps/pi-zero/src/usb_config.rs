@@ -335,14 +335,7 @@ mod tests {
 
     #[test]
     fn reads_audio_policy_from_the_persisted_system_patch_pair() {
-        let store_dir = std::env::temp_dir().join(format!(
-            "octessera-usb-config-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let store_dir = crate::test_temp_dir::unique_temp_path("octessera-usb-config");
         std::fs::create_dir_all(&store_dir).unwrap();
         let full: serde_json::Value =
             serde_json::from_str(include_str!("../../../config/generated/pi/default.json"))
@@ -441,25 +434,11 @@ mod tests {
 
     #[test]
     fn reports_wrong_store_path_and_malformed_file() {
-        let missing = std::env::temp_dir().join(format!(
-            "octessera-usb-config-missing-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let missing = crate::test_temp_dir::unique_temp_path("octessera-usb-config-missing");
         let error = read_usb_runtime_config(&missing).unwrap_err();
         assert!(matches!(error, UsbConfigError::Read { .. }));
 
-        let malformed = std::env::temp_dir().join(format!(
-            "octessera-usb-config-malformed-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let malformed = crate::test_temp_dir::unique_temp_path("octessera-usb-config-malformed");
         std::fs::create_dir_all(&malformed).unwrap();
         std::fs::write(malformed.join("system.json"), "{").unwrap();
         let error = read_usb_runtime_config(&malformed).unwrap_err();

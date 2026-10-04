@@ -376,14 +376,7 @@ fn orange_multiple_selected_routes_open_one_recording_tap_owner() {
 fn orange_multiple_routes_record_samples_once_from_the_selected_owner() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(true, true, true).unwrap();
     let owner = crate::audio_recording::recording_owner(outputs).unwrap();
-    let directory = std::env::temp_dir().join(format!(
-        "octessera-orange-recording-owner-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let directory = crate::test_temp_dir::unique_temp_path("octessera-orange-recording-owner");
     let mut recorder = RecorderService::new(directory.clone());
     let tap = recorder.start_audio(1).unwrap();
 

@@ -216,14 +216,7 @@ mod tests {
 
     #[test]
     fn evidence_directory_must_be_new_and_artifacts_are_create_new() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-fat-evidence-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-fat-evidence");
         let writer = super::EvidenceWriter::new(&root).unwrap();
         writer.write_artifact("status.txt", "first").unwrap();
         assert!(writer.write_artifact("status.txt", "second").is_err());

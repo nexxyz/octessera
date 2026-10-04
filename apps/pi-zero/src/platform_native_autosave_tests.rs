@@ -2,7 +2,7 @@ use super::*;
 use playback_runtime::{HostMessage, NativeRunnerConfig, RuntimeOperation, RuntimeStoreResult};
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 #[path = "platform_native_autosave_backup_tests.rs"]
 mod backup_tests;
@@ -61,14 +61,8 @@ fn confirm_action(runner: &mut NativeRunner, key: &str) {
 }
 
 fn service_and_root(name: &str) -> (PiPlatformService, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-native-autosave-{name}-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root =
+        crate::test_temp_dir::unique_temp_path(&format!("octessera-pi-native-autosave-{name}"));
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let full: Value =

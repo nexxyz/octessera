@@ -194,14 +194,7 @@ mod tests {
     #[test]
     fn pi_startup_waits_for_the_identified_audio_prep_result() {
         let (audio, result_tx) = test_service_with_prep_result_sender();
-        let root = std::env::temp_dir().join(format!(
-            "octessera-pi-startup-prep-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-pi-startup-prep");
         let mut adapter = PiPlaybackHostAdapter::new(
             Some(audio),
             root.join("store"),
@@ -241,14 +234,7 @@ mod tests {
     #[test]
     fn pi_initial_audio_prep_failure_does_not_publish_candidate_ready() {
         let (audio, result_tx) = test_service_with_prep_result_sender();
-        let root = std::env::temp_dir().join(format!(
-            "octessera-pi-startup-prep-failure-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-pi-startup-prep-failure");
         let mut adapter = PiPlaybackHostAdapter::new(
             Some(audio),
             root.join("store"),
@@ -289,14 +275,7 @@ mod tests {
     #[test]
     fn pi_candidate_readiness_rechecks_selected_audio_routes() {
         let (audio, _result_tx) = test_service_with_prep_result_sender();
-        let root = std::env::temp_dir().join(format!(
-            "octessera-pi-route-readiness-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-pi-route-readiness");
         let adapter = PiPlaybackHostAdapter::new(
             Some(audio),
             root.join("store"),
@@ -358,14 +337,7 @@ mod tests {
 
     #[test]
     fn pi_gadget_midi_startup_waits_for_both_directions_before_oled_handoff() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-pi-gadget-midi-startup-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-pi-gadget-midi-startup");
         let store = root.join("store");
         std::fs::create_dir_all(&store).unwrap();
         let mut payload: serde_json::Value =

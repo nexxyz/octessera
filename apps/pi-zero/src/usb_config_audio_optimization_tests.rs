@@ -16,14 +16,7 @@ fn write_pair(store_dir: &std::path::Path, full: &serde_json::Value) {
 
 #[test]
 fn reads_persisted_audio_optimization_without_legacy_buffer_selection() {
-    let store_dir = std::env::temp_dir().join(format!(
-        "octessera-audio-optimization-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let store_dir = crate::test_temp_dir::unique_temp_path("octessera-audio-optimization");
     std::fs::create_dir_all(&store_dir).unwrap();
     let mut full: serde_json::Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
@@ -61,14 +54,7 @@ fn rejects_invalid_persisted_audio_optimization() {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[test]
 fn raspberry_startup_reads_persisted_audio_output_buffer_frames() {
-    let store_dir = std::env::temp_dir().join(format!(
-        "octessera-audio-buffer-config-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let store_dir = crate::test_temp_dir::unique_temp_path("octessera-audio-buffer-config");
     std::fs::create_dir_all(&store_dir).unwrap();
     let mut full: serde_json::Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();

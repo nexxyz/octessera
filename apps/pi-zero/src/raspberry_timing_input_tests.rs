@@ -23,17 +23,8 @@ struct AudioKeepAlive {
 }
 
 fn root() -> std::path::PathBuf {
-    std::env::temp_dir().join(format!(
-        "octessera-raspberry-autoaux-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ))
+    crate::test_temp_dir::unique_temp_path("octessera-raspberry-autoaux")
 }
-
-use std::time::{SystemTime, UNIX_EPOCH};
 
 fn runtime(
     root: &Path,

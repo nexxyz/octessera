@@ -5,14 +5,7 @@ use serde_json::json;
 
 #[test]
 fn accepted_snapshot_ingestion_updates_orange_keyboard_gate() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-keyboard-snapshot-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-keyboard-snapshot");
     let (audio, _, _, _) = crate::audio::test_service_with_prep_sender();
     let mut host = OrangeHostAdapter::with_directories(
         audio,

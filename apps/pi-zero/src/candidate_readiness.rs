@@ -199,17 +199,9 @@ mod tests {
     use super::*;
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
-    use std::time::SystemTime;
 
     fn temporary_directory(label: &str) -> PathBuf {
-        std::env::temp_dir().join(format!(
-            "octessera-candidate-readiness-{label}-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ))
+        crate::test_temp_dir::unique_temp_path(&format!("octessera-candidate-readiness-{label}"))
     }
 
     #[test]

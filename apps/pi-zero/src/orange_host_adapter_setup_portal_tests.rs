@@ -4,7 +4,7 @@ use crate::setup_portal_files::SetupPortalPaths;
 use playback_runtime::RuntimeSetupPortalPhase;
 use serde_json::json;
 use std::fs;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -14,14 +14,7 @@ fn orange_adapter_supports_setup_portal_effect() {
     #[cfg(windows)]
     let status_group = 0;
 
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-setup-adapter-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-setup-adapter");
     let public = root.join("public");
     let paths = SetupPortalPaths {
         request: root.join("request").join("inbox").join("start"),

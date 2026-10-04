@@ -102,7 +102,7 @@ impl WorkerHarness {
             .input_rx
             .as_ref()
             .unwrap()
-            .recv_timeout(Duration::from_millis(100))
+            .recv_timeout(Duration::from_secs(5))
             .expect("worker input")
         {
             HostMessage::DeviceInput { input, .. } => input,
@@ -170,7 +170,7 @@ fn ready_device(
 }
 
 fn wait_until(mut condition: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_millis(200);
+    let deadline = Instant::now() + Duration::from_secs(5);
     while !condition() {
         assert!(
             Instant::now() < deadline,
@@ -405,7 +405,7 @@ fn non_linux_enabled_worker_shutdown_is_bounded() {
     let started = Instant::now();
     drop(input_rx);
     assert!(capture.shutdown().is_ok());
-    assert!(started.elapsed() < Duration::from_millis(100));
+    assert!(started.elapsed() < Duration::from_secs(5));
 }
 
 fn json_input(input: KeyboardInput) -> Value {

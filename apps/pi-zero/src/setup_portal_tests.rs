@@ -20,14 +20,7 @@ struct TestDirectory {
 
 impl TestDirectory {
     fn new() -> Self {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-setup-portal-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-setup-portal");
         let public = root.join("public");
         Self {
             paths: SetupPortalPaths {

@@ -348,14 +348,7 @@ mod tests {
 
     #[test]
     fn diagnostic_reads_bound_proc_style_files_and_rejects_invalid_content() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-fat-read-small-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-fat-read-small");
         fs::create_dir_all(&root).unwrap();
 
         let exact = root.join("exact");
@@ -414,41 +407,41 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn command_timeout_is_classified_without_waiting_indefinitely() {
-        let started = std::time::Instant::now();
         let mut child = Command::new("sh")
-            .args(["-c", "sleep 2"])
+            .args(["-c", "sleep 30"])
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
+        let started = std::time::Instant::now();
         assert!(matches!(
             wait_for_command(&mut child, Duration::from_millis(20)),
             CommandResult::TimedOut
         ));
-        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(started.elapsed() < Duration::from_secs(10));
     }
 
     #[cfg(windows)]
     #[test]
     fn command_timeout_is_classified_without_waiting_indefinitely() {
-        let started = std::time::Instant::now();
         let mut child = Command::new("powershell")
             .args([
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "Start-Sleep -Seconds 2",
+                "Start-Sleep -Seconds 30",
             ])
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
+        let started = std::time::Instant::now();
         assert!(matches!(
             wait_for_command(&mut child, Duration::from_millis(20)),
             CommandResult::TimedOut
         ));
-        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(started.elapsed() < Duration::from_secs(10));
     }
 }

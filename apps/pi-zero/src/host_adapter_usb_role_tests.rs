@@ -51,14 +51,7 @@ fn transaction_adapter(
 
 #[test]
 fn raspberry_host_role_rejects_sd2_before_audio_or_midi_actions() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-host-role-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-host-role");
     let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
         None,
         root.join("store"),

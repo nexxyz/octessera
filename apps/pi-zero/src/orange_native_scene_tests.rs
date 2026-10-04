@@ -19,14 +19,7 @@ fn worker() -> RenderWorker {
 
 #[test]
 fn opted_in_profile_counts_successful_and_failed_scene_capture_calls() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-profile-capture-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-profile-capture");
     let mut adapter = adapter(&root);
     let (playback, mut runner, _) = playing_runner();
     let worker = worker();
@@ -149,14 +142,7 @@ fn playing_runner() -> (PlaybackRuntime, NativeRunner, TestHost) {
 
 #[test]
 fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-scene-pump-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-scene-pump");
     let mut adapter = adapter(&root);
     let (mut playback, mut runner, mut playback_host) = playing_runner();
     let worker = worker();
@@ -260,14 +246,7 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
 
 #[test]
 fn legacy_runtime_error_due_stays_publishable_and_blocks_typed_overwrite() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-runtime-error-scene-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-runtime-error-scene");
     let mut host = TestHost;
     let (mut playback, mut runner, _) = playing_runner();
     let now = Instant::now();

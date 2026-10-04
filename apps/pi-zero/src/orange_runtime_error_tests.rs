@@ -43,14 +43,7 @@ impl HostAdapter for TestHost {
 
 #[test]
 fn orange_loop_publishes_changed_error_and_clear_snapshots_while_playing() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-runtime-error-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-runtime-error");
     let payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

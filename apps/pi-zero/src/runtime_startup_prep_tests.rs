@@ -14,14 +14,7 @@ use std::time::Duration;
 #[test]
 fn pi_startup_accepts_the_native_runner_initial_audio_result_shape() {
     let audio = test_service_with_prep_worker();
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-native-runner-prep-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-native-runner-prep");
     let mut adapter = PiPlaybackHostAdapter::new(
         Some(audio),
         root.join("store"),
@@ -62,14 +55,7 @@ fn pi_startup_accepts_the_native_runner_initial_audio_result_shape() {
 
 #[test]
 fn pi_v1_persisted_startup_sleep_remains_due_after_scheduler_creation() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-startup-sleep-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-startup-sleep");
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let mut payload: serde_json::Value =
@@ -120,14 +106,7 @@ fn pi_v1_persisted_startup_sleep_remains_due_after_scheduler_creation() {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[test]
 fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-prepared-oled-recording-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-prepared-oled-recording");
     let (audio, control_rx, _event_rx, prep_result_tx) =
         test_service_with_recording_dir(root.join("actual"));
     crate::host_audio_prep::spawn_audio_control_worker(control_rx, audio.clone(), prep_result_tx);
@@ -180,14 +159,7 @@ fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[test]
 fn pi_prepared_startup_write_failure_keeps_recording_seed_and_ready_marker_absent() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-prepared-oled-failure-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-prepared-oled-failure");
     let marker = root.join("candidate-ready.json");
     let (audio, control_rx, _event_rx, prep_result_tx) =
         test_service_with_recording_dir(root.join("recording"));

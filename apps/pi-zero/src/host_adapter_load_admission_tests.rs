@@ -10,14 +10,7 @@ use std::time::Instant;
 
 #[test]
 fn deferred_default_autosave_rejects_load_without_cancelling_or_reading_file() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-deferred-load-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-deferred-load");
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let prior = b"malformed bytes must not be read";

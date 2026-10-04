@@ -69,14 +69,7 @@ struct RuntimeFixture {
 }
 
 fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-autoaux-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-autoaux");
     let (audio, control_rx, event_rx, _prep_result_tx) =
         crate::audio::test_service_with_recording_dir(root.join("recording"));
     let mut host = OrangeHostAdapter::with_directories(

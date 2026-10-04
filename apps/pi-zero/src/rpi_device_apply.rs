@@ -151,14 +151,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn service() -> (PiPlatformService, PathBuf) {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-rpi-device-apply-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-rpi-device-apply");
         let store = root.join("store");
         std::fs::create_dir_all(&store).unwrap();
         (PiPlatformService::new(store, root.join("samples")), root)

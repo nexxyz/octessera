@@ -27,14 +27,7 @@ fn raspberry_load_status_sender_is_capacity_jack_only() {
 #[test]
 fn raspberry_capacity_load_status_presentation_drains_status() {
     let outputs = AudioOutputSet::jack();
-    let root = std::env::temp_dir().join(format!(
-        "octessera-raspberry-audio-status-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-raspberry-audio-status");
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();

@@ -155,14 +155,7 @@ fn status(
 fn runtime_with_snapshot(
     audio: super::super::AudioService,
 ) -> (PlaybackRuntime, NativeRunner, OrangeHostAdapter, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-audio-status-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-audio-status");
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();

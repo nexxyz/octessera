@@ -326,14 +326,7 @@ mod tests {
 
     #[test]
     fn accepted_snapshot_ingestion_updates_raspberry_keyboard_gate() {
-        let root = std::env::temp_dir().join(format!(
-            "octessera-pi-keyboard-snapshot-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp_dir::unique_temp_path("octessera-pi-keyboard-snapshot");
         let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
             None,
             root.join("store"),

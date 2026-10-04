@@ -13,14 +13,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 fn restore_root(name: &str) -> PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-user-transfer-restore-{name}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root =
+        crate::test_temp_dir::unique_temp_path(&format!("octessera-user-transfer-restore-{name}"));
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     root

@@ -116,6 +116,8 @@ mod setup_portal;
 mod setup_portal_files;
 mod setup_portal_paths;
 mod setup_portal_worker;
+#[cfg(test)]
+mod test_temp_dir;
 #[cfg(feature = "native-audio")]
 mod timing_input;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

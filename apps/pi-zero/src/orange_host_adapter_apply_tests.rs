@@ -6,14 +6,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 fn directories(label: &str) -> (PathBuf, PathBuf, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-apply-host-{label}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root =
+        crate::test_temp_dir::unique_temp_path(&format!("octessera-orange-apply-host-{label}"));
     (root.clone(), root.join("store"), root.join("samples"))
 }
 

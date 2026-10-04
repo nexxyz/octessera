@@ -38,14 +38,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn store() -> PathBuf {
-        std::env::temp_dir().join(format!(
-            "octessera-pi-boot-config-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ))
+        crate::test_temp_dir::unique_temp_path("octessera-pi-boot-config")
     }
 
     fn full_default() -> Value {

@@ -4,14 +4,7 @@ use super::*;
 fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
     use std::time::Duration;
 
-    let root = std::env::temp_dir().join(format!(
-        "octessera-platform-restore-barrier-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-restore-barrier");
     let store = root.join("store");
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
     std::fs::create_dir_all(store.join("patches")).unwrap();
@@ -161,14 +154,7 @@ fn restore_barrier_cancels_native_default_snapshot_waiting_in_worker() {
     use playback_runtime::{NativeRunner, NativeRunnerConfig, RuntimeOperation};
     use std::time::Duration;
 
-    let root = std::env::temp_dir().join(format!(
-        "octessera-platform-native-restore-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-native-restore");
     let store = root.join("store");
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -402,14 +388,7 @@ fn native_default_test_adapter() -> (
     Vec<u8>,
     crate::host_adapter::PiPlaybackHostAdapter,
 ) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-native-default-rejection-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-native-default-rejection");
     let documents = playback_runtime::split_system_patch_documents(
         &crate::user_data_archive::canonical_defaults(),
     )

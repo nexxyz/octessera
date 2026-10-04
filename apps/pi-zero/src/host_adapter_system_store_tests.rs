@@ -8,14 +8,8 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 fn adapter(label: &str) -> (PiPlaybackHostAdapter, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-system-store-{label}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root =
+        crate::test_temp_dir::unique_temp_path(&format!("octessera-pi-system-store-{label}"));
     let adapter = PiPlaybackHostAdapter::new(
         None,
         root.join("store"),

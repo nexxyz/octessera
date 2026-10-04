@@ -145,12 +145,5 @@ fn raspberry_audio_keeps_case_insensitive_aplay_fragment_matching() {
 }
 
 fn test_root(name: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!(
-        "octessera-fat-{name}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ))
+    crate::test_temp_dir::unique_temp_path(&format!("octessera-fat-{name}"))
 }

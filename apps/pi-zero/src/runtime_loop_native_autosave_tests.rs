@@ -11,14 +11,7 @@ fn fixture() -> (
     PiPlaybackHostAdapter,
     PathBuf,
 ) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-playing-legacy-autosave-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-playing-legacy-autosave");
     let mut full_default: Value =
         serde_json::from_str(include_str!("../../../config/generated/pi/default.json")).unwrap();
     full_default["runtimeConfig"]["autoSaveDefault"] = json!(true);

@@ -12,14 +12,7 @@ fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
     use playback_runtime::{RuntimePlatformEffect, RuntimeSetupPortalPhase, RuntimeStoreResult};
     use std::time::Duration;
 
-    let root = std::env::temp_dir().join(format!(
-        "octessera-platform-setup-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-setup");
     let public = root.join("public");
     let paths = SetupPortalPaths {
         request: root.join("request").join("inbox").join("start"),
@@ -119,14 +112,7 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
     use playback_runtime::{RuntimePlatformEffect, RuntimeSetupPortalPhase};
     use std::time::Duration;
 
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-mixed-queue-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-mixed-queue");
     let public = root.join("public");
     let paths = SetupPortalPaths {
         request: root.join("request").join("inbox").join("start"),

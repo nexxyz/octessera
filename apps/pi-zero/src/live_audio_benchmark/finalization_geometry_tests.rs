@@ -4,14 +4,7 @@ use super::*;
 fn pre_stream_finalization_accepts_inline_analogue_geometry() {
     let mut config = analogue_inline_config();
     let raspberry = super::super::super::geometry::is_raspberry_diagnostic();
-    let root = std::env::temp_dir().join(format!(
-        "octessera-analogue-finalization-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-analogue-finalization");
     std::fs::create_dir_all(&root).unwrap();
     config.result_path = root.join("result.json");
     config.progress_path = root.join("progress.json");
@@ -88,14 +81,7 @@ fn pre_stream_finalization_reports_invalid_geometry() {
     let mut config = analogue_inline_config();
     let raspberry = super::super::super::geometry::is_raspberry_diagnostic();
     config.internal_frames = if raspberry { 256 } else { 128 };
-    let root = std::env::temp_dir().join(format!(
-        "octessera-invalid-analogue-finalization-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-invalid-analogue-finalization");
     std::fs::create_dir_all(&root).unwrap();
     config.result_path = root.join("result.json");
     config.progress_path = root.join("progress.json");

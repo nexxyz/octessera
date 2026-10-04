@@ -2,14 +2,7 @@ use super::*;
 use std::sync::{Arc, Mutex};
 
 fn root(label: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-orange-apply-{label}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path(&format!("octessera-orange-apply-{label}"));
     fs::create_dir_all(&path).unwrap();
     path
 }

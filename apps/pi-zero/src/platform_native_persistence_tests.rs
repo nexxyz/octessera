@@ -20,14 +20,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn adapter() -> (PiPlaybackHostAdapter, std::path::PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-native-save-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-native-save");
     let adapter = PiPlaybackHostAdapter::new(
         None,
         root.join("store"),

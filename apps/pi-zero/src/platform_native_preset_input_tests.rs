@@ -406,14 +406,7 @@ fn rename_after_source_disappears(
 
 #[test]
 fn playing_save_as_save_current_and_rename_follow_device_input_and_refresh_catalog() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-preset-input-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-preset-input");
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let defaults: serde_json::Value =

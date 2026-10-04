@@ -22,6 +22,7 @@ pub(super) fn run_server(inner: Arc<TransferInner>, listener: TcpListener) {
         }
         match listener.accept() {
             Ok((mut stream, peer)) => {
+                let _ = stream.set_nonblocking(false);
                 let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
                 let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
                 handle_connection(&inner, &mut stream, peer);

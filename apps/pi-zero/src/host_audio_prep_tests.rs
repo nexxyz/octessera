@@ -231,14 +231,7 @@ fn stale_preview_is_dropped_without_a_failure_result() {
 
 #[test]
 fn preview_event_uses_sample_owner_generation_not_preview_token() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-preview-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-preview");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("kick.wav"), owner_wav_bytes()).unwrap();
     let audio = crate::audio::test_service_for_sample_prep();
@@ -262,14 +255,7 @@ fn preview_event_uses_sample_owner_generation_not_preview_token() {
 
 #[test]
 fn preview_keeps_sample_generation_after_non_sampler_replacement() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-preview-owner-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-preview-owner");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("kick.wav"), owner_wav_bytes()).unwrap();
     let (audio, _, mut event_rx, _) =
@@ -332,14 +318,7 @@ fn preview_keeps_sample_generation_after_non_sampler_replacement() {
 
 #[test]
 fn instrument_owner_replacement_publishes_one_atomic_owner_event() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-owner-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-owner");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("kick.wav"), owner_wav_bytes()).unwrap();
     let (audio, _, mut event_rx, _) =
@@ -420,14 +399,7 @@ fn instrument_owner_replacement_publishes_one_atomic_owner_event() {
 
 #[test]
 fn failed_atomic_owner_broadcast_does_not_commit_owner_state() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-owner-failure-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-owner-failure");
     std::fs::create_dir_all(&root).unwrap();
     let (audio, _, event_rx, _) =
         crate::audio::test_service_with_recording_dir(root.join("recordings"));

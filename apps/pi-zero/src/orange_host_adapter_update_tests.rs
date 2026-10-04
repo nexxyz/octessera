@@ -10,7 +10,7 @@ use std::io;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Output};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 struct ScriptedExecutor {
     calls: Mutex<VecDeque<String>>,
@@ -125,14 +125,7 @@ fn orange_update_effects_use_the_native_updater_worker() {
 }
 
 fn temporary_root() -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "octessera-orange-update-host-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ))
+    crate::test_temp_dir::unique_temp_path("octessera-orange-update-host")
 }
 
 #[cfg(windows)]

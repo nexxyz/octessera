@@ -40,14 +40,7 @@ pub(super) fn worker_with_recording(audio: Option<crate::audio::AudioService>) -
 
 #[test]
 fn failed_initial_oled_write_leaves_no_startup_recording_seed() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-failed-startup-oled-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-failed-startup-oled");
     let (audio, _, _, _) = crate::audio::test_service_with_recording_dir(root.clone());
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
@@ -115,6 +108,7 @@ pub(super) fn playing_runner(
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
+    runner.test_set_display_time(Instant::now());
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     playback
         .dispatch_runner_messages(
@@ -141,14 +135,7 @@ pub(super) fn playing_runner(
 
 #[test]
 fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-scene-pump-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-scene-pump");
     let mut adapter = adapter(&root, None);
     let (mut playback, mut runner) = playing_runner(&mut adapter);
     let worker = worker();
@@ -231,6 +218,7 @@ fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() 
         .is_zero());
 
     std::thread::sleep(Duration::from_millis(55));
+    runner.test_advance_display_time(Duration::from_millis(100));
     let newer_generation = runner.pending_display_scene_generation().unwrap();
     assert!(newer_generation > initial_generation);
     let expiry_due = scheduler.display_snapshot_due(Instant::now(), &runner, &playback);
@@ -286,14 +274,7 @@ fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() 
 
 #[test]
 fn rejected_queue_submission_keeps_the_bounded_capture_retry() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-scene-pump-retry-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-scene-pump-retry");
     let mut adapter = adapter(&root, None);
     let (_playback, mut runner) = playing_runner(&mut adapter);
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();

@@ -343,14 +343,7 @@ fn mark_failed_ack_succeeds_without_an_attached_handoff() {
     ))
 ))]
 fn mark_failed_ack_reports_failed_status_persistence() {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-render-failed-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path("octessera-render-failed");
     let handoff = crate::boot_oled_handoff::native_guard_for_test(&path).unwrap();
     fs::remove_file(path.join("status.json")).unwrap();
     fs::create_dir(path.join("status.json")).unwrap();
@@ -407,14 +400,7 @@ fn ownership_timeout_cancels_late_command_execution() {
     feature = "hardware-orange-pi-zero-2w"
 )))]
 fn initial_snapshot_ack_is_current_and_cannot_be_reused() {
-    let readiness_path = std::env::temp_dir().join(format!(
-        "octessera-render-readiness-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let readiness_path = crate::test_temp_dir::unique_temp_path("octessera-render-readiness");
     let mut readiness = crate::candidate_readiness::CandidateReadiness::new(
         Some(readiness_path.clone()),
         "render-test".into(),

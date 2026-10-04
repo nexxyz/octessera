@@ -165,28 +165,14 @@ fn failed_status_recovers_through_release_and_native_ownership_with_matching_ids
 
 #[test]
 fn native_attach_does_not_create_a_missing_handoff_root() {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-oled-missing-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path("octessera-oled-missing");
     assert!(native_attach_at(&path).is_err());
     assert!(!path.exists());
 }
 
 #[test]
 fn animator_does_not_create_a_missing_systemd_handoff_root() {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-oled-animator-missing-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path("octessera-oled-animator-missing");
     assert!(animator_start_at(&path).is_err());
     assert!(!path.exists());
 }
@@ -311,14 +297,7 @@ fn animator_and_native_failures_remain_recoverable_with_matching_stop() {
 }
 
 fn test_directory(label: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-oled-{label}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path(&format!("octessera-oled-{label}"));
     fs::create_dir(&path).unwrap();
     let mut permissions = fs::metadata(&path).unwrap().permissions();
     permissions.set_mode(DIRECTORY_MODE);

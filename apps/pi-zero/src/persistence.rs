@@ -142,14 +142,7 @@ mod tests {
 
     #[test]
     fn atomic_json_write_overwrites_existing_file() {
-        let dir = std::env::temp_dir().join(format!(
-            "octessera-pi-atomic-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let dir = crate::test_temp_dir::unique_temp_path("octessera-pi-atomic");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("default.json");
         std::fs::write(&path, "{\"old\":true}").unwrap();

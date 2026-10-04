@@ -17,14 +17,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 fn test_host(audio: crate::audio::AudioService) -> (OrangeHostAdapter, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-candidate-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-candidate");
     let host = OrangeHostAdapter::with_directories(
         audio,
         root.join("store"),
@@ -69,14 +62,7 @@ fn orange_startup_operations_map_to_typed_fatal_codes() {
 
 #[test]
 fn orange_sample_root_creation_failure_does_not_publish_candidate_ready() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-sample-root-failure-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-sample-root-failure");
     std::fs::create_dir_all(&root).unwrap();
     let samples = root.join("samples");
     std::fs::write(&samples, b"not a directory").unwrap();
@@ -257,14 +243,7 @@ fn orange_preparation_starts_with_a_canonical_normal_snapshot() {
 
 #[test]
 fn orange_readiness_gate_requires_ack_and_healthy_dac() {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-orange-readiness-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path("octessera-orange-readiness");
     let mut readiness = CandidateReadiness::new(Some(path.clone()), "orange-test".into());
     let mut gate = OrangeStartupReadinessGate::new(false);
     assert!(gate

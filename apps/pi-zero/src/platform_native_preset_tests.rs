@@ -59,14 +59,7 @@ impl HostAdapter for TestHost {
 }
 
 fn service_and_root(label: &str) -> (crate::platform_service::PiPlatformService, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-native-preset-{label}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path(&format!("octessera-native-preset-{label}"));
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let full: serde_json::Value =

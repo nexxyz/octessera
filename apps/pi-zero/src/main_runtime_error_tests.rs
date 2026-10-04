@@ -16,14 +16,7 @@ use std::time::{Duration, Instant};
 
 #[test]
 fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-playing-runtime-error-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-playing-runtime-error");
     let audio = crate::audio::test_service_with_prep_worker();
     let mut adapter = PiPlaybackHostAdapter::new_with_data_role(
         Some(audio.clone()),

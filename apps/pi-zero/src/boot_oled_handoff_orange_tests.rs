@@ -171,14 +171,7 @@ fn assert_lock_is_held(path: &Path) {
 }
 
 fn test_directory(label: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-oled-orange-{label}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path(&format!("octessera-oled-orange-{label}"));
     fs::create_dir(&path).unwrap();
     set_mode(&path, DIRECTORY_MODE);
     path

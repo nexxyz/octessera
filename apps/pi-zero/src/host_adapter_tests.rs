@@ -288,14 +288,7 @@ fn preset_patch_path_rejects_unsafe_names() {
 
 #[test]
 fn raspberry_power_request_requires_recovery_save_before_acceptance() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-power-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-power");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::create_dir_all(root.join("store")).unwrap();
     std::fs::create_dir_all(root.join("samples")).unwrap();
@@ -341,14 +334,7 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult};
     use std::fs;
     use std::sync::Arc;
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-setup-adapter-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-setup-adapter");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     let public = root.join("public");

@@ -9,14 +9,7 @@ use std::collections::BTreeMap;
 
 #[test]
 fn pi_sample_preview_resolves_decodes_and_queues_preview_event() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-preview-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-preview");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("kick.wav"), wav_bytes()).unwrap();
 
@@ -31,14 +24,7 @@ fn pi_sample_preview_resolves_decodes_and_queues_preview_event() {
 
 #[test]
 fn pi_accepts_every_valid_runtime_audio_command_at_the_adapter_boundary() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-command-contract-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-command-contract");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("kick.wav"), b"placeholder").unwrap();
     let params = BTreeMap::new();

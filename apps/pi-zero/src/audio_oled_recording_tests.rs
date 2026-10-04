@@ -175,14 +175,7 @@ fn avi_video_payloads(path: &Path) -> Vec<Vec<u8>> {
 }
 
 fn temp_dir() -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "octessera-pi-audio-oled-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let path = crate::test_temp_dir::unique_temp_path("octessera-pi-audio-oled");
     fs::create_dir_all(&path).unwrap();
     path
 }

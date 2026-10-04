@@ -28,14 +28,7 @@ fn system_info_job_returns_identified_typed_result() {
 
 #[test]
 fn system_info_does_not_wait_for_store_lock() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-platform-system-info-lock-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-system-info-lock");
     let service = PiPlatformService::new(root.join("store"), root.join("samples"));
     let store_lock = Arc::clone(&service.store_lock);
     let poison = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -82,14 +75,7 @@ fn system_info_does_not_wait_for_store_lock() {
 fn orange_apply_drains_saturated_results_and_preserves_fifo_order() {
     use std::time::Duration;
 
-    let root = std::env::temp_dir().join(format!(
-        "octessera-orange-apply-queue-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-apply-queue");
     let store = root.join("store");
     let documents = crate::pi_store_test_support::write_pair(
         &store,

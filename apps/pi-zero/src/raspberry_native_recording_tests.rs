@@ -9,14 +9,7 @@ use std::time::{Duration, Instant};
 
 #[test]
 fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-physical-oled-recording-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-physical-oled-recording");
     let actual_root = root.join("actual");
     let startup_reference_root = root.join("startup-reference");
     let typed_reference_root = root.join("typed-reference");

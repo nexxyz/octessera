@@ -2,14 +2,7 @@ use super::*;
 
 #[test]
 fn list_presets_ignores_noncanonical_files() {
-    let dir = std::env::temp_dir().join(format!(
-        "octessera-pi-preset-list-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let dir = crate::test_temp_dir::unique_temp_path("octessera-pi-preset-list");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("default.json"), "{}").unwrap();
     std::fs::write(dir.join("recovery-save.json"), "{}").unwrap();
@@ -26,14 +19,7 @@ fn list_presets_ignores_noncanonical_files() {
 
 #[test]
 fn preset_store_uses_only_canonical_patch_files() {
-    let dir = std::env::temp_dir().join(format!(
-        "octessera-pi-preset-patch-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let dir = crate::test_temp_dir::unique_temp_path("octessera-pi-preset-patch");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::create_dir_all(dir.join("patches")).unwrap();
@@ -59,14 +45,7 @@ fn preset_store_uses_only_canonical_patch_files() {
 
 #[test]
 fn patch_catalog_accepts_valid_names_that_are_special_only_at_store_root() {
-    let dir = std::env::temp_dir().join(format!(
-        "octessera-pi-preset-special-stems-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let dir = crate::test_temp_dir::unique_temp_path("octessera-pi-preset-special-stems");
     let patches = dir.join("patches");
     std::fs::create_dir_all(&patches).unwrap();
     for name in ["default", "bak-jam", "default.patch", "current", "device"] {
@@ -90,14 +69,7 @@ fn patch_catalog_accepts_valid_names_that_are_special_only_at_store_root() {
 
 #[test]
 fn store_job_waits_for_store_lock() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-platform-store-lock-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-store-lock");
     let service = PiPlatformService::new(root.join("store"), root.join("samples"));
     let store_guard = service.store_lock.lock().unwrap();
     service
@@ -134,14 +106,7 @@ fn store_job_waits_for_store_lock() {
 
 #[test]
 fn default_load_rejects_queued_legacy_save_without_cancelling_it() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-default-load-pending-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-default-load-pending");
     let store = root.join("store");
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
     std::fs::create_dir_all(&store).unwrap();
@@ -235,14 +200,7 @@ fn default_load_rejects_queued_legacy_save_without_cancelling_it() {
 
 #[test]
 fn named_preset_load_rejects_queued_named_save_without_cancelling_it() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-preset-load-pending-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-preset-load-pending");
     let store = root.join("store");
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
     std::fs::create_dir_all(store.join("patches")).unwrap();
@@ -328,14 +286,7 @@ fn named_preset_load_rejects_queued_named_save_without_cancelling_it() {
 
 #[test]
 fn system_save_runs_off_thread_and_returns_one_identified_completion() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-system-save-worker-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-system-save-worker");
     let store = root.join("store");
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
     std::fs::create_dir_all(&store).unwrap();
@@ -417,14 +368,7 @@ fn system_save_runs_off_thread_and_returns_one_identified_completion() {
 
 #[test]
 fn queued_system_save_is_cancelled_by_restore_generation() {
-    let root = std::env::temp_dir().join(format!(
-        "octessera-pi-system-save-cancel-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-system-save-cancel");
     let store = root.join("store");
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
     std::fs::create_dir_all(&store).unwrap();
