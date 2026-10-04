@@ -111,6 +111,7 @@ mod rpi_oled_handoff_runtime;
 mod runtime_loop;
 #[cfg(feature = "native-audio")]
 mod runtime_output;
+mod runtime_thread;
 mod sample_browser;
 mod setup_portal;
 mod setup_portal_files;
@@ -239,20 +240,9 @@ fn main() {
     }
     #[cfg(feature = "native-audio")]
     pin_normal_startup_thread();
-    let runtime = std::thread::Builder::new()
-        .name("octessera-runtime".into())
-        .spawn(orange_candidate::run)
-        .expect("Orange runtime thread should start");
-    match runtime.join() {
-        Ok(Ok(())) => {}
-        Ok(Err(error)) => {
-            eprintln!("Orange foreground candidate failed: {error}");
-            std::process::exit(error.exit_code());
-        }
-        Err(_) => {
-            eprintln!("Orange runtime thread panicked");
-            std::process::exit(1);
-        }
+    if let Err(error) = runtime_thread::run_on_runtime_thread(orange_candidate::run) {
+        eprintln!("Orange foreground candidate failed: {error}");
+        std::process::exit(error.exit_code());
     }
 }
 
