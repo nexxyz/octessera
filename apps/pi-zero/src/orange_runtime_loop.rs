@@ -42,7 +42,7 @@ pub(crate) fn run_prepared_runtime(
     let mut scheduler = HardwareRuntimeScheduler::new(Instant::now(), initial_published_revision);
     let mut readiness_gate = OrangeStartupReadinessGate::new(initial_rendered);
     let mut pending_encoder_turns = PendingEncoderTurns::default();
-    let mut native_scenes = super::native_scene::OrangeNativeScenePump::new(Instant::now());
+    let mut native_scenes = crate::native_scene_pump::NativeScenePump::new(Instant::now());
     audio_manager.report_runtime_terminal_diagnostics();
     ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
     audio.ensure_route_readiness()?;

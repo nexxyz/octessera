@@ -11,7 +11,7 @@ struct PendingNativeScene {
     receiver: mpsc::Receiver<crate::render_loop_queue::NativeSceneCompletion>,
 }
 
-pub(super) struct OrangeNativeScenePump {
+pub(crate) struct NativeScenePump {
     pending: Vec<PendingNativeScene>,
     generation: Option<u64>,
     last_submission: Instant,
@@ -23,8 +23,8 @@ pub(super) struct OrangeNativeScenePump {
     capture_count: usize,
 }
 
-impl OrangeNativeScenePump {
-    pub(super) fn new(now: Instant) -> Self {
+impl NativeScenePump {
+    pub(crate) fn new(now: Instant) -> Self {
         Self {
             pending: Vec::new(),
             generation: None,
@@ -40,7 +40,7 @@ impl OrangeNativeScenePump {
         }
     }
 
-    pub(super) fn poll(&mut self, runner: &mut NativeRunner) {
+    pub(crate) fn poll(&mut self, runner: &mut NativeRunner) {
         let mut completed = Vec::new();
         self.pending
             .retain(|pending| match pending.receiver.try_recv() {
@@ -70,7 +70,7 @@ impl OrangeNativeScenePump {
         }
     }
 
-    pub(super) fn submit(
+    pub(crate) fn submit(
         &mut self,
         now: Instant,
         due: DisplaySnapshotDue,
@@ -135,20 +135,20 @@ impl OrangeNativeScenePump {
         Some(captured_at)
     }
 
-    pub(super) fn set_capture_profile_enabled(&mut self, enabled: bool) {
+    pub(crate) fn set_capture_profile_enabled(&mut self, enabled: bool) {
         self.profile_capture = enabled;
     }
 
-    pub(super) fn take_capture_duration(&mut self) -> Option<std::time::Duration> {
+    pub(crate) fn take_capture_duration(&mut self) -> Option<std::time::Duration> {
         self.capture_duration.take()
     }
 
-    pub(super) fn set_timing_cutoff_targets(&mut self, targets: [u16; 2]) {
+    pub(crate) fn set_timing_cutoff_targets(&mut self, targets: [u16; 2]) {
         self.timing_cutoff_targets = (targets[0] != targets[1]).then_some(targets);
         self.timing_cutoff_acceptances = [None, None];
     }
 
-    pub(super) fn timing_cutoff_acceptances(&self) -> Option<[(u64, u16); 2]> {
+    pub(crate) fn timing_cutoff_acceptances(&self) -> Option<[(u64, u16); 2]> {
         Some([
             self.timing_cutoff_acceptances[0]?,
             self.timing_cutoff_acceptances[1]?,
@@ -165,7 +165,7 @@ impl OrangeNativeScenePump {
         self.timing_cutoff_acceptances[index].get_or_insert((revision, value));
     }
 
-    pub(super) fn record_completed_cutoff_value(
+    pub(crate) fn record_completed_cutoff_value(
         &mut self,
         cutoff_value: Option<u16>,
         receipt: &crate::render_loop_queue::NativeSceneCompletion,
@@ -178,7 +178,7 @@ impl OrangeNativeScenePump {
     }
 }
 
-pub(super) fn selected_cutoff_display_value(
+pub(crate) fn selected_cutoff_display_value(
     scene: &playback_runtime::PresentationScene,
     metrics: playback_runtime::oled_frame::OledPresentationMetrics,
     error: Option<playback_runtime::oled_frame::OledRuntimeErrorMetadata>,
@@ -187,7 +187,7 @@ pub(super) fn selected_cutoff_display_value(
     visible_cutoff_display_value(&presentation)
 }
 
-pub(super) fn visible_cutoff_display_value(
+pub(crate) fn visible_cutoff_display_value(
     presentation: &playback_runtime::oled_frame::OledPresentationInput,
 ) -> Option<u16> {
     if presentation.display.off
@@ -249,7 +249,7 @@ mod timing_evidence_tests {
 
     #[test]
     fn cutoff_revision_evidence_requires_successful_matching_native_frames() {
-        let mut pump = OrangeNativeScenePump::new(Instant::now());
+        let mut pump = NativeScenePump::new(Instant::now());
         pump.set_timing_cutoff_targets([140, 141]);
         let failed = crate::render_loop_queue::NativeSceneCompletion {
             generation: 1,
@@ -285,6 +285,9 @@ mod timing_evidence_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 #[path = "orange_native_scene_tests.rs"]
-mod tests;
+mod orange_tests;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[path = "raspberry_native_scene_tests.rs"]
+mod raspberry_tests;

@@ -190,9 +190,7 @@ fn autoaux_setup_uses_stopped_native_menu_and_routes_cutoff_turns_through_host()
     let scene = fixture.runner.capture_display_scene().unwrap();
     let (metrics, error) = fixture.playback.native_presentation_state();
     assert_eq!(
-        crate::orange_candidate::native_scene::selected_cutoff_display_value(
-            &scene, metrics, error,
-        ),
+        crate::native_scene_pump::selected_cutoff_display_value(&scene, metrics, error,),
         Some(timing.starting_cutoff)
     );
     for delta in [1, -1] {

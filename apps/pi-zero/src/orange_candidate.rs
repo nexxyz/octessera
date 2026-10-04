@@ -32,8 +32,6 @@ use std::time::Instant;
 mod handoff;
 #[path = "orange_lifecycle.rs"]
 mod lifecycle;
-#[path = "orange_native_scene.rs"]
-mod native_scene;
 #[path = "orange_runtime_loop.rs"]
 mod runtime_loop;
 #[path = "orange_signal.rs"]

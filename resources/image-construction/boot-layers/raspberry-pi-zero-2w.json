@@ -8,7 +8,7 @@
   "mutation_authority": "none",
   "selected_initramfs_regeneration": "required",
   "source_inputs": [
-    {"path": "apps/pi-zero/src/main.rs", "sha256": "890f5f2ffd316f9bd42147e51b47d224250bcabfed32861b4dca52d495520d22", "size": 15587},
+    {"path": "apps/pi-zero/src/main.rs", "sha256": "1b0849ce8cdf9c36d594f7ddc57099f9c08777be0586211893955ef5d0715136", "size": 15530},
     {"path": "apps/pi-zero/src/boot_startup_delayed.rs", "sha256": "47dc7373b732aa241760c96288dfe9bf608baa367f8c4765a1f0303e071bcca0", "size": 8034},
     {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/lib/octessera/install-rpi-kernel.py", "sha256": "d11d0bb4cccab96c10124ca65868cc509ef81979c1f95218808bef7301df038f", "size": 20317},
     {"path": "tools/pi-image/stage3-octessera-kernel/files/root/usr/local/sbin/octessera-finalize-rpi-kernel", "sha256": "363cee7553a75c5a72654b55922afb21a09d591a15c336bc63017548a0208607", "size": 204},

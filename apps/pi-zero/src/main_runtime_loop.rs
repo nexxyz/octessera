@@ -75,7 +75,7 @@ pub(crate) fn maybe_advance_runtime(
     adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
     ui_profiler: &mut UiProfiler,
-    native_scenes: &mut crate::raspberry_native_scene::NativeScenePump,
+    native_scenes: &mut crate::native_scene_pump::NativeScenePump,
 ) -> bool {
     if adapter.shutdown_pending() {
         return shutdown_if_requested(playback, adapter, render_worker);
@@ -139,6 +139,9 @@ pub(crate) fn maybe_advance_runtime(
         render_worker,
     ) {
         scheduler.record_native_scene_capture(captured_at);
+    }
+    if let Some(duration) = native_scenes.take_capture_duration() {
+        ui_profiler.record_scene_capture(duration);
     }
     service_render_if_due(now, scheduler, playback, adapter, render_worker);
     shutdown_if_requested(playback, adapter, render_worker)

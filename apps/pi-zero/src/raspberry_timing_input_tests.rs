@@ -2,7 +2,7 @@ use crate::autoaux_menu;
 use crate::autoaux_sequence::{AutoAuxSequence, Phase};
 use crate::hardware_runtime_scheduler::DisplaySnapshotDue;
 use crate::host_adapter::PiHostAdapter;
-use crate::raspberry_native_scene::NativeScenePump;
+use crate::native_scene_pump::NativeScenePump;
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
 use crate::timing_input::{complete_study, fail_study, TimingInput, TimingStudyEvidence};

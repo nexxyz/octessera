@@ -25,7 +25,7 @@ fn opted_in_profile_counts_successful_and_failed_scene_capture_calls() {
     let worker = worker();
     let mut profiler = UiProfiler::from_controls(Some("1"), false);
     let first_now = Instant::now();
-    let mut successful = OrangeNativeScenePump::new(first_now - SNAPSHOT_TICK);
+    let mut successful = NativeScenePump::new(first_now - SNAPSHOT_TICK);
     successful.set_capture_profile_enabled(profiler.enabled());
 
     assert!(successful
@@ -43,7 +43,7 @@ fn opted_in_profile_counts_successful_and_failed_scene_capture_calls() {
 
     runner.test_fail_next_snapshot();
     let failure_now = first_now + SNAPSHOT_TICK;
-    let mut failed = OrangeNativeScenePump::new(failure_now - SNAPSHOT_TICK);
+    let mut failed = NativeScenePump::new(failure_now - SNAPSHOT_TICK);
     failed.set_capture_profile_enabled(profiler.enabled());
     assert!(failed
         .submit(
@@ -148,7 +148,7 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
     let worker = worker();
     let start = Instant::now();
     let mut scheduler = HardwareRuntimeScheduler::new(start, playback.last_snapshot_revision());
-    let mut pump = OrangeNativeScenePump::new(start - SNAPSHOT_TICK);
+    let mut pump = NativeScenePump::new(start - SNAPSHOT_TICK);
     let initial_generation = runner.pending_display_scene_generation().unwrap();
     let first_capture = pump
         .submit(
@@ -274,7 +274,7 @@ fn legacy_runtime_error_due_stays_publishable_and_blocks_typed_overwrite() {
         .is_some_and(|error| !error.is_null()));
     assert!(scheduler.snapshot_publication_due(now + SNAPSHOT_TICK, &playback));
 
-    let mut pump = OrangeNativeScenePump::new(now - SNAPSHOT_TICK);
+    let mut pump = NativeScenePump::new(now - SNAPSHOT_TICK);
     let mut adapter = adapter(&root);
     let worker = worker();
     assert!(pump

@@ -38,7 +38,6 @@ pub struct UiProfiler {
     runtime_late: DurationStats,
     runtime_advance: DurationStats,
     host_input: DurationStats,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     scene_capture: DurationStats,
 }
 
@@ -72,7 +71,6 @@ impl UiProfiler {
             runtime_late: DurationStats::default(),
             runtime_advance: DurationStats::default(),
             host_input: DurationStats::default(),
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
             scene_capture: DurationStats::default(),
         }
     }
@@ -101,7 +99,6 @@ impl UiProfiler {
         }
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     pub fn record_scene_capture(&mut self, duration: Duration) {
         if self.enabled {
             self.scene_capture.record(duration);
@@ -117,7 +114,6 @@ impl UiProfiler {
         if !self.enabled || self.last_report.elapsed() < REPORT_INTERVAL {
             return;
         }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
         eprintln!(
             "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} host_input={} scene_capture={}",
             self.loop_iteration.summary(),
@@ -127,15 +123,6 @@ impl UiProfiler {
             self.host_input.summary(),
             self.scene_capture.summary(),
         );
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        eprintln!(
-            "pi-ui-profile loop={} gap={} runtime_late={} runtime_advance={} host_input={}",
-            self.loop_iteration.summary(),
-            self.loop_gap.summary(),
-            self.runtime_late.summary(),
-            self.runtime_advance.summary(),
-            self.host_input.summary(),
-        );
         *self = Self::new(true);
     }
 }
@@ -143,9 +130,7 @@ impl UiProfiler {
 #[cfg(test)]
 mod tests {
     use super::UiProfiler;
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     use super::REPORT_INTERVAL;
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     use std::time::{Duration, Instant};
 
     #[test]
@@ -159,7 +144,6 @@ mod tests {
         assert!(UiProfiler::from_controls(Some("0"), true).enabled());
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     #[test]
     fn enabled_profile_aggregates_stages_and_resets_after_reporting() {
         let mut profiler = UiProfiler::from_controls(Some("1"), false);
@@ -175,7 +159,6 @@ mod tests {
         assert_eq!(profiler.scene_capture.summary(), "n=0");
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     #[test]
     fn disabled_profile_keeps_stage_statistics_empty() {
         let mut profiler = UiProfiler::from_controls(Some("0"), false);

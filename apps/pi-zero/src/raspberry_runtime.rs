@@ -28,7 +28,7 @@ struct SchedulerState {
     scheduler: HardwareRuntimeScheduler,
     pending_encoder_turns: PendingEncoderTurns,
     ui_profiler: UiProfiler,
-    native_scenes: crate::raspberry_native_scene::NativeScenePump,
+    native_scenes: crate::native_scene_pump::NativeScenePump,
     timing: Option<TimingInput>,
 }
 
@@ -39,7 +39,7 @@ impl SchedulerState {
             scheduler: HardwareRuntimeScheduler::new(now, initial_published_revision),
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler: UiProfiler::from_process(),
-            native_scenes: crate::raspberry_native_scene::NativeScenePump::new(now),
+            native_scenes: crate::native_scene_pump::NativeScenePump::new(now),
             timing: None,
         }
     }
@@ -122,6 +122,9 @@ fn scheduler_loop(
             return;
         }
     };
+    state
+        .native_scenes
+        .set_capture_profile_enabled(profile_enabled);
     if let Some(timing) = &state.timing {
         state
             .native_scenes

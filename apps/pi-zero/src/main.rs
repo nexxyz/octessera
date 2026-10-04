@@ -76,6 +76,7 @@ mod main_paths;
 mod main_runtime_loop;
 #[cfg(feature = "external-midi")]
 mod midi_host;
+mod native_scene_pump;
 mod normal_menu;
 mod oled_frame_cache;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -96,8 +97,6 @@ mod pi_host_core;
 mod pi_store_test_support;
 mod platform_service;
 mod power_lifecycle;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod raspberry_native_scene;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod raspberry_runtime;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
