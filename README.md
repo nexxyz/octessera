@@ -48,4 +48,4 @@ synth, and a live Keys layer nudging the whole thing somewhere new.
 [Hardware attributions](hardware/ATTRIBUTIONS.md) ·
 [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-Octessera does not contain any AI, but was created with AI assitance
+This project was created with AI assistance. Octessera itself, however, does not contain any AI.
