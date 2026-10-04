@@ -24,17 +24,15 @@ impl PlatformResultLane {
         self.sender.send(result).map_err(|_| ())
     }
 
+    /// Marks the setup send as waiting only once it owns the producer lock, so
+    /// anything queued after that point is ordered behind it.
     pub(crate) fn send_setup(&self, result: HostMessage) -> Result<(), ()> {
+        let _guard = self.producer_lock.lock().map_err(|_| ())?;
         self.setup_waiting.store(true, Ordering::Release);
         let outcome = self
-            .producer_lock
-            .lock()
-            .map_err(|_| ())
-            .and_then(|_guard| {
-                self.sender
-                    .send(PlatformResult::Legacy(result))
-                    .map_err(|_| ())
-            });
+            .sender
+            .send(PlatformResult::Legacy(result))
+            .map_err(|_| ());
         self.setup_waiting.store(false, Ordering::Release);
         outcome
     }
