@@ -46,4 +46,4 @@ synth, and a live Keys layer nudging the whole thing somewhere new.
 
 [License](LICENSE) · [Sample source](samples/SOURCE.md) ·
 [Hardware attributions](hardware/ATTRIBUTIONS.md) ·
-[Third-party notices](THIRD_PARTY_NOTICES.md)
+[Third-party notices](THIRD_PARTY_NOTICES.md) · Octessera does not contain any AI, but was created with AI assitance
