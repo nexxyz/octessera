@@ -6,11 +6,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=tools/armbian-image/validation-assertions.sh
 source "$root/tools/armbian-image/validation-assertions.sh"
 action="$root/.github/actions/build-armbian-image/action.yml"
-provenance_writer="$root/tools/armbian-image/write-orange-kernel-provenance.sh"
 source_lock="$root/userpatches/config/sources/git_sources.json"
 
 [[ -f "$action" ]] || { echo "Missing Armbian build action." >&2; exit 1; }
-[[ -f "$provenance_writer" ]] || { echo "Missing Orange provenance writer." >&2; exit 1; }
 [[ -f "$source_lock" && ! -L "$source_lock" ]] || { echo 'Missing or symlinked reviewed Orange source lock.' >&2; exit 1; }
 printf '%s  %s\n' e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30 "$source_lock" | sha256sum -c -
 
@@ -18,14 +16,6 @@ assert_action_contains() {
     local expected="$1"
     grep -qF -- "$expected" "$action" || {
         echo "Armbian build action is missing: $expected" >&2
-        exit 1
-    }
-}
-
-assert_provenance_contains() {
-    local expected="$1"
-    grep -qF -- "$expected" "$provenance_writer" || {
-        echo "Orange provenance writer is missing: $expected" >&2
         exit 1
     }
 }
@@ -73,25 +63,7 @@ assert_action_contains 'find-orange-kernel-packages.sh'
 assert_action_contains 'Stage canonical Orange kernel packages for release handoff'
 assert_action_contains 'native Orange linux-image/linux-dtb package pair'
 assert_action_contains 'orange-midi-interface-manifest.json'
-assert_provenance_contains 'git", "-C", str(armbian_build_directory), "rev-parse", "HEAD"'
-assert_provenance_contains 'armbian_build_repository'
-assert_provenance_contains 'kernel_source_repository'
-assert_provenance_contains 'kernel_source_commit'
-assert_provenance_contains 'kernel_config_source_sha256'
-assert_provenance_contains 'core_series_sha256'
-assert_provenance_contains 'patching_order_source_sha256'
-assert_provenance_contains 'accepted_upstream_patch_sha256'
-assert_provenance_contains 'octessera_follow_up_patch_sha256'
-assert_provenance_contains 'image_package_handoff_sha256'
-assert_provenance_contains 'dtb_package_handoff_sha256'
-assert_provenance_contains 'github_source_sha'
-assert_provenance_contains 'module_interface_options_marker'
-assert_provenance_contains 'module_interface_runtime_marker'
-assert_provenance_contains 'kernel_config_expected_packaged_sha256'
-assert_action_contains 'GITHUB_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}'
 assert_action_contains 'octessera_audio'
-assert_action_contains "octessera_checkout_head=\"\$(git -C \"\$custom_root\" rev-parse HEAD)\""
-assert_action_contains "\"\$octessera_checkout_head\" == \"\$GITHUB_SOURCE_SHA\""
 assert_action_contains 'build/output/images'
 assert_action_contains 'verify-orange-image.sh'
 assert_action_contains 'apt-get install -y --no-install-recommends cpio zstd'
@@ -113,14 +85,8 @@ octessera_reject_file_match 'Armbian image construction must not download upstre
 octessera_reject_file_match 'Armbian build action must not create a generated legal source tree.' -qF 'legal-source' "$action"
 assert_action_contains 'Clean generated legal staging from disposable output'
 
-octessera_reject_file_match 'Armbian build action must not contain a dead provenance printf shim.' -qF "printf '%s\\n' \"github_source_sha=\$GITHUB_SOURCE_SHA\"" "$action"
-
 octessera_reject_file_match 'Armbian build action must not pass the rolling kernel branch as KERNELBRANCH.' -qF "KERNELBRANCH=\"\$OCTESSERA_ARMBIAN_KERNEL_BRANCH\"" "$action"
 
 octessera_reject_file_match 'Armbian build action must use the manifest packaged config hash without a caller-supplied override.' -qF -- '--expected-config-sha256' "$action"
-
-for removed_field in kernel_source_remote_url kernel_source_checkout_path kernel_source_checkout_head kernel_source_base_commit kernel_source_base_is_ancestor; do
-    octessera_reject_file_match "Orange provenance must not contain removed kernel worktree field: $removed_field" -qF "$removed_field" "$provenance_writer"
-done
 
 printf 'Armbian build action static checks passed\n'

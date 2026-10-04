@@ -382,44 +382,14 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path, Path]:
         "module_interface_runtime_marker": "midi_interface_string",
     }
     evidence_path.write_text("\n".join(f"{key}={value}" for key, value in evidence_values.items()) + "\n")
-    provenance_path = work / "kernel-provenance.txt"
-    provenance_values = {
-        "schema": "1",
-        "image_package": CANONICAL_IMAGE,
-        "image_package_native": NATIVE_IMAGE,
-        "image_package_sha256": evidence_values["image_package_sha256"],
-        "dtb_package": CANONICAL_DTB,
-        "dtb_package_native": NATIVE_DTB,
-        "dtb_package_sha256": evidence_values["dtb_package_sha256"],
-        "artifact_suffix": ARTIFACT_SUFFIX,
-        "evidence_sha256": sha256(evidence_path),
-        "armbian_build_ref": "3da49cffcb8ac58a919d86816fec4659c410ff1e",
-        "armbian_build_tag": "v26.11.0-trunk.22",
-        "kernel_source_repository": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
-        "kernel_source_branch": "linux-6.18.y",
-        "kernel_source_commit": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5",
-        "kernel_release": RELEASE,
-        "kernel_config_expected_packaged_sha256": normalized_config_sha256,
-        "kernel_config_final_sha256": evidence_values["final_config_sha256"],
-        "kernel_config_normalized_sha256": evidence_values["normalized_config_sha256"],
-        "kernel_config_sha256_match": "true",
-        "source_lock_path": "userpatches/config/sources/git_sources.json",
-        "source_lock_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30",
-        "source_lock_source": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
-        "source_lock_branch": "linux-6.18.y",
-        "source_lock_commit": "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5",
-        "source_lock_effective_path": "config/sources/git_sources.json",
-        "source_lock_effective_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30",
-    }
-    provenance_path.write_text("\n".join(f"{key}={value}" for key, value in provenance_values.items()) + "\n")
-    return final_root, packages / NATIVE_IMAGE, packages / NATIVE_DTB, evidence_path, provenance_path, fixture_manifest
+    return final_root, packages / NATIVE_IMAGE, packages / NATIVE_DTB, evidence_path, fixture_manifest
 
 
-def verifier_args(root: Path, image: Path, dtb: Path, evidence: Path, provenance: Path, mode: str = "diagnostic", privileged: bool = False, manifest: Path | None = None) -> list[str]:
+def verifier_args(root: Path, image: Path, dtb: Path, evidence: Path, mode: str = "diagnostic", privileged: bool = False, manifest: Path | None = None) -> list[str]:
     command = [sys.executable, str(TOOLS / "verify-orange-image.py")]
     if privileged:
         command = ["sudo", "-n", *command]
-    return [*command, "--root", str(root), "--image-sha256", "a" * 64, "--linux-image", str(image), "--linux-dtb", str(dtb), "--evidence", str(evidence), "--provenance", str(provenance), "--manifest", str(manifest or REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json"), "--construction-contract", str(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"), "--boot-proof-mode", "phase5-constructor", "--mode", mode]
+    return [*command, "--root", str(root), "--image-sha256", "a" * 64, "--linux-image", str(image), "--linux-dtb", str(dtb), "--evidence", str(evidence), "--manifest", str(manifest or REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json"), "--construction-contract", str(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"), "--boot-proof-mode", "phase5-constructor", "--mode", mode]
 
 
 def run_proof(args: list[str], expected: bool, cwd: Path | None = None) -> None:
@@ -451,7 +421,7 @@ def replace_option(args: list[str], option: str, value: Path) -> list[str]:
     return result
 
 
-def make_unrelated_config_fixture(work: Path, root: Path, image: Path, evidence: Path, provenance: Path) -> tuple[Path, Path, Path, Path]:
+def make_unrelated_config_fixture(work: Path, root: Path, image: Path, evidence: Path) -> tuple[Path, Path, Path]:
     negative_root = work / "negative-unrelated-config"
     copy_fixture_root(root, negative_root)
     config_path = negative_root / f"boot/config-{RELEASE}"
@@ -470,11 +440,4 @@ def make_unrelated_config_fixture(work: Path, root: Path, image: Path, evidence:
         value = {"image_package_sha256": sha256(negative_image), "final_config_sha256": hashlib.sha256(config).hexdigest(), "normalized_config_sha256": hashlib.sha256(normalize_kernel_config(config)).hexdigest()}.get(key, value)
         evidence_lines.append(f"{key}={value}")
     negative_evidence.write_text("\n".join(evidence_lines) + "\n")
-    negative_provenance = work / "negative-provenance.txt"
-    provenance_lines = []
-    for line in provenance.read_text().splitlines():
-        key, _, value = line.partition("=")
-        value = {"image_package_sha256": sha256(negative_image), "kernel_config_final_sha256": hashlib.sha256(config).hexdigest(), "kernel_config_normalized_sha256": hashlib.sha256(normalize_kernel_config(config)).hexdigest(), "evidence_sha256": sha256(negative_evidence)}.get(key, value)
-        provenance_lines.append(f"{key}={value}")
-    negative_provenance.write_text("\n".join(provenance_lines) + "\n")
-    return negative_root, negative_image, negative_evidence, negative_provenance
+    return negative_root, negative_image, negative_evidence

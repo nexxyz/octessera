@@ -7,9 +7,8 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 validator="$root/tools/armbian-image/validate-orange-kernel-package.sh"
 finder="$root/tools/armbian-image/find-orange-kernel-packages.sh"
 module_inspector="$root/tools/armbian-image/inspect-orange-kernel-module.sh"
-provenance_writer="$root/tools/armbian-image/write-orange-kernel-provenance.sh"
 
-for script in "$validator" "$finder" "$module_inspector" "$provenance_writer"; do
+for script in "$validator" "$finder" "$module_inspector"; do
   [[ -f "$script" ]] || { echo "Missing Orange kernel package helper: $script" >&2; exit 1; }
   bash -n "$script"
 done
@@ -367,71 +366,9 @@ dpkg-deb --build "$work/bad-dtb-equality-dtb" "$(dtb_package bad-dtb-equality)" 
 reject_validator bad-dtb-equality
 
 evidence="$work/good-evidence.env"
-provenance="$work/provenance.txt"
-handoff="$work/handoff"
-mkdir -p "$handoff"
-cp -- "$(image_package good)" "$handoff/linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb"
-cp -- "$(dtb_package good)" "$handoff/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb"
 OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --manifest "$fixture_manifest" --expected-config-sha256 "$good_normalized_config_sha256" --evidence-output "$evidence" >/dev/null
 grep -q "^packaged_config_expected_sha256=$good_normalized_config_sha256$" "$evidence"
 grep -q "^final_config_sha256=$good_config_sha256$" "$evidence"
 grep -q "^normalized_config_sha256=$good_normalized_config_sha256$" "$evidence"
-GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" \
-ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e \
-  OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$provenance" "$evidence" "" "$good_normalized_config_sha256" "$handoff" >/dev/null
-grep -q '^image_package_sha256=' "$provenance"
-grep -q '^dtb_package_sha256=' "$provenance"
-grep -q '^audio_dts_path=userpatches/overlay/usr/local/share/octessera/device-tree/octessera-ahub0-pcm5102.dts$' "$provenance"
-grep -q '^audio_dtbo_forbidden=octessera-ahub0-pcm5102.dtbo$' "$provenance"
-grep -q '^stock_i2c1_dtbo_path=boot/dtb-6.18.46-current-sunxi64/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo$' "$provenance"
-grep -q '^stock_i2c1_dtbo_sha256=' "$provenance"
-grep -q '^image_package_native=linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb$' "$provenance"
-grep -q '^dtb_package_native=linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb$' "$provenance"
-grep -q '^artifact_suffix=6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a$' "$provenance"
-grep -q '^octessera_checkout_head=' "$provenance"
-grep -q '^kernel_config_final_sha256=' "$provenance"
-grep -q "^kernel_config_expected_packaged_sha256=$good_normalized_config_sha256$" "$provenance"
-grep -q "^kernel_config_final_sha256=$good_config_sha256$" "$provenance"
-grep -q "^kernel_config_normalized_sha256=$good_normalized_config_sha256$" "$provenance"
-grep -q '^kernel_config_sha256_match=true$' "$provenance"
-grep -q '^image_dtb_sha256=' "$provenance"
-grep -q '^evidence_sha256=' "$provenance"
-grep -q '^usb_f_midi_interface_string_marker=interface_string$' "$provenance"
-grep -q '^usb_f_midi_interface_options_marker=f_midi_opts_attr_interface_string$' "$provenance"
-grep -q '^usb_f_midi_interface_runtime_marker=midi_interface_string$' "$provenance"
-grep -q '^armbian_build_repository=https://github.com/armbian/build.git$' "$provenance"
-grep -q '^kernel_source_repository=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git$' "$provenance"
-grep -q '^kernel_source_branch=linux-6.18.y$' "$provenance"
-grep -q '^kernel_source_commit=1f99e9ab748fc5c32120de9c4eca31abfe54a4d5$' "$provenance"
-grep -q '^kernel_config_source_sha256=' "$provenance"
-grep -q '^core_series_sha256=' "$provenance"
-grep -q '^patching_order_source_sha256=' "$provenance"
-grep -q '^accepted_upstream_patch_sha256=' "$provenance"
-grep -q '^octessera_follow_up_patch_sha256=' "$provenance"
-grep -q '^image_package_handoff_sha256=' "$provenance"
-grep -q '^dtb_package_handoff_sha256=' "$provenance"
-grep -q '^github_source_sha=' "$provenance"
-octessera_reject_file_match 'Orange provenance emitted unavailable evidence.' -q 'unavailable' "$provenance"
-grep -q '^armbian_build_ref=3da49cffcb8ac58a919d86816fec4659c410ff1e$' "$provenance"
-grep -q '^armbian_build_tag=v26.11.0-trunk.22$' "$provenance"
-grep -q '^source_lock_path=userpatches/config/sources/git_sources.json$' "$provenance"
-grep -q '^source_lock_sha256=e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30$' "$provenance"
-for removed_field in kernel_source_remote_url kernel_source_checkout_path kernel_source_checkout_head kernel_source_base_commit kernel_source_base_is_ancestor; do
-  octessera_reject_file_match "Orange provenance emitted removed field: $removed_field" -q "^${removed_field}=" "$provenance"
-done
-sed 's/^module_decompressed_sha256=.*/module_decompressed_sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$evidence" > "$work/tampered-evidence.env"
-if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-provenance.txt" "$work/tampered-evidence.env" "" "$good_normalized_config_sha256" >/dev/null 2>&1; then
-  echo 'Orange provenance accepted tampered module hashes.' >&2
-  exit 1
-fi
-if GITHUB_SOURCE_SHA=0123456789012345678901234567890123456789 ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/wrong-checkout-provenance.txt" "$evidence" "" "$good_normalized_config_sha256" >/dev/null 2>&1; then
-  echo 'Orange provenance accepted a mismatched Octessera checkout.' >&2
-  exit 1
-fi
-sed 's/^image_package_sha256=.*/image_package_sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$evidence" > "$work/tampered-package-evidence.env"
-if GITHUB_SOURCE_SHA="$(git -C "$root" rev-parse HEAD)" ARMBIAN_BUILD_REF=3da49cffcb8ac58a919d86816fec4659c410ff1e OCTESSERA_ORANGE_TEST_MODE=1 OCTESSERA_ORANGE_TEST_MANIFEST="$fixture_manifest" bash "$provenance_writer" "$(image_package good)" "$(dtb_package good)" "$work/tampered-package-provenance.txt" "$work/tampered-package-evidence.env" "" "$good_normalized_config_sha256" >/dev/null 2>&1; then
-  echo 'Orange provenance accepted tampered package hashes.' >&2
-  exit 1
-fi
 
 printf 'Orange linux-image/linux-dtb package tests passed\n'

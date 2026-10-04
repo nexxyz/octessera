@@ -100,8 +100,8 @@ def _make_partitioned_image(work: Path, source: Path) -> Path:
 
 def _orange_constructor_assets(work: Path, gathered: Path) -> None:
     fixture_work = work / "orange-proof"
-    _, native_image, native_dtb, evidence, provenance = orange_support.make_fixture(fixture_work)
-    orange_runtime.run_runtime_proof(fixture_work, native_image, native_dtb, evidence, provenance)
+    _, native_image, native_dtb, evidence, manifest_path = orange_support.make_fixture(fixture_work)
+    orange_runtime.run_runtime_proof(fixture_work, native_image, native_dtb, evidence, manifest_path)
     production = fixture_work / "production"
     enabled = production / "etc/systemd/system/multi-user.target.wants/octessera.service"
     if not enabled.exists() and not enabled.is_symlink():
@@ -117,23 +117,12 @@ def _orange_constructor_assets(work: Path, gathered: Path) -> None:
     image_name = final_image.name
     shutil.copyfile(final_image, image_directory / image_name)
     shutil.copyfile(evidence, image_directory / "octessera-orange-kernel-evidence.env")
-    provenance_values = dict(line.split("=", 1) for line in provenance.read_text(encoding="utf-8").splitlines())
-    provenance_values.update(
-        {
-            "armbian_build_repository": armbian["repository"],
-            "github_source_sha": SOURCE_SHA,
-            "package_revision": armbian["package_revision"],
-            "revision_argument": armbian["revision_argument"],
-        }
-    )
-    provenance_path = image_directory / "octessera-orange-kernel-provenance.txt"
-    provenance_path.write_text("\n".join(f"{key}={value}" for key, value in provenance_values.items()) + "\n", encoding="utf-8")
     proof_path = image_directory / "octessera-orange-image-proof.json"
-    proof_command = orange_support.verifier_args(production, image_directory / canonical_image, image_directory / canonical_dtb, image_directory / "octessera-orange-kernel-evidence.env", provenance_path, "production")
+    proof_command = orange_support.verifier_args(production, image_directory / canonical_image, image_directory / canonical_dtb, image_directory / "octessera-orange-kernel-evidence.env", "production")
     subprocess.run([*proof_command, "--output", str(proof_path)], check=True, capture_output=True, text=True)
     image_checksum = f"{_sha(image_directory / image_name)}  {image_name}\n"
     (image_directory / f"{image_name}.sha256").write_text(image_checksum, encoding="utf-8")
-    _checksums(image_directory, "SHA256SUMS-orange-pi-zero-2w.txt", [image_name, f"{image_name}.sha256", canonical_image, canonical_dtb, "octessera-orange-kernel-evidence.env", "octessera-orange-kernel-provenance.txt", "octessera-orange-image-proof.json"])
+    _checksums(image_directory, "SHA256SUMS-orange-pi-zero-2w.txt", [image_name, f"{image_name}.sha256", canonical_image, canonical_dtb, "octessera-orange-kernel-evidence.env", "octessera-orange-image-proof.json"])
 
 
 def _constructor_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path]:
@@ -186,7 +175,7 @@ class BoardImageReleaseTests(unittest.TestCase):
             for name in ("inventory.json", "provenance.json"):
                 (rpi_kernel / name).write_text("{}\n", encoding="utf-8")
             orange_image = f"octessera-{VERSION}-{ORANGE}.img.xz"
-            orange_names = (orange_image, f"{orange_image}.sha256", orange_image_package, orange_dtb_package, "octessera-orange-kernel-evidence.env", "octessera-orange-kernel-provenance.txt", "octessera-orange-image-proof.json", "SHA256SUMS-orange-pi-zero-2w.txt")
+            orange_names = (orange_image, f"{orange_image}.sha256", orange_image_package, orange_dtb_package, "octessera-orange-kernel-evidence.env", "octessera-orange-image-proof.json", "SHA256SUMS-orange-pi-zero-2w.txt")
             for name in orange_names:
                 (orange_images / name).write_bytes(name.encode())
             release = work / "release"

@@ -20,7 +20,7 @@ from test_orange_image_proof_support import (
 )
 
 
-def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, provenance: Path, manifest: Path) -> None:
+def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, manifest: Path) -> None:
     diagnostic = work / "final-root"
     assert "ConditionPathExists=/opt/octessera/current" in (diagnostic / "etc/systemd/system/octessera-orange-boot-splash.service").read_text()
     assert (diagnostic / "etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service").is_symlink()
@@ -82,7 +82,7 @@ def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, proven
                 subprocess.run(["sudo", "-n", "chmod", "0755", str(path)], check=True)
             subprocess.run(["sudo", "-n", "chown", "0:0", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
             subprocess.run(["sudo", "-n", "chmod", "0644", str(production / "etc/udev/rules.d/70-octessera-orange-runtime.rules")], check=True)
-            run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True, manifest), True)
+            run_proof(verifier_args(production, image, dtb, evidence, "production", True, manifest), True)
             for name, mutate in (
                 ("missing-recordings", lambda root: (root / "var/lib/octessera/recordings").rmdir()),
                 ("missing-screen-recordings", lambda root: (root / "var/lib/octessera/screen-recordings").rmdir()),
@@ -98,7 +98,7 @@ def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, proven
                 negative = work / name
                 copy_fixture_root(production, negative)
                 mutate(negative)
-                run_proof(verifier_args(negative, image, dtb, evidence, provenance, "production", True, manifest), False)
+                run_proof(verifier_args(negative, image, dtb, evidence, "production", True, manifest), False)
             for name, mutate, reason in (
                 ("missing-resize-service", lambda root: (root / RESIZE_SERVICE_RELATIVE).unlink(), "Orange resize service is missing or symlinked"),
                 ("wrong-resize-order", lambda root: write(root / RESIZE_SERVICE_RELATIVE, (root / RESIZE_SERVICE_RELATIVE).read_text().replace("Before=basic.target", "Before=multi-user.target")), "Orange resize service directive is wrong: Unit.Before"),
@@ -109,10 +109,10 @@ def run_runtime_proof(work: Path, image: Path, dtb: Path, evidence: Path, proven
                 negative = work / name
                 copy_fixture_root(production, negative)
                 mutate(negative)
-                run_proof_failure(verifier_args(negative, image, dtb, evidence, provenance, "production", True, manifest), reason)
+                run_proof_failure(verifier_args(negative, image, dtb, evidence, "production", True, manifest), reason)
             enabled = production / "etc/systemd/system/multi-user.target.wants/octessera.service"
             enabled.unlink()
-            run_proof(verifier_args(production, image, dtb, evidence, provenance, "production", True, manifest), False)
+            run_proof(verifier_args(production, image, dtb, evidence, "production", True, manifest), False)
         finally:
             owner = work.stat()
             subprocess.run(["sudo", "-n", "chown", "-R", f"{owner.st_uid}:{owner.st_gid}", str(work)], check=False)

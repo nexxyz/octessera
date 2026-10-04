@@ -21,11 +21,11 @@ def main() -> None:
         return
     with tempfile.TemporaryDirectory(prefix="octessera-orange-proof-fixture-") as temporary:
         work = Path(temporary)
-        root, image, dtb, evidence, provenance, manifest = make_fixture(work)
-        test_orange_image_proof_image.run_image_proof(work, (root, image, dtb, evidence, provenance, manifest))
-        test_orange_image_proof_boot.run_boot_proof(work, root, image, dtb, evidence, provenance, manifest)
-        test_orange_image_proof_runtime.run_runtime_proof(work, image, dtb, evidence, provenance, manifest)
-        test_orange_image_proof_security.run_security_proof(work, root, image, dtb, evidence, provenance, manifest)
+        root, image, dtb, evidence, manifest = make_fixture(work)
+        test_orange_image_proof_image.run_image_proof(work, (root, image, dtb, evidence, manifest))
+        test_orange_image_proof_boot.run_boot_proof(work, root, image, dtb, evidence, manifest)
+        test_orange_image_proof_runtime.run_runtime_proof(work, image, dtb, evidence, manifest)
+        test_orange_image_proof_security.run_security_proof(work, root, image, dtb, evidence, manifest)
     print("Orange final image proof synthetic fixtures passed")
 
 

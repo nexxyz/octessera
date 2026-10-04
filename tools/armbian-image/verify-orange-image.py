@@ -92,7 +92,6 @@ def _phase5(args: argparse.Namespace, root: Path, image_hash: str, image_name: s
         "--linux-image": args.linux_image,
         "--linux-dtb": args.linux_dtb,
         "--evidence": args.evidence,
-        "--provenance": args.provenance,
     }
     for label, value in required.items():
         require(value is not None, f"{label} is required for phase5-constructor")
@@ -113,7 +112,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--linux-image", type=Path)
     parser.add_argument("--linux-dtb", type=Path)
     parser.add_argument("--evidence", type=Path)
-    parser.add_argument("--provenance", type=Path)
     parser.add_argument("--construction-contract", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--image-provenance", type=Path)

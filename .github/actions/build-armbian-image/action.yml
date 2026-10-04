@@ -34,10 +34,6 @@ inputs:
     required: false
     default: ""
     description: Local production runtime bundle directory
-  source_sha:
-    required: false
-    default: ""
-    description: Full Octessera source commit SHA for provenance
   boot_proof_mode:
     required: true
     description: Exact Orange boot proof mode
@@ -335,23 +331,6 @@ runs:
             sha256sum -c "$(basename "$checksum")"
           )
         done
-    - name: Record qualification provenance
-      shell: bash
-      env:
-        GITHUB_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
-        ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
-      run: |
-        set -euo pipefail
-        custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
-        [[ "$GITHUB_SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'GitHub source SHA is not a full commit SHA.' >&2; exit 1; }
-        octessera_checkout_head="$(git -C "$custom_root" rev-parse HEAD)"
-        [[ "$octessera_checkout_head" == "$GITHUB_SOURCE_SHA" ]] || { echo 'Octessera checkout HEAD does not match GitHub source SHA.' >&2; exit 1; }
-        mapfile -t linux_kernel_packages < <(bash "$custom_root/tools/armbian-image/find-orange-kernel-packages.sh" build/output/debs)
-        [[ "${#linux_kernel_packages[@]}" == 2 ]] || { echo "Expected the exact Orange linux-image/linux-dtb package pair." >&2; exit 1; }
-        bash "$custom_root/tools/armbian-image/write-orange-kernel-provenance.sh" \
-          "${linux_kernel_packages[0]}" "${linux_kernel_packages[1]}" \
-          build/output/images/octessera-qualification-metadata.txt \
-          build/output/images/octessera-orange-kernel-evidence.env build '' build/output/images
     - name: Prove final Orange image against exact packages
       shell: bash
       env:
@@ -366,14 +345,12 @@ runs:
         mapfile -t linux_kernel_packages < <(bash "$custom_root/tools/armbian-image/find-orange-kernel-packages.sh" build/output/debs)
         [[ "${#linux_kernel_packages[@]}" == 2 ]] || { echo "Expected the exact Orange linux-image/linux-dtb package pair." >&2; exit 1; }
         evidence=build/output/images/octessera-orange-kernel-evidence.env
-        provenance=build/output/images/octessera-qualification-metadata.txt
-        test -f "$evidence" && test -f "$provenance"
+        test -f "$evidence"
         sudo bash "$custom_root/tools/armbian-image/verify-orange-image.sh" \
           --image "${image_artifacts[0]}" \
           --linux-image "${linux_kernel_packages[0]}" \
           --linux-dtb "${linux_kernel_packages[1]}" \
           --evidence "$evidence" \
-          --provenance "$provenance" \
           --manifest "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json" \
           --boot-proof-mode "$OCTESSERA_BOOT_PROOF_MODE" \
           --construction-contract "$custom_root/$OCTESSERA_CONSTRUCTION_CONTRACT" \

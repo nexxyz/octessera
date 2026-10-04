@@ -162,38 +162,12 @@ def _verify_raspberry_kernel(root: Path, kernel_dir: Path, package_name: str) ->
     _require(isinstance(package, dict) and package.get("path") == package_name, "Raspberry kernel inventory package path changed")
 
 
-def _verify_orange_provenance(root: Path, image_dir: Path, source_sha: str, image_package: str, dtb_package: str, manifest: Mapping[str, object]) -> None:
-    evidence_path = image_dir / "octessera-orange-kernel-evidence.env"
-    provenance_path = image_dir / "octessera-orange-kernel-provenance.txt"
-    try:
-        values = dict(line.split("=", 1) for line in evidence_path.read_text(encoding="utf-8").splitlines())
-        facts = dict(line.split("=", 1) for line in provenance_path.read_text(encoding="utf-8").splitlines() if "=" in line)
-    except (OSError, UnicodeDecodeError, ValueError) as error:
-        raise ReleaseArtifactError("Orange provenance evidence is malformed") from error
-    frameworks = _manifest_mapping(manifest.get("build_frameworks"), "kernel manifest build frameworks declaration")
-    armbian = _manifest_mapping(frameworks.get("armbian"), "Armbian framework declaration")
-    kernels = _manifest_mapping(manifest.get("kernels"), "kernel manifest kernels declaration")
-    orange = _manifest_mapping(kernels.get("orange"), "Orange kernel declaration")
-    source_lock = _manifest_mapping(manifest.get("source_lock"), "kernel manifest source lock declaration")
-    expected_suffix = armbian["native_artifact_suffix"]
-    _require(bool(isinstance(expected_suffix, str) and expected_suffix), "Armbian native artifact suffix is malformed")
-    expected_native = tuple(f"{package.removesuffix('.deb')}__{expected_suffix}.deb" for package in (image_package, dtb_package))
-    for key, filename in (("image_package_sha256", image_package), ("dtb_package_sha256", dtb_package)):
-        _require(values.get(key) == _sha256(image_dir / filename), f"Orange provenance hash mismatch: {filename}")
-    _require(facts.get("image_package") == image_package and facts.get("dtb_package") == dtb_package, "Orange provenance package chain is incomplete")
-    expected_facts = {"evidence_sha256": _sha256(evidence_path), "armbian_build_ref": armbian["commit"], "armbian_build_tag": armbian["tag"], "armbian_build_repository": armbian["repository"], "github_source_sha": source_sha, "kernel_source_repository": orange["repository"], "kernel_source_branch": orange["branch"], "kernel_source_commit": orange["commit"], "kernel_release": armbian["kernel_release"], "package_revision": armbian["package_revision"], "revision_argument": armbian["revision_argument"], "source_lock_path": source_lock["path"], "source_lock_sha256": source_lock["sha256"], "source_lock_source": orange["repository"], "source_lock_branch": orange["branch"], "source_lock_commit": orange["commit"], "source_lock_effective_path": "config/sources/git_sources.json", "source_lock_effective_sha256": "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30", "image_package_native": expected_native[0], "dtb_package_native": expected_native[1]}
-    _require(all(facts.get(key) == expected for key, expected in expected_facts.items()), "Orange provenance evidence or build pin is not bound")
-    for key, expected_native_name in (("image_package_native_basename", expected_native[0]), ("dtb_package_native_basename", expected_native[1])):
-        _require(values.get(key) == expected_native_name, "Orange native package name is not manifest-approved")
-    _require(values.get("artifact_suffix") == expected_suffix and facts.get("artifact_suffix") == expected_suffix, "Orange artifact suffix is not the manifest-approved suffix")
-
-
 def _verify_orange_image(root: Path, image_dir: Path, version: str, image_package: str, dtb_package: str) -> None:
     image = image_dir / f"octessera-{version}-orange-pi-zero-2w.img.xz"
-    _run(root, ["sudo", "bash", "tools/armbian-image/verify-orange-image.sh", "--image", str(image), "--linux-image", str(image_dir / image_package), "--linux-dtb", str(image_dir / dtb_package), "--evidence", str(image_dir / "octessera-orange-kernel-evidence.env"), "--provenance", str(image_dir / "octessera-orange-kernel-provenance.txt"), "--manifest", KERNEL_MANIFEST.as_posix(), "--boot-proof-mode", "phase5-constructor", "--construction-contract", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "--image-provenance", str(image_dir / "octessera-orange-image-proof.json"), "--mode", "production"], "Orange image validation")
+    _run(root, ["sudo", "bash", "tools/armbian-image/verify-orange-image.sh", "--image", str(image), "--linux-image", str(image_dir / image_package), "--linux-dtb", str(image_dir / dtb_package), "--evidence", str(image_dir / "octessera-orange-kernel-evidence.env"), "--manifest", KERNEL_MANIFEST.as_posix(), "--boot-proof-mode", "phase5-constructor", "--construction-contract", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "--image-provenance", str(image_dir / "octessera-orange-image-proof.json"), "--mode", "production"], "Orange image validation")
 
 
-def _base_refresh_images(root: Path, gathered_root: Path, release_assets: Path, evidence_staging: Path, version: str, source_sha: str) -> None:
+def _base_refresh_images(root: Path, gathered_root: Path, release_assets: Path, evidence_staging: Path, version: str) -> None:
     manifest = _load_json(root / KERNEL_MANIFEST, "kernel package manifest")
     rpi_kernel_package, orange_kernel_image, orange_kernel_dtb = _package_filenames(manifest)
     prefix = f"octessera-{version}"
@@ -204,12 +178,11 @@ def _base_refresh_images(root: Path, gathered_root: Path, release_assets: Path, 
     orange_image = f"{prefix}-orange-pi-zero-2w.img.xz"
     _require_exact_files(rpi_kernel_dir, (rpi_kernel_package, "SHA256SUMS", "inventory.json", "provenance.json"))
     _require_exact_files(rpi_image_dir, (f"{prefix}-raspberry-pi-zero-2w.img.zip", rpi_manifest, "SHA256SUMS-pi.txt"))
-    _require_exact_files(orange_image_dir, (orange_image, f"{orange_image}.sha256", orange_kernel_image, orange_kernel_dtb, "octessera-orange-kernel-evidence.env", "octessera-orange-kernel-provenance.txt", "octessera-orange-image-proof.json", "SHA256SUMS-orange-pi-zero-2w.txt"))
+    _require_exact_files(orange_image_dir, (orange_image, f"{orange_image}.sha256", orange_kernel_image, orange_kernel_dtb, "octessera-orange-kernel-evidence.env", "octessera-orange-image-proof.json", "SHA256SUMS-orange-pi-zero-2w.txt"))
     _verify_checksum_file(rpi_image_dir, "SHA256SUMS-pi.txt")
     _verify_raspberry_kernel(root, rpi_kernel_dir, rpi_kernel_package)
     _verify_checksum_file(orange_image_dir, f"{orange_image}.sha256")
     _verify_checksum_file(orange_image_dir, "SHA256SUMS-orange-pi-zero-2w.txt")
-    _verify_orange_provenance(root, orange_image_dir, source_sha, orange_kernel_image, orange_kernel_dtb, manifest)
     _verify_orange_image(root, orange_image_dir, version, orange_kernel_image, orange_kernel_dtb)
     _copy_file(rpi_image_dir / f"{prefix}-raspberry-pi-zero-2w.img.zip", release_assets / f"{prefix}-raspberry-pi-zero-2w.img.zip", "release asset")
     _copy_file(rpi_image_dir / rpi_manifest, release_assets / rpi_manifest, "release asset")
@@ -226,7 +199,6 @@ def _base_refresh_images(root: Path, gathered_root: Path, release_assets: Path, 
         (orange_image_dir / orange_kernel_image, evidence_staging / f"orange/kernel/{orange_kernel_image}"),
         (orange_image_dir / orange_kernel_dtb, evidence_staging / f"orange/kernel/{orange_kernel_dtb}"),
         (orange_image_dir / "octessera-orange-kernel-evidence.env", evidence_staging / "orange/kernel/octessera-orange-kernel-evidence.env"),
-        (orange_image_dir / "octessera-orange-kernel-provenance.txt", evidence_staging / "orange/kernel/octessera-orange-kernel-provenance.txt"),
         (orange_image_dir / "octessera-orange-image-proof.json", evidence_staging / "orange/image/octessera-orange-image-proof.json"),
     ):
         _copy_file(source, destination, "release evidence")
@@ -235,7 +207,7 @@ def _base_refresh_images(root: Path, gathered_root: Path, release_assets: Path, 
 def verify_and_stage_board_images(root: Path, gathered_root: Path, release_assets: Path, evidence_staging: Path, raspberry_runtime: Path, orange_runtime: Path, version: str, source_sha: str) -> None:
     try:
         _require(re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None, "source SHA is invalid")
-        _base_refresh_images(root, gathered_root, release_assets, evidence_staging, version, source_sha)
+        _base_refresh_images(root, gathered_root, release_assets, evidence_staging, version)
     except ReleaseArtifactError:
         raise
     except (KeyError, OSError, TypeError, ValueError) as error:

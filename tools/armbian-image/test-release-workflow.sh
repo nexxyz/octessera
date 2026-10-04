@@ -64,7 +64,6 @@ assert_order() {
 assert_contains "$release" 'workflow_dispatch:'
 assert_contains "$boards" 'workflow_call:'
 assert_contains "$boards" 'armbian_build_ref: 3da49cffcb8ac58a919d86816fec4659c410ff1e'
-assert_contains "$boards" 'ARMBIAN_BUILD_REF: 3da49cffcb8ac58a919d86816fec4659c410ff1e'
 assert_absent "$boards" 'fa7a7b2294d9e760a77630950afd460b7a0b2a26'
 armbian_inputs="$root/.github/workflows/armbian-image.yml"
 [[ "$(sed -n '/^    inputs:/,/^permissions:/p' "$armbian_inputs" | grep -cE '^      [A-Za-z0-9_-]+:$')" == 10 ]] || {
@@ -348,7 +347,7 @@ assert_contains "$device_packager" 'updater_manifest = release_manifest(profile,
     exit 1
 }
 octessera_reject_file_match 'Orange standalone device ZIP must use the explicit manual filename.' -qF 'orange-pi-zero-2w-device-aarch64.zip' "$release" "$boards"
-assert_contains "$boards" 'octessera-orange-kernel-provenance.txt'
+octessera_reject_file_match 'Orange release must not ship kernel provenance.' -qF 'kernel-provenance' "$boards"
 assert_contains "$boards" 'canonical_release_paths='
 assert_contains "$boards" '"release-assets/${canonical_packages[0]}"'
 assert_contains "$boards" '"release-assets/${canonical_packages[1]}"'
@@ -358,11 +357,7 @@ assert_contains "$boards" 'for required in "$image" "$image.sha256" "${canonical
 assert_contains "$boards" 'sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}"'
 assert_contains "$release" 'git/ref/tags/$EXPECTED_RELEASE_TAG'
 assert_contains "$release" 'git/tags/$tag_object'
-assert_contains "$board_release" 'expected_native = tuple'
-assert_contains "$board_release" 'source_lock_effective_path'
-assert_contains "$board_release" 'expected_native_name'
 assert_block_contains "$publisher_dependencies_step" 'sudo apt-get install -y --no-install-recommends cpio device-tree-compiler zstd'
-assert_contains "$board_release" 'kernel_source_repository'
 assert_absent "$release" 'expected_count=28'
 assert_absent "$release" 'release-assets/$prefix-notices.zip'
 assert_absent "$release" 'release-assets/$rpi_kernel_package'

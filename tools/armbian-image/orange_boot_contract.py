@@ -83,7 +83,7 @@ def read_kv(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         key, separator, value = line.partition("=")
-        require(bool(separator and key and key not in values), f"malformed or duplicate provenance field: {line}")
+        require(bool(separator and key and key not in values), f"malformed or duplicate key-value field: {line}")
         values[key] = value
     return values
 
@@ -156,9 +156,8 @@ def _package_suffix(path: Path, canonical: str, label: str) -> str:
     return suffix
 
 
-def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[str, str], provenance: dict[str, str], manifest: dict[str, Any], work: Path) -> dict[str, Any]:
+def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[str, str], manifest: dict[str, Any], work: Path) -> dict[str, Any]:
     armbian = manifest["build_frameworks"]["armbian"]
-    orange = manifest["kernels"]["orange"]
     canonical_image, canonical_dtb = armbian["packages"]
     expected_suffix = armbian["native_artifact_suffix"]
     image_suffix = _package_suffix(image_package, canonical_image, "linux-image package")
@@ -169,22 +168,8 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
     require(dtb_package.name == canonical_dtb or fnmatch.fnmatchcase(dtb_package.name, armbian["native_package_patterns"][1]), "linux-dtb package name is not manifest-approved")
     require(sha256_file(image_package) == evidence["image_package_sha256"], "linux-image package hash does not match evidence")
     require(sha256_file(dtb_package) == evidence["dtb_package_sha256"], "linux-dtb package hash does not match evidence")
-    require(evidence["image_package_native_basename"] == provenance.get("image_package_native") == f"{canonical_image.removesuffix('.deb')}__{expected_suffix}.deb" and evidence["dtb_package_native_basename"] == provenance.get("dtb_package_native") == f"{canonical_dtb.removesuffix('.deb')}__{expected_suffix}.deb" and provenance.get("artifact_suffix") == expected_suffix, "native package evidence is not bound")
-    require(provenance.get("image_package") == canonical_image and provenance.get("dtb_package") == canonical_dtb, "kernel provenance canonical package identity changed")
-    for package, canonical, pattern, key in ((image_package, canonical_image, armbian["native_package_patterns"][0], "image_package_native"), (dtb_package, canonical_dtb, armbian["native_package_patterns"][1], "dtb_package_native")):
-        if package.name.startswith(canonical.removesuffix(".deb") + "__"):
-            require(provenance.get(key) == package.name, "kernel provenance native package identity changed")
-        else:
-            require(fnmatch.fnmatchcase(provenance.get(key, ""), pattern), "kernel provenance native package identity is missing")
-    require(provenance.get("image_package_sha256") == evidence["image_package_sha256"] and provenance.get("dtb_package_sha256") == evidence["dtb_package_sha256"], "kernel provenance package hash is not bound")
-    require(provenance.get("evidence_sha256") == evidence.get("_sha256"), "kernel provenance evidence hash is not bound")
-    require(provenance.get("armbian_build_ref") == armbian["commit"] and provenance.get("armbian_build_tag") == armbian["tag"], "kernel provenance framework changed")
-    require(provenance.get("kernel_source_repository") == orange["repository"] and provenance.get("kernel_source_branch") == orange["branch"] and provenance.get("kernel_source_commit") == orange["commit"], "kernel provenance source changed")
-    source_lock = manifest["source_lock"]
-    require(provenance.get("source_lock_path") == source_lock["path"] and provenance.get("source_lock_sha256") == source_lock["sha256"] and provenance.get("source_lock_effective_path") == "config/sources/git_sources.json" and provenance.get("source_lock_effective_sha256") == "e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30", "kernel provenance source lock changed")
-    require(provenance.get("source_lock_source") == orange["repository"] and provenance.get("source_lock_branch") == orange["branch"] and provenance.get("source_lock_commit") == orange["commit"], "kernel provenance source lock entry changed")
+    require(evidence["image_package_native_basename"] == f"{canonical_image.removesuffix('.deb')}__{expected_suffix}.deb" and evidence["dtb_package_native_basename"] == f"{canonical_dtb.removesuffix('.deb')}__{expected_suffix}.deb", "native package evidence is not bound")
     release = armbian["kernel_release"]
-    require(provenance.get("kernel_release") == release, "kernel provenance ABI changed")
     image_identity = _dpkg_fields(image_package, "Package", "Version", "Architecture", "Source", "Armbian-Kernel-Version", "Armbian-Kernel-Version-Family")
     dtb_identity = _dpkg_fields(dtb_package, "Package", "Version", "Architecture")
     expected_architecture = canonical_image.rsplit("_", 1)[1].removesuffix(".deb")
@@ -205,7 +190,7 @@ def verify_package_chain(image_package: Path, dtb_package: Path, evidence: dict[
         config_hash, normalized_config_hash = kernel_config_hashes(config_bytes)
     except ValueError as error:
         raise BootContractError(f"exact package kernel config normalization failed: {error}") from error
-    require(config_hash == evidence["final_config_sha256"] and normalized_config_hash == evidence["normalized_config_sha256"] and normalized_config_hash == armbian["packaged_config_normalized_sha256"] and evidence["packaged_config_expected_sha256"] == armbian["packaged_config_normalized_sha256"] and provenance.get("kernel_config_expected_packaged_sha256") == armbian["packaged_config_normalized_sha256"] and provenance.get("kernel_config_final_sha256") == config_hash and provenance.get("kernel_config_normalized_sha256") == normalized_config_hash and provenance.get("kernel_config_sha256_match") == "true", "package kernel config evidence changed")
+    require(config_hash == evidence["final_config_sha256"] and normalized_config_hash == evidence["normalized_config_sha256"] and normalized_config_hash == armbian["packaged_config_normalized_sha256"] and evidence["packaged_config_expected_sha256"] == armbian["packaged_config_normalized_sha256"], "package kernel config evidence changed")
     require(evidence.get("audio_dts_path") == audio["canonical_dts"] and evidence.get("audio_dts_sha256") == audio["canonical_dts_sha256"] and evidence.get("audio_dtbo_forbidden") == audio["dtbo_name"], "Orange audio package evidence changed")
     config_lines = config.read_text(encoding="utf-8").splitlines()
     for line in ("CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y"):
@@ -481,15 +466,12 @@ def constructor_proof(root: Path, args: Any, image_hash: str, image_name: str, c
     manifest_path = args.manifest
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     evidence = read_kv(args.evidence)
-    provenance = read_kv(args.provenance)
-    evidence["_sha256"], provenance["_sha256"] = sha256_file(args.evidence), sha256_file(args.provenance)
+    evidence["_sha256"] = sha256_file(args.evidence)
     required = {"image_package_native_basename", "dtb_package_native_basename", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "image_dtb_sha256", "dtb_package_dtb_sha256", "dtb_byte_equal", "stock_i2c1_dtbo_path", "stock_i2c1_dtbo_sha256", "audio_dts_path", "audio_dts_sha256", "audio_dtbo_forbidden", "packaged_config_expected_sha256", "final_config_sha256", "normalized_config_sha256", "module_relative_path", "module_compressed_sha256", "module_decompressed_sha256", "module_vermagic", "module_interface_string_marker", "module_interface_options_marker", "module_interface_runtime_marker"}
     require(set(evidence) - {"_sha256"} == required and evidence.get("dtb_byte_equal") == "true", "Orange kernel evidence fields changed")
-    for key in ("image_package", "dtb_package", "image_package_native", "dtb_package_native", "artifact_suffix", "image_package_sha256", "dtb_package_sha256", "evidence_sha256", "armbian_build_ref", "armbian_build_tag", "kernel_source_repository", "kernel_source_branch", "kernel_source_commit", "kernel_release", "kernel_config_expected_packaged_sha256", "kernel_config_final_sha256", "kernel_config_normalized_sha256", "kernel_config_sha256_match", "source_lock_path", "source_lock_sha256", "source_lock_source", "source_lock_branch", "source_lock_commit", "source_lock_effective_path", "source_lock_effective_sha256"):
-        require(key in provenance, f"Orange kernel provenance omits required field: {key}")
     with tempfile.TemporaryDirectory(prefix="octessera-orange-package-proof-") as temporary:
-        package = verify_package_chain(args.linux_image, args.linux_dtb, evidence, provenance, manifest, Path(temporary))
+        package = verify_package_chain(args.linux_image, args.linux_dtb, evidence, manifest, Path(temporary))
     boot = verify_boot(root, package, contract, repository_root)
     verify_dpkg_status(root, package)
     runtime = verify_runtime(root, args.mode, contract, repository_root)
-    return {"schema": "octessera.image-proof/v2", "schema_version": 2, "proof_mode": "phase5-constructor", "phase5_claim": True, "boot_state": "phase5-v1", "artifact": {"name": image_name, "sha256": image_hash, "compression": compression}, "board_profile": "orange-pi-zero-2w", "runtime": runtime, "kernel": {"release": package["release"], "linux_image_package": provenance["image_package"], "linux_dtb_package": provenance["dtb_package"], "evidence_sha256": evidence["_sha256"], "provenance_sha256": provenance["_sha256"]}, "device_config_validator": boot["device_config_validator"], "contract": {"path": str(contract_path.relative_to(repository_root)), "sha256": contract_hash}}
+    return {"schema": "octessera.image-proof/v2", "schema_version": 2, "proof_mode": "phase5-constructor", "phase5_claim": True, "boot_state": "phase5-v1", "artifact": {"name": image_name, "sha256": image_hash, "compression": compression}, "board_profile": "orange-pi-zero-2w", "runtime": runtime, "kernel": {"release": package["release"], "linux_image_package": manifest["build_frameworks"]["armbian"]["packages"][0], "linux_dtb_package": manifest["build_frameworks"]["armbian"]["packages"][1], "evidence_sha256": evidence["_sha256"]}, "device_config_validator": boot["device_config_validator"], "contract": {"path": str(contract_path.relative_to(repository_root)), "sha256": contract_hash}}
