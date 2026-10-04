@@ -425,7 +425,7 @@ octessera_reject_file_match 'Cross installation must verify a downloaded archive
 assert_contains "$sanitizer" 'Expected exactly one .img inside'
 assert_contains "$sanitizer" 'require_managed_runtime_binary "$WORK_DIR/root"'
 assert_contains "$sanitizer" 'source "$SCRIPT_DIR/verify-managed-runtime.sh"'
-assert_contains "$boards" 'verify-sanitized-image.sh --verification-profile full-constructor --runtime-bundle runtime-bundle "$asset"'
+assert_contains "$boards" 'verify-sanitized-image.sh --runtime-bundle runtime-bundle "$asset"'
 bash -n "$runtime_chain_helper" "$runtime_chain_test"
 bash "$runtime_chain_test"
 bash -n "$boot_layout_test"

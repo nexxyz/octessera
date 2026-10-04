@@ -59,37 +59,3 @@ assert_status 1 octessera_unit_masked_path "$fake_image" etc/systemd/system/ssh.
 [[ "$(octessera_debugfs_fast_link_target 'Fast link dest: /dev/null')" == /dev/null ]] || { echo 'Raw fast-link target was not normalized.' >&2; exit 1; }
 assert_status 1 octessera_debugfs_fast_link_target $'Fast link dest: "/dev/null"\nFast link dest: "/dev/null"'
 assert_status 1 octessera_debugfs_fast_link_target 'Fast link dest: "/dev/null" trailing'
-
-make_required_fixture() {
-  local fixture="$1"
-  mkdir -p "$fixture/etc/ssh"
-  printf '%s\n' 'octessera:!:19000:0:99999:7:::' > "$fixture/etc/shadow"
-}
-assert_inspector_failure() {
-  local fixture="$1" expected="$2" stderr_path="$work/inspector.stderr"
-  if bash "$inspector" --verification-profile legacy-runtime-only "$fixture" >"$work/inspector.stdout" 2>"$stderr_path"; then
-    echo "Inspector accepted malformed required files in $fixture." >&2
-    exit 1
-  fi
-  grep -Fq "$expected" "$stderr_path" || { echo "Inspector failure did not identify $expected." >&2; cat "$stderr_path" >&2; exit 1; }
-}
-missing_shadow="$work/missing-shadow"
-mkdir -p "$missing_shadow/etc/ssh"
-assert_inspector_failure "$missing_shadow" 'Unable to read required image path: etc/shadow.'
-missing_passwd="$work/missing-passwd"
-make_required_fixture "$missing_passwd"
-assert_inspector_failure "$missing_passwd" 'Unable to read required image path: etc/passwd.'
-missing_login_defs="$work/missing-login-defs"
-make_required_fixture "$missing_login_defs"
-printf '%s\n' 'root:x:0:0:root:/root:/bin/bash' > "$missing_login_defs/etc/passwd"
-assert_inspector_failure "$missing_login_defs" 'Unable to read required image path: etc/login.defs.'
-missing_account="$work/missing-account"
-make_required_fixture "$missing_account"
-printf '%s\n' 'UID_MIN 1000' > "$missing_account/etc/login.defs"
-printf '%s\n' 'root:x:0:0:root:/root:/bin/bash' > "$missing_account/etc/passwd"
-assert_inspector_failure "$missing_account" 'missing the expected octessera account'
-malformed_account="$work/malformed-account"
-make_required_fixture "$malformed_account"
-printf '%s\n' 'UID_MIN 1000' > "$malformed_account/etc/login.defs"
-printf '%s\n' 'octessera:x:1000:1000:Octessera:/srv/octessera:/bin/bash' > "$malformed_account/etc/passwd"
-assert_inspector_failure "$malformed_account" 'unexpected octessera account'

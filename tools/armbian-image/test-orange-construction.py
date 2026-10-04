@@ -12,7 +12,6 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/verify-orange-image.py",
     "tools/armbian-image/orange_boot_contract.py",
     "tools/armbian-image/orange_kernel_config.py",
-    "tools/armbian-image/orange_first_boot_contract.py",
     "tools/armbian-image/orange_boot_inventory.py",
     "tools/armbian-image/orange_boot_selection.py",
     "tools/armbian-image/orange_image_mount.py",
@@ -92,7 +91,6 @@ for path in sorted(SOURCE_BOUND_PROOF_SOURCES):
         raise AssertionError(f"missing Orange proof source was accepted: {path}")
 
 construction_inputs = {item["path"]: item for item in contract["exact_inputs"]}
-assert construction_inputs["tools/armbian-image/orange_first_boot_contract.py"]["mode"] == 420
 assert construction_inputs["userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"]["mode"] == 420
 assert "CONFIG_SND_SOC_PCM5102A" not in (ROOT / "userpatches/extensions/octessera_audio.sh").read_text(encoding="utf-8")
 assert all(any(item["path"] == path for item in contract["managed_outputs"]) for path in (

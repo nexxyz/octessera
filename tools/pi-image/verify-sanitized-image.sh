@@ -1,22 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-VERIFICATION_PROFILE=""
-CONSTRUCTOR_POLICY_REQUIRED=false
-SETUP_LAYER_REQUIRED=false
 RUNTIME_BUNDLE=""
 usage() {
-    echo "Usage: $0 --verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer [--runtime-bundle <dir>] <image.zip>" >&2
+    echo "Usage: $0 [--runtime-bundle <dir>] <image.zip>" >&2
 }
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --verification-profile)
-            [ "$#" -ge 2 ] || { usage; exit 2; }
-            [ -z "$VERIFICATION_PROFILE" ] || { echo "verification profile selected more than once" >&2; usage; exit 2; }
-            VERIFICATION_PROFILE="$2"
-            shift 2
-            ;;
         --runtime-bundle)
             [ "$#" -ge 2 ] || { usage; exit 2; }
             RUNTIME_BUNDLE="$2"
@@ -31,28 +22,6 @@ while [ "$#" -gt 0 ]; do
             ;;
     esac
 done
-
-case "$VERIFICATION_PROFILE" in
-    full-constructor)
-        CONSTRUCTOR_POLICY_REQUIRED=true
-        SETUP_LAYER_REQUIRED=true
-        ;;
-    legacy-runtime-only)
-        ;;
-    legacy-setup-layer)
-        SETUP_LAYER_REQUIRED=true
-        ;;
-    "")
-        echo "--verification-profile is required" >&2
-        usage
-        exit 2
-        ;;
-    *)
-        echo "invalid verification profile: $VERIFICATION_PROFILE" >&2
-        usage
-        exit 2
-        ;;
-esac
 
 if [ "$#" -lt 1 ]; then
     usage
@@ -216,24 +185,22 @@ require_wifi_foundation() {
     require_root_mode "$helper" 755
     require_root_mode "$unit" 644
     require_root_mode "$WORK_DIR/root/usr/local/bin/wifi-connect" 755
-    if [ "$CONSTRUCTOR_POLICY_REQUIRED" = true ]; then
-        for path in "$wifi_connect_doc_root/LICENSE" "$wifi_connect_doc_root/THIRD-PARTY-NOTICES.md" "$wifi_connect_doc_root/wifi-connect.metadata.json" "$wifi_connect_doc_root/cargo-metadata.json"; do
-            require_path "$path" "patched wifi-connect documentation path"
-            require_root_mode "$path" 644
-        done
-        echo "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627  $WORK_DIR/root/usr/local/bin/wifi-connect" | sha256sum -c - >/dev/null 2>&1 || {
-            echo "Sanitation check failed: patched wifi-connect binary has the wrong SHA-256" >&2
-            exit 1
-        }
-        grep -qF '"binary_sha256": "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
-            echo "Sanitation check failed: patched wifi-connect metadata has the wrong binary SHA-256" >&2
-            exit 1
-        }
-        grep -qF '"patch_sha256": "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
-            echo "Sanitation check failed: patched wifi-connect metadata has the wrong patch SHA-256" >&2
-            exit 1
-        }
-    fi
+    for path in "$wifi_connect_doc_root/LICENSE" "$wifi_connect_doc_root/THIRD-PARTY-NOTICES.md" "$wifi_connect_doc_root/wifi-connect.metadata.json" "$wifi_connect_doc_root/cargo-metadata.json"; do
+        require_path "$path" "patched wifi-connect documentation path"
+        require_root_mode "$path" 644
+    done
+    echo "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627  $WORK_DIR/root/usr/local/bin/wifi-connect" | sha256sum -c - >/dev/null 2>&1 || {
+        echo "Sanitation check failed: patched wifi-connect binary has the wrong SHA-256" >&2
+        exit 1
+    }
+    grep -qF '"binary_sha256": "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
+        echo "Sanitation check failed: patched wifi-connect metadata has the wrong binary SHA-256" >&2
+        exit 1
+    }
+    grep -qF '"patch_sha256": "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"' "$wifi_connect_doc_root/wifi-connect.metadata.json" || {
+        echo "Sanitation check failed: patched wifi-connect metadata has the wrong patch SHA-256" >&2
+        exit 1
+    }
     grep -qF -- '--portal-interface wlan0' "$helper" || {
         echo "Sanitation check failed: Wi-Fi foundation does not fix wlan0" >&2
         exit 1
@@ -473,9 +440,7 @@ if grep -RIE '(BEGIN (RSA|OPENSSH) PRIVATE KEY|ghp_|github_pat_|ssid=|psk=)' \
 fi
 
 require_managed_runtime_binary "$WORK_DIR/root" "$RUNTIME_BUNDLE"
-if [ "$CONSTRUCTOR_POLICY_REQUIRED" = true ]; then
-    require_raspberry_constructor_policy
-fi
+require_raspberry_constructor_policy
 require_path "$WORK_DIR/root/etc/systemd/system/octessera.service" "octessera.service"
 require_path "$WORK_DIR/root/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service" "enabled boot splash service"
 require_path "$WORK_DIR/root/etc/sudoers.d/octessera-shutdown" "shutdown sudoers rule"
@@ -487,8 +452,6 @@ require_octessera_boot_layer "$WORK_DIR/boot" "$WORK_DIR/root"
 require_octessera_raspberry_identity_for_boot_layer "$WORK_DIR/boot" "$WORK_DIR/root"
 require_updater_protocol
 require_wifi_foundation
-if [ "$SETUP_LAYER_REQUIRED" = true ]; then
-    require_setup_layer
-fi
+require_setup_layer
 
 echo "Pi image sanitation check passed (boot layer: $OCTESSERA_BOOT_LAYER_CLASSIFICATION)"

@@ -128,16 +128,7 @@ def classify_boot_layer(root: Path, boot_layer_contract_path: Path = BOOT_LAYER_
         if sum(line.startswith("Environment=OCTESSERA_OLED_BOOT_HANDOFF=") for line in runtime_lines) != 1:
             raise ImageProofError("Raspberry constructor runtime service has an extra OLED handoff environment")
         return "constructor-required", load_boot_layer_contract(boot_layer_contract_path)
-    if "Type=oneshot" in lines:
-        for item in ("After=systemd-modules-load.service systemd-udevd.service", "Before=sysinit.target octessera.service", "ExecStart=-/usr/local/bin/octessera-pi --boot-splash-once", "TimeoutStartSec=2", "WantedBy=sysinit.target"):
-            if item not in lines:
-                raise ImageProofError(f"trusted-parent-v0.7.5 boot service is missing {item}")
-        if "Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1" in lines or "ExecStart=/usr/local/bin/octessera-pi --boot-splash-loop" in lines or "Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1" in runtime_lines or "Wants=octessera-boot-splash.service" in runtime_lines or "After=octessera-boot-splash.service" in runtime_lines:
-            raise ImageProofError("trusted-parent-v0.7.5 image unexpectedly contains the v1 handoff")
-        if sum(line.startswith("Type=") for line in lines) != 1 or sum(line.startswith("ExecStart=") for line in lines) != 1:
-            raise ImageProofError("trusted-parent-v0.7.5 boot service has duplicate directives")
-        return "trusted-parent-v0.7.5", None
-    raise ImageProofError("Raspberry boot service is neither current constructor output nor the v0.7.5 trusted parent")
+    raise ImageProofError("Raspberry boot service is not current constructor output")
 
 
 def load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str, Any]:

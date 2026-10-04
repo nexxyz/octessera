@@ -169,12 +169,7 @@ require_octessera_boot_layer() {
         export OCTESSERA_BOOT_LAYER_CLASSIFICATION=constructor-required
         return
     fi
-    if grep -qxF 'Type=oneshot' "$service" 2>/dev/null; then
-        require_octessera_trusted_parent_boot_layout "$image_root"
-        export OCTESSERA_BOOT_LAYER_CLASSIFICATION=trusted-parent-v0.7.5
-        return
-    fi
-    echo "boot-layer: Raspberry service is neither current constructor output nor the v0.7.5 trusted parent" >&2
+    echo "boot-layer: Raspberry service is not current constructor output" >&2
     return 1
 }
 
@@ -388,9 +383,6 @@ require_octessera_raspberry_identity_for_boot_layer() {
             require_octessera_raspberry_identity "$@" || return 1
             require_octessera_raspberry_usb_role_layout "$@" || return 1
             ;;
-        trusted-parent-v0.7.5)
-            require_octessera_trusted_parent_raspberry_identity "$@"
-            ;;
         *)
             echo "Raspberry identity: boot layer classification is unknown" >&2
             return 1
@@ -485,5 +477,3 @@ require_octessera_boot_overlay() {
     done
 }
 
-# shellcheck disable=SC1091
-source "$REPOSITORY_ROOT/tools/pi-image/verify-trusted-parent-v0.7.5.sh"

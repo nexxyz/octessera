@@ -16,7 +16,6 @@ trap 'rm -rf "$work"' EXIT
 
 mkdir -p "$mock_bin"
 for module in \
-  "$root/tools/armbian-image/inspect-account-ssh.sh" \
   "$root/tools/armbian-image/inspect-network.sh" \
   "$root/tools/armbian-image/inspect-device-tree.sh" \
   "$root/tools/armbian-image/inspect-runtime-contracts.sh" \

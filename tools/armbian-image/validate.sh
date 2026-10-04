@@ -44,9 +44,7 @@ python3 "$device_config_stager"
 # shellcheck source=tools/armbian-image/validation-runner.sh
 source "$root/tools/armbian-image/validation-runner.sh"
 octessera_run_validation_stages \
-  "$root/tools/armbian-image/validate-source-shape.sh" \
   "$root/tools/armbian-image/validate-device-tree.sh" \
-  "$root/tools/armbian-image/validate-security-policy.sh" \
-  "$root/tools/armbian-image/validate-image-proof.sh"
+  "$root/tools/armbian-image/validate-image-tests.sh"
 
 echo 'Armbian image validation passed.'

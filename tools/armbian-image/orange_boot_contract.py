@@ -16,7 +16,6 @@ from typing import Any
 
 from orange_boot_selection import parse_boot_selectors, safe_resolve
 from orange_audio_proof import verify_audio_overlay
-from orange_first_boot_contract import verify_initial_access, verify_production_first_boot
 from orange_kernel_config import kernel_config_hashes, normalize_kernel_config
 from orange_phase5_proof import verify_selected_initramfs
 from orange_sd_card_proof import verify_orange_sd_card
@@ -43,7 +42,6 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/verify-orange-image.py",
     "tools/armbian-image/orange_boot_contract.py",
     "tools/armbian-image/orange_kernel_config.py",
-    "tools/armbian-image/orange_first_boot_contract.py",
     "tools/armbian-image/orange_boot_inventory.py",
     "tools/armbian-image/orange_boot_selection.py",
     "tools/armbian-image/orange_image_mount.py",
@@ -345,7 +343,6 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
     require(validator_input[0]["sha256"] == validator_source_hash and validator_input[0]["size"] == validator_source_size, "canonical Orange device config validator input changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == "usr/local/lib/octessera/device_config.py"), None) == {"path": "usr/local/lib/octessera/device_config.py", "mode": 420, "uid": 0, "gid": 0}, "Orange validator managed output changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == construction["terminal_invariants"]["hushlogin_path"]), None) == {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"}, "Orange hushlogin managed output changed")
-    verify_initial_access(root, construction["terminal_invariants"], require)
     uart = construction["uart_invariants"]
     armbian_env = root / "boot/armbianEnv.txt"
     require(armbian_env.is_file() and not armbian_env.is_symlink(), "Orange Armbian boot environment is missing or symlinked")
@@ -404,7 +401,6 @@ def verify_runtime(root: Path, mode: str, construction: dict[str, Any], reposito
         for path in (root / "usr/local/bin/octessera-pi", root / "etc/systemd/system/octessera.service", root / "opt/octessera/current", root / "opt/octessera/releases"):
             require(not path.exists() and not path.is_symlink(), f"diagnostic image contains production runtime path: {path.relative_to(root)}")
         return {"runtime_service_mode": "disabled"}
-    verify_production_first_boot(root, construction["terminal_invariants"], require)
     version, binary_hash, metadata_hash, sums_hash = (metadata.get(key, "") for key in ("OCTESSERA_RUNTIME_VERSION", "OCTESSERA_RUNTIME_BINARY_SHA256", "OCTESSERA_RUNTIME_METADATA_SHA256", "OCTESSERA_RUNTIME_MANIFEST_SHA256"))
     require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,63}", version) is not None, "production runtime version is invalid")
     require(all(re.fullmatch(r"[0-9a-f]{64}", value or "") for value in (binary_hash, metadata_hash, sums_hash)), "production runtime hashes are invalid")

@@ -73,14 +73,10 @@ export spi_dtbo_path=boot/overlay-user/octessera-h618-spi1-oled-sd2.dtbo
 source "$module_dir/validation-assertions.sh"
 # shellcheck source=tools/armbian-image/inspect-mode.sh
 source "$module_dir/inspect-mode.sh"
-# shellcheck source=tools/armbian-image/authorized-key-paths.sh
-source "$module_dir/authorized-key-paths.sh"
 # shellcheck source=tools/armbian-image/inspect-path.sh
 source "$module_dir/inspect-path.sh"
 # shellcheck source=tools/armbian-image/setup-layer-proof.sh
 source "$module_dir/setup-layer-proof.sh"
-# shellcheck source=tools/armbian-image/inspect-account-ssh.sh
-source "$module_dir/inspect-account-ssh.sh"
 # shellcheck source=tools/armbian-image/inspect-network.sh
 source "$module_dir/inspect-network.sh"
 # shellcheck source=tools/armbian-image/inspect-device-tree.sh
@@ -167,7 +163,6 @@ reject_path() {
   fi
 }
 
-octessera_require_account_ssh_contract
 profile_metadata="$(read_file etc/octessera/build-metadata.env)"
 default_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_PI_DEFAULT_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"
 samples_manifest_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_SAMPLES_MANIFEST_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"

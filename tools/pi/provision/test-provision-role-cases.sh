@@ -2,7 +2,7 @@
 
 for role_case in duplicate malformed; do
   new_fixture
-  cp "$ROOT/tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/config.txt" "$FIXTURE/boot/firmware/config.txt"
+  cp "$ROOT/tools/pi-image/fixtures/stock-boot-config.txt" "$FIXTURE/boot/firmware/config.txt"
   if [ "$role_case" = duplicate ]; then
     printf '%s\n' 'dtoverlay=dwc2,dr_mode=host' >> "$FIXTURE/boot/firmware/config.txt"
     role_error='managed .all. contains duplicate'
@@ -38,7 +38,7 @@ PY
 }
 
 new_fixture
-stock_config="$ROOT/tools/pi-image/fixtures/trusted-parent-v0.7.5/boot/config.txt"
+stock_config="$ROOT/tools/pi-image/fixtures/stock-boot-config.txt"
 cp "$stock_config" "$FIXTURE/boot/firmware/config.txt"
 cp "$stock_config" "$TMP/stock-config-before"
 run_provision default

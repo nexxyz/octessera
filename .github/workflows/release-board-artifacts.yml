@@ -355,7 +355,7 @@ jobs:
             --repository "$GITHUB_REPOSITORY" \
             --board-profile raspberry-pi-zero-2w \
             --manifest-out "release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.rpi-imager-manifest"
-          sudo bash tools/pi-image/verify-sanitized-image.sh --verification-profile full-constructor --runtime-bundle runtime-bundle "$asset"
+          sudo bash tools/pi-image/verify-sanitized-image.sh --runtime-bundle runtime-bundle "$asset"
           unzip -q "$asset" -d extracted-image
           mapfile -t images < <(find extracted-image -type f -name '*.img' -print | sort)
           [[ "${#images[@]}" == 1 ]] || { echo "Expected exactly one image extracted from the Raspberry ZIP, found ${#images[@]}." >&2; exit 1; }

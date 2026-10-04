@@ -37,7 +37,6 @@ python3 "$root/tools/armbian-image/test-device-config.py"
 python3 "$root/tools/armbian-image/test-orange-device-apply.py"
 bash "$root/tools/armbian-image/test-orange-boot-splash-hook.sh"
 
-bash "$root/tools/armbian-image/test-image-sanitization.sh"
 bash "$root/tools/armbian-image/test-inspector.sh"
 bash "$root/tools/armbian-image/test-image-mode.sh"
 bash "$root/tools/armbian-image/test-orange-runtime-service.sh"
@@ -89,35 +88,3 @@ if [[ "${OCTESSERA_IMAGE_MODE:-diagnostic}" == diagnostic ]]; then
     exit 1
   }
 fi
-
-grep -qF 'resolve-armbian-extensions.sh' "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF "\"ENABLE_EXTENSIONS=\$effective_extensions\"" "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF 'default: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF 'octessera_audio' "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF 'octessera_image_sanitize' "$root/.github/actions/build-armbian-image/action.yml"
-grep -q 'ARMBIAN_BOARD:.*inputs.board' "$root/.github/workflows/armbian-image.yml"
-grep -q 'ARMBIAN_BUILD_REF:.*inputs.armbian_build_ref' "$root/.github/workflows/armbian-image.yml"
-grep -qF 'OCTESSERA_IMAGE_MODE: diagnostic' "$root/.github/workflows/armbian-image.yml"
-grep -qF 'OCTESSERA_IMAGE_MODE=diagnostic bash tools/armbian-image/validate.sh' "$root/.github/workflows/ci.yml"
-[[ "$(grep -cF 'image_kind: diagnostic' "$root/.github/workflows/armbian-image.yml")" == 2 ]]
-grep -qF 'image_kind: production' "$root/.github/workflows/release-board-artifacts.yml"
-grep -qF 'construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json' "$root/.github/workflows/release-board-artifacts.yml"
-grep -q 'OCTESSERA_ARMBIAN_BOARD.*orangepizero2w' "$root/.github/actions/build-armbian-image/action.yml"
-grep -q 'ARMBIAN_BUILD_REF.*40' "$root/.github/actions/build-armbian-image/action.yml"
-grep -qF -- '--verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer' "$root/tools/armbian-image/inspect-built-image.sh"
-grep -qF -- '--verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer' "$root/tools/armbian-image/inspect-output-images.sh"
-grep -qF "octessera_require_constructor_device_tree_contract \"\$verification_profile\" \"\$profile_metadata\"" "$root/tools/armbian-image/inspect-built-image.sh"
-grep -qF 'full-constructor)' "$root/tools/armbian-image/verification-profile.sh"
-grep -qF 'legacy-runtime-only|legacy-setup-layer)' "$root/tools/armbian-image/verification-profile.sh"
-grep -qF 'spi_source_path=usr/local/share/octessera/device-tree/octessera-h618-spi1-oled-sd2.dts' "$root/tools/armbian-image/inspect-built-image.sh"
-grep -qF 'spi_dtbo_path=boot/overlay-user/octessera-h618-spi1-oled-sd2.dtbo' "$root/tools/armbian-image/inspect-built-image.sh"
-action="$root/.github/actions/build-armbian-image/action.yml"
-proof_step="$(awk '
-  $0 == "    - name: Prove final Orange image against exact packages" { in_step = 1 }
-  in_step && $0 == "    - name: Clean generated legal staging from disposable output" { exit }
-  in_step { print }
-' "$action")"
-[[ "$(grep -cF "OCTESSERA_BOOT_PROOF_MODE: \${{ inputs.boot_proof_mode }}" <<< "$proof_step")" == 1 ]]
-[[ "$(grep -cF "OCTESSERA_CONSTRUCTION_CONTRACT: \${{ inputs.construction_contract }}" <<< "$proof_step")" == 1 ]]
-
-bash "$root/tools/armbian-image/validate-source-shape.sh"

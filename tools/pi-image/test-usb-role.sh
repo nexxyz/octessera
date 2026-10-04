@@ -21,7 +21,7 @@ write_config() {
 }
 
 write_stock_config() {
-    cp "$script_dir/fixtures/trusted-parent-v0.7.5/boot/config.txt" "$config"
+    cp "$script_dir/fixtures/stock-boot-config.txt" "$config"
     chmod 0640 "$config"
     chown 0:0 "$config"
 }
