@@ -178,8 +178,8 @@ separate production-runtime contract. Passing the candidate metadata command
 does not qualify the image.
 
 Production image artifacts use the version-qualified name
-`octessera-<version>-orange-pi-zero-2w.img.xz`, with matching SHA-256 and image
-provenance files. The production image contains the hash-bound runtime bundle
+`octessera-<version>-orange-pi-zero-2w.img.xz`, with matching SHA-256 and image-proof
+files. The production image contains the hash-bound runtime bundle
 `octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`; its metadata declares
 `artifact_kind=production-runtime` and `runtime_ready=true` for
 `orange-pi-zero-2w`.

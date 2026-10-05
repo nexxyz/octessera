@@ -11,7 +11,7 @@ for image construction commands.
 The fixed production path is Armbian Debian 13/Trixie for the exact board ID
 `orangepizero2w`. A production image uses a version-qualified
 `octessera-<version>-orange-pi-zero-2w.img.xz` name with matching SHA-256 and
-provenance files. Its build metadata contains
+image-proof files. Its build metadata contains
 `OCTESSERA_IMAGE_MODE=production` and its runtime metadata declares
 `artifact_kind=production-runtime`, `runtime_ready=true`, and
 `orange-pi-zero-2w`.

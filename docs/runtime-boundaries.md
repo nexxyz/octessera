@@ -91,7 +91,7 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Board adapters and the desktop adapter attach exactly one tap to the canonical final stereo mix; mirrored USB/HDMI output callbacks do not create recording owners, and recording ingress performs no filesystem I/O in an audio callback.
 - Desktop UI only emits the native recording actions and renders native status; it has no recording or file-writing path.
 
-## Constructor and Trusted-Parent Boundary
+## Constructor and Respin Boundary
 
 - Board constructors derive images from source-bound boot-layer contracts. Source
   and build metadata establish that derivation.
