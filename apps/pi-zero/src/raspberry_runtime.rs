@@ -14,10 +14,8 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Instant;
 
-#[path = "runtime_startup.rs"]
 mod startup;
 #[cfg(test)]
-#[path = "raspberry_timing_input_tests.rs"]
 mod timing_input_tests;
 pub(crate) use startup::{prepare, PreparedRuntime};
 

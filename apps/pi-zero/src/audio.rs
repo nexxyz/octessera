@@ -16,13 +16,9 @@ pub(crate) use crate::audio_stream_health::AudioStreamHealth;
 ))]
 pub(crate) use crate::audio_stream_health::AudioStreamStatus;
 use media_recording::{OledIngress, RecordingTap};
-#[path = "audio_defaults.rs"]
 mod audio_defaults;
-#[path = "audio_error.rs"]
 mod audio_error;
-#[path = "audio_output.rs"]
 mod audio_output;
-#[path = "audio_recording_service.rs"]
 mod audio_recording_service;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
@@ -387,8 +383,6 @@ pub(crate) use tests::{test_service, test_service_with_outputs, test_service_wit
 pub(crate) use tests::{test_service_for_sample_prep, test_service_with_recording_dir};
 
 #[cfg(test)]
-#[path = "audio_oled_recording_tests.rs"]
 mod audio_oled_recording_tests;
 #[cfg(test)]
-#[path = "audio_service_tests.rs"]
 mod tests;

@@ -454,8 +454,6 @@ fn usb_midi_route_error(
 }
 
 #[cfg(test)]
-#[path = "midi_host_startup_tests.rs"]
 mod startup_tests;
 #[cfg(test)]
-#[path = "midi_host_tests.rs"]
 mod tests;

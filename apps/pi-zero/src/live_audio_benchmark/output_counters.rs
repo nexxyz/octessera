@@ -296,5 +296,4 @@ fn counters_le(left: PersistentOutputCounters, right: PersistentOutputCounters) 
 }
 
 #[cfg(test)]
-#[path = "output_counters_tests.rs"]
 mod tests;

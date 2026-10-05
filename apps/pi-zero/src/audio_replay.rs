@@ -463,8 +463,6 @@ pub(crate) fn collect_replay_events(cache: &ReplayCache) -> Vec<EngineEvent> {
 }
 
 #[cfg(test)]
-#[path = "audio_replay_drum_tests.rs"]
 mod drum_tests;
 #[cfg(test)]
-#[path = "audio_replay_tests.rs"]
 mod tests;

@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-#[path = "finalization_profile_validation.rs"]
 mod profile_validation;
 pub(super) use profile_validation::validate_profile_state;
 
@@ -469,5 +468,4 @@ fn write_final_progress(
 }
 
 #[cfg(test)]
-#[path = "finalization_tests.rs"]
 mod finalization_tests;

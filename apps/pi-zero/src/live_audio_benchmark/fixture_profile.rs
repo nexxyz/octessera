@@ -175,5 +175,4 @@ fn wait_for_fixture_profile_barriers(
 }
 
 #[cfg(test)]
-#[path = "fixture_barrier_tests.rs"]
 mod fixture_barrier_tests;

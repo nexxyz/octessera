@@ -124,5 +124,4 @@ fn send_result(
 }
 
 #[cfg(test)]
-#[path = "audio_engine_owner_tests.rs"]
 mod tests;

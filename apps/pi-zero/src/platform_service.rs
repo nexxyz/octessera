@@ -19,37 +19,22 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
-#[path = "pi_pending_persistence.rs"]
 mod pi_pending_persistence;
-#[path = "platform_native_autosave.rs"]
 pub(crate) mod platform_native_autosave;
-#[path = "platform_native_autosave_worker.rs"]
 mod platform_native_autosave_worker;
-#[path = "platform_native_persistence.rs"]
 pub(crate) mod platform_native_persistence;
-#[path = "platform_result_lane.rs"]
 mod platform_result_lane;
-#[path = "platform_service_dispatcher.rs"]
 mod platform_service_dispatcher;
-#[path = "platform_service_document_store.rs"]
 mod platform_service_document_store;
-#[path = "platform_service_executor.rs"]
 mod platform_service_executor;
-#[path = "platform_service_load_admission.rs"]
 mod platform_service_load_admission;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[path = "platform_service_orange_apply.rs"]
 mod platform_service_orange_apply;
-#[path = "platform_service_setup_portal.rs"]
 mod platform_service_setup_portal;
-#[path = "platform_service_store.rs"]
 mod platform_service_store;
 #[cfg(test)]
-#[path = "platform_service_test_support.rs"]
 mod platform_service_test_support;
-#[path = "platform_service_worker.rs"]
 mod platform_service_worker;
-#[path = "system_info.rs"]
 mod system_info;
 pub(crate) use pi_pending_persistence::PendingPiPersistence;
 use platform_native_persistence::{
@@ -492,5 +477,4 @@ impl PlatformJobKind {
 }
 
 #[cfg(test)]
-#[path = "platform_service_tests.rs"]
 mod tests;

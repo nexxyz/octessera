@@ -286,8 +286,6 @@ mod timing_evidence_tests {
 }
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-#[path = "orange_native_scene_tests.rs"]
 mod orange_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "raspberry_native_scene_tests.rs"]
 mod raspberry_tests;

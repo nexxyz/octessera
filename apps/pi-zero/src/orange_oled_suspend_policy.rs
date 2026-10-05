@@ -272,5 +272,4 @@ impl TransactionPolicy {
 }
 
 #[cfg(test)]
-#[path = "orange_oled_suspend_policy_tests.rs"]
 mod tests;

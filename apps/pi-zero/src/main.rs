@@ -474,5 +474,4 @@ fn init_audio(
     }
 }
 #[cfg(test)]
-#[path = "main_tests.rs"]
 mod tests;

@@ -220,7 +220,6 @@ impl StopRequest {
 }
 
 #[cfg(unix)]
-#[path = "boot_oled_handoff_unix.rs"]
 mod unix_impl;
 
 #[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]

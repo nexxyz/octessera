@@ -36,7 +36,6 @@ pub const BINARY_NAME: &str = "octessera-pi";
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
 ))]
-#[path = "raspberry_live_benchmark_metadata.rs"]
 mod raspberry_live_benchmark_metadata;
 
 #[cfg(all(
@@ -316,5 +315,4 @@ pub fn metadata_requested() -> bool {
 }
 
 #[cfg(test)]
-#[path = "board_profile_tests.rs"]
 mod tests;

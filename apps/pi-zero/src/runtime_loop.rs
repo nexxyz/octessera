@@ -20,7 +20,6 @@ use std::time::{Duration, Instant};
 const HARDWARE_EVENT_BUDGET: usize = 16;
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "runtime_loop_error_tests.rs"]
 mod error_tests;
 
 pub(crate) trait BoardLoop {

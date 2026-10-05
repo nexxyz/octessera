@@ -8,7 +8,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 #[cfg(test)]
-#[path = "native_publication_tests.rs"]
 mod tests;
 
 pub(crate) enum LatestPresentation {

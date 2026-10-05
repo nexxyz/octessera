@@ -8,7 +8,6 @@ use crate::render_loop::RenderWorker;
 use playback_runtime::PlaybackRuntime;
 
 #[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
-#[path = "raspberry_power_tests.rs"]
 mod tests;
 
 pub(crate) fn shutdown_if_requested(

@@ -352,8 +352,6 @@ pub(crate) fn prepare_dispatch_message(
 }
 
 #[cfg(test)]
-#[path = "hardware_runtime_scheduler_tests.rs"]
 mod tests;
 #[cfg(test)]
-#[path = "hardware_runtime_xy_glide_tests.rs"]
 mod xy_glide_tests;

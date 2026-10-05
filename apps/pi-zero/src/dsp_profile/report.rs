@@ -202,5 +202,4 @@ fn csv(value: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "report_tests.rs"]
 mod tests;

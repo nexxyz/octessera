@@ -1,11 +1,7 @@
 use crate::audio::{AudioControlRequest, AudioService, AUDIO_PREP_QUEUE_CAPACITY};
-#[path = "host_audio_prep_config.rs"]
 mod config_prep;
-#[path = "host_audio_prep_owner.rs"]
 mod owner_prep;
-#[path = "host_audio_prep_results.rs"]
 mod prep_results;
-#[path = "host_audio_preview_prep.rs"]
 mod preview_prep;
 use config_prep::{apply_prepared_audio_config, prepare_audio_config};
 use owner_prep::{process_instrument_slot, process_owner_request, OwnerRequest};
@@ -465,5 +461,4 @@ fn pending_work_len(
 }
 
 #[cfg(test)]
-#[path = "host_audio_prep_tests.rs"]
 mod tests;

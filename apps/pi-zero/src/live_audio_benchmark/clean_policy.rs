@@ -108,5 +108,4 @@ fn callback_budget_passes(measure_seconds: u64, overrun_count: u64) -> bool {
     feature = "routing-tree-benchmark",
     feature = "benchmark-voice-pools-128",
 ))]
-#[path = "clean_policy_tests.rs"]
 mod tests;

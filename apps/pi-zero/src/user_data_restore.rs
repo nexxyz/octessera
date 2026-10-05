@@ -5,7 +5,6 @@ use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
 
-#[path = "user_data_restore_transaction.rs"]
 mod transaction;
 #[cfg(test)]
 pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
@@ -344,5 +343,4 @@ fn io_error(error: io::Error) -> String {
 }
 
 #[cfg(test)]
-#[path = "user_data_restore_failure_tests.rs"]
 mod failure_tests;

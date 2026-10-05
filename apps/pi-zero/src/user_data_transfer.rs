@@ -259,15 +259,10 @@ impl UserDataTransferService {
     }
 }
 
-#[path = "user_data_transfer_barrier.rs"]
 mod barrier;
-#[path = "user_data_transfer_http.rs"]
 mod http;
-#[path = "user_data_transfer_http_protocol.rs"]
 mod http_protocol;
-#[path = "user_data_transfer_restore.rs"]
 mod restore_worker;
-#[path = "user_data_transfer_session.rs"]
 mod session;
 
 pub(crate) use barrier::{RestorePreflight, StoreWriteBarrier};
@@ -285,8 +280,6 @@ fn remove_stage_root(path: &Path) {
 }
 
 #[cfg(test)]
-#[path = "user_data_transfer_restore_tests.rs"]
 mod restore_tests;
 #[cfg(test)]
-#[path = "user_data_transfer_tests.rs"]
 mod tests;

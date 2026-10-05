@@ -298,5 +298,4 @@ fn route_name(route: usize) -> String {
 }
 
 #[cfg(test)]
-#[path = "analogue_capacity_scenario_tests.rs"]
 mod tests;

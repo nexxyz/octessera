@@ -28,15 +28,10 @@ use std::time::Duration;
         feature = "hardware-orange-pi-zero-2w"
     ))
 ))]
-#[path = "render/hdmi_render_loop_tests.rs"]
 mod hdmi_render_loop_tests;
-#[path = "render_loop_ownership.rs"]
 mod ownership;
-#[path = "render_loop_presentation.rs"]
 mod presentation;
-#[path = "render_loop_terminal.rs"]
 mod terminal;
-#[path = "render_loop_worker.rs"]
 mod worker;
 use worker::render_worker_loop;
 #[cfg(test)]
@@ -381,8 +376,6 @@ fn ownership_command_cancelled(cancellation: &AtomicBool) -> bool {
 }
 
 #[cfg(test)]
-#[path = "render/native_worker_tests.rs"]
 mod native_worker_tests;
 #[cfg(test)]
-#[path = "render_loop_tests.rs"]
 mod tests;

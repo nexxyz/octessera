@@ -21,15 +21,10 @@ use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
 use std::time::Instant;
 
-#[path = "orange_candidate_handoff.rs"]
 mod handoff;
-#[path = "orange_lifecycle.rs"]
 mod lifecycle;
-#[path = "orange_runtime_loop.rs"]
 mod runtime_loop;
-#[path = "orange_signal.rs"]
 mod signal;
-#[path = "orange_runtime_startup.rs"]
 mod startup;
 pub(crate) use crate::runtime_output::{process_runtime_output, wait_for_initial_audio_prep};
 pub(crate) use runtime_loop::run_prepared_runtime;
@@ -248,5 +243,4 @@ fn encoder_id(index: usize) -> Result<&'static str, String> {
     }
 }
 #[cfg(test)]
-#[path = "orange_candidate_tests.rs"]
 mod tests;

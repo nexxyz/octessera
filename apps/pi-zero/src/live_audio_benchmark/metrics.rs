@@ -6,7 +6,6 @@ use rodio_engine_source::PersistentOutputCounters;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
 
-#[path = "metrics_snapshot.rs"]
 mod snapshot;
 pub use snapshot::CallbackMetricsSnapshot;
 
@@ -462,5 +461,4 @@ fn atomic_max_u64(target: &AtomicU64, value: u64) {
 }
 
 #[cfg(test)]
-#[path = "metrics_tests.rs"]
 mod tests;

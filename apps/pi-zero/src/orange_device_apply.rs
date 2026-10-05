@@ -163,7 +163,6 @@ fn recover_startup_at(store_dir: &Path, boot_id: &str) -> Result<(), String> {
     remove_transaction(&path)
 }
 
-#[path = "orange_shutdown.rs"]
 mod shutdown;
 #[cfg(test)]
 pub(crate) use shutdown::resolve_shutdown_request_with_reboot_request;
@@ -354,5 +353,4 @@ fn validate_boot_id(boot_id: &str) -> Result<(), String> {
 }
 
 #[cfg(test)]
-#[path = "orange_device_apply_tests.rs"]
 mod tests;

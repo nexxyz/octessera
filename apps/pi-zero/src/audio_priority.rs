@@ -2,7 +2,6 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-#[path = "audio_priority_syscalls.rs"]
 mod syscalls;
 
 #[cfg(test)]
@@ -20,7 +19,6 @@ pub(crate) const PI_MIRROR_CALLBACK_PRIORITY: i32 = 60;
     feature = "hardware-orange-pi-zero-2w",
     feature = "hardware-raspberry-pi-zero-2w"
 ))]
-#[path = "dsp_worker_scheduling.rs"]
 mod dsp_worker_scheduling;
 
 const STATE_PENDING: u8 = 0;
@@ -481,5 +479,4 @@ pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
     syscalls::scheduling_policy_name(policy)
 }
 #[cfg(test)]
-#[path = "audio_priority_tests.rs"]
 mod tests;

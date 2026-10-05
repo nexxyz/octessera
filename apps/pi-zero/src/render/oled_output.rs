@@ -296,5 +296,4 @@ impl HardwareRenderCache {
 }
 
 #[cfg(test)]
-#[path = "oled_output_tests.rs"]
 mod tests;

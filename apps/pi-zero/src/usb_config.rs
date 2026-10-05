@@ -202,10 +202,8 @@ pub(crate) fn parse_usb_runtime_config(
 }
 
 #[cfg(test)]
-#[path = "usb_config_audio_optimization_tests.rs"]
 mod audio_optimization_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "usb_config_role_tests.rs"]
 mod role_tests;
 
 #[cfg(test)]

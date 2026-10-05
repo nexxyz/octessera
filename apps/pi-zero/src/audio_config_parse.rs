@@ -31,7 +31,6 @@ impl SampleLoadError {
 }
 
 #[cfg(test)]
-#[path = "audio_config_parse_tests.rs"]
 mod audio_config_parse_tests;
 
 pub(crate) fn parse_audio_config(

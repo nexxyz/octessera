@@ -453,5 +453,4 @@ fn parse_value<T: std::str::FromStr>(
 }
 
 #[cfg(test)]
-#[path = "cli_tests.rs"]
 mod tests;

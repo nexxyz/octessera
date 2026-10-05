@@ -485,5 +485,4 @@ fn scan_inputs(
 }
 
 #[cfg(test)]
-#[path = "seesaw_io_tests.rs"]
 mod tests;

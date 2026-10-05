@@ -254,5 +254,4 @@ fn six_hundred_second_clean_policy_uses_the_approved_overrun_budget() {
     }
 }
 
-#[path = "frame_search_continuation_tests.rs"]
 mod continuation_tests;

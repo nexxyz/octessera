@@ -1,6 +1,5 @@
 use super::*;
 
-#[path = "boot_sweep_contract_tests.rs"]
 mod contract_tests;
 
 #[test]

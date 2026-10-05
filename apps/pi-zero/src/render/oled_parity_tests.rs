@@ -10,7 +10,6 @@ use super::oled_test_adapter::input_from_snapshot;
 use playback_runtime::oled_frame::{render_oled_frame, test_support};
 use serde_json::json;
 
-#[path = "oled_parity_corpus.rs"]
 mod parity_corpus;
 use parity_corpus::parity_corpus;
 

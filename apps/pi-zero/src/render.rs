@@ -21,7 +21,6 @@ mod ownership_decision;
 mod sleep_leds;
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "render/test_oled_output.rs"]
 pub(crate) mod test_oled_output;
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
@@ -80,7 +79,6 @@ pub(crate) fn shutdown_splash_base_frame() -> Vec<u8> {
     SPLASH_SLEEP_SHUTDOWN.to_vec()
 }
 
-#[path = "render/boot_sweep.rs"]
 mod boot_sweep;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use boot_sweep::{
@@ -466,28 +464,20 @@ pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
 }
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "render/boot_sweep_tests.rs"]
 mod boot_sweep_tests;
 #[cfg(test)]
-#[path = "render/footer_tests.rs"]
 mod footer_tests;
 #[cfg(test)]
-#[path = "render/hdmi_cache_tests.rs"]
 mod hdmi_cache_tests;
 #[cfg(test)]
-#[path = "render/native_frame_sleep_wake_tests.rs"]
 mod native_frame_sleep_wake_tests;
 #[cfg(test)]
-#[path = "render/oled_error_tests.rs"]
 mod oled_error_tests;
 #[cfg(test)]
-#[path = "render/oled_glyph_tests.rs"]
 mod oled_glyph_tests;
 #[cfg(test)]
-#[path = "render/oled_parity_tests.rs"]
 mod oled_parity_tests;
 #[cfg(test)]
-#[path = "render/oled_test_adapter.rs"]
 mod oled_test_adapter;
 #[cfg(test)]
 mod tests;

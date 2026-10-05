@@ -123,10 +123,8 @@ pub fn handle_deferred_host_work(
 }
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "runtime_dispatch_duck_slot_tests.rs"]
 mod duck_slot_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "runtime_dispatch_native_autosave_tests.rs"]
 mod native_autosave_tests;
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]

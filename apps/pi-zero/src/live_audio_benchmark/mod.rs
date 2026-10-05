@@ -13,7 +13,6 @@ mod schema;
 mod stream;
 
 #[cfg(test)]
-#[path = "frame_search_tests.rs"]
 mod frame_search_tests;
 
 use crate::dsp_scenarios::LiveScenarioSpec;

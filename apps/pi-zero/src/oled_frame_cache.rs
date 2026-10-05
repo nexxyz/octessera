@@ -291,5 +291,4 @@ impl OledFrameCache {
 }
 
 #[cfg(test)]
-#[path = "oled_frame_cache_tests.rs"]
 mod tests;

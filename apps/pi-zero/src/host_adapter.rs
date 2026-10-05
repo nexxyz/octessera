@@ -1,11 +1,7 @@
-#[path = "host_adapter_construction.rs"]
 mod host_adapter_construction;
-#[path = "host_adapter_recording.rs"]
 mod host_adapter_recording;
-#[path = "host_adapter_store.rs"]
 mod host_adapter_store;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[path = "orange_host_adapter_construction.rs"]
 mod orange_construction;
 
 use crate::audio::AudioService;
@@ -364,26 +360,18 @@ impl RuntimeOutputSink for PiHostAdapter {
 }
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-#[path = "orange_host_adapter_apply_tests.rs"]
 mod orange_apply_tests;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-#[path = "orange_host_adapter_system_store_tests.rs"]
 mod orange_system_store_tests;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-#[path = "orange_host_adapter_tests.rs"]
 mod orange_tests;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-#[path = "orange_host_adapter_update_tests.rs"]
 mod orange_update_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "host_adapter_power_tests.rs"]
 mod power_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "host_adapter_system_store_tests.rs"]
 mod system_store_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "host_adapter_tests.rs"]
 mod tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[path = "host_adapter_usb_role_tests.rs"]
 mod usb_role_tests;

@@ -16,7 +16,6 @@ use rodio_engine_source::{EngineEventReceiver, EngineSource, EngineSourceWorkerS
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 
-#[path = "stream_callback.rs"]
 mod callback;
 
 #[cfg(test)]
@@ -295,5 +294,4 @@ fn stream_geometry(
 }
 
 #[cfg(test)]
-#[path = "stream_tests.rs"]
 mod tests;

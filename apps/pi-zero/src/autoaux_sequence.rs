@@ -191,5 +191,4 @@ impl AutoAuxSequence {
 }
 
 #[cfg(test)]
-#[path = "autoaux_sequence_tests.rs"]
 mod tests;

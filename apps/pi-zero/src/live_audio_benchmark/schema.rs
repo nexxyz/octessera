@@ -11,11 +11,8 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[path = "schema_deserialization.rs"]
 mod deserialization;
-#[path = "result.rs"]
 mod result;
-#[path = "worker_timing_validation.rs"]
 mod worker_timing_validation;
 pub use super::output_counters::{
     PersistentOutputCountersEvidence, PersistentOutputProvenanceEvidence,
@@ -392,5 +389,4 @@ pub fn readiness(
 }
 
 #[cfg(test)]
-#[path = "schema_tests.rs"]
 mod tests;

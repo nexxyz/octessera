@@ -1,5 +1,4 @@
 use crate::audio::AudioService;
-#[path = "host_audio_command_validation.rs"]
 mod host_audio_command_validation;
 use host_audio_command_validation::{
     audio_queue_failure, index_u8, invalid_audio_command, momentary_fx_target,
@@ -322,5 +321,4 @@ pub fn send_audio_command(
 }
 
 #[cfg(test)]
-#[path = "host_audio_command_tests.rs"]
 mod tests;

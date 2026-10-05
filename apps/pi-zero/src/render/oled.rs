@@ -1,8 +1,6 @@
 use serde_json::Value;
 
-#[path = "font.rs"]
 mod font;
-#[path = "footer.rs"]
 mod footer;
 
 pub(super) use font::glyph_rows;

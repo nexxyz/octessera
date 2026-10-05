@@ -11,7 +11,6 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
-#[path = "user_data_archive_media.rs"]
 mod media;
 pub(crate) use media::is_packaged_sample;
 use media::{
@@ -380,5 +379,4 @@ fn validate_stage_directory(path: &Path) -> Result<(), String> {
 }
 
 #[cfg(test)]
-#[path = "user_data_archive_tests.rs"]
 mod tests;

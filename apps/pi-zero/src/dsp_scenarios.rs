@@ -1,4 +1,3 @@
-#[path = "dsp_profile/scenarios.rs"]
 mod scenario_source;
 
 pub use scenario_source::{profile_scenarios, runtime_step_scenarios, ProfileMode, ScenarioSpec};
@@ -291,5 +290,4 @@ pub fn expected_live_state(name: &str) -> Option<ExpectedLiveState> {
 }
 
 #[cfg(test)]
-#[path = "dsp_scenarios_tests.rs"]
 mod tests;

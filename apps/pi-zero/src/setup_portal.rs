@@ -1,6 +1,4 @@
-#[path = "setup_portal_errors.rs"]
 mod errors;
-#[path = "setup_portal_protocol.rs"]
 mod protocol;
 
 use crate::setup_portal_files::{create_request_marker, read_status_file, SetupFileError};
@@ -282,5 +280,4 @@ fn is_terminal(phase: &RuntimeSetupPortalPhase) -> bool {
 }
 
 #[cfg(test)]
-#[path = "setup_portal_tests.rs"]
 mod tests;

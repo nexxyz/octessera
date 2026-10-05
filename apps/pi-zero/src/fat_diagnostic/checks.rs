@@ -1,11 +1,7 @@
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[path = "installed_identity.rs"]
 mod installed_identity;
-#[path = "orange_checks.rs"]
 mod orange_checks;
-#[path = "readiness.rs"]
 mod readiness;
-#[path = "checks_support.rs"]
 mod support;
 use super::model::{CheckId, CheckOutcome, CheckStatus};
 use crate::board_profile::FatDiagnosticBoard;
@@ -474,5 +470,4 @@ fn usb_state_check(context: &CheckContext) -> CheckOutcome {
 }
 
 #[cfg(test)]
-#[path = "checks_tests.rs"]
 mod tests;
