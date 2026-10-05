@@ -79,7 +79,7 @@ For an extracted root filesystem or ext4 root partition image, inspect the
 artifact directly:
 
 ```bash
-tools/armbian-image/inspect-built-image.sh --verification-profile full-constructor <rootfs-dir-or-ext4-image>
+tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
 ```
 
 Use `full-constructor` for source-built images. Orange runtime-only respins are
@@ -191,8 +191,8 @@ these checks.
 Build both native binaries without deploying them as a constructor substitute:
 
 ```powershell
-./tools/pi/build-rpi-opi-cross.ps1 -BoardProfile raspberry-pi-zero-2w -OutDir target/pi-cross-phase5
-./tools/pi/build-rpi-opi-cross.ps1 -BoardProfile orange-pi-zero-2w -Backend wsl-docker -OutDir target/orange-pi-cross-phase5
+./tools/pi/build-rpi-opi-cross.ps1 -BoardProfile raspberry-pi-zero-2w -OutDir target/pi-cross-image
+./tools/pi/build-rpi-opi-cross.ps1 -BoardProfile orange-pi-zero-2w -Backend wsl-docker -OutDir target/orange-pi-cross-image
 ```
 
 Each output needs its adjacent metadata sidecar with the matching profile.

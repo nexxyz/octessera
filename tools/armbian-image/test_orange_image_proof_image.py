@@ -37,7 +37,7 @@ def run_image_proof(work: Path, fixture: tuple[Path, Path, Path, Path, Path]) ->
     proof_document = json.loads(artifact.read_text())
     assert proof_document["schema"] == "octessera.image-proof/v2"
     assert proof_document["schema_version"] == 2
-    assert proof_document["proof_mode"] == "phase5-constructor"
+    assert proof_document["proof_mode"] == "constructor"
     tampered_artifact = work / "tampered-image-provenance.txt"
     tampered = json.loads(artifact.read_text())
     tampered["artifact"]["sha256"] = "b" * 64

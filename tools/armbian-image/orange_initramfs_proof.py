@@ -63,12 +63,12 @@ def verify_selected_initramfs(root: Path, initramfs: Path, contract: dict[str, A
     entries = read_initramfs_entries(initramfs)
     requirements = contract["selected_initramfs"]
     for path in requirements["required_paths"]:
-        require(path in entries, f"selected initramfs is missing Phase 5 path: {path}")
+        require(path in entries, f"selected initramfs is missing required path: {path}")
     for path in requirements["forbidden_paths"]:
-        require(path not in entries, f"selected initramfs contains forbidden Phase 5 path: {path}")
+        require(path not in entries, f"selected initramfs contains forbidden path: {path}")
     for item in requirements["installed_output_matches"]:
         source = root / item["installed_path"]
-        require(source.is_file() and not source.is_symlink(), f"installed Phase 5 output is missing: {source}")
+        require(source.is_file() and not source.is_symlink(), f"installed initramfs output is missing: {source}")
         require(entries[item["initramfs_path"]][1] == source.read_bytes(), f"selected initramfs bytes differ: {item['initramfs_path']}")
     for tool in requirements["required_tools"]:
         require(tool in entries, f"selected initramfs is missing required tool: {tool}")

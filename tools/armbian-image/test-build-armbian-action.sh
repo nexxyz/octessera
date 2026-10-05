@@ -54,7 +54,7 @@ assert_action_contains 'Production runtime bundle must contain exactly'
 assert_action_contains 'image-contract.json'
 assert_action_contains 'runtime_enabled_default": true'
 assert_action_contains 'Expected exactly one image artifact'
-assert_action_contains 'inspect-output-images.sh" --verification-profile full-constructor --mode "$OCTESSERA_IMAGE_KIND"'
+assert_action_contains 'inspect-output-images.sh" --mode "$OCTESSERA_IMAGE_KIND"'
 assert_action_contains "find build/output/images -maxdepth 1 -type f -name '*.img.xz.sha'"
 assert_action_contains 'sha256sum -c'
 assert_action_contains 'Expected exactly one generated .img.xz.sha checksum file'

@@ -49,7 +49,7 @@ binary's Cargo-generated splash assets.
 
 ## Canonical OLED boot sweep
 
-`resources/oled/boot-sweep-v1.json` is the visual contract for the Phase 5 boot
+`resources/oled/boot-sweep-v1.json` is the visual contract for the boot
 sweep on both fixed boards. It is strict: unknown and missing keys are rejected.
 The contract describes a 128×128 physical post-rotation frame with rightward X
 travel and bottom-to-top Y coordinates. Only source-white RGB565 pixels

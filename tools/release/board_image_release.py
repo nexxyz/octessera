@@ -164,7 +164,7 @@ def _verify_raspberry_kernel(root: Path, kernel_dir: Path, package_name: str) ->
 
 def _verify_orange_image(root: Path, image_dir: Path, version: str, image_package: str, dtb_package: str) -> None:
     image = image_dir / f"octessera-{version}-orange-pi-zero-2w.img.xz"
-    _run(root, ["sudo", "bash", "tools/armbian-image/verify-orange-image.sh", "--image", str(image), "--linux-image", str(image_dir / image_package), "--linux-dtb", str(image_dir / dtb_package), "--evidence", str(image_dir / "octessera-orange-kernel-evidence.env"), "--manifest", KERNEL_MANIFEST.as_posix(), "--boot-proof-mode", "phase5-constructor", "--construction-contract", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "--image-provenance", str(image_dir / "octessera-orange-image-proof.json"), "--mode", "production"], "Orange image validation")
+    _run(root, ["sudo", "bash", "tools/armbian-image/verify-orange-image.sh", "--image", str(image), "--linux-image", str(image_dir / image_package), "--linux-dtb", str(image_dir / dtb_package), "--evidence", str(image_dir / "octessera-orange-kernel-evidence.env"), "--manifest", KERNEL_MANIFEST.as_posix(), "--boot-proof-mode", "constructor", "--construction-contract", "resources/image-construction/boot-layers/orange-pi-zero-2w.json", "--image-provenance", str(image_dir / "octessera-orange-image-proof.json"), "--mode", "production"], "Orange image validation")
 
 
 def _base_refresh_images(root: Path, gathered_root: Path, release_assets: Path, evidence_staging: Path, version: str) -> None:

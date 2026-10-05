@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 fn test_host(audio: crate::audio::AudioService) -> (PiHostAdapter, PathBuf) {
-    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-candidate");
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-runtime");
     let host = PiHostAdapter::with_directories(
         audio,
         root.join("store"),
@@ -30,7 +30,7 @@ fn test_host(audio: crate::audio::AudioService) -> (PiHostAdapter, PathBuf) {
 }
 
 #[test]
-fn orange_candidate_uses_shared_runtime_cadence() {
+fn orange_runtime_uses_shared_runtime_cadence() {
     assert_eq!(PLAYBACK_TICK.as_millis(), 8);
     assert_eq!(SNAPSHOT_TICK.as_millis(), 33);
     assert_eq!(MAINTENANCE_TICK.as_millis(), 50);
@@ -285,7 +285,7 @@ fn qualified_encoder_ids_preserve_main_and_aux_semantics() {
 }
 
 #[test]
-fn orange_candidate_composes_all_encoders_after_uart0_is_disabled() {
+fn orange_runtime_composes_all_encoders_after_uart0_is_disabled() {
     assert_eq!(
         qualified_encoder_ids(),
         [

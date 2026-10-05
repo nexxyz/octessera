@@ -58,7 +58,7 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
             source.next();
         }
         let output = manager.drain_audio_load_status(&mut playback);
-        crate::orange_candidate::process_runtime_output(
+        crate::orange_runtime::process_runtime_output(
             &mut playback,
             &mut runner,
             &mut host,
@@ -69,7 +69,7 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
     drop(source);
     assert_eq!(shutdown.shutdown().joined_workers, 2);
     let output = manager.drain_audio_load_status(&mut playback);
-    crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+    crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
 
     let snapshot = playback.last_snapshot().expect("runtime snapshot");
@@ -98,7 +98,7 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
     manager.load_tx.try_send(status(Some(0.8), false, true));
     manager.load_tx.try_send(status(Some(0.9), true, true));
     let output = manager.drain_audio_load_status(&mut playback);
-    crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+    crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
     assert!(
         (playback.last_snapshot().unwrap()["workerUtilization"]
@@ -116,7 +116,7 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
 
     manager.load_tx.try_send(status(None, true, false));
     let output = manager.drain_audio_load_status(&mut playback);
-    crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+    crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
     let snapshot = playback.last_snapshot().unwrap();
     assert!(!snapshot
@@ -180,7 +180,7 @@ fn runtime_with_snapshot(
             &mut host,
         )
         .unwrap();
-    crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+    crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
     crate::runtime_dispatch::dispatch(
         &mut playback,

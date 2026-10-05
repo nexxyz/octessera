@@ -1,9 +1,9 @@
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod input;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-mod orange_candidate;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_device_apply;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_runtime;
 mod render;
 mod render_loop;
 mod render_loop_queue;
@@ -240,7 +240,7 @@ fn main() {
     }
     #[cfg(feature = "native-audio")]
     pin_normal_startup_thread();
-    if let Err(error) = runtime_thread::run_on_runtime_thread(orange_candidate::run) {
+    if let Err(error) = runtime_thread::run_on_runtime_thread(orange_runtime::run) {
         eprintln!("Orange foreground candidate failed: {error}");
         std::process::exit(error.exit_code());
     }

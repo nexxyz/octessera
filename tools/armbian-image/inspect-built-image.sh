@@ -3,23 +3,13 @@ set -euo pipefail
 
 expected_image_mode=diagnostic
 mode_selected=false
-verification_profile=""
-constructor_policy_required=false
-setup_layer_required=false
-sd_card_required=false
 usage() {
-  echo "Usage: $0 --verification-profile full-constructor|legacy-runtime-only|legacy-setup-layer [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
+  echo "Usage: $0 [--mode diagnostic|production] <rootfs-dir-or-ext4-image>" >&2
 }
 
 target=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --verification-profile)
-      [[ $# -ge 2 ]] || { usage; exit 2; }
-      [[ -z "$verification_profile" ]] || { echo "verification profile selected more than once." >&2; usage; exit 2; }
-      verification_profile="$2"
-      shift 2
-      ;;
     --mode)
       [[ $# -ge 2 ]] || { usage; exit 2; }
       [[ "$mode_selected" == false ]] || { echo "image mode selected more than once." >&2; usage; exit 2; }
@@ -38,29 +28,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-case "$verification_profile" in
-  full-constructor)
-    constructor_policy_required=true
-    setup_layer_required=true
-    sd_card_required=true
-    ;;
-  legacy-runtime-only)
-    ;;
-  legacy-setup-layer)
-    setup_layer_required=true
-    ;;
-  "")
-    echo "--verification-profile is required." >&2
-    usage
-    exit 2
-    ;;
-  *)
-    echo "Invalid verification profile: $verification_profile." >&2
-    usage
-    exit 2
-    ;;
-esac
 
 if [[ "$expected_image_mode" != diagnostic && "$expected_image_mode" != production ]] || [[ -z "$target" ]]; then
   usage
@@ -85,8 +52,6 @@ source "$module_dir/inspect-device-tree.sh"
 source "$module_dir/inspect-runtime-contracts.sh"
 # shellcheck source=tools/armbian-image/inspect-runtime.sh
 source "$module_dir/inspect-runtime.sh"
-# shellcheck source=tools/armbian-image/verification-profile.sh
-source "$module_dir/verification-profile.sh"
 
 inspect_work="$(mktemp -d)"
 cleanup() { rm -rf "$inspect_work"; }
@@ -194,18 +159,16 @@ raise SystemExit(0 if valid else 1)
 }
 reject_path etc/systemd/system/multi-user.target.wants/octessera-wifi-foundation.service
 octessera_require_wifi_foundation
-if [[ "$setup_layer_required" == true ]]; then require_setup_layer; fi
-if [[ "$constructor_policy_required" == true ]]; then require_orange_constructor_policy; fi
+require_setup_layer
+require_orange_constructor_policy
 octessera_inspect_runtime_mode "$profile_metadata" "$expected_image_mode"
-octessera_require_constructor_device_tree_contract "$verification_profile" "$profile_metadata"
+octessera_require_device_tree_contract "$profile_metadata"
 octessera_require_built_updater_contract
-if [[ "$constructor_policy_required" == true ]]; then
-  hdmi_rsyslog_path=etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf
-  expected_hdmi_rsyslog="if (\$msg == \"sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin\") then stop"
-  stat_path "$hdmi_rsyslog_path" || { echo "Missing Orange HDMI rsyslog drop-in: $hdmi_rsyslog_path." >&2; exit 1; }
-  require_root_mode "$hdmi_rsyslog_path" 644
-  [[ "$(read_file "$hdmi_rsyslog_path")" == "$expected_hdmi_rsyslog" ]] || { echo 'Orange HDMI rsyslog drop-in is not exact.' >&2; exit 1; }
-fi
+hdmi_rsyslog_path=etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf
+expected_hdmi_rsyslog="if (\$msg == \"sun8i-dw-hdmi 6000000.hdmi: EVENT=plugin\") then stop"
+stat_path "$hdmi_rsyslog_path" || { echo "Missing Orange HDMI rsyslog drop-in: $hdmi_rsyslog_path." >&2; exit 1; }
+require_root_mode "$hdmi_rsyslog_path" 644
+[[ "$(read_file "$hdmi_rsyslog_path")" == "$expected_hdmi_rsyslog" ]] || { echo 'Orange HDMI rsyslog drop-in is not exact.' >&2; exit 1; }
 
 for path in \
   usr/local/sbin/octessera-orange-usb-gadget usr/local/lib/octessera/device_config.py \
@@ -227,17 +190,13 @@ for path in \
 done
 for path in usr/local/sbin/octessera-orange-usb-gadget usr/local/sbin/octessera-device-apply-reboot usr/local/sbin/octessera-orange-oled-logo usr/local/sbin/octessera-orange-oled-suspend usr/local/sbin/octessera-provision-musical-default; do require_root_mode "$path" 755; done
 for path in usr/local/lib/octessera/device_config.py usr/local/sbin/octessera-orange-oled-handoff.py usr/local/sbin/octessera-orange-oled-lifecycle.py etc/modules-load.d/octessera-orange-midi.conf etc/modules-load.d/octessera-orange-usb-gadget.conf etc/systemd/system/octessera-orange-usb-gadget.service etc/systemd/system/octessera-device-apply-reboot.socket etc/systemd/system/octessera-device-apply-reboot@.service etc/systemd/system/octessera-orange-boot-splash.service etc/systemd/system/octessera-orange-oled-shutdown.service etc/systemd/system/octessera-orange-oled-suspend.service etc/systemd/system/octessera-provision-musical-default.service usr/share/octessera/defaults/pi-default.json usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/MANIFEST.tsv usr/share/octessera/samples/SOURCE.md usr/share/octessera/samples/upstream/LICENSE; do require_root_mode "$path" 644; done
-if [[ "$sd_card_required" == true ]]; then
-  require_root_mode usr/local/sbin/octessera-sd-card 755
-  for path in usr/local/lib/octessera/octessera-sd-card-lib.sh etc/systemd/system/octessera-orange-sd-card.service etc/udev/rules.d/99-octessera-orange-sd-card.rules; do require_root_mode "$path" 644; done
-fi
+require_root_mode usr/local/sbin/octessera-sd-card 755
+for path in usr/local/lib/octessera/octessera-sd-card-lib.sh etc/systemd/system/octessera-orange-sd-card.service etc/udev/rules.d/99-octessera-orange-sd-card.rules; do require_root_mode "$path" 644; done
 octessera_require_image_symlink etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket ../octessera-device-apply-reboot.socket /etc/systemd/system/octessera-device-apply-reboot.socket
 octessera_require_image_symlink etc/systemd/system/sysinit.target.wants/octessera-orange-boot-splash.service ../octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service
 octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera-orange-oled-shutdown.service ../octessera-orange-oled-shutdown.service /etc/systemd/system/octessera-orange-oled-shutdown.service
 octessera_require_image_symlink etc/systemd/system/sleep.target.requires/octessera-orange-oled-suspend.service ../octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service
-if [[ "$sd_card_required" == true ]]; then
-  octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera-orange-sd-card.service ../octessera-orange-sd-card.service /etc/systemd/system/octessera-orange-sd-card.service
-fi
+octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octessera-orange-sd-card.service ../octessera-orange-sd-card.service /etc/systemd/system/octessera-orange-sd-card.service
 reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service
 reject_path lib/systemd/system-sleep/octessera-orange-oled
 reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
@@ -249,19 +208,17 @@ validate_save_document usr/share/octessera/defaults/pi-system.json octessera.sys
 validate_save_document usr/share/octessera/defaults/pi-default.patch.json octessera.patch 2 || { echo 'Orange image Patch default is invalid.' >&2; exit 1; }
 octessera_validate_sample_tree "$target" "$(read_file usr/share/octessera/samples/MANIFEST.tsv)" "$inspect_work"
 
-if [[ "$sd_card_required" == true ]]; then
-  sd_helper="$(read_file usr/local/sbin/octessera-sd-card)"
-  sd_library="$(read_file usr/local/lib/octessera/octessera-sd-card-lib.sh)"
-  [[ -n "$sd_library" ]]
-  printf '%s\n' "$sd_helper" | grep -qF "SD_MOUNT=\${OCTESSERA_SD_MOUNT:?OCTESSERA_SD_MOUNT must be set}"
-  printf '%s\n' "$sd_helper" | grep -qF "SD_OWNER=\${OCTESSERA_SD_OWNER:?OCTESSERA_SD_OWNER must be set}"
-  sd_service="$(read_file etc/systemd/system/octessera-orange-sd-card.service)"
-  printf '%s\n' "$sd_service" | grep -qFx 'Environment=OCTESSERA_SD_MOUNT=/var/lib/octessera/samples/sd-card'
-  printf '%s\n' "$sd_service" | grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime'
-  printf '%s\n' "$sd_service" | grep -qFx 'ExecStart=/usr/local/sbin/octessera-sd-card mount'
-  expected_sd_rule='ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"'
-  [[ "$(read_file etc/udev/rules.d/99-octessera-orange-sd-card.rules)" == "$expected_sd_rule" ]]
-fi
+sd_helper="$(read_file usr/local/sbin/octessera-sd-card)"
+sd_library="$(read_file usr/local/lib/octessera/octessera-sd-card-lib.sh)"
+[[ -n "$sd_library" ]]
+printf '%s\n' "$sd_helper" | grep -qF "SD_MOUNT=\${OCTESSERA_SD_MOUNT:?OCTESSERA_SD_MOUNT must be set}"
+printf '%s\n' "$sd_helper" | grep -qF "SD_OWNER=\${OCTESSERA_SD_OWNER:?OCTESSERA_SD_OWNER must be set}"
+sd_service="$(read_file etc/systemd/system/octessera-orange-sd-card.service)"
+printf '%s\n' "$sd_service" | grep -qFx 'Environment=OCTESSERA_SD_MOUNT=/var/lib/octessera/samples/sd-card'
+printf '%s\n' "$sd_service" | grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime'
+printf '%s\n' "$sd_service" | grep -qFx 'ExecStart=/usr/local/sbin/octessera-sd-card mount'
+expected_sd_rule='ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"'
+[[ "$(read_file etc/udev/rules.d/99-octessera-orange-sd-card.rules)" == "$expected_sd_rule" ]]
 
 gadget_unit="$(read_file etc/systemd/system/octessera-orange-usb-gadget.service)"
 alsa_modules="$(read_file etc/modules-load.d/octessera-orange-midi.conf)"

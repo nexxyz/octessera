@@ -16,7 +16,7 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/orange_boot_selection.py",
     "tools/armbian-image/orange_image_mount.py",
     "tools/armbian-image/orange_initramfs.py",
-    "tools/armbian-image/orange_phase5_proof.py",
+    "tools/armbian-image/orange_initramfs_proof.py",
     "tools/armbian-image/orange_audio_proof.py",
     "tools/armbian-image/orange_sd_card_proof.py",
     "tools/armbian-image/test_orange_oled_logo.py",
@@ -59,7 +59,7 @@ def validate_source_inputs(document, root):
 
 exact(contract, ["schema_version", "proof_mode", "contract_kind", "construction_kind", "board_profile", "constructor_required", "trusted_parent_finalization", "mutation_authority", "regeneration_required", "expected_changes", "exact_inputs", "managed_outputs", "notice_bundle", "terminal_invariants", "uart_invariants", "enabled_sysinit_wants", "device_dependencies", "required_builtin_kernel_config_lines", "selected_initramfs", "mounted_proof", "proofs"])
 assert contract["schema_version"] == 1
-assert contract["proof_mode"] == "phase5-constructor"
+assert contract["proof_mode"] == "constructor"
 assert contract["contract_kind"] == "constructor-required"
 assert contract["construction_kind"] == "orange-boot-layer"
 assert contract["board_profile"] == "orange-pi-zero-2w"

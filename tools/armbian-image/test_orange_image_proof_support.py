@@ -226,7 +226,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path, Path]:
     write(final_root / "usr/share/doc/base-files/copyright", b"fixture base-files copyright\n")
     (final_root / "boot").mkdir(exist_ok=True)
     (final_root / "boot/Image").symlink_to(f"../usr/lib/linux-image-{RELEASE}/Image")
-    phase5_outputs = {
+    constructor_outputs = {
         "etc/profile.d/octessera-welcome.sh": "tools/pi-image/stage4-octessera/files/root/etc/profile.d/octessera-welcome.sh",
         "etc/initramfs-tools/hooks/octessera-orange-boot-splash": "userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash",
         "etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash": "userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash",
@@ -261,7 +261,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path, Path]:
         "usr/share/octessera/oled/octessera-pi-shutdown.rgb565": "userpatches/overlay/usr/local/share/octessera/oled/octessera-pi-shutdown.rgb565",
         "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf": "userpatches/overlay/etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf",
     }
-    for installed_path, source_path in phase5_outputs.items():
+    for installed_path, source_path in constructor_outputs.items():
         target = final_root / installed_path
         write(target, (REPOSITORY / source_path).read_bytes())
         managed = next(item for item in CONSTRUCTION["managed_outputs"] if item["path"] == installed_path)
@@ -389,7 +389,7 @@ def verifier_args(root: Path, image: Path, dtb: Path, evidence: Path, mode: str 
     command = [sys.executable, str(TOOLS / "verify-orange-image.py")]
     if privileged:
         command = ["sudo", "-n", *command]
-    return [*command, "--root", str(root), "--image-sha256", "a" * 64, "--linux-image", str(image), "--linux-dtb", str(dtb), "--evidence", str(evidence), "--manifest", str(manifest or REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json"), "--construction-contract", str(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"), "--boot-proof-mode", "phase5-constructor", "--mode", mode]
+    return [*command, "--root", str(root), "--image-sha256", "a" * 64, "--linux-image", str(image), "--linux-dtb", str(dtb), "--evidence", str(evidence), "--manifest", str(manifest or REPOSITORY / "tools/kernel-patches/orange-midi-interface-manifest.json"), "--construction-contract", str(REPOSITORY / "resources/image-construction/boot-layers/orange-pi-zero-2w.json"), "--boot-proof-mode", "constructor", "--mode", mode]
 
 
 def run_proof(args: list[str], expected: bool, cwd: Path | None = None) -> None:

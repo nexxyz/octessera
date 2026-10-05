@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "proof_mode": "phase5-constructor",
+  "proof_mode": "constructor",
   "contract_kind": "constructor-required",
   "construction_kind": "orange-boot-layer",
   "board_profile": "orange-pi-zero-2w",
@@ -90,14 +90,14 @@
     {"path": "userpatches/overlay/etc/systemd/system/octessera-update.socket", "sha256": "54b560875f997475d2d74d02c6a14af588508ec466e2f599fa94631c3de428f3", "size": 306, "mode": 420},
     {"path": "userpatches/overlay/etc/systemd/system/octessera-update@.service", "sha256": "6bc50aac7b1322bcc0bcf0c5d0686a31617c57ac9b4ad26c8f8289386e5225d3", "size": 483, "mode": 420},
     {"path": "userpatches/overlay/etc/sudoers.d/octessera-update", "sha256": "56fa9da17afa65fb836e494dcfe4caa3724fd276830a48f8b6bad73fa7ab86b8", "size": 239, "mode": 420},
-    {"path": "tools/armbian-image/verify-orange-image.py", "sha256": "93cf2d7d71c95ae96c4ee6365e1cf6a33ce3549ab5d026f23fd86533aca8c746", "size": 7319, "mode": 420},
-    {"path": "tools/armbian-image/orange_boot_contract.py", "sha256": "a46c62ff61bab465275d90c436ff3882203ca7896b94f5d591d63c9eac1d693f", "size": 42148, "mode": 420},
+    {"path": "tools/armbian-image/verify-orange-image.py", "sha256": "6c923553a4ed4d2af42c3eaf20b7aa8f64dd776dc97c759a521b7128cc74b8a1", "size": 7342, "mode": 420},
+    {"path": "tools/armbian-image/orange_boot_contract.py", "sha256": "d01299d8921adbd47666a2805885b9e5ff60f99e9c8ff2324ec90a1617db58a2", "size": 42077, "mode": 420},
     {"path": "tools/armbian-image/orange_kernel_config.py", "sha256": "c2a056c653f008352382afa11f2c5e42336ccbc6f54adae8a5b282c9e35e8c27", "size": 1070, "mode": 420},
     {"path": "tools/armbian-image/orange_boot_inventory.py", "sha256": "3ff06d63793b44e6c08fb4462a954ca29034431b8bcff902853a817b73ecdae4", "size": 2801, "mode": 420},
     {"path": "tools/armbian-image/orange_boot_selection.py", "sha256": "d5456d1bbe31adf89cd042b4d39f932387a739eec1f6156ca55114fbca9b2321", "size": 5242, "mode": 420},
     {"path": "tools/armbian-image/orange_image_mount.py", "sha256": "714733de682336fe947ccaec54525e8d2fa5b6074e4e11459aad6b74925702c2", "size": 8344, "mode": 420},
     {"path": "tools/armbian-image/orange_initramfs.py", "sha256": "219840f2c1486ff3b331e8e3f11e1090c056a97406b12f5da04f615001f70de5", "size": 3400, "mode": 420},
-    {"path": "tools/armbian-image/orange_phase5_proof.py", "sha256": "2b9bb125b55545a2515b04660d69dfa8243374767cf3657fad5480461d869d9e", "size": 4602, "mode": 420},
+    {"path": "tools/armbian-image/orange_initramfs_proof.py", "sha256": "d05e6c01f0f56b827c38691445ad14b13684009028ea3f2db7b9515c3a9ce921", "size": 4597, "mode": 420},
     {"path": "tools/armbian-image/orange_audio_proof.py", "sha256": "65fc09840515fe7d03e81ddc56e66409ae206fdd30c051e06af4f94dd547539d", "size": 6876, "mode": 420},
     {"path": "tools/armbian-image/verify_runtime_account.py", "sha256": "60e90498b91348005a3dce62677d70a1367a8f2cac45d7c7a2a997702f11198b", "size": 20761, "mode": 420},
     {"path": "tools/kernel-patches/orange-midi-interface-manifest.json", "sha256": "507a805792dd3ec3b58e024a52ab083b4836f30647ba497d53eaec8ce599332c", "size": 6750, "mode": 420},
@@ -250,7 +250,7 @@
     "tools/armbian-image/test-orange-boot-splash-hook.sh",
     "tools/armbian-image/test-orange-runtime-service.sh",
     "tools/armbian-image/test-orange-hdmi-rsyslog.sh",
-    "tools/armbian-image/inspect-built-image.sh --verification-profile full-constructor --mode production",
+    "tools/armbian-image/inspect-built-image.sh --mode production",
     "tools/armbian-image/validate.sh"
   ]
 }

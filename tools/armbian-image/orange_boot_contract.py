@@ -17,7 +17,7 @@ from typing import Any
 from orange_boot_selection import parse_boot_selectors, safe_resolve
 from orange_audio_proof import verify_audio_overlay
 from orange_kernel_config import kernel_config_hashes, normalize_kernel_config
-from orange_phase5_proof import verify_selected_initramfs
+from orange_initramfs_proof import verify_selected_initramfs
 from orange_sd_card_proof import verify_orange_sd_card
 from verify_runtime_account import (
     require_orange_boot_service,
@@ -46,7 +46,7 @@ SOURCE_BOUND_PROOF_SOURCES = {
     "tools/armbian-image/orange_boot_selection.py",
     "tools/armbian-image/orange_image_mount.py",
     "tools/armbian-image/orange_initramfs.py",
-    "tools/armbian-image/orange_phase5_proof.py",
+    "tools/armbian-image/orange_initramfs_proof.py",
     "tools/armbian-image/orange_audio_proof.py",
     "tools/armbian-image/orange_sd_card_proof.py",
     "tools/armbian-image/verify_runtime_account.py",
@@ -419,7 +419,7 @@ def verify_runtime(root: Path, mode: str, construction: dict[str, Any], reposito
 
 
 def validate_construction_contract(root: Path, contract: dict[str, Any]) -> str:
-    require(contract.get("proof_mode") == "phase5-constructor", "Orange construction proof mode is not phase5-constructor")
+    require(contract.get("proof_mode") == "constructor", "Orange construction proof mode is not constructor")
     require(contract.get("constructor_required") is True and contract.get("trusted_parent_finalization") == "forbidden" and contract.get("mutation_authority") == "none", "Orange construction authority is invalid")
     require(contract.get("board_profile") == "orange-pi-zero-2w", "Orange construction board is invalid")
     require(contract.get("required_builtin_kernel_config_lines") == ["CONFIG_SPI_SUN6I=y", "CONFIG_SPI_SPIDEV=y", "CONFIG_PINCTRL_SUNXI=y", "CONFIG_MMC=y", "CONFIG_MMC_BLOCK=y", "CONFIG_SOUND=y", "CONFIG_SND=y", "CONFIG_SND_SOC=y", "CONFIG_REGMAP_MMIO=y", "CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y", "CONFIG_SND_SOC_SUNXI_AHUB=y", "CONFIG_SND_SOC_SUNXI_AHUB_DAM=y", "CONFIG_SND_SOC_SUNXI_MACH=y", "CONFIG_NVMEM_SUNXI_SID=y"], "Orange built-in kernel config contract changed")
@@ -462,7 +462,7 @@ def load_construction_contract(path: Path, repository_root: Path) -> tuple[Path,
 
 def constructor_proof(root: Path, args: Any, image_hash: str, image_name: str, compression: str, repository_root: Path) -> dict[str, Any]:
     contract_path, contract, contract_hash = load_construction_contract(args.construction_contract, repository_root)
-    require(args.manifest is not None, "--manifest is required for phase5-constructor")
+    require(args.manifest is not None, "--manifest is required for constructor")
     manifest_path = args.manifest
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     evidence = read_kv(args.evidence)
@@ -474,4 +474,4 @@ def constructor_proof(root: Path, args: Any, image_hash: str, image_name: str, c
     boot = verify_boot(root, package, contract, repository_root)
     verify_dpkg_status(root, package)
     runtime = verify_runtime(root, args.mode, contract, repository_root)
-    return {"schema": "octessera.image-proof/v2", "schema_version": 2, "proof_mode": "phase5-constructor", "phase5_claim": True, "boot_state": "phase5-v1", "artifact": {"name": image_name, "sha256": image_hash, "compression": compression}, "board_profile": "orange-pi-zero-2w", "runtime": runtime, "kernel": {"release": package["release"], "linux_image_package": manifest["build_frameworks"]["armbian"]["packages"][0], "linux_dtb_package": manifest["build_frameworks"]["armbian"]["packages"][1], "evidence_sha256": evidence["_sha256"]}, "device_config_validator": boot["device_config_validator"], "contract": {"path": str(contract_path.relative_to(repository_root)), "sha256": contract_hash}}
+    return {"schema": "octessera.image-proof/v2", "schema_version": 2, "proof_mode": "constructor", "artifact": {"name": image_name, "sha256": image_hash, "compression": compression}, "board_profile": "orange-pi-zero-2w", "runtime": runtime, "kernel": {"release": package["release"], "linux_image_package": manifest["build_frameworks"]["armbian"]["packages"][0], "linux_dtb_package": manifest["build_frameworks"]["armbian"]["packages"][1], "evidence_sha256": evidence["_sha256"]}, "device_config_validator": boot["device_config_validator"], "contract": {"path": str(contract_path.relative_to(repository_root)), "sha256": contract_hash}}

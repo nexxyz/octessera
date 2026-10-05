@@ -401,7 +401,7 @@ jobs:
           share_log: yes
           image_kind: production
           runtime_bundle_path: ${{ github.workspace }}/orange-runtime
-          boot_proof_mode: phase5-constructor
+          boot_proof_mode: constructor
           construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
       - name: Normalize and verify Orange release handoff
         run: |
@@ -440,7 +440,7 @@ jobs:
             --linux-dtb "${canonical_release_paths[1]}" \
             --evidence release-assets/octessera-orange-kernel-evidence.env \
             --manifest "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json" \
-            --boot-proof-mode phase5-constructor \
+            --boot-proof-mode constructor \
             --construction-contract "$custom_root/resources/image-construction/boot-layers/orange-pi-zero-2w.json" \
             --output release-assets/octessera-orange-image-proof.json \
             --mode production

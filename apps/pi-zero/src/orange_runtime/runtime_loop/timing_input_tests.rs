@@ -109,7 +109,7 @@ fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
             &mut host,
         )
         .unwrap();
-    crate::orange_candidate::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+    crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
     RuntimeFixture {
         playback,

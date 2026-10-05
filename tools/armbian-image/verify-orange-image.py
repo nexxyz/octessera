@@ -87,16 +87,16 @@ def _verify_resize_service(root: Path) -> None:
     )
 
 
-def _phase5(args: argparse.Namespace, root: Path, image_hash: str, image_name: str, compression: str, repository_root: Path) -> dict[str, Any]:
+def _prove_constructor_image(args: argparse.Namespace, root: Path, image_hash: str, image_name: str, compression: str, repository_root: Path) -> dict[str, Any]:
     required = {
         "--linux-image": args.linux_image,
         "--linux-dtb": args.linux_dtb,
         "--evidence": args.evidence,
     }
     for label, value in required.items():
-        require(value is not None, f"{label} is required for phase5-constructor")
-    require(args.construction_contract is not None, "--construction-contract is required for phase5-constructor")
-    require(args.manifest is not None, "--manifest is required for phase5-constructor")
+        require(value is not None, f"{label} is required for constructor")
+    require(args.construction_contract is not None, "--construction-contract is required for constructor")
+    require(args.manifest is not None, "--manifest is required for constructor")
     if args.mode == "production":
         _verify_resize_service(root)
     return constructor_proof(root, args, image_hash, image_name, compression, repository_root)
@@ -108,7 +108,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     source.add_argument("--image", type=Path)
     source.add_argument("--root", type=Path)
     parser.add_argument("--image-sha256")
-    parser.add_argument("--boot-proof-mode", choices=("phase5-constructor",), required=True)
+    parser.add_argument("--boot-proof-mode", choices=("constructor",), required=True)
     parser.add_argument("--linux-image", type=Path)
     parser.add_argument("--linux-dtb", type=Path)
     parser.add_argument("--evidence", type=Path)
@@ -131,7 +131,7 @@ def main(argv: list[str]) -> int:
             require(root_source.is_dir(), "Orange proof root is missing")
             image_hash, image_name, compression = cast(str, args.image_sha256).lower(), root_source.name, "root-fixture"
             with mounted_image(root_source) as root:
-                result = _phase5(args, root, image_hash, image_name, compression, repository_root)
+                result = _prove_constructor_image(args, root, image_hash, image_name, compression, repository_root)
         else:
             require(args.image is not None and args.image.is_file(), "final Orange image is missing")
             image_source = cast(Path, args.image)
@@ -140,7 +140,7 @@ def main(argv: list[str]) -> int:
             image_hash = hashlib.sha256(image_source.read_bytes()).hexdigest()
             compression = "xz" if image_source.suffix == ".xz" else "none"
             with mounted_image(image_source) as root:
-                result = _phase5(args, root, image_hash, image_source.name, compression, repository_root)
+                result = _prove_constructor_image(args, root, image_hash, image_source.name, compression, repository_root)
         if args.image_provenance:
             _verify_json(args.image_provenance, result)
         if args.output:
