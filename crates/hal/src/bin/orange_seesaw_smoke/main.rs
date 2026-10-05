@@ -330,5 +330,4 @@ extern "C" fn interrupt_handler(_: libc::c_int) {
 }
 
 #[cfg(test)]
-#[path = "tests/orange_seesaw_smoke_tests.rs"]
 mod tests;

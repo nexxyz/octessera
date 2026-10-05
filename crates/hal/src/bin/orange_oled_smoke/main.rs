@@ -186,5 +186,4 @@ fn black_frame() -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[path = "tests/orange_oled_smoke_tests.rs"]
 mod tests;

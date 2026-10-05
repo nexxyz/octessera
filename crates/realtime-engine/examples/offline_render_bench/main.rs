@@ -2,11 +2,8 @@ use realtime_engine::synth::{SynthEngine, DEFAULT_AUDIO_SAMPLE_RATE};
 use std::env;
 use std::time::Instant;
 
-#[path = "offline_render_bench/config.rs"]
 mod config;
-#[path = "offline_render_bench/sample_data.rs"]
 mod sample_data;
-#[path = "offline_render_bench/scenario.rs"]
 mod scenario;
 
 use scenario::Scenario;

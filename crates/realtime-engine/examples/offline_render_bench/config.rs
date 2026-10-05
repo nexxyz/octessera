@@ -1,4 +1,3 @@
-#[path = "config/fx_slots.rs"]
 mod fx_slots;
 
 use crate::scenario::{IsolatedFx, Scenario};
