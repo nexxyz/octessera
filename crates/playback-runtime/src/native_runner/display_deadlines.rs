@@ -117,7 +117,9 @@ impl NativeRunner {
 
     fn long_toast_scrolling_active(&self, now: Instant) -> bool {
         self.display.toast.as_ref().is_some_and(|toast| {
-            toast.message.chars().count() > TOAST_SCROLL_WIDTH
+            let length = toast.message.chars().count();
+            length > TOAST_SCROLL_WIDTH
+                && !(self.toast_holds_at_end() && toast.offset >= length - TOAST_SCROLL_WIDTH)
                 && self
                     .display
                     .toast_expires_at
@@ -256,7 +258,8 @@ mod tests {
 
         let mut runner = runner_at(start);
         runner.pending.pending_aux_turn_toast = Some(PendingNativeToast {
-            message: "queued".into(),
+            head: "Trn-1: Cutoff: ".into(),
+            value: "56".into(),
         });
         runner.display.aux_turn_toast_cooldown_until = Some(start + Duration::from_millis(500));
         assert_eq!(
@@ -282,6 +285,30 @@ mod tests {
         assert_eq!(
             runner.next_timed_display_snapshot_deadline_after(Some(unblocked)),
             Some(unblocked)
+        );
+    }
+
+    #[test]
+    fn held_aux_toast_stops_scrolling_once_it_reaches_its_end() {
+        let start = Instant::now();
+        let mut runner = runner_at(start);
+        let head = "Trn-1: Filter Cutoff: ";
+        let message = format!("{head}56");
+        let end = message.chars().count() - TOAST_SCROLL_WIDTH;
+        runner.display.held_toast_head = Some(head.into());
+        runner.display.toast = Some(NativeToast {
+            message,
+            offset: end - 1,
+        });
+        runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
+        assert!(runner
+            .next_continuous_display_snapshot_deadline(start, Duration::from_millis(33))
+            .is_some());
+
+        runner.display.toast.as_mut().unwrap().offset = end;
+        assert_eq!(
+            runner.next_continuous_display_snapshot_deadline(start, Duration::from_millis(33)),
+            None
         );
     }
 

@@ -319,6 +319,7 @@ Overrides:
 - In supported contexts, focused menu items show auto-map indicators like `1-Cutoff` and `1!Assign`, preserving selection markers on focused items such as `> 1!Assign`.
 - If no slot is bound, toast shows labels like `Trn-1: No binding` or `S+Clk-1: No binding`
 - Turn toasts show current value, e.g. `Trn-1: Spawn Count: 3`
+- Repeated turns of the same Aux target keep the visible turn toast instead of restarting it: only the value changes in place and the 1.2 s timeout restarts with each turn. A different target, or a turn after the toast has expired or been replaced, starts a fresh toast; fresh turn toasts for different targets are throttled to one per 500 ms, showing the latest queued one when the throttle ends.
 - Shared route currently implemented:
   - `trigger.life.spawn_now` resolves per behavior (sequencer has no implementation)
 - Enum turning is clamped (no wrap)
@@ -354,6 +355,7 @@ Overrides:
 - Messages longer than the physical 17-column toast width scroll horizontally by one native offset per display snapshot attempt; the host supplies the 33ms attempt cadence while scrolling is active. Short messages do not schedule scrolling.
 - Selected long menu items use the same display-attempt pacing, advancing one character every four attempts with a three-space cycle gap; short selected items do not schedule scrolling.
 - Native toast offsets reset when a toast is replaced; there is no `startedAtMs` wall-clock scrolling contract.
+- Long Aux turn toasts scroll once to their rightmost position and then hold there (no wrap), so the changing value stays visible, e.g. `...r Cutoff: 56`. A held toast stops scheduling scroll attempts.
 
 ## Config Persistence (ConfigPayload)
 

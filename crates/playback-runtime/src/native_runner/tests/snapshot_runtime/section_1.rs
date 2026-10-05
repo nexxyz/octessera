@@ -264,51 +264,67 @@ pub(crate) fn toasts_expire_after_timeout() {
 }
 
 #[test]
-pub(crate) fn aux_turn_toast_cooldown_keeps_first_then_shows_latest() {
+pub(crate) fn repeated_aux_turns_keep_the_toast_at_its_end_and_update_the_value() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = vec![2, 0, 0, 2, 3];
     runner.menu.state.cursor = 1;
+    let turn = |runner: &mut NativeRunner| {
+        let messages = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+                request_snapshot: None,
+            })
+            .unwrap();
+        snapshot_from(&messages)["display"]["toast"]
+            .as_str()
+            .unwrap_or("")
+            .to_string()
+    };
+    let current_value = |runner: &NativeRunner| {
+        let message = &runner.display.toast.as_ref().unwrap().message;
+        message.rsplit(": ").next().unwrap().to_string()
+    };
 
-    let first = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let first_snapshot = snapshot_from(&first);
-    let first_toast = first_snapshot["display"]["toast"].as_str().unwrap_or("");
-    assert_eq!(first_toast.chars().count(), TOAST_RECT.columns());
-    assert!(first_toast.contains("Cutoff:"));
+    let first = turn(&mut runner);
+    assert_eq!(first.chars().count(), TOAST_RECT.columns());
+    assert!(runner
+        .display
+        .toast
+        .as_ref()
+        .unwrap()
+        .message
+        .starts_with("Trn-1: "));
+    let message_length = runner
+        .display
+        .toast
+        .as_ref()
+        .unwrap()
+        .message
+        .chars()
+        .count();
+    assert!(message_length > TOAST_RECT.columns());
+    for _ in 0..message_length + 10 {
+        let _ = runner.messages_with_snapshot().unwrap();
+    }
+    let held = runner.snapshot().unwrap()["display"]["toast"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(held.ends_with(&current_value(&runner)), "{held}");
 
-    let second = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let second_snapshot = snapshot_from(&second);
-    let second_toast = second_snapshot["display"]["toast"].as_str().unwrap_or("");
-    assert_eq!(second_toast.chars().count(), TOAST_RECT.columns());
-    assert!(second_toast.contains("Cutoff:"));
+    let second = turn(&mut runner);
+    let value = current_value(&runner);
+    assert!(second.ends_with(&value), "{second}");
+    assert!(second.contains("Cutoff: "), "{second}");
+    let third = turn(&mut runner);
+    assert_ne!(current_value(&runner), value);
+    assert!(third.ends_with(&current_value(&runner)), "{third}");
 
-    let third = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let third_snapshot = snapshot_from(&third);
-    let third_toast = third_snapshot["display"]["toast"].as_str().unwrap_or("");
-    assert_eq!(third_toast.chars().count(), TOAST_RECT.columns());
-    assert!(third_toast.contains("Cutoff:"));
-
-    runner.age_toast_state_for_test(600);
-    let after = runner.messages_with_snapshot().unwrap();
-
-    let after_snapshot = snapshot_from(&after);
-    let after_toast = after_snapshot["display"]["toast"].as_str().unwrap_or("");
-    assert_eq!(after_toast.chars().count(), TOAST_RECT.columns());
-    assert!(after_toast.contains("Cutoff:"));
+    runner.age_toast_state_for_test(2500);
+    let _ = runner.messages_with_snapshot().unwrap();
+    assert_eq!(runner.snapshot().unwrap()["display"]["toast"], "");
+    let _ = turn(&mut runner);
+    assert!(runner.display.toast.as_ref().unwrap().offset <= 1);
 }
 
 #[test]

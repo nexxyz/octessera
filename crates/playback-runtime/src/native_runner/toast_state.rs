@@ -40,7 +40,7 @@ impl NativeRunner {
         {
             self.display.aux_turn_toast_cooldown_until = None;
             if let Some(pending) = self.pending.pending_aux_turn_toast.take() {
-                self.show_or_queue_aux_turn_toast(pending.message);
+                self.show_or_queue_aux_turn_toast(pending.head, pending.value);
             }
         }
         if self
@@ -55,5 +55,14 @@ impl NativeRunner {
             toast.offset = toast.offset.saturating_add(1);
         }
         self.display.menu_scroll_offset = self.display.menu_scroll_offset.saturating_add(1);
+    }
+
+    /// Whether the visible toast is an Aux turn toast that scrolls once and
+    /// then stays at its rightmost position.
+    pub(super) fn toast_holds_at_end(&self) -> bool {
+        match (&self.display.toast, &self.display.held_toast_head) {
+            (Some(toast), Some(head)) => toast.message.starts_with(head.as_str()),
+            _ => false,
+        }
     }
 }

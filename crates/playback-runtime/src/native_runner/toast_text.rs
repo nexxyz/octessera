@@ -9,11 +9,15 @@ pub(super) fn clip_display_line(line: &str, width: usize) -> String {
     out
 }
 
-pub(super) fn scrolled_toast(toast: &NativeToast) -> String {
+pub(super) fn scrolled_toast(toast: &NativeToast, hold_at_end: bool) -> String {
     let width = TOAST_RECT.columns();
     let chars = toast.message.chars().collect::<Vec<_>>();
     if chars.len() <= width {
         return toast.message.clone();
+    }
+    if hold_at_end {
+        let offset = toast.offset.min(chars.len() - width);
+        return chars[offset..offset + width].iter().collect();
     }
     let span = chars.len() + 3;
     let offset = toast.offset % span;
@@ -39,7 +43,7 @@ mod tests {
             offset: 0,
         };
 
-        assert_eq!(scrolled_toast(&short).chars().count(), width);
-        assert_eq!(scrolled_toast(&long).chars().count(), width);
+        assert_eq!(scrolled_toast(&short, false).chars().count(), width);
+        assert_eq!(scrolled_toast(&long, false).chars().count(), width);
     }
 }

@@ -77,6 +77,7 @@ pub(super) struct NativeDisplayState {
     pub(super) toast: Option<NativeToast>,
     pub(super) toast_expires_at: Option<Instant>,
     pub(super) aux_turn_toast_cooldown_until: Option<Instant>,
+    pub(super) held_toast_head: Option<String>,
     pub(super) menu_scroll_offset: usize,
     pub(super) runtime_error_presentation: Option<NativeRuntimeErrorPresentation>,
 }
@@ -106,6 +107,7 @@ impl NativeDisplayState {
             toast: None,
             toast_expires_at: None,
             aux_turn_toast_cooldown_until: None,
+            held_toast_head: None,
             menu_scroll_offset: 0,
             runtime_error_presentation: None,
         }
@@ -329,7 +331,8 @@ pub(super) struct NativeToast {
 
 #[derive(Clone, Debug)]
 pub(super) struct PendingNativeToast {
-    pub(super) message: String,
+    pub(super) head: String,
+    pub(super) value: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]

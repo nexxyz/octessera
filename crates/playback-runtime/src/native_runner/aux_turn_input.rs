@@ -14,11 +14,10 @@ impl NativeRunner {
         };
         let coarse = !(self.display.ui.fn_held || self.display.ui.combined_modifier_held);
         match self.turn_generated_behavior_target(&turn.key, delta, coarse) {
-            Ok(Some(value)) => self.show_or_queue_aux_turn_toast(format!(
-                "{prefix}-{}: {}: {value}",
-                index + 1,
-                turn.label
-            )),
+            Ok(Some(value)) => self.show_or_queue_aux_turn_toast(
+                format!("{prefix}-{}: {}: ", index + 1, turn.label),
+                value.to_string(),
+            ),
             Ok(None) if self.menu.turn_key_with_precision(&turn.key, delta, coarse) => {
                 self.apply_or_schedule_menu_key(&turn.key)?;
                 let value = self
@@ -30,11 +29,10 @@ impl NativeRunner {
                             .map(|value| value.to_string())
                     })
                     .unwrap_or_else(|| "changed".into());
-                self.show_or_queue_aux_turn_toast(format!(
-                    "{prefix}-{}: {}: {value}",
-                    index + 1,
-                    turn.label
-                ));
+                self.show_or_queue_aux_turn_toast(
+                    format!("{prefix}-{}: {}: ", index + 1, turn.label),
+                    value,
+                );
             }
             Ok(None) => {
                 self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));

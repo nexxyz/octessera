@@ -218,18 +218,33 @@ impl NativeRunner {
         self.display.auto_save_flash_until = Some(Instant::now() - Duration::from_millis(1));
     }
 
-    pub(super) fn show_or_queue_aux_turn_toast(&mut self, message: impl Into<String>) {
-        let message = message.into();
+    /// Repeated turns of the same Aux target keep the visible toast and only
+    /// swap its value; other targets are throttled and start a fresh toast.
+    pub(super) fn show_or_queue_aux_turn_toast(&mut self, head: String, value: String) {
         let now = Instant::now();
+        if self.display.held_toast_head.as_deref() == Some(head.as_str())
+            && self.toast_holds_at_end()
+        {
+            if let Some(toast) = &mut self.display.toast {
+                toast.message = format!("{head}{value}");
+            }
+            self.display.toast_expires_at = Some(now + Duration::from_millis(1200));
+            self.pending.pending_aux_turn_toast = None;
+            return;
+        }
         if self
             .display
             .aux_turn_toast_cooldown_until
             .is_some_and(|cooldown_until| now < cooldown_until)
         {
-            self.pending.pending_aux_turn_toast = Some(PendingNativeToast { message });
+            self.pending.pending_aux_turn_toast = Some(PendingNativeToast { head, value });
             return;
         }
-        self.display.toast = Some(NativeToast { message, offset: 0 });
+        self.display.toast = Some(NativeToast {
+            message: format!("{head}{value}"),
+            offset: 0,
+        });
+        self.display.held_toast_head = Some(head);
         self.display.toast_expires_at = Some(now + Duration::from_millis(1200));
         self.display.aux_turn_toast_cooldown_until = Some(now + Duration::from_millis(500));
         self.pending.pending_aux_turn_toast = None;
