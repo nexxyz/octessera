@@ -57,7 +57,10 @@ pub(crate) fn dispatch(
     }
     let dispatch_input = adapter.handle_transfer_input(&message);
     while let Some(status) = adapter.take_transfer_status() {
-        dispatch_runtime_message(playback, runner, adapter, status)?;
+        if let Err(error) = dispatch_runtime_message(playback, runner, adapter, status) {
+            eprintln!("pi transfer status dispatch failed: {error}");
+            break;
+        }
     }
     if !dispatch_input {
         return Ok(());

@@ -65,6 +65,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-flow.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-state.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-readiness.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-ui.py"
+node --test "$root/tools/armbian-image/test-setup-ui-validation.mjs"
 
 bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" '' | grep -qxF 'octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'
 bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" preset-firstrun | grep -qxF 'preset-firstrun octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'
