@@ -156,21 +156,17 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
     });
     std::fs::write(&paths.current, serde_json::to_vec(&starting).unwrap()).unwrap();
     set_mode(&paths.current, 0o640);
-    std::thread::sleep(Duration::from_millis(40));
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !service.result_lane.setup_send_waiting() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(service.result_lane.setup_send_waiting());
     let ready = serde_json::json!({
         "schema": 1,
         "status": {"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}
     });
     std::fs::write(&paths.current, serde_json::to_vec(&ready).unwrap()).unwrap();
     set_mode(&paths.current, 0o640);
-
-    for _ in 0..200 {
-        if service.result_lane.setup_send_waiting() {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(2));
-    }
-    assert!(service.result_lane.setup_send_waiting());
     enqueue_system_info(&service, 32);
 
     service

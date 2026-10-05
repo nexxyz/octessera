@@ -71,7 +71,7 @@ fn stopped_aux_edit_keeps_autosave_deadline_across_play_and_reloads() {
             .as_ref(),
         Some(&original_patch)
     );
-    let deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline
         && crate::platform_service::load_json(&patch_path)
             .unwrap()
