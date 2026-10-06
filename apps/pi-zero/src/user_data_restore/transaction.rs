@@ -113,7 +113,7 @@ fn replace_trees_internal(
     Ok(())
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(test)]
 pub(crate) fn swap_tree(current: &Path, replacement: &Path, old: &Path) -> Result<(), String> {
     match swap_tree_internal((current, replacement, old), 0, &mut None) {
         Ok(()) => Ok(()),
@@ -125,7 +125,7 @@ pub(crate) fn swap_tree(current: &Path, replacement: &Path, old: &Path) -> Resul
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(test)]
 pub(crate) fn rollback_tree(current: &Path, old: &Path, replacement: &Path) -> Result<(), String> {
     rollback_tree_internal(
         (current, replacement, old),

@@ -128,22 +128,21 @@ impl ConfigDto {
         })
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(super) fn kind(&self) -> &str {
         &self.kind
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(super) fn schema_version(&self) -> u64 {
         self.schema_version
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(super) fn revision(&self) -> Option<u64> {
         self.revision
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn runtime_config(&self) -> &Value {
         &self.runtime_config
     }
@@ -172,12 +171,10 @@ impl ConfigDto {
         self.mapping_config.as_ref()
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn system(&self) -> Option<&Value> {
         self.system.as_ref()
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn extensions(&self) -> &Map<String, Value> {
         &self.extensions
     }

@@ -235,6 +235,7 @@ pub(super) fn prepare_patch_payload(
     })
 }
 
+#[cfg(test)]
 pub(super) fn prepare_device_payload(
     input: Value,
     current: &Value,

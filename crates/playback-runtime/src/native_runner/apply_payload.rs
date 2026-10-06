@@ -1,8 +1,10 @@
 use super::play_fx_config::{default_play_fx_selected, sanitize_play_fx_config};
+#[cfg(test)]
+use super::prepare_device_payload;
 use super::{
-    prepare_config_payload, prepare_device_payload, prepare_patch_payload, ConfigDto,
-    ConfigurationAggregate, ConfigurationRuntimePlan, NativePlayFxAssignment, NativeRunner,
-    NativeRunnerConfig, PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
+    prepare_config_payload, prepare_patch_payload, ConfigDto, ConfigurationAggregate,
+    ConfigurationRuntimePlan, NativePlayFxAssignment, NativeRunner, NativeRunnerConfig,
+    PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -255,7 +257,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(super) fn apply_device_config_payload_preserving_patch(
         &mut self,
         payload: Value,

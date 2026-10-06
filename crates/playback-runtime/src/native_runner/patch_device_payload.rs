@@ -20,7 +20,7 @@ pub(super) fn portable_patch_projection(payload: &Value) -> Result<Value, String
     Ok(canonicalize_json(patch))
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(any(test, feature = "test-support"))]
 pub(super) fn portable_patch_bytes(payload: &Value) -> Result<Vec<u8>, String> {
     let patch = portable_patch_projection(payload)?;
     validate_portable_patch_sample_paths(&patch, None)?;
@@ -45,7 +45,6 @@ pub(super) fn patch_payload_from_payload(payload: Value) -> Result<Value, String
     portable_patch_projection(&payload)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn device_config_payload_from_payload(payload: Value) -> Result<Value, String> {
     let runtime = payload.get("runtimeConfig").cloned().unwrap_or(payload);
     Ok(json!({ "runtimeConfig": device_runtime_config(runtime)? }))
@@ -59,7 +58,6 @@ pub(super) fn patch_runtime_config(runtime: Value) -> Result<Value, String> {
     Ok(runtime)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn device_runtime_config(runtime: Value) -> Result<Value, String> {
     let typed = RuntimeConfigDto::from_value(&runtime)?;
     let mut device = DeviceRuntimeConfigDto::from_runtime(&typed).to_value()?;
