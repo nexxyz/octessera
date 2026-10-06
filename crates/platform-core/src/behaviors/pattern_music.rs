@@ -126,7 +126,7 @@ pub fn pattern_on_input(
         if x < GRID_WIDTH && y < GRID_HEIGHT {
             let index = grid_index(x, y);
             state.cells[index] = !state.cells[index];
-            state.seed = state.seed.wrapping_add((index as u32 + 1) * 97);
+            state.seed = (state.seed.clamp(1, 9999) - 1 + (index as u32 + 1) * 97) % 9999 + 1;
         }
     }
     state.trigger_types = trigger_types(&previous, &state.cells);

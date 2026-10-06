@@ -206,3 +206,33 @@ fn reset_transport_phase_rebuilds_phase_zero_frame_and_transitions() {
     assert_eq!(state.variation_pct, 60);
     assert_eq!(state.cycle_length, 16);
 }
+
+#[test]
+fn grid_presses_keep_the_pattern_seed_in_range_across_save_and_reload() {
+    let behavior = crate::behaviors::get_native_behavior("weave").unwrap();
+    let mut state = behavior.init(serde_json::json!({ "seed": 9999 })).unwrap();
+    let mut context = BehaviorContext::new(120.0);
+    for _ in 0..8 {
+        state = behavior
+            .on_input(
+                state,
+                crate::DeviceInput::GridPress {
+                    x: GRID_WIDTH - 1,
+                    y: GRID_HEIGHT - 1,
+                },
+                &mut context,
+            )
+            .unwrap();
+    }
+    let saved = behavior.serialize(&state).unwrap();
+    let seed = saved["seed"].as_u64().unwrap();
+    assert!(
+        (1..=9999).contains(&seed),
+        "seed {seed} left the menu range"
+    );
+    let reloaded = behavior.deserialize(saved).unwrap();
+    assert_eq!(
+        behavior.render_model(&reloaded).unwrap().cells,
+        behavior.render_model(&state).unwrap().cells
+    );
+}
