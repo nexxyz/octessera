@@ -1,6 +1,7 @@
 use super::source_worker_test_fixtures::dynamic_engine;
 use super::*;
 use std::thread;
+use std::time::{Duration, Instant};
 
 fn measured_load(reverse: bool) -> SourceWorkerLoadSnapshot {
     let mut engine = dynamic_engine();
@@ -14,10 +15,8 @@ fn measured_load(reverse: bool) -> SourceWorkerLoadSnapshot {
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     let mut measurements = [(0, 0); 2];
     for parity in 0..2 {
-        for _ in 0..10_000 {
-            if runtime.completion_ready_for_test(parity) {
-                break;
-            }
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !runtime.completion_ready_for_test(parity) && Instant::now() < deadline {
             thread::yield_now();
         }
         measurements[parity] = runtime
@@ -58,10 +57,8 @@ fn paired_completion_updates_worker_warning_state_from_measured_load() {
             .expect("worker runtime");
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     for parity in 0..2 {
-        for _ in 0..10_000 {
-            if runtime.completion_ready_for_test(parity) {
-                break;
-            }
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !runtime.completion_ready_for_test(parity) && Instant::now() < deadline {
             thread::yield_now();
         }
         assert!(runtime.rewrite_completion_measurement_for_test(parity, 220_000_000, 1,));
@@ -86,10 +83,8 @@ fn invalid_completion_does_not_update_load() {
     let before_status = engine.audio_load_status();
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     for parity in 0..2 {
-        for _ in 0..10_000 {
-            if runtime.completion_ready_for_test(parity) {
-                break;
-            }
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !runtime.completion_ready_for_test(parity) && Instant::now() < deadline {
             thread::yield_now();
         }
     }
@@ -120,10 +115,8 @@ fn stale_completion_does_not_update_load() {
     let before_status = engine.audio_load_status();
     assert!(runtime.dispatch_only_for_test(&mut engine, 128));
     for parity in 0..2 {
-        for _ in 0..10_000 {
-            if runtime.completion_ready_for_test(parity) {
-                break;
-            }
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !runtime.completion_ready_for_test(parity) && Instant::now() < deadline {
             thread::yield_now();
         }
     }
