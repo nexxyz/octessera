@@ -388,6 +388,7 @@ fn dest_edge(dir: &str) -> Vec<usize> {
     }
 }
 fn hash(tick: u64, index: usize, dir: &str) -> u64 {
+    let tick = tick ^ crate::behavior_random::salt();
     tick.wrapping_mul(1_103_515_245)
         .wrapping_add(index as u64 * 97)
         .wrapping_add(dir.as_bytes()[0] as u64)

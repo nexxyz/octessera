@@ -18,14 +18,7 @@ fn captured_persistence_state_preserves_behavior_serialization_and_owns_snapshot
                 x: AxisStrategy::ScaleStep { step: 1 },
                 y: AxisStrategy::ScaleStep { step: 1 },
             },
-            mapping_config: default_mapping_config(),
-            global_sound: GlobalSoundConfig {
-                velocity_scale_pct: 100,
-                velocity_curve: VelocityCurve::Linear,
-                note_length_ms: 120,
-            },
-            note_behaviors: vec![NoteBehavior::Oneshot; 16],
-            layer_index: 0,
+            ..base_config()
         })
         .unwrap()
     };

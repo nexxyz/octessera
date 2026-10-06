@@ -197,6 +197,7 @@ mod play_transpose;
 mod play_trigger_gate;
 mod portable_patch_validation;
 mod preset_native_completion;
+mod random_streams;
 mod restart_settings;
 mod restart_settings_runtime;
 mod runner_config;
@@ -434,6 +435,9 @@ pub struct NativeRunner {
     layer_names: Vec<String>,
     layer_auto_names: Vec<bool>,
     save_grid_states: Vec<bool>,
+    random_seed: u16,
+    layer_seeded: Vec<bool>,
+    seeded_link_streams: random_streams::SeededLinkStreams,
     link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
     modulation_process: ModulationProcessState,
     link_layers: Vec<NativeLinkLayer>,

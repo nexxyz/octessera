@@ -28,6 +28,7 @@ impl Default for NativeLinkLayer {
             trigger_probability_low_pct: 25,
             trigger_probability_high_pct: 75,
             state_notes_enabled: true,
+            seeded: false,
             lowest_note: 36,
             highest_note: 74,
             starting_note: 60,

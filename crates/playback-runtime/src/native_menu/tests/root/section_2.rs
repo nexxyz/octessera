@@ -244,20 +244,20 @@ pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
     menu.state.cursor = 7;
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Build");
-    assert_eq!(snapshot.selected_row, Some(6));
+    assert_eq!(snapshot.selected_row, Some(5));
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.scroll_offset),
-        Some(1)
+        Some(2)
     );
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.total_rows),
-        Some(8)
+        Some(9)
     );
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.visible_rows),
         Some(7)
     );
-    assert_eq!(snapshot.lines[6], "> L8: life >");
+    assert_eq!(snapshot.lines[5], "> L8: life >");
     assert!(!snapshot.lines.iter().any(|line| line == "  L1: life"));
 }
 

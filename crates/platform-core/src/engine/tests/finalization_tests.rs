@@ -52,14 +52,13 @@ fn finalize_events_applies_global_sound_before_hold_and_preserves_intents() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config: default_mapping_config(),
         global_sound: GlobalSoundConfig {
             velocity_scale_pct: 150,
             velocity_curve: VelocityCurve::Linear,
             note_length_ms: 777,
         },
         note_behaviors: vec![NoteBehavior::Hold; 16],
-        layer_index: 0,
+        ..base_config()
     };
     let mut engine = NativeLayerEngine::new(config).unwrap();
 

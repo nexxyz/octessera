@@ -6,6 +6,9 @@ use super::{
 
 impl NativeRunner {
     pub(super) fn apply_layers_payload(&mut self, runtime: &Value) -> Result<(), String> {
+        if let Some(seed) = super::random_streams::random_seed_from_payload(runtime) {
+            self.random_seed = seed;
+        }
         let Some(layers) = runtime.get("layers").and_then(Value::as_array) else {
             return Ok(());
         };
@@ -106,6 +109,11 @@ fn apply_layer_build_payload(
     if let Some(save_grid_state) = build.get("saveGridState").and_then(Value::as_bool) {
         if let Some(target) = runner.save_grid_states.get_mut(index) {
             *target = save_grid_state;
+        }
+    }
+    if let Some(seeded) = build.get("seeded").and_then(Value::as_bool) {
+        if let Some(target) = runner.layer_seeded.get_mut(index) {
+            *target = seeded;
         }
     }
     if let Some(step_rate) = build.get("stepRate").and_then(Value::as_str) {

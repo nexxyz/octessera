@@ -48,7 +48,9 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
         .iter()
         .map(|item| item.label.clone())
         .collect::<Vec<_>>();
-    assert_eq!(world_labels, expected_menu.layer_labels);
+    let mut expected_world_labels = expected_menu.layer_labels.clone();
+    expected_world_labels.push("Seed".into());
+    assert_eq!(world_labels, expected_world_labels);
     assert_eq!(
         runner.menu.item_for_key("behaviorId").unwrap().label,
         format!("Behavior: {}", expected_menu.behavior_id)

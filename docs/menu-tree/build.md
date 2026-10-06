@@ -77,16 +77,19 @@ Build
 │   ├── Layer Label: (text, max 32)               ← display label; editing sets Auto Label off
 │   ├── Step Rate: [1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2T, 1/2, 1/1T, 1/1]   ← controls how often onTick() is called; hidden when Behavior is `none`
 │   ├── ... per-behavior dynamic config from behavior's configMenu()
+│   ├── Seeded: [off | on]                       ← on: this layer's behavior randomness follows Build > Seed; hidden when Behavior is `none`
 │   └── Reset                                    ← reinitializes the active behavior state; hidden when Behavior is `none`
 ├── L2: ... (group)
-└── L3: ... (group)                              ← up to layerCount layers total
+├── L3: ... (group)                              ← up to layerCount layers total
+└── Seed: [1..9999] step 1                       ← shared seed for every Seeded Build layer and Link layer (default 1)
 ```
 
 Rows that open submenus or selectors render with a trailing `>`. Selecting a behavior row switches that layer immediately through the native runtime and returns focus to the layer's Behavior row. It does not rebuild the full menu tree; only the affected Build layer rows are refreshed. Behavior IDs remain the persisted payload values under each layer's `behaviorId`.
 `glider` is no longer selectable. Its glider injection controls are part of `life`.
 When Auto Label is on, the layer label is derived from the active behavior ID (e.g. `life`, `brain`). Editing the Layer Label text field switches Auto Label off.
 Layer selectors (Fn+column selection, Link Layer selector) display the computed layer label (e.g. `L1: life`, `L2: rain`).
-When a layer's behavior is `none`, the Build layer group shows Behavior, Auto Label, and Layer Label only; Step Rate, dynamic behavior config rows, and Reset are hidden without deleting stored values.
+When a layer's behavior is `none`, the Build layer group shows Behavior, Auto Label, and Layer Label only; Step Rate, dynamic behavior config rows, Seeded, and Reset are hidden without deleting stored values.
+`Seed` sits after the layer groups so the Build cursor still lands on the active layer. It is persisted per patch as `runtimeConfig.randomSeed`; each layer's `Seeded` is `layers.N.build.seeded` (default off). Unseeded layers keep their fresh, unrepeatable randomness. A Seeded layer draws all behavior randomness, including hash-style choices and the Rhythm/Musical/weave pattern `Seed`, from a stream mixed from the global Seed and the layer index. Seeded streams restart on play-from-stop, transport stop, external MIDI start, patch load, and when Seed or the layer's Seeded switch changes. Audio-rate noise in instruments and FX is never seeded.
 Parameter target pickers mirror the main menu root order (`Build`, `Link`, `Shape`, `Play`, `System`). Within `Build`, behavior `none` layers expose no Behavior targets, while real behavior layers expose `layers.N.algorithmStep` and `layers.N.build.behaviorConfig.*` targets under their own layer label.
 
 Behavior categories:

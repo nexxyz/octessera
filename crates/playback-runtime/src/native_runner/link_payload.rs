@@ -12,6 +12,7 @@ pub(super) fn link_layer_payload(layer: &NativeLinkLayer, probability_map: &[Str
         "triggerProbabilityLowPct": layer.trigger_probability_low_pct,
         "triggerProbabilityHighPct": layer.trigger_probability_high_pct,
         "stateNotesEnabled": layer.state_notes_enabled,
+        "seeded": layer.seeded,
         "triggerProbabilityMap": probability_map,
         "mapping": {
             "scanned": mapping_payload(layer.scanned_slot, &layer.scanned_action, layer.scanned_timing),

@@ -139,6 +139,11 @@ impl NativeRunner {
             layer_names: seed.layer_names,
             layer_auto_names: seed.layer_auto_names,
             save_grid_states: seed.save_grid_states,
+            random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
+            layer_seeded: vec![false; LAYER_COUNT],
+            seeded_link_streams: super::random_streams::SeededLinkStreams::new(
+                super::random_streams::DEFAULT_RANDOM_SEED,
+            ),
             link_lfos: seed.link_lfos,
             modulation_process: ModulationProcessState::default(),
             link_layers: seed.link_layers,

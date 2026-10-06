@@ -129,6 +129,7 @@ pub(super) fn is_excluded_binding_key(key: &str) -> bool {
         || key.contains(".sample.filterEnv.")
         || key.ends_with(".name")
         || key.ends_with(".autoName")
+        || key.ends_with(".seeded")
         || key.ends_with(".clone")
         || key.ends_with(".reset")
         || key.ends_with(".params.timeMode")

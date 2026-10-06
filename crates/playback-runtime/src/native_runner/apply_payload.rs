@@ -83,6 +83,7 @@ impl NativeRunner {
         self.last_snapshot_audio_config_revision = source.last_snapshot_audio_config_revision;
         self.last_published_runtime_config = source.last_published_runtime_config.clone();
         self.trigger_probability_rng = source.trigger_probability_rng;
+        self.seeded_link_streams = source.seeded_link_streams.clone();
         self.audio_optimization_capacity_available = source.audio_optimization_capacity_available;
         self.jack_audio_required = source.jack_audio_required;
         self.usb_data_role_available = source.usb_data_role_available;
@@ -218,6 +219,7 @@ impl NativeRunner {
         self.engine
             .set_interpretation_profile(self.interpretation_profile.clone());
         self.sync_engine_runtime_config();
+        self.restart_random_streams();
         self.menu.state = Default::default();
         self.menu.rebuild(self.menu_config());
         Ok(())

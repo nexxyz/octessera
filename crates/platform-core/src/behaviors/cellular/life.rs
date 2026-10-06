@@ -334,7 +334,7 @@ fn spawn_random_cells(cells: &mut [bool], count: usize) {
         .enumerate()
         .filter_map(|(index, cell)| (!*cell).then_some(index))
         .collect::<Vec<_>>();
-    available.shuffle(&mut rand::thread_rng());
+    available.shuffle(&mut crate::behavior_random::rng());
     for index in available.into_iter().take(count) {
         cells[index] = true;
     }

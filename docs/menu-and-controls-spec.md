@@ -114,6 +114,10 @@ Aux mappings modal behavior:
 - Stop: `■`
 - Stop, accepted MIDI Start, and resync reset the transport origin, generic scan cursor, autonomous Build cadence, Pattern phase, and Looper playback position while preserving evolved worlds, configuration, and recorded loop; behavior-owned state follows each behavior's reset contract. While transport runs, clearing or replacing a behavior reinitializes or restores its behavior-owned state as defined, while preserving the transport-owned generic interpretation cursor, fractional accumulator, and page/section phase. Only Sequencer has origin-immediate static-grid semantics: page 1 step 1 is anchored at transport origin, empty leading cells are timed rests, and later pages continue without restarting. For an armed external resync, clocks strictly before the next 96-PPQN boundary process normally; the boundary clock is consumed by the reset, scanning Sequencer layers process their origin tick at reported PPQN 0, and non-Sequencer layers do not receive a zero-elapsed tick. The following clock reports PPQN 1 and does not repeat the origin tick. Pause and layer trigger-gate changes preserve phase; true stop/reset returns to origin. Pause/Continue resumes the exact phase.
 
+## Seeded Randomness
+
+Randomness is unseeded unless a source opts in. `Build > Seed` (`randomSeed`, `1..9999`, default `1`) is one shared per-patch seed. `Build > Lx > Seeded` makes that layer's behavior randomness, including hash-style choices and the Rhythm/Musical/weave pattern seed, follow a stream mixed from Seed and the layer index. `Link > Lx > Seeded` does the same for that layer's trigger probability and random arp order; unseeded Link layers keep the shared unseeded streams. Seeded streams restart on every transport reset (stop, play-from-stop, accepted MIDI Start, resync), on patch load, and when Seed or the layer's Seeded switch changes, so the same patch, inputs, and timing replay the same result on every platform. Instrument and FX audio-rate noise is never seeded.
+
 ## Menu Tree
 
 The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Keep that file in sync with native menu/control changes.

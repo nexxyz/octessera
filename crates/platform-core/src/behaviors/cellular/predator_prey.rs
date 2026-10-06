@@ -204,7 +204,7 @@ pub fn predator_prey_on_tick(
             }
         }
     }
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     for cell in next.iter_mut().take(CELL_COUNT) {
         if *cell == EMPTY && rng.gen_range(0..100) < state.grass_grow_chance_pct {
             *cell = GRASS;

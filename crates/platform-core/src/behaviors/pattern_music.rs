@@ -425,6 +425,8 @@ fn seed_field(value: Option<Value>, default: u32) -> u32 {
 }
 
 fn hash(seed: u32, x: usize, y: usize, phase: u64) -> u32 {
+    let salt = crate::behavior_random::salt();
+    let seed = seed ^ (salt as u32) ^ ((salt >> 32) as u32);
     let mut value = seed
         ^ (x as u32).wrapping_mul(0x45d9f3b)
         ^ (y as u32).wrapping_mul(0x27d4eb2d)

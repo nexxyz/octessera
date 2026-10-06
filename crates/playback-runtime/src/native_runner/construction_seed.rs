@@ -144,6 +144,7 @@ impl NativeRunnerConstructionSeed {
                 .collect(),
             build_items: vec![],
             build_items_by_layer: vec![vec![]; LAYER_COUNT],
+            random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
             behavior_target_items: vec![vec![]; LAYER_COUNT],
             dsp_config: self.dsp_config,
             layer_labels: self

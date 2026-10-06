@@ -71,7 +71,7 @@ pub fn raindrops_on_input(
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "dropNow" =>
         {
-            let mut rng = rand::thread_rng();
+            let mut rng = crate::behavior_random::rng();
             next.drops.push(DropCell {
                 x: rng.gen_range(0..GRID_WIDTH),
                 y: GRID_HEIGHT - 1,
@@ -131,7 +131,7 @@ pub fn raindrops_on_tick(state: RaindropsState, _context: &mut BehaviorContext) 
         && (tick_counter - 1) % state.auto_drop_interval
             == state.spawn_step % state.auto_drop_interval
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::behavior_random::rng();
         drops.push(DropCell {
             x: rng.gen_range(0..GRID_WIDTH),
             y: GRID_HEIGHT - 1,

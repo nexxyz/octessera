@@ -85,6 +85,7 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
         },
         note_behaviors: vec![NoteBehavior::Oneshot; 16],
         layer_index: 2,
+        random_seed: None,
     })
     .unwrap();
 

@@ -205,6 +205,7 @@ pub(super) struct NativeLinkLayer {
     pub(super) trigger_probability_low_pct: u8,
     pub(super) trigger_probability_high_pct: u8,
     pub(super) state_notes_enabled: bool,
+    pub(super) seeded: bool,
     pub(super) lowest_note: u8,
     pub(super) highest_note: u8,
     pub(super) starting_note: u8,

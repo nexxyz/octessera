@@ -33,6 +33,8 @@ pub struct BuildDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) save_grid_state: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) seeded: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) step_rate: Option<String>,
 }
 
@@ -58,6 +60,8 @@ pub struct LinkDto {
     pub(super) scan_sections: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) event_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) seeded: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) trigger_probability_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -119,4 +119,8 @@ The factory preset is a good orientation point: it has a self-sustaining `life` 
 4. Bind one or two aux encoders to the parameters or actions you keep reaching for.
 5. Open Play Mix or Trigger Gate and perform the layers like little weather systems.
 
+## Seeds: surprises you can keep
+
+By default every random-ish world rolls fresh dice each time. If a layer just did something you love, switch on `Build > Lx > Seeded` (and `Link > Lx > Seeded` if trigger probability or a random arp is part of the magic). Seeded layers follow the one `Build > Seed` number, and they restart from it whenever you play from stop or load the patch, so the same patch played the same way gives you the same weather again. Turn the Seed to reroll every seeded layer at once; leave other layers unseeded to keep a little chaos around. Your live playing still nudges things, which is rather the point.
+
 That is the heart of octessera for me: not a song file, not a rigid pattern, but a few small systems making music together.

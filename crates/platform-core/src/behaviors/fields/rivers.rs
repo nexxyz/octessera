@@ -288,6 +288,7 @@ fn lowest(h: &[u8], w: &[u8], i: usize) -> Option<usize> {
         .min_by_key(|n| u16::from(h[*n]) + u16::from(w[*n]))
 }
 fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
+    let tick = tick ^ crate::behavior_random::salt();
     let mut x = tick
         .wrapping_mul(0x9E37_79B9)
         .wrapping_add(index as u64 * 0x85EB_CA6B)

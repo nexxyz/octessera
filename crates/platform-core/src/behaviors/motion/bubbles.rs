@@ -139,7 +139,7 @@ pub fn bubbles_serialize(state: &BubblesState) -> Result<Value, String> {
 }
 
 fn random_bubble(state: &BubblesState) -> Bubble {
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     Bubble {
         x: rng.gen_range(0..GRID_WIDTH) as i32 * SUBSTEPS,
         y: 0,
@@ -280,7 +280,7 @@ fn with_rendered_cells(mut state: BubblesState, previous_cells: &[bool]) -> Bubb
 
 pub fn bubbles_on_tick(state: BubblesState, _context: &mut BehaviorContext) -> BubblesState {
     let tick_counter = state.tick_counter + 1;
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     let mut bubbles = state.bubbles.clone();
     if state.spawn_interval > 0
         && (tick_counter - 1) % state.spawn_interval == state.spawn_step % state.spawn_interval

@@ -426,7 +426,7 @@ fn chance(state: &mut TwinkleState, percentage: u8) -> bool {
 fn next_random(state: &mut TwinkleState) -> u64 {
     let counter = state.rng_counter;
     state.rng_counter = counter.wrapping_add(1);
-    splitmix64((u64::from(state.seed) << 32) ^ counter)
+    splitmix64((u64::from(state.seed) << 32) ^ counter ^ crate::behavior_random::salt())
 }
 
 fn splitmix64(mut value: u64) -> u64 {

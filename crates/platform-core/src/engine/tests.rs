@@ -9,7 +9,34 @@ use std::collections::BTreeSet;
 
 mod finalization_tests;
 mod persistence_tests;
+mod seeded_random_tests;
 mod twinkle_tests;
+
+fn base_config() -> NativeLayerEngineConfig {
+    NativeLayerEngineConfig {
+        behavior: NativeBehavior::None,
+        behavior_config: Value::Null,
+        interpretation_profile: InterpretationProfile {
+            id: "engine_test".into(),
+            event: InterpretationEventProfile { enabled: true },
+            state: InterpretationStateProfile {
+                enabled: false,
+                tick: TickStrategy::WholeGridTransitions,
+            },
+            x: AxisStrategy::ScaleStep { step: 1 },
+            y: AxisStrategy::ScaleStep { step: 2 },
+        },
+        mapping_config: default_mapping_config(),
+        global_sound: GlobalSoundConfig {
+            velocity_scale_pct: 100,
+            velocity_curve: VelocityCurve::Linear,
+            note_length_ms: 120,
+        },
+        note_behaviors: vec![NoteBehavior::Oneshot; 16],
+        layer_index: 0,
+        random_seed: None,
+    }
+}
 
 #[test]
 fn ticks_life_behavior_end_to_end() {
@@ -26,14 +53,7 @@ fn ticks_life_behavior_end_to_end() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config: default_mapping_config(),
-        global_sound: GlobalSoundConfig {
-            velocity_scale_pct: 100,
-            velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 120,
-        },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
-        layer_index: 0,
+        ..base_config()
     })
     .unwrap();
 
@@ -72,14 +92,7 @@ fn cyclic_consecutive_presses_keep_both_activation_intents() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config: default_mapping_config(),
-        global_sound: GlobalSoundConfig {
-            velocity_scale_pct: 100,
-            velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 120,
-        },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
-        layer_index: 0,
+        ..base_config()
     })
     .unwrap();
 
@@ -111,14 +124,8 @@ fn held_note_drain_is_bounded_and_returns_note_off_events() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config: default_mapping_config(),
-        global_sound: GlobalSoundConfig {
-            velocity_scale_pct: 100,
-            velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 120,
-        },
         note_behaviors: vec![NoteBehavior::Hold; 16],
-        layer_index: 0,
+        ..base_config()
     })
     .unwrap();
 
@@ -167,13 +174,7 @@ fn scan_interpretation_advances_with_engine_ticks() {
             y: AxisStrategy::ScaleStep { step: 2 },
         },
         mapping_config,
-        global_sound: GlobalSoundConfig {
-            velocity_scale_pct: 100,
-            velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 120,
-        },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
-        layer_index: 0,
+        ..base_config()
     })
     .unwrap();
     engine
@@ -308,14 +309,7 @@ fn forest_fire_tree_to_burning_and_grid_press_emit_activate_intents() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config: default_mapping_config(),
-        global_sound: GlobalSoundConfig {
-            velocity_scale_pct: 100,
-            velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 120,
-        },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
-        layer_index: 0,
+        ..base_config()
     })
     .unwrap();
 
@@ -355,14 +349,7 @@ fn life_grid_press_still_emits_input_transition_with_trigger_types() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config: default_mapping_config(),
-        global_sound: GlobalSoundConfig {
-            velocity_scale_pct: 100,
-            velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 120,
-        },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
-        layer_index: 0,
+        ..base_config()
     })
     .unwrap();
 
@@ -401,14 +388,7 @@ fn life_grid_press_with_legacy_stale_trigger_types_falls_back_to_boolean_transit
                 x: AxisStrategy::ScaleStep { step: 1 },
                 y: AxisStrategy::ScaleStep { step: 2 },
             },
-            mapping_config: default_mapping_config(),
-            global_sound: GlobalSoundConfig {
-                velocity_scale_pct: 100,
-                velocity_curve: VelocityCurve::Linear,
-                note_length_ms: 120,
-            },
-            note_behaviors: vec![NoteBehavior::Oneshot; 16],
-            layer_index: 0,
+            ..base_config()
         },
         serde_json::json!({
             "cells": vec![false; crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT],
@@ -458,14 +438,7 @@ fn brain_grid_press_clears_stale_trigger_types_before_interpretation() {
                 x: AxisStrategy::ScaleStep { step: 1 },
                 y: AxisStrategy::ScaleStep { step: 2 },
             },
-            mapping_config: default_mapping_config(),
-            global_sound: GlobalSoundConfig {
-                velocity_scale_pct: 100,
-                velocity_curve: VelocityCurve::Linear,
-                note_length_ms: 120,
-            },
-            note_behaviors: vec![NoteBehavior::Oneshot; 16],
-            layer_index: 0,
+            ..base_config()
         },
         serde_json::json!({
             "cells": vec![0; crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT],

@@ -63,7 +63,7 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
         )?,
         "audioOutputBufferFrames" => unsigned_value(value, path)?,
         "enabled" | "autoName" | "eventEnabled" | "stateNotesEnabled" | "saveGridState"
-        | "xInvert" | "yInvert" | "invert" | "showGridlines" => bool_value(value, path)?,
+        | "seeded" | "xInvert" | "yInvert" | "invert" | "showGridlines" => bool_value(value, path)?,
         "path" | "turnKey" => {}
         _ => {}
     }

@@ -383,6 +383,7 @@ fn should_turn(s: &PhysarumState, index: usize, side: u16, ahead: u16) -> bool {
     hash(s.tick_counter, index) % 100 < u64::from(s.turn_bias_pct)
 }
 fn hash(tick: u64, index: usize) -> u64 {
+    let tick = tick ^ crate::behavior_random::salt();
     tick.wrapping_mul(1_103_515_245)
         .wrapping_add(index as u64 * 97)
 }

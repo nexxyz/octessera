@@ -339,6 +339,7 @@ fn deterministic_index(tick: u64, len: usize) -> usize {
 }
 
 fn hash(tick: u64, index: usize) -> u64 {
+    let tick = tick ^ crate::behavior_random::salt();
     tick.wrapping_mul(1_103_515_245)
         .wrapping_add(index as u64 * 97)
 }

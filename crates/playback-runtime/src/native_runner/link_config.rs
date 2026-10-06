@@ -29,6 +29,7 @@ pub(super) fn link_layer_configs(layers: &[NativeLinkLayer]) -> Vec<NativeLinkLa
             trigger_probability_low_pct: layer.trigger_probability_low_pct,
             trigger_probability_high_pct: layer.trigger_probability_high_pct,
             state_notes_enabled: layer.state_notes_enabled,
+            seeded: layer.seeded,
             lowest_note: layer.lowest_note,
             highest_note: layer.highest_note,
             starting_note: layer.starting_note,

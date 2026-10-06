@@ -42,7 +42,9 @@ impl NativeRunner {
             super::menu_apply_link_fx::apply_link_scan_and_mapping_menu_state(
                 &self.menu, layer, &prefix,
             )
-        } else if suffix.starts_with("link.triggerProbability") || suffix.starts_with("link.pitch.")
+        } else if suffix.starts_with("link.triggerProbability")
+            || suffix.starts_with("link.pitch.")
+            || suffix == "link.seeded"
         {
             let prefix = format!("layers.{index}.link");
             super::menu_apply_link_fx::apply_link_probability_and_pitch_menu_state(
@@ -63,6 +65,9 @@ impl NativeRunner {
             }
             if suffix.starts_with("link.arp.") {
                 self.clear_link_arp_state_for_layer(index);
+            }
+            if suffix == "link.seeded" {
+                self.restart_link_random_stream(index);
             }
             if index == self.active_layer_index {
                 self.refresh_active_mapping_config();

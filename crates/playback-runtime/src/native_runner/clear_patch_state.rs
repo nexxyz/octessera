@@ -20,6 +20,8 @@ impl NativeRunner {
         self.layer_names = vec!["none".into(); LAYER_COUNT];
         self.layer_auto_names = vec![true; LAYER_COUNT];
         self.save_grid_states = vec![true; LAYER_COUNT];
+        self.random_seed = super::random_streams::DEFAULT_RANDOM_SEED;
+        self.layer_seeded = vec![false; LAYER_COUNT];
 
         self.global_sound = GlobalSoundConfig {
             velocity_scale_pct: 100,

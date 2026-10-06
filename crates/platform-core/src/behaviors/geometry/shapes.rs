@@ -101,7 +101,7 @@ fn shape_cells(shape: &str, ox: usize, oy: usize, r: usize) -> Vec<usize> {
 }
 
 fn random_point() -> (usize, usize) {
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     (rng.gen_range(0..GRID_WIDTH), rng.gen_range(0..GRID_HEIGHT))
 }
 

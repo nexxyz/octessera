@@ -321,7 +321,7 @@ fn add_leader(s: &mut LightningState, x: usize, y: usize) {
 }
 fn start_strike(s: &mut LightningState) {
     clear(s);
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     let (x, y) = match s.target_edge.as_str() {
         "north" => (rng.gen_range(0..GRID_WIDTH), 0),
         "east" => (0, rng.gen_range(0..GRID_HEIGHT)),
@@ -339,7 +339,7 @@ fn at_target(x: usize, y: usize, edge: &str) -> bool {
     }
 }
 fn step_toward(x: usize, y: usize, edge: &str, jitter: bool) -> (usize, usize) {
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     let lateral = if jitter {
         rng.gen_range(0..3) as isize - 1
     } else {
@@ -359,7 +359,7 @@ fn step_toward(x: usize, y: usize, edge: &str, jitter: bool) -> (usize, usize) {
 fn advance_leaders(s: &mut LightningState, snapshot: &[LeaderPos]) {
     s.leaders.clear();
     for p in snapshot.iter().take(s.leader_limit as usize) {
-        let jitter = rand::thread_rng().gen_range(0..100) < s.jitter_chance_pct;
+        let jitter = crate::behavior_random::rng().gen_range(0..100) < s.jitter_chance_pct;
         let (x, y) = step_toward(p.x, p.y, &s.target_edge, jitter);
         add_leader(s, x, y);
     }
@@ -369,7 +369,7 @@ fn branch_leaders(s: &mut LightningState, snapshot: &[LeaderPos]) {
         if s.leaders.len() >= s.leader_limit as usize {
             break;
         }
-        if rand::thread_rng().gen_range(0..100) < s.branch_chance_pct {
+        if crate::behavior_random::rng().gen_range(0..100) < s.branch_chance_pct {
             let (x, y) = step_toward(p.x, p.y, &s.target_edge, true);
             add_leader(s, x, y);
         }

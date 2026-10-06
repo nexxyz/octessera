@@ -44,7 +44,7 @@ struct BounceConfig {
 }
 
 fn random_ball_at(x: f32, y: f32) -> Ball {
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     Ball {
         x,
         y,
@@ -54,7 +54,7 @@ fn random_ball_at(x: f32, y: f32) -> Ball {
 }
 
 fn random_ball() -> Ball {
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     random_ball_at(
         rng.gen_range(0..GRID_WIDTH) as f32,
         rng.gen_range(0..GRID_HEIGHT) as f32,

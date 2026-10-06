@@ -27,6 +27,7 @@ pub(super) fn validate_layers(runtime: &Map<String, Value>) -> Result<(), String
                 NOTE_UNIT_OPTIONS,
             )?;
             bool_field(build, "saveGridState", &format!("{path}.build"))?;
+            bool_field(build, "seeded", &format!("{path}.build"))?;
             for key in ["behaviorConfig", "savedState", "behaviorConfigHistory"] {
                 if let Some(value) = build.get(key) {
                     if !value.is_null() && !value.is_object() {

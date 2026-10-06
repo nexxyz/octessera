@@ -1471,7 +1471,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": null,
@@ -1625,7 +1626,8 @@
             ],
             "width": 8
           },
-          "stepRate": "1/16"
+          "stepRate": "1/16",
+          "seeded": false
         }
       },
       {
@@ -1825,7 +1827,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": null,
@@ -1902,7 +1905,8 @@
             "height": 8,
             "width": 8
           },
-          "stepRate": "1/8"
+          "stepRate": "1/8",
+          "seeded": false
         }
       },
       {
@@ -2102,7 +2106,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": {
@@ -2229,7 +2234,8 @@
               []
             ]
           },
-          "stepRate": "1/16"
+          "stepRate": "1/16",
+          "seeded": false
         }
       },
       {
@@ -2429,7 +2435,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": null,
@@ -2506,7 +2513,8 @@
             "height": 8,
             "width": 8
           },
-          "stepRate": "1/1"
+          "stepRate": "1/1",
+          "seeded": false
         }
       },
       {
@@ -2706,13 +2714,15 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true
+          "saveGridState": true,
+          "seeded": false
         }
       },
       {
@@ -2912,13 +2922,15 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true
+          "saveGridState": true,
+          "seeded": false
         }
       },
       {
@@ -3118,13 +3130,15 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true
+          "saveGridState": true,
+          "seeded": false
         }
       },
       {
@@ -3324,13 +3338,15 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "seeded": false
         },
         "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true
+          "saveGridState": true,
+          "seeded": false
         }
       }
     ],
@@ -3660,7 +3676,8 @@
       "y": null,
       "yInvert": false
     },
-    "xyRelease": "sample-hold"
+    "xyRelease": "sample-hold",
+    "randomSeed": 1
   },
   "schemaVersion": 2,
   "system": {

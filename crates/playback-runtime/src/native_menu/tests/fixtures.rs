@@ -69,6 +69,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             },
         ],
         build_items_by_layer: vec![],
+        random_seed: 1,
         behavior_target_items: behavior_target_items(),
         dsp_config: DspRuntimeConfig::default(),
         layer_labels: (0..LAYER_COUNT)

@@ -29,27 +29,28 @@ impl NativeRunner {
             .get(layer_index)
             .cloned()
             .unwrap_or_default();
-        let mut rng = self.trigger_probability_rng;
+        let mut rng = self.probability_rng(layer_index);
         let result = self.engine.on_input_with_events_filtered(
             input,
             self.transport.bpm as f32,
             |intent| trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent),
         )?;
-        self.trigger_probability_rng = rng;
+        self.store_probability_rng(layer_index, rng);
         Ok(result)
     }
 
     pub(super) fn active_engine_tick_result(
         &mut self,
     ) -> Result<platform_core::NativeTickResult, String> {
-        let (sense, probability_map) = self.probability_context(self.active_layer_index);
-        let mut rng = self.trigger_probability_rng;
+        let layer_index = self.active_layer_index;
+        let (sense, probability_map) = self.probability_context(layer_index);
+        let mut rng = self.probability_rng(layer_index);
         let result = self
             .engine
             .tick_filtered(self.transport.bpm as f32, |intent| {
                 trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
             })?;
-        self.trigger_probability_rng = rng;
+        self.store_probability_rng(layer_index, rng);
         Ok(result)
     }
 
@@ -85,7 +86,6 @@ impl NativeRunner {
                 )
             })
             .collect::<Vec<_>>();
-        let mut rng = self.trigger_probability_rng;
         let effective_sound = self.global_sound.clone();
         let effective_bpm = self.transport.bpm as f32;
         let mut inactive_modulation_updates = Vec::new();
@@ -97,6 +97,7 @@ impl NativeRunner {
             }
             while self.transport.layer_pulse_accumulators[index] >= *step_pulses {
                 self.transport.layer_pulse_accumulators[index] -= *step_pulses;
+                let mut rng = self.probability_rng(index);
                 let tick = {
                     let Some(engine) = self.layer_engines[index].as_mut() else {
                         continue;
@@ -113,6 +114,7 @@ impl NativeRunner {
                         )
                     })?
                 };
+                self.store_probability_rng(index, rng);
                 if let Some(layer_tick) = self.transport.layer_ticks.get_mut(index) {
                     *layer_tick = layer_tick.saturating_add(1);
                 }
@@ -134,7 +136,6 @@ impl NativeRunner {
                 events.extend(tick_events);
             }
         }
-        self.trigger_probability_rng = rng;
         for (index, mapped_intents) in inactive_modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
         }

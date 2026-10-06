@@ -210,7 +210,7 @@ fn seed_random_cells(cells: &mut [u8], count: usize) {
         .enumerate()
         .filter_map(|(index, cell)| (*cell == 0).then_some(index))
         .collect::<Vec<_>>();
-    available.shuffle(&mut rand::thread_rng());
+    available.shuffle(&mut crate::behavior_random::rng());
     for index in available.into_iter().take(count) {
         cells[index] = 1;
     }

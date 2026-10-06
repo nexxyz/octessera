@@ -366,6 +366,7 @@ fn best_neighbor(s: &CracksState, i: usize, skip: &[usize]) -> Option<usize> {
     best
 }
 fn hash(t: u64, i: usize) -> u64 {
+    let t = t ^ crate::behavior_random::salt();
     t.wrapping_mul(1_103_515_245).wrapping_add(i as u64 * 97)
 }
 fn crack_count(s: &CracksState) -> usize {

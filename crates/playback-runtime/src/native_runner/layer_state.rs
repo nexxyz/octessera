@@ -152,6 +152,7 @@ impl NativeRunner {
         };
         next_engine.set_interpretation_profile(profile.clone());
         next_engine.set_mapping_config(mapping.clone());
+        next_engine.set_random_seed(self.layer_random_seed(next_index));
 
         let previous_index = self.active_layer_index;
         std::mem::swap(&mut self.engine, &mut next_engine);

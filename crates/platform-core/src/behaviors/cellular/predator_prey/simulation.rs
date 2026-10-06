@@ -67,11 +67,12 @@ fn act_predator(
     if let Some(d) = find(x, y, prev, buffers.reserved, |c| c == HERBIVORE) {
         place(buffers, d, PREDATOR, state.starve_ticks);
         eaten[d] = true;
-        buffers.next[i] = if rand::thread_rng().gen_range(0..100) < state.predator_reproduce_pct {
-            PREDATOR
-        } else {
-            EMPTY
-        };
+        buffers.next[i] =
+            if crate::behavior_random::rng().gen_range(0..100) < state.predator_reproduce_pct {
+                PREDATOR
+            } else {
+                EMPTY
+            };
         if buffers.next[i] == PREDATOR {
             buffers.energy[i] = state.starve_ticks;
             force_activate.push(i);
@@ -105,11 +106,12 @@ fn act_herbivore(
 ) {
     if let Some(d) = find(x, y, prev, buffers.reserved, |c| c == GRASS) {
         place(buffers, d, HERBIVORE, state.starve_ticks);
-        buffers.next[i] = if rand::thread_rng().gen_range(0..100) < state.herbivore_reproduce_pct {
-            HERBIVORE
-        } else {
-            EMPTY
-        };
+        buffers.next[i] =
+            if crate::behavior_random::rng().gen_range(0..100) < state.herbivore_reproduce_pct {
+                HERBIVORE
+            } else {
+                EMPTY
+            };
         if buffers.next[i] == HERBIVORE {
             buffers.energy[i] = state.starve_ticks;
             force_activate.push(i);

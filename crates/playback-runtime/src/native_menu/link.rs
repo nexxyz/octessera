@@ -34,6 +34,7 @@ pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
         trigger_probability_low_pct: 0,
         trigger_probability_high_pct: 100,
         state_notes_enabled: true,
+        seeded: false,
         lowest_note: 24,
         highest_note: 84,
         starting_note: 60,
@@ -134,6 +135,7 @@ pub(super) fn link_layer_group(
                 },
             ),
             arp_group(&format!("{prefix}.arp"), &sense.arp),
+            bool_item("Seeded", format!("{prefix}.seeded"), sense.seeded),
         ],
     )
 }

@@ -142,8 +142,8 @@ pub(crate) fn runtime_snapshot_serializes_menu_scroll_metadata() {
 
     let snapshot = runner.snapshot().unwrap();
 
-    assert_eq!(snapshot["display"]["scrollOffset"], 1);
-    assert_eq!(snapshot["display"]["totalRows"], 8);
+    assert_eq!(snapshot["display"]["scrollOffset"], 2);
+    assert_eq!(snapshot["display"]["totalRows"], 9);
     assert_eq!(snapshot["display"]["visibleRows"], 7);
 }
 

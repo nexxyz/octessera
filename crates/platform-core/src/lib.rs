@@ -1,4 +1,5 @@
 mod behavior;
+mod behavior_random;
 mod behaviors;
 mod engine;
 mod events;
@@ -16,6 +17,7 @@ pub use behavior::{
     BehaviorEngine, BehaviorRenderModel, BehaviorRenderPalette, CellTriggerType, DeviceInput,
     GridInteraction,
 };
+pub use behavior_random::{stream_seed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK};
 pub use behaviors::{
     behavior_catalog, behavior_categories, get_native_behavior, list_native_behavior_ids,
     BehaviorCatalogEntry, BehaviorCategory, NativeBehavior, NativeBehaviorState,

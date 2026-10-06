@@ -58,7 +58,21 @@ impl NativeRunner {
                     !matches!(item.value, crate::native_menu::NativeMenuValue::Action(_))
                 }),
         );
+        if behavior_id != "none" {
+            items.push(self.seeded_menu_item(layer_index));
+        }
         items
+    }
+
+    fn seeded_menu_item(&self, layer_index: usize) -> crate::native_menu::NativeMenuItem {
+        crate::native_menu::NativeMenuItem {
+            label: "Seeded".into(),
+            key: Some(format!("layers.{layer_index}.build.seeded")),
+            value: crate::native_menu::NativeMenuValue::Bool {
+                value: self.layer_seeded.get(layer_index).copied().unwrap_or(false),
+            },
+            children: vec![],
+        }
     }
 
     pub(super) fn build_menu_items(&self) -> Vec<crate::native_menu::NativeMenuItem> {
@@ -122,6 +136,7 @@ impl NativeRunner {
             }
         }
 
+        items.push(self.seeded_menu_item(self.active_layer_index));
         items.push(crate::native_menu::NativeMenuItem {
             label: "Reset".into(),
             key: Some("behavior.reset".into()),

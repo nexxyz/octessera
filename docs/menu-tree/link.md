@@ -122,13 +122,14 @@ Link
 │   │       └── Curve: [linear | curve]
 │   ├── Y Axis (group)
 │   │   └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
-│   └── Arp (group)
-│       ├── Mode: [none | direct | up | down | bounce | outside_in | rotating | random | octave_spread | chord_strike | strum]
-│       ├── Source: [simultaneous | held]
-│       ├── Step: [1..16] step 1
-│       ├── Length ms: [10..2000] step 10
-│       ├── Gate %: [1..100] step 1
-│       └── Octaves: [0..3] step 1
+│   ├── Arp (group)
+│   │   ├── Mode: [none | direct | up | down | bounce | outside_in | rotating | random | octave_spread | chord_strike | strum]
+│   │   ├── Source: [simultaneous | held]
+│   │   ├── Step: [1..16] step 1
+│   │   ├── Length ms: [10..2000] step 10
+│   │   ├── Gate %: [1..100] step 1
+│   │   └── Octaves: [0..3] step 1
+│   └── Seeded: [off | on]                         ← on: trigger probability and random arp order follow Build > Seed
 ├── L2: ... (group)
 ├── L3: ... (group)
 ```
@@ -136,5 +137,7 @@ Link
 Global LFO slots are persisted under `runtimeConfig.linkLfos` and are independent of the active layer. Phase and live contributions are transient and are never serialized. Playback-runtime sums live LFO deltas once per affected endpoint, clamps the final value to the canonical target range, and emits the transient audio command.
 
 Target claims are validated before assignment. Exclusive targets accept one layer/Play claim only, LFO targets must remain additive and live-safe, and rejected claims leave the current binding and focus untouched while showing a bounded `Mapping rejected` toast.
+
+Link `Seeded` (`layers.N.link.seeded`, default off) gives the layer its own trigger-probability and random-arp streams derived from Build `Seed`, restarted at the same points as seeded Build layers. Unseeded Link layers keep sharing the existing unseeded streams.
 
 Link Arp transforms simultaneous routed note-on batches or playback-runtime tracked held notes. `none` preserves the existing Link path; other modes emit finite notes using Length ms and Gate %, with strum-like modes spaced by Step Link ticks.

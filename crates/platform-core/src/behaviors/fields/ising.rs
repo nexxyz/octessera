@@ -223,6 +223,7 @@ fn neighbor_sum(spins: &[i8], x: usize, y: usize) -> i32 {
     sum
 }
 fn hash_pct(tick: u64, index: usize) -> u32 {
+    let tick = tick ^ crate::behavior_random::salt();
     let mut x = tick
         .wrapping_mul(0x9E37_79B9)
         .wrapping_add(index as u64 * 0x85EB_CA6B);

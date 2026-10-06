@@ -37,6 +37,7 @@ const FULL_FIELDS: &[&str] = &[
     "auxAutoMapEnabled",
     "bpm",
     "playMode",
+    "randomSeed",
     "auxBindings",
     "shiftAuxBindings",
     "midi",
@@ -62,6 +63,7 @@ const PATCH_FIELDS: &[&str] = &[
     "voiceStealingMode",
     "bpm",
     "playMode",
+    "randomSeed",
 ];
 
 const PREFERENCE_FIELDS: &[&str] = &[
@@ -124,6 +126,7 @@ const PORTABLE_FIELDS: &[&str] = &[
     "voiceStealingMode",
     "bpm",
     "playMode",
+    "randomSeed",
     "sound",
     "auxBindings",
     "shiftAuxBindings",
@@ -232,6 +235,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         }
     });
     source_runtime["masterVolume"] = alternate_unsigned(&canonical_runtime["masterVolume"], 0, 100);
+    source_runtime["randomSeed"] = alternate_unsigned(&canonical_runtime["randomSeed"], 1, 9999);
     source_runtime["ghostCells"] = alternate_bool(&canonical_runtime["ghostCells"]);
     source_runtime["inputEventsWhilePaused"] =
         alternate_bool(&canonical_runtime["inputEventsWhilePaused"]);

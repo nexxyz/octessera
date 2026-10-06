@@ -30,6 +30,7 @@ fn scanning_engine() -> NativeLayerEngine {
         },
         note_behaviors: vec![NoteBehavior::Oneshot; 16],
         layer_index: 0,
+        random_seed: None,
     })
     .unwrap()
 }

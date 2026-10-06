@@ -37,6 +37,8 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) master_volume: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) random_seed: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) sound: Option<SoundDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) note_length_ms: Option<u32>,

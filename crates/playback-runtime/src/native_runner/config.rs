@@ -32,6 +32,7 @@ impl NativeRunner {
                 .collect(),
             build_items: self.build_menu_items(),
             build_items_by_layer: self.build_menu_items_by_layer(),
+            random_seed: self.random_seed,
             behavior_target_items: self.behavior_target_items(),
             dsp_config: self.dsp_config,
             layer_labels: self.layer_labels(),

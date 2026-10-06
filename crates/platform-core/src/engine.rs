@@ -1,4 +1,5 @@
 use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput};
+use crate::behavior_random::LayerRandom;
 use crate::behaviors::{NativeBehavior, NativeBehaviorState};
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 use crate::interpretation::{
@@ -26,6 +27,7 @@ pub struct NativeLayerEngineConfig {
     pub global_sound: GlobalSoundConfig,
     pub note_behaviors: Vec<NoteBehavior>,
     pub layer_index: usize,
+    pub random_seed: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -55,12 +57,18 @@ pub struct NativeLayerEngine {
     note_behaviors: Vec<NoteBehavior>,
     tick: usize,
     held_notes: BTreeSet<HeldNote>,
+    random: LayerRandom,
 }
 
 impl NativeLayerEngine {
     pub fn new(config: NativeLayerEngineConfig) -> Result<Self, String> {
-        let state = config.behavior.init(config.behavior_config.clone())?;
-        Self::from_state(config, state)
+        let mut random = LayerRandom::new(config.random_seed);
+        let behavior = config.behavior;
+        let behavior_config = config.behavior_config.clone();
+        let state = random.scope(|| behavior.init(behavior_config))?;
+        let mut engine = Self::from_state(config, state)?;
+        engine.random = random;
+        Ok(engine)
     }
 
     pub fn from_serialized_state(
@@ -84,6 +92,7 @@ impl NativeLayerEngine {
             note_behaviors: config.note_behaviors,
             tick: 0,
             held_notes: BTreeSet::new(),
+            random: LayerRandom::new(config.random_seed),
         })
     }
 
@@ -125,9 +134,11 @@ impl NativeLayerEngine {
             _ => TriggerMarkerAuthority::LegacyCompatible,
         };
         let mut context = BehaviorContext::new(bpm);
+        let behavior = self.behavior;
+        let state = self.state.clone();
         self.state = self
-            .behavior
-            .on_input(self.state.clone(), input, &mut context)?;
+            .random
+            .scope(|| behavior.on_input(state, input, &mut context))?;
         let after = self.behavior.render_model(&self.state)?;
         let mapped = if self.behavior.interpret_input_transitions() {
             let mut profile = self.interpretation_profile.clone();
@@ -177,7 +188,11 @@ impl NativeLayerEngine {
     ) -> Result<NativeTickResult, String> {
         let before = self.behavior.render_model(&self.state)?;
         let mut context = BehaviorContext::new(bpm);
-        self.state = self.behavior.on_tick(self.state.clone(), &mut context)?;
+        let behavior = self.behavior;
+        let state = self.state.clone();
+        self.state = self
+            .random
+            .scope(|| behavior.on_tick(state, &mut context))?;
         let after = self.behavior.render_model(&self.state)?;
 
         let intents = interpret_grid_with_marker_authority(
@@ -252,6 +267,16 @@ impl NativeLayerEngine {
     pub fn reset_transport_phase(&mut self) {
         self.tick = 0;
         self.state.reset_transport_phase();
+    }
+
+    pub fn set_random_seed(&mut self, seed: Option<u64>) {
+        if self.random.seed() != seed {
+            self.random = LayerRandom::new(seed);
+        }
+    }
+
+    pub fn restart_random(&mut self) {
+        self.random.restart();
     }
 
     pub fn set_interpretation_tick(&mut self, tick: usize) {

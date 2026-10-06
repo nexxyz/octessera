@@ -197,7 +197,7 @@ impl NativeRunner {
                 notes
             }
             "random" => {
-                shuffle_notes(&mut notes, &mut self.link_arp_random_state);
+                shuffle_notes(&mut notes, self.arp_random_state_mut(layer_index));
                 notes
             }
             _ => notes,

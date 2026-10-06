@@ -143,7 +143,7 @@ pub fn forest_fire_on_input(
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "igniteRandom" =>
         {
-            let mut rng = rand::thread_rng();
+            let mut rng = crate::behavior_random::rng();
             ignite_at(
                 state,
                 rng.gen_range(0..GRID_WIDTH),
@@ -166,7 +166,7 @@ pub fn forest_fire_on_tick(
     state: ForestFireState,
     _context: &mut BehaviorContext,
 ) -> ForestFireState {
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     let mut cells = vec![EMPTY; CELL_COUNT];
     let mut trigger_types = vec![CellTriggerType::None; CELL_COUNT];
 
@@ -240,7 +240,7 @@ fn reseed_if_needed(state: &mut ForestFireState) {
         .enumerate()
         .filter_map(|(index, cell)| (*cell == EMPTY).then_some(index))
         .collect::<Vec<_>>();
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     while live < target && !empty.is_empty() {
         let position = rng.gen_range(0..empty.len());
         let index = empty.swap_remove(position);

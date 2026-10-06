@@ -68,6 +68,9 @@ fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &Value) 
     if let Some(enabled) = payload.get("stateNotesEnabled").and_then(Value::as_bool) {
         layer.state_notes_enabled = enabled;
     }
+    if let Some(seeded) = payload.get("seeded").and_then(Value::as_bool) {
+        layer.seeded = seeded;
+    }
     assign_string(
         payload,
         "triggerProbabilityMode",

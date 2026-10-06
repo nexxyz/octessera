@@ -179,6 +179,7 @@ impl NativeRunner {
             global_sound: self.global_sound.clone(),
             note_behaviors: self.note_behaviors.clone(),
             layer_index,
+            random_seed: self.layer_random_seed(layer_index),
         };
         let mut next_engine = match state {
             Some(state) => NativeLayerEngine::from_serialized_state(config, state)?,

@@ -28,6 +28,7 @@ pub struct NativeConfigSnapshot {
     global_fx_slots: Vec<String>,
     global_fx_params: Vec<Value>,
     master_volume: u8,
+    random_seed: u16,
     note_length_ms: u32,
     velocity_scale_pct: u16,
     velocity_curve: VelocityCurve,
@@ -70,6 +71,7 @@ struct NativeLayerConfigSnapshot {
     behavior_config_history: BTreeMap<String, Value>,
     config_overrides: BTreeMap<String, Value>,
     save_grid_state: bool,
+    seeded: bool,
     name: String,
     auto_name: bool,
     link: NativeLinkLayer,
@@ -161,6 +163,7 @@ impl NativeConfigSnapshot {
                     &self.global_fx_params,
                 ),
                 "masterVolume": self.master_volume,
+                "randomSeed": self.random_seed,
                 "sound": {
                     "noteLengthMs": self.note_length_ms,
                     "velocityScalePct": self.velocity_scale_pct,
@@ -264,6 +267,7 @@ impl NativeConfigSnapshot {
                         .modulation_process
                         .persistent_behavior_config_overrides(index),
                     save_grid_state,
+                    seeded: runner.layer_seeded.get(index).copied().unwrap_or(false),
                     name: if auto_name {
                         behavior_id.clone()
                     } else {
@@ -321,6 +325,7 @@ impl NativeConfigSnapshot {
             global_fx_slots: runner.global_fx_slots.clone(),
             global_fx_params: runner.global_fx_params.clone(),
             master_volume: runner.display.ui.master_volume,
+            random_seed: runner.random_seed,
             note_length_ms: runner.global_sound.note_length_ms,
             velocity_scale_pct: runner.global_sound.velocity_scale_pct,
             velocity_curve: runner.global_sound.velocity_curve,
@@ -383,6 +388,7 @@ impl NativeLayerConfigSnapshot {
             Value::Object(self.behavior_config_history.into_iter().collect()),
         );
         build.insert("saveGridState".into(), json!(self.save_grid_state));
+        build.insert("seeded".into(), json!(self.seeded));
         if let Some((behavior, state)) = self.saved_state {
             if let Ok(state) = behavior.serialize(&state) {
                 if !state.is_null() {

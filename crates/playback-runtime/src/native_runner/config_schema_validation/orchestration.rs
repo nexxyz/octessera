@@ -47,6 +47,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     modulation::validate_global_modulation(runtime)?;
     layers::validate_layers(runtime)?;
     validate_transport(runtime)?;
+    unsigned_field(runtime, "randomSeed", "runtimeConfig", 1, 9999)?;
     validate_play(runtime)?;
     instruments::validate_instruments(runtime)?;
     mixer_fx::validate_mixer(runtime)?;

@@ -53,6 +53,14 @@ fn build_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     .cloned()
                     .unwrap_or_else(|| config.build_items.clone()),
             })
+            .chain(std::iter::once(number_item(
+                "Seed",
+                "randomSeed",
+                i32::from(config.random_seed),
+                1,
+                9999,
+                1,
+            )))
             .collect(),
     }
 }

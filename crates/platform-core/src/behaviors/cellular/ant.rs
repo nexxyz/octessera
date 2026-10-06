@@ -37,7 +37,7 @@ pub fn ant_init(config: Value) -> Result<AntState, String> {
 }
 
 fn random_ant() -> AntAgent {
-    let mut rng = rand::thread_rng();
+    let mut rng = crate::behavior_random::rng();
     AntAgent {
         x: rng.gen_range(0..GRID_WIDTH),
         y: rng.gen_range(0..GRID_HEIGHT),

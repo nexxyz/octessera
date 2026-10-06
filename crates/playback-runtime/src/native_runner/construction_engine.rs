@@ -18,6 +18,7 @@ impl NativeRunner {
             global_sound,
             note_behaviors,
             layer_index,
+            random_seed: None,
         })
     }
 
@@ -64,6 +65,7 @@ impl NativeRunner {
         }
         self.clear_all_link_arp_state();
         self.trigger_probability_rng = TRIGGER_PROBABILITY_RNG_INITIAL_SEED;
+        self.restart_random_streams();
     }
 
     pub(super) fn sync_engine_runtime_config(&mut self) {

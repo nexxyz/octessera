@@ -176,6 +176,7 @@ impl NativeRunner {
             global_sound: self.global_sound.clone(),
             note_behaviors: self.note_behaviors.clone(),
             layer_index,
+            random_seed: None,
         })
         .map(|engine| engine.state().clone())
         .unwrap_or_else(|_| self.engine_state())

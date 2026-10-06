@@ -316,6 +316,7 @@ pub(super) fn apply_link_probability_and_pitch_menu_state(
         &mut layer.trigger_probability_mode,
         &format!("{prefix}.triggerProbabilityMode"),
     );
+    changed |= set_bool_from_menu(menu, &mut layer.seeded, &format!("{prefix}.seeded"));
     changed |= set_u8_from_menu(
         menu,
         &mut layer.trigger_probability_low_pct,

@@ -67,6 +67,9 @@ impl NativeRunner {
         if let Some(applied) = self.apply_fx_menu_key_fast(key) {
             return applied;
         }
+        if let Some(applied) = self.apply_random_menu_key_fast(key) {
+            return applied;
+        }
         if let Some(applied) = self.apply_layer_menu_key_fast(key) {
             return applied;
         }

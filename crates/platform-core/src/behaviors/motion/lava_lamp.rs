@@ -452,6 +452,7 @@ fn cell_of(x: i16, y: i16) -> usize {
     grid_index((x / 16).clamp(0, 7) as usize, (y / 16).clamp(0, 7) as usize)
 }
 fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
+    let tick = tick ^ crate::behavior_random::salt();
     let mut x = tick
         .wrapping_mul(0x9E37_79B9)
         .wrapping_add(index as u64 * 0x85EB_CA6B)
