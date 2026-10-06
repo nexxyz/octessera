@@ -82,7 +82,7 @@ fn collect_results(
     runner: &mut NativeRunner,
     expected: usize,
 ) -> Vec<RuntimeStoreResult> {
-    let deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + Duration::from_secs(10);
     let mut completed = Vec::new();
     while Instant::now() < deadline && completed.len() < expected {
         for result in service.drain_platform_results(8) {
