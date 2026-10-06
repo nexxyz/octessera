@@ -56,44 +56,27 @@ impl ConfigDto {
                     .ok_or_else(|| "configuration revision must be an unsigned integer".to_string())
             })
             .transpose()?;
-        let runtime_config = object
-            .get("runtimeConfig")
-            .cloned()
-            .ok_or_else(|| "configuration payload is missing runtimeConfig".to_string())?;
-        if !runtime_config.is_object() {
-            return Err("runtimeConfig must be an object".into());
-        }
-
-        let mut extensions = Map::new();
-        for (key, value) in object {
-            if !matches!(
-                key.as_str(),
-                "kind"
-                    | "schemaVersion"
-                    | "revision"
-                    | "runtimeConfig"
-                    | "mappingConfig"
-                    | "system"
-            ) {
-                extensions.insert(key.clone(), value.clone());
-            }
-        }
-
-        Ok(Self {
-            kind: kind.into(),
-            schema_version,
-            revision,
-            runtime_config,
-            mapping_config: object.get("mappingConfig").cloned(),
-            system: object.get("system").cloned(),
-            extensions,
-        })
+        Self::from_sections(object, kind.into(), schema_version, revision)
     }
 
     pub(super) fn application_view(&self, payload: &Value) -> Result<Self, String> {
         let object = payload
             .as_object()
             .ok_or_else(|| "configuration payload must be an object".to_string())?;
+        Self::from_sections(
+            object,
+            self.kind.clone(),
+            self.schema_version,
+            self.revision,
+        )
+    }
+
+    fn from_sections(
+        object: &Map<String, Value>,
+        kind: String,
+        schema_version: u64,
+        revision: Option<u64>,
+    ) -> Result<Self, String> {
         let runtime_config = object
             .get("runtimeConfig")
             .cloned()
@@ -118,9 +101,9 @@ impl ConfigDto {
         }
 
         Ok(Self {
-            kind: self.kind.clone(),
-            schema_version: self.schema_version,
-            revision: self.revision,
+            kind,
+            schema_version,
+            revision,
             runtime_config,
             mapping_config: object.get("mappingConfig").cloned(),
             system: object.get("system").cloned(),
