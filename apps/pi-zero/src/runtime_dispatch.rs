@@ -43,6 +43,9 @@ impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
     fn drain_prep_host_results(&self, max_results: usize) -> Vec<HostMessage> {
         self.drain_platform_results(max_results)
     }
+    fn observe_bluetooth_audio_sink(&mut self, sink: Option<&str>) {
+        PiHostAdapter::observe_bluetooth_audio_sink(self, sink);
+    }
 }
 
 /// Input path for both boards: transfer input first, then the runtime.

@@ -8,7 +8,7 @@ use super::audio_stream_lifecycle::{
 };
 use super::cpal_audio_callback::{fill_callback_with_scheduler, CallbackSource};
 use super::AudioSink;
-use super::RecordingTapState;
+use super::MixTapState;
 use crate::audio_priority::CallbackSchedulingHandle;
 use crate::audio_route::RouteOpenError;
 use crate::audio_stream_health::AudioStreamHealth;
@@ -63,14 +63,14 @@ pub(super) enum AudioSourceExecutionMode {
 struct StreamBuildOptions {
     sink: AudioSink,
     execution_mode: AudioSourceExecutionMode,
-    recording_tap: Option<RecordingTapState>,
+    mix_taps: Option<MixTapState>,
     stream_health: AudioStreamHealth,
     load_tx: Option<AudioLoadStatusSender>,
     mirror_producers: PcmMirrorProducers,
 }
 
 pub(super) struct EngineSourceOptions {
-    pub(super) recording_tap: Option<RecordingTapState>,
+    pub(super) mix_taps: Option<MixTapState>,
     pub(super) load_tx: Option<AudioLoadStatusSender>,
     pub(super) mirror_producers: PcmMirrorProducers,
 }
@@ -154,7 +154,7 @@ pub(super) fn build_cpal_stream(
     let options = StreamBuildOptions {
         sink,
         execution_mode,
-        recording_tap: source_options.recording_tap,
+        mix_taps: source_options.mix_taps,
         stream_health,
         load_tx: source_options.load_tx,
         mirror_producers: source_options.mirror_producers,
@@ -205,7 +205,7 @@ pub(super) fn build_orange_cpal_stream(
     let (sample_format, mut config) = crate::orange_audio::select_orange_stream_config(&device)?;
     config.buffer_size = BufferSize::Fixed(profile.output_buffer_frames);
     let EngineSourceOptions {
-        recording_tap,
+        mix_taps,
         load_tx,
         mirror_producers,
     } = source_options;
@@ -216,7 +216,7 @@ pub(super) fn build_orange_cpal_stream(
     let options = StreamBuildOptions {
         sink,
         execution_mode,
-        recording_tap,
+        mix_taps,
         stream_health,
         load_tx,
         mirror_producers,
@@ -286,7 +286,7 @@ fn build_stream<T>(
     source: EngineSource,
     shutdown_owner: Option<EngineSourceWorkerShutdownOwner>,
     sink: AudioSink,
-    recording_tap: Option<RecordingTapState>,
+    mix_taps: Option<MixTapState>,
     stream_health: AudioStreamHealth,
 ) -> Result<BuiltAudioStream, RouteOpenError>
 where
@@ -305,7 +305,7 @@ where
             fill_callback_with_scheduler(
                 data,
                 &mut callback_source,
-                recording_tap.as_ref(),
+                mix_taps.as_ref(),
                 &callback_health,
                 report_worker_health,
                 &mut worker_health_reported,
@@ -347,7 +347,7 @@ where
     let StreamBuildOptions {
         sink,
         execution_mode,
-        recording_tap,
+        mix_taps,
         stream_health,
         load_tx,
         mirror_producers,
@@ -366,7 +366,7 @@ where
         source,
         shutdown_owner,
         sink,
-        recording_tap,
+        mix_taps,
         stream_health,
     )
 }

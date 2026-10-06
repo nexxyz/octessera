@@ -104,6 +104,7 @@ pub struct NativeMenuConfig {
     pub midi_outputs: Vec<(String, String)>,
     pub midi_inputs: Vec<(String, String)>,
     pub bluetooth_enabled: bool,
+    pub bluetooth_audio: bool,
     pub bluetooth_paired: Vec<(String, String)>,
     pub bluetooth_found: Vec<(String, String)>,
     pub play_mode: String,

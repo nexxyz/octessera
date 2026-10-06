@@ -35,6 +35,7 @@ pub struct PiHostAdapter {
     usb_data_role: UsbDataRole,
     power_request: Option<PowerRequest>,
     pub(crate) timing_evidence: Option<crate::timing_input::TimingStudyEvidence>,
+    bluetooth_audio: Option<crate::bluetooth::BluetoothAudioMonitor>,
 }
 
 /// What a confirmed device/audio apply hands to the power path: Raspberry has
@@ -136,6 +137,25 @@ impl PiHostAdapter {
         self.audio
             .as_ref()
             .and_then(AudioService::poll_recording_status)
+    }
+
+    /// Keeps the Bluetooth monitor copy on the speaker the runtime picked, if any.
+    pub(crate) fn observe_bluetooth_audio_sink(&mut self, sink: Option<&str>) {
+        let current = self
+            .bluetooth_audio
+            .as_ref()
+            .map(|monitor| monitor.address());
+        if current == sink {
+            return;
+        }
+        self.bluetooth_audio = None;
+        if let (Some(address), Some(audio)) = (sink, &self.audio) {
+            self.bluetooth_audio = Some(crate::bluetooth::BluetoothAudioMonitor::start(
+                address,
+                audio.mix_taps(),
+                realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE,
+            ));
+        }
     }
 
     pub(crate) fn audio_service(&self) -> Option<AudioService> {

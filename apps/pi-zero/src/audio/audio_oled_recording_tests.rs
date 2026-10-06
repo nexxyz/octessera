@@ -138,7 +138,7 @@ fn recording_completion_uses_existing_status_toast_result() {
 }
 
 fn push_frames(service: &AudioService, count: usize) {
-    let tap = service.recording_tap.read().unwrap().clone().unwrap();
+    let tap = service.mix_taps.read().unwrap().recording.clone().unwrap();
     for index in 0..count {
         tap.push_frame(index as i16, -(index as i16));
     }

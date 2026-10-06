@@ -210,9 +210,9 @@ fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
         let mirror_seen = mirror_seen.clone();
         let replay_receiver = replay_receiver.clone();
         Arc::new(
-            move |_, sink, health, recording_tap, _load_tx, _mirror_producers, mirror_consumer| {
+            move |_, sink, health, mix_taps, _load_tx, _mirror_producers, mirror_consumer| {
                 attempts.lock().unwrap().push(sink);
-                tap_seen.lock().unwrap().push(recording_tap.is_some());
+                tap_seen.lock().unwrap().push(mix_taps.is_some());
                 mirror_seen.lock().unwrap().push(mirror_consumer.is_some());
                 if attempts.lock().unwrap().len() < 4 {
                     return Err(crate::audio_route::RouteOpenError::Disconnected);
@@ -405,7 +405,7 @@ fn orange_multiple_routes_record_samples_once_from_the_selected_owner() {
 fn orange_test_opener(
     _construction: super::audio_output_open::AudioConstructionConfig,
     sink: super::AudioSink,
-    recording_tap: Option<super::RecordingTapState>,
+    mix_taps: Option<super::MixTapState>,
     load_tx: Option<rodio_engine_source::AudioLoadStatusSender>,
     mirror_producers: rodio_engine_source::PcmMirrorProducers,
     mirror_consumer: Option<rodio_engine_source::PcmMirrorConsumer>,
@@ -417,7 +417,7 @@ fn orange_test_opener(
         assert!(mirror_producers.iter().all(Option::is_none));
         assert!(mirror_consumer.is_some());
     }
-    if recording_tap.is_some() {
+    if mix_taps.is_some() {
         ORANGE_TAP_OWNER_COUNT.fetch_add(1, Ordering::SeqCst);
     } else {
         ORANGE_TAP_ABSENT_COUNT.fetch_add(1, Ordering::SeqCst);

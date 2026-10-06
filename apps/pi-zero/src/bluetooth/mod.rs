@@ -6,9 +6,11 @@ mod agent;
 #[cfg(target_os = "linux")]
 mod bluez;
 mod device;
+mod monitor;
 mod worker;
 
 pub(crate) use device::DeviceRecord;
+pub(crate) use monitor::BluetoothAudioMonitor;
 use playback_runtime::{
     HostMessage, RuntimeBluetoothDeviceAction, RuntimePlatformEffect, RuntimeStoreResult,
 };

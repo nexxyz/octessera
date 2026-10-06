@@ -173,7 +173,15 @@ fn startup_open_action(
     }
 }
 
-pub(super) type RecordingTapState = Arc<RwLock<Option<RecordingTap>>>;
+/// Copies of the final mix taken in the primary callback: the recorder and
+/// the Bluetooth monitor. Both are bounded and never block the callback.
+#[derive(Default)]
+pub(crate) struct MixTaps {
+    pub(crate) recording: Option<RecordingTap>,
+    pub(crate) monitor: Option<RecordingTap>,
+}
+
+pub(crate) type MixTapState = Arc<RwLock<MixTaps>>;
 
 impl AudioManager {
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

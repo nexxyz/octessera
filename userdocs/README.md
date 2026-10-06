@@ -54,7 +54,7 @@ down before opening the case or moving wiring.
 - **Operation:** [Controls cheat sheet](controls-cheat-sheet.md), [Behaviors and
   Play pages](behaviors-and-play.md), [Recording audio and OLED](recording.md),
   [Data backup and restore](data-backup-restore.md),
-  [Bluetooth keyboards](bluetooth-keyboards.md), and
+  [Bluetooth keyboards and speakers](bluetooth.md), and
   [Troubleshooting](troubleshooting.md).
 - **Build and hardware:** [Assembly manual](hardware/assembly-manual.md),
   [Flash and first boot](hardware/flash-and-first-boot.md),

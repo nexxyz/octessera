@@ -28,6 +28,7 @@ pub(crate) trait PiRuntimeHost: HostAdapter + Sized {
     fn poll_recording_status(&self) -> Option<RuntimeStoreResult>;
     fn prep_audio_service(&self) -> AudioService;
     fn drain_prep_host_results(&self, max_results: usize) -> Vec<HostMessage>;
+    fn observe_bluetooth_audio_sink(&mut self, sink: Option<&str>);
 }
 
 pub(crate) fn initialize_host_state<H: PiRuntimeHost>(
@@ -59,6 +60,7 @@ pub(crate) fn process_runtime_output<H: PiRuntimeHost>(
     ingest_oled_messages(host, &output.messages);
     host.core_mut()
         .observe_bluetooth_enabled(runner.bluetooth_enabled());
+    host.observe_bluetooth_audio_sink(runner.bluetooth_audio_sink());
     let fault = host
         .core()
         .oled_frame_fault()

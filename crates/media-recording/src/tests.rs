@@ -289,3 +289,21 @@ fn file_count_with_suffix(dir: &Path, suffix: &str) -> usize {
 fn remove_temp_dir(path: PathBuf) {
     let _ = fs::remove_dir_all(path);
 }
+
+#[test]
+fn monitor_tap_drops_when_full_and_stops_when_its_reader_goes() {
+    let (tap, chunks) = monitor_tap();
+    for _ in 0..QUEUE_CAPACITY + 3 {
+        let mut chunk = tap.new_chunk();
+        assert!(chunk.push_frame(1, -1));
+        tap.push_chunk(chunk);
+    }
+    assert_eq!(chunks.try_iter().count(), QUEUE_CAPACITY);
+    assert!(tap.is_active());
+
+    drop(chunks);
+    let mut chunk = tap.new_chunk();
+    assert!(chunk.push_frame(1, -1));
+    tap.push_chunk(chunk);
+    assert!(!tap.is_active());
+}

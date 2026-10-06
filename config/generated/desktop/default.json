@@ -63,6 +63,7 @@
     },
     "bpm": 120,
     "bluetooth": {
+      "audio": false,
       "enabled": false
     },
     "buttonBrightness": 100,

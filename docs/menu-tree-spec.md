@@ -67,7 +67,7 @@ and Stop Transfer remain available for cleanup. Gadget does not restore previous
 `System > SD Card 2` contains Start Transfer and Stop Transfer; it exposes the second card to a USB
 host only while conflicting USB audio, MIDI, and recording are inactive. HDMI Video contains the
 existing Mode, Bars per cycle, and Grid Lines controls. Bluetooth contains the Bluetooth toggle and,
-only while it is On, Devices, Pair New, and Forget.
+only while it is On, Audio Out, Devices, Pair New, and Forget.
 USB and HDMI audio mirror the canonical Jack mix and do not replace it; HDMI audio remains
 separate from HDMI video. Restart-sensitive edits use the native Save Setting flow shared with
 Audio.

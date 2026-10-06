@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{SyncSender, TrySendError};
+use std::sync::mpsc::{Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::{collections::VecDeque, fmt};
 
@@ -63,7 +63,7 @@ impl RecordingChunk {
         self.frame_count == 0
     }
 
-    fn samples(&self) -> &[i16] {
+    pub fn samples(&self) -> &[i16] {
         &self.samples[..self.frame_count * usize::from(CHANNELS)]
     }
 }
@@ -156,6 +156,17 @@ impl RecordingTap {
             self.state.accepting.store(false, Ordering::Release);
         }
     }
+}
+
+/// A live copy of the final mix for a monitor output, with the same bounded,
+/// never-blocking contract as recording. Dropping the receiver deactivates it.
+pub fn monitor_tap() -> (RecordingTap, Receiver<RecordingChunk>) {
+    let (tx, rx) = std::sync::mpsc::sync_channel(QUEUE_CAPACITY);
+    let tap = RecordingTap {
+        tx,
+        state: Arc::new(IngressState::new()),
+    };
+    (tap, rx)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

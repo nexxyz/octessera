@@ -10,6 +10,7 @@ pub(super) fn bluetooth_group(config: &NativeMenuConfig) -> NativeMenuItem {
     )];
     if config.bluetooth_enabled {
         children.extend([
+            bool_item("Audio Out", "bluetooth.audio", config.bluetooth_audio),
             device_rows_group("Devices", "toggle", &config.bluetooth_paired),
             device_rows_group("Pair New", "pair", &config.bluetooth_found),
             device_rows_group("Forget", "forget", &config.bluetooth_paired),

@@ -312,6 +312,9 @@ install -d "$ROOTFS_DIR/etc/systemd/system/bluetooth.target.wants"
 ln -sf /lib/systemd/system/bluetooth.service "$ROOTFS_DIR/etc/systemd/system/bluetooth.target.wants/bluetooth.service"
 ln -sf /lib/systemd/system/bluetooth.service "$ROOTFS_DIR/etc/systemd/system/dbus-org.bluez.service"
 sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$ROOTFS_DIR/etc/bluetooth/main.conf"
+# bluez-alsa encodes the Bluetooth audio monitor; keep it below the audio threads.
+install -d "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d"
+printf '[Service]\nNice=10\nCPUAffinity=2 3\n' > "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d/10-octessera-background.conf"
 
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
 bash "$LEGAL_REPOSITORY_ROOT/tools/pi-image/install-musical-assets.sh" "$STAGE_FILES/root" "$ROOTFS_DIR"

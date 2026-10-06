@@ -156,6 +156,8 @@ ensure_raspberry_uart_inactive() {
     sudo systemctl unmask bluetooth.service >/dev/null
     sudo systemctl enable bluetooth.service >/dev/null 2>&1
     sudo sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$(target_path /etc/bluetooth/main.conf)"
+    sudo install -d "$(target_path /etc/systemd/system/bluealsa.service.d)"
+    printf '[Service]\nNice=10\nCPUAffinity=2 3\n' | sudo tee "$(target_path /etc/systemd/system/bluealsa.service.d)"/10-octessera-background.conf >/dev/null
     sudo rm -f "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
     test ! -e "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
 }

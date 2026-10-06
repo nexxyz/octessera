@@ -57,10 +57,10 @@ impl AudioManager {
             recordings_dir(),
             screen_recordings_dir(),
         )));
-        let recording_tap = Arc::new(RwLock::new(None));
+        let mix_taps = Arc::new(RwLock::new(super::MixTaps::default()));
         let recording_oled = Arc::new(RwLock::new(None));
         for sink in sinks {
-            let tap = (sink == AudioSink::Jack).then(|| recording_tap.clone());
+            let tap = (sink == AudioSink::Jack).then(|| mix_taps.clone());
             #[cfg(any(
                 feature = "hardware-orange-pi-zero-2w",
                 feature = "hardware-raspberry-pi-zero-2w"
@@ -162,7 +162,7 @@ impl AudioManager {
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             required_jack_health: required_jack_health.clone(),
             recorder,
-            recording_tap: recording_tap.clone(),
+            mix_taps: mix_taps.clone(),
             recording_oled: recording_oled.clone(),
             accepted_oled_frame: Arc::new(RwLock::new(None)),
         };
@@ -196,7 +196,7 @@ impl AudioManager {
                     opened,
                     profile,
                     engine.clone(),
-                    Some(recording_tap.clone()),
+                    Some(mix_taps.clone()),
                     mirror_producers_for_recovery.clone(),
                 )
             })

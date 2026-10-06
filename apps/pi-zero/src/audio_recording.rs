@@ -99,13 +99,13 @@ impl RecordingServices {
 
 pub(crate) fn poll_recording_status(
     recorder: &Arc<Mutex<RecordingServices>>,
-    recording_tap: &Arc<RwLock<Option<RecordingTap>>>,
+    mix_taps: &crate::audio::MixTapState,
     recording_oled: &Arc<RwLock<Option<OledIngress>>>,
 ) -> Option<RuntimeStoreResult> {
     let mut recorder = match recorder.lock() {
         Ok(recorder) => recorder,
         Err(_) => {
-            let clear_error = clear_recording_ingress(recording_tap, recording_oled).err();
+            let clear_error = clear_recording_ingress(mix_taps, recording_oled).err();
             return Some(recording_failure(clear_error.map_or_else(
                 || "recorder lock poisoned".to_string(),
                 |error| format!("recorder lock poisoned; {error}"),
@@ -114,7 +114,7 @@ pub(crate) fn poll_recording_status(
     };
     let result = recorder.poll_completed();
     if !matches!(&result, Ok(None)) {
-        if let Err(error) = clear_recording_ingress(recording_tap, recording_oled) {
+        if let Err(error) = clear_recording_ingress(mix_taps, recording_oled) {
             return Some(recording_failure(error));
         }
     }
@@ -126,12 +126,13 @@ pub(crate) fn poll_recording_status(
 }
 
 fn clear_recording_ingress(
-    recording_tap: &Arc<RwLock<Option<RecordingTap>>>,
+    mix_taps: &crate::audio::MixTapState,
     recording_oled: &Arc<RwLock<Option<OledIngress>>>,
 ) -> Result<(), String> {
-    *recording_tap
+    mix_taps
         .write()
-        .map_err(|_| "recording tap lock poisoned".to_string())? = None;
+        .map_err(|_| "recording tap lock poisoned".to_string())?
+        .recording = None;
     *recording_oled
         .write()
         .map_err(|_| "OLED recording lock poisoned".to_string())? = None;

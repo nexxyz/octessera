@@ -92,7 +92,8 @@ pub(super) fn validate_bluetooth(runtime: &Map<String, Value>) -> Result<(), Str
     let Some(bluetooth) = object_field(runtime, "bluetooth", "runtimeConfig")? else {
         return Ok(());
     };
-    bool_field(bluetooth, "enabled", "runtimeConfig.bluetooth")
+    bool_field(bluetooth, "enabled", "runtimeConfig.bluetooth")?;
+    bool_field(bluetooth, "audio", "runtimeConfig.bluetooth")
 }
 
 pub(super) fn validate_recording(runtime: &Map<String, Value>) -> Result<(), String> {

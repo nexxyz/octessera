@@ -1,7 +1,7 @@
 use super::audio_output_open::open_orange_audio_sink_with_health;
 use super::audio_output_open::OpenedAudioSink;
 use super::audio_profile::OrangeAudioProfile;
-use super::{AudioSink, OrangeDacStatus, RecordingTapState};
+use super::{AudioSink, MixTapState, OrangeDacStatus};
 use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_route::RouteOpenError;
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
@@ -27,7 +27,7 @@ pub(super) type OrangeRecoveryOpener = Arc<
             OrangeAudioProfile,
             AudioSink,
             AudioStreamHealth,
-            Option<RecordingTapState>,
+            Option<MixTapState>,
             Option<AudioLoadStatusSender>,
             PcmMirrorProducers,
             Option<PcmMirrorConsumer>,
@@ -39,12 +39,12 @@ pub(super) type OrangeRecoveryClock = Arc<dyn Fn() -> Instant + Send + Sync>;
 
 fn production_opener() -> OrangeRecoveryOpener {
     Arc::new(
-        |profile, sink, health, recording_tap, load_tx, mirror_producers, mirror_consumer| {
+        |profile, sink, health, mix_taps, load_tx, mirror_producers, mirror_consumer| {
             open_orange_audio_sink_with_health(
                 super::audio_output_open::AudioConstructionConfig::Orange(profile),
                 sink,
                 health,
-                recording_tap,
+                mix_taps,
                 load_tx,
                 mirror_producers,
                 mirror_consumer,
@@ -79,7 +79,7 @@ pub(super) struct OrangeRecoveryController {
     phase: OrangeRecoveryPhase,
     profile: OrangeAudioProfile,
     engine: AudioEngineOwner,
-    recording_tap: Option<RecordingTapState>,
+    mix_taps: Option<MixTapState>,
     mirror_producer: Option<PcmMirrorProducer>,
     mirror_producers: PcmMirrorProducers,
     opener: OrangeRecoveryOpener,
@@ -89,7 +89,7 @@ pub(super) struct OrangeRecoveryController {
 pub(super) struct OrangeRecoveryDependencies {
     pub(super) profile: OrangeAudioProfile,
     pub(super) engine: AudioEngineOwner,
-    pub(super) recording_tap: Option<RecordingTapState>,
+    pub(super) mix_taps: Option<MixTapState>,
     pub(super) mirror_producer: Option<PcmMirrorProducer>,
     pub(super) mirror_producers: PcmMirrorProducers,
     pub(super) opener: OrangeRecoveryOpener,
@@ -100,13 +100,13 @@ impl OrangeRecoveryDependencies {
     fn production(
         profile: OrangeAudioProfile,
         engine: AudioEngineOwner,
-        recording_tap: Option<RecordingTapState>,
+        mix_taps: Option<MixTapState>,
         mirror_producers: PcmMirrorProducers,
     ) -> Self {
         Self {
             profile,
             engine,
-            recording_tap,
+            mix_taps,
             mirror_producer: None,
             mirror_producers,
             opener: production_opener(),
@@ -123,7 +123,7 @@ impl OrangeRecoveryController {
         initial: OpenedAudioSink,
         profile: OrangeAudioProfile,
         engine: AudioEngineOwner,
-        recording_tap: Option<RecordingTapState>,
+        mix_taps: Option<MixTapState>,
         mirror_producers: PcmMirrorProducers,
     ) -> Result<Self, String> {
         let controller = Self::new_with_dependencies(
@@ -132,12 +132,7 @@ impl OrangeRecoveryController {
             initial.health.clone(),
             Some(initial),
             OrangeRecoveryPhase::Healthy,
-            OrangeRecoveryDependencies::production(
-                profile,
-                engine,
-                recording_tap,
-                mirror_producers,
-            ),
+            OrangeRecoveryDependencies::production(profile, engine, mix_taps, mirror_producers),
         );
         controller.engine.attach(
             controller
@@ -172,7 +167,7 @@ impl OrangeRecoveryController {
             OrangeRecoveryDependencies {
                 profile,
                 engine,
-                recording_tap: None,
+                mix_taps: None,
                 mirror_producer: Some(mirror_producer),
                 mirror_producers: [None, None],
                 opener: production_opener(),
@@ -197,7 +192,7 @@ impl OrangeRecoveryController {
             OrangeRecoveryDependencies {
                 profile,
                 engine,
-                recording_tap: None,
+                mix_taps: None,
                 mirror_producer: Some(mirror_producer),
                 mirror_producers: [None, None],
                 opener: production_opener(),
@@ -237,7 +232,7 @@ impl OrangeRecoveryController {
         let OrangeRecoveryDependencies {
             profile,
             engine,
-            recording_tap,
+            mix_taps,
             mirror_producer,
             mirror_producers,
             opener,
@@ -251,7 +246,7 @@ impl OrangeRecoveryController {
             phase,
             profile,
             engine,
-            recording_tap,
+            mix_taps,
             mirror_producer,
             mirror_producers,
             opener,
@@ -281,7 +276,7 @@ impl OrangeRecoveryController {
             OrangeRecoveryDependencies {
                 profile,
                 engine,
-                recording_tap: None,
+                mix_taps: None,
                 mirror_producer,
                 mirror_producers: [None, None],
                 opener,

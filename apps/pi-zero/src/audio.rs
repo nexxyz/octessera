@@ -15,7 +15,7 @@ pub(crate) use crate::audio_stream_health::AudioStreamHealth;
     )
 ))]
 pub(crate) use crate::audio_stream_health::AudioStreamStatus;
-use media_recording::{OledIngress, RecordingTap};
+use media_recording::OledIngress;
 mod audio_defaults;
 mod audio_error;
 mod audio_output;
@@ -24,9 +24,11 @@ pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
 #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
 pub(crate) use audio_output::drain_audio_load_status;
+#[cfg(test)]
+pub(crate) use audio_output::MixTaps;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use audio_output::OrangeAudioProfile;
-pub(crate) use audio_output::{AudioManager, AudioSink};
+pub(crate) use audio_output::{AudioManager, AudioSink, MixTapState};
 #[cfg(any(
     feature = "hardware-orange-pi-zero-2w",
     all(
@@ -92,7 +94,7 @@ pub struct AudioService {
     required_jack_health: Option<AudioStreamHealth>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
     recorder: Arc<Mutex<RecordingServices>>,
-    recording_tap: Arc<RwLock<Option<RecordingTap>>>,
+    mix_taps: audio_output::MixTapState,
     recording_oled: Arc<RwLock<Option<OledIngress>>>,
     accepted_oled_frame: Arc<RwLock<Option<PhysicalOledFrame>>>,
 }

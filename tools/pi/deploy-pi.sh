@@ -28,6 +28,7 @@ sudo apt-get install -y \
     libasound2-dev \
     pkg-config \
     alsa-utils \
+    bluez-alsa-utils \
     device-tree-compiler \
     i2c-tools \
     spi-tools \
@@ -84,6 +85,8 @@ ensure_raspberry_uart_inactive() {
     sudo systemctl unmask bluetooth.service >/dev/null
     sudo systemctl enable bluetooth.service >/dev/null 2>&1
     sudo sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "/etc/bluetooth/main.conf"
+    sudo install -d /etc/systemd/system/bluealsa.service.d
+    printf '[Service]\nNice=10\nCPUAffinity=2 3\n' | sudo tee /etc/systemd/system/bluealsa.service.d/10-octessera-background.conf >/dev/null
     sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py
     test ! -e /usr/local/lib/octessera/rpi_uart_release.py
 }

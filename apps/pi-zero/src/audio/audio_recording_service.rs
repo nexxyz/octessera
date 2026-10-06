@@ -5,6 +5,10 @@ use playback_runtime::RuntimeStoreResult;
 use std::sync::Arc;
 
 impl AudioService {
+    pub(crate) fn mix_taps(&self) -> super::MixTapState {
+        self.mix_taps.clone()
+    }
+
     pub fn start_recording(&self, max_minutes: u16) -> Result<(), RecordingStartError> {
         let mut recorder = self
             .recorder
@@ -15,11 +19,10 @@ impl AudioService {
             .recording_oled
             .write()
             .map_err(|_| RecordingStartError::Io("OLED recording lock poisoned".into()))? = None;
-        *self
-            .recording_tap
+        self.mix_taps
             .write()
-            .map_err(|_| RecordingStartError::Io("recording tap lock poisoned".into()))? =
-            Some(tap);
+            .map_err(|_| RecordingStartError::Io("recording tap lock poisoned".into()))?
+            .recording = Some(tap);
         Ok(())
     }
 
@@ -38,11 +41,10 @@ impl AudioService {
                 .map_err(|error| RecordingStartError::Io(error.to_string()))?;
             let _ = recording.oled.try_submit(frame);
         }
-        *self
-            .recording_tap
+        self.mix_taps
             .write()
-            .map_err(|_| RecordingStartError::Io("recording tap lock poisoned".into()))? =
-            Some(recording.tap);
+            .map_err(|_| RecordingStartError::Io("recording tap lock poisoned".into()))?
+            .recording = Some(recording.tap);
         *self
             .recording_oled
             .write()
@@ -91,10 +93,10 @@ impl AudioService {
             .recorder
             .lock()
             .map_err(|_| "recorder lock poisoned".to_string())?;
-        *self
-            .recording_tap
+        self.mix_taps
             .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())? = None;
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .recording = None;
         *self
             .recording_oled
             .write()
@@ -112,11 +114,7 @@ impl AudioService {
     }
 
     pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {
-        audio_recording::poll_recording_status(
-            &self.recorder,
-            &self.recording_tap,
-            &self.recording_oled,
-        )
+        audio_recording::poll_recording_status(&self.recorder, &self.mix_taps, &self.recording_oled)
     }
 
     pub(crate) fn prepare_restore(&self) -> Result<(), String> {
@@ -127,10 +125,10 @@ impl AudioService {
         if recorder.is_recording() {
             recorder.stop_audio().map_err(|error| error.to_string())?;
         }
-        *self
-            .recording_tap
+        self.mix_taps
             .write()
-            .map_err(|_| "recording tap lock poisoned".to_string())? = None;
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .recording = None;
         *self
             .recording_oled
             .write()
@@ -177,9 +175,10 @@ impl AudioService {
             return Ok(());
         }
         let tap = self
-            .recording_tap
+            .mix_taps
             .read()
             .map_err(|_| "recording tap lock poisoned".to_string())?
+            .recording
             .clone();
         let oled = self
             .recording_oled
@@ -198,9 +197,10 @@ impl AudioService {
     #[cfg(test)]
     pub(crate) fn test_push_recording_samples(&self, samples: &[i16]) -> Result<(), String> {
         let tap = self
-            .recording_tap
+            .mix_taps
             .read()
             .map_err(|_| "recording tap lock poisoned".to_string())?
+            .recording
             .clone()
             .ok_or_else(|| "recording tap is inactive".to_string())?;
         let mut chunk = tap.new_chunk();

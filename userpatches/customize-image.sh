@@ -40,7 +40,7 @@ rm -f /run/octessera/setup-portal.request /run/octessera-setup-request/inbox/sta
 rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-status /run/octessera-setup-queue /run/octessera-setup-request
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc bluez
+apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc bluez bluez-alsa-utils
 sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' /etc/bluetooth/main.conf
 octessera_load_image_contract "$overlay_dir"
 if [[ "$OCTESSERA_IMAGE_MODE" == production && ( -n "${OCTESSERA_PAYLOAD_URL:-}" || -n "${OCTESSERA_PAYLOAD_SHA256:-}" ) ]]; then
@@ -362,16 +362,13 @@ install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-u
 install_overlay_file usr/local/sbin/octessera-update-broker /usr/local/sbin/octessera-update-broker 0755
 install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
 install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
-install_overlay_file usr/local/lib/octessera/updater_protocol.py /usr/local/lib/octessera/updater_protocol.py 0644
-install_overlay_file usr/local/lib/octessera/updater_contract.py /usr/local/lib/octessera/updater_contract.py 0644
-install_overlay_file usr/local/lib/octessera/updater_state.py /usr/local/lib/octessera/updater_state.py 0644
-install_overlay_file usr/local/lib/octessera/updater_assets.py /usr/local/lib/octessera/updater_assets.py 0644
-install_overlay_file usr/local/lib/octessera/updater_guard.py /usr/local/lib/octessera/updater_guard.py 0644
-install_overlay_file usr/local/lib/octessera/updater_cli.py /usr/local/lib/octessera/updater_cli.py 0644
-install_overlay_file usr/local/lib/octessera/updater_profiles.py /usr/local/lib/octessera/updater_profiles.py 0644
+for updater_module in protocol contract state assets guard cli profiles; do
+  install_overlay_file "usr/local/lib/octessera/updater_$updater_module.py" "/usr/local/lib/octessera/updater_$updater_module.py" 0644
+done
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
 octessera_install_orange_runtime_assets "$overlay_dir"
 install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
+install_overlay_file etc/systemd/system/bluealsa.service.d/10-octessera-background.conf /etc/systemd/system/bluealsa.service.d/10-octessera-background.conf 0644
 for musical_asset in \
   usr/share/octessera/defaults/pi-default.json \
   usr/share/octessera/defaults/pi-system.json \

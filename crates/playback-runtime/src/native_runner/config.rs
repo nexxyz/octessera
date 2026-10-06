@@ -164,6 +164,7 @@ impl NativeRunner {
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
             bluetooth_enabled: self.bluetooth.enabled,
+            bluetooth_audio: self.bluetooth.audio,
             bluetooth_paired: self.bluetooth.paired_rows(),
             bluetooth_found: self.bluetooth.found_rows(),
             play_mode: self.play_mode.clone(),

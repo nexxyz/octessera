@@ -74,6 +74,7 @@ impl PiHostAdapter {
             usb_data_role,
             power_request: None,
             timing_evidence: None,
+            bluetooth_audio: None,
         }
     }
 

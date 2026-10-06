@@ -18,7 +18,7 @@ impl OrangeRecoveryController {
             self.sink,
             self.health.clone(),
             (self.mode == OrangeRecoveryMode::Required)
-                .then(|| self.recording_tap.clone())
+                .then(|| self.mix_taps.clone())
                 .flatten(),
             load_tx,
             self.mirror_producers.clone(),

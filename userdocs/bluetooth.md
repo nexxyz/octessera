@@ -1,4 +1,4 @@
-# Bluetooth keyboards
+# Bluetooth keyboards and speakers
 
 A Bluetooth keyboard plays the instrument just like a USB keyboard: the arrow
 keys turn *Main*, *Enter* clicks it, *Space* is *Play*, and so on (the full map
@@ -12,11 +12,12 @@ and nothing gets in the way of the audio until you turn it on.
 
 ## Turn it on
 
-Go to `System > Bluetooth` and set **Bluetooth** to On. Three more pages appear:
+Go to `System > Bluetooth` and set **Bluetooth** to On. A few more rows appear:
 
-- **Devices** lists keyboards you have paired. A connected one ends in ` - on`.
-  Click a row to connect it or disconnect it.
-- **Pair New** looks for keyboards while the page is open.
+- **Audio Out** sends a copy of the music to a paired speaker (see below).
+- **Devices** lists keyboards and speakers you have paired. A connected one
+  ends in ` - on`. Click a row to connect it or disconnect it.
+- **Pair New** looks for keyboards and speakers while the page is open.
 - **Forget** removes a pairing.
 
 Turning Bluetooth Off powers the radio down again. Pairings are remembered, so
@@ -44,7 +45,27 @@ pairing mode and try once more; keyboards are a bit picky about timing.
   instrument while `System > HDMI Video > Mode` is a graphical mode, not
   `Terminal`.
 - Only the first keyboard Octessera picks up gets the controls.
-- Speakers and headphones don't show up in **Pair New** yet. Bluetooth audio is
-  a different beast with its own latency, and it hasn't earned its place in the
-  instrument yet.
 - The setting lives in the System save, so it survives a reboot.
+
+## Listen on a Bluetooth speaker
+
+A Bluetooth speaker or pair of headphones can play along as a **monitor**: a
+copy of the same final mix that goes to the DAC, for listening on the sofa or
+practising without cables.
+
+1. Put the speaker into pairing mode, open `System > Bluetooth > Pair New`, and
+   click its row (`name [audio]`). Speakers don't ask for a code.
+2. Set `System > Bluetooth > Audio Out` to On.
+
+That's it: whenever the paired speaker is connected, it plays along. Turn the
+speaker off or walk out of range and the monitor simply stops; the wired
+outputs carry on untouched.
+
+Two honest warnings:
+
+- Bluetooth audio is **late**, usually by a couple of hundred milliseconds. It
+  is fine for listening and terrible for playing in time, so keep your ears on
+  the wired output when you play live.
+- The monitor is the least important thing the instrument does. If the board
+  gets busy, the speaker hiccups first, so the notes on the DAC, USB and HDMI
+  outputs never have to.

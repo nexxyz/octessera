@@ -43,7 +43,7 @@ fn orange_optional_terminal_startup_failures_do_not_block_jack() {
 fn terminal_failure_opener(
     _construction: AudioConstructionConfig,
     sink: AudioSink,
-    _recording_tap: Option<super::RecordingTapState>,
+    _recording_tap: Option<super::MixTapState>,
     _load_tx: Option<rodio_engine_source::AudioLoadStatusSender>,
     _mirror_producers: rodio_engine_source::PcmMirrorProducers,
     _mirror_consumer: Option<rodio_engine_source::PcmMirrorConsumer>,

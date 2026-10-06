@@ -1,5 +1,5 @@
 use super::audio_stream_lifecycle::{AudioStreamRetirementError, AudioStreamRetirementWaiter};
-use super::RecordingTapState;
+use super::MixTapState;
 use crate::audio_priority::CallbackSchedulingHandle;
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::Sample;
@@ -68,7 +68,7 @@ impl MirrorCallbackSource {
 pub(super) fn fill_callback<T>(
     data: &mut [T],
     callback_source: &mut CallbackSource,
-    recording_tap: Option<&RecordingTapState>,
+    mix_taps: Option<&MixTapState>,
     callback_health: &AudioStreamHealth,
     report_worker_health: bool,
     worker_health_reported: &mut bool,
@@ -86,7 +86,7 @@ pub(super) fn fill_callback<T>(
         *worker_health_reported = true;
         return;
     }
-    fill_output(data, source, recording_tap);
+    fill_output(data, source, mix_taps);
     let health = source.source_worker_health();
     if report_worker_health && !*worker_health_reported && health.is_terminal() {
         mark_worker_terminal(data, callback_health, health);
@@ -97,7 +97,7 @@ pub(super) fn fill_callback<T>(
 pub(super) fn fill_callback_with_scheduler<T>(
     data: &mut [T],
     callback_source: &mut CallbackSource,
-    recording_tap: Option<&RecordingTapState>,
+    mix_taps: Option<&MixTapState>,
     callback_health: &AudioStreamHealth,
     report_worker_health: bool,
     worker_health_reported: &mut bool,
@@ -113,7 +113,7 @@ pub(super) fn fill_callback_with_scheduler<T>(
     fill_callback(
         data,
         callback_source,
-        recording_tap,
+        mix_taps,
         callback_health,
         report_worker_health,
         worker_health_reported,
@@ -170,28 +170,28 @@ where
     }
 }
 
-fn fill_output<T>(
-    data: &mut [T],
-    source: &mut EngineSource,
-    recording_tap: Option<&RecordingTapState>,
-) where
+fn fill_output<T>(data: &mut [T], source: &mut EngineSource, mix_taps: Option<&MixTapState>)
+where
     T: Sample + cpal::FromSample<f32>,
 {
-    let recording_tap_guard = recording_tap.and_then(|tap| tap.try_read().ok());
-    let recorded = recording_tap_guard
-        .as_ref()
-        .and_then(|tap| (**tap).as_ref());
-    let mut recording_chunk = recorded.map(|tap| tap.new_chunk());
+    let taps_guard = mix_taps.and_then(|taps| taps.try_read().ok());
+    let taps = taps_guard.as_ref().map_or([None, None], |taps| {
+        [taps.recording.as_ref(), taps.monitor.as_ref()]
+    });
+    if taps.iter().all(Option::is_none) {
+        for sample in data.iter_mut() {
+            *sample = T::from_sample(source.next().unwrap_or(0.0));
+        }
+        return;
+    }
+    let mut chunks = taps.map(|tap| tap.map(|tap| tap.new_chunk()));
     let (frames, remainder) = data.as_chunks_mut::<2>();
     for frame in frames {
         let left = source.next().unwrap_or(0.0);
         let right = source.next().unwrap_or(0.0);
-        if let (Some(tap), Some(chunk)) = (recorded, recording_chunk.as_mut()) {
-            if !chunk.push_frame(float_to_i16(left), float_to_i16(right)) {
-                let full = std::mem::replace(chunk, media_recording::RecordingChunk::new(0));
-                tap.push_chunk(full);
-                *chunk = tap.new_chunk();
-                let _ = chunk.push_frame(float_to_i16(left), float_to_i16(right));
+        for (tap, chunk) in taps.iter().zip(chunks.iter_mut()) {
+            if let (Some(tap), Some(chunk)) = (tap, chunk.as_mut()) {
+                push_tap_frame(tap, chunk, float_to_i16(left), float_to_i16(right));
             }
         }
         frame[0] = T::from_sample(left);
@@ -201,10 +201,26 @@ fn fill_output<T>(
         let value = source.next().unwrap_or(0.0);
         *sample = T::from_sample(value);
     }
-    if let (Some(tap), Some(chunk)) = (recorded.as_ref(), recording_chunk) {
-        if !chunk.is_empty() {
-            tap.push_chunk(chunk);
+    for (tap, chunk) in taps.iter().zip(chunks) {
+        if let (Some(tap), Some(chunk)) = (tap, chunk) {
+            if !chunk.is_empty() {
+                tap.push_chunk(chunk);
+            }
         }
+    }
+}
+
+fn push_tap_frame(
+    tap: &media_recording::RecordingTap,
+    chunk: &mut media_recording::RecordingChunk,
+    left: i16,
+    right: i16,
+) {
+    if !chunk.push_frame(left, right) {
+        let full = std::mem::replace(chunk, media_recording::RecordingChunk::new(0));
+        tap.push_chunk(full);
+        *chunk = tap.new_chunk();
+        let _ = chunk.push_frame(left, right);
     }
 }
 

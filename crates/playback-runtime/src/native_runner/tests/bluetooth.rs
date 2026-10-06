@@ -76,13 +76,13 @@ fn bluetooth_setting_reveals_device_pages_and_is_saved_with_the_system() {
     assert!(runner.bluetooth.enabled);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["bluetooth"],
-        json!({ "enabled": true })
+        json!({ "enabled": true, "audio": false })
     );
     let system =
         super::super::system_persistence::SystemPersistenceState::system_document(&runner).unwrap();
     assert_eq!(
         system["runtimeConfig"]["bluetooth"],
-        json!({ "enabled": true })
+        json!({ "enabled": true, "audio": false })
     );
 }
 
@@ -129,7 +129,6 @@ fn pair_new_scans_while_open_and_pairs_a_found_keyboard() {
         },
     );
 
-    assert!(!runner.menu.focus_item_key("bluetooth.pair:CC"));
     assert!(runner.menu.focus_item_key("bluetooth.pair:AA"));
     runner.menu.back();
     let entered = press(&mut runner);
@@ -243,4 +242,74 @@ fn status_message_is_shown_once_as_a_toast() {
         None,
         "the message is consumed so a later rebuild does not repeat it"
     );
+}
+
+fn speaker(address: &str, paired: bool, connected: bool) -> RuntimeBluetoothDevice {
+    RuntimeBluetoothDevice {
+        kind: RuntimeBluetoothDeviceKind::Audio,
+        ..device(address, "Speaker", paired, connected)
+    }
+}
+
+fn turn_audio_out_on(runner: &mut NativeRunner) {
+    assert!(runner.menu.focus_item_key("bluetooth.audio"));
+    press(runner);
+    input(
+        runner,
+        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+    );
+    press(runner);
+}
+
+#[test]
+fn audio_out_picks_the_connected_paired_speaker() {
+    let mut runner = board_runner();
+    turn_bluetooth_on(&mut runner);
+    send_status(
+        &mut runner,
+        RuntimeBluetoothStatus {
+            powered: true,
+            devices: vec![device("KB", "Keys", true, true), speaker("SP", true, true)],
+            ..RuntimeBluetoothStatus::default()
+        },
+    );
+    assert_eq!(runner.bluetooth_audio_sink(), None);
+
+    turn_audio_out_on(&mut runner);
+    assert!(runner.bluetooth.audio);
+    assert_eq!(runner.bluetooth_audio_sink(), Some("SP"));
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["bluetooth"],
+        json!({ "enabled": true, "audio": true })
+    );
+
+    send_status(
+        &mut runner,
+        RuntimeBluetoothStatus {
+            powered: true,
+            devices: vec![speaker("SP", true, false)],
+            ..RuntimeBluetoothStatus::default()
+        },
+    );
+    assert_eq!(runner.bluetooth_audio_sink(), None);
+}
+
+#[test]
+fn pair_new_lists_speakers_as_well_as_keyboards() {
+    let mut runner = board_runner();
+    turn_bluetooth_on(&mut runner);
+    send_status(
+        &mut runner,
+        RuntimeBluetoothStatus {
+            powered: true,
+            scanning: true,
+            devices: vec![
+                device("KB", "Keys", false, false),
+                speaker("SP", false, false),
+            ],
+            ..RuntimeBluetoothStatus::default()
+        },
+    );
+    assert!(runner.menu.focus_item_key("bluetooth.pair:KB"));
+    assert!(runner.menu.focus_item_key("bluetooth.pair:SP"));
 }

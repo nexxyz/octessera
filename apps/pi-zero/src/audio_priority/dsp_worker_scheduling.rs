@@ -32,13 +32,14 @@ pub(crate) fn pi_worker_start_hook(parity: usize) -> Result<(), ()> {
     benchmark_worker_start_hook(parity)
 }
 
-// Bulk sample decoding on CPU0 delays the audio interrupt's wakeup of the
-// callback; keep it on the DSP cores, where the realtime workers preempt it.
+// Background work (bulk sample decoding, the Bluetooth audio feeder) on CPU0
+// delays the audio interrupt's wakeup of the callback; keep it on the DSP
+// cores, where the realtime workers preempt it.
 #[cfg(any(
     feature = "hardware-orange-pi-zero-2w",
     feature = "hardware-raspberry-pi-zero-2w"
 ))]
-pub(crate) fn pin_audio_prep_worker() {
+pub(crate) fn pin_background_worker_to_dsp_cpus() {
     #[cfg(all(not(test), target_os = "linux"))]
     {
         let mut mask = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
@@ -54,7 +55,7 @@ pub(crate) fn pin_audio_prep_worker() {
         };
         if result != 0 {
             eprintln!(
-                "audio prep worker affinity failed: {}",
+                "background worker affinity failed: {}",
                 std::io::Error::from_raw_os_error(result)
             );
         }

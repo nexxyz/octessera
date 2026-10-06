@@ -123,7 +123,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
             std::env::temp_dir().join("octessera-sample-prep-recordings"),
             std::env::temp_dir().join("octessera-sample-prep-screen-recordings"),
         ))),
-        recording_tap: Arc::new(RwLock::new(None)),
+        mix_taps: Arc::new(RwLock::new(super::audio_output::MixTaps::default())),
         recording_oled: Arc::new(RwLock::new(None)),
         accepted_oled_frame: Arc::new(RwLock::new(None)),
     };
@@ -153,7 +153,7 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
             std::env::temp_dir().join("octessera-sample-prep-recordings"),
             std::env::temp_dir().join("octessera-sample-prep-screen-recordings"),
         ))),
-        recording_tap: Arc::new(RwLock::new(None)),
+        mix_taps: Arc::new(RwLock::new(super::audio_output::MixTaps::default())),
         recording_oled: Arc::new(RwLock::new(None)),
         accepted_oled_frame: Arc::new(RwLock::new(None)),
     };
@@ -214,7 +214,7 @@ pub(crate) fn test_service_with_recording_dir(
             recording_dir.clone(),
             recording_dir,
         ))),
-        recording_tap: Arc::new(RwLock::new(None)),
+        mix_taps: Arc::new(RwLock::new(super::audio_output::MixTaps::default())),
         recording_oled: Arc::new(RwLock::new(None)),
         accepted_oled_frame: Arc::new(RwLock::new(None)),
     };

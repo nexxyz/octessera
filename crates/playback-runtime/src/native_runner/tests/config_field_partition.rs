@@ -250,7 +250,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["rollingBackups"] = alternate_bool(&canonical_runtime["rollingBackups"]);
     source_runtime["auxAutoMapEnabled"] = alternate_bool(&canonical_runtime["auxAutoMapEnabled"]);
     source_runtime["bluetooth"] = json!({
-        "enabled": alternate_bool(&canonical_runtime["bluetooth"]["enabled"])
+        "enabled": alternate_bool(&canonical_runtime["bluetooth"]["enabled"]),
+        "audio": alternate_bool(&canonical_runtime["bluetooth"]["audio"])
     });
     source_runtime["hdmi"] = json!({
         "mode": alternate_enum(&canonical_runtime["hdmi"]["mode"], "none", "live-grid"),

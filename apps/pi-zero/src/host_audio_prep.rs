@@ -28,7 +28,7 @@ pub fn spawn_audio_control_worker(
                 feature = "hardware-orange-pi-zero-2w",
                 feature = "hardware-raspberry-pi-zero-2w"
             ))]
-            crate::audio_priority::pin_audio_prep_worker();
+            crate::audio_priority::pin_background_worker_to_dsp_cpus();
             audio_control_loop(rx, audio, result_tx)
         })
         .expect("audio prep worker should start");

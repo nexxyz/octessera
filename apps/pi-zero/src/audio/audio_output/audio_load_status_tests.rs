@@ -200,7 +200,7 @@ fn runtime_with_snapshot(
 fn test_opener(
     _construction: AudioConstructionConfig,
     sink: AudioSink,
-    _recording_tap: Option<super::RecordingTapState>,
+    _recording_tap: Option<super::MixTapState>,
     _load_tx: Option<AudioLoadStatusSender>,
     _mirror_producers: rodio_engine_source::PcmMirrorProducers,
     _mirror_consumer: Option<rodio_engine_source::PcmMirrorConsumer>,

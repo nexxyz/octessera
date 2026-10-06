@@ -10,7 +10,7 @@ use super::cpal_audio_output::build_orange_cpal_stream;
 use super::cpal_audio_output::AudioSourceExecutionMode;
 use super::cpal_audio_output::BuiltAudioStream;
 use super::cpal_audio_output::EngineSourceOptions;
-use super::{AudioSink, RecordingTapState};
+use super::{AudioSink, MixTapState};
 use crate::audio::default_pi_instruments;
 use crate::audio_priority::qualify_callback_scheduler;
 use crate::audio_route::RouteOpenError;
@@ -88,7 +88,7 @@ pub(super) fn load_status_sender_for_sink(
 pub(super) type AudioSinkOpener = fn(
     AudioConstructionConfig,
     AudioSink,
-    Option<RecordingTapState>,
+    Option<MixTapState>,
     Option<AudioLoadStatusSender>,
     PcmMirrorProducers,
     Option<PcmMirrorConsumer>,
@@ -130,7 +130,7 @@ pub(super) fn source_execution_mode(
 pub(super) fn open_audio_sink(
     config: AudioConstructionConfig,
     sink: AudioSink,
-    recording_tap: Option<RecordingTapState>,
+    mix_taps: Option<MixTapState>,
     load_tx: Option<AudioLoadStatusSender>,
     mirror_producers: PcmMirrorProducers,
     mirror_consumer: Option<PcmMirrorConsumer>,
@@ -148,7 +148,7 @@ pub(super) fn open_audio_sink(
             profile,
             sink,
             EngineSourceOptions {
-                recording_tap,
+                mix_taps,
                 load_tx,
                 mirror_producers,
             },
@@ -220,7 +220,7 @@ pub(super) fn open_audio_sink(
 pub(super) fn open_orange_audio_sink(
     config: AudioConstructionConfig,
     sink: AudioSink,
-    recording_tap: Option<RecordingTapState>,
+    mix_taps: Option<MixTapState>,
     load_tx: Option<AudioLoadStatusSender>,
     mirror_producers: PcmMirrorProducers,
     mirror_consumer: Option<PcmMirrorConsumer>,
@@ -234,7 +234,7 @@ pub(super) fn open_orange_audio_sink(
         config,
         sink,
         health,
-        recording_tap,
+        mix_taps,
         load_tx,
         mirror_producers,
         mirror_consumer,
@@ -246,7 +246,7 @@ pub(super) fn open_orange_audio_sink_with_health(
     config: AudioConstructionConfig,
     sink: AudioSink,
     health: AudioStreamHealth,
-    recording_tap: Option<RecordingTapState>,
+    mix_taps: Option<MixTapState>,
     load_tx: Option<AudioLoadStatusSender>,
     mirror_producers: PcmMirrorProducers,
     mirror_consumer: Option<PcmMirrorConsumer>,
@@ -259,7 +259,7 @@ pub(super) fn open_orange_audio_sink_with_health(
             profile,
             sink,
             EngineSourceOptions {
-                recording_tap,
+                mix_taps,
                 load_tx,
                 mirror_producers,
             },

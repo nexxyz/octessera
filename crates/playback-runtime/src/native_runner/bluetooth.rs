@@ -13,12 +13,29 @@ const PAIR_NEW_PATH: &str = "Bluetooth > Pair New";
 #[derive(Clone, Debug, Default)]
 pub(super) struct NativeBluetoothState {
     pub(super) enabled: bool,
+    pub(super) audio: bool,
     pub(super) status: Option<RuntimeBluetoothStatus>,
 }
 
 impl NativeRunner {
     pub fn bluetooth_enabled(&self) -> bool {
         self.bluetooth.enabled
+    }
+
+    /// The connected speaker that should receive the monitor copy of the mix,
+    /// while System > Bluetooth and its Audio Out are both On.
+    pub fn bluetooth_audio_sink(&self) -> Option<&str> {
+        if !(self.bluetooth.enabled && self.bluetooth.audio) {
+            return None;
+        }
+        self.bluetooth
+            .devices()
+            .find(|device| {
+                device.paired
+                    && device.connected
+                    && device.kind == RuntimeBluetoothDeviceKind::Audio
+            })
+            .map(|device| device.address.as_str())
     }
 }
 
@@ -50,11 +67,10 @@ impl NativeBluetoothState {
             .collect()
     }
 
-    /// Unpaired keyboards found by a scan, as menu rows. Speakers wait for
-    /// Bluetooth audio output.
+    /// Unpaired keyboards and speakers found by a scan, as menu rows.
     pub(super) fn found_rows(&self) -> Vec<(String, String)> {
         self.devices()
-            .filter(|device| !device.paired && device.kind == RuntimeBluetoothDeviceKind::Keyboard)
+            .filter(|device| !device.paired && device.kind != RuntimeBluetoothDeviceKind::Other)
             .map(|device| (device.address.clone(), device_label(device)))
             .collect()
     }
@@ -78,13 +94,38 @@ fn kind_label(kind: RuntimeBluetoothDeviceKind) -> &'static str {
 
 impl NativeRunner {
     pub(super) fn apply_bluetooth_payload(&mut self, runtime: &serde_json::Value) {
-        if let Some(enabled) = runtime
-            .get("bluetooth")
-            .and_then(|bluetooth| bluetooth.get("enabled"))
+        let Some(bluetooth) = runtime.get("bluetooth") else {
+            return;
+        };
+        if let Some(enabled) = bluetooth
+            .get("enabled")
             .and_then(serde_json::Value::as_bool)
         {
             self.bluetooth.enabled = enabled;
         }
+        if let Some(audio) = bluetooth.get("audio").and_then(serde_json::Value::as_bool) {
+            self.bluetooth.audio = audio;
+        }
+    }
+
+    /// Applies a System > Bluetooth toggle; only the radio switch reshapes the menu.
+    pub(super) fn fast_bluetooth_menu_key(&mut self, key: &str) -> bool {
+        let Some(value) = self.menu.value_for_key(key).map(|value| value == "true") else {
+            return false;
+        };
+        let setting = if key == "bluetooth.enabled" {
+            &mut self.bluetooth.enabled
+        } else {
+            &mut self.bluetooth.audio
+        };
+        if *setting != value {
+            *setting = value;
+            self.mark_system_dirty();
+            if key == "bluetooth.enabled" {
+                self.rematerialize_menu_around_key(key);
+            }
+        }
+        true
     }
 
     #[cfg(test)]

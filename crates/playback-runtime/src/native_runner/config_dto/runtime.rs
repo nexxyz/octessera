@@ -222,6 +222,8 @@ pub struct HdmiDto {
 pub struct BluetoothDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) audio: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

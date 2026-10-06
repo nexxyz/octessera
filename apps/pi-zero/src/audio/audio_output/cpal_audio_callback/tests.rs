@@ -294,14 +294,18 @@ fn strict_callback_setup_and_silence_do_not_allocate_or_deallocate() {
 }
 
 #[test]
-fn recording_callback_ingress_does_not_allocate_after_setup() {
+fn mix_tap_callback_ingress_does_not_allocate_after_setup() {
     let directory = std::env::temp_dir().join(format!(
         "octessera-recording-callback-{}",
         std::process::id()
     ));
     let mut recorder = media_recording::RecorderService::new(directory.clone());
     let tap = recorder.start_audio(1).unwrap();
-    let tap_state = std::sync::Arc::new(std::sync::RwLock::new(Some(tap)));
+    let (monitor, monitor_chunks) = media_recording::monitor_tap();
+    let tap_state = std::sync::Arc::new(std::sync::RwLock::new(super::super::MixTaps {
+        recording: Some(tap),
+        monitor: Some(monitor),
+    }));
     let (_engine_tx, engine_rx) = event_queue();
     let (mut callback_source, _retirement_waiter) = CallbackSource::new(
         super::EngineSource::with_block_frames(engine_rx, 48_000, 128),
@@ -329,6 +333,13 @@ fn recording_callback_ingress_does_not_allocate_after_setup() {
         );
     });
     assert_eq!((allocations, deallocations), (0, 0));
+    assert_eq!(
+        monitor_chunks
+            .try_iter()
+            .map(|chunk| chunk.frame_count())
+            .sum::<usize>(),
+        8
+    );
     drop(tap_state);
     recorder.stop_audio().unwrap();
     let _ = std::fs::remove_dir_all(directory);
