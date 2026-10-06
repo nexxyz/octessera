@@ -28,7 +28,7 @@ permissions:
 jobs:
   raspberry_runtime:
     name: Build Raspberry runtime once
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -101,7 +101,7 @@ jobs:
           if-no-files-found: error
   orange_runtime:
     name: Build Orange runtime once
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -183,7 +183,7 @@ jobs:
           if-no-files-found: error
   raspberry_kernel:
     name: Build Raspberry kernel package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
@@ -231,7 +231,7 @@ jobs:
           if-no-files-found: error
   raspberry_image:
     name: Build Raspberry image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [raspberry_runtime, raspberry_kernel]
     timeout-minutes: 360
     steps:
@@ -374,7 +374,7 @@ jobs:
           if-no-files-found: error
   orange_image:
     name: Build Orange production image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [orange_runtime]
     timeout-minutes: 360
     steps:
@@ -456,7 +456,7 @@ jobs:
 
   raspberry_device:
     name: Package Raspberry device ZIP from runtime bundle
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [raspberry_runtime]
     if: ${{ always() && needs.raspberry_runtime.result == 'success' }}
     steps:
@@ -487,7 +487,7 @@ jobs:
 
   orange_device:
     name: Package Orange device ZIP from runtime bundle
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [orange_runtime]
     if: ${{ always() && needs.orange_runtime.result == 'success' }}
     steps:

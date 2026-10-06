@@ -55,7 +55,7 @@ permissions:
 jobs:
   validate:
     name: Validate Armbian image inputs and payload
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       public_preset_configuration_url: ${{ steps.public-inputs.outputs.public_preset_configuration_url }}
       payload_url: ${{ steps.public-inputs.outputs.payload_url }}
@@ -108,7 +108,7 @@ jobs:
     name: Build generic Armbian image
     needs: validate
     if: ${{ inputs.run_build && inputs.artifact_mode == 'public-generic' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -144,7 +144,7 @@ jobs:
     name: Build private personalized Armbian image
     needs: validate
     if: ${{ inputs.run_build && inputs.artifact_mode == 'private-personalized' && github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: armbian-image-personalized
     steps:
       - uses: actions/checkout@v4

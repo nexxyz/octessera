@@ -19,7 +19,7 @@ permissions:
 jobs:
   lint_ts:
     name: Lint TS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -39,7 +39,7 @@ jobs:
 
   format_check_ts:
     name: Format Check TS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -59,7 +59,7 @@ jobs:
 
   typecheck_ts:
     name: Typecheck TS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -79,7 +79,7 @@ jobs:
 
   test_ts:
     name: Test TS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -101,7 +101,7 @@ jobs:
 
   rust_fmt:
     name: Rust fmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -114,7 +114,7 @@ jobs:
 
   rust_lint:
     name: Rust clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -137,7 +137,7 @@ jobs:
 
   rust_test:
     name: Rust tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -180,7 +180,7 @@ jobs:
 
   rust_coverage:
     name: Rust coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -199,7 +199,7 @@ jobs:
 
   pi_zero_host_tests:
     name: Pi Zero host tests (${{ matrix.board }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -224,7 +224,7 @@ jobs:
 
   pi_zero_hal_build:
     name: Pi Zero HAL Build Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -271,7 +271,7 @@ jobs:
 
   pi_zero_app_build:
     name: Pi Zero App Build (cross)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -312,7 +312,7 @@ jobs:
 
   board_profile_scripts:
     name: Board profile script checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -384,7 +384,7 @@ jobs:
 
   legal_packaging:
     name: Legal packaging tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -395,7 +395,7 @@ jobs:
 
   repository_integrity:
     name: Repository integrity gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -425,7 +425,7 @@ jobs:
 
   release_version:
     name: Release version consistency
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -437,7 +437,7 @@ jobs:
 
   image_respin:
     name: Image respin tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CI: "true"
     steps:
@@ -468,7 +468,7 @@ jobs:
 
   updater_protocol:
     name: Device updater protocol checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6

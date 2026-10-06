@@ -17,7 +17,7 @@ permissions:
 jobs:
   workflow_static:
     name: Validate workflow definition from main
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,7 +29,7 @@ jobs:
 
   resolve_draft:
     name: Resolve draft release through the API
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -67,7 +67,7 @@ jobs:
 
   release_info:
     name: Validate immutable release source
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: resolve_draft
     outputs:
       tag: ${{ needs.resolve_draft.outputs.tag }}
@@ -99,7 +99,7 @@ jobs:
 
   updater_protocol:
     name: Release updater and workflow static gates
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: release_info
     steps:
       - uses: actions/checkout@v4
@@ -295,7 +295,7 @@ jobs:
 
   publish_release_assets:
     name: Verify and upload assets; preserve draft release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
