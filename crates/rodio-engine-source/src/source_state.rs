@@ -209,7 +209,8 @@ impl crate::EngineSource {
     fn hold_retirement(&mut self, item: RetiredAudioItem) {
         if let Some(backlog) = self.retired_backlog.as_mut() {
             if backlog.len < crate::RETIREMENT_BACKLOG_CAPACITY {
-                debug_assert!(backlog.enqueue(item));
+                let queued = backlog.enqueue(item);
+                debug_assert!(queued);
                 return;
             }
         }

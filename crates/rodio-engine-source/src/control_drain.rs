@@ -346,7 +346,8 @@ impl<'a> ControlDrain<'a> {
 
     fn hold_retirement(&mut self, item: RetiredAudioItem) {
         if self.retired_backlog.len < super::RETIREMENT_BACKLOG_CAPACITY {
-            debug_assert!(self.retired_backlog.enqueue(item));
+            let queued = self.retired_backlog.enqueue(item);
+            debug_assert!(queued);
             return;
         }
         if self.emergency_retirement.is_none() {
