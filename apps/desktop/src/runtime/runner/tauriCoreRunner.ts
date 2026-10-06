@@ -60,15 +60,14 @@ export function normalizeRuntimePayload(
 const IPC_TIMEOUT = 4_000;
 
 function withTimeout<R>(promise: Promise<R>, ms: number): Promise<R> {
-  return Promise.race([
-    promise,
-    new Promise<R>((_, reject) =>
-      setTimeout(
-        () => reject(new Error(`Tauri IPC timed out after ${ms}ms`)),
-        ms,
-      ),
-    ),
-  ]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<R>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Tauri IPC timed out after ${ms}ms`)),
+      ms,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 class TauriCoreRunnerClient {

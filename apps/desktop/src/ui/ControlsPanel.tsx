@@ -208,9 +208,9 @@ function NeoKey({
         const modifier = modifierForButton(button.key);
         if (modifier) setModifier(modifier, false);
       }}
-      onMouseLeave={() => {
+      onMouseLeave={(event) => {
         const modifier = modifierForButton(button.key);
-        if (modifier) setModifier(modifier, false);
+        if (modifier && (event.buttons & 1) === 1) setModifier(modifier, false);
       }}
       className={`neokey-${button.key}`}
       style={neoKeyStyle(snapshot.neoKeyLeds[button.key])}
