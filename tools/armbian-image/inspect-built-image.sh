@@ -128,6 +128,21 @@ reject_path() {
   fi
 }
 
+for path in root/.ssh/authorized_keys home/octessera/.ssh/authorized_keys \
+  etc/ssh/ssh_host_rsa_key etc/ssh/ssh_host_ecdsa_key etc/ssh/ssh_host_ed25519_key; do
+  if stat_path "$path"; then
+    echo "Built image must not contain baked SSH credentials: $path." >&2
+    exit 1
+  elif [[ "$?" != 1 ]]; then
+    echo "Unable to inspect image path: $path." >&2
+    exit 1
+  fi
+done
+octessera_hash="$(read_file etc/shadow | awk -F: '$1 == "octessera" { print $2 }')"
+case "$octessera_hash" in
+  ''|x|\!*|\**) ;;
+  *) echo 'Built image must not contain a usable octessera password.' >&2; exit 1 ;;
+esac
 profile_metadata="$(read_file etc/octessera/build-metadata.env)"
 default_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_PI_DEFAULT_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"
 samples_manifest_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_SAMPLES_MANIFEST_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"

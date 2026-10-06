@@ -59,3 +59,22 @@ assert_status 1 octessera_unit_masked_path "$fake_image" etc/systemd/system/ssh.
 [[ "$(octessera_debugfs_fast_link_target 'Fast link dest: /dev/null')" == /dev/null ]] || { echo 'Raw fast-link target was not normalized.' >&2; exit 1; }
 assert_status 1 octessera_debugfs_fast_link_target $'Fast link dest: "/dev/null"\nFast link dest: "/dev/null"'
 assert_status 1 octessera_debugfs_fast_link_target 'Fast link dest: "/dev/null" trailing'
+
+assert_credential_rejected() {
+  local fixture="$1" expected="$2" stderr_path="$work/credential.stderr"
+  if bash "$inspector" "$fixture" >/dev/null 2>"$stderr_path"; then
+    echo "Inspector accepted baked credentials in $fixture." >&2
+    exit 1
+  fi
+  grep -Fq "$expected" "$stderr_path" || { echo "Inspector did not report: $expected" >&2; cat "$stderr_path" >&2; exit 1; }
+}
+baked_key="$work/baked-key"
+mkdir -p "$baked_key/etc/ssh" "$baked_key/root/.ssh"
+printf '%s\n' 'octessera:!:19000:0:99999:7:::' > "$baked_key/etc/shadow"
+printf '%s\n' key > "$baked_key/etc/ssh/ssh_host_ed25519_key"
+assert_credential_rejected "$baked_key" 'baked SSH credentials: etc/ssh/ssh_host_ed25519_key'
+usable_password="$work/usable-password"
+mkdir -p "$usable_password/etc"
+# shellcheck disable=SC2016
+printf '%s\n' 'octessera:$6$salt$hash:19000:0:99999:7:::' > "$usable_password/etc/shadow"
+assert_credential_rejected "$usable_password" 'usable octessera password'
