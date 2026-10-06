@@ -102,6 +102,9 @@ def download_candidate(updater, tag: str) -> tuple[Path, dict]:
             raise updater.error("Release appeared while it was being staged")
         os.replace(extracted, final)
         updater.immutable(final)
+        # The release must be on disk before the switch can point at it; a
+        # power cut otherwise leaves zero-length files behind the new link.
+        os.sync()
         return final, manifest
     finally:
         shutil.rmtree(work, ignore_errors=True)
