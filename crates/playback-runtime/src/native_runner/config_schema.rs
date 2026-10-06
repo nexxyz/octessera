@@ -210,6 +210,7 @@ pub(super) fn prepare_patch_payload(
         derived_names::canonicalize_partial_payload_names(&mut patch, current);
     }
     merge_preserved_aux_payloads(&mut patch, current, true);
+    super::random_streams::default_missing_seed_fields(&mut patch);
     let mut payload = merge_values(current, &patch);
     if !version.is_unversioned() {
         derived_names::canonicalize_merged_payload_names(&mut payload, &patch);

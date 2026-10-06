@@ -3078,6 +3078,7 @@ version = "0.8.8"
 dependencies = [
  "platform-capabilities-build",
  "rand",
+ "rand_chacha",
  "serde",
  "serde_json",
 ]

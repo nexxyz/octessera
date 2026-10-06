@@ -4,9 +4,10 @@ use super::{
 };
 
 pub(super) fn prepare_local_patch_payload(
-    patch: Value,
+    mut patch: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
+    super::random_streams::default_missing_seed_fields(&mut patch);
     let system = split_local_system_patch_documents(current)?.system;
     let payload = compose_local_system_patch_documents(&system, &patch)?;
     let envelope = ConfigDto::decode(&payload)?;

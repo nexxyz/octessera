@@ -101,6 +101,7 @@ pub(super) fn binding_spec_from_leaf(
 pub(super) fn is_excluded_binding_key(key: &str) -> bool {
     key == "behaviorId"
         || key == "playMode"
+        || key == "randomSeed"
         || key.contains(".fm.")
             && ![
                 ".fm.index",

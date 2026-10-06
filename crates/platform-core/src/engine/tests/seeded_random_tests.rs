@@ -52,3 +52,32 @@ fn global_seed_reshapes_hash_random_behaviors() {
     assert_ne!(run(&mut first, 48), run(&mut second, 48));
     assert_eq!(run(&mut unseeded, 48), run(&mut unseeded_again, 48));
 }
+
+#[test]
+fn pattern_phase_reset_draws_from_the_seeded_stream() {
+    let mut first = engine(NativeBehavior::Weave, Some(7));
+    let mut second = engine(NativeBehavior::Weave, Some(8));
+    first.reset_transport_phase();
+    second.reset_transport_phase();
+    assert_ne!(first.model().unwrap().cells, second.model().unwrap().cells);
+}
+
+#[test]
+fn seeded_twinkle_replays_after_a_transport_reset() {
+    let mut engine = engine(NativeBehavior::Twinkle, Some(7));
+    engine.restart_random();
+    engine.reset_transport_phase();
+    let start = engine.serialized_state().unwrap();
+    let first = run(&mut engine, 24);
+    let mut replay = NativeLayerEngine::from_serialized_state(
+        NativeLayerEngineConfig {
+            behavior: NativeBehavior::Twinkle,
+            random_seed: Some(7),
+            ..base_config()
+        },
+        start,
+    )
+    .unwrap();
+    replay.reset_transport_phase();
+    assert_eq!(run(&mut replay, 24), first);
+}

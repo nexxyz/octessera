@@ -121,6 +121,6 @@ The factory preset is a good orientation point: it has a self-sustaining `life` 
 
 ## Seeds: surprises you can keep
 
-By default every random-ish world rolls fresh dice each time. If a layer just did something you love, switch on `Build > Lx > Seeded` (and `Link > Lx > Seeded` if trigger probability or a random arp is part of the magic). Seeded layers follow the one `Build > Seed` number, and they restart from it whenever you play from stop or load the patch, so the same patch played the same way gives you the same weather again. Turn the Seed to reroll every seeded layer at once; leave other layers unseeded to keep a little chaos around. Your live playing still nudges things, which is rather the point.
+By default every random-ish world rolls fresh dice each time. If a layer just did something you love, switch on `Build > Lx > Seeded` (and `Link > Lx > Seeded` if trigger probability or a random arp is part of the magic). Seeded layers follow the one `Build > Seed` number, and their dice restart from it whenever you play from stop or load the patch. A world that has already grown keeps growing from where it is, so for the same weather again, reload the patch (or hit Reset) and play it the same way. Turn the Seed to reroll every seeded layer at once; leave other layers unseeded to keep a little chaos around. Your live playing still nudges things, which is rather the point.
 
 That is the heart of octessera for me: not a song file, not a rigid pattern, but a few small systems making music together.

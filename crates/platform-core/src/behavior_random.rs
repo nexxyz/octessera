@@ -1,9 +1,9 @@
-use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
+use rand_chacha::ChaCha12Rng;
 use std::cell::{Cell, RefCell};
 
 thread_local! {
-    static ACTIVE_RNG: RefCell<Option<StdRng>> = const { RefCell::new(None) };
+    static ACTIVE_RNG: RefCell<Option<ChaCha12Rng>> = const { RefCell::new(None) };
     static ACTIVE_SALT: Cell<u64> = const { Cell::new(0) };
 }
 
@@ -21,14 +21,14 @@ pub fn stream_seed(global_seed: u16, domain: u64, layer_index: usize) -> u64 {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct LayerRandom {
     seed: Option<u64>,
-    rng: Option<StdRng>,
+    rng: Option<ChaCha12Rng>,
 }
 
 impl LayerRandom {
     pub fn new(seed: Option<u64>) -> Self {
         Self {
             seed,
-            rng: seed.map(StdRng::seed_from_u64),
+            rng: seed.map(ChaCha12Rng::seed_from_u64),
         }
     }
 
@@ -37,7 +37,7 @@ impl LayerRandom {
     }
 
     pub fn restart(&mut self) {
-        self.rng = self.seed.map(StdRng::seed_from_u64);
+        self.rng = self.seed.map(ChaCha12Rng::seed_from_u64);
     }
 
     pub fn scope<R>(&mut self, apply: impl FnOnce() -> R) -> R {
@@ -55,7 +55,7 @@ impl LayerRandom {
 struct ScopeGuard<'a> {
     owner: &'a mut LayerRandom,
     previous_salt: u64,
-    previous_rng: Option<StdRng>,
+    previous_rng: Option<ChaCha12Rng>,
 }
 
 impl Drop for ScopeGuard<'_> {

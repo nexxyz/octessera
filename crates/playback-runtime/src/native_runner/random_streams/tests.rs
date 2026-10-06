@@ -127,3 +127,29 @@ fn seeded_link_streams_restart_while_unseeded_layers_share_the_old_stream() {
     press(&mut runner, json!({ "type": "button_s", "pressed": true }));
     assert_eq!(runner.probability_rng(0), start);
 }
+
+#[test]
+fn loading_a_patch_without_seed_fields_does_not_inherit_seeding() {
+    let mut runner = runner_with(json!({ "runtimeConfig": {
+        "randomSeed": 42,
+        "layers": [{ "build": { "seeded": true }, "link": { "seeded": true } }]
+    } }));
+    let mut old_patch = runner
+        .capture_config_snapshot()
+        .into_portable_patch_payload()
+        .unwrap();
+    let runtime = old_patch["runtimeConfig"].as_object_mut().unwrap();
+    runtime.remove("randomSeed");
+    for layer in runtime["layers"].as_array_mut().unwrap() {
+        layer["build"].as_object_mut().unwrap().remove("seeded");
+        layer["link"].as_object_mut().unwrap().remove("seeded");
+    }
+
+    runner
+        .apply_patch_payload_preserving_device(old_patch)
+        .unwrap();
+
+    assert_eq!(runner.random_seed, DEFAULT_RANDOM_SEED);
+    assert!(runner.layer_seeded.iter().all(|seeded| !seeded));
+    assert!(runner.link_layers.iter().all(|layer| !layer.seeded));
+}

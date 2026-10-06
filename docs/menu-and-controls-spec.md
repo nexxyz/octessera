@@ -116,7 +116,7 @@ Aux mappings modal behavior:
 
 ## Seeded Randomness
 
-Randomness is unseeded unless a source opts in. `Build > Seed` (`randomSeed`, `1..9999`, default `1`) is one shared per-patch seed. `Build > Lx > Seeded` makes that layer's behavior randomness, including hash-style choices and the Rhythm/Musical/weave pattern seed, follow a stream mixed from Seed and the layer index. `Link > Lx > Seeded` does the same for that layer's trigger probability and random arp order; unseeded Link layers keep the shared unseeded streams. Seeded streams restart on every transport reset (stop, play-from-stop, accepted MIDI Start, resync), on patch load, and when Seed or the layer's Seeded switch changes, so the same patch, inputs, and timing replay the same result on every platform. Instrument and FX audio-rate noise is never seeded.
+Randomness is unseeded unless a source opts in. `Build > Seed` (`randomSeed`, `1..9999`, default `1`) is one shared per-patch seed. `Build > Lx > Seeded` makes that layer's behavior randomness, including hash-style choices and the Rhythm/Musical/weave pattern seed, follow a stream mixed from Seed and the layer index. `Link > Lx > Seeded` does the same for that layer's trigger probability and random arp order; unseeded Link layers keep the shared unseeded streams. Seeded streams restart on every transport reset (stop, play-from-stop, accepted MIDI Start, resync), on patch load, and when Seed or the layer's Seeded switch changes, so the same starting world, inputs, and timing replay the same result on every platform. Restarting a stream never resets an evolved grid. Instrument and FX audio-rate noise is never seeded.
 
 ## Menu Tree
 

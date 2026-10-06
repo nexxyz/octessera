@@ -13,7 +13,11 @@ impl NativeBehaviorState {
             NativeBehaviorState::Cyclic(_) => {}
             NativeBehaviorState::ForestFire(_) => {}
             NativeBehaviorState::PredatorPrey(_) => {}
-            NativeBehaviorState::Twinkle(_) => {}
+            NativeBehaviorState::Twinkle(state) => {
+                if crate::behavior_random::salt() != 0 {
+                    state.rng_counter = 0;
+                }
+            }
             NativeBehaviorState::Ant(state) => state.tick_counter = 0,
             NativeBehaviorState::Boids(state) => state.tick_counter = 0,
             NativeBehaviorState::Bounce(state) => state.tick_counter = 0,

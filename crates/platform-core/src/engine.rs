@@ -266,7 +266,8 @@ impl NativeLayerEngine {
 
     pub fn reset_transport_phase(&mut self) {
         self.tick = 0;
-        self.state.reset_transport_phase();
+        let state = &mut self.state;
+        self.random.scope(|| state.reset_transport_phase());
     }
 
     pub fn set_random_seed(&mut self, seed: Option<u64>) {

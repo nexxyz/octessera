@@ -38,6 +38,28 @@ fn arp_state(seed: u64) -> u32 {
     ((seed >> 32) as u32) | 1
 }
 
+pub(super) fn default_missing_seed_fields(patch: &mut Value) {
+    let Some(runtime) = patch
+        .get_mut("runtimeConfig")
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+    runtime
+        .entry(RANDOM_SEED_KEY)
+        .or_insert_with(|| DEFAULT_RANDOM_SEED.into());
+    let Some(layers) = runtime.get_mut("layers").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for layer in layers.iter_mut().filter_map(Value::as_object_mut) {
+        for section in ["build", "link"] {
+            if let Some(section) = layer.get_mut(section).and_then(Value::as_object_mut) {
+                section.entry("seeded").or_insert(Value::Bool(false));
+            }
+        }
+    }
+}
+
 pub(super) fn random_seed_from_payload(runtime: &Value) -> Option<u16> {
     runtime
         .get(RANDOM_SEED_KEY)
