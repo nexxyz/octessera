@@ -28,7 +28,7 @@ use config::desktop_native_runner_config;
 #[cfg(debug_assertions)]
 use perf::RuntimePerfCounters;
 use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};
-pub(crate) use requests::{request_worker_audio_command, request_worker_dispatch};
+pub(crate) use requests::request_worker_dispatch;
 
 const PLAYING_SNAPSHOT_INTERVAL_MS: u64 = 50;
 const XY_GLIDE_TICK: Duration = Duration::from_millis(8);
@@ -36,10 +36,6 @@ const XY_GLIDE_TICK: Duration = Duration::from_millis(8);
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
     NativeMidiRealtime(Vec<u8>),
-    DirectAudio(
-        playback_runtime::RuntimeAudioCommand,
-        Sender<Result<(), String>>,
-    ),
     PresentationMetrics(RuntimePresentationMetrics),
 }
 
@@ -307,10 +303,6 @@ impl RuntimeWorker {
             &mut self.last_observed_snapshot_revision,
             self.playback.last_snapshot_revision(),
         );
-    }
-
-    fn prepare_dispatch_message(&self, message: HostMessage) -> HostMessage {
-        message
     }
 }
 

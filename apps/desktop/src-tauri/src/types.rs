@@ -3,61 +3,7 @@ use playback_runtime::RunnerMessage;
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 use rodio_engine_source::{AudioLoadStatusSender, EngineEventReceiver, EngineSource};
-use serde::Deserialize;
 use serde_json::Value;
-use std::collections::BTreeMap;
-
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-pub(crate) enum AudioCommandPayload {
-    #[serde(rename = "momentary_fx_start")]
-    MomentaryFxStart {
-        id: String,
-        #[serde(default)]
-        epoch: u64,
-        #[serde(rename = "fxType")]
-        fx_type: String,
-        #[serde(default)]
-        params: BTreeMap<String, Value>,
-        #[serde(default)]
-        target: MomentaryFxTargetPayload,
-    },
-    #[serde(rename = "momentary_fx_update")]
-    MomentaryFxUpdate {
-        id: String,
-        #[serde(default)]
-        epoch: u64,
-        #[serde(default)]
-        params: BTreeMap<String, Value>,
-    },
-    #[serde(rename = "momentary_fx_stop")]
-    MomentaryFxStop {
-        id: String,
-        #[serde(default)]
-        epoch: u64,
-    },
-    #[serde(rename = "sample_preview")]
-    SamplePreview {
-        #[serde(rename = "instrumentSlot")]
-        instrument_slot: usize,
-        #[serde(rename = "sampleSlot")]
-        sample_slot: usize,
-        path: String,
-        velocity: u8,
-    },
-}
-
-#[derive(Clone, Default, Deserialize)]
-#[serde(tag = "type")]
-pub(crate) enum MomentaryFxTargetPayload {
-    #[default]
-    #[serde(rename = "global")]
-    Global,
-    #[serde(rename = "fx_bus")]
-    FxBus { index: usize },
-    #[serde(rename = "instrument")]
-    Instrument { index: usize },
-}
 
 pub(crate) struct AudioRuntime {
     _stream: OutputStream,

@@ -58,9 +58,7 @@ impl RuntimeWorker {
         match command {
             WorkerCommand::Dispatch(message, reply) => {
                 let output = self.playback.dispatch(
-                    playback_runtime::RuntimeDispatchInput::HostMessage(
-                        self.prepare_dispatch_message(message),
-                    ),
+                    playback_runtime::RuntimeDispatchInput::HostMessage(message),
                     &mut self.runner,
                     &mut self.adapter,
                 );
@@ -77,17 +75,6 @@ impl RuntimeWorker {
             WorkerCommand::NativeMidiRealtime(bytes) => {
                 let output = self.handle_midi_realtime(bytes)?;
                 self.emit_runtime_output(output)?;
-            }
-            WorkerCommand::DirectAudio(command, reply) => {
-                let output = self.playback.dispatch_runner_messages(
-                    vec![playback_runtime::RunnerMessage::AudioCommands {
-                        commands: vec![command],
-                    }],
-                    &mut self.runner,
-                    &mut self.adapter,
-                )?;
-                self.emit_runtime_output(output)?;
-                let _ = reply.send(Ok(()));
             }
             WorkerCommand::PresentationMetrics(metrics) => {
                 let output = self.playback.update_presentation_metrics(metrics);

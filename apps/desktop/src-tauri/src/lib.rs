@@ -135,7 +135,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::audio_command,
             commands::runtime_dispatch,
             commands::runtime_drain_messages,
             samples::sample_list
