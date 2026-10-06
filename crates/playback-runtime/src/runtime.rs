@@ -6,6 +6,7 @@ use platform_core::MusicalEvent;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::VecDeque;
+use std::time::Duration;
 
 mod api;
 #[cfg(test)]
@@ -168,7 +169,7 @@ pub trait HostAdapter {
 pub struct PlaybackRuntime {
     config: RuntimeConfig,
     pulse_phase: pulse_phase::PulsePhase,
-    now_ms: u64,
+    now: Duration,
     last_good_status: Option<RuntimeStatus>,
     presented_status: Option<RuntimeStatus>,
     last_good_snapshot: Option<Value>,
@@ -192,6 +193,6 @@ impl PlaybackRuntime {
 
 #[derive(Clone, Debug, PartialEq)]
 struct ScheduledMidiMessage {
-    due_at_ms: u64,
+    due_at: Duration,
     bytes: Vec<u8>,
 }

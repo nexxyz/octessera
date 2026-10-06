@@ -5,6 +5,7 @@ use crate::{
     RuntimeTransportState, SyncSource,
 };
 use serde_json::json;
+use std::time::Duration;
 
 struct RuntimeTickRunner {
     response: Vec<RunnerMessage>,
@@ -329,7 +330,11 @@ fn midi_only_events_send_midi_without_host_audio_and_schedule_note_off() {
     set_runtime_playing(&mut runtime, &mut host);
 
     runtime.advance(500, &mut runner, &mut host).unwrap();
-    runtime.advance(30, &mut runner, &mut host).unwrap();
+    for _ in 0..60 {
+        runtime
+            .advance_duration(Duration::from_micros(500), &mut runner, &mut host)
+            .unwrap();
+    }
 
     assert!(host.musical_events.is_empty());
     assert_eq!(host.midi_messages[0], vec![0x91, 64, 90]);

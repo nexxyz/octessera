@@ -15,7 +15,7 @@ impl PlaybackRuntime {
         Self {
             config,
             pulse_phase: super::pulse_phase::PulsePhase::default(),
-            now_ms: 0,
+            now: Duration::ZERO,
             last_good_status: None,
             presented_status: None,
             last_good_snapshot: None,
@@ -260,8 +260,7 @@ impl PlaybackRuntime {
         runner: &mut R,
         host: &mut H,
     ) -> Result<RuntimeIngest, String> {
-        let elapsed_ms = elapsed.as_millis().min(u128::from(u64::MAX)) as u64;
-        self.now_ms = self.now_ms.saturating_add(elapsed_ms);
+        self.now = self.now.saturating_add(elapsed);
         let mut output = RuntimeIngest::default();
         if let Err(error) = self.flush_scheduled_midi(host) {
             let metadata = self.adapter_error_metadata(

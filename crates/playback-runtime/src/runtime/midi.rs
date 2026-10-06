@@ -4,6 +4,7 @@ use crate::protocol::{
     RuntimeStatusState, RuntimeTransportState, SyncSource,
 };
 use platform_core::MusicalEvent;
+use std::time::Duration;
 
 impl PlaybackRuntime {
     pub(super) fn schedule_musical_events<H: HostAdapter>(
@@ -66,7 +67,7 @@ impl PlaybackRuntime {
                 )?;
                 if let Some(duration_ms) = duration_ms {
                     self.scheduled_note_offs.push_back(ScheduledMidiMessage {
-                        due_at_ms: self.now_ms.saturating_add(duration_ms as u64),
+                        due_at: self.now + Duration::from_millis(u64::from(duration_ms)),
                         bytes: vec![0x80 | (channel & 0x0F), note.min(127), 0],
                     });
                     self.scheduled_note_offs_dirty = true;
@@ -236,13 +237,13 @@ impl PlaybackRuntime {
         if self.scheduled_note_offs_dirty {
             self.scheduled_note_offs
                 .make_contiguous()
-                .sort_by_key(|msg| msg.due_at_ms);
+                .sort_by_key(|msg| msg.due_at);
             self.scheduled_note_offs_dirty = false;
         }
         while self
             .scheduled_note_offs
             .front()
-            .is_some_and(|message| message.due_at_ms <= self.now_ms)
+            .is_some_and(|message| message.due_at <= self.now)
         {
             let bytes = self
                 .scheduled_note_offs
