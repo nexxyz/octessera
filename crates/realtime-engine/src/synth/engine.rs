@@ -29,6 +29,8 @@ mod fm_render;
 mod inline_source_executor;
 #[cfg(test)]
 mod lifecycle_tests;
+mod live_pitch_shift;
+mod momentary_fx_state;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
@@ -209,6 +211,10 @@ use block_slot_scratch::BlockSlotScratch;
 pub use bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
 use control::MAX_MOMENTARY_FX;
+use live_pitch_shift::PITCH_FILL_FRAMES;
+use momentary_fx_state::{
+    parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState,
+};
 use render_plan::RenderPlan;
 use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
@@ -218,13 +224,12 @@ use routing_tree_executor::RoutingTreeAssignment;
 use routing_tree_executor::RoutingTreeBlockScratch;
 use sample_voice_pool::SampleVoicePool;
 use support::{
-    midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, parse_instrument_kind,
-    parse_momentary_fx_kind, parse_route, sample_slot_for_note, InstrumentKind, MomentaryFxKind,
-    MomentaryFxRuntimeParams, MomentaryFxState, PreviewSampleVoice, SampleVoice, PITCH_FILL_FRAMES,
+    midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, parse_instrument_kind, parse_route,
+    sample_slot_for_note, InstrumentKind, PreviewSampleVoice, SampleVoice,
 };
 
 #[cfg(test)]
-pub(in crate::synth) const FREEZE_INJECT_MS: u32 = support::FREEZE_INJECT_MS;
+pub(in crate::synth) const FREEZE_INJECT_MS: u32 = momentary_fx_state::FREEZE_INJECT_MS;
 
 pub struct SynthEngine {
     sample_rate: u32,

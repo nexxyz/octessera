@@ -6,14 +6,14 @@ use super::super::types::{
     INSTRUMENT_SLOT_COUNT,
 };
 use super::bus_chain_owner::{fx_kind_cost, BusChainOwner};
+use super::momentary_fx_state::{
+    parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState,
+};
 use super::render_plan::{
     prepared_instrument_topology, render_plan_fx_slot, PreparedInstrumentTopology, RenderPlan,
 };
 use super::render_routing::FxBusOutputSpreadState;
-use super::support::{
-    parse_instrument_kind, parse_momentary_fx_kind, InstrumentKind, MomentaryFxKind,
-    MomentaryFxRuntimeParams, MomentaryFxState,
-};
+use super::support::{parse_instrument_kind, InstrumentKind};
 use super::*;
 
 #[derive(Clone)]
@@ -329,7 +329,7 @@ pub fn prepare_momentary_fx_update(
 }
 
 fn validate_momentary_params(
-    kind: super::support::MomentaryFxKind,
+    kind: super::momentary_fx_state::MomentaryFxKind,
     params: &BTreeMap<String, Value>,
     sample_rate: u32,
 ) -> Option<()> {
@@ -338,17 +338,17 @@ fn validate_momentary_params(
     }
     for (key, value) in params {
         let allowed = match kind {
-            super::support::MomentaryFxKind::Stutter => {
+            super::momentary_fx_state::MomentaryFxKind::Stutter => {
                 matches!(key.as_str(), "depthPct" | "rateHz")
             }
-            super::support::MomentaryFxKind::Freeze => {
+            super::momentary_fx_state::MomentaryFxKind::Freeze => {
                 matches!(key.as_str(), "mixPct" | "releaseMs")
             }
-            super::support::MomentaryFxKind::FilterSweep => matches!(
+            super::momentary_fx_state::MomentaryFxKind::FilterSweep => matches!(
                 key.as_str(),
                 "cutoffPct" | "resonancePct" | "sweepInMs" | "sweepOutMs"
             ),
-            super::support::MomentaryFxKind::PitchShift => {
+            super::momentary_fx_state::MomentaryFxKind::PitchShift => {
                 matches!(
                     key.as_str(),
                     "semitones" | "cents" | "mixPct" | "slideInMs" | "slideOutMs"

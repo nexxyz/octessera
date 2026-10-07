@@ -1,8 +1,8 @@
 use super::super::fx_params::FxKind;
 use super::bus_chain_owner::fx_kind_cost;
+use super::momentary_fx_state::stutter_segment_len;
 use super::render_plan::{prepared_instrument_topology, RenderPlan, RenderPlanInstrumentSlot};
 use super::retired_state::{store_retired_momentary, RetiredAudioState};
-use super::support::stutter_segment_len;
 use super::*;
 
 pub(super) mod instrument_slot_control;

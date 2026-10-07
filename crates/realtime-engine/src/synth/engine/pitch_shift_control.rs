@@ -1,5 +1,5 @@
 use super::super::scalar_param::ScalarMutation;
-use super::support::{MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState};
+use super::momentary_fx_state::{MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -13,7 +13,7 @@ pub(super) fn stop(fx: &mut MomentaryFxState) -> PitchStopAction {
     if fx.releasing {
         return PitchStopAction::Ignore;
     }
-    let activation = if fx.pitch_fill_pos < super::support::PITCH_FILL_FRAMES {
+    let activation = if fx.pitch_fill_pos < super::live_pitch_shift::PITCH_FILL_FRAMES {
         0.0
     } else {
         (fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len.max(1) as f32).clamp(0.0, 1.0)
