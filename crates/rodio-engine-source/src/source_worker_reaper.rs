@@ -2,7 +2,7 @@ use crate::retired_audio_backlog::RetiredAudioBacklog;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use crate::source_worker::EngineSourceWorkerShutdownOwner;
 use crate::{drop_retired_item, RetiredAudioItem, SourceOwnedDropState};
-use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError, TrySendError};
+use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender, TryRecvError, TrySendError};
 use realtime_engine::synth::SourceWorkerRetirement;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use realtime_engine::synth::{SourceWorkerLifecycle, SourceWorkerSetupError, SourceWorkerShutdown};
@@ -20,6 +20,8 @@ use std::thread;
 use std::sync::atomic::AtomicBool;
 #[cfg(test)]
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+const RETIRED_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
 
 #[cfg(test)]
 #[derive(Clone)]
@@ -317,27 +319,7 @@ impl PersistentReaper {
             }
             return self.shutdown_rx.recv().ok();
         }
-        let mut retired_open = true;
-        loop {
-            match self.shutdown_rx.try_recv() {
-                Ok(envelope) => return Some(envelope),
-                Err(TryRecvError::Disconnected) => return None,
-                Err(TryRecvError::Empty) => {}
-            }
-            if !retired_open {
-                return self.shutdown_rx.recv().ok();
-            }
-            crossbeam_channel::select_biased! {
-                recv(&self.shutdown_rx) -> envelope => return envelope.ok(),
-                recv(&self.retired_rx) -> retired => {
-                    if let Ok(item) = retired {
-                        drop_retired_item(item);
-                    } else {
-                        retired_open = false;
-                    }
-                }
-            }
-        }
+        wait_for_envelope_while_reaping(&self.shutdown_rx, &self.retired_rx)
     }
 }
 
@@ -392,25 +374,27 @@ fn wait_for_inline_envelope(
     shutdown_rx: &Receiver<SourceShutdownEnvelope>,
     retired_rx: &Receiver<RetiredAudioItem>,
 ) -> Option<SourceShutdownEnvelope> {
-    let mut retired_open = true;
+    wait_for_envelope_while_reaping(shutdown_rx, retired_rx)
+}
+
+// Poll rather than block on retired_rx: a blocked receiver makes the audio
+// callback's try_send take crossbeam's waker mutex and issue a futex wake.
+fn wait_for_envelope_while_reaping(
+    shutdown_rx: &Receiver<SourceShutdownEnvelope>,
+    retired_rx: &Receiver<RetiredAudioItem>,
+) -> Option<SourceShutdownEnvelope> {
     loop {
-        match shutdown_rx.try_recv() {
-            Ok(envelope) => return Some(envelope),
-            Err(TryRecvError::Disconnected) => return None,
-            Err(TryRecvError::Empty) => {}
-        }
-        if !retired_open {
-            return shutdown_rx.recv().ok();
-        }
-        crossbeam_channel::select_biased! {
-            recv(shutdown_rx) -> envelope => return envelope.ok(),
-            recv(retired_rx) -> retired => {
-                if let Ok(item) = retired {
-                    drop_retired_item(item);
-                } else {
-                    retired_open = false;
-                }
+        loop {
+            match retired_rx.try_recv() {
+                Ok(item) => drop_retired_item(item),
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => return shutdown_rx.recv().ok(),
             }
+        }
+        match shutdown_rx.recv_timeout(RETIRED_POLL_INTERVAL) {
+            Ok(envelope) => return Some(envelope),
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => return None,
         }
     }
 }
