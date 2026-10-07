@@ -3445,18 +3445,15 @@
         },
         {
           "autoName": true,
-          "name": "Duck+Saturator",
+          "name": "Bitcrusher+Saturator",
           "panPos": 16,
           "slot1": {
             "params": {
-              "amountPct": 20,
-              "attackMs": 8,
-              "releaseMs": 160,
-              "source": "I1",
-              "sourceTap": "pre",
-              "threshold": 0.08
+              "bits": 10,
+              "mixPct": 25,
+              "rateDiv": 2
             },
-            "type": "duck"
+            "type": "bitcrusher"
           },
           "slot2": {
             "params": {
