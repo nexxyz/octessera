@@ -1,6 +1,6 @@
 [package]
 name = "octessera-desktop"
-version = "0.8.8"
+version = "0.8.9"
 description = "octessera desktop shell"
 authors = ["octessera"]
 edition = "2021"
