@@ -117,6 +117,7 @@ mod menu_apply_fast_fx_bus;
 mod menu_apply_fast_instruments;
 mod menu_apply_fast_layers;
 mod menu_apply_fast_link;
+mod menu_apply_fast_play;
 mod menu_apply_fast_runtime;
 mod menu_apply_fast_structural;
 mod menu_apply_fast_usb;
