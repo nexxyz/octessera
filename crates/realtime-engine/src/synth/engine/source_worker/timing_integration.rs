@@ -54,6 +54,7 @@ impl SourceWorkerRuntime {
         }
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn take_coordinator_remainder_started_at(&mut self) -> Option<Instant> {
         self.coordinator_remainder_started_at.take()
     }
@@ -91,6 +92,7 @@ impl SourceWorkerRuntime {
             .map(|started_at| started_at.elapsed())
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn record_coordinator_remainder(&self, started_at: Option<Instant>) {
         if let (Some(probe), Some(started_at), Some(stamp)) =
             (self.timing_probe.as_ref(), started_at, self.expected_stamp)

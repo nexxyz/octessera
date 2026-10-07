@@ -1,6 +1,9 @@
+#[cfg(any(test, feature = "test-support"))]
 use super::super::source_worker_bus;
 use super::super::source_worker_health::SourceWorkerHealth;
-use super::super::source_worker_protocol::{SourceWorkerRenderDisposition, WorkStamp, WorkerPhase};
+use super::super::source_worker_protocol::WorkerPhase;
+#[cfg(any(test, feature = "test-support"))]
+use super::super::source_worker_protocol::{SourceWorkerRenderDisposition, WorkStamp};
 use super::super::SynthEngine;
 use super::{SourceWorkerRuntime, SOURCE_WORKER_COUNT};
 use crossbeam_channel::TryRecvError;
@@ -97,6 +100,7 @@ impl SourceWorkerRuntime {
         Some(())
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(in crate::synth::engine) fn render_persistent_block(
         &mut self,
         engine: &mut SynthEngine,
@@ -207,6 +211,7 @@ impl SourceWorkerRuntime {
         SourceWorkerRenderDisposition::Fresh
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     fn render_failure_disposition(&self) -> SourceWorkerRenderDisposition {
         if self.health.status() == SourceWorkerHealth::DeadlineMiss {
             SourceWorkerRenderDisposition::NewlyMissed

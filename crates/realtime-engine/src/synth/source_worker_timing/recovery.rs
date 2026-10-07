@@ -1,8 +1,11 @@
 use super::{duration_ns, SourceWorkerTimingProbe, SOURCE_WORKER_COUNT};
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(any(test, feature = "test-support"))]
+use std::time::Instant;
 
 impl SourceWorkerTimingProbe {
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn record_bus_worker(
         &self,
         parity: usize,

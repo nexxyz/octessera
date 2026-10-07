@@ -148,37 +148,47 @@ impl SynthEngine {
             }
             return disposition;
         }
-        let health = runtime.health_snapshot().status;
-        if health != SourceWorkerHealth::Healthy {
-            if !health.is_recovering() {
-                let _ = runtime.render_source_block(self, frames);
+        #[cfg(any(test, feature = "test-support"))]
+        {
+            let health = runtime.health_snapshot().status;
+            if health != SourceWorkerHealth::Healthy {
+                if !health.is_recovering() {
+                    let _ = runtime.render_source_block(self, frames);
+                }
+                left.fill(0.0);
+                right.fill(0.0);
+                out.fill(0.0);
+                return if health.is_recovering() {
+                    SourceWorkerRenderDisposition::Recovering
+                } else {
+                    SourceWorkerRenderDisposition::Fatal
+                };
             }
+            let disposition = runtime.render_persistent_block(
+                self,
+                frames,
+                &mut left[..frames],
+                &mut right[..frames],
+            );
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            let coordinator_remainder_started_at = runtime.take_coordinator_remainder_started_at();
+            if disposition != SourceWorkerRenderDisposition::Fresh {
+                left.fill(0.0);
+                right.fill(0.0);
+            }
+            crate::simd::interleave_stereo(left, right, out);
+            #[cfg(feature = "source-worker-benchmark-timing")]
+            if disposition == SourceWorkerRenderDisposition::Fresh {
+                runtime.record_coordinator_remainder(coordinator_remainder_started_at);
+            }
+            disposition
+        }
+        #[cfg(not(any(test, feature = "test-support")))]
+        {
             left.fill(0.0);
             right.fill(0.0);
             out.fill(0.0);
-            return if health.is_recovering() {
-                SourceWorkerRenderDisposition::Recovering
-            } else {
-                SourceWorkerRenderDisposition::Fatal
-            };
+            SourceWorkerRenderDisposition::Fatal
         }
-        let disposition = runtime.render_persistent_block(
-            self,
-            frames,
-            &mut left[..frames],
-            &mut right[..frames],
-        );
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let coordinator_remainder_started_at = runtime.take_coordinator_remainder_started_at();
-        if disposition != SourceWorkerRenderDisposition::Fresh {
-            left.fill(0.0);
-            right.fill(0.0);
-        }
-        crate::simd::interleave_stereo(left, right, out);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if disposition == SourceWorkerRenderDisposition::Fresh {
-            runtime.record_coordinator_remainder(coordinator_remainder_started_at);
-        }
-        disposition
     }
 }

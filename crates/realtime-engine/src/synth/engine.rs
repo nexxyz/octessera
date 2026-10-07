@@ -104,7 +104,7 @@ mod source_lane_prefix_tests;
 mod source_lane_renderer;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(any(test, feature = "test-support"))]
 mod source_worker_bus;
 #[cfg(test)]
 mod source_worker_bus_tests;

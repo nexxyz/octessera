@@ -1,3 +1,4 @@
+#[cfg(any(test, feature = "test-support"))]
 use super::super::super::types::BUS_COUNT;
 use super::super::source_lane_renderer::SampleSourceContext;
 use super::super::source_worker_health::SourceWorkerHealth;
@@ -79,6 +80,7 @@ impl SourceWorkerRuntime {
         first_sent && second_sent && self.health.status() == SourceWorkerHealth::Healthy
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) fn dispatch_buses(&mut self, engine: &SynthEngine, stamp: WorkStamp) -> bool {
         if self.mode != super::super::source_worker_protocol::SourceWorkerMode::Persistent
             || self.health.status() != SourceWorkerHealth::Healthy
@@ -176,6 +178,7 @@ impl SourceWorkerRuntime {
                 self.latch_dispatch_failure(1 << parity);
                 false
             }
+            #[cfg(any(test, feature = "test-support"))]
             Err(
                 TrySendError::Full(WorkerCommand::Buses { .. })
                 | TrySendError::Disconnected(WorkerCommand::Buses { .. }),
@@ -191,6 +194,7 @@ impl SourceWorkerRuntime {
         }
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     fn send_bus_work(
         &mut self,
         engine: &SynthEngine,
@@ -250,6 +254,7 @@ impl SourceWorkerRuntime {
     }
 }
 
+#[cfg(any(test, feature = "test-support"))]
 fn bus_residency(first: &OwnerLease, second: &OwnerLease) -> Option<[u8; BUS_COUNT]> {
     let first_owner = first.owner.as_ref()?;
     let second_owner = second.owner.as_ref()?;

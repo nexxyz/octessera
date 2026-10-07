@@ -1,8 +1,10 @@
 use super::super::super::types::BUS_COUNT;
 use super::super::bus_chain_owner::BusChainCarrier;
+#[cfg(any(test, feature = "test-support"))]
 use super::super::source_worker_bus;
 use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_lifecycle::SourceWorkerScratch;
+#[cfg(any(test, feature = "test-support"))]
 use super::super::source_worker_load::SourceWorkerLoadObservation;
 use super::super::source_worker_protocol::WorkerPhase;
 use super::super::source_worker_transfer;
@@ -114,6 +116,7 @@ impl SourceWorkerRuntime {
         Some(result)
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) fn finish_bus_wave(
         &mut self,
         engine: &mut SynthEngine,
@@ -170,6 +173,7 @@ impl SourceWorkerRuntime {
         }
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     fn observe_combined_load(&mut self, engine: &mut SynthEngine, rendered_frames: usize) -> bool {
         let mut valid = true;
         if let (

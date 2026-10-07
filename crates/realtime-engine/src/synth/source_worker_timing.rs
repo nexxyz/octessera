@@ -114,6 +114,7 @@ impl SourceWorkerTimingProbe {
         }
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn record_bus_dispatch(&self, sequence: u64) {
         if let Some(record) = self.accepted_record(sequence) {
             record

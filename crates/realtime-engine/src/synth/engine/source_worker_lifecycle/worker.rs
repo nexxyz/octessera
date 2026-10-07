@@ -15,6 +15,7 @@ use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
+#[cfg(any(test, feature = "test-support"))]
 mod bus_worker;
 #[cfg(feature = "routing-tree-executor")]
 mod routing_tree;
@@ -313,6 +314,7 @@ fn worker_loop(
         std::hint::spin_loop();
     }
     while let Ok(command) = work_rx.recv() {
+        #[cfg(any(test, feature = "test-support"))]
         if matches!(command, WorkerCommand::Buses { .. }) {
             if let Some(exit) = bus_worker::process(command, parity, &done_tx, &state) {
                 return exit;

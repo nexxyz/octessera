@@ -1,3 +1,4 @@
+#[cfg(any(test, feature = "test-support"))]
 use super::super::dsp_config::BusIdleThreshold;
 #[cfg(feature = "source-worker-benchmark-timing")]
 use super::super::source_worker_timing::SourceWorkerTimingProbe;
@@ -77,6 +78,7 @@ pub(super) enum WorkerCommand {
         #[cfg(feature = "source-worker-benchmark-timing")]
         timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     },
+    #[cfg(any(test, feature = "test-support"))]
     Buses {
         stamp: WorkStamp,
         owner: OwnerEnvelope,
@@ -264,6 +266,7 @@ pub(super) struct WorkerExit {
 }
 
 impl CompletedEnvelope {
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) fn from_bus_work(
         owner: OwnerEnvelope,
         stamp: WorkStamp,
