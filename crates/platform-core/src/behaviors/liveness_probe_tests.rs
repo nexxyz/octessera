@@ -33,6 +33,11 @@ struct BehaviorLivenessMetrics {
     classification: &'static str,
 }
 
+fn seeded_liveness(behavior: NativeBehavior, index: usize) -> BehaviorLivenessMetrics {
+    let mut random = crate::behavior_random::LayerRandom::new(Some(index as u64 + 1));
+    random.scope(|| collect_behavior_liveness(behavior, PROBE_TICKS))
+}
+
 fn visible_count(cells: &[bool]) -> usize {
     cells.iter().filter(|cell| **cell).count()
 }
@@ -227,9 +232,9 @@ fn collect_behavior_liveness(behavior: NativeBehavior, ticks: usize) -> Behavior
 
 #[test]
 fn native_behavior_default_liveness_probe_coverage_smoke() {
-    for id in list_native_behavior_ids() {
+    for (index, id) in list_native_behavior_ids().iter().enumerate() {
         let behavior = get_native_behavior(id).unwrap();
-        let metrics = collect_behavior_liveness(behavior, PROBE_TICKS);
+        let metrics = seeded_liveness(behavior, index);
         assert!(metrics.min_visible <= GRID_CELLS);
         assert!(metrics.max_visible <= GRID_CELLS);
         assert!(!metrics.classification.is_empty());
@@ -237,16 +242,15 @@ fn native_behavior_default_liveness_probe_coverage_smoke() {
 }
 
 #[test]
-#[ignore]
 fn native_behavior_default_liveness_probe() {
     println!(
         "behavior\tmin_visible\tmax_visible\tlast_visible\tunique\ttail_unique\tterminal_same\tterminal_empty\tterminal_full\tmax_empty_run\tmax_full_run\tfinal16_unique\tfinal16_changed\ttail_non_extreme_unique\tfull_frames\tempty_frames\ttail_state\tperiod\tlive_period\tclassification"
     );
     let mut flagged = Vec::new();
 
-    for id in list_native_behavior_ids() {
+    for (index, id) in list_native_behavior_ids().iter().enumerate() {
         let behavior = get_native_behavior(id).unwrap();
-        let metrics = collect_behavior_liveness(behavior, PROBE_TICKS);
+        let metrics = seeded_liveness(behavior, index);
         let classification = if SKIPPED_BEHAVIORS.contains(id) {
             "skipped"
         } else {
