@@ -16,6 +16,13 @@ impl Clone for EngineEventSender {
 }
 
 impl EngineEventSender {
+    #[cfg(test)]
+    pub(crate) fn latest_candidate_calls(&self) -> usize {
+        self.latest
+            .candidate_calls
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     pub fn send(&self, event: EngineEvent) -> Result<(), QueueSendError> {
         match event {
             EngineEvent::PreparedMomentaryFxStart { config } => {

@@ -109,6 +109,7 @@ impl<'a> ControlDrain<'a> {
             drained.control_events += 1;
         }
 
+        let mut first_deferred = None;
         while work_units < LATEST_CONTROL_BUDGET {
             let Some(candidate) = self.control_rx.take_latest_candidate() else {
                 break;
@@ -122,7 +123,14 @@ impl<'a> ControlDrain<'a> {
                 Some(owner) if candidate.generation < owner => {
                     self.control_rx.mark_latest_applied(candidate);
                 }
-                Some(owner) if candidate.generation > owner => {}
+                // Values waiting for their owner would otherwise be rescanned
+                // until the budget runs out; one pass over the cells is enough.
+                Some(owner) if candidate.generation > owner => {
+                    if first_deferred == Some(candidate.key) {
+                        break;
+                    }
+                    first_deferred.get_or_insert(candidate.key);
+                }
                 _ => {
                     self.apply_latest(engine, candidate);
                     self.control_rx.mark_latest_applied(candidate);

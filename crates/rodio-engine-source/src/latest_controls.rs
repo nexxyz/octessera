@@ -82,6 +82,8 @@ pub(super) struct LatestControls {
     /// Bumped after every cell publish so the audio thread can skip scanning
     /// all cells when nothing changed since its last empty scan.
     publications: AtomicU64,
+    #[cfg(test)]
+    pub(super) candidate_calls: std::sync::atomic::AtomicUsize,
     momentary: MomentaryLatestTable,
 }
 
@@ -92,6 +94,8 @@ impl LatestControls {
                 .take(NORMAL_CELL_COUNT)
                 .collect(),
             publications: AtomicU64::new(0),
+            #[cfg(test)]
+            candidate_calls: std::sync::atomic::AtomicUsize::new(0),
             momentary: MomentaryLatestTable::new(),
         }
     }
@@ -260,6 +264,8 @@ impl LatestControls {
     }
 
     pub(super) fn candidate(&self, cursor: &mut LatestCursor) -> Option<LatestCandidate> {
+        #[cfg(test)]
+        self.candidate_calls.fetch_add(1, Ordering::Relaxed);
         let publications = self.publications.load(Ordering::Acquire);
         if publications == cursor.seen_publications {
             return (0..MOMENTARY_SLOT_COUNT)

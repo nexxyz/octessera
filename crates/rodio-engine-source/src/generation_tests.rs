@@ -238,6 +238,38 @@ fn global_owner(generations: &control_drain::OwnerGenerations) -> u64 {
 }
 
 #[test]
+fn scalar_waiting_for_its_owner_is_scanned_once_per_drain() {
+    let (tx, rx) = event_queue();
+    let mut source = EngineSource::new(rx, RATE);
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 20,
+        config: full_config(),
+    })
+    .unwrap();
+    source.drain_control_events();
+    tx.send(instrument_scalar(21)).unwrap();
+    let before = tx.latest_candidate_calls();
+    assert_eq!(source.drain_control_events().config_events, 0);
+    assert!(tx.latest_candidate_calls() - before <= 2);
+
+    tx.send(EngineEvent::SetPreparedInstrumentSlot {
+        instrument_slot: 0,
+        generation: 21,
+        config: prepare_instrument_slot_config(InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
+            kind: "synth".into(),
+            synth: default_synth_config(),
+            mixer: None,
+        }),
+    })
+    .unwrap();
+    source.drain_control_events();
+    assert_eq!(source.drain_control_events().config_events, 1);
+}
+
+#[test]
 fn instrument_generation_sequence_preserves_scalar_parity() {
     run_sequence(
         EngineEvent::SetPreparedInstrumentSlot {
