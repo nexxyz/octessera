@@ -20,13 +20,15 @@ if (-not $PrintOnly -and -not $AllowServiceInterruption) { throw "AutoAux live s
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 if ([string]::IsNullOrWhiteSpace($Artifact)) { $Artifact = Join-Path $repoRoot "target\pi-cross\octessera-pi" }
 if ([string]::IsNullOrWhiteSpace($Metadata)) { $Metadata = "$Artifact.metadata.json" }
-$SourceCommit = (& git -C $repoRoot rev-parse HEAD).Trim()
-if ($LASTEXITCODE -ne 0) { throw "Could not resolve the repository source checkpoint." }
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $repoRoot "target\pi-autoaux-study" }
 if (Test-Path -LiteralPath $Artifact -PathType Leaf) {
   $buildMetadata = Read-RaspberryBoardMetadata $Metadata
+  $SourceCommit = [string]$buildMetadata.source_commit
   Assert-RaspberryBuildMetadata -Metadata $buildMetadata -SourceCommit $SourceCommit -BinaryPath $Artifact | Out-Null
-} elseif (-not $PrintOnly) {
+} elseif ($PrintOnly) {
+  $SourceCommit = (& git -C $repoRoot rev-parse HEAD).Trim()
+  if ($LASTEXITCODE -ne 0) { throw "Could not resolve the repository source checkpoint." }
+} else {
   throw "Raspberry candidate artifact is missing: $Artifact"
 }
 
