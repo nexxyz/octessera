@@ -132,6 +132,16 @@ def _restore(updater, payload: dict, stop_service: bool, original: Exception) ->
     raise updater.error(f"Updater guard failed: {original}") from original
 
 
+def wait_for_switched_transaction(updater) -> dict:
+    # The guard starts before apply switches `current`; give apply a moment to finish.
+    deadline = time.monotonic() + _number(updater, "OCTESSERA_UPDATE_SWITCH_WAIT", 5, 30)
+    while True:
+        payload = updater.load_transaction()
+        if payload["phase"] == "validating" or time.monotonic() >= deadline:
+            return payload
+        time.sleep(0.05)
+
+
 def guard_transaction(updater) -> None:
     error = updater.error
     if not updater.transaction_path.exists():
@@ -140,7 +150,7 @@ def guard_transaction(updater) -> None:
     payload = None
     activation_attempted = False
     try:
-        payload = updater.load_transaction()
+        payload = wait_for_switched_transaction(updater)
         if payload.get("candidate_source") == "downloaded" and not updater.profile:
             updater.profile = payload.get("board_profile", "")
         if payload["phase"] != "validating":

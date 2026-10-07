@@ -3,6 +3,7 @@ import importlib
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,6 +16,29 @@ UpdaterProtocolFixture = _updater_protocol.UpdaterProtocolFixture
 
 
 class UpdaterProtocolSafetyTests(UpdaterProtocolFixture):
+    def test_guard_waits_for_apply_to_switch_the_candidate(self):
+        self.invoke("apply", "v1.0.1")
+        path = self.root / "update-transaction.json"
+        switched = path.read_text(encoding="utf-8")
+        prepared = json.loads(switched)
+        prepared["phase"] = "prepared"
+
+        def write(text):
+            temporary = path.with_name(path.name + ".tmp")
+            temporary.write_text(text, encoding="utf-8")
+            os.replace(temporary, path)
+
+        write(json.dumps(prepared))
+        timer = threading.Timer(0.3, write, args=(switched,))
+        timer.start()
+        try:
+            result = self.guard()
+        finally:
+            timer.cancel()
+            timer.join()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / "current").resolve().name, "1.0.1")
+
     def test_readiness_timeout_restores_fallback(self):
         self.invoke("apply", "v1.0.1")
         result = self.guard("timeout")
