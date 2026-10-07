@@ -260,13 +260,15 @@ impl RoutingTreeBlockScratch {
             component_cost[component as usize] = total;
         }
         let mut projected = [0_u16; WORKER_COUNT];
+        let mut assigned = [0_usize; WORKER_COUNT];
         for (component, cost) in component_cost
             .iter()
             .copied()
             .take(plan.component_count)
             .enumerate()
         {
-            let worker = usize::from(projected[1] < projected[0]);
+            let worker = lighter_worker(projected, assigned);
+            assigned[worker] += 1;
             self.component_worker[component] = worker as u8;
             let Some(total) = projected[worker].checked_add(cost) else {
                 return false;
@@ -288,7 +290,8 @@ impl RoutingTreeBlockScratch {
             else {
                 return false;
             };
-            let worker = if projected[1] < projected[0] { 1 } else { 0 };
+            let worker = lighter_worker(projected, assigned);
+            assigned[worker] += 1;
             let Some(total) = projected[worker]
                 .checked_add(synth_cost)
                 .and_then(|total| total.checked_add(sample_cost))
@@ -427,6 +430,16 @@ impl RoutingTreeBlockScratch {
                 self.worker_right[worker][frame],
             )
         })
+    }
+}
+
+// Equal projected cost (an idle engine projects zero everywhere) falls back to
+// the worker holding fewer assignments, so an idle start still uses both.
+fn lighter_worker(projected: [u16; WORKER_COUNT], assigned: [usize; WORKER_COUNT]) -> usize {
+    match projected[1].cmp(&projected[0]) {
+        std::cmp::Ordering::Less => 1,
+        std::cmp::Ordering::Greater => 0,
+        std::cmp::Ordering::Equal => usize::from(assigned[1] < assigned[0]),
     }
 }
 

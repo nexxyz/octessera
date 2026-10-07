@@ -131,7 +131,7 @@ fn routing_tree_assignment_covers_bus_costs_zero_costs_and_ties() {
         2,
     ));
     let (workers, _) = scratch.assignment_for_test();
-    assert_eq!(&workers[..plan.component_count], &[0, 0, 0, 1]);
+    assert_eq!(&workers[..plan.component_count], &[0, 1, 0, 1]);
 
     let saturated_plan = RoutingTreePlan::from_render_plan(&engine.render_plan);
     assert!(!scratch.assign_workers_for_test(
@@ -153,7 +153,7 @@ fn routing_tree_assignment_covers_bus_costs_zero_costs_and_ties() {
         2,
     ));
     let (tie_workers, _) = scratch.assignment_for_test();
-    assert_eq!(&tie_workers[..tie_plan.component_count], &[0, 0, 0, 0]);
+    assert_eq!(&tie_workers[..tie_plan.component_count], &[0, 1, 0, 1]);
 
     assert!(!scratch.assign_workers_for_test(
         tie_plan,
