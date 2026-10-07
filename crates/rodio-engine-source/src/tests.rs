@@ -13,6 +13,20 @@ use std::collections::BTreeMap;
 use std::sync::mpsc;
 use std::time::Instant;
 
+fn poll_shutdown(
+    shutdown_rx: &crossbeam_channel::Receiver<SourceShutdownEnvelope>,
+) -> Option<SourceShutdownEnvelope> {
+    loop {
+        match shutdown_rx.try_recv() {
+            Ok(envelope) => return Some(envelope),
+            Err(crossbeam_channel::TryRecvError::Disconnected) => return None,
+            Err(crossbeam_channel::TryRecvError::Empty) => {
+                std::thread::sleep(std::time::Duration::from_millis(1))
+            }
+        }
+    }
+}
+
 impl EngineSource {
     fn with_test_retirement_receiver(
         control_rx: EngineEventReceiver,
@@ -21,7 +35,7 @@ impl EngineSource {
         let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
         let (shutdown_tx, shutdown_rx) = bounded::<SourceShutdownEnvelope>(1);
         std::thread::spawn(move || {
-            if let Ok(envelope) = shutdown_rx.recv() {
+            if let Some(envelope) = poll_shutdown(&shutdown_rx) {
                 envelope.backlog.drain();
             }
         });
@@ -53,7 +67,7 @@ impl EngineSource {
         let reaper_retired_rx = retired_rx.clone();
         let (shutdown_tx, shutdown_rx) = bounded::<SourceShutdownEnvelope>(1);
         std::thread::spawn(move || {
-            if let Ok(envelope) = shutdown_rx.recv() {
+            if let Some(envelope) = poll_shutdown(&shutdown_rx) {
                 while let Ok(item) = reaper_retired_rx.try_recv() {
                     drop(item);
                 }

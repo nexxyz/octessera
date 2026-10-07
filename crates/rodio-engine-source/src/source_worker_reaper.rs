@@ -2,7 +2,7 @@ use crate::retired_audio_backlog::RetiredAudioBacklog;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use crate::source_worker::EngineSourceWorkerShutdownOwner;
 use crate::{drop_retired_item, RetiredAudioItem, SourceOwnedDropState};
-use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender, TryRecvError, TrySendError};
+use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError, TrySendError};
 use realtime_engine::synth::SourceWorkerRetirement;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use realtime_engine::synth::{SourceWorkerLifecycle, SourceWorkerSetupError, SourceWorkerShutdown};
@@ -377,24 +377,26 @@ fn wait_for_inline_envelope(
     wait_for_envelope_while_reaping(shutdown_rx, retired_rx)
 }
 
-// Poll rather than block on retired_rx: a blocked receiver makes the audio
-// callback's try_send take crossbeam's waker mutex and issue a futex wake.
+// Poll rather than block: a receiver blocked on either channel registers a
+// crossbeam waker, so the audio thread's try_send would take the waker mutex,
+// issue a futex wake, and could free the waker entry.
 fn wait_for_envelope_while_reaping(
     shutdown_rx: &Receiver<SourceShutdownEnvelope>,
     retired_rx: &Receiver<RetiredAudioItem>,
 ) -> Option<SourceShutdownEnvelope> {
+    let mut retired_open = true;
     loop {
-        loop {
+        while retired_open {
             match retired_rx.try_recv() {
                 Ok(item) => drop_retired_item(item),
                 Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => return shutdown_rx.recv().ok(),
+                Err(TryRecvError::Disconnected) => retired_open = false,
             }
         }
-        match shutdown_rx.recv_timeout(RETIRED_POLL_INTERVAL) {
+        match shutdown_rx.try_recv() {
             Ok(envelope) => return Some(envelope),
-            Err(RecvTimeoutError::Timeout) => {}
-            Err(RecvTimeoutError::Disconnected) => return None,
+            Err(TryRecvError::Disconnected) => return None,
+            Err(TryRecvError::Empty) => thread::sleep(RETIRED_POLL_INTERVAL),
         }
     }
 }
