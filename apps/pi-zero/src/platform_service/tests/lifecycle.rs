@@ -193,12 +193,19 @@ fn orange_apply_preserves_mixed_platform_and_setup_fifo() {
         status.phase.clone()
     };
     assert_eq!(setup_phase(&results[32]), RuntimeSetupPortalPhase::Starting);
-    if keys.len() == expected.len() + 1 {
-        expected.push("setup-mixed-queue".into());
+    // The ready status and system-info-32 are produced concurrently, so the
+    // optional ready status may land on either side of system-info-32.
+    let ready = keys
+        .iter()
+        .enumerate()
+        .skip(33)
+        .find(|(_, key)| key.as_str() == "setup-mixed-queue");
+    if let Some((index, _)) = ready {
         assert_eq!(
-            setup_phase(results.last().unwrap()),
+            setup_phase(&results[index]),
             RuntimeSetupPortalPhase::PortalReady
         );
+        expected.insert(index, "setup-mixed-queue".into());
     }
     assert_eq!(keys, expected);
     let _ = std::fs::remove_dir_all(root);
