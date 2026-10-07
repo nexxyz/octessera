@@ -28,19 +28,7 @@ mod pattern_music_tests;
 mod tests;
 
 pub use catalog::{behavior_catalog, behavior_categories, BehaviorCatalogEntry, BehaviorCategory};
-#[allow(unused_imports)]
-pub use cellular::LifeState;
 pub use native_behavior::{
     get_native_behavior, list_native_behavior_ids, NativeBehavior, NativeBehaviorState,
 };
-#[allow(unused_imports)]
-pub use native_impl::{
-    AntState, BoidsState, BounceState, BrainState, BubblesState, CoralState, CracksState,
-    CrystalGrowthState, CyclicState, DlaState, ForestFireState, FractalExplorerState, GravityState,
-    InkState, IsingState, KeysState, KuramotoState, LavaLampState, LightningState, LooperState,
-    MazeGrowthState, OrbitState, PhysarumState, PredatorPreyState, RaindropsState,
-    ReactionDiffusionState, RiversState, SandRipplesState, ShapesState, VinesState, WaveState,
-};
 pub use pattern_music::PatternBehaviorState;
-#[allow(unused_imports)]
-pub use play::{NoneState, SequencerState};
