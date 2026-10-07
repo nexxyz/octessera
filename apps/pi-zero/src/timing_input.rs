@@ -327,7 +327,7 @@ fn start_playback<H: TimingHost>(
     Ok(())
 }
 
-fn is_study_store(path: &str) -> bool {
+pub(crate) fn is_study_store(path: &str) -> bool {
     let Some(unit) = path.strip_prefix(STUDY_STORE_PREFIX) else {
         return false;
     };

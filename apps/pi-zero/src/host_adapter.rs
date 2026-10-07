@@ -35,6 +35,7 @@ pub struct PiHostAdapter {
     usb_data_role: UsbDataRole,
     power_request: Option<PowerRequest>,
     pub(crate) timing_evidence: Option<crate::timing_input::TimingStudyEvidence>,
+    pub(crate) note_sent_probe: Option<crate::timing_load::NoteSentProbe>,
     bluetooth_audio: Option<crate::bluetooth::BluetoothAudioMonitor>,
 }
 
@@ -263,7 +264,11 @@ impl HostAdapter for PiHostAdapter {
         let Some(audio) = &self.audio else {
             return Ok(());
         };
-        audio.send_realtime(musical_event_to_engine_event(event))
+        audio.send_realtime(musical_event_to_engine_event(event))?;
+        if let Some(probe) = self.note_sent_probe.as_mut() {
+            probe.observe(event);
+        }
+        Ok(())
     }
 
     fn handle_drum_hit(&mut self, hit: &DrumHit) -> Result<(), RuntimeAdapterError> {

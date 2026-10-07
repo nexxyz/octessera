@@ -11,6 +11,7 @@ use crate::runtime_dispatch::{
     handle_deferred_host_work, process_runtime_output, report_runtime_failure,
 };
 use crate::timing_input::{fail_study, TimingInput};
+use crate::timing_load::TimingLoad;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
@@ -50,6 +51,7 @@ pub(crate) struct LoopState {
     pub(crate) ui_profiler: UiProfiler,
     pub(crate) native_scenes: NativeScenePump,
     pub(crate) timing: Option<TimingInput>,
+    load: Option<TimingLoad>,
 }
 
 impl LoopState {
@@ -60,12 +62,15 @@ impl LoopState {
         if let Some(timing) = &timing {
             native_scenes.set_timing_cutoff_targets(timing.plateau_values());
         }
+        let load = TimingLoad::from_env(Instant::now())
+            .unwrap_or_else(|error| fail_study::<PiHostAdapter>(error));
         Self {
             scheduler,
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler,
             native_scenes,
             timing,
+            load,
         }
     }
 }
@@ -128,6 +133,13 @@ pub(crate) fn run_runtime_loop(
             state.native_scenes.timing_cutoff_acceptances(),
         ) {
             fail_study::<PiHostAdapter>(error);
+        }
+        if let Some(load) = state.load.as_mut() {
+            match load.tick(Instant::now(), playback, runner, adapter) {
+                Ok(true) => state.load = None,
+                Ok(false) => {}
+                Err(error) => fail_study::<PiHostAdapter>(error),
+            }
         }
         if advance(state, playback, runner, adapter, render_worker, board) {
             return Ok(());

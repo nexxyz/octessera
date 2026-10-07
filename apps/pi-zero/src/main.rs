@@ -122,6 +122,7 @@ mod setup_portal_worker;
 mod test_temp_dir;
 #[cfg(feature = "native-audio")]
 mod timing_input;
+mod timing_load;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod timing_probe;
 mod ui_profile;
