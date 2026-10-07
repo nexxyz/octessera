@@ -1,7 +1,7 @@
 {
   "generated": true,
   "scope": "cargo-lock-overinclusive",
-  "cargo_lock_sha256": "a84930f45a730c06e9ea43feacda515e922ee306090b7b08bfed025d1a1e8fba",
+  "cargo_lock_sha256": "3d8b894d9376cded8918d2e6454806c0a2a3a91cbc2b0f9c4dc3e40b0c1e4eaa",
   "release_target_profiles": [
     {
       "name": "desktop",
@@ -590,6 +590,28 @@
       "archive_file": "base64-0.22.1.crate",
       "manifest_sha256": "52bee6a418e14918d37058fd15fccfd0f417a06fe4f9668b6f97866bf7f991e3",
       "cargo_checksum_sha256": "62564d8cb83ba5d52d3eb54f391688639cbb373f8a2b480ca1fd08b7b2a15f79",
+      "cargo_checksum_status": "verified-from-crate-archive",
+      "manifest_authors": [
+        "Marshall Pierce <marshall@mpierce.org>"
+      ],
+      "manifest_repository": "https://github.com/marshallpierce/rust-base64",
+      "manifest_license": "MIT OR Apache-2.0",
+      "reference_texts": [
+        "licenses/cargo/reference/Apache-2.0.txt",
+        "licenses/cargo/reference/MIT.txt"
+      ],
+      "source_requirement_reason": "license-source-review",
+      "source_required": false
+    },
+    {
+      "name": "base64",
+      "version": "0.23.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5",
+      "archive_url": "https://static.crates.io/crates/base64/base64-0.23.1.crate",
+      "archive_file": "base64-0.23.1.crate",
+      "manifest_sha256": "3951a99756ac9b339501a149c547ce0e24248287a10830298ea319c006090790",
+      "cargo_checksum_sha256": "7f45541778e9116c8c9f54f5f763f025c37a0e79cb13c066164e4e7c178cff8d",
       "cargo_checksum_status": "verified-from-crate-archive",
       "manifest_authors": [
         "Marshall Pierce <marshall@mpierce.org>"
@@ -6445,13 +6467,13 @@
     },
     {
       "name": "plist",
-      "version": "1.9.0",
+      "version": "1.10.1",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "checksum": "092791278e026273c1b65bbdcfbba3a300f2994c896bd01ab01da613c29c46f1",
-      "archive_url": "https://static.crates.io/crates/plist/plist-1.9.0.crate",
-      "archive_file": "plist-1.9.0.crate",
-      "manifest_sha256": "604a7b58e962efd2baa73561d151f9b3c23e630492d9404309df1a506d0d6d53",
-      "cargo_checksum_sha256": "0d2816374e14bd6dadebce36fea56a5cab611fc79cf778471f59a3fdeaa4560b",
+      "checksum": "2896bade328c13f7042a297ea5ac5b0951f6cf989dea5f32c2fd98da398195cb",
+      "archive_url": "https://static.crates.io/crates/plist/plist-1.10.1.crate",
+      "archive_file": "plist-1.10.1.crate",
+      "manifest_sha256": "a0fd3638f8e7d01450e50a45a6cf5d398585f98c51a5c051f924dfb2585d4f71",
+      "cargo_checksum_sha256": "60c29e0609233313e9f3ef56e8baf8b198f990c6189c15b33ec784d2f1e18b25",
       "cargo_checksum_status": "verified-from-crate-archive",
       "manifest_authors": [
         "Ed Barnard <eabarnard@gmail.com>"
@@ -6794,13 +6816,13 @@
     },
     {
       "name": "quick-xml",
-      "version": "0.39.2",
+      "version": "0.42.0",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "checksum": "958f21e8e7ceb5a1aa7fa87fab28e7c75976e0bfe7e23ff069e0a260f894067d",
-      "archive_url": "https://static.crates.io/crates/quick-xml/quick-xml-0.39.2.crate",
-      "archive_file": "quick-xml-0.39.2.crate",
-      "manifest_sha256": "dcbf198a8370a43f0c319e54e975455fc154c18f17b569a2bc1258a1d8855485",
-      "cargo_checksum_sha256": "f5fd3fbcd2ccb0cb0f6f574387286a199ecec7d48d2cda7543563e7738d996d8",
+      "checksum": "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b",
+      "archive_url": "https://static.crates.io/crates/quick-xml/quick-xml-0.42.0.crate",
+      "archive_file": "quick-xml-0.42.0.crate",
+      "manifest_sha256": "7a9450da7c60dfff82bd9cd89453607ed135ad87da11312567c6abe00fad9ea2",
+      "cargo_checksum_sha256": "5dffede2b2773f6a217aebfbbcb4493196cfeb5c6ca32f085cf9aefbd6cd9884",
       "cargo_checksum_status": "verified-from-crate-archive",
       "manifest_authors": [],
       "manifest_repository": "https://github.com/tafia/quick-xml",
