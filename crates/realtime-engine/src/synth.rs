@@ -6,6 +6,7 @@ mod engine;
 mod fx;
 mod fx_param;
 mod fx_params;
+mod param_path_validation;
 mod pluck_config;
 mod pluck_dispersion;
 mod pluck_string;
@@ -23,9 +24,7 @@ mod types;
 
 pub use audio_config::{
     normalize_audio_config, normalize_fx_slot, normalize_instrument_slot_config,
-    parse_voice_stealing_mode, validate_fm_param_path, validate_fx_type,
-    validate_momentary_fx_type, validate_pluck_param_path, validate_sample_bank_param_path,
-    validate_synth_param_path, NormalizedAudioConfig, NormalizedInstrumentSlot,
+    parse_voice_stealing_mode, NormalizedAudioConfig, NormalizedInstrumentSlot,
     NormalizedSampleConfig,
 };
 pub use dsp_config::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
@@ -57,6 +56,10 @@ pub use engine::{
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};
 pub use fx_param::{FxParamId, FxParamMutation};
+pub use param_path_validation::{
+    validate_fm_param_path, validate_fx_type, validate_momentary_fx_type,
+    validate_pluck_param_path, validate_sample_bank_param_path, validate_synth_param_path,
+};
 pub use scalar_param::{
     DrumParamId, FmParamId, PluckParamId, SampleBankParamId, ScalarMutation, SynthParamId,
 };
