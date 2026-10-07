@@ -2,7 +2,24 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(all(
+    target_os = "linux",
+    any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    )
+))]
+mod memory_lock;
 mod syscalls;
+
+#[cfg(all(
+    target_os = "linux",
+    any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    )
+))]
+pub(crate) use memory_lock::lock_process_memory;
 
 #[cfg(test)]
 use syscalls::SCHED_FIFO_POLICY;
