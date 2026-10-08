@@ -134,7 +134,6 @@ fn missing_cell_tune_defaults_to_zero_and_malformed_local_offsets_are_silent() {
 #[test]
 fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_midi_or_note_off() {
     let mut runner = drum_runner();
-    let instruments = runner.instruments.clone();
     runner.link_layers[0].activate_timing.delay_steps = 1;
     runner.link_layers[0].activate_timing.retrigger_count = 1;
     let routed = runner
@@ -143,7 +142,6 @@ fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_
             LinkRoutingInput {
                 events: vec![note(), note()],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0))],
-                instruments: &instruments,
                 sense: Some(runner.link_layers[0].clone()),
                 transpose_offset: 12,
             },
@@ -179,7 +177,6 @@ fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_
                     },
                 ],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0)), Some(intent(2, 0))],
-                instruments: &instruments,
                 sense: Some(runner.link_layers[0].clone()),
                 transpose_offset: 0,
             },

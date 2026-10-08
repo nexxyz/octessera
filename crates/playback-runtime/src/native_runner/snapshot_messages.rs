@@ -300,14 +300,12 @@ impl NativeRunner {
             .get(self.active_layer_index)
             .copied()
             .unwrap_or(0);
-        let instruments = self.instruments.clone();
         let sense = self.link_layers.get(self.active_layer_index).cloned();
         let events = self.route_events_with_link_timing(
             self.active_layer_index,
             LinkRoutingInput {
                 events: result.events,
                 event_intents: &result.event_intents,
-                instruments: &instruments,
                 sense,
                 transpose_offset,
             },

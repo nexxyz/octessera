@@ -70,7 +70,6 @@ impl NativeRunner {
         let mut events = RoutedMusicalEvents::default();
         self.advance_active_layer(&mut events)?;
 
-        let mut instruments = None;
         let mut transpose_offsets = None;
         let mut effective_sound = None;
         let effective_bpm = self.transport.bpm as f32;
@@ -90,7 +89,6 @@ impl NativeRunner {
                 .get(index)
                 .cloned()
                 .unwrap_or_default();
-            let instruments = &*instruments.get_or_insert_with(|| self.instruments.clone());
             let transpose_offset = transpose_offsets
                 .get_or_insert_with(|| self.play_transpose_offsets_for_routing())
                 .get(index)
@@ -130,7 +128,6 @@ impl NativeRunner {
                     LinkRoutingInput {
                         events: tick.events,
                         event_intents: &tick.event_intents,
-                        instruments,
                         sense: sense.clone(),
                         transpose_offset,
                     },
@@ -269,14 +266,12 @@ impl NativeRunner {
                 .get(self.active_layer_index)
                 .copied()
                 .unwrap_or(0);
-            let instruments = self.instruments.clone();
             let sense = self.link_layers.get(self.active_layer_index).cloned();
             let tick_events = self.route_events_with_link_timing(
                 self.active_layer_index,
                 LinkRoutingInput {
                     events: tick.events,
                     event_intents: &tick.event_intents,
-                    instruments: &instruments,
                     sense,
                     transpose_offset,
                 },

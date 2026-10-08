@@ -7,7 +7,6 @@ use std::collections::HashMap;
 pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
     pub(super) event_intents: &'a [Option<CellTriggerIntent>],
-    pub(super) instruments: &'a [super::NativeInstrumentSlot],
     pub(super) sense: Option<super::NativeLinkLayer>,
     pub(super) transpose_offset: i8,
 }
@@ -121,15 +120,28 @@ impl NativeRunner {
         });
     }
 
+    /// Routes with the runner's instrument slots lent out for the call instead
+    /// of cloned per tick or press; routing never reads `self.instruments`.
     pub(super) fn route_events_with_link_timing(
         &mut self,
         layer_index: usize,
         input: LinkRoutingInput<'_>,
     ) -> Result<RoutedMusicalEvents, String> {
+        let instruments = std::mem::take(&mut self.instruments);
+        let routed = self.route_with_instruments(layer_index, input, &instruments);
+        self.instruments = instruments;
+        routed
+    }
+
+    fn route_with_instruments(
+        &mut self,
+        layer_index: usize,
+        input: LinkRoutingInput<'_>,
+        instruments: &[super::NativeInstrumentSlot],
+    ) -> Result<RoutedMusicalEvents, String> {
         let LinkRoutingInput {
             events,
             event_intents,
-            instruments,
             sense,
             transpose_offset,
         } = input;
