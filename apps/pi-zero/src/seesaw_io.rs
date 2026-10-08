@@ -12,10 +12,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(4);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(10);
 const OUTPUT_RETRY_INTERVAL: Duration = Duration::from_millis(10);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 const SEESAW_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(750);

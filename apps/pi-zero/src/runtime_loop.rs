@@ -151,11 +151,30 @@ pub(crate) fn run_runtime_loop(
         if advance(state, playback, runner, adapter, render_worker, board) {
             return Ok(());
         }
-        std::thread::sleep(
-            state
-                .scheduler
-                .sleep_duration(Instant::now(), playback, runner),
-        );
+        let now = Instant::now();
+        let mut sleep = state.scheduler.sleep_duration(now, playback, runner);
+        if let Some(load) = state.load.as_ref() {
+            sleep = sleep.min(load.until_next_probe(now));
+        }
+        wait_for_input(inputs.input_rx, sleep, playback, runner, adapter);
+    }
+}
+
+/// Sleeps until the next scheduled tick, but wakes as soon as a grid, NeoKey,
+/// or keyboard input arrives so live presses don't wait for the tick.
+fn wait_for_input(
+    input_rx: &mpsc::Receiver<HostMessage>,
+    sleep: Duration,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+) {
+    match input_rx.recv_timeout(sleep) {
+        Ok(message) if !adapter.shutdown_pending() => {
+            dispatch_or_log(playback, runner, adapter, message)
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => std::thread::sleep(sleep),
+        _ => {}
     }
 }
 

@@ -133,6 +133,15 @@ impl TimingLoad {
         Ok(false)
     }
 
+    /// Real inputs wake the loop on arrival; the probe models that by capping
+    /// the loop's sleep at its own arrival time.
+    pub(crate) fn until_next_probe(&self, now: Instant) -> Duration {
+        let next = self.release_at.map_or(self.next_probe_at, |release| {
+            release.min(self.next_probe_at)
+        });
+        next.saturating_duration_since(now)
+    }
+
     fn target(&self, step_index: u32) -> u32 {
         self.start
             .saturating_add(self.step.saturating_mul(step_index))
