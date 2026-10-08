@@ -80,6 +80,20 @@ Adaptive voice stealing may reduce the active synth count as load rises. These
 are practical targets rather than guarantees; behaviors, samples, and effects
 all change the available headroom.
 
+### Playing in front of people
+
+Octessera boards skip the operating system's daily package-list and
+manual-index jobs. They never installed anything here anyway, but on the
+Raspberry they made the audio stutter for a few seconds at a random time each
+day. What still runs on a timer (log rotation, SD card trim, saving the clock)
+has been checked during playback and doesn't disturb the sound.
+
+The Raspberry's four cores share one fairly slow memory bus, so anything
+heavy happening next to the music can still cause crackles even when it runs
+on another core. Do your maintenance before the show, not during it: updates,
+`apt` over SSH, copying big files onto the board. The Orange has a lot more
+memory headroom and shrugs most of this off, but the same habit doesn't hurt.
+
 ### Samples
 
 The default library has 320 media files: 318 WAV files available to the
