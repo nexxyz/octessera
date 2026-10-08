@@ -315,6 +315,12 @@ sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$ROOTF
 # bluez-alsa encodes the Bluetooth audio monitor; keep it below the audio threads.
 install -d "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d"
 printf '[Service]\nNice=10\nCPUAffinity=2 3\n' > "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d/10-octessera-background.conf"
+# The daily apt and man-db jobs install nothing here, but their cache and index
+# rebuilds saturate the shared memory bus and make the audio callback underrun.
+for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer; do
+    rm -f "$ROOTFS_DIR/etc/systemd/system/timers.target.wants/$unit"
+    ln -sf /dev/null "$ROOTFS_DIR/etc/systemd/system/$unit"
+done
 
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
 bash "$LEGAL_REPOSITORY_ROOT/tools/pi-image/install-musical-assets.sh" "$STAGE_FILES/root" "$ROOTFS_DIR"

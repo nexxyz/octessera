@@ -15,7 +15,7 @@
     {"path": "tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh", "sha256": "fd883b78c0e01f66e274f61f0e548088fabf830b4d502f72e36aaded67e63d48", "size": 707},
     {"path": "resources/legal/notice-bundle.json", "sha256": "2c222ae270b9877db95d9430aa1f89db45ea31b9c7d3af4d570c51718da82173", "size": 6237},
     {"path": "tools/legal/stage_notices.py", "sha256": "2df8a7d32b4d9f322ff693e6dac059b99e250a9837b6578760d2615e25c8b59c", "size": 13320},
-    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "1875dbaf5ecfa8a79698227de4b2eb835fa4c134560847c7de9dbd91569eefa3", "size": 19356},
+    {"path": "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh", "sha256": "d76a1c61fb026ffffd6aea3b31620eae724b5bfaaa30de01945380b043debba8", "size": 19719},
     {"path": "tools/pi-image/export-image-octessera/02-sanitize-userconf/00-run.sh", "sha256": "1a0c67406da2699bb4a1e92ca483c524f2c24b14aebc2722729f140c3b55a42e", "size": 835},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup", "sha256": "0a9a1487b458a92c7fb72d7b0ec2b77b6b4010505d095ce91024de759d31c1c5", "size": 19147},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py", "sha256": "4d7f72bcfbaee29a16bd7e2397cb3f054f5add63fc8ffb54de1a0eb0385d0be5", "size": 12732},
@@ -44,7 +44,7 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf", "sha256": "8ae8a03c4a95d70dd2de829aa6e01b20187dcf1cbd7b92e5f7a07ce337a6186f", "size": 184},
     {"path": "tools/pi-image/verify-rpi-kernel-image.py", "sha256": "620e6fc8a651e7f47317fb97871a6961a481899fa75d9f1dbe1b4b4aef580dcc", "size": 6403},
     {"path": "tools/pi-image/rpi_kernel_image_mount.py", "sha256": "e665a41335a1cb8998e8072829ddcb12eb21749acea94845ce1836d082d67df2", "size": 3678},
-    {"path": "tools/pi-image/rpi_kernel_boot_proof.py", "sha256": "83bbe8187f4852cc0b48117c245dc330ff37f16bb5c2bd4b1ed9308c65ffa503", "size": 15575},
+    {"path": "tools/pi-image/rpi_kernel_boot_proof.py", "sha256": "41a4f9fa2491a5d0167e63b4b242095b647b345e609f84155116dbcd2ad544c7", "size": 15575},
     {"path": "tools/pi-image/rpi_kernel_payload_proof.py", "sha256": "5c5cfeb792bd83420046350a5ad8a80ba3416c7355c106022cc83d89a76b485f", "size": 3346},
     {"path": "tools/pi-image/rpi_kernel_stock_recovery.py", "sha256": "57344adbcc39bd067c77f2ee06822e9b9fb808d7ab9cf3a4ba4b755f7c505ac4", "size": 2406},
     {"path": "tools/pi-image/rpi_initramfs_proof.py", "sha256": "22d8ba31cf016c665f562d3fa7b9004e00c280984eef08d646f86862b1093d32", "size": 23278},
@@ -53,14 +53,14 @@
     {"path": "tools/pi/provision/files/boot/config.txt.initramfs.append", "sha256": "c14d03356c1edcbf170d91c4eda896705fda0930ac8b61b9c631a5ebec89fe92", "size": 73},
     {"path": "tools/pi/provision/files/boot/config.txt.append", "sha256": "87da8ab112669072063b6c676ae826c615bc313cb1879e1a18e29556b661cb6c", "size": 362},
     {"path": "tools/pi/provision/files/etc/systemd/system/octessera.service.template", "sha256": "e12f4bac1a05f29154b29908167acf090c26def8f89179e49948cbca17177782", "size": 1130},
-    {"path": "tools/pi/provision/provision.sh", "sha256": "749d0ec3790d09a50008ec67acfcd84b9b0faf2889fbf08efe58661f89037f39", "size": 20537},
+    {"path": "tools/pi/provision/provision.sh", "sha256": "cfeeb044883be9f9aeb2dea945e02c48eb376b8ecc331fe2f7b2c7a54c116e1e", "size": 20817},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role", "sha256": "1c0a0b8c563590ccfbacfda35c58f9372f94ace8378b68d84b0d214deec5bde5", "size": 6530},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-gadget.service", "sha256": "0dd6ac8ee02d8fe3dd24c340ea19a000db52753f634e30c491fc7bf0242acff0", "size": 466},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role", "sha256": "882734cfa1d9ad9127689474e4be530f4ec89f3466809af766ced2a3fcd37dc4", "size": 154}
   ],
   "live_parity_inputs": [
     {"path": "tools/pi/deploy-pi.sh", "sha256": "c2ec9d27b6d1d8c0f8cce52dc5f2211ba7265aa8263960722262876d378abf16", "size": 17858},
-    {"path": "tools/pi/provision/provision.sh", "sha256": "749d0ec3790d09a50008ec67acfcd84b9b0faf2889fbf08efe58661f89037f39", "size": 20537}
+    {"path": "tools/pi/provision/provision.sh", "sha256": "cfeeb044883be9f9aeb2dea945e02c48eb376b8ecc331fe2f7b2c7a54c116e1e", "size": 20817}
   ],
   "notice_bundle": {
     "manifest": "resources/legal/notice-bundle.json",

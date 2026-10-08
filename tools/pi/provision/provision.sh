@@ -162,6 +162,13 @@ ensure_raspberry_uart_inactive() {
     test ! -e "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
 }
 
+mask_background_maintenance_timers() {
+    for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer; do
+        sudo systemctl mask --now "$unit" >/dev/null
+        sudo systemctl reset-failed "$unit" >/dev/null 2>&1 || true
+    done
+}
+
 escape_sed_replacement() {
     printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
 }
@@ -414,6 +421,7 @@ fi
 normalize_raspberry_usb_role "$BOOT_CONFIG" "$desired_usb_role"
 
 ensure_raspberry_uart_inactive
+mask_background_maintenance_timers
 
 if [ -n "$SYSROOT" ]; then
     OCTESSERA_USB_ROLE_BOOT_ROOT="$SYSROOT" sudo "$(target_path /usr/local/sbin/octessera-usb-role)" "$desired_usb_role"
