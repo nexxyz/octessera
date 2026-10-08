@@ -70,33 +70,36 @@ impl NativeRunner {
         let mut events = RoutedMusicalEvents::default();
         self.advance_active_layer(&mut events)?;
 
-        let instruments = self.instruments.clone();
-        let transpose_offsets = self.play_transpose_offsets_for_routing();
-        let inactive_configs = (0..self.layer_engines.len())
-            .map(|index| {
-                (
-                    self.interpretation_profile_for_layer(index),
-                    self.mapping_config_for_layer(index),
-                    self.step_pulses_for_layer(index),
-                    self.link_layers.get(index).cloned(),
-                    self.trigger_probability_maps
-                        .get(index)
-                        .cloned()
-                        .unwrap_or_default(),
-                )
-            })
-            .collect::<Vec<_>>();
-        let effective_sound = self.global_sound.clone();
+        let mut instruments = None;
+        let mut transpose_offsets = None;
+        let mut effective_sound = None;
         let effective_bpm = self.transport.bpm as f32;
         let mut inactive_modulation_updates = Vec::new();
-        for (index, (profile, mapping, step_pulses, sense, probability_map)) in
-            inactive_configs.iter().enumerate()
-        {
-            if index == self.active_layer_index {
+        for index in 0..self.layer_engines.len() {
+            let step_pulses = self.step_pulses_for_layer(index);
+            if index == self.active_layer_index
+                || self.transport.layer_pulse_accumulators[index] < step_pulses
+            {
                 continue;
             }
-            while self.transport.layer_pulse_accumulators[index] >= *step_pulses {
-                self.transport.layer_pulse_accumulators[index] -= *step_pulses;
+            let profile = self.interpretation_profile_for_layer(index);
+            let mapping = self.mapping_config_for_layer(index);
+            let sense = self.link_layers.get(index).cloned();
+            let probability_map = self
+                .trigger_probability_maps
+                .get(index)
+                .cloned()
+                .unwrap_or_default();
+            let instruments = &*instruments.get_or_insert_with(|| self.instruments.clone());
+            let transpose_offset = transpose_offsets
+                .get_or_insert_with(|| self.play_transpose_offsets_for_routing())
+                .get(index)
+                .copied()
+                .unwrap_or(0);
+            let effective_sound =
+                &*effective_sound.get_or_insert_with(|| self.global_sound.clone());
+            while self.transport.layer_pulse_accumulators[index] >= step_pulses {
+                self.transport.layer_pulse_accumulators[index] -= step_pulses;
                 let mut rng = self.probability_rng(index);
                 let tick = {
                     let Some(engine) = self.layer_engines[index].as_mut() else {
@@ -108,7 +111,7 @@ impl NativeRunner {
                     engine.tick_filtered(effective_bpm, |intent| {
                         trigger_probability_allows(
                             sense.as_ref(),
-                            probability_map,
+                            &probability_map,
                             &mut rng,
                             intent,
                         )
@@ -127,9 +130,9 @@ impl NativeRunner {
                     LinkRoutingInput {
                         events: tick.events,
                         event_intents: &tick.event_intents,
-                        instruments: &instruments,
+                        instruments,
                         sense: sense.clone(),
-                        transpose_offset: transpose_offsets.get(index).copied().unwrap_or(0),
+                        transpose_offset,
                     },
                 )?;
                 self.track_emitted_route_notes(index, &tick_events);
