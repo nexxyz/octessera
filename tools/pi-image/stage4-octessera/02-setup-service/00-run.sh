@@ -317,9 +317,18 @@ install -d "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d"
 printf '[Service]\nNice=10\nCPUAffinity=2 3\n' > "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d/10-octessera-background.conf"
 # The daily apt and man-db jobs install nothing here, but their cache and index
 # rebuilds saturate the shared memory bus and make the audio callback underrun.
-for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer; do
+for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer; do
     rm -f "$ROOTFS_DIR/etc/systemd/system/timers.target.wants/$unit"
     ln -sf /dev/null "$ROOTFS_DIR/etc/systemd/system/$unit"
+done
+# System > Setup > Show Hold postpones the remaining housekeeping during a show.
+install -d -m 0755 "$ROOTFS_DIR/var/lib/octessera/show-hold"
+for unit in fstrim logrotate dpkg-db-backup systemd-tmpfiles-clean octessera-network-health; do
+    install -d "$ROOTFS_DIR/etc/systemd/system/$unit.service.d"
+    cat > "$ROOTFS_DIR/etc/systemd/system/$unit.service.d/50-octessera-show-hold.conf" <<'EOF'
+[Service]
+ExecCondition=/bin/sh -c 'u=$$(cat /var/lib/octessera/show-hold/until 2>/dev/null) || exit 0; case "$$u" in ""|*[!0-9]*) exit 0;; esac; n=$$(date +%%s); [ "$$u" -le "$$n" ] || [ "$$u" -gt $$((n + 173100)) ]'
+EOF
 done
 
 install -d -m 0755 "$ROOTFS_DIR/var/log/octessera"
@@ -355,5 +364,5 @@ if [ -f "$bashrc" ] && [ ! -L "$bashrc" ]; then
     sed -i -E '/^[[:space:]]*(export[[:space:]]+)?(LANG|LANGUAGE|LC_[[:alnum:]_]+)[[:space:]]*=/d' "$bashrc"
 fi
 chroot "$ROOTFS_DIR" chown "$pi_user:$pi_user" "$pi_home/.hushlogin"
-chroot "$ROOTFS_DIR" chown -R pi:pi /home/pi/samples /home/pi/presets
+chroot "$ROOTFS_DIR" chown -R pi:pi /home/pi/samples /home/pi/presets /var/lib/octessera/show-hold
 chroot "$ROOTFS_DIR" chmod 0644 /home/pi/presets/system.json /home/pi/presets/default.patch.json

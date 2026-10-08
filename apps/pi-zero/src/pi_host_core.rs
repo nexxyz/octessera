@@ -282,6 +282,19 @@ impl PiHostCore {
                     }
                 }
             }
+            RuntimePlatformEffect::MaintenanceHold { active } => {
+                if let Err(error) = crate::show_hold::set_hold(*active) {
+                    return Some(vec![failure_message(
+                        request,
+                        format!("Show hold unavailable: {error}"),
+                    )]);
+                }
+                RuntimeStoreResult::OperationSucceeded {
+                    operation: request.effect.operation(),
+                    request_id: Some(request.request_id.clone()),
+                    revision: request.revision,
+                }
+            }
             RuntimePlatformEffect::UsbSdTransferStop => {
                 return Some(enqueue_job(
                     &self.platform_service,

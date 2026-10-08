@@ -163,9 +163,21 @@ ensure_raspberry_uart_inactive() {
 }
 
 mask_background_maintenance_timers() {
-    for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer; do
+    for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer; do
         sudo systemctl mask --now "$unit" >/dev/null
         sudo systemctl reset-failed "$unit" >/dev/null 2>&1 || true
+    done
+}
+
+install_show_hold_conditions() {
+    sudo install -d -m 0755 "$(target_path /var/lib/octessera/show-hold)"
+    sudo chown "$pi_user:$pi_user" "$(target_path /var/lib/octessera/show-hold)"
+    for unit in fstrim logrotate dpkg-db-backup systemd-tmpfiles-clean octessera-network-health; do
+        sudo install -d "$(target_path "/etc/systemd/system/$unit.service.d")"
+        sudo tee "$(target_path "/etc/systemd/system/$unit.service.d/50-octessera-show-hold.conf")" >/dev/null <<'EOF'
+[Service]
+ExecCondition=/bin/sh -c 'u=$$(cat /var/lib/octessera/show-hold/until 2>/dev/null) || exit 0; case "$$u" in ""|*[!0-9]*) exit 0;; esac; n=$$(date +%%s); [ "$$u" -le "$$n" ] || [ "$$u" -gt $$((n + 173100)) ]'
+EOF
     done
 }
 
@@ -422,6 +434,7 @@ normalize_raspberry_usb_role "$BOOT_CONFIG" "$desired_usb_role"
 
 ensure_raspberry_uart_inactive
 mask_background_maintenance_timers
+install_show_hold_conditions
 
 if [ -n "$SYSROOT" ]; then
     OCTESSERA_USB_ROLE_BOOT_ROOT="$SYSROOT" sudo "$(target_path /usr/local/sbin/octessera-usb-role)" "$desired_usb_role"

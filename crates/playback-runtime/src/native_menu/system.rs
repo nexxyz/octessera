@@ -376,8 +376,11 @@ fn setup_group(config: &NativeMenuConfig) -> NativeMenuItem {
     if config.usb_data_role_available {
         children.push(usb_data_role_item(config));
     }
+    children.push(updates_group());
+    if config.jack_audio_required {
+        children.push(show_hold_group());
+    }
     children.extend([
-        updates_group(),
         action_item(
             "Configure WiFi",
             "system.configureWifi",
@@ -395,6 +398,24 @@ fn setup_group(config: &NativeMenuConfig) -> NativeMenuItem {
         ),
     ]);
     group("Setup", children)
+}
+
+fn show_hold_group() -> NativeMenuItem {
+    group(
+        "Show Hold",
+        vec![
+            action_item(
+                "Hold 48h",
+                "maintenance.hold",
+                NativeMenuAction::PlatformEffect("maintenance.hold".into()),
+            ),
+            action_item(
+                "Release",
+                "maintenance.release",
+                NativeMenuAction::PlatformEffect("maintenance.release".into()),
+            ),
+        ],
+    )
 }
 
 fn reset_group() -> NativeMenuItem {

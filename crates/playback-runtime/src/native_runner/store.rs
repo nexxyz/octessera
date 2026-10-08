@@ -129,6 +129,8 @@ impl NativeRunner {
             }
             "usb.sdTransferStart" => Some(RuntimePlatformEffect::UsbSdTransferStart),
             "usb.sdTransferStop" => Some(RuntimePlatformEffect::UsbSdTransferStop),
+            "maintenance.hold" => Some(RuntimePlatformEffect::MaintenanceHold { active: true }),
+            "maintenance.release" => Some(RuntimePlatformEffect::MaintenanceHold { active: false }),
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
                 max_minutes: self.recording_max_minutes,
             }),

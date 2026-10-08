@@ -83,10 +83,19 @@ all change the available headroom.
 ### Playing in front of people
 
 Octessera boards skip the operating system's daily package-list and
-manual-index jobs. They never installed anything here anyway, but on the
-Raspberry they made the audio stutter for a few seconds at a random time each
-day. What still runs on a timer (log rotation, SD card trim, saving the clock)
-has been checked during playback and doesn't disturb the sound.
+manual-index jobs, plus a few other chores that do nothing useful on an
+instrument. They never installed anything here anyway, but on the Raspberry
+they made the audio stutter for a few seconds at a random time each day.
+
+A handful of useful housekeeping jobs still run on a timer: log rotation, SD
+card trim, temp-file cleanup, a package-database backup, and on the Raspberry
+a once-a-minute Wi-Fi health log. Each of them has been run during playback
+without disturbing the sound, but if you'd rather not find out the hard way,
+use **System > Setup > Show Hold > Hold 48h** before a show. It postpones those
+jobs for 48 hours (a reboot doesn't cancel it); they simply run at their next
+scheduled time afterwards. **Release** ends the hold early. A couple of tiny
+chores always keep running because things break without them: saving the
+clock, and on the Orange trimming the in-memory logs.
 
 The Raspberry's four cores share one fairly slow memory bus, so anything
 heavy happening next to the music can still cause crackles even when it runs

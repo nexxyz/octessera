@@ -79,6 +79,7 @@ mod sample_browser_store;
 mod scan_replacement;
 mod sequencer_transport_origin;
 mod setup_portal;
+mod show_hold;
 mod shutdown;
 mod snapshot_autosave;
 mod snapshot_runtime;

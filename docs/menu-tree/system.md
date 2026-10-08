@@ -85,6 +85,9 @@ System
 │   │   ├── Check: (action)
 │   │   ├── Apply: (action)
 │   │   └── Rollback: (action)
+│   ├── Show Hold (group)                ← Raspberry and Orange
+│   │   ├── Hold 48h: (action)           ← postpone board housekeeping for 48 h
+│   │   └── Release: (action)
 │   ├── Configure WiFi: (action)
 │   ├── Backup / Restore: (action)
 │   └── Hardware Test: (action)
@@ -132,7 +135,7 @@ Orange
   SD Card 2: Start Transfer; Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
   Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: Updates (Check, Apply, Rollback); Configure WiFi; Backup / Restore; Hardware Test
+  Setup: Updates (Check, Apply, Rollback); Show Hold (Hold 48h, Release); Configure WiFi; Backup / Restore; Hardware Test
 
 Raspberry Gadget
   MIDI: MIDI Active; USB Device (USB MIDI); Sync / Clock
@@ -140,7 +143,7 @@ Raspberry Gadget
   SD Card 2: Start Transfer; Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
   Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: USB Role; Updates (Check, Apply, Rollback); Configure WiFi; Backup / Restore; Hardware Test
+  Setup: USB Role; Updates (Check, Apply, Rollback); Show Hold (Hold 48h, Release); Configure WiFi; Backup / Restore; Hardware Test
 
 Raspberry Host
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
@@ -148,7 +151,7 @@ Raspberry Host
   SD Card 2: Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
   Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: USB Role; Updates (Check, Apply, Rollback); Configure WiFi; Backup / Restore; Hardware Test
+  Setup: USB Role; Updates (Check, Apply, Rollback); Show Hold (Hold 48h, Release); Configure WiFi; Backup / Restore; Hardware Test
 ```
 
 `MIDI Active` is the global runtime MIDI gate and does not select a port or device. Desktop and Orange expose `MIDI Host`, whose children are `MIDI Out` followed by `MIDI In`. Raspberry exposes `MIDI Host` only in Host role and `USB Device` only in Gadget role; Orange exposes both. `USB Device` is the computer-facing gadget interface and contains `USB MIDI`, which automatically owns both Gadget MIDI directions while enabled. Host-selected input and output IDs are ignored during that time; Orange retains them for later use after USB Device MIDI is disabled.

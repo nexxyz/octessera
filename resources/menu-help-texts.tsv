@@ -420,6 +420,9 @@ system_backup_restore	Menu > System > Setup > Backup / Restore	action:system_bac
 system_setup_group	Menu > System > Setup		group	Setup	Combines USB role, updates, Wi-Fi, backup/restore, and hardware test controls.	These actions keep their existing native keys.
 system_updates_group	Menu > System > Setup > Updates		group	Updates	Update status and OTA control actions.	Check is read-only; Apply and Rollback confirm first.
 system_update_check	Menu > System > Setup > Updates > Check	action:system_update_check	action	Check	Checks whether an update is available.	This is a non-destructive status request.
+system_show_hold_group	Menu > System > Setup > Show Hold		group	Show Hold	Postpones the board's routine housekeeping (SD trim, log rotation, cleanups) for a show.	Hold lasts 48 hours, survives reboots, and Release ends it early.
+maintenance_hold	Menu > System > Setup > Show Hold > Hold 48h	action:maintenance.hold	action	Hold 48h	Skips postponable housekeeping jobs for the next 48 hours.	Skipped jobs simply run at their next scheduled time.
+maintenance_release	Menu > System > Setup > Show Hold > Release	action:maintenance.release	action	Release	Ends a show hold so housekeeping runs on its normal schedule again.	Nothing happens if no hold is active.
 system_update_apply	Menu > System > Setup > Updates > Apply	action:system_update_apply	action	Apply	Downloads and applies the selected device release.	Requires confirmation before changing the active release.
 system_rollback	Menu > System > Setup > Updates > Rollback	action:system_rollback	action	Rollback	Restores the previous release.	Requires confirmation before switching versions.
 system_hardware_test	Menu > System > Setup > Hardware Test	action:system_hardware_test	action	Hardware Test	Runs the Pi pre-hardware diagnostic checks.	Requires confirmation before running the guided test.

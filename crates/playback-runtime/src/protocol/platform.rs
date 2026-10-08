@@ -43,6 +43,9 @@ pub enum RuntimePlatformEffect {
     },
     UsbSdTransferStart,
     UsbSdTransferStop,
+    MaintenanceHold {
+        active: bool,
+    },
     BluetoothScan {
         active: bool,
     },
@@ -119,6 +122,7 @@ impl RuntimePlatformEffect {
             Self::ApplyDeviceConfigReboot { .. }
             | Self::UsbSdTransferStart
             | Self::UsbSdTransferStop
+            | Self::MaintenanceHold { .. }
             | Self::BluetoothScan { .. }
             | Self::BluetoothDevice { .. }
             | Self::Reboot

@@ -183,9 +183,23 @@ octessera_configure_runtime_account() {
       reject_runtime_sudoers_file "$sudoers_file" || return 1
     done < <(find -P /etc/sudoers.d -type f -print0)
   fi
-  install -d -m 0755 -o octessera-runtime -g octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings
-  chown octessera-runtime:octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings
-  chmod 0755 /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings
+  install -d -m 0755 -o octessera-runtime -g octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/show-hold
+  chown octessera-runtime:octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/show-hold
+  chmod 0755 /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/show-hold
+}
+
+octessera_configure_background_maintenance() {
+  # Daily apt/man-db jobs install nothing here; their cache rebuilds starve the audio core.
+  systemctl mask apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer >/dev/null
+  rm -f /etc/cron.d/armbian-updates /etc/cron.daily/armbian-quotes
+  # System > Setup > Show Hold postpones the remaining housekeeping during a show.
+  for unit in fstrim logrotate dpkg-db-backup systemd-tmpfiles-clean; do
+    install -d "/etc/systemd/system/$unit.service.d"
+    cat >"/etc/systemd/system/$unit.service.d/50-octessera-show-hold.conf" <<'EOF'
+[Service]
+ExecCondition=/bin/sh -c 'u=$$(cat /var/lib/octessera/show-hold/until 2>/dev/null) || exit 0; case "$$u" in ""|*[!0-9]*) exit 0;; esac; n=$$(date +%%s); [ "$$u" -le "$$n" ] || [ "$$u" -gt $$((n + 173100)) ]'
+EOF
+  done
 }
 
 octessera_load_image_contract() {

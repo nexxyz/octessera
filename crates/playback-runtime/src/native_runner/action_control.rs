@@ -237,6 +237,14 @@ impl NativeRunner {
                     self.display.help_popup = None;
                     self.open_usb_sd_transfer_modal();
                     self.platform_effect_for_action(&action_type)
+                } else if action_type == "maintenance.hold" || action_type == "maintenance.release"
+                {
+                    self.show_toast(if action_type == "maintenance.hold" {
+                        "Show hold: 48h"
+                    } else {
+                        "Show hold released"
+                    });
+                    self.platform_effect_for_action(&action_type)
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))
                 } else {
