@@ -40,7 +40,8 @@ flashing, first boot, and network setup.
    pages.
 
 [Controls cheat sheet](controls-cheat-sheet.md) · [Behaviors and Play
-pages](behaviors-and-play.md) · [Recording](recording.md)
+pages](behaviors-and-play.md) · [Sound and Link](sound-and-link.md) ·
+[Recording](recording.md)
 
 **Next:** [Controls cheat sheet](controls-cheat-sheet.md)
 
@@ -52,7 +53,8 @@ down before opening the case or moving wiring.
 ### Contents
 
 - **Operation:** [Controls cheat sheet](controls-cheat-sheet.md), [Behaviors and
-  Play pages](behaviors-and-play.md), [Recording audio and OLED](recording.md),
+  Play pages](behaviors-and-play.md), [Sound and Link: instruments, effects,
+  and modulation](sound-and-link.md), [Recording audio and OLED](recording.md),
   [Data backup and restore](data-backup-restore.md),
   [Bluetooth keyboards and speakers](bluetooth.md), and
   [Troubleshooting](troubleshooting.md).
