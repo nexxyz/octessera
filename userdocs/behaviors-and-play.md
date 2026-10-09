@@ -46,6 +46,7 @@ behaviors make a useful first tour:
 | `forest_fire` | Cellular | Trees grow, catch from neighboring flames, and occasionally get zapped by lightning. Grid presses plant and ignite a cell. |
 | `predator_prey` | Cellular | Grass feeds herbivores, herbivores feed predators, and starvation keeps the little ecosystem moving. |
 | `ant` | Cellular | Langton-like motion. A tiny agent walks the grid and changes cell states as it goes. |
+| `twinkle` | Cellular | A small constellation: stars appear one at a time, linger, then fade. Cluster Bias decides whether they bunch up or scatter. Sparse and gentle. |
 | `bounce` | Motion | Moving particles that bounce through the grid. Nice for kinetic patterns and repeating collisions. |
 | `bubbles` | Motion | Bottom-born bubbles drift upward, merge when they touch, and vanish past the top. Good for light, buoyant motion. |
 | `gravity` | Motion | Sand grains fall, slide, settle, and flip direction when you invert gravity. Crunchy little avalanches. |

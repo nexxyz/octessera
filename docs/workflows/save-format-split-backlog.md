@@ -1,6 +1,6 @@
 # Next release: separate System settings and musical patches
 
-**Target:** 0.8.8. The source cutover on `feature/0.8.8-savefile-split` has passed off-board checks. No release has shipped, and no real stores or boards have been migrated.
+**Status:** on `main` and running on both development boards. No published release carries it yet, and stores from 0.7.x still need the supervised conversion described below.
 
 Before the source cutover, `default.json` mixed a musical patch with settings for the particular device. Native `playback-runtime` projects a portable `octessera.patch` and device configuration. The file split preserves their existing ownership, including exceptions to the menu headings.
 
