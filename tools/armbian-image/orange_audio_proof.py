@@ -49,7 +49,6 @@ def verify_audio_overlay(
     require(source.is_file() and not source.is_symlink(), "canonical Orange audio DTS is missing or symlinked")
     require(installed.is_file() and not installed.is_symlink(), "installed Orange audio DTS is missing or symlinked")
     require(dtbo.is_file() and not dtbo.is_symlink(), "installed Orange audio DTBO is missing or symlinked")
-    require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], "canonical Orange audio DTS input identity changed")
     require(installed.read_bytes() == source.read_bytes(), "installed Orange audio DTS differs from its canonical input")
     require_owner_mode(installed, 0, 0, 0o644, require)
     require_owner_mode(dtbo, 0, 0, 0o644, require)

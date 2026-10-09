@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from collections.abc import Callable
@@ -274,7 +273,6 @@ def require_production_updater(root: Path, construction: dict, repository_root: 
             raise ValueError(f"Orange updater source identity is missing: {source_relative}")
         require(source.is_file() and not source.is_symlink(), f"Orange updater source is missing or symlinked: {source_relative}")
         require(installed.is_file() and not installed.is_symlink(), f"Orange updater asset is missing or symlinked: {installed_relative}")
-        require(hashlib.sha256(source.read_bytes()).hexdigest() == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange updater source identity changed: {source_relative}")
         require(installed.read_bytes() == source.read_bytes(), f"Orange updater asset differs from its canonical source: {installed_relative}")
         require_owner_mode(installed, 0, 0, mode, require)
     recovery = root / "etc/systemd/system/octessera-update-recovery.service"

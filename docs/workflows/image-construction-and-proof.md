@@ -90,9 +90,11 @@ checked by `tools/image-respin/respin.py` itself (see below).
 Construct each board from its source-bound boot-layer contract, not from the
 Orange current-parent respin lane:
 
-1. Freeze current source inputs and hashes in
-   `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` and
-   `orange-pi-zero-2w.json`; cross-build the matching native binary first.
+1. List any new source inputs in
+   `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` or
+   `orange-pi-zero-2w.json` (paths only; the mounted-image checks compare the
+   installed bytes with the source); cross-build the matching native binary
+   first.
 2. Run the Raspberry pi-gen and Orange Armbian constructors. Stage the
    canonical welcome, preserve declared hushlogin behavior, encode Raspberry's
    inactive-UART state, and install each board's declared runtime/initramfs

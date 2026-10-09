@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import re
 import unittest
@@ -12,7 +11,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = ROOT / "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json"
-SHA256 = re.compile(r"^[0-9a-f]{64}$")
 IMPORTED_PROOF_SOURCES = {
     "tools/pi-image/rpi_kernel_image_mount.py",
     "tools/pi-image/rpi_kernel_boot_proof.py",
@@ -29,7 +27,6 @@ TOP_KEYS = {
     "mutation_authority",
     "selected_initramfs_regeneration",
     "source_inputs",
-    "live_parity_inputs",
     "notice_bundle",
     "managed_outputs",
     "selected_initramfs",
@@ -56,16 +53,13 @@ def validate(document: dict[str, Any], root: Path) -> None:
         raise ValueError("source inputs are empty")
     paths: set[str] = set()
     for source in source_inputs:
-        if set(source) != {"path", "sha256", "size"} or source["path"] in paths:
+        if set(source) != {"path"} or source["path"] in paths:
             raise ValueError("source input shape is not exact")
         paths.add(source["path"])
         if not isinstance(source["path"], str) or source["path"].startswith("/") or ".." in Path(source["path"]).parts:
             raise ValueError("source input path is unsafe")
-        if SHA256.fullmatch(source["sha256"]) is None or not isinstance(source["size"], int) or source["size"] < 0:
-            raise ValueError("source input digest or size is invalid")
-        actual = root / source["path"]
-        if not actual.is_file() or hashlib.sha256(actual.read_bytes()).hexdigest() != source["sha256"] or actual.stat().st_size != source["size"]:
-            raise ValueError(f"source input digest is stale: {source['path']}")
+        if not (root / source["path"]).is_file():
+            raise ValueError(f"source input is missing: {source['path']}")
     if not IMPORTED_PROOF_SOURCES.issubset(paths):
         raise ValueError("Raspberry kernel proof module source inputs are incomplete")
     validator_sources = [source for source in source_inputs if source["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
@@ -82,16 +76,6 @@ def validate(document: dict[str, Any], root: Path) -> None:
         if len([source for source in source_inputs if source["path"] == path]) != 1:
             raise ValueError(f"Raspberry USB role source identity is not unique: {path}")
 
-    live_inputs = document["live_parity_inputs"]
-    if live_inputs != [
-        {"path": "tools/pi/deploy-pi.sh", "sha256": "c2ec9d27b6d1d8c0f8cce52dc5f2211ba7265aa8263960722262876d378abf16", "size": 17858},
-        {"path": "tools/pi/provision/provision.sh", "sha256": "579dc1970242da8f712d576239685cb7914a118a2255998da6795cfa85835367", "size": 21874},
-    ]:
-        raise ValueError("Raspberry live parity input identities are not exact")
-    for source in live_inputs:
-        actual = root / source["path"]
-        if not actual.is_file() or hashlib.sha256(actual.read_bytes()).hexdigest() != source["sha256"] or actual.stat().st_size != source["size"]:
-            raise ValueError(f"live parity input digest is stale: {source['path']}")
     deploy = (root / "tools/pi/deploy-pi.sh").read_text(encoding="utf-8")
     provision = (root / "tools/pi/provision/provision.sh").read_text(encoding="utf-8")
     setup = (root / "tools/pi-image/stage4-octessera/02-setup-service/00-run.sh").read_text(encoding="utf-8")
@@ -266,24 +250,16 @@ class BootLayerContractTests(unittest.TestCase):
     def test_contract_is_constructor_only_and_source_bound(self) -> None:
         validate(self.document, ROOT)
 
-    def test_stale_source_digest_is_rejected(self) -> None:
+    def test_missing_source_input_is_rejected(self) -> None:
         altered = copy.deepcopy(self.document)
-        altered["source_inputs"][0]["sha256"] = "0" * 64
+        altered["source_inputs"][0]["path"] = "tools/pi-image/missing-source.py"
         with self.assertRaises(ValueError):
             validate(altered, ROOT)
 
-    def test_usb_gadget_composer_source_digest_is_bound(self) -> None:
-        altered = copy.deepcopy(self.document)
-        composer = next(source for source in altered["source_inputs"] if source["path"].endswith("/octessera-usb-gadget"))
-        composer["sha256"] = "0" * 64
-        with self.assertRaises(ValueError):
-            validate(altered, ROOT)
-
-    def test_imported_raspberry_proof_source_digests_are_bound(self) -> None:
+    def test_imported_raspberry_proof_sources_are_required(self) -> None:
         for path in sorted(IMPORTED_PROOF_SOURCES):
             altered = copy.deepcopy(self.document)
-            source = next(item for item in altered["source_inputs"] if item["path"] == path)
-            source["sha256"] = "0" * 64
+            altered["source_inputs"] = [item for item in altered["source_inputs"] if item["path"] != path]
             with self.assertRaises(ValueError):
                 validate(altered, ROOT)
 

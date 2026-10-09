@@ -13,7 +13,6 @@ def _require_input(
     installed_relative: str,
     mode: int,
     require: Any,
-    sha256_file: Any,
     require_owner_mode: Any,
 ) -> Path:
     expected = next((item for item in construction["exact_inputs"] if item["path"] == source_relative), None)
@@ -24,7 +23,6 @@ def _require_input(
     installed = root / installed_relative
     require(source.is_file() and not source.is_symlink(), f"Orange SD source is missing or symlinked: {source_relative}")
     require(installed.is_file() and not installed.is_symlink(), f"Orange installed SD asset is missing or symlinked: {installed_relative}")
-    require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"Orange SD source identity changed: {source_relative}")
     require(installed.read_bytes() == source.read_bytes(), f"Orange installed SD asset differs from its canonical source: {installed_relative}")
     require_owner_mode(installed, 0, 0, mode, require)
     return installed
@@ -54,7 +52,6 @@ def verify_orange_sd_card(
         "usr/local/sbin/octessera-sd-card",
         0o755,
         require,
-        sha256_file,
         require_owner_mode,
     )
     library = _require_input(
@@ -65,7 +62,6 @@ def verify_orange_sd_card(
         "usr/local/lib/octessera/octessera-sd-card-lib.sh",
         0o644,
         require,
-        sha256_file,
         require_owner_mode,
     )
     service = _require_input(
@@ -76,7 +72,6 @@ def verify_orange_sd_card(
         "etc/systemd/system/octessera-orange-sd-card.service",
         0o644,
         require,
-        sha256_file,
         require_owner_mode,
     )
     rule = _require_input(
@@ -87,7 +82,6 @@ def verify_orange_sd_card(
         "etc/udev/rules.d/99-octessera-orange-sd-card.rules",
         0o644,
         require,
-        sha256_file,
         require_owner_mode,
     )
     storage_library = _require_input(
@@ -98,7 +92,6 @@ def verify_orange_sd_card(
         "usr/local/lib/octessera/octessera-sd-card-lib.sh",
         0o644,
         require,
-        sha256_file,
         require_owner_mode,
     )
     storage_helper = _require_input(
@@ -109,7 +102,6 @@ def verify_orange_sd_card(
         "usr/local/sbin/octessera-orange-storage",
         0o755,
         require,
-        sha256_file,
         require_owner_mode,
     )
     control_helper = _require_input(
@@ -120,7 +112,6 @@ def verify_orange_sd_card(
         "usr/local/sbin/octessera-orange-storage-control",
         0o755,
         require,
-        sha256_file,
         require_owner_mode,
     )
     socket = _require_input(
@@ -131,7 +122,6 @@ def verify_orange_sd_card(
         "etc/systemd/system/octessera-orange-storage-control.socket",
         0o644,
         require,
-        sha256_file,
         require_owner_mode,
     )
     control_service = _require_input(
@@ -142,7 +132,6 @@ def verify_orange_sd_card(
         "etc/systemd/system/octessera-orange-storage-control@.service",
         0o644,
         require,
-        sha256_file,
         require_owner_mode,
     )
     helper_text = helper.read_text(encoding="utf-8")

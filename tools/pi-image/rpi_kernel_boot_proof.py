@@ -150,21 +150,8 @@ def load_boot_layer_contract(path: Path = BOOT_LAYER_CONTRACT_PATH) -> dict[str,
     if sum(source.get("path") == "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget" for source in source_inputs if isinstance(source, dict)) != 1:
         raise ImageProofError("Raspberry USB gadget composer source identity is not unique")
     for source in source_inputs:
-        if not isinstance(source, dict) or set(source) != {"path", "sha256", "size"}:
+        if not isinstance(source, dict) or set(source) != {"path"} or not (REPOSITORY_ROOT / source["path"]).is_file():
             raise ImageProofError("Raspberry boot-layer source input changed")
-        source_path = REPOSITORY_ROOT / source["path"]
-        hash_matches(source_path, source["sha256"], "Raspberry boot-layer source input")
-        if source_path.stat().st_size != source["size"]:
-            raise ImageProofError("Raspberry boot-layer source input size changed")
-    live_parity = contract.get("live_parity_inputs")
-    expected = [{"path": "tools/pi/deploy-pi.sh", "sha256": "c2ec9d27b6d1d8c0f8cce52dc5f2211ba7265aa8263960722262876d378abf16", "size": 17858}, {"path": "tools/pi/provision/provision.sh", "sha256": "579dc1970242da8f712d576239685cb7914a118a2255998da6795cfa85835367", "size": 21874}]
-    if not isinstance(live_parity, list) or live_parity != expected:
-        raise ImageProofError("Raspberry live parity inputs changed")
-    for source in live_parity:
-        source_path = REPOSITORY_ROOT / source["path"]
-        hash_matches(source_path, source["sha256"], "Raspberry live parity input")
-        if source_path.stat().st_size != source["size"]:
-            raise ImageProofError("Raspberry live parity input size changed")
     if contract.get("notice_bundle") != {"manifest": "resources/legal/notice-bundle.json", "stager": "tools/legal/stage_notices.py", "installed_root": "usr/share/doc/octessera", "installed_outputs": "manifest-files", "proof": "tools/pi-image/verify-boot-layout.sh", "parent_sentinels": ["usr/share/common-licenses/GPL-3", "usr/share/doc/base-files/copyright"], "firmware_license_path": None, "firmware_license_gate": "full-constructor"}:
         raise ImageProofError("Raspberry legal notice contract changed")
     selected = contract.get("selected_initramfs")

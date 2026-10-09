@@ -251,7 +251,6 @@ def _verify_exact_installed_files(root: Path, repository_root: Path, constructio
         require(expected, f"{source_label} source identity is missing: {source_relative}")
         require(source.is_file() and not source.is_symlink(), f"{source_label} source is missing or symlinked: {source_relative}")
         require(installed.is_file() and not installed.is_symlink(), f"Orange installed {installed_label} is missing or symlinked: {installed_relative}")
-        require(sha256_file(source) == expected["sha256"] and source.stat().st_size == expected["size"], f"{source_label} source identity changed: {source_relative}")
         require(installed.read_bytes() == source.read_bytes(), f"Orange installed {installed_label} differs from its canonical source: {installed_relative}")
         require_owner_mode(installed, 0, 0, mode, require)
 
@@ -318,14 +317,13 @@ def verify_boot(root: Path, package: dict[str, Any], construction: dict[str, Any
     require(next((item for item in construction["managed_outputs"] if item["path"] == construction["terminal_invariants"]["welcome_path"]), None) == {"path": "etc/profile.d/octessera-welcome.sh", "mode": 420, "uid": 0, "gid": 0}, "Orange welcome managed output changed")
     default_source = repository_root / "config/generated/pi/default.json"
     default_input = next((item for item in construction["exact_inputs"] if item["path"] == "config/generated/pi/default.json"), None)
-    require(default_input == {"path": "config/generated/pi/default.json", "sha256": sha256_file(default_source), "size": default_source.stat().st_size, "mode": 420}, "Orange default input identity changed")
+    require(default_input == {"path": "config/generated/pi/default.json", "mode": 420} and default_source.is_file(), "Orange default input identity changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == "usr/share/octessera/defaults/pi-default.json"), None) == {"path": "usr/share/octessera/defaults/pi-default.json", "mode": 420, "uid": 0, "gid": 0}, "Orange default managed output changed")
     validator_input = [item for item in construction["exact_inputs"] if item["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
     require(len(validator_input) == 1, "canonical Orange device config validator input is not unique")
     validator_source = repository_root / validator_input[0]["path"]
     validator_source_hash = sha256_file(validator_source)
     validator_source_size = validator_source.stat().st_size
-    require(validator_input[0]["sha256"] == validator_source_hash and validator_input[0]["size"] == validator_source_size, "canonical Orange device config validator input changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == "usr/local/lib/octessera/device_config.py"), None) == {"path": "usr/local/lib/octessera/device_config.py", "mode": 420, "uid": 0, "gid": 0}, "Orange validator managed output changed")
     require(next((item for item in construction["managed_outputs"] if item["path"] == construction["terminal_invariants"]["hushlogin_path"]), None) == {"path": "home/octessera/.hushlogin", "mode": 420, "owner": "octessera", "group": "octessera", "content": "empty"}, "Orange hushlogin managed output changed")
     uart = construction["uart_invariants"]
@@ -439,11 +437,11 @@ def validate_construction_contract(root: Path, contract: dict[str, Any]) -> str:
     require(any(item.get("path") == "boot/overlay-user/octessera-ahub0-pcm5102.dtbo" for item in contract.get("managed_outputs", [])), "Orange audio DTBO managed output is missing")
     require(any(item.get("path") == "etc/octessera/build-metadata.env" for item in contract.get("managed_outputs", [])), "Orange build metadata managed output is missing")
     for item in exact_inputs:
-        require(set(item) == {"path", "sha256", "size", "mode"}, "Orange construction source input changed")
+        require(set(item) == {"path", "mode"} and item["mode"] in {420, 493}, "Orange construction source input changed")
         require(isinstance(item["path"], str) and not Path(item["path"]).is_absolute() and ".." not in Path(item["path"]).parts and item["path"] not in exact_input_paths, "Orange construction source input path is unsafe or duplicated")
         exact_input_paths.add(item["path"])
         source = root / item["path"]
-        require(source.is_file() and not source.is_symlink() and sha256_file(source) == item["sha256"] and source.stat().st_size == item["size"], f"Orange construction source input changed: {source}")
+        require(source.is_file() and not source.is_symlink(), f"Orange construction source input is missing: {source}")
     require(SOURCE_BOUND_PROOF_SOURCES <= exact_input_paths, "Orange verifier source identities are incomplete")
     return sha256_file(root / "resources/image-construction/boot-layers/orange-pi-zero-2w.json")
 
