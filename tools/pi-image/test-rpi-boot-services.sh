@@ -49,6 +49,7 @@ for required_line in \
     'KillMode=control-group' \
     'TimeoutStopSec=2' \
     'Restart=no' \
+    'RemainAfterExit=yes' \
     'ExecStart=/usr/local/bin/octessera-pi --boot-splash-loop' \
     'NoNewPrivileges=yes' \
     'ProtectSystem=strict' \
