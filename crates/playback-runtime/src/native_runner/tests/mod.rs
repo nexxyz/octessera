@@ -77,6 +77,7 @@ mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
 mod scan_replacement;
+mod selected_menu_row;
 mod sequencer_transport_origin;
 mod setup_portal;
 mod show_hold;

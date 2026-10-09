@@ -138,7 +138,7 @@ impl NativeRunner {
         {
             return false;
         }
-        let menu = self.menu.snapshot();
+        let menu = self.menu.selected_item_snapshot();
         if self.menu.state.editing
             && !menu
                 .selected_row

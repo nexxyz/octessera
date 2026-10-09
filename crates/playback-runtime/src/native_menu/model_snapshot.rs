@@ -11,13 +11,38 @@ const MENU_BODY_ROWS: usize = 7;
 impl NativeMenuModel {
     pub fn snapshot(&self) -> NativeMenuSnapshot {
         let siblings = self.current_siblings();
+        if siblings.is_empty() {
+            return empty_snapshot(self.path_label(), self.path_section_color());
+        }
+        let (start, end, scroll_offset, total_rows) = snapshot_window(self, siblings);
+        let mut snapshot = self.rows_snapshot(siblings, start, end);
+        if let Some(scroll) = snapshot.scroll.as_mut() {
+            scroll.scroll_offset = scroll_offset;
+            scroll.total_rows = total_rows;
+        }
+        snapshot
+    }
+
+    /// The same rows `snapshot` produces for the selected item, without the
+    /// surrounding window; for checks that only look at the selected row.
+    pub fn selected_item_snapshot(&self) -> NativeMenuSnapshot {
+        let siblings = self.current_siblings();
+        if siblings.is_empty() {
+            return empty_snapshot(self.path_label(), self.path_section_color());
+        }
+        let cursor = self.state.cursor.min(siblings.len() - 1);
+        self.rows_snapshot(siblings, cursor, cursor + 1)
+    }
+
+    fn rows_snapshot(
+        &self,
+        siblings: &[NativeMenuItem],
+        start: usize,
+        end: usize,
+    ) -> NativeMenuSnapshot {
         let path = self.path_label();
         let section_color = self.path_section_color();
-        if siblings.is_empty() {
-            return empty_snapshot(path, section_color);
-        }
         let root_level = self.state.stack.is_empty();
-        let (start, end, scroll_offset, total_rows) = snapshot_window(self, siblings);
         let mut lines = Vec::with_capacity(MENU_BODY_ROWS);
         let mut colors = Vec::with_capacity(MENU_BODY_ROWS);
         let mut bar_values = Vec::with_capacity(MENU_BODY_ROWS);
@@ -61,8 +86,8 @@ impl NativeMenuModel {
             colors,
             bar_values,
             scroll: Some(NativeMenuScrollMetadata {
-                scroll_offset,
-                total_rows,
+                scroll_offset: 0,
+                total_rows: visible_rows,
                 visible_rows,
             }),
             line_keys,
