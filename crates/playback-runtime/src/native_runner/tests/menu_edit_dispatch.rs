@@ -178,3 +178,14 @@ fn link_axis_invert_and_recording_max_time_apply_from_the_encoder() {
         Some(i32::from(runner.recording_max_minutes))
     );
 }
+
+#[test]
+fn an_lfo_without_a_target_stays_off_and_its_row_says_so() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    edit_with_encoder(&mut runner, "linkLfos.0.enabled");
+    assert!(!runner.link_lfos[0].enabled);
+    assert_eq!(
+        runner.menu.value_for_key("linkLfos.0.enabled").as_deref(),
+        Some("false")
+    );
+}

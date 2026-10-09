@@ -13,6 +13,9 @@ impl NativeRunner {
                 lfo,
                 &format!("linkLfos.{index}"),
             );
+            let enabled = lfo.enabled;
+            self.menu
+                .set_bool_value_for_key(&format!("linkLfos.{index}.enabled"), enabled);
             if changed {
                 self.mark_fast_autosave_dirty();
                 if let Err(error) = self.process_dirty_modulation_step(false) {
