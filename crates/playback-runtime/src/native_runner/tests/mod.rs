@@ -63,6 +63,7 @@ mod modulation_runtime_commands;
 mod modulation_runtime_fx;
 mod note_set_runtime;
 mod note_sets;
+mod numeric_binding_round_trip;
 mod play_fx;
 mod play_menu;
 mod play_overlay;
