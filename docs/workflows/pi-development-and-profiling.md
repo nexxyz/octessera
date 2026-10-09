@@ -124,6 +124,34 @@ and audio errors; missing error text alone does not prove that no underrun
 occurred. On failure, retain the study evidence and clone until service
 restoration and the original-store checks are resolved.
 
+### Capacity and live-latency studies
+
+`OCTESSERA_TIMING_LOAD=start,step,max,seconds` (with `OCTESSERA_TIMING_AUTOPLAY=1`
+and an isolated study store, same rules as the Aux study) ramps held 2-second
+notes across Synth, Pluck, and FM through the host musical-event path on top of
+the loaded patch, logging one `timing-load step=...` line per step. Every ~0.7 s
+it also presses grid cell (0,0) through the real input dispatch and reports
+`probe_wait` (arrival to dispatch) and `probe_dispatch_to_audio` (dispatch to
+the note reaching the audio service); put a Keys layer with Link events enabled
+on the active layer in the clone, or the probe reports `probe_silent`. Set
+`sound.voiceStealingMode` to `none` in the clone's patch so stealing does not
+hide the limit. Correlate the step lines with `underrun occurred` lines and the
+`pi-ui-profile` windows in the candidate journal.
+
+Run boards one at a time when comparing underrun counts, and keep the study
+host quiet: a shell loop that spawns processes every second on the board shows
+up as rare extra underruns. Tools that found real problems:
+
+- Orange has `perf`: `perf record -k CLOCK_MONOTONIC -C 1` on the audio core, or
+  `-g -t <runtime tid>` for the runtime thread, lines up with journal timestamps.
+- Both boards have ftrace: `sched_switch`/`sched_wakeup` on CPU 1 with
+  `trace_clock=mono` separates "callback busy" from "callback not scheduled".
+- `/proc/<pid>/task/<cpal tid>/stat` fields 10 and 12 (minor/major faults)
+  sampled around playback start or background load show SD-card page faults in
+  the audio thread.
+- A memory-bandwidth hog on the other cores (copying a 48 MB buffer in a loop)
+  starves the Raspberry's audio core; CPU-only and network load barely do.
+
 After live probes, inspect the current boot's service journal:
 
 ```powershell

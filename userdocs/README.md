@@ -80,6 +80,11 @@ Adaptive voice stealing may reduce the active synth count as load rises. These
 are practical targets rather than guarantees; behaviors, samples, and effects
 all change the available headroom.
 
+How quick does it feel? In Latency mode a grid press reaches your ears in about
+6 ms on the Orange and 8 ms on the Raspberry. Capacity mode renders a little
+ahead so it can spread the work over two cores, which puts it at about 13 to
+15 ms: still fine for most playing, but you may feel it on fast finger drumming.
+
 ### Playing in front of people
 
 Octessera boards skip the operating system's daily package-list and
@@ -102,6 +107,12 @@ heavy happening next to the music can still cause crackles even when it runs
 on another core. Do your maintenance before the show, not during it: updates,
 `apt` over SSH, copying big files onto the board. The Orange has a lot more
 memory headroom and shrugs most of this off, but the same habit doesn't hurt.
+
+One more thing: don't run `apt upgrade` on the board. Octessera boots its own
+tuned kernel and device-tree setup, and a stock kernel or bootloader package
+sneaking in can leave you with a board that boots but doesn't make a sound (or
+doesn't boot at all). Octessera updates come through **System > Setup >
+Updates** or a fresh image.
 
 ### Samples
 
