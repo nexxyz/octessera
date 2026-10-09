@@ -27,3 +27,8 @@ apt-get install -y --no-install-recommends \
 grep -qxF "i2c-dev" /etc/modules || echo "i2c-dev" >> /etc/modules
 grep -qxF "spi-bcm2835" /etc/initramfs-tools/modules || echo "spi-bcm2835" >> /etc/initramfs-tools/modules
 grep -qxF "spidev" /etc/initramfs-tools/modules || echo "spidev" >> /etc/initramfs-tools/modules
+
+# Octessera boots its own kernel; keep a stray apt upgrade from swapping the boot chain.
+dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' |
+    awk '$1 == "ii" && $2 ~ /^(linux-image-|raspi-firmware$|rpi-eeprom$)/ { print $2 }' |
+    xargs -r apt-mark hold >/dev/null

@@ -202,6 +202,13 @@ EOF
   done
 }
 
+octessera_hold_boot_chain_packages() {
+  # Octessera ships its own kernel and device tree; keep a stray apt upgrade from replacing them.
+  dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' |
+    awk '$1 == "ii" && $2 ~ /^(linux-image-|linux-dtb-|linux-u-boot-|armbian-bsp-cli-)/ { print $2 }' |
+    xargs -r apt-mark hold >/dev/null
+}
+
 octessera_load_image_contract() {
   local overlay_root="$1"
   local contract="$overlay_root/etc/octessera/image-contract.json"

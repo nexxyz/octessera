@@ -439,6 +439,7 @@ rm -f /etc/ssh/ssh_host_*
 systemctl disable --now serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
 octessera_configure_background_maintenance
+octessera_hold_boot_chain_packages
 systemctl enable octessera-setup-request.path >/dev/null
 setup_request_link=/etc/systemd/system/multi-user.target.wants/octessera-setup-request.path
 [[ -L "$setup_request_link" ]] || { echo "Setup request path was not enabled as a symlink." >&2; exit 1; }

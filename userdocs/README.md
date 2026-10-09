@@ -111,8 +111,9 @@ memory headroom and shrugs most of this off, but the same habit doesn't hurt.
 One more thing: don't run `apt upgrade` on the board. Octessera boots its own
 tuned kernel and device-tree setup, and a stock kernel or bootloader package
 sneaking in can leave you with a board that boots but doesn't make a sound (or
-doesn't boot at all). Octessera updates come through **System > Setup >
-Updates** or a fresh image.
+doesn't boot at all). The boards hold those packages so apt leaves them alone,
+but please don't go fishing with `--allow-change-held-packages`. Octessera
+updates come through **System > Setup > Updates** or a fresh image.
 
 ### Samples
 

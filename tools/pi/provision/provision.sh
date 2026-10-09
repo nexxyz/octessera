@@ -169,6 +169,13 @@ mask_background_maintenance_timers() {
     done
 }
 
+hold_boot_chain_packages() {
+    [ -z "$SYSROOT" ] || return 0
+    dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' |
+        awk '$1 == "ii" && $2 ~ /^(linux-image-|raspi-firmware$|rpi-eeprom$)/ { print $2 }' |
+        xargs -r sudo apt-mark hold >/dev/null
+}
+
 install_show_hold_conditions() {
     sudo install -d -m 0755 "$(target_path /var/lib/octessera/show-hold)"
     sudo chown "$pi_user:$pi_user" "$(target_path /var/lib/octessera/show-hold)"
@@ -435,6 +442,7 @@ normalize_raspberry_usb_role "$BOOT_CONFIG" "$desired_usb_role"
 ensure_raspberry_uart_inactive
 mask_background_maintenance_timers
 install_show_hold_conditions
+hold_boot_chain_packages
 
 if [ -n "$SYSROOT" ]; then
     OCTESSERA_USB_ROLE_BOOT_ROOT="$SYSROOT" sudo "$(target_path /usr/local/sbin/octessera-usb-role)" "$desired_usb_role"
