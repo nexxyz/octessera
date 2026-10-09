@@ -34,18 +34,25 @@ fn edit_with_encoder(runner: &mut NativeRunner, key: &str) {
     }
 }
 
-#[test]
-fn every_editable_menu_row_is_accepted_by_the_edit_dispatch() {
-    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+fn configured_runner(configure: &dyn Fn(&mut NativeRunner)) -> NativeRunner {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    configure(&mut runner);
+    runner.menu.rebuild(runner.menu_config());
+    runner
+}
+
+fn rejected_edits(
+    configure: &dyn Fn(&mut NativeRunner),
+    seen: &mut std::collections::BTreeSet<String>,
+) -> Vec<String> {
+    let runner = configured_runner(configure);
     let mut keys = Vec::new();
     editable_keys(&runner.menu.root, &mut keys);
-    keys.sort();
-    keys.dedup();
-    assert!(keys.len() > 100, "{} keys", keys.len());
+    keys.retain(|key| seen.insert(key.clone()));
     let mut rejected = Vec::new();
     for key in &keys {
+        let mut runner = configured_runner(configure);
         for delta in [1, -1] {
-            let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
             if !runner.menu.focus_item_key(key) || !runner.menu.turn_key(key, delta) {
                 continue;
             }
@@ -53,6 +60,65 @@ fn every_editable_menu_row_is_accepted_by_the_edit_dispatch() {
                 rejected.push(format!("{key} {delta:+}: {error}"));
             }
         }
+    }
+    rejected
+}
+
+#[test]
+fn every_editable_menu_row_is_accepted_by_the_edit_dispatch() {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut rejected = rejected_edits(
+        &|runner| {
+            runner.link_layers[0].scan_mode = "scanning".into();
+        },
+        &mut seen,
+    );
+    assert!(seen.len() > 100, "{} keys", seen.len());
+    for kind in ["fm", "pluck", "drum", "sampler", "midi"] {
+        rejected.extend(rejected_edits(
+            &|runner| {
+                runner.instruments[0].kind = kind.into();
+            },
+            &mut seen,
+        ));
+    }
+    for fx in [
+        "tremolo",
+        "delay",
+        "vibrato",
+        "chorus",
+        "flanger",
+        "filter_lfo",
+        "wah",
+        "vinyl",
+        "eq",
+        "compressor",
+        "reverb",
+        "glitch",
+        "auto_pan",
+        "duck",
+        "saturator",
+        "distortion",
+        "bitcrusher",
+    ] {
+        rejected.extend(rejected_edits(
+            &|runner| {
+                let mut deltas = std::collections::BTreeMap::new();
+                runner.apply_param_binding_value(
+                    "mixer.buses.0.slot1.type",
+                    json!(fx),
+                    &mut deltas,
+                );
+                if ["vinyl", "eq", "compressor", "saturator", "distortion"].contains(&fx) {
+                    runner.apply_param_binding_value(
+                        "mixer.master.slots.0.type",
+                        json!(fx),
+                        &mut deltas,
+                    );
+                }
+            },
+            &mut seen,
+        ));
     }
     assert!(rejected.is_empty(), "{rejected:#?}");
 }
