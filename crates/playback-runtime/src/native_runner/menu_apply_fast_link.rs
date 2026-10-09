@@ -23,6 +23,9 @@ impl NativeRunner {
         }
         let rest = key.strip_prefix("layers.")?;
         let (index, suffix) = parse_indexed_key(rest)?;
+        if let Some(lane) = suffix.strip_prefix("paramMods.") {
+            return Some(self.fast_param_mod_invert_key(index, lane, key));
+        }
         let layer = self.link_layers.get_mut(index)?;
         let changed = if suffix.starts_with("link.arp.") {
             let prefix = format!("layers.{index}.link.arp");
@@ -79,5 +82,37 @@ impl NativeRunner {
             self.mark_fast_autosave_dirty();
         }
         Some(true)
+    }
+
+    fn fast_param_mod_invert_key(&mut self, layer: usize, lane: &str, key: &str) -> bool {
+        let Some((axis, slot)) = lane
+            .strip_suffix(".invert")
+            .and_then(|lane| lane.split_once('.'))
+        else {
+            return false;
+        };
+        let Some(invert) = self.menu.value_for_key(key).map(|value| value == "true") else {
+            return false;
+        };
+        let Some(mods) = self.param_mods.get_mut(layer) else {
+            return false;
+        };
+        let lanes = match axis {
+            "x" => &mut mods.x,
+            "y" => &mut mods.y,
+            _ => return false,
+        };
+        let Some(binding) = slot
+            .parse::<usize>()
+            .ok()
+            .and_then(|slot| lanes.get_mut(slot))
+        else {
+            return false;
+        };
+        if let Some(binding) = binding.as_mut().filter(|binding| binding.invert != invert) {
+            binding.invert = invert;
+            self.mark_fast_autosave_dirty();
+        }
+        true
     }
 }

@@ -156,10 +156,10 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_recording_menu_state(&mut self) -> bool {
-        let Some(value) = self.menu.value_for_key("recording.maxMinutes") else {
+        let Some(value) = self.menu.number_for_key("recording.maxMinutes") else {
             return false;
         };
-        let value = value.parse::<u16>().unwrap_or(10).clamp(1, 120);
+        let value = value.clamp(1, 120) as u16;
         let changed = self.recording_max_minutes != value;
         self.recording_max_minutes = value;
         changed

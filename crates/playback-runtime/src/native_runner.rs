@@ -110,6 +110,7 @@ mod looper_config;
 mod menu_apply;
 mod menu_apply_fast;
 mod menu_apply_fast_audio;
+mod menu_apply_fast_auto_names;
 mod menu_apply_fast_behavior;
 mod menu_apply_fast_bindings;
 mod menu_apply_fast_fx;

@@ -64,6 +64,9 @@ impl NativeRunner {
         if let Some(applied) = self.apply_runtime_menu_key_fast(key) {
             return applied;
         }
+        if let Some(applied) = self.apply_auto_name_menu_key_fast(key) {
+            return applied;
+        }
         if let Some(applied) = self.apply_fx_menu_key_fast(key) {
             return applied;
         }
