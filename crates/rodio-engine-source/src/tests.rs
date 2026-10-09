@@ -410,6 +410,8 @@ mod retirement_tests;
 
 mod prepared_instrument_owner_tests;
 
+mod voice_note_on_memory_tests;
+
 mod shutdown_handoff_tests;
 
 mod retirement_storage_tests;
