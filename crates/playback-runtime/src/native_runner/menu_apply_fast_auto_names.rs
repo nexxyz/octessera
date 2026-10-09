@@ -13,8 +13,8 @@ impl NativeRunner {
                 instrument.name = derive_instrument_name(index, &instrument.kind);
             }
             changed
-        } else if let Some(rest) = key.strip_prefix("mixer.buses.") {
-            let index = auto_name_index(rest)?;
+        } else {
+            let index = auto_name_index(key.strip_prefix("mixer.buses.")?)?;
             let bus = self.fx_buses.get_mut(index)?;
             let changed = bus.auto_name != auto_name;
             bus.auto_name = auto_name;
@@ -22,8 +22,6 @@ impl NativeRunner {
                 bus.name = derive_bus_name(bus);
             }
             changed
-        } else {
-            return None;
         };
         if changed {
             self.rematerialize_menu_around_key(key);
