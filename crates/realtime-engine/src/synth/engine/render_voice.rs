@@ -406,6 +406,9 @@ mod pluck_pitch_calibration_tests;
 mod pluck_worker_tests;
 
 #[cfg(test)]
+mod live_param_parity_tests;
+
+#[cfg(test)]
 mod drum_tests;
 
 #[cfg(test)]
