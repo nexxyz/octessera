@@ -84,6 +84,21 @@ fn every_offered_instrument_target_writes_the_value_its_menu_row_shows() {
         runner.instruments[0].kind = (*kind).into();
         let checked = assert_targets_with_prefix(&mut runner, "instruments.0.");
         assert!(checked >= 2, "{kind} offered {checked} numeric targets");
+        for binding in offered_keys(&mut runner, "number", "instruments.0.") {
+            let field = &binding.key["instruments.0.".len()..];
+            let value = json!(binding.min.unwrap_or(0));
+            if let Some(command) =
+                super::super::modulation_audio::instrument_modulation_audio_command(
+                    0, field, &value,
+                )
+            {
+                assert_eq!(
+                    super::pi_audio_command_rejection(&command),
+                    None,
+                    "{kind} {field}"
+                );
+            }
+        }
     }
 }
 

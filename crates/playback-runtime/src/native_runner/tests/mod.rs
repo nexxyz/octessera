@@ -1,5 +1,24 @@
 use super::*;
 
+pub(super) fn pi_audio_command_rejection(command: &RuntimeAudioCommand) -> Option<String> {
+    use realtime_engine::synth::{
+        validate_fm_param_path, validate_pluck_param_path, validate_sample_bank_param_path,
+        validate_synth_param_path, DrumParamId,
+    };
+    match command {
+        RuntimeAudioCommand::SetSynthParam { path, .. } => validate_synth_param_path(path).err(),
+        RuntimeAudioCommand::SetFmParam { path, .. } => validate_fm_param_path(path).err(),
+        RuntimeAudioCommand::SetPluckParam { path, .. } => validate_pluck_param_path(path).err(),
+        RuntimeAudioCommand::SetSampleBankParam { path, .. } => {
+            validate_sample_bank_param_path(path).err()
+        }
+        RuntimeAudioCommand::SetDrumParam { path, .. } => DrumParamId::from_path(path)
+            .is_none()
+            .then(|| format!("unsupported drum parameter path `{path}`")),
+        _ => None,
+    }
+}
+
 impl NativeRunner {
     pub(super) fn apply_current_menu_edit(&mut self) -> Result<(), String> {
         let key = self

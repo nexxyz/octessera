@@ -59,6 +59,11 @@ fn rejected_edits(
             if let Err(error) = runner.apply_or_schedule_menu_key(key) {
                 rejected.push(format!("{key} {delta:+}: {error}"));
             }
+            for command in runner.outbox.drain_audio_commands() {
+                if let Some(error) = super::pi_audio_command_rejection(&command) {
+                    rejected.push(format!("{key} {delta:+}: the Pi would drop it: {error}"));
+                }
+            }
         }
     }
     rejected
