@@ -128,17 +128,6 @@ impl NativeRunner {
         true
     }
 
-    #[cfg(test)]
-    pub(super) fn apply_bluetooth_menu_state(&mut self) -> bool {
-        let Some(enabled) = self.menu.value_for_key("bluetooth.enabled") else {
-            return false;
-        };
-        let enabled = enabled == "true";
-        let changed = self.bluetooth.enabled != enabled;
-        self.bluetooth.enabled = enabled;
-        changed
-    }
-
     pub(super) fn apply_bluetooth_result(&mut self, result: RuntimeStoreResult) {
         let RuntimeStoreResult::BluetoothStatus { mut status } = result else {
             return;

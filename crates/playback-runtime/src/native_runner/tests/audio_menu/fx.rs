@@ -23,11 +23,11 @@ pub(crate) fn delay_time_note_converts_at_current_bpm() {
         .focus_item_key("mixer.buses.0.slot1.params.timeNote"));
     runner.menu.state.editing = true;
     runner.menu.turn(1);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
 
     runner.menu.turn(5);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 2000);
 }
 
@@ -133,7 +133,7 @@ pub(crate) fn delay_time_ms_edit_remains_authoritative() {
         .focus_item_key("mixer.buses.0.slot1.params.timeMs"));
     runner.menu.state.editing = true;
     runner.menu.turn(-10);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 283);
     assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
@@ -311,8 +311,7 @@ pub(crate) fn sparse_delay_payload_defaults_to_ms_mode_and_audio_strips_timing_m
 #[test]
 pub(crate) fn fx_bus_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.turn_key("mixer.buses.0.slot3.type", 1);
-    runner.apply_menu_state().unwrap();
+    runner.edit_menu_key("mixer.buses.0.slot3.type", 1).unwrap();
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot3"]["type"],
@@ -327,8 +326,9 @@ pub(crate) fn fx_bus_slot_type_edits_into_config_payload() {
 #[test]
 pub(crate) fn global_fx_slot_type_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.turn_key("mixer.master.slots.0.type", 1);
-    runner.apply_menu_state().unwrap();
+    runner
+        .edit_menu_key("mixer.master.slots.0.type", 1)
+        .unwrap();
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["master"]["slots"][0]["type"],
@@ -357,10 +357,11 @@ pub(crate) fn fx_params_edit_into_config_payload() {
     runner.menu.rebuild(runner.menu_config());
 
     runner
-        .menu
-        .turn_key("mixer.buses.0.slot1.params.feedback", 1);
-    runner.menu.turn_key("mixer.master.slots.0.params.clip", 1);
-    runner.apply_menu_state().unwrap();
+        .edit_menu_key("mixer.buses.0.slot1.params.feedback", 1)
+        .unwrap();
+    runner
+        .edit_menu_key("mixer.master.slots.0.params.clip", 1)
+        .unwrap();
 
     let payload = runner.config_payload();
     assert_eq!(

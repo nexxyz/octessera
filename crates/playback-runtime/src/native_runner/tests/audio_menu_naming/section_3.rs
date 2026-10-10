@@ -12,9 +12,8 @@ pub(crate) fn turning_instrument_and_bus_auto_name_on_replaces_manual_names() {
     runner.fx_buses[0].auto_name = false;
     runner.menu.rebuild(runner.menu_config());
 
-    runner.menu.turn_key("instruments.0.autoName", 1);
-    runner.menu.turn_key("mixer.buses.0.autoName", 1);
-    runner.apply_menu_state().unwrap();
+    runner.edit_menu_key("instruments.0.autoName", 1).unwrap();
+    runner.edit_menu_key("mixer.buses.0.autoName", 1).unwrap();
 
     assert!(runner.instruments[0].auto_name);
     assert_eq!(runner.instruments[0].name, "Sampler");

@@ -61,7 +61,9 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
     runner.menu.turn_key("layers.0.link.arp.mode", 2);
 
     runner.link_layers[0].arp = NativeLinkArp::default();
-    runner.apply_menu_state().unwrap();
+    runner
+        .apply_menu_key_edit("layers.0.link.arp.mode")
+        .unwrap();
     assert_eq!(runner.link_layers[0].arp.source, "held");
     assert_eq!(runner.link_layers[0].arp.mode, "up");
 }

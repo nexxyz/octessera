@@ -160,8 +160,7 @@ pub(crate) fn turning_layer_auto_name_on_replaces_manual_name() {
     runner.select_active_layer(1).unwrap();
     runner.menu.rebuild(runner.menu_config());
 
-    runner.menu.turn_key("layers.1.autoName", 1);
-    runner.apply_menu_state().unwrap();
+    runner.edit_menu_key("layers.1.autoName", 1).unwrap();
 
     assert!(runner.layer_auto_names[1]);
     assert_eq!(runner.layer_names[1], "sequencer");

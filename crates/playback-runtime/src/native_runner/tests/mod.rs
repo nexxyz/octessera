@@ -1,5 +1,32 @@
 use super::*;
 
+impl NativeRunner {
+    pub(super) fn apply_current_menu_edit(&mut self) -> Result<(), String> {
+        let key = self
+            .menu
+            .current_key()
+            .map(str::to_string)
+            .ok_or("no menu row is selected")?;
+        self.apply_or_schedule_menu_key(&key)?;
+        if let Some(pending) = self.pending.pending_menu_apply.as_mut() {
+            pending.due_at = std::time::Instant::now();
+            self.apply_due_menu_key(std::time::Instant::now())?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn edit_menu_key(&mut self, key: &str, delta: i8) -> Result<(), String> {
+        assert!(self.menu.focus_item_key(key), "{key} is not in the menu");
+        self.menu.turn_key(key, delta);
+        self.apply_current_menu_edit()
+    }
+
+    pub(super) fn apply_menu_key_edit(&mut self, key: &str) -> Result<(), String> {
+        assert!(self.menu.focus_item_key(key), "{key} is not in the menu");
+        self.apply_current_menu_edit()
+    }
+}
+
 mod audio_menu;
 mod audio_menu_direct;
 mod audio_menu_naming;

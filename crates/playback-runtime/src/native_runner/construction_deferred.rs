@@ -55,11 +55,6 @@ impl NativeRunner {
         self.pending.autosave_payload_notified_at = None;
     }
 
-    #[cfg(test)]
-    pub(super) fn force_autosave_payload_due(&mut self) {
-        self.pending.pending_autosave_payload_due_at = None;
-    }
-
     pub(super) fn flush_deferred_menu_apply_at(
         &mut self,
         now: Instant,
@@ -101,7 +96,7 @@ impl NativeRunner {
         self.messages_without_presentation()
     }
 
-    fn apply_due_menu_key(&mut self, now: Instant) -> Result<bool, String> {
+    pub(super) fn apply_due_menu_key(&mut self, now: Instant) -> Result<bool, String> {
         let Some(pending) = self.pending.pending_menu_apply.as_ref() else {
             return Ok(false);
         };

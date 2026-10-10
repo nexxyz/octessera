@@ -192,8 +192,7 @@ pub(crate) fn synth_filter_env_fast_path_uses_direct_audio_command_without_revis
 #[test]
 pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
-    runner.apply_menu_state().unwrap();
+    runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();
     runner.audio_config_revision = 0;
     runner.last_snapshot_audio_config_revision = Some(0);
     assert!(runner
@@ -242,8 +241,7 @@ pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump
 #[test]
 pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.turn_key("mixer.buses.0.slot1.type", 1);
-    runner.apply_menu_state().unwrap();
+    runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();
     runner.audio_config_revision = 0;
     runner.last_snapshot_audio_config_revision = Some(0);
     assert!(runner
@@ -340,9 +338,9 @@ pub(crate) fn direct_dynamic_param_apply_does_not_bump_full_audio_config_revisio
     assert!(runner
         .menu
         .focus_item_key("instruments.0.synth.amp.gainPct"));
-    runner.menu.turn_key("instruments.0.synth.amp.gainPct", -10);
-
-    runner.apply_menu_state().unwrap();
+    runner
+        .edit_menu_key("instruments.0.synth.amp.gainPct", -10)
+        .unwrap();
     let messages = runner.messages_with_snapshot().unwrap();
 
     assert_eq!(runner.instruments[0].synth_gain_pct, 70);
@@ -355,78 +353,66 @@ pub(crate) fn direct_dynamic_param_apply_does_not_bump_full_audio_config_revisio
 }
 
 #[test]
-pub(crate) fn unsupported_synth_param_apply_still_bumps_full_audio_config_revision() {
+pub(crate) fn osc_level_edit_reaches_audio_as_a_direct_synth_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    assert!(runner
-        .menu
-        .focus_item_key("instruments.0.synth.osc1.levelPct"));
     runner
-        .menu
-        .turn_key("instruments.0.synth.osc1.levelPct", -10);
-
-    runner.apply_menu_state().unwrap();
+        .edit_menu_key("instruments.0.synth.osc1.levelPct", -10)
+        .unwrap();
     let messages = runner.messages_with_snapshot().unwrap();
 
-    assert_eq!(runner.audio_config_revision, 1);
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::AudioCommands { commands }
-            if commands.iter().any(|command| matches!(
-                command,
-                RuntimeAudioCommand::SetAudioConfig { revision: 1, .. }
-            ))
-    )));
+    let level = runner
+        .menu
+        .number_for_key("instruments.0.synth.osc1.levelPct")
+        .unwrap();
+    assert_direct_synth_param(&messages, "synth.osc1.levelPct", level as f32);
+    assert_no_full_audio_config(&messages);
+    assert_eq!(runner.audio_config_revision, 0);
 }
 
 #[test]
-pub(crate) fn unsupported_sampler_param_apply_still_bumps_full_audio_config_revision() {
+pub(crate) fn sampler_filter_edit_reaches_audio_as_a_direct_sample_bank_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     let _ = runner.messages_with_snapshot().unwrap();
-    assert!(runner
-        .menu
-        .focus_item_key("instruments.0.sample.filter.cutoffHz"));
     runner
-        .menu
-        .turn_key("instruments.0.sample.filter.cutoffHz", -10);
-
-    runner.apply_menu_state().unwrap();
+        .edit_menu_key("instruments.0.sample.filter.cutoffHz", -10)
+        .unwrap();
     let messages = runner.messages_with_snapshot().unwrap();
 
-    assert_eq!(runner.audio_config_revision, 1);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetAudioConfig { revision: 1, .. }
+                RuntimeAudioCommand::SetSampleBankParam { instrument_slot: 0, path, .. }
+                    if path == "sample.filter.cutoffHz"
             ))
     )));
+    assert_no_full_audio_config(&messages);
+    assert_eq!(runner.audio_config_revision, 0);
 }
 
 #[test]
-pub(crate) fn direct_topology_apply_bumps_full_audio_config_revision() {
+pub(crate) fn instrument_type_edit_rebuilds_only_that_audio_slot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    assert!(runner.menu.focus_item_key("instruments.0.type"));
-    runner.menu.turn_key("instruments.0.type", 1);
-
-    runner.apply_menu_state().unwrap();
+    runner.edit_menu_key("instruments.0.type", 1).unwrap();
     let messages = runner.messages_with_snapshot().unwrap();
 
     assert_eq!(runner.instruments[0].kind, "sampler");
-    assert_eq!(runner.audio_config_revision, 1);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetAudioConfig { revision: 1, .. }
+                RuntimeAudioCommand::SetInstrumentSlot { instrument_slot: 0, .. }
             ))
     )));
+    assert_no_full_audio_config(&messages);
+    assert_eq!(runner.audio_config_revision, 0);
 }
 
 fn assert_direct_synth_param(messages: &[RunnerMessage], expected_path: &str, expected: f32) {

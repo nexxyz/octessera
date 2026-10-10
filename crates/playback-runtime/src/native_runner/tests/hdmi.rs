@@ -123,7 +123,7 @@ fn hdmi_full_menu_apply_normalizes_terminal() {
     assert!(runner.apply_menu_key_fast("hdmi.mode"));
     assert!(runner.menu.turn_key("hdmi.mode", -1));
 
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["hdmi"]["mode"],

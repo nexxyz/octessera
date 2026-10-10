@@ -50,7 +50,7 @@ pub(crate) fn native_text_row_edits_layer_name_and_clears_auto_name() {
     runner.menu.press();
     runner.menu.turn(1);
     let snapshot = runner.menu.snapshot();
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     assert!(snapshot.lines.iter().any(|line| line == "    * lifeA"));
     assert!(snapshot.lines.iter().all(|line| !line.contains('@')));
@@ -110,8 +110,7 @@ pub(crate) fn auto_named_layer_renames_when_behavior_changes_to_none() {
     runner.select_active_layer(1).unwrap();
     runner.menu.rebuild(runner.menu_config());
 
-    runner.menu.turn_key("layers.1.autoName", 1);
-    runner.apply_menu_state().unwrap();
+    runner.edit_menu_key("layers.1.autoName", 1).unwrap();
     assert_eq!(runner.layer_names[1], "sequencer");
     assert!(runner.layer_auto_names[1]);
 

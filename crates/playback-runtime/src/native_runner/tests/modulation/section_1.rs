@@ -29,8 +29,9 @@ pub(crate) fn link_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
     assert!(runner.link_layers[0].y_filter_resonance.enabled);
 
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.turn_key("layers.0.link.x.velocity.curve", -1);
-    runner.apply_menu_state().unwrap();
+    runner
+        .edit_menu_key("layers.0.link.x.velocity.curve", -1)
+        .unwrap();
     assert_eq!(runner.link_layers[0].x_velocity.curve, "linear");
 }
 

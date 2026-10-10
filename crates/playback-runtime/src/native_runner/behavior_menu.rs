@@ -358,44 +358,6 @@ impl NativeRunner {
             _ => None,
         }
     }
-
-    #[cfg(test)]
-    pub(super) fn behavior_config_from_menu(&self) -> Result<Value, String> {
-        let mut object = self
-            .behavior_config
-            .as_object()
-            .cloned()
-            .unwrap_or_default();
-
-        if let Ok(Some(config_items)) = self.behavior.config_menu(&self.engine_state()) {
-            for item in config_items {
-                let key = format!(
-                    "layers.{}.build.behaviorConfig.{}",
-                    self.active_layer_index, item.key
-                );
-                match item.item_type {
-                    BehaviorConfigItemType::Number => {
-                        if let Some(value) = self.menu.number_for_key(&key) {
-                            object.insert(item.key, Value::from(value));
-                        }
-                    }
-                    BehaviorConfigItemType::Bool => {
-                        if let Some(value) = self.menu.value_for_key(&key) {
-                            object.insert(item.key, Value::from(value == "true"));
-                        }
-                    }
-                    BehaviorConfigItemType::Enum => {
-                        if let Some(value) = self.menu.value_for_key(&key) {
-                            object.insert(item.key, Value::from(value));
-                        }
-                    }
-                    BehaviorConfigItemType::Action => {}
-                }
-            }
-        }
-
-        Ok(Value::Object(object))
-    }
 }
 
 pub(super) fn serialized_behavior_state_number_default(

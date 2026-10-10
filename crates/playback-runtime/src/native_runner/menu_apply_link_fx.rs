@@ -1,5 +1,3 @@
-#[cfg(test)]
-use super::menu_apply_fx_state::{apply_fx_bus_menu_state, apply_global_fx_slot_menu_state};
 use super::play_fx_config::{
     play_fx_param_default, play_fx_param_keys, play_fx_target_key, play_fx_type,
 };
@@ -9,54 +7,6 @@ use super::{
     NativeRunner, Value,
 };
 impl NativeRunner {
-    #[cfg(test)]
-    pub(super) fn apply_link_menu_state(&mut self) -> bool {
-        let mut changed = false;
-        for index in 0..self.link_layers.len() {
-            let prefix = format!("layers.{index}.link");
-            let mut layer_changed = false;
-            let Some(layer) = self.link_layers.get_mut(index) else {
-                continue;
-            };
-            layer_changed |= apply_link_scan_and_mapping_menu_state(&self.menu, layer, &prefix);
-            layer_changed |=
-                apply_link_probability_and_pitch_menu_state(&self.menu, layer, &prefix);
-            layer_changed |= apply_link_axis_menu_state(&self.menu, layer, &prefix, "x");
-            layer_changed |= apply_link_axis_menu_state(&self.menu, layer, &prefix, "y");
-            let arp_changed =
-                apply_link_arp_menu_state(&self.menu, layer, &format!("{prefix}.arp"));
-            layer_changed |= arp_changed;
-            if arp_changed {
-                self.clear_link_arp_state_for_layer(index);
-            }
-            changed |= layer_changed;
-        }
-        changed |= apply_global_link_lfos_menu_state(&self.menu, &mut self.link_lfos);
-        changed
-    }
-
-    #[cfg(test)]
-    pub(super) fn apply_fx_menu_state(&mut self) -> bool {
-        let mut changed = false;
-        for index in 0..self.fx_buses.len() {
-            let prefix = format!("mixer.buses.{index}");
-            let Some(bus) = self.fx_buses.get_mut(index) else {
-                continue;
-            };
-            changed |= apply_fx_bus_menu_state(&self.menu, bus, &prefix);
-        }
-        for index in 0..self.global_fx_slots.len() {
-            changed |= apply_global_fx_slot_menu_state(
-                &self.menu,
-                &mut self.global_fx_slots,
-                &mut self.global_fx_params,
-                index,
-            );
-        }
-        self.warn_if_bus_fx_over_budget();
-        changed
-    }
-
     pub(super) fn apply_play_fx_menu_state(&mut self) -> bool {
         let before = self.play_fx_selected.clone();
         let fx_type = self
@@ -430,18 +380,6 @@ pub(super) fn apply_link_axis_menu_state(
             &mut layer.y_filter_resonance,
             &format!("{prefix}.y.filterResonance"),
         );
-    }
-    changed
-}
-
-#[cfg(test)]
-pub(super) fn apply_global_link_lfos_menu_state(
-    menu: &super::NativeMenuModel,
-    lfos: &mut [super::NativeLinkLfo; super::GLOBAL_LFO_COUNT],
-) -> bool {
-    let mut changed = false;
-    for (index, lfo) in lfos.iter_mut().enumerate() {
-        changed |= apply_link_lfo_slot_menu_state(menu, lfo, &format!("linkLfos.{index}"));
     }
     changed
 }

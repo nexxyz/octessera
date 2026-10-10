@@ -397,14 +397,14 @@ pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
     assert!(runner.menu.focus_item_key("xy:x.rangeMin"));
     runner.menu.state.editing = true;
     runner.menu.turn(25);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
     assert_eq!(runner.xy_x_binding.as_ref().unwrap().user_min, Some(25.0));
     assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().user_min, None);
 
     assert!(runner.menu.focus_item_key("param:0:x:0.rangeMax"));
     runner.menu.state.editing = true;
     runner.menu.turn(-8);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
     assert_eq!(
         runner.param_mods[0].x[0].as_ref().unwrap().user_max,
         Some(24.0)

@@ -153,15 +153,14 @@ pub(crate) fn duck_fx_menu_serializes_accepted_boundaries_without_rescaling() {
         ("attackMs", 500),
         ("releaseMs", 5000),
     ] {
+        let key = format!("mixer.buses.0.slot2.params.{key}");
         assert!(
-            runner
-                .menu
-                .set_number_value_for_key(&format!("mixer.buses.0.slot2.params.{key}"), value),
+            runner.menu.set_number_value_for_key(&key, value),
             "{key} menu value was not changed"
         );
+        runner.apply_menu_key_edit(&key).unwrap();
     }
 
-    runner.apply_menu_state().unwrap();
     let params = &runner.fx_buses[0].slot2_params;
     assert_eq!(params["threshold"], 1.0);
     assert_eq!(params["amountPct"], 100);

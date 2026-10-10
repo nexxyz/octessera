@@ -300,38 +300,38 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     runner.menu.state.cursor = 7;
     runner.menu.state.editing = true;
     runner.menu.turn(-20);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     runner.menu.state.cursor = 8;
     runner.menu.turn(1);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     runner.menu.state.stack = vec![2, 0, 0, 2, 8];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(-10);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     runner.menu.state.stack = vec![2, 0, 0, 2, 10];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(1);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
     runner.menu.state.cursor = 1;
     runner.menu.turn(-10);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     runner.menu.state.stack = vec![2, 0, 0, 2];
     runner.menu.state.cursor = 11;
     runner.menu.state.editing = true;
     runner.menu.turn(-25);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     runner.menu.state.stack = vec![2, 0, 0, 2, 12];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(4);
-    runner.apply_menu_state().unwrap();
+    runner.apply_current_menu_edit().unwrap();
 
     let sample = &runner.config_payload()["runtimeConfig"]["instruments"][0]["sample"];
     assert_eq!(sample["baseVelocity"], 80);

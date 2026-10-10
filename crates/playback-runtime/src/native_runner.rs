@@ -124,13 +124,9 @@ mod menu_apply_fast_structural;
 mod menu_apply_fast_usb;
 mod menu_apply_fast_values;
 mod menu_apply_fx_state;
-#[cfg(test)]
-mod menu_apply_global;
 mod menu_apply_instrument;
 mod menu_apply_instrument_midi;
 mod menu_apply_instrument_synth;
-#[cfg(test)]
-mod menu_apply_layers;
 mod menu_apply_link_fx;
 mod menu_apply_structural;
 mod menu_value_apply;
