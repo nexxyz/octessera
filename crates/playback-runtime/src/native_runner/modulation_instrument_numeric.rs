@@ -8,7 +8,7 @@ pub(super) fn apply_instrument_numeric_binding_value(
     value: f64,
 ) -> bool {
     match field {
-        "mixer.volume" => instrument.volume = value.round().clamp(0.0, 127.0) as u8,
+        "mixer.volume" => instrument.volume = value.round().clamp(0.0, 100.0) as u8,
         "mixer.panPos" => {
             instrument.pan_pos = value.round().clamp(0.0, f64::from(PAN_POSITION_COUNT - 1)) as u8
         }
@@ -263,7 +263,7 @@ pub(super) fn apply_instrument_numeric_binding_value(
         ),
         "midi.channel" => instrument.midi_channel = value.round().clamp(1.0, 16.0) as u8,
         "midi.velocity" => instrument.midi_velocity = value.round().clamp(1.0, 127.0) as u8,
-        "midi.durationMs" => instrument.midi_duration_ms = value.round().clamp(10.0, 5000.0) as u16,
+        "midi.durationMs" => instrument.midi_duration_ms = value.round().clamp(10.0, 2000.0) as u16,
         _ => return false,
     }
     true

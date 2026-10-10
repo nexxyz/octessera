@@ -35,7 +35,7 @@ pub(super) fn apply_instrument_mixer_payload(slot: &Value, instrument: &mut Nati
     };
     if let Some(volume) = mixer.get("volume").and_then(Value::as_u64) {
         if let Ok(volume) = u8::try_from(volume) {
-            instrument.volume = volume.min(127);
+            instrument.volume = volume.min(100);
         }
     }
     if let Some(pan_pos) = mixer.get("panPos").and_then(Value::as_u64) {
@@ -208,7 +208,7 @@ pub(super) fn apply_midi_value_block(
     }
     if let Some(duration_ms) = value.get("durationMs").and_then(Value::as_u64) {
         if let Ok(duration_ms) = u16::try_from(duration_ms) {
-            instrument.midi_duration_ms = duration_ms.clamp(10, 5000);
+            instrument.midi_duration_ms = duration_ms.clamp(10, 2000);
         }
     }
 }

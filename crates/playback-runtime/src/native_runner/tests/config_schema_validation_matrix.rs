@@ -102,6 +102,16 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         |payload| payload["runtimeConfig"]["recording"]["maxMinutes"] = json!(121),
     );
     assert_validation_error(
+        "instrument volume",
+        "runtimeConfig.instruments[0].mixer.volume is outside the supported range",
+        |payload| payload["runtimeConfig"]["instruments"][0]["mixer"]["volume"] = json!(101),
+    );
+    assert_validation_error(
+        "MIDI note duration",
+        "runtimeConfig.instruments[0].midi.durationMs is outside the supported range",
+        |payload| payload["runtimeConfig"]["instruments"][0]["midi"]["durationMs"] = json!(2001),
+    );
+    assert_validation_error(
         "global modulation transient",
         "runtimeConfig.linkLfos[0].phasePulses is transient and cannot be serialized",
         |payload| payload["runtimeConfig"]["linkLfos"][0]["phasePulses"] = json!(1),

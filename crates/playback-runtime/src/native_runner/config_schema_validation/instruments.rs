@@ -73,7 +73,7 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
         bool_field(instrument, "autoName", &path)?;
         if let Some(mixer) = object_field(instrument, "mixer", &path)? {
             let mixer_path = format!("{path}.mixer");
-            unsigned_field(mixer, "volume", &mixer_path, 0, 127)?;
+            unsigned_field(mixer, "volume", &mixer_path, 0, 100)?;
             unsigned_field(
                 mixer,
                 "panPos",
@@ -94,7 +94,7 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
                 bool_field(midi, "enabled", &midi_path)?;
                 unsigned_field(midi, "channel", &midi_path, 1, 16)?;
                 unsigned_field(midi, "velocity", &midi_path, 1, 127)?;
-                unsigned_field(midi, "durationMs", &midi_path, 10, 5000)?;
+                unsigned_field(midi, "durationMs", &midi_path, 10, 2000)?;
             }
         }
     }
