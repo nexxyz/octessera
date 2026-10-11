@@ -194,3 +194,19 @@ fn an_lfo_without_a_target_stays_off_and_its_row_says_so() {
         Some("false")
     );
 }
+
+#[test]
+fn a_link_axis_invert_without_a_target_stays_off_and_its_row_says_so() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.param_mods[0].x[0] = None;
+    runner.menu.rebuild(runner.menu_config());
+    edit_with_encoder(&mut runner, "layers.0.paramMods.x.0.invert");
+    assert!(runner.param_mods[0].x[0].is_none());
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("layers.0.paramMods.x.0.invert")
+            .as_deref(),
+        Some("false")
+    );
+}

@@ -3,6 +3,9 @@ use super::{derive_bus_name, derive_instrument_name, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_auto_name_menu_key_fast(&mut self, key: &str) -> Option<bool> {
+        if !key.ends_with(".autoName") {
+            return None;
+        }
         let auto_name = self.menu.value_for_key(key)? == "true";
         let changed = if let Some(rest) = key.strip_prefix("instruments.") {
             let index = auto_name_index(rest)?;

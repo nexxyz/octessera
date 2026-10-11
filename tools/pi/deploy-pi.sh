@@ -304,6 +304,7 @@ After=NetworkManager.service ssh.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/octessera-network-health
+AllowedCPUs=2-3
 EOL
 sudo tee /etc/systemd/system/octessera-network-health.timer > /dev/null <<'EOL'
 [Unit]

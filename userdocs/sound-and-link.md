@@ -111,8 +111,8 @@ When several notes arrive together, **Arp** can spread them out: `up`,
 - **LFOs** gives you eight global sine LFOs, not tied to any layer. Pick a
   **Target** (the list only offers parameters that can be wobbled safely
   while playing), a **Period** in note lengths, and a **Depth**, and let
-  things breathe. If another mapping already owns that parameter, the OLED
-  says `Mapping rejected`.
+  things breathe. An LFO adds its wobble on top of anything else steering the
+  same parameter.
 - **BPM** sets the tempo.
 - **Swing** delays the off-beats of internal steps and scanning, for groove
   without bending the main clock.
@@ -126,7 +126,7 @@ point at them.
 
 | Type | What it is | Where to start |
 |---|---|---|
-| `synth` | Two oscillators into a filter, each with its own envelope | Osc Wave and Octave, then Filter Cutoff and the Filter Env |
+| `synth` | Two oscillators into a filter, with an amp envelope and a filter envelope | Osc Wave and Octave, then Filter Cutoff and the Filter Env |
 | `fm` | A sine carrier and modulator; bells, keys, glassy tones | Tone > Ratio and Index, then Index Env Decay |
 | `pluck` (shown as Plucked) | A modelled ringing string | String > Decay, Brightness, and Pick Pos |
 | `drum` | An eight-voice kit; cells are assigned to voices | Kit > Load, then **Assign** cells to voices and **Cell Tune** them |

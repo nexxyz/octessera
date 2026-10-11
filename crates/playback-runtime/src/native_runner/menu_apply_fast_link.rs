@@ -112,9 +112,18 @@ impl NativeRunner {
         else {
             return false;
         };
-        if let Some(binding) = binding.as_mut().filter(|binding| binding.invert != invert) {
+        let changed = binding.as_mut().is_some_and(|binding| {
+            let changed = binding.invert != invert;
             binding.invert = invert;
+            changed
+        });
+        let stored = binding.as_ref().is_some_and(|binding| binding.invert);
+        self.menu.set_bool_value_for_key(key, stored);
+        if changed {
             self.mark_fast_autosave_dirty();
+            if let Err(error) = self.process_dirty_modulation_step(false) {
+                self.show_toast(format!("modulation composition unavailable: {error}"));
+            }
         }
         true
     }
