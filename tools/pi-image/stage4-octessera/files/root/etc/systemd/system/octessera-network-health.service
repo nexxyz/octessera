@@ -5,3 +5,4 @@ After=NetworkManager.service ssh.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/octessera-network-health
+AllowedCPUs=2-3

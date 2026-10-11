@@ -315,6 +315,10 @@ sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$ROOTF
 # bluez-alsa encodes the Bluetooth audio monitor; keep it below the audio threads.
 install -d "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d"
 printf '[Service]\nNice=10\nCPUAffinity=2 3\n' > "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d/10-octessera-background.conf"
+# D-Bus wakes for every service start and can briefly take the audio core (CPU 1)
+# from the callback; keep it, like the network-health job, on cores 2 and 3.
+install -d "$ROOTFS_DIR/etc/systemd/system/dbus.service.d"
+printf '[Service]\nAllowedCPUs=2-3\n' > "$ROOTFS_DIR/etc/systemd/system/dbus.service.d/10-octessera-background.conf"
 # The daily apt and man-db jobs install nothing here, but their cache and index
 # rebuilds saturate the shared memory bus and make the audio callback underrun.
 for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer; do

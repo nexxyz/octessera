@@ -140,7 +140,20 @@ hide the limit. Correlate the step lines with `underrun occurred` lines and the
 
 Run boards one at a time when comparing underrun counts, and keep the study
 host quiet: a shell loop that spawns processes every second on the board shows
-up as rare extra underruns. Tools that found real problems:
+up as rare extra underruns. Sampling over SSH with `sudo` is not quiet either:
+each `sudo` wakes D-Bus and systemd, and over a long soak a 20-second sampler
+roughly tripled the Raspberry's underrun count and turned a clean Orange into
+one that clicked every few minutes. Judge long runs only with sampling off.
+
+On the Raspberry, ordinary tasks that wake on the audio core (CPU 1) can take
+it from the callback for a few milliseconds: the kernel's fair server reserves
+them time even against real-time threads. The once-a-minute network-health job
+and D-Bus were the culprits, so both are limited to cores 2 and 3
+(`AllowedCPUs=2-3`); quiet 2-hour Latency soaks with 16 held notes went from
+8–12 underruns to none. If underruns come back, trace CPU 1 and look for the
+callback being switched out while still runnable (`prev_state=R`).
+
+Tools that found real problems:
 
 - Orange has `perf`: `perf record -k CLOCK_MONOTONIC -C 1` on the audio core, or
   `-g -t <runtime tid>` for the runtime thread, lines up with journal timestamps.
