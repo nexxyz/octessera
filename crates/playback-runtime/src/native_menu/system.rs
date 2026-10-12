@@ -402,15 +402,15 @@ fn setup_group(config: &NativeMenuConfig) -> NativeMenuItem {
 
 fn show_hold_group() -> NativeMenuItem {
     group(
-        "Show Hold",
+        "Live Show Mode",
         vec![
             action_item(
-                "Hold 48h",
+                "Start 48h",
                 "maintenance.hold",
                 NativeMenuAction::PlatformEffect("maintenance.hold".into()),
             ),
             action_item(
-                "Release",
+                "End",
                 "maintenance.release",
                 NativeMenuAction::PlatformEffect("maintenance.release".into()),
             ),

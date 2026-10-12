@@ -98,11 +98,11 @@ A handful of useful housekeeping jobs still run on a timer: log rotation, SD
 card trim, temp-file cleanup, a package-database backup, and on the Raspberry
 a once-a-minute Wi-Fi health log. Each of them has been run during playback
 without disturbing the sound, but if you'd rather not find out the hard way,
-use **System > Setup > Show Hold > Hold 48h** before a show. It postpones those
-jobs for 48 hours (a reboot doesn't cancel it); they simply run at their next
-scheduled time afterwards. On the Raspberry the Wi-Fi check stops completely
-for the hold, and with it the automatic Wi-Fi reconnect, so get the network
-settled before you hold. **Release** ends the hold early. A couple of tiny
+switch on **System > Setup > Live Show Mode > Start 48h** before a show. It
+postpones those jobs for 48 hours (a reboot doesn't cancel it); they simply run
+at their next scheduled time afterwards. On the Raspberry the Wi-Fi check stops
+completely while the mode is on, and with it the automatic Wi-Fi reconnect, so
+get the network settled first. **End** switches the mode off early. A couple of tiny
 chores always keep running because things break without them: saving the
 clock, and on the Orange trimming the in-memory logs.
 

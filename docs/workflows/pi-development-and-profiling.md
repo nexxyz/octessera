@@ -152,7 +152,7 @@ D-Bus and systemd launching that job were the culprits, so all three are
 limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's `init.scope` is set at
 every boot by `octessera-performance-governor.service`, as scopes keep no
 persistent drop-ins). Quiet Latency soaks with 16 held notes went from about
-10 underruns per 2 hours to none, and Show Hold stops the job entirely. If underruns come back, trace CPU 1 and look for the
+10 underruns per 2 hours to none, and Live Show Mode stops the job entirely. If underruns come back, trace CPU 1 and look for the
 callback being switched out while still runnable (`prev_state=R`).
 
 Tools that found real problems:

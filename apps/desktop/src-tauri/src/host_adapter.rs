@@ -244,7 +244,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
             }]),
             RuntimePlatformEffect::MaintenanceHold { .. } => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::StoreError {
-                    message: "Show hold is board-only".into(),
+                    message: "Live Show Mode is board-only".into(),
                 },
             }]),
             RuntimePlatformEffect::AudioCommand { command } => {

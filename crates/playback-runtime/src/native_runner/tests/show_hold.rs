@@ -34,7 +34,7 @@ fn show_hold_actions_emit_the_hold_effect_without_confirmation() {
     ));
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "Show hold: 48h"
+        "Live Show Mode: 48h"
     );
 
     let released = press_action(&mut runner, "maintenance.release");
@@ -44,7 +44,7 @@ fn show_hold_actions_emit_the_hold_effect_without_confirmation() {
     ));
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "Show hold released"
+        "Live Show Mode off"
     );
 }
 

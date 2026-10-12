@@ -286,7 +286,7 @@ impl PiHostCore {
                 if let Err(error) = crate::show_hold::set_hold(*active) {
                     return Some(vec![failure_message(
                         request,
-                        format!("Show hold unavailable: {error}"),
+                        format!("Live Show Mode unavailable: {error}"),
                     )]);
                 }
                 RuntimeStoreResult::OperationSucceeded {

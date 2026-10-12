@@ -240,9 +240,9 @@ impl NativeRunner {
                 } else if action_type == "maintenance.hold" || action_type == "maintenance.release"
                 {
                     self.show_toast(if action_type == "maintenance.hold" {
-                        "Show hold: 48h"
+                        "Live Show Mode: 48h"
                     } else {
-                        "Show hold released"
+                        "Live Show Mode off"
                     });
                     self.platform_effect_for_action(&action_type)
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
