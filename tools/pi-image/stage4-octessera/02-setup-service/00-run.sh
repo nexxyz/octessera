@@ -252,6 +252,12 @@ install -D -m 0644 \
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-network-health.timer" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-network-health.timer"
+for unit in octessera-show-hold.path octessera-show-hold.service; do
+    install -D -m 0644 "$STAGE_FILES/root/etc/systemd/system/$unit" "$ROOTFS_DIR/etc/systemd/system/$unit"
+done
+install -D -m 0755 \
+    "$STAGE_FILES/root/usr/local/sbin/octessera-show-hold-apply" \
+    "$ROOTFS_DIR/usr/local/sbin/octessera-show-hold-apply"
 install -D -m 0440 \
     "$STAGE_FILES/root/etc/sudoers.d/octessera-shutdown" \
     "$ROOTFS_DIR/etc/sudoers.d/octessera-shutdown"
@@ -289,6 +295,9 @@ ln -sf ../octessera-boot-splash.service \
     "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service"
 ln -sf ../octessera-network-health.timer \
     "$ROOTFS_DIR/etc/systemd/system/timers.target.wants/octessera-network-health.timer"
+for unit in octessera-show-hold.path octessera-show-hold.service; do
+    ln -sf "../$unit" "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/$unit"
+done
 ln -sf ../octessera-setup-request.path \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-setup-request.path"
 
@@ -316,7 +325,8 @@ sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$ROOTF
 install -d "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d"
 printf '[Service]\nNice=10\nCPUAffinity=2 3\n' > "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d/10-octessera-background.conf"
 # D-Bus wakes for every service start and can briefly take the audio core (CPU 1)
-# from the callback; keep it, like the network-health job, on cores 2 and 3.
+# from the callback; keep it, like the network-health job and systemd itself
+# (octessera-performance-governor.service), on cores 2 and 3.
 install -d "$ROOTFS_DIR/etc/systemd/system/dbus.service.d"
 printf '[Service]\nAllowedCPUs=2-3\n' > "$ROOTFS_DIR/etc/systemd/system/dbus.service.d/10-octessera-background.conf"
 # The daily apt and man-db jobs install nothing here, but their cache and index

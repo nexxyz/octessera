@@ -1,0 +1,21 @@
+#!/bin/sh
+# Stops the once-a-minute network check for the length of a Show Hold, so a show
+# has no per-minute service launches at all, and starts it again afterwards.
+set -eu
+
+until_file=/var/lib/octessera/show-hold/until
+release=octessera-show-hold-release
+
+until=$(cat "$until_file" 2>/dev/null || true)
+case "$until" in ""|*[!0-9]*) until=0 ;; esac
+now=$(date +%s)
+
+systemctl stop "$release.timer" >/dev/null 2>&1 || true
+systemctl reset-failed "$release.service" >/dev/null 2>&1 || true
+if [ "$until" -gt "$now" ] && [ "$until" -le $((now + 173100)) ]; then
+    systemctl stop octessera-network-health.timer
+    systemd-run --quiet --unit="$release" --on-active=$((until - now)) \
+        --timer-property=AccuracySec=1s /bin/systemctl start octessera-network-health.timer
+else
+    systemctl start octessera-network-health.timer
+fi

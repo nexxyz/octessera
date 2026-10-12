@@ -56,6 +56,7 @@ tools/pi-image/stage4-octessera/files/root/usr/local/sbin/*
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-sd-card
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-wifi-foundation
+!tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-show-hold-apply
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup
 !tools/pi-image/stage4-octessera/files/root/usr/local/lib/
 tools/pi-image/stage4-octessera/files/root/usr/local/lib/*

@@ -454,6 +454,7 @@ Before=octessera.service
 [Service]
 Type=oneshot
 ExecStart=/bin/sh -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$gov" ] || continue; printf performance > "$gov" || true; done'
+ExecStartPost=-/bin/systemctl set-property --runtime init.scope AllowedCPUs=2-3
 RemainAfterExit=yes
 
 [Install]

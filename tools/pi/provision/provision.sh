@@ -342,6 +342,9 @@ install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-oled-shutdown.servic
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-performance-governor.service" /etc/systemd/system/octessera-performance-governor.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-network-health.service" /etc/systemd/system/octessera-network-health.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-network-health.timer" /etc/systemd/system/octessera-network-health.timer
+install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-show-hold.path" /etc/systemd/system/octessera-show-hold.path
+install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-show-hold.service" /etc/systemd/system/octessera-show-hold.service
+install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-show-hold-apply" /usr/local/sbin/octessera-show-hold-apply
 install_file 0644 "$IMAGE_ROOT/etc/systemd/journald.conf.d/10-octessera.conf" /etc/systemd/journald.conf.d/10-octessera.conf
 install_file 0644 "$IMAGE_ROOT/etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf" /etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf
 install_file 0755 "$IMAGE_ROOT/usr/local/bin/octessera-network-health" /usr/local/bin/octessera-network-health
@@ -365,6 +368,9 @@ sudo sed -i 's/\r$//' \
     "$(target_path /etc/systemd/system/octessera-performance-governor.service)" \
     "$(target_path /etc/systemd/system/octessera-network-health.service)" \
     "$(target_path /etc/systemd/system/octessera-network-health.timer)" \
+    "$(target_path /etc/systemd/system/octessera-show-hold.path)" \
+    "$(target_path /etc/systemd/system/octessera-show-hold.service)" \
+    "$(target_path /usr/local/sbin/octessera-show-hold-apply)" \
     "$(target_path /etc/systemd/journald.conf.d/10-octessera.conf)" \
     "$(target_path /etc/NetworkManager/conf.d/10-octessera-wifi-powersave.conf)" \
     "$(target_path /etc/profile.d/octessera-welcome.sh)"
@@ -474,6 +480,7 @@ fi
 sudo systemctl enable octessera-usb-gadget.service >/dev/null
 sudo systemctl enable --now octessera-update-recovery.service >/dev/null
 sudo systemctl enable --now octessera-network-health.timer >/dev/null
+sudo systemctl enable --now octessera-show-hold.path octessera-show-hold.service >/dev/null
 sudo systemctl enable octessera-oled-shutdown.service >/dev/null
 sudo systemctl start octessera-oled-shutdown.service
 sudo systemctl enable octessera-performance-governor.service >/dev/null
