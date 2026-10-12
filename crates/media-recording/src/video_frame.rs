@@ -1,8 +1,7 @@
 use super::{LedColors, OLED_FRAME_BYTES, OLED_WIDTH, VIDEO_HEIGHT, VIDEO_WIDTH};
-use image::codecs::jpeg::JpegEncoder;
-use image::ColorType;
+use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+use image::{ExtendedColorType, ImageEncoder};
 
-const JPEG_QUALITY: u8 = 82;
 const BLOCK: usize = 16;
 const GAP: usize = 1;
 const KEY_COLUMN_X: usize = OLED_WIDTH as usize;
@@ -78,8 +77,8 @@ pub(crate) fn encode_video_frame(
         draw_block(&mut rgb, GRID_X + column * BLOCK, row * BLOCK, *color);
     }
     let mut encoded = Vec::new();
-    JpegEncoder::new_with_quality(&mut encoded, JPEG_QUALITY)
-        .encode(&rgb, VIDEO_WIDTH, VIDEO_HEIGHT, ColorType::Rgb8.into())
+    PngEncoder::new_with_quality(&mut encoded, CompressionType::Fast, FilterType::Adaptive)
+        .write_image(&rgb, VIDEO_WIDTH, VIDEO_HEIGHT, ExtendedColorType::Rgb8)
         .map_err(|error| error.to_string())?;
     Ok(encoded)
 }
@@ -125,16 +124,8 @@ fn put(rgb: &mut [u8], x: usize, y: usize, color: [u8; 3]) {
 mod tests {
     use super::*;
 
-    fn decode(jpeg: &[u8]) -> image::RgbImage {
-        image::load_from_memory(jpeg).unwrap().to_rgb8()
-    }
-
-    fn near(actual: &image::Rgb<u8>, expected: [u8; 3]) -> bool {
-        actual
-            .0
-            .iter()
-            .zip(expected)
-            .all(|(a, e)| a.abs_diff(e) <= 40)
+    fn decode(frame: &[u8]) -> image::RgbImage {
+        image::load_from_memory(frame).unwrap().to_rgb8()
     }
 
     #[test]
@@ -152,17 +143,18 @@ mod tests {
         let image = decode(&encode_video_frame(&oled, &leds).unwrap());
 
         assert_eq!(image.dimensions(), (VIDEO_WIDTH, VIDEO_HEIGHT));
-        assert!(near(image.get_pixel(64, 64), [255, 255, 255]));
-        assert!(near(image.get_pixel(136, 8), [0, 0, 0]));
-        assert!(near(image.get_pixel(130, 66), [0, 255, 0]));
-        assert!(image
-            .get_pixel(136, 71)
-            .0
-            .iter()
-            .all(|channel| *channel < 60));
-        assert!(near(image.get_pixel(130, 126), [255, 255, 0]));
-        assert!(near(image.get_pixel(152, 8), [255, 0, 0]));
-        assert!(near(image.get_pixel(264, 120), [0, 0, 255]));
-        assert!(near(image.get_pixel(200, 56), [0, 0, 0]));
+        let pixel = |x, y| image.get_pixel(x, y).0;
+        assert_eq!(pixel(64, 64), [255, 255, 255]);
+        assert_eq!(pixel(136, 8), [0, 0, 0]);
+        assert_eq!(pixel(128, 64), [0, 0, 0]);
+        assert_eq!(pixel(129, 65), [0, 255, 0]);
+        assert_eq!(pixel(136, 71), [0, 0, 0]);
+        assert_eq!(pixel(142, 126), [255, 255, 0]);
+        assert_eq!(pixel(144, 0), [0, 0, 0]);
+        assert_eq!(pixel(145, 1), [255, 0, 0]);
+        assert_eq!(pixel(158, 14), [255, 0, 0]);
+        assert_eq!(pixel(159, 15), [0, 0, 0]);
+        assert_eq!(pixel(270, 126), [0, 0, 255]);
+        assert_eq!(pixel(200, 56), [0, 0, 0]);
     }
 }

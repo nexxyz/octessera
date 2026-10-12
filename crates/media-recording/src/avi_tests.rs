@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 #[test]
-fn avi_headers_chunks_index_and_jpeg_are_valid() {
+fn avi_headers_chunks_index_and_png_frames_are_valid() {
     let dir = temp_dir("avi-format");
     let mut service = RecorderService::new(dir.clone());
     let recording = service.start_oled_with_max_frames(4_410).unwrap();
@@ -52,7 +52,7 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
     let stream_headers: Vec<_> = find_chunks(&bytes, *b"strh").collect();
     assert_eq!(stream_headers.len(), 2);
     assert_eq!(&stream_headers[0].payload[..4], b"vids");
-    assert_eq!(&stream_headers[0].payload[4..8], b"MJPG");
+    assert_eq!(&stream_headers[0].payload[4..8], b"MPNG");
     assert_eq!(read_u32(stream_headers[0].payload, 20), 1);
     assert_eq!(read_u32(stream_headers[0].payload, 24), VIDEO_FPS);
     assert_eq!(read_u32(stream_headers[0].payload, 32), 2);
@@ -65,7 +65,7 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
     assert_eq!(formats.len(), 2);
     assert_eq!(read_u32(formats[0].payload, 4), VIDEO_WIDTH);
     assert_eq!(read_u32(formats[0].payload, 8), 128);
-    assert_eq!(&formats[0].payload[16..20], b"MJPG");
+    assert_eq!(&formats[0].payload[16..20], b"MPNG");
     assert_eq!(read_u16(formats[1].payload, 0), 1);
     assert_eq!(read_u16(formats[1].payload, 2), 2);
     assert_eq!(read_u32(formats[1].payload, 4), SAMPLE_RATE);
@@ -286,12 +286,12 @@ fn avi_size_limit_stops_at_a_complete_interleave_unit() {
         state,
         oled,
         max_frames: 8_820,
-        file_limit: 20_000,
+        file_limit: 15_000,
     })
     .unwrap();
     assert_eq!(outcome.frames_written, 2_205);
     assert_eq!(outcome.status, RecordingStatus::Complete);
-    assert!(fs::metadata(outcome.path).unwrap().len() <= 20_000);
+    assert!(fs::metadata(outcome.path).unwrap().len() <= 15_000);
     remove_temp_dir(dir);
 }
 

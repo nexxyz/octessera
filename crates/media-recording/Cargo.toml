@@ -8,4 +8,4 @@ license-file.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-image = { version = "0.25", default-features = false, features = ["jpeg"] }
+image = { version = "0.25", default-features = false, features = ["png"] }

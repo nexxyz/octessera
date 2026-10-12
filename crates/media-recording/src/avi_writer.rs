@@ -90,7 +90,7 @@ impl AviWriter {
         })
     }
 
-    pub(crate) fn write_unit(&mut self, jpeg: &[u8], audio: &[i16]) -> Result<bool, String> {
+    pub(crate) fn write_unit(&mut self, frame: &[u8], audio: &[i16]) -> Result<bool, String> {
         let audio_bytes = audio.len().saturating_mul(2);
         let projected_index =
             8_u64.saturating_add((self.index.len() as u64 + 2).saturating_mul(16));
@@ -98,13 +98,13 @@ impl AviWriter {
             .file
             .stream_position()
             .unwrap_or(u64::MAX)
-            .saturating_add(chunk_size(jpeg.len()))
+            .saturating_add(chunk_size(frame.len()))
             .saturating_add(chunk_size(audio_bytes))
             .saturating_add(projected_index);
         if projected > self.file_limit || projected.saturating_sub(8) > u64::from(u32::MAX) {
             return Ok(false);
         }
-        self.write_chunk(*b"00dc", jpeg, 0x10)
+        self.write_chunk(*b"00dc", frame, 0x10)
             .map_err(|error| error.to_string())?;
         self.write_audio(audio).map_err(|error| error.to_string())?;
         Ok(true)
@@ -341,7 +341,7 @@ fn write_video_stream(file: &mut File) -> io::Result<(u64, u64, u64)> {
     let start = file.stream_position()?;
     let mut data = [0_u8; 56];
     data[0..4].copy_from_slice(b"vids");
-    data[4..8].copy_from_slice(b"MJPG");
+    data[4..8].copy_from_slice(b"MPNG");
     data[20..24].copy_from_slice(&1_u32.to_le_bytes());
     data[24..28].copy_from_slice(&VIDEO_FPS.to_le_bytes());
     data[40..44].copy_from_slice(&0xffff_ffff_u32.to_le_bytes());
@@ -356,7 +356,7 @@ fn write_video_stream(file: &mut File) -> io::Result<(u64, u64, u64)> {
     format[8..12].copy_from_slice(&VIDEO_HEIGHT.to_le_bytes());
     format[12..14].copy_from_slice(&1_u16.to_le_bytes());
     format[14..16].copy_from_slice(&24_u16.to_le_bytes());
-    format[16..20].copy_from_slice(b"MJPG");
+    format[16..20].copy_from_slice(b"MPNG");
     file.write_all(&format)?;
     Ok((start + 32, start + 36, start_format + 20))
 }

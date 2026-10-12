@@ -13,7 +13,8 @@ Open `System > Recording`:
   signed 16-bit PCM. External MIDI-only instruments are not included because
   their sound is made by the outside device.
 - **Audio+Video** writes an AVI with the same stereo sound plus a 272x128
-  MJPEG picture at 20 fps: the OLED on the left, the four NeoKeys as a little
+  lossless picture at 20 fps (each frame is a PNG, so every pixel is exactly
+  what the instrument showed): the OLED on the left, the four NeoKeys as a little
   column in the middle (Back at the top, Fn at the bottom, each wearing a tiny
   black keycap glyph), and the 8x8 grid on the right as chunky blocks. The
   LEDs are shown at full color, so a video still reads fine if you play with
@@ -50,6 +51,7 @@ recording. Existing takes are not overwritten.
 ## Playing the result
 
 WAV files work with Audacity, a normal DAW, VLC, `ffplay`, and most everyday
-audio tools. Try VLC, mpv, or `ffplay` for an Audio+Video AVI. If one player
-doesn't open it, try another common player or convert it with a current FFmpeg
-build.
+audio tools. Try VLC, mpv, or `ffplay` for an Audio+Video AVI. Some video
+editors don't read PNG-frame AVIs directly; convert first with FFmpeg, e.g.
+`ffmpeg -i take.avi -c:v libx264 -crf 12 -pix_fmt yuv444p -c:a aac take.mp4`,
+or keep it pixel-exact with `-c:v ffv1`.

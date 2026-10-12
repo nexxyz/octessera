@@ -162,15 +162,15 @@ impl Timeline {
 
     fn flush_units(&mut self) -> bool {
         while self.pending_audio.len() >= VIDEO_UNIT_FRAMES * 2 {
-            let jpeg = match self.video_bytes(self.writer.audio_frames) {
-                Ok(jpeg) => jpeg,
+            let frame = match self.video_bytes(self.writer.audio_frames) {
+                Ok(frame) => frame,
                 Err(error) => {
                     self.writer.fail(error);
                     return true;
                 }
             };
             let audio = self.pending_audio[..VIDEO_UNIT_FRAMES * 2].to_vec();
-            match self.writer.write_unit(&jpeg, &audio) {
+            match self.writer.write_unit(&frame, &audio) {
                 Ok(true) => {}
                 Ok(false) => return true,
                 Err(error) => {
@@ -210,11 +210,11 @@ impl Timeline {
 
     fn finish(mut self, mut stats: FinishStats) -> Result<RecordingOutcome, RecordingError> {
         if !self.pending_audio.is_empty() {
-            let jpeg = self
+            let frame = self
                 .video_bytes(self.writer.audio_frames)
                 .map_err(|error| recording_error(self.writer.partial_path(), error))?;
             let audio = std::mem::take(&mut self.pending_audio);
-            match self.writer.write_unit(&jpeg, &audio) {
+            match self.writer.write_unit(&frame, &audio) {
                 Ok(true) | Ok(false) => {}
                 Err(error) => self.writer.fail(error),
             }
@@ -387,15 +387,18 @@ mod tests {
         assert!(oled.submit_leds(LedFrame::new(VIDEO_UNIT_FRAMES as u64, lit)));
         assert!(!oled.submit_leds(LedFrame::new(VIDEO_UNIT_FRAMES as u64 + 1, lit)));
 
-        let red = |jpeg: Vec<u8>| {
-            image::load_from_memory(&jpeg)
+        let red = |frame: Vec<u8>| {
+            image::load_from_memory(&frame)
                 .unwrap()
                 .to_rgb8()
                 .get_pixel(152, 8)
                 .0[0]
         };
-        assert!(red(timeline.video_bytes(0).unwrap()) < 40);
-        assert!(red(timeline.video_bytes(VIDEO_UNIT_FRAMES as u64).unwrap()) > 200);
+        assert_eq!(red(timeline.video_bytes(0).unwrap()), 0);
+        assert_eq!(
+            red(timeline.video_bytes(VIDEO_UNIT_FRAMES as u64).unwrap()),
+            255
+        );
         assert!(timeline.pending_leds.is_empty());
         drop(timeline);
         let _ = fs::remove_dir_all(dir);
