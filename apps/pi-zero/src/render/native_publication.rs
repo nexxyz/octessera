@@ -237,5 +237,9 @@ impl LatestPresentation {
 fn recording_led_colors(
     hardware: &NativeHardwarePresentation,
 ) -> Option<media_recording::LedColors> {
-    media_recording::LedColors::from_grid_rgb(&hardware.leds.grid.rgb, hardware.neo_key.colors)
+    media_recording::LedColors::from_grid_rgb(
+        &hardware.leds.grid.rgb,
+        hardware.neo_key.colors,
+        hardware.leds.off,
+    )
 }

@@ -6,21 +6,28 @@ pub const GRID_LED_COUNT: usize = 64;
 pub const NEOKEY_COUNT: usize = 4;
 const LED_QUEUE_CAPACITY: usize = 32;
 
-/// Full-brightness NeoTrellis colors in display order (top row first) and
-/// NeoKey colors in Back, Space, Shift, Fn order.
+/// Full-brightness NeoTrellis colors in display order (top row first),
+/// NeoKey colors in Back, Space, Shift, Fn order, and whether the screen is
+/// asleep (the whole picture is then black).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LedColors {
     pub grid: [[u8; 3]; GRID_LED_COUNT],
     pub keys: [[u8; 3]; NEOKEY_COUNT],
+    pub asleep: bool,
 }
 
 impl LedColors {
     pub const DARK: Self = Self {
         grid: [[0; 3]; GRID_LED_COUNT],
         keys: [[0; 3]; NEOKEY_COUNT],
+        asleep: false,
     };
 
-    pub fn from_grid_rgb(grid_rgb: &[u8], keys: [[u8; 3]; NEOKEY_COUNT]) -> Option<Self> {
+    pub fn from_grid_rgb(
+        grid_rgb: &[u8],
+        keys: [[u8; 3]; NEOKEY_COUNT],
+        asleep: bool,
+    ) -> Option<Self> {
         if grid_rgb.len() != GRID_LED_COUNT * 3 {
             return None;
         }
@@ -28,6 +35,7 @@ impl LedColors {
         Some(Self {
             grid: std::array::from_fn(|index| cells[index]),
             keys,
+            asleep,
         })
     }
 }

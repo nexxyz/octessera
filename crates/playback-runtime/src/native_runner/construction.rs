@@ -79,7 +79,6 @@ impl NativeRunner {
             boot_applied_usb_midi_out_enabled: seed.boot_applied_usb_midi_out_enabled,
             usb_midi_out_enabled: seed.usb_midi_out_enabled,
             recording_max_minutes: seed.recording_max_minutes,
-            recording_active: false,
             preset_names: seed.preset_names,
             current_preset_name: None,
             preset_draft_name,

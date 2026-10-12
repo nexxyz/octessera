@@ -22,9 +22,11 @@ Open `System > Recording`:
   stay in step.
 - A successful start shows **Recording started**. Starting again while a take is
   active shows **Recording is already running**.
-- While a take is active, the OLED stays awake temporarily. This does not change
-  the saved **OLED Sleep** setting; normal idle sleep timing restarts after
-  recording ends.
+- The OLED goes to sleep on its usual **OLED Sleep** timer even while a take
+  runs, so a long unattended recording won't burn your menu into the screen.
+  The video then shows the screen as it really was: asleep. Touch any control
+  to wake it, or set OLED Sleep to 0 (always on) for a session where you want
+  the screen in every frame and are around to play.
 - **Stop** ends the active take and finalizes the file. Manual stop shows
   **Recording saved** or **Recording incomplete**. A clean max-time completion
   shows **Max time: saved**. Use Stop before rebooting or shutting down when

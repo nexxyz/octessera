@@ -88,7 +88,6 @@ impl NativeRunner {
         self.jack_audio_required = source.jack_audio_required;
         self.usb_data_role_available = source.usb_data_role_available;
         self.boot_applied_usb_midi_out_enabled = source.boot_applied_usb_midi_out_enabled;
-        self.recording_active = source.recording_active;
     }
 
     fn copy_live_runtime_state_from(&mut self, source: &NativeRunner) {

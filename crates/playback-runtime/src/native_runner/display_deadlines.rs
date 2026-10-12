@@ -27,8 +27,7 @@ impl NativeRunner {
                 last_snapshot_at,
             );
         }
-        if !self.recording_active
-            && self.display.ui.screen_sleep_seconds != 0
+        if self.display.ui.screen_sleep_seconds != 0
             && self.display.oled_mode == NativeOledMode::Normal
         {
             deadline = earliest_deadline(

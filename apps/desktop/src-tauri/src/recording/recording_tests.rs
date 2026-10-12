@@ -222,6 +222,7 @@ fn snapshot_led_colors_read_full_brightness_grid_and_neokeys() {
     rgb[0] = 255;
     let snapshot = serde_json::json!({
         "settings": {"gridBrightness": 10},
+        "display": {"off": false},
         "leds": {"rgb": rgb},
         "neoKeyLeds": {"back": [255, 0, 0], "space": [0, 255, 0], "shift": [0, 0, 255], "fn": [1, 2, 3]}
     });

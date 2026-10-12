@@ -59,28 +59,35 @@ const KEY_GLYPHS: [[&str; 10]; 4] = [
 ];
 
 /// Lays out one video picture: OLED on the left, the four NeoKeys as a
-/// bottom-aligned column in the middle, and the 8x8 NeoTrellis on the right.
+/// bottom-aligned column in the middle, and the 8x8 NeoTrellis on the right;
+/// all black while the screen sleeps.
 pub(crate) fn encode_video_frame(
     oled: &[u8; OLED_FRAME_BYTES],
     leds: &LedColors,
 ) -> Result<Vec<u8>, String> {
     let mut rgb = vec![0_u8; VIDEO_WIDTH as usize * VIDEO_HEIGHT as usize * 3];
-    draw_oled(&mut rgb, oled);
-    let first_key_y = VIDEO_HEIGHT as usize - leds.keys.len() * BLOCK;
-    for (index, (color, glyph)) in leds.keys.iter().zip(&KEY_GLYPHS).enumerate() {
-        let top = first_key_y + index * BLOCK;
-        draw_block(&mut rgb, KEY_COLUMN_X, top, *color);
-        draw_glyph(&mut rgb, KEY_COLUMN_X, top, glyph);
-    }
-    for (index, color) in leds.grid.iter().enumerate() {
-        let (row, column) = (index / GRID_SIDE, index % GRID_SIDE);
-        draw_block(&mut rgb, GRID_X + column * BLOCK, row * BLOCK, *color);
+    if !leds.asleep {
+        draw_panel(&mut rgb, oled, leds);
     }
     let mut encoded = Vec::new();
     PngEncoder::new_with_quality(&mut encoded, CompressionType::Fast, FilterType::Adaptive)
         .write_image(&rgb, VIDEO_WIDTH, VIDEO_HEIGHT, ExtendedColorType::Rgb8)
         .map_err(|error| error.to_string())?;
     Ok(encoded)
+}
+
+fn draw_panel(rgb: &mut [u8], oled: &[u8; OLED_FRAME_BYTES], leds: &LedColors) {
+    draw_oled(rgb, oled);
+    let first_key_y = VIDEO_HEIGHT as usize - leds.keys.len() * BLOCK;
+    for (index, (color, glyph)) in leds.keys.iter().zip(&KEY_GLYPHS).enumerate() {
+        let top = first_key_y + index * BLOCK;
+        draw_block(rgb, KEY_COLUMN_X, top, *color);
+        draw_glyph(rgb, KEY_COLUMN_X, top, glyph);
+    }
+    for (index, color) in leds.grid.iter().enumerate() {
+        let (row, column) = (index / GRID_SIDE, index % GRID_SIDE);
+        draw_block(rgb, GRID_X + column * BLOCK, row * BLOCK, *color);
+    }
 }
 
 fn draw_oled(rgb: &mut [u8], oled: &[u8; OLED_FRAME_BYTES]) {
@@ -156,5 +163,9 @@ mod tests {
         assert_eq!(pixel(159, 15), [0, 0, 0]);
         assert_eq!(pixel(270, 126), [0, 0, 255]);
         assert_eq!(pixel(200, 56), [0, 0, 0]);
+
+        leds.asleep = true;
+        let asleep = decode(&encode_video_frame(&oled, &leds).unwrap());
+        assert!(asleep.pixels().all(|pixel| pixel.0 == [0, 0, 0]));
     }
 }

@@ -399,7 +399,6 @@ pub struct NativeRunner {
     boot_applied_usb_midi_out_enabled: bool,
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
-    recording_active: bool,
     play_mode: String,
     active_play_mode: String,
     play_drum_selected_slot: Option<usize>,

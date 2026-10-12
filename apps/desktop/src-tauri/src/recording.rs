@@ -407,8 +407,10 @@ fn snapshot_led_colors(snapshot: &serde_json::Value) -> Option<LedColors> {
         let channel = |index: usize| u8::try_from(rgb.get(index)?.as_u64()?).ok();
         Some([channel(0)?, channel(1)?, channel(2)?])
     };
+    let asleep = snapshot.get("display")?.get("off")?.as_bool()?;
     LedColors::from_grid_rgb(
         &grid,
         [key("back")?, key("space")?, key("shift")?, key("fn")?],
+        asleep,
     )
 }
