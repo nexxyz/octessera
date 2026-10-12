@@ -70,11 +70,9 @@ impl std::error::Error for HdmiError {
     }
 }
 
-#[path = "hdmi_linux_device.rs"]
 pub(crate) mod device;
 
 #[cfg(target_os = "linux")]
-#[path = "hdmi_linux.rs"]
 mod imp;
 
 #[cfg(not(target_os = "linux"))]

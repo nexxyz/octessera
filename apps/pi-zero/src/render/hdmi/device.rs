@@ -362,5 +362,4 @@ fn io_error(operation: &'static str, path: &str, source: std::io::Error) -> Hdmi
 }
 
 #[cfg(test)]
-#[path = "hdmi_linux_device_tests.rs"]
 mod tests;

@@ -2,9 +2,12 @@ use playback_runtime::{NativeRunner, NativeRunnerConfig, RunnerMessage};
 use serde_json::Value;
 use std::time::{Duration, Instant};
 
-#[path = "../render/hdmi.rs"]
-#[allow(dead_code, unused_imports)]
-mod hdmi;
+#[path = "../render"]
+mod render {
+    #[allow(dead_code, unused_imports)]
+    pub(crate) mod hdmi;
+}
+use render::hdmi;
 
 fn main() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).expect("native runner");
