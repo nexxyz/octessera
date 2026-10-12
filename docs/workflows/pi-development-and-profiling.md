@@ -158,6 +158,18 @@ persistent drop-ins). Quiet Latency soaks with 16 held notes went from about
 10 underruns per 2 hours to none, and Live Show Mode stops the job entirely. If underruns come back, trace CPU 1 and look for the
 callback being switched out while still runnable (`prev_state=R`).
 
+The Orange is less exposed but not immune: NetworkManager's dispatcher, which
+starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), and D-Bus
+took its audio core the same way, so both are fenced to cores 2 and 3 there.
+
+Recording exposed a second, memory-side stall on both boards. Writing a long
+take fills the page cache, the kernel compacts memory, and by default it may
+move Octessera's locked pages; the callback then waits in state `D` for each
+move while `kcompactd` runs. `/etc/sysctl.d/60-octessera-audio.conf` sets
+`vm.compact_unevictable_allowed = 0`, the real-time kernels' default, so locked
+memory stays put. Raspberry Audio+Video soaks went from 14 to 18 underruns per
+2 hours to none. Look for `kcompactd` next to callback `D` states in a trace.
+
 Tools that found real problems:
 
 - Orange has `perf`: `perf record -k CLOCK_MONOTONIC -C 1` on the audio core, or

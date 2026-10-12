@@ -89,6 +89,8 @@ ensure_raspberry_uart_inactive() {
     printf '[Service]\nNice=10\nCPUAffinity=2 3\n' | sudo tee /etc/systemd/system/bluealsa.service.d/10-octessera-background.conf >/dev/null
     sudo install -d /etc/systemd/system/dbus.service.d
     printf '[Service]\nAllowedCPUs=2-3\n' | sudo tee /etc/systemd/system/dbus.service.d/10-octessera-background.conf >/dev/null
+    printf '# Locked audio memory must not be moved by compaction: the callback would stall on it.\nvm.compact_unevictable_allowed = 0\n' | sudo tee /etc/sysctl.d/60-octessera-audio.conf >/dev/null
+    sudo sysctl -q -p /etc/sysctl.d/60-octessera-audio.conf
     sudo rm -f /usr/local/lib/octessera/rpi_uart_release.py
     test ! -e /usr/local/lib/octessera/rpi_uart_release.py
 }

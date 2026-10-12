@@ -369,6 +369,9 @@ install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/oc
 octessera_install_orange_runtime_assets "$overlay_dir"
 install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
 install_overlay_file etc/systemd/system/bluealsa.service.d/10-octessera-background.conf /etc/systemd/system/bluealsa.service.d/10-octessera-background.conf 0644
+install_overlay_file etc/systemd/system/dbus.service.d/10-octessera-background.conf /etc/systemd/system/dbus.service.d/10-octessera-background.conf 0644
+install_overlay_file etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf /etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf 0644
+install_overlay_file etc/sysctl.d/60-octessera-audio.conf /etc/sysctl.d/60-octessera-audio.conf 0644
 for musical_asset in \
   usr/share/octessera/defaults/pi-default.json \
   usr/share/octessera/defaults/pi-system.json \
@@ -377,13 +380,8 @@ for musical_asset in \
   usr/share/octessera/samples/SOURCE.md \
   usr/share/octessera/samples/upstream/LICENSE; do
   [[ -f "$overlay_dir/$musical_asset" && ! -L "$overlay_dir/$musical_asset" ]] || { echo "Missing staged regular musical asset: $musical_asset. Run tools/armbian-image/stage-musical-assets.sh." >&2; exit 1; }
+  install_overlay_file "$musical_asset" "/$musical_asset" 0644
 done
-install_overlay_file usr/share/octessera/defaults/pi-default.json /usr/share/octessera/defaults/pi-default.json 0644
-install_overlay_file usr/share/octessera/defaults/pi-system.json /usr/share/octessera/defaults/pi-system.json 0644
-install_overlay_file usr/share/octessera/defaults/pi-default.patch.json /usr/share/octessera/defaults/pi-default.patch.json 0644
-install_overlay_file usr/share/octessera/samples/MANIFEST.tsv /usr/share/octessera/samples/MANIFEST.tsv 0644
-install_overlay_file usr/share/octessera/samples/SOURCE.md /usr/share/octessera/samples/SOURCE.md 0644
-install_overlay_file usr/share/octessera/samples/upstream/LICENSE /usr/share/octessera/samples/upstream/LICENSE 0644
 install_orange_musical_assets "$overlay_dir" ""
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
 install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
