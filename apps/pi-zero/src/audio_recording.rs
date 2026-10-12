@@ -167,11 +167,21 @@ fn recording_status_with_complete_message(
             message: complete_message.into(),
             active: false,
         },
-        RecordingStatus::Incomplete { .. } => RuntimeStoreResult::RecordingStatus {
-            ok: false,
-            message: "Recording incomplete".into(),
-            active: false,
-        },
+        RecordingStatus::Incomplete {
+            gap_count,
+            gap_frames,
+            overflow_count,
+            overflow_frames,
+        } => {
+            eprintln!(
+                "recording incomplete: gaps={gap_count} gap_frames={gap_frames}                  overflows={overflow_count} overflow_frames={overflow_frames}"
+            );
+            RuntimeStoreResult::RecordingStatus {
+                ok: false,
+                message: "Recording incomplete".into(),
+                active: false,
+            }
+        }
     }
 }
 

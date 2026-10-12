@@ -125,7 +125,7 @@ impl RecorderService {
         let (partial_path, final_path, file) = reserve_paths(&self.dir, kind).map_err(|error| {
             RecordingStartError::Io(format!("recording path unavailable: {error}"))
         })?;
-        let (tx, rx) = mpsc::sync_channel(super::QUEUE_CAPACITY);
+        let (tx, rx) = mpsc::sync_channel(super::RECORDING_QUEUE_CAPACITY);
         let state = Arc::new(IngressState::new());
         let oled = (kind == RecordingKind::AudioOledAvi).then(|| OledIngress {
             state: Arc::new(OledIngressState::new()),

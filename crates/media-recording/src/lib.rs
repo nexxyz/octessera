@@ -19,6 +19,8 @@ pub const CHANNELS: u16 = 2;
 pub const BITS_PER_SAMPLE: u16 = 16;
 pub const CHUNK_FRAMES: usize = 1_024;
 pub const QUEUE_CAPACITY: usize = 32;
+/// About 6 s of audio, so the writer can ride out a slow SD-card write.
+pub const RECORDING_QUEUE_CAPACITY: usize = 256;
 pub const OLED_WIDTH: u32 = 128;
 pub const OLED_HEIGHT: u32 = 128;
 pub const OLED_FRAME_BYTES: usize = OLED_WIDTH as usize * OLED_HEIGHT as usize * 2;
