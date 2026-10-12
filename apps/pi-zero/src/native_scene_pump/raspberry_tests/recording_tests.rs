@@ -101,6 +101,9 @@ fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
     let actual = audio.stop_recording_with_outcome().unwrap().unwrap();
 
     let (reference, _, _, _) = crate::audio::test_service_with_recording_dir(typed_reference_root);
+    if let Some(colors) = audio.latest_led_colors() {
+        reference.submit_led_colors(colors).unwrap();
+    }
     reference
         .start_recording_audio_oled_with_seed(1, Some((revision, pixels.to_vec())))
         .unwrap();

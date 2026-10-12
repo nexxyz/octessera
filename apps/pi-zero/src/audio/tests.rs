@@ -126,6 +126,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         mix_taps: Arc::new(RwLock::new(super::audio_output::MixTaps::default())),
         recording_oled: Arc::new(RwLock::new(None)),
         accepted_oled_frame: Arc::new(RwLock::new(None)),
+        accepted_leds: Arc::new(RwLock::new(None)),
     };
     (service, prep_result_tx)
 }
@@ -156,6 +157,7 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
         mix_taps: Arc::new(RwLock::new(super::audio_output::MixTaps::default())),
         recording_oled: Arc::new(RwLock::new(None)),
         accepted_oled_frame: Arc::new(RwLock::new(None)),
+        accepted_leds: Arc::new(RwLock::new(None)),
     };
     crate::host_audio_prep::spawn_audio_control_worker(control_rx, service.clone(), prep_result_tx);
     service
@@ -217,6 +219,7 @@ pub(crate) fn test_service_with_recording_dir(
         mix_taps: Arc::new(RwLock::new(super::audio_output::MixTaps::default())),
         recording_oled: Arc::new(RwLock::new(None)),
         accepted_oled_frame: Arc::new(RwLock::new(None)),
+        accepted_leds: Arc::new(RwLock::new(None)),
     };
     (service, control_rx, event_rx, prep_result_tx)
 }

@@ -11,7 +11,7 @@ use std::time::Instant;
 fn avi_headers_chunks_index_and_jpeg_are_valid() {
     let dir = temp_dir("avi-format");
     let mut service = RecorderService::new(dir.clone());
-    let recording = service.start_oled_with_max_frames(8_820).unwrap();
+    let recording = service.start_oled_with_max_frames(4_410).unwrap();
     assert!(
         recording
             .oled
@@ -21,12 +21,12 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
     assert!(
         recording
             .oled
-            .try_submit(solid_frame(2, 4_410, 0x07e0))
+            .try_submit(solid_frame(2, 2_205, 0x07e0))
             .accepted
     );
-    push_audio(&recording.tap, 8_820);
+    push_audio(&recording.tap, 4_410);
     let outcome = service.stop_audio().unwrap().unwrap();
-    assert_eq!(outcome.frames_written, 8_820);
+    assert_eq!(outcome.frames_written, 4_410);
     assert_eq!(outcome.status, RecordingStatus::Complete);
     assert!(outcome
         .path
@@ -42,11 +42,11 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
         .windows(4)
         .any(|chunk| chunk == b"odml" || chunk == b"dmlh"));
     let avih = find_chunks(&bytes, *b"avih").next().unwrap();
-    assert_eq!(read_u32(avih.payload, 0), 100_000);
+    assert_eq!(read_u32(avih.payload, 0), 50_000);
     assert_eq!(read_u32(avih.payload, 12), 0x110);
     assert_eq!(read_u32(avih.payload, 16), 2);
     assert_eq!(read_u32(avih.payload, 24), 2);
-    assert_eq!(read_u32(avih.payload, 32), 128);
+    assert_eq!(read_u32(avih.payload, 32), VIDEO_WIDTH);
     assert_eq!(read_u32(avih.payload, 36), 128);
 
     let stream_headers: Vec<_> = find_chunks(&bytes, *b"strh").collect();
@@ -54,16 +54,16 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
     assert_eq!(&stream_headers[0].payload[..4], b"vids");
     assert_eq!(&stream_headers[0].payload[4..8], b"MJPG");
     assert_eq!(read_u32(stream_headers[0].payload, 20), 1);
-    assert_eq!(read_u32(stream_headers[0].payload, 24), 10);
+    assert_eq!(read_u32(stream_headers[0].payload, 24), VIDEO_FPS);
     assert_eq!(read_u32(stream_headers[0].payload, 32), 2);
     assert_eq!(&stream_headers[1].payload[..4], b"auds");
     assert_eq!(read_u32(stream_headers[1].payload, 20), 1);
     assert_eq!(read_u32(stream_headers[1].payload, 24), SAMPLE_RATE);
-    assert_eq!(read_u32(stream_headers[1].payload, 32), 8_820);
+    assert_eq!(read_u32(stream_headers[1].payload, 32), 4_410);
 
     let formats: Vec<_> = find_chunks(&bytes, *b"strf").collect();
     assert_eq!(formats.len(), 2);
-    assert_eq!(read_u32(formats[0].payload, 4), 128);
+    assert_eq!(read_u32(formats[0].payload, 4), VIDEO_WIDTH);
     assert_eq!(read_u32(formats[0].payload, 8), 128);
     assert_eq!(&formats[0].payload[16..20], b"MJPG");
     assert_eq!(read_u16(formats[1].payload, 0), 1);
@@ -78,9 +78,9 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
     assert_eq!(&movi_chunks[1].id, b"01wb");
     assert_eq!(&movi_chunks[2].id, b"00dc");
     assert_eq!(&movi_chunks[3].id, b"01wb");
-    assert_eq!(movi_chunks[1].payload.len(), 17_640);
+    assert_eq!(movi_chunks[1].payload.len(), 8_820);
     let decoded = image::load_from_memory(movi_chunks[0].payload).unwrap();
-    assert_eq!(decoded.dimensions(), (128, 128));
+    assert_eq!(decoded.dimensions(), (VIDEO_WIDTH, VIDEO_HEIGHT));
     assert!(decoded.get_pixel(64, 64).0[0] > 150);
 
     let index = find_chunks(&bytes, *b"idx1").next().unwrap();
@@ -104,7 +104,7 @@ fn avi_headers_chunks_index_and_jpeg_are_valid() {
 fn audio_is_master_clock_and_frames_hold_until_changed() {
     let dir = temp_dir("avi-timing");
     let mut service = RecorderService::new(dir.clone());
-    let recording = service.start_oled_with_max_frames(13_230).unwrap();
+    let recording = service.start_oled_with_max_frames(6_615).unwrap();
     assert!(
         recording
             .oled
@@ -114,12 +114,12 @@ fn audio_is_master_clock_and_frames_hold_until_changed() {
     assert!(
         recording
             .oled
-            .try_submit(solid_frame(2, 4_410, 0x001f))
+            .try_submit(solid_frame(2, 2_205, 0x001f))
             .accepted
     );
-    let stale = recording.oled.try_submit(solid_frame(1, 8_820, 0x07e0));
+    let stale = recording.oled.try_submit(solid_frame(1, 4_410, 0x07e0));
     assert!(stale.stale);
-    push_audio(&recording.tap, 13_230);
+    push_audio(&recording.tap, 6_615);
     let outcome = service.stop_audio().unwrap().unwrap();
     let bytes = fs::read(outcome.path).unwrap();
     let movi = find_list(&bytes, *b"movi");
@@ -289,7 +289,7 @@ fn avi_size_limit_stops_at_a_complete_interleave_unit() {
         file_limit: 20_000,
     })
     .unwrap();
-    assert_eq!(outcome.frames_written, 4_410);
+    assert_eq!(outcome.frames_written, 2_205);
     assert_eq!(outcome.status, RecordingStatus::Complete);
     assert!(fs::metadata(outcome.path).unwrap().len() <= 20_000);
     remove_temp_dir(dir);

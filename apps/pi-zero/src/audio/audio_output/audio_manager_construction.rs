@@ -165,6 +165,7 @@ impl AudioManager {
             mix_taps: mix_taps.clone(),
             recording_oled: recording_oled.clone(),
             accepted_oled_frame: Arc::new(RwLock::new(None)),
+            accepted_leds: Arc::new(RwLock::new(None)),
         };
         crate::host_audio_prep::spawn_audio_control_worker(
             control_rx,

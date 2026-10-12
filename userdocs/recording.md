@@ -1,4 +1,4 @@
-# Recording audio and OLED
+# Recording audio and video
 
 Octessera can capture its sound, or a small picture-and-sound record of the
 instrument. Keep the board powered and the storage card in place while
@@ -12,9 +12,12 @@ Open `System > Recording`:
 - **Start Audio** writes the final stereo mix as a WAV file at 44.1 kHz, stereo,
   signed 16-bit PCM. External MIDI-only instruments are not included because
   their sound is made by the outside device.
-- **St. Audio+OLED** writes an AVI with 128x128 MJPEG video at 10 fps and 44.1
-  kHz stereo signed 16-bit PCM audio. It captures OLED frames, with audio as the
-  master clock.
+- **Audio+Video** writes an AVI with the same stereo sound plus a 272x128
+  MJPEG picture at 20 fps: the OLED on the left, the four NeoKeys as a little
+  column in the middle (Back at the top, Fn at the bottom), and the 8x8 grid on
+  the right as chunky blocks. The LEDs are shown at full color, so a video
+  still reads fine if you play with Grid Bright turned way down. Audio is the
+  master clock, so picture and sound stay in step.
 - A successful start shows **Recording started**. Starting again while a take is
   active shows **Recording is already running**.
 - While a take is active, the OLED stays awake temporarily. This does not change
@@ -30,7 +33,7 @@ storage, or the board's microSD card while a take is active.
 
 ## Where files land
 
-| Host | Audio WAV | Audio+OLED AVI |
+| Host | Audio WAV | Audio+Video AVI |
 |---|---|---|
 | Desktop | `Music/Octessera/recordings/` | `Music/Octessera/screen-recordings/` |
 | Raspberry Pi | `/home/pi/recordings/` | `/home/pi/screen-recordings/` |
@@ -46,6 +49,6 @@ recording. Existing takes are not overwritten.
 ## Playing the result
 
 WAV files work with Audacity, a normal DAW, VLC, `ffplay`, and most everyday
-audio tools. Try VLC, mpv, or `ffplay` for an Audio+OLED AVI. If one player
+audio tools. Try VLC, mpv, or `ffplay` for an Audio+Video AVI. If one player
 doesn't open it, try another common player or convert it with a current FFmpeg
 build.

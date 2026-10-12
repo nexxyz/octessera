@@ -97,6 +97,7 @@ pub struct AudioService {
     mix_taps: audio_output::MixTapState,
     recording_oled: Arc<RwLock<Option<OledIngress>>>,
     accepted_oled_frame: Arc<RwLock<Option<PhysicalOledFrame>>>,
+    accepted_leds: Arc<RwLock<Option<media_recording::LedColors>>>,
 }
 
 #[derive(Clone)]

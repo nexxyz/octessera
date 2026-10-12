@@ -1,10 +1,10 @@
 use super::avi_writer::{AviWriter, FinishStats};
+use super::led_frame::bound_pending_leds;
+use super::video_frame::encode_video_frame;
 use super::{
-    IngressState, OledFrame, OledIngress, RecordingChunk, RecordingError, RecordingOutcome,
-    OLED_FRAME_BYTES, OLED_HEIGHT, OLED_WIDTH, SAMPLE_RATE,
+    IngressState, LedColors, LedFrame, OledFrame, OledIngress, RecordingChunk, RecordingError,
+    RecordingOutcome, OLED_FRAME_BYTES, SAMPLE_RATE, VIDEO_FPS,
 };
-use image::codecs::jpeg::JpegEncoder;
-use image::ColorType;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,9 +13,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
-const VIDEO_FPS: u64 = 10;
 const VIDEO_UNIT_FRAMES: usize = SAMPLE_RATE as usize / VIDEO_FPS as usize;
-const JPEG_QUALITY: u8 = 82;
 const TIMELINE_PENDING_CAP: usize = super::OLED_QUEUE_CAPACITY;
 
 pub(crate) struct AviRecordingInput {
@@ -116,8 +114,10 @@ struct Timeline {
     writer: AviWriter,
     oled: OledIngress,
     pending_frames: Vec<OledFrame>,
+    pending_leds: Vec<LedFrame>,
     pending_audio: Vec<i16>,
     current_pixels: Box<[u8; OLED_FRAME_BYTES]>,
+    current_leds: LedColors,
     encoded_pixels: Option<Vec<u8>>,
     material_loss: u64,
 }
@@ -128,8 +128,10 @@ impl Timeline {
             writer,
             oled,
             pending_frames: Vec::new(),
+            pending_leds: Vec::new(),
             pending_audio: Vec::with_capacity(VIDEO_UNIT_FRAMES * 2),
             current_pixels: Box::new([0; OLED_FRAME_BYTES]),
+            current_leds: LedColors::DARK,
             encoded_pixels: None,
             material_loss: 0,
         }
@@ -197,10 +199,11 @@ impl Timeline {
         self.pending_frames
             .retain(|frame| frame.audio_frame() > tick);
         self.bound_pending_frames();
+        self.select_leds(tick);
         if let Some(encoded) = &self.encoded_pixels {
             return Ok(encoded.clone());
         }
-        let encoded = encode_jpeg(&self.current_pixels)?;
+        let encoded = encode_video_frame(&self.current_pixels, &self.current_leds)?;
         self.encoded_pixels = Some(encoded.clone());
         Ok(encoded)
     }
@@ -221,6 +224,23 @@ impl Timeline {
         stats.incomplete |= self.writer.write_failed.is_some();
         stats.frames = stats.frames.min(self.writer.audio_frames);
         self.writer.finish(stats)
+    }
+
+    fn select_leds(&mut self, tick: u64) {
+        self.pending_leds.extend(self.oled.drain_leds());
+        let selected = self
+            .pending_leds
+            .iter()
+            .filter(|frame| frame.audio_frame() <= tick)
+            .max_by_key(|frame| frame.audio_frame());
+        if let Some(frame) = selected {
+            if self.current_leds != *frame.colors() {
+                self.current_leds = *frame.colors();
+                self.encoded_pixels = None;
+            }
+        }
+        self.pending_leds.retain(|frame| frame.audio_frame() > tick);
+        bound_pending_leds(&mut self.pending_leds);
     }
 
     fn bound_pending_frames(&mut self) {
@@ -251,32 +271,13 @@ impl Timeline {
     }
 }
 
-fn encode_jpeg(pixels: &[u8; OLED_FRAME_BYTES]) -> Result<Vec<u8>, String> {
-    let mut rgb = vec![0_u8; (OLED_WIDTH * OLED_HEIGHT * 3) as usize];
-    let (pixels, _) = pixels.as_chunks::<2>();
-    for (index, pixel) in pixels.iter().enumerate() {
-        let value = u16::from_be_bytes(*pixel);
-        let red = u8::try_from((u32::from(value >> 11) * 255 + 15) / 31).unwrap_or(u8::MAX);
-        let green =
-            u8::try_from((u32::from((value >> 5) & 0x3f) * 255 + 31) / 63).unwrap_or(u8::MAX);
-        let blue = u8::try_from((u32::from(value & 0x1f) * 255 + 15) / 31).unwrap_or(u8::MAX);
-        let offset = index * 3;
-        rgb[offset..offset + 3].copy_from_slice(&[red, green, blue]);
-    }
-    let mut encoded = Vec::new();
-    JpegEncoder::new_with_quality(&mut encoded, JPEG_QUALITY)
-        .encode(&rgb, OLED_WIDTH, OLED_HEIGHT, ColorType::Rgb8.into())
-        .map_err(|error| error.to_string())?;
-    Ok(encoded)
-}
-
 fn recording_error(
     partial_path: &std::path::Path,
     error: impl std::fmt::Display,
 ) -> RecordingError {
     RecordingError {
         message: format!(
-            "audio+OLED recording failed for {}: {error}",
+            "audio+video recording failed for {}: {error}",
             partial_path.display()
         ),
         partial_path: partial_path.to_path_buf(),
@@ -355,6 +356,48 @@ mod tests {
             u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize,
             bytes.len() - 8
         );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn led_changes_appear_on_their_audio_tick_and_repeats_are_skipped() {
+        let dir = std::env::temp_dir().join(format!("octessera-avi-leds-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let partial = dir.join("take.partial.avi");
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&partial)
+            .unwrap();
+        let oled = OledIngress {
+            state: Arc::new(OledIngressState::new()),
+        };
+        let writer = AviWriter::new(
+            file,
+            partial,
+            dir.join("take.avi"),
+            super::super::AVI_TARGET_MAX_BYTES,
+        )
+        .unwrap();
+        let mut timeline = Timeline::new(writer, oled.clone());
+        let mut lit = LedColors::DARK;
+        lit.grid[0] = [255, 0, 0];
+
+        assert!(oled.submit_leds(LedFrame::new(VIDEO_UNIT_FRAMES as u64, lit)));
+        assert!(!oled.submit_leds(LedFrame::new(VIDEO_UNIT_FRAMES as u64 + 1, lit)));
+
+        let red = |jpeg: Vec<u8>| {
+            image::load_from_memory(&jpeg)
+                .unwrap()
+                .to_rgb8()
+                .get_pixel(152, 8)
+                .0[0]
+        };
+        assert!(red(timeline.video_bytes(0).unwrap()) < 40);
+        assert!(red(timeline.video_bytes(VIDEO_UNIT_FRAMES as u64).unwrap()) > 200);
+        assert!(timeline.pending_leds.is_empty());
+        drop(timeline);
         let _ = fs::remove_dir_all(dir);
     }
 

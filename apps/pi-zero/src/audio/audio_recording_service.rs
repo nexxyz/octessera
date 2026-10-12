@@ -1,6 +1,6 @@
 use super::{AudioService, PhysicalOledFrame};
 use crate::audio_recording;
-use media_recording::{OledFrame, RecordingOutcome, RecordingStartError};
+use media_recording::{LedColors, LedFrame, OledFrame, RecordingOutcome, RecordingStartError};
 use playback_runtime::RuntimeStoreResult;
 use std::sync::Arc;
 
@@ -41,6 +41,13 @@ impl AudioService {
                 .map_err(|error| RecordingStartError::Io(error.to_string()))?;
             let _ = recording.oled.try_submit(frame);
         }
+        if let Some(colors) = *self
+            .accepted_leds
+            .read()
+            .map_err(|_| RecordingStartError::Io("accepted LED colors lock poisoned".into()))?
+        {
+            recording.oled.submit_leds(LedFrame::new(0, colors));
+        }
         self.mix_taps
             .write()
             .map_err(|_| RecordingStartError::Io("recording tap lock poisoned".into()))?
@@ -65,6 +72,11 @@ impl AudioService {
             .as_ref()
             .map(|frame| (frame.revision, frame.pixels.to_vec()));
         self.start_recording_audio_oled_with_seed(max_minutes, seed)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn latest_led_colors(&self) -> Option<LedColors> {
+        *self.accepted_leds.read().unwrap()
     }
 
     #[cfg(test)]
@@ -150,6 +162,28 @@ impl AudioService {
         pixels: &[u8],
     ) -> Result<(), String> {
         self.submit_accepted_oled_frame_shared(revision, Arc::from(pixels.to_vec()))
+    }
+
+    pub(crate) fn submit_led_colors(&self, colors: LedColors) -> Result<(), String> {
+        *self
+            .accepted_leds
+            .write()
+            .map_err(|_| "accepted LED colors lock poisoned".to_string())? = Some(colors);
+        let tap = self
+            .mix_taps
+            .read()
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .recording
+            .clone();
+        let oled = self
+            .recording_oled
+            .read()
+            .map_err(|_| "OLED recording lock poisoned".to_string())?
+            .clone();
+        if let Some((tap, oled)) = tap.zip(oled) {
+            oled.submit_leds(LedFrame::new(tap.audio_frame_cursor(), colors));
+        }
+        Ok(())
     }
 
     pub(crate) fn submit_accepted_oled_frame_shared(

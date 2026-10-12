@@ -1,6 +1,6 @@
 use media_recording::{
-    AudioOledRecording, OledFrame, RecorderService, RecordingOutcome, RecordingStartError,
-    RecordingTap,
+    AudioOledRecording, LedColors, LedFrame, OledFrame, RecorderService, RecordingOutcome,
+    RecordingStartError, RecordingTap,
 };
 use playback_runtime::PlaybackRuntime;
 use rodio::Source;
@@ -103,6 +103,7 @@ pub(crate) struct DesktopRecording {
     tap: RecordingTapState,
     oled: Arc<RwLock<Option<media_recording::OledIngress>>>,
     accepted_oled: AcceptedOledFrameState,
+    accepted_leds: Arc<RwLock<Option<LedColors>>>,
 }
 
 impl DesktopRecording {
@@ -123,6 +124,7 @@ impl DesktopRecording {
             tap: Arc::new(RwLock::new(None)),
             oled: Arc::new(RwLock::new(None)),
             accepted_oled: Arc::new(RwLock::new(None)),
+            accepted_leds: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -166,6 +168,11 @@ impl DesktopRecording {
             let frame = OledFrame::from_bytes(revision, 0, pixels.as_ref())
                 .map_err(|error| media_recording::RecordingStartError::Io(error.to_string()))?;
             let _ = recording.oled.try_submit(frame);
+        }
+        if let Some(colors) = *self.accepted_leds.read().map_err(|_| {
+            media_recording::RecordingStartError::Io("accepted LED colors lock poisoned".into())
+        })? {
+            recording.oled.submit_leds(LedFrame::new(0, colors));
         }
         let mut tap = self.tap.write().map_err(|_| {
             media_recording::RecordingStartError::Io("recording tap lock poisoned".into())
@@ -267,6 +274,27 @@ impl DesktopRecording {
         Ok(())
     }
 
+    fn submit_led_colors(&self, colors: LedColors) -> Result<(), String> {
+        *self
+            .accepted_leds
+            .write()
+            .map_err(|_| "accepted LED colors lock poisoned".to_string())? = Some(colors);
+        let tap = self
+            .tap
+            .read()
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .clone();
+        let oled = self
+            .oled
+            .read()
+            .map_err(|_| "OLED recording lock poisoned".to_string())?
+            .clone();
+        if let Some((tap, oled)) = tap.zip(oled) {
+            oled.submit_leds(LedFrame::new(tap.audio_frame_cursor(), colors));
+        }
+        Ok(())
+    }
+
     pub(crate) fn submit_current_accepted_oled_frame(
         &self,
         playback: &PlaybackRuntime,
@@ -274,6 +302,9 @@ impl DesktopRecording {
         let Some(snapshot) = playback.last_snapshot() else {
             return Ok(());
         };
+        if let Some(colors) = snapshot_led_colors(snapshot) {
+            self.submit_led_colors(colors)?;
+        }
         let Some(revision) = snapshot
             .get("oledFrameRevision")
             .and_then(serde_json::Value::as_u64)
@@ -360,3 +391,23 @@ fn float_to_i16(value: f32) -> i16 {
 
 #[cfg(test)]
 mod recording_tests;
+
+fn snapshot_led_colors(snapshot: &serde_json::Value) -> Option<LedColors> {
+    let grid = snapshot
+        .get("leds")?
+        .get("rgb")?
+        .as_array()?
+        .iter()
+        .map(|channel| channel.as_u64().and_then(|value| u8::try_from(value).ok()))
+        .collect::<Option<Vec<u8>>>()?;
+    let keys = snapshot.get("neoKeyLeds")?;
+    let key = |name: &str| -> Option<[u8; 3]> {
+        let rgb = keys.get(name)?.as_array()?;
+        let channel = |index: usize| u8::try_from(rgb.get(index)?.as_u64()?).ok();
+        Some([channel(0)?, channel(1)?, channel(2)?])
+    };
+    LedColors::from_grid_rgb(
+        &grid,
+        [key("back")?, key("space")?, key("shift")?, key("fn")?],
+    )
+}

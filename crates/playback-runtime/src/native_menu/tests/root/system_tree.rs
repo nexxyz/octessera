@@ -25,7 +25,7 @@ fn desktop_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&desktop, "Recording"),
-        vec!["Max Time", "Start Audio", "St. Audio+OLED", "Stop"]
+        vec!["Max Time", "Start Audio", "Audio+Video", "Stop"]
     );
     assert_eq!(group_labels(&desktop, "Load Preset"), vec!["(none)"]);
     assert_eq!(

@@ -14,16 +14,16 @@ fn audio_oled_submission_uses_final_tap_cursor_and_rejects_duplicate_revision() 
     service
         .submit_accepted_oled_frame(1, &solid_frame(0xf800))
         .unwrap();
-    push_frames(&service, 4_410);
+    push_frames(&service, 2_205);
     service
         .submit_accepted_oled_frame(1, &solid_frame(0x001f))
         .unwrap();
     service
         .submit_accepted_oled_frame(2, &solid_frame(0x07e0))
         .unwrap();
-    push_frames(&service, 4_410);
+    push_frames(&service, 2_205);
     let outcome = service.stop_recording_with_outcome().unwrap().unwrap();
-    assert_eq!(outcome.frames_written, 8_820);
+    assert_eq!(outcome.frames_written, 4_410);
     assert_eq!(outcome.status, RecordingStatus::Complete);
     assert_eq!(
         outcome
@@ -76,6 +76,45 @@ fn audio_oled_start_seeds_the_accepted_frame_before_audio_advances() {
         avi_video_payloads(&blank_path)[0]
     );
 
+    let _ = fs::remove_dir_all(directory);
+    let _ = fs::remove_dir_all(blank_directory);
+}
+
+#[test]
+fn led_colors_seed_the_take_and_later_changes_reach_the_video() {
+    let directory = temp_dir();
+    let (service, _, _, _) = test_service_with_recording_dir(directory.clone());
+    let mut lit = media_recording::LedColors::DARK;
+    lit.grid[0] = [255, 0, 0];
+    service.submit_led_colors(lit).unwrap();
+    service
+        .start_recording_audio_oled_with_seed(1, None)
+        .unwrap();
+    push_frames(&service, 2_205);
+    service.submit_led_colors(lit).unwrap();
+    push_frames(&service, 2_205);
+    lit.keys[1] = [0, 0, 255];
+    service.submit_led_colors(lit).unwrap();
+    push_frames(&service, 2_205);
+    let outcome = service.stop_recording_with_outcome().unwrap().unwrap();
+    assert_eq!(outcome.status, RecordingStatus::Complete);
+    let videos = avi_video_payloads(&outcome.path);
+
+    let blank_directory = temp_dir();
+    let (blank_service, _, _, _) = test_service_with_recording_dir(blank_directory.clone());
+    blank_service
+        .start_recording_audio_oled_with_seed(1, None)
+        .unwrap();
+    push_frames(&blank_service, 2_205);
+    let blank = blank_service
+        .stop_recording_with_outcome()
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(videos.len(), 3);
+    assert_ne!(videos[0], avi_video_payloads(&blank.path)[0]);
+    assert_eq!(videos[0], videos[1]);
+    assert_ne!(videos[1], videos[2]);
     let _ = fs::remove_dir_all(directory);
     let _ = fs::remove_dir_all(blank_directory);
 }

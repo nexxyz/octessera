@@ -196,19 +196,19 @@ fn legacy_native_terminal_source_collisions_advance_physical_frames() {
     audio
         .submit_accepted_oled_frame(legacy.revision().unwrap(), legacy.pixels().unwrap())
         .unwrap();
-    audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
+    audio.test_push_recording_samples(&vec![0; 4_410]).unwrap();
     let native = physical_oled_publication(&native_source, &cache).unwrap();
     render_oled_if_changed_off(&mut oled, false, &native, &mut cache, Instant::now());
     audio
         .submit_accepted_oled_frame(native.revision().unwrap(), native.pixels().unwrap())
         .unwrap();
-    audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
+    audio.test_push_recording_samples(&vec![0; 4_410]).unwrap();
     let terminal = physical_oled_publication(&terminal_source, &cache).unwrap();
     force_oled_render_off(&mut oled, false, &terminal, &mut cache).unwrap();
     audio
         .submit_accepted_oled_frame(terminal.revision().unwrap(), terminal.pixels().unwrap())
         .unwrap();
-    audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
+    audio.test_push_recording_samples(&vec![0; 4_410]).unwrap();
     let recording = audio.stop_recording_with_outcome().unwrap().unwrap();
 
     assert!(legacy.revision().unwrap() < native.revision().unwrap());
@@ -222,7 +222,7 @@ fn legacy_native_terminal_source_collisions_advance_physical_frames() {
         ]
     );
     assert!(oled_publication_is_accepted(&terminal, false, &cache));
-    assert_eq!(recording.frames_written, 13_230);
+    assert_eq!(recording.frames_written, 6_615);
     let videos = avi_video_payloads(&recording.path);
     assert_eq!(videos.len(), 3);
     assert_ne!(videos[0], videos[1]);

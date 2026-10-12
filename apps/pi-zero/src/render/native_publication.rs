@@ -211,12 +211,21 @@ impl LatestPresentation {
                     audio.clear_latest_physical_oled_frame()?;
                 }
             }
-            Self::Native { oled, .. } => {
+            Self::Native { hardware, oled, .. } => {
                 if let (Some(revision), Some(pixels)) = (oled.revision(), oled.shared_pixels()) {
                     audio.submit_accepted_oled_frame_shared(revision, pixels)?;
+                }
+                if let Some(colors) = recording_led_colors(hardware) {
+                    audio.submit_led_colors(colors)?;
                 }
             }
         }
         Ok(())
     }
+}
+
+fn recording_led_colors(
+    hardware: &NativeHardwarePresentation,
+) -> Option<media_recording::LedColors> {
+    media_recording::LedColors::from_grid_rgb(&hardware.leds.grid.rgb, hardware.neo_key.colors)
 }

@@ -6,9 +6,12 @@ use std::{collections::VecDeque, fmt};
 
 mod avi;
 mod avi_writer;
+mod led_frame;
 mod service;
+mod video_frame;
 mod wav;
 
+pub use led_frame::{LedColors, LedFrame, GRID_LED_COUNT, NEOKEY_COUNT};
 pub use service::RecorderService;
 
 pub const SAMPLE_RATE: u32 = 44_100;
@@ -20,6 +23,9 @@ pub const OLED_WIDTH: u32 = 128;
 pub const OLED_HEIGHT: u32 = 128;
 pub const OLED_FRAME_BYTES: usize = OLED_WIDTH as usize * OLED_HEIGHT as usize * 2;
 pub const OLED_QUEUE_CAPACITY: usize = 8;
+pub const VIDEO_WIDTH: u32 = 272;
+pub const VIDEO_HEIGHT: u32 = 128;
+pub const VIDEO_FPS: u32 = 20;
 pub const AVI_TARGET_MAX_BYTES: u64 = 3_500_000_000;
 
 const CHUNK_SAMPLES: usize = CHUNK_FRAMES * 2;
@@ -345,6 +351,7 @@ struct OledIngressState {
     has_revision: AtomicBool,
     last_revision: AtomicU64,
     queue: Mutex<VecDeque<OledFrame>>,
+    leds: Mutex<led_frame::LedQueue>,
 }
 
 impl OledIngressState {
@@ -355,6 +362,7 @@ impl OledIngressState {
             has_revision: AtomicBool::new(false),
             last_revision: AtomicU64::new(0),
             queue: Mutex::new(VecDeque::with_capacity(OLED_QUEUE_CAPACITY)),
+            leds: Mutex::new(led_frame::LedQueue::default()),
         }
     }
 }

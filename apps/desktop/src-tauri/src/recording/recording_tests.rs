@@ -61,12 +61,12 @@ fn audio_oled_submission_uses_cursor_and_deduplicates_revision() {
     let green = solid_frame(0x07e0);
     recording.submit_accepted_oled_frame(1, &red).unwrap();
     let tap = recording.tap.read().unwrap().clone().unwrap();
-    for _ in 0..4_410 {
+    for _ in 0..2_205 {
         tap.push_frame(1, 2);
     }
     recording.submit_accepted_oled_frame(1, &blue).unwrap();
     recording.submit_accepted_oled_frame(2, &green).unwrap();
-    for _ in 0..4_410 {
+    for _ in 0..2_205 {
         tap.push_frame(3, 4);
     }
     let outcome = recording.stop_audio().unwrap().unwrap();
@@ -214,4 +214,22 @@ fn avi_video_payloads(path: &std::path::Path) -> Vec<Vec<u8>> {
         offset = payload_end + size % 2;
     }
     videos
+}
+
+#[test]
+fn snapshot_led_colors_read_full_brightness_grid_and_neokeys() {
+    let mut rgb = vec![0_u8; 64 * 3];
+    rgb[0] = 255;
+    let snapshot = serde_json::json!({
+        "settings": {"gridBrightness": 10},
+        "leds": {"rgb": rgb},
+        "neoKeyLeds": {"back": [255, 0, 0], "space": [0, 255, 0], "shift": [0, 0, 255], "fn": [1, 2, 3]}
+    });
+    let colors = super::snapshot_led_colors(&snapshot).unwrap();
+    assert_eq!(colors.grid[0], [255, 0, 0]);
+    assert_eq!(
+        colors.keys,
+        [[255, 0, 0], [0, 255, 0], [0, 0, 255], [1, 2, 3]]
+    );
+    assert!(super::snapshot_led_colors(&serde_json::json!({"leds": {"rgb": [1, 2]}})).is_none());
 }

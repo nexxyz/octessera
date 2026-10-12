@@ -54,7 +54,7 @@ down before opening the case or moving wiring.
 
 - **Operation:** [Controls cheat sheet](controls-cheat-sheet.md), [Behaviors and
   Play pages](behaviors-and-play.md), [Sound and Link: instruments, effects,
-  and modulation](sound-and-link.md), [Recording audio and OLED](recording.md),
+  and modulation](sound-and-link.md), [Recording audio and video](recording.md),
   [Data backup and restore](data-backup-restore.md),
   [Bluetooth keyboards and speakers](bluetooth.md), and
   [Troubleshooting](troubleshooting.md).

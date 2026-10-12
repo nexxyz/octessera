@@ -1,6 +1,6 @@
 use super::{
-    RecordingError, RecordingOutcome, RecordingStatus, BITS_PER_SAMPLE, CHANNELS, OLED_HEIGHT,
-    OLED_WIDTH, SAMPLE_RATE,
+    RecordingError, RecordingOutcome, RecordingStatus, BITS_PER_SAMPLE, CHANNELS, SAMPLE_RATE,
+    VIDEO_FPS, VIDEO_HEIGHT, VIDEO_WIDTH,
 };
 use std::fs::{self, File};
 use std::io::{self, Seek, SeekFrom, Write};
@@ -196,7 +196,7 @@ impl AviWriter {
         let max_buffer = self.max_buffer() as u32;
         let max_bytes_per_sec = self
             .max_video_payload
-            .saturating_mul(10)
+            .saturating_mul(u64::from(VIDEO_FPS))
             .saturating_add(176_400) as u32;
         patch_u32(
             &mut self.file,
@@ -327,11 +327,11 @@ fn write_avih(file: &mut File) -> io::Result<(u64, u64, u64)> {
     write_chunk_header(file, *b"avih", 56)?;
     let start = file.stream_position()?;
     let mut data = [0_u8; 56];
-    data[0..4].copy_from_slice(&100_000_u32.to_le_bytes());
+    data[0..4].copy_from_slice(&(1_000_000 / VIDEO_FPS).to_le_bytes());
     data[12..16].copy_from_slice(&0x110_u32.to_le_bytes());
     data[24..28].copy_from_slice(&2_u32.to_le_bytes());
-    data[32..36].copy_from_slice(&OLED_WIDTH.to_le_bytes());
-    data[36..40].copy_from_slice(&OLED_HEIGHT.to_le_bytes());
+    data[32..36].copy_from_slice(&VIDEO_WIDTH.to_le_bytes());
+    data[36..40].copy_from_slice(&VIDEO_HEIGHT.to_le_bytes());
     file.write_all(&data)?;
     Ok((start + 16, start + 4, start + 28))
 }
@@ -343,17 +343,17 @@ fn write_video_stream(file: &mut File) -> io::Result<(u64, u64, u64)> {
     data[0..4].copy_from_slice(b"vids");
     data[4..8].copy_from_slice(b"MJPG");
     data[20..24].copy_from_slice(&1_u32.to_le_bytes());
-    data[24..28].copy_from_slice(&10_u32.to_le_bytes());
+    data[24..28].copy_from_slice(&VIDEO_FPS.to_le_bytes());
     data[40..44].copy_from_slice(&0xffff_ffff_u32.to_le_bytes());
-    data[52..54].copy_from_slice(&(OLED_WIDTH as u16).to_le_bytes());
-    data[54..56].copy_from_slice(&(OLED_HEIGHT as u16).to_le_bytes());
+    data[52..54].copy_from_slice(&(VIDEO_WIDTH as u16).to_le_bytes());
+    data[54..56].copy_from_slice(&(VIDEO_HEIGHT as u16).to_le_bytes());
     file.write_all(&data)?;
     write_chunk_header(file, *b"strf", 40)?;
     let start_format = file.stream_position()?;
     let mut format = [0_u8; 40];
     format[0..4].copy_from_slice(&40_u32.to_le_bytes());
-    format[4..8].copy_from_slice(&OLED_WIDTH.to_le_bytes());
-    format[8..12].copy_from_slice(&OLED_HEIGHT.to_le_bytes());
+    format[4..8].copy_from_slice(&VIDEO_WIDTH.to_le_bytes());
+    format[8..12].copy_from_slice(&VIDEO_HEIGHT.to_le_bytes());
     format[12..14].copy_from_slice(&1_u16.to_le_bytes());
     format[14..16].copy_from_slice(&24_u16.to_le_bytes());
     format[16..20].copy_from_slice(b"MJPG");
@@ -422,7 +422,7 @@ fn patch_u32(file: &mut File, offset: u64, value: u32) -> io::Result<()> {
 fn recording_error(partial_path: &Path, error: impl std::fmt::Display) -> RecordingError {
     RecordingError {
         message: format!(
-            "audio+OLED recording failed for {}: {error}",
+            "audio+video recording failed for {}: {error}",
             partial_path.display()
         ),
         partial_path: partial_path.to_path_buf(),

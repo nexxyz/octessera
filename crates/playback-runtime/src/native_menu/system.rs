@@ -26,7 +26,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                     NativeMenuAction::PlatformEffect("recording.startAudio".into()),
                 ),
                 action_item(
-                    "St. Audio+OLED",
+                    "Audio+Video",
                     "recording.startAudioOled",
                     NativeMenuAction::PlatformEffect("recording.startAudioOled".into()),
                 ),
