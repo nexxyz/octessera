@@ -419,10 +419,10 @@ impl CallbackSchedulingHandle {
     }
 }
 
-pub(crate) fn pin_main_thread_to_cpu0() -> Result<(), String> {
+pub(crate) fn pin_thread_to_cpu0(label: &str) -> Result<(), String> {
     configure_affinity_only(PI_RUNTIME_CPU)
         .map(|_| ())
-        .map_err(|failure| syscalls::format_affinity_failure("main", failure))
+        .map_err(|failure| syscalls::format_affinity_failure(label, failure))
 }
 
 pub(crate) fn qualify_callback_scheduler(
@@ -485,7 +485,7 @@ pub(crate) use dsp_worker_scheduling::pi_worker_start_hook;
     feature = "hardware-orange-pi-zero-2w",
     feature = "hardware-raspberry-pi-zero-2w"
 ))]
-pub(crate) use dsp_worker_scheduling::pin_background_worker_to_dsp_cpus;
+pub(crate) use dsp_worker_scheduling::{demote_to_idle_class, pin_background_worker_to_dsp_cpus};
 #[cfg(test)]
 pub(crate) use dsp_worker_scheduling::{ORANGE_WORKER_CPUS, ORANGE_WORKER_PRIORITY};
 #[cfg(feature = "source-worker-benchmark-timing")]

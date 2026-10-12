@@ -15,7 +15,7 @@ fn pi_roles_use_cpu_zero_for_runtime_and_mirrors() {
 fn main_thread_affinity_is_exactly_cpu_zero_without_fifo() {
     let guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(0));
 
-    assert!(pin_main_thread_to_cpu0().is_ok());
+    assert!(pin_thread_to_cpu0("main").is_ok());
     assert_eq!(
         guard.trace_for_cpu(0),
         vec![
@@ -32,7 +32,7 @@ fn main_thread_affinity_failure_is_visible_and_fail_closed() {
         ..InjectedSchedulingOutcomes::success_for_cpu(0)
     };
     let guard = install_test_scheduling(outcomes);
-    assert!(pin_main_thread_to_cpu0()
+    assert!(pin_thread_to_cpu0("main")
         .unwrap_err()
         .contains("stage=affinity_set"));
     assert_eq!(guard.trace_for_cpu(0), vec![SchedulingSyscall::SetAffinity]);
@@ -42,7 +42,7 @@ fn main_thread_affinity_failure_is_visible_and_fail_closed() {
     outcomes.observed_affinity = Some(CpuMask::single(0) | CpuMask::single(1));
     let guard = install_test_scheduling(outcomes);
 
-    assert!(pin_main_thread_to_cpu0()
+    assert!(pin_thread_to_cpu0("main")
         .unwrap_err()
         .contains("stage=affinity_mismatch"));
     assert_eq!(

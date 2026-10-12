@@ -28,9 +28,9 @@ impl RecordingServices {
     pub(crate) fn new(audio_directory: PathBuf, audio_oled_directory: PathBuf) -> Self {
         Self {
             audio: RecorderService::new(audio_directory)
-                .with_worker_start(pin_writer_off_audio_core),
+                .with_worker_start(run_writer_beside_runtime),
             audio_oled: RecorderService::new(audio_oled_directory)
-                .with_worker_start(pin_writer_off_audio_core),
+                .with_worker_start(run_writer_beside_runtime),
             active: None,
         }
     }
@@ -99,12 +99,23 @@ impl RecordingServices {
     }
 }
 
-fn pin_writer_off_audio_core() {
-    #[cfg(any(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "hardware-raspberry-pi-zero-2w"
+// The audio core and the DSP cores are busiest exactly when a take matters;
+// the runtime core has slack, and idle class keeps note timing ahead of it.
+fn run_writer_beside_runtime() {
+    #[cfg(all(
+        not(test),
+        target_os = "linux",
+        any(
+            feature = "hardware-orange-pi-zero-2w",
+            feature = "hardware-raspberry-pi-zero-2w"
+        )
     ))]
-    crate::audio_priority::pin_background_worker_to_dsp_cpus();
+    {
+        if let Err(error) = crate::audio_priority::pin_thread_to_cpu0("recording writer") {
+            eprintln!("{error}");
+        }
+        crate::audio_priority::demote_to_idle_class();
+    }
 }
 
 pub(crate) fn poll_recording_status(

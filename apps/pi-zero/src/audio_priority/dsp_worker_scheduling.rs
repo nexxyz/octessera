@@ -61,3 +61,21 @@ pub(crate) fn pin_background_worker_to_dsp_cpus() {
         }
     }
 }
+
+/// Lets the calling thread run only when nothing else on its core wants to.
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+pub(crate) fn demote_to_idle_class() {
+    #[cfg(all(not(test), target_os = "linux"))]
+    {
+        let param = libc::sched_param { sched_priority: 0 };
+        if unsafe { libc::sched_setscheduler(0, libc::SCHED_IDLE, &param) } != 0 {
+            eprintln!(
+                "idle scheduling class failed: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+    }
+}

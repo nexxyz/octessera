@@ -190,7 +190,7 @@ fn raspberry_benchmark_requested_from(mut args: impl Iterator<Item = String>) ->
 
 #[cfg(feature = "native-audio")]
 fn pin_normal_startup_thread() {
-    if let Err(error) = audio_priority::pin_main_thread_to_cpu0() {
+    if let Err(error) = audio_priority::pin_thread_to_cpu0("main") {
         eprintln!("Normal startup CPU affinity failed: {error}");
         std::process::exit(2);
     }
