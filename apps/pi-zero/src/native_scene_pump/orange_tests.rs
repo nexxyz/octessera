@@ -169,7 +169,6 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
                 result: playback_runtime::RuntimeStoreResult::RecordingStatus {
                     ok: true,
                     message: "a scrolling recording status toast needs typed refreshes".into(),
-                    active: true,
                 },
             },
             &mut runner,

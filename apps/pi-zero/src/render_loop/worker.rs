@@ -227,11 +227,7 @@ fn submit_recording_oled_frame(
     state: &Arc<(Mutex<RenderState>, Condvar)>,
     publication: &OledFramePublication,
 ) {
-    let audio = state
-        .0
-        .lock()
-        .ok()
-        .and_then(|state| state.recording_audio.clone());
+    let audio = presentation::recording_audio(state);
     if let (Some(audio), Some(revision), Some(pixels)) =
         (audio, publication.revision(), publication.shared_pixels())
     {

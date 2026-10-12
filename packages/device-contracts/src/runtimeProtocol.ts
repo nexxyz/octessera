@@ -201,7 +201,6 @@ export type RuntimeStoreResult =
       type: "recording_status";
       ok: boolean;
       message: string;
-      active: boolean;
     }
   | { type: "system_info_result"; info: RuntimeSystemInfo }
   | { type: "system_info_error"; error: RuntimeSystemInfoError }

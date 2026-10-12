@@ -55,7 +55,7 @@ impl RuntimeWorker {
 
     pub(super) fn emit_runtime_output(&mut self, output: RuntimeIngest) -> Result<(), String> {
         self.observe_accepted_snapshot_revision();
-        self.adapter.submit_accepted_oled_frame(&self.playback)?;
+        self.adapter.submit_recording_frames(&self.playback)?;
         if let Err(error) = self.emit_runner_messages(output.messages) {
             self.handle_emission_error(error);
             return Ok(());

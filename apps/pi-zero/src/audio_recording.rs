@@ -165,7 +165,6 @@ fn recording_status_with_complete_message(
         RecordingStatus::Complete => RuntimeStoreResult::RecordingStatus {
             ok: true,
             message: complete_message.into(),
-            active: false,
         },
         RecordingStatus::Incomplete {
             gap_count,
@@ -174,12 +173,11 @@ fn recording_status_with_complete_message(
             overflow_frames,
         } => {
             eprintln!(
-                "recording incomplete: gaps={gap_count} gap_frames={gap_frames}                  overflows={overflow_count} overflow_frames={overflow_frames}"
+                "recording incomplete: gaps={gap_count} gap_frames={gap_frames} overflows={overflow_count} overflow_frames={overflow_frames}"
             );
             RuntimeStoreResult::RecordingStatus {
                 ok: false,
                 message: "Recording incomplete".into(),
-                active: false,
             }
         }
     }
@@ -193,12 +191,10 @@ pub(crate) fn recording_start_result(
         Ok(()) => RuntimeStoreResult::RecordingStatus {
             ok: true,
             message: "Recording started".into(),
-            active: true,
         },
         Err(RecordingStartError::AlreadyActive) => RuntimeStoreResult::RecordingStatus {
             ok: true,
             message: "Recording is already running".into(),
-            active: true,
         },
         Err(RecordingStartError::Io(error)) => {
             return Err(RuntimeAdapterError::from_facts(

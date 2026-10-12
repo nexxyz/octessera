@@ -23,12 +23,11 @@ fn recording_protocol_json_uses_public_field_names() {
     let status = RuntimeStoreResult::RecordingStatus {
         ok: true,
         message: "Recording saved".into(),
-        active: false,
     };
     assert_eq!(status.operation(), RuntimeOperation::Recording);
     assert_eq!(
         serde_json::to_value(status).unwrap(),
-        json!({ "type": "recording_status", "ok": true, "message": "Recording saved", "active": false })
+        json!({ "type": "recording_status", "ok": true, "message": "Recording saved" })
     );
 
     assert_eq!(

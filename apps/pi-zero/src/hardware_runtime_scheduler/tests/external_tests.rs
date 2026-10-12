@@ -44,7 +44,6 @@ fn external_midi_playing_keeps_typed_display_deadline_without_clock_pulses() {
                 result: RuntimeStoreResult::RecordingStatus {
                     ok: true,
                     message: "a scrolling external-sync display row".into(),
-                    active: true,
                 },
             },
             &mut runner,

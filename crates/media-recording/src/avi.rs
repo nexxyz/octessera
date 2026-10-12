@@ -239,9 +239,12 @@ impl Timeline {
             .filter(|frame| frame.audio_frame() <= tick)
             .max_by_key(|frame| frame.audio_frame());
         if let Some(frame) = selected {
-            if self.current_leds != *frame.colors() {
-                self.current_leds = *frame.colors();
-                self.encoded_pixels = None;
+            let colors = *frame.colors();
+            if self.current_leds != colors {
+                if !(colors.asleep && self.current_leds.asleep) {
+                    self.encoded_pixels = None;
+                }
+                self.current_leds = colors;
             }
         }
         self.pending_leds.retain(|frame| frame.audio_frame() > tick);

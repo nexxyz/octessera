@@ -163,7 +163,6 @@ fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() 
                 result: playback_runtime::RuntimeStoreResult::RecordingStatus {
                     ok: true,
                     message: "a scrolling recording status toast used to refresh from JSON".into(),
-                    active: true,
                 },
             },
             &mut runner,

@@ -32,7 +32,7 @@ pub(super) fn submit_presentation_recording_leds(
     }
 }
 
-fn recording_audio(
+pub(super) fn recording_audio(
     state: &Arc<(Mutex<QueueState>, Condvar)>,
 ) -> Option<crate::audio::AudioService> {
     state

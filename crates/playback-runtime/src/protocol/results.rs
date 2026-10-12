@@ -161,8 +161,6 @@ pub enum RuntimeStoreResult {
         ok: bool,
         #[serde(default)]
         message: String,
-        #[serde(default)]
-        active: bool,
     },
     SystemInfoResult {
         info: RuntimeSystemInfo,

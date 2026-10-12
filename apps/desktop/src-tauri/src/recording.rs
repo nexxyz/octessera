@@ -296,14 +296,14 @@ impl DesktopRecording {
         Ok(())
     }
 
-    pub(crate) fn submit_current_accepted_oled_frame(
+    pub(crate) fn submit_current_recording_frames(
         &self,
         playback: &PlaybackRuntime,
     ) -> Result<(), String> {
         let Some(snapshot) = playback.last_snapshot() else {
             return Ok(());
         };
-        if let Some(colors) = snapshot_led_colors(snapshot) {
+        if let Some(colors) = snapshot_led_colors(snapshot)? {
             self.submit_led_colors(colors)?;
         }
         let Some(revision) = snapshot
@@ -390,10 +390,18 @@ fn float_to_i16(value: f32) -> i16 {
     (value.clamp(-1.0, 1.0) * f32::from(i16::MAX)).round() as i16
 }
 
-#[cfg(test)]
-mod recording_tests;
+/// LED colors and sleep state from a snapshot that carries them; a snapshot
+/// that carries them in the wrong shape is a wiring error.
+fn snapshot_led_colors(snapshot: &serde_json::Value) -> Result<Option<LedColors>, String> {
+    if snapshot.get("leds").is_none() {
+        return Ok(None);
+    }
+    parse_snapshot_led_colors(snapshot)
+        .map(Some)
+        .ok_or_else(|| "snapshot LED state is malformed".to_string())
+}
 
-fn snapshot_led_colors(snapshot: &serde_json::Value) -> Option<LedColors> {
+fn parse_snapshot_led_colors(snapshot: &serde_json::Value) -> Option<LedColors> {
     let grid = snapshot
         .get("leds")?
         .get("rgb")?
@@ -414,3 +422,6 @@ fn snapshot_led_colors(snapshot: &serde_json::Value) -> Option<LedColors> {
         asleep,
     )
 }
+
+#[cfg(test)]
+mod recording_tests;

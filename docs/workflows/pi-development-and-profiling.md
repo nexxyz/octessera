@@ -159,8 +159,9 @@ persistent drop-ins). Quiet Latency soaks with 16 held notes went from about
 callback being switched out while still runnable (`prev_state=R`).
 
 The Orange is less exposed but not immune: NetworkManager's dispatcher, which
-starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), and D-Bus
-took its audio core the same way, so both are fenced to cores 2 and 3 there.
+starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), D-Bus and
+the hourly cron run took its audio core the same way, so all three are fenced
+to cores 2 and 3 there.
 
 Recording exposed a second, memory-side stall on both boards. Writing a long
 take fills the page cache, the kernel compacts memory, and by default it may

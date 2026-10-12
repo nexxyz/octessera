@@ -351,7 +351,6 @@ export const RUNTIME_STORE_RESULT_FIXTURES = [
     type: "recording_status",
     ok: false,
     message: "Recording incomplete",
-    active: false,
   },
   {
     type: "system_info_result",

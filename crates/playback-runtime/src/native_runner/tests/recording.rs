@@ -2,17 +2,12 @@ use super::*;
 use crate::{RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation};
 use std::time::{Duration, Instant};
 
-fn send_recording_status(
-    runner: &mut NativeRunner,
-    message: &str,
-    active: bool,
-) -> Vec<RunnerMessage> {
+fn send_recording_status(runner: &mut NativeRunner, message: &str) -> Vec<RunnerMessage> {
     runner
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message: message.into(),
-                active,
             },
         })
         .unwrap()
@@ -23,13 +18,13 @@ fn manual_recording_start_and_duplicate_are_active_native_statuses() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
 
-    let started = send_recording_status(&mut runner, "Recording started", true);
+    let started = send_recording_status(&mut runner, "Recording started");
     assert_eq!(
         snapshot_from(&started)["display"]["toast"],
         "Recording started"
     );
 
-    let duplicate = send_recording_status(&mut runner, "Recording is already running", true);
+    let duplicate = send_recording_status(&mut runner, "Recording is already running");
     assert_eq!(
         runner
             .display
@@ -51,7 +46,7 @@ fn active_recording_follows_the_oled_sleep_timer() {
     runner.display.ui.dim_timer_seconds = 0;
     runner.display.last_interaction_at = start;
 
-    send_recording_status(&mut runner, "Recording started", true);
+    send_recording_status(&mut runner, "Recording started");
     runner.display.toast = None;
     runner.display.toast_expires_at = None;
     assert_eq!(
@@ -68,15 +63,15 @@ fn recording_stop_and_max_time_completion_show_their_toasts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
 
-    send_recording_status(&mut runner, "Recording started", true);
-    let stopped = send_recording_status(&mut runner, "Recording saved", false);
+    send_recording_status(&mut runner, "Recording started");
+    let stopped = send_recording_status(&mut runner, "Recording saved");
     assert_eq!(
         snapshot_from(&stopped)["display"]["toast"],
         "Recording saved"
     );
 
-    send_recording_status(&mut runner, "Recording started", true);
-    let automatic = send_recording_status(&mut runner, "Max time: saved", false);
+    send_recording_status(&mut runner, "Recording started");
+    let automatic = send_recording_status(&mut runner, "Max time: saved");
     assert_eq!(
         snapshot_from(&automatic)["display"]["toast"],
         "Max time: saved"
@@ -93,7 +88,7 @@ fn failed_automatic_completion_keeps_error_detail() {
     runner.display.ui.dim_timer_seconds = 0;
     runner.display.last_interaction_at = start;
 
-    send_recording_status(&mut runner, "Recording started", true);
+    send_recording_status(&mut runner, "Recording started");
     runner.display.toast = None;
     runner.display.toast_expires_at = None;
     runner.test_advance_display_time(Duration::from_secs(5));

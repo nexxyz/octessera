@@ -226,11 +226,12 @@ fn snapshot_led_colors_read_full_brightness_grid_and_neokeys() {
         "leds": {"rgb": rgb},
         "neoKeyLeds": {"back": [255, 0, 0], "space": [0, 255, 0], "shift": [0, 0, 255], "fn": [1, 2, 3]}
     });
-    let colors = super::snapshot_led_colors(&snapshot).unwrap();
+    let colors = super::snapshot_led_colors(&snapshot).unwrap().unwrap();
     assert_eq!(colors.grid[0], [255, 0, 0]);
     assert_eq!(
         colors.keys,
         [[255, 0, 0], [0, 255, 0], [0, 0, 255], [1, 2, 3]]
     );
-    assert!(super::snapshot_led_colors(&serde_json::json!({"leds": {"rgb": [1, 2]}})).is_none());
+    assert!(super::snapshot_led_colors(&serde_json::json!({"leds": {"rgb": [1, 2]}})).is_err());
+    assert_eq!(super::snapshot_led_colors(&serde_json::json!({})), Ok(None));
 }
