@@ -47,8 +47,9 @@ storage, or the board's microSD card while a take is active.
 
 An interrupted take may leave a `.partial.wav` or `.partial.avi` file. It is
 not finished. An `.incomplete.wav` or `.incomplete.avi` file means Octessera
-detected dropped audio or OLED timeline data, so treat it as an incomplete
-recording. Existing takes are not overwritten.
+detected dropped audio, so treat it as an incomplete recording. (If the
+recorder ever has to skip a screen frame, the video just holds the previous
+picture a moment longer; that doesn't spoil the take.) Existing takes are not overwritten.
 
 ## Playing the result
 

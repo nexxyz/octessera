@@ -102,12 +102,9 @@ pub(crate) fn write_recording(
         gap_frames,
         overflow_count: state.overflow_chunks.load(Ordering::Acquire),
         overflow_frames: state.overflow_frames.load(Ordering::Acquire),
-        material_loss: oled.material_loss_count(),
-        incomplete: gap_count != 0
-            || state.overflow_chunks.load(Ordering::Acquire) != 0
-            || oled.material_loss_count() != 0,
+        incomplete: gap_count != 0 || state.overflow_chunks.load(Ordering::Acquire) != 0,
     };
-    timeline.finish(stats)
+    timeline.finish(stats, oled.material_loss_count())
 }
 
 struct Timeline {
@@ -208,7 +205,13 @@ impl Timeline {
         Ok(encoded)
     }
 
-    fn finish(mut self, mut stats: FinishStats) -> Result<RecordingOutcome, RecordingError> {
+    /// Only lost audio makes a take incomplete; a dropped screen frame just
+    /// holds the previous picture a little longer.
+    fn finish(
+        mut self,
+        mut stats: FinishStats,
+        ingress_screen_loss: u64,
+    ) -> Result<RecordingOutcome, RecordingError> {
         if !self.pending_audio.is_empty() {
             let frame = self
                 .video_bytes(self.writer.audio_frames)
@@ -219,8 +222,10 @@ impl Timeline {
                 Err(error) => self.writer.fail(error),
             }
         }
-        stats.material_loss = stats.material_loss.saturating_add(self.material_loss);
-        stats.incomplete |= stats.material_loss != 0;
+        let dropped_screen_frames = ingress_screen_loss.saturating_add(self.material_loss);
+        if dropped_screen_frames != 0 {
+            eprintln!("recording dropped {dropped_screen_frames} screen frames");
+        }
         stats.incomplete |= self.writer.write_failed.is_some();
         stats.frames = stats.frames.min(self.writer.audio_frames);
         self.writer.finish(stats)
@@ -291,7 +296,7 @@ mod tests {
     use std::fs::{self, OpenOptions};
 
     #[test]
-    fn future_frames_stay_bounded_and_report_loss_on_slow_timeline() {
+    fn future_frames_stay_bounded_and_screen_loss_keeps_the_take_complete() {
         let dir =
             std::env::temp_dir().join(format!("octessera-avi-timeline-cap-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
@@ -338,18 +343,20 @@ mod tests {
         assert!(!timeline.push_samples(&vec![0_i16; VIDEO_UNIT_FRAMES * 2]));
         let frames = timeline.audio_frames();
         let outcome = timeline
-            .finish(FinishStats {
-                frames,
-                gap_count: 0,
-                gap_frames: 0,
-                overflow_count: 0,
-                overflow_frames: 0,
-                material_loss: 0,
-                incomplete: false,
-            })
+            .finish(
+                FinishStats {
+                    frames,
+                    gap_count: 0,
+                    gap_frames: 0,
+                    overflow_count: 0,
+                    overflow_frames: 0,
+                    incomplete: false,
+                },
+                0,
+            )
             .unwrap();
-        assert!(outcome.path.to_string_lossy().contains(".incomplete.avi"));
-        assert!(matches!(outcome.status, RecordingStatus::Incomplete { .. }));
+        assert!(!outcome.path.to_string_lossy().contains(".incomplete."));
+        assert_eq!(outcome.status, RecordingStatus::Complete);
         let bytes = fs::read(outcome.path).unwrap();
         assert_eq!(&bytes[..4], b"RIFF");
         assert_eq!(

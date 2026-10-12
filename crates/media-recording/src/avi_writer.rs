@@ -12,7 +12,6 @@ pub(crate) struct FinishStats {
     pub(crate) gap_frames: u64,
     pub(crate) overflow_count: u64,
     pub(crate) overflow_frames: u64,
-    pub(crate) material_loss: u64,
     pub(crate) incomplete: bool,
 }
 
@@ -269,8 +268,8 @@ impl AviWriter {
             RecordingStatus::Incomplete {
                 gap_count: stats.gap_count,
                 gap_frames: stats.gap_frames,
-                overflow_count: stats.overflow_count.saturating_add(stats.material_loss),
-                overflow_frames: stats.overflow_frames.saturating_add(stats.material_loss),
+                overflow_count: stats.overflow_count,
+                overflow_frames: stats.overflow_frames,
             }
         };
         Ok(RecordingOutcome {

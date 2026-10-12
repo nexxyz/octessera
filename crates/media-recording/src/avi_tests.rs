@@ -201,7 +201,7 @@ fn gaps_make_silent_audio_and_incomplete_avi() {
 }
 
 #[test]
-fn oled_ingress_is_bounded_nonblocking_and_reports_loss() {
+fn oled_ingress_is_bounded_nonblocking_and_screen_loss_keeps_the_take_complete() {
     let dir = temp_dir("avi-ingress");
     let mut service = RecorderService::new(dir.clone());
     let recording = service.start_oled_with_max_frames(1).unwrap();
@@ -217,7 +217,7 @@ fn oled_ingress_is_bounded_nonblocking_and_reports_loss() {
     assert!(started.elapsed().as_millis() < 100);
     assert!(loss);
     let outcome = service.stop_audio().unwrap().unwrap();
-    assert!(matches!(outcome.status, RecordingStatus::Incomplete { .. }));
+    assert_eq!(outcome.status, RecordingStatus::Complete);
     remove_temp_dir(dir);
 }
 
