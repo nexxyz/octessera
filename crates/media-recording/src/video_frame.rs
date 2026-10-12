@@ -8,6 +8,56 @@ const GAP: usize = 1;
 const KEY_COLUMN_X: usize = OLED_WIDTH as usize;
 const GRID_X: usize = KEY_COLUMN_X + BLOCK;
 const GRID_SIDE: usize = 8;
+const KEY_GLYPHS: [[&str; 10]; 4] = [
+    [
+        "..........",
+        "...#......",
+        "..##......",
+        ".#########",
+        "##########",
+        ".#########",
+        "..##......",
+        "...#......",
+        "..........",
+        "..........",
+    ],
+    [
+        ".##.......",
+        ".####.....",
+        ".######...",
+        ".########.",
+        ".#########",
+        ".#########",
+        ".########.",
+        ".######...",
+        ".####.....",
+        ".##.......",
+    ],
+    [
+        "....##....",
+        "...####...",
+        "..######..",
+        ".########.",
+        "##########",
+        "...####...",
+        "...####...",
+        "...####...",
+        "...####...",
+        "...####...",
+    ],
+    [
+        "....##....",
+        "..######..",
+        "##########",
+        "..######..",
+        "....##....",
+        "##......##",
+        "..##..##..",
+        "....##....",
+        "..........",
+        "..........",
+    ],
+];
 
 /// Lays out one video picture: OLED on the left, the four NeoKeys as a
 /// bottom-aligned column in the middle, and the 8x8 NeoTrellis on the right.
@@ -18,8 +68,10 @@ pub(crate) fn encode_video_frame(
     let mut rgb = vec![0_u8; VIDEO_WIDTH as usize * VIDEO_HEIGHT as usize * 3];
     draw_oled(&mut rgb, oled);
     let first_key_y = VIDEO_HEIGHT as usize - leds.keys.len() * BLOCK;
-    for (index, color) in leds.keys.iter().enumerate() {
-        draw_block(&mut rgb, KEY_COLUMN_X, first_key_y + index * BLOCK, *color);
+    for (index, (color, glyph)) in leds.keys.iter().zip(&KEY_GLYPHS).enumerate() {
+        let top = first_key_y + index * BLOCK;
+        draw_block(&mut rgb, KEY_COLUMN_X, top, *color);
+        draw_glyph(&mut rgb, KEY_COLUMN_X, top, glyph);
     }
     for (index, color) in leds.grid.iter().enumerate() {
         let (row, column) = (index / GRID_SIDE, index % GRID_SIDE);
@@ -49,6 +101,17 @@ fn draw_block(rgb: &mut [u8], left: usize, top: usize, color: [u8; 3]) {
     for y in top + GAP..top + BLOCK - GAP {
         for x in left + GAP..left + BLOCK - GAP {
             put(rgb, x, y, color);
+        }
+    }
+}
+
+fn draw_glyph(rgb: &mut [u8], left: usize, top: usize, glyph: &[&str; 10]) {
+    let inset = (BLOCK - glyph.len()) / 2;
+    for (row, line) in glyph.iter().enumerate() {
+        for (column, cell) in line.bytes().enumerate() {
+            if cell == b'#' {
+                put(rgb, left + inset + column, top + inset + row, [0; 3]);
+            }
         }
     }
 }
@@ -91,8 +154,13 @@ mod tests {
         assert_eq!(image.dimensions(), (VIDEO_WIDTH, VIDEO_HEIGHT));
         assert!(near(image.get_pixel(64, 64), [255, 255, 255]));
         assert!(near(image.get_pixel(136, 8), [0, 0, 0]));
-        assert!(near(image.get_pixel(136, 72), [0, 255, 0]));
-        assert!(near(image.get_pixel(136, 120), [255, 255, 0]));
+        assert!(near(image.get_pixel(130, 66), [0, 255, 0]));
+        assert!(image
+            .get_pixel(136, 71)
+            .0
+            .iter()
+            .all(|channel| *channel < 60));
+        assert!(near(image.get_pixel(130, 126), [255, 255, 0]));
         assert!(near(image.get_pixel(152, 8), [255, 0, 0]));
         assert!(near(image.get_pixel(264, 120), [0, 0, 255]));
         assert!(near(image.get_pixel(200, 56), [0, 0, 0]));

@@ -211,16 +211,26 @@ impl LatestPresentation {
                     audio.clear_latest_physical_oled_frame()?;
                 }
             }
-            Self::Native { hardware, oled, .. } => {
+            Self::Native { oled, .. } => {
                 if let (Some(revision), Some(pixels)) = (oled.revision(), oled.shared_pixels()) {
                     audio.submit_accepted_oled_frame_shared(revision, pixels)?;
-                }
-                if let Some(colors) = recording_led_colors(hardware) {
-                    audio.submit_led_colors(colors)?;
                 }
             }
         }
         Ok(())
+    }
+
+    pub(crate) fn submit_recording_leds(
+        &self,
+        audio: &crate::audio::AudioService,
+    ) -> Result<(), String> {
+        let Self::Native { hardware, .. } = self else {
+            return Ok(());
+        };
+        match recording_led_colors(hardware) {
+            Some(colors) => audio.submit_led_colors(colors),
+            None => Ok(()),
+        }
     }
 }
 

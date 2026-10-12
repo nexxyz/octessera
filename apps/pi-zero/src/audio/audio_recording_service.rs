@@ -41,13 +41,6 @@ impl AudioService {
                 .map_err(|error| RecordingStartError::Io(error.to_string()))?;
             let _ = recording.oled.try_submit(frame);
         }
-        if let Some(colors) = *self
-            .accepted_leds
-            .read()
-            .map_err(|_| RecordingStartError::Io("accepted LED colors lock poisoned".into()))?
-        {
-            recording.oled.submit_leds(LedFrame::new(0, colors));
-        }
         self.mix_taps
             .write()
             .map_err(|_| RecordingStartError::Io("recording tap lock poisoned".into()))?
@@ -56,7 +49,14 @@ impl AudioService {
             .recording_oled
             .write()
             .map_err(|_| RecordingStartError::Io("OLED recording lock poisoned".into()))? =
-            Some(recording.oled);
+            Some(recording.oled.clone());
+        if let Some(colors) = *self
+            .accepted_leds
+            .read()
+            .map_err(|_| RecordingStartError::Io("accepted LED colors lock poisoned".into()))?
+        {
+            recording.oled.submit_leds(LedFrame::new(0, colors));
+        }
         Ok(())
     }
 

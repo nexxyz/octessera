@@ -169,11 +169,6 @@ impl DesktopRecording {
                 .map_err(|error| media_recording::RecordingStartError::Io(error.to_string()))?;
             let _ = recording.oled.try_submit(frame);
         }
-        if let Some(colors) = *self.accepted_leds.read().map_err(|_| {
-            media_recording::RecordingStartError::Io("accepted LED colors lock poisoned".into())
-        })? {
-            recording.oled.submit_leds(LedFrame::new(0, colors));
-        }
         let mut tap = self.tap.write().map_err(|_| {
             media_recording::RecordingStartError::Io("recording tap lock poisoned".into())
         })?;
@@ -181,7 +176,13 @@ impl DesktopRecording {
             media_recording::RecordingStartError::Io("OLED recording lock poisoned".into())
         })?;
         *tap = Some(recording.tap);
-        *oled = Some(recording.oled);
+        *oled = Some(recording.oled.clone());
+        drop((tap, oled));
+        if let Some(colors) = *self.accepted_leds.read().map_err(|_| {
+            media_recording::RecordingStartError::Io("accepted LED colors lock poisoned".into())
+        })? {
+            recording.oled.submit_leds(LedFrame::new(0, colors));
+        }
         Ok(())
     }
 

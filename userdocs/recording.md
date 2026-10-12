@@ -14,10 +14,11 @@ Open `System > Recording`:
   their sound is made by the outside device.
 - **Audio+Video** writes an AVI with the same stereo sound plus a 272x128
   MJPEG picture at 20 fps: the OLED on the left, the four NeoKeys as a little
-  column in the middle (Back at the top, Fn at the bottom), and the 8x8 grid on
-  the right as chunky blocks. The LEDs are shown at full color, so a video
-  still reads fine if you play with Grid Bright turned way down. Audio is the
-  master clock, so picture and sound stay in step.
+  column in the middle (Back at the top, Fn at the bottom, each wearing a tiny
+  black keycap glyph), and the 8x8 grid on the right as chunky blocks. The
+  LEDs are shown at full color, so a video still reads fine if you play with
+  Grid Bright turned way down. Audio is the master clock, so picture and sound
+  stay in step.
 - A successful start shows **Recording started**. Starting again while a take is
   active shows **Recording is already running**.
 - While a take is active, the OLED stays awake temporarily. This does not change

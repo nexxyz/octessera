@@ -335,6 +335,19 @@ fn worker_submits_accepted_native_frame_to_existing_audio_recording_ingress() {
     let result = ack.recv_timeout(Duration::from_secs(2)).unwrap();
     assert!(result.result.is_ok());
     assert!(result.frame_revision.is_some());
+    let mut sentinel = media_recording::LedColors::DARK;
+    sentinel.grid[0] = [1, 2, 3];
+    audio.submit_led_colors(sentinel).unwrap();
+    let unchanged_oled = runner.capture_display_scene().unwrap();
+    let ack = worker
+        .publish_native_scene(unchanged_oled, OledPresentationMetrics::default(), None)
+        .unwrap();
+    assert!(ack
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap()
+        .result
+        .is_ok());
+    assert_ne!(audio.latest_led_colors(), Some(sentinel));
     audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
     let recording = audio.stop_recording_with_outcome().unwrap().unwrap();
     assert!(recording.frames_written > 0);

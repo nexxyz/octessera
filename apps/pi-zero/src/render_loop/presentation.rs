@@ -14,16 +14,32 @@ pub(super) fn submit_presentation_recording_frame(
     state: &Arc<(Mutex<QueueState>, Condvar)>,
     presentation: &LatestPresentation,
 ) {
-    let audio = state
-        .0
-        .lock()
-        .ok()
-        .and_then(|state| state.recording_audio.clone());
-    if let Some(audio) = audio {
+    if let Some(audio) = recording_audio(state) {
         if let Err(error) = presentation.submit_recording_frame(&audio) {
             eprintln!("native OLED recording submission failed: {error}");
         }
     }
+}
+
+pub(super) fn submit_presentation_recording_leds(
+    state: &Arc<(Mutex<QueueState>, Condvar)>,
+    presentation: &LatestPresentation,
+) {
+    if let Some(audio) = recording_audio(state) {
+        if let Err(error) = presentation.submit_recording_leds(&audio) {
+            eprintln!("native LED recording submission failed: {error}");
+        }
+    }
+}
+
+fn recording_audio(
+    state: &Arc<(Mutex<QueueState>, Condvar)>,
+) -> Option<crate::audio::AudioService> {
+    state
+        .0
+        .lock()
+        .ok()
+        .and_then(|state| state.recording_audio.clone())
 }
 
 pub(super) struct PresentationState {

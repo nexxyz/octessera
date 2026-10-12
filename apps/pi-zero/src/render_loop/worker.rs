@@ -59,6 +59,7 @@ pub(super) fn render_worker_loop(
                     if presentation.cache.oled_render_count() > before {
                         presentation::submit_presentation_recording_frame(&state, &next);
                     }
+                    presentation::submit_presentation_recording_leds(&state, &next);
                     if next.oled_is_accepted(&presentation.cache) {
                         next.complete_native(Ok(()));
                     }
