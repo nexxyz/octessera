@@ -136,7 +136,10 @@ the note reaching the audio service); put a Keys layer with Link events enabled
 on the active layer in the clone, or the probe reports `probe_silent`. Set
 `sound.voiceStealingMode` to `none` in the clone's patch so stealing does not
 hide the limit. Correlate the step lines with `underrun occurred` lines and the
-`pi-ui-profile` windows in the candidate journal.
+`pi-ui-profile` windows in the candidate journal. Add
+`OCTESSERA_TIMING_RECORD=1` to run the same study while an Audio+Video take
+records (up to 120 minutes) into the board's screen-recordings folder; delete
+the take afterwards.
 
 Run boards one at a time when comparing underrun counts, and keep the study
 host quiet: a shell loop that spawns processes every second on the board shows

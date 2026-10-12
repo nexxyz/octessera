@@ -1,6 +1,7 @@
 //! Opt-in board capacity study (`OCTESSERA_TIMING_LOAD=start,step,max,seconds`).
 //! Ramps held notes through the host musical-event path and times probe Keys
 //! presses from arrival to audio hand-off. Inert unless the variable is set.
+//! `OCTESSERA_TIMING_RECORD=1` also starts an Audio+Video take at the first step.
 
 use crate::host_adapter::PiHostAdapter;
 use crate::input::grid_message;
@@ -9,6 +10,8 @@ use std::time::{Duration, Instant};
 
 const LOAD_ENV: &str = "OCTESSERA_TIMING_LOAD";
 const AUTOPLAY_ENV: &str = "OCTESSERA_TIMING_AUTOPLAY";
+const RECORD_ENV: &str = "OCTESSERA_TIMING_RECORD";
+const RECORD_MINUTES: u16 = 120;
 const NOTE_GATE: Duration = Duration::from_millis(2_000);
 const LOAD_SLOTS: [u8; 3] = [0, 2, 3];
 const NOTES_PER_TICK: usize = 8;
@@ -73,6 +76,7 @@ pub(crate) struct TimingLoad {
     probe_counter: u32,
     release_at: Option<Instant>,
     stats: StepStats,
+    record: bool,
 }
 
 impl TimingLoad {
@@ -101,6 +105,7 @@ impl TimingLoad {
             probe_counter: 0,
             release_at: None,
             stats: StepStats::default(),
+            record: std::env::var(RECORD_ENV).as_deref() == Ok("1"),
         }))
     }
 
@@ -114,6 +119,13 @@ impl TimingLoad {
     ) -> Result<bool, String> {
         let elapsed_steps =
             (now.duration_since(self.started_at).as_secs() / self.step_duration.as_secs()) as u32;
+        if self.step_index.is_none() && self.record {
+            let started = host
+                .audio_service()
+                .ok_or_else(|| "timing-load recording needs audio".to_string())?
+                .start_recording_audio_oled_from_latest(RECORD_MINUTES);
+            eprintln!("timing-load recording-start {started:?}");
+        }
         if self.step_index != Some(elapsed_steps) {
             if let Some(previous) = self.step_index {
                 self.report(previous);
