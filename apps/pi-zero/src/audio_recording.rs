@@ -27,8 +27,10 @@ pub(crate) struct RecordingServices {
 impl RecordingServices {
     pub(crate) fn new(audio_directory: PathBuf, audio_oled_directory: PathBuf) -> Self {
         Self {
-            audio: RecorderService::new(audio_directory),
-            audio_oled: RecorderService::new(audio_oled_directory),
+            audio: RecorderService::new(audio_directory)
+                .with_worker_start(pin_writer_off_audio_core),
+            audio_oled: RecorderService::new(audio_oled_directory)
+                .with_worker_start(pin_writer_off_audio_core),
             active: None,
         }
     }
@@ -95,6 +97,14 @@ impl RecordingServices {
         }
         Ok(())
     }
+}
+
+fn pin_writer_off_audio_core() {
+    #[cfg(any(
+        feature = "hardware-orange-pi-zero-2w",
+        feature = "hardware-raspberry-pi-zero-2w"
+    ))]
+    crate::audio_priority::pin_background_worker_to_dsp_cpus();
 }
 
 pub(crate) fn poll_recording_status(

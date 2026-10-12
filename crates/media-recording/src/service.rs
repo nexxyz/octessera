@@ -23,11 +23,23 @@ struct ActiveRecording {
 pub struct RecorderService {
     dir: PathBuf,
     active: Option<ActiveRecording>,
+    worker_start: fn(),
 }
 
 impl RecorderService {
     pub fn new(dir: PathBuf) -> Self {
-        Self { dir, active: None }
+        Self {
+            dir,
+            active: None,
+            worker_start: || {},
+        }
+    }
+
+    /// Runs `worker_start` first on every writer thread, e.g. to keep it off
+    /// the audio core.
+    pub fn with_worker_start(mut self, worker_start: fn()) -> Self {
+        self.worker_start = worker_start;
+        self
     }
 
     pub fn start_audio(&mut self, max_minutes: u16) -> Result<RecordingTap, RecordingStartError> {
@@ -127,6 +139,7 @@ impl RecorderService {
         let worker_state = state.clone();
         let worker_partial = partial_path.clone();
         let worker_oled = oled.clone();
+        let worker_start = self.worker_start;
         let worker = thread::Builder::new()
             .name(
                 match kind {
@@ -136,6 +149,7 @@ impl RecorderService {
                 .into(),
             )
             .spawn(move || {
+                worker_start();
                 let result = match kind {
                     RecordingKind::AudioWav => wav::write_recording(
                         file,
