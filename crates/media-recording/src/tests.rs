@@ -307,3 +307,17 @@ fn monitor_tap_drops_when_full_and_stops_when_its_reader_goes() {
     tap.push_chunk(chunk);
     assert!(!tap.is_active());
 }
+
+#[test]
+fn small_callback_batches_are_sent_as_full_chunks() {
+    let (tap, chunks) = monitor_tap();
+    let batch = [7_i16; 64 * 2];
+    for _ in 0..(CHUNK_FRAMES / 64 + 1) {
+        tap.push_frames(&batch);
+    }
+    let sent: Vec<_> = chunks.try_iter().collect();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].frame_offset(), 0);
+    assert_eq!(sent[0].frame_count(), CHUNK_FRAMES);
+    assert_eq!(tap.audio_frame_cursor(), (CHUNK_FRAMES + 64) as u64);
+}

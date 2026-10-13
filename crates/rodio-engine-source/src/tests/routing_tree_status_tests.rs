@@ -434,7 +434,7 @@ fn empty_status() -> AudioLoadStatus {
         dropped_quantums: 0,
         deadline_misses: 0,
         deadline_recoveries: 0,
-        peak: BlockPeak::default(),
+        peak: realtime_engine::synth::BlockPeak::default(),
     }
 }
 

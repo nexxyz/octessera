@@ -95,36 +95,48 @@ impl RecordingTap {
     }
 
     pub fn push_frame(&self, left: i16, right: i16) {
+        self.push_frames(&[left, right]);
+    }
+
+    /// Appends interleaved stereo frames to the pending chunk and sends only
+    /// full chunks, so the queue's capacity holds whole seconds of audio
+    /// whatever the callback size. Never blocks: if the stop path holds the
+    /// chunk, these frames are counted as overflow.
+    pub fn push_frames(&self, samples: &[i16]) {
         if !self.state.accepting.load(Ordering::Acquire) {
             return;
         }
+        let frames = (samples.len() / usize::from(CHANNELS)) as u64;
         let Ok(mut pending) = self.state.pending_chunk.try_lock() else {
-            self.state.next_frame.fetch_add(1, Ordering::Relaxed);
+            self.state.next_frame.fetch_add(frames, Ordering::Relaxed);
             self.state.overflow_chunks.fetch_add(1, Ordering::Relaxed);
-            self.state.overflow_frames.fetch_add(1, Ordering::Relaxed);
+            self.state
+                .overflow_frames
+                .fetch_add(frames, Ordering::Relaxed);
             return;
         };
         if !self.state.accepting.load(Ordering::Acquire) {
             return;
         }
-        if pending.is_none() {
-            *pending = Some(self.new_chunk());
+        let (frames, _) = samples.as_chunks::<2>();
+        for [left, right] in frames {
+            let chunk = pending.get_or_insert_with(|| self.new_chunk());
+            if !chunk.push_frame(*left, *right) {
+                let full = pending.take().expect("full recording chunk");
+                self.push_chunk_unchecked(full);
+                let mut next = self.new_chunk();
+                let _ = next.push_frame(*left, *right);
+                *pending = Some(next);
+            }
         }
-        let chunk = pending.as_mut().expect("pending recording chunk");
-        if !chunk.push_frame(left, right) {
-            let full = pending.take().expect("full recording chunk");
-            self.push_chunk_unchecked(full);
-            let mut next = self.new_chunk();
-            let _ = next.push_frame(left, right);
-            *pending = Some(next);
+        if let Some(chunk) = pending.as_ref() {
+            advance_cursor(
+                &self.state.next_frame,
+                chunk
+                    .frame_offset()
+                    .saturating_add(chunk.frame_count() as u64),
+            );
         }
-        let chunk = pending.as_ref().expect("pending recording chunk");
-        advance_cursor(
-            &self.state.next_frame,
-            chunk
-                .frame_offset()
-                .saturating_add(chunk.frame_count() as u64),
-        );
     }
 
     fn push_chunk_unchecked(&self, chunk: RecordingChunk) {

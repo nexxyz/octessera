@@ -170,29 +170,41 @@ where
     }
 }
 
+const RECORDING_BATCH_SAMPLES: usize = 512;
+
 fn fill_output<T>(data: &mut [T], source: &mut EngineSource, mix_taps: Option<&MixTapState>)
 where
     T: Sample + cpal::FromSample<f32>,
 {
     let taps_guard = mix_taps.and_then(|taps| taps.try_read().ok());
-    let taps = taps_guard.as_ref().map_or([None, None], |taps| {
-        [taps.recording.as_ref(), taps.monitor.as_ref()]
+    let (recording, monitor) = taps_guard.as_ref().map_or((None, None), |taps| {
+        (taps.recording.as_ref(), taps.monitor.as_ref())
     });
-    if taps.iter().all(Option::is_none) {
+    if recording.is_none() && monitor.is_none() {
         for sample in data.iter_mut() {
             *sample = T::from_sample(source.next().unwrap_or(0.0));
         }
         return;
     }
-    let mut chunks = taps.map(|tap| tap.map(|tap| tap.new_chunk()));
+    let mut monitor_chunk = monitor.map(|tap| tap.new_chunk());
+    let mut recorded = [0_i16; RECORDING_BATCH_SAMPLES];
+    let mut recorded_len = 0;
     let (frames, remainder) = data.as_chunks_mut::<2>();
     for frame in frames {
         let left = source.next().unwrap_or(0.0);
         let right = source.next().unwrap_or(0.0);
-        for (tap, chunk) in taps.iter().zip(chunks.iter_mut()) {
-            if let (Some(tap), Some(chunk)) = (tap, chunk.as_mut()) {
-                push_tap_frame(tap, chunk, float_to_i16(left), float_to_i16(right));
+        let (left_i16, right_i16) = (float_to_i16(left), float_to_i16(right));
+        if let Some(tap) = recording {
+            recorded[recorded_len] = left_i16;
+            recorded[recorded_len + 1] = right_i16;
+            recorded_len += 2;
+            if recorded_len == RECORDING_BATCH_SAMPLES {
+                tap.push_frames(&recorded);
+                recorded_len = 0;
             }
+        }
+        if let (Some(tap), Some(chunk)) = (monitor, monitor_chunk.as_mut()) {
+            push_tap_frame(tap, chunk, left_i16, right_i16);
         }
         frame[0] = T::from_sample(left);
         frame[1] = T::from_sample(right);
@@ -201,11 +213,12 @@ where
         let value = source.next().unwrap_or(0.0);
         *sample = T::from_sample(value);
     }
-    for (tap, chunk) in taps.iter().zip(chunks) {
-        if let (Some(tap), Some(chunk)) = (tap, chunk) {
-            if !chunk.is_empty() {
-                tap.push_chunk(chunk);
-            }
+    if let Some(tap) = recording {
+        tap.push_frames(&recorded[..recorded_len]);
+    }
+    if let (Some(tap), Some(chunk)) = (monitor, monitor_chunk) {
+        if !chunk.is_empty() {
+            tap.push_chunk(chunk);
         }
     }
 }
