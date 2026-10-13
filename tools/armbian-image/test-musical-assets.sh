@@ -117,7 +117,7 @@ grep -q 'ExecStart=/usr/local/sbin/octessera-provision-musical-default' "$root/u
 grep -qFx 'Description=Seed missing Octessera split save documents' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
 grep -qF '  usr/share/octessera/defaults/pi-system.json ' "$root/userpatches/customize-image.sh"
 grep -qF '  usr/share/octessera/defaults/pi-default.patch.json ' "$root/userpatches/customize-image.sh"
-grep -qF '  install_overlay_file "$musical_asset" "/$musical_asset" 0644' "$root/userpatches/customize-image.sh"
+grep -qF "  install_overlay_file \"\$musical_asset\" \"/\$musical_asset\" 0644" "$root/userpatches/customize-image.sh"
 if grep -qF 'pi-default.json' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"; then
   echo 'Orange save seeder must not consume the mixed metadata input.' >&2
   exit 1
