@@ -309,10 +309,15 @@ impl EngineSource {
         } else {
             0.0
         };
+        let engine = &self.engine;
         self.telemetry.observe_block(
             ratio,
             result.drained.control_events,
             result.drained.config_events,
+            || {
+                let voices = engine.profile_snapshot();
+                (voices.active_synth_voices, voices.active_sample_voices)
+            },
         );
         self.engine.set_runtime_load_ratio(ratio);
         let status_queued = if deferred_status_pending && !deferred_status_ready {
@@ -362,6 +367,9 @@ impl EngineSource {
         self.telemetry.apply_to_status(&mut status);
         self.persistent_output.apply_to_status(&mut status);
         let status_queued = load_tx.try_send(status);
+        if status_queued {
+            self.telemetry.reset_peak();
+        }
         if status_queued || !acknowledge_send {
             self.last_load_report = Instant::now();
         }

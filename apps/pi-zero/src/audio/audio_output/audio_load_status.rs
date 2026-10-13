@@ -33,6 +33,7 @@ pub(crate) fn drain_audio_load_status(
             && playback.update_native_presentation_metrics(RuntimePresentationMetrics::default());
         let mut newest = None;
         while let Ok(status) = load_rx.try_recv() {
+            log_block_overrun(&status);
             newest = Some(status);
         }
         if let Some(status) = newest {
@@ -56,6 +57,7 @@ pub(crate) fn drain_audio_load_status(
     };
     let mut newest = None;
     while let Ok(status) = load_rx.try_recv() {
+        log_block_overrun(&status);
         newest = Some(status);
     }
     if let Some(status) = newest {
@@ -70,4 +72,16 @@ pub(crate) fn drain_audio_load_status(
         output.follow_ups.extend(next.follow_ups);
     }
     output
+}
+
+/// A render block that took longer than the audio it produced; logged with
+/// what it handled so rare spikes can be traced to their cause.
+fn log_block_overrun(status: &realtime_engine::synth::AudioLoadStatus) {
+    let peak = status.peak;
+    if peak.ratio >= 1.0 {
+        eprintln!(
+            "audio block overran: {:.2}x its time, control_events={} config_events={} synth_voices={} sample_voices={}",
+            peak.ratio, peak.control_events, peak.config_events, peak.synth_voices, peak.sample_voices
+        );
+    }
 }

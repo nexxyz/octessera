@@ -64,6 +64,16 @@ pub enum VoiceStealingMode {
     AutoHard,
 }
 
+/// The slowest render block since the previous status, and what it handled.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct BlockPeak {
+    pub ratio: f32,
+    pub control_events: u64,
+    pub config_events: u64,
+    pub synth_voices: usize,
+    pub sample_voices: usize,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct AudioLoadStatus {
     pub ratio: f32,
@@ -81,6 +91,7 @@ pub struct AudioLoadStatus {
     pub dropped_quantums: u64,
     pub deadline_misses: u64,
     pub deadline_recoveries: u64,
+    pub peak: BlockPeak,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -1,5 +1,5 @@
 use crossbeam_channel::{bounded, Receiver, Sender};
-use realtime_engine::synth::AudioLoadStatus;
+use realtime_engine::synth::{AudioLoadStatus, BlockPeak};
 
 pub(super) const TELEMETRY_WINDOW_BLOCKS: usize = 128;
 pub const TELEMETRY_QUEUE_CAPACITY: usize = 4;
@@ -46,6 +46,7 @@ pub(super) struct EngineTelemetry {
     blocks: u64,
     control_events: u64,
     config_events: u64,
+    peak: BlockPeak,
 }
 
 impl Default for EngineTelemetry {
@@ -57,12 +58,29 @@ impl Default for EngineTelemetry {
             blocks: 0,
             control_events: 0,
             config_events: 0,
+            peak: BlockPeak::default(),
         }
     }
 }
 
 impl EngineTelemetry {
-    pub(super) fn observe_block(&mut self, ratio: f32, control_events: u64, config_events: u64) {
+    pub(super) fn observe_block(
+        &mut self,
+        ratio: f32,
+        control_events: u64,
+        config_events: u64,
+        voices: impl FnOnce() -> (usize, usize),
+    ) {
+        if ratio > self.peak.ratio {
+            let (synth_voices, sample_voices) = voices();
+            self.peak = BlockPeak {
+                ratio,
+                control_events,
+                config_events,
+                synth_voices,
+                sample_voices,
+            };
+        }
         self.ratios[self.next] = ratio;
         self.next = (self.next + 1) % TELEMETRY_WINDOW_BLOCKS;
         self.len = (self.len + 1).min(TELEMETRY_WINDOW_BLOCKS);
@@ -77,6 +95,11 @@ impl EngineTelemetry {
         status.blocks = self.blocks;
         status.control_events = self.control_events;
         status.config_events = self.config_events;
+        status.peak = self.peak;
+    }
+
+    pub(super) fn reset_peak(&mut self) {
+        self.peak = BlockPeak::default();
     }
 
     fn percentile(&self, percentile: f32) -> f32 {
@@ -116,6 +139,7 @@ mod tests {
             dropped_quantums: 0,
             deadline_misses: 0,
             deadline_recoveries: 0,
+            peak: BlockPeak::default(),
         }
     }
 
@@ -132,5 +156,39 @@ mod tests {
             newest = Some(next);
         }
         assert_eq!(newest.map(|status| status.ratio), Some(3.0));
+    }
+
+    #[test]
+    fn block_peak_keeps_the_slowest_block_until_reported() {
+        let mut telemetry = EngineTelemetry::default();
+        let mut voice_reads = 0;
+        telemetry.observe_block(0.4, 0, 0, || {
+            voice_reads += 1;
+            (3, 1)
+        });
+        telemetry.observe_block(1.6, 2, 1, || {
+            voice_reads += 1;
+            (9, 4)
+        });
+        telemetry.observe_block(0.9, 5, 0, || {
+            voice_reads += 1;
+            (1, 1)
+        });
+        let mut reported = status(0.5);
+        telemetry.apply_to_status(&mut reported);
+        assert_eq!(voice_reads, 2);
+        assert_eq!(
+            reported.peak,
+            BlockPeak {
+                ratio: 1.6,
+                control_events: 2,
+                config_events: 1,
+                synth_voices: 9,
+                sample_voices: 4,
+            }
+        );
+        telemetry.reset_peak();
+        telemetry.apply_to_status(&mut reported);
+        assert_eq!(reported.peak, BlockPeak::default());
     }
 }
