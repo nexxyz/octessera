@@ -48,6 +48,7 @@ pub(crate) fn write_recording(
     let mut gap_count = 0_u64;
     let mut gap_frames = 0_u64;
     let mut size_limited = false;
+    let mut lag = WriterLag::default();
 
     loop {
         let chunk = if stop.load(Ordering::Acquire) {
@@ -62,8 +63,17 @@ pub(crate) fn write_recording(
                 Err(mpsc::RecvTimeoutError::Disconnected) => break,
             }
         };
+        lag.observe(
+            state.next_frame.load(Ordering::Relaxed),
+            chunk.frame_offset(),
+        );
         if chunk.frame_offset() > next_input_frame {
             let gap = chunk.frame_offset() - next_input_frame;
+            eprintln!(
+                "recording lost {} ms of audio at take time {:.1} s",
+                gap * 1_000 / u64::from(SAMPLE_RATE),
+                next_input_frame as f64 / f64::from(SAMPLE_RATE)
+            );
             gap_count = gap_count.saturating_add(1);
             gap_frames = gap_frames.saturating_add(gap);
             let inserted = gap.min(max_frames.saturating_sub(next_input_frame));
@@ -105,6 +115,26 @@ pub(crate) fn write_recording(
         incomplete: gap_count != 0 || state.overflow_chunks.load(Ordering::Acquire) != 0,
     };
     timeline.finish(stats, oled.material_loss_count())
+}
+
+/// Logs each new whole second the writer falls behind the audio callback, so
+/// a starved or stalled writer shows up in the journal before audio is lost.
+#[derive(Default)]
+struct WriterLag {
+    reported_seconds: u64,
+}
+
+impl WriterLag {
+    fn observe(&mut self, cursor: u64, position: u64) {
+        let seconds = cursor.saturating_sub(position) / u64::from(SAMPLE_RATE);
+        if seconds > self.reported_seconds {
+            self.reported_seconds = seconds;
+            eprintln!(
+                "recording writer {seconds} s behind at take time {:.1} s",
+                position as f64 / f64::from(SAMPLE_RATE)
+            );
+        }
+    }
 }
 
 struct Timeline {
