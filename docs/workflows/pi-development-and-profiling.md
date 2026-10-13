@@ -156,7 +156,13 @@ limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's `init.scope` is set at
 every boot by `octessera-performance-governor.service`, as scopes keep no
 persistent drop-ins). Quiet Latency soaks with 16 held notes went from about
 10 underruns per 2 hours to none, and Live Show Mode stops the job entirely. If underruns come back, trace CPU 1 and look for the
-callback being switched out while still runnable (`prev_state=R`).
+callback being switched out while still runnable (`prev_state=R`). The same
+unit also keeps unbound kernel workers, such as the SD-card writeback behind a
+long recording, off the audio core (`/sys/devices/virtual/workqueue/cpumask` =
+`d`); a traced recording underrun showed about 60 of their slices interrupting
+the callback in its last few milliseconds. Render blocks that take longer than
+the audio they produce are logged as `audio block overran: ...` with their
+event and voice counts.
 
 The Orange is less exposed but not immune: NetworkManager's dispatcher, which
 starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), D-Bus and
