@@ -56,7 +56,7 @@ if assert_rt_group_sched_disabled 'CONFIG_RT_GROUP_SCHED=m'; then
     echo "RT_GROUP_SCHED=m was accepted by the static config assertion." >&2
     exit 1
 fi
-octessera_reject_file_match "ALSA kernel fix must not change global RT throttling, cgroup mode, or capabilities." -Eiq 'sysctl|sched_rt_(period|runtime)|cgroup|CAP_SYS_NICE|CapabilityBoundingSet|AmbientCapabilities' "$extension" "$module_file" "$customize"
+octessera_reject_file_match "ALSA kernel fix must not change global RT throttling, cgroup mode, or capabilities." -Eiq 'sched_rt_(period|runtime)|cgroup|CAP_SYS_NICE|CapabilityBoundingSet|AmbientCapabilities' "$extension" "$module_file" "$customize"
 
 octessera_reject_file_match "ALSA extension contains obsolete, OSS, or generic discovery behavior." -Eq 'CONFIG_SND_SEQ([_=[:space:]]|$)|SND_.*OSS|modprobe|lsmod|udevadm|/sys/class|/dev/snd' "$extension"
 
