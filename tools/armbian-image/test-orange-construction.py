@@ -154,12 +154,8 @@ assert [
     for line in customize.splitlines()
     if re.search(r"\bsystemctl\s+(?:disable|mask)\s+(?:ssh|sshd)\.(?:service|socket)\b", line)
 ] == [
-    "systemctl disable ssh.service",
-    "systemctl disable ssh.socket",
-    "systemctl mask ssh.service",
-    "systemctl mask ssh.socket",
-    "systemctl mask sshd.service",
-    "systemctl mask sshd.socket",
+    "systemctl disable ssh.service ssh.socket",
+    "systemctl mask ssh.service ssh.socket sshd.service sshd.socket",
 ]
 assert "systemctl disable sshd.service" not in customize and "systemctl disable sshd.socket" not in customize
 assert "|| true" not in "\n".join(

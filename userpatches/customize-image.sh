@@ -424,12 +424,8 @@ PermitRootLogin no
 PasswordAuthentication no
 AllowUsers octessera
 EOF
-systemctl disable ssh.service
-systemctl disable ssh.socket
-systemctl mask ssh.service
-systemctl mask ssh.socket
-systemctl mask sshd.service
-systemctl mask sshd.socket
+systemctl disable ssh.service ssh.socket
+systemctl mask ssh.service ssh.socket sshd.service sshd.socket
 for unit in dnsmasq.service systemd-networkd-wait-online.service NetworkManager-wait-online.service; do
   systemctl disable "$unit" >/dev/null 2>&1 || true
 done
