@@ -32,10 +32,7 @@ fn failed_frame_is_not_recorded_and_retry_records_one_physical_frame() {
         None
     );
     assert_eq!(cache.oled_render_count(), 1);
-    let accepted = (
-        publication.revision().unwrap(),
-        publication.shared_pixels().unwrap(),
-    );
+    let accepted = (publication.revision(), publication.shared_pixels());
     audio
         .submit_accepted_oled_frame_shared(accepted.0, Arc::clone(&accepted.1))
         .unwrap();

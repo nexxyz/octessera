@@ -279,8 +279,7 @@ impl PlaybackRuntime {
                 .latched_errors
                 .last()
                 .cloned()
-                .or_else(|| self.oled.fault().cloned())
-                .or_else(|| self.oled.adapter_fault().cloned());
+                .or_else(|| self.oled.fault().cloned());
             self.presented_status = error.map(|error| RuntimeStatus {
                 state: RuntimeStatusState::Error,
                 transport: crate::RuntimeTransportState::Stopped,
@@ -297,8 +296,7 @@ impl PlaybackRuntime {
             .latched_errors
             .last()
             .cloned()
-            .or_else(|| self.oled.fault().cloned())
-            .or_else(|| self.oled.adapter_fault().cloned());
+            .or_else(|| self.oled.fault().cloned());
         if status.error.is_some() {
             status.state = RuntimeStatusState::Error;
         }

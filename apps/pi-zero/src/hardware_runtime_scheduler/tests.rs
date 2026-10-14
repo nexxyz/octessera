@@ -288,21 +288,16 @@ fn external_sync_keeps_runtime_event_driven() {
 }
 
 #[test]
-fn publication_revision_dedupes_and_retries_after_rejection() {
+fn snapshot_revision_stays_unpresented_until_a_scene_captures_it() {
     let now = Instant::now();
     let mut scheduler = HardwareRuntimeScheduler::new(now, 0);
     let (playback, _runner, _host) = snapshot_playback();
     let revision = playback.last_snapshot_revision();
 
     assert!(revision > 0);
-    assert!(scheduler.snapshot_publication_due(now, &playback));
-    scheduler.record_snapshot_publication_attempt(now);
-    assert!(!scheduler
-        .snapshot_publication_due(now + SNAPSHOT_TICK - Duration::from_nanos(1), &playback));
-    assert!(scheduler.snapshot_publication_due(now + SNAPSHOT_TICK, &playback));
-    scheduler.record_snapshot_publication_attempt(now + SNAPSHOT_TICK);
-    scheduler.record_snapshot_publication_accepted(revision);
-    assert!(!scheduler.snapshot_publication_due(now + SNAPSHOT_TICK, &playback));
+    assert!(scheduler.snapshot_unpresented(&playback));
+    scheduler.record_native_scene_capture(now, revision);
+    assert!(!scheduler.snapshot_unpresented(&playback));
 }
 
 #[test]

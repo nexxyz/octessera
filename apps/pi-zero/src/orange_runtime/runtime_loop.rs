@@ -2,9 +2,6 @@ use super::*;
 use crate::runtime_loop::{run_runtime_loop, BoardLoop, LoopInputs, LoopState};
 
 #[cfg(test)]
-mod error_tests;
-
-#[cfg(test)]
 mod keyboard_tests;
 #[cfg(test)]
 mod timing_input_tests;
@@ -45,26 +42,14 @@ pub(crate) fn run_prepared_runtime(
         let metrics = audio_manager.drain_audio_load_status(&mut playback);
         process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
         scheduler.observe_snapshot(Instant::now(), &playback);
-        let first_snapshot_rendered = if initial_rendered {
-            true
-        } else {
-            let rendered = publish_snapshot(
-                &mut playback,
-                &runner,
+        if !initial_rendered {
+            let rendered = crate::runtime_init::publish_initial_snapshot(
+                &playback,
+                &mut runner,
                 &mut host,
                 render,
-                &mut scheduler,
-                true,
-            )?;
-            readiness_gate.acknowledge_initial_write(if rendered {
-                Ok(())
-            } else {
-                Err("Orange initial snapshot was not acknowledged".into())
-            })?;
-            rendered
-        };
-        if !first_snapshot_rendered {
-            return Err("Orange runtime did not produce a valid initial snapshot".into());
+            );
+            readiness_gate.acknowledge_initial_write(rendered.map(|_| ()))?;
         }
         audio_manager.report_runtime_terminal_diagnostics();
         ensure_required_audio_health(audio_manager.required_jack_runtime_status())?;
@@ -121,6 +106,7 @@ pub(crate) fn run_prepared_runtime(
             };
             match crate::host_power_lifecycle::run_ordinary_power_lifecycle(
                 &playback,
+                &mut runner,
                 &mut host,
                 render,
                 action,
@@ -158,51 +144,6 @@ pub(crate) fn run_prepared_runtime(
     }
 }
 
-fn publish_snapshot(
-    playback: &mut PlaybackRuntime,
-    runner: &NativeRunner,
-    host: &mut PiHostAdapter,
-    render: &RenderWorker,
-    scheduler: &mut HardwareRuntimeScheduler,
-    wait_for_render: bool,
-) -> Result<bool, String> {
-    let snapshot_revision = playback.last_snapshot_revision();
-    if snapshot_revision == scheduler.published_snapshot_revision() {
-        return Ok(false);
-    }
-    scheduler.record_snapshot_publication_attempt(Instant::now());
-    let Some(snapshot) = playback.last_snapshot().cloned() else {
-        return Ok(false);
-    };
-    if wait_for_render
-        && (!is_normal_menu_snapshot(&snapshot) || !runner.is_canonical_menu_presentation())
-    {
-        return Err("Orange initial snapshot is not a canonical normal menu".into());
-    }
-    let oled = match host
-        .core
-        .oled_publication_for_snapshot(&snapshot, wait_for_render)
-    {
-        Ok(oled) => oled,
-        Err(error) if wait_for_render => return Err(error),
-        Err(error) => {
-            eprintln!("Orange OLED publication unavailable: {error}");
-            return Ok(false);
-        }
-    };
-    if wait_for_render {
-        render.publish_acknowledged_snapshot(snapshot, oled)?;
-        scheduler.record_snapshot_publication_accepted(snapshot_revision);
-    } else {
-        let accepted = render.publish_snapshot(snapshot, oled);
-        if !accepted {
-            return Ok(false);
-        }
-        scheduler.record_snapshot_publication_accepted(snapshot_revision);
-    }
-    Ok(true)
-}
-
 struct OrangeBoardLoop<'a> {
     audio_manager: &'a mut AudioManager,
     audio: &'a AudioService,
@@ -233,6 +174,7 @@ impl BoardLoop for OrangeBoardLoop<'_> {
     fn handle_power_request(
         &mut self,
         _playback: &PlaybackRuntime,
+        _runner: &mut NativeRunner,
         adapter: &mut PiHostAdapter,
         _render_worker: &RenderWorker,
     ) -> bool {

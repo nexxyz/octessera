@@ -32,26 +32,20 @@ pub(crate) struct HardwareRuntimeScheduler {
     last_tick_at: Instant,
     last_accepted_snapshot_at: Instant,
     last_snapshot_attempt_at: Instant,
-    last_render_attempt_at: Instant,
     last_accepted_snapshot_revision: u64,
-    published_snapshot_revision: u64,
-    playing_snapshot_revision: Option<u64>,
-    playing_error_revision: Option<u64>,
+    presented_snapshot_revision: u64,
     realtime_active: bool,
     snapshot_retry_at: Option<Instant>,
 }
 
 impl HardwareRuntimeScheduler {
-    pub(crate) fn new(now: Instant, initial_published_revision: u64) -> Self {
+    pub(crate) fn new(now: Instant, initial_presented_revision: u64) -> Self {
         Self {
             last_tick_at: now,
             last_accepted_snapshot_at: now,
             last_snapshot_attempt_at: now,
-            last_render_attempt_at: now.checked_sub(SNAPSHOT_TICK).unwrap_or(now),
-            last_accepted_snapshot_revision: initial_published_revision,
-            published_snapshot_revision: initial_published_revision,
-            playing_snapshot_revision: None,
-            playing_error_revision: None,
+            last_accepted_snapshot_revision: initial_presented_revision,
+            presented_snapshot_revision: initial_presented_revision,
             realtime_active: false,
             snapshot_retry_at: None,
         }
@@ -137,79 +131,21 @@ impl HardwareRuntimeScheduler {
         }
     }
 
-    pub(crate) fn record_native_scene_capture(&mut self, captured_at: Instant) {
+    pub(crate) fn record_native_scene_capture(&mut self, captured_at: Instant, revision: u64) {
         self.last_accepted_snapshot_at = captured_at;
         self.last_snapshot_attempt_at = captured_at;
         self.snapshot_retry_at = None;
+        self.presented_snapshot_revision = revision;
     }
 
-    pub(crate) fn snapshot_publication_due(
-        &mut self,
-        now: Instant,
-        playback: &PlaybackRuntime,
-    ) -> bool {
-        self.observe_snapshot(now, playback);
+    pub(crate) fn snapshot_unpresented(&self, playback: &PlaybackRuntime) -> bool {
         let revision = playback.last_snapshot_revision();
-        if is_playing(playback) {
-            let error_visible = playback
-                .last_snapshot()
-                .and_then(|snapshot| snapshot.get("runtimeError"))
-                .is_some_and(|error| !error.is_null());
-            if error_visible
-                && self
-                    .playing_snapshot_revision
-                    .is_some_and(|baseline| revision != 0 && revision != baseline)
-                && revision != self.published_snapshot_revision
-            {
-                self.playing_error_revision = Some(revision);
-                return now.duration_since(self.last_render_attempt_at) >= SNAPSHOT_TICK;
-            }
-            let error_cleared = self.playing_error_revision.is_some_and(|error_revision| {
-                revision != error_revision
-                    && playback
-                        .last_snapshot()
-                        .and_then(|snapshot| snapshot.get("runtimeError"))
-                        .is_none_or(serde_json::Value::is_null)
-            });
-            return error_cleared
-                && revision != self.published_snapshot_revision
-                && now.duration_since(self.last_render_attempt_at) >= SNAPSHOT_TICK;
-        }
-        revision != 0
-            && revision != self.published_snapshot_revision()
-            && now.duration_since(self.last_render_attempt_at) >= SNAPSHOT_TICK
-    }
-
-    pub(crate) fn record_snapshot_publication_attempt(&mut self, now: Instant) {
-        self.last_render_attempt_at = now;
-    }
-
-    pub(crate) fn record_snapshot_publication_accepted(&mut self, snapshot_revision: u64) {
-        if snapshot_revision != 0 {
-            self.published_snapshot_revision = snapshot_revision;
-            if self
-                .playing_error_revision
-                .is_some_and(|error_revision| error_revision != snapshot_revision)
-            {
-                self.playing_error_revision = None;
-            }
-        }
+        revision != 0 && revision != self.presented_snapshot_revision
     }
 
     pub(crate) fn observe_snapshot(&mut self, now: Instant, playback: &PlaybackRuntime) {
-        if is_playing(playback) {
-            self.playing_snapshot_revision
-                .get_or_insert(self.published_snapshot_revision);
-        } else {
-            self.playing_snapshot_revision = None;
-            self.playing_error_revision = None;
-        }
         let revision = playback.last_snapshot_revision();
         self.observe_snapshot_revision(now, self.last_accepted_snapshot_revision, revision);
-    }
-
-    pub(crate) fn published_snapshot_revision(&self) -> u64 {
-        self.published_snapshot_revision
     }
 
     pub(crate) fn record_runtime_advance_complete(
@@ -262,10 +198,8 @@ impl HardwareRuntimeScheduler {
             };
             next_due = next_due.min(display_wake);
         }
-        if !is_playing(playback)
-            && playback.last_snapshot_revision() != self.published_snapshot_revision()
-        {
-            next_due = next_due.min(self.last_render_attempt_at + SNAPSHOT_TICK);
+        if !is_playing(playback) && self.snapshot_unpresented(playback) {
+            next_due = next_due.min(self.last_snapshot_attempt_at + SNAPSHOT_TICK);
         }
         let max_sleep = SLEEP_MAX;
         next_due

@@ -47,13 +47,8 @@ fn state_only_display_off_retry_completes_generation_once_without_rewriting_pixe
         &HardwareRenderCache::default(),
     )
     .unwrap();
-    let (pixels, off) = match &mut latest {
-        LatestPresentation::Native { hardware, oled, .. } => {
-            hardware.leds.off = true;
-            (oled.clone(), hardware.leds.off)
-        }
-        LatestPresentation::Legacy { .. } => unreachable!(),
-    };
+    latest.hardware.leds.off = true;
+    let (pixels, off) = (latest.oled.clone(), latest.hardware.leds.off);
     let mut cache = HardwareRenderCache::default();
     let mut oled = OffRetryOled {
         writes: Vec::new(),

@@ -89,7 +89,7 @@ impl PreparedRuntime {
     ) -> Result<u64, String> {
         crate::runtime_init::publish_initial_snapshot(
             &self.playback,
-            &self.runner,
+            &mut self.runner,
             &mut self.adapter,
             render_worker,
         )
@@ -356,10 +356,6 @@ mod tests {
         assert!(snapshot["runtimeError"].is_null());
         assert!(is_normal_menu_snapshot(snapshot));
         assert!(runner.is_canonical_menu_presentation());
-        assert!(adapter
-            .core
-            .oled_publication_for_snapshot(snapshot, true)
-            .is_ok());
         let _ = std::fs::remove_dir_all(root);
     }
 }

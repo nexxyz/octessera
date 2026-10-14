@@ -1,4 +1,5 @@
-use playback_runtime::{NativeRunner, NativeRunnerConfig, RunnerMessage};
+use playback_runtime::oled_frame::OledPresentationMetrics;
+use playback_runtime::{NativeHdmiPresentation, NativeRunner, NativeRunnerConfig, RunnerMessage};
 use serde_json::Value;
 use std::time::{Duration, Instant};
 
@@ -23,9 +24,9 @@ fn main() {
                 "runtimeConfig": { "hdmi": { "mode": mode } }
             }))
             .expect("apply HDMI mode");
-        let snapshot = snapshot_from(&mut runner);
+        let hdmi = hdmi_from(&mut runner);
         bench_snapshot(&mut runner, mode);
-        bench_hdmi_buffer(&snapshot, mode);
+        bench_hdmi_buffer(&hdmi, mode);
     }
 }
 
@@ -40,16 +41,16 @@ fn bench_snapshot(runner: &mut NativeRunner, mode: &str) {
     );
 }
 
-fn bench_hdmi_buffer(snapshot: &Value, mode: &str) {
+fn bench_hdmi_buffer(hdmi_presentation: &NativeHdmiPresentation, mode: &str) {
     for bytes_per_pixel in [2, 4] {
         let width = 64;
         let height = 64;
         let stride = width * bytes_per_pixel;
         let elapsed = time_loop(200, || {
-            let signature = hdmi::hdmi_signature(snapshot);
+            let signature = hdmi::hdmi_signature(hdmi_presentation);
             if signature != 0 {
                 let _ = hdmi::compose_frame_with_stride(
-                    snapshot,
+                    hdmi_presentation,
                     width,
                     height,
                     stride,
@@ -75,6 +76,14 @@ fn snapshot_from(runner: &mut NativeRunner) -> Value {
             _ => None,
         })
         .expect("snapshot")
+}
+
+fn hdmi_from(runner: &mut NativeRunner) -> NativeHdmiPresentation {
+    runner
+        .capture_display_scene()
+        .expect("display scene")
+        .into_hardware_presentation(OledPresentationMetrics::default(), None)
+        .hdmi
 }
 
 fn time_loop(iterations: usize, mut run: impl FnMut()) -> Duration {

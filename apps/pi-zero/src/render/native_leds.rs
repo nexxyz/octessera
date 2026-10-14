@@ -96,88 +96,47 @@ mod tests {
     use playback_runtime::{
         NativeControlButtonPresentation, NativeGridPresentation, NativeLedPresentation,
     };
-    use serde_json::json;
-    use std::time::Instant;
 
     #[test]
-    fn typed_grid_and_buttons_match_legacy_brightness_and_dimmed_pixels() {
+    fn grid_applies_brightness_and_sleep_dim() {
         let rgb = [255, 212, 71].repeat(64);
         let mut leds = NativeLedPresentation {
             grid: NativeGridPresentation {
                 width: 8,
                 height: 8,
-                rgb: rgb.clone(),
+                rgb,
                 active: vec![true; 64],
             },
             brightness: 25,
             dimmed: false,
             off: false,
         };
-        let controls = NativeControlButtonPresentation {
-            colors: [[221, 130, 205], [255, 0, 0], [67, 68, 71], [67, 68, 71]],
-            brightness: 35,
-        };
-        for dimmed in [false, true] {
-            leds.dimmed = dimmed;
-            let snapshot = json!({
-                "display": {"off": false},
-                "settings": {"gridBrightness": 25, "buttonBrightness": 35, "ledsDimmed": dimmed},
-                "leds": {"rgb": rgb},
-                "neoKeyLeds": {"back": controls.colors[0], "space": controls.colors[1],
-                    "shift": controls.colors[2], "fn": controls.colors[3]}
-            });
-            assert_eq!(
-                native_grid_frame(&leds),
-                super::super::led_frame(&snapshot).unwrap()
-            );
-            assert_eq!(
-                native_control_colors(&controls, dimmed),
-                super::super::neokey_colors(&snapshot)
-            );
-        }
-        assert_eq!(native_grid_frame(&leds)[0], [10, 8, 3]);
+        assert_eq!(native_grid_frame(&leds)[0], [64, 53, 18]);
+        leds.dimmed = true;
+        assert_eq!(native_grid_frame(&leds)[0], scale([255, 212, 71], 0.04));
+        leds.brightness = 0;
+        assert_eq!(native_grid_frame(&leds)[0], [0; 3]);
     }
 
     #[test]
-    fn typed_sleep_uses_same_seed_and_animation_brightness_as_legacy() {
-        let start = Instant::now();
-        let mut typed = super::super::SleepLedAnimation::with_seed(77);
-        let mut legacy = super::super::SleepLedAnimation::with_seed(77);
-        let leds = NativeLedPresentation {
-            grid: NativeGridPresentation {
-                width: 8,
-                height: 8,
-                rgb: vec![0; 192],
-                active: vec![false; 64],
-            },
-            brightness: 25,
-            dimmed: false,
-            off: true,
-        };
-        let buttons = NativeControlButtonPresentation {
-            colors: [[0; 3]; 4],
-            brightness: 35,
-        };
-        let snapshot = json!({"display": {"off": true}, "settings": {"gridBrightness": 25, "buttonBrightness": 35}});
-        assert!(typed.enter(
-            start,
-            brightness_scale(leds.brightness),
-            brightness_scale(buttons.brightness)
-        ));
-        assert!(legacy.enter(
-            start,
-            super::super::brightness_scale(Some(&snapshot["settings"]["gridBrightness"])),
-            super::super::brightness_scale(Some(&snapshot["settings"]["buttonBrightness"]))
-        ));
-        let _ = typed.frames_at(start);
-        let _ = legacy.frames_at(start);
-        let later = start + std::time::Duration::from_millis(100);
-        let typed_frame = typed.frames_at(later);
-        let legacy_frame = legacy.frames_at(later);
-        assert_eq!(typed_frame.grid, legacy_frame.grid);
-        assert_eq!(typed_frame.keys, legacy_frame.keys);
-        assert!(typed_frame.grid.iter().any(|rgb| *rgb != [0; 3]));
-        assert_eq!(typed.next_deadline(), legacy.next_deadline());
+    fn control_buttons_use_basis_point_brightness_and_dimming() {
+        for brightness in [0_u8, 10, 75, 100] {
+            for dimmed in [false, true] {
+                let controls = NativeControlButtonPresentation {
+                    colors: [[255, 128, 1]; 4],
+                    brightness,
+                };
+                let brightness = u32::from(brightness);
+                let basis_points = match (dimmed, brightness) {
+                    (true, 0) => 0,
+                    (true, _) => (brightness * 8).max(400),
+                    (false, _) => brightness * 100,
+                };
+                let expected =
+                    [255, 128, 1].map(|channel| ((channel * basis_points + 5_000) / 10_000) as u8);
+                assert_eq!(native_control_colors(&controls, dimmed)[0], expected);
+            }
+        }
     }
 
     #[test]

@@ -1,8 +1,7 @@
 use crate::tests::support::{canonical_oled_snapshot, FakeHost};
 use crate::{
     PlaybackRuntime, RunnerMessage, RuntimeConfig, RuntimeErrorCode, RuntimeErrorDomain,
-    RuntimeErrorMetadata, RuntimeOledCacheFault, RuntimeOperation, RuntimePresentationMetrics,
-    RuntimeRecovery,
+    RuntimeErrorMetadata, RuntimeOperation, RuntimePresentationMetrics, RuntimeRecovery,
 };
 
 #[test]
@@ -51,21 +50,6 @@ fn native_state_reads_normalized_metrics_without_revising_or_serializing_oled() 
 #[test]
 fn native_error_matches_wire_names_and_existing_status_priority_through_recovery() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    let cache_fault = runtime.report_oled_cache_fault(Some(RuntimeOledCacheFault::Future));
-    assert!(cache_fault
-        .messages
-        .iter()
-        .any(|message| matches!(message, RunnerMessage::RuntimeStatus { .. })));
-    let (_, adapter) = runtime.native_presentation_state();
-    let adapter = adapter.unwrap();
-    assert_eq!(adapter.domain.as_deref(), Some("serialization"));
-    assert_eq!(adapter.code.as_deref(), Some("invalid_payload"));
-    assert_eq!(adapter.operation.as_deref(), Some("snapshot"));
-    assert_eq!(
-        adapter.message.as_deref(),
-        Some("OLED frame cache fault: future frame reference")
-    );
-
     let latched = RuntimeErrorMetadata::new(
         RuntimeErrorDomain::Storage,
         RuntimeErrorCode::OperationFailed,
@@ -86,15 +70,12 @@ fn native_error_matches_wire_names_and_existing_status_priority_through_recovery
         Some(&latched)
     );
     runtime.clear_error_with_identity(RuntimeOperation::StoreSaveDefault, Some("save-42"), Some(7));
-    assert_eq!(runtime.native_presentation_state().1, Some(adapter));
-    runtime.report_oled_cache_fault(None);
     assert_eq!(runtime.native_presentation_state().1, None);
 }
 
 #[test]
-fn render_fault_precedes_adapter_fault_when_no_latched_runtime_error() {
+fn render_fault_is_presented_until_a_valid_snapshot_recovers_it() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    runtime.report_oled_cache_fault(Some(RuntimeOledCacheFault::Future));
     runtime
         .ingest_runner_messages_with_output(
             vec![RunnerMessage::Snapshot {
@@ -120,15 +101,7 @@ fn render_fault_precedes_adapter_fault_when_no_latched_runtime_error() {
             &mut FakeHost::default(),
         )
         .unwrap();
-    assert_eq!(
-        runtime
-            .native_presentation_state()
-            .1
-            .unwrap()
-            .message
-            .as_deref(),
-        Some("OLED frame cache fault: future frame reference")
-    );
+    assert_eq!(runtime.native_presentation_state().1, None);
 }
 
 #[test]

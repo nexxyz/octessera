@@ -1,4 +1,4 @@
-use super::{PlaybackRuntime, RuntimeIngest, RuntimeOledCacheFault, RuntimePresentationMetrics};
+use super::{PlaybackRuntime, RuntimeIngest, RuntimePresentationMetrics};
 use crate::oled_frame::{
     presentation_input_from_snapshot, render_oled_frame_into, OledPresentationInput,
     OledPresentationMetrics, OledRuntimeErrorMetadata, OLED_FRAME_BYTES, OLED_HEIGHT, OLED_WIDTH,
@@ -21,7 +21,6 @@ pub(super) struct RuntimeOled {
     #[cfg(test)]
     render_count: usize,
     fault: Option<RuntimeErrorMetadata>,
-    adapter_fault: Option<RuntimeErrorMetadata>,
 }
 
 pub(super) fn append_snapshot(
@@ -45,7 +44,6 @@ impl Default for RuntimeOled {
             #[cfg(test)]
             render_count: 0,
             fault: None,
-            adapter_fault: None,
         }
     }
 }
@@ -53,10 +51,6 @@ impl Default for RuntimeOled {
 impl RuntimeOled {
     pub(super) fn fault(&self) -> Option<&RuntimeErrorMetadata> {
         self.fault.as_ref()
-    }
-
-    pub(super) fn adapter_fault(&self) -> Option<&RuntimeErrorMetadata> {
-        self.adapter_fault.as_ref()
     }
 
     pub(super) fn has_positive_revision(&self) -> bool {
@@ -172,7 +166,6 @@ impl PlaybackRuntime {
             .latched_errors
             .last()
             .or_else(|| self.oled.fault())
-            .or_else(|| self.oled.adapter_fault())
             .map(oled_error_metadata);
         (self.oled.normalized_metrics.clone(), error)
     }
@@ -226,29 +219,6 @@ impl PlaybackRuntime {
         }
         self.oled.normalized_metrics = normalized;
         true
-    }
-
-    pub fn report_oled_cache_fault(
-        &mut self,
-        fault: Option<RuntimeOledCacheFault>,
-    ) -> RuntimeIngest {
-        let next = fault.map(|fault| {
-            RuntimeErrorMetadata::new(
-                crate::RuntimeErrorDomain::Serialization,
-                crate::RuntimeErrorCode::InvalidPayload,
-                crate::RuntimeOperation::Snapshot,
-                crate::RuntimeRecovery::RetainLastGood,
-                Some(format!("OLED frame cache fault: {}", fault.message())),
-            )
-        });
-        if self.oled.adapter_fault == next {
-            return RuntimeIngest::default();
-        }
-        self.oled.adapter_fault = next;
-        self.refresh_presented_status();
-        let mut output = RuntimeIngest::default();
-        self.append_status(&mut output);
-        output
     }
 }
 

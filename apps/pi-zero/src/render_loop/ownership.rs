@@ -4,7 +4,7 @@ use crate::render::{
     ownership_stage_for_render, prepare_native_scene, restore_after_dropped_ack_for_render,
     OledOwnershipStage,
 };
-use crate::render_loop_queue::{RenderState, SnapshotCommand};
+use crate::render_loop_queue::RenderState;
 use std::sync::{mpsc, Arc, Condvar, Mutex};
 use std::time::Instant;
 
@@ -25,58 +25,19 @@ pub(super) fn handle_ownership_command(
             .ok()
             .and_then(|mut state| state.snapshot.take())
         {
-            match pending {
-                SnapshotCommand::Legacy {
-                    snapshot,
-                    oled,
-                    rendered_acks,
-                } => {
-                    if let Some(previous) = presentation.latest.as_mut() {
-                        previous.complete_native(Err(
-                            "native scene superseded by legacy presentation".into(),
-                        ));
-                    }
-                    presentation.latest = match crate::render::prepare_legacy_presentation(
-                        snapshot,
-                        oled,
-                        &presentation.cache,
-                    ) {
-                        Ok(presentation) => Some(presentation),
-                        Err(error) => {
-                            for ack in rendered_acks {
-                                let _ = ack.send(Err(error.clone()));
-                            }
-                            return true;
-                        }
-                    };
-                    let now = Instant::now();
-                    let current = presentation.latest.as_ref().unwrap();
-                    let leds = current.render_leds(targets, &mut presentation.cache, now);
-                    let hdmi = presentation
-                        .hdmi_ready
-                        .then(|| current.render_hdmi(targets, &mut presentation.cache, now))
-                        .flatten();
-                    *animation_deadline = crate::render::next_deadline(leds, hdmi);
-                    for ack in rendered_acks {
-                        let _ = ack.send(Ok(()));
-                    }
+            if let Some(next) = prepare_native_scene(pending, &presentation.cache) {
+                if let Some(previous) = presentation.latest.as_mut() {
+                    previous.complete_native(Err("native scene superseded".into()));
                 }
-                SnapshotCommand::Native(scene) => {
-                    if let Some(next) = prepare_native_scene(scene, &presentation.cache) {
-                        if let Some(previous) = presentation.latest.as_mut() {
-                            previous.complete_native(Err("native scene superseded".into()));
-                        }
-                        presentation.latest = Some(next);
-                        let now = Instant::now();
-                        let current = presentation.latest.as_ref().unwrap();
-                        let leds = current.render_leds(targets, &mut presentation.cache, now);
-                        let hdmi = presentation
-                            .hdmi_ready
-                            .then(|| current.render_hdmi(targets, &mut presentation.cache, now))
-                            .flatten();
-                        *animation_deadline = crate::render::next_deadline(leds, hdmi);
-                    }
-                }
+                presentation.latest = Some(next);
+                let now = Instant::now();
+                let current = presentation.latest.as_ref().unwrap();
+                let leds = current.render_leds(targets, &mut presentation.cache, now);
+                let hdmi = presentation
+                    .hdmi_ready
+                    .then(|| current.render_hdmi(targets, &mut presentation.cache, now))
+                    .flatten();
+                *animation_deadline = crate::render::next_deadline(leds, hdmi);
             }
         }
     }

@@ -1,6 +1,4 @@
 use super::*;
-use crate::oled_frame_cache::OledFramePublication;
-use playback_runtime::oled_frame::OLED_FRAME_BYTES;
 use serde_json::json;
 use std::io;
 use std::sync::{mpsc, Arc, Condvar, Mutex};
@@ -46,23 +44,12 @@ impl crate::render::hdmi::device::HdmiIo for BlockingHdmiIo {
     }
 }
 
-fn native_snapshot() -> serde_json::Value {
-    json!({
-        "display": { "off": false },
-        "settings": { "buttonBrightness": 100, "displayBrightness": 100 },
-        "leds": { "rgb": vec![0; 64 * 3] },
-        "transport": { "playing": false },
-        "transportIcon": "stop",
-        "transportFlash": "none",
-        "eventDotOn": false,
-        "oledFrameRevision": 1,
-        "neoKeyLeds": {
-            "back": [0, 0, 0],
-            "space": [0, 0, 0],
-            "shift": [0, 0, 0],
-            "fn": [0, 0, 0]
-        }
-    })
+fn live_grid_scene() -> playback_runtime::PresentationScene {
+    let mut runner = super::test_scenes::test_runner();
+    runner
+        .apply_config_payload(json!({ "runtimeConfig": { "hdmi": { "mode": "live-grid" } } }))
+        .unwrap();
+    runner.capture_display_scene().unwrap()
 }
 
 #[test]
@@ -86,11 +73,11 @@ fn initial_ack_and_handoff_complete_before_blocking_hdmi_failure_and_retry() {
     });
     let (result_tx, result_rx) = mpsc::channel();
     let worker_for_publish = worker.clone();
+    let scene = live_grid_scene();
     let publish = thread::spawn(move || {
-        let result = worker_for_publish.publish_acknowledged_snapshot(
-            native_snapshot(),
-            OledFramePublication::test_native(1, vec![0; OLED_FRAME_BYTES]),
-        );
+        let result = worker_for_publish
+            .publish_initial_native_scene(scene, Default::default(), None)
+            .map(|_| ());
         result_tx.send(result).unwrap();
     });
 

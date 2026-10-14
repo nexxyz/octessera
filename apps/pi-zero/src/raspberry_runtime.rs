@@ -12,7 +12,9 @@ use playback_runtime::{AudioOptimization, HostMessage, NativeRunner, PlaybackRun
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+const FAULT_SCENE_TIMEOUT: Duration = Duration::from_millis(750);
 
 mod startup;
 #[cfg(test)]
@@ -159,10 +161,11 @@ impl BoardLoop for RaspberryBoardLoop {
     fn handle_power_request(
         &mut self,
         playback: &PlaybackRuntime,
+        runner: &mut NativeRunner,
         adapter: &mut PiHostAdapter,
         render_worker: &RenderWorker,
     ) -> bool {
-        crate::raspberry_power::shutdown_if_requested(playback, adapter, render_worker)
+        crate::raspberry_power::shutdown_if_requested(playback, runner, adapter, render_worker)
     }
 }
 
@@ -187,13 +190,22 @@ fn present_audio_fault(
         }
         Err(error) => eprintln!("pi audio fault recovery failed: {error}"),
     }
-    let snapshot = playback.last_snapshot().cloned();
-    if let Some(snapshot) = snapshot {
-        if let Ok(oled) = adapter.core.oled_publication_for_snapshot(&snapshot, false) {
-            if let Err(error) = render_worker.publish_snapshot_with_ack(snapshot, oled) {
-                eprintln!("pi audio fault snapshot publication failed: {error}");
-            }
-        }
+    if let Err(error) = present_current_scene(playback, runner, render_worker) {
+        eprintln!("pi audio fault scene publication failed: {error}");
     }
     let _ = render_worker.publish_shutdown();
+}
+
+fn present_current_scene(
+    playback: &PlaybackRuntime,
+    runner: &mut NativeRunner,
+    render_worker: &RenderWorker,
+) -> Result<(), String> {
+    let scene = runner.capture_display_scene()?;
+    let (metrics, error) = playback.native_presentation_state();
+    render_worker
+        .publish_native_scene(scene, metrics, error)?
+        .recv_timeout(FAULT_SCENE_TIMEOUT)
+        .map_err(|error| format!("fault scene acknowledgement failed: {error}"))?
+        .result
 }

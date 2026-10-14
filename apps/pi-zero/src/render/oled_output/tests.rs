@@ -1,6 +1,4 @@
 use super::*;
-use crate::oled_frame_cache::OledFramePublication;
-use serde_json::json;
 
 #[cfg(test)]
 mod recording_tests;
@@ -46,28 +44,21 @@ impl OledRenderDevice for FakeOled {
 
 #[test]
 fn force_render_writes_cached_revision_again_with_supplied_pixels() {
-    let snapshot = json!({"display": { "off": false }, "oledFrameRevision": 7});
     let pixels = vec![0x2a; super::super::OLED_FRAME_BYTES];
     let publication = OledFramePublication::test_native(7, pixels.clone());
     let mut cache = HardwareRenderCache::default();
     let mut oled = FakeOled::new();
 
     assert_eq!(
-        render_oled_if_changed(
-            &mut oled,
-            &snapshot,
-            &publication,
-            &mut cache,
-            Instant::now(),
-        ),
+        render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, Instant::now()),
         None
     );
-    force_oled_render_with_device(&mut oled, &snapshot, &publication, &mut cache).unwrap();
+    force_oled_render_off(&mut oled, false, &publication, &mut cache).unwrap();
     assert_eq!(oled.writes, vec![pixels.clone(), pixels]);
 }
 
 #[test]
-fn typed_off_state_uses_same_frame_order_and_retry_cache_as_snapshot_path() {
+fn off_state_writes_frame_before_display_off_and_back_on() {
     let publication =
         OledFramePublication::test_native(9, vec![0x5a; super::super::OLED_FRAME_BYTES]);
     let mut cache = HardwareRenderCache::default();
@@ -92,46 +83,23 @@ fn typed_off_state_uses_same_frame_order_and_retry_cache_as_snapshot_path() {
 }
 
 #[test]
-fn typed_retry_and_force_preserve_legacy_write_sequence_without_retry_json() {
+fn retry_and_force_keep_the_off_write_sequence() {
     let publication =
         OledFramePublication::test_native(12, vec![0x7c; super::super::OLED_FRAME_BYTES]);
-    let snapshot = json!({"display": {"off": true}});
-    let (mut typed, mut legacy) = (FakeOled::new(), FakeOled::new());
-    typed.fail_writes = 1;
-    legacy.fail_writes = 1;
-    let (mut typed_cache, mut legacy_cache) = (
-        HardwareRenderCache::default(),
-        HardwareRenderCache::default(),
-    );
-    let start = Instant::now();
-    let due = render_oled_if_changed_off(&mut typed, true, &publication, &mut typed_cache, start)
+    let mut oled = FakeOled::new();
+    oled.fail_writes = 1;
+    let mut cache = HardwareRenderCache::default();
+    let due = render_oled_if_changed_off(&mut oled, true, &publication, &mut cache, Instant::now())
         .unwrap();
-    let old_due = render_oled_if_changed(
-        &mut legacy,
-        &snapshot,
-        &publication,
-        &mut legacy_cache,
-        start,
-    )
-    .unwrap();
-    assert_eq!(due, old_due);
-    assert_eq!(typed.events, legacy.events);
     assert_eq!(
-        retry_oled_if_due_with_device(&mut typed, &mut typed_cache, due),
+        retry_oled_if_due_with_device(&mut oled, &mut cache, due),
         None
     );
+    force_oled_render_off(&mut oled, true, &publication, &mut cache).unwrap();
     assert_eq!(
-        retry_oled_if_due_with_device(&mut legacy, &mut legacy_cache, due),
-        None
-    );
-    force_oled_render_off(&mut typed, true, &publication, &mut typed_cache).unwrap();
-    force_oled_render_with_device(&mut legacy, &snapshot, &publication, &mut legacy_cache).unwrap();
-    assert_eq!(typed.events, legacy.events);
-    assert_eq!(
-        typed.events,
+        oled.events,
         ["write_failed", "write", "off", "write", "off"]
     );
-    assert_eq!(typed.writes, legacy.writes);
 }
 
 #[test]
@@ -155,7 +123,7 @@ fn colliding_source_revisions_with_different_pixels_write_both_frames() {
             vec![0x22; super::super::OLED_FRAME_BYTES]
         ]
     );
-    assert!(second.revision().unwrap() > first.revision().unwrap());
+    assert!(second.revision() > first.revision());
 }
 
 #[test]
@@ -176,7 +144,7 @@ fn changed_source_revision_with_identical_pixels_does_not_rewrite_frame() {
 }
 
 #[test]
-fn legacy_native_terminal_source_collisions_advance_physical_frames() {
+fn colliding_source_revisions_through_terminal_advance_physical_frames() {
     let root = std::env::temp_dir().join(format!(
         "octessera-oled-transition-recording-{}",
         std::process::id()
@@ -194,25 +162,25 @@ fn legacy_native_terminal_source_collisions_advance_physical_frames() {
     let legacy = physical_oled_publication(&legacy_source, &cache).unwrap();
     render_oled_if_changed_off(&mut oled, false, &legacy, &mut cache, Instant::now());
     audio
-        .submit_accepted_oled_frame(legacy.revision().unwrap(), legacy.pixels().unwrap())
+        .submit_accepted_oled_frame(legacy.revision(), legacy.pixels())
         .unwrap();
     audio.test_push_recording_samples(&vec![0; 4_410]).unwrap();
     let native = physical_oled_publication(&native_source, &cache).unwrap();
     render_oled_if_changed_off(&mut oled, false, &native, &mut cache, Instant::now());
     audio
-        .submit_accepted_oled_frame(native.revision().unwrap(), native.pixels().unwrap())
+        .submit_accepted_oled_frame(native.revision(), native.pixels())
         .unwrap();
     audio.test_push_recording_samples(&vec![0; 4_410]).unwrap();
     let terminal = physical_oled_publication(&terminal_source, &cache).unwrap();
     force_oled_render_off(&mut oled, false, &terminal, &mut cache).unwrap();
     audio
-        .submit_accepted_oled_frame(terminal.revision().unwrap(), terminal.pixels().unwrap())
+        .submit_accepted_oled_frame(terminal.revision(), terminal.pixels())
         .unwrap();
     audio.test_push_recording_samples(&vec![0; 4_410]).unwrap();
     let recording = audio.stop_recording_with_outcome().unwrap().unwrap();
 
-    assert!(legacy.revision().unwrap() < native.revision().unwrap());
-    assert!(native.revision().unwrap() < terminal.revision().unwrap());
+    assert!(legacy.revision() < native.revision());
+    assert!(native.revision() < terminal.revision());
     assert_eq!(
         oled.writes,
         vec![
@@ -248,7 +216,7 @@ fn unchanged_pixels_keep_one_recording_frame_and_physical_write() {
     .unwrap();
     render_oled_if_changed_off(&mut oled, false, &first, &mut cache, Instant::now());
     audio
-        .submit_accepted_oled_frame(first.revision().unwrap(), first.pixels().unwrap())
+        .submit_accepted_oled_frame(first.revision(), first.pixels())
         .unwrap();
     audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
 
@@ -260,7 +228,7 @@ fn unchanged_pixels_keep_one_recording_frame_and_physical_write() {
     render_oled_if_changed_off(&mut oled, false, &next, &mut cache, Instant::now());
     if cache.oled_render_count() > 1 {
         audio
-            .submit_accepted_oled_frame(next.revision().unwrap(), next.pixels().unwrap())
+            .submit_accepted_oled_frame(next.revision(), next.pixels())
             .unwrap();
     }
     audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();

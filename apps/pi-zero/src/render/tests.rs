@@ -12,28 +12,6 @@ fn rgb565_to_rgb(value: u16) -> [u8; 3] {
     ]
 }
 
-fn snapshot_with_leds() -> Value {
-    let mut rgb = Vec::new();
-    for _ in 0..64 {
-        rgb.extend(palette::YELLOW);
-    }
-    json!({
-        "display": { "off": false },
-        "settings": { "gridBrightness": 50, "buttonBrightness": 100 },
-        "leds": { "rgb": rgb },
-        "transport": { "playing": false },
-        "transportIcon": "stop",
-        "transportFlash": "none",
-        "eventDotOn": false,
-        "neoKeyLeds": {
-            "back": palette::RED,
-            "space": palette::RED,
-            "shift": dim(palette::GRAY, 3),
-            "fn": dim(palette::GRAY, 3)
-        }
-    })
-}
-
 fn bar_snapshot(frac: f64, style: Option<&str>, selected_row: usize) -> Value {
     let mut snapshot = menu_snapshot();
     snapshot["display"]["barValues"][1] = match style {
@@ -132,106 +110,6 @@ fn glyphs_cover_common_menu_sample_and_help_text() {
 }
 
 #[test]
-fn led_frame_applies_grid_brightness_and_sleep_dim() {
-    let mut snapshot = snapshot_with_leds();
-    let frame = led_frame(&snapshot).unwrap();
-    assert_eq!(frame[0], scale(palette::YELLOW, 0.5));
-
-    snapshot["display"]["off"] = json!(true);
-    let display_off = led_frame(&snapshot).unwrap();
-    assert_eq!(display_off[0], scale(palette::YELLOW, 0.5));
-
-    snapshot["settings"]["ledsDimmed"] = json!(true);
-    let dimmed = led_frame(&snapshot).unwrap();
-    assert_eq!(dimmed[0], scale(palette::YELLOW, 0.04));
-
-    snapshot["settings"]["gridBrightness"] = json!(10);
-    let low_brightness_dimmed = led_frame(&snapshot).unwrap();
-    assert_eq!(low_brightness_dimmed[0], scale(palette::YELLOW, 0.04));
-}
-
-#[test]
-fn led_frame_rejects_missing_malformed_and_non_exact_packed_rgb() {
-    let mut missing = snapshot_with_leds();
-    missing["leds"].as_object_mut().unwrap().remove("rgb");
-    assert!(led_frame(&missing).is_none());
-
-    for rgb in [vec![json!(0); 64 * 3 - 1], vec![json!(0); 64 * 3 + 1]] {
-        let mut snapshot = snapshot_with_leds();
-        snapshot["leds"]["rgb"] = json!(rgb);
-        assert!(led_frame(&snapshot).is_none());
-    }
-
-    for value in [json!("red"), json!(256), json!(-1), json!(1.5)] {
-        let mut rgb = vec![json!(0); 64 * 3];
-        rgb[0] = value;
-        let mut snapshot = snapshot_with_leds();
-        snapshot["leds"]["rgb"] = json!(rgb);
-        assert!(led_frame(&snapshot).is_none());
-    }
-}
-
-#[test]
-fn neokey_play_button_uses_transport_state_and_flash_colors() {
-    let mut snapshot = snapshot_with_leds();
-    assert_eq!(neokey_colors(&snapshot)[1], palette::RED);
-
-    snapshot["transportIcon"] = json!("pause");
-    snapshot["neoKeyLeds"]["space"] = json!(palette::BLUE);
-    assert_eq!(neokey_colors(&snapshot)[1], palette::BLUE);
-
-    snapshot["transportIcon"] = json!("play");
-    snapshot["neoKeyLeds"]["space"] = json!(dim(palette::GREEN, 3));
-    assert_eq!(neokey_colors(&snapshot)[1], dim(palette::GREEN, 3));
-
-    snapshot["neoKeyLeds"]["space"] = json!(palette::YELLOW);
-    assert_eq!(neokey_colors(&snapshot)[1], palette::YELLOW);
-
-    snapshot["neoKeyLeds"]["space"] = json!(palette::GREEN);
-    assert_eq!(neokey_colors(&snapshot)[1], palette::GREEN);
-
-    snapshot["neoKeyLeds"]["space"] = json!(dim(palette::GREEN, 3));
-    snapshot["display"]["off"] = json!(true);
-    assert_eq!(neokey_colors(&snapshot)[1], dim(palette::GREEN, 3));
-
-    snapshot["settings"]["ledsDimmed"] = json!(true);
-    assert_eq!(
-        neokey_colors(&snapshot)[1],
-        scale(dim(palette::GREEN, 3), 0.08)
-    );
-
-    snapshot["settings"]["buttonBrightness"] = json!(10);
-    assert_eq!(
-        neokey_colors(&snapshot)[1],
-        [33, 70, 21].map(|channel| ((channel * 400 + 5_000) / 10_000) as u8)
-    );
-}
-
-#[test]
-fn neokey_basis_point_scaling_matches_normal_and_dimmed_brightness() {
-    let mut snapshot = snapshot_with_leds();
-    snapshot["neoKeyLeds"]["back"] = json!([255, 128, 1]);
-    for brightness in [0, 10, 75, 100] {
-        for dimmed in [false, true] {
-            snapshot["settings"]["buttonBrightness"] = json!(brightness);
-            snapshot["settings"]["ledsDimmed"] = json!(dimmed);
-            let basis_points = if dimmed {
-                if brightness == 0 {
-                    0
-                } else {
-                    (brightness * 8).max(400)
-                }
-            } else {
-                brightness * 100
-            };
-            let expected =
-                [255, 128, 1].map(|channel| ((channel * basis_points + 5_000) / 10_000) as u8);
-            assert_eq!(neokey_colors(&snapshot)[0], expected);
-        }
-    }
-}
-
-#[test]
 fn oled_display_brightness_scales_menu_line_colors() {
     let mut snapshot = menu_snapshot();
     snapshot["settings"]["displayBrightness"] = json!(50);
@@ -324,18 +202,6 @@ fn waking_clears_sleep_animation_and_output_cache() {
 }
 
 #[test]
-fn sleeping_animation_uses_display_off_instead_of_dim_timer_state() {
-    let mut sleeping = snapshot_with_leds();
-    sleeping["display"]["off"] = json!(true);
-    sleeping["settings"]["ledsDimmed"] = json!(false);
-    assert!(snapshot_display_off(&sleeping));
-
-    sleeping["display"]["off"] = json!(false);
-    sleeping["settings"]["ledsDimmed"] = json!(true);
-    assert!(!snapshot_display_off(&sleeping));
-}
-
-#[test]
 fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
     let start = Instant::now();
     let mut animation = SleepLedAnimation::with_seed(9);
@@ -370,31 +236,55 @@ fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
 )))]
 mod hardware_render_tests {
     use super::*;
-    use crate::oled_frame_cache::OledFramePublication;
+    use crate::render_loop::test_scenes::test_scene;
+    use playback_runtime::oled_frame::OledPresentationMetrics;
     use std::sync::mpsc;
 
-    #[test]
-    fn hdmi_failure_does_not_block_oled_publication() {
-        let (seesaw_tx, _seesaw_rx) = mpsc::channel();
-        let mut targets = HardwareRenderTargets {
+    fn presentation(off: bool) -> LatestPresentation {
+        let mut hardware =
+            test_scene().into_hardware_presentation(OledPresentationMetrics::default(), None);
+        hardware.leds.grid.rgb = palette::YELLOW.repeat(64);
+        hardware.leds.brightness = 50;
+        hardware.leds.off = off;
+        hardware.neo_key.colors = [
+            palette::RED,
+            palette::RED,
+            dim(palette::GRAY, 3),
+            dim(palette::GRAY, 3),
+        ];
+        hardware.neo_key.brightness = 100;
+        let pixels = playback_runtime::oled_frame::render_oled_frame(&hardware.oled);
+        LatestPresentation {
+            hardware: Box::new(hardware),
+            oled: OledFramePublication::test_native(1, pixels),
+            completion: None,
+        }
+    }
+
+    fn fake_targets() -> (
+        HardwareRenderTargets,
+        mpsc::Receiver<crate::seesaw_io::SeesawCommand>,
+    ) {
+        let (seesaw_tx, seesaw_rx) = mpsc::channel();
+        let targets = HardwareRenderTargets {
             oled: crate::render::test_oled_output::fake_oled_output(),
             seesaw_tx,
             oled_handoff: None,
             hdmi: hdmi::HdmiFramebuffer::new(),
         };
-        let mut snapshot = snapshot_with_leds();
-        snapshot["hdmi"] = json!({
-            "mode": "live-grid",
-            "grid": { "rgb": vec![255; 8 * 8 * 3] }
-        });
-        let mut cache = HardwareRenderCache::default();
+        (targets, seesaw_rx)
+    }
 
-        let _ = render_snapshot_cached(
-            &mut targets,
-            &snapshot,
-            &OledFramePublication::ExplicitBlack,
-            &mut cache,
-        );
+    #[test]
+    fn hdmi_failure_does_not_block_oled_publication() {
+        let (mut targets, _seesaw_rx) = fake_targets();
+        let mut cache = HardwareRenderCache::default();
+        let mut live = presentation(false);
+        live.hardware.hdmi.mode = playback_runtime::NativeHdmiMode::LiveGrid;
+        let now = Instant::now();
+
+        let _ = live.render_oled_leds(&mut targets, &mut cache, now);
+        let _ = live.render_hdmi(&mut targets, &mut cache, now);
 
         assert_eq!(cache.oled_render_count(), 1);
         assert_eq!(cache.hdmi_signature, 0);
@@ -402,36 +292,15 @@ mod hardware_render_tests {
 
     #[test]
     fn sleeping_animation_emits_at_entry_and_deadlines_only() {
-        let (command_tx, command_rx) = mpsc::channel();
-        let mut targets = HardwareRenderTargets {
-            oled: crate::render::test_oled_output::fake_oled_output(),
-            seesaw_tx: command_tx,
-            oled_handoff: None,
-            hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
-        };
-        let sleeping = {
-            let mut snapshot = snapshot_with_leds();
-            snapshot["display"]["off"] = json!(true);
-            snapshot
-        };
+        let (mut targets, command_rx) = fake_targets();
+        let sleeping = presentation(true);
         let mut cache = HardwareRenderCache::default();
+        let now = Instant::now();
 
-        let deadline = render_snapshot_cached(
-            &mut targets,
-            &sleeping,
-            &OledFramePublication::ExplicitBlack,
-            &mut cache,
-        )
-        .unwrap();
+        let deadline = sleeping.render_leds(&mut targets, &mut cache, now).unwrap();
         assert_eq!(command_rx.try_iter().count(), 2);
 
-        let repeated_deadline = render_snapshot_cached(
-            &mut targets,
-            &sleeping,
-            &OledFramePublication::ExplicitBlack,
-            &mut cache,
-        )
-        .unwrap();
+        let repeated_deadline = sleeping.render_leds(&mut targets, &mut cache, now).unwrap();
         assert_eq!(repeated_deadline, deadline);
         assert_eq!(command_rx.try_iter().count(), 0);
 
@@ -443,49 +312,29 @@ mod hardware_render_tests {
 
     #[test]
     fn sleeping_animation_restores_once_on_wake_and_stays_cached_awake() {
-        let (command_tx, command_rx) = mpsc::channel();
-        let mut targets = HardwareRenderTargets {
-            oled: crate::render::test_oled_output::fake_oled_output(),
-            seesaw_tx: command_tx,
-            oled_handoff: None,
-            hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
-        };
-        let sleeping = {
-            let mut snapshot = snapshot_with_leds();
-            snapshot["display"]["off"] = json!(true);
-            snapshot
-        };
-        let awake = snapshot_with_leds();
+        let (mut targets, command_rx) = fake_targets();
+        let sleeping = presentation(true);
+        let awake = presentation(false);
         let mut cache = HardwareRenderCache::default();
+        let now = Instant::now();
 
-        render_snapshot_cached(
-            &mut targets,
-            &sleeping,
-            &OledFramePublication::ExplicitBlack,
-            &mut cache,
-        );
+        sleeping.render_leds(&mut targets, &mut cache, now);
         let _ = command_rx.try_iter().count();
-        render_snapshot_cached(
-            &mut targets,
-            &awake,
-            &OledFramePublication::ExplicitBlack,
-            &mut cache,
-        );
+        awake.render_leds(&mut targets, &mut cache, now);
         let wake_commands = command_rx.try_iter().collect::<Vec<_>>();
         assert_eq!(wake_commands.len(), 2);
-        assert!(wake_commands.iter().any(|command| {
-            matches!(command, crate::seesaw_io::SeesawCommand::GridFrame(frame) if *frame == led_frame(&awake).unwrap())
-        }));
-        assert!(wake_commands.iter().any(|command| {
-            matches!(command, crate::seesaw_io::SeesawCommand::NeoKeyColors(colors) if *colors == neokey_colors(&awake))
-        }));
+        let expected_grid = native_leds::native_grid_frame(&awake.hardware.leds);
+        let expected_keys = native_leds::native_control_colors(&awake.hardware.neo_key, false);
+        assert!(wake_commands.iter().any(|command| matches!(
+            command,
+            crate::seesaw_io::SeesawCommand::GridFrame(frame) if *frame == expected_grid
+        )));
+        assert!(wake_commands.iter().any(|command| matches!(
+            command,
+            crate::seesaw_io::SeesawCommand::NeoKeyColors(colors) if *colors == expected_keys
+        )));
 
-        render_snapshot_cached(
-            &mut targets,
-            &awake,
-            &OledFramePublication::ExplicitBlack,
-            &mut cache,
-        );
+        awake.render_leds(&mut targets, &mut cache, now);
         assert_eq!(command_rx.try_iter().count(), 0);
     }
 }

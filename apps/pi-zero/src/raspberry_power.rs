@@ -5,13 +5,14 @@ use crate::host_adapter::{PiHostAdapter, PowerRequest};
 use crate::host_power_lifecycle::{publish_terminal_frame, run_ordinary_power_lifecycle};
 use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render_loop::RenderWorker;
-use playback_runtime::PlaybackRuntime;
+use playback_runtime::{NativeRunner, PlaybackRuntime};
 
 #[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
 mod tests;
 
 pub(crate) fn shutdown_if_requested(
     playback: &PlaybackRuntime,
+    runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
 ) -> bool {
@@ -27,6 +28,7 @@ pub(crate) fn shutdown_if_requested(
             };
             report_power_lifecycle_result(run_ordinary_power_lifecycle(
                 playback,
+                runner,
                 adapter,
                 render_worker,
                 action,
@@ -34,7 +36,7 @@ pub(crate) fn shutdown_if_requested(
             ))
         }
         PowerRequest::ApplyDeviceConfig(()) => {
-            finalize_device_apply_power_request(playback, adapter, render_worker, request)
+            finalize_device_apply_power_request(playback, runner, render_worker, request)
         }
     }
 }
@@ -55,11 +57,11 @@ fn report_power_lifecycle_result(result: PowerLifecycleResult) -> bool {
 
 fn finalize_device_apply_power_request(
     playback: &PlaybackRuntime,
-    adapter: &mut PiHostAdapter,
+    runner: &mut NativeRunner,
     render_worker: &RenderWorker,
     request: PowerRequest,
 ) -> bool {
-    if let Err(error) = publish_terminal_frame(playback, adapter, render_worker) {
+    if let Err(error) = publish_terminal_frame(playback, runner, render_worker) {
         eprintln!("pi device-apply terminal render failed: {error}");
         return true;
     }

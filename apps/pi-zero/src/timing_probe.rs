@@ -2,8 +2,8 @@ use crate::audio::AudioManager;
 use crate::main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
 use crate::{host_adapter::PiHostAdapter, sample_browser::builtin_favourite_dirs};
 use playback_runtime::{
-    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage, RuntimeConfig,
-    RuntimeIngest, RuntimePlatformEffect, SyncSource, TimingProbeOptions, TimingProbeScenario,
+    HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, RuntimeIngest,
+    RuntimePlatformEffect, SyncSource, TimingProbeOptions, TimingProbeScenario,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -379,27 +379,6 @@ fn process_live_output(
     host: &mut LiveProbeHost,
     output: RuntimeIngest,
 ) -> Result<(), String> {
-    for message in &output.messages {
-        host.inner.core.ingest_oled_frame(message);
-        if let RunnerMessage::Snapshot { snapshot } = message {
-            host.inner.core.accept_oled_frame_reference(snapshot);
-        }
-    }
-    let fault = host
-        .inner
-        .core
-        .oled_frame_fault()
-        .map(crate::oled_frame_cache::OledFrameCacheFault::into_runtime_fault);
-    let fault_output = playback.report_oled_cache_fault(fault);
-    for message in &fault_output.messages {
-        host.inner.core.ingest_oled_frame(message);
-        if let RunnerMessage::Snapshot { snapshot } = message {
-            host.inner.core.accept_oled_frame_reference(snapshot);
-        }
-    }
-    for follow_up in fault_output.follow_ups {
-        send_runtime_message(playback, runner, host, follow_up)?;
-    }
     for follow_up in output.follow_ups {
         send_runtime_message(playback, runner, host, follow_up)?;
     }

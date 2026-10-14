@@ -1,5 +1,4 @@
 use super::*;
-use crate::render_loop_queue::SnapshotCommand;
 use playback_runtime::{oled_frame::OledPresentationMetrics, NativeRunner, NativeRunnerConfig};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use playback_runtime::{
@@ -81,7 +80,7 @@ fn native_latest_slot_supersedes_without_false_success() {
     assert!(result.frame_revision.is_none());
     assert!(latest_ack.try_recv().is_err());
     assert!(matches!(&worker.state.0.lock().unwrap().snapshot,
-        Some(SnapshotCommand::Native(scene)) if scene.scene.generation() == latest_generation));
+        Some(scene) if scene.scene.generation() == latest_generation));
 }
 
 #[test]
@@ -138,7 +137,7 @@ fn native_help_scene_supersedes_pending_ordinary_scene_with_failure_ack() {
     assert_eq!(superseded.generation, ordinary_generation);
     assert!(superseded.result.is_err());
     assert!(matches!(&worker.state.0.lock().unwrap().snapshot,
-        Some(SnapshotCommand::Native(scene)) if scene.scene.generation() >= help_generation));
+        Some(scene) if scene.scene.generation() >= help_generation));
 }
 
 #[test]
@@ -285,15 +284,11 @@ fn native_to_terminal_source_revision_collision_acknowledges_preserving_teardown
     let accepted = native_ack.recv_timeout(Duration::from_secs(2)).unwrap();
     assert!(accepted.result.is_ok());
 
-    let mut snapshot = serde_json::json!({"oledFrameRevision": 2});
-    snapshot["display"] = serde_json::json!({"off": false});
     worker
         .publish_terminal_preserving(
-            snapshot,
-            OledFramePublication::test_native(
-                2,
-                vec![0x67; playback_runtime::oled_frame::OLED_FRAME_BYTES],
-            ),
+            super::test_scenes::test_scene(),
+            OledPresentationMetrics::default(),
+            None,
         )
         .unwrap();
     assert!(worker.is_terminated());

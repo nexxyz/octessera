@@ -1,4 +1,3 @@
-use crate::oled_frame_cache::{OledFrameKey, OledFramePublication};
 use crate::seesaw_io::SeesawCommand;
 use octessera_hal::OledSsd1351;
 use serde_json::Value;
@@ -8,11 +7,11 @@ use std::time::Instant;
 pub(crate) mod hdmi;
 mod native_leds;
 mod native_publication;
-pub(crate) use native_publication::{
-    prepare_legacy_presentation, prepare_native_scene, LatestPresentation,
-};
+pub(crate) use native_publication::{prepare_native_scene, LatestPresentation};
 mod oled;
 mod oled_output;
+mod oled_publication;
+pub(crate) use oled_publication::OledFramePublication;
 mod oled_ownership;
 mod ownership_control;
 mod ownership_decision;
@@ -29,11 +28,9 @@ pub(crate) type OledRenderOutput = OledSsd1351;
 pub(crate) use oled::OLED_FRAME_BYTES;
 #[cfg(test)]
 use oled::{glyph_rows, oled_frame, oled_frame_into};
-pub(crate) use oled_output::physical_oled_publication;
 pub(crate) use oled_output::retry_oled_if_due;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 use oled_output::OledRenderDevice;
-use oled_output::{force_oled_render, render_oled_if_changed};
 pub(crate) use oled_ownership::{
     handle_stage, restore, restore_after_dropped_ack, OledOwnershipStage, OledOwnershipState,
     OledRenderControl,
@@ -42,26 +39,26 @@ pub(crate) use ownership_control::{
     ownership_stage_for_render, restore_after_dropped_ack_for_render, restore_for_render,
 };
 pub(crate) use ownership_decision::{
-    initial_snapshot_render_result, mark_handoff_failed_decision, retry_oled_decision,
-    select_snapshot_render, snapshot_requires_oled_ack, SnapshotRenderDecision,
+    mark_handoff_failed_decision, retry_oled_decision, select_snapshot_render,
+    SnapshotRenderDecision,
 };
 use sleep_leds::{SleepLedAnimation, SleepLedFrames};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct OledOutputKey {
-    pub(super) frame: OledFrameKey,
+    pub(super) frame: u64,
     pub(super) display_off: bool,
 }
 
 impl OledOutputKey {
-    pub(super) fn new(frame: OledFrameKey, display_off: bool) -> Self {
+    pub(super) fn new(frame: u64, display_off: bool) -> Self {
         Self { frame, display_off }
     }
 }
 
 #[derive(Default)]
 pub(super) struct OledOutputState {
-    pub(super) frame: Option<OledFrameKey>,
+    pub(super) frame: Option<u64>,
     pub(super) display_off: Option<bool>,
     pub(super) pixels: Option<Vec<u8>>,
     pub(super) physical_revision: u64,
@@ -144,104 +141,6 @@ impl Default for HardwareRenderCache {
     }
 }
 
-pub fn render_snapshot_cached(
-    targets: &mut HardwareRenderTargets,
-    snapshot: &Value,
-    oled: &OledFramePublication,
-    cache: &mut HardwareRenderCache,
-) -> Option<Instant> {
-    let oled_retry_deadline = render_oled_and_leds_cached(targets, snapshot, oled, cache);
-    let hdmi_retry_deadline =
-        render_hdmi_if_changed(&mut targets.hdmi, snapshot, cache, Instant::now());
-    next_deadline(oled_retry_deadline, hdmi_retry_deadline)
-}
-
-pub(crate) fn render_oled_and_leds_cached(
-    targets: &mut HardwareRenderTargets,
-    snapshot: &Value,
-    oled: &OledFramePublication,
-    cache: &mut HardwareRenderCache,
-) -> Option<Instant> {
-    let animation_deadline = render_leds_at(targets, snapshot, cache, Instant::now());
-    let oled_retry_deadline =
-        render_oled_if_changed(&mut targets.oled, snapshot, oled, cache, Instant::now());
-    next_deadline(animation_deadline, oled_retry_deadline)
-}
-
-pub(crate) fn retry_hdmi_if_due(
-    targets: &mut HardwareRenderTargets,
-    snapshot: &Value,
-    cache: &mut HardwareRenderCache,
-    now: Instant,
-) -> Option<Instant> {
-    render_hdmi_if_changed(&mut targets.hdmi, snapshot, cache, now)
-}
-
-fn render_hdmi_if_changed(
-    hdmi: &mut hdmi::HdmiFramebuffer,
-    snapshot: &Value,
-    cache: &mut HardwareRenderCache,
-    now: Instant,
-) -> Option<Instant> {
-    let signature = hdmi::hdmi_signature(snapshot);
-    if cache.hdmi_initialized && cache.hdmi_signature == signature && !hdmi.has_pending_retry() {
-        return None;
-    }
-    let outcome = hdmi.render(snapshot, now);
-    if outcome.applied {
-        cache.hdmi_signature = signature;
-        cache.hdmi_initialized = true;
-    }
-    outcome.retry_at
-}
-
-pub(crate) fn render_leds_only(
-    targets: &mut HardwareRenderTargets,
-    snapshot: &Value,
-    cache: &mut HardwareRenderCache,
-    now: Instant,
-) -> Option<Instant> {
-    render_leds_at(targets, snapshot, cache, now)
-}
-
-fn render_leds_at(
-    targets: &mut HardwareRenderTargets,
-    snapshot: &Value,
-    cache: &mut HardwareRenderCache,
-    now: Instant,
-) -> Option<Instant> {
-    if snapshot_display_off(snapshot) {
-        let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-        let entered_sleep = cache.sleep_leds.enter(
-            now,
-            brightness_scale(settings.get("gridBrightness")),
-            brightness_scale(settings.get("buttonBrightness")),
-        );
-        if entered_sleep {
-            let frames = cache.sleep_leds.frames_at(now);
-            send_sleep_led_frames(targets, cache, frames);
-        } else if let Some(frames) = cache.sleep_leds.frames_if_due(now) {
-            send_sleep_led_frames(targets, cache, frames);
-        }
-        cache.sleep_leds.next_deadline()
-    } else {
-        if cache.sleep_leds.active() {
-            cache.clear_sleep_animation();
-        }
-        render_normal_leds(targets, snapshot, cache);
-        None
-    }
-}
-
-pub(crate) fn force_latest_oled(
-    targets: &mut HardwareRenderTargets,
-    snapshot: &Value,
-    oled: &OledFramePublication,
-    cache: &mut HardwareRenderCache,
-) -> Result<(), String> {
-    force_oled_render(&mut targets.oled, snapshot, oled, cache)
-}
-
 impl HardwareRenderCache {
     pub(crate) fn oled_render_count(&self) -> u64 {
         self.oled_render_count
@@ -273,17 +172,6 @@ impl HardwareRenderCache {
         }
         self.sleep_leds.next_deadline()
     }
-}
-
-fn render_normal_leds(
-    targets: &mut HardwareRenderTargets,
-    snapshot: &Value,
-    cache: &mut HardwareRenderCache,
-) {
-    if let Some(frame) = led_frame(snapshot) {
-        send_grid_frame(targets, cache, frame);
-    }
-    send_neokey_colors(targets, cache, neokey_colors(snapshot));
 }
 
 fn send_sleep_led_frames(
@@ -326,70 +214,22 @@ fn send_neokey_colors(
     }
 }
 
-pub fn led_frame(snapshot: &Value) -> Option<[[u8; 3]; 64]> {
-    let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let mut brightness = brightness_scale(settings.get("gridBrightness"));
-    if settings
-        .get("ledsDimmed")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        brightness = sleep_dim_brightness(brightness);
-    }
-    let rgb = snapshot.get("leds")?.get("rgb")?.as_array()?;
-    if rgb.len() != 64 * 3 {
+fn render_hdmi_if_changed(
+    hdmi: &mut hdmi::HdmiFramebuffer,
+    presentation: &playback_runtime::NativeHdmiPresentation,
+    cache: &mut HardwareRenderCache,
+    now: Instant,
+) -> Option<Instant> {
+    let signature = hdmi::hdmi_signature(presentation);
+    if cache.hdmi_initialized && signature == cache.hdmi_signature && !hdmi.has_pending_retry() {
         return None;
     }
-    let mut frame = [[0_u8; 3]; 64];
-    for (idx, cell) in frame.iter_mut().enumerate() {
-        let offset = idx * 3;
-        *cell = scale(
-            [
-                packed_rgb_channel(rgb.get(offset))?,
-                packed_rgb_channel(rgb.get(offset + 1))?,
-                packed_rgb_channel(rgb.get(offset + 2))?,
-            ],
-            brightness,
-        );
+    let result = hdmi.render(presentation, now);
+    if result.applied {
+        cache.hdmi_signature = signature;
+        cache.hdmi_initialized = true;
     }
-    Some(frame)
-}
-
-fn packed_rgb_channel(value: Option<&Value>) -> Option<u8> {
-    u8::try_from(value?.as_u64()?).ok()
-}
-
-pub fn neokey_colors(snapshot: &Value) -> [[u8; 3]; 4] {
-    let settings = snapshot.get("settings").unwrap_or(&Value::Null);
-    let brightness = settings
-        .get("buttonBrightness")
-        .and_then(Value::as_u64)
-        .unwrap_or(100)
-        .min(100) as u32;
-    let dimmed = settings
-        .get("ledsDimmed")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let basis_points = if dimmed {
-        if brightness == 0 {
-            0
-        } else {
-            (brightness * 8).max(400)
-        }
-    } else {
-        brightness * 100
-    };
-    let leds = snapshot.get("neoKeyLeds").expect("native NeoKey LEDs");
-    ["back", "space", "shift", "fn"].map(|key| {
-        let rgb = leds
-            .get(key)
-            .and_then(Value::as_array)
-            .expect("native NeoKey LED color");
-        [0, 1, 2].map(|index| {
-            let channel = rgb[index].as_u64().expect("native NeoKey channel") as u32;
-            ((channel * basis_points + 5_000) / 10_000).min(255) as u8
-        })
-    })
+    result.retry_at
 }
 
 pub(crate) fn next_deadline(first: Option<Instant>, second: Option<Instant>) -> Option<Instant> {
@@ -417,14 +257,6 @@ pub fn render_shutdown_splash(oled: &mut OledRenderOutput) {
     if let Err(error) = result {
         eprintln!("pi OLED shutdown splash render failed: {error}");
     }
-}
-
-fn snapshot_display_off(snapshot: &Value) -> bool {
-    snapshot
-        .get("display")
-        .and_then(|display| display.get("off"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

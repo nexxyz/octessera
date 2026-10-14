@@ -99,17 +99,12 @@ impl HdmiFramebuffer {
         self.device.has_pending_retry()
     }
 
-    pub(crate) fn render(&mut self, snapshot: &Value, now: Instant) -> device::HdmiRenderOutcome {
-        self.device
-            .render(snapshot, hdmi_mode(snapshot) == Some("none"), now)
-    }
-
-    pub(crate) fn render_typed(
+    pub(crate) fn render(
         &mut self,
         presentation: &playback_runtime::NativeHdmiPresentation,
         now: Instant,
     ) -> device::HdmiRenderOutcome {
-        self.device.render_typed(presentation, now)
+        self.device.render(presentation, now)
     }
 }
 

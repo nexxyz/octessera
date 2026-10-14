@@ -115,7 +115,7 @@ pub(crate) fn publish_prepared_acknowledged_snapshot(
 ) -> Result<u64, String> {
     crate::runtime_init::publish_initial_snapshot(
         &prepared.playback,
-        &prepared.runner,
+        &mut prepared.runner,
         &mut prepared.host,
         render,
     )

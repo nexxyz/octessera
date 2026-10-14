@@ -1,5 +1,4 @@
 use playback_runtime::{NativeHdmiMode, NativeHdmiPresentation};
-use serde_json::Value;
 use std::fmt;
 use std::io;
 
@@ -125,19 +124,10 @@ mod imp {
 
         pub(crate) fn render(
             &mut self,
-            snapshot: &Value,
-            now: std::time::Instant,
-        ) -> device::HdmiRenderOutcome {
-            self.device
-                .render(snapshot, hdmi_mode(snapshot) == Some("none"), now)
-        }
-
-        pub(crate) fn render_typed(
-            &mut self,
             presentation: &NativeHdmiPresentation,
             now: std::time::Instant,
         ) -> device::HdmiRenderOutcome {
-            self.device.render_typed(presentation, now)
+            self.device.render(presentation, now)
         }
     }
 }
@@ -145,39 +135,6 @@ mod imp {
 pub use imp::HdmiFramebuffer;
 
 pub fn compose_frame_with_stride(
-    snapshot: &Value,
-    width: usize,
-    height: usize,
-    stride: usize,
-    bytes_per_pixel: usize,
-) -> Option<Vec<u8>> {
-    if hdmi_mode(snapshot) == Some("none") {
-        return None;
-    }
-    let grid = snapshot.get("hdmi").and_then(|hdmi| hdmi.get("grid"))?;
-    let rgb = grid.get("rgb").and_then(Value::as_array)?;
-    let show_gridlines = snapshot
-        .get("hdmi")
-        .and_then(|hdmi| hdmi.get("showGridlines"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    compose_grid_frame_with_stride(
-        width,
-        height,
-        stride,
-        bytes_per_pixel,
-        show_gridlines,
-        |index| {
-            [
-                u8_at(rgb, index * 3),
-                u8_at(rgb, index * 3 + 1),
-                u8_at(rgb, index * 3 + 2),
-            ]
-        },
-    )
-}
-
-pub fn compose_frame_with_stride_typed(
     presentation: &NativeHdmiPresentation,
     width: usize,
     height: usize,
@@ -257,18 +214,6 @@ pub(crate) fn supported_offsets(xoffset: u32, yoffset: u32) -> bool {
     xoffset == 0 && yoffset == 0
 }
 
-fn hdmi_mode(snapshot: &Value) -> Option<&str> {
-    snapshot.get("hdmi")?.get("mode")?.as_str()
-}
-
-fn u8_at(values: &[Value], index: usize) -> u8 {
-    values
-        .get(index)
-        .and_then(Value::as_u64)
-        .unwrap_or(0)
-        .min(255) as u8
-}
-
 fn write_pixel(pixel: &mut [u8], color: [u8; 3], bytes_per_pixel: usize) {
     if bytes_per_pixel == 2 {
         let value = (u16::from(color[0] >> 3) << 11)
@@ -280,18 +225,7 @@ fn write_pixel(pixel: &mut [u8], color: [u8; 3], bytes_per_pixel: usize) {
     }
 }
 
-pub fn hdmi_signature(snapshot: &Value) -> u64 {
-    if hdmi_mode(snapshot) == Some("none") {
-        return 0;
-    }
-    let bytes =
-        serde_json::to_vec(snapshot.get("hdmi").unwrap_or(&Value::Null)).unwrap_or_default();
-    bytes.iter().fold(0xcbf29ce484222325, |hash, byte| {
-        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
-    })
-}
-
-pub fn hdmi_signature_typed(presentation: &NativeHdmiPresentation) -> u64 {
+pub fn hdmi_signature(presentation: &NativeHdmiPresentation) -> u64 {
     assert_typed_grid(presentation);
     if presentation.mode == NativeHdmiMode::None {
         return 0;
@@ -347,83 +281,50 @@ mod tests {
     }
 
     #[test]
-    fn typed_hdmi_composition_matches_legacy_stride_and_gridlines() {
+    fn signature_tracks_every_presented_hdmi_field() {
         let mut rgb = vec![0; 64 * 3];
         rgb[0..3].copy_from_slice(&[255, 0, 0]);
-        rgb[7 * 8 * 3..7 * 8 * 3 + 3].copy_from_slice(&[0, 0, 255]);
         for gridlines in [false, true] {
-            let legacy = serde_json::json!({"hdmi": {
-                "mode": "cycle-behaviors", "sourceLayerIndex": 1,
-                "sourceBehaviorId": "sequencer", "cycleMeasures": 4,
-                "showGridlines": gridlines, "grid": {"rgb": rgb}
-            }});
             let typed = typed_hdmi(rgb.clone(), NativeHdmiMode::CycleBehaviors, gridlines);
-            let mut changed_legacy = legacy.clone();
-            changed_legacy["hdmi"]["sourceLayerIndex"] = serde_json::json!(2);
-            assert_ne!(hdmi_signature(&legacy), hdmi_signature(&changed_legacy));
-            assert_eq!(
-                compose_frame_with_stride_typed(&typed, 16, 8, 72, 4),
-                compose_frame_with_stride(&legacy, 16, 8, 72, 4)
-            );
-            assert_ne!(hdmi_signature_typed(&typed), 0);
+            assert_ne!(hdmi_signature(&typed), 0);
             let mut changed = typed_hdmi(rgb.clone(), NativeHdmiMode::CycleBehaviors, gridlines);
-            assert_eq!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            assert_eq!(hdmi_signature(&typed), hdmi_signature(&changed));
             changed.source_layer_index = 2;
-            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            assert_ne!(hdmi_signature(&typed), hdmi_signature(&changed));
             changed.source_layer_index = 1;
             changed.source_behavior_id = "life".into();
-            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            assert_ne!(hdmi_signature(&typed), hdmi_signature(&changed));
             changed.source_behavior_id = "sequencer".into();
             changed.cycle_measures = 8;
-            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            assert_ne!(hdmi_signature(&typed), hdmi_signature(&changed));
             changed.cycle_measures = 4;
             changed.mode = NativeHdmiMode::PlainGrid;
-            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            assert_ne!(hdmi_signature(&typed), hdmi_signature(&changed));
             changed.mode = NativeHdmiMode::CycleBehaviors;
             changed.grid.active[0] = true;
-            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            assert_ne!(hdmi_signature(&typed), hdmi_signature(&changed));
             changed.grid.active[0] = false;
             changed.show_gridlines = !gridlines;
-            assert_ne!(hdmi_signature_typed(&typed), hdmi_signature_typed(&changed));
+            assert_ne!(hdmi_signature(&typed), hdmi_signature(&changed));
         }
-        let none = typed_hdmi(rgb, NativeHdmiMode::None, false);
-        assert_eq!(hdmi_signature_typed(&none), 0);
-        assert!(compose_frame_with_stride_typed(&none, 16, 8, 72, 4).is_none());
     }
 
     #[test]
     fn none_mode_has_no_signature_or_frame() {
-        let snapshot = serde_json::json!({
-            "hdmi": {
-                "mode": "none",
-                "grid": {
-                    "width": 8,
-                    "height": 8,
-                    "rgb": vec![255; 8 * 8 * 3],
-                    "active": vec![true; 8 * 8]
-                }
-            }
-        });
-
-        assert_eq!(hdmi_signature(&snapshot), 0);
-        assert!(compose_frame_with_stride(&snapshot, 64, 64, 256, 4).is_none());
+        let none = typed_hdmi(vec![255; 64 * 3], NativeHdmiMode::None, false);
+        assert_eq!(hdmi_signature(&none), 0);
+        assert!(compose_frame_with_stride(&none, 64, 64, 256, 4).is_none());
     }
 
     #[test]
-    fn stride_preserves_snapshot_row_order_and_padding() {
+    fn stride_preserves_grid_row_order_and_padding() {
         let mut rgb = vec![0; 8 * 8 * 3];
         rgb[0..3].copy_from_slice(&[255, 0, 0]);
         let bottom_left = 7 * 8 * 3;
         rgb[bottom_left..bottom_left + 3].copy_from_slice(&[0, 0, 255]);
-        let snapshot = serde_json::json!({
-            "hdmi": {
-                "mode": "live-grid",
-                "grid": { "rgb": rgb },
-                "showGridlines": false
-            }
-        });
+        let hdmi = typed_hdmi(rgb, NativeHdmiMode::LiveGrid, false);
 
-        let frame = compose_frame_with_stride(&snapshot, 16, 8, 72, 4).unwrap();
+        let frame = compose_frame_with_stride(&hdmi, 16, 8, 72, 4).unwrap();
 
         assert_eq!(&frame[4 * 4..4 * 4 + 4], &[0, 0, 255, 0]);
         assert_eq!(&frame[7 * 72 + 4 * 4..7 * 72 + 4 * 4 + 4], &[255, 0, 0, 0]);
@@ -432,15 +333,10 @@ mod tests {
 
     #[test]
     fn stride_and_pixel_format_are_required() {
-        let snapshot = serde_json::json!({
-            "hdmi": {
-                "mode": "live-grid",
-                "grid": { "rgb": vec![255; 8 * 8 * 3] }
-            }
-        });
+        let hdmi = typed_hdmi(vec![255; 8 * 8 * 3], NativeHdmiMode::LiveGrid, false);
 
-        assert!(compose_frame_with_stride(&snapshot, 16, 8, 63, 4).is_none());
-        assert!(compose_frame_with_stride(&snapshot, 16, 8, 64, 3).is_none());
+        assert!(compose_frame_with_stride(&hdmi, 16, 8, 63, 4).is_none());
+        assert!(compose_frame_with_stride(&hdmi, 16, 8, 64, 3).is_none());
     }
 
     #[test]

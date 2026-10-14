@@ -83,7 +83,11 @@ fn dispatch(
     crate::runtime_dispatch::dispatch_runtime_message(playback, runner, adapter, message)
 }
 
-fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiHostAdapter) -> RenderWorker {
+fn scene_worker(
+    playback: &PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+) -> RenderWorker {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
         oled: crate::render::test_oled_output::fake_oled_output(),
@@ -91,14 +95,7 @@ fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiHostAdapter) -> Rend
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    let snapshot = playback.last_snapshot().unwrap().clone();
-    let oled = adapter
-        .core
-        .oled_publication_for_snapshot(&snapshot, true)
-        .unwrap();
-    worker
-        .publish_acknowledged_snapshot(snapshot, oled)
-        .unwrap();
+    crate::runtime_init::publish_initial_snapshot(playback, runner, adapter, &worker).unwrap();
     worker
 }
 
@@ -106,7 +103,7 @@ fn scene_worker(playback: &PlaybackRuntime, adapter: &mut PiHostAdapter) -> Rend
 fn native_worker_save_result_produces_the_receipt() {
     let root = root();
     let (mut playback, mut runner, mut adapter, _audio_keep_alive) = runtime(&root);
-    let worker = scene_worker(&playback, &mut adapter);
+    let worker = scene_worker(&playback, &mut runner, &mut adapter);
     let (original, targets) = {
         let mut send =
             |playback: &mut PlaybackRuntime, runner: &mut NativeRunner, message: HostMessage| {

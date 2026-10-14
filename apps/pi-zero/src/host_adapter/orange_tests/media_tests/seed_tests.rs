@@ -1,16 +1,14 @@
 use super::*;
 use crate::audio::test_service_with_recording_dir;
 use media_recording::OLED_FRAME_BYTES;
-use playback_runtime::RunnerMessage;
 use std::sync::Arc;
 
 #[test]
-fn orange_audio_oled_start_seeds_latest_physical_frame_not_legacy_cache() {
+fn orange_audio_oled_start_seeds_latest_physical_frame() {
     let (store, samples) = directories();
     let actual_dir = store.parent().unwrap().join("actual-recording");
     let reference_dir = store.parent().unwrap().join("reference-recording");
     let (audio, _, _, _) = test_service_with_recording_dir(actual_dir.clone());
-    let stale = vec![0x11; OLED_FRAME_BYTES];
     let current = vec![0x66; OLED_FRAME_BYTES];
     audio
         .submit_accepted_oled_frame_shared(42, Arc::from(current.clone()))
@@ -23,17 +21,6 @@ fn orange_audio_oled_start_seeds_latest_physical_frame_not_legacy_cache() {
         false,
     )
     .unwrap();
-    adapter.core.ingest_oled_frame(&RunnerMessage::OledFrame {
-        revision: 1,
-        width: 128,
-        height: 128,
-        format: "rgb565be".into(),
-        pixels: stale,
-    });
-    adapter
-        .core
-        .accept_oled_frame_reference(&serde_json::json!({"oledFrameRevision": 1}));
-
     let started = adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::RecordingStartAudioOled { max_minutes: 1 },

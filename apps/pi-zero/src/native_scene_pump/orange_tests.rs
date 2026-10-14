@@ -160,7 +160,7 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
             &worker,
         )
         .unwrap();
-    scheduler.record_native_scene_capture(first_capture);
+    scheduler.record_native_scene_capture(first_capture, playback.last_snapshot_revision());
     assert_eq!(pump.capture_count, 1);
 
     let toast = playback
@@ -214,7 +214,6 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
             .display_snapshot_due(start + SNAPSHOT_TICK, &runner, &playback)
             .continuous
     );
-    assert!(!scheduler.snapshot_publication_due(start + SNAPSHOT_TICK, &playback));
     let scheduler_now = Instant::now();
     scheduler.record_runtime_advance_complete(scheduler_now, &playback, None);
     assert!(!scheduler
@@ -236,7 +235,7 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
             &worker,
         )
         .unwrap();
-    scheduler.record_native_scene_capture(newer_capture);
+    scheduler.record_native_scene_capture(newer_capture, playback.last_snapshot_revision());
     assert_eq!(pump.capture_count, 2);
     pump.poll(&mut runner);
     assert_eq!(pump.generation, Some(newer_generation));
@@ -244,7 +243,7 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
 }
 
 #[test]
-fn legacy_runtime_error_due_stays_publishable_and_blocks_typed_overwrite() {
+fn runtime_error_and_dismissal_are_captured_as_native_scenes() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-orange-runtime-error-scene");
     let mut host = TestHost;
     let (mut playback, mut runner, _) = playing_runner();
@@ -267,29 +266,34 @@ fn legacy_runtime_error_due_stays_publishable_and_blocks_typed_overwrite() {
             &mut host,
         )
         .unwrap();
-    assert!(playback
-        .last_snapshot()
-        .and_then(|snapshot| snapshot.get("runtimeError"))
-        .is_some_and(|error| !error.is_null()));
-    assert!(scheduler.snapshot_publication_due(now + SNAPSHOT_TICK, &playback));
+    assert!(playback.native_presentation_state().1.is_some());
+    assert!(scheduler.snapshot_unpresented(&playback));
 
     let mut pump = NativeScenePump::new(now - SNAPSHOT_TICK);
     let mut adapter = adapter(&root);
     let worker = worker();
-    assert!(pump
+    let due = DisplaySnapshotDue {
+        one_shot: true,
+        continuous: false,
+    };
+    let error_capture = pump
         .submit(
             now + SNAPSHOT_TICK,
-            DisplaySnapshotDue {
-                one_shot: false,
-                continuous: true,
-            },
+            due,
             &playback,
             &mut runner,
             &mut adapter,
             &worker,
         )
-        .is_none());
-    assert_eq!(pump.capture_count, 0);
+        .unwrap();
+    scheduler.record_native_scene_capture(error_capture, playback.last_snapshot_revision());
+    assert_eq!(pump.capture_count, 1);
+    assert!(!scheduler.snapshot_unpresented(&playback));
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while pump.generation.is_some() && Instant::now() < deadline {
+        pump.poll(&mut runner);
+        std::thread::sleep(Duration::from_millis(1));
+    }
 
     playback
         .dispatch_host_message_music_first(
@@ -301,23 +305,18 @@ fn legacy_runtime_error_due_stays_publishable_and_blocks_typed_overwrite() {
             &mut host,
         )
         .unwrap();
-    assert!(playback
-        .last_snapshot()
-        .and_then(|snapshot| snapshot.get("runtimeError"))
-        .is_none_or(serde_json::Value::is_null));
-    assert!(scheduler.snapshot_publication_due(now + SNAPSHOT_TICK * 2, &playback));
+    assert!(playback.native_presentation_state().1.is_none());
+    assert!(scheduler.snapshot_unpresented(&playback));
     assert!(pump
         .submit(
             now + SNAPSHOT_TICK * 2,
-            DisplaySnapshotDue {
-                one_shot: false,
-                continuous: true,
-            },
+            due,
             &playback,
             &mut runner,
             &mut adapter,
             &worker,
         )
         .is_some());
-    assert_eq!(pump.capture_count, 1);
+    assert_eq!(pump.capture_count, 2);
+    let _ = std::fs::remove_dir_all(root);
 }

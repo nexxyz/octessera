@@ -1,20 +1,15 @@
-use crate::oled_frame_cache::OledFramePublication;
 use crate::render::{
     HardwareRenderCache, HardwareRenderTargets, OledOwnershipStage, OledOwnershipState,
 };
-use crate::render_loop_queue::{
-    merge_native_scene, merge_snapshot_command, NativeSceneCommand, NativeSceneCompletion,
-    RenderCommand, RenderState,
-};
 #[cfg(test)]
+use crate::render_loop_queue::pending_work_wins_over_expired_animation_deadline;
 use crate::render_loop_queue::{
-    pending_work_wins_over_expired_animation_deadline, SnapshotCommand,
+    merge_native_scene, NativeSceneCommand, NativeSceneCompletion, RenderCommand, RenderState,
 };
 use playback_runtime::{
     oled_frame::{OledPresentationMetrics, OledRuntimeErrorMetadata},
     PresentationScene,
 };
-use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
@@ -32,6 +27,8 @@ mod hdmi_render_loop_tests;
 mod ownership;
 mod presentation;
 mod terminal;
+#[cfg(test)]
+pub(crate) mod test_scenes;
 mod worker;
 use worker::render_worker_loop;
 #[cfg(test)]
@@ -85,7 +82,7 @@ impl RenderWorker {
         }
     }
 
-    pub(crate) fn take_acknowledged_startup_oled_frame(&self) -> Result<(u64, Arc<[u8]>), String> {
+    fn take_acknowledged_startup_oled_frame(&self) -> Result<(u64, Arc<[u8]>), String> {
         let mut state =
             self.state.0.lock().map_err(|_| {
                 "render worker state mutex poisoned while reading startup OLED frame"
@@ -134,6 +131,40 @@ impl RenderWorker {
         Ok(receiver)
     }
 
+    pub(crate) fn publish_initial_native_scene(
+        &self,
+        scene: PresentationScene,
+        metrics: OledPresentationMetrics,
+        error: Option<OledRuntimeErrorMetadata>,
+    ) -> Result<(u64, Arc<[u8]>), String> {
+        let (completion, receiver) = mpsc::channel();
+        let command = NativeSceneCommand {
+            scene,
+            metrics,
+            error,
+            completion,
+        };
+        let (lock, ready) = &*self.state;
+        let mut state = lock.lock().map_err(|_| {
+            "render worker state mutex poisoned during initial native scene".to_string()
+        })?;
+        if state.acknowledged_snapshot_published {
+            return Err("render worker rejected a second initial scene".into());
+        }
+        if state.command.is_some() {
+            return Err("render worker is busy during the initial scene".into());
+        }
+        state.acknowledged_snapshot_published = true;
+        merge_native_scene(&mut state, command);
+        ready.notify_one();
+        drop(state);
+        receiver
+            .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
+            .map_err(|error| format!("initial scene render acknowledgement failed: {error}"))?
+            .result?;
+        self.take_acknowledged_startup_oled_frame()
+    }
+
     pub fn spawn(mut targets: HardwareRenderTargets) -> Self {
         let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
         let worker_state = Arc::clone(&state);
@@ -142,53 +173,6 @@ impl RenderWorker {
             state,
             worker: Arc::new(Mutex::new(Some(worker))),
         }
-    }
-
-    pub fn publish_snapshot(&self, snapshot: Value, oled: OledFramePublication) -> bool {
-        if validate_oled_publication(&snapshot, &oled, false).is_err() {
-            return false;
-        }
-        self.publish_snapshot_command(snapshot, oled, Vec::new())
-    }
-
-    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
-    pub fn publish_snapshot_with_ack(
-        &self,
-        snapshot: Value,
-        oled: OledFramePublication,
-    ) -> Result<(), String> {
-        validate_oled_publication(&snapshot, &oled, false)?;
-        let (ack_tx, ack_rx) = mpsc::channel();
-        if !self.publish_snapshot_command(snapshot, oled, vec![ack_tx]) {
-            return Err("render worker rejected snapshot acknowledgement".into());
-        }
-        ack_rx
-            .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
-            .map_err(|error| format!("snapshot render acknowledgement failed: {error}"))?
-    }
-
-    pub fn publish_acknowledged_snapshot(
-        &self,
-        snapshot: Value,
-        oled: OledFramePublication,
-    ) -> Result<(), String> {
-        validate_oled_publication(&snapshot, &oled, true)?;
-        let (ack_tx, ack_rx) = mpsc::channel();
-        let (lock, _) = &*self.state;
-        let mut state = lock.lock().map_err(|_| {
-            "render worker state mutex poisoned during acknowledged snapshot".to_string()
-        })?;
-        if state.acknowledged_snapshot_published {
-            return Err("render worker rejected a second acknowledged snapshot".into());
-        }
-        state.acknowledged_snapshot_published = true;
-        drop(state);
-        if !self.publish_snapshot_command(snapshot, oled, vec![ack_tx]) {
-            return Err("render worker rejected acknowledged snapshot".into());
-        }
-        ack_rx
-            .recv_timeout(INITIAL_RENDER_ACK_TIMEOUT)
-            .map_err(|error| format!("initial snapshot render acknowledgement failed: {error}"))?
     }
 
     pub fn mark_first_menu_rendered(&self) -> Result<(), String> {
@@ -272,33 +256,6 @@ impl RenderWorker {
             }
         }
     }
-
-    fn publish_snapshot_command(
-        &self,
-        snapshot: Value,
-        oled: OledFramePublication,
-        rendered_acks: Vec<mpsc::Sender<Result<(), String>>>,
-    ) -> bool {
-        let (lock, ready) = &*self.state;
-        if let Ok(mut state) = lock.lock() {
-            if matches!(
-                &state.command,
-                Some(
-                    RenderCommand::Shutdown { .. }
-                        | RenderCommand::PreserveTerminal { .. }
-                        | RenderCommand::Abort { .. },
-                )
-            ) {
-                return false;
-            }
-            state.snapshot =
-                merge_snapshot_command(state.snapshot.take(), snapshot, oled, rendered_acks);
-            ready.notify_one();
-            true
-        } else {
-            false
-        }
-    }
 }
 
 pub(super) fn take_startup_oled_write_failure(
@@ -329,41 +286,6 @@ impl crate::orange_oled_suspend_policy::RenderOwnershipControl for RenderWorker 
     fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
         RenderWorker::ownership_stage(self, stage)
     }
-}
-
-fn validate_oled_publication(
-    snapshot: &Value,
-    oled: &OledFramePublication,
-    initial: bool,
-) -> Result<(), String> {
-    let required_revision = snapshot
-        .get("oledFrameRevision")
-        .and_then(Value::as_u64)
-        .filter(|revision| *revision > 0);
-    if initial && !oled.is_native() {
-        return Err("initial OLED snapshot requires an accepted native frame".into());
-    }
-    if oled.is_native() && oled.revision() != required_revision {
-        return Err("OLED publication does not match snapshot frame revision".into());
-    }
-    Ok(())
-}
-
-pub(super) fn validate_terminal_oled_publication(
-    snapshot: &Value,
-    oled: &OledFramePublication,
-) -> Result<(), String> {
-    if !oled.is_native() {
-        return Err("terminal OLED snapshot requires an accepted native frame".into());
-    }
-    let required_revision = snapshot
-        .get("oledFrameRevision")
-        .and_then(Value::as_u64)
-        .filter(|revision| *revision > 0);
-    if oled.revision() != required_revision {
-        return Err("terminal OLED publication does not match snapshot frame revision".into());
-    }
-    Ok(())
 }
 
 #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]

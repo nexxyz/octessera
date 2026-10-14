@@ -1,12 +1,11 @@
 use crate::bluetooth::BluetoothHandle;
 use crate::keyboard_capture::KeyboardCaptureControl;
 use crate::midi_host::MidiHost;
-use crate::oled_frame_cache::{OledFrameCache, OledFrameCacheFault, OledFramePublication};
 use crate::platform_service::{
     enqueue_job, PendingPiPersistence, PiPlatformService, PlatformJobKind,
 };
 use playback_runtime::{
-    HostMessage, NativeHdmiMode, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeAdapterError,
+    HostMessage, NativeHdmiMode, NativeRunner, PlaybackRuntime, RuntimeAdapterError,
     RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use serde_json::Value;
@@ -18,7 +17,6 @@ pub(crate) struct PiHostCore {
     pub(crate) platform_service: PiPlatformService,
     pub(crate) pending_default_save: PendingPiPersistence,
     pub(crate) midi: MidiHost,
-    pub(crate) oled_frame_cache: OledFrameCache,
     pub(crate) recovery_save_status: Option<Result<(), String>>,
     keyboard_control: Option<KeyboardCaptureControl>,
     bluetooth: Option<BluetoothHandle>,
@@ -31,7 +29,6 @@ impl PiHostCore {
             platform_service,
             pending_default_save: PendingPiPersistence::default(),
             midi,
-            oled_frame_cache: OledFrameCache::default(),
             recovery_save_status: None,
             keyboard_control: None,
             bluetooth: if cfg!(test) {
@@ -71,27 +68,6 @@ impl PiHostCore {
         if let Some(control) = &self.keyboard_control {
             control.observe_hdmi_mode(mode);
         }
-    }
-
-    pub(crate) fn ingest_oled_frame(&mut self, message: &RunnerMessage) {
-        self.oled_frame_cache.ingest(message);
-    }
-
-    pub(crate) fn accept_oled_frame_reference(&mut self, snapshot: &Value) {
-        let _ = self.oled_frame_cache.accept_reference_value(snapshot);
-    }
-
-    pub(crate) fn oled_publication_for_snapshot(
-        &mut self,
-        snapshot: &Value,
-        initial: bool,
-    ) -> Result<OledFramePublication, String> {
-        self.oled_frame_cache
-            .publication_for_snapshot(snapshot, initial)
-    }
-
-    pub(crate) fn oled_frame_fault(&self) -> Option<OledFrameCacheFault> {
-        self.oled_frame_cache.fault()
     }
 
     pub(crate) fn handle_transfer_input(&self, message: &HostMessage) -> bool {

@@ -80,13 +80,6 @@ impl NativeScenePump {
         worker: &RenderWorker,
     ) -> Option<Instant> {
         self.capture_duration = None;
-        if playback
-            .last_snapshot()
-            .and_then(|snapshot| snapshot.get("runtimeError"))
-            .is_some_and(|error| !error.is_null())
-        {
-            return None;
-        }
         let pending_generation = runner.pending_display_scene_generation();
         if self.generation.is_some_and(|generation| {
             pending_generation.is_none() || pending_generation == Some(generation)

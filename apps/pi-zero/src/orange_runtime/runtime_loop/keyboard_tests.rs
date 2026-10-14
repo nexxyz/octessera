@@ -1,5 +1,5 @@
 use crate::host_adapter::PiHostAdapter;
-use crate::runtime_output::ingest_oled_messages;
+use crate::runtime_output::observe_snapshot_messages;
 use playback_runtime::RunnerMessage;
 use serde_json::json;
 
@@ -17,15 +17,15 @@ fn accepted_snapshot_ingestion_updates_orange_keyboard_gate() {
     .unwrap();
     let control = crate::keyboard_capture::KeyboardCaptureControl::new(true);
     host.core.set_keyboard_capture_control(control.clone());
-    ingest_oled_messages(
-        &mut host,
+    observe_snapshot_messages(
+        &host,
         &[RunnerMessage::Snapshot {
             snapshot: json!({"hdmi":{"mode":"live-grid"}}),
         }],
     );
     assert!(control.is_enabled());
-    ingest_oled_messages(
-        &mut host,
+    observe_snapshot_messages(
+        &host,
         &[RunnerMessage::Snapshot {
             snapshot: json!({"hdmi":{"mode":"none"}}),
         }],

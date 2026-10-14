@@ -36,6 +36,7 @@ pub(crate) trait BoardLoop {
     fn handle_power_request(
         &mut self,
         playback: &PlaybackRuntime,
+        runner: &mut NativeRunner,
         adapter: &mut PiHostAdapter,
         render_worker: &RenderWorker,
     ) -> bool;
@@ -249,7 +250,7 @@ pub(crate) fn maybe_advance_runtime(
         ..
     } = state;
     if adapter.shutdown_pending() {
-        return board.handle_power_request(playback, adapter, render_worker);
+        return board.handle_power_request(playback, runner, adapter, render_worker);
     }
     let now = Instant::now();
     let runtime_snapshot_requested = if let Some(advance) =
@@ -285,7 +286,7 @@ pub(crate) fn maybe_advance_runtime(
             runner.next_xy_glide_deadline(),
         );
         if adapter.shutdown_pending() {
-            return board.handle_power_request(playback, adapter, render_worker);
+            return board.handle_power_request(playback, runner, adapter, render_worker);
         }
         request_snapshot
     } else {
@@ -296,11 +297,13 @@ pub(crate) fn maybe_advance_runtime(
         request_periodic_snapshot_if_due(now, scheduler, playback, runner, adapter);
     }
     native_scenes.poll(runner);
-    let native_display_due = if is_playing(playback) {
+    let mut native_display_due = if is_playing(playback) {
         scheduler.display_snapshot_due(Instant::now(), runner, playback)
     } else {
         DisplaySnapshotDue::default()
     };
+    native_display_due.one_shot |= scheduler.snapshot_unpresented(playback);
+    let presented_revision = playback.last_snapshot_revision();
     if let Some(captured_at) = native_scenes.submit(
         Instant::now(),
         native_display_due,
@@ -309,13 +312,13 @@ pub(crate) fn maybe_advance_runtime(
         adapter,
         render_worker,
     ) {
-        scheduler.record_native_scene_capture(captured_at);
+        scheduler.record_native_scene_capture(captured_at, presented_revision);
     }
     if let Some(duration) = native_scenes.take_capture_duration() {
         ui_profiler.record_scene_capture(duration);
     }
-    service_render_if_due(now, scheduler, playback, adapter, render_worker);
-    adapter.shutdown_pending() && board.handle_power_request(playback, adapter, render_worker)
+    adapter.shutdown_pending()
+        && board.handle_power_request(playback, runner, adapter, render_worker)
 }
 
 fn service_xy_glide_tick(
@@ -413,38 +416,5 @@ fn dispatch_or_log(
 ) {
     if let Err(error) = crate::runtime_dispatch::dispatch(playback, runner, adapter, message) {
         report_runtime_failure(adapter, "pi runtime dispatch failed", error);
-    }
-}
-
-fn service_render_if_due(
-    now: Instant,
-    scheduler: &mut HardwareRuntimeScheduler,
-    playback: &mut PlaybackRuntime,
-    adapter: &mut PiHostAdapter,
-    render_worker: &RenderWorker,
-) {
-    if adapter.shutdown_pending() {
-        return;
-    }
-    if !scheduler.snapshot_publication_due(now, playback) {
-        return;
-    }
-    scheduler.record_snapshot_publication_attempt(now);
-    let snapshot_revision = playback.last_snapshot_revision();
-    let Some(snapshot) = playback.last_snapshot().cloned() else {
-        return;
-    };
-    let oled = match adapter.core.oled_publication_for_snapshot(&snapshot, false) {
-        Ok(oled) => oled,
-        Err(error) => {
-            eprintln!("pi OLED publication unavailable: {error}");
-            return;
-        }
-    };
-    let accepted = render_worker.publish_snapshot(snapshot, oled);
-    if !accepted {
-        eprintln!("pi render worker rejected snapshot publication");
-    } else {
-        scheduler.record_snapshot_publication_accepted(snapshot_revision);
     }
 }

@@ -1,6 +1,5 @@
 use crate::audio::AudioService;
 use crate::initial_audio_prep::{interpret_initial_audio_prep, InitialAudioPrepBoard};
-use crate::oled_frame_cache::OledFrameCacheFault;
 use crate::pi_host_core::PiHostCore;
 use playback_runtime::{
     HostAdapter, HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeIngest,
@@ -57,17 +56,11 @@ pub(crate) fn process_runtime_output<H: PiRuntimeHost>(
     host: &mut H,
     output: RuntimeIngest,
 ) -> Result<(), String> {
-    ingest_oled_messages(host, &output.messages);
+    observe_snapshot_messages(host, &output.messages);
     host.core_mut()
         .observe_bluetooth_enabled(runner.bluetooth_enabled());
     host.observe_bluetooth_audio_sink(runner.bluetooth_audio_sink());
-    let fault = host
-        .core()
-        .oled_frame_fault()
-        .map(OledFrameCacheFault::into_runtime_fault);
-    let fault_output = playback.report_oled_cache_fault(fault);
-    ingest_oled_messages(host, &fault_output.messages);
-    for follow_up in fault_output.follow_ups.into_iter().chain(output.follow_ups) {
+    for follow_up in output.follow_ups {
         if host.shutdown_pending() {
             break;
         }
@@ -86,12 +79,10 @@ pub(crate) fn process_runtime_output<H: PiRuntimeHost>(
     Ok(())
 }
 
-pub(crate) fn ingest_oled_messages<H: PiRuntimeHost>(host: &mut H, messages: &[RunnerMessage]) {
+pub(crate) fn observe_snapshot_messages<H: PiRuntimeHost>(host: &H, messages: &[RunnerMessage]) {
     for message in messages {
-        host.core_mut().ingest_oled_frame(message);
         if let RunnerMessage::Snapshot { snapshot } = message {
             host.core().observe_keyboard_capture_snapshot(snapshot);
-            host.core_mut().accept_oled_frame_reference(snapshot);
         }
     }
 }

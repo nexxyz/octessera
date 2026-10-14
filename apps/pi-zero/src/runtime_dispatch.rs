@@ -152,7 +152,7 @@ fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod tests {
     use super::*;
-    use crate::runtime_output::ingest_oled_messages;
+    use crate::runtime_output::observe_snapshot_messages;
     use platform_core::MusicalEvent;
     use playback_runtime::RuntimeConfig;
     use playback_runtime::RuntimePlatformEffect;
@@ -362,15 +362,15 @@ mod tests {
         );
         let control = crate::keyboard_capture::KeyboardCaptureControl::new(true);
         adapter.core.set_keyboard_capture_control(control.clone());
-        ingest_oled_messages(
-            &mut adapter,
+        observe_snapshot_messages(
+            &adapter,
             &[RunnerMessage::Snapshot {
                 snapshot: json!({ "hdmi": { "mode": "live-grid" } }),
             }],
         );
         assert!(control.is_enabled());
-        ingest_oled_messages(
-            &mut adapter,
+        observe_snapshot_messages(
+            &adapter,
             &[RunnerMessage::Snapshot {
                 snapshot: json!({ "hdmi": { "mode": "none" } }),
             }],

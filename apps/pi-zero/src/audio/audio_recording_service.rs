@@ -88,14 +88,6 @@ impl AudioService {
         })
     }
 
-    pub(crate) fn clear_latest_physical_oled_frame(&self) -> Result<(), String> {
-        *self
-            .accepted_oled_frame
-            .write()
-            .map_err(|_| "accepted OLED frame lock poisoned".to_string())? = None;
-        Ok(())
-    }
-
     pub fn stop_recording(&self) -> Result<(), String> {
         self.stop_recording_with_outcome().map(|_| ())
     }

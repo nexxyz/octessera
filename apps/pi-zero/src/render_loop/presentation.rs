@@ -1,12 +1,9 @@
 use super::{HardwareRenderCache, HardwareRenderTargets};
-use crate::oled_frame_cache::OledFramePublication;
 use crate::render::{
-    initial_snapshot_render_result, mark_handoff_failed_decision, render_leds_only,
-    render_oled_and_leds_cached, render_snapshot_cached, select_snapshot_render,
-    snapshot_requires_oled_ack, LatestPresentation, OledOwnershipState, SnapshotRenderDecision,
+    mark_handoff_failed_decision, prepare_native_scene, select_snapshot_render, LatestPresentation,
+    OledOwnershipState, SnapshotRenderDecision,
 };
-use crate::render_loop_queue::RenderState as QueueState;
-use serde_json::Value;
+use crate::render_loop_queue::{NativeSceneCommand, RenderState as QueueState};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
 
@@ -60,139 +57,74 @@ impl Default for PresentationState {
     }
 }
 
-pub(super) fn publish_legacy_snapshot(
+pub(super) fn present_native_scene(
     state: &Arc<(Mutex<QueueState>, Condvar)>,
     targets: &mut HardwareRenderTargets,
     presentation: &mut PresentationState,
-    snapshot: Value,
-    oled: OledFramePublication,
-    rendered_acks: Vec<std::sync::mpsc::Sender<Result<(), String>>>,
+    scene: Box<NativeSceneCommand>,
     animation_deadline: &mut Option<Instant>,
-) -> bool {
+) {
+    let Some(mut next) = prepare_native_scene(scene, &presentation.cache) else {
+        return;
+    };
     if let Some(previous) = presentation.latest.as_mut() {
-        previous.complete_native(Err("native scene superseded by legacy presentation".into()));
+        previous.complete_native(Err("native scene superseded".into()));
     }
-    presentation.latest = match crate::render::prepare_legacy_presentation(
-        snapshot.clone(),
-        oled,
-        &presentation.cache,
-    ) {
-        Ok(presentation) => Some(presentation),
-        Err(error) => {
-            for ack in rendered_acks {
-                let _ = ack.send(Err(error.clone()));
-            }
-            return true;
-        }
-    };
-
-    let physical_oled = match presentation.latest.as_ref() {
-        Some(LatestPresentation::Legacy { oled, .. }) => oled,
-        _ => unreachable!(),
-    };
-    let require_oled_ack = snapshot_requires_oled_ack(rendered_acks.len());
-    let initial_acknowledged_snapshot = require_oled_ack
-        && state.0.lock().ok().is_some_and(|state| {
-            state.acknowledged_snapshot_published && !state.acknowledged_snapshot_rendered
-        });
-    if initial_acknowledged_snapshot {
+    let initial = state.0.lock().ok().is_some_and(|state| {
+        state.acknowledged_snapshot_published && !state.acknowledged_snapshot_rendered
+    });
+    if initial {
         presentation.hdmi_ready = false;
     }
-
-    let mut full_render_result = None;
-    let mut pending_rendered_acks = Some(rendered_acks);
-    let oled_render_count_before = presentation.cache.oled_render_count();
-    let fail_initial_oled_write =
-        super::take_startup_oled_write_failure(state, initial_acknowledged_snapshot);
+    let fail_initial_write = super::take_startup_oled_write_failure(state, initial);
+    let before = presentation.cache.oled_render_count();
+    let now = Instant::now();
     *animation_deadline =
         select_snapshot_render(presentation.ownership, |decision| match decision {
-            SnapshotRenderDecision::OledAndLeds => {
-                if presentation.hdmi_ready && !require_oled_ack {
-                    render_snapshot_cached(
-                        targets,
-                        &snapshot,
-                        physical_oled,
-                        &mut presentation.cache,
-                    )
-                } else {
-                    let rendered_before = presentation.cache.oled_render_count();
-                    let oled_deadline = if fail_initial_oled_write {
-                        None
-                    } else {
-                        render_oled_and_leds_cached(
-                            targets,
-                            &snapshot,
-                            physical_oled,
-                            &mut presentation.cache,
-                        )
-                    };
-                    let frame_written = !fail_initial_oled_write
-                        && presentation.cache.oled_render_count() > rendered_before;
-                    if frame_written && require_oled_ack {
-                        if let Some(current) = presentation.latest.as_ref() {
-                            submit_presentation_recording_frame(state, current);
-                        }
-                    }
-                    let render_result =
-                        initial_snapshot_render_result(require_oled_ack, frame_written);
-                    if let Some(result) = render_result.as_ref() {
-                        if result.is_ok() && require_oled_ack {
-                            if let Ok(mut state) = state.0.lock() {
-                                state.acknowledged_snapshot_rendered = true;
-                                if initial_acknowledged_snapshot {
-                                    state.startup_accepted_oled_frame = presentation
-                                        .latest
-                                        .as_ref()
-                                        .and_then(LatestPresentation::shared_oled_frame);
-                                }
-                            }
-                        }
-                        if let Some(acks) = pending_rendered_acks.take() {
-                            for ack in acks {
-                                let _ = ack.send(result.clone());
-                            }
-                        }
-                    }
-                    full_render_result = render_result;
-                    if presentation.hdmi_ready {
-                        let hdmi_deadline = crate::render::retry_hdmi_if_due(
-                            targets,
-                            &snapshot,
-                            &mut presentation.cache,
-                            Instant::now(),
-                        );
-                        crate::render::next_deadline(oled_deadline, hdmi_deadline)
-                    } else {
-                        oled_deadline
-                    }
-                }
+            SnapshotRenderDecision::OledAndLeds if !fail_initial_write => {
+                next.render_oled_leds(targets, &mut presentation.cache, now)
             }
-            SnapshotRenderDecision::LedsOnly => {
-                let leds_deadline =
-                    render_leds_only(targets, &snapshot, &mut presentation.cache, Instant::now());
-                let hdmi_deadline = presentation.hdmi_ready.then(|| {
-                    crate::render::retry_hdmi_if_due(
-                        targets,
-                        &snapshot,
-                        &mut presentation.cache,
-                        Instant::now(),
-                    )
-                });
-                full_render_result = initial_snapshot_render_result(require_oled_ack, false);
-                crate::render::next_deadline(leds_deadline, hdmi_deadline.flatten())
-            }
+            _ => next.render_leds(targets, &mut presentation.cache, now),
         });
-
-    if !require_oled_ack && presentation.cache.oled_render_count() > oled_render_count_before {
-        if let Some(current) = presentation.latest.as_ref() {
-            submit_presentation_recording_frame(state, current);
-        }
+    let frame_written = presentation.cache.oled_render_count() > before;
+    if frame_written {
+        submit_presentation_recording_frame(state, &next);
     }
-    if full_render_result
-        .as_ref()
-        .is_some_and(|result| result.is_err())
-        && mark_handoff_failed_decision(presentation.ownership)
-    {
+    submit_presentation_recording_leds(state, &next);
+    if initial {
+        complete_initial_scene(
+            state,
+            targets,
+            presentation.ownership,
+            &mut next,
+            frame_written,
+        );
+    } else if next.oled_is_accepted(&presentation.cache) {
+        next.complete_native(Ok(()));
+    }
+    if presentation.hdmi_ready {
+        let hdmi = next.render_hdmi(targets, &mut presentation.cache, now);
+        *animation_deadline = crate::render::next_deadline(*animation_deadline, hdmi);
+    }
+    presentation.latest = Some(next);
+}
+
+fn complete_initial_scene(
+    state: &Arc<(Mutex<QueueState>, Condvar)>,
+    targets: &HardwareRenderTargets,
+    ownership: OledOwnershipState,
+    scene: &mut LatestPresentation,
+    frame_written: bool,
+) {
+    if frame_written {
+        if let Ok(mut state) = state.0.lock() {
+            state.acknowledged_snapshot_rendered = true;
+            state.startup_accepted_oled_frame = Some(scene.shared_oled_frame());
+        }
+        scene.complete_native(Ok(()));
+        return;
+    }
+    if mark_handoff_failed_decision(ownership) {
         if let Some(handoff) = targets.oled_handoff.as_ref() {
             if let Err(error) = handoff.mark_failed_result() {
                 eprintln!(
@@ -201,16 +133,5 @@ pub(super) fn publish_legacy_snapshot(
             }
         }
     }
-    if let Some(render_result) = full_render_result {
-        if let Some(acks) = pending_rendered_acks.take() {
-            for ack in acks {
-                let _ = ack.send(render_result.clone());
-            }
-        }
-    } else if let Some(acks) = pending_rendered_acks {
-        for ack in acks {
-            let _ = ack.send(Ok(()));
-        }
-    }
-    false
+    scene.complete_native(Err("initial scene OLED render failed".into()));
 }

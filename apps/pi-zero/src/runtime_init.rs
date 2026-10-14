@@ -71,15 +71,14 @@ pub(crate) fn start_host(
 /// Renders the first normal-menu snapshot and hands its frame to recording.
 pub(crate) fn publish_initial_snapshot(
     playback: &PlaybackRuntime,
-    runner: &NativeRunner,
+    runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,
     render_worker: &RenderWorker,
 ) -> Result<u64, String> {
     let snapshot = playback
         .last_snapshot()
-        .cloned()
         .ok_or_else(|| "initial snapshot is missing".to_string())?;
-    if !is_normal_menu_snapshot(&snapshot) {
+    if !is_normal_menu_snapshot(snapshot) {
         return Err("initial snapshot is not a normal menu".into());
     }
     if !runner.is_canonical_menu_presentation() {
@@ -89,11 +88,12 @@ pub(crate) fn publish_initial_snapshot(
     if revision == 0 {
         return Err("initial snapshot revision is missing".into());
     }
-    let oled = adapter
-        .core
-        .oled_publication_for_snapshot(&snapshot, true)?;
-    render_worker.publish_acknowledged_snapshot(snapshot, oled)?;
-    let (frame_revision, pixels) = render_worker.take_acknowledged_startup_oled_frame()?;
+    let scene = runner.capture_display_scene()?;
+    let generation = scene.generation();
+    let (metrics, error) = playback.native_presentation_state();
+    let (frame_revision, pixels) =
+        render_worker.publish_initial_native_scene(scene, metrics, error)?;
+    runner.acknowledge_display_scene(generation);
     if let Some(audio) = adapter.audio_service() {
         audio.submit_accepted_oled_frame_shared(frame_revision, pixels)?;
         render_worker.set_recording_audio(audio);

@@ -23,24 +23,6 @@ pub(crate) fn mark_handoff_failed_decision(state: OledOwnershipState) -> bool {
     !state.is_quiesced()
 }
 
-pub(crate) fn snapshot_requires_oled_ack(rendered_ack_count: usize) -> bool {
-    rendered_ack_count != 0
-}
-
-pub(crate) fn initial_snapshot_render_result(
-    acknowledged_initial: bool,
-    oled_write_happened: bool,
-) -> Option<Result<(), String>> {
-    if !acknowledged_initial {
-        return None;
-    }
-    Some(if oled_write_happened {
-        Ok(())
-    } else {
-        Err("initial snapshot OLED render failed".into())
-    })
-}
-
 pub(crate) fn select_snapshot_render(
     state: OledOwnershipState,
     render: impl FnOnce(SnapshotRenderDecision) -> Option<Instant>,
@@ -79,26 +61,6 @@ mod tests {
         );
         assert!(retry_oled_decision(OledOwnershipState::Normal));
         assert!(mark_handoff_failed_decision(OledOwnershipState::Normal));
-    }
-
-    #[test]
-    fn only_acknowledged_snapshots_require_a_physical_oled_write() {
-        assert!(!snapshot_requires_oled_ack(0));
-        assert!(snapshot_requires_oled_ack(1));
-    }
-
-    #[test]
-    fn unacknowledged_duplicate_snapshots_do_not_mark_handoff_failed() {
-        assert_eq!(
-            initial_snapshot_render_result(false, false),
-            None,
-            "an unacknowledged duplicate snapshot is not a readiness check"
-        );
-        assert_eq!(initial_snapshot_render_result(true, true), Some(Ok(())));
-        assert_eq!(
-            initial_snapshot_render_result(true, false),
-            Some(Err("initial snapshot OLED render failed".into()))
-        );
     }
 
     #[test]

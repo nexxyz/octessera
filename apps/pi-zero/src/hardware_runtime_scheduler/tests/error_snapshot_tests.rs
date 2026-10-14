@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn changed_legacy_error_and_dismissal_snapshots_publish_once_while_playing() {
+fn runtime_error_and_dismissal_snapshots_stay_unpresented_until_captured() {
     let now = Instant::now();
     let (mut playback, mut runner, mut host) = playing_playback();
     let baseline_revision = playback.last_snapshot_revision();
@@ -28,9 +28,9 @@ fn changed_legacy_error_and_dismissal_snapshots_publish_once_while_playing() {
         .last_snapshot()
         .and_then(|snapshot| snapshot.get("runtimeError"))
         .is_some_and(|error| !error.is_null()));
-    assert!(scheduler.snapshot_publication_due(now + SNAPSHOT_TICK, &playback));
-    scheduler.record_snapshot_publication_attempt(now + SNAPSHOT_TICK);
-    scheduler.record_snapshot_publication_accepted(error_revision);
+    assert!(scheduler.snapshot_unpresented(&playback));
+    scheduler.record_native_scene_capture(now + SNAPSHOT_TICK, error_revision);
+    assert!(!scheduler.snapshot_unpresented(&playback));
 
     playback.clear_error(playback_runtime::RuntimeOperation::StoreSaveDefault);
     let clear_revision = playback.last_snapshot_revision();
@@ -39,5 +39,5 @@ fn changed_legacy_error_and_dismissal_snapshots_publish_once_while_playing() {
         .last_snapshot()
         .and_then(|snapshot| snapshot.get("runtimeError"))
         .is_none_or(serde_json::Value::is_null));
-    assert!(scheduler.snapshot_publication_due(now + SNAPSHOT_TICK * 2, &playback));
+    assert!(scheduler.snapshot_unpresented(&playback));
 }

@@ -46,27 +46,6 @@ pub struct RuntimePresentationMetrics {
     pub missed_quantum_flash: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RuntimeOledCacheFault {
-    Malformed,
-    Conflict,
-    Missing,
-    Future,
-    Stale,
-}
-
-impl RuntimeOledCacheFault {
-    pub(crate) fn message(self) -> &'static str {
-        match self {
-            Self::Malformed => "malformed frame",
-            Self::Conflict => "conflicting frame",
-            Self::Missing => "missing frame reference",
-            Self::Future => "future frame reference",
-            Self::Stale => "stale frame or reference",
-        }
-    }
-}
-
 pub enum RuntimeDispatchInput {
     HostMessage(HostMessage),
     RunnerMessages(Vec<RunnerMessage>),

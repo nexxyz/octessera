@@ -1,11 +1,10 @@
 use super::presentation::{self, PresentationState};
 use super::{ownership, terminal};
-use crate::oled_frame_cache::OledFramePublication;
 use crate::render::{
     mark_handoff_failed_decision, prepare_native_scene, retry_oled_decision, HardwareRenderTargets,
 };
 use crate::render_loop_queue::{
-    pending_work_wins_over_expired_animation_deadline, RenderCommand, RenderState, SnapshotCommand,
+    pending_work_wins_over_expired_animation_deadline, RenderCommand, RenderState,
 };
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
@@ -19,56 +18,16 @@ pub(super) fn render_worker_loop(
     loop {
         let command = take_next_command(&state, animation_deadline);
         match command {
-            Some(RenderCommand::Snapshot {
-                snapshot,
-                oled,
-                rendered_acks,
-            }) => {
-                if presentation::publish_legacy_snapshot(
-                    &state,
-                    targets,
-                    &mut presentation,
-                    snapshot,
-                    oled,
-                    rendered_acks,
-                    &mut animation_deadline,
-                ) {
-                    continue;
-                }
-            }
             Some(RenderCommand::NativeSnapshot(scene)) => {
                 #[cfg(test)]
                 super::native_worker_tests::wait_for_test_native_render_gate(&state);
-                if let Some(mut next) = prepare_native_scene(scene, &presentation.cache) {
-                    if let Some(previous) = presentation.latest.as_mut() {
-                        previous.complete_native(Err("native scene superseded".into()));
-                    }
-                    let before = presentation.cache.oled_render_count();
-                    let now = Instant::now();
-                    animation_deadline =
-                        crate::render::select_snapshot_render(presentation.ownership, |decision| {
-                            match decision {
-                                crate::render::SnapshotRenderDecision::OledAndLeds => {
-                                    next.render_oled_leds(targets, &mut presentation.cache, now)
-                                }
-                                crate::render::SnapshotRenderDecision::LedsOnly => {
-                                    next.render_leds(targets, &mut presentation.cache, now)
-                                }
-                            }
-                        });
-                    if presentation.cache.oled_render_count() > before {
-                        presentation::submit_presentation_recording_frame(&state, &next);
-                    }
-                    presentation::submit_presentation_recording_leds(&state, &next);
-                    if next.oled_is_accepted(&presentation.cache) {
-                        next.complete_native(Ok(()));
-                    }
-                    if presentation.hdmi_ready {
-                        let hdmi = next.render_hdmi(targets, &mut presentation.cache, now);
-                        animation_deadline = crate::render::next_deadline(animation_deadline, hdmi);
-                    }
-                    presentation.latest = Some(next);
-                }
+                presentation::present_native_scene(
+                    &state,
+                    targets,
+                    &mut presentation,
+                    scene,
+                    &mut animation_deadline,
+                );
             }
             Some(RenderCommand::MarkFirstMenuRendered { ack }) => {
                 let result = targets
@@ -124,36 +83,30 @@ pub(super) fn render_worker_loop(
                 let _ = ack.send(result);
                 break;
             }
-            Some(RenderCommand::PreserveTerminal {
-                snapshot,
-                oled,
-                ack,
-            }) => {
+            Some(RenderCommand::PreserveTerminal { scene, ack }) => {
                 if let Some(current) = presentation.latest.as_mut() {
                     current.complete_native(Err(
                         "terminal presentation superseded native scene".into()
                     ));
                 }
                 let before = presentation.cache.oled_render_count();
-                let result = crate::render::physical_oled_publication(&oled, &presentation.cache)
-                    .and_then(|physical| {
-                        terminal::handle_preserve_terminal(
-                            targets,
-                            &mut presentation.cache,
-                            &presentation.latest,
-                            &mut presentation.ownership,
-                            &snapshot,
-                            &physical,
-                        )
-                        .map(|()| physical)
-                    });
+                let result = match prepare_native_scene(scene, &presentation.cache) {
+                    Some(terminal_scene) => terminal::handle_preserve_terminal(
+                        targets,
+                        &mut presentation.cache,
+                        &presentation.latest,
+                        &mut presentation.ownership,
+                        &terminal_scene,
+                    )
+                    .map(|()| terminal_scene),
+                    None => Err("terminal scene could not be prepared".into()),
+                };
                 if presentation.cache.oled_render_count() > before {
-                    if let Ok(physical) = &result {
-                        submit_recording_oled_frame(&state, physical);
+                    if let Ok(terminal_scene) = &result {
+                        presentation::submit_presentation_recording_frame(&state, terminal_scene);
                     }
                 }
-                let result = result.map(|_| ());
-                let _ = ack.send(result);
+                let _ = ack.send(result.map(|_| ()));
                 break;
             }
             Some(RenderCommand::Abort { ack }) => {
@@ -223,20 +176,6 @@ pub(super) fn render_worker_loop(
     }
 }
 
-fn submit_recording_oled_frame(
-    state: &Arc<(Mutex<RenderState>, Condvar)>,
-    publication: &OledFramePublication,
-) {
-    let audio = presentation::recording_audio(state);
-    if let (Some(audio), Some(revision), Some(pixels)) =
-        (audio, publication.revision(), publication.shared_pixels())
-    {
-        if let Err(error) = audio.submit_accepted_oled_frame_shared(revision, pixels) {
-            eprintln!("terminal OLED recording submission failed: {error}");
-        }
-    }
-}
-
 pub(super) fn take_next_command(
     state: &Arc<(Mutex<RenderState>, Condvar)>,
     animation_deadline: Option<Instant>,
@@ -247,19 +186,8 @@ pub(super) fn take_next_command(
         if let Some(command) = guard.command.take() {
             return Some(command);
         }
-        if let Some(snapshot) = guard.snapshot.take() {
-            return Some(match snapshot {
-                SnapshotCommand::Legacy {
-                    snapshot,
-                    oled,
-                    rendered_acks,
-                } => RenderCommand::Snapshot {
-                    snapshot,
-                    oled,
-                    rendered_acks,
-                },
-                SnapshotCommand::Native(scene) => RenderCommand::NativeSnapshot(scene),
-            });
+        if let Some(scene) = guard.snapshot.take() {
+            return Some(RenderCommand::NativeSnapshot(scene));
         }
         let Some(deadline) = animation_deadline else {
             guard = ready

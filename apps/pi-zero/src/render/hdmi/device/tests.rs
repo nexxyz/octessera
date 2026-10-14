@@ -150,24 +150,9 @@ fn fake_device() -> (HdmiDevice, SharedControl) {
     (device, control)
 }
 
-fn snapshot(color: [u8; 3], mode: &str) -> Value {
-    serde_json::json!({
-        "hdmi": {
-            "mode": mode,
-            "grid": { "rgb": color.repeat(64) },
-            "showGridlines": false
-        }
-    })
-}
-
-#[test]
-fn typed_device_reuses_legacy_retry_and_terminal_lifecycle() {
-    let (mut typed_device, typed_control) = fake_device();
-    let (mut legacy_device, legacy_control) = fake_device();
-    typed_control.lock().unwrap().fail_write = 1;
-    legacy_control.lock().unwrap().fail_write = 1;
-    let typed = NativeHdmiPresentation {
-        mode: NativeHdmiMode::LiveGrid,
+fn presentation(color: [u8; 3], mode: NativeHdmiMode) -> NativeHdmiPresentation {
+    NativeHdmiPresentation {
+        mode,
         show_gridlines: false,
         cycle_measures: 4,
         source_layer_index: 0,
@@ -175,37 +160,27 @@ fn typed_device_reuses_legacy_retry_and_terminal_lifecycle() {
         grid: NativeGridPresentation {
             width: 8,
             height: 8,
-            rgb: [255, 0, 0].repeat(64),
+            rgb: color.repeat(64),
             active: vec![false; 64],
         },
-    };
+    }
+}
+
+#[test]
+fn failed_write_retries_and_none_mode_restores_text() {
+    let (mut device, control) = fake_device();
+    control.lock().unwrap().fail_write = 1;
+    let red = presentation([255, 0, 0], NativeHdmiMode::LiveGrid);
     let now = Instant::now();
-    let next = typed_device.render_typed(&typed, now).retry_at.unwrap();
-    let old_next = legacy_device
-        .render(&snapshot([255, 0, 0], "live-grid"), false, now)
-        .retry_at
-        .unwrap();
-    assert_eq!(next, old_next);
-    assert_eq!(events(&typed_control), events(&legacy_control));
-    assert!(typed_device.render_typed(&typed, next).applied);
+    let next = device.render(&red, now).retry_at.unwrap();
+    assert!(device.render(&red, next).applied);
+    assert_eq!(control.lock().unwrap().writes.len(), 1);
     assert!(
-        legacy_device
-            .render(&snapshot([255, 0, 0], "live-grid"), false, next)
+        device
+            .render(&presentation([0, 0, 0], NativeHdmiMode::None), next)
             .applied
     );
-    assert_eq!(
-        typed_control.lock().unwrap().writes,
-        legacy_control.lock().unwrap().writes
-    );
-    let mut none = typed;
-    none.mode = NativeHdmiMode::None;
-    assert!(typed_device.render_typed(&none, next).applied);
-    assert!(
-        legacy_device
-            .render(&snapshot([0, 0, 0], "none"), true, next)
-            .applied
-    );
-    assert_eq!(events(&typed_control), events(&legacy_control));
+    assert!(events(&control).ends_with(&["close_fb".into(), "close_tty".into()]));
 }
 
 fn events(control: &SharedControl) -> Vec<String> {
@@ -215,7 +190,10 @@ fn events(control: &SharedControl) -> Vec<String> {
 #[test]
 fn terminal_startup_does_not_touch_devices() {
     let (mut device, control) = fake_device();
-    let outcome = device.render(&snapshot([1, 2, 3], "none"), true, Instant::now());
+    let outcome = device.render(
+        &presentation([1, 2, 3], NativeHdmiMode::None),
+        Instant::now(),
+    );
     assert!(outcome.applied);
     assert!(events(&control).is_empty());
 }
@@ -226,7 +204,7 @@ fn graphics_to_terminal_restores_without_black_frame() {
     let now = Instant::now();
     assert!(
         device
-            .render(&snapshot([255, 0, 0], "live-grid"), false, now)
+            .render(&presentation([255, 0, 0], NativeHdmiMode::LiveGrid), now)
             .applied
     );
     assert_eq!(
@@ -244,7 +222,7 @@ fn graphics_to_terminal_restores_without_black_frame() {
     control.lock().unwrap().events.clear();
     assert!(
         device
-            .render(&snapshot([0, 0, 0], "none"), true, now)
+            .render(&presentation([0, 0, 0], NativeHdmiMode::None), now)
             .applied
     );
     assert_eq!(
@@ -259,13 +237,12 @@ fn missing_framebuffer_retries_once_and_uses_latest_snapshot_after_hotplug() {
     let (mut device, control) = fake_device();
     control.lock().unwrap().framebuffer_available = false;
     let start = Instant::now();
-    let first = device.render(&snapshot([255, 0, 0], "live-grid"), false, start);
+    let first = device.render(&presentation([255, 0, 0], NativeHdmiMode::LiveGrid), start);
     let retry_at = first.retry_at.unwrap();
     assert_eq!(events(&control), Vec::<String>::new());
     assert!(device
         .render(
-            &snapshot([0, 255, 0], "live-grid"),
-            false,
+            &presentation([0, 255, 0], NativeHdmiMode::LiveGrid),
             retry_at - Duration::from_millis(1)
         )
         .retry_at
@@ -274,7 +251,10 @@ fn missing_framebuffer_retries_once_and_uses_latest_snapshot_after_hotplug() {
     control.lock().unwrap().framebuffer_available = true;
     assert!(
         device
-            .render(&snapshot([0, 0, 255], "live-grid"), false, retry_at)
+            .render(
+                &presentation([0, 0, 255], NativeHdmiMode::LiveGrid),
+                retry_at
+            )
             .applied
     );
     let control = control.lock().unwrap();
@@ -286,7 +266,10 @@ fn missing_framebuffer_retries_once_and_uses_latest_snapshot_after_hotplug() {
 fn post_graphics_failure_restores_text_before_waiting() {
     let (mut device, control) = fake_device();
     control.lock().unwrap().fail_unblank = 1;
-    let outcome = device.render(&snapshot([255, 0, 0], "live-grid"), false, Instant::now());
+    let outcome = device.render(
+        &presentation([255, 0, 0], NativeHdmiMode::LiveGrid),
+        Instant::now(),
+    );
     assert!(!outcome.applied);
     assert_eq!(
         events(&control),
@@ -314,13 +297,16 @@ fn failed_restoration_retains_retryable_lease() {
         control.fail_text = 1;
     }
     let start = Instant::now();
-    let first = device.render(&snapshot([255, 0, 0], "live-grid"), false, start);
+    let first = device.render(&presentation([255, 0, 0], NativeHdmiMode::LiveGrid), start);
     assert!(!first.applied);
     assert!(!events(&control).contains(&"close_fb".into()));
     let retry_at = first.retry_at.unwrap();
     assert!(
         device
-            .render(&snapshot([0, 0, 255], "live-grid"), false, retry_at)
+            .render(
+                &presentation([0, 0, 255], NativeHdmiMode::LiveGrid),
+                retry_at
+            )
             .applied
     );
     let events = events(&control);
@@ -335,7 +321,10 @@ fn drop_restores_an_active_lease() {
     let (mut device, control) = fake_device();
     assert!(
         device
-            .render(&snapshot([255, 0, 0], "live-grid"), false, Instant::now())
+            .render(
+                &presentation([255, 0, 0], NativeHdmiMode::LiveGrid),
+                Instant::now()
+            )
             .applied
     );
     drop(device);
@@ -352,7 +341,10 @@ fn drop_restores_an_active_lease() {
 fn signature_is_not_applied_before_a_successful_write() {
     let (mut device, control) = fake_device();
     control.lock().unwrap().fail_write = 1;
-    let outcome = device.render(&snapshot([255, 0, 0], "live-grid"), false, Instant::now());
+    let outcome = device.render(
+        &presentation([255, 0, 0], NativeHdmiMode::LiveGrid),
+        Instant::now(),
+    );
     assert!(!outcome.applied);
     assert!(control.lock().unwrap().writes.is_empty());
 }

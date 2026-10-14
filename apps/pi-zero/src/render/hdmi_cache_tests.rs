@@ -1,5 +1,5 @@
 use super::*;
-use serde_json::{json, Value};
+use playback_runtime::{NativeGridPresentation, NativeHdmiMode, NativeHdmiPresentation};
 use std::io;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -83,14 +83,20 @@ impl hdmi::device::TtyHandle for CacheHdmiTty {
     }
 }
 
-fn hdmi_snapshot(color: [u8; 3], mode: &str) -> Value {
-    json!({
-        "hdmi": {
-            "mode": mode,
-            "grid": { "rgb": color.repeat(64) },
-            "showGridlines": false
-        }
-    })
+fn hdmi_presentation(color: [u8; 3], mode: NativeHdmiMode) -> NativeHdmiPresentation {
+    NativeHdmiPresentation {
+        mode,
+        show_gridlines: false,
+        cycle_measures: 4,
+        source_layer_index: 0,
+        source_behavior_id: "life".into(),
+        grid: NativeGridPresentation {
+            width: 8,
+            height: 8,
+            rgb: color.repeat(64),
+            active: vec![false; 64],
+        },
+    }
 }
 
 #[test]
@@ -104,8 +110,8 @@ fn pending_hdmi_restore_survives_reversion_to_accepted_signature() {
         "/dev/tty1",
     );
     let mut hdmi = hdmi::HdmiFramebuffer::from_device(device);
-    let accepted = hdmi_snapshot([255, 0, 0], "live-grid");
-    let terminal = hdmi_snapshot([0, 0, 0], "none");
+    let accepted = hdmi_presentation([255, 0, 0], NativeHdmiMode::LiveGrid);
+    let terminal = hdmi_presentation([0, 0, 0], NativeHdmiMode::None);
     let mut cache = HardwareRenderCache::default();
     let start = Instant::now();
 

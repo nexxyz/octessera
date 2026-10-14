@@ -1,7 +1,7 @@
 use super::*;
 use crate::hardware_runtime_scheduler::{HardwareRuntimeScheduler, PLAYBACK_TICK, SNAPSHOT_TICK};
 use crate::host_adapter::PiHostAdapter;
-use crate::render::{HardwareRenderTargets, OLED_FRAME_BYTES};
+use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage, RuntimeConfig,
@@ -23,13 +23,14 @@ pub(super) fn worker_with_recording(audio: Option<crate::audio::AudioService>) -
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    let initial_oled =
-        crate::oled_frame_cache::OledFramePublication::test_native(1, vec![0; OLED_FRAME_BYTES]);
-    worker
-        .publish_acknowledged_snapshot(startup_snapshot(), initial_oled)
+    let (revision, pixels) = worker
+        .publish_initial_native_scene(
+            crate::render_loop::test_scenes::test_scene(),
+            Default::default(),
+            None,
+        )
         .unwrap();
     if let Some(audio) = audio {
-        let (revision, pixels) = worker.take_acknowledged_startup_oled_frame().unwrap();
         audio
             .submit_accepted_oled_frame_shared(revision, pixels)
             .unwrap();
@@ -50,39 +51,16 @@ fn failed_initial_oled_write_leaves_no_startup_recording_seed() {
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
     worker.fail_next_startup_oled_write_for_test();
-    assert!(worker.take_acknowledged_startup_oled_frame().is_err());
     assert!(worker
-        .publish_acknowledged_snapshot(
-            startup_snapshot(),
-            crate::oled_frame_cache::OledFramePublication::test_native(
-                1,
-                vec![0; OLED_FRAME_BYTES],
-            ),
+        .publish_initial_native_scene(
+            crate::render_loop::test_scenes::test_scene(),
+            Default::default(),
+            None,
         )
         .is_err());
-    assert!(worker.take_acknowledged_startup_oled_frame().is_err());
     assert!(audio.latest_physical_oled_frame().is_none());
     worker.publish_shutdown().unwrap();
     let _ = std::fs::remove_dir_all(root);
-}
-
-fn startup_snapshot() -> serde_json::Value {
-    serde_json::json!({
-        "display": {"off": false},
-        "settings": {"buttonBrightness": 100, "displayBrightness": 100},
-        "leds": {"rgb": vec![0; 64 * 3]},
-        "transport": {"playing": false},
-        "transportIcon": "stop",
-        "transportFlash": "none",
-        "eventDotOn": false,
-        "oledFrameRevision": 1,
-        "neoKeyLeds": {
-            "back": [0, 0, 0],
-            "space": [0, 0, 0],
-            "shift": [0, 0, 0],
-            "fn": [0, 0, 0]
-        }
-    })
 }
 
 fn adapter(root: &std::path::Path, audio: Option<crate::audio::AudioService>) -> PiHostAdapter {
@@ -149,7 +127,7 @@ fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() 
             &worker,
         )
         .unwrap();
-    scheduler.record_native_scene_capture(first_capture);
+    scheduler.record_native_scene_capture(first_capture, playback.last_snapshot_revision());
     entered.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(pump.capture_count, 1);
     assert_eq!(
@@ -204,7 +182,6 @@ fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() 
             .display_snapshot_due(start + SNAPSHOT_TICK, &runner, &playback)
             .continuous
     );
-    assert!(!scheduler.snapshot_publication_due(start + SNAPSHOT_TICK, &playback));
     let scheduler_now = Instant::now();
     scheduler.record_runtime_advance_complete(scheduler_now, &playback, None);
     assert!(!scheduler
@@ -227,7 +204,7 @@ fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() 
             &worker,
         )
         .unwrap();
-    scheduler.record_native_scene_capture(newer_capture);
+    scheduler.record_native_scene_capture(newer_capture, playback.last_snapshot_revision());
     assert_eq!(pump.capture_count, 2);
     release.send(()).unwrap();
 
@@ -253,7 +230,7 @@ fn held_worker_does_not_recapture_in_flight_generation_and_submits_new_expiry() 
             &worker,
         )
         .unwrap();
-    scheduler.record_native_scene_capture(refresh_capture);
+    scheduler.record_native_scene_capture(refresh_capture, playback.last_snapshot_revision());
     assert_eq!(pump.capture_count, 3);
     let refresh_deadline = Instant::now() + Duration::from_secs(2);
     while pump.generation.is_some() && Instant::now() < refresh_deadline {

@@ -78,7 +78,6 @@ mod main_paths;
 mod midi_host;
 mod native_scene_pump;
 mod normal_menu;
-mod oled_frame_cache;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod oled_utility;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]

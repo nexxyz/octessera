@@ -1,6 +1,5 @@
-use super::{compose_frame_with_stride, compose_frame_with_stride_typed, HdmiError};
+use super::{compose_frame_with_stride, HdmiError};
 use playback_runtime::{NativeHdmiMode, NativeHdmiPresentation};
-use serde_json::Value;
 use std::fmt;
 use std::mem;
 use std::time::{Duration, Instant};
@@ -103,23 +102,6 @@ impl HdmiDevice {
 
     pub(crate) fn render(
         &mut self,
-        snapshot: &Value,
-        terminal: bool,
-        now: Instant,
-    ) -> HdmiRenderOutcome {
-        self.render_with_frame(terminal, now, &|geometry| {
-            compose_frame_with_stride(
-                snapshot,
-                geometry.width,
-                geometry.height,
-                geometry.stride,
-                geometry.bytes_per_pixel,
-            )
-        })
-    }
-
-    pub(crate) fn render_typed(
-        &mut self,
         presentation: &NativeHdmiPresentation,
         now: Instant,
     ) -> HdmiRenderOutcome {
@@ -128,7 +110,7 @@ impl HdmiDevice {
             presentation.mode == NativeHdmiMode::None,
             now,
             &|geometry| {
-                compose_frame_with_stride_typed(
+                compose_frame_with_stride(
                     presentation,
                     geometry.width,
                     geometry.height,

@@ -3,8 +3,7 @@ use super::support::{FakeHost, FakeRunner};
 use crate::protocol::{base64_encode_count, reset_base64_encode_count};
 use crate::{
     CoreRunner, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RunnerMessage,
-    RuntimeConfig, RuntimeDispatchInput, RuntimePresentationMetrics, RuntimeStatusState,
-    SyncSource,
+    RuntimeConfig, RuntimeDispatchInput, RuntimePresentationMetrics, SyncSource,
 };
 use base64::Engine;
 use serde_json::json;
@@ -218,37 +217,6 @@ fn normalized_voice_steal_metrics_publish_on_edges_and_clear_below_threshold() {
             RunnerMessage::Snapshot { snapshot },
             RunnerMessage::RuntimeStatus { .. }
         ] if snapshot["oledFrameRevision"] == 3
-    ));
-}
-
-#[test]
-fn adapter_cache_faults_are_presented_as_typed_retain_last_good_status() {
-    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    let _ = present(&mut runtime, snapshot("cache fault"));
-
-    let output = runtime.report_oled_cache_fault(Some(crate::RuntimeOledCacheFault::Future));
-    assert!(output.messages.iter().all(|message| !matches!(
-        message,
-        RunnerMessage::OledFrame { .. } | RunnerMessage::Snapshot { .. }
-    )));
-    assert!(output.follow_ups.is_empty());
-    assert!(matches!(
-        output.messages.as_slice(),
-        [RunnerMessage::RuntimeStatus { status }]
-            if status.state == RuntimeStatusState::Error
-                && status.error.as_ref().is_some_and(|error| {
-                    error.domain == crate::RuntimeErrorDomain::Serialization
-                        && error.code == crate::RuntimeErrorCode::InvalidPayload
-                        && error.operation == crate::RuntimeOperation::Snapshot
-                        && error.recovery == crate::RuntimeRecovery::RetainLastGood
-                })
-    ));
-
-    let recovered = runtime.report_oled_cache_fault(None);
-    assert!(matches!(
-        recovered.messages.as_slice(),
-        [RunnerMessage::RuntimeStatus { status }]
-            if status.state == RuntimeStatusState::Idle && status.error.is_none()
     ));
 }
 

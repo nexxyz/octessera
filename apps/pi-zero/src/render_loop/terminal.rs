@@ -1,12 +1,15 @@
 use super::{
-    display_off_ack, HardwareRenderCache, HardwareRenderTargets, OledFramePublication,
-    OledOwnershipState, RenderWorker, SHUTDOWN_ACK_TIMEOUT,
+    display_off_ack, HardwareRenderCache, HardwareRenderTargets, OledOwnershipState, RenderWorker,
+    SHUTDOWN_ACK_TIMEOUT,
 };
 use crate::render::LatestPresentation;
-use crate::render::{force_latest_oled, render_shutdown_splash, restore_for_render};
-use crate::render_loop_queue::{reject_pending_command, RenderCommand};
+use crate::render::{render_shutdown_splash, restore_for_render};
+use crate::render_loop_queue::{reject_pending_command, NativeSceneCommand, RenderCommand};
 use crate::seesaw_io::SeesawCommand;
-use serde_json::Value;
+use playback_runtime::{
+    oled_frame::{OledPresentationMetrics, OledRuntimeErrorMetadata},
+    PresentationScene,
+};
 use std::sync::mpsc;
 #[cfg(test)]
 use std::sync::{Arc, Condvar, Mutex};
@@ -39,10 +42,17 @@ impl RenderWorker {
 
     pub(crate) fn publish_terminal_preserving(
         &self,
-        snapshot: Value,
-        oled: OledFramePublication,
+        scene: PresentationScene,
+        metrics: OledPresentationMetrics,
+        error: Option<OledRuntimeErrorMetadata>,
     ) -> Result<(), String> {
-        super::validate_terminal_oled_publication(&snapshot, &oled)?;
+        let (completion, _) = mpsc::channel();
+        let scene = Box::new(NativeSceneCommand {
+            scene,
+            metrics,
+            error,
+            completion,
+        });
         let (ack_tx, ack_rx) = mpsc::channel();
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
@@ -50,11 +60,7 @@ impl RenderWorker {
                 &mut state,
                 "render worker was preempted by preserving terminal teardown",
             );
-            state.command = Some(RenderCommand::PreserveTerminal {
-                snapshot,
-                oled,
-                ack: ack_tx,
-            });
+            state.command = Some(RenderCommand::PreserveTerminal { scene, ack: ack_tx });
             ready.notify_one();
         } else {
             return Err("render worker state mutex poisoned during terminal teardown".into());
@@ -146,14 +152,13 @@ pub(super) fn handle_preserve_terminal(
     cache: &mut HardwareRenderCache,
     latest: &Option<LatestPresentation>,
     ownership: &mut OledOwnershipState,
-    snapshot: &Value,
-    oled: &OledFramePublication,
+    terminal: &LatestPresentation,
 ) -> Result<(), String> {
     let mut errors = Vec::new();
     if let Err(error) = restore_for_render(targets, cache, latest, ownership) {
         errors.push(format!("OLED ownership restore failed: {error}"));
     }
-    if let Err(error) = force_latest_oled(targets, snapshot, oled, cache) {
+    if let Err(error) = terminal.force_oled(targets, cache) {
         errors.push(format!("terminal OLED frame write failed: {error}"));
     }
     if let Err(error) = targets

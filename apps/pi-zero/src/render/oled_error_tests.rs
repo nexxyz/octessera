@@ -1,6 +1,5 @@
-use super::oled_output::{render_oled_if_changed, OledRenderDevice, OLED_RETRY_INTERVAL};
+use super::oled_output::{render_oled_if_changed_off, OledRenderDevice, OLED_RETRY_INTERVAL};
 use super::*;
-use crate::oled_frame_cache::OledFramePublication;
 use platform_core::palette;
 use playback_runtime::oled_frame::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
 use playback_runtime::{
@@ -237,7 +236,6 @@ fn runtime_error_frame_has_fixed_size_and_brightness_scaling() {
 
 #[test]
 fn failed_oled_write_does_not_advance_revision_before_retry_success() {
-    let snapshot = serde_json::json!({"display": {"off": true}});
     let now = Instant::now();
     let mut oled = TestOled {
         failed_writes: 1,
@@ -247,17 +245,17 @@ fn failed_oled_write_does_not_advance_revision_before_retry_success() {
     };
     let mut cache = HardwareRenderCache::default();
 
-    let publication = OledFramePublication::ExplicitBlack;
+    let publication = OledFramePublication::test_native(1, vec![0; OLED_FRAME_BYTES]);
     let retry_at =
-        render_oled_if_changed(&mut oled, &snapshot, &publication, &mut cache, now).unwrap();
+        render_oled_if_changed_off(&mut oled, true, &publication, &mut cache, now).unwrap();
 
     assert_eq!(cache.oled_rendered_key, None);
     assert_eq!(oled.writes, 1);
     assert_eq!(retry_at, now + OLED_RETRY_INTERVAL);
     assert_eq!(
-        render_oled_if_changed(
+        render_oled_if_changed_off(
             &mut oled,
-            &snapshot,
+            true,
             &publication,
             &mut cache,
             now + Duration::from_millis(1),
@@ -267,9 +265,9 @@ fn failed_oled_write_does_not_advance_revision_before_retry_success() {
     assert_eq!(oled.writes, 1);
 
     assert_eq!(
-        render_oled_if_changed(
+        render_oled_if_changed_off(
             &mut oled,
-            &snapshot,
+            true,
             &publication,
             &mut cache,
             now + OLED_RETRY_INTERVAL,
@@ -278,7 +276,7 @@ fn failed_oled_write_does_not_advance_revision_before_retry_success() {
     );
     assert_eq!(
         cache.oled_rendered_key,
-        Some(OledOutputKey::new(publication.key(), true))
+        Some(OledOutputKey::new(publication.revision(), true))
     );
     assert_eq!(oled.writes, 2);
     assert!(oled
@@ -289,10 +287,6 @@ fn failed_oled_write_does_not_advance_revision_before_retry_success() {
 
 #[test]
 fn accepted_native_frame_is_written_without_semantic_rendering() {
-    let snapshot = serde_json::json!({
-        "display": {"off": false},
-        "settings": {"displayBrightness": 0}
-    });
     let pixels = vec![0x5a; OLED_FRAME_BYTES];
     let publication = OledFramePublication::test_native(7, pixels.clone());
     let mut oled = TestOled {
@@ -304,25 +298,18 @@ fn accepted_native_frame_is_written_without_semantic_rendering() {
     let mut cache = HardwareRenderCache::default();
 
     assert_eq!(
-        render_oled_if_changed(
-            &mut oled,
-            &snapshot,
-            &publication,
-            &mut cache,
-            Instant::now(),
-        ),
+        render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, Instant::now(),),
         None
     );
     assert_eq!(oled.frames, vec![pixels]);
     assert_eq!(
         cache.oled_rendered_key,
-        Some(OledOutputKey::new(publication.key(), false))
+        Some(OledOutputKey::new(publication.revision(), false))
     );
 }
 
 #[test]
 fn newer_native_frame_supersedes_failed_retry_with_exact_bytes() {
-    let snapshot = serde_json::json!({"display": {"off": false}});
     let old = OledFramePublication::test_native(1, vec![1; OLED_FRAME_BYTES]);
     let newer_pixels = vec![2; OLED_FRAME_BYTES];
     let newer = OledFramePublication::test_native(2, newer_pixels.clone());
@@ -334,15 +321,15 @@ fn newer_native_frame_supersedes_failed_retry_with_exact_bytes() {
         operations: Vec::new(),
     };
     let mut cache = HardwareRenderCache::default();
-    assert!(render_oled_if_changed(&mut oled, &snapshot, &old, &mut cache, now).is_some());
+    assert!(render_oled_if_changed_off(&mut oled, false, &old, &mut cache, now).is_some());
     assert_eq!(
-        render_oled_if_changed(&mut oled, &snapshot, &newer, &mut cache, now),
+        render_oled_if_changed_off(&mut oled, false, &newer, &mut cache, now),
         None
     );
     assert_eq!(oled.frames.last(), Some(&newer_pixels));
     assert_eq!(
         cache.oled_rendered_key,
-        Some(OledOutputKey::new(newer.key(), false))
+        Some(OledOutputKey::new(newer.revision(), false))
     );
 }
 
@@ -356,20 +343,18 @@ fn identical_black_frame_revision_reconciles_display_power_state() {
         operations: Vec::new(),
     };
     let mut cache = HardwareRenderCache::default();
-    let awake = serde_json::json!({"display": {"off": false}});
-    let off = serde_json::json!({"display": {"off": true}});
     let now = Instant::now();
 
     assert_eq!(
-        render_oled_if_changed(&mut oled, &awake, &publication, &mut cache, now),
+        render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, now),
         None
     );
     assert_eq!(
-        render_oled_if_changed(&mut oled, &off, &publication, &mut cache, now),
+        render_oled_if_changed_off(&mut oled, true, &publication, &mut cache, now),
         None
     );
     assert_eq!(
-        render_oled_if_changed(&mut oled, &awake, &publication, &mut cache, now),
+        render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, now),
         None
     );
 
@@ -378,9 +363,9 @@ fn identical_black_frame_revision_reconciles_display_power_state() {
 }
 
 #[test]
-fn retained_bytes_retry_across_display_transitions_stays_immutable() {
+fn retried_bytes_across_display_transitions_stay_immutable() {
     let pixels = vec![0x5a; OLED_FRAME_BYTES];
-    let publication = OledFramePublication::test_retained_last_good(7, pixels.clone());
+    let publication = OledFramePublication::test_native(7, pixels.clone());
     let mut oled = TestOled {
         failed_writes: 1,
         writes: 0,
@@ -388,15 +373,13 @@ fn retained_bytes_retry_across_display_transitions_stays_immutable() {
         operations: Vec::new(),
     };
     let mut cache = HardwareRenderCache::default();
-    let awake = serde_json::json!({"display": {"off": false}});
-    let off = serde_json::json!({"display": {"off": true}});
     let now = Instant::now();
 
-    assert!(render_oled_if_changed(&mut oled, &awake, &publication, &mut cache, now).is_some());
+    assert!(render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, now).is_some());
     assert_eq!(
-        render_oled_if_changed(
+        render_oled_if_changed_off(
             &mut oled,
-            &off,
+            true,
             &publication,
             &mut cache,
             now + OLED_RETRY_INTERVAL,
@@ -404,7 +387,7 @@ fn retained_bytes_retry_across_display_transitions_stays_immutable() {
         None
     );
     assert_eq!(
-        render_oled_if_changed(&mut oled, &awake, &publication, &mut cache, now),
+        render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, now),
         None
     );
 

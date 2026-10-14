@@ -1,14 +1,12 @@
 use super::{playing_runner, worker_with_recording};
 use crate::hardware_runtime_scheduler::SNAPSHOT_TICK;
 use crate::host_adapter::PiHostAdapter;
-use playback_runtime::{
-    HostAdapter, RunnerMessage, RuntimePlatformEffect, RuntimePlatformRequest, UsbDataRole,
-};
+use playback_runtime::{HostAdapter, RuntimePlatformEffect, RuntimePlatformRequest, UsbDataRole};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 #[test]
-fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
+fn recording_start_seeds_the_last_physical_scene_frame() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-physical-oled-recording");
     let actual_root = root.join("actual");
     let startup_reference_root = root.join("startup-reference");
@@ -25,32 +23,12 @@ fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
         playback_runtime::AudioOutputSet::jack(),
         UsbDataRole::Gadget,
     );
-    let legacy_pixels = vec![0x11; playback_runtime::oled_frame::OLED_FRAME_BYTES];
-    adapter.core.ingest_oled_frame(&RunnerMessage::OledFrame {
-        revision: 1,
-        width: 128,
-        height: 128,
-        format: "rgb565be".into(),
-        pixels: legacy_pixels.clone(),
-    });
-    let legacy_snapshot = serde_json::json!({"oledFrameRevision": 1});
-    adapter.core.accept_oled_frame_reference(&legacy_snapshot);
-    assert_eq!(
-        adapter
-            .core
-            .oled_frame_cache
-            .accepted_frame()
-            .unwrap()
-            .pixels(),
-        legacy_pixels
-    );
-
     let worker = worker_with_recording(Some(audio.clone()));
     let (startup_revision, startup_pixels) = audio.latest_physical_oled_frame().unwrap();
-    assert!(startup_revision > 1);
+    assert!(startup_revision > 0);
     assert_eq!(
-        startup_pixels.as_ref(),
-        vec![0; playback_runtime::oled_frame::OLED_FRAME_BYTES]
+        startup_pixels.len(),
+        playback_runtime::oled_frame::OLED_FRAME_BYTES
     );
     let _ = start_oled_recording(&mut adapter, "startup-physical-oled");
     audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
@@ -94,8 +72,7 @@ fn recording_start_seeds_last_physical_typed_frame_not_stale_snapshot_cache() {
     assert!(!runner.display_scene_pending());
 
     let (revision, pixels) = audio.latest_physical_oled_frame().unwrap();
-    assert!(revision > 1);
-    assert_ne!(pixels.as_ref(), legacy_pixels);
+    assert!(revision >= startup_revision);
     let _started = start_oled_recording(&mut adapter, "physical-oled-recording-start");
     audio.test_push_recording_samples(&vec![0; 8_820]).unwrap();
     let actual = audio.stop_recording_with_outcome().unwrap().unwrap();
