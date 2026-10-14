@@ -1,7 +1,7 @@
 use super::{HardwareRenderCache, HardwareRenderTargets};
 use crate::render::{
-    mark_handoff_failed_decision, prepare_native_scene, select_snapshot_render, LatestPresentation,
-    OledOwnershipState, SnapshotRenderDecision,
+    mark_handoff_failed_decision, prepare_native_scene, select_scene_render, LatestPresentation,
+    OledOwnershipState, SceneRenderDecision,
 };
 use crate::render_loop_queue::{NativeSceneCommand, RenderState as QueueState};
 use std::sync::{Arc, Condvar, Mutex};
@@ -70,22 +70,23 @@ pub(super) fn present_native_scene(
     if let Some(previous) = presentation.latest.as_mut() {
         previous.complete_native(Err("native scene superseded".into()));
     }
-    let initial = state.0.lock().ok().is_some_and(|state| {
-        state.acknowledged_snapshot_published && !state.acknowledged_snapshot_rendered
-    });
+    let initial = state
+        .0
+        .lock()
+        .ok()
+        .is_some_and(|state| state.initial_scene_published && !state.initial_scene_rendered);
     if initial {
         presentation.hdmi_ready = false;
     }
     let fail_initial_write = super::take_startup_oled_write_failure(state, initial);
     let before = presentation.cache.oled_render_count();
     let now = Instant::now();
-    *animation_deadline =
-        select_snapshot_render(presentation.ownership, |decision| match decision {
-            SnapshotRenderDecision::OledAndLeds if !fail_initial_write => {
-                next.render_oled_leds(targets, &mut presentation.cache, now)
-            }
-            _ => next.render_leds(targets, &mut presentation.cache, now),
-        });
+    *animation_deadline = select_scene_render(presentation.ownership, |decision| match decision {
+        SceneRenderDecision::OledAndLeds if !fail_initial_write => {
+            next.render_oled_leds(targets, &mut presentation.cache, now)
+        }
+        _ => next.render_leds(targets, &mut presentation.cache, now),
+    });
     let frame_written = presentation.cache.oled_render_count() > before;
     if frame_written {
         submit_presentation_recording_frame(state, &next);
@@ -118,7 +119,7 @@ fn complete_initial_scene(
 ) {
     if frame_written {
         if let Ok(mut state) = state.0.lock() {
-            state.acknowledged_snapshot_rendered = true;
+            state.initial_scene_rendered = true;
             state.startup_accepted_oled_frame = Some(scene.shared_oled_frame());
         }
         scene.complete_native(Ok(()));

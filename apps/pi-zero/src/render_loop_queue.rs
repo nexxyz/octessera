@@ -8,7 +8,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 
 pub(crate) enum RenderCommand {
-    NativeSnapshot(Box<NativeSceneCommand>),
+    Scene(Box<NativeSceneCommand>),
     MarkFirstMenuRendered {
         ack: mpsc::Sender<Result<(), String>>,
     },
@@ -49,9 +49,9 @@ pub(crate) struct NativeSceneCommand {
 #[derive(Default)]
 pub(crate) struct RenderState {
     pub(crate) command: Option<RenderCommand>,
-    pub(crate) snapshot: Option<Box<NativeSceneCommand>>,
-    pub(crate) acknowledged_snapshot_published: bool,
-    pub(crate) acknowledged_snapshot_rendered: bool,
+    pub(crate) scene: Option<Box<NativeSceneCommand>>,
+    pub(crate) initial_scene_published: bool,
+    pub(crate) initial_scene_rendered: bool,
     pub(crate) startup_accepted_oled_frame: Option<(u64, std::sync::Arc<[u8]>)>,
     pub(crate) recording_audio: Option<crate::audio::AudioService>,
     #[cfg(test)]
@@ -61,14 +61,14 @@ pub(crate) struct RenderState {
 }
 
 pub(crate) fn pending_work_wins_over_expired_animation_deadline(state: &RenderState) -> bool {
-    state.command.is_some() || state.snapshot.is_some()
+    state.command.is_some() || state.scene.is_some()
 }
 
 pub(crate) fn merge_native_scene(state: &mut RenderState, command: NativeSceneCommand) {
-    if let Some(previous) = state.snapshot.take() {
+    if let Some(previous) = state.scene.take() {
         supersede_native(previous, "native scene superseded");
     }
-    state.snapshot = Some(Box::new(command));
+    state.scene = Some(Box::new(command));
 }
 
 pub(crate) fn supersede_native(command: Box<NativeSceneCommand>, reason: &str) {
@@ -82,7 +82,7 @@ pub(crate) fn supersede_native(command: Box<NativeSceneCommand>, reason: &str) {
 pub(crate) fn reject_pending_command(state: &mut RenderState, message: &str) {
     if let Some(command) = state.command.take() {
         let ack = match command {
-            RenderCommand::NativeSnapshot(scene) => {
+            RenderCommand::Scene(scene) => {
                 supersede_native(scene, message);
                 return;
             }
@@ -103,7 +103,7 @@ pub(crate) fn reject_pending_command(state: &mut RenderState, message: &str) {
         };
         let _ = ack.send(Err(message.into()));
     }
-    if let Some(scene) = state.snapshot.take() {
+    if let Some(scene) = state.scene.take() {
         supersede_native(scene, message);
     }
 }

@@ -1,4 +1,4 @@
-use super::oled::{oled_frame, OLED_FRAME_BYTES};
+use super::oled::reference::oled_frame;
 use super::oled_error_tests::{menu_snapshot, producer_error};
 use super::oled_glyph_tests::{
     assert_glyph_fixture_coverage, glyph_snapshot, GLYPH_DIGITS_FNV1A64, GLYPH_FIXTURES,
@@ -7,6 +7,7 @@ use super::oled_glyph_tests::{
     GLYPH_UPPERCASE_LAST_FNV1A64,
 };
 use super::oled_test_adapter::input_from_snapshot;
+use super::OLED_FRAME_BYTES;
 use playback_runtime::oled_frame::{render_oled_frame, test_support};
 use serde_json::json;
 

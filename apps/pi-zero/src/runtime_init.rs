@@ -1,5 +1,5 @@
 //! Startup shared by both boards: the runtime pair, the first host load, and
-//! the first acknowledged OLED snapshot. Board startups differ only in when
+//! the first acknowledged OLED scene. Board startups differ only in when
 //! they wait for audio prep and how they report readiness.
 
 use crate::host_adapter::PiHostAdapter;
@@ -68,8 +68,8 @@ pub(crate) fn start_host(
     crate::runtime_dispatch::dispatch_runtime_message(playback, runner, adapter, message)
 }
 
-/// Renders the first normal-menu snapshot and hands its frame to recording.
-pub(crate) fn publish_initial_snapshot(
+/// Renders the first normal-menu scene and hands its frame to recording.
+pub(crate) fn publish_initial_scene(
     playback: &PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,

@@ -198,9 +198,6 @@ impl HardwareRuntimeScheduler {
             };
             next_due = next_due.min(display_wake);
         }
-        if !is_playing(playback) && self.snapshot_unpresented(playback) {
-            next_due = next_due.min(self.last_snapshot_attempt_at + SNAPSHOT_TICK);
-        }
         let max_sleep = SLEEP_MAX;
         next_due
             .checked_duration_since(now)

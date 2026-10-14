@@ -189,7 +189,7 @@ fn runtime_error_layout_wraps_and_sanitizes_representative_producers() {
             Some("disk full while loading default preset"),
         ),
     ] {
-        let rows = runtime_error_rows(&super::oled::runtime_error_metadata(&error));
+        let rows = runtime_error_rows(&super::oled::reference::runtime_error_metadata(&error));
         assert_eq!(rows.len(), ERROR_ROW_COUNT);
         assert!(rows
             .iter()
@@ -205,7 +205,7 @@ fn runtime_error_layout_ends_truncated_diagnostics_with_ellipsis() {
         "operation": "open_default_device",
         "message": "this is a deliberately long diagnostic path that must not escape the OLED card"
     });
-    let rows = runtime_error_rows(&super::oled::runtime_error_metadata(&error));
+    let rows = runtime_error_rows(&super::oled::reference::runtime_error_metadata(&error));
     assert!(rows
         .iter()
         .rev()

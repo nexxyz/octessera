@@ -2,16 +2,16 @@ use super::OledOwnershipState;
 use std::time::Instant;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum SnapshotRenderDecision {
+pub(crate) enum SceneRenderDecision {
     OledAndLeds,
     LedsOnly,
 }
 
-pub(crate) fn snapshot_render_decision(state: OledOwnershipState) -> SnapshotRenderDecision {
+pub(crate) fn scene_render_decision(state: OledOwnershipState) -> SceneRenderDecision {
     if state.is_quiesced() {
-        SnapshotRenderDecision::LedsOnly
+        SceneRenderDecision::LedsOnly
     } else {
-        SnapshotRenderDecision::OledAndLeds
+        SceneRenderDecision::OledAndLeds
     }
 }
 
@@ -23,11 +23,11 @@ pub(crate) fn mark_handoff_failed_decision(state: OledOwnershipState) -> bool {
     !state.is_quiesced()
 }
 
-pub(crate) fn select_snapshot_render(
+pub(crate) fn select_scene_render(
     state: OledOwnershipState,
-    render: impl FnOnce(SnapshotRenderDecision) -> Option<Instant>,
+    render: impl FnOnce(SceneRenderDecision) -> Option<Instant>,
 ) -> Option<Instant> {
-    render(snapshot_render_decision(state))
+    render(scene_render_decision(state))
 }
 
 #[cfg(test)]
@@ -44,10 +44,7 @@ mod tests {
             OledOwnershipState::CommittedHardwareDetachedLeaseAttached,
             OledOwnershipState::CommittedReleased,
         ] {
-            assert_eq!(
-                snapshot_render_decision(state),
-                SnapshotRenderDecision::LedsOnly
-            );
+            assert_eq!(scene_render_decision(state), SceneRenderDecision::LedsOnly);
             assert!(!retry_oled_decision(state));
             assert!(!mark_handoff_failed_decision(state));
         }
@@ -56,8 +53,8 @@ mod tests {
     #[test]
     fn normal_render_decisions_allow_oled_work() {
         assert_eq!(
-            snapshot_render_decision(OledOwnershipState::Normal),
-            SnapshotRenderDecision::OledAndLeds
+            scene_render_decision(OledOwnershipState::Normal),
+            SceneRenderDecision::OledAndLeds
         );
         assert!(retry_oled_decision(OledOwnershipState::Normal));
         assert!(mark_handoff_failed_decision(OledOwnershipState::Normal));
@@ -67,8 +64,8 @@ mod tests {
     fn snapshot_selection_executes_only_the_allowed_output_path() {
         let mut oled_writes = 0;
         let mut led_updates = 0;
-        select_snapshot_render(OledOwnershipState::QuiescedCommitted, |decision| {
-            if decision == SnapshotRenderDecision::OledAndLeds {
+        select_scene_render(OledOwnershipState::QuiescedCommitted, |decision| {
+            if decision == SceneRenderDecision::OledAndLeds {
                 oled_writes += 1;
             } else {
                 led_updates += 1;
@@ -78,8 +75,8 @@ mod tests {
         assert_eq!(oled_writes, 0);
         assert_eq!(led_updates, 1);
 
-        select_snapshot_render(OledOwnershipState::Normal, |decision| {
-            if decision == SnapshotRenderDecision::OledAndLeds {
+        select_scene_render(OledOwnershipState::Normal, |decision| {
+            if decision == SceneRenderDecision::OledAndLeds {
                 oled_writes += 1;
             } else {
                 led_updates += 1;

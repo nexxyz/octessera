@@ -83,11 +83,11 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
 }
 
 impl PreparedRuntime {
-    pub(crate) fn publish_acknowledged_snapshot(
+    pub(crate) fn publish_initial_scene(
         &mut self,
         render_worker: &RenderWorker,
     ) -> Result<u64, String> {
-        crate::runtime_init::publish_initial_snapshot(
+        crate::runtime_init::publish_initial_scene(
             &self.playback,
             &mut self.runner,
             &mut self.adapter,
@@ -107,7 +107,7 @@ impl PreparedRuntime {
     }
 
     pub(crate) fn run(mut self, render_worker: RenderWorker) {
-        match self.publish_acknowledged_snapshot(&render_worker) {
+        match self.publish_initial_scene(&render_worker) {
             Ok(revision) => {
                 if let Err(error) = self.mark_candidate_ready() {
                     eprintln!("pi candidate readiness publication failed: {error}");

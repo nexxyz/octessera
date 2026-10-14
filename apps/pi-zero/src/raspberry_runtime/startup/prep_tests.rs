@@ -119,7 +119,7 @@ fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
         "{snapshot}"
     );
     let worker = render_worker();
-    prepared.publish_acknowledged_snapshot(&worker).unwrap();
+    prepared.publish_initial_scene(&worker).unwrap();
     let (physical_revision, physical_pixels) = audio.latest_physical_oled_frame().unwrap();
     assert!(physical_revision > 0);
     assert_eq!(physical_pixels.len(), OLED_FRAME_BYTES);

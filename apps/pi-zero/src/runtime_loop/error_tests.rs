@@ -44,13 +44,9 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    let initial_revision = crate::runtime_init::publish_initial_snapshot(
-        &playback,
-        &mut runner,
-        &mut adapter,
-        &worker,
-    )
-    .unwrap();
+    let initial_revision =
+        crate::runtime_init::publish_initial_scene(&playback, &mut runner, &mut adapter, &worker)
+            .unwrap();
     worker.mark_first_menu_rendered().unwrap();
     let before_error_frame = audio.latest_physical_oled_frame().unwrap();
     let scheduler = HardwareRuntimeScheduler::new(

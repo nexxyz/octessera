@@ -18,7 +18,7 @@ pub(super) fn render_worker_loop(
     loop {
         let command = take_next_command(&state, animation_deadline);
         match command {
-            Some(RenderCommand::NativeSnapshot(scene)) => {
+            Some(RenderCommand::Scene(scene)) => {
                 #[cfg(test)]
                 super::native_worker_tests::wait_for_test_native_render_gate(&state);
                 presentation::present_native_scene(
@@ -186,8 +186,8 @@ pub(super) fn take_next_command(
         if let Some(command) = guard.command.take() {
             return Some(command);
         }
-        if let Some(scene) = guard.snapshot.take() {
-            return Some(RenderCommand::NativeSnapshot(scene));
+        if let Some(scene) = guard.scene.take() {
+            return Some(RenderCommand::Scene(scene));
         }
         let Some(deadline) = animation_deadline else {
             guard = ready

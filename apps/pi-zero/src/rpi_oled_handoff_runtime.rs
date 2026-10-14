@@ -37,7 +37,7 @@ pub(crate) fn run(
         oled_handoff: Some(handoff),
         hdmi,
     });
-    let revision = match prepared.publish_acknowledged_snapshot(&render_worker) {
+    let revision = match prepared.publish_initial_scene(&render_worker) {
         Ok(revision) => revision,
         Err(error) => {
             let _ = render_worker.mark_oled_failed();

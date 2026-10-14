@@ -23,7 +23,7 @@ fn realtime_activation_rebases_before_the_first_playing_tick() {
 }
 
 #[test]
-fn playing_runtime_keeps_eight_millisecond_ticks_without_legacy_snapshots() {
+fn playing_runtime_keeps_eight_millisecond_ticks_without_snapshot_requests() {
     let now = Instant::now();
     let mut scheduler = HardwareRuntimeScheduler::new(now, 0);
     let (playback, _runner, _host) = playing_playback();

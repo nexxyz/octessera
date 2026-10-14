@@ -109,11 +109,11 @@ pub(crate) fn prepare_runtime(
     })
 }
 
-pub(crate) fn publish_prepared_acknowledged_snapshot(
+pub(crate) fn publish_prepared_initial_scene(
     prepared: &mut PreparedRuntime,
     render: &RenderWorker,
 ) -> Result<u64, String> {
-    crate::runtime_init::publish_initial_snapshot(
+    crate::runtime_init::publish_initial_scene(
         &prepared.playback,
         &mut prepared.runner,
         &mut prepared.host,

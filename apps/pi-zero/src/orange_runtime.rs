@@ -28,8 +28,7 @@ mod startup;
 pub(crate) use crate::runtime_output::{process_runtime_output, wait_for_initial_audio_prep};
 pub(crate) use runtime_loop::run_prepared_runtime;
 pub(crate) use startup::{
-    prepare_runtime, publish_prepared_acknowledged_snapshot, OrangeStartupReadinessGate,
-    PreparedRuntime,
+    prepare_runtime, publish_prepared_initial_scene, OrangeStartupReadinessGate, PreparedRuntime,
 };
 const ORANGE_UART0_ACTIVE: bool = false;
 

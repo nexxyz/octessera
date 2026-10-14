@@ -65,7 +65,7 @@ impl RenderWorker {
             .0
             .lock()
             .expect("render worker state mutex poisoned")
-            .acknowledged_snapshot_rendered = true;
+            .initial_scene_rendered = true;
     }
 
     pub(crate) fn set_recording_audio(&self, audio: crate::audio::AudioService) {
@@ -87,7 +87,7 @@ impl RenderWorker {
             self.state.0.lock().map_err(|_| {
                 "render worker state mutex poisoned while reading startup OLED frame"
             })?;
-        if !state.acknowledged_snapshot_rendered {
+        if !state.initial_scene_rendered {
             return Err("initial OLED frame has not been physically acknowledged".into());
         }
         state
@@ -113,7 +113,7 @@ impl RenderWorker {
         let mut state = lock
             .lock()
             .map_err(|_| "render worker state mutex poisoned during native scene".to_string())?;
-        if !state.acknowledged_snapshot_rendered {
+        if !state.initial_scene_rendered {
             return Err("initial menu OLED write must be acknowledged before native scenes".into());
         }
         if matches!(
@@ -148,13 +148,13 @@ impl RenderWorker {
         let mut state = lock.lock().map_err(|_| {
             "render worker state mutex poisoned during initial native scene".to_string()
         })?;
-        if state.acknowledged_snapshot_published {
+        if state.initial_scene_published {
             return Err("render worker rejected a second initial scene".into());
         }
         if state.command.is_some() {
             return Err("render worker is busy during the initial scene".into());
         }
-        state.acknowledged_snapshot_published = true;
+        state.initial_scene_published = true;
         merge_native_scene(&mut state, command);
         ready.notify_one();
         drop(state);
@@ -186,7 +186,7 @@ impl RenderWorker {
                 "render worker has a pending command during OLED handoff acknowledgement".into(),
             );
         }
-        if !state.acknowledged_snapshot_rendered {
+        if !state.initial_scene_rendered {
             return Err("OLED handoff is not acknowledged by a successful native write".into());
         }
         state.command = Some(RenderCommand::MarkFirstMenuRendered { ack: ack_tx });
@@ -260,11 +260,11 @@ impl RenderWorker {
 
 pub(super) fn take_startup_oled_write_failure(
     state: &Arc<(Mutex<RenderState>, Condvar)>,
-    initial_acknowledged_snapshot: bool,
+    initial_scene: bool,
 ) -> bool {
     #[cfg(test)]
     {
-        initial_acknowledged_snapshot
+        initial_scene
             && state
                 .0
                 .lock()
@@ -273,7 +273,7 @@ pub(super) fn take_startup_oled_write_failure(
     }
     #[cfg(not(test))]
     {
-        let _ = (state, initial_acknowledged_snapshot);
+        let _ = (state, initial_scene);
         false
     }
 }

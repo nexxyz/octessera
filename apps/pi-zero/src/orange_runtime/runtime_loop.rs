@@ -43,12 +43,15 @@ pub(crate) fn run_prepared_runtime(
         process_runtime_output(&mut playback, &mut runner, &mut host, metrics)?;
         scheduler.observe_snapshot(Instant::now(), &playback);
         if !initial_rendered {
-            let rendered = crate::runtime_init::publish_initial_snapshot(
+            let rendered = crate::runtime_init::publish_initial_scene(
                 &playback,
                 &mut runner,
                 &mut host,
                 render,
             );
+            if let Ok(revision) = rendered {
+                scheduler.record_native_scene_capture(Instant::now(), revision);
+            }
             readiness_gate.acknowledge_initial_write(rendered.map(|_| ()))?;
         }
         audio_manager.report_runtime_terminal_diagnostics();

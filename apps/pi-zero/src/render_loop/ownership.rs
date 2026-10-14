@@ -19,12 +19,7 @@ pub(super) fn handle_ownership_command(
 ) -> bool {
     let cancelled = super::ownership_command_cancelled(&cancellation);
     if !cancelled && stage == OledOwnershipStage::ResumeComplete {
-        if let Some(pending) = state
-            .0
-            .lock()
-            .ok()
-            .and_then(|mut state| state.snapshot.take())
-        {
+        if let Some(pending) = state.0.lock().ok().and_then(|mut state| state.scene.take()) {
             if let Some(next) = prepare_native_scene(pending, &presentation.cache) {
                 if let Some(previous) = presentation.latest.as_mut() {
                     previous.complete_native(Err("native scene superseded".into()));

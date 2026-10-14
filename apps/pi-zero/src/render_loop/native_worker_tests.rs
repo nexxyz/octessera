@@ -53,12 +53,7 @@ impl HostAdapter for RecordingHost {
 #[test]
 fn native_latest_slot_supersedes_without_false_success() {
     let worker = RenderWorker::terminated_for_test();
-    worker
-        .state
-        .0
-        .lock()
-        .unwrap()
-        .acknowledged_snapshot_rendered = true;
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
     let payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -79,7 +74,7 @@ fn native_latest_slot_supersedes_without_false_success() {
     assert!(result.result.is_err());
     assert!(result.frame_revision.is_none());
     assert!(latest_ack.try_recv().is_err());
-    assert!(matches!(&worker.state.0.lock().unwrap().snapshot,
+    assert!(matches!(&worker.state.0.lock().unwrap().scene,
         Some(scene) if scene.scene.generation() == latest_generation));
 }
 
@@ -87,12 +82,7 @@ fn native_latest_slot_supersedes_without_false_success() {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn native_help_scene_supersedes_pending_ordinary_scene_with_failure_ack() {
     let worker = RenderWorker::terminated_for_test();
-    worker
-        .state
-        .0
-        .lock()
-        .unwrap()
-        .acknowledged_snapshot_rendered = true;
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
     let payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -136,7 +126,7 @@ fn native_help_scene_supersedes_pending_ordinary_scene_with_failure_ack() {
     let superseded = ordinary_ack.try_recv().unwrap();
     assert_eq!(superseded.generation, ordinary_generation);
     assert!(superseded.result.is_err());
-    assert!(matches!(&worker.state.0.lock().unwrap().snapshot,
+    assert!(matches!(&worker.state.0.lock().unwrap().scene,
         Some(scene) if scene.scene.generation() >= help_generation));
 }
 
@@ -150,12 +140,7 @@ fn native_worker_returns_physically_accepted_typed_frame() {
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    worker
-        .state
-        .0
-        .lock()
-        .unwrap()
-        .acknowledged_snapshot_rendered = true;
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let scene = runner.capture_display_scene().unwrap();
     let generation = scene.generation();
@@ -180,12 +165,7 @@ fn unchanged_scene_generation_is_acknowledged_without_a_new_frame_revision() {
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    worker
-        .state
-        .0
-        .lock()
-        .unwrap()
-        .acknowledged_snapshot_rendered = true;
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
@@ -269,12 +249,7 @@ fn native_to_terminal_source_revision_collision_acknowledges_preserving_teardown
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    worker
-        .state
-        .0
-        .lock()
-        .unwrap()
-        .acknowledged_snapshot_rendered = true;
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
     worker.set_recording_audio(audio.clone());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let scene = runner.capture_display_scene().unwrap();
@@ -314,12 +289,7 @@ fn worker_submits_accepted_native_frame_to_existing_audio_recording_ingress() {
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    worker
-        .state
-        .0
-        .lock()
-        .unwrap()
-        .acknowledged_snapshot_rendered = true;
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
     worker.set_recording_audio(audio.clone());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
@@ -360,12 +330,7 @@ fn blocked_worker_publishes_beat_onset_then_expiry_without_blocking_scene_submit
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    worker
-        .state
-        .0
-        .lock()
-        .unwrap()
-        .acknowledged_snapshot_rendered = true;
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
     let (entered_tx, entered_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
     worker.state.0.lock().unwrap().native_render_gate = Some((entered_tx, release_rx));

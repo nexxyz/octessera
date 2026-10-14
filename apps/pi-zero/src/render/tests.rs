@@ -60,9 +60,12 @@ fn oled_bars_render_empty_partial_full_marker_and_selected_contrast() {
 
 #[test]
 fn oled_title_expands_direct_root_short_breadcrumbs() {
-    assert_eq!(oled::title_text_for_oled("B"), "/Build");
-    assert_eq!(oled::title_text_for_oled("/B"), "/Build");
-    assert_eq!(oled::title_text_for_oled("/B/L1: life"), "/B/L1: life");
+    assert_eq!(oled::reference::title_text_for_oled("B"), "/Build");
+    assert_eq!(oled::reference::title_text_for_oled("/B"), "/Build");
+    assert_eq!(
+        oled::reference::title_text_for_oled("/B/L1: life"),
+        "/B/L1: life"
+    );
 }
 
 #[test]

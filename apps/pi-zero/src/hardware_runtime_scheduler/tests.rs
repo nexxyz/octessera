@@ -301,6 +301,22 @@ fn snapshot_revision_stays_unpresented_until_a_scene_captures_it() {
 }
 
 #[test]
+fn unpresented_revision_does_not_spin_the_stopped_loop() {
+    let now = Instant::now();
+    let mut scheduler = HardwareRuntimeScheduler::new(now - Duration::from_millis(100), 0);
+    let (playback, runner, _host) = snapshot_playback();
+    let _ = scheduler.next_runtime_advance(now, &playback, None);
+    let _ = scheduler.next_runtime_advance(now, &playback, None);
+    let scene_still_in_flight = now + SNAPSHOT_TICK + Duration::from_millis(7);
+
+    assert!(!is_playing(&playback));
+    assert!(scheduler.snapshot_unpresented(&playback));
+    assert!(!scheduler
+        .sleep_duration(scene_still_in_flight, &playback, &runner)
+        .is_zero());
+}
+
+#[test]
 fn revision_observation_separates_attempt_and_acceptance_times() {
     let now = Instant::now();
     let mut scheduler = HardwareRuntimeScheduler::new(now, 1);

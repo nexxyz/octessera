@@ -125,7 +125,7 @@ pub(crate) fn run(
         hdmi,
     });
     let mut prepared = prepared;
-    if let Err(error) = publish_prepared_acknowledged_snapshot(&mut prepared, &render) {
+    if let Err(error) = publish_prepared_initial_scene(&mut prepared, &render) {
         let handoff_error = render.mark_oled_failed().err();
         let _ = render.abort();
         let _ = seesaw.shutdown();

@@ -19,7 +19,7 @@ fn idle_worker(state: Arc<(Mutex<RenderState>, Condvar)>) -> RenderWorker {
 
 fn rendered_state() -> Arc<(Mutex<RenderState>, Condvar)> {
     let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
-    state.0.lock().unwrap().acknowledged_snapshot_rendered = true;
+    state.0.lock().unwrap().initial_scene_rendered = true;
     state
 }
 
@@ -85,7 +85,7 @@ fn native_scene_is_rejected_once_terminal_command_is_queued() {
     assert!(worker
         .publish_native_scene(test_scene(), Default::default(), None)
         .is_err());
-    assert!(state.0.lock().unwrap().snapshot.is_none());
+    assert!(state.0.lock().unwrap().scene.is_none());
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn native_scene_is_rejected_once_terminal_command_is_queued() {
 fn atomic_terminal_preempts_a_pending_scene() {
     let state = rendered_state();
     let (stale, stale_completion) = test_scene_command();
-    state.0.lock().unwrap().snapshot = Some(stale);
+    state.0.lock().unwrap().scene = Some(stale);
     let gate = Arc::new((Mutex::new(false), Condvar::new()));
     let worker_state = Arc::clone(&state);
     let worker_gate = Arc::clone(&gate);
@@ -148,12 +148,12 @@ fn pending_scene_lane_wins_over_expired_animation_deadline() {
     let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
     {
         let mut guard = state.0.lock().unwrap();
-        guard.snapshot = Some(test_scene_command().0);
+        guard.scene = Some(test_scene_command().0);
         assert!(pending_work_wins_over_expired_animation_deadline(&guard));
     }
 
     let command = take_next_command(&state, Some(Instant::now() - Duration::from_millis(1)));
-    assert!(matches!(command, Some(RenderCommand::NativeSnapshot(_))));
+    assert!(matches!(command, Some(RenderCommand::Scene(_))));
 }
 
 #[test]
@@ -163,10 +163,10 @@ fn pending_work_decision_covers_command_and_scene_lanes() {
     let mut guard = state.0.lock().unwrap();
     assert!(!pending_work_wins_over_expired_animation_deadline(&guard));
 
-    guard.snapshot = Some(test_scene_command().0);
+    guard.scene = Some(test_scene_command().0);
     assert!(pending_work_wins_over_expired_animation_deadline(&guard));
 
-    guard.snapshot = None;
+    guard.scene = None;
     guard.command = Some(RenderCommand::MarkFailed { ack });
     assert!(pending_work_wins_over_expired_animation_deadline(&guard));
 }
@@ -262,7 +262,7 @@ fn ownership_lane_keeps_latest_scene_pending() {
         guard.command,
         Some(RenderCommand::Ownership { .. })
     ));
-    assert!(guard.snapshot.is_some());
+    assert!(guard.scene.is_some());
 }
 
 #[test]

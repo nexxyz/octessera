@@ -95,7 +95,7 @@ fn scene_worker(
         oled_handoff: None,
         hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
     });
-    crate::runtime_init::publish_initial_snapshot(playback, runner, adapter, &worker).unwrap();
+    crate::runtime_init::publish_initial_scene(playback, runner, adapter, &worker).unwrap();
     worker
 }
 

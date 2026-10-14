@@ -86,43 +86,24 @@ pub(crate) fn physical_oled_publication(
     cache: &HardwareRenderCache,
 ) -> Result<OledFramePublication, String> {
     let pixels = publication.pixels();
-    let revision = physical_oled_revision(pixels, publication.revision(), cache)?;
+    let revision = physical_oled_revision(pixels, cache)?;
     OledFramePublication::native_pixels(revision, pixels.to_vec())
 }
 
 pub(super) fn physical_oled_revision(
     pixels: &[u8],
-    source_revision: u64,
     cache: &HardwareRenderCache,
 ) -> Result<u64, String> {
-    let accepted = cache.oled_output_state.pixels.as_deref();
-    let source_next = source_revision
-        .checked_add(1)
-        .filter(|revision| *revision > 0)
-        .ok_or_else(|| "physical OLED revision exhausted".to_string())?;
-    let revision = if accepted == Some(pixels) {
-        match cache.oled_output_state.frame {
-            Some(revision) if source_revision <= cache.oled_output_state.physical_revision => {
-                revision
-            }
-            _ => cache
-                .oled_output_state
-                .physical_revision
-                .checked_add(1)
-                .ok_or_else(|| "physical OLED revision exhausted".to_string())?
-                .max(source_next),
+    let state = &cache.oled_output_state;
+    if let (Some(accepted), Some(revision)) = (state.pixels.as_deref(), state.frame) {
+        if accepted == pixels {
+            return Ok(revision);
         }
-    } else {
-        cache
-            .oled_output_state
-            .physical_revision
-            .saturating_add(1)
-            .max(source_next)
-    };
-    if revision == u64::MAX && cache.oled_output_state.physical_revision == u64::MAX {
-        return Err("physical OLED revision exhausted".into());
     }
-    Ok(revision)
+    state
+        .physical_revision
+        .checked_add(1)
+        .ok_or_else(|| "physical OLED revision exhausted".into())
 }
 
 pub(crate) fn oled_publication_is_accepted(
