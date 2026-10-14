@@ -157,6 +157,7 @@ sudo dtc -@ -I dts -O dtb \
 ensure_boot_config_line "dtoverlay=octessera-oled-sd"
 ensure_boot_config_line "dtparam=spi=on"
 ensure_boot_config_line "dtparam=i2c_arm=on"
+ensure_boot_config_line "dtparam=i2c_arm_baudrate=400000"
 if [ "$BOOT_STATE_BEFORE" != "$(sha256sum "$BOOT_CONFIG" "$CMDLINE")" ]; then
     sudo systemctl stop octessera.service >/dev/null 2>&1 || true
     echo "Boot configuration changed. Reboot, then re-run deployment before starting octessera." >&2

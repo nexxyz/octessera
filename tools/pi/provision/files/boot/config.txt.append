@@ -2,6 +2,8 @@
 # Enable I2C, SPI, and playback-only I2S for PCM5102 DAC
 [all]
 dtparam=i2c_arm=on
+# 100 kHz corrupts Seesaw reads (clock-stretching bug); 400 kHz reads clean.
+dtparam=i2c_arm_baudrate=400000
 dtparam=spi=on
 dtparam=audio=off
 camera_auto_detect=0
