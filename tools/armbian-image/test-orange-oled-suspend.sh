@@ -46,7 +46,7 @@ done
 grep -qF 'SO_PEERCRED' "$root/apps/pi-zero/src/orange_oled_suspend.rs"
 grep -qF 'OledOwnershipStage::Rollback' "$root/apps/pi-zero/src/orange_oled_suspend_policy.rs"
 grep -qF 'completed_token' "$root/apps/pi-zero/src/orange_oled_suspend_policy.rs"
-grep -qF 'select_snapshot_render' "$root/apps/pi-zero/src/render_loop/worker.rs"
+grep -qF 'select_scene_render' "$root/apps/pi-zero/src/render_loop/presentation.rs"
 grep -qF 'retry_oled_decision' "$root/apps/pi-zero/src/render_loop/worker.rs"
 grep -qF 'retry_oled_if_due' "$root/apps/pi-zero/src/render_loop/worker.rs"
 grep -qF 'force_latest_frame' "$root/apps/pi-zero/src/render/oled_ownership.rs"
