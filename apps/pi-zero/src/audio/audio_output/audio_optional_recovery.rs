@@ -63,7 +63,7 @@ pub(super) fn spawn(
                 match open(construction, sink, mirror_producer.new_consumer()) {
                     Ok(stream) => {
                         set_status(&route_registry, sink, AudioRouteStatus::Active);
-                        stream.health.clear_external_fault();
+                        stream.health.clear_recoverable_fault();
                         managed = Some(stream);
                         eprintln!("{sink:?} audio stream ready");
                     }

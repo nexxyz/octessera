@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
-
 use crate::oled_frame_cache::{OledFrameKey, OledFramePublication};
 use crate::seesaw_io::SeesawCommand;
 use octessera_hal::OledSsd1351;
@@ -75,10 +73,12 @@ const SPLASH_SLEEP_SHUTDOWN: &[u8] =
 const SLEEP_DIM_SCALE: f32 = 0.08;
 const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn shutdown_splash_base_frame() -> Vec<u8> {
     SPLASH_SLEEP_SHUTDOWN.to_vec()
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod boot_sweep;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) use boot_sweep::{

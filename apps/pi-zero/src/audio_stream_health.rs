@@ -135,11 +135,6 @@ impl AudioStreamHealth {
         self.external_status() == AudioStreamStatus::Terminal
     }
 
-    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
-    pub(crate) fn clear_external_fault(&self) {
-        self.clear_recoverable_fault();
-    }
-
     pub(crate) fn clear_recoverable_fault(&self) {
         if let Ok(mut state) = self.state.lock() {
             if state.status != AudioStreamStatus::Recovering {
