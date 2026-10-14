@@ -360,7 +360,7 @@ def verify_dpkg_status(root: Path, package: dict[str, Any]) -> None:
     fields = {values["Package"]: values for values in ({key: value for key, _, value in (line.partition(": ") for line in record.splitlines()) if _} for record in records) if values.get("Package")}
     for identity in (package["image_identity"], package["dtb_identity"]):
         installed = fields.get(identity["Package"], {})
-        require(installed.get("Status") == "install ok installed", f"dpkg status omits installed kernel package: {identity['Package']}")
+        require(installed.get("Status") == "hold ok installed", f"dpkg status omits held installed kernel package: {identity['Package']}")
         for key in ("Version", "Architecture"):
             require(installed[key] == identity[key], f"dpkg status identity changed: {identity['Package']} {key}")
 

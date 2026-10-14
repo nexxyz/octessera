@@ -354,7 +354,7 @@ def make_fixture(work: Path) -> tuple[Path, Path, Path, Path, Path, Path]:
         path.mkdir(parents=True, exist_ok=True)
         os.chown(path, 990, 990)  # type: ignore[attr-defined]
         os.chmod(path, 0o755)
-    write(final_root / "var/lib/dpkg/status", f"Package: {IMAGE_NAME}\nStatus: install ok installed\nVersion: {REVISION}\nArchitecture: arm64\n\n" f"Package: {DTB_NAME}\nStatus: install ok installed\nVersion: {REVISION}\nArchitecture: arm64\n")
+    write(final_root / "var/lib/dpkg/status", f"Package: {IMAGE_NAME}\nStatus: hold ok installed\nVersion: {REVISION}\nArchitecture: arm64\n\n" f"Package: {DTB_NAME}\nStatus: hold ok installed\nVersion: {REVISION}\nArchitecture: arm64\n")
     evidence_path = work / "evidence.env"
     evidence_values = {
         "image_package_native_basename": NATIVE_IMAGE,

@@ -53,7 +53,7 @@ def run_boot_proof(work: Path, root: Path, image: Path, dtb: Path, evidence: Pat
     for name, mutate in (
         ("config", lambda path: path.write_bytes(path.read_bytes() + b"CONFIG_BAD=y\n")),
         ("module", lambda path: path.write_bytes(path.read_bytes() + b"tampered")),
-        ("status", lambda path: path.write_text(path.read_text().replace("install ok installed", "deinstall ok config-files", 1))),
+        ("status", lambda path: path.write_text(path.read_text().replace("hold ok installed", "install ok installed", 1))),
     ):
         negative = work / f"negative-{name}"
         copy_fixture_root(root, negative)
