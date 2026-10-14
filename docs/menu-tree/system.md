@@ -86,7 +86,7 @@ System
 │   │   ├── Apply: (action)
 │   │   └── Rollback: (action)
 │   ├── Live Show Mode (group)           ← Raspberry and Orange
-│   │   ├── Start 48h: (action)          ← postpone board housekeeping for 48 h
+│   │   ├── Start 48h: (action)          ← confirm, then Wi-Fi off and housekeeping postponed for 48 h
 │   │   └── End: (action)
 │   ├── Configure WiFi: (action)
 │   ├── Backup / Restore: (action)

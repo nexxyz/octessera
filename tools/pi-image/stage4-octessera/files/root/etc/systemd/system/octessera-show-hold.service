@@ -1,5 +1,5 @@
 [Unit]
-Description=octessera Show Hold network check pause
+Description=octessera Live Show Mode apply
 After=octessera-network-health.timer
 
 [Service]

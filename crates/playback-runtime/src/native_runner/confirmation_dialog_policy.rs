@@ -71,6 +71,22 @@ impl NativeRunner {
                     cancel_toast: Some("Cancelled".into()),
                     confirm_before_execute: false,
                 });
+            } else if action_type == "maintenance.hold" {
+                return Some(NativeConfirmDialog {
+                    title: "Live Show Mode".into(),
+                    lines: vec![
+                        "48 h: Wi-Fi off,".into(),
+                        "so no SSH, updates".into(),
+                        "or Wi-Fi setup.".into(),
+                        "Housekeeping waits.".into(),
+                        "End brings it back.".into(),
+                    ],
+                    options: vec!["Cancel".into(), "Start".into()],
+                    cursor: 0,
+                    action: action.clone(),
+                    cancel_toast: Some("Cancelled".into()),
+                    confirm_before_execute: false,
+                });
             } else if action_type == "system.updateApply" {
                 ("Confirm Update", "Apply the update now?".into())
             } else if action_type == "system.rollback" {

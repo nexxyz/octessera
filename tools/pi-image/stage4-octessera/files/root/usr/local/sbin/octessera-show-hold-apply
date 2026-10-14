@@ -1,6 +1,6 @@
 #!/bin/sh
-# Stops the once-a-minute network check for the length of a Show Hold, so a show
-# has no per-minute service launches at all, and starts it again afterwards.
+# Live Show Mode: while it lasts, the once-a-minute network check is stopped and
+# the Wi-Fi radio is off; at expiry or End both come back.
 set -eu
 
 until_file=/var/lib/octessera/show-hold/until
@@ -14,8 +14,10 @@ systemctl stop "$release.timer" >/dev/null 2>&1 || true
 systemctl reset-failed "$release.service" >/dev/null 2>&1 || true
 if [ "$until" -gt "$now" ] && [ "$until" -le $((now + 173100)) ]; then
     systemctl stop octessera-network-health.timer
+    /usr/sbin/rfkill block wlan
     systemd-run --quiet --unit="$release" --on-active=$((until - now)) \
-        --timer-property=AccuracySec=1s /bin/systemctl start octessera-network-health.timer
+        --timer-property=AccuracySec=1s /usr/local/sbin/octessera-show-hold-apply
 else
+    /usr/sbin/rfkill unblock wlan
     systemctl start octessera-network-health.timer
 fi

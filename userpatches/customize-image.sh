@@ -385,6 +385,9 @@ for musical_asset in \
 done
 install_orange_musical_assets "$overlay_dir" ""
 install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
+install_overlay_file etc/systemd/system/octessera-show-hold.path /etc/systemd/system/octessera-show-hold.path 0644
+install_overlay_file etc/systemd/system/octessera-show-hold.service /etc/systemd/system/octessera-show-hold.service 0644
+install_overlay_file usr/local/sbin/octessera-show-hold-apply /usr/local/sbin/octessera-show-hold-apply 0755
 install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
 install_overlay_file etc/systemd/system/octessera-update-recovery.service /etc/systemd/system/octessera-update-recovery.service 0644
 install_overlay_file etc/systemd/system/octessera-update.socket /etc/systemd/system/octessera-update.socket 0644
@@ -440,6 +443,7 @@ systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
 octessera_configure_background_maintenance
 octessera_hold_boot_chain_packages
 systemctl enable octessera-setup-request.path >/dev/null
+systemctl enable octessera-show-hold.path octessera-show-hold.service >/dev/null
 setup_request_link=/etc/systemd/system/multi-user.target.wants/octessera-setup-request.path
 [[ -L "$setup_request_link" ]] || { echo "Setup request path was not enabled as a symlink." >&2; exit 1; }
 setup_request_target="$(readlink "$setup_request_link")"

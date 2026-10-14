@@ -1,0 +1,21 @@
+#!/bin/sh
+# Live Show Mode: while it lasts, the Wi-Fi radio is off; at expiry or End it
+# comes back.
+set -eu
+
+until_file=/var/lib/octessera/show-hold/until
+release=octessera-show-hold-release
+
+until=$(cat "$until_file" 2>/dev/null || true)
+case "$until" in ""|*[!0-9]*) until=0 ;; esac
+now=$(date +%s)
+
+systemctl stop "$release.timer" >/dev/null 2>&1 || true
+systemctl reset-failed "$release.service" >/dev/null 2>&1 || true
+if [ "$until" -gt "$now" ] && [ "$until" -le $((now + 173100)) ]; then
+    /usr/sbin/rfkill block wlan
+    systemd-run --quiet --unit="$release" --on-active=$((until - now)) \
+        --timer-property=AccuracySec=1s /usr/local/sbin/octessera-show-hold-apply
+else
+    /usr/sbin/rfkill unblock wlan
+fi

@@ -1,0 +1,9 @@
+[Unit]
+Description=octessera Show Hold watcher
+
+[Path]
+PathChanged=/var/lib/octessera/show-hold/until
+Unit=octessera-show-hold.service
+
+[Install]
+WantedBy=multi-user.target

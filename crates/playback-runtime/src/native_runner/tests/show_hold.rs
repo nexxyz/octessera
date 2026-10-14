@@ -20,14 +20,30 @@ fn emitted(messages: &[RunnerMessage], expected: RuntimePlatformEffect) -> bool 
 }
 
 #[test]
-fn show_hold_actions_emit_the_hold_effect_without_confirmation() {
+fn starting_live_show_mode_asks_first_and_end_does_not() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         ..NativeRunnerConfig::default()
     })
     .unwrap();
 
-    let held = press_action(&mut runner, "maintenance.hold");
+    let asked = press_action(&mut runner, "maintenance.hold");
+    assert!(!emitted(
+        &asked,
+        RuntimePlatformEffect::MaintenanceHold { active: true }
+    ));
+    let dialog = runner.display.confirm_dialog.as_ref().unwrap();
+    assert_eq!(dialog.title, "Live Show Mode");
+    assert!(dialog.lines.iter().any(|line| line.contains("Wi-Fi off")));
+    assert!(dialog.lines.iter().all(|line| line.chars().count() <= 20));
+
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
+    let held = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
     assert!(emitted(
         &held,
         RuntimePlatformEffect::MaintenanceHold { active: true }
@@ -42,10 +58,33 @@ fn show_hold_actions_emit_the_hold_effect_without_confirmation() {
         &released,
         RuntimePlatformEffect::MaintenanceHold { active: false }
     ));
+    assert!(runner.display.confirm_dialog.is_none());
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
         "Live Show Mode off"
     );
+}
+
+#[test]
+fn cancelling_live_show_mode_changes_nothing() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+
+    let _ = press_action(&mut runner, "maintenance.hold");
+    let cancelled = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(!emitted(
+        &cancelled,
+        RuntimePlatformEffect::MaintenanceHold { active: true }
+    ));
+    assert_eq!(runner.display.toast.as_ref().unwrap().message, "Cancelled");
 }
 
 #[test]

@@ -1,0 +1,9 @@
+[Unit]
+Description=octessera Live Show Mode apply
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/octessera-show-hold-apply
+
+[Install]
+WantedBy=multi-user.target
