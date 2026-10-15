@@ -198,7 +198,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
         "forbidden_entry_prefixes",
         "size_limits",
         "required_module_names",
-    } or selected["path"] != "octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.5":
+    } or selected["path"] != "octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.6":
         raise ValueError("selected initramfs contract is not exact")
     if selected["byte_bindings"] != [
         {"role": "splash-script", "archive_path": "scripts/init-premount/octessera-boot-splash", "rootfs_path": "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "rootfs_type": "regular-executable"},

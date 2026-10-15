@@ -45,7 +45,7 @@ def verify_payload(root: Path, boot: Path, package: Path, package_inventory: dic
         for entry in package_inventory["kernel_payload"]:
             if entry["path"].startswith("lib/modules/"):
                 hash_matches(root / entry["path"], entry["sha256"], "installed package module payload")
-    for name in ("i2s-dac-no20.dtbo", "octessera-oled-sd.dtbo"):
+    for name in ("i2s-dac-no20.dtbo", "octessera-oled-sd.dtbo", "octessera-wifi-pio.dtbo"):
         if not (boot / EXPECTED_FIRMWARE_OVERLAY_PREFIX / name).is_file():
             raise ImageProofError(f"{name} was not resolved under the custom prefix")
     return {"kernel": str(selected_kernel), "device_tree": str(selected_dtb)}

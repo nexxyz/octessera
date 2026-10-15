@@ -155,6 +155,10 @@ sudo dtc -@ -I dts -O dtb \
     -o /boot/firmware/overlays/octessera-oled-sd.dtbo \
     "$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/boot/overlays/octessera-oled-sd.dts"
 ensure_boot_config_line "dtoverlay=octessera-oled-sd"
+sudo dtc -@ -I dts -O dtb \
+    -o /boot/firmware/overlays/octessera-wifi-pio.dtbo \
+    "$REPOSITORY_ROOT/tools/pi-image/stage4-octessera/files/boot/overlays/octessera-wifi-pio.dts"
+ensure_boot_config_line "dtoverlay=octessera-wifi-pio"
 ensure_boot_config_line "dtparam=spi=on"
 ensure_boot_config_line "dtparam=i2c_arm=on"
 ensure_boot_config_line "dtparam=i2c_arm_baudrate=400000"
@@ -459,6 +463,7 @@ Type=oneshot
 ExecStart=/bin/sh -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$gov" ] || continue; printf performance > "$gov" || true; done'
 ExecStartPost=-/bin/systemctl set-property --runtime init.scope AllowedCPUs=2-3
 ExecStartPost=-/bin/sh -c 'printf d > /sys/devices/virtual/workqueue/cpumask'
+ExecStartPost=-/bin/sh -c 'for pid in $(pgrep -x "irq/[0-9]+-mmc1"); do taskset -pc 2,3 "$pid"; done'
 RemainAfterExit=yes
 
 [Install]

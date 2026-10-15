@@ -65,7 +65,7 @@ fi
 grep -qxF 'enable_uart=0' "$BOOT_DIR/config.txt"
 
 install -d "$BOOT_DIR/octessera/overlays"
-for overlay in i2s-dac-no20 octessera-oled-sd; do
+for overlay in i2s-dac-no20 octessera-oled-sd octessera-wifi-pio; do
     if [ ! -e "$BOOT_DIR/octessera/overlays/$overlay.dtbo" ]; then
         dtc -@ -I dts -O dtb \
             -o "$BOOT_DIR/octessera/overlays/$overlay.dtbo" \

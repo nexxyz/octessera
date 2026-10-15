@@ -216,6 +216,7 @@ def _main() -> int:
         boot = image / "boot/firmware"
         _write(boot / "octessera/overlays/i2s-dac-no20.dtbo", b"i2s")
         _write(boot / "octessera/overlays/octessera-oled-sd.dtbo", b"sd")
+        _write(boot / "octessera/overlays/octessera-wifi-pio.dtbo", b"wifi")
         subprocess.run(["dpkg-deb", "-x", str(package), str(image)], check=True, capture_output=True)
         _write(image / f"lib/modules/{contract.kernel_release}/modules.dep", "fixture-module-dependencies\n")
         runtime_bytes = b"constructor-runtime-binary\n"
@@ -401,6 +402,7 @@ def _main() -> int:
         _write(final_boot / "kernel8-stock.img", b"stock")
         _write(final_boot / "octessera/overlays/i2s-dac-no20.dtbo", b"i2s")
         _write(final_boot / "octessera/overlays/octessera-oled-sd.dtbo", b"sd")
+        _write(final_boot / "octessera/overlays/octessera-wifi-pio.dtbo", b"wifi")
         final_hooks = _make_hooks(final_root)
         final_hook_original = [_hook_metadata(path) for path in final_hooks]
         final_artifacts = final_root / "var/lib/octessera/rpi-kernel"

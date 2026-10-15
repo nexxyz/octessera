@@ -13,14 +13,18 @@ EXPECTED_PATCH_ORDER = (
     "zzzz-0002-usb-gadget-f-midi-instance-local-string.patch",
     "zzzz-0003-mmc-spi-card-detect-insert-delay.patch",
 )
+RASPBERRY_PATCH_ROOT = "tools/pi-kernel/patches"
+EXPECTED_RASPBERRY_PATCHES = (
+    ("0001-mmc-bcm2835-mmc-threaded-irq.patch", "b41f47b8b51920ff1826e57b56c967842e2c9f34d2b9a92c55c54a51a9f270a1"),
+)
 EXPECTED_SOURCE_COMMIT = "d8ab4e908235da7727f22dd36ad5af224671677d"
 EXPECTED_SOURCE_RELEASE = "6.12.93"
-EXPECTED_KERNEL_RELEASE = "6.12.93-octessera-rpi-v8-0.7.5"
-EXPECTED_PACKAGE_VERSION = "6.12.93-octessera0.7.5-1"
+EXPECTED_KERNEL_RELEASE = "6.12.93-octessera-rpi-v8-0.7.6"
+EXPECTED_PACKAGE_VERSION = "6.12.93-octessera0.7.6-1"
 EXPECTED_PACKAGE_NAME = f"linux-image-{EXPECTED_KERNEL_RELEASE}"
 EXPECTED_CONFIG_PATH = "arch/arm64/configs/bcm2711_defconfig"
 EXPECTED_CONFIG_SHA256 = "f78d6805ffd78b503ec64c9107e3bc82bf734cf50b1123d349f558ce483a9406"
-EXPECTED_LOCALVERSION = "-octessera-rpi-v8-0.7.5"
+EXPECTED_LOCALVERSION = "-octessera-rpi-v8-0.7.6"
 EXPECTED_REQUIRED_CONFIG = {
     "CONFIG_USB_DWC2": "y",
     "CONFIG_USB_CONFIGFS": "m",
@@ -249,6 +253,12 @@ def load_contract(root: Path, manifest_path: Path | None = None) -> Contract:
     for patch_path, expected_hash in zip(patch_paths, EXPECTED_PATCH_SHA256):
         _require(patch_path.is_file(), f"missing patch: {patch_path}")
         _require(sha256_file(patch_path) == expected_hash, f"patch hash mismatch: {patch_path}")
+    raspberry_patch_root = root / RASPBERRY_PATCH_ROOT
+    actual_raspberry_patches = tuple(sorted(path.name for path in raspberry_patch_root.glob("*.patch")))
+    _require(actual_raspberry_patches == tuple(sorted(name for name, _ in EXPECTED_RASPBERRY_PATCHES)), "Raspberry patch directory differs from the expected patch list")
+    for name, expected_hash in EXPECTED_RASPBERRY_PATCHES:
+        _require(sha256_file(raspberry_patch_root / name) == expected_hash, f"patch hash mismatch: {raspberry_patch_root / name}")
+    patch_paths += tuple(raspberry_patch_root / name for name, _ in EXPECTED_RASPBERRY_PATCHES)
 
     return Contract(
         root=root,

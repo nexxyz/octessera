@@ -1,0 +1,17 @@
+// The Zero 2 W Wi-Fi SDIO controller can hang mid DMA transfer and stall the
+// shared DMA engine, and with it the I2S audio. Withholding its DMA channel
+// makes mmc-bcm2835 fall back to PIO, done in a threaded interrupt that the
+// board pins off the audio core.
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&mmcnr>;
+		__overlay__ {
+			dma-names = "unused";
+		};
+	};
+};

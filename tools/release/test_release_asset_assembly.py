@@ -24,8 +24,8 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
             "kernels": {
                 "raspberry": {
                     "package": {
-                        "name": "linux-image-6.12.93-octessera-rpi-v8-0.7.5",
-                        "version": "6.12.93-octessera0.7.5-1",
+                        "name": "linux-image-6.12.93-octessera-rpi-v8-0.7.6",
+                        "version": "6.12.93-octessera0.7.6-1",
                         "architecture": "arm64",
                     }
                 },
@@ -41,7 +41,7 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
         self.assertEqual(
             _package_filenames(manifest),
             (
-                "linux-image-6.12.93-octessera-rpi-v8-0.7.5_6.12.93-octessera0.7.5-1_arm64.deb",
+                "linux-image-6.12.93-octessera-rpi-v8-0.7.6_6.12.93-octessera0.7.6-1_arm64.deb",
                 "linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb",
                 "linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64.deb",
             ),

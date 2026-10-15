@@ -70,4 +70,4 @@ gpu_mem=32
 # --- octessera custom kernel selectors ---
 kernel=octessera/kernel8.img
 device_tree=octessera/bcm2710-rpi-zero-2-w.dtb
-initramfs octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.5 followkernel
+initramfs octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.6 followkernel

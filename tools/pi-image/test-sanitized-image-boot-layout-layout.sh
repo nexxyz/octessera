@@ -10,6 +10,7 @@ mkdir -p "$fixture/boot/octessera/overlays"
 printf '%s\n' '# --- octessera additions ---' > "$fixture/boot/config.txt"
 printf '%s\n' 'dtbo' > "$fixture/boot/octessera/overlays/i2s-dac-no20.dtbo"
 printf '%s\n' 'dtbo' > "$fixture/boot/octessera/overlays/octessera-oled-sd.dtbo"
+printf '%s\n' 'dtbo' > "$fixture/boot/octessera/overlays/octessera-wifi-pio.dtbo"
 require_octessera_boot_config "$fixture/boot" "$fixture/root"
 require_octessera_boot_overlay "$fixture/boot" "$fixture/root"
 
@@ -18,6 +19,7 @@ mkdir -p "$fixture/root/boot/firmware/octessera/overlays"
 printf '%s\n' '# --- octessera additions ---' > "$fixture/root/boot/firmware/config.txt"
 printf '%s\n' 'dtbo' > "$fixture/root/boot/firmware/octessera/overlays/i2s-dac-no20.dtbo"
 printf '%s\n' 'dtbo' > "$fixture/root/boot/firmware/octessera/overlays/octessera-oled-sd.dtbo"
+printf '%s\n' 'dtbo' > "$fixture/root/boot/firmware/octessera/overlays/octessera-wifi-pio.dtbo"
 if require_octessera_boot_config "$fixture/boot" "$fixture/root"; then
     echo 'Boot layout accepted a hidden rootfs config marker.' >&2
     exit 1

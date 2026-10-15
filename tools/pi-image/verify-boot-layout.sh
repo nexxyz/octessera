@@ -467,7 +467,7 @@ require_octessera_boot_config() {
 
 require_octessera_boot_overlay() {
     local boot_root="$1" image_root="$2" overlay relative
-    for overlay in i2s-dac-no20 octessera-oled-sd; do
+    for overlay in i2s-dac-no20 octessera-oled-sd octessera-wifi-pio; do
         relative="overlays/$overlay.dtbo"
         if [ ! -f "$boot_root/octessera/$relative" ] && [ ! -f "$image_root/boot/firmware/octessera/$relative" ] &&
             [ ! -f "$boot_root/$relative" ] && [ ! -f "$image_root/boot/firmware/$relative" ]; then

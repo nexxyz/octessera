@@ -172,6 +172,20 @@ kernel worker (SD-card writeback) holding CPU 1 for about 2 ms with preemption
 off, so the Orange image also sets the workqueue mask to `d`
 (`/etc/tmpfiles.d/octessera-audio.conf`).
 
+The Raspberry's Wi-Fi was the last outside cause. Its SDIO controller
+(`mmcnr`, mmc-bcm2835) sometimes hangs mid DMA transfer
+(raspberrypi/linux#5770). The kernel logs `Controller never released inhibit
+bit(s)`, the shared DMA engine stalls for about 10 ms, and the I2S audio DMA
+stalls with it. The `octessera-wifi-pio` overlay withholds the controller's DMA
+channel, so the driver copies Wi-Fi data in PIO instead. The Octessera kernel
+patch `tools/pi-kernel/patches/0001-mmc-bcm2835-mmc-threaded-irq.patch` moves
+that copying from the hard interrupt into an interrupt thread, which the
+performance-governor unit pins to cores 2 and 3. Under about 5 MB/s of Wi-Fi
+traffic, a 40-minute recording soak went from one or two underruns (with DMA)
+or four (with PIO in the hard interrupt) to none. If underruns come back with
+Wi-Fi on, check `dmesg` for `inhibit` and `taskset -pc` on the `irq/*-mmc1`
+thread.
+
 Recording exposed a second, memory-side stall on both boards. Writing a long
 take fills the page cache, the kernel compacts memory, and by default it may
 move Octessera's locked pages; the callback then waits in state `D` for each

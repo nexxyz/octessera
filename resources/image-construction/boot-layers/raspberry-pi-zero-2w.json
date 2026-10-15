@@ -91,7 +91,7 @@
     {"classification": "enabled-runtime", "path": "etc/systemd/system/multi-user.target.wants/octessera.service", "type": "symlink", "target": "../octessera.service"}
   ],
   "selected_initramfs": {
-    "path": "octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.5",
+    "path": "octessera/initrd.img-6.12.93-octessera-rpi-v8-0.7.6",
     "byte_bindings": [
       {"role": "splash-script", "archive_path": "scripts/init-premount/octessera-boot-splash", "rootfs_path": "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash", "rootfs_type": "regular-executable"},
       {"role": "runtime", "archive_path": "usr/local/bin/octessera-pi", "rootfs_path": "usr/local/bin/octessera-pi", "rootfs_type": "symlink", "rootfs_target": "/opt/octessera/current/octessera-pi", "rootfs_resolution": {"current_path": "opt/octessera/current", "current_target_pattern": "^/opt/octessera/releases/[0-9]+\\.[0-9]+\\.[0-9]+$", "resolved_path": "opt/octessera/current/octessera-pi", "resolved_type": "regular-executable"}}

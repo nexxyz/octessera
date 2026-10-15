@@ -114,9 +114,9 @@ def load_manifest(root):
         fail("manifest Raspberry kernel commit differs from the pinned source gate commit")
     if raspberry.get("release") != "6.12.93":
         fail("manifest Raspberry kernel release differs from the pinned source gate release")
-    if raspberry.get("kernel_release") != "6.12.93-octessera-rpi-v8-0.7.5":
+    if raspberry.get("kernel_release") != "6.12.93-octessera-rpi-v8-0.7.6":
         fail("manifest Raspberry packaged kernel release differs from the pinned release")
-    if raspberry.get("package_revision") != "6.12.93-octessera0.7.5-1":
+    if raspberry.get("package_revision") != "6.12.93-octessera0.7.6-1":
         fail("manifest Raspberry package revision differs from the pinned source gate revision")
     return manifest, patch_root, expected_order
 def prepare_repo(parent, name, repository, commit, source):
