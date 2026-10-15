@@ -167,7 +167,10 @@ event and voice counts.
 The Orange is less exposed but not immune: NetworkManager's dispatcher, which
 starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), D-Bus and
 the hourly cron run took its audio core the same way, so all three are fenced
-to cores 2 and 3 there.
+to cores 2 and 3 there. A traced Orange recording underrun showed an unbound
+kernel worker (SD-card writeback) holding CPU 1 for about 2 ms with preemption
+off, so the Orange image also sets the workqueue mask to `d`
+(`/etc/tmpfiles.d/octessera-audio.conf`).
 
 Recording exposed a second, memory-side stall on both boards. Writing a long
 take fills the page cache, the kernel compacts memory, and by default it may
