@@ -151,8 +151,8 @@ one that clicked every few minutes. Judge long runs only with sampling off.
 On the Raspberry, ordinary tasks that wake on the audio core (CPU 1) can take
 it from the callback for a few milliseconds: the kernel's fair server reserves
 them time even against real-time threads. The once-a-minute network-health job,
-D-Bus and systemd launching that job were the culprits, so all three are
-limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's `init.scope` is set at
+D-Bus, systemd launching that job and the hourly cron run were the culprits,
+so all four are limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's `init.scope` is set at
 every boot by `octessera-performance-governor.service`, as scopes keep no
 persistent drop-ins). Quiet Latency soaks with 16 held notes went from about
 10 underruns per 2 hours to none, and Live Show Mode stops the job entirely. If underruns come back, trace CPU 1 and look for the
