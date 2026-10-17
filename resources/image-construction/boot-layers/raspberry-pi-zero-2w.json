@@ -30,7 +30,6 @@
     {"path": "tools/pi-image/stage-musical-assets.sh"},
     {"path": "tools/pi-image/install-musical-assets.sh"},
     {"path": "tools/samples/sample_library.py"},
-    {"path": "samples/MANIFEST.tsv"},
     {"path": "config/generated/pi/default.json"},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"},
     {"path": "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget"},

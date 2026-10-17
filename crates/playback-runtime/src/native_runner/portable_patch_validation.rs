@@ -1,11 +1,11 @@
-use super::Value;
+use super::{validate_patch_sample_paths, Value};
 
 pub(super) fn validate_portable_patch_fields(
     payload: &Value,
     current: &Value,
 ) -> Result<(), String> {
     validate_patch_fields(payload, current)?;
-    validate_portable_patch_sample_paths(payload, Some(current))
+    validate_patch_sample_paths(payload)
 }
 
 pub(super) fn validate_patch_fields(payload: &Value, current: &Value) -> Result<(), String> {
@@ -34,74 +34,6 @@ pub(super) fn validate_patch_fields(payload: &Value, current: &Value) -> Result<
         }
     }
     Ok(())
-}
-
-pub(super) fn validate_portable_patch_sample_paths(
-    payload: &Value,
-    _current: Option<&Value>,
-) -> Result<(), String> {
-    let Some(runtime) = payload.get("runtimeConfig") else {
-        return Ok(());
-    };
-    let Some(instruments) = runtime.get("instruments").and_then(Value::as_array) else {
-        return Ok(());
-    };
-    for (index, instrument) in instruments.iter().enumerate() {
-        let Some(instrument) = instrument.as_object() else {
-            continue;
-        };
-        let Some(slots) = instrument
-            .get("sample")
-            .and_then(|sample| sample.get("slots"))
-            .and_then(Value::as_array)
-        else {
-            continue;
-        };
-        for (slot_index, slot) in slots.iter().enumerate() {
-            let Some(value) = slot.get("path") else {
-                continue;
-            };
-            if value.is_null() {
-                continue;
-            }
-            let path =
-                format!("$.runtimeConfig.instruments[{index}].sample.slots[{slot_index}].path");
-            let value = value.as_str().ok_or_else(|| {
-                format!("{path} must be a canonical default-library WAV sample ID")
-            })?;
-            validate_default_sample_id(value, path.as_str())?;
-        }
-    }
-    Ok(())
-}
-
-pub(super) fn validate_default_sample_id(value: &str, path: &str) -> Result<(), String> {
-    if !value.starts_with("samples/") || value.contains('\\') {
-        return Err(format!(
-            "{path} must be a canonical default-library WAV sample ID"
-        ));
-    }
-    let relative = &value["samples/".len()..];
-    if relative.is_empty()
-        || relative
-            .split('/')
-            .any(|part| part.is_empty() || part == "." || part == "..")
-        || !relative.to_ascii_lowercase().ends_with(".wav")
-        || !canonical_manifest_contains(relative)
-    {
-        return Err(format!(
-            "{path} must be a canonical default-library WAV sample ID"
-        ));
-    }
-    Ok(())
-}
-
-fn canonical_manifest_contains(relative: &str) -> bool {
-    include_str!("../../../../samples/MANIFEST.tsv")
-        .lines()
-        .skip(1)
-        .filter_map(|line| line.split('\t').next())
-        .any(|path| path == relative)
 }
 
 fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), String> {

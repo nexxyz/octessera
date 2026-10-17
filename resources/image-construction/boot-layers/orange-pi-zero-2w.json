@@ -52,7 +52,6 @@
     {"path": "userpatches/overlay/usr/local/lib/octessera/orange-sample-assets.sh", "mode": 420},
     {"path": "tools/armbian-image/stage-musical-assets.sh", "mode": 493},
     {"path": "tools/samples/sample_library.py", "mode": 420},
-    {"path": "samples/MANIFEST.tsv", "mode": 420},
     {"path": "userpatches/extensions/octessera_image_sanitize.sh", "mode": 420},
     {"path": "userpatches/extensions/octessera_audio.sh", "mode": 420},
     {"path": "userpatches/extensions/octessera_sd2.sh", "mode": 493},

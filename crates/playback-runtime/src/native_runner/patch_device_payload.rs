@@ -1,6 +1,6 @@
 use super::{
-    supported_param_binding_key, validate_local_patch_sample_paths, validate_patch_fields,
-    validate_portable_patch_sample_paths, DeviceRuntimeConfigDto, RuntimeConfigDto, Value,
+    supported_param_binding_key, validate_patch_fields, validate_patch_sample_paths,
+    DeviceRuntimeConfigDto, RuntimeConfigDto, Value,
 };
 use serde_json::json;
 
@@ -23,21 +23,21 @@ pub(super) fn portable_patch_projection(payload: &Value) -> Result<Value, String
 #[cfg(any(test, feature = "test-support"))]
 pub(super) fn portable_patch_bytes(payload: &Value) -> Result<Vec<u8>, String> {
     let patch = portable_patch_projection(payload)?;
-    validate_portable_patch_sample_paths(&patch, None)?;
+    validate_patch_sample_paths(&patch)?;
     serde_json::to_vec(&patch)
         .map_err(|error| format!("portable patch cannot be serialized: {error}"))
 }
 
 pub(super) fn portable_patch_payload_for_save(payload: &Value) -> Result<Value, String> {
     let patch = portable_patch_projection(payload)?;
-    validate_portable_patch_sample_paths(&patch, None)?;
+    validate_patch_sample_paths(&patch)?;
     Ok(patch)
 }
 
 pub(super) fn local_patch_payload_for_save(payload: &Value) -> Result<Value, String> {
     let patch = portable_patch_projection(payload)?;
     validate_patch_fields(&patch, &patch)?;
-    validate_local_patch_sample_paths(&patch)?;
+    validate_patch_sample_paths(&patch)?;
     Ok(patch)
 }
 

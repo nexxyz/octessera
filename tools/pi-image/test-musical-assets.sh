@@ -29,12 +29,10 @@ import sys
 root = pathlib.Path(sys.argv[1])
 stage = pathlib.Path(sys.argv[2])
 sys.path.insert(0, str(root / "tools/samples"))
-from sample_library import read_manifest, verify_media_tree, verify_metadata_tree, verify_manifest
+from sample_library import verify_media_tree, verify_metadata_tree
 
-records = read_manifest(root / "samples/MANIFEST.tsv")
-verify_media_tree(stage / "home/pi/samples", records, ("sd-card",))
+verify_media_tree(stage / "home/pi/samples", root / "samples", ("sd-card",))
 verify_metadata_tree(stage / "usr/share/octessera/samples", root / "samples")
-verify_manifest(stage / "usr/share/octessera/samples/MANIFEST.tsv", records)
 if not (stage / "home/pi/samples/sd-card").is_dir():
     raise SystemExit("Raspberry SD-card mount subtree is missing")
 if (stage / "home/pi/samples/sd-card").is_symlink():

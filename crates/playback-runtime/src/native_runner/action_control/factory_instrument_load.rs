@@ -2,8 +2,7 @@ use crate::protocol::RuntimeAudioCommand;
 
 use super::super::{
     derive_instrument_name, drum_config::drum_default_config, fm_default_config,
-    pluck_default_config, portable_patch_validation::validate_default_sample_id, NativeRunner,
-    NativeSampleAvailability, Value,
+    pluck_default_config, NativeRunner, NativeSampleAvailability, Value,
 };
 
 const SDBKIT: [&str; 8] = [
@@ -94,9 +93,6 @@ fn sample_kit(id: &str) -> Result<&'static [&'static str; 8], String> {
         "distkit" => &DISTKIT,
         _ => return Err(format!("unknown Sampler kit {id}")),
     };
-    for path in paths {
-        validate_default_sample_id(path, path)?;
-    }
     Ok(paths)
 }
 

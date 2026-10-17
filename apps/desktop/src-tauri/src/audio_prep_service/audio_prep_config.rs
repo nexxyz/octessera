@@ -25,6 +25,7 @@ pub(super) struct PreparedAudioConfig {
     pub(super) event: EngineEvent,
     pub(super) synth_slots: [bool; INSTRUMENT_SLOT_COUNT],
     pub(super) sample_signature: Option<String>,
+    pub(super) missing_samples: Vec<String>,
 }
 
 pub(super) fn prepare_full_audio_config(
@@ -45,20 +46,19 @@ pub(super) fn prepare_full_audio_config(
             .map_err(|_| AudioPrepError::Failed("sample bank signature lock failed".into()))?;
         *current != next_sample_signature
     };
-    let next_sample_banks = if should_update_sample_banks {
-        Some(
-            sample_banks(&config, resolve_sample_file, |path| {
-                match state.sample_decode_cache.load(path) {
-                    Ok(buffer) => buffer,
-                    Err(SampleDecodeCacheError::LookupLock) => None,
-                    Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
-                }
-            })
-            .map_err(AudioPrepError::Sample)?,
+    let mut missing_samples = Vec::new();
+    let next_sample_banks = should_update_sample_banks.then(|| {
+        sample_banks(
+            &config,
+            resolve_sample_file,
+            |path| match state.sample_decode_cache.load(path) {
+                Ok(buffer) => buffer,
+                Err(SampleDecodeCacheError::LookupLock) => None,
+                Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
+            },
+            &mut missing_samples,
         )
-    } else {
-        None
-    };
+    });
     ensure_current_audio_revision(state, revision)?;
     Ok(PreparedAudioConfig {
         event: EngineEvent::SetPreparedAudioConfig {
@@ -72,6 +72,7 @@ pub(super) fn prepare_full_audio_config(
         },
         synth_slots: next_slots,
         sample_signature: should_update_sample_banks.then_some(next_sample_signature),
+        missing_samples,
     })
 }
 
@@ -114,17 +115,20 @@ pub(super) fn prepare_instrument_slot_event(
     generation: u64,
     config: Value,
     state: &DesktopAudioPrepState,
+    missing_samples: &mut Vec<String>,
 ) -> Result<EngineEvent, AudioPrepError> {
     let parsed = parse_instrument_slot_config(&config).map_err(AudioPrepError::InvalidConfig)?;
-    let sample_bank = sample_bank_for_slot_config(&config, resolve_sample_file, |path| match state
-        .sample_decode_cache
-        .load(path)
-    {
-        Ok(buffer) => buffer,
-        Err(SampleDecodeCacheError::LookupLock) => None,
-        Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
-    })
-    .map_err(AudioPrepError::Sample)?;
+    let sample_bank = sample_bank_for_slot_config(
+        &config,
+        resolve_sample_file,
+        |path| match state.sample_decode_cache.load(path) {
+            Ok(buffer) => buffer,
+            Err(SampleDecodeCacheError::LookupLock) => None,
+            Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
+        },
+        missing_samples,
+    )
+    .map_err(|error| AudioPrepError::InvalidConfig(error.message()))?;
     Ok(EngineEvent::SetPreparedInstrumentOwner {
         instrument_slot: instrument_slot as u8,
         generation,

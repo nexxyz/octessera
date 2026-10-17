@@ -143,11 +143,9 @@ assert_contains "$assembler" 'expected_mode = 0o755 if entry.filename == "octess
 assert_contains "$assembler" '_make_evidence_zip'
 assert_contains "$assembler" '_write_checksums(release_assets, "SHA256SUMS.txt"'
 assert_contains "$assembler" '_require_exact_files(release_assets, expected_root_assets)'
-assert_contains "$desktop_verifier" 'EXPECTED_MEDIA_COUNT'
 assert_contains "$desktop_verifier" 'verify_media_tree'
 assert_contains "$desktop_verifier" 'portable archive entry mode is not 0644'
 assert_contains "$desktop_verifier" 'legal/notice-bundle.json'
-assert_contains "$desktop_verifier" 'MANIFEST.tsv'
 assert_contains "$release" 'mapfile -t uploaded_assets'
 assert_contains "$release" "stat -c '%s'"
 assert_contains "$release" '[.name, (.size | tostring)] | @tsv'

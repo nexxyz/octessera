@@ -8,7 +8,7 @@ use owner_prep::{process_instrument_slot, process_owner_request, OwnerRequest};
 use playback_runtime::HostMessage;
 use prep_results::{
     audio_config_failure, audio_prep_failure, audio_prep_success, audio_queue_failure,
-    sample_failure, send_audio_prep_result, AudioPrepError,
+    send_audio_prep_result, send_missing_samples, AudioPrepError,
 };
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -177,7 +177,7 @@ fn handle_full_config_request(
     pending_preview: &mut Option<preview_prep::PreviewRequest>,
 ) {
     'prepare: loop {
-        let prepared = match prepare_audio_config(
+        let mut prepared = match prepare_audio_config(
             audio,
             state.revision,
             state.generation,
@@ -203,18 +203,6 @@ fn handle_full_config_request(
                 );
                 return;
             }
-            Err(AudioPrepError::Sample(error)) => {
-                send_audio_prep_result(
-                    result_tx,
-                    sample_failure(
-                        state.revision,
-                        state.request_id.clone(),
-                        error.code(),
-                        error.message(),
-                    ),
-                );
-                return;
-            }
             Err(AudioPrepError::Failed(error)) => {
                 send_audio_prep_result(
                     result_tx,
@@ -234,11 +222,15 @@ fn handle_full_config_request(
         ) {
             continue;
         }
+        let missing_samples = std::mem::take(&mut prepared.missing_samples);
         match apply_prepared_audio_config(audio, prepared, state.generation) {
-            Ok(()) => send_audio_prep_result(
-                result_tx,
-                audio_prep_success(state.revision, state.request_id.clone()),
-            ),
+            Ok(()) => {
+                send_missing_samples(result_tx, missing_samples);
+                send_audio_prep_result(
+                    result_tx,
+                    audio_prep_success(state.revision, state.request_id.clone()),
+                );
+            }
             Err(error) => send_audio_prep_result(
                 result_tx,
                 audio_prep_failure(state.revision, state.request_id.clone(), error),

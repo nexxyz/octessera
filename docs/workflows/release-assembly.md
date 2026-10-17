@@ -76,4 +76,4 @@ inputs and Octessera source, patches, configuration, and build scripts. Keep
 [`NOTICE`](../../NOTICE),
 [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md),
 [`hardware/ATTRIBUTIONS.md`](../../hardware/ATTRIBUTIONS.md), and
-[`samples/SOURCE.md`](../../samples/SOURCE.md) with the release materials.
+[`samples/upstream/LICENSE`](../../samples/upstream/LICENSE) with the release materials.

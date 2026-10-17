@@ -72,8 +72,6 @@ class NoticeStagerTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(raw).hexdigest(), item["sha256"], item["source"])
             self.assertEqual(len(raw), item["size"], item["source"])
         canonical_lf_paths = (
-            "samples/SOURCE.md",
-            "samples/MANIFEST.tsv",
             "samples/upstream/LICENSE",
             "licenses/cargo/THIRD_PARTY_LICENSES.txt",
             "licenses/cargo/SHA256SUMS",
@@ -95,8 +93,6 @@ class NoticeStagerTests(unittest.TestCase):
                 "NOTICE",
                 "THIRD_PARTY_NOTICES.md",
                 "hardware/ATTRIBUTIONS.md",
-                "samples/SOURCE.md",
-                "samples/MANIFEST.tsv",
                 "samples/upstream/LICENSE",
                 "licenses/README.md",
             }

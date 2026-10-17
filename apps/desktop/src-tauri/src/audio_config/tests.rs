@@ -29,6 +29,7 @@ fn desktop_uses_shared_audio_normalization_and_sample_metadata() {
         FxBusSlotConfig::Config { ref kind, .. } if kind == "tremolo"
     ));
 
+    let mut missing = Vec::new();
     let banks = sample_banks(
         &config,
         |path| Some(format!("resolved/{path}")),
@@ -40,8 +41,9 @@ fn desktop_uses_shared_audio_normalization_and_sample_metadata() {
                 sample_rate: 48_000,
             })
         },
-    )
-    .unwrap();
+        &mut missing,
+    );
+    assert!(missing.is_empty());
     assert_eq!(banks[0].tune_semis, -5.0);
     assert!(banks[0].slots[0].buffer.is_some());
 }
@@ -58,21 +60,27 @@ fn desktop_rejects_the_same_malformed_fx_payload_as_pi() {
 }
 
 #[test]
-fn desktop_reports_undecodable_sample_as_typed_failure() {
+fn desktop_leaves_missing_or_undecodable_sample_slots_silent_and_reports_them() {
     let config = normalize_config(&serde_json::json!({
         "instruments": [{
             "type": "sampler",
-            "sample": { "slots": [{ "path": "kick.wav" }] }
+            "sample": { "slots": [{ "path": "kick.wav" }, { "path": "gone.wav" }] }
         }]
     }))
     .unwrap();
 
-    let error = sample_banks(&config, |_| Some("resolved/kick.wav".into()), |_| None).unwrap_err();
-    assert_eq!(
-        error.code(),
-        playback_runtime::RuntimeErrorCode::OperationFailed
+    let mut missing = Vec::new();
+    let banks = sample_banks(
+        &config,
+        |path| (path == "kick.wav").then(|| "resolved/kick.wav".to_string()),
+        |_| None,
+        &mut missing,
     );
-    assert_eq!(error.message(), "sample decode failed: kick.wav");
+    assert_eq!(
+        missing,
+        vec!["kick.wav".to_string(), "gone.wav".to_string()]
+    );
+    assert!(banks[0].slots.iter().all(|slot| slot.buffer.is_none()));
 }
 
 #[test]

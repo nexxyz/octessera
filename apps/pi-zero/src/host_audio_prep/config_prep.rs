@@ -25,11 +25,9 @@ pub(super) fn prepare_audio_config(
         *current != next_signature
     };
     ensure_current_audio_revision(audio.config_revision.load(Ordering::Acquire), revision)?;
-    let sample_banks = if should_update_sample_banks {
-        Some(sample_banks(&parsed, &samples_dir, audio).map_err(AudioPrepError::Sample)?)
-    } else {
-        None
-    };
+    let mut missing_samples = Vec::new();
+    let sample_banks = should_update_sample_banks
+        .then(|| sample_banks(&parsed, &samples_dir, audio, &mut missing_samples));
     ensure_current_audio_revision(audio.config_revision.load(Ordering::Acquire), revision)?;
     Ok(PreparedAudioConfig {
         event: EngineEvent::SetPreparedAudioConfig {
@@ -42,6 +40,7 @@ pub(super) fn prepare_audio_config(
             ),
         },
         sample_signature: should_update_sample_banks.then_some(next_signature),
+        missing_samples,
     })
 }
 

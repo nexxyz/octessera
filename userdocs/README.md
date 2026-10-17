@@ -123,9 +123,10 @@ updates come through **System > Setup > Updates** or a fresh image.
 
 ### Samples
 
-The default library has 320 media files: 318 WAV files available to the
-sampler, plus two AIFF files outside the WAV-only browser. You can add your own
-samples through the desktop sample browser or the board sample paths.
+The default library is a folder of a few hundred WAV files from the
+attribution-free [stargate-sample-pack](https://github.com/stargatedaw/stargate-sample-pack).
+You can add your own samples through the desktop sample browser or the board
+sample paths.
 
 For the optional OLED microSD card, format it as FAT32 or exFAT and name the
 volume `OCTESSERA`; the instrument only picks up a card with exactly that name.

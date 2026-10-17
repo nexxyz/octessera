@@ -290,7 +290,9 @@ fn copy_packaged_samples(root: &Path, current: &Path, target: &Path) -> Result<(
             .replace('\\', "/");
         if metadata.is_dir() {
             copy_packaged_samples(root, &path, &target.join(relative))?;
-        } else if metadata.is_file() && user_data_archive::is_packaged_sample(&relative) {
+        } else if metadata.is_file()
+            && crate::sample_browser::is_factory_library_path(&relative, false)
+        {
             copy_file(&path, &target.join(relative))?;
         }
     }

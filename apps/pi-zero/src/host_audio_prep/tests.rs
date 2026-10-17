@@ -124,28 +124,6 @@ fn prep_failure_is_identified_and_typed() {
 }
 
 #[test]
-fn unresolved_sample_failure_is_typed_and_not_success() {
-    let result = sample_failure(
-        11,
-        Some("audio-11".into()),
-        RuntimeErrorCode::NotFound,
-        "sample not found: missing.wav".into(),
-    );
-    assert!(matches!(
-        result,
-        RuntimeStoreResult::Identified {
-            result,
-            request_id,
-            revision: Some(11)
-        } if request_id == "audio-11"
-            && matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { error }
-                if error.domain == RuntimeErrorDomain::Sample
-                    && error.code == RuntimeErrorCode::NotFound
-                    && error.operation == RuntimeOperation::AudioCommand)
-    ));
-}
-
-#[test]
 fn prep_success_is_identified_as_audio_command_success() {
     let result = audio_prep_success(10, Some("audio-10".into()));
     assert!(matches!(
@@ -388,11 +366,18 @@ fn instrument_owner_replacement_publishes_one_atomic_owner_event() {
         &result_tx,
     );
     assert!(matches!(
+        event_rx.try_recv().unwrap(),
+        EngineEvent::SetPreparedInstrumentOwner {
+            generation: 6,
+            sample_bank: Some(ref bank),
+            ..
+        } if bank.slots[0].buffer.is_none()
+    ));
+    assert!(matches!(
         result_rx.try_recv().unwrap(),
         HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RuntimeFailure { error }
-        } if error.domain == RuntimeErrorDomain::Sample
-            && error.code == RuntimeErrorCode::NotFound
+            result: RuntimeStoreResult::SamplesMissing { paths }
+        } if paths == vec!["missing.wav".to_string()]
     ));
     let _ = std::fs::remove_dir_all(root);
 }

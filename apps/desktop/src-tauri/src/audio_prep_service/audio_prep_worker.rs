@@ -6,7 +6,7 @@ use super::audio_prep_config::{
 use super::audio_prep_results::{
     full_prep_failure, full_prep_failure_from_queue, full_prep_success, owner_prep_failure,
     owner_prep_failure_from_queue, sample_preview_failure, sample_preview_queue_failure,
-    send_audio_prep_result,
+    send_audio_prep_result, send_missing_samples,
 };
 use super::{
     AudioControlRequest, DesktopAudioControl, DesktopAudioPrepState, PreviewRequest,
@@ -126,7 +126,7 @@ pub(super) fn handle_full_config_request(
         else {
             return;
         };
-        let prepared = match prepare_full_audio_config(
+        let mut prepared = match prepare_full_audio_config(
             revision,
             generation,
             request_id.clone(),
@@ -153,6 +153,7 @@ pub(super) fn handle_full_config_request(
         match send_prepared_event(engine_tx, prepared.event.clone()) {
             Ok(()) => {
                 let _ = commit_full_audio_config(&prepared, state, generation);
+                send_missing_samples(result_tx, std::mem::take(&mut prepared.missing_samples));
                 send_audio_prep_result(
                     result_tx,
                     full_prep_success(revision, request_id, generation),
@@ -236,13 +237,20 @@ fn process_owner_request(
     control: &DesktopAudioControl,
 ) {
     let generation_request = request.clone();
+    let mut missing_samples = Vec::new();
     let prepared = match request {
         AudioControlRequest::InstrumentSlot {
             instrument_slot,
             generation,
             config,
             ..
-        } => prepare_instrument_slot_event(instrument_slot, generation, config, state),
+        } => prepare_instrument_slot_event(
+            instrument_slot,
+            generation,
+            config,
+            state,
+            &mut missing_samples,
+        ),
         AudioControlRequest::FxBusSlot {
             bus_index,
             slot_index,
@@ -276,6 +284,7 @@ fn process_owner_request(
         return;
     }
     control.commit_owner_generation(&generation_request, &event);
+    send_missing_samples(result_tx, missing_samples);
 }
 
 fn process_preview(

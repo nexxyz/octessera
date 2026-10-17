@@ -130,7 +130,7 @@ mod tests {
             audio_optimization,
             playback_runtime::AudioOptimization::Capacity
         );
-        assert!(compose_system_patch_documents(&pair.system, &pair.patch).is_err());
+        compose_system_patch_documents(&pair.system, &pair.patch).unwrap();
         let _ = std::fs::remove_dir_all(root);
     }
 

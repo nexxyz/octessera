@@ -62,12 +62,15 @@ pub fn sample_banks(
     config: &AudioInstrumentsConfig,
     resolve_sample: impl Fn(&str) -> Option<String>,
     mut load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
-) -> Result<Vec<SampleBankConfig>, SampleBankError> {
+    missing: &mut Vec<String>,
+) -> Vec<SampleBankConfig> {
     config
         .instruments
         .iter()
         .take(INSTRUMENT_SLOT_COUNT)
-        .map(|instrument| sample_bank_for_slot(instrument, &resolve_sample, &mut load_sample))
+        .map(|instrument| {
+            sample_bank_for_slot(instrument, &resolve_sample, &mut load_sample, missing)
+        })
         .collect()
 }
 
@@ -75,10 +78,11 @@ pub fn sample_bank_for_slot_config(
     config: &Value,
     resolve_sample: impl Fn(&str) -> Option<String>,
     load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
+    missing: &mut Vec<String>,
 ) -> Result<Option<SampleBankConfig>, SampleBankError> {
     let instrument =
         normalize_instrument_slot_config(config).map_err(SampleBankError::InvalidConfig)?;
-    let bank = sample_bank_for_slot(&instrument, resolve_sample, load_sample)?;
+    let bank = sample_bank_for_slot(&instrument, resolve_sample, load_sample, missing);
     Ok(instrument.active_sample().is_some().then_some(bank))
 }
 
@@ -90,29 +94,30 @@ fn sample_bank_for_slot(
     instrument: &realtime_engine::synth::NormalizedInstrumentSlot,
     resolve_sample: impl Fn(&str) -> Option<String>,
     mut load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
-) -> Result<SampleBankConfig, SampleBankError> {
+    missing: &mut Vec<String>,
+) -> SampleBankConfig {
     let Some(sample) = instrument.active_sample() else {
-        return Ok(SampleBankConfig::default());
+        return SampleBankConfig::default();
     };
     let mut slots = vec![EngineSampleSlotConfig::default(); SAMPLE_SLOTS_PER_INSTRUMENT];
     for (index, path) in sample.slots.iter().enumerate() {
         let Some(path) = path else {
             continue;
         };
-        let full_path =
-            resolve_sample(path).ok_or_else(|| SampleBankError::Unresolved(path.clone()))?;
-        slots[index].buffer = Some(
-            load_sample(&full_path).ok_or_else(|| SampleBankError::Undecodable(path.clone()))?,
-        );
+        let buffer = resolve_sample(path).and_then(|full_path| load_sample(&full_path));
+        if buffer.is_none() {
+            missing.push(path.clone());
+        }
+        slots[index].buffer = buffer;
     }
-    Ok(SampleBankConfig {
+    SampleBankConfig {
         slots,
         tune_semis: sample.tune_semis,
         gain_pct: sample.gain_pct,
         velocity_sensitivity_pct: sample.velocity_sensitivity_pct,
         filter_cutoff_hz: sample.filter_cutoff_hz,
         filter_resonance: sample.filter_resonance,
-    })
+    }
 }
 
 #[cfg(test)]

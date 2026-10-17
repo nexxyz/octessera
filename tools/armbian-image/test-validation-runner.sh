@@ -37,9 +37,7 @@ fi
 
 image_root="$work/rootfs"
 mkdir -p "$image_root/etc/octessera" "$work/tmp"
-printf '%s\n' \
-  'OCTESSERA_PI_DEFAULT_SHA256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \
-  'OCTESSERA_SAMPLES_MANIFEST_SHA256=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' > "$image_root/etc/octessera/build-metadata.env"
+printf '%s\n' 'OCTESSERA_PI_DEFAULT_SHA256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' > "$image_root/etc/octessera/build-metadata.env"
 if TMPDIR="$work/tmp" bash "$root/tools/armbian-image/inspect-built-image.sh" "$image_root" >/dev/null 2>"$work/inspector.stderr"; then
   echo 'Incomplete image fixture unexpectedly passed inspection.' >&2
   exit 1

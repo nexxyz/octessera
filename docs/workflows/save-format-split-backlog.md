@@ -8,7 +8,7 @@ Before the source cutover, `default.json` mixed a musical patch with settings fo
 
 | Control or data | Owner for this split | Constraint |
 | --- | --- | --- |
-| Build worlds, saved grids and Looper events; Link mappings, scale, probability, tempo and swing; Shape instruments, mixer and FX; persistent Play FX and XY | Musical patch | Local Default, backup and recovery patches retain safe relative local/SD sample references, even when media is unavailable. Portable named presets and `.oct` exports require canonical shipped-library sample IDs. Do not save held notes, transport phase or live gestures. |
+| Build worlds, saved grids and Looper events; Link mappings, scale, probability, tempo and swing; Shape instruments, mixer and FX; persistent Play FX and XY | Musical patch | All patches, including named presets and `.oct` exports, retain safe relative sample references, even when media is unavailable. Do not save held notes, transport phase or live gestures. |
 | System output route, global MIDI ports and sync, USB roles, audio buffer/optimization, master output volume, display/HDMI, sample-browser favourites, Auto Save/Backups policy and recording limits | System settings | Keep device paths and ports local. A MIDI instrument's channel and note settings still belong to the patch. |
 | System → Notes: note length and velocity scale/curve | Musical patch | Keep the existing portable behavior and document the System-menu exception. |
 | System → Audio: polyphony/voice-stealing policy | Musical patch | Keep today's patch ownership; moving it to System would be a separate musical behavior change. |

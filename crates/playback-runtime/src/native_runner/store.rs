@@ -378,6 +378,10 @@ impl NativeRunner {
             | RuntimeStoreResult::RuntimeFailure { .. }) => {
                 self.apply_error_presentation_result(result)
             }
+            RuntimeStoreResult::SamplesMissing { paths } => {
+                self.apply_missing_samples(&paths);
+                Ok(())
+            }
             RuntimeStoreResult::Identified { .. }
             | RuntimeStoreResult::OperationSucceeded { .. }
             | RuntimeStoreResult::SamplePreviewError { .. } => Ok(()),

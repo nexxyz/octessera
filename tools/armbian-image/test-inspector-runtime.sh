@@ -68,7 +68,7 @@ for required in \
 done
 for required in \
   'usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json' \
-  'usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/MANIFEST.tsv'; do
+  'usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/upstream/LICENSE'; do
   grep -qF "$required" "$image_inspector" || { echo "Image inspector omits split save-document ownership checks: $required" >&2; exit 1; }
 done
 eval "$(sed -n '/^validate_save_document() {/,/^}/p' "$image_inspector")"

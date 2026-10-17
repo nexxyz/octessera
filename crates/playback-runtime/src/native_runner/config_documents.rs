@@ -2,9 +2,8 @@ use super::config_document_presence::{require_aux_banks, require_full_runtime_pr
 use super::{
     device_config_payload_from_payload, local_patch_payload_for_save,
     portable_patch_payload_for_save, portable_patch_projection, prepare_config_payload,
-    validate_config_payload, validate_local_patch_sample_paths, validate_patch_fields,
-    validate_portable_patch_sample_paths, ConfigDto, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION,
-    GLOBAL_LFO_COUNT, GRID_HEIGHT, GRID_WIDTH, PATCH_KIND,
+    validate_config_payload, validate_patch_fields, validate_patch_sample_paths, ConfigDto, Value,
+    CONFIG_KIND, CONFIG_SCHEMA_VERSION, GLOBAL_LFO_COUNT, GRID_HEIGHT, GRID_WIDTH, PATCH_KIND,
 };
 use serde_json::{json, Map};
 use std::collections::BTreeSet;
@@ -30,7 +29,7 @@ pub fn split_local_system_patch_documents(
     let normalized = normalize_full_config_structure(full_config)?;
     let patch = portable_patch_projection(&normalized)?;
     require_local_patch_fixed_arrays(&patch["runtimeConfig"])?;
-    validate_local_patch_sample_paths(&patch)?;
+    validate_patch_sample_paths(&patch)?;
     let patch = local_patch_payload_for_save(&normalized)?;
     split_normalized_documents(&normalized, patch)
 }
@@ -52,7 +51,7 @@ fn split_normalized_documents(
 
 pub fn compose_system_patch_documents(system: &Value, patch: &Value) -> Result<Value, String> {
     let full = compose_system_patch_documents_structure(system, patch)?;
-    validate_portable_patch_sample_paths(patch, None)?;
+    validate_patch_sample_paths(patch)?;
     Ok(full)
 }
 
@@ -63,7 +62,7 @@ pub fn compose_local_system_patch_documents(
     let patch_runtime = document_runtime(patch, PATCH_KIND, CONFIG_SCHEMA_VERSION, true)?;
     require_local_patch_fixed_arrays(patch_runtime)?;
     let full = compose_system_patch_documents_structure(system, patch)?;
-    validate_local_patch_sample_paths(patch)?;
+    validate_patch_sample_paths(patch)?;
     Ok(full)
 }
 
@@ -196,7 +195,7 @@ fn compose_system_patch_documents_structure(
 
 fn normalize_full_config(full_config: &Value) -> Result<Value, String> {
     let normalized = normalize_full_config_structure(full_config)?;
-    validate_portable_patch_sample_paths(&portable_patch_projection(&normalized)?, None)?;
+    validate_patch_sample_paths(&portable_patch_projection(&normalized)?)?;
     Ok(normalized)
 }
 

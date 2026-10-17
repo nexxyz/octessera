@@ -1,6 +1,6 @@
 use super::prep_results::{
-    audio_queue_failure, index_u8, owner_failure, owner_sample_failure, prep_error_message,
-    send_audio_prep_result, AudioPrepError,
+    audio_queue_failure, index_u8, owner_failure, prep_error_message, send_audio_prep_result,
+    send_missing_samples, AudioPrepError,
 };
 use crate::audio::AudioService;
 use crate::audio_config_parse::{
@@ -43,6 +43,7 @@ pub(super) enum OwnerRequest {
 
 struct OwnerPrepared {
     event: EngineEvent,
+    missing_samples: Vec<String>,
 }
 
 pub(super) fn process_owner_request(
@@ -95,6 +96,7 @@ pub(super) fn process_owner_request(
                     generation,
                     config: prepare_fx_bus_slot(fx_type, params, DEFAULT_AUDIO_SAMPLE_RATE),
                 },
+                missing_samples: Vec::new(),
             }),
         OwnerRequest::GlobalFx {
             sequence: _,
@@ -110,6 +112,7 @@ pub(super) fn process_owner_request(
                     generation,
                     config: prepare_global_fx_slot(fx_type, params),
                 },
+                missing_samples: Vec::new(),
             }),
     };
     match result {
@@ -135,13 +138,11 @@ pub(super) fn process_owner_request(
                     commit_instrument_generation(audio, instrument_slot, generation, sample_owner);
                 if let Err(error) = commit_result {
                     send_audio_prep_result(result_tx, audio_queue_failure(error));
+                } else {
+                    send_missing_samples(result_tx, prepared.missing_samples);
                 }
             }
         }
-        Err(AudioPrepError::Sample(error)) => send_audio_prep_result(
-            result_tx,
-            owner_sample_failure(error.code(), error.message()),
-        ),
         Err(error) => send_audio_prep_result(result_tx, owner_failure(prep_error_message(error))),
     }
 }
@@ -155,8 +156,9 @@ fn prepare_instrument(
 ) -> Result<OwnerPrepared, AudioPrepError> {
     let normalized =
         parse_normalized_instrument_slot_config(&config).map_err(AudioPrepError::InvalidConfig)?;
-    let sample_bank = sample_bank_for_instrument(&normalized, &samples_dir, audio)
-        .map_err(AudioPrepError::Sample)?;
+    let mut missing_samples = Vec::new();
+    let sample_bank =
+        sample_bank_for_instrument(&normalized, &samples_dir, audio, &mut missing_samples);
     Ok(OwnerPrepared {
         event: EngineEvent::SetPreparedInstrumentOwner {
             instrument_slot: index_u8(instrument_slot),
@@ -164,6 +166,7 @@ fn prepare_instrument(
             config: prepare_instrument_slot_config(normalized.slot),
             sample_bank,
         },
+        missing_samples,
     })
 }
 

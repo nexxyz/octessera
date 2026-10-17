@@ -152,6 +152,9 @@ pub enum RuntimeStoreResult {
     SamplePreviewError {
         message: String,
     },
+    SamplesMissing {
+        paths: Vec<String>,
+    },
     DeviceUpdateStatus {
         ok: bool,
         message: String,
@@ -235,6 +238,7 @@ impl RuntimeStoreResult {
                 RuntimeOperation::SampleList
             }
             Self::SamplePreviewError { .. } => RuntimeOperation::SamplePreview,
+            Self::SamplesMissing { .. } => RuntimeOperation::AudioCommand,
             Self::DeviceUpdateStatus { .. } => RuntimeOperation::DeviceUpdate,
             Self::RecordingStatus { .. } => RuntimeOperation::Recording,
             Self::SystemInfoResult { .. } | Self::SystemInfoError { .. } => {

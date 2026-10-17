@@ -10,6 +10,12 @@ pub(super) fn send_audio_prep_result(result_tx: &Sender<HostMessage>, result: Ru
     let _ = result_tx.send(HostMessage::RuntimeResult { result });
 }
 
+pub(super) fn send_missing_samples(result_tx: &Sender<HostMessage>, paths: Vec<String>) {
+    if !paths.is_empty() {
+        send_audio_prep_result(result_tx, RuntimeStoreResult::SamplesMissing { paths });
+    }
+}
+
 pub(super) fn full_prep_success(
     revision: u64,
     request_id: Option<String>,

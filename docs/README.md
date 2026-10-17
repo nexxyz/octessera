@@ -60,7 +60,7 @@ start with the [user manual](../userdocs/README.md).
 - [License](../LICENSE) — terms for original Octessera material.
 - [Notice](../NOTICE) — concise standalone-artifact notices.
 - [Third-party notices](../THIRD_PARTY_NOTICES.md) — known third-party material.
-- [Bundled sample source](../samples/SOURCE.md) — the sample-pack source.
+- [Bundled sample pack](https://github.com/stargatedaw/stargate-sample-pack) — the attribution-free source of the bundled samples.
 - [Hardware attributions](../hardware/ATTRIBUTIONS.md) — PCB, enclosure, and
   module references.
 - [Vendored CPAL provenance](../third_party/cpal-0.15.3/PROVENANCE.md) — the

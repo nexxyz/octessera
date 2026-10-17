@@ -138,29 +138,15 @@ fn relative_path(root: &Path, path: &Path, fallback: &str, is_dir: bool) -> Stri
         .and_then(|path| path.to_str())
         .unwrap_or(fallback)
         .replace('\\', "/");
-    if default_library_path(&relative, is_dir) {
+    if is_factory_library_path(&relative, is_dir) {
         format!("samples/{relative}")
     } else {
         relative
     }
 }
 
-fn default_library_path(relative: &str, is_dir: bool) -> bool {
-    if relative.is_empty() {
-        return false;
-    }
-    include_str!("../../../samples/MANIFEST.tsv")
-        .lines()
-        .skip(1)
-        .filter_map(|line| line.split('\t').next())
-        .filter(|path| path.to_ascii_lowercase().ends_with(".wav"))
-        .any(|path| {
-            if is_dir {
-                path.starts_with(&format!("{relative}/"))
-            } else {
-                path == relative
-            }
-        })
+pub(crate) fn is_factory_library_path(relative: &str, is_dir: bool) -> bool {
+    !relative.is_empty() && !sd_card_path_requested(relative) && (is_dir || relative.contains('/'))
 }
 
 fn normalize_sample_dir(input: &str) -> Result<String, String> {
@@ -276,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn sample_entries_preserve_nonlibrary_local_ids_and_leave_parent_navigation_to_native_menu() {
+    fn sample_entries_prefix_folder_samples_and_keep_top_level_files_local() {
         let directory = TestDirectory::new();
         let root = &directory.root;
         std::fs::create_dir_all(root.join("Drums").join("Loops")).unwrap();
@@ -289,7 +275,7 @@ mod tests {
             vec![
                 SampleEntry {
                     name: "Drums".into(),
-                    path: "Drums".into(),
+                    path: "samples/Drums".into(),
                     is_dir: true,
                 },
                 SampleEntry {
@@ -304,12 +290,12 @@ mod tests {
             vec![
                 SampleEntry {
                     name: "Loops".into(),
-                    path: "Drums/Loops".into(),
+                    path: "samples/Drums/Loops".into(),
                     is_dir: true,
                 },
                 SampleEntry {
                     name: "hat.wav".into(),
-                    path: "Drums/hat.wav".into(),
+                    path: "samples/Drums/hat.wav".into(),
                     is_dir: false,
                 },
             ]
@@ -350,7 +336,7 @@ mod tests {
                 .find(|entry| entry.name == "upstream")
                 .expect("metadata directory")
                 .path,
-            "upstream"
+            "samples/upstream"
         );
         let entries = sample_entries(&root, "samples/Drum/kick").expect("kick fixture");
         assert!(entries

@@ -2,8 +2,7 @@ use super::*;
 use std::path::Path;
 
 #[test]
-fn three_factory_sampler_kits_reference_exact_manifest_and_disk_assets_in_voice_order() {
-    let manifest = include_str!("../../../../../samples/MANIFEST.tsv");
+fn three_factory_sampler_kits_reference_library_files_in_voice_order() {
     let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
     for (id, expected) in [
         (
@@ -60,15 +59,7 @@ fn three_factory_sampler_kits_reference_exact_manifest_and_disk_assets_in_voice_
             );
             assert!(
                 samples.join(relative).is_file(),
-                "missing disk asset {path}"
-            );
-            assert!(
-                manifest
-                    .lines()
-                    .skip(1)
-                    .filter_map(|line| line.split('\t').next())
-                    .any(|entry| entry == relative),
-                "missing manifest asset {path}"
+                "missing library sample {path}"
             );
         }
     }
@@ -206,12 +197,4 @@ fn factory_aux_click_actions_remain_musical_in_portable_patch() {
             "{action}"
         );
     }
-}
-
-#[test]
-fn missing_factory_sample_id_is_rejected_by_manifest_check() {
-    let path = "samples/Drum/kick/sdbkit-not-shipped.wav";
-    let error = super::super::portable_patch_validation::validate_default_sample_id(path, path)
-        .unwrap_err();
-    assert!(error.contains(path));
 }

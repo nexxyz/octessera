@@ -10,8 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from tools.samples.sample_library import (  # noqa: E402
-    read_manifest,
-    verify_manifest,
+    media_paths,
     verify_media_tree,
     verify_metadata_tree,
 )
@@ -49,13 +48,11 @@ def _verify_tree_ownership(root: Path, uid: int, gid: int, label: str) -> None:
 
 
 def verify(root: Path, repository_root: Path) -> None:
-    records = read_manifest(repository_root / "samples/MANIFEST.tsv")
     pi_uid, pi_gid = _account_identity(root)
     media_root = root / "home/pi/samples"
     metadata_root = root / "usr/share/octessera/samples"
-    verify_media_tree(media_root, records, ("sd-card",))
+    verify_media_tree(media_root, repository_root / "samples", ("sd-card",))
     verify_metadata_tree(metadata_root, repository_root / "samples")
-    verify_manifest(metadata_root / "MANIFEST.tsv", records)
     if (metadata_root / "files").exists() or (metadata_root / "files").is_symlink():
         raise ValueError("Raspberry sample metadata tree contains packaged media")
     _verify_tree_ownership(media_root, pi_uid, pi_gid, "Raspberry sample media")
@@ -70,8 +67,9 @@ def main() -> int:
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--repository-root", type=Path, default=ROOT)
     arguments = parser.parse_args()
-    verify(arguments.root.resolve(), arguments.repository_root.resolve())
-    print("verified Raspberry rootfs sample tree: 320 media files")
+    repository_root = arguments.repository_root.resolve()
+    verify(arguments.root.resolve(), repository_root)
+    print(f"verified Raspberry rootfs sample tree: {len(media_paths(repository_root / 'samples'))} media files")
     return 0
 
 

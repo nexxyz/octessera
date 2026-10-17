@@ -90,7 +90,7 @@ fn local_documents_round_trip_exact_paths_and_complete_inactive_sampler_arrays()
         recomposed["runtimeConfig"]["audioOutputs"],
         json!({ "dac": false, "usb": true, "hdmi": false })
     );
-    assert!(split_system_patch_documents(&full).is_err());
+    assert!(split_system_patch_documents(&full).is_ok());
 }
 
 #[test]
@@ -247,26 +247,20 @@ fn unsafe_local_paths_fail_without_mutation_or_save_effect_and_remain_visible_di
 }
 
 #[test]
-fn named_presets_and_user_data_archives_keep_portable_sample_validation() {
+fn named_presets_and_user_data_archives_carry_user_sample_paths() {
     let mut runner = runner_with_local_samples();
-    assert!(runner
-        .platform_effect_for_action("preset.saveAs")
-        .unwrap_err()
-        .contains("canonical default-library WAV sample ID"));
-    let patch = portable_patch_projection(&runner.config_payload()).unwrap();
+    runner.platform_effect_for_action("preset.saveAs").unwrap();
     let before = runner.config_payload();
-    assert!(runner.apply_patch_payload_preserving_device(patch).is_err());
-    assert_eq!(runner.config_payload(), before);
+    let patch = portable_patch_projection(&before).unwrap();
+    runner.apply_patch_payload_preserving_device(patch).unwrap();
+    assert_eq!(
+        runner.instruments[0].sample_paths[0].as_deref(),
+        Some("userdata/User Kit/custom.wav")
+    );
 
-    let mut portable = portable_patch_projection(&before).unwrap();
-    portable["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"] =
-        json!("userdata/User Kit/custom.wav");
-    let defaults: Value = serde_json::from_str(include_str!(
-        "../../../../../config/generated/desktop/default.json"
-    ))
-    .unwrap();
+    let portable = portable_patch_projection(&before).unwrap();
     for media_included in [false, true] {
-        let result = crate::new_user_data_bundle(
+        crate::new_user_data_bundle(
             crate::UserDataBundleMetadata {
                 board_profile: "desktop-simulator".into(),
                 runtime_version: "0.8.7".into(),
@@ -281,8 +275,8 @@ fn named_presets_and_user_data_archives_keep_portable_sample_validation() {
             crate::UserPreferenceDelta::empty(),
             media_included,
             Vec::new(),
-            &defaults,
-        );
-        assert!(result.is_err(), "mediaIncluded={media_included}");
+            &before,
+        )
+        .unwrap_or_else(|error| panic!("mediaIncluded={media_included}: {error}"));
     }
 }

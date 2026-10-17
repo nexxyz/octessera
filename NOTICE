@@ -5,7 +5,7 @@ dependency inventory and does not claim legal compliance.
 
 - Original Octessera material: [`LICENSE`](LICENSE).
 - Reviewed known-material notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
-- Bundled samples: [`samples/SOURCE.md`](samples/SOURCE.md), [`samples/MANIFEST.tsv`](samples/MANIFEST.tsv), and [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
+- Bundled samples: the attribution-free [stargate-sample-pack](https://github.com/stargatedaw/stargate-sample-pack); its CC0 text is [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
 - Hardware references and attribution: [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md).
 
 Keep this notice and the applicable component notices with any standalone

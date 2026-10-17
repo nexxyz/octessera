@@ -49,14 +49,14 @@ pub(crate) fn sample_banks(
     config: &NormalizedAudioConfig,
     samples_dir: &Path,
     audio: &AudioService,
-) -> Result<Vec<SampleBankConfig>, SampleLoadError> {
+    missing: &mut Vec<String>,
+) -> Vec<SampleBankConfig> {
     config
         .instruments
         .iter()
         .take(INSTRUMENT_SLOT_COUNT)
         .map(|instrument| {
-            sample_bank_for_instrument(instrument, samples_dir, audio)
-                .map(|bank| bank.unwrap_or_default())
+            sample_bank_for_instrument(instrument, samples_dir, audio, missing).unwrap_or_default()
         })
         .collect()
 }
@@ -65,27 +65,29 @@ pub(crate) fn sample_bank_for_instrument(
     instrument: &NormalizedInstrumentSlot,
     samples_dir: &Path,
     audio: &AudioService,
-) -> Result<Option<SampleBankConfig>, SampleLoadError> {
-    let Some(sample) = instrument.active_sample() else {
-        return Ok(None);
-    };
+    missing: &mut Vec<String>,
+) -> Option<SampleBankConfig> {
+    let sample = instrument.active_sample()?;
     let mut slots = vec![SampleSlotConfig::default(); SAMPLE_SLOTS_PER_INSTRUMENT];
     for (index, path) in sample.slots.iter().enumerate() {
         let Some(path) = path.as_deref() else {
             continue;
         };
-        let resolved = resolve_sample_path(samples_dir, path)
-            .ok_or_else(|| SampleLoadError::Unresolved(path.into()))?;
-        slots[index].buffer = Some(cached_sample_buffer(audio, &resolved, path)?);
+        let buffer = resolve_sample_path(samples_dir, path)
+            .and_then(|resolved| cached_sample_buffer(audio, &resolved, path).ok());
+        if buffer.is_none() {
+            missing.push(path.into());
+        }
+        slots[index].buffer = buffer;
     }
-    Ok(Some(SampleBankConfig {
+    Some(SampleBankConfig {
         slots,
         tune_semis: sample.tune_semis,
         gain_pct: sample.gain_pct,
         velocity_sensitivity_pct: sample.velocity_sensitivity_pct,
         filter_cutoff_hz: sample.filter_cutoff_hz,
         filter_resonance: sample.filter_resonance,
-    }))
+    })
 }
 
 pub(crate) fn sample_signature(config: &NormalizedAudioConfig) -> String {

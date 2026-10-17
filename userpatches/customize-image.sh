@@ -377,10 +377,7 @@ install_overlay_file etc/tmpfiles.d/octessera-audio.conf /etc/tmpfiles.d/octesse
 for musical_asset in \
   usr/share/octessera/defaults/pi-default.json \
   usr/share/octessera/defaults/pi-system.json \
-  usr/share/octessera/defaults/pi-default.patch.json \
-  usr/share/octessera/samples/MANIFEST.tsv \
-  usr/share/octessera/samples/SOURCE.md \
-  usr/share/octessera/samples/upstream/LICENSE; do
+  usr/share/octessera/defaults/pi-default.patch.json; do
   [[ -f "$overlay_dir/$musical_asset" && ! -L "$overlay_dir/$musical_asset" ]] || { echo "Missing staged regular musical asset: $musical_asset. Run tools/armbian-image/stage-musical-assets.sh." >&2; exit 1; }
   install_overlay_file "$musical_asset" "/$musical_asset" 0644
 done
@@ -472,7 +469,6 @@ OCTESSERA_INPUT_ROUTING_DTBO_SHA256=$(sha256sum "$input_routing_dtbo" | awk '{ p
 OCTESSERA_AHUB0_PCM5102_DTS_SHA256=${audio_dts_sha256}
 OCTESSERA_AHUB0_PCM5102_DTBO_SHA256=${audio_dtbo_sha256}
 OCTESSERA_PI_DEFAULT_SHA256=$(sha256sum /usr/share/octessera/defaults/pi-default.json | awk '{ print $1 }')
-OCTESSERA_SAMPLES_MANIFEST_SHA256=$(sha256sum /usr/share/octessera/samples/MANIFEST.tsv | awk '{ print $1 }')
 EOF
 chown root:root /etc/octessera/build-metadata.env
 chmod 0644 /etc/octessera/build-metadata.env

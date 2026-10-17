@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 sys.path.insert(0, str(ROOT))
-from tools.samples.sample_library import read_manifest, stage_library, verify_media_tree
+from tools.samples.sample_library import stage_library, verify_media_tree
 
 
 class TauriNoticeResourceTests(unittest.TestCase):
@@ -37,11 +37,8 @@ class TauriNoticeResourceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             media = root / "samples"
-            stage_library(ROOT, media, None, root / "MANIFEST.tsv")
-            records = read_manifest(ROOT / "samples/MANIFEST.tsv")
-            verify_media_tree(media, records)
-            self.assertFalse((media / "MANIFEST.tsv").exists())
-            self.assertFalse((media / "SOURCE.md").exists())
+            stage_library(ROOT, media, None)
+            verify_media_tree(media, ROOT / "samples")
             self.assertFalse((media / "upstream").exists())
 
 

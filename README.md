@@ -44,7 +44,7 @@ synth, and a live Keys layer nudging the whole thing somewhere new.
 
 ## Notes
 
-[License](LICENSE) · [Sample source](samples/SOURCE.md) ·
+[License](LICENSE) · [Sample pack](https://github.com/stargatedaw/stargate-sample-pack) ·
 [Hardware attributions](hardware/ATTRIBUTIONS.md) ·
 [Third-party notices](THIRD_PARTY_NOTICES.md)
 

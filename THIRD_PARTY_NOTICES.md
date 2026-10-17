@@ -34,9 +34,8 @@ repository notice.
 
 ## Samples
 
-The bundled sample acknowledgement is [`samples/SOURCE.md`](samples/SOURCE.md).
-The technical [`samples/MANIFEST.tsv`](samples/MANIFEST.tsv) records the path,
-size, and SHA-256 digest of each bundled media file. The pack's CC0 text is
+Octessera's bundled samples come from the attribution-free
+[stargate-sample-pack](https://github.com/stargatedaw/stargate-sample-pack). The pack's CC0 text is
 retained in [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
 
 ## Hardware

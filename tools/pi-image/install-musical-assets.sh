@@ -11,10 +11,7 @@ target_metadata="$rootfs_root/usr/share/octessera/samples"
 for path in "$source_media" "$source_metadata"; do
   [[ -d "$path" && ! -L "$path" ]] || { echo "Missing staged Raspberry sample directory: $path" >&2; exit 1; }
 done
-for relative in MANIFEST.tsv SOURCE.md upstream/LICENSE; do
-  path="$source_metadata/$relative"
-  [[ -f "$path" && ! -L "$path" ]] || { echo "Missing staged Raspberry sample metadata: $relative" >&2; exit 1; }
-done
+[[ -f "$source_metadata/upstream/LICENSE" && ! -L "$source_metadata/upstream/LICENSE" ]] || { echo "Missing staged Raspberry sample licence" >&2; exit 1; }
 if find -P "$source_media" -mindepth 1 \( -type l -o -type p -o -type s -o -type c -o -type b \) -print -quit | grep -q .; then
   echo "Staged Raspberry sample tree contains an unsafe entry" >&2
   exit 1
@@ -27,6 +24,4 @@ while IFS= read -r -d '' path; do
 done < <(find -P "$source_media" -mindepth 1 -type f -print0)
 install -d -m 0755 "$target_media/sd-card"
 
-install -D -m 0644 "$source_metadata/MANIFEST.tsv" "$target_metadata/MANIFEST.tsv"
-install -D -m 0644 "$source_metadata/SOURCE.md" "$target_metadata/SOURCE.md"
 install -D -m 0644 "$source_metadata/upstream/LICENSE" "$target_metadata/upstream/LICENSE"

@@ -51,10 +51,12 @@ save the musical Patch.
    downloaded `octessera-user-data.oct` somewhere safe before removing or
    flashing the source card.
 
-   A patch that assigns a local or SD-card sample cannot go into a portable
-   `.oct` archive, even with `media=1`. Export refuses that patch instead of
-   silently dropping its assignment. Keep a separate copy of those WAVs; use
-   shipped-library samples when you want the patch itself to travel.
+   Patches keep their sample paths, including your own and SD-card samples.
+   If a sample isn't on the device you restore to, that slot stays silent and
+   shows `N/A-<name>`, and a popup lists what's missing. Copy the WAVs across
+   (or include them with `media=1`) and the slots come back, or pick
+   replacements. Samples you added to the device travel only in the `media=1`
+   export; SD-card samples stay on the card.
 
 If no regular network address is available, the action cannot start. **Back**
 hides the Ready card while the transfer remains available. Choose **> Stop service**

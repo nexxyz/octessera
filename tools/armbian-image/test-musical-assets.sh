@@ -17,7 +17,6 @@ system_source="$projection/system.json"
 patch_source="$projection/default.patch.json"
 system_staged="$staging/defaults/pi-system.json"
 patch_staged="$staging/defaults/pi-default.patch.json"
-manifest="$staging/samples/MANIFEST.tsv"
 
 cmp "$default_source" "$default_staged"
 cmp "$system_source" "$system_staged"
@@ -38,74 +37,31 @@ for path, kind in zip(sys.argv[1:], expected):
     if document.get("kind") != kind:
         raise SystemExit(f"unexpected projected document kind in {path}")
 PY
-validate_manifest() {
-  local manifest_path="$1"
-  local sample_root="$2"
-  local ownership_required="${3:-false}"
-  python3 - "$root" "$manifest_path" "$sample_root" "$ownership_required" <<'PY'
-import hashlib
+validate_samples() {
+  local sample_root="$1"
+  local ownership_mode="${2:-none}"
+  python3 - "$root" "$sample_root" "$ownership_mode" <<'PY'
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(sys.argv[1]) / "tools/samples"))
-from sample_library import read_manifest
+from sample_library import verify_media_tree
 
-manifest_path = pathlib.Path(sys.argv[2])
-sample_root = pathlib.Path(sys.argv[3])
-ownership_mode = sys.argv[4]
-ownership_required = ownership_mode in {"root", "orange-final"}
-inventory = read_manifest(pathlib.Path(sys.argv[1]) / "samples/MANIFEST.tsv")
-expected = {record.path: record for record in inventory}
-rows = {}
-lines = manifest_path.read_text(encoding="utf-8").splitlines()
-if lines[0] != "# path\tsize\tsha256":
-    raise SystemExit("invalid staged sample manifest header")
-if len(lines) != len(expected) + 1:
-    raise SystemExit("manifest does not contain the complete sample inventory")
-for line in lines[1:]:
-    path, size, digest = line.split("\t")
-    record = expected.get(path)
-    if record is None or (int(size), digest) != (record.size, record.sha256):
-        raise SystemExit(f"manifest row differs from sample manifest: {path}")
-    sample = sample_root / path
-    if sample.is_symlink() or not sample.is_file():
-        raise SystemExit(f"missing staged sample: {sample}")
-    if ownership_required and (sample.stat().st_uid != 0 or sample.stat().st_gid != 0):
-        raise SystemExit(f"sample is not root-owned: {path}")
-    if ownership_required and (sample.stat().st_mode & 0o777) != 0o644:
-        raise SystemExit(f"sample has unsafe mode: {path}")
-    if sample.stat().st_size != int(size):
-        raise SystemExit(f"sample size mismatch: {path}")
-    if hashlib.sha256(sample.read_bytes()).hexdigest() != digest:
-        raise SystemExit(f"sample hash mismatch: {path}")
-    rows[path] = record
-actual = []
-if sample_root.is_symlink() or not sample_root.is_dir():
-    raise SystemExit(f"sample root is not a directory: {sample_root}")
+sample_root = pathlib.Path(sys.argv[2])
+ownership_mode = sys.argv[3]
+verify_media_tree(sample_root, pathlib.Path(sys.argv[1]) / "samples")
 if ownership_mode == "orange-final":
     metadata = sample_root.stat()
     if (metadata.st_uid, metadata.st_gid, metadata.st_mode & 0o777) != (990, 990, 0o755):
         raise SystemExit("Orange sample root does not represent the post-account-setup ownership")
-for sample in sample_root.rglob("*"):
-    if sample.is_symlink():
-        raise SystemExit(f"sample tree contains a symlink: {sample}")
-    if sample.is_dir():
-        if ownership_required and (sample.stat().st_uid != 0 or sample.stat().st_gid != 0):
-            raise SystemExit(f"sample directory is not root-owned: {sample}")
-        if ownership_required and (sample.stat().st_mode & 0o777) != 0o755:
-            raise SystemExit(f"sample directory has unsafe mode: {sample}")
-        continue
-    if not sample.is_file():
-        raise SystemExit(f"sample tree contains a special entry: {sample}")
-    if sample.suffix.lower() in {".aif", ".aiff", ".flac", ".mp3", ".ogg", ".wav"}:
-        actual.append(sample.relative_to(sample_root).as_posix())
-if rows.keys() != expected.keys():
-    raise SystemExit("manifest does not match the complete sample inventory")
-if set(actual) != set(expected):
-    raise SystemExit("sample tree does not match the complete sample inventory")
+    for sample in sample_root.rglob("*"):
+        expected_mode = 0o755 if sample.is_dir() else 0o644
+        metadata = sample.stat()
+        if (metadata.st_uid, metadata.st_gid, metadata.st_mode & 0o777) != (0, 0, expected_mode):
+            raise SystemExit(f"sample ownership or mode is unsafe: {sample}")
 PY
 }
-validate_manifest "$manifest" "$staging/samples/files"
+validate_samples "$staging/samples/files"
 grep -qF 'mv -T -n' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 # shellcheck disable=SC2016
 grep -qF 'temporary_system=$(mktemp "$staging_directory/system.XXXXXX")' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
@@ -167,7 +123,7 @@ EOF
 chmod 0755 "$install_work/run-install-musical-assets.sh"
 run_as_root "$install_work/run-install-musical-assets.sh" "$install_work/install-musical-assets.sh" "$fake_overlay" "$fake_root"
 run_as_root chown 990:990 "$fake_root/var/lib/octessera/samples"
-validate_manifest "$fake_root/usr/share/octessera/samples/MANIFEST.tsv" "$fake_root/var/lib/octessera/samples" orange-final
+validate_samples "$fake_root/var/lib/octessera/samples" orange-final
 test -f "$fake_root/var/lib/octessera/samples/Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav"
 test ! -e "$fake_root/usr/share/octessera/samples/files"
 
@@ -184,11 +140,6 @@ expect_installer_rejects() {
   fi
 }
 
-extra_overlay="$install_work/extra-overlay"
-cp -a "$fake_overlay" "$extra_overlay"
-printf 'extra\n' > "$extra_overlay/usr/share/octessera/samples/files/extra sample.wav"
-expect_installer_rejects extra
-
 symlink_overlay="$install_work/symlink-overlay"
 cp -a "$fake_overlay" "$symlink_overlay"
 symlink_sample="$symlink_overlay/usr/share/octessera/samples/files/Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav"
@@ -203,16 +154,6 @@ if command -v mkfifo >/dev/null 2>&1; then
   expect_installer_rejects special
 fi
 
-invalid_overlay="$install_work/invalid-overlay"
-invalid_root="$install_work/invalid-root"
-cp -a "$fake_overlay" "$invalid_overlay"
-rm "$invalid_overlay/usr/share/octessera/samples/files/Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav"
-mkdir -p "$invalid_root/usr/share/octessera/samples" "$invalid_root/var/lib/octessera/samples"
-cp -a "$staging/samples/." "$invalid_root/usr/share/octessera/samples/"
-if run_as_root "$install_work/run-install-musical-assets.sh" "$install_work/install-musical-assets.sh" "$invalid_overlay" "$invalid_root" >/dev/null 2>&1; then
-  echo "Musical asset installer accepted a missing manifest asset." >&2
-  exit 1
-fi
 provision_script="$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 reset_provision_work() {
   runtime_uid_fixture="${1:-990}"
@@ -306,5 +247,5 @@ test ! -e "$stage_work/samples/files/stale sample.wav"
 cmp "$default_source" "$stage_work/defaults/pi-default.json"
 cmp "$system_source" "$stage_work/defaults/pi-system.json"
 cmp "$patch_source" "$stage_work/defaults/pi-default.patch.json"
-validate_manifest "$stage_work/samples/MANIFEST.tsv" "$stage_work/samples/files"
+validate_samples "$stage_work/samples/files"
 printf 'Orange musical assets validation passed\n'

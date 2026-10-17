@@ -216,7 +216,7 @@ impl NativeRunner {
         }
     }
 
-    fn mark_sample_unavailable(&mut self, instrument_slot: usize, sample_slot: usize) {
+    pub(super) fn mark_sample_unavailable(&mut self, instrument_slot: usize, sample_slot: usize) {
         if let Some(availability) = self
             .sample_availability
             .get_mut(instrument_slot)

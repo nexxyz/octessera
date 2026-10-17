@@ -9,7 +9,7 @@ fn accepts_browser_relative_wav_paths_without_requiring_media_to_exist() {
         "Drums/kick.wav",
         "missing/on/card.wav",
     ] {
-        validate_local_patch_sample_paths(&json!({
+        validate_patch_sample_paths(&json!({
             "runtimeConfig": {
                 "instruments": [{ "sample": { "slots": [{ "path": path }] } }]
             }
@@ -34,13 +34,13 @@ fn rejects_absolute_traversal_malformed_and_non_wav_paths() {
         "userdata\\custom.wav",
     ] {
         assert!(
-            validate_local_patch_sample_paths(&json!({
+            validate_patch_sample_paths(&json!({
                 "runtimeConfig": {
                     "instruments": [{ "sample": { "slots": [{ "path": path }] } }]
                 }
             }))
             .is_err(),
-            "accepted unsafe local sample path {path:?}"
+            "accepted unsafe sample path {path:?}"
         );
     }
 }

@@ -42,7 +42,7 @@ Consult these companions as applicable:
 - [`hardware/ATTRIBUTIONS.md`](ATTRIBUTIONS.md)
 - [`NOTICE`](../NOTICE)
 - [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md)
-- [`samples/SOURCE.md`](../samples/SOURCE.md)
+- [`samples/upstream/LICENSE`](../samples/upstream/LICENSE)
 
 ## Release assets
 

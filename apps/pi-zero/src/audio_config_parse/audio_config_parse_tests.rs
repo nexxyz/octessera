@@ -74,89 +74,74 @@ fn pi_sample_failures_use_shared_typed_facts() {
 }
 
 #[test]
-fn initial_sample_preparation_succeeds_for_a_valid_wav() {
+fn initial_sample_preparation_loads_a_valid_wav() {
     let root = temp_dir("sample-prep-success");
     std::fs::write(root.join("kick.wav"), wav_bytes()).unwrap();
     let audio = crate::audio::test_service_for_sample_prep();
+    let mut missing = Vec::new();
 
-    let result = sample_banks(&sample_config(), &root, &audio);
+    let banks = sample_banks(&sample_config(), &root, &audio, &mut missing);
 
-    assert!(result.is_ok());
+    assert!(missing.is_empty());
+    assert!(banks
+        .iter()
+        .any(|bank| bank.slots.iter().any(|slot| slot.buffer.is_some())));
     let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
-fn initial_sample_preparation_rejects_missing_root_and_file() {
+fn missing_or_undecodable_samples_leave_their_slot_silent_and_are_reported() {
+    let audio = crate::audio::test_service_for_sample_prep();
     let missing_root = temp_dir("sample-prep-missing-root");
     std::fs::remove_dir_all(&missing_root).unwrap();
-    let audio = crate::audio::test_service_for_sample_prep();
-    let error = sample_banks(&sample_config(), &missing_root, &audio).unwrap_err();
-    assert_eq!(
-        error,
-        SampleLoadError::Unresolved("samples/kick.wav".into())
-    );
+    let missing_file_root = temp_dir("sample-prep-missing-file");
+    let malformed_root = temp_dir("sample-prep-malformed");
+    std::fs::write(malformed_root.join("kick.wav"), b"not a wav").unwrap();
 
-    let root = temp_dir("sample-prep-missing-file");
-    let error = sample_banks(&sample_config(), &root, &audio).unwrap_err();
-    assert_eq!(
-        error,
-        SampleLoadError::Unresolved("samples/kick.wav".into())
-    );
-    let _ = std::fs::remove_dir_all(root);
+    for root in [&missing_root, &missing_file_root, &malformed_root] {
+        let mut missing = Vec::new();
+        let banks = sample_banks(&sample_config(), root, &audio, &mut missing);
+        assert_eq!(missing, vec!["samples/kick.wav".to_string()]);
+        assert!(banks
+            .iter()
+            .all(|bank| bank.slots.iter().all(|slot| slot.buffer.is_none())));
+    }
+    let _ = std::fs::remove_dir_all(missing_file_root);
+    let _ = std::fs::remove_dir_all(malformed_root);
 }
 
 #[test]
-fn initial_sample_preparation_rejects_a_malformed_wav() {
-    let root = temp_dir("sample-prep-malformed");
-    std::fs::write(root.join("kick.wav"), b"not a wav").unwrap();
-    let audio = crate::audio::test_service_for_sample_prep();
-
-    let error = sample_banks(&sample_config(), &root, &audio).unwrap_err();
-
-    assert_eq!(
-        error,
-        SampleLoadError::Undecodable("samples/kick.wav".into())
-    );
-    let _ = std::fs::remove_dir_all(root);
-}
-
-#[test]
-fn pi_sample_fixture_decodes_every_playable_default_sample() {
+fn every_library_wav_resolves_from_the_pi_sample_root() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples");
     let root = root.canonicalize().expect("Pi sample fixture root");
-    let mut playable_wav_count = 0;
-    let mut metadata_only_count = 0;
-
-    for line in include_str!("../../../../samples/MANIFEST.tsv")
-        .lines()
-        .skip(1)
-    {
-        let relative = line.split('\t').next().expect("inventory path");
-        if relative.to_ascii_lowercase().ends_with(".wav") {
-            playable_wav_count += 1;
-            let canonical_id = format!("samples/{relative}");
-            let resolved = resolve_sample_path(&root, &canonical_id)
-                .expect("manifest WAV resolves from Pi sample root");
-            let expected = root
-                .join(relative)
-                .canonicalize()
-                .expect("manifest WAV path");
-            assert_eq!(resolved, expected);
-            let buffer = rodio_engine_source::decode_sample_file(&resolved)
-                .expect("manifest WAV decodes with production decoder");
-            assert!(buffer.channels > 0);
-            assert!(buffer.sample_rate > 0);
-            assert!(!buffer.samples.is_empty());
-            assert_eq!(buffer.samples.len() % usize::from(buffer.channels), 0);
-            assert!(buffer.samples.iter().all(|sample| sample.is_finite()));
-            assert!(expected.starts_with(&root));
-        } else {
-            metadata_only_count += 1;
+    let mut directories = vec![root.clone()];
+    let mut resolved_count = 0;
+    while let Some(directory) = directories.pop() {
+        for entry in std::fs::read_dir(directory).expect("sample directory") {
+            let path = entry.expect("sample entry").path();
+            if path.is_dir() {
+                directories.push(path);
+                continue;
+            }
+            if !path
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("wav"))
+            {
+                continue;
+            }
+            let relative = path
+                .strip_prefix(&root)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .replace('\\', "/");
+            let resolved = resolve_sample_path(&root, &format!("samples/{relative}"))
+                .expect("library WAV resolves from Pi sample root");
+            assert_eq!(resolved, path.canonicalize().unwrap());
+            resolved_count += 1;
         }
     }
-
-    assert_eq!(playable_wav_count, 318);
-    assert_eq!(metadata_only_count, 2);
+    assert!(resolved_count > 0);
 }
 
 fn temp_dir(name: &str) -> std::path::PathBuf {

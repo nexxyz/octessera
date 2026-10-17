@@ -28,8 +28,6 @@
 /hardware/pcb/gerber/gerber.zip binary
 third_party/cpal-0.15.3/** text eol=lf whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
-/samples/SOURCE.md text eol=lf
-/samples/MANIFEST.tsv text eol=lf
 /LICENSE text eol=lf
 /NOTICE text eol=lf
 /THIRD_PARTY_NOTICES.md text eol=lf

@@ -121,32 +121,6 @@ octessera_sample_relative_path_is_safe() {
   done
 }
 
-octessera_sample_manifest_record() {
-  local records_path="$1"
-  local wanted_path="$2"
-  local record_path
-  local record_size
-  local record_hash
-
-  while IFS=$'\t' read -r record_path record_size record_hash; do
-    [[ "$record_path" == "$wanted_path" ]] || continue
-    printf '%s\t%s\t%s\n' "$record_path" "$record_size" "$record_hash"
-    return 0
-  done < "$records_path"
-  return 1
-}
-
-octessera_sample_path_list_contains() {
-  local list_path="$1"
-  local wanted_path="$2"
-  local listed_path
-
-  while IFS= read -r listed_path; do
-    [[ "$listed_path" == "$wanted_path" ]] && return 0
-  done < "$list_path"
-  return 1
-}
-
 octessera_collect_sample_inventory() {
   local target="$1"
   local sample_root="$2"
@@ -230,110 +204,33 @@ octessera_collect_sample_inventory() {
 
 octessera_validate_sample_tree() {
   local target_path="$1"
-  local manifest_content="$2"
-  local inspect_work_path="$3"
+  local inspect_work_path="$2"
   local sample_root=var/lib/octessera/samples
-  local records_path="$inspect_work_path/sample-manifest.records"
-  local directories_path="$inspect_work_path/sample-manifest.directories"
   local inventory_path="$inspect_work_path/sample-inventory"
-  local seen_path="$inspect_work_path/sample-seen"
-  local manifest_line=0
   local sample_count=0
-  local sample_path
-  local sample_size
-  local sample_hash
-  local component
-  local current_directory
-  local record
-  local record_size
-  local full_path
-  local position
   local entry_type
   local entry_path
   local entry_size
-  local -a components
-
-  : > "$records_path"
-  : > "$directories_path"
-  : > "$seen_path"
-  while IFS=$'\t' read -r sample_path sample_size sample_hash; do
-    manifest_line=$((manifest_line + 1))
-    if [[ "$manifest_line" == 1 ]]; then
-      [[ "$sample_path" == '# path' && "$sample_size" == size && "$sample_hash" == sha256 ]] || {
-        echo 'Invalid packaged sample manifest header.' >&2
-        return 1
-      }
-      continue
-    fi
-    [[ -n "$sample_path" ]] || {
-      echo 'Invalid packaged sample manifest row.' >&2
-      return 1
-    }
-    octessera_sample_relative_path_is_safe "$sample_path" || {
-      echo "Unsafe packaged sample path: $sample_path." >&2
-      return 1
-    }
-    [[ "$sample_size" =~ ^(0|[1-9][0-9]*)$ ]] || {
-      echo "Invalid packaged sample size: $sample_path." >&2
-      return 1
-    }
-    [[ "$sample_hash" =~ ^[a-fA-F0-9]{64}$ ]] || {
-      echo "Invalid packaged sample hash: $sample_path." >&2
-      return 1
-    }
-    if octessera_sample_manifest_record "$records_path" "$sample_path" >/dev/null; then
-      echo "Duplicate packaged sample: $sample_path." >&2
-      return 1
-    fi
-    printf '%s\t%s\t%s\n' "$sample_path" "$sample_size" "$sample_hash" >> "$records_path"
-    sample_count=$((sample_count + 1))
-    IFS='/' read -r -a components <<< "$sample_path"
-    current_directory=''
-    for ((position = 0; position < ${#components[@]} - 1; position++)); do
-      component="${components[position]}"
-      current_directory="${current_directory:+$current_directory/}$component"
-      if ! octessera_sample_path_list_contains "$directories_path" "$current_directory"; then
-        printf '%s\n' "$current_directory" >> "$directories_path"
-      fi
-    done
-  done <<< "$manifest_content"
-  [[ "$manifest_line" -gt 1 && "$sample_count" == 320 ]] || {
-    echo 'Packaged sample manifest does not contain the complete inventory.' >&2
-    return 1
-  }
 
   octessera_collect_sample_inventory "$target_path" "$sample_root" "$inventory_path" || {
     echo 'Unable to enumerate packaged sample files.' >&2
     return 1
   }
-  while IFS= read -r current_directory; do
-    require_root_mode "$sample_root/$current_directory" 755 || {
-      echo "Unsafe packaged sample directory: $current_directory." >&2
-      return 1
-    }
-  done < "$directories_path"
   while IFS=$'\t' read -r entry_type entry_path entry_size; do
     case "$entry_type" in
       d)
-        octessera_sample_path_list_contains "$directories_path" "$entry_path" || {
-          echo "Unexpected packaged sample directory: $entry_path." >&2
+        require_root_mode "$sample_root/$entry_path" 755 || {
+          echo "Unsafe packaged sample directory: $entry_path." >&2
           return 1
         }
         ;;
       f)
-        if record="$(octessera_sample_manifest_record "$records_path" "$entry_path")"; then
-          :
-        else
+        [[ "${entry_path,,}" == *.wav ]] || {
           echo "Unexpected packaged sample file: $entry_path." >&2
           return 1
-        fi
-        record_size="${record#*$'\t'}"
-        record_size="${record_size%%$'\t'*}"
-        [[ "$entry_size" == "$record_size" ]] || {
-          echo "Packaged sample size mismatch: $entry_path." >&2
-          return 1
         }
-        printf '%s\n' "$entry_path" >> "$seen_path"
+        require_root_mode "$sample_root/$entry_path" 644 || return 1
+        sample_count=$((sample_count + 1))
         ;;
       *)
         echo "Unsafe packaged sample entry: $entry_path." >&2
@@ -341,23 +238,10 @@ octessera_validate_sample_tree() {
         ;;
     esac
   done < "$inventory_path"
-
-  while IFS=$'\t' read -r sample_path sample_size sample_hash; do
-    octessera_sample_path_list_contains "$seen_path" "$sample_path" || {
-      echo "Missing packaged sample: $sample_path." >&2
-      return 1
-    }
-    full_path="$sample_root/$sample_path"
-    octessera_stat_path "$target_path" "$full_path" || {
-      echo "Unable to inspect packaged sample: $sample_path." >&2
-      return 1
-    }
-    require_root_mode "$full_path" 644 || return 1
-    [[ "$(hash_path "$full_path")" == "$sample_hash" ]] || {
-      echo "Packaged sample hash mismatch: $sample_path." >&2
-      return 1
-    }
-  done < "$records_path"
+  [[ "$sample_count" -gt 0 ]] || {
+    echo 'Packaged sample library is empty.' >&2
+    return 1
+  }
 }
 
 octessera_debugfs_is_exact_not_found() {

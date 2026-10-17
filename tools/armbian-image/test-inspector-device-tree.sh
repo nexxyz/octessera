@@ -12,16 +12,8 @@ require_root_mode() {
   [[ "$(stat -c '%a' "$target/$path")" == "$mode" ]] || return 1
   [[ "$(id -u)" != 0 || "$(stat -c '%u:%g' "$target/$path")" == 0:0 ]]
 }
-hash_path() { sha256sum "$target/$1" | awk '{ print $1 }'; }
-sample_path='Drum/hihat open/165028__rodrigo-the-mad__mini-909ish-open-hat.wav'
-kick_path='Drum/kick/Kick2.wav'
 sample_stage="$work/sample-stage"
-python3 "$root/tools/samples/sample_library.py" --repository-root "$root" --media-destination "$sample_stage/samples/files" --metadata-destination "$sample_stage/samples" --manifest-destination "$sample_stage/samples/MANIFEST.tsv"
-sample_size="$(awk -F $'\t' -v path="$sample_path" '$1 == path { print $2; exit }' "$sample_stage/samples/MANIFEST.tsv")"
-sample_hash="$(awk -F $'\t' -v path="$sample_path" '$1 == path { print $3; exit }' "$sample_stage/samples/MANIFEST.tsv")"
-kick_size="$(awk -F $'\t' -v path="$kick_path" '$1 == path { print $2; exit }' "$sample_stage/samples/MANIFEST.tsv")"
-kick_hash="$(awk -F $'\t' -v path="$kick_path" '$1 == path { print $3; exit }' "$sample_stage/samples/MANIFEST.tsv")"
-sample_manifest="$(cat "$sample_stage/samples/MANIFEST.tsv")"
+python3 "$root/tools/samples/sample_library.py" --repository-root "$root" --media-destination "$sample_stage/samples/files" --metadata-destination "$sample_stage/samples"
 make_sample_fixture() {
   local fixture="$1"
   mkdir -p "$fixture/usr/share/octessera/samples" "$fixture/var/lib/octessera/samples"
@@ -31,23 +23,19 @@ make_sample_fixture() {
   if [[ "$(id -u)" == 0 ]]; then chown -R root:root "$fixture/var/lib/octessera/samples"; chown 990:990 "$fixture/var/lib/octessera/samples"; [[ "$(stat -c '%u:%g:%a' "$fixture/var/lib/octessera/samples")" == '990:990:755' ]]; fi
 }
 validate_sample_fixture() {
-  local fixture="$1" manifest="$2"
+  local fixture="$1"
   target="$fixture"
-  mkdir -p "$work/sample-inspect-$3"
-  octessera_validate_sample_tree "$fixture" "$manifest" "$work/sample-inspect-$3"
+  mkdir -p "$work/sample-inspect-$2"
+  octessera_validate_sample_tree "$fixture" "$work/sample-inspect-$2"
 }
 valid_samples="$work/valid-samples"
 make_sample_fixture "$valid_samples"
-validate_sample_fixture "$valid_samples" "$sample_manifest" valid
-duplicate_manifest="$sample_manifest"$'\n'"$sample_path"$'\t'"$sample_size"$'\t'"$sample_hash"
-if validate_sample_fixture "$valid_samples" "$duplicate_manifest" duplicate; then echo 'Duplicate packaged sample path was accepted.' >&2; exit 1; fi
-extra_samples="$work/extra-samples"; cp -a "$valid_samples" "$extra_samples"; printf '%s' extra > "$extra_samples/var/lib/octessera/samples/Kick2.wav"; if validate_sample_fixture "$extra_samples" "$sample_manifest" extra; then echo 'Extra packaged sample file was accepted.' >&2; exit 1; fi
-symlink_samples="$work/symlink-samples"; cp -a "$valid_samples" "$symlink_samples"; ln -s 165028__rodrigo-the-mad__mini-909ish-open-hat.wav "$symlink_samples/var/lib/octessera/samples/Drum/hihat open/extra-link.wav"; if validate_sample_fixture "$symlink_samples" "$sample_manifest" symlink; then echo 'Packaged sample symlink was accepted.' >&2; exit 1; fi
-special_samples="$work/special-samples"; cp -a "$valid_samples" "$special_samples"; mkfifo "$special_samples/var/lib/octessera/samples/extra.fifo"; if validate_sample_fixture "$special_samples" "$sample_manifest" special; then echo 'Packaged sample special entry was accepted.' >&2; exit 1; fi
-size_mismatch_samples="$work/size-mismatch-samples"; cp -a "$valid_samples" "$size_mismatch_samples"
-size_mismatch_manifest="$(printf '%s\n%s\t%s\t%s\n%s\t%s\t%s\n' '# path\tsize\tsha256' "$sample_path" "$((sample_size + 1))" "$sample_hash" "$kick_path" "$kick_size" "$kick_hash")"
-if validate_sample_fixture "$size_mismatch_samples" "$size_mismatch_manifest" size; then echo 'Packaged sample size mismatch was accepted.' >&2; exit 1; fi
-wrong_directory="$work/wrong-directory"; cp -a "$valid_samples" "$wrong_directory"; chmod 0700 "$wrong_directory/var/lib/octessera/samples/Drum"; if [[ "$(id -u)" == 0 ]]; then chown nobody:nogroup "$wrong_directory/var/lib/octessera/samples/Drum" 2>/dev/null || chown 65534:65534 "$wrong_directory/var/lib/octessera/samples/Drum"; fi; if validate_sample_fixture "$wrong_directory" "$sample_manifest" wrong-directory; then echo 'Wrong packaged sample directory owner/mode was accepted.' >&2; exit 1; fi
+validate_sample_fixture "$valid_samples" valid
+empty_samples="$work/empty-samples"; mkdir -p "$empty_samples/var/lib/octessera/samples"; chmod 0755 "$empty_samples/var/lib/octessera/samples"; if validate_sample_fixture "$empty_samples" empty; then echo 'Empty packaged sample library was accepted.' >&2; exit 1; fi
+other_samples="$work/other-samples"; cp -a "$valid_samples" "$other_samples"; printf '%s' notes > "$other_samples/var/lib/octessera/samples/notes.txt"; chmod 0644 "$other_samples/var/lib/octessera/samples/notes.txt"; if validate_sample_fixture "$other_samples" other; then echo 'Non-WAV packaged sample file was accepted.' >&2; exit 1; fi
+symlink_samples="$work/symlink-samples"; cp -a "$valid_samples" "$symlink_samples"; ln -s 165028__rodrigo-the-mad__mini-909ish-open-hat.wav "$symlink_samples/var/lib/octessera/samples/Drum/hihat open/extra-link.wav"; if validate_sample_fixture "$symlink_samples" symlink; then echo 'Packaged sample symlink was accepted.' >&2; exit 1; fi
+special_samples="$work/special-samples"; cp -a "$valid_samples" "$special_samples"; mkfifo "$special_samples/var/lib/octessera/samples/extra.fifo"; if validate_sample_fixture "$special_samples" special; then echo 'Packaged sample special entry was accepted.' >&2; exit 1; fi
+wrong_directory="$work/wrong-directory"; cp -a "$valid_samples" "$wrong_directory"; chmod 0700 "$wrong_directory/var/lib/octessera/samples/Drum"; if [[ "$(id -u)" == 0 ]]; then chown nobody:nogroup "$wrong_directory/var/lib/octessera/samples/Drum" 2>/dev/null || chown 65534:65534 "$wrong_directory/var/lib/octessera/samples/Drum"; fi; if validate_sample_fixture "$wrong_directory" wrong-directory; then echo 'Wrong packaged sample directory owner/mode was accepted.' >&2; exit 1; fi
 export DEBUGFS_CASE=sample-ext4
 ext4_inventory="$work/ext4-inventory"
 octessera_collect_sample_inventory "$fake_image" var/lib/octessera/samples "$ext4_inventory"

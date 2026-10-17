@@ -145,8 +145,7 @@ case "$octessera_hash" in
 esac
 profile_metadata="$(read_file etc/octessera/build-metadata.env)"
 default_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_PI_DEFAULT_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"
-samples_manifest_hash="$(printf '%s\n' "$profile_metadata" | sed -n 's/^OCTESSERA_SAMPLES_MANIFEST_SHA256=\([a-fA-F0-9]\{64\}\)$/\1/p')"
-[[ -n "$default_hash" && -n "$samples_manifest_hash" ]] || { echo 'Armbian image is missing musical asset hashes.' >&2; exit 1; }
+[[ -n "$default_hash" ]] || { echo 'Armbian image is missing the Pi default hash.' >&2; exit 1; }
 printf '%s\n' "$profile_metadata" | grep -q '^OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w$' || { echo 'Armbian image must be labeled orange-pi-zero-2w.' >&2; exit 1; }
 
 validate_save_document() {
@@ -199,12 +198,11 @@ for path in \
   etc/systemd/system/octessera-provision-musical-default.service usr/share/octessera/oled/octessera-pi-booting.rgb565 \
   usr/share/octessera/oled/octessera-pi-shutdown.rgb565 usr/share/octessera/defaults/pi-default.json \
   usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json \
-  usr/share/octessera/samples/MANIFEST.tsv usr/share/octessera/samples/SOURCE.md \
   usr/share/octessera/samples/upstream/LICENSE; do
   stat_path "$path" || { echo "Missing Orange OS parity path: $path." >&2; exit 1; }
 done
 for path in usr/local/sbin/octessera-orange-usb-gadget usr/local/sbin/octessera-device-apply-reboot usr/local/sbin/octessera-orange-oled-logo usr/local/sbin/octessera-orange-oled-suspend usr/local/sbin/octessera-provision-musical-default; do require_root_mode "$path" 755; done
-for path in usr/local/lib/octessera/device_config.py usr/local/sbin/octessera-orange-oled-handoff.py usr/local/sbin/octessera-orange-oled-lifecycle.py etc/modules-load.d/octessera-orange-midi.conf etc/modules-load.d/octessera-orange-usb-gadget.conf etc/systemd/system/octessera-orange-usb-gadget.service etc/systemd/system/octessera-device-apply-reboot.socket etc/systemd/system/octessera-device-apply-reboot@.service etc/systemd/system/octessera-orange-boot-splash.service etc/systemd/system/octessera-orange-oled-shutdown.service etc/systemd/system/octessera-orange-oled-suspend.service etc/systemd/system/octessera-provision-musical-default.service usr/share/octessera/defaults/pi-default.json usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/MANIFEST.tsv usr/share/octessera/samples/SOURCE.md usr/share/octessera/samples/upstream/LICENSE; do require_root_mode "$path" 644; done
+for path in usr/local/lib/octessera/device_config.py usr/local/sbin/octessera-orange-oled-handoff.py usr/local/sbin/octessera-orange-oled-lifecycle.py etc/modules-load.d/octessera-orange-midi.conf etc/modules-load.d/octessera-orange-usb-gadget.conf etc/systemd/system/octessera-orange-usb-gadget.service etc/systemd/system/octessera-device-apply-reboot.socket etc/systemd/system/octessera-device-apply-reboot@.service etc/systemd/system/octessera-orange-boot-splash.service etc/systemd/system/octessera-orange-oled-shutdown.service etc/systemd/system/octessera-orange-oled-suspend.service etc/systemd/system/octessera-provision-musical-default.service usr/share/octessera/defaults/pi-default.json usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/upstream/LICENSE; do require_root_mode "$path" 644; done
 require_root_mode usr/local/sbin/octessera-sd-card 755
 for path in usr/local/lib/octessera/octessera-sd-card-lib.sh etc/systemd/system/octessera-orange-sd-card.service etc/udev/rules.d/99-octessera-orange-sd-card.rules; do require_root_mode "$path" 644; done
 octessera_require_image_symlink etc/systemd/system/sockets.target.wants/octessera-device-apply-reboot.socket ../octessera-device-apply-reboot.socket /etc/systemd/system/octessera-device-apply-reboot.socket
@@ -215,13 +213,12 @@ octessera_require_image_symlink etc/systemd/system/multi-user.target.wants/octes
 reject_path etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service
 reject_path lib/systemd/system-sleep/octessera-orange-oled
 reject_path usr/lib/systemd/system-sleep/octessera-orange-oled
-for path in usr/share/octessera/defaults/pi-default.json usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/MANIFEST.tsv usr/share/octessera/samples/SOURCE.md usr/share/octessera/samples/upstream/LICENSE; do require_root_mode "$path" 644; done
+for path in usr/share/octessera/defaults/pi-default.json usr/share/octessera/defaults/pi-system.json usr/share/octessera/defaults/pi-default.patch.json usr/share/octessera/samples/upstream/LICENSE; do require_root_mode "$path" 644; done
 reject_path usr/share/octessera/samples/files
 [[ "$(hash_path usr/share/octessera/defaults/pi-default.json)" == "$default_hash" ]] || { echo 'Pi default hash mismatch.' >&2; exit 1; }
-[[ "$(hash_path usr/share/octessera/samples/MANIFEST.tsv)" == "$samples_manifest_hash" ]] || { echo 'Sample manifest hash mismatch.' >&2; exit 1; }
 validate_save_document usr/share/octessera/defaults/pi-system.json octessera.system 1 || { echo 'Orange image System default is invalid.' >&2; exit 1; }
 validate_save_document usr/share/octessera/defaults/pi-default.patch.json octessera.patch 2 || { echo 'Orange image Patch default is invalid.' >&2; exit 1; }
-octessera_validate_sample_tree "$target" "$(read_file usr/share/octessera/samples/MANIFEST.tsv)" "$inspect_work"
+octessera_validate_sample_tree "$target" "$inspect_work"
 
 sd_helper="$(read_file usr/local/sbin/octessera-sd-card)"
 sd_library="$(read_file usr/local/lib/octessera/octessera-sd-card-lib.sh)"

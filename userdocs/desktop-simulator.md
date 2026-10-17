@@ -23,8 +23,8 @@ and learn the controls.
    stereo field. Use **Back** or the normal navigation controls to leave it.
 
 Start with a **synth** for the simplest first sound. A sampler is also
-available with the default library's 318 WAV files; two AIFF files sit outside
-the WAV-only browser. You can add your own samples through the sample browser.
+available with the default sample library. You can add your own samples
+through the sample browser.
 
 The simulator's keyboard and UI controls mirror the hardware. The
 [controls cheat sheet](controls-cheat-sheet.md) has the complete map, and

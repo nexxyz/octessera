@@ -13,12 +13,6 @@ fn sample_path_payload(path: &str) -> Value {
     payload
 }
 
-fn transitioned_sample_path_payload(path: &str, instrument_type: &str) -> Value {
-    let mut payload = sample_path_payload(path);
-    payload["runtimeConfig"]["instruments"][1]["type"] = json!(instrument_type);
-    payload
-}
-
 #[test]
 pub(crate) fn partial_sampler_assignments_use_explicit_portable_schema() {
     let patch = json!({
@@ -60,19 +54,29 @@ pub(crate) fn partial_sampler_assignments_use_explicit_portable_schema() {
 }
 
 #[test]
-pub(crate) fn portable_sample_ids_are_manifest_wavs_and_invalid_ids_are_rejected() {
-    let valid = sample_path_payload("samples/Drum/kick/Kick2.wav");
-    assert!(portable_patch_bytes(&valid).is_ok());
-
-    for invalid in [
+pub(crate) fn portable_patches_accept_safe_relative_sample_paths() {
+    for valid in [
+        "samples/Drum/kick/Kick2.wav",
+        "samples/Drum/kick/not-on-this-device.wav",
         "userdata/User Kit/custom.wav",
         "sd-card/octessera/samples/kick.wav",
         "Drums/kick.wav",
+    ] {
+        let payload = sample_path_payload(valid);
+        assert!(portable_patch_bytes(&payload).is_ok(), "{valid}");
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner.apply_config_payload(payload).unwrap();
+        runner.platform_effect_for_action("preset.saveAs").unwrap();
+    }
+}
+
+#[test]
+pub(crate) fn portable_patches_reject_unsafe_sample_paths() {
+    for invalid in [
         r"samples\Drum\kick\Kick2.wav",
         "/samples/Drum/kick/Kick2.wav",
         "C:/samples/Drum/kick/Kick2.wav",
         "samples/../Drum/kick/Kick2.wav",
-        "samples/Drum/kick/not-in-manifest.wav",
         "samples/Drum/kick/not-audio.mp3",
     ] {
         let payload = sample_path_payload(invalid);
@@ -94,54 +98,6 @@ pub(crate) fn portable_sample_ids_are_manifest_wavs_and_invalid_ids_are_rejected
         assert!(
             error.contains("$.runtimeConfig.instruments[1].sample.slots[0].path"),
             "{invalid}: {error}"
-        );
-
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.apply_config_payload(payload).unwrap();
-        let error = runner
-            .platform_effect_for_action("preset.saveAs")
-            .unwrap_err();
-        assert!(
-            error.contains("$.runtimeConfig.instruments[1].sample.slots[0].path"),
-            "{invalid}: {error}"
-        );
-    }
-}
-
-#[test]
-pub(crate) fn retained_sample_paths_are_rejected_for_non_sampler_portable_saves() {
-    for instrument_type in ["synth", "midi", "none"] {
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner
-            .apply_config_payload(transitioned_sample_path_payload(
-                "userdata/User Kit/custom.wav",
-                instrument_type,
-            ))
-            .unwrap();
-        let error = runner
-            .platform_effect_for_action("preset.saveAs")
-            .unwrap_err();
-        assert!(
-            error.contains("$.runtimeConfig.instruments[1].sample.slots[0].path"),
-            "{instrument_type}: {error}"
-        );
-    }
-}
-
-#[test]
-pub(crate) fn retained_sample_paths_are_rejected_for_non_sampler_v2_loads() {
-    for instrument_type in ["synth", "midi", "none"] {
-        let payload =
-            transitioned_sample_path_payload("userdata/User Kit/custom.wav", instrument_type);
-        let patch = portable_patch_projection(&payload).unwrap();
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.apply_config_payload(generated_pi_default()).unwrap();
-        let error = runner
-            .apply_patch_payload_preserving_device(patch)
-            .unwrap_err();
-        assert!(
-            error.contains("$.runtimeConfig.instruments[1].sample.slots[0].path"),
-            "{instrument_type}: {error}"
         );
     }
 }
@@ -191,23 +147,4 @@ pub(crate) fn full_config_saves_preserve_local_and_sd_sample_paths() {
             .expect("backup save effect");
         assert_saved_path(&backup);
     }
-}
-
-#[test]
-pub(crate) fn rejected_preset_sample_path_is_presented_as_a_toast() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner
-        .apply_config_payload(sample_path_payload("userdata/User Kit/custom.wav"))
-        .unwrap();
-
-    let result = runner
-        .execute_confirmed_action(NativeMenuAction::PlatformEffect("preset.saveAs".into()))
-        .unwrap();
-
-    assert!(result.is_none());
-    assert!(runner
-        .display
-        .toast
-        .as_ref()
-        .is_some_and(|toast| toast.message.contains("Preset save rejected")));
 }

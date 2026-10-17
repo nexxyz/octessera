@@ -30,7 +30,7 @@ try {
   $parent = Join-Path $sandbox "study-stores"
   $samples = Join-Path $sandbox "samples"
   New-Item -ItemType Directory -Path $source, $parent, $samples | Out-Null
-  $manifest = Join-Path $samples "MANIFEST.tsv"
+  $manifest = Join-Path $samples "sentinel.wav"
   [IO.File]::WriteAllText($manifest, "library/kick.wav`tsha256`n")
   $unit = "octessera-study-$([guid]::NewGuid().ToString('N')).service"
   $clone = Join-Path $parent $unit
@@ -61,7 +61,7 @@ try {
   $cloned = [IO.File]::ReadAllText((Join-Path $clone "default.json")) | ConvertFrom-Json
   if (($expected | ConvertTo-Json -Depth 20 -Compress) -cne ($cloned | ConvertTo-Json -Depth 20 -Compress)) { throw "AWAKE clone changed fields beyond the two timers." }
   if ([Convert]::ToBase64String($recoveryOriginal) -cne [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $clone "recovery-save.json")))) { throw "Recovery copy is not byte-identical." }
-  if ([IO.File]::ReadAllText($manifest) -cne "library/kick.wav`tsha256`n") { throw "Sample manifest changed." }
+  if ([IO.File]::ReadAllText($manifest) -cne "library/kick.wav`tsha256`n") { throw "Sample library changed." }
   Invoke-StorePython $wslPython "verify" $wslSource $wslClone $wslRecord | Out-Null
   [IO.File]::WriteAllText($default, "{}")
   $ErrorActionPreference = "Continue"

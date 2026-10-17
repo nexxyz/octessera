@@ -389,51 +389,34 @@ mod tests {
     }
 
     #[test]
-    fn default_library_wav_rows_decode_and_aiff_rows_remain_metadata_only() {
+    fn every_library_wav_decodes() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../samples")
             .canonicalize()
             .expect("repository sample root");
-        let mut playable_wav_count = 0;
-        let mut metadata_only_count = 0;
-        let mut metadata_only_paths = Vec::new();
-
-        for line in include_str!("../../../samples/MANIFEST.tsv")
-            .lines()
-            .skip(1)
-        {
-            let relative = line.split('\t').next().expect("inventory path");
-            let path = root.join(relative);
-            let canonical = path.canonicalize().expect("inventory sample path");
-            assert!(canonical.starts_with(&root));
-            assert!(canonical.is_file());
-            if relative.to_ascii_lowercase().ends_with(".wav") {
-                playable_wav_count += 1;
-                let buffer = decode_sample_file(&canonical).unwrap_or_else(|| {
-                    panic!("playable inventory WAV does not decode: {relative}")
-                });
-                assert!(buffer.channels > 0);
-                assert!(buffer.sample_rate > 0);
-                assert!(!buffer.samples.is_empty());
-                assert_eq!(buffer.samples.len() % usize::from(buffer.channels), 0);
-                assert!(buffer.samples.iter().all(|sample| sample.is_finite()));
-                assert!(buffer.samples.len() / usize::from(buffer.channels) > 0);
-            } else {
-                metadata_only_count += 1;
-                metadata_only_paths.push(relative);
-                assert!(relative.to_ascii_lowercase().ends_with(".aiff"));
-                assert!(decode_sample_file(&canonical).is_none());
+        let mut directories = vec![root];
+        let mut decoded = 0;
+        while let Some(directory) = directories.pop() {
+            for entry in std::fs::read_dir(directory).expect("sample directory") {
+                let path = entry.expect("sample entry").path();
+                if path.is_dir() {
+                    directories.push(path);
+                } else if path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("wav"))
+                {
+                    let buffer = decode_sample_file(&path).unwrap_or_else(|| {
+                        panic!("library WAV does not decode: {}", path.display())
+                    });
+                    assert!(buffer.channels > 0);
+                    assert!(buffer.sample_rate > 0);
+                    assert!(!buffer.samples.is_empty());
+                    assert_eq!(buffer.samples.len() % usize::from(buffer.channels), 0);
+                    assert!(buffer.samples.iter().all(|sample| sample.is_finite()));
+                    decoded += 1;
+                }
             }
         }
-
-        assert_eq!(playable_wav_count, 318);
-        assert_eq!(metadata_only_count, 2);
-        assert_eq!(
-            metadata_only_paths,
-            vec![
-                "Drum/hihat closed/132415__sajmund__hi-hat-hit.aiff",
-                "Drum/rimshot/132418__sajmund__rimshot-sweet.aiff",
-            ]
-        );
+        assert!(decoded > 0);
     }
 }

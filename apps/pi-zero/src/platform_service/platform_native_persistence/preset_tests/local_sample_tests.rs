@@ -1,8 +1,8 @@
 use super::*;
 
 #[test]
-fn named_preset_save_and_load_reject_local_sample_paths() {
-    let (service, root) = service_and_root("local-sample-rejected");
+fn named_preset_save_and_load_keep_user_sample_paths() {
+    let (service, root) = service_and_root("local-sample-kept");
     let store = root.join("store");
     let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -23,12 +23,6 @@ fn named_preset_save_and_load_reject_local_sample_paths() {
             },
         })
         .unwrap();
-    let portable_patch = NativeRunner::new(NativeRunnerConfig::default())
-        .unwrap()
-        .capture_config_snapshot()
-        .into_portable_patch_payload()
-        .unwrap();
-    let prior_bytes = write_patch(&store, "Local", &portable_patch);
     let request = enqueue_preset(
         &service,
         &mut playback,
@@ -45,22 +39,14 @@ fn named_preset_save_and_load_reject_local_sample_paths() {
         HostMessage::RuntimeResult {
             result: playback_runtime::RuntimeStoreResult::Identified { request_id, result, .. }
         } if request_id == request.request_id()
-            && matches!(result.as_ref(), playback_runtime::RuntimeStoreResult::RuntimeFailure { .. })
+            && !matches!(result.as_ref(), playback_runtime::RuntimeStoreResult::RuntimeFailure { .. })
     ));
+    let saved: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(store.join("patches/Local.json")).unwrap()).unwrap();
     assert_eq!(
-        std::fs::read(store.join("patches/Local.json")).unwrap(),
-        prior_bytes
-    );
-
-    let local_patch = runner
-        .capture_config_snapshot()
-        .into_local_patch_payload()
-        .unwrap();
-    assert_eq!(
-        local_patch["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"],
+        saved["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"],
         "userdata/User Kit/custom.wav"
     );
-    write_patch(&store, "Local", &local_patch);
-    assert!(service.load_preset_now("Local").is_err());
+    service.load_preset_now("Local").unwrap();
     cleanup(root);
 }

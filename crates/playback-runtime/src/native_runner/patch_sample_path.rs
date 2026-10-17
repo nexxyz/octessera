@@ -1,6 +1,6 @@
 use super::Value;
 
-pub(super) fn validate_local_patch_sample_paths(payload: &Value) -> Result<(), String> {
+pub(super) fn validate_patch_sample_paths(payload: &Value) -> Result<(), String> {
     let Some(instruments) = payload
         .get("runtimeConfig")
         .and_then(|runtime| runtime.get("instruments"))
@@ -29,7 +29,7 @@ pub(super) fn validate_local_patch_sample_paths(payload: &Value) -> Result<(), S
             let path_value = value
                 .as_str()
                 .ok_or_else(|| format!("{path} must be a safe relative WAV path"))?;
-            if !is_safe_local_wav_path(path_value) {
+            if !is_safe_wav_path(path_value) {
                 return Err(format!("{path} must be a safe relative WAV path"));
             }
         }
@@ -37,7 +37,7 @@ pub(super) fn validate_local_patch_sample_paths(payload: &Value) -> Result<(), S
     Ok(())
 }
 
-fn is_safe_local_wav_path(path: &str) -> bool {
+fn is_safe_wav_path(path: &str) -> bool {
     !path.is_empty()
         && !path.contains('\\')
         && !path.contains(':')

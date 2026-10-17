@@ -48,7 +48,7 @@ fn collect_sample_files(
             .to_str()
             .ok_or_else(|| "sample file name is not valid UTF-8".to_string())?
             .replace('\\', "/");
-        if is_packaged_sample(&relative) {
+        if crate::sample_browser::is_factory_library_path(&relative, false) {
             continue;
         }
         if relative.contains('/') {
@@ -139,14 +139,6 @@ fn media_reference_for_file(
         size,
         sha256,
     })
-}
-
-pub(crate) fn is_packaged_sample(name: &str) -> bool {
-    include_str!("../../../../samples/MANIFEST.tsv")
-        .lines()
-        .skip(1)
-        .filter_map(|line| line.split('\t').next())
-        .any(|path| path == name)
 }
 
 pub(super) fn kind_name(kind: &UserDataMediaKind) -> &'static str {

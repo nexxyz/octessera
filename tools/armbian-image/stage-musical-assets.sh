@@ -15,7 +15,6 @@ patch_source="$projection/default.patch.json"
 default_output="$staging/defaults/pi-default.json"
 system_output="$staging/defaults/pi-system.json"
 patch_output="$staging/defaults/pi-default.patch.json"
-manifest_output="$staging/samples/MANIFEST.tsv"
 sample_output_root="$staging/samples/files"
 rm -f -- "$default_output" "$system_output" "$patch_output"
 rm -rf -- "$staging/samples"
@@ -26,6 +25,5 @@ install -m 0644 "$patch_source" "$patch_output"
 python3 "$root/tools/samples/sample_library.py" \
   --repository-root "$root" \
   --media-destination "$sample_output_root" \
-  --metadata-destination "$staging/samples" \
-  --manifest-destination "$manifest_output"
+  --metadata-destination "$staging/samples"
 printf 'Staged Pi build metadata input, System/Patch documents, and complete sample library under %s\n' "$staging"
