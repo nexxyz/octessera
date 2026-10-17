@@ -169,7 +169,7 @@ ensure_raspberry_uart_inactive() {
 }
 
 mask_background_maintenance_timers() {
-    for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer; do
+    for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer dpkg-db-backup.timer; do
         sudo systemctl mask --now "$unit" >/dev/null
         sudo systemctl reset-failed "$unit" >/dev/null 2>&1 || true
     done
@@ -185,7 +185,7 @@ hold_boot_chain_packages() {
 install_show_hold_conditions() {
     sudo install -d -m 0755 "$(target_path /var/lib/octessera/show-hold)"
     sudo chown "$pi_user:$pi_user" "$(target_path /var/lib/octessera/show-hold)"
-    for unit in fstrim logrotate dpkg-db-backup systemd-tmpfiles-clean octessera-network-health; do
+    for unit in fstrim logrotate systemd-tmpfiles-clean octessera-network-health; do
         sudo install -d "$(target_path "/etc/systemd/system/$unit.service.d")"
         sudo tee "$(target_path "/etc/systemd/system/$unit.service.d/50-octessera-show-hold.conf")" >/dev/null <<'EOF'
 [Service]

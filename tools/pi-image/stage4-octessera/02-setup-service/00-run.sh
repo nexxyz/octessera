@@ -335,13 +335,14 @@ install -d "$ROOTFS_DIR/etc/sysctl.d"
 printf '# Locked audio memory must not be moved by compaction: the callback would stall on it.\nvm.compact_unevictable_allowed = 0\n' > "$ROOTFS_DIR/etc/sysctl.d/60-octessera-audio.conf"
 # The daily apt and man-db jobs install nothing here, but their cache and index
 # rebuilds saturate the shared memory bus and make the audio callback underrun.
-for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer; do
+# The package-database backup only matters for hand-repaired packages.
+for unit in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer dpkg-db-backup.timer; do
     rm -f "$ROOTFS_DIR/etc/systemd/system/timers.target.wants/$unit"
     ln -sf /dev/null "$ROOTFS_DIR/etc/systemd/system/$unit"
 done
 # System > Setup > Show Hold postpones the remaining housekeeping during a show.
 install -d -m 0755 "$ROOTFS_DIR/var/lib/octessera/show-hold"
-for unit in fstrim logrotate dpkg-db-backup systemd-tmpfiles-clean octessera-network-health; do
+for unit in fstrim logrotate systemd-tmpfiles-clean octessera-network-health; do
     install -d "$ROOTFS_DIR/etc/systemd/system/$unit.service.d"
     cat > "$ROOTFS_DIR/etc/systemd/system/$unit.service.d/50-octessera-show-hold.conf" <<'EOF'
 [Service]

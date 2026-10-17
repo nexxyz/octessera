@@ -1,5 +1,5 @@
 //! System > Setup > Live Show Mode: records when postponable board maintenance may
-//! run again. The board images give fstrim, logrotate, dpkg-db-backup,
+//! run again. The board images give fstrim, logrotate,
 //! tmpfiles-clean (and the Raspberry network logger) an `ExecCondition` that
 //! skips them while this time is in the future.
 
