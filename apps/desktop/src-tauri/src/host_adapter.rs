@@ -242,9 +242,10 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     message: "USB SD2 transfer is Pi-only".into(),
                 },
             }]),
-            RuntimePlatformEffect::MaintenanceHold { .. } => Ok(vec![HostMessage::RuntimeResult {
+            RuntimePlatformEffect::MaintenanceHold { .. }
+            | RuntimePlatformEffect::WifiRadio { .. } => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::StoreError {
-                    message: "Live Show Mode is board-only".into(),
+                    message: "This setting is board-only".into(),
                 },
             }]),
             RuntimePlatformEffect::AudioCommand { command } => {

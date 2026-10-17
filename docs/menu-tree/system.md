@@ -88,6 +88,9 @@ System
 │   ├── Live Show Mode (group)           ← Raspberry and Orange
 │   │   ├── Start 48h: (action)          ← confirm, then Wi-Fi off and housekeeping postponed for 48 h
 │   │   └── End: (action)
+│   ├── Wi-Fi (group)                    ← Raspberry and Orange
+│   │   ├── Turn Off: (action)           ← confirm, then the radio stays off across reboots
+│   │   └── Turn On: (action)
 │   ├── Configure WiFi: (action)
 │   ├── Backup / Restore: (action)
 │   └── Hardware Test: (action)
@@ -135,7 +138,7 @@ Orange
   SD Card 2: Start Transfer; Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
   Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Configure WiFi; Backup / Restore; Hardware Test
+  Setup: Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Wi-Fi (Turn Off, Turn On); Configure WiFi; Backup / Restore; Hardware Test
 
 Raspberry Gadget
   MIDI: MIDI Active; USB Device (USB MIDI); Sync / Clock
@@ -143,7 +146,7 @@ Raspberry Gadget
   SD Card 2: Start Transfer; Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
   Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: USB Role; Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Configure WiFi; Backup / Restore; Hardware Test
+  Setup: USB Role; Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Wi-Fi (Turn Off, Turn On); Configure WiFi; Backup / Restore; Hardware Test
 
 Raspberry Host
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
@@ -151,7 +154,7 @@ Raspberry Host
   SD Card 2: Stop Transfer
   HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
   Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: USB Role; Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Configure WiFi; Backup / Restore; Hardware Test
+  Setup: USB Role; Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Wi-Fi (Turn Off, Turn On); Configure WiFi; Backup / Restore; Hardware Test
 ```
 
 `MIDI Active` is the global runtime MIDI gate and does not select a port or device. Desktop and Orange expose `MIDI Host`, whose children are `MIDI Out` followed by `MIDI In`. Raspberry exposes `MIDI Host` only in Host role and `USB Device` only in Gadget role; Orange exposes both. `USB Device` is the computer-facing gadget interface and contains `USB MIDI`, which automatically owns both Gadget MIDI directions while enabled. Host-selected input and output IDs are ignored during that time; Orange retains them for later use after USB Device MIDI is disabled.

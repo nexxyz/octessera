@@ -3,6 +3,7 @@ Description=octessera Show Hold watcher
 
 [Path]
 PathChanged=/var/lib/octessera/show-hold/until
+PathChanged=/var/lib/octessera/show-hold/wifi-off
 Unit=octessera-show-hold.service
 
 [Install]

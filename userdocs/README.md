@@ -95,8 +95,8 @@ instrument. They never installed anything here anyway, but on the Raspberry
 they made the audio stutter for a few seconds at a random time each day.
 
 A handful of useful housekeeping jobs still run on a timer: log rotation, SD
-card trim, temp-file cleanup, a package-database backup, and on the Raspberry
-a once-a-minute Wi-Fi health log. Each of them has been run during playback
+card trim, temp-file cleanup, and on the Raspberry a once-a-minute Wi-Fi health
+check. Each of them has been run during playback
 without disturbing the sound, but if you'd rather not find out the hard way,
 switch on **System > Setup > Live Show Mode > Start 48h** before a show. It
 asks first, because it also switches Wi-Fi off: no SSH, no updates and no Wi-Fi
@@ -107,6 +107,14 @@ next scheduled time afterwards, and Wi-Fi comes back by itself when the 48 hours
 are up. **End** switches the mode off early and brings Wi-Fi straight back. A couple of tiny
 chores always keep running because things break without them: saving the
 clock, and on the Orange trimming the in-memory logs.
+
+If you'd rather keep Wi-Fi off for good, use **System > Setup > Wi-Fi > Turn
+Off**. It asks first, then the radio stays off, through reboots too, until you
+choose **Turn On**. Your saved network stays put, so it reconnects straight
+away. It is a separate switch from Live Show Mode: a show still takes Wi-Fi
+down while it lasts if it is on, and ending a show never switches it back on
+if you turned it off. Opening the Wi-Fi setup portal turns it back on, since
+that is what you asked for.
 
 The Raspberry's four cores share one fairly slow memory bus, so anything
 heavy happening next to the music can still cause crackles even when it runs

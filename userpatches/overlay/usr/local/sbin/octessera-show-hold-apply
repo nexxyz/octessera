@@ -1,21 +1,30 @@
 #!/bin/sh
-# Live Show Mode: while it lasts, the Wi-Fi radio is off; at expiry or End it
-# comes back.
+# Live Show Mode and the Wi-Fi switch, applied as root. They are independent:
+# the show blocks the radio (rfkill) only while it lasts; the switch turns
+# NetworkManager's radio off until it is turned back on, so ending or timing
+# out a show never changes it.
 set -eu
 
-until_file=/var/lib/octessera/show-hold/until
+dir=/var/lib/octessera/show-hold
 release=octessera-show-hold-release
 
-until=$(cat "$until_file" 2>/dev/null || true)
+until=$(cat "$dir/until" 2>/dev/null || true)
 case "$until" in ""|*[!0-9]*) until=0 ;; esac
 now=$(date +%s)
 
+if [ -e "$dir/wifi-off" ]; then
+    nmcli radio wifi off
+else
+    nmcli radio wifi on
+fi
+
 systemctl stop "$release.timer" >/dev/null 2>&1 || true
 systemctl reset-failed "$release.service" >/dev/null 2>&1 || true
+show=0
 if [ "$until" -gt "$now" ] && [ "$until" -le $((now + 173100)) ]; then
+    show=1
     /usr/sbin/rfkill block wlan
-    systemd-run --quiet --unit="$release" --on-active=$((until - now)) \
-        --timer-property=AccuracySec=1s /usr/local/sbin/octessera-show-hold-apply
+    systemd-run --quiet --unit="$release" --on-active=$((until - now))         --timer-property=AccuracySec=1s /usr/local/sbin/octessera-show-hold-apply
 else
     /usr/sbin/rfkill unblock wlan
 fi

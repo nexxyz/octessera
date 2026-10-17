@@ -87,6 +87,22 @@ impl NativeRunner {
                     cancel_toast: Some("Cancelled".into()),
                     confirm_before_execute: false,
                 });
+            } else if action_type == "wifi.off" {
+                return Some(NativeConfirmDialog {
+                    title: "Turn Wi-Fi Off".into(),
+                    lines: vec![
+                        "Stays off, also".into(),
+                        "after a reboot:".into(),
+                        "no SSH, updates".into(),
+                        "or Wi-Fi setup.".into(),
+                        "Turn On restores it.".into(),
+                    ],
+                    options: vec!["Cancel".into(), "Turn Off".into()],
+                    cursor: 0,
+                    action: action.clone(),
+                    cancel_toast: Some("Cancelled".into()),
+                    confirm_before_execute: false,
+                });
             } else if action_type == "system.updateApply" {
                 ("Confirm Update", "Apply the update now?".into())
             } else if action_type == "system.rollback" {

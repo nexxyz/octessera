@@ -25,6 +25,7 @@ REQUEST_PATH = f"{INBOX_DIR}/start"
 STATUS_DIR = "/run/octessera-setup-status"
 STATUS_PATH = f"{STATUS_DIR}/current.json"
 INTERFACE = "wlan0"
+WIFI_OFF_FILE = "/var/lib/octessera/show-hold/wifi-off"
 PORTAL_WINDOW_SECONDS = 600
 INTERNAL_APPLY_SECONDS = 60
 
@@ -238,6 +239,10 @@ class Coordinator:
 
     def launch(self):
         self.portal_suffix = self.interface_suffix()
+        try:
+            os.remove(WIFI_OFF_FILE)
+        except FileNotFoundError:
+            pass
         if self.command(["nmcli", "radio", "wifi", "on"]).returncode != 0:
             raise SetupFailure("operation_failed")
         self.process = self.process_factory(

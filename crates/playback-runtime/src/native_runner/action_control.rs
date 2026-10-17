@@ -237,13 +237,8 @@ impl NativeRunner {
                     self.display.help_popup = None;
                     self.open_usb_sd_transfer_modal();
                     self.platform_effect_for_action(&action_type)
-                } else if action_type == "maintenance.hold" || action_type == "maintenance.release"
-                {
-                    self.show_toast(if action_type == "maintenance.hold" {
-                        "Live Show Mode: 48h"
-                    } else {
-                        "Live Show Mode off"
-                    });
+                } else if let Some(toast) = board_setup_toast(&action_type) {
+                    self.show_toast(toast);
                     self.platform_effect_for_action(&action_type)
                 } else if let Some(effect) = self.handle_sample_action(&action_type)? {
                     Ok(Some(effect))
@@ -425,5 +420,15 @@ impl NativeRunner {
 
     fn set_shift_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
         self.set_aux_click_binding(index, true, action);
+    }
+}
+
+fn board_setup_toast(action_type: &str) -> Option<&'static str> {
+    match action_type {
+        "maintenance.hold" => Some("Live Show Mode: 48h"),
+        "maintenance.release" => Some("Live Show Mode off"),
+        "wifi.off" => Some("Wi-Fi off"),
+        "wifi.on" => Some("Wi-Fi on"),
+        _ => None,
     }
 }

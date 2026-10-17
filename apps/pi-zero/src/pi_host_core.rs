@@ -271,6 +271,19 @@ impl PiHostCore {
                     revision: request.revision,
                 }
             }
+            RuntimePlatformEffect::WifiRadio { enabled } => {
+                if let Err(error) = crate::show_hold::set_wifi_enabled(*enabled) {
+                    return Some(vec![failure_message(
+                        request,
+                        format!("Wi-Fi switch unavailable: {error}"),
+                    )]);
+                }
+                RuntimeStoreResult::OperationSucceeded {
+                    operation: request.effect.operation(),
+                    request_id: Some(request.request_id.clone()),
+                    revision: request.revision,
+                }
+            }
             RuntimePlatformEffect::UsbSdTransferStop => {
                 return Some(enqueue_job(
                     &self.platform_service,

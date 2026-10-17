@@ -1,5 +1,5 @@
 [Unit]
-Description=octessera Live Show Mode apply
+Description=octessera Live Show Mode and Wi-Fi switch apply
 After=octessera-network-health.timer
 
 [Service]

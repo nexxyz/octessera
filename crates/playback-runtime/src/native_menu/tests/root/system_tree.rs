@@ -137,6 +137,7 @@ fn orange_system_tree_has_exact_order() {
         vec![
             "Updates",
             "Live Show Mode",
+            "Wi-Fi",
             "Configure WiFi",
             "Backup / Restore",
             "Hardware Test"
@@ -194,6 +195,7 @@ fn raspberry_gadget_system_tree_has_exact_order() {
             "USB Role",
             "Updates",
             "Live Show Mode",
+            "Wi-Fi",
             "Configure WiFi",
             "Backup / Restore",
             "Hardware Test",

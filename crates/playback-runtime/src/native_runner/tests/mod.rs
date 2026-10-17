@@ -144,6 +144,7 @@ mod ui_scenario;
 mod user_data_restore;
 mod user_data_restore_rehydration;
 mod user_data_transfer;
+mod wifi_switch;
 mod xy_smoothing;
 
 pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
