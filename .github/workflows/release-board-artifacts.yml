@@ -326,6 +326,7 @@ jobs:
           IMG_NAME=octessera-raspberry-pi-zero-2w
           RELEASE=bookworm
           TARGET_ARCH=arm64
+          TARGET_HOSTNAME=octessera-rpi
           STAGE_LIST="stage0 stage1 stage2 stage3-octessera-kernel stage4-octessera"
           OCTESSERA_RELEASE_VERSION=$OCTESSERA_RELEASE_VERSION
           OCTESSERA_RELEASE_TAG=$OCTESSERA_RELEASE_TAG

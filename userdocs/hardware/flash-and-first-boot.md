@@ -68,7 +68,8 @@ Then, on a phone or computer:
 4. Set the local device password. The portal names the account it is for:
    `pi` on the Raspberry Pi, `octessera` on the Orange Pi.
 5. Choose an SSH mode: key, password, or off.
-6. Enter an optional hostname.
+6. Enter an optional hostname. Leave it blank to keep the default:
+   `octessera-rpi` on the Raspberry Pi, `octessera-opi` on the Orange Pi.
 7. Press **Apply setup**.
 
 The browser may disconnect while the settings apply. That is expected. Trust

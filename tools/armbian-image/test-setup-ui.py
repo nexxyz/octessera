@@ -10,15 +10,19 @@ UI_ROOTS = (
     ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui",
 )
 UI_ACCOUNTS = ("octessera", "pi")
+UI_HOSTNAMES = ("octessera-opi", "octessera-rpi")
 EXPECTED_FILES = {"README.md", "index.html", "js/app.js", "css/styles.css", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
 UI_FILES = [{path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()} for root in UI_ROOTS]
 assert UI_FILES[0] == UI_FILES[1] == EXPECTED_FILES
 SHARED_UI_BYTES = {
     relative: [
-        (root / relative).read_bytes().replace(f"<code>{account}</code>".encode(), b"<code>ACCOUNT</code>")
+        (root / relative)
+        .read_bytes()
+        .replace(f"<code>{account}</code>".encode(), b"<code>ACCOUNT</code>")
+        .replace(hostname.encode(), b"HOSTNAME")
         if relative == "index.html"
         else (root / relative).read_bytes()
-        for root, account in zip(UI_ROOTS, UI_ACCOUNTS)
+        for root, account, hostname in zip(UI_ROOTS, UI_ACCOUNTS, UI_HOSTNAMES)
     ]
     for relative in sorted(EXPECTED_FILES)
 }
@@ -29,10 +33,11 @@ APP_BYTES = SHARED_UI_BYTES["js/app.js"]
 SHARED_IDS = set(re.findall(rb"getElementById\('([^']+)'\)", APP_BYTES[0]))
 
 
-for root, account in zip(UI_ROOTS, UI_ACCOUNTS):
+for root, account, hostname in zip(UI_ROOTS, UI_ACCOUNTS, UI_HOSTNAMES):
     app = (root / "js/app.js").read_text(encoding="utf-8")
     html = (root / "index.html").read_text(encoding="utf-8")
     assert f'<span id="localPasswordTitle">Local device password for user <code>{account}</code></span>' in html
+    assert f'placeholder="{hostname}"' in html and "octessera-device" not in html
     readme = (root / "README.md").read_text(encoding="utf-8")
     html_ids = set(re.findall(r'id="([^"]+)"', html))
     references = re.findall(r'(?:href|src)="(/[^"?#]+)', html)
@@ -63,7 +68,7 @@ for root, account in zip(UI_ROOTS, UI_ACCOUNTS):
     assert [value for value, _checked, _text in ssh_choices] == ["key", "password", "none"]
     assert 'value="key" checked />' in html
     assert 'value="password" />' in html and 'value="none" />' in html
-    assert [text for _value, _checked, text in ssh_choices] == ["SSH key", "SSH password", "No SSH setup"]
+    assert [text for _value, _checked, text in ssh_choices] == ["SSH key (recommended)", "SSH password", "No SSH setup"]
     assert '<label class="choice ssh-choice is-selected">' in html
     assert "data-ssh-mode" not in html
     assert html.count('id="accountPassword"') == 1

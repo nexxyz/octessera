@@ -18,7 +18,7 @@
         <h1 id="title">Wi-Fi &amp; access setup</h1>
         <p class="lede">Connect the instrument to Wi-Fi, choose how you’ll access it, and give it a name.</p>
         <div class="notice">
-          Until setup finishes, anyone nearby who joins this Wi-Fi can configure the device. Stay close to it. SSH keys are recommended.
+          Until setup finishes, anyone nearby who joins this Wi-Fi can configure the device. Stay close to it.
         </div>
       </section>
 
@@ -82,7 +82,7 @@
               <label class="choice ssh-choice is-selected">
                 <input class="network-radio" type="radio" name="sshMode" value="key" checked />
                 <span class="network-radio-mark" aria-hidden="true"></span>
-                <span class="network-copy">SSH key</span>
+                <span class="network-copy">SSH key (recommended)</span>
               </label>
               <label class="choice ssh-choice">
                 <input class="network-radio" type="radio" name="sshMode" value="password" />
@@ -110,7 +110,8 @@
 
           <label class="field">
             <span>Device name (optional)</span>
-            <input id="hostname" type="text" autocomplete="off" spellcheck="false" placeholder="octessera-device" />
+            <input id="hostname" type="text" autocomplete="off" spellcheck="false" placeholder="octessera-rpi" />
+            <span class="muted">Leave blank to keep the current name (octessera-rpi on a fresh card).</span>
           </label>
 
           <div class="submit-row">
