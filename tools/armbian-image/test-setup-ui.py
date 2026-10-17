@@ -9,10 +9,19 @@ UI_ROOTS = (
     ROOT / "userpatches/overlay/usr/local/share/octessera-setup-ui",
     ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/share/octessera-setup-ui",
 )
+UI_ACCOUNTS = ("octessera", "pi")
 EXPECTED_FILES = {"README.md", "index.html", "js/app.js", "css/styles.css", "img/octessera-mark.svg", "img/octessera-wordmark.svg"}
 UI_FILES = [{path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()} for root in UI_ROOTS]
 assert UI_FILES[0] == UI_FILES[1] == EXPECTED_FILES
-SHARED_UI_BYTES = {relative: [(root / relative).read_bytes() for root in UI_ROOTS] for relative in sorted(EXPECTED_FILES)}
+SHARED_UI_BYTES = {
+    relative: [
+        (root / relative).read_bytes().replace(f"<code>{account}</code>".encode(), b"<code>ACCOUNT</code>")
+        if relative == "index.html"
+        else (root / relative).read_bytes()
+        for root, account in zip(UI_ROOTS, UI_ACCOUNTS)
+    ]
+    for relative in sorted(EXPECTED_FILES)
+}
 for relative, contents in SHARED_UI_BYTES.items():
     assert contents[0] == contents[1], relative
     assert len({hashlib.sha256(content).hexdigest() for content in contents}) == 1, relative
@@ -20,9 +29,10 @@ APP_BYTES = SHARED_UI_BYTES["js/app.js"]
 SHARED_IDS = set(re.findall(rb"getElementById\('([^']+)'\)", APP_BYTES[0]))
 
 
-for root in UI_ROOTS:
+for root, account in zip(UI_ROOTS, UI_ACCOUNTS):
     app = (root / "js/app.js").read_text(encoding="utf-8")
     html = (root / "index.html").read_text(encoding="utf-8")
+    assert f'<span id="localPasswordTitle">Local device password for user <code>{account}</code></span>' in html
     readme = (root / "README.md").read_text(encoding="utf-8")
     html_ids = set(re.findall(r'id="([^"]+)"', html))
     references = re.findall(r'(?:href|src)="(/[^"?#]+)', html)

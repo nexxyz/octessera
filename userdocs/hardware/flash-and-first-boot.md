@@ -65,7 +65,8 @@ Then, on a phone or computer:
 2. Browse to `http://192.168.42.1`.
 3. Choose the country and the network. Select a scanned network or enter an
    SSID manually, then enter its password or choose an open network.
-4. Set the local device password.
+4. Set the local device password. The portal names the account it is for:
+   `pi` on the Raspberry Pi, `octessera` on the Orange Pi.
 5. Choose an SSH mode: key, password, or off.
 6. Enter an optional hostname.
 7. Press **Apply setup**.
