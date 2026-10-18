@@ -13,7 +13,6 @@ impl NativeRunner {
         }
         if self.sample_assign.is_some()
             || self.drum_assign.is_some()
-            || self.drum_cell_tune.is_some()
             || self.trigger_probability_assign.is_some()
             || self.play_fx_assign.is_some()
         {
@@ -134,7 +133,6 @@ impl NativeRunner {
             && self.active_play_mode == "none"
             && self.sample_assign.is_none()
             && self.drum_assign.is_none()
-            && self.drum_cell_tune.is_none()
             && self.trigger_probability_assign.is_none()
             && self.play_fx_assign.is_none()
     }

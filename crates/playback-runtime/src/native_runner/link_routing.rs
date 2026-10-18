@@ -1,6 +1,7 @@
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
 use super::modulation_sampler::event_channel;
 use super::{DelayedRoutedEvents, LinkEventTiming, NativeRunner};
+use crate::protocol::CellHit;
 use platform_core::{CellTriggerIntent, CellTriggerKind, MusicalEvent};
 use std::collections::HashMap;
 
@@ -64,7 +65,12 @@ impl NativeRunner {
         let timing = link_timing_for_intents(sense, intents);
         let arp = sense.map(|layer| layer.arp.clone());
         self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
-        let retrigger_count = if routed_contains_held_note_on(&routed) {
+        let retrigger_count = if routed_contains_held_note_on(&routed)
+            || routed
+                .cells
+                .iter()
+                .any(|hit| self.is_held_cell(layer_index, hit))
+        {
             0
         } else {
             timing.retrigger_count
@@ -105,7 +111,13 @@ impl NativeRunner {
     ) {
         let audio_note_offs = note_off_keys(&note_offs.audio);
         let midi_note_offs = note_off_keys(&note_offs.midi);
-        if audio_note_offs.is_empty() && midi_note_offs.is_empty() {
+        let cell_releases = note_offs
+            .cells
+            .iter()
+            .filter(|hit| hit.velocity == 0)
+            .map(|hit| (hit.instrument_slot, hit.cell))
+            .collect::<Vec<_>>();
+        if audio_note_offs.is_empty() && midi_note_offs.is_empty() && cell_releases.is_empty() {
             return;
         }
         let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
@@ -117,6 +129,9 @@ impl NativeRunner {
             }
             !has_matching_held_note_on(&entry.events.audio, &audio_note_offs)
                 && !has_matching_held_note_on(&entry.events.midi, &midi_note_offs)
+                && !entry.events.cells.iter().any(|hit| {
+                    hit.velocity > 0 && cell_releases.contains(&(hit.instrument_slot, hit.cell))
+                })
         });
     }
 
@@ -197,7 +212,7 @@ impl NativeRunner {
                 transpose_offset,
                 self.play_transpose_active_notes.get_mut(layer_index),
             );
-            let routed = dedupe_note_ons_in_group(routed);
+            let routed = dedupe_note_ons_in_group(routed, instruments);
             out.extend(self.apply_link_timing_with_sense(
                 layer_index,
                 &grouped_intents,
@@ -210,10 +225,37 @@ impl NativeRunner {
     }
 }
 
-fn dedupe_note_ons_in_group(mut routed: RoutedMusicalEvents) -> RoutedMusicalEvents {
+fn dedupe_note_ons_in_group(
+    mut routed: RoutedMusicalEvents,
+    instruments: &[super::NativeInstrumentSlot],
+) -> RoutedMusicalEvents {
     dedupe_note_ons_in_lane(&mut routed.audio);
     dedupe_note_ons_in_lane(&mut routed.midi);
+    dedupe_sampler_cell_hits(&mut routed.cells, instruments);
     routed
+}
+
+/// Cells stamped with the same sample and pitch that fire together play one voice at the
+/// loudest velocity, as identical sampler notes always have.
+fn dedupe_sampler_cell_hits(hits: &mut Vec<CellHit>, instruments: &[super::NativeInstrumentSlot]) {
+    let mut deduped: Vec<CellHit> = Vec::with_capacity(hits.len());
+    for hit in hits.drain(..) {
+        let sampler = instruments
+            .get(usize::from(hit.instrument_slot))
+            .is_some_and(|instrument| instrument.kind == "sampler");
+        let existing = deduped.iter_mut().find(|other| {
+            sampler
+                && hit.velocity > 0
+                && other.velocity > 0
+                && (other.instrument_slot, other.voice, other.pitch_cents)
+                    == (hit.instrument_slot, hit.voice, hit.pitch_cents)
+        });
+        match existing {
+            Some(other) => other.velocity = other.velocity.max(hit.velocity),
+            None => deduped.push(hit),
+        }
+    }
+    *hits = deduped;
 }
 
 fn dedupe_note_ons_in_lane(events: &mut Vec<MusicalEvent>) {

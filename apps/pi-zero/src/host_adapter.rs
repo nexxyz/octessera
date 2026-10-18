@@ -5,7 +5,7 @@ mod host_adapter_store;
 mod orange_construction;
 
 use crate::audio::AudioService;
-use crate::audio_event::{drum_hit_to_engine_event, musical_event_to_engine_event};
+use crate::audio_event::{cell_hit_to_engine_event, musical_event_to_engine_event};
 use crate::host_audio_command::send_audio_command;
 use crate::midi_host::RuntimeOutputSink;
 use crate::pi_host_core::{
@@ -16,7 +16,7 @@ use crate::platform_service::{
     usb_sd_transfer_output_block_reason, PiPlatformService, PlatformJobKind,
 };
 use playback_runtime::{
-    AudioOutputSet, DrumHit, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
+    AudioOutputSet, CellHit, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
     RuntimeAdapterError, RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest,
     RuntimeStoreResult, UsbDataRole,
 };
@@ -74,11 +74,11 @@ fn prepare_device_apply(
 }
 
 impl PiHostAdapter {
-    pub(crate) fn handle_runtime_drum_hit(
+    pub(crate) fn handle_runtime_cell_hit(
         &mut self,
-        hit: &DrumHit,
+        hit: &CellHit,
     ) -> Result<(), RuntimeAdapterError> {
-        let event = drum_hit_to_engine_event(hit)?;
+        let event = cell_hit_to_engine_event(hit)?;
         if self.shutdown_pending() {
             return Ok(());
         }
@@ -271,8 +271,8 @@ impl HostAdapter for PiHostAdapter {
         Ok(())
     }
 
-    fn handle_drum_hit(&mut self, hit: &DrumHit) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_drum_hit(hit)
+    fn handle_cell_hit(&mut self, hit: &CellHit) -> Result<(), RuntimeAdapterError> {
+        self.handle_runtime_cell_hit(hit)
     }
 
     fn handle_platform_effect(

@@ -126,6 +126,21 @@ pub(super) fn instrument_sample_velocity_levels_enabled(
         .collect()
 }
 
+pub(super) fn instrument_sample_follow_transpose(
+    instruments: &[NativeInstrumentSlot],
+) -> Vec<bool> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_follow_transpose)
+        .collect()
+}
+pub(super) fn instrument_sample_follow_pitch(instruments: &[NativeInstrumentSlot]) -> Vec<bool> {
+    instruments
+        .iter()
+        .map(|instrument| instrument.sample_follow_pitch)
+        .collect()
+}
+
 pub(super) fn instrument_sample_velocity_high(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
     instruments
         .iter()

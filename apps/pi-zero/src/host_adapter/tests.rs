@@ -29,40 +29,45 @@ fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
         false,
         UsbAudioOut::Jack,
     );
-    let hit = DrumHit {
+    let hit = CellHit {
         instrument_slot: 1,
         voice: 7,
-        tune_semis: -24,
+        cell: 0,
+        pitch_cents: -2400,
         velocity: 100,
     };
-    adapter.handle_runtime_drum_hit(&hit).unwrap();
+    adapter.handle_runtime_cell_hit(&hit).unwrap();
     assert!(matches!(
         rx.try_recv(),
-        Ok(EngineEvent::DrumHit {
+        Ok(EngineEvent::CellHit {
             instrument_slot: 1,
             voice: 7,
-            tune_semis: -24,
+            cell: 0,
+            pitch_cents: -2400,
             velocity: 100,
         })
     ));
     for invalid in [
-        DrumHit {
+        CellHit {
             instrument_slot: 8,
             ..hit.clone()
         },
-        DrumHit {
+        CellHit {
             voice: 8,
             ..hit.clone()
         },
-        DrumHit {
-            tune_semis: 25,
+        CellHit {
+            pitch_cents: 4801,
             ..hit.clone()
         },
-        DrumHit { velocity: 0, ..hit },
+        CellHit {
+            velocity: 128,
+            ..hit
+        },
     ] {
         assert_eq!(
             adapter
-                .handle_runtime_drum_hit(&invalid)
+                .handle_runtime_cell_hit(&invalid)
                 .unwrap_err()
                 .facts
                 .code,

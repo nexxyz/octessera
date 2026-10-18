@@ -104,7 +104,7 @@ impl NativeRunner {
         self.pending_transpose_note_offs = source.pending_transpose_note_offs.clone();
         self.sample_assign = source.sample_assign;
         self.drum_assign = source.drum_assign;
-        self.drum_cell_tune = source.drum_cell_tune;
+        self.cell_stamps = source.cell_stamps.clone();
         self.drum_selected_voices = source.drum_selected_voices.clone();
         self.play_drum_selected_slot = source.play_drum_selected_slot;
         self.trigger_probability_assign = source.trigger_probability_assign;

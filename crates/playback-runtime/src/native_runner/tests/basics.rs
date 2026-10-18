@@ -93,7 +93,9 @@ pub(crate) fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps(
     let mut notes = musical_note_ons(&first);
     notes.extend(musical_note_ons(&second));
     assert!(notes.iter().any(|(channel, _)| *channel == 0));
-    assert!(notes.iter().any(|(channel, _)| *channel == 1));
+    let mut hits = cell_hit_ons(&first);
+    hits.extend(cell_hit_ons(&second));
+    assert!(hits.iter().any(|(slot, _)| *slot == 1));
 }
 
 #[test]

@@ -105,7 +105,7 @@ impl NativeRunner {
         if self.play_fx_assign.is_none() {
             if self.sample_assign.is_some() {
                 self.apply_sample_assignment_overlay(&mut leds);
-            } else if self.drum_assign.is_some() || self.drum_cell_tune.is_some() {
+            } else if self.drum_assign.is_some() {
                 self.apply_drum_assignment_overlay(&mut leds);
             } else if self.trigger_probability_assign.is_some() {
                 self.apply_trigger_probability_overlay(&mut leds);

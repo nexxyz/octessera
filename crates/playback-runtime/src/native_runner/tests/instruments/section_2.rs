@@ -65,29 +65,42 @@ pub(crate) fn sample_assign_mode_supports_shift_row_and_fn_shift_column() {
 }
 
 #[test]
-pub(crate) fn sample_assignment_cycles_velocity_levels_when_enabled() {
+pub(crate) fn sample_assignment_stamps_tune_and_level_and_an_exact_restamp_clears() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
-    runner.instruments[0].sample_velocity_levels_enabled = true;
+    runner.cell_stamps[0] = NativeCellStamp {
+        tune_semis: 5,
+        tune_cents: -10,
+        level: Some("medium".into()),
+    };
     runner.sample_assign = Some((0, 2));
 
     runner.handle_sample_assignment_grid_press(1, 3);
+    let stamped = NativeSampleAssignment {
+        x: 1,
+        y: 3,
+        sample_slot: 2,
+        level: None,
+        tune_semis: 5,
+        tune_cents: -10,
+    };
     assert_eq!(
-        runner.instruments[0].sample_assignments[0].level.as_deref(),
-        Some("high")
+        runner.instruments[0].sample_assignments,
+        std::slice::from_ref(&stamped)
     );
+
+    runner.instruments[0].sample_velocity_levels_enabled = true;
     runner.handle_sample_assignment_grid_press(1, 3);
     assert_eq!(
-        runner.instruments[0].sample_assignments[0].level.as_deref(),
-        Some("medium")
-    );
-    runner.handle_sample_assignment_grid_press(1, 3);
-    assert_eq!(
-        runner.instruments[0].sample_assignments[0].level.as_deref(),
-        Some("low")
+        runner.instruments[0].sample_assignments,
+        [NativeSampleAssignment {
+            level: Some("medium".into()),
+            ..stamped
+        }]
     );
     runner.handle_sample_assignment_grid_press(1, 3);
     assert!(runner.instruments[0].sample_assignments.is_empty());
+    assert_eq!(runner.display.toast.as_ref().unwrap().message, "Cleared");
 }
 
 #[test]
@@ -102,24 +115,32 @@ pub(crate) fn sample_assignment_velocity_level_uses_configured_values() {
         y: 0,
         sample_slot: 0,
         level: None,
+        tune_semis: 0,
+        tune_cents: 0,
     };
     let high = NativeSampleAssignment {
         x: 0,
         y: 0,
         sample_slot: 0,
         level: Some("high".into()),
+        tune_semis: 0,
+        tune_cents: 0,
     };
     let medium = NativeSampleAssignment {
         x: 0,
         y: 0,
         sample_slot: 0,
         level: Some("medium".into()),
+        tune_semis: 0,
+        tune_cents: 0,
     };
     let low = NativeSampleAssignment {
         x: 0,
         y: 0,
         sample_slot: 0,
         level: Some("low".into()),
+        tune_semis: 0,
+        tune_cents: 0,
     };
 
     assert_eq!(sampler_assignment_velocity(127, &base, &instrument), 80);

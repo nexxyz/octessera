@@ -446,7 +446,7 @@ pub(crate) fn is_replay_event(event: &EngineEvent) -> bool {
         event,
         EngineEvent::AllNotesOff
             | EngineEvent::NoteOn { .. }
-            | EngineEvent::DrumHit { .. }
+            | EngineEvent::CellHit { .. }
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
             | EngineEvent::PreviewSample { .. }

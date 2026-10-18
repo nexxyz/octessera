@@ -2,7 +2,7 @@ use super::*;
 use playback_runtime::{oled_frame::OledPresentationMetrics, NativeRunner, NativeRunnerConfig};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use playback_runtime::{
-    CoreRunner, DrumHit, HostAdapter, HostMessage, MusicalEvent, PlaybackRuntime,
+    CellHit, CoreRunner, HostAdapter, HostMessage, MusicalEvent, PlaybackRuntime,
     RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformRequest, SyncSource,
 };
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -23,7 +23,7 @@ impl HostAdapter for RecordingHost {
         self.musical_events.push(event.clone());
         Ok(())
     }
-    fn handle_drum_hit(&mut self, _hit: &DrumHit) -> Result<(), RuntimeAdapterError> {
+    fn handle_cell_hit(&mut self, _hit: &CellHit) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
     fn handle_platform_effect(

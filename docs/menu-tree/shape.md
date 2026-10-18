@@ -30,9 +30,14 @@ Shape
 │   │   │   ├── Kit > Load (group)         ← Default | Tight | Heavy; confirmed eight-voice load
 │   │   │   ├── Voice: [V1: Kick ... V8: Rim]  ← current Sound supplies each name; 8 kit voices
 │   │   │   ├── Edit (group)               ← Sound [kick | snare | closed_hat | open_hat | low_tom | high_tom | clap | rim], Tune -12..12 st, Decay 20..2000 ms, Tone 0..100%, Attack 0..50 ms, Sweep st 0..36, Sweep ms 0..200, Noise % 0..100, Level % 0..100
-│   │   │   ├── !Assign                     ← per-cell set/replace/toggle with selected voice
-│   │   │   ├── !Cell Tune                  ← assigned cell offset -24..24 st; Back returns/exits
+│   │   │   ├── Cell Tune: [-24..24] st     ← stamp value: Assign copies it onto each cell
+│   │   │   ├── Cell Fine: [-100..100] ct   ← stamp value
+│   │   │   ├── Cell Level: [Base | High | Medium | Low]  ← stamp value
+│   │   │   ├── !Assign                     ← stamps voice + Cell values; an exact re-stamp clears
 │   │   │   ├── !Preview                    ← base voice pitch, no cell offset
+│   │   │   ├── Vel Levels (group)         ← High 120 / Medium 85 / Low 45: [1..127]
+│   │   │   ├── Follow Transp.: [on | off] ← default off; Play Transpose also shifts cells
+│   │   │   ├── Follow Pitch: [on | off]   ← default off; cells play the Link note relative to C4
 │   │   │   ├── Filter (group)             ← own Type, Cutoff, Res, Env Amount, Key Tracking settings
 │   │   │   └── Volume (group)             ← own Gain 80%, Vel Sens 100%; no visible Drum Amp/Filter Env pages
 │   │   ├── Plucked (group, visible when type=pluck)
@@ -47,12 +52,17 @@ Shape
 │   │   │   ├── Sample Slot: [1..8]
 │   │   │   ├── Loaded sample (action)     ← opens its folder in the browser; shows (empty) when unset
 │   │   │   ├── S* Browse (group)          ← browses `samples/` tree (wav only)
-│   │   │   ├── Assign (action)            ← enters grid assignment mode for selected sample slot
-│   │   │   ├── Tune: [-24..24] semitones
+│   │   │   ├── Cell Tune: [-24..24] st     ← stamp value: Assign copies it onto each cell
+│   │   │   ├── Cell Fine: [-100..100] ct   ← stamp value
+│   │   │   ├── Cell Level: [Base | High | Medium | Low]  ← stamp value (visible when Vel Levels=on)
+│   │   │   ├── Assign (action)            ← stamps sample slot + Cell values onto grid cells
+│   │   │   ├── Tune: [-24..24] semitones  ← slot-wide
+│   │   │   ├── Follow Transp.: [on | off] ← default off; Play Transpose also shifts cells
+│   │   │   ├── Follow Pitch: [on | off]   ← default off; cells play the Link note relative to C4
 │   │   │   ├── Gain: [0..100]
-│   │   │   ├── Base Velocity: [1..127]    ← used when Vel Levels=off
-│   │   │   ├── Vel Levels (group)         ← High / Medium / Low: [1..127] (visible when Vel Levels=on)
+│   │   │   ├── Base Velocity: [1..127]    ← used by Base-level cells
 │   │   │   ├── Vel Levels: [on | off]
+│   │   │   ├── Vel Levels (group)         ← High / Medium / Low: [1..127] (visible when Vel Levels=on)
 │   │   │   ├── Filter (group)             ← sample filter controls
 │   │   │   ├── Vel Sens: [0..100]
 │   │   │   ├── Amp Env (group)            ← saved sample amp envelope
@@ -101,7 +111,7 @@ FM uses a sine carrier and modulator. Tone has six rows in order: Ratio, Fine ce
 
 Plucked makes a ringing string you can color with Decay, Brightness, Pick Pos, Pick Depth, Stiffness, and body coloration. String has seven rows in order: Decay, Brightness, Pick Pos, Pick Depth, Stiffness, Body Amt, Body Hz; they fit the existing seven-row OLED body. Decay and Brightness edits can reshape ringing notes. Pick Pos and Pick Depth shape the next pluck: Pick Depth changes excitation color rather than picking position or string Brightness. Stiffness shapes wire-like inharmonic upper partials, not literal string material, weight, or tension; rendered pitch should be measured rather than assumed. Body Amt adds coloration outside the string feedback, while Body Hz moves that coloration when enabled and is dormant at zero Body Amt. Preset, String, Filter, Volume, Amp Env, and Filter Env top-level rows remain unchanged; edit and Back work just as they do for Synth and FM.
 
-Drum starts with eight voices and no assigned grid cells. Its eight top rows scroll in the seven-row OLED body so Volume remains reachable. Sound changes only the selected voice's style controls; the Voice label follows its current Sound. Edit keeps Sound, Tune, Decay, Tone, and Attack first, then adds Sweep st (0..36 semitones), Sweep ms (0..200 ms), Noise % (0..100), and Level % (0..100); its nine rows scroll in the existing seven-row OLED body. Missing legacy values use Sound defaults: Kick 24/55/12/100, Snare 3/25/80/100, Closed/Open Hat 0/0/95/100, Low/High Tom 8/70/15/100 and 6/50/15/100, Clap 0/0/95/100, Rim 0/0/35/100. These controls shape the next hit, not one already ringing. Sweep ms at 0 means no pitch excursion even with positive Sweep st; Noise mixes noise against pitched tone; Level attenuates this voice, not kit-wide Gain. Assign sets/replaces or toggles off cells with the selected voice: plain press edits one cell, Shift+press the whole world-space row (bottom is `y=0`), and the combined modifier a column. Cell Tune edits an assigned cell's own ±24-semitone offset; an empty cell says `No drum here`. Back returns to cell selection, then exits without undoing assignments. Preview plays the selected voice at its own Tune, without a cell offset. Kit Load changes eight voice settings but keeps cell references and tune offsets; it never auto-fills the grid or plays a preview.
+Drum starts with eight voices and no assigned grid cells. Its eight top rows scroll in the seven-row OLED body so Volume remains reachable. Sound changes only the selected voice's style controls; the Voice label follows its current Sound. Edit keeps Sound, Tune, Decay, Tone, and Attack first, then adds Sweep st (0..36 semitones), Sweep ms (0..200 ms), Noise % (0..100), and Level % (0..100); its nine rows scroll in the existing seven-row OLED body. Missing legacy values use Sound defaults: Kick 24/55/12/100, Snare 3/25/80/100, Closed/Open Hat 0/0/95/100, Low/High Tom 8/70/15/100 and 6/50/15/100, Clap 0/0/95/100, Rim 0/0/35/100. These controls shape the next hit, not one already ringing. Sweep ms at 0 means no pitch excursion even with positive Sweep st; Noise mixes noise against pitched tone; Level attenuates this voice, not kit-wide Gain. Assign stamps the selected voice plus the Cell Tune, Cell Fine, and Cell Level values: plain press stamps one cell, Shift+press the whole world-space row (bottom is `y=0`), and the combined modifier a column, with the same values on every cell. Pressing an exact match clears it; to change a cell, stamp it again. Back exits without undoing assignments. Preview plays the selected voice at its own Tune, without a cell offset. Kit Load changes eight voice settings but keeps stamped cells; it never auto-fills the grid or plays a preview.
 
 FM/Plucked Preset Load and Sampler/Drum Kit Load ask for confirmation with Cancel selected. Confirm changes only that slot; the custom name and mixer stay as they were. Sampler kits replace eight sample paths, not cell assignments, per-cell levels, or the current Sample Slot. `System > Saves` remains the separate whole-patch workflow.
 
@@ -130,12 +140,12 @@ Sample assignment mode semantics:
 - Enter via `Shape > Instruments > Instrument N > Sampler > Assign`
 - Back exits assignment mode
 - Entering assignment mode shows a concise OLED toast (for example `Assign S1: grid`); Back continues to exit without changing mappings.
-- One sample assignment per cell (new assignment replaces the existing cell assignment)
-- With Velocity Levels ON, selected-slot cell presses cycle: `Off -> High(magenta) -> Medium(yellow) -> Low(green) -> Off`
-- With Velocity Levels OFF, selected-slot cell presses toggle: `Off <-> Assigned(white)`
+- One stamp per cell: a press writes the selected sample slot plus Cell Tune, Cell Fine, and (with Velocity Levels ON) Cell Level, replacing whatever the cell held
+- Pressing a cell that already holds exactly that stamp clears it; the toast names the stamp (for example `S1 +7 -25c High`) or `Cleared`
+- Stamped High/Medium/Low cells light magenta/yellow/green; Base cells light white
 - Cells assigned to other sample slots are shown as dim gray during assignment editing
-- Shift + cell applies the same toggle/step to the whole row
-- Combined modifier + cell applies the same toggle/step to the whole column
+- Shift + cell stamps the whole row with the same values (or clears it if every cell already matches)
+- Combined modifier + cell does the same for the whole column
 - The sample browser menu is labeled with selected slot context (for example `S1 Browse`) and preserves the body rows as browser entries: `..`, built-in/user favourites at the sample root, `[folder]`, file rows, or `(empty)`, followed by a blank separator row and a current-folder favourite action.
 - Before directory entries arrive, the browser shows `(loading...)` instead of `(empty)`. Long highlighted names are clipped to the OLED row width rather than overlapping adjacent display areas.
 - In `S1 Browse`/sample browser menus, Space previews the highlighted wav file through the selected instrument slot (folders and `..` are no-op); the favourite action toggles the current folder's entry in `runtimeConfig.sampleFavouriteDirs`. Platform built-in favourites are added dynamically and cannot be removed from that config.

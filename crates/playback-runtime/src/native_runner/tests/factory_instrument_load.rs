@@ -137,6 +137,8 @@ fn custom_names_and_inactive_type_blocks_survive_factory_loads_and_portable_roun
         y: 0,
         sample_slot: 7,
         level: Some("high".into()),
+        tune_semis: 0,
+        tune_cents: 0,
     });
     slot.selected_sample_slot = 6;
     slot.sample_tune_semis = -7;

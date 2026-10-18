@@ -43,10 +43,6 @@ impl NativeRunner {
             );
             return Ok(None);
         }
-        if let Some(slot) = action.strip_prefix("drum.cellTune:") {
-            self.enter_drum_cell_tune(slot.parse().map_err(|_| "invalid Drum slot")?);
-            return Ok(None);
-        }
         if let Some(rest) = action.strip_prefix("drum.preview:") {
             let (slot, voice) = rest.split_once(':').ok_or("invalid Drum Preview action")?;
             self.preview_drum_voice(

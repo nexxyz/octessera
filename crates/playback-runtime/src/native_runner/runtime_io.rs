@@ -157,8 +157,8 @@ impl NativeRunner {
                     events: events.midi,
                 });
             }
-            if !events.drum.is_empty() {
-                out.push(RunnerMessage::DrumHits { hits: events.drum });
+            if !events.cells.is_empty() {
+                out.push(RunnerMessage::CellHits { hits: events.cells });
             }
         }
         if self.outbox.has_platform_effects() {
@@ -262,8 +262,8 @@ impl NativeRunner {
                                 events: events.midi,
                             });
                         }
-                        if !events.drum.is_empty() {
-                            out.push(RunnerMessage::DrumHits { hits: events.drum });
+                        if !events.cells.is_empty() {
+                            out.push(RunnerMessage::CellHits { hits: events.cells });
                         }
                     }
                     out.extend(self.clock_status_messages()?);
@@ -288,8 +288,8 @@ impl NativeRunner {
                             events: events.midi,
                         });
                     }
-                    if !events.drum.is_empty() {
-                        out.push(RunnerMessage::DrumHits { hits: events.drum });
+                    if !events.cells.is_empty() {
+                        out.push(RunnerMessage::CellHits { hits: events.cells });
                     }
                 }
                 out.extend(self.clock_status_messages()?);
@@ -314,8 +314,8 @@ impl NativeRunner {
                         events: events.midi,
                     });
                 }
-                if !events.drum.is_empty() {
-                    out.push(RunnerMessage::DrumHits { hits: events.drum });
+                if !events.cells.is_empty() {
+                    out.push(RunnerMessage::CellHits { hits: events.cells });
                 }
             }
             out.extend(self.clock_status_messages()?);

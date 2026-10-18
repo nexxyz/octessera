@@ -173,6 +173,7 @@ fn sample_voice(
         canonical_lane: None,
         instrument_slot: 0,
         sample_slot: 0,
+        cell: None,
         buffer: Some(sample_buffer(samples, channels)),
         filter_cutoff_hz: cutoff_hz,
         filter_resonance: resonance,

@@ -30,6 +30,8 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
             "filter": instrument.sample_filter,
             "filterEnv": instrument.sample_filter_env,
             "velocityLevelsEnabled": instrument.sample_velocity_levels_enabled,
+            "followTranspose": instrument.sample_follow_transpose,
+            "followPitch": instrument.sample_follow_pitch,
             "velocityLevels": {
                 "high": instrument.sample_velocity_high,
                 "medium": instrument.sample_velocity_medium,

@@ -114,6 +114,8 @@ fn validate_sample(instrument: &Map<String, Value>, path: &str) -> Result<(), St
         (SAMPLE_SLOT_COUNT - 1) as u64,
     )?;
     unsigned_field(sample, "baseVelocity", &path, 1, 127)?;
+    bool_field(sample, "followTranspose", &path)?;
+    bool_field(sample, "followPitch", &path)?;
     signed_field(sample, "tuneSemis", &path, -24, 24)?;
     if let Some(slots) = array_field(sample, "slots", &path, SAMPLE_SLOT_COUNT)? {
         for (index, value) in slots.iter().enumerate() {
@@ -140,6 +142,8 @@ fn validate_sample(instrument: &Map<String, Value>, path: &str) -> Result<(), St
                 0,
                 (SAMPLE_SLOT_COUNT - 1) as u64,
             )?;
+            signed_field(assignment, "tuneSemis", &assignment_path, -24, 24)?;
+            signed_field(assignment, "tuneCents", &assignment_path, -100, 100)?;
             if let Some(level) = assignment.get("level") {
                 if !level.is_null() {
                     enum_value(
@@ -271,6 +275,13 @@ fn validate_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), Stri
         return Ok(());
     };
     let path = format!("{path}.drum");
+    bool_field(drum, "followTranspose", &path)?;
+    bool_field(drum, "followPitch", &path)?;
+    if let Some(levels) = object_field(drum, "velocityLevels", &path)? {
+        for key in ["high", "medium", "low"] {
+            unsigned_field(levels, key, &format!("{path}.velocityLevels"), 1, 127)?;
+        }
+    }
     if let Some(voices) = array_field(drum, "voices", &path, 8)? {
         if voices.len() != 8 {
             return Err(format!("{path}.voices must contain eight voices"));
@@ -303,6 +314,16 @@ fn validate_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), Stri
             unsigned_field(cell, "y", &cell_path, 0, 7)?;
             unsigned_field(cell, "voice", &cell_path, 0, 7)?;
             signed_field(cell, "tuneSemis", &cell_path, -24, 24)?;
+            signed_field(cell, "tuneCents", &cell_path, -100, 100)?;
+            if let Some(level) = cell.get("level") {
+                if !level.is_null() {
+                    enum_value(
+                        level,
+                        &format!("{cell_path}.level"),
+                        &["high", "medium", "low"],
+                    )?;
+                }
+            }
             let x = cell
                 .get("x")
                 .and_then(Value::as_u64)

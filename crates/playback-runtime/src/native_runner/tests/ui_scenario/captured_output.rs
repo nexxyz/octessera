@@ -7,7 +7,7 @@ pub(super) struct CapturedOutput {
     pub(super) audio_commands: Vec<RuntimeAudioCommand>,
     pub(super) midi_event_count: usize,
     pub(super) midi_events: Vec<platform_core::MusicalEvent>,
-    pub(super) drum_hit_count: usize,
+    pub(super) cell_hit_count: usize,
     pub(super) platform_effect_count: usize,
     pub(super) audio_command_count: usize,
     pub(super) runtime_status_count: usize,
@@ -24,6 +24,11 @@ pub(super) struct CapturedOutput {
 }
 
 impl CapturedOutput {
+    /// Notes plus internal cell hits: everything that makes the patch audibly play.
+    pub(super) fn played_event_count(&self) -> usize {
+        self.musical_event_count + self.cell_hit_count
+    }
+
     pub(super) fn record(&mut self, messages: &[RunnerMessage]) {
         for message in messages {
             match message {
@@ -35,8 +40,8 @@ impl CapturedOutput {
                     self.midi_event_count += events.len();
                     self.midi_events.extend(events.iter().cloned());
                 }
-                RunnerMessage::DrumHits { hits } => {
-                    self.drum_hit_count += hits.len();
+                RunnerMessage::CellHits { hits } => {
+                    self.cell_hit_count += hits.len();
                 }
                 RunnerMessage::PlatformEffects { effects } => {
                     self.platform_effect_count += effects.len();

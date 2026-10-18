@@ -4,7 +4,7 @@ use crate::host_adapter::PiHostAdapter;
 use crate::render_loop::RenderWorker;
 use crate::ui_profile::UiProfiler;
 use playback_runtime::{
-    DrumHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
+    CellHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
     PlaybackRuntime, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig,
     RuntimePlatformRequest,
 };
@@ -79,7 +79,7 @@ impl HostAdapter for TestHost {
     fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
-    fn handle_drum_hit(&mut self, _hit: &DrumHit) -> Result<(), RuntimeAdapterError> {
+    fn handle_cell_hit(&mut self, _hit: &CellHit) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
     fn handle_platform_effect(

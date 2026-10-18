@@ -1,44 +1,59 @@
 use super::{next_event, test_adapter};
-use playback_runtime::{DrumHit, RuntimeErrorCode};
+use playback_runtime::{CellHit, RuntimeErrorCode};
 use rodio_engine_source::EngineEvent;
 
 #[test]
-fn desktop_drum_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields() {
+fn desktop_cell_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields() {
     let (mut adapter, mut rx) = test_adapter();
-    let hit = DrumHit {
+    let hit = CellHit {
         instrument_slot: 1,
         voice: 7,
-        tune_semis: -24,
+        cell: 9,
+        pitch_cents: -2450,
         velocity: 100,
     };
-    adapter.handle_runtime_drum_hit(&hit).unwrap();
+    adapter.handle_runtime_cell_hit(&hit).unwrap();
     assert!(matches!(
         next_event(&mut rx),
-        EngineEvent::DrumHit {
+        EngineEvent::CellHit {
             instrument_slot: 1,
             voice: 7,
-            tune_semis: -24,
+            cell: 9,
+            pitch_cents: -2450,
             velocity: 100,
         }
     ));
+    adapter
+        .handle_runtime_cell_hit(&CellHit {
+            velocity: 0,
+            ..hit.clone()
+        })
+        .unwrap();
+    assert!(matches!(
+        next_event(&mut rx),
+        EngineEvent::CellHit { velocity: 0, .. }
+    ));
     for invalid in [
-        DrumHit {
+        CellHit {
             instrument_slot: 8,
             ..hit.clone()
         },
-        DrumHit {
+        CellHit {
             voice: 8,
             ..hit.clone()
         },
-        DrumHit {
-            tune_semis: 25,
+        CellHit {
+            pitch_cents: 4801,
             ..hit.clone()
         },
-        DrumHit { velocity: 0, ..hit },
+        CellHit {
+            velocity: 128,
+            ..hit
+        },
     ] {
         assert_eq!(
             adapter
-                .handle_runtime_drum_hit(&invalid)
+                .handle_runtime_cell_hit(&invalid)
                 .unwrap_err()
                 .facts
                 .code,

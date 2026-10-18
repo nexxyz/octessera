@@ -21,6 +21,8 @@ pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi(
                 y: 0,
                 sample_slot: 0,
                 level: None,
+                tune_semis: 0,
+                tune_cents: 0,
             }];
         }
         let instruments = vec![instrument];
@@ -39,10 +41,24 @@ pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi(
             None,
         );
 
-        assert!(matches!(
-            routed.audio.as_slice(),
-            [MusicalEvent::NoteOn { .. }]
-        ));
+        if kind == "sampler" {
+            assert!(routed.audio.is_empty());
+            assert!(matches!(
+                routed.cells.as_slice(),
+                [crate::CellHit {
+                    instrument_slot: 0,
+                    voice: 0,
+                    cell: 0,
+                    velocity: 1..,
+                    ..
+                }]
+            ));
+        } else {
+            assert!(matches!(
+                routed.audio.as_slice(),
+                [MusicalEvent::NoteOn { .. }]
+            ));
+        }
         assert!(routed.midi.is_empty());
     }
 

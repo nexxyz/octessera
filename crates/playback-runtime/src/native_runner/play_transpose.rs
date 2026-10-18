@@ -1,6 +1,5 @@
 use super::led_color::LedColor;
 use super::{NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH};
-use platform_core::MusicalEvent;
 
 pub(super) fn play_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
     if x == 0 || y == 0 || y == 7 || x >= GRID_WIDTH || y >= GRID_HEIGHT {
@@ -163,15 +162,7 @@ impl NativeRunner {
                     continue;
                 };
                 for held_note in held_notes {
-                    let event = MusicalEvent::NoteOff {
-                        channel: held_note.routed_channel,
-                        note: held_note.routed_note,
-                    };
-                    if held_note.routed_to_midi {
-                        layer_drained.midi.push(event);
-                    } else {
-                        layer_drained.audio.push(event);
-                    }
+                    held_note.release_into(&mut layer_drained);
                 }
             }
             if !layer_drained.is_empty() {
@@ -203,15 +194,7 @@ impl NativeRunner {
             };
             for held_notes in std::mem::take(active_notes).into_values() {
                 for held_note in held_notes {
-                    let event = MusicalEvent::NoteOff {
-                        channel: held_note.routed_channel,
-                        note: held_note.routed_note,
-                    };
-                    if held_note.routed_to_midi {
-                        layer_drained.midi.push(event);
-                    } else {
-                        layer_drained.audio.push(event);
-                    }
+                    held_note.release_into(&mut layer_drained);
                 }
             }
             if forget_ownership {

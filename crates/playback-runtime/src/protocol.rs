@@ -25,7 +25,7 @@ pub use bluetooth::{
     RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind,
     RuntimeBluetoothPairing, RuntimeBluetoothStatus,
 };
-pub use messages::{DrumHit, HostMessage, RunnerMessage};
+pub use messages::{CellHit, HostMessage, RunnerMessage};
 pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{
     MidiPort, RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError, SampleEntry,

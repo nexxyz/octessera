@@ -1,7 +1,8 @@
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
+use super::cell_stamp_items::cell_stamp_items;
 use super::{
-    action_item, enum_item, enum_item_from_strings, factory_load_group, group, number_item,
-    selected_index, InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
+    action_item, bool_item, enum_item, enum_item_from_strings, factory_load_group, group,
+    number_item, selected_index, InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
 };
 
 const SOUNDS: [&str; 8] = [
@@ -40,125 +41,160 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
     let voice_labels = (0..8)
         .map(|index| format!("V{}: {}", index + 1, sound_label(voice_sound(drum, index))))
         .collect();
+    let mut children = vec![
+        factory_load_group(
+            "drum",
+            config.index,
+            "kit",
+            "Kit",
+            &[
+                ("default", "Default"),
+                ("tight", "Tight"),
+                ("heavy", "Heavy"),
+            ],
+        ),
+        enum_item_from_strings(
+            "Voice",
+            format!("{prefix}.drum.voice"),
+            voice_labels,
+            selected_voice,
+        ),
+        group(
+            "Edit",
+            vec![
+                enum_item(
+                    "Sound",
+                    format!("{voice_key}.sound"),
+                    SOUNDS.to_vec(),
+                    style,
+                ),
+                number_item(
+                    "Tune",
+                    format!("{voice_key}.tuneSemis"),
+                    synth_number(voice, &["tuneSemis"], 0),
+                    -12,
+                    12,
+                    1,
+                ),
+                number_item(
+                    "Decay",
+                    format!("{voice_key}.decayMs"),
+                    synth_number(voice, &["decayMs"], DECAY_DEFAULTS[style]),
+                    20,
+                    2000,
+                    5,
+                ),
+                number_item(
+                    "Tone",
+                    format!("{voice_key}.tonePct"),
+                    synth_number(voice, &["tonePct"], TONE_DEFAULTS[style]),
+                    0,
+                    100,
+                    1,
+                ),
+                number_item(
+                    "Attack",
+                    format!("{voice_key}.attackMs"),
+                    synth_number(voice, &["attackMs"], 0),
+                    0,
+                    50,
+                    1,
+                ),
+                number_item(
+                    "Sweep st",
+                    format!("{voice_key}.sweepSemis"),
+                    synth_number(voice, &["sweepSemis"], sweep_semis),
+                    0,
+                    36,
+                    1,
+                ),
+                number_item(
+                    "Sweep ms",
+                    format!("{voice_key}.sweepMs"),
+                    synth_number(voice, &["sweepMs"], sweep_ms),
+                    0,
+                    200,
+                    1,
+                ),
+                number_item(
+                    "Noise %",
+                    format!("{voice_key}.noiseMixPct"),
+                    synth_number(voice, &["noiseMixPct"], noise_mix_pct),
+                    0,
+                    100,
+                    1,
+                ),
+                number_item(
+                    "Level %",
+                    format!("{voice_key}.levelPct"),
+                    synth_number(voice, &["levelPct"], level_pct),
+                    0,
+                    100,
+                    1,
+                ),
+            ],
+        ),
+    ];
+    children.extend(cell_stamp_items(config, prefix, true));
+    children.extend([
+        action_item(
+            "Assign",
+            format!("drum.assign.{}.{selected_voice}", config.index),
+            NativeMenuAction::PlatformEffect(format!(
+                "drum.assign:{}:{selected_voice}",
+                config.index
+            )),
+        ),
+        action_item(
+            "Preview",
+            format!("drum.preview.{}.{selected_voice}", config.index),
+            NativeMenuAction::PlatformEffect(format!(
+                "drum.preview:{}:{selected_voice}",
+                config.index
+            )),
+        ),
+        velocity_levels_group(drum, prefix),
+        bool_item(
+            "Follow Transp.",
+            format!("{prefix}.drum.followTranspose"),
+            drum.and_then(|drum| drum.get("followTranspose"))
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+        ),
+        bool_item(
+            "Follow Pitch",
+            format!("{prefix}.drum.followPitch"),
+            drum.and_then(|drum| drum.get("followPitch"))
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+        ),
+        filter_group(drum, prefix),
+        volume_group(drum, prefix),
+    ]);
+    group("Drum", children)
+}
+
+fn velocity_levels_group(drum: Option<&serde_json::Value>, prefix: &str) -> NativeMenuItem {
+    let levels = [
+        ("High", "high", 120),
+        ("Medium", "medium", 85),
+        ("Low", "low", 45),
+    ];
     group(
-        "Drum",
-        vec![
-            factory_load_group(
-                "drum",
-                config.index,
-                "kit",
-                "Kit",
-                &[
-                    ("default", "Default"),
-                    ("tight", "Tight"),
-                    ("heavy", "Heavy"),
-                ],
-            ),
-            enum_item_from_strings(
-                "Voice",
-                format!("{prefix}.drum.voice"),
-                voice_labels,
-                selected_voice,
-            ),
-            group(
-                "Edit",
-                vec![
-                    enum_item(
-                        "Sound",
-                        format!("{voice_key}.sound"),
-                        SOUNDS.to_vec(),
-                        style,
-                    ),
-                    number_item(
-                        "Tune",
-                        format!("{voice_key}.tuneSemis"),
-                        synth_number(voice, &["tuneSemis"], 0),
-                        -12,
-                        12,
-                        1,
-                    ),
-                    number_item(
-                        "Decay",
-                        format!("{voice_key}.decayMs"),
-                        synth_number(voice, &["decayMs"], DECAY_DEFAULTS[style]),
-                        20,
-                        2000,
-                        5,
-                    ),
-                    number_item(
-                        "Tone",
-                        format!("{voice_key}.tonePct"),
-                        synth_number(voice, &["tonePct"], TONE_DEFAULTS[style]),
-                        0,
-                        100,
-                        1,
-                    ),
-                    number_item(
-                        "Attack",
-                        format!("{voice_key}.attackMs"),
-                        synth_number(voice, &["attackMs"], 0),
-                        0,
-                        50,
-                        1,
-                    ),
-                    number_item(
-                        "Sweep st",
-                        format!("{voice_key}.sweepSemis"),
-                        synth_number(voice, &["sweepSemis"], sweep_semis),
-                        0,
-                        36,
-                        1,
-                    ),
-                    number_item(
-                        "Sweep ms",
-                        format!("{voice_key}.sweepMs"),
-                        synth_number(voice, &["sweepMs"], sweep_ms),
-                        0,
-                        200,
-                        1,
-                    ),
-                    number_item(
-                        "Noise %",
-                        format!("{voice_key}.noiseMixPct"),
-                        synth_number(voice, &["noiseMixPct"], noise_mix_pct),
-                        0,
-                        100,
-                        1,
-                    ),
-                    number_item(
-                        "Level %",
-                        format!("{voice_key}.levelPct"),
-                        synth_number(voice, &["levelPct"], level_pct),
-                        0,
-                        100,
-                        1,
-                    ),
-                ],
-            ),
-            action_item(
-                "Assign",
-                format!("drum.assign.{}.{selected_voice}", config.index),
-                NativeMenuAction::PlatformEffect(format!(
-                    "drum.assign:{}:{selected_voice}",
-                    config.index
-                )),
-            ),
-            action_item(
-                "Cell Tune",
-                format!("drum.cellTune.{}", config.index),
-                NativeMenuAction::PlatformEffect(format!("drum.cellTune:{}", config.index)),
-            ),
-            action_item(
-                "Preview",
-                format!("drum.preview.{}.{selected_voice}", config.index),
-                NativeMenuAction::PlatformEffect(format!(
-                    "drum.preview:{}:{selected_voice}",
-                    config.index
-                )),
-            ),
-            filter_group(drum, prefix),
-            volume_group(drum, prefix),
-        ],
+        "Vel Levels",
+        levels
+            .into_iter()
+            .map(|(label, level, default)| {
+                number_item(
+                    label,
+                    format!("{prefix}.drum.velocityLevels.{level}"),
+                    synth_number(drum, &["velocityLevels", level], default),
+                    1,
+                    127,
+                    1,
+                )
+            })
+            .collect(),
     )
 }
 

@@ -244,3 +244,34 @@ fn none_mode_rejects_without_mutating_canonical_identity() {
         1
     );
 }
+
+#[test]
+fn sample_cell_hits_pitch_by_cents_and_release_only_their_own_cell() {
+    let mut engine = sample_engine();
+    engine.cell_hit(0, 0, 5, 1200, 100);
+    engine.cell_hit(0, 0, 9, 0, 100);
+    let voices = |engine: &SynthEngine| {
+        engine
+            .sample_voice_pool
+            .slot_lanes(0)
+            .expect("slot lanes")
+            .iter()
+            .filter_map(|&lane| engine.sample_voice_pool.lane(lane))
+            .filter(|voice| voice.active)
+            .map(|voice| (voice.cell, voice.step))
+            .collect::<Vec<_>>()
+    };
+    let started = voices(&engine);
+    assert_eq!(started.len(), 2);
+    let step = |cell| started.iter().find(|(c, _)| *c == Some(cell)).unwrap().1;
+    assert!((step(5) / step(9) - 2.0).abs() < 1e-4);
+
+    engine.cell_hit(0, 0, 5, 0, 0);
+    assert_eq!(
+        voices(&engine)
+            .iter()
+            .map(|(cell, _)| *cell)
+            .collect::<Vec<_>>(),
+        [Some(9)]
+    );
+}

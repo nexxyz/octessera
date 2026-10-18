@@ -33,6 +33,8 @@ fn configure_route(runner: &mut NativeRunner, layer: usize, route: Route) {
                 y: 3,
                 sample_slot: 4,
                 level: None,
+                tune_semis: 0,
+                tune_cents: 0,
             }];
         }
         Route::Midi => {
@@ -84,19 +86,6 @@ fn disable_layer(runner: &mut NativeRunner, layer: usize) -> Vec<RunnerMessage> 
         json!({ "type": "button_shift", "pressed": false }),
     ));
     messages
-}
-
-fn routed_events(messages: &[RunnerMessage], midi: bool) -> Vec<MusicalEvent> {
-    messages
-        .iter()
-        .filter_map(|message| match (midi, message) {
-            (false, RunnerMessage::MusicalEvents { events })
-            | (true, RunnerMessage::MidiEvents { events }) => Some(events),
-            _ => None,
-        })
-        .flatten()
-        .cloned()
-        .collect()
 }
 
 fn note_key(event: &MusicalEvent) -> Option<(u8, u8)> {

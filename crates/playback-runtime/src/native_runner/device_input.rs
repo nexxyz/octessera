@@ -161,10 +161,6 @@ impl NativeRunner {
                     if delta != 0 {
                         self.turn_help_popup(delta);
                     }
-                } else if id.as_deref().unwrap_or("main") == "main"
-                    && self.drum_cell_tune.is_some_and(|(_, cell)| cell.is_some())
-                {
-                    self.turn_drum_cell_tune(delta);
                 } else if let Some(index) = Self::aux_index(id.as_deref()) {
                     self.handle_aux_turn(index, delta)?;
                 } else if id.as_deref().unwrap_or("main") == "main" && delta != 0 {
@@ -274,8 +270,6 @@ impl NativeRunner {
             self.handle_sample_assignment_grid_press(x, y);
         } else if self.drum_assign.is_some() {
             self.handle_drum_assignment_grid_press(x, y);
-        } else if self.drum_cell_tune.is_some() {
-            self.select_drum_tune_cell(x, y);
         } else if self.trigger_probability_assign.is_some() {
             self.handle_trigger_probability_grid_press(x, y);
         } else if self.active_play_mode == "transpose" && x == 0 && self.display.ui.shift_held {
@@ -325,10 +319,7 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.drum_assign.is_some()
-            || self.drum_cell_tune.is_some()
-            || self.active_play_mode == "drums"
-        {
+        if self.drum_assign.is_some() || self.active_play_mode == "drums" {
             return self.messages_with_snapshot();
         }
         if self.active_play_mode != "none" {

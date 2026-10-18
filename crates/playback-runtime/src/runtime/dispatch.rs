@@ -376,9 +376,9 @@ impl PlaybackRuntime {
                         }
                     }
                 }
-                RunnerMessage::DrumHits { hits } => {
+                RunnerMessage::CellHits { hits } => {
                     for hit in hits {
-                        if let Err(error) = host.handle_drum_hit(&hit) {
+                        if let Err(error) = host.handle_cell_hit(&hit) {
                             let error = self.adapter_error_metadata(
                                 error,
                                 RuntimeErrorDomain::Audio,

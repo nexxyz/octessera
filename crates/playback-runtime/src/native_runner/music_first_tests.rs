@@ -223,7 +223,7 @@ fn music_first_queues_initial_config_before_pulse_notes_and_preserves_display_ed
         .position(|message| {
             matches!(
                 message,
-                RunnerMessage::MusicalEvents { .. } | RunnerMessage::DrumHits { .. }
+                RunnerMessage::MusicalEvents { .. } | RunnerMessage::CellHits { .. }
             )
         })
         .unwrap();
@@ -326,7 +326,7 @@ fn external_clock_resync_uses_music_first_only_while_already_playing() {
                     message,
                     RunnerMessage::MusicalEvents { .. }
                         | RunnerMessage::MidiEvents { .. }
-                        | RunnerMessage::DrumHits { .. }
+                        | RunnerMessage::CellHits { .. }
                 )
             })
             .collect::<Vec<_>>()

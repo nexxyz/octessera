@@ -250,7 +250,7 @@ pub(crate) fn sampler_tune_edits_into_config_payload() {
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 5;
+    runner.menu.state.cursor = 7;
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -297,22 +297,22 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     runner.menu.rebuild(runner.menu_config());
 
     runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 7;
+    runner.menu.state.cursor = 11;
     runner.menu.state.editing = true;
     runner.menu.turn(-20);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.cursor = 8;
+    runner.menu.state.cursor = 12;
     runner.menu.turn(1);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 8];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 14];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(-10);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 10];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 15];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(1);
@@ -322,12 +322,12 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     runner.apply_current_menu_edit().unwrap();
 
     runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 11;
+    runner.menu.state.cursor = 16;
     runner.menu.state.editing = true;
     runner.menu.turn(-25);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 12];
+    runner.menu.state.stack = vec![2, 0, 0, 2, 17];
     runner.menu.state.cursor = 0;
     runner.menu.state.editing = true;
     runner.menu.turn(4);

@@ -8,8 +8,8 @@ fn drum_inline_block_and_worker_match_without_callback_allocation() {
     let mut scalar = drum_engine(DrumConfig::default(), 44_100);
     let mut worker = drum_engine(DrumConfig::default(), 44_100);
     for engine in [&mut block, &mut scalar, &mut worker] {
-        engine.drum_hit(0, 0, 0, 120);
-        engine.drum_hit(0, 1, -5, 100);
+        engine.cell_hit(0, 0, 0, 0, 120);
+        engine.cell_hit(0, 1, 0, -500, 100);
     }
     let mut left = Vec::with_capacity(256);
     let mut right = Vec::with_capacity(256);
@@ -46,7 +46,7 @@ fn drum_inline_block_and_worker_match_without_callback_allocation() {
     assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
     let ((), allocations, _) =
         crate::synth::test_allocator::count_allocations_and_deallocations(|| {
-            block.drum_hit(0, 2, 24, 127);
+            block.cell_hit(0, 2, 0, 2400, 127);
             block.render_interleaved_block(128, &mut left, &mut right, &mut out);
         });
     assert_eq!(allocations, 0);
@@ -58,8 +58,8 @@ fn drum_routing_tree_worker_matches_inline_for_distinct_hits() {
     let mut worker = drum_engine(DrumConfig::default(), 44_100);
     let mut inline = drum_engine(DrumConfig::default(), 44_100);
     for engine in [&mut worker, &mut inline] {
-        engine.drum_hit(0, 0, -24, 120);
-        engine.drum_hit(0, 2, 24, 100);
+        engine.cell_hit(0, 0, 0, -2400, 120);
+        engine.cell_hit(0, 2, 0, 2400, 100);
     }
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut worker, 128).unwrap();

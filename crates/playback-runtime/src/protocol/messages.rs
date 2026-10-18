@@ -8,10 +8,14 @@ use serde_json::Value;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DrumHit {
+/// A grid cell playing an instrument voice: a Drum kit voice or a Sampler sample slot,
+/// pitched by the cell's stamped offset. Velocity 0 releases the voices that cell started
+/// (Sampler only; Drum hits are one-shot).
+pub struct CellHit {
     pub instrument_slot: u8,
     pub voice: u8,
-    pub tune_semis: i8,
+    pub cell: u8,
+    pub pitch_cents: i16,
     pub velocity: u8,
 }
 
@@ -66,8 +70,8 @@ pub enum RunnerMessage {
     MusicalEvents {
         events: Vec<MusicalEvent>,
     },
-    DrumHits {
-        hits: Vec<DrumHit>,
+    CellHits {
+        hits: Vec<CellHit>,
     },
     MidiEvents {
         events: Vec<MusicalEvent>,

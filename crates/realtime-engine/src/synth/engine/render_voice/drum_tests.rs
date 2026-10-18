@@ -33,9 +33,9 @@ fn drum_defaults_and_all_sounds_are_bounded_across_sample_rates_and_tunes() {
     );
     for rate in [44_100, 48_000] {
         for voice in 0..8 {
-            for tune in [-24, 0, 24] {
+            for tune in [-2400_i16, 0, 2400] {
                 let mut engine = drum_engine(cfg.clone(), rate);
-                engine.drum_hit(0, voice, tune, 120);
+                engine.cell_hit(0, voice, 0, tune, 120);
                 let hit = engine.synth_voice_pool.lane(0).unwrap();
                 assert!(hit.active && hit.drum_voice);
                 assert!(hit.drum.inc1.is_finite() && hit.drum.inc1 > 0.0 && hit.drum.inc1 <= 0.45);
@@ -59,11 +59,11 @@ fn drum_defaults_and_all_sounds_are_bounded_across_sample_rates_and_tunes() {
 #[test]
 fn drum_hits_coexist_note_off_does_not_choke_and_source_resets_on_steal() {
     let mut engine = drum_engine(DrumConfig::default(), 44_100);
-    engine.drum_hit(0, 0, 0, 120);
+    engine.cell_hit(0, 0, 0, 0, 120);
     for _ in 0..32 {
         engine.next_sample();
     }
-    engine.drum_hit(0, 1, 0, 120);
+    engine.cell_hit(0, 1, 0, 0, 120);
     assert_eq!(engine.active_voice_count_for_slot(0), 2);
     engine.note_off(0, 36);
     assert_eq!(engine.active_voice_count_for_slot(0), 2);
@@ -74,13 +74,13 @@ fn drum_hits_coexist_note_off_does_not_choke_and_source_resets_on_steal() {
     assert_eq!(engine.active_voice_count_for_slot(0), 0);
     engine.set_voice_stealing_mode(VoiceStealingMode::Fixed16);
     for _ in 0..MAX_SYNTH_VOICES_PER_SLOT {
-        engine.drum_hit(0, 3, 0, 120);
+        engine.cell_hit(0, 3, 0, 0, 120);
     }
     for _ in 0..64 {
         engine.next_sample();
     }
     let before = engine.profile_snapshot().cumulative_voice_steals;
-    engine.drum_hit(0, 7, 0, 120);
+    engine.cell_hit(0, 7, 0, 0, 120);
     assert_eq!(
         engine.profile_snapshot().cumulative_voice_steals,
         before + 1
@@ -103,7 +103,7 @@ fn drum_hits_coexist_note_off_does_not_choke_and_source_resets_on_steal() {
 #[test]
 fn drum_next_hit_scalars_preserve_active_hit_and_other_kit_voices() {
     let mut engine = drum_engine(DrumConfig::default(), 44_100);
-    engine.drum_hit(0, 2, 0, 120);
+    engine.cell_hit(0, 2, 0, 0, 120);
     for _ in 0..128 {
         engine.next_sample();
     }
@@ -135,7 +135,7 @@ fn drum_next_hit_scalars_preserve_active_hit_and_other_kit_voices() {
     assert_eq!(engine.drum_voices[0][3].decay_ms, other.decay_ms);
     assert_eq!(engine.drum_voices[0][3].level_pct, other.level_pct);
     assert_eq!(engine.synth_render_revisions[0], revision);
-    engine.drum_hit(0, 2, 0, 120);
+    engine.cell_hit(0, 2, 0, 0, 120);
     let new_hit = engine.synth_voice_pool.lane(1).unwrap();
     assert_eq!(new_hit.drum.attack_frames, 882);
     assert!(new_hit.drum.decay_step > old.drum.decay_step);
@@ -197,8 +197,8 @@ fn drum_sweep_zero_time_has_no_excursion_and_voice_controls_change_new_hit_timbr
     neutral.voices[0].sweep_semis = 0;
     neutral.voices[0].sweep_ms = 0.0;
     let mut baseline = drum_engine(neutral, 44_100);
-    no_sweep.drum_hit(0, 0, 0, 120);
-    baseline.drum_hit(0, 0, 0, 120);
+    no_sweep.cell_hit(0, 0, 0, 0, 120);
+    baseline.cell_hit(0, 0, 0, 0, 120);
     let hit = no_sweep.synth_voice_pool.lane(0).unwrap();
     assert_eq!(hit.drum.sweep_remaining, 0);
     assert_eq!(
@@ -223,7 +223,7 @@ fn drum_sweep_zero_time_has_no_excursion_and_voice_controls_change_new_hit_timbr
     let mut noise = drum_engine(high_noise, 44_100);
     let mut attenuated = drum_engine(quiet, 44_100);
     for engine in [&mut tone, &mut noise, &mut attenuated] {
-        engine.drum_hit(0, 0, 0, 120);
+        engine.cell_hit(0, 0, 0, 0, 120);
     }
     let tone_sample = tone.next_sample();
     let noise_sample = noise.next_sample();
@@ -238,7 +238,7 @@ fn drum_prepared_and_scalar_next_hit_controls_match_without_morphing_first_hit()
     let mut prepared = drum_engine(cfg.clone(), 44_100);
     let mut live = drum_engine(cfg.clone(), 44_100);
     for engine in [&mut prepared, &mut live] {
-        engine.drum_hit(0, 2, -12, 120);
+        engine.cell_hit(0, 2, 0, -1200, 120);
         for _ in 0..128 {
             engine.next_sample();
         }
@@ -269,7 +269,7 @@ fn drum_prepared_and_scalar_next_hit_controls_match_without_morphing_first_hit()
         assert_eq!(first.canonical_lane, previous.canonical_lane);
     }
     for engine in [&mut prepared, &mut live] {
-        engine.drum_hit(0, 2, 5, 100);
+        engine.cell_hit(0, 2, 0, 500, 100);
     }
     assert_eq!(
         prepared
@@ -299,7 +299,7 @@ fn drum_uses_common_filter_and_bus_and_live_slot_gain() {
     let mut low_engine = drum_engine(low.clone(), 44_100);
     let mut high_engine = drum_engine(high, 44_100);
     for engine in [&mut low_engine, &mut high_engine] {
-        engine.drum_hit(0, 1, 0, 120);
+        engine.cell_hit(0, 1, 0, 0, 120);
     }
     let difference: f32 = (0..512)
         .map(|_| (low_engine.next_sample() - high_engine.next_sample()).abs())
@@ -330,7 +330,7 @@ fn drum_uses_common_filter_and_bus_and_live_slot_gain() {
             pan_positions: DEFAULT_PAN_POSITIONS,
             master_volume: 100.0,
         });
-        engine.drum_hit(0, 1, 0, 127);
+        engine.cell_hit(0, 1, 0, 0, 127);
     }
     let first = direct.next_sample();
     assert!(first.abs() > 1e-9);

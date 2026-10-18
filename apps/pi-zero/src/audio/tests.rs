@@ -59,10 +59,11 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
     )
     .unwrap();
     audio
-        .send_realtime(EngineEvent::DrumHit {
+        .send_realtime(EngineEvent::CellHit {
             instrument_slot: 2,
             voice: 4,
-            tune_semis: 0,
+            cell: 0,
+            pitch_cents: 0,
             velocity: 100,
         })
         .unwrap();
@@ -81,7 +82,7 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
         } if *value == 350.0)));
     assert!(!events
         .iter()
-        .any(|event| matches!(event, EngineEvent::DrumHit { .. })));
+        .any(|event| matches!(event, EngineEvent::CellHit { .. })));
 }
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]

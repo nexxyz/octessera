@@ -33,11 +33,11 @@ fn drum_runner() -> NativeRunner {
     runner
 }
 
-fn hits(messages: &[RunnerMessage]) -> Vec<crate::protocol::DrumHit> {
+fn hits(messages: &[RunnerMessage]) -> Vec<crate::protocol::CellHit> {
     messages
         .iter()
         .flat_map(|message| match message {
-            RunnerMessage::DrumHits { hits } => hits.clone(),
+            RunnerMessage::CellHits { hits } => hits.clone(),
             _ => Vec::new(),
         })
         .collect()
@@ -58,31 +58,33 @@ fn paired_intents_select_world_cells_not_melodic_notes_and_unpaired_notes_are_si
     );
     assert!(routed.audio.is_empty() && routed.midi.is_empty());
     assert_eq!(
-        routed.drum,
+        routed.cells,
         vec![
-            crate::protocol::DrumHit {
+            crate::protocol::CellHit {
                 instrument_slot: 0,
                 voice: 2,
-                tune_semis: -7,
+                cell: 2,
+                pitch_cents: -700,
                 velocity: 93
             },
-            crate::protocol::DrumHit {
+            crate::protocol::CellHit {
                 instrument_slot: 0,
                 voice: 2,
-                tune_semis: 4,
+                cell: 3,
+                pitch_cents: 400,
                 velocity: 93
             },
         ]
     );
     assert_eq!(
-        i64::from(routed.drum[0].tune_semis)
+        i64::from(routed.cells[0].pitch_cents / 100)
             + runner.instruments[0].drum_config["voices"][2]["tuneSemis"]
                 .as_i64()
                 .unwrap(),
         -2
     );
     assert_eq!(
-        i64::from(routed.drum[1].tune_semis)
+        i64::from(routed.cells[1].pitch_cents / 100)
             + runner.instruments[0].drum_config["voices"][2]["tuneSemis"]
                 .as_i64()
                 .unwrap(),
@@ -124,7 +126,7 @@ fn missing_cell_tune_defaults_to_zero_and_malformed_local_offsets_are_silent() {
             None,
         )
     };
-    assert_eq!(route(&runner).drum[0].tune_semis, 0);
+    assert_eq!(route(&runner).cells[0].pitch_cents, 0);
     for bad in [json!(-25), json!(25), json!("7")] {
         runner.instruments[0].drum_config["assignments"][0]["tuneSemis"] = bad;
         assert!(route(&runner).is_empty());
@@ -150,11 +152,11 @@ fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_
     assert!(routed.is_empty());
     let first = runner.take_due_link_events(0);
     let second = runner.take_due_link_events(0);
-    assert_eq!(first.drum.len(), 2);
-    assert_eq!(first.drum, second.drum);
+    assert_eq!(first.cells.len(), 2);
+    assert_eq!(first.cells, second.cells);
     assert_eq!(
-        (first.drum[0].tune_semis, first.drum[1].tune_semis),
-        (-7, 4)
+        (first.cells[0].pitch_cents, first.cells[1].pitch_cents),
+        (-700, 400)
     );
     assert!(first.audio.is_empty() && first.midi.is_empty());
     assert!(runner.take_due_link_events(0).is_empty());
@@ -182,11 +184,11 @@ fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_
             },
         )
         .unwrap();
-    assert_eq!(arp.drum.len(), 1);
-    assert_eq!(arp.drum[0].tune_semis, -7);
+    assert_eq!(arp.cells.len(), 1);
+    assert_eq!(arp.cells[0].pitch_cents, -700);
     let next = runner.take_due_link_events(0);
-    assert_eq!(next.drum.len(), 1);
-    assert_eq!(next.drum[0].tune_semis, 4);
+    assert_eq!(next.cells.len(), 1);
+    assert_eq!(next.cells[0].pitch_cents, 400);
     assert!(arp.audio.is_empty() && arp.midi.is_empty());
     assert!(next.audio.is_empty() && next.midi.is_empty());
 }
@@ -213,10 +215,11 @@ fn kit_plus_twelve_and_cell_plus_twenty_four_emit_valid_local_hit_from_device_in
         .unwrap();
     assert_eq!(
         hits(&press),
-        vec![crate::protocol::DrumHit {
+        vec![crate::protocol::CellHit {
             instrument_slot: 0,
             voice: 2,
-            tune_semis: 24,
+            cell: 1,
+            pitch_cents: 2400,
             velocity: 96,
         }]
     );

@@ -1,6 +1,7 @@
 use super::super::sample_browser_menu::sample_browser_group;
 use super::super::voice_config_read::{cutoff_hz_to_display, sample_number, sample_string};
 use super::super::voice_env_groups::sample_env_group;
+use super::cell_stamp_items::cell_stamp_items;
 use super::{
     action_item, bool_item, enum_item, factory_load_group, group, number_item, selected_index,
     InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
@@ -41,6 +42,13 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             config.sample_favourite_dirs,
             config.sample_builtin_favourite_dirs,
         ),
+    ];
+    children.extend(cell_stamp_items(
+        config,
+        prefix,
+        config.sample_velocity_levels_enabled,
+    ));
+    children.extend([
         action_item(
             "Assign",
             format!("sample.assign.{}.{}", config.index, sample_slot),
@@ -56,6 +64,16 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             -24,
             24,
             1,
+        ),
+        bool_item(
+            "Follow Transp.",
+            format!("{prefix}.sample.followTranspose"),
+            config.sample_follow_transpose,
+        ),
+        bool_item(
+            "Follow Pitch",
+            format!("{prefix}.sample.followPitch"),
+            config.sample_follow_pitch,
         ),
         number_item(
             "Gain",
@@ -78,6 +96,11 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             format!("{prefix}.sample.velocityLevelsEnabled"),
             config.sample_velocity_levels_enabled,
         ),
+    ]);
+    if config.sample_velocity_levels_enabled {
+        children.push(velocity_levels_group(config, prefix));
+    }
+    children.extend([
         group(
             "Filter",
             vec![
@@ -134,10 +157,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
         ),
         sample_env_group("Amp Env", prefix, "ampEnv", config.sample_amp_env),
         sample_env_group("Filter Env", prefix, "filterEnv", config.sample_filter_env),
-    ];
-    if config.sample_velocity_levels_enabled {
-        children.insert(8, velocity_levels_group(config, prefix));
-    }
+    ]);
     group("Sampler", children)
 }
 

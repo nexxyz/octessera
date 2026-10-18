@@ -16,10 +16,11 @@ fn drum_hits_are_transient_and_kit_scalars_replay_per_voice_and_param() {
             DEFAULT_AUDIO_SAMPLE_RATE,
         ),
     });
-    cache.remember(&EngineEvent::DrumHit {
+    cache.remember(&EngineEvent::CellHit {
         instrument_slot: 0,
         voice: 2,
-        tune_semis: -24,
+        cell: 0,
+        pitch_cents: -2400,
         velocity: 100,
     });
     for (voice, param, value) in [
@@ -40,7 +41,7 @@ fn drum_hits_are_transient_and_kit_scalars_replay_per_voice_and_param() {
     let events = collect_replay_events(&cache);
     assert!(!events
         .iter()
-        .any(|event| matches!(event, EngineEvent::DrumHit { .. })));
+        .any(|event| matches!(event, EngineEvent::CellHit { .. })));
     let values = events
         .iter()
         .filter_map(|event| match event {

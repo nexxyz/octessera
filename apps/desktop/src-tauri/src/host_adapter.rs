@@ -148,11 +148,11 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
         self.handle_runtime_musical_event(event)
     }
 
-    fn handle_drum_hit(
+    fn handle_cell_hit(
         &mut self,
-        hit: &playback_runtime::DrumHit,
+        hit: &playback_runtime::CellHit,
     ) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_drum_hit(hit)
+        self.handle_runtime_cell_hit(hit)
     }
 
     fn handle_platform_effect(

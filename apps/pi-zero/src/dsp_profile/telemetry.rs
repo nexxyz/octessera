@@ -205,12 +205,13 @@ pub(crate) fn apply_events(
                 velocity,
                 duration_ms,
             } => engine.note_on(*instrument_slot, *note, *velocity, *duration_ms),
-            EngineEvent::DrumHit {
+            EngineEvent::CellHit {
                 instrument_slot,
                 voice,
-                tune_semis,
+                cell,
+                pitch_cents,
                 velocity,
-            } => engine.drum_hit(*instrument_slot, *voice, *tune_semis, *velocity),
+            } => engine.cell_hit(*instrument_slot, *voice, *cell, *pitch_cents, *velocity),
             EngineEvent::NoteOff {
                 instrument_slot,
                 note,

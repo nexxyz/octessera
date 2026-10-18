@@ -236,7 +236,7 @@ pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_event
 }
 
 #[test]
-pub(crate) fn sampler_source_pitches_dedupe_after_assignment_routing() {
+pub(crate) fn sampler_cells_with_the_same_sample_and_pitch_dedupe_to_one_voice() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].sample_assignments = vec![
@@ -245,12 +245,16 @@ pub(crate) fn sampler_source_pitches_dedupe_after_assignment_routing() {
             y: 3,
             sample_slot: 2,
             level: None,
+            tune_semis: 0,
+            tune_cents: 0,
         },
         NativeSampleAssignment {
             x: 4,
             y: 3,
             sample_slot: 2,
             level: None,
+            tune_semis: 0,
+            tune_cents: 0,
         },
     ];
     let first = intent(platform_core::CellTriggerKind::Activate);
@@ -283,10 +287,8 @@ pub(crate) fn sampler_source_pitches_dedupe_after_assignment_routing() {
         })
         .unwrap();
 
-    assert_eq!(
-        note_ons(&audio_events(&messages)),
-        vec![(0, 38, 86, Some(120))]
-    );
+    assert!(note_ons(&audio_events(&messages)).is_empty());
+    assert_eq!(cell_hit_ons(&messages), vec![(0, 2)]);
 }
 
 #[test]
@@ -310,7 +312,7 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
         RoutedMusicalEvents {
             audio: vec![expected.clone()],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
     assert_eq!(immediate.audio, vec![expected.clone()]);

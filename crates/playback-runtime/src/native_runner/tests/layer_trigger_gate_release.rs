@@ -31,19 +31,6 @@ fn disable_layer(runner: &mut NativeRunner, layer: usize) -> Vec<RunnerMessage> 
         .unwrap()
 }
 
-fn routed_events(messages: &[RunnerMessage], midi: bool) -> Vec<MusicalEvent> {
-    messages
-        .iter()
-        .filter_map(|message| match (midi, message) {
-            (false, RunnerMessage::MusicalEvents { events })
-            | (true, RunnerMessage::MidiEvents { events }) => Some(events),
-            _ => None,
-        })
-        .flatten()
-        .cloned()
-        .collect()
-}
-
 fn note_key(event: &MusicalEvent) -> Option<(u8, u8)> {
     match event {
         MusicalEvent::NoteOn { channel, note, .. } | MusicalEvent::NoteOff { channel, note } => {
@@ -90,13 +77,15 @@ pub(crate) fn disabling_layer_drains_internal_sample_note_with_sample_routing() 
         y: 3,
         sample_slot: 4,
         level: None,
+        tune_semis: 0,
+        tune_cents: 0,
     }];
     runner.sync_engine_runtime_config();
 
     let pressed = press_note(&mut runner, 2, 3);
     assert_eq!(
         routed_events(&pressed, false).iter().find_map(note_key),
-        Some((0, 40))
+        Some((0, 26))
     );
 
     let disabled = disable_layer(&mut runner, 0);
@@ -105,7 +94,7 @@ pub(crate) fn disabling_layer_drains_internal_sample_note_with_sample_routing() 
         released_events,
         vec![MusicalEvent::NoteOff {
             channel: 0,
-            note: 40,
+            note: 26,
         }]
     );
 }
@@ -225,6 +214,8 @@ fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
                     y: 3,
                     sample_slot: 4,
                     level: None,
+                    tune_semis: 0,
+                    tune_cents: 0,
                 }];
             }
             SharedRoute::Midi => {

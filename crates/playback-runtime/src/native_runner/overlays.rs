@@ -43,11 +43,7 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_drum_assignment_overlay(&self, leds: &mut [LedColor]) {
-        let Some((slot, selected_voice)) = self
-            .drum_assign
-            .map(|(slot, voice)| (slot, Some(voice)))
-            .or_else(|| self.drum_cell_tune.map(|(slot, _)| (slot, None)))
-        else {
+        let Some((slot, selected_voice)) = self.drum_assign else {
             return;
         };
         self.fill_leds(leds, LedColor::BLACK);
@@ -63,10 +59,7 @@ impl NativeRunner {
             let Some((x, y, voice)) = cell_coordinates(cell) else {
                 continue;
             };
-            let selected_cell = self
-                .drum_cell_tune
-                .is_some_and(|(_, selected)| selected == Some((x, y)));
-            let color = if selected_cell || selected_voice == Some(voice) {
+            let color = if selected_voice == voice {
                 LedColor::WHITE
             } else {
                 LedColor::WHITE.dim(3)

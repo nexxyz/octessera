@@ -7,7 +7,7 @@ fn drum_menu() -> NativeMenuModel {
 }
 
 #[test]
-fn drum_type_hides_note_mode_and_scrolls_eight_rows() {
+fn drum_type_hides_note_mode_and_lists_drum_rows() {
     let mut menu = drum_menu();
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
@@ -45,9 +45,14 @@ fn drum_type_hides_note_mode_and_scrolls_eight_rows() {
             "Kit",
             "Voice",
             "Edit",
-            "Assign",
             "Cell Tune",
+            "Cell Fine",
+            "Cell Level",
+            "Assign",
             "Preview",
+            "Vel Levels",
+            "Follow Transp.",
+            "Follow Pitch",
             "Filter",
             "Volume"
         ]
@@ -226,7 +231,6 @@ fn drum_slot_filter_volume_actions_and_binding_picker_keep_voice_scope() {
     );
     for (key, effect) in [
         ("drum.assign.0.0", "drum.assign:0:0"),
-        ("drum.cellTune.0", "drum.cellTune:0"),
         ("drum.preview.0.0", "drum.preview:0:0"),
     ] {
         assert!(matches!(menu.item_for_key(key).unwrap().value,
@@ -339,6 +343,7 @@ fn drum_help_covers_voice_edits_actions_and_play_slot() {
             .unwrap_or_else(|| panic!("Drum help missing: {target:?}"));
         assert!(
             entry.key.contains(".drum.")
+                || entry.key.contains(".cell.")
                 || entry.key.starts_with("action:drum.")
                 || entry.path.contains("Instrument * > Drum")
                 || entry.key == "key:play.page.drums"

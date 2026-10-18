@@ -55,6 +55,10 @@ pub struct SampleDto {
     pub(super) velocity_levels_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) velocity_levels: Option<VelocityLevelsDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) follow_transpose: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) follow_pitch: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -72,6 +76,10 @@ pub struct SampleAssignmentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) sample_slot: Option<usize>,
     pub(super) level: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tune_semis: Option<i8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tune_cents: Option<i8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -180,6 +188,12 @@ pub struct DrumDto {
     pub(super) filter: Option<FilterDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) filter_env: Option<EnvelopeDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) velocity_levels: Option<VelocityLevelsDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) follow_transpose: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) follow_pitch: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -213,6 +227,10 @@ pub struct DrumAssignmentDto {
     pub(super) voice: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) tune_semis: Option<i8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tune_cents: Option<i8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) level: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

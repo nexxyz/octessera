@@ -25,6 +25,11 @@ pub(super) fn apply_drum_menu_key(
     if field == "drum.filter.type" {
         return apply_drum_filter_type(runner, slot, key);
     }
+    if matches!(field, "drum.followTranspose" | "drum.followPitch")
+        || field.starts_with("drum.velocityLevels.")
+    {
+        return apply_drum_cell_setting(runner, slot, key, field);
+    }
     apply_drum_common_numeric(runner, slot, key, field)
 }
 
@@ -122,6 +127,31 @@ fn apply_drum_filter_type(runner: &mut NativeRunner, slot: usize, key: &str) -> 
                 config,
             });
         }
+        runner.mark_fast_autosave_dirty();
+    }
+    Some(true)
+}
+
+/// Settings the runtime applies when it turns a stamped cell into a hit; the audio engine never
+/// sees them, so they only need saving.
+fn apply_drum_cell_setting(
+    runner: &mut NativeRunner,
+    slot: usize,
+    key: &str,
+    field: &str,
+) -> Option<bool> {
+    let level = field.strip_prefix("drum.velocityLevels.");
+    let next = match level {
+        Some(_) => json!(runner.menu.number_for_key(key)?.clamp(1, 127)),
+        None => json!(runner.menu.value_for_key(key)? == "true"),
+    };
+    let config = &mut runner.instruments.get_mut(slot)?.drum_config;
+    let target = match level {
+        Some(level) => &mut config["velocityLevels"][level],
+        None => &mut config[field.strip_prefix("drum.")?],
+    };
+    if *target != next {
+        *target = next;
         runner.mark_fast_autosave_dirty();
     }
     Some(true)

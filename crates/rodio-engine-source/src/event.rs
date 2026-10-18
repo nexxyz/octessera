@@ -16,10 +16,11 @@ pub enum EngineEvent {
         velocity: u8,
         duration_ms: u32,
     },
-    DrumHit {
+    CellHit {
         instrument_slot: u8,
         voice: u8,
-        tune_semis: i8,
+        cell: u8,
+        pitch_cents: i16,
         velocity: u8,
     },
     NoteOff {

@@ -4,7 +4,48 @@ use super::*;
 
 impl SynthEngine {
     pub(super) fn sample_note_on(&mut self, slot: usize, midi_note: u8, velocity: u8) {
-        let sample_slot = sample_slot_for_note(midi_note);
+        self.sample_voice_on(slot, sample_slot_for_note(midi_note), None, 0, velocity);
+    }
+
+    pub(super) fn release_sample_voices(
+        &mut self,
+        slot: usize,
+        matches: impl Fn(&SampleVoice) -> bool,
+    ) {
+        if !self.sample_voice_pool.compact_slot_lanes(slot) {
+            return;
+        }
+        let mut lane_indices = [0; SAMPLE_VOICE_LANE_CAPACITY];
+        let Some(lanes) = self.sample_voice_pool.slot_lanes(slot) else {
+            return;
+        };
+        let lane_count = lanes.len();
+        lane_indices[..lane_count].copy_from_slice(lanes);
+        for lane in lane_indices.into_iter().take(lane_count) {
+            let Some(voice) = self.sample_voice_pool.lane_mut(lane) else {
+                return;
+            };
+            if voice.active && matches(voice) {
+                self.sample_voice_pool.deactivate_lane(lane);
+            }
+        }
+        self.sample_voice_pool.compact_slot_lanes(slot);
+        self.active_sample_slots[slot] = self
+            .sample_voice_pool
+            .active_count_for_slot(slot)
+            .unwrap_or(0)
+            > 0;
+    }
+
+    pub(super) fn sample_voice_on(
+        &mut self,
+        slot: usize,
+        sample_slot: usize,
+        cell: Option<u8>,
+        pitch_cents: i16,
+        velocity: u8,
+    ) {
+        let sample_slot = sample_slot.min(SAMPLE_SLOTS_PER_INSTRUMENT - 1);
         if !self.sample_voice_pool.has_home() {
             return;
         }
@@ -43,7 +84,7 @@ impl SynthEngine {
         let vel = (velocity.max(1) as f32 / 127.0).clamp(0.0, 1.0);
         let vel_sens = (velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
         let gain = (gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
-        let pitch = 2.0_f32.powf(tune_semis / 12.0);
+        let pitch = 2.0_f32.powf((tune_semis + f32::from(pitch_cents) / 100.0) / 12.0);
         let step = pitch * sample_rate as f32 / self.sample_rate as f32;
         self.sample_voice_pool.compact_slot_lanes(slot);
         let active = self
@@ -125,6 +166,7 @@ impl SynthEngine {
             canonical_lane: None,
             instrument_slot: slot as u8,
             sample_slot,
+            cell,
             buffer: None,
             filter_cutoff_hz,
             filter_resonance,

@@ -124,6 +124,7 @@ mod restart_dialog_snapshots;
 mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
+mod sampler_cells;
 mod scan_replacement;
 mod selected_menu_row;
 mod sequencer_transport_origin;
@@ -221,6 +222,48 @@ pub(crate) fn select_behavior(runner: &mut NativeRunner, behavior_id: &str) {
             behavior_id.into(),
         ))
         .unwrap();
+}
+
+/// Audio or MIDI events in order; internal cell hits appear as notes keyed `(slot, cell)`.
+pub(crate) fn routed_events(
+    messages: &[RunnerMessage],
+    midi: bool,
+) -> Vec<platform_core::MusicalEvent> {
+    messages
+        .iter()
+        .flat_map(|message| match (midi, message) {
+            (false, RunnerMessage::MusicalEvents { events })
+            | (true, RunnerMessage::MidiEvents { events }) => events.clone(),
+            (false, RunnerMessage::CellHits { hits }) => hits
+                .iter()
+                .map(|hit| match hit.velocity {
+                    0 => platform_core::MusicalEvent::NoteOff {
+                        channel: hit.instrument_slot,
+                        note: hit.cell,
+                    },
+                    velocity => platform_core::MusicalEvent::NoteOn {
+                        channel: hit.instrument_slot,
+                        note: hit.cell,
+                        velocity,
+                        duration_ms: None,
+                    },
+                })
+                .collect(),
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
+pub(crate) fn cell_hit_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
+    messages
+        .iter()
+        .flat_map(|message| match message {
+            RunnerMessage::CellHits { hits } => hits.as_slice(),
+            _ => &[],
+        })
+        .filter(|hit| hit.velocity > 0)
+        .map(|hit| (hit.instrument_slot, hit.voice))
+        .collect()
 }
 
 pub(crate) fn musical_note_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {

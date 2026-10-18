@@ -65,6 +65,7 @@ mod binding_payload;
 mod binding_specs;
 mod bluetooth;
 mod canonical_presentation;
+mod cell_stamp;
 mod clear_patch_state;
 mod config;
 mod config_document_presence;
@@ -373,9 +374,11 @@ pub struct NativeRunner {
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
     link_arp_held_notes: Vec<Vec<LinkArpHeldNote>>,
+    link_arp_held_cells: Vec<Vec<crate::protocol::CellHit>>,
     link_arp_rotating_phase: Vec<usize>,
     link_arp_random_state: u32,
     emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
+    emitted_route_cell_owners: Vec<BTreeSet<(u8, u8)>>,
     audio_output_buffer_frames: u32,
     display: NativeDisplayState,
     midi_enabled: bool,
@@ -405,7 +408,7 @@ pub struct NativeRunner {
     play_drum_selected_slot: Option<usize>,
     drum_selected_voices: Vec<usize>,
     drum_assign: Option<(usize, u8)>,
-    drum_cell_tune: Option<(usize, Option<(usize, usize)>)>,
+    cell_stamps: Vec<NativeCellStamp>,
     play_fx_selected: Value,
     play_fx_assign: Option<Value>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,

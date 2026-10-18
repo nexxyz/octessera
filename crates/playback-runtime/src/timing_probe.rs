@@ -208,6 +208,20 @@ impl HostAdapter for ProbeHost {
         Ok(())
     }
 
+    fn handle_cell_hit(
+        &mut self,
+        hit: &crate::protocol::CellHit,
+    ) -> Result<(), crate::RuntimeAdapterError> {
+        if hit.velocity > 0 {
+            self.event_times_ms.push(self.now_ms);
+            self.events.push(EventRecord {
+                time_ms: self.now_ms,
+                key: format!("cell:{}:{}:{}", hit.instrument_slot, hit.voice, hit.cell),
+            });
+        }
+        Ok(())
+    }
+
     fn handle_platform_effect(
         &mut self,
         _request: &RuntimePlatformRequest,

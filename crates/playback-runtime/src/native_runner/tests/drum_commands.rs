@@ -193,16 +193,17 @@ fn preview_is_one_transient_hit_without_cell_offset_or_config_command() {
     let hits = preview
         .iter()
         .flat_map(|message| match message {
-            RunnerMessage::DrumHits { hits } => hits.clone(),
+            RunnerMessage::CellHits { hits } => hits.clone(),
             _ => Vec::new(),
         })
         .collect::<Vec<_>>();
     assert_eq!(
         hits,
-        vec![crate::protocol::DrumHit {
+        vec![crate::protocol::CellHit {
             instrument_slot: 0,
             voice: 4,
-            tune_semis: 0,
+            cell: 0,
+            pitch_cents: 0,
             velocity: 100,
         }]
     );

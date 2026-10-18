@@ -1,12 +1,12 @@
 use super::device_driver::DeviceDriver;
 
 pub(super) fn assert_configured_patch_emits(device: &mut DeviceDriver) {
-    let before = device.output().musical_event_count;
+    let before = device.output().played_event_count();
     device.start();
     for _ in 0..64 {
         device.clock_pulses(6);
     }
-    if device.output().musical_event_count <= before {
+    if device.output().played_event_count() <= before {
         device.fail("configured patch did not emit musical events after visible Build/grid setup");
     }
 }
@@ -31,7 +31,7 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
     device.select_layer_with_fn(1);
     device.toggle_active_layer_mute();
     device.select_layer_with_fn(2);
-    let before_looper = device.output().musical_event_count;
+    let before_looper = device.output().played_event_count();
     for x in 0..4 {
         device.press_grid(x, 0);
     }
@@ -41,7 +41,7 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
     for x in 0..4 {
         device.release_grid(x, 0);
     }
-    if device.output().musical_event_count <= before_looper {
+    if device.output().played_event_count() <= before_looper {
         device.fail("L3 looper key presses did not produce musical output while L1/L2 were muted");
     }
     device.select_layer_with_fn(0);
@@ -83,10 +83,10 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
 }
 
 fn play_and_expect_events(device: &mut DeviceDriver, label: &str) {
-    let before = device.output().musical_event_count;
+    let before = device.output().played_event_count();
     for _ in 0..96 {
         device.clock_pulses(6);
-        if device.output().musical_event_count > before {
+        if device.output().played_event_count() > before {
             return;
         }
     }

@@ -27,6 +27,9 @@ include!(concat!(
 ));
 
 pub const MAX_CONTROL_EVENTS_PER_CALLBACK: usize = 256;
+/// Largest pitch offset a grid cell may carry: a stamped cell tune and fine plus a followed
+/// Play Transpose stay well inside four octaves.
+pub const CELL_PITCH_CENTS_LIMIT: i16 = 4_800;
 pub const SAMPLE_VOICE_RETIREMENT_CAPACITY: usize =
     SAMPLE_VOICE_LANE_CAPACITY + (2 * MAX_CONTROL_EVENTS_PER_CALLBACK);
 pub(super) type LogicalLaneId = u8;

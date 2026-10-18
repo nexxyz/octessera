@@ -171,35 +171,45 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
             "Sample Slot",
             "(empty)",
             "S1 Browse",
+            "Cell Tune",
+            "Cell Fine",
+        ];
+        if enabled {
+            expected.push("Cell Level");
+        }
+        expected.extend([
             "Assign",
             "Tune",
+            "Follow Transp.",
+            "Follow Pitch",
             "Gain",
             "Base Velocity",
-        ];
+            "Vel Levels",
+        ]);
         if enabled {
             expected.push("Vel Levels");
         }
-        expected.extend(["Vel Levels", "Filter", "Vel Sens", "Amp Env", "Filter Env"]);
+        expected.extend(["Filter", "Vel Sens", "Amp Env", "Filter Env"]);
         assert_eq!(labels, expected);
     }
 }
 
 #[test]
-fn drum_volume_is_selected_after_seven_body_rows_without_losing_scroll() {
+fn drum_volume_is_selected_after_twelve_body_rows_without_losing_scroll() {
     let mut cfg = config();
     cfg.instrument_types[0] = "drum".into();
     let mut menu = NativeMenuModel::new(cfg);
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(menu.focus_current_group_label("Drum"));
     assert_eq!(menu.press(), Some(NativeMenuPressResult::EnteredGroup));
-    assert_eq!(menu.snapshot().scroll.as_ref().unwrap().total_rows, 8);
-    menu.turn(7);
+    assert_eq!(menu.snapshot().scroll.as_ref().unwrap().total_rows, 13);
+    menu.turn(12);
     let snapshot = menu.snapshot();
     assert_eq!(menu.current_item().label, "Volume");
     assert_eq!(snapshot.lines.len(), 7);
     assert!(snapshot.lines[snapshot.selected_row.unwrap()].starts_with("> Volume"));
     assert!(snapshot.scroll.as_ref().unwrap().scroll_offset > 0);
-    assert_eq!(snapshot.scroll.as_ref().unwrap().total_rows, 8);
+    assert_eq!(snapshot.scroll.as_ref().unwrap().total_rows, 13);
     assert_eq!(menu.press(), Some(NativeMenuPressResult::EnteredGroup));
     assert!(menu
         .snapshot()

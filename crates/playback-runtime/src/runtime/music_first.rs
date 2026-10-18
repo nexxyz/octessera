@@ -102,7 +102,7 @@ impl PlaybackRuntime {
 mod tests {
     use crate::tests::support::FakeHost;
     use crate::{
-        DrumHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
+        CellHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
         PlaybackRuntime, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig,
         RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeTransportState,
     };
@@ -143,9 +143,9 @@ mod tests {
             self.inner.handle_musical_event(event)
         }
 
-        fn handle_drum_hit(&mut self, hit: &DrumHit) -> Result<(), RuntimeAdapterError> {
+        fn handle_cell_hit(&mut self, hit: &CellHit) -> Result<(), RuntimeAdapterError> {
             self.calls.push("drum");
-            self.inner.handle_drum_hit(hit)
+            self.inner.handle_cell_hit(hit)
         }
 
         fn handle_audio_command(

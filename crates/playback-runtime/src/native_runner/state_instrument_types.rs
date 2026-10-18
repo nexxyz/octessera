@@ -32,6 +32,8 @@ pub(super) struct NativeInstrumentSlot {
     pub(super) sample_velocity_high: u8,
     pub(super) sample_velocity_medium: u8,
     pub(super) sample_velocity_low: u8,
+    pub(super) sample_follow_transpose: bool,
+    pub(super) sample_follow_pitch: bool,
     pub(super) midi_enabled: bool,
     pub(super) midi_channel: u8,
     pub(super) midi_velocity: u8,
@@ -44,6 +46,32 @@ pub(super) struct NativeSampleAssignment {
     pub(super) y: usize,
     pub(super) sample_slot: usize,
     pub(super) level: Option<String>,
+    pub(super) tune_semis: i8,
+    pub(super) tune_cents: i8,
+}
+
+/// The values Assign stamps onto the grid cells it is pressed on: Cell Tune, Cell Fine and
+/// Cell Level. Working state for the menu, not saved; the stamped cells are.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct NativeCellStamp {
+    pub(super) tune_semis: i8,
+    pub(super) tune_cents: i8,
+    pub(super) level: Option<String>,
+}
+
+impl NativeCellStamp {
+    pub(super) fn menu_value(&self) -> crate::native_menu::NativeMenuCellStamp {
+        crate::native_menu::NativeMenuCellStamp {
+            tune_semis: self.tune_semis,
+            tune_cents: self.tune_cents,
+            level_index: match self.level.as_deref() {
+                Some("high") => 1,
+                Some("medium") => 2,
+                Some("low") => 3,
+                _ => 0,
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -94,6 +122,8 @@ impl NativeInstrumentSlot {
             sample_base_velocity: 100,
             sample_amp_velocity_sensitivity_pct: 100,
             sample_velocity_levels_enabled: false,
+            sample_follow_transpose: false,
+            sample_follow_pitch: false,
             sample_velocity_high: 120,
             sample_velocity_medium: 85,
             sample_velocity_low: 45,

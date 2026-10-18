@@ -124,27 +124,54 @@ impl SynthEngine {
         self.note_on_with_drum(instrument_slot, midi_note, velocity, duration_ms, None);
     }
 
-    pub fn drum_hit(&mut self, instrument_slot: u8, voice: u8, tune_semis: i8, velocity: u8) {
+    pub fn cell_hit(
+        &mut self,
+        instrument_slot: u8,
+        voice: u8,
+        cell: u8,
+        pitch_cents: i16,
+        velocity: u8,
+    ) {
         let slot = usize::from(instrument_slot);
         if slot >= INSTRUMENT_SLOT_COUNT
             || voice >= 8
-            || !(-24..=24).contains(&tune_semis)
-            || !(1..=127).contains(&velocity)
-            || self.slot_kind[slot] != InstrumentKind::Drum
+            || !(-CELL_PITCH_CENTS_LIMIT..=CELL_PITCH_CENTS_LIMIT).contains(&pitch_cents)
+            || velocity > 127
         {
             return;
         }
-        let kit_voice = self.drum_voices[slot][usize::from(voice)];
-        let note =
-            (kit_voice.sound.base_midi() + i32::from(kit_voice.tune_semis) + i32::from(tune_semis))
-                .clamp(0, 127) as u8;
-        self.note_on_with_drum(
-            instrument_slot,
-            note,
-            velocity,
-            kit_voice.decay_ms as u32,
-            Some((kit_voice, tune_semis)),
-        );
+        match self.slot_kind[slot] {
+            InstrumentKind::Drum if velocity > 0 => {
+                let kit_voice = self.drum_voices[slot][usize::from(voice)];
+                let note = (kit_voice.sound.base_midi()
+                    + i32::from(kit_voice.tune_semis)
+                    + (f32::from(pitch_cents) / 100.0).round() as i32)
+                    .clamp(0, 127) as u8;
+                self.note_on_with_drum(
+                    instrument_slot,
+                    note,
+                    velocity,
+                    kit_voice.decay_ms as u32,
+                    Some((kit_voice, pitch_cents)),
+                );
+            }
+            InstrumentKind::Sample if velocity == 0 => {
+                if self.voice_pools_home() {
+                    self.release_sample_voices(slot, |voice| voice.cell == Some(cell));
+                }
+            }
+            InstrumentKind::Sample => {
+                #[cfg(feature = "routing-tree-executor")]
+                if self.routing_tree_assignment.is_some() {
+                    self.routing_tree_mark_note_event();
+                }
+                if !self.voice_pools_home() {
+                    return;
+                }
+                self.sample_voice_on(slot, usize::from(voice), Some(cell), pitch_cents, velocity);
+            }
+            _ => {}
+        }
     }
 
     fn note_on_with_drum(
@@ -153,7 +180,7 @@ impl SynthEngine {
         midi_note: u8,
         velocity: u8,
         duration_ms: u32,
-        drum: Option<(DrumVoiceConfig, i8)>,
+        drum: Option<(DrumVoiceConfig, i16)>,
     ) {
         #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
@@ -292,10 +319,10 @@ impl SynthEngine {
             fm: self.slot_kind[slot] == InstrumentKind::Fm,
             pluck_voice: self.slot_kind[slot] == InstrumentKind::Pluck,
             drum_voice: drum.is_some(),
-            drum: if let Some((kit_voice, local_tune)) = drum {
+            drum: if let Some((kit_voice, local_cents)) = drum {
                 crate::synth::drum_state::DrumState::note_on(
                     kit_voice,
-                    local_tune,
+                    local_cents,
                     v,
                     lane,
                     self.sample_rate,
@@ -403,28 +430,7 @@ impl SynthEngine {
         }
 
         let sample_slot = sample_slot_for_note(midi_note);
-        if self.sample_voice_pool.compact_slot_lanes(slot) {
-            let mut lane_indices = [0; SAMPLE_VOICE_LANE_CAPACITY];
-            let Some(lanes) = self.sample_voice_pool.slot_lanes(slot) else {
-                return;
-            };
-            let lane_count = lanes.len();
-            lane_indices[..lane_count].copy_from_slice(lanes);
-            for lane in lane_indices.into_iter().take(lane_count) {
-                let Some(voice) = self.sample_voice_pool.lane_mut(lane) else {
-                    return;
-                };
-                if voice.active && voice.sample_slot == sample_slot {
-                    self.sample_voice_pool.deactivate_lane(lane);
-                }
-            }
-            self.sample_voice_pool.compact_slot_lanes(slot);
-            self.active_sample_slots[slot] = self
-                .sample_voice_pool
-                .active_count_for_slot(slot)
-                .unwrap_or(0)
-                > 0;
-        }
+        self.release_sample_voices(slot, |voice| voice.sample_slot == sample_slot);
     }
 
     pub fn all_notes_off(&mut self) -> RetiredAudioState {

@@ -25,7 +25,7 @@ pub use native_runner::{
 pub use platform_core::MusicalEvent;
 pub use preset_name_policy::{clean_preset_name, fresh_preset_name, is_valid_preset_name};
 pub use protocol::{
-    DrumHit, HostMessage, MidiPort, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand,
+    CellHit, HostMessage, MidiPort, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand,
     RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind,
     RuntimeBluetoothPairing, RuntimeBluetoothStatus, RuntimeErrorCode, RuntimeErrorDomain,
     RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeMomentaryFxTarget, RuntimeOperation,

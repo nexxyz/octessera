@@ -1,6 +1,6 @@
 use super::*;
 use playback_runtime::{
-    DrumHit, HostAdapter, HostMessage, MusicalEvent, NativeRunnerConfig, RuntimeAdapterError,
+    CellHit, HostAdapter, HostMessage, MusicalEvent, NativeRunnerConfig, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimePlatformRequest,
 };
 use serde_json::json;
@@ -23,7 +23,7 @@ impl HostAdapter for TestHost {
         Ok(())
     }
 
-    fn handle_drum_hit(&mut self, _hit: &DrumHit) -> Result<(), RuntimeAdapterError> {
+    fn handle_cell_hit(&mut self, _hit: &CellHit) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
 

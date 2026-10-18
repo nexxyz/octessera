@@ -9,12 +9,18 @@ impl NativeRunner {
         for held in &mut self.link_arp_held_notes {
             held.clear();
         }
+        for held in &mut self.link_arp_held_cells {
+            held.clear();
+        }
         self.link_arp_rotating_phase.fill(0);
         self.link_arp_random_state = LINK_ARP_RANDOM_SEED;
     }
 
     pub(super) fn clear_link_arp_state_for_layer(&mut self, layer_index: usize) {
         if let Some(held) = self.link_arp_held_notes.get_mut(layer_index) {
+            held.clear();
+        }
+        if let Some(held) = self.link_arp_held_cells.get_mut(layer_index) {
             held.clear();
         }
         if let Some(phase) = self.link_arp_rotating_phase.get_mut(layer_index) {
@@ -32,9 +38,19 @@ impl NativeRunner {
     ) -> RoutedMusicalEvents {
         let mut immediate = RoutedMusicalEvents::default();
         self.update_link_arp_held_notes(layer_index, &routed);
+        self.update_link_arp_held_cells(layer_index, &routed);
         let source_routed = if arp.source == "held" {
             let mut source = non_note_routed_events(&routed);
+            source.cells = routed
+                .cells
+                .iter()
+                .filter(|hit| hit.velocity > 0 && !self.is_held_cell(layer_index, hit))
+                .cloned()
+                .collect();
             source.extend(self.held_notes_as_routed(layer_index));
+            if let Some(held) = self.link_arp_held_cells.get(layer_index) {
+                source.cells.extend(held.iter().cloned());
+            }
             source
         } else {
             suppress_arp_note_offs(routed)
@@ -56,6 +72,24 @@ impl NativeRunner {
             }
         }
         immediate
+    }
+
+    fn update_link_arp_held_cells(&mut self, layer_index: usize, routed: &RoutedMusicalEvents) {
+        let held_hits = routed
+            .cells
+            .iter()
+            .filter(|hit| self.is_held_cell(layer_index, hit))
+            .cloned()
+            .collect::<Vec<_>>();
+        let Some(held) = self.link_arp_held_cells.get_mut(layer_index) else {
+            return;
+        };
+        for hit in &routed.cells {
+            held.retain(|other| {
+                (other.instrument_slot, other.cell) != (hit.instrument_slot, hit.cell)
+            });
+        }
+        held.extend(held_hits);
     }
 
     fn update_link_arp_held_notes(&mut self, layer_index: usize, routed: &RoutedMusicalEvents) {
@@ -120,14 +154,14 @@ impl NativeRunner {
         arp: &NativeLinkArp,
     ) -> Vec<(u16, RoutedMusicalEvents)> {
         let mut out = Vec::new();
-        for (index, hit) in routed.drum.into_iter().enumerate() {
+        for (index, hit) in routed.cells.into_iter().enumerate() {
             let offset = if matches!(arp.mode.as_str(), "direct" | "chord_strike") {
                 0
             } else {
                 (index as u16).saturating_mul(u16::from(arp.step_interval_steps))
             };
             let mut event = RoutedMusicalEvents::default();
-            event.drum.push(hit);
+            event.cells.push(hit);
             out.push((offset, event));
         }
         out.extend(self.arp_events_for_lane(layer_index, routed.audio, arp, true));
@@ -206,6 +240,7 @@ impl NativeRunner {
 }
 
 fn suppress_arp_note_offs(mut routed: RoutedMusicalEvents) -> RoutedMusicalEvents {
+    routed.cells.retain(|hit| hit.velocity > 0);
     routed
         .audio
         .retain(|event| !matches!(event, MusicalEvent::NoteOff { .. }));
@@ -217,7 +252,7 @@ fn suppress_arp_note_offs(mut routed: RoutedMusicalEvents) -> RoutedMusicalEvent
 
 fn non_note_routed_events(routed: &RoutedMusicalEvents) -> RoutedMusicalEvents {
     RoutedMusicalEvents {
-        drum: routed.drum.clone(),
+        cells: Vec::new(),
         audio: routed
             .audio
             .iter()

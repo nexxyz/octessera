@@ -15,6 +15,7 @@ const DRUM_TONE_PCT: [u8; 8] = [35, 70, 90, 85, 50, 60, 80, 80];
 const DRUM_SWEEP_SEMIS: [u8; 8] = [24, 3, 0, 0, 8, 6, 0, 0];
 const DRUM_SWEEP_MS: [u8; 8] = [55, 25, 0, 0, 70, 50, 0, 0];
 const DRUM_NOISE_MIX_PCT: [u8; 8] = [12, 80, 95, 95, 15, 15, 95, 35];
+const DRUM_VELOCITY_LEVELS: [(&str, u8); 3] = [("high", 120), ("medium", 85), ("low", 45)];
 
 pub(super) fn drum_voice_default(sound: &str) -> Option<Value> {
     let index = DRUM_SOUNDS.iter().position(|id| *id == sound)?;
@@ -40,6 +41,12 @@ pub(super) fn normalize_complete_voice_bank(payload: &mut Value) {
         return;
     };
     for instrument in instruments {
+        if let Some(drum) = instrument.get_mut("drum").and_then(Value::as_object_mut) {
+            drum.entry("velocityLevels")
+                .or_insert_with(drum_velocity_levels_default);
+            drum.entry("followTranspose").or_insert(Value::Bool(false));
+            drum.entry("followPitch").or_insert(Value::Bool(false));
+        }
         let Some(voices) = instrument
             .get_mut("drum")
             .and_then(|drum| drum.get_mut("voices"))
@@ -78,11 +85,36 @@ pub(super) fn drum_default_config() -> Value {
     json!({
         "voices": DRUM_SOUNDS.iter().map(|sound| drum_voice_default(sound).expect("fixed drum sound")).collect::<Vec<_>>(),
         "assignments": [],
+        "velocityLevels": drum_velocity_levels_default(),
+        "followTranspose": false,
+        "followPitch": false,
         "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
         "ampEnv": { "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 30 },
         "filter": synth["filter"],
         "filterEnv": synth["filterEnv"],
     })
+}
+
+fn drum_velocity_levels_default() -> Value {
+    Value::Object(
+        DRUM_VELOCITY_LEVELS
+            .iter()
+            .map(|(level, velocity)| ((*level).into(), (*velocity).into()))
+            .collect(),
+    )
+}
+
+/// The velocity a stamped Drum cell level stands for; `None` for Base and unknown levels.
+pub(super) fn drum_velocity_level(drum_config: &Value, level: &str) -> Option<u8> {
+    let default = DRUM_VELOCITY_LEVELS
+        .iter()
+        .find(|(name, _)| *name == level)?
+        .1;
+    Some(
+        drum_config["velocityLevels"][level]
+            .as_u64()
+            .map_or(default, |velocity| velocity.clamp(1, 127) as u8),
+    )
 }
 
 pub(super) fn instrument_drum_configs(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {

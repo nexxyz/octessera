@@ -77,10 +77,10 @@ impl NativeRunner {
         self.sync_engine_runtime_config();
         self.sample_assign = None;
         self.drum_assign = None;
-        self.drum_cell_tune = None;
+        self.cell_stamps.fill(NativeCellStamp::default());
         self.drum_selected_voices.fill(0);
         self.play_drum_selected_slot = None;
-        self.pending.drum_hits.clear();
+        self.pending.cell_hits.clear();
         self.sample_browser = None;
         self.fx_buses = default_fx_buses();
         self.global_fx_slots = default_global_fx_slots();

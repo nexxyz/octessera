@@ -114,12 +114,12 @@ pub trait CoreRunner {
 pub trait HostAdapter {
     fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError>;
 
-    fn handle_drum_hit(
+    fn handle_cell_hit(
         &mut self,
-        _hit: &crate::protocol::DrumHit,
+        _hit: &crate::protocol::CellHit,
     ) -> Result<(), RuntimeAdapterError> {
         Err(RuntimeAdapterError::operation_failed(
-            "DrumHit host adapter not connected".into(),
+            "CellHit host adapter not connected".into(),
         ))
     }
 

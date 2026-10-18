@@ -109,15 +109,25 @@ fn validate_sample_assignment(value: &Value, path: &str) -> Result<(), String> {
             }
         }
     }
-    if let Some(level) = object.get("level") {
-        if !level.is_null() {
-            let level = level
-                .as_str()
-                .ok_or_else(|| format!("{path}.level must be null or a string enum"))?;
-            if !SAMPLE_ASSIGNMENT_LEVELS.contains(&level) {
-                return Err(format!("{path}.level has unknown value `{level}`"));
+    for key in ["tuneSemis", "tuneCents"] {
+        if let Some(value) = object.get(key) {
+            if value.as_i64().is_none() {
+                return Err(format!("{path}.{key} must be a signed integer"));
             }
         }
+    }
+    validate_assignment_level(object.get("level"), path)
+}
+
+fn validate_assignment_level(level: Option<&Value>, path: &str) -> Result<(), String> {
+    let Some(level) = level.filter(|level| !level.is_null()) else {
+        return Ok(());
+    };
+    let level = level
+        .as_str()
+        .ok_or_else(|| format!("{path}.level must be null or a string enum"))?;
+    if !SAMPLE_ASSIGNMENT_LEVELS.contains(&level) {
+        return Err(format!("{path}.level has unknown value `{level}`"));
     }
     Ok(())
 }
@@ -149,11 +159,14 @@ fn validate_drum_assignments(value: &Value, path: &str) -> Result<(), String> {
                 }
             }
         }
-        if let Some(value) = object.get("tuneSemis") {
-            if value.as_i64().is_none() {
-                return Err(format!("{path}.tuneSemis must be a signed integer"));
+        for key in ["tuneSemis", "tuneCents"] {
+            if let Some(value) = object.get(key) {
+                if value.as_i64().is_none() {
+                    return Err(format!("{path}.{key} must be a signed integer"));
+                }
             }
         }
+        validate_assignment_level(object.get("level"), &path)?;
     }
     Ok(())
 }
@@ -243,8 +256,9 @@ const PARAM_BINDING_FIELDS: &[&str] = &[
 const AUX_BINDING_FIELDS: &[&str] = &["turnKey", "pressAction"];
 const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "action", "slot"];
 const SYSTEM_FIELDS: &[&str] = &["playMode"];
-const SAMPLE_ASSIGNMENT_FIELDS: &[&str] = &["level", "sampleSlot", "x", "y"];
+const SAMPLE_ASSIGNMENT_FIELDS: &[&str] =
+    &["level", "sampleSlot", "x", "y", "tuneSemis", "tuneCents"];
 const SAMPLE_ASSIGNMENT_LEVELS: &[&str] = &["high", "medium", "low"];
-const DRUM_ASSIGNMENT_FIELDS: &[&str] = &["x", "y", "voice", "tuneSemis"];
+const DRUM_ASSIGNMENT_FIELDS: &[&str] = &["x", "y", "voice", "tuneSemis", "tuneCents", "level"];
 const PLAY_ASSIGNMENT_FIELDS: &[&str] = &["config", "x", "y"];
 const PLAY_CONFIG_FIELDS: &[&str] = &["fxType", "params", "targetKey"];

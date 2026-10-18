@@ -41,7 +41,7 @@ pub(super) struct NativePendingState {
     pub(super) suppress_snapshot_response: bool,
     pub(super) presentation_deferred: bool,
     pub(super) external_autosave_deferred: bool,
-    pub(super) drum_hits: Vec<crate::protocol::DrumHit>,
+    pub(super) cell_hits: Vec<crate::protocol::CellHit>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

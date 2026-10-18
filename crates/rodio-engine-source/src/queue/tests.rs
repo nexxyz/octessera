@@ -41,21 +41,22 @@ fn latest_controls_replace_without_consuming_fifo_capacity() {
 #[test]
 fn distinct_drum_hits_stay_ordered_in_musical_fifo_and_not_latest_cells() {
     let (sender, mut receiver) = event_queue();
-    for (voice, tune_semis) in [(0, -24), (2, 12)] {
+    for (voice, pitch_cents) in [(0, -2400), (2, 1250)] {
         sender
-            .send(EngineEvent::DrumHit {
+            .send(EngineEvent::CellHit {
                 instrument_slot: 3,
                 voice,
-                tune_semis,
+                cell: voice,
+                pitch_cents,
                 velocity: 100,
             })
             .unwrap();
     }
-    for (voice, tune_semis) in [(0, -24), (2, 12)] {
+    for (voice, pitch_cents) in [(0, -2400), (2, 1250)] {
         assert!(matches!(receiver.try_recv().unwrap(),
-            EngineEvent::DrumHit { instrument_slot: 3, voice: actual_voice,
-                tune_semis: actual_tune, velocity: 100 }
-            if actual_voice == voice && actual_tune == tune_semis));
+            EngineEvent::CellHit { instrument_slot: 3, voice: actual_voice, cell: actual_cell,
+                pitch_cents: actual_pitch, velocity: 100 }
+            if actual_voice == voice && actual_cell == voice && actual_pitch == pitch_cents));
     }
     assert!(receiver.take_latest_candidate().is_none());
 }

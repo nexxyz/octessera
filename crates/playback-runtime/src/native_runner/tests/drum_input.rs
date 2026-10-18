@@ -39,214 +39,127 @@ fn oled_lines(snapshot: &Value) -> Vec<&str> {
         .collect()
 }
 
-#[test]
-fn drum_assign_shift_bottom_row_and_combined_column_toggle_each_cell_independently() {
-    let mut runner = drum_runner();
-    runner
-        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.assign:0:1".into(),
-        ))
-        .unwrap();
-    input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
-    assert_eq!(cell(&runner, 3, 0).unwrap()["voice"], 1);
-    input(
-        &mut runner,
-        json!({ "type": "button_shift", "pressed": true }),
-    );
-    input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
-    input(
-        &mut runner,
-        json!({ "type": "button_shift", "pressed": false }),
-    );
-    assert!(cell(&runner, 3, 0).is_none());
-    for x in 0..GRID_WIDTH {
-        if x != 3 {
-            assert_eq!(cell(&runner, x, 0).unwrap()["voice"], 1);
-        }
-    }
-    assert!(cell(&runner, 3, 7).is_none());
+fn press(runner: &mut NativeRunner, x: usize, y: usize) {
+    input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+}
 
+fn with_modifier(runner: &mut NativeRunner, modifier: &str, x: usize, y: usize) {
+    input(runner, json!({ "type": modifier, "pressed": true }));
+    press(runner, x, y);
+    input(runner, json!({ "type": modifier, "pressed": false }));
+}
+
+fn assign_voice(runner: &mut NativeRunner, voice: usize) {
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.assign:0:2".into(),
+            format!("drum.assign:0:{voice}"),
         ))
         .unwrap();
-    input(&mut runner, json!({ "type": "grid_press", "x": 4, "y": 3 }));
-    input(
-        &mut runner,
-        json!({ "type": "button_combined_modifier", "pressed": true }),
-    );
-    input(&mut runner, json!({ "type": "grid_press", "x": 4, "y": 1 }));
-    input(
-        &mut runner,
-        json!({ "type": "button_combined_modifier", "pressed": false }),
-    );
-    for y in 0..GRID_HEIGHT {
-        if y == 3 {
-            assert!(cell(&runner, 4, y).is_none());
-        } else {
-            assert_eq!(cell(&runner, 4, y).unwrap()["voice"], 2);
-        }
+}
+
+fn set_stamp(runner: &mut NativeRunner, tune: i32, fine: i32, level: &str) {
+    for (key, value) in [("tuneSemis", tune), ("tuneCents", fine)] {
+        let key = format!("instruments.0.cell.{key}");
+        runner.menu.set_number_value_for_key(&key, value);
+        runner.apply_or_schedule_menu_key(&key).unwrap();
     }
-    assert_eq!(cell(&runner, 0, 0).unwrap()["voice"], 1);
-    assert_eq!(cell(&runner, 4, 0).unwrap()["voice"], 2);
+    runner
+        .menu
+        .set_enum_value_for_key("instruments.0.cell.level", level);
+    runner
+        .apply_or_schedule_menu_key("instruments.0.cell.level")
+        .unwrap();
 }
 
 #[test]
-fn drum_replacement_resets_only_local_tune_and_back_steps_through_cell_tune() {
+fn drum_rows_and_columns_stamp_every_cell_and_a_fully_stamped_line_clears() {
     let mut runner = drum_runner();
-    runner
-        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.assign:0:0".into(),
-        ))
-        .unwrap();
-    for x in [1, 2] {
-        input(&mut runner, json!({ "type": "grid_press", "x": x, "y": 0 }));
-    }
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    assert!(runner.drum_assign.is_none());
-    runner
-        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.cellTune:0".into(),
-        ))
-        .unwrap();
-    let choosing = runner.snapshot().unwrap();
-    assert_eq!(choosing["display"]["title"], "Cell Tune");
-    assert_eq!(oled_lines(&choosing), ["Choose drum cell"]);
-    assert!(choosing["selectedRow"].is_null());
-    input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 7 }));
-    assert_eq!(
-        runner.snapshot().unwrap()["display"]["toast"],
-        "No drum here"
-    );
-    assert_eq!(runner.drum_cell_tune, Some((0, None)));
-    input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 0 }));
-    let selected = runner.snapshot().unwrap();
-    assert_eq!(oled_lines(&selected), ["Kick (1,0)", "Tune +0 st"]);
-    input(
-        &mut runner,
-        json!({ "type": "encoder_turn", "id": "main", "delta": 5 }),
-    );
-    let turned = runner.snapshot().unwrap();
-    assert_eq!(oled_lines(&turned), ["Kick (1,0)", "Tune +5 st"]);
-    assert_eq!(cell(&runner, 1, 0).unwrap()["tuneSemis"], 5);
-    input(
-        &mut runner,
-        json!({ "type": "encoder_turn", "id": "main", "delta": -7 }),
-    );
-    assert_eq!(
-        oled_lines(&runner.snapshot().unwrap()),
-        ["Kick (1,0)", "Tune -2 st"]
-    );
-    assert!(cell(&runner, 2, 0).unwrap().get("tuneSemis").is_none());
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    assert_eq!(runner.drum_cell_tune, Some((0, None)));
-    assert_eq!(
-        oled_lines(&runner.snapshot().unwrap()),
-        ["Choose drum cell"]
-    );
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    assert!(runner.drum_cell_tune.is_none());
-    assert_ne!(runner.snapshot().unwrap()["display"]["title"], "Cell Tune");
-    assert!(runner.menu.focus_item_key("drum.cellTune.0"));
-    let drum_menu = runner.snapshot().unwrap();
-    assert_eq!(oled_lines(&drum_menu).len(), 7);
-    assert_eq!(drum_menu["display"]["visibleRows"], 7);
-    assert_eq!(drum_menu["display"]["totalRows"], 8);
-    assert!(drum_menu["selectedRow"].as_u64().unwrap() < 7);
+    assign_voice(&mut runner, 1);
+    press(&mut runner, 3, 0);
+    assert_eq!(cell(&runner, 3, 0).unwrap()["voice"], 1);
 
-    runner
-        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.assign:0:2".into(),
-        ))
-        .unwrap();
-    input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 0 }));
+    with_modifier(&mut runner, "button_shift", 3, 0);
+    for x in 0..GRID_WIDTH {
+        assert_eq!(cell(&runner, x, 0).unwrap()["voice"], 1);
+    }
+    with_modifier(&mut runner, "button_shift", 5, 0);
+    for x in 0..GRID_WIDTH {
+        assert!(cell(&runner, x, 0).is_none());
+    }
+
+    assign_voice(&mut runner, 2);
+    press(&mut runner, 4, 3);
+    with_modifier(&mut runner, "button_combined_modifier", 4, 1);
+    for y in 0..GRID_HEIGHT {
+        assert_eq!(cell(&runner, 4, y).unwrap()["voice"], 2);
+    }
+    assert!(cell(&runner, 3, 3).is_none());
+}
+
+#[test]
+fn drum_cells_stamp_tune_fine_and_level_and_restamping_replaces_or_clears() {
+    let mut runner = drum_runner();
+    set_stamp(&mut runner, 7, -25, "High");
+    assign_voice(&mut runner, 0);
+    press(&mut runner, 1, 0);
     assert_eq!(
         cell(&runner, 1, 0).unwrap(),
-        json!({ "x": 1, "y": 0, "voice": 2 })
+        json!({ "x": 1, "y": 0, "voice": 0, "tuneSemis": 7, "tuneCents": -25, "level": "high" })
     );
-    assert_eq!(cell(&runner, 2, 0).unwrap()["voice"], 0);
-}
-
-#[test]
-fn aux_mapping_popup_scroll_does_not_edit_active_drum_cell_tune() {
-    let mut runner = drum_runner();
-    runner.skip_startup_splash();
-    runner
-        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.assign:0:0".into(),
-        ))
-        .unwrap();
-    input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 0 }));
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    runner
-        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.cellTune:0".into(),
-        ))
-        .unwrap();
-    input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 0 }));
-    assert_eq!(runner.drum_cell_tune, Some((0, Some((1, 0)))));
-    let assignment = cell(&runner, 1, 0).unwrap();
-    runner.config_dirty = false;
-    runner.dirty_revision = None;
-    runner.pending.pending_save_revision = None;
-    runner.pending.pending_autosave_payload_due_at = None;
-    let config_revision = runner.config_revision;
-
-    input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
-    input(
-        &mut runner,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    input(
-        &mut runner,
-        json!({ "type": "button_fn", "pressed": false }),
-    );
-    let output = input(
-        &mut runner,
-        json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
-    );
-
-    assert_eq!(runner.display.help_popup.as_ref().unwrap().scroll, 1);
-    assert_eq!(runner.drum_cell_tune, Some((0, Some((1, 0)))));
-    assert_eq!(cell(&runner, 1, 0).unwrap(), assignment);
-    assert!(!runner.config_dirty);
-    assert_eq!(runner.config_revision, config_revision);
-    assert!(runner.pending.pending_save_revision.is_none());
-    assert!(!output.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(
-                effect,
-                RuntimePlatformEffect::StoreSaveDefault { .. }
-                    | RuntimePlatformEffect::StoreSaveBackup { .. }
-            ))
-    )));
-
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    assert!(runner.drum_cell_tune.is_some());
-    input(
-        &mut runner,
-        json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
-    );
-    assert_eq!(cell(&runner, 1, 0).unwrap()["tuneSemis"], 1);
-}
-
-#[test]
-fn cell_tune_oled_uses_current_kit_sound_not_fixed_voice_name() {
-    let mut runner = drum_runner();
-    runner.instruments[0].drum_config["voices"][0]["sound"] = json!("closed_hat");
-    runner.assign_drum_cell(0, 0, 3, 0);
-    runner
-        .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.cellTune:0".into(),
-        ))
-        .unwrap();
-    input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
     assert_eq!(
-        oled_lines(&runner.snapshot().unwrap()),
-        ["Closed Hat (3,0)", "Tune +0 st"]
+        runner.snapshot().unwrap()["display"]["toast"],
+        "V1 +7 -25c High"
     );
+
+    set_stamp(&mut runner, -3, 0, "Base");
+    press(&mut runner, 1, 0);
+    assert_eq!(
+        cell(&runner, 1, 0).unwrap(),
+        json!({ "x": 1, "y": 0, "voice": 0, "tuneSemis": -3 })
+    );
+    press(&mut runner, 1, 0);
+    assert!(cell(&runner, 1, 0).is_none());
+    assert_eq!(runner.snapshot().unwrap()["display"]["toast"], "Cleared");
+    assert!(runner.cell_stamps[0] != NativeCellStamp::default());
+    assert!(!runner.config_payload()["runtimeConfig"]
+        .to_string()
+        .contains("cellStamp"));
+}
+
+#[test]
+fn stamped_drum_level_scales_velocity_and_follow_pitch_and_transpose_are_opt_in() {
+    let mut runner = drum_runner();
+    runner.instruments[0].drum_config["assignments"] = json!([
+        { "x": 2, "y": 0, "voice": 2, "tuneSemis": 3, "tuneCents": 10, "level": "low" }
+    ]);
+    let route = |runner: &NativeRunner, transpose: i8, note: u8| {
+        super::super::modulation_sampler::apply_sampler_assignments_for_instruments_routed(
+            vec![MusicalEvent::NoteOn {
+                channel: 0,
+                note,
+                velocity: 127,
+                duration_ms: Some(100),
+            }],
+            &[platform_core::CellTriggerIntent {
+                x: 2,
+                y: 0,
+                degree: 0,
+                kind: platform_core::CellTriggerKind::Activate,
+            }],
+            0,
+            &runner.instruments,
+            None,
+            transpose,
+            None,
+        )
+        .cells
+    };
+    let hit = route(&runner, 5, 64)[0].clone();
+    assert_eq!((hit.pitch_cents, hit.velocity), (310, 45));
+    runner.instruments[0].drum_config["followPitch"] = json!(true);
+    assert_eq!(route(&runner, 5, 64)[0].pitch_cents, 710);
+    runner.instruments[0].drum_config["followTranspose"] = json!(true);
+    assert_eq!(route(&runner, 5, 64)[0].pitch_cents, 1210);
 }
 
 #[test]
@@ -320,7 +233,9 @@ fn play_drums_overlay_blacks_unassigned_behavior_cells_and_entire_grid_without_s
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["instruments"][0]["type"] = json!("drum");
     runner.apply_config_payload(payload).unwrap();
-    runner.assign_drum_cell(0, 0, 2, 0);
+    assign_voice(&mut runner, 0);
+    press(&mut runner, 2, 0);
+    runner.drum_assign = None;
     input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
     let before = led_cells(&runner.snapshot().unwrap());
     assert_ne!(before[display_index(3, 0)], led_rgb([0, 0, 0]));
@@ -368,8 +283,11 @@ fn play_drums_overlay_blacks_unassigned_behavior_cells_and_entire_grid_without_s
 #[test]
 fn drum_assignment_leds_use_world_to_display_index_and_override_play_fn_navigation() {
     let mut runner = drum_runner();
-    runner.assign_drum_cell(0, 1, 2, 0);
-    runner.assign_drum_cell(0, 2, 2, 7);
+    assign_voice(&mut runner, 1);
+    press(&mut runner, 2, 0);
+    assign_voice(&mut runner, 2);
+    press(&mut runner, 2, 7);
+    runner.drum_assign = None;
     runner.active_play_mode = "drums".into();
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
@@ -419,16 +337,17 @@ fn play_drums_fn_page_press_while_stopped_consumes_behavior_once_and_empty_is_si
     let hits = press
         .iter()
         .flat_map(|message| match message {
-            RunnerMessage::DrumHits { hits } => hits.clone(),
+            RunnerMessage::CellHits { hits } => hits.clone(),
             _ => Vec::new(),
         })
         .collect::<Vec<_>>();
     assert_eq!(
         hits,
-        vec![crate::protocol::DrumHit {
+        vec![crate::protocol::CellHit {
             instrument_slot: 0,
             voice: 3,
-            tune_semis: -12,
+            cell: 2,
+            pitch_cents: -1200,
             velocity: 100
         }]
     );
@@ -443,7 +362,7 @@ fn play_drums_fn_page_press_while_stopped_consumes_behavior_once_and_empty_is_si
     let empty = input(&mut runner, json!({ "type": "grid_press", "x": 2, "y": 1 }));
     assert!(!release.iter().chain(empty.iter()).any(|message| matches!(
         message,
-        RunnerMessage::DrumHits { .. }
+        RunnerMessage::CellHits { .. }
             | RunnerMessage::MusicalEvents { .. }
             | RunnerMessage::MidiEvents { .. }
     )));

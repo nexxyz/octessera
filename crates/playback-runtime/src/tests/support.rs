@@ -142,6 +142,7 @@ impl CoreRunner for FakeRunner {
 pub(crate) struct FakeHost {
     pub midi_messages: Vec<Vec<u8>>,
     pub musical_events: Vec<MusicalEvent>,
+    pub cell_hits: Vec<crate::protocol::CellHit>,
     pub audio_commands: Vec<RuntimeAudioCommand>,
     pub effects: Vec<RuntimePlatformEffect>,
     pub silence_calls: usize,
@@ -156,6 +157,14 @@ pub(crate) struct FakeHost {
 impl HostAdapter for FakeHost {
     fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
         self.musical_events.push(event.clone());
+        Ok(())
+    }
+
+    fn handle_cell_hit(
+        &mut self,
+        hit: &crate::protocol::CellHit,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.cell_hits.push(hit.clone());
         Ok(())
     }
 

@@ -14,6 +14,8 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
         y: 0,
         sample_slot: 4,
         level: None,
+        tune_semis: 0,
+        tune_cents: 0,
     }];
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.link_layers[1].scan_mode = "scanning".into();
@@ -43,11 +45,10 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
         })
         .unwrap();
 
-    let notes = musical_note_ons(&messages);
-    assert!(notes
+    assert!(cell_hit_ons(&messages).contains(&(1, 4)));
+    assert!(!musical_note_ons(&messages)
         .iter()
-        .any(|(channel, note)| *channel == 1 && *note == 40));
-    assert!(!notes.iter().any(|(channel, _)| *channel == 0));
+        .any(|(channel, _)| *channel == 0));
 }
 
 #[test]
@@ -275,9 +276,8 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
         })
         .unwrap();
 
-    let notes = musical_note_ons(&messages);
-    assert!(notes
+    assert!(cell_hit_ons(&messages).contains(&(1, 4)));
+    assert!(!musical_note_ons(&messages)
         .iter()
-        .any(|(channel, note)| *channel == 1 && *note == 40));
-    assert!(!notes.iter().any(|(channel, _)| *channel == 0));
+        .any(|(channel, _)| *channel == 0));
 }

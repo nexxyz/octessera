@@ -7,14 +7,15 @@ use super::{
     instrument_pan_positions, instrument_pluck_configs, instrument_routes,
     instrument_sample_amp_envs, instrument_sample_amp_velocity_sensitivity_pct,
     instrument_sample_base_velocity, instrument_sample_filter_envs, instrument_sample_filters,
-    instrument_sample_gain_pct, instrument_sample_paths, instrument_sample_slots,
-    instrument_sample_tune_semis, instrument_sample_velocity_high,
-    instrument_sample_velocity_levels_enabled, instrument_sample_velocity_low,
-    instrument_sample_velocity_medium, instrument_synth_configs, instrument_synth_filter_cutoffs,
-    instrument_synth_filter_resonance, instrument_synth_filter_types, instrument_synth_gain_pct,
-    instrument_synth_osc1_waveforms, instrument_synth_osc2_waveforms, instrument_types,
-    instrument_volumes, link_layer_configs, param_binding_spec_from_native, param_mod_configs,
-    velocity_curve_id, NativeLinkLfoConfig, NativeRunner, Value,
+    instrument_sample_follow_pitch, instrument_sample_follow_transpose, instrument_sample_gain_pct,
+    instrument_sample_paths, instrument_sample_slots, instrument_sample_tune_semis,
+    instrument_sample_velocity_high, instrument_sample_velocity_levels_enabled,
+    instrument_sample_velocity_low, instrument_sample_velocity_medium, instrument_synth_configs,
+    instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
+    instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
+    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes, link_layer_configs,
+    param_binding_spec_from_native, param_mod_configs, velocity_curve_id, NativeCellStamp,
+    NativeLinkLfoConfig, NativeRunner, Value,
 };
 #[cfg(test)]
 use super::{device_runtime_config, portable_patch_projection, CONFIG_KIND, CONFIG_SCHEMA_VERSION};
@@ -89,6 +90,15 @@ impl NativeRunner {
                 &self.instruments,
             ),
             instrument_sample_velocity_high: instrument_sample_velocity_high(&self.instruments),
+            instrument_sample_follow_transpose: instrument_sample_follow_transpose(
+                &self.instruments,
+            ),
+            instrument_sample_follow_pitch: instrument_sample_follow_pitch(&self.instruments),
+            instrument_cell_stamps: self
+                .cell_stamps
+                .iter()
+                .map(NativeCellStamp::menu_value)
+                .collect(),
             instrument_sample_velocity_medium: instrument_sample_velocity_medium(&self.instruments),
             instrument_sample_velocity_low: instrument_sample_velocity_low(&self.instruments),
             instrument_sample_amp_envs: instrument_sample_amp_envs(&self.instruments),

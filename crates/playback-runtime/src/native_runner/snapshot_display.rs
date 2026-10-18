@@ -62,8 +62,6 @@ impl NativeRunner {
             super::bluetooth::bluetooth_pairing_display(pairing)
         } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
-        } else if let Some(display) = drum::cell_tune_display(self) {
-            display
         } else {
             drum::play_menu_display(self, menu)
         };

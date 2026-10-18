@@ -124,6 +124,12 @@ pub(super) fn apply_sample_velocity_payload(sample: &Value, instrument: &mut Nat
     if let Some(enabled) = sample.get("velocityLevelsEnabled").and_then(Value::as_bool) {
         instrument.sample_velocity_levels_enabled = enabled;
     }
+    if let Some(follow) = sample.get("followTranspose").and_then(Value::as_bool) {
+        instrument.sample_follow_transpose = follow;
+    }
+    if let Some(follow) = sample.get("followPitch").and_then(Value::as_bool) {
+        instrument.sample_follow_pitch = follow;
+    }
     if let Some(levels) = sample.get("velocityLevels") {
         apply_sample_velocity_levels(levels, instrument);
     }

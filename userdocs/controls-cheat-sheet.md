@@ -138,8 +138,8 @@ as `activate` or direct grid events from `keys` and `looper`.
 
 | Area | What changes |
 |---|---|
-| Sample assignment | *Shift* + cell maps the whole row. *Shift* + *Fn* + cell maps the whole column. |
-| Drum assignment | Select a Drum voice, then Assign. *Shift* + cell maps its row; *Shift* + *Fn* + cell maps its column. Cell Tune adjusts one mapped cell. |
+| Sample assignment | Each press stamps the sample plus the Cell Tune/Fine/Level values. *Shift* + cell stamps the whole row; *Shift* + *Fn* + cell the whole column. Press an exact match again to clear it. |
+| Drum assignment | Select a Drum voice, set the Cell rows, then Assign. *Shift* + cell stamps its row; *Shift* + *Fn* + cell its column. Re-stamp a cell to change it. |
 | Trigger probability map | Cells set trigger chance for the selected layer: never, low, high, or always. *Shift* + cell maps the whole row. *Shift* + *Fn* + cell maps the whole column. |
 | Play Mix | Grid turns into a mixer, where you can change the volume of each layer. |
 | Play Pan | Grid lets you move around the layers' stereo position. |

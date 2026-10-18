@@ -207,6 +207,24 @@ fn apply_sampler_scalar_fields(
             changed = true;
         }
     }
+    if let Some(follow) = menu
+        .value_for_key(&format!("instruments.{index}.sample.followTranspose"))
+        .map(|value| value == "true")
+    {
+        if instrument.sample_follow_transpose != follow {
+            instrument.sample_follow_transpose = follow;
+            changed = true;
+        }
+    }
+    if let Some(follow) = menu
+        .value_for_key(&format!("instruments.{index}.sample.followPitch"))
+        .map(|value| value == "true")
+    {
+        if instrument.sample_follow_pitch != follow {
+            instrument.sample_follow_pitch = follow;
+            changed = true;
+        }
+    }
     changed
 }
 

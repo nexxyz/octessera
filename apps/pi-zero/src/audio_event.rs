@@ -1,8 +1,8 @@
 use playback_runtime::{
-    DrumHit, MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
+    CellHit, MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
     RuntimeErrorFacts, RuntimeOperation,
 };
-use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
+use realtime_engine::synth::{CELL_PITCH_CENTS_LIMIT, INSTRUMENT_SLOT_COUNT};
 use rodio_engine_source::EngineEvent;
 
 pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent {
@@ -34,31 +34,32 @@ pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent
     }
 }
 
-pub(crate) fn drum_hit_to_engine_event(hit: &DrumHit) -> Result<EngineEvent, RuntimeAdapterError> {
+pub(crate) fn cell_hit_to_engine_event(hit: &CellHit) -> Result<EngineEvent, RuntimeAdapterError> {
     if usize::from(hit.instrument_slot) >= INSTRUMENT_SLOT_COUNT
         || hit.voice >= 8
-        || !(-24..=24).contains(&hit.tune_semis)
-        || !(1..=127).contains(&hit.velocity)
+        || !(-CELL_PITCH_CENTS_LIMIT..=CELL_PITCH_CENTS_LIMIT).contains(&hit.pitch_cents)
+        || hit.velocity > 127
     {
         return Err(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
             RuntimeErrorDomain::Audio,
             RuntimeErrorCode::InvalidPayload,
             RuntimeOperation::MusicalEvent,
-            Some("invalid Drum hit slot, voice, tune, or velocity".into()),
+            Some("invalid cell hit slot, voice, pitch, or velocity".into()),
         )));
     }
-    Ok(EngineEvent::DrumHit {
+    Ok(EngineEvent::CellHit {
         instrument_slot: hit.instrument_slot,
         voice: hit.voice,
-        tune_semis: hit.tune_semis,
+        cell: hit.cell,
+        pitch_cents: hit.pitch_cents,
         velocity: hit.velocity,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{drum_hit_to_engine_event, musical_event_to_engine_event};
-    use playback_runtime::{DrumHit, MusicalEvent};
+    use super::{cell_hit_to_engine_event, musical_event_to_engine_event};
+    use playback_runtime::{CellHit, MusicalEvent};
     use rodio_engine_source::EngineEvent;
 
     #[test]
@@ -80,50 +81,50 @@ mod tests {
     }
 
     #[test]
-    fn drum_hit_mapping_preserves_fields_and_rejects_invalid_hit() {
-        let hit = DrumHit {
+    fn cell_hit_mapping_preserves_fields_and_rejects_invalid_hit() {
+        let hit = CellHit {
             instrument_slot: 2,
             voice: 7,
-            tune_semis: -24,
+            cell: 12,
+            pitch_cents: -2450,
             velocity: 120,
         };
         assert!(matches!(
-            drum_hit_to_engine_event(&hit).unwrap(),
-            EngineEvent::DrumHit {
+            cell_hit_to_engine_event(&hit).unwrap(),
+            EngineEvent::CellHit {
                 instrument_slot: 2,
                 voice: 7,
-                tune_semis: -24,
+                cell: 12,
+                pitch_cents: -2450,
                 velocity: 120
             }
         ));
         assert!(matches!(
-            drum_hit_to_engine_event(&DrumHit {
-                tune_semis: 24,
+            cell_hit_to_engine_event(&CellHit {
+                velocity: 0,
                 ..hit.clone()
             }),
-            Ok(EngineEvent::DrumHit {
-                instrument_slot: 2,
-                voice: 7,
-                tune_semis: 24,
-                velocity: 120
-            })
+            Ok(EngineEvent::CellHit { velocity: 0, .. })
         ));
         for invalid in [
-            DrumHit {
+            CellHit {
                 instrument_slot: 8,
                 ..hit.clone()
             },
-            DrumHit {
+            CellHit {
                 voice: 8,
                 ..hit.clone()
             },
-            DrumHit {
-                tune_semis: 25,
+            CellHit {
+                pitch_cents: 4801,
                 ..hit.clone()
             },
-            DrumHit { velocity: 0, ..hit },
+            CellHit {
+                velocity: 128,
+                ..hit
+            },
         ] {
-            assert!(drum_hit_to_engine_event(&invalid).is_err());
+            assert!(cell_hit_to_engine_event(&invalid).is_err());
         }
     }
 }

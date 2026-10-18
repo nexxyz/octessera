@@ -179,6 +179,12 @@ impl NativeRunner {
             suffix if suffix.starts_with("drum.") => {
                 return drum::apply_drum_menu_key(self, index, key, suffix)
             }
+            suffix if suffix.starts_with("cell.") => {
+                return Some(self.fast_cell_stamp_key(index, key, suffix))
+            }
+            "sample.followTranspose" | "sample.followPitch" => {
+                return Some(self.fast_sample_follow_key(index, key, suffix))
+            }
             "sample.tuneSemis" => {
                 self.fast_sample_bank_key(index, number_value, "sample.tuneSemis", fast_sample_tune)
             }

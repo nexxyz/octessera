@@ -124,6 +124,21 @@ pub(super) fn instrument_binding_groups(
                     .get(index)
                     .copied()
                     .unwrap_or(false),
+                sample_follow_transpose: config
+                    .instrument_sample_follow_transpose
+                    .get(index)
+                    .copied()
+                    .unwrap_or(false),
+                sample_follow_pitch: config
+                    .instrument_sample_follow_pitch
+                    .get(index)
+                    .copied()
+                    .unwrap_or(false),
+                cell_stamp: config
+                    .instrument_cell_stamps
+                    .get(index)
+                    .copied()
+                    .unwrap_or_default(),
                 sample_velocity_high: config
                     .instrument_sample_velocity_high
                     .get(index)

@@ -23,14 +23,15 @@ impl<'a> ControlDrain<'a> {
                     engine.note_on(instrument_slot, note, velocity, duration_ms)
                 });
             }
-            EngineEvent::DrumHit {
+            EngineEvent::CellHit {
                 instrument_slot,
                 voice,
-                tune_semis,
+                cell,
+                pitch_cents,
                 velocity,
             } => {
                 Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                    engine.drum_hit(instrument_slot, voice, tune_semis, velocity)
+                    engine.cell_hit(instrument_slot, voice, cell, pitch_cents, velocity)
                 });
             }
             EngineEvent::NoteOff {
@@ -272,17 +273,18 @@ impl<'a> ControlDrain<'a> {
                 })
             }
             EngineEvent::NoteOn { .. } => {}
-            EngineEvent::DrumHit {
+            EngineEvent::CellHit {
                 instrument_slot,
                 voice,
-                tune_semis,
+                cell,
+                pitch_cents,
                 velocity,
-            } if allow_note_on => {
+            } if allow_note_on || velocity == 0 => {
                 Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                    engine.drum_hit(instrument_slot, voice, tune_semis, velocity)
+                    engine.cell_hit(instrument_slot, voice, cell, pitch_cents, velocity)
                 })
             }
-            EngineEvent::DrumHit { .. } => {}
+            EngineEvent::CellHit { .. } => {}
             EngineEvent::NoteOff {
                 instrument_slot,
                 note,

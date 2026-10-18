@@ -1,10 +1,11 @@
 use super::NativeLinkLayer;
-use crate::protocol::DrumHit;
+use crate::protocol::CellHit;
 use platform_core::{CellTriggerIntent, MusicalEvent};
 use std::collections::BTreeMap;
 
-mod drum;
-pub(super) use drum::drum_hit_for_intent;
+mod cell_hits;
+pub(super) use cell_hits::{cell_release, drum_hit_for_intent};
+use cell_hits::{sampler_hit_for_intent, sampler_release_for_intent};
 mod intent_values;
 #[cfg(test)]
 pub(super) use intent_values::value_from_lane;
@@ -14,7 +15,7 @@ pub(super) use intent_values::{cc_events_from_intent, velocity_from_intent};
 pub(super) struct RoutedMusicalEvents {
     pub(super) audio: Vec<MusicalEvent>,
     pub(super) midi: Vec<MusicalEvent>,
-    pub(super) drum: Vec<DrumHit>,
+    pub(super) cells: Vec<CellHit>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,17 +23,38 @@ pub(super) struct TransposedHeldNote {
     pub(super) routed_channel: u8,
     pub(super) routed_note: u8,
     pub(super) routed_to_midi: bool,
+    /// `(sample slot, cell)` when the held note is a sustained sampler cell.
+    pub(super) sampler_cell: Option<(u8, u8)>,
+}
+
+impl TransposedHeldNote {
+    pub(super) fn release_into(self, out: &mut RoutedMusicalEvents) {
+        if let Some((voice, cell)) = self.sampler_cell {
+            out.cells
+                .push(cell_hits::cell_release(self.routed_channel, voice, cell));
+            return;
+        }
+        let event = MusicalEvent::NoteOff {
+            channel: self.routed_channel,
+            note: self.routed_note,
+        };
+        if self.routed_to_midi {
+            out.midi.push(event);
+        } else {
+            out.audio.push(event);
+        }
+    }
 }
 
 impl RoutedMusicalEvents {
     pub(super) fn is_empty(&self) -> bool {
-        self.audio.is_empty() && self.midi.is_empty() && self.drum.is_empty()
+        self.audio.is_empty() && self.midi.is_empty() && self.cells.is_empty()
     }
 
     pub(super) fn extend(&mut self, other: RoutedMusicalEvents) {
         self.audio.extend(other.audio);
         self.midi.extend(other.midi);
-        self.drum.extend(other.drum);
+        self.cells.extend(other.cells);
     }
 }
 
@@ -65,15 +87,15 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
     transpose_offset: i8,
     mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
 ) -> RoutedMusicalEvents {
-    let mut out = Vec::with_capacity(events.len());
-    let mut midi = Vec::new();
-    let mut drum = Vec::new();
+    let mut routed = RoutedMusicalEvents {
+        audio: Vec::with_capacity(events.len()),
+        ..RoutedMusicalEvents::default()
+    };
     for event in events.iter().take(mapped_event_offset) {
         route_event_without_intent_with_held_transpose(
             event.clone(),
             instruments,
-            &mut out,
-            &mut midi,
+            &mut routed,
             active_transpose_notes.as_deref_mut(),
         );
     }
@@ -82,8 +104,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             route_event_without_intent_with_held_transpose(
                 event.clone(),
                 instruments,
-                &mut out,
-                &mut midi,
+                &mut routed,
                 active_transpose_notes.as_deref_mut(),
             );
             continue;
@@ -94,30 +115,82 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             let cc_events =
                 cc_events_from_intent(intent, sense, midi_event_channel(instruments, channel));
             match route {
-                InstrumentRoute::InternalAudio => out.extend(cc_events),
-                InstrumentRoute::ExternalMidi => midi.extend(cc_events),
+                InstrumentRoute::InternalAudio => routed.audio.extend(cc_events),
+                InstrumentRoute::ExternalMidi => routed.midi.extend(cc_events),
                 InstrumentRoute::Muted => {}
             }
         }
         let mut event = event.clone();
-        if instruments
+        if let Some(instrument) = instruments
             .get(channel as usize)
-            .is_some_and(|instrument| instrument.kind == "drum")
+            .filter(|instrument| matches!(instrument.kind.as_str(), "drum" | "sampler"))
         {
             match &mut event {
-                MusicalEvent::NoteOn { velocity, .. } => {
+                MusicalEvent::NoteOn {
+                    note,
+                    velocity,
+                    duration_ms,
+                    ..
+                } => {
                     if let Some(pulses_velocity) =
                         sense.and_then(|sense| velocity_from_intent(intent, sense))
                     {
                         *velocity = pulses_velocity;
                     }
-                    if let Some(hit) = drum_hit_for_intent(instruments, channel, intent, *velocity)
-                    {
-                        drum.push(hit);
+                    let hit = if instrument.kind == "drum" {
+                        drum_hit_for_intent(
+                            instruments,
+                            channel,
+                            intent,
+                            *velocity,
+                            transpose_offset,
+                            Some(*note),
+                        )
+                    } else {
+                        sampler_hit_for_intent(
+                            instrument,
+                            channel,
+                            intent,
+                            *velocity,
+                            transpose_offset,
+                            *note,
+                        )
+                    };
+                    if let (Some(hit), None, Some(active_notes), "sampler") = (
+                        &hit,
+                        *duration_ms,
+                        active_transpose_notes.as_deref_mut(),
+                        instrument.kind.as_str(),
+                    ) {
+                        active_notes.entry((channel, *note)).or_default().push(
+                            TransposedHeldNote {
+                                routed_channel: channel,
+                                routed_note: *note,
+                                routed_to_midi: false,
+                                sampler_cell: Some((hit.voice, hit.cell)),
+                            },
+                        );
+                    }
+                    routed.cells.extend(hit);
+                    continue;
+                }
+                MusicalEvent::NoteOff { note, .. } => {
+                    if instrument.kind == "sampler" {
+                        let cell = cell_hits::cell_index(intent.x, intent.y);
+                        match take_held_cell(
+                            active_transpose_notes.as_deref_mut(),
+                            channel,
+                            *note,
+                            cell,
+                        ) {
+                            Some(held) => held.release_into(&mut routed),
+                            None => routed
+                                .cells
+                                .extend(sampler_release_for_intent(instrument, channel, intent)),
+                        }
                     }
                     continue;
                 }
-                MusicalEvent::NoteOff { .. } => continue,
                 MusicalEvent::Cc { .. } => {}
             }
         }
@@ -132,7 +205,6 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             ),
             MusicalEvent::NoteOff { .. } => prepare_note_off_with_intent(
                 &mut event,
-                intent,
                 instruments,
                 transpose_offset,
                 active_transpose_notes.as_deref_mut(),
@@ -146,17 +218,13 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
         };
         if !suppress {
             match route {
-                InstrumentRoute::InternalAudio => out.push(event),
-                InstrumentRoute::ExternalMidi => midi.push(event),
+                InstrumentRoute::InternalAudio => routed.audio.push(event),
+                InstrumentRoute::ExternalMidi => routed.midi.push(event),
                 InstrumentRoute::Muted => {}
             }
         }
     }
-    RoutedMusicalEvents {
-        audio: out,
-        midi,
-        drum,
-    }
+    routed
 }
 
 fn prepare_note_on_with_intent(
@@ -192,6 +260,7 @@ fn prepare_note_on_with_intent(
                 routed_channel: *channel,
                 routed_note: *note,
                 routed_to_midi: false,
+                sampler_cell: None,
             })
         }
         "midi" if instrument.midi_enabled => {
@@ -201,25 +270,10 @@ fn prepare_note_on_with_intent(
                 routed_channel: *channel,
                 routed_note: *note,
                 routed_to_midi: true,
+                sampler_cell: None,
             })
         }
         "midi" => return true,
-        "sampler" => {
-            let Some(assignment) = instrument
-                .sample_assignments
-                .iter()
-                .find(|assignment| assignment.x == intent.x && assignment.y == intent.y)
-            else {
-                return true;
-            };
-            *note = 36 + assignment.sample_slot.min(7) as u8;
-            *velocity = sampler_assignment_velocity(*velocity, assignment, instrument);
-            Some(TransposedHeldNote {
-                routed_channel: *channel,
-                routed_note: *note,
-                routed_to_midi: false,
-            })
-        }
         _ => None,
     };
     if duration_ms.is_none() {
@@ -235,7 +289,6 @@ fn prepare_note_on_with_intent(
 
 fn prepare_note_off_with_intent(
     event: &mut MusicalEvent,
-    intent: &CellTriggerIntent,
     instruments: &[super::NativeInstrumentSlot],
     transpose_offset: i8,
     active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
@@ -267,16 +320,6 @@ fn prepare_note_off_with_intent(
             *channel = instrument.midi_channel.saturating_sub(1).min(15);
         }
         "midi" => return true,
-        "sampler" => {
-            let Some(assignment) = instrument
-                .sample_assignments
-                .iter()
-                .find(|assignment| assignment.x == intent.x && assignment.y == intent.y)
-            else {
-                return true;
-            };
-            *note = 36 + assignment.sample_slot.min(7) as u8;
-        }
         _ => {}
     }
     false
@@ -340,33 +383,42 @@ fn route_event_without_intent(
 fn route_event_without_intent_with_held_transpose(
     event: MusicalEvent,
     instruments: &[super::NativeInstrumentSlot],
-    audio: &mut Vec<MusicalEvent>,
-    midi: &mut Vec<MusicalEvent>,
+    out: &mut RoutedMusicalEvents,
     active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
 ) {
     let MusicalEvent::NoteOff { channel, note } = event else {
-        route_event_without_intent(event, instruments, audio, midi);
+        route_event_without_intent(event, instruments, &mut out.audio, &mut out.midi);
         return;
     };
-    let held_note = take_held_note(active_transpose_notes, channel, note);
-    let Some(held_note) = held_note else {
-        route_event_without_intent(
+    match take_held_note(active_transpose_notes, channel, note) {
+        Some(held_note) => held_note.release_into(out),
+        None => route_event_without_intent(
             MusicalEvent::NoteOff { channel, note },
             instruments,
-            audio,
-            midi,
-        );
-        return;
-    };
-    let event = MusicalEvent::NoteOff {
-        channel: held_note.routed_channel,
-        note: held_note.routed_note,
-    };
-    if held_note.routed_to_midi {
-        midi.push(event);
-    } else {
-        audio.push(event);
+            &mut out.audio,
+            &mut out.midi,
+        ),
     }
+}
+
+fn take_held_cell(
+    active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    channel: u8,
+    note: u8,
+    cell: u8,
+) -> Option<TransposedHeldNote> {
+    let active_notes = active_transpose_notes?;
+    let key = (channel, note);
+    let notes = active_notes.get_mut(&key)?;
+    let index = notes.iter().position(|held| {
+        held.sampler_cell
+            .is_some_and(|(_, held_cell)| held_cell == cell)
+    })?;
+    let held_note = notes.remove(index);
+    if notes.is_empty() {
+        active_notes.remove(&key);
+    }
+    Some(held_note)
 }
 
 fn take_held_note(
@@ -421,5 +473,5 @@ pub(super) fn sampler_assignment_velocity(
         Some("low") => instrument.sample_velocity_low,
         _ => instrument.sample_base_velocity,
     };
-    (((u16::from(base) * u16::from(source_velocity.clamp(1, 127))) / 127).clamp(1, 127)) as u8
+    cell_hits::scale_velocity(base, source_velocity)
 }

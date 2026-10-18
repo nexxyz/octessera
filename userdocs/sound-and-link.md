@@ -129,8 +129,8 @@ point at them.
 | `synth` | Two oscillators into a filter, with an amp envelope and a filter envelope | Osc Wave and Octave, then Filter Cutoff and the Filter Env |
 | `fm` | A sine carrier and modulator; bells, keys, glassy tones | Tone > Ratio and Index, then Index Env Decay |
 | `pluck` (shown as Plucked) | A modelled ringing string | String > Decay, Brightness, and Pick Pos |
-| `drum` | An eight-voice kit; cells are assigned to voices | Kit > Load, then **Assign** cells to voices and **Cell Tune** them |
-| `sampler` | Up to eight WAV slots; cells are assigned to samples | **Browse** for a sample, then **Assign** it to cells |
+| `drum` | An eight-voice kit; cells are assigned to voices | Kit > Load, set **Cell Tune/Fine/Level**, then **Assign** to stamp cells |
+| `sampler` | Up to eight WAV slots; cells are assigned to samples | **Browse** for a sample, set the **Cell** rows, then **Assign** it to cells |
 | `midi` | Sends notes to external gear instead of making sound | Channel, Velocity, and Duration under Note Settings |
 
 A few things worth knowing:
@@ -140,9 +140,20 @@ A few things worth knowing:
 - **Note Mode.** `oneshot` gives each trigger a finite note. `hold` keeps the
   note sounding until a matching `note_off`, which is what Off events and
   scanned-empty release are for.
-- **Drum and Sampler pitch.** They play what's *assigned to the cell*, not
-  Link's pitch. Their tuning lives in Cell Tune and Tune, and Play's
-  Transpose page leaves them alone.
+- **Drum and Sampler cells are stamps.** They play what's *stamped onto the
+  cell*, not Link's pitch. Set Cell Tune, Cell Fine, and Cell Level first,
+  then Assign copies those values onto every cell you press, like a rubber
+  stamp. Want a chromatic row? Stamp each cell with the next Cell Tune. Want a
+  ghost note? Stamp it Low. To change a cell, stamp it again; pressing a cell
+  that already matches clears it. Everything else (Tune, Gain, Filter, the
+  Vel Levels velocities) stays slot-wide, and anything you modulate there
+  still reaches every stamped cell. Play's Transpose page leaves these cells
+  alone unless you switch on **Follow Transp.**
+- **Follow Pitch.** Switch it on and the cells play Link's note instead of a
+  fixed pitch, measured from C4. Cell Tune and Cell Fine then answer "how far
+  do I nudge this sample so it sounds like a C4?". Stamp a bass hit with
+  `-5` and it lands on the G below when Link plays C4, and follows Link's melody
+  from there. Drums can do it too, for tuned toms that wander with the tune.
 - **Mixer.** Each slot's **Mixer** sets **Route** (`direct` to the main mix,
   or one of the FX buses), **Volume**, and **Pan Pos**. A slot routed to a bus
   takes its pan from the bus.

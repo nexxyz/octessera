@@ -52,7 +52,9 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     let mut note_ons = musical_note_ons(&first);
     note_ons.extend(musical_note_ons(&second));
     assert!(note_ons.iter().any(|(channel, _)| *channel == 0));
-    assert!(note_ons.iter().any(|(channel, _)| *channel == 1));
+    let mut hits = cell_hit_ons(&first);
+    hits.extend(cell_hit_ons(&second));
+    assert!(hits.iter().any(|(slot, _)| *slot == 1));
 }
 
 #[test]
@@ -247,6 +249,8 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
         y: 0,
         sample_slot: 2,
         level: None,
+        tune_semis: 0,
+        tune_cents: 0,
     }];
     runner.link_layers[0].scan_mode = "scanning".into();
     runner.link_layers[0].scan_axis = "rows".into();
@@ -275,11 +279,7 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
         })
         .unwrap();
 
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::MusicalEvents { events }
-            if events.iter().any(|event| matches!(event, MusicalEvent::NoteOn { channel: 0, note: 38, .. }))
-    )));
+    assert!(cell_hit_ons(&messages).contains(&(0, 2)));
 }
 
 #[test]

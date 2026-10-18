@@ -82,7 +82,7 @@ pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
     let routed = RoutedMusicalEvents {
         audio: vec![note_on(64), note_on(60), note_on(67)],
         midi: vec![],
-        drum: Vec::new(),
+        cells: Vec::new(),
     };
 
     let immediate = runner.apply_link_timing(0, &[intent], routed);
@@ -114,7 +114,7 @@ pub(crate) fn link_arp_passes_non_note_events_through() {
         RoutedMusicalEvents {
             audio: vec![cc(74, 90), note_on(60)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
 
@@ -143,7 +143,7 @@ pub(crate) fn link_arp_held_source_merges_non_note_events() {
         RoutedMusicalEvents {
             audio: vec![note_on(60)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
 
@@ -153,7 +153,7 @@ pub(crate) fn link_arp_held_source_merges_non_note_events() {
         RoutedMusicalEvents {
             audio: vec![cc(74, 90)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
 
@@ -183,7 +183,7 @@ pub(crate) fn link_arp_octave_spread_expands_notes() {
         RoutedMusicalEvents {
             audio: vec![note_on(60)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
 
@@ -209,7 +209,7 @@ pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
     let routed = RoutedMusicalEvents {
         audio: vec![finite_input_note_on(60)],
         midi: vec![],
-        drum: Vec::new(),
+        cells: Vec::new(),
     };
 
     let immediate = runner.apply_link_timing(0, &[intent], routed);
@@ -227,7 +227,7 @@ pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_n
     let routed = RoutedMusicalEvents {
         audio: vec![note_on(67), note_on(60), note_on(64)],
         midi: vec![],
-        drum: Vec::new(),
+        cells: Vec::new(),
     };
     let immediate = runner.apply_link_timing(0, &[], routed);
     assert_eq!(
@@ -240,7 +240,7 @@ pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_n
     let routed = RoutedMusicalEvents {
         audio: (0..20).map(|index| note_on(40 + index)).collect(),
         midi: vec![],
-        drum: Vec::new(),
+        cells: Vec::new(),
     };
     runner.apply_link_timing(0, &[], routed);
     assert!(runner.delayed_link_events[0]
@@ -261,7 +261,7 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
         RoutedMusicalEvents {
             audio: vec![note_on(64)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
     assert_eq!(musical_note_ons_from_events(&first.audio), vec![(0, 64)]);
@@ -271,7 +271,7 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
         RoutedMusicalEvents {
             audio: vec![note_on(60)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
     assert_eq!(musical_note_ons_from_events(&second.audio), vec![(0, 60)]);
@@ -284,7 +284,7 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
         RoutedMusicalEvents {
             audio: vec![note_off(64)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
     assert!(runner.delayed_link_events[0]
@@ -304,7 +304,7 @@ pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
         RoutedMusicalEvents {
             audio: vec![finite_input_note_on(60)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
     assert!(finite.audio.is_empty());
@@ -316,7 +316,7 @@ pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
         RoutedMusicalEvents {
             audio: vec![note_on(64)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
     assert!(!runner.link_arp_held_notes[0].is_empty());
@@ -345,7 +345,7 @@ pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
         RoutedMusicalEvents {
             audio: vec![note_on(60)],
             midi: vec![],
-            drum: Vec::new(),
+            cells: Vec::new(),
         },
     );
 
@@ -367,7 +367,7 @@ pub(crate) fn link_arp_rotating_and_random_vary() {
     let routed = || RoutedMusicalEvents {
         audio: vec![note_on(60), note_on(64), note_on(67)],
         midi: vec![],
-        drum: Vec::new(),
+        cells: Vec::new(),
     };
     let first = runner.apply_link_timing(0, &[], routed());
     let second = runner.apply_link_timing(0, &[], routed());

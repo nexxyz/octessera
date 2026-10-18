@@ -1,6 +1,5 @@
 use super::{menu_display, overlay_display, DisplaySnapshot};
 use crate::native_menu::NativeMenuSnapshot;
-use serde_json::Value;
 
 use super::super::NativeRunner;
 
@@ -37,36 +36,4 @@ pub(super) fn play_menu_display(
         }
     }
     display
-}
-
-pub(super) fn cell_tune_display(runner: &NativeRunner) -> Option<DisplaySnapshot> {
-    let (slot, selected) = runner.drum_cell_tune?;
-    let lines = if let Some((x, y)) = selected {
-        let cell = runner
-            .instruments
-            .get(slot)?
-            .drum_config
-            .get("assignments")?
-            .as_array()?
-            .iter()
-            .find(|cell| cell["x"] == x && cell["y"] == y)?;
-        let voice = cell.get("voice")?.as_u64()? as usize;
-        let sound = runner.instruments[slot].drum_config["voices"][voice]["sound"].as_str()?;
-        let name = match sound {
-            "kick" => "Kick",
-            "snare" => "Snare",
-            "closed_hat" => "Closed Hat",
-            "open_hat" => "Open Hat",
-            "low_tom" => "Low Tom",
-            "high_tom" => "High Tom",
-            "clap" => "Clap",
-            "rim" => "Rim",
-            _ => sound,
-        };
-        let tune = cell.get("tuneSemis").and_then(Value::as_i64).unwrap_or(0);
-        vec![format!("{name} ({x},{y})"), format!("Tune {tune:+} st")]
-    } else {
-        vec!["Choose drum cell".into()]
-    };
-    Some(overlay_display("Cell Tune".into(), lines))
 }

@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_runner::modulation_sampler::apply_sampler_assignments_for_instruments;
+use crate::native_runner::modulation_sampler::apply_sampler_assignments_for_instruments_routed as route;
 
 #[test]
 pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes() {
@@ -10,6 +10,8 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         y: 3,
         sample_slot: 4,
         level: None,
+        tune_semis: 0,
+        tune_cents: 0,
     }];
     let instruments = vec![runner.instruments[0].clone()];
     let assigned_intent = CellTriggerIntent {
@@ -25,7 +27,7 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         kind: platform_core::CellTriggerKind::Activate,
     };
 
-    let assigned = apply_sampler_assignments_for_instruments(
+    let assigned = route(
         vec![MusicalEvent::NoteOff {
             channel: 0,
             note: 60,
@@ -34,8 +36,10 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         0,
         &instruments,
         None,
+        0,
+        None,
     );
-    let unmapped = apply_sampler_assignments_for_instruments(
+    let unmapped = route(
         vec![
             MusicalEvent::NoteOn {
                 channel: 0,
@@ -52,13 +56,19 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         0,
         &instruments,
         None,
+        0,
+        None,
     );
 
+    assert!(assigned.audio.is_empty());
     assert!(matches!(
-        assigned.as_slice(),
-        [MusicalEvent::NoteOff {
-            channel: 0,
-            note: 40
+        assigned.cells.as_slice(),
+        [crate::CellHit {
+            instrument_slot: 0,
+            voice: 4,
+            cell: 26,
+            velocity: 0,
+            ..
         }]
     ));
     assert!(unmapped.is_empty());
