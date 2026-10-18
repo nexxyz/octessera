@@ -186,6 +186,15 @@ or four (with PIO in the hard interrupt) to none. If underruns come back with
 Wi-Fi on, check `dmesg` for `inhibit` and `taskset -pc` on the `irq/*-mmc1`
 thread.
 
+The audio DMA interrupt can land on any Raspberry core (its affinity cannot
+be changed), and the step that wakes the callback often runs deferred, in
+that core's `ksoftirqd`. An overnight recording soak traced an underrun to
+`ksoftirqd/2` waiting about 3 ms behind the SD-card writeback worker, so the
+callback missed two periods. The performance-governor unit gives the
+`ksoftirqd` threads `SCHED_FIFO` priority 1, still well below the callback's
+70, so deferred interrupt work runs ahead of ordinary threads such as
+writeback.
+
 Recording exposed a second, memory-side stall on both boards. Writing a long
 take fills the page cache, the kernel compacts memory, and by default it may
 move Octessera's locked pages; the callback then waits in state `D` for each

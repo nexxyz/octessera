@@ -466,6 +466,7 @@ ExecStart=/bin/sh -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_go
 ExecStartPost=-/bin/systemctl set-property --runtime init.scope AllowedCPUs=2-3
 ExecStartPost=-/bin/sh -c 'printf d > /sys/devices/virtual/workqueue/cpumask'
 ExecStartPost=-/bin/sh -c 'for pid in $(pgrep -x "irq/[0-9]+-mmc1"); do taskset -pc 2,3 "$pid"; done'
+ExecStartPost=-/bin/sh -c 'for pid in $(pgrep -x "ksoftirqd/[0-9]+"); do chrt -f -p 1 "$pid"; done'
 RemainAfterExit=yes
 
 [Install]
