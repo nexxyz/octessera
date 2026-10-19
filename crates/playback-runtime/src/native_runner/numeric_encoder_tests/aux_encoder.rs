@@ -120,6 +120,7 @@ fn generated_behavior_aux_target_uses_the_shared_numeric_rate() {
         min,
         max,
         step,
+        ..
     } = item.value
     else {
         panic!("numeric generated target");

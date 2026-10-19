@@ -269,7 +269,7 @@ pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
         })
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["rateHz"], 4.05);
+    assert_eq!(runner.fx_buses[0].slot1_params["rateHz"], 4.03);
     assert_eq!(runner.audio_config_revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -282,7 +282,7 @@ pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
                     param: realtime_engine::synth::FxParamId::RateHz,
                     value,
                     ..
-                } if (*value - 4.05).abs() < f32::EPSILON
+                } if (*value - 4.03).abs() < f32::EPSILON
             ))
     )));
 }

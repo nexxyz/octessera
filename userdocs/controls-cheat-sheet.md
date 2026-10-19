@@ -26,7 +26,7 @@ probability, transpose, and Play FX behavior.
 
 | Control | Area | What it does |
 |---|---|---|
-| *Turn main encoder* | **Menu navigation/editing** | Navigate the menu; while editing a number, plain turns are coarse and *Fn* turns are fine. *Shift* and combined *Shift*+*Fn* turns remain coarse. Other edit types keep their ordinary turn behavior. |
+| *Turn main encoder* | **Menu navigation/editing** | Navigate the menu; while editing a number, plain turns are coarse and *Fn* turns are fine. *Shift* and combined *Shift*+*Fn* turns remain coarse. Times, frequencies and decay amounts take smaller steps where small changes matter: an attack moves 1 ms at a time near zero, a filter or LFO rate by about a quarter-tone. Other edit types keep their ordinary turn behavior. |
 | *Click main encoder* | **Menu selection** | Select menu entries, enter groups, edit values, or confirm actions. |
 | *Back* | **Exit current location** | Exit the current edit, leave the current overlay, or go back one menu level. |
 | *Play* / *Space* | **Transport** | Play or pause. |

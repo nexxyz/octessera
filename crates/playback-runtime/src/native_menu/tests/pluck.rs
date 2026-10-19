@@ -130,7 +130,7 @@ fn plucked_defaults_ranges_and_saved_values_stay_in_own_block() {
             .item_for_key(&key)
             .unwrap_or_else(|| panic!("missing {key}"));
         assert!(
-            matches!(item.value, NativeMenuValue::Number { value: current, min: low, max: high, step: increment }
+            matches!(item.value, NativeMenuValue::Number { value: current, min: low, max: high, step: increment, ..  }
             if (current, low, high, increment) == (value, min, max, step)),
             "{key}"
         );

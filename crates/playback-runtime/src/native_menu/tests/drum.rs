@@ -129,7 +129,7 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
             let key = format!("instruments.0.drum.voices.{index}.{field}");
             assert!(
                 matches!(menu.item_for_key(&key).unwrap().value,
-                NativeMenuValue::Number { value: current, min: low, max: high, step: increment }
+                NativeMenuValue::Number { value: current, min: low, max: high, step: increment, ..  }
                 if (current, low, high, increment) == (value, min, max, step)),
                 "{key}"
             );

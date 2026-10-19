@@ -264,7 +264,7 @@ fn fm_defaults_ranges_and_saved_values_are_independent_from_synth() {
         ("filter.keyTrackingPct", 0, 0, 100, 1),
     ] {
         assert!(
-            matches!(fm_item(&menu, field).value, NativeMenuValue::Number { value, min: low, max: high, step: increment }
+            matches!(fm_item(&menu, field).value, NativeMenuValue::Number { value, min: low, max: high, step: increment, ..  }
             if (value, low, high, increment) == (expected, min, max, step)),
             "{field}"
         );

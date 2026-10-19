@@ -211,6 +211,7 @@ fn behavior_target_menu_item(
                 min: item.min.unwrap_or(0),
                 max: item.max.unwrap_or(127),
                 step: item.step.unwrap_or(1),
+                curve: Default::default(),
             },
             children: vec![],
         }),

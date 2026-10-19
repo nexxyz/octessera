@@ -188,6 +188,7 @@ fn hdmi_bars_per_cycle_is_only_present_in_cycle_behaviors() {
                     min: 1,
                     max: 64,
                     step: 1,
+                    curve: Default::default(),
                 }
             );
         } else {

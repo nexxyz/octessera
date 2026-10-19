@@ -243,6 +243,7 @@ impl NativeMenuModel {
                     min,
                     max,
                     step,
+                    ..
                 } => {
                     let next = (*value + i32::from(delta) * *step).clamp(*min, *max);
                     *value = next;

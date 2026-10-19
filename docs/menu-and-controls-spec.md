@@ -170,6 +170,11 @@ NeoKey snapshot contract:
 
 Value editing semantics:
 
+- Numeric steps follow the parameter's shape; the same rule applies to Main and Aux turns, coarse and fine (Fn). Saved values and their ranges never change, only how far a detent moves.
+  - Times in milliseconds (envelope Attack/Decay/Release, Plucked and Drum Decay, Drum Sweep ms, Note Length, Link Length, MIDI Duration, FX delay/slice/compressor/duck times, mod-delay Base and Depth): 1 ms per detent below 20 ms, 5 ms to 100 ms, 25 ms to 1 s and 100 ms above, snapped to that step. Fn is one notch finer: 1 ms below 100 ms (0.1 ms where the value stores tenths), 5 ms to 1 s, 25 ms above.
+  - Frequencies, rates and Q (Plucked Body Hz, FX Center, EQ Mid Freq, FX LFO Rate, Q, Mid Q, Play stutter Rate): each detent multiplies by 2^(1/24), about 3% or a quarter-tone, and by 2^(1/96) with Fn; a detent always moves at least one unit. Instrument filter cutoffs keep their logarithmic 0..255 index with plain steps.
+  - Reverb Decay and delay Feedback (0..98%): the distance to the top changes by 2^(1/4) per detent (2^(1/16) with Fn), so long tails stay settable. Bipolar mod-delay Feedback stays linear.
+  - XY Smoothing keeps 10 ms steps because saved smoothing is 0 or a multiple of 10 ms; every other numeric parameter keeps its linear step.
 - Number/enum/bool rows enter edit mode on Main press; Main or Back finishes the row. At the Save Setting choice, Back means Cancel; at the Restart? choice, Back means Continue.
 - Navigation memory is limited to `System`, `System > Notes`, `System > Audio`, `System > Audio > Engine`, and `System > Display`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
 - `System > Audio > Engine` persists `runtimeConfig.dsp.workerWarningThreshold` as `70/75/80/85/90/95` with default `85`, and `runtimeConfig.dsp.busIdleThreshold` as `exact/-140/-120/-100/-80` with default `-120`. These typed settings propagate directly to the realtime engine without rebuilding prepared audio or changing structural render-plan revisions. Worker warning presentation and bus silence behavior are separate runtime phases.

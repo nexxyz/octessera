@@ -1,4 +1,4 @@
-use super::numeric_edit::numeric_edit_value;
+use super::numeric_edit::curved_edit_value;
 use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
 
 impl NativeMenuModel {
@@ -9,9 +9,10 @@ impl NativeMenuModel {
                 min,
                 max,
                 step,
+                curve,
             } = &mut self.current_item_mut().value
             {
-                *value = numeric_edit_value(*value, *min, *max, *step, delta, coarse);
+                *value = curved_edit_value(*value, (*min, *max, *step), *curve, delta, coarse);
                 return;
             }
         }
@@ -44,6 +45,7 @@ pub(super) fn turn_key_in_item(item: &mut NativeMenuItem, key: &str, delta: i8) 
                 min,
                 max,
                 step,
+                ..
             } => {
                 *value = (*value + i32::from(delta) * *step).clamp(*min, *max);
                 return true;
@@ -82,9 +84,10 @@ pub(super) fn turn_key_in_item_with_precision(
             min,
             max,
             step,
+            curve,
         } = &mut item.value
         {
-            *value = numeric_edit_value(*value, *min, *max, *step, delta, coarse);
+            *value = curved_edit_value(*value, (*min, *max, *step), *curve, delta, coarse);
             return true;
         }
         return false;

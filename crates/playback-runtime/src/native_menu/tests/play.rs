@@ -132,7 +132,8 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
             value: 80,
             min: 0,
             max: 500,
-            step: 10
+            step: 10,
+            ..
         }
     ));
     assert!(menu.focus_item_key("play.xy.smoothingMs"));
@@ -215,7 +216,7 @@ pub(crate) fn pitch_fx_page_exposes_independent_slide_rows() {
                 value: actual,
                 min: 10,
                 max: 3000,
-                step: 10
+                step: 10, ..
             } if actual == value
         ));
     }

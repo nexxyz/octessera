@@ -13,6 +13,7 @@ mod help;
 mod help_enum_tests;
 mod link;
 mod note_set_help;
+mod numeric_curves;
 mod play;
 mod pluck;
 mod root;

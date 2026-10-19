@@ -54,6 +54,20 @@ pub struct NativeParamBindingSpec {
     pub invert: bool,
 }
 
+/// How an encoder detent moves a numeric value.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NumberCurve {
+    #[default]
+    Linear,
+    /// Milliseconds (`units_per_ms` value units each): finer steps for short times.
+    Time { units_per_ms: i32 },
+    /// Frequencies, rates and Q: each detent moves by a fixed ratio.
+    Ratio,
+    /// Decay and feedback amounts, whose tails lengthen as the value nears `ceiling`: each
+    /// detent moves the distance to the ceiling by a fixed ratio.
+    TowardsCeiling { ceiling: i32 },
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuValue {
     Group,
@@ -66,6 +80,7 @@ pub enum NativeMenuValue {
         min: i32,
         max: i32,
         step: i32,
+        curve: NumberCurve,
     },
     Bool {
         value: bool,

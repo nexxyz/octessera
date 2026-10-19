@@ -1,5 +1,5 @@
 use super::options::duck_source_options;
-use super::{enum_item_from_strings, number_item, NativeMenuItem};
+use super::{enum_item_from_strings, number_item, NativeMenuItem, NativeMenuValue, NumberCurve};
 use crate::delay_timing::normalized_delay_params;
 use crate::timing_units::{note_unit_selection_index, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
@@ -328,14 +328,28 @@ fn fx_number_item(
     scale: f64,
     default: f64,
 ) -> NativeMenuItem {
-    number_item(
+    let mut item = number_item(
         label,
         format!("{prefix}.{key}"),
         ((fx_param_number(params, key, default) * scale).round() as i32).clamp(min, max),
         min,
         max,
         step,
-    )
+    );
+    if let NativeMenuValue::Number { curve, .. } = &mut item.value {
+        if key.ends_with("Ms") {
+            *curve = NumberCurve::Time {
+                units_per_ms: scale.round() as i32,
+            };
+        } else if key == "q" || key == "midQ" {
+            *curve = NumberCurve::Ratio;
+        } else if key == "decay" || key == "feedback" && min >= 0 {
+            *curve = NumberCurve::TowardsCeiling {
+                ceiling: scale.round() as i32,
+            };
+        }
+    }
+    item
 }
 
 fn fx_param_number(params: &serde_json::Value, key: &str, default: f64) -> f64 {

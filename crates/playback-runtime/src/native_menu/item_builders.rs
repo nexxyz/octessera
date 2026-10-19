@@ -1,4 +1,4 @@
-use super::{NativeMenuAction, NativeMenuItem, NativeMenuValue};
+use super::{NativeMenuAction, NativeMenuItem, NativeMenuValue, NumberCurve};
 
 pub(in crate::native_menu) fn group(
     label: impl Into<String>,
@@ -50,14 +50,16 @@ pub(in crate::native_menu) fn number_item(
     max: i32,
     step: i32,
 ) -> NativeMenuItem {
+    let key = key.into();
     NativeMenuItem {
         label: label.into(),
-        key: Some(key.into()),
+        key: Some(key.clone()),
         value: NativeMenuValue::Number {
             value,
             min,
             max,
             step,
+            curve: curve_for_key(&key),
         },
         children: vec![],
     }
@@ -134,4 +136,24 @@ pub(in crate::native_menu) fn enum_item_from_strings(
         value: NativeMenuValue::Enum { options, selected },
         children: vec![],
     }
+}
+
+/// Millisecond keys step like times and frequency keys by ratio; instrument cutoffs are already a
+/// logarithmic 0..255 index, so they stay linear.
+fn curve_for_key(key: &str) -> NumberCurve {
+    if key.ends_with("Ms") {
+        NumberCurve::Time { units_per_ms: 1 }
+    } else if key.ends_with("Hz") && !key.ends_with("cutoffHz") {
+        NumberCurve::Ratio
+    } else {
+        NumberCurve::Linear
+    }
+}
+
+/// Keeps a numeric item on plain linear steps even if its key looks like a time or frequency.
+pub(in crate::native_menu) fn linear(mut item: NativeMenuItem) -> NativeMenuItem {
+    if let NativeMenuValue::Number { curve, .. } = &mut item.value {
+        *curve = NumberCurve::Linear;
+    }
+    item
 }

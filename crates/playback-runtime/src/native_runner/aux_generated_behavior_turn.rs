@@ -1,4 +1,4 @@
-use crate::native_menu::{numeric_edit_value, NativeMenuValue};
+use crate::native_menu::{curved_edit_value, NativeMenuValue};
 
 use super::{NativeRunner, Value};
 
@@ -27,7 +27,8 @@ impl NativeRunner {
                 min,
                 max,
                 step,
-            } => numeric_edit_value(value, min, max, step, delta, coarse).to_string(),
+                curve,
+            } => curved_edit_value(value, (min, max, step), curve, delta, coarse).to_string(),
             NativeMenuValue::Bool { value } => (!value).to_string(),
             _ => return Ok(None),
         };

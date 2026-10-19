@@ -28,7 +28,7 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
         ("fm.velocityToIndexPct", 1, "fm.velocityToIndexPct", 1.0),
         ("fm.modShapePct", 1, "fm.modShapePct", 1.0),
         ("fm.modMixPct", 1, "fm.modMixPct", 1.0),
-        ("fm.indexEnv.attackMs", 1, "fm.indexEnv.attackMs", 5.0),
+        ("fm.indexEnv.attackMs", 1, "fm.indexEnv.attackMs", 1.0),
         ("fm.amp.gainPct", -1, "fm.amp.gainPct", 79.0),
         (
             "fm.filter.cutoffHz",
