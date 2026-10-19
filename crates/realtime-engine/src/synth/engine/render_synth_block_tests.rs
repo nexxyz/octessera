@@ -309,3 +309,37 @@ fn assert_env_state_matches(actual: EnvState, expected: EnvState) {
         expected.release_start.to_bits()
     );
 }
+
+#[test]
+fn sine_voice_stays_in_tune_with_the_table_sine() {
+    let mut cfg = default_synth_config();
+    cfg.osc1.waveform = WaveformId::Sine;
+    cfg.osc2.waveform = WaveformId::Sine;
+    cfg.osc2.octave = 0;
+    cfg.osc2.detune_cents = 0.0;
+    cfg.amp_env.attack_ms = 0.0;
+    cfg.amp_env.sustain_pct = 100.0;
+    cfg.filter.env_amount_pct = 0.0;
+    let mut engine = synth_engine(cfg);
+    engine.note_on(0, 69, 100, 60_000);
+    let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
+    let mut samples = Vec::new();
+    for _ in 0..(44_100 / 128) {
+        engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
+        samples.extend(out.chunks(2).map(|frame| frame[0]));
+    }
+    let crossings = samples
+        .windows(2)
+        .enumerate()
+        .filter(|(_, pair)| pair[0] <= 0.0 && pair[1] > 0.0)
+        .map(|(index, pair)| index as f64 + f64::from(pair[0] / (pair[0] - pair[1])))
+        .skip(4)
+        .collect::<Vec<_>>();
+    let cycles = (crossings.len() - 1) as f64;
+    let measured_hz = 44_100.0 * cycles / (crossings[crossings.len() - 1] - crossings[0]);
+    let cents = 1200.0 * (measured_hz / 440.0).log2();
+    assert!(
+        cents.abs() < 0.05,
+        "{measured_hz} Hz is {cents} cents from A4"
+    );
+}
