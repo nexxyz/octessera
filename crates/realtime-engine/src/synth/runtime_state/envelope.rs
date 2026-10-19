@@ -17,6 +17,8 @@ pub(in crate::synth) struct EnvState {
     pub(in crate::synth) stage_len: u32,
     pub(in crate::synth) sustain: f32,
     pub(in crate::synth) release_start: f32,
+    /// Decay length, kept so the decay stage still runs after a non-zero attack.
+    pub(in crate::synth) decay_len: u32,
 }
 
 impl EnvState {
@@ -37,6 +39,7 @@ impl EnvState {
             stage_len,
             sustain,
             release_start: 0.0,
+            decay_len: d,
         }
     }
 
@@ -73,7 +76,7 @@ impl EnvState {
         if self.stage_pos >= self.stage_len {
             self.stage = EnvStage::Decay;
             self.stage_pos = 0;
-            self.stage_len = 0;
+            self.stage_len = self.decay_len;
             self.level = 1.0;
         }
         self.level
@@ -120,4 +123,29 @@ pub(in crate::synth) fn ms_to_samples(ms: f32, sample_rate: u32) -> u32 {
         return 0;
     }
     ((ms / 1000.0) * (sample_rate as f32)).round().max(0.0) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decay_runs_after_a_non_zero_attack_without_a_jump() {
+        let cfg = EnvConfig {
+            attack_ms: 5.0,
+            decay_ms: 300.0,
+            sustain_pct: 70.0,
+            release_ms: 350.0,
+        };
+        let mut env = EnvState::note_on(cfg, 48_000);
+        let levels = (0..48_000 / 2).map(|_| env.next()).collect::<Vec<_>>();
+        let largest_step = levels
+            .windows(2)
+            .map(|pair| (pair[1] - pair[0]).abs())
+            .fold(0.0_f32, f32::max);
+        assert!(largest_step < 0.01, "envelope jumps by {largest_step}");
+        let after_attack = 240 + 48 * 150;
+        assert!(levels[after_attack] > 0.8 && levels[after_attack] < 0.9);
+        assert!((levels[levels.len() - 1] - 0.7).abs() < 1.0e-6);
+    }
 }

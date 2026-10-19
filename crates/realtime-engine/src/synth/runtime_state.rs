@@ -86,6 +86,7 @@ impl Voice {
                 stage_len: 0,
                 sustain: 0.0,
                 release_start: 0.0,
+                decay_len: 0,
             },
             filt_env: EnvState {
                 stage: EnvStage::Off,
@@ -94,6 +95,7 @@ impl Voice {
                 stage_len: 0,
                 sustain: 0.0,
                 release_start: 0.0,
+                decay_len: 0,
             },
             filt: BiquadState::new(),
         }
