@@ -268,16 +268,15 @@ pub(super) fn prepare_synth_voice_block(
     }
 }
 
-pub(super) fn render_synth_voice_sample_block_precomputed(
+pub(super) fn shape_synth_voice_block_sample(
     context: &synth_voice_render::SynthVoiceFrameContext,
     v: &mut Voice,
-    ring: &mut crate::synth::pluck_string::PluckRing,
+    dry: f32,
     amp_env: f32,
     filt_env: f32,
     block: SynthVoiceBlockRenderState,
 ) -> f32 {
     let cfg = &context.render_config;
-    let dry = source_sample(cfg, v, ring);
     let filtered = if block.static_cutoff.is_some() {
         v.filt.process_prepared(dry)
     } else {
@@ -294,45 +293,52 @@ pub(super) fn render_synth_voice_sample_block_precomputed(
     filtered * amp_env * block.velocity_gain * cfg.amp_gain * 0.35
 }
 
+/// Single-frame dispatch; block rendering picks one of these per voice instead (see
+/// `synth_voice_render`), so each instrument gets its own compiled loop.
 fn source_sample(
     cfg: &SynthVoiceRenderConfig,
     v: &mut Voice,
     ring: &mut crate::synth::pluck_string::PluckRing,
 ) -> f32 {
     match cfg.source {
-        VoiceSource::Synth => {
-            let osc1 = osc_sample_precomputed(cfg.osc1, v.osc1_inc, &mut v.phase1);
-            let osc2 = osc_sample_precomputed(cfg.osc2, v.osc2_inc, &mut v.phase2);
-            (osc1 + osc2) * 0.5
-        }
-        VoiceSource::Fm { index, .. } => {
-            v.phase1 = (v.phase1 + v.osc1_inc).fract();
-            v.phase2 = (v.phase2 + v.osc2_inc).fract();
-            let modulator = (TAU * v.phase2).sin();
-            if v.fm_neutral {
-                (TAU * v.phase1 + index.min(v.fm_index_limit) * v.index_env.next() * modulator)
-                    .sin()
-            } else {
-                let env = v.index_env.next();
-                crate::synth::engine::fm_render::sample(
-                    TAU * v.phase1,
-                    TAU * v.phase2,
-                    modulator,
-                    env,
-                    v,
-                )
-            }
-        }
-        VoiceSource::Pluck { .. } => {
-            let dry = v.pluck.next(ring);
-            if v.pluck.body_amount == 0.0 {
-                dry
-            } else {
-                dry + 0.5 * v.pluck.body_amount * v.pluck.body.process_prepared(dry)
-            }
-        }
+        VoiceSource::Synth => synth_source_sample(cfg, v),
+        VoiceSource::Fm { index, .. } => fm_source_sample(index, v),
+        VoiceSource::Pluck { .. } => pluck_source_sample(v, ring),
         VoiceSource::Drum => v.drum.next(),
         VoiceSource::Disabled => 0.0,
+    }
+}
+
+#[inline(always)]
+pub(super) fn synth_source_sample(cfg: &SynthVoiceRenderConfig, v: &mut Voice) -> f32 {
+    let osc1 = osc_sample_precomputed(cfg.osc1, v.osc1_inc, &mut v.phase1);
+    let osc2 = osc_sample_precomputed(cfg.osc2, v.osc2_inc, &mut v.phase2);
+    (osc1 + osc2) * 0.5
+}
+
+#[inline(always)]
+pub(super) fn fm_source_sample(index: f32, v: &mut Voice) -> f32 {
+    v.phase1 = (v.phase1 + v.osc1_inc).fract();
+    v.phase2 = (v.phase2 + v.osc2_inc).fract();
+    let modulator = (TAU * v.phase2).sin();
+    if v.fm_neutral {
+        (TAU * v.phase1 + index.min(v.fm_index_limit) * v.index_env.next() * modulator).sin()
+    } else {
+        let env = v.index_env.next();
+        crate::synth::engine::fm_render::sample(TAU * v.phase1, TAU * v.phase2, modulator, env, v)
+    }
+}
+
+#[inline(always)]
+pub(super) fn pluck_source_sample(
+    v: &mut Voice,
+    ring: &mut crate::synth::pluck_string::PluckRing,
+) -> f32 {
+    let dry = v.pluck.next(ring);
+    if v.pluck.body_amount == 0.0 {
+        dry
+    } else {
+        dry + 0.5 * v.pluck.body_amount * v.pluck.body.process_prepared(dry)
     }
 }
 

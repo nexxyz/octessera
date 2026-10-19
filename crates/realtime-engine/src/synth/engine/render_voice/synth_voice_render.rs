@@ -1,8 +1,9 @@
 use super::super::super::runtime_state::{InstrumentMod, Voice};
-use super::super::super::types::SynthConfig;
+use super::super::super::types::{EnvConfig, SynthConfig};
 use super::{
-    prepare_synth_voice_block, refresh_synth_voice_render_cache,
-    render_synth_voice_sample_block_precomputed, render_synth_voice_sample_precomputed,
+    fm_source_sample, pluck_source_sample, prepare_synth_voice_block,
+    refresh_synth_voice_render_cache, render_synth_voice_sample_precomputed,
+    shape_synth_voice_block_sample, synth_source_sample, SynthVoiceBlockRenderState,
     SynthVoiceRenderConfig, VoiceSource,
 };
 use crate::synth::pluck_string::PluckRing;
@@ -104,46 +105,120 @@ pub(in crate::synth::engine) fn render_synth_voice_block(
         voice.filter_key_scale,
         context.sample_rate,
     );
-    let initial_filter = voice.filt;
     if let Some(cutoff) = block.static_cutoff {
+        let initial_filter = voice.filt;
         voice.filt.prepare(
             context.render_config.filter_kind,
             cutoff,
             block.q,
             context.sample_rate,
         );
-    }
-    let mut rendered_frames = 0;
-    for (frame, sample) in samples[..frames].iter_mut().enumerate() {
-        if base_sample_clock.saturating_add(frame as u64) >= voice.note_off_sample {
-            voice
-                .amp_env
-                .begin_release(context.config.amp_env, context.sample_rate);
-            voice
-                .filt_env
-                .begin_release(context.config.filter_env, context.sample_rate);
-            if let VoiceSource::Fm { index_env, .. } = context.render_config.source {
-                voice
-                    .index_env
-                    .begin_release(index_env, context.sample_rate);
-            }
-        }
-        let amp_env = voice.amp_env.next();
-        let filt_env = voice.filt_env.next();
-        if voice.amp_env.is_off() {
-            voice.active = false;
-            voice.canonical_lane = None;
-            if rendered_frames == 0 && block.static_cutoff.is_some() {
-                voice.filt = initial_filter;
-            }
-            break;
-        }
-        *sample = render_synth_voice_sample_block_precomputed(
-            &context, voice, ring, amp_env, filt_env, block,
+        let rendered = render_voice_frames(
+            voice,
+            ring,
+            frames,
+            base_sample_clock,
+            &context,
+            samples,
+            block,
         );
-        rendered_frames += 1;
+        if rendered == 0 {
+            voice.filt = initial_filter;
+        }
+        return rendered;
     }
-    rendered_frames
+    render_voice_frames(
+        voice,
+        ring,
+        frames,
+        base_sample_clock,
+        &context,
+        samples,
+        block,
+    )
+}
+
+/// Picks the instrument once per voice and block, so each source runs its own compiled loop.
+fn render_voice_frames(
+    voice: &mut Voice,
+    ring: &mut PluckRing,
+    frames: usize,
+    base_sample_clock: u64,
+    context: &SynthVoiceFrameContext,
+    samples: &mut [f32],
+    block: SynthVoiceBlockRenderState,
+) -> usize {
+    let frames = SourceFrames {
+        frames,
+        base_sample_clock,
+        context,
+        block,
+    };
+    match context.render_config.source {
+        VoiceSource::Synth => {
+            let cfg = context.render_config;
+            frames.render(voice, ring, samples, None, |v, _| {
+                synth_source_sample(&cfg, v)
+            })
+        }
+        VoiceSource::Fm {
+            index, index_env, ..
+        } => frames.render(voice, ring, samples, Some(index_env), |v, _| {
+            fm_source_sample(index, v)
+        }),
+        VoiceSource::Pluck { .. } => frames.render(voice, ring, samples, None, pluck_source_sample),
+        VoiceSource::Drum => frames.render(voice, ring, samples, None, |v, _| v.drum.next()),
+        VoiceSource::Disabled => 0,
+    }
+}
+
+struct SourceFrames<'a> {
+    frames: usize,
+    base_sample_clock: u64,
+    context: &'a SynthVoiceFrameContext,
+    block: SynthVoiceBlockRenderState,
+}
+
+impl SourceFrames<'_> {
+    #[inline(always)]
+    fn render(
+        &self,
+        voice: &mut Voice,
+        ring: &mut PluckRing,
+        samples: &mut [f32],
+        index_env: Option<EnvConfig>,
+        mut source: impl FnMut(&mut Voice, &mut PluckRing) -> f32,
+    ) -> usize {
+        let context = self.context;
+        let mut rendered_frames = 0;
+        for (frame, sample) in samples[..self.frames].iter_mut().enumerate() {
+            if self.base_sample_clock.saturating_add(frame as u64) >= voice.note_off_sample {
+                voice
+                    .amp_env
+                    .begin_release(context.config.amp_env, context.sample_rate);
+                voice
+                    .filt_env
+                    .begin_release(context.config.filter_env, context.sample_rate);
+                if let Some(index_env) = index_env {
+                    voice
+                        .index_env
+                        .begin_release(index_env, context.sample_rate);
+                }
+            }
+            let amp_env = voice.amp_env.next();
+            let filt_env = voice.filt_env.next();
+            if voice.amp_env.is_off() {
+                voice.active = false;
+                voice.canonical_lane = None;
+                break;
+            }
+            let dry = source(voice, ring);
+            *sample =
+                shape_synth_voice_block_sample(context, voice, dry, amp_env, filt_env, self.block);
+            rendered_frames += 1;
+        }
+        rendered_frames
+    }
 }
 
 fn voice_source_matches(voice: &Voice, config: &SynthVoiceRenderConfig) -> bool {
