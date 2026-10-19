@@ -28,6 +28,9 @@ pub(in crate::synth) struct BiquadState {
     q: f32,
     sample_rate: u32,
     coeffs: BiquadCoeffs,
+    /// A resonance-free lowpass at the top of the range passes audio unchanged, so it skips the
+    /// biquad maths and only keeps the history current for when the cutoff moves again.
+    open: bool,
 }
 
 impl BiquadState {
@@ -42,6 +45,7 @@ impl BiquadState {
             q: 0.0,
             sample_rate: 0,
             coeffs: BiquadCoeffs::passthrough(),
+            open: false,
         }
     }
 
@@ -62,10 +66,20 @@ impl BiquadState {
             self.q = qv;
             self.sample_rate = sample_rate;
             self.coeffs = biquad_coeffs(mode, cutoff, qv, sample_rate);
+            self.open = mode == FilterType::Lowpass
+                && cutoff >= OPEN_LOWPASS_CUTOFF_HZ
+                && qv <= std::f32::consts::FRAC_1_SQRT_2;
         }
     }
 
     pub(in crate::synth) fn process_prepared(&mut self, x: f32) -> f32 {
+        if self.open {
+            self.x2 = self.x1;
+            self.x1 = x;
+            self.y2 = self.y1;
+            self.y1 = x;
+            return x;
+        }
         let y = self.coeffs.b0 * x + self.coeffs.b1 * self.x1 + self.coeffs.b2 * self.x2
             - self.coeffs.a1 * self.y1
             - self.coeffs.a2 * self.y2;
@@ -105,6 +119,8 @@ pub(in crate::synth) fn reset_prepare_count_for_test() {
 pub(in crate::synth) fn prepare_count_for_test() -> usize {
     PREPARE_COUNT.with(Cell::get)
 }
+
+const OPEN_LOWPASS_CUTOFF_HZ: f32 = 20_000.0;
 
 impl BiquadCoeffs {
     fn passthrough() -> Self {
@@ -167,4 +183,26 @@ fn highpass_coeffs(cos_w0: f32, alpha: f32) -> (f32, f32, f32, f32, f32, f32) {
         -2.0 * cos_w0,
         1.0 - alpha,
     )
+}
+
+#[cfg(test)]
+mod open_lowpass_tests {
+    use super::*;
+
+    #[test]
+    fn a_resonance_free_lowpass_at_the_top_passes_audio_and_resumes_without_a_jump() {
+        let mut open = BiquadState::new();
+        open.prepare(FilterType::Lowpass, 20_000.0, 0.5, 48_000);
+        let input = [0.3, -0.7, 0.9, 0.1, -0.2];
+        for x in input {
+            assert_eq!(open.process_prepared(x), x);
+        }
+        let mut resonant = BiquadState::new();
+        resonant.prepare(FilterType::Lowpass, 20_000.0, 6.0, 48_000);
+        assert!(input.iter().any(|&x| resonant.process_prepared(x) != x));
+
+        open.prepare(FilterType::Lowpass, 19_000.0, 0.5, 48_000);
+        let resumed = open.process_prepared(-0.2);
+        assert!((resumed - -0.2).abs() < 0.1, "{resumed}");
+    }
 }

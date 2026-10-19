@@ -20,6 +20,7 @@ pub(super) struct DrumState {
     pub(super) decay_step: f32,
     pub(super) elapsed: u32,
     pub(super) attack_frames: u32,
+    pub(super) attack_step: f32,
     pub(super) burst_frames: u32,
     pub(super) seed: u32,
 }
@@ -43,6 +44,7 @@ impl DrumState {
             decay_step: 0.0,
             elapsed: 0,
             attack_frames: 0,
+            attack_step: 0.0,
             burst_frames: 0,
             seed: 1,
         }
@@ -104,7 +106,19 @@ impl DrumState {
         if result.seed == 0 {
             result.seed = 1;
         }
+        if result.attack_frames > 0 {
+            result.attack_step = 1.0 / result.attack_frames as f32;
+        }
         result
+    }
+
+    fn noise_sample(&mut self) -> f32 {
+        self.seed ^= self.seed << 13;
+        self.seed ^= self.seed >> 17;
+        self.seed ^= self.seed << 5;
+        let noise = self.seed as f32 / u32::MAX as f32 * 2.0 - 1.0;
+        self.noise_state += (noise - self.noise_state) * self.noise_alpha;
+        self.noise_state
     }
 
     pub(super) fn next(&mut self) -> f32 {
@@ -115,11 +129,12 @@ impl DrumState {
             self.inc2 = (self.inc2 * self.sweep_step).min(self.max_increment);
             self.sweep_remaining -= 1;
         }
-        self.seed ^= self.seed << 13;
-        self.seed ^= self.seed >> 17;
-        self.seed ^= self.seed << 5;
-        let noise = self.seed as f32 / u32::MAX as f32 * 2.0 - 1.0;
-        self.noise_state += (noise - self.noise_state) * self.noise_alpha;
+        // The noise and tone mix is fixed for a hit, so a silent part is never computed.
+        let noise = if self.noise_mix > 0.0 {
+            self.noise_sample()
+        } else {
+            0.0
+        };
         let noise_gate = if self.sound == DrumSound::Clap {
             let burst = self.elapsed % self.burst_frames.max(1);
             if self.elapsed < self.burst_frames * 3 && burst < self.burst_frames / 2 {
@@ -132,24 +147,43 @@ impl DrumState {
         } else {
             1.0
         };
-        let modal = (TAU * self.phase1).sin()
-            + if self.inc2 > 0.0 {
-                (TAU * self.phase2).sin() * self.upper_mix
-            } else {
-                0.0
-            };
-        let onset = if self.attack_frames == 0 {
-            1.0
+        let modal = if self.noise_mix < 1.0 {
+            (TAU * self.phase1).sin()
+                + if self.inc2 > 0.0 {
+                    (TAU * self.phase2).sin() * self.upper_mix
+                } else {
+                    0.0
+                }
         } else {
-            ((self.elapsed + 1) as f32 / self.attack_frames as f32).min(1.0)
+            0.0
         };
-        let output = (modal * (1.0 - self.noise_mix)
-            + self.noise_state * self.noise_mix * noise_gate)
+        let onset = if self.elapsed < self.attack_frames {
+            ((self.elapsed + 1) as f32 * self.attack_step).min(1.0)
+        } else {
+            1.0
+        };
+        let output = (modal * (1.0 - self.noise_mix) + noise * self.noise_mix * noise_gate)
             * self.level
             * onset
             * 0.6;
         self.level *= self.decay_step;
         self.elapsed = self.elapsed.saturating_add(1);
         output
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_noise_free_hit_never_runs_the_noise_generator() {
+        let mut voice = DrumSound::Kick.default_voice();
+        voice.noise_mix_pct = 0.0;
+        let mut hit = DrumState::note_on(voice, 0, 100, 0, 48_000);
+        let seed = hit.seed;
+        let rendered = (0..64).map(|_| hit.next()).collect::<Vec<_>>();
+        assert_eq!(hit.seed, seed);
+        assert!(rendered.iter().any(|sample| *sample != 0.0));
     }
 }
