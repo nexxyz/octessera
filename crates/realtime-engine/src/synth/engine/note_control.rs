@@ -340,6 +340,7 @@ impl SynthEngine {
             fm_normalization: 1.0,
             fm_neutral: true,
             filter_key_scale: 1.0,
+            filter_control_countdown: 0,
             index_env: if let render_voice::VoiceSource::Fm { index_env, .. } =
                 self.synth_render_configs[slot].source
             {

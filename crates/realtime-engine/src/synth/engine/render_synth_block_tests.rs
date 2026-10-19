@@ -216,14 +216,14 @@ fn synth_block_static_filter_prepares_once_per_active_voice() {
 }
 
 #[test]
-fn synth_block_dynamic_filter_prepares_each_active_frame() {
+fn synth_block_dynamic_filter_prepares_at_control_rate() {
     let mut cfg = default_synth_config();
     cfg.filter.env_amount_pct = 42.0;
     let mut engine = synth_engine(cfg);
     engine.note_on(0, 60, 96, 10_000);
     reset_prepare_count_for_test();
     render_engine(&mut engine, 256);
-    assert_eq!(prepare_count_for_test(), 256);
+    assert_eq!(prepare_count_for_test(), 256 / 16);
 }
 
 fn synth_engine(cfg: SynthConfig) -> SynthEngine {

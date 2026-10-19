@@ -38,6 +38,8 @@ pub(super) struct Voice {
     pub(super) fm_normalization: f32,
     pub(super) fm_neutral: bool,
     pub(super) filter_key_scale: f32,
+    /// Samples left before an enveloped filter recomputes its cutoff and coefficients.
+    pub(super) filter_control_countdown: u8,
     pub(super) index_env: EnvState,
     pub(super) amp_env: EnvState,
     pub(super) filt_env: EnvState,
@@ -75,6 +77,7 @@ impl Voice {
             fm_normalization: 1.0,
             fm_neutral: true,
             filter_key_scale: 1.0,
+            filter_control_countdown: 0,
             index_env: EnvState::note_on(super::types::FmConfig::default().index_env, 44_100),
             amp_env: EnvState {
                 stage: EnvStage::Off,

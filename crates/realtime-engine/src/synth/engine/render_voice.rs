@@ -212,16 +212,32 @@ pub(super) fn render_synth_voice_sample_precomputed(
     let vel_gain = (1.0 - vel_sens) + vel_sens * v.velocity_norm;
     let gain = cfg.amp_gain;
     let dry = source_sample(cfg, v, ring);
-    let cutoff = synth_voice_cutoff(
-        cfg,
-        mods.cutoff_cc,
-        filt_env,
-        v.filter_key_scale,
-        sample_rate,
-    );
     let q = synth_voice_q(cfg, mods.resonance_cc);
-    let filtered = v.filt.process(dry, cfg.filter_kind, cutoff, q, sample_rate);
+    let filtered = control_rate_filter(cfg, mods.cutoff_cc, v, filt_env, q, sample_rate, dry);
     filtered * amp_env * vel_gain * gain * 0.35
+}
+
+/// Filter cutoff follows its envelope at control rate: a new cutoff and coefficient set every
+/// `FILTER_CONTROL_FRAMES` samples (about 0.3 ms) instead of a `sin`/`cos` pair every sample.
+const FILTER_CONTROL_FRAMES: u8 = 16;
+
+fn control_rate_filter(
+    cfg: &SynthVoiceRenderConfig,
+    cutoff_cc: f32,
+    v: &mut Voice,
+    filt_env: f32,
+    q: f32,
+    sample_rate: u32,
+    dry: f32,
+) -> f32 {
+    if v.filter_control_countdown == 0 {
+        let cutoff = synth_voice_cutoff(cfg, cutoff_cc, filt_env, v.filter_key_scale, sample_rate);
+        v.filt.prepare(cfg.filter_kind, cutoff, q, sample_rate);
+        v.filter_control_countdown = FILTER_CONTROL_FRAMES - 1;
+    } else {
+        v.filter_control_countdown -= 1;
+    }
+    v.filt.process_prepared(dry)
 }
 
 pub(super) fn prepare_synth_voice_block(
@@ -262,20 +278,18 @@ pub(super) fn render_synth_voice_sample_block_precomputed(
 ) -> f32 {
     let cfg = &context.render_config;
     let dry = source_sample(cfg, v, ring);
-    let cutoff = block.static_cutoff.unwrap_or_else(|| {
-        synth_voice_cutoff(
-            cfg,
-            context.mods.cutoff_cc,
-            filt_env,
-            v.filter_key_scale,
-            context.sample_rate,
-        )
-    });
     let filtered = if block.static_cutoff.is_some() {
         v.filt.process_prepared(dry)
     } else {
-        v.filt
-            .process(dry, cfg.filter_kind, cutoff, block.q, context.sample_rate)
+        control_rate_filter(
+            cfg,
+            context.mods.cutoff_cc,
+            v,
+            filt_env,
+            block.q,
+            context.sample_rate,
+            dry,
+        )
     };
     filtered * amp_env * block.velocity_gain * cfg.amp_gain * 0.35
 }

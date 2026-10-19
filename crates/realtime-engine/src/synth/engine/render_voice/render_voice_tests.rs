@@ -263,7 +263,13 @@ fn reference_render_synth_voice_sample(
     let dry = (osc1 + osc2) * 0.5;
     let cutoff = reference_synth_voice_cutoff(&cfg, mods.cutoff_cc, filt_env);
     let q = reference_synth_voice_q(&cfg, mods.resonance_cc);
-    let filtered = v.filt.process(dry, cfg.filter.kind, cutoff, q, sample_rate);
+    if v.filter_control_countdown == 0 {
+        v.filt.prepare(cfg.filter.kind, cutoff, q, sample_rate);
+        v.filter_control_countdown = 15;
+    } else {
+        v.filter_control_countdown -= 1;
+    }
+    let filtered = v.filt.process_prepared(dry);
     filtered * amp_env * vel_gain * gain * 0.35
 }
 

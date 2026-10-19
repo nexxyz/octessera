@@ -28,9 +28,10 @@ pub(in crate::synth) struct BiquadState {
     q: f32,
     sample_rate: u32,
     coeffs: BiquadCoeffs,
-    /// A resonance-free lowpass at the top of the range passes audio unchanged, so it skips the
-    /// biquad maths and only keeps the history current for when the cutoff moves again.
-    open: bool,
+    /// Samples to pass through unfiltered: `OPEN` while a resonance-free lowpass sits at the top
+    /// of the range (audio is unchanged, so nothing runs), then two counted samples on re-engaging
+    /// that refill the history the biquad needs.
+    pass_frames: u8,
 }
 
 impl BiquadState {
@@ -45,7 +46,7 @@ impl BiquadState {
             q: 0.0,
             sample_rate: 0,
             coeffs: BiquadCoeffs::passthrough(),
-            open: false,
+            pass_frames: 0,
         }
     }
 
@@ -66,18 +67,26 @@ impl BiquadState {
             self.q = qv;
             self.sample_rate = sample_rate;
             self.coeffs = biquad_coeffs(mode, cutoff, qv, sample_rate);
-            self.open = mode == FilterType::Lowpass
+            let open = mode == FilterType::Lowpass
                 && cutoff >= OPEN_LOWPASS_CUTOFF_HZ
                 && qv <= std::f32::consts::FRAC_1_SQRT_2;
+            if open {
+                self.pass_frames = OPEN;
+            } else if self.pass_frames == OPEN {
+                self.pass_frames = HISTORY_FRAMES;
+            }
         }
     }
 
     pub(in crate::synth) fn process_prepared(&mut self, x: f32) -> f32 {
-        if self.open {
-            self.x2 = self.x1;
-            self.x1 = x;
-            self.y2 = self.y1;
-            self.y1 = x;
+        if self.pass_frames != 0 {
+            if self.pass_frames != OPEN {
+                self.pass_frames -= 1;
+                self.x2 = self.x1;
+                self.x1 = x;
+                self.y2 = self.y1;
+                self.y1 = x;
+            }
             return x;
         }
         let y = self.coeffs.b0 * x + self.coeffs.b1 * self.x1 + self.coeffs.b2 * self.x2
@@ -121,6 +130,8 @@ pub(in crate::synth) fn prepare_count_for_test() -> usize {
 }
 
 const OPEN_LOWPASS_CUTOFF_HZ: f32 = 20_000.0;
+const OPEN: u8 = u8::MAX;
+const HISTORY_FRAMES: u8 = 2;
 
 impl BiquadCoeffs {
     fn passthrough() -> Self {
@@ -190,7 +201,7 @@ mod open_lowpass_tests {
     use super::*;
 
     #[test]
-    fn a_resonance_free_lowpass_at_the_top_passes_audio_and_resumes_without_a_jump() {
+    fn a_resonance_free_lowpass_at_the_top_passes_audio_and_refills_history_before_resuming() {
         let mut open = BiquadState::new();
         open.prepare(FilterType::Lowpass, 20_000.0, 0.5, 48_000);
         let input = [0.3, -0.7, 0.9, 0.1, -0.2];
@@ -202,7 +213,10 @@ mod open_lowpass_tests {
         assert!(input.iter().any(|&x| resonant.process_prepared(x) != x));
 
         open.prepare(FilterType::Lowpass, 19_000.0, 0.5, 48_000);
-        let resumed = open.process_prepared(-0.2);
-        assert!((resumed - -0.2).abs() < 0.1, "{resumed}");
+        assert_eq!(open.process_prepared(0.4), 0.4);
+        assert_eq!(open.process_prepared(0.5), 0.5);
+        assert_eq!((open.x1, open.x2, open.y1, open.y2), (0.5, 0.4, 0.5, 0.4));
+        let resumed = open.process_prepared(0.5);
+        assert!((resumed - 0.5).abs() < 0.1, "{resumed}");
     }
 }
