@@ -187,6 +187,13 @@ impl NativeRunner {
         self.resample_xy_runtime_sources();
         self.apply_hdmi_payload(runtime);
         self.apply_bluetooth_payload(runtime);
+        if let Some(enabled) = runtime
+            .get("wifi")
+            .and_then(|wifi| wifi.get("enabled"))
+            .and_then(Value::as_bool)
+        {
+            self.wifi_enabled = enabled;
+        }
         self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
             .layer_behavior_ids

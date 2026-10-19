@@ -90,6 +90,7 @@ impl NativeRunner {
             midi_inputs: seed.midi_inputs,
             midi_status: None,
             bluetooth: Default::default(),
+            wifi_enabled: true,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
             input_events_while_paused: seed.input_events_while_paused,

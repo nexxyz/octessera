@@ -48,6 +48,17 @@ impl NativeRunner {
                 bool_changed(&mut runner.display.hdmi.show_gridlines, value)
             })),
             "bluetooth.enabled" | "bluetooth.audio" => Some(self.fast_bluetooth_menu_key(key)),
+            "wifi.enabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                let changed = bool_changed(&mut runner.wifi_enabled, value);
+                if changed {
+                    runner.show_toast(if value {
+                        "Wi-Fi on"
+                    } else {
+                        "Wi-Fi off: no SSH"
+                    });
+                }
+                changed
+            })),
             "hdmi.cycleMeasures" => Some(self.fast_number_menu_key(key, |runner, value| {
                 value_changed(
                     &mut runner.display.hdmi.cycle_measures,

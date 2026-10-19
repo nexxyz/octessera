@@ -21,6 +21,7 @@ pub(crate) struct PiHostCore {
     keyboard_control: Option<KeyboardCaptureControl>,
     bluetooth: Option<BluetoothHandle>,
     bluetooth_enabled: Option<bool>,
+    wifi_enabled: Option<bool>,
 }
 
 impl PiHostCore {
@@ -37,6 +38,7 @@ impl PiHostCore {
                 BluetoothHandle::spawn_system()
             },
             bluetooth_enabled: None,
+            wifi_enabled: None,
         }
     }
 
@@ -61,6 +63,17 @@ impl PiHostCore {
         }
         if let Some(bluetooth) = &self.bluetooth {
             bluetooth.set_enabled(enabled);
+        }
+    }
+
+    /// Mirrors the System Wi-Fi setting into the board switch file once per change, including
+    /// the first observation after startup so the file always matches the saved setting.
+    pub(crate) fn observe_wifi_enabled(&mut self, enabled: bool) {
+        if self.wifi_enabled.replace(enabled) == Some(enabled) || cfg!(test) {
+            return;
+        }
+        if let Err(error) = crate::show_hold::set_wifi_enabled(enabled) {
+            eprintln!("Wi-Fi switch unavailable: {error}");
         }
     }
 
@@ -263,19 +276,6 @@ impl PiHostCore {
                     return Some(vec![failure_message(
                         request,
                         format!("Live Show Mode unavailable: {error}"),
-                    )]);
-                }
-                RuntimeStoreResult::OperationSucceeded {
-                    operation: request.effect.operation(),
-                    request_id: Some(request.request_id.clone()),
-                    revision: request.revision,
-                }
-            }
-            RuntimePlatformEffect::WifiRadio { enabled } => {
-                if let Err(error) = crate::show_hold::set_wifi_enabled(*enabled) {
-                    return Some(vec![failure_message(
-                        request,
-                        format!("Wi-Fi switch unavailable: {error}"),
                     )]);
                 }
                 RuntimeStoreResult::OperationSucceeded {

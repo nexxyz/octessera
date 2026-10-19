@@ -175,6 +175,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         midi_outputs: vec![],
         midi_inputs: vec![],
         bluetooth_enabled: false,
+        wifi_enabled: true,
         bluetooth_audio: false,
         bluetooth_paired: vec![],
         bluetooth_found: vec![],

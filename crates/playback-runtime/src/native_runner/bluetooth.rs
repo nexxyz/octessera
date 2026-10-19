@@ -18,6 +18,10 @@ pub(super) struct NativeBluetoothState {
 }
 
 impl NativeRunner {
+    pub fn wifi_enabled(&self) -> bool {
+        self.wifi_enabled
+    }
+
     pub fn bluetooth_enabled(&self) -> bool {
         self.bluetooth.enabled
     }

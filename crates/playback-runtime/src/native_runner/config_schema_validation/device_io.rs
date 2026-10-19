@@ -96,6 +96,13 @@ pub(super) fn validate_bluetooth(runtime: &Map<String, Value>) -> Result<(), Str
     bool_field(bluetooth, "audio", "runtimeConfig.bluetooth")
 }
 
+pub(super) fn validate_wifi(runtime: &Map<String, Value>) -> Result<(), String> {
+    let Some(wifi) = object_field(runtime, "wifi", "runtimeConfig")? else {
+        return Ok(());
+    };
+    bool_field(wifi, "enabled", "runtimeConfig.wifi")
+}
+
 pub(super) fn validate_recording(runtime: &Map<String, Value>) -> Result<(), String> {
     let Some(recording) = object_field(runtime, "recording", "runtimeConfig")? else {
         return Ok(());

@@ -242,8 +242,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     message: "USB SD2 transfer is Pi-only".into(),
                 },
             }]),
-            RuntimePlatformEffect::MaintenanceHold { .. }
-            | RuntimePlatformEffect::WifiRadio { .. } => Ok(vec![HostMessage::RuntimeResult {
+            RuntimePlatformEffect::MaintenanceHold { .. } => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::StoreError {
                     message: "This setting is board-only".into(),
                 },

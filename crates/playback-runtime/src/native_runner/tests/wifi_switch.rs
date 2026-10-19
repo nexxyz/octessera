@@ -8,73 +8,60 @@ fn board_runner() -> NativeRunner {
     .unwrap()
 }
 
-fn press_main(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+fn input(runner: &mut NativeRunner, input: Value) {
     runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
+            input,
             request_snapshot: None,
         })
-        .unwrap()
+        .unwrap();
 }
 
-fn emitted(messages: &[RunnerMessage], expected: RuntimePlatformEffect) -> bool {
-    messages.iter().any(|message| {
-        matches!(
-            message,
-            RunnerMessage::PlatformEffects { effects } if effects == &vec![expected.clone()]
-        )
-    })
+fn set_wifi(runner: &mut NativeRunner, on: bool) {
+    assert!(runner.menu.focus_item_key("wifi.enabled"));
+    input(runner, json!({ "type": "encoder_press", "id": "main" }));
+    input(
+        runner,
+        json!({ "type": "encoder_turn", "id": "main", "delta": if on { 1 } else { -1 } }),
+    );
+    input(runner, json!({ "type": "encoder_press", "id": "main" }));
 }
 
 #[test]
-fn turning_wifi_off_asks_first_and_turning_it_on_does_not() {
+fn wifi_switch_toggles_a_saved_device_setting_that_stays_out_of_portable_patches() {
     let mut runner = board_runner();
+    assert!(runner.wifi_enabled());
 
-    assert!(runner.menu.focus_item_key("wifi.off"));
-    let asked = press_main(&mut runner);
-    assert!(!emitted(
-        &asked,
-        RuntimePlatformEffect::WifiRadio { enabled: false }
-    ));
-    let dialog = runner.display.confirm_dialog.as_ref().unwrap();
-    assert_eq!(dialog.title, "Turn Wi-Fi Off");
-    assert!(dialog.lines.iter().all(|line| line.chars().count() <= 20));
+    set_wifi(&mut runner, false);
+    assert!(!runner.wifi_enabled());
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Wi-Fi off: no SSH"
+    );
+    let payload = runner.config_payload();
+    assert_eq!(payload["runtimeConfig"]["wifi"]["enabled"], false);
+    assert!(
+        portable_patch_projection(&payload).unwrap()["runtimeConfig"]
+            .get("wifi")
+            .is_none()
+    );
 
-    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
-    let off = press_main(&mut runner);
-    assert!(emitted(
-        &off,
-        RuntimePlatformEffect::WifiRadio { enabled: false }
-    ));
-    assert_eq!(runner.display.toast.as_ref().unwrap().message, "Wi-Fi off");
+    let mut restarted = board_runner();
+    restarted.apply_config_payload(payload).unwrap();
+    assert!(!restarted.wifi_enabled());
 
-    assert!(runner.menu.focus_item_key("wifi.on"));
-    let on = press_main(&mut runner);
-    assert!(emitted(
-        &on,
-        RuntimePlatformEffect::WifiRadio { enabled: true }
-    ));
-    assert!(runner.display.confirm_dialog.is_none());
-    assert_eq!(runner.display.toast.as_ref().unwrap().message, "Wi-Fi on");
+    set_wifi(&mut restarted, true);
+    assert!(restarted.wifi_enabled());
+    assert_eq!(
+        restarted.display.toast.as_ref().unwrap().message,
+        "Wi-Fi on"
+    );
 }
 
 #[test]
-fn cancelling_wifi_off_changes_nothing() {
-    let mut runner = board_runner();
-
-    assert!(runner.menu.focus_item_key("wifi.off"));
-    let _ = press_main(&mut runner);
-    let cancelled = press_main(&mut runner);
-    assert!(!emitted(
-        &cancelled,
-        RuntimePlatformEffect::WifiRadio { enabled: false }
-    ));
-    assert_eq!(runner.display.toast.as_ref().unwrap().message, "Cancelled");
-}
-
-#[test]
-fn wifi_switch_is_board_only() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(!runner.menu.focus_item_key("wifi.off"));
-    assert!(!runner.menu.focus_item_key("wifi.on"));
+fn wifi_switch_is_board_only_and_setup_portal_is_everywhere() {
+    let mut desktop = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(!desktop.menu.focus_item_key("wifi.enabled"));
+    assert!(desktop.menu.focus_item_key("system.configureWifi"));
+    assert!(board_runner().menu.focus_item_key("system.configureWifi"));
 }

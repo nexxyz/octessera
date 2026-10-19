@@ -13,7 +13,7 @@ pub(super) use layer::LayerDto;
 pub(super) use mixer::MixerDto;
 pub(super) use runtime::{
     AudioOutputsDto, AuxBindingDto, BluetoothDto, HdmiDto, MidiDto, ParamModsDto, RuntimeConfigDto,
-    UsbDto,
+    UsbDto, WifiDto,
 };
 
 #[derive(Clone, Debug, PartialEq)]

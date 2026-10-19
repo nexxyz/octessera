@@ -157,7 +157,7 @@ fn orange_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&orange, "Connections > Wi-Fi"),
-        vec!["Turn Off", "Turn On", "Setup Portal"]
+        vec!["Wi-Fi", "Setup Portal"]
     );
     assert_eq!(
         group_labels(&orange, "Live Show Mode"),

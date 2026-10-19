@@ -23,6 +23,7 @@ pub struct NativeConfigSnapshot {
     hdmi_cycle_measures: u8,
     bluetooth_enabled: bool,
     bluetooth_audio: bool,
+    wifi_enabled: bool,
     instruments: Vec<NativeInstrumentSlot>,
     fx_buses: Vec<NativeFxBus>,
     global_fx_slots: Vec<String>,
@@ -156,6 +157,7 @@ impl NativeConfigSnapshot {
                     "cycleMeasures": self.hdmi_cycle_measures
                 },
                 "bluetooth": { "enabled": self.bluetooth_enabled, "audio": self.bluetooth_audio },
+                "wifi": { "enabled": self.wifi_enabled },
                 "instruments": self.instruments.iter().map(instrument_audio_payload).collect::<Vec<_>>(),
                 "mixer": super::snapshot_audio_settings::mixer_payload(
                     &self.fx_buses,
@@ -320,6 +322,7 @@ impl NativeConfigSnapshot {
             hdmi_cycle_measures: runner.display.hdmi.cycle_measures,
             bluetooth_enabled: runner.bluetooth.enabled,
             bluetooth_audio: runner.bluetooth.audio,
+            wifi_enabled: runner.wifi_enabled,
             instruments: runner.instruments.clone(),
             fx_buses: runner.fx_buses.clone(),
             global_fx_slots: runner.global_fx_slots.clone(),

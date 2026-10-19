@@ -15,6 +15,7 @@ const FULL_FIELDS: &[&str] = &[
     "sampleFavouriteDirs",
     "hdmi",
     "bluetooth",
+    "wifi",
     "instruments",
     "mixer",
     "masterVolume",
@@ -86,7 +87,7 @@ const PREFERENCE_FIELDS: &[&str] = &[
     "recording",
 ];
 
-const DEVICE_FIELDS: &[&str] = &["sampleFavouriteDirs", "dsp"];
+const DEVICE_FIELDS: &[&str] = &["sampleFavouriteDirs", "dsp", "wifi"];
 const SHARED_FIELDS: &[&str] = &["sound", "auxBindings", "shiftAuxBindings", "midi"];
 const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "hdmi",
@@ -135,6 +136,7 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "sampleFavouriteDirs",
     "hdmi",
     "bluetooth",
+    "wifi",
     "masterVolume",
     "ghostCells",
     "inputEventsWhilePaused",
@@ -253,6 +255,9 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["autoSaveDefault"] = alternate_bool(&canonical_runtime["autoSaveDefault"]);
     source_runtime["rollingBackups"] = alternate_bool(&canonical_runtime["rollingBackups"]);
     source_runtime["auxAutoMapEnabled"] = alternate_bool(&canonical_runtime["auxAutoMapEnabled"]);
+    source_runtime["wifi"] = json!({
+        "enabled": alternate_bool(&canonical_runtime["wifi"]["enabled"])
+    });
     source_runtime["bluetooth"] = json!({
         "enabled": alternate_bool(&canonical_runtime["bluetooth"]["enabled"]),
         "audio": alternate_bool(&canonical_runtime["bluetooth"]["audio"])

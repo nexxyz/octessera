@@ -92,7 +92,7 @@ Load, Rename, and Delete precede Save Current and Refresh List. Within Default,
 Auto Save and Backups precede Save Patch and Load Patch; System contains Save System
 and Load System. Within
 `System > Connections`, Wi-Fi comes first, then board-only Bluetooth and SD Card 2, then the
-Raspberry-only USB Role. `Wi-Fi` holds board-only Turn Off and Turn On, then `Setup Portal`.
+Raspberry-only USB Role. `Wi-Fi` holds the board-only `Wi-Fi` On/Off switch, then `Setup Portal`.
 `System > Maintenance` holds Updates, Backup / Restore, Hardware Test, Reset, and Sys. Info.
 All moved rows keep their existing action/config keys. `Setup Portal`
 uses stable key `system.configureWifi`. After confirmation, native runtime stops and resets playback,

@@ -1,6 +1,6 @@
 use super::{
     AudioOptimization, AudioOutputsDto, AuxBindingDto, BluetoothDto, HdmiDto, MidiDto,
-    RuntimeConfigDto, UsbDto,
+    RuntimeConfigDto, UsbDto, WifiDto,
 };
 use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,8 @@ pub struct DeviceRuntimeConfigDto {
     pub(super) hdmi: Option<HdmiDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) bluetooth: Option<BluetoothDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) wifi: Option<WifiDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) ghost_cells: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -81,6 +83,7 @@ impl DeviceRuntimeConfigDto {
             sample_favourite_dirs: runtime.sample_favourite_dirs.clone(),
             hdmi: runtime.hdmi.clone(),
             bluetooth: runtime.bluetooth.clone(),
+            wifi: runtime.wifi.clone(),
             ghost_cells: runtime.ghost_cells,
             input_events_while_paused: runtime.input_events_while_paused,
             numeric_display_mode: runtime.numeric_display_mode.clone(),

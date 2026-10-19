@@ -57,6 +57,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     device_io::validate_usb(runtime)?;
     device_io::validate_hdmi(runtime)?;
     device_io::validate_bluetooth(runtime)?;
+    device_io::validate_wifi(runtime)?;
     device_io::validate_recording(runtime)
 }
 

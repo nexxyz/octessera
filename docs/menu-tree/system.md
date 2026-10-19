@@ -60,8 +60,7 @@ System
 │       └── Follow S/S: [on | off]
 ├── Connections (group)
 │   ├── Wi-Fi (group)
-│   │   ├── Turn Off: (action)           ← Raspberry and Orange; confirm, then the radio stays off across reboots
-│   │   ├── Turn On: (action)            ← Raspberry and Orange
+│   │   ├── Wi-Fi: [On | Off]            ← Raspberry and Orange; off lasts across reboots; default On
 │   │   └── Setup Portal: (action)       ← confirm Open Portal: Wi-Fi, hostname, SSH, login
 │   ├── Bluetooth (group)                ← Raspberry and Orange
 │   │   ├── Bluetooth: [Off | On]
@@ -129,19 +128,19 @@ Desktop
 Orange
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
-  Connections: Wi-Fi (Turn Off, Turn On, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer)
+  Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer)
   Display: Ghost Cells … Button Bright; HDMI Video (Mode; Bars per cycle when cycle-behaviors; Grid Lines)
 
 Raspberry Gadget
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; USB Device (USB MIDI); Sync / Clock
-  Connections: Wi-Fi (Turn Off, Turn On, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer); USB Role
+  Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer); USB Role
   Display: Ghost Cells … Button Bright; HDMI Video
 
 Raspberry Host
   Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
-  Connections: Wi-Fi (Turn Off, Turn On, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
+  Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
   Display: Ghost Cells … Button Bright; HDMI Video
 
 Every platform

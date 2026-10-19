@@ -66,6 +66,9 @@
       "audio": false,
       "enabled": false
     },
+    "wifi": {
+      "enabled": true
+    },
     "buttonBrightness": 35,
     "dimTimerSeconds": 60,
     "displayBrightness": 75,

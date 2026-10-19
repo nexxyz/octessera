@@ -1,6 +1,6 @@
 use super::system_bluetooth::bluetooth_group;
 use super::system_io::{sd_card_2_group, usb_data_role_item};
-use super::{action_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
+use super::{action_item, bool_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
 
 pub(super) fn connections_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
     let mut children = vec![wifi_group(config)];
@@ -16,18 +16,7 @@ pub(super) fn connections_group(config: &NativeMenuConfig, host_role: bool) -> N
 fn wifi_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mut children = Vec::new();
     if config.jack_audio_required {
-        children.extend([
-            action_item(
-                "Turn Off",
-                "wifi.off",
-                NativeMenuAction::PlatformEffect("wifi.off".into()),
-            ),
-            action_item(
-                "Turn On",
-                "wifi.on",
-                NativeMenuAction::PlatformEffect("wifi.on".into()),
-            ),
-        ]);
+        children.push(bool_item("Wi-Fi", "wifi.enabled", config.wifi_enabled));
     }
     children.push(action_item(
         "Setup Portal",

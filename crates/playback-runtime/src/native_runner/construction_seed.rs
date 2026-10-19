@@ -271,6 +271,7 @@ impl NativeRunnerConstructionSeed {
                 .map(|port| (port.id.clone(), port.name.clone()))
                 .collect(),
             bluetooth_enabled: false,
+            wifi_enabled: true,
             bluetooth_audio: false,
             bluetooth_paired: Vec::new(),
             bluetooth_found: Vec::new(),

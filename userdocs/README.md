@@ -108,9 +108,9 @@ are up. **End** switches the mode off early and brings Wi-Fi straight back. A co
 chores always keep running because things break without them: saving the
 clock, and on the Orange trimming the in-memory logs.
 
-If you'd rather keep Wi-Fi off for good, use **System > Connections > Wi-Fi > Turn
-Off**. It asks first, then the radio stays off, through reboots too, until you
-choose **Turn On**. Your saved network stays put, so it reconnects straight
+If you'd rather keep Wi-Fi off for good, set **System > Connections > Wi-Fi >
+Wi-Fi** to Off. The radio stays off, through reboots too, until you switch it
+back On. That also means no SSH and no updates, so it's a show-day choice. Your saved network stays put, so it reconnects straight
 away. It is a separate switch from Live Show Mode: a show still takes Wi-Fi
 down while it lasts if it is on, and ending a show never switches it back on
 if you turned it off. Opening the Wi-Fi setup portal turns it back on, since

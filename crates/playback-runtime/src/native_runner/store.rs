@@ -131,8 +131,6 @@ impl NativeRunner {
             "usb.sdTransferStop" => Some(RuntimePlatformEffect::UsbSdTransferStop),
             "maintenance.hold" => Some(RuntimePlatformEffect::MaintenanceHold { active: true }),
             "maintenance.release" => Some(RuntimePlatformEffect::MaintenanceHold { active: false }),
-            "wifi.off" => Some(RuntimePlatformEffect::WifiRadio { enabled: false }),
-            "wifi.on" => Some(RuntimePlatformEffect::WifiRadio { enabled: true }),
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
                 max_minutes: self.recording_max_minutes,
             }),

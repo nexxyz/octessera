@@ -31,6 +31,8 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) bluetooth: Option<BluetoothDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) wifi: Option<WifiDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) instruments: Option<Vec<InstrumentDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) mixer: Option<MixerDto>,
@@ -221,6 +223,13 @@ pub struct HdmiDto {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct WifiDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) enabled: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct BluetoothDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) enabled: Option<bool>,
@@ -299,6 +308,7 @@ impl RuntimeConfigDto {
             "sampleFavouriteDirs",
             "hdmi",
             "bluetooth",
+            "wifi",
             "ghostCells",
             "inputEventsWhilePaused",
             "numericDisplayMode",

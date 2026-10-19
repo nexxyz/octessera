@@ -59,6 +59,7 @@ pub(crate) fn process_runtime_output<H: PiRuntimeHost>(
     observe_snapshot_messages(host, &output.messages);
     host.core_mut()
         .observe_bluetooth_enabled(runner.bluetooth_enabled());
+    host.core_mut().observe_wifi_enabled(runner.wifi_enabled());
     host.observe_bluetooth_audio_sink(runner.bluetooth_audio_sink());
     for follow_up in output.follow_ups {
         if host.shutdown_pending() {

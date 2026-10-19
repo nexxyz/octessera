@@ -1,4 +1,5 @@
 use super::super::drum_config::drum_velocity_level;
+use super::super::sample_assignment_payload::cell_offset;
 use super::super::{NativeInstrumentSlot, NativeSampleAssignment, GRID_WIDTH};
 use crate::protocol::CellHit;
 use platform_core::CellTriggerIntent;
@@ -34,14 +35,8 @@ pub(in super::super) fn drum_hit_for_intent(
     if voice > 7 {
         return None;
     }
-    let offset = |key: &str, limit: i64| match assignment.get(key) {
-        Some(value) => value
-            .as_i64()
-            .filter(|value| (-limit..=limit).contains(value)),
-        None => Some(0),
-    };
-    let tune_semis = offset("tuneSemis", 24)?;
-    let tune_cents = offset("tuneCents", 100)?;
+    let tune_semis = cell_offset(assignment, "tuneSemis", 24);
+    let tune_cents = cell_offset(assignment, "tuneCents", 100);
     let level = assignment.get("level").and_then(Value::as_str);
     let flag = |key: &str| {
         instrument
@@ -55,8 +50,8 @@ pub(in super::super) fn drum_hit_for_intent(
         voice,
         cell: cell_index(intent.x, intent.y),
         pitch_cents: cell_pitch_cents(
-            tune_semis as i8,
-            tune_cents as i8,
+            tune_semis,
+            tune_cents,
             flag("followTranspose").then_some(transpose_offset),
             link_note.filter(|_| flag("followPitch")),
         ),

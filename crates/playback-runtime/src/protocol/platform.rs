@@ -46,9 +46,6 @@ pub enum RuntimePlatformEffect {
     MaintenanceHold {
         active: bool,
     },
-    WifiRadio {
-        enabled: bool,
-    },
     BluetoothScan {
         active: bool,
     },
@@ -126,7 +123,6 @@ impl RuntimePlatformEffect {
             | Self::UsbSdTransferStart
             | Self::UsbSdTransferStop
             | Self::MaintenanceHold { .. }
-            | Self::WifiRadio { .. }
             | Self::BluetoothScan { .. }
             | Self::BluetoothDevice { .. }
             | Self::Reboot

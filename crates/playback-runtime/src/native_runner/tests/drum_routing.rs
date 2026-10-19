@@ -109,7 +109,7 @@ fn paired_intents_select_world_cells_not_melodic_notes_and_unpaired_notes_are_si
 }
 
 #[test]
-fn missing_cell_tune_defaults_to_zero_and_malformed_local_offsets_are_silent() {
+fn missing_or_malformed_cell_tune_plays_at_zero_and_out_of_range_clamps_like_the_sampler() {
     let mut runner = drum_runner();
     runner.instruments[0].drum_config["assignments"][0]
         .as_object_mut()
@@ -127,9 +127,9 @@ fn missing_cell_tune_defaults_to_zero_and_malformed_local_offsets_are_silent() {
         )
     };
     assert_eq!(route(&runner).cells[0].pitch_cents, 0);
-    for bad in [json!(-25), json!(25), json!("7")] {
-        runner.instruments[0].drum_config["assignments"][0]["tuneSemis"] = bad;
-        assert!(route(&runner).is_empty());
+    for (stored, cents) in [(json!(-25), -2400), (json!(25), 2400), (json!("7"), 0)] {
+        runner.instruments[0].drum_config["assignments"][0]["tuneSemis"] = stored;
+        assert_eq!(route(&runner).cells[0].pitch_cents, cents);
     }
 }
 

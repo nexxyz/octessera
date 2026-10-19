@@ -391,6 +391,8 @@ pub struct NativeRunner {
     midi_inputs: Vec<MidiPort>,
     midi_status: Option<String>,
     bluetooth: bluetooth::NativeBluetoothState,
+    /// Board Wi-Fi radio switch; it lasts across reboots and Live Show Mode never changes it.
+    wifi_enabled: bool,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     input_events_while_paused: bool,

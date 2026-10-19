@@ -217,6 +217,11 @@ impl NativeRunner {
                     self.platform_effect_for_action(&action_type)
                 } else if action_type == "system.configureWifi" {
                     self.stop_for_setup_portal();
+                    if !self.wifi_enabled {
+                        self.wifi_enabled = true;
+                        self.menu.set_bool_value_for_key("wifi.enabled", true);
+                        self.mark_system_dirty();
+                    }
                     self.outbox
                         .push_platform_effect(RuntimePlatformEffect::MidiPanic);
                     self.outbox
@@ -423,8 +428,6 @@ fn board_setup_toast(action_type: &str) -> Option<&'static str> {
     match action_type {
         "maintenance.hold" => Some("Live Show Mode: 48h"),
         "maintenance.release" => Some("Live Show Mode off"),
-        "wifi.off" => Some("Wi-Fi off"),
-        "wifi.on" => Some("Wi-Fi on"),
         _ => None,
     }
 }
