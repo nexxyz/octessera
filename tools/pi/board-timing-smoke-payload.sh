@@ -33,7 +33,7 @@ stopped=0
 cleanup() {
   set +e
   sudo -n systemctl stop "$unit" >/dev/null 2>&1
-  sudo -n journalctl -u "$unit" --no-pager -o short-monotonic > "$root/journal.log" 2>&1
+  sudo -n journalctl -u "$unit" --no-pager -o short-monotonic 2>&1 | tee "$root/journal.log" >/dev/null
   sudo -n rm -rf -- "$store_dir"
   if [ "$stopped" -eq 1 ]; then sudo -n systemctl start "$service"; fi
   for _ in $(seq 1 30); do [ "$(systemctl is-active "$service")" = active ] && break; sleep 1; done
