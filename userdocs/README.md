@@ -98,7 +98,7 @@ A handful of useful housekeeping jobs still run on a timer: log rotation, SD
 card trim, temp-file cleanup, and on the Raspberry a once-a-minute Wi-Fi health
 check. Each of them has been run during playback
 without disturbing the sound, but if you'd rather not find out the hard way,
-switch on **System > Setup > Live Show Mode > Start 48h** before a show. It
+switch on **System > Live Show Mode > Start 48h** before a show. It
 asks first, because it also switches Wi-Fi off: no SSH, no updates and no Wi-Fi
 setup until it ends, and nothing on the network can poke the board mid-song.
 Bluetooth keyboards and speakers keep working. The housekeeping jobs are
@@ -108,7 +108,7 @@ are up. **End** switches the mode off early and brings Wi-Fi straight back. A co
 chores always keep running because things break without them: saving the
 clock, and on the Orange trimming the in-memory logs.
 
-If you'd rather keep Wi-Fi off for good, use **System > Setup > Wi-Fi > Turn
+If you'd rather keep Wi-Fi off for good, use **System > Connections > Wi-Fi > Turn
 Off**. It asks first, then the radio stays off, through reboots too, until you
 choose **Turn On**. Your saved network stays put, so it reconnects straight
 away. It is a separate switch from Live Show Mode: a show still takes Wi-Fi
@@ -127,7 +127,7 @@ tuned kernel and device-tree setup, and a stock kernel or bootloader package
 sneaking in can leave you with a board that boots but doesn't make a sound (or
 doesn't boot at all). The boards hold those packages so apt leaves them alone,
 but please don't go fishing with `--allow-change-held-packages`. Octessera
-updates come through **System > Setup > Updates** or a fresh image.
+updates come through **System > Maintenance > Updates** or a fresh image.
 
 ### Samples
 
@@ -140,6 +140,6 @@ For the optional OLED microSD card, format it as FAT32 or exFAT and name the
 volume `OCTESSERA`; the instrument only picks up a card with exactly that name.
 This is SD2; the selected board's boot card is SD1. Put WAV files under
 `octessera/samples`. You can swap the card while the instrument is on; give it
-a couple of seconds to show up. If you use **System > SD Card 2 > Start
+a couple of seconds to show up. If you use **System > Connections > SD Card 2 > Start
 Transfer**, eject the host drive before
 pressing **Back** or **Main** to stop the transfer.

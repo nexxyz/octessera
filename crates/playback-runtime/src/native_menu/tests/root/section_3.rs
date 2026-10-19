@@ -34,7 +34,7 @@ pub(crate) fn orange_shows_both_midi_host_and_usb_device_groups() {
         vec!["USB MIDI"]
     );
     assert_eq!(
-        super::section_1::group_labels(&config, "SD Card 2"),
+        super::section_1::group_labels(&config, "Connections > SD Card 2"),
         vec!["Start Transfer", "Stop Transfer"]
     );
 }

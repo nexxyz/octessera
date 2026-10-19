@@ -49,39 +49,28 @@ fn navigate_to_configure_wifi(
         host,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    for _ in 0..32 {
-        if runner.test_current_menu_label().as_deref() == Some("Setup") {
-            break;
+    for label in ["Connections", "Wi-Fi", "Setup Portal"] {
+        for _ in 0..32 {
+            if runner.test_current_menu_label().as_deref() == Some(label) {
+                break;
+            }
+            send_input(
+                runtime,
+                runner,
+                host,
+                json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+            );
         }
-        send_input(
-            runtime,
-            runner,
-            host,
-            json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
-        );
-    }
-    assert_eq!(runner.test_current_menu_label().as_deref(), Some("Setup"));
-    send_input(
-        runtime,
-        runner,
-        host,
-        json!({ "type": "encoder_press", "id": "main" }),
-    );
-    for _ in 0..32 {
-        if runner.test_current_menu_label().as_deref() == Some("Configure WiFi") {
-            break;
+        assert_eq!(runner.test_current_menu_label().as_deref(), Some(label));
+        if label != "Setup Portal" {
+            send_input(
+                runtime,
+                runner,
+                host,
+                json!({ "type": "encoder_press", "id": "main" }),
+            );
         }
-        send_input(
-            runtime,
-            runner,
-            host,
-            json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
-        );
     }
-    assert_eq!(
-        runner.test_current_menu_label().as_deref(),
-        Some("Configure WiFi")
-    );
 }
 
 fn identity_layers(result: &RuntimeStoreResult) -> usize {

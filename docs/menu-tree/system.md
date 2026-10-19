@@ -9,58 +9,6 @@ System
 ├── Load Preset (group)                 ← direct root shortcut
 │   ├── (none): (action)                ← refreshes the preset list
 │   └── <preset>: (action)              ← confirm, then load preset
-├── Recording (group)
-│   ├── Max Time: [1..120] min  default 10
-│   ├── Start Audio: (action)           ← final internal stereo output
-│   ├── Audio+Video: (action)           ← synchronized audio, OLED, NeoKeys and grid
-│   └── Stop: (action)                  ← finalize active recording
-├── Notes (group)
-│   ├── Note Length: [30..2000] step 10 ms  default 120
-│   ├── Vel Scale: [0..200] step 5 %   default 100
-│   └── Vel Curve: [linear | soft | hard]
-├── MIDI (group)
-│   ├── MIDI Active: [on | off]
-│   ├── MIDI Host (group)                ← desktop, Orange, and Raspberry Host
-│   │   ├── MIDI Out (group)             ← dynamic: one action per detected output port
-│   │   └── MIDI In (group)              ← dynamic: one action per detected input port
-│   ├── USB Device (group)               ← Orange and Raspberry Gadget
-│   │   └── USB MIDI: [on | off]         ← owns both Gadget MIDI directions; restart-applied
-│   └── Sync / Clock (group)
-│       ├── Sync: [internal | external]
-│       ├── Clock Out: [on | off]
-│       ├── Clock In: [on | off]
-│       └── Follow S/S: [on | off]
-├── Audio (group)
-│   ├── USB Audio: [on | off]            ← Raspberry and Orange; hidden in Raspberry Host
-│   ├── HDMI Audio: [on | off]           ← Raspberry and Orange
-│   ├── Master Vol: [0..100] step 1
-│   ├── Perf. Mode: [Latency | Capacity] ← Raspberry and Orange; restart-sensitive
-│   ├── Polyphony: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]
-│   └── Engine (group)
-│       ├── CPU Warn %: [70 | 75 | 80 | 85 | 90 | 95]
-│       ├── Bus Idle: [exact | -140 | -120 | -100 | -80]
-│       └── Buf Frames: [64 | 128 | 256 | 512 | 1024 | 2048] ← desktop only
-├── UI (group)
-│   ├── Ghost Cells: [on | off]
-│   ├── Auto Map: [on | off]
-│   ├── Number Style: [bar | numbers | bar+numbers]
-│   ├── Dim Timer: [0..600] step 10 s
-│   ├── OLED Sleep: [0..600] step 10 s
-│   ├── OLED Bright: [10..100] step 5
-│   ├── Grid Bright: [10..100] step 5
-│   └── Button Bright: [10..100] step 5
-├── SD Card 2 (group)                    ← Raspberry and Orange
-│   ├── Start Transfer: (action)         ← hidden in Raspberry Host
-│   └── Stop Transfer: (action)
-├── HDMI Video (group)                   ← Raspberry and Orange
-│   ├── Mode: [Terminal | live-grid | plain-grid | active-behavior | cycle-behaviors]
-│   ├── Bars per cycle: [1..64] bars    ← cycle-behaviors only
-│   └── Grid Lines: [on | off]
-├── Bluetooth (group)                    ← Raspberry and Orange
-│   ├── Bluetooth: [Off | On]
-│   ├── Devices (group)                  ← On only; dynamic: one connect/disconnect action per paired device
-│   ├── Pair New (group)                 ← On only; searches while open; one pair action per found keyboard
-│   └── Forget (group)                   ← On only; dynamic: one forget action per paired device
 ├── Saves (group)
 │   ├── Library (group)
 │   │   ├── Save As (group)
@@ -79,26 +27,79 @@ System
 │   └── System (group)
 │       ├── Save System: (action)
 │       └── Load System: (action)
-├── Setup (group)
-│   ├── USB Role: [Gadget | Host]         ← Raspberry capability only
+├── Recording (group)
+│   ├── Max Time: [1..120] min  default 10
+│   ├── Start Audio: (action)           ← final internal stereo output
+│   ├── Audio+Video: (action)           ← synchronized audio, OLED, NeoKeys and grid
+│   └── Stop: (action)                  ← finalize active recording
+├── Notes (group)
+│   ├── Note Length: [30..2000] step 10 ms  default 120
+│   ├── Vel Scale: [0..200] step 5 %   default 100
+│   └── Vel Curve: [linear | soft | hard]
+├── Audio (group)
+│   ├── USB Audio: [on | off]            ← Raspberry and Orange; hidden in Raspberry Host
+│   ├── HDMI Audio: [on | off]           ← Raspberry and Orange
+│   ├── Master Vol: [0..100] step 1
+│   ├── Perf. Mode: [Latency | Capacity] ← Raspberry and Orange; restart-sensitive
+│   ├── Polyphony: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]
+│   └── Engine (group)
+│       ├── CPU Warn %: [70 | 75 | 80 | 85 | 90 | 95]
+│       ├── Bus Idle: [exact | -140 | -120 | -100 | -80]
+│       └── Buf Frames: [64 | 128 | 256 | 512 | 1024 | 2048] ← desktop only
+├── MIDI (group)
+│   ├── MIDI Active: [on | off]
+│   ├── MIDI Host (group)                ← desktop, Orange, and Raspberry Host
+│   │   ├── MIDI Out (group)             ← dynamic: one action per detected output port
+│   │   └── MIDI In (group)              ← dynamic: one action per detected input port
+│   ├── USB Device (group)               ← Orange and Raspberry Gadget
+│   │   └── USB MIDI: [on | off]         ← owns both Gadget MIDI directions; restart-applied
+│   └── Sync / Clock (group)
+│       ├── Sync: [internal | external]
+│       ├── Clock Out: [on | off]
+│       ├── Clock In: [on | off]
+│       └── Follow S/S: [on | off]
+├── Connections (group)
+│   ├── Wi-Fi (group)
+│   │   ├── Turn Off: (action)           ← Raspberry and Orange; confirm, then the radio stays off across reboots
+│   │   ├── Turn On: (action)            ← Raspberry and Orange
+│   │   └── Setup Portal: (action)       ← confirm Open Portal: Wi-Fi, hostname, SSH, login
+│   ├── Bluetooth (group)                ← Raspberry and Orange
+│   │   ├── Bluetooth: [Off | On]
+│   │   ├── Devices (group)              ← On only; dynamic: one connect/disconnect action per paired device
+│   │   ├── Pair New (group)             ← On only; searches while open; one pair action per found keyboard
+│   │   └── Forget (group)               ← On only; dynamic: one forget action per paired device
+│   ├── SD Card 2 (group)                ← Raspberry and Orange
+│   │   ├── Start Transfer: (action)     ← hidden in Raspberry Host
+│   │   └── Stop Transfer: (action)
+│   └── USB Role: [Gadget | Host]         ← Raspberry capability only
+├── Display (group)
+│   ├── Ghost Cells: [on | off]
+│   ├── Auto Map: [on | off]
+│   ├── Number Style: [bar | numbers | bar+numbers]
+│   ├── Dim Timer: [0..600] step 10 s
+│   ├── OLED Sleep: [0..600] step 10 s
+│   ├── OLED Bright: [10..100] step 5
+│   ├── Grid Bright: [10..100] step 5
+│   ├── Button Bright: [10..100] step 5
+│   └── HDMI Video (group)               ← Raspberry and Orange
+│       ├── Mode: [Terminal | live-grid | plain-grid | active-behavior | cycle-behaviors]
+│       ├── Bars per cycle: [1..64] bars ← cycle-behaviors only
+│       └── Grid Lines: [on | off]
+├── Live Show Mode (group)               ← Raspberry and Orange
+│   ├── Start 48h: (action)              ← confirm, then Wi-Fi off and housekeeping postponed for 48 h
+│   └── End: (action)
+├── Maintenance (group)
 │   ├── Updates (group)
 │   │   ├── Check: (action)
 │   │   ├── Apply: (action)
 │   │   └── Rollback: (action)
-│   ├── Live Show Mode (group)           ← Raspberry and Orange
-│   │   ├── Start 48h: (action)          ← confirm, then Wi-Fi off and housekeeping postponed for 48 h
-│   │   └── End: (action)
-│   ├── Wi-Fi (group)                    ← Raspberry and Orange
-│   │   ├── Turn Off: (action)           ← confirm, then the radio stays off across reboots
-│   │   └── Turn On: (action)
-│   ├── Configure WiFi: (action)
 │   ├── Backup / Restore: (action)
-│   └── Hardware Test: (action)
-├── Reset (group)
-│   ├── Load Empty: (action)
-│   └── Load Factory: (action)
+│   ├── Hardware Test: (action)
+│   ├── Reset (group)
+│   │   ├── Load Empty: (action)
+│   │   └── Load Factory: (action)
+│   └── Sys. Info: (action)
 ├── Panic: (action)
-├── Sys. Info: (action)
 ├── Basic Help: (action)
 ├── Reboot: (action)
 └── Shutdown: (action)
@@ -108,75 +109,65 @@ The exact System children are the following after conditional rows are resolved:
 
 ```
 Desktop:
-Load Preset, Recording, Notes, MIDI, Audio, UI, Saves, Setup, Reset,
-Panic, Sys. Info, Basic Help, Reboot, Shutdown
+Load Preset, Saves, Recording, Notes, Audio, MIDI, Connections, Display,
+Maintenance, Panic, Basic Help, Reboot, Shutdown
 
-Orange:
-Load Preset, Recording, Notes, MIDI, Audio, UI, SD Card 2, HDMI Video,
-Bluetooth, Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
-
-Raspberry Gadget:
-Load Preset, Recording, Notes, MIDI, Audio, UI, SD Card 2, HDMI Video,
-Bluetooth, Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
-
-Raspberry Host:
-Load Preset, Recording, Notes, MIDI, Audio, UI, SD Card 2, HDMI Video,
-Bluetooth, Saves, Setup, Reset, Panic, Sys. Info, Basic Help, Reboot, Shutdown
+Orange, Raspberry Gadget, and Raspberry Host:
+Load Preset, Saves, Recording, Notes, Audio, MIDI, Connections, Display,
+Live Show Mode, Maintenance, Panic, Basic Help, Reboot, Shutdown
 ```
 
 The conditional child branches resolve as follows:
 
 ```
 Desktop
-  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Audio: Master Vol; Polyphony; Engine (CPU Warn %, Bus Idle, Buf Frames)
-  Setup: Updates (Check, Apply, Rollback); Configure WiFi; Backup / Restore; Hardware Test
+  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
+  Connections: Wi-Fi (Setup Portal)
+  Display: Ghost Cells … Button Bright; no HDMI Video
 
 Orange
-  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
-  SD Card 2: Start Transfer; Stop Transfer
-  HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
-  Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Wi-Fi (Turn Off, Turn On); Configure WiFi; Backup / Restore; Hardware Test
+  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
+  Connections: Wi-Fi (Turn Off, Turn On, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer)
+  Display: Ghost Cells … Button Bright; HDMI Video (Mode; Bars per cycle when cycle-behaviors; Grid Lines)
 
 Raspberry Gadget
-  MIDI: MIDI Active; USB Device (USB MIDI); Sync / Clock
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
-  SD Card 2: Start Transfer; Stop Transfer
-  HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
-  Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: USB Role; Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Wi-Fi (Turn Off, Turn On); Configure WiFi; Backup / Restore; Hardware Test
+  MIDI: MIDI Active; USB Device (USB MIDI); Sync / Clock
+  Connections: Wi-Fi (Turn Off, Turn On, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer); USB Role
+  Display: Ghost Cells … Button Bright; HDMI Video
 
 Raspberry Host
-  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
-  SD Card 2: Stop Transfer
-  HDMI Video: Mode; Bars per cycle when cycle-behaviors; Grid Lines
-  Bluetooth: Bluetooth; Devices, Pair New, Forget when On
-  Setup: USB Role; Updates (Check, Apply, Rollback); Live Show Mode (Start 48h, End); Wi-Fi (Turn Off, Turn On); Configure WiFi; Backup / Restore; Hardware Test
+  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
+  Connections: Wi-Fi (Turn Off, Turn On, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
+  Display: Ghost Cells … Button Bright; HDMI Video
+
+Every platform
+  Maintenance: Updates (Check, Apply, Rollback); Backup / Restore; Hardware Test; Reset (Load Empty, Load Factory); Sys. Info
 ```
 
 `MIDI Active` is the global runtime MIDI gate and does not select a port or device. Desktop and Orange expose `MIDI Host`, whose children are `MIDI Out` followed by `MIDI In`. Raspberry exposes `MIDI Host` only in Host role and `USB Device` only in Gadget role; Orange exposes both. `USB Device` is the computer-facing gadget interface and contains `USB MIDI`, which automatically owns both Gadget MIDI directions while enabled. Host-selected input and output IDs are ignored during that time; Orange retains them for later use after USB Device MIDI is disabled.
 
-For ordinary recursive menu groups, parameter rows and submenus precede action rows. This puts `Name` before `Save`, `Auto Save` and `Backups` before the Default actions, the `Updates` submenu before the Setup actions, and `Save Current` after the Library submenus. Dynamic preset workflows are the exception: `Rename` retains its existing preset-selection rows before `New Name` and `Apply`. There is no duplicate direct `System > Save Current` row.
+For ordinary recursive menu groups, parameter rows and submenus precede action rows. This puts `Name` before `Save`, `Auto Save` and `Backups` before the Default actions, the `Updates` submenu before the Maintenance actions, and `Save Current` after the Library submenus. Dynamic preset workflows are the exception: `Rename` retains its existing preset-selection rows before `New Name` and `Apply`. There is no duplicate direct `System > Save Current` row.
 
 `System > Audio > Master Vol` keeps key `masterVolume` and its existing range. `System > Notes` keeps the existing note-length, velocity-scale, and velocity-curve keys and semantics. Audio output rows remain restart-sensitive where they were, and all existing action/config keys, values, persistence, effects, confirmations, and Host disabling remain unchanged.
 
-`Setup` keeps the existing USB role, Wi-Fi, Backup / Restore, Updates, and Hardware Test actions without changing their keys. `USB Role` is Raspberry-capability-only and precedes `Updates`. `Configure WiFi` and Backup / Restore retain their existing native behavior. `Reset > Load Empty` and `Reset > Load Factory` retain their existing confirmation and reset behavior.
+Every moved row keeps its key, behavior, and confirmation: Connections gathers Wi-Fi, Bluetooth, SD Card 2, and the Raspberry-only USB Role; Maintenance gathers Updates, Backup / Restore, Hardware Test, Reset, and Sys. Info. `Setup Portal` and Backup / Restore retain their existing native behavior. `Reset > Load Empty` and `Reset > Load Factory` retain their existing confirmation and reset behavior.
 
 `System > Saves > System` retains explicit Save System and Load System actions for local device settings. Changed ordinary System preference edits save once when the editor is exited through Main or Back; unchanged or reverted edits do not save, and edits do not write on every turn or dirty/save the Patch. If a write is pending, only the latest completed snapshot is retained for a follow-up. Restart-sensitive values are persisted only after confirmed Apply. System Load applies settings without stopping music or silently rebooting. `System > Saves > Default` holds Auto Save, Backups, Save Patch, and Load Patch. Auto Save's preference is saved to System after a changed edit exit; when enabled, later eligible Patch edits use Patch autosave. `default.patch.json` and named Library presets both keep safe relative sample references, including local and SD-card paths. Patch autosave, rolling backups, and recovery saves are patch-only. A confirmed Patch or named-preset Load stops/resets music and sends MIDI panic while retaining local System settings and ports. A load already blocked by a pending patch write or Auto Save-eligible dirty edit refuses before confirmation with `Save pending, try again`; the same check after confirmation catches a newly pending save. With Auto Save off and no pending write, confirmation may discard dirty patch edits. Basic Help opens native help with the shortcut cheat sheet. Reboot and Shutdown remain the final System actions and refuse with `System save pending, try again` while a System write or follow-up remains pending.
 
-`System > SD Card 2` and `System > HDMI Video` are omitted on desktop. Raspberry Host hides USB Audio, USB MIDI, and SD2 Start Transfer while retaining HDMI Audio and SD2 Stop Transfer for cleanup. Raspberry Gadget shows USB Device and SD2 Start Transfer. Orange shows both MIDI Host and USB Device and has no USB Role row. Desktop shows MIDI Host and no USB Device.
+`System > Connections > SD Card 2`, `System > Connections > Bluetooth`, `System > Display > HDMI Video`, and `System > Live Show Mode` are omitted on desktop. Raspberry Host hides USB Audio, USB MIDI, and SD2 Start Transfer while retaining HDMI Audio and SD2 Stop Transfer for cleanup. Raspberry Gadget shows USB Device and SD2 Start Transfer. Orange shows both MIDI Host and USB Device and has no USB Role row. Desktop shows MIDI Host and no USB Device.
 
-`System > Sys. Info` opens a native loading popup and requests asynchronously identified, sanitized OS/version, Octessera version, primary IP/MAC when available, hostname, and explicit board profile information. The desktop UI only renders the resulting native snapshot.
+`System > Maintenance > Sys. Info` opens a native loading popup and requests asynchronously identified, sanitized OS/version, Octessera version, primary IP/MAC when available, hostname, and explicit board profile information. The desktop UI only renders the resulting native snapshot.
 
 `System > Recording` uses one `Max Time` setting for both formats. `Start Audio` writes the final internal stereo mix as WAV; `Audio+Video` writes a synchronized 272x128 lossless PNG-frame/PCM AVI (OLED, NeoKey column, NeoTrellis grid) with audio-master timing at 20 fps; `Stop` finalizes either active format. A successful start shows `Recording started`; a duplicate start shows `Recording is already running`; manual Stop shows `Recording saved` or `Recording incomplete`; clean max-duration completion shows `Max time: saved`. Recording follows the normal `OLED Sleep` timer. Recording roots and partial/incomplete lifecycle are defined in the authoritative control and runtime-boundary specs.
 
 `System > Reboot` and `System > Shutdown` retain their native confirmation and recovery-save flow. The runtime stops follow-ups, independently attempts external MIDI panic and internal audio silence, acknowledges the final shutdown/reboot snapshot, and then submits the fixed board-specific power request. The ordinary-menu toasts remain `Rebooting` and `Shutting down`.
 
-`System > Setup > Configure WiFi` is confirmed as `Open Portal`. The confirmation stops and resets playback, clears note state, and sends MIDI panic/all-notes-off cleanup; playback does not auto-resume. It then emits the typed setup portal effect. The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `failed`, `timed_out`, or desktop `unsupported`. Browser Applying is provisional and an AP disconnect is expected; the OLED result is authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a default route, DNS, or ICMP. Success and timeout cards auto-hide, failure remains dismissible, and a new `Open Portal` action retries. The portal can change Wi-Fi, hostname, SSH, and the board's admin login (`pi` on Raspberry; `octessera` on Orange), with no reboot. Configure WiFi does not start or advertise Backup / Restore. The setup modal takes priority over system info and help.
+`System > Connections > Wi-Fi > Setup Portal` is confirmed as `Open Portal`. The confirmation stops and resets playback, clears note state, and sends MIDI panic/all-notes-off cleanup; playback does not auto-resume. It then emits the typed setup portal effect. The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `failed`, `timed_out`, or desktop `unsupported`. Browser Applying is provisional and an AP disconnect is expected; the OLED result is authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a default route, DNS, or ICMP. Success and timeout cards auto-hide, failure remains dismissible, and a new `Open Portal` action retries. The portal can change Wi-Fi, hostname, SSH, and the board's admin login (`pi` on Raspberry; `octessera` on Orange), with no reboot. Setup Portal does not start or advertise Backup / Restore. The setup modal takes priority over system info and help.
 
-`System > Setup > Backup / Restore` is a direct, unconfirmed action with stable key `system.backupRestore`. On Pi it uses the existing authenticated service at `http://<regular-ip>:8081`, selected from usable regular `wlan0` IPv4, with a generated 10-character code and 15-minute lifetime. The OLED card shows IP, port, code, expiry, and `> Stop service`; Back hides it while the service continues, and Stop closes it and revokes the code. Desktop is unsupported. The `.oct` archive carries music, selected portable preferences, and optionally media; it is not a complete device backup. Destination-local USB role, MIDI/audio endpoint IDs, and favourites remain local. Rolling `Default > Backups` are patch-only, not full System snapshots.
+`System > Maintenance > Backup / Restore` is a direct, unconfirmed action with stable key `system.backupRestore`. On Pi it uses the existing authenticated service at `http://<regular-ip>:8081`, selected from usable regular `wlan0` IPv4, with a generated 10-character code and 15-minute lifetime. The OLED card shows IP, port, code, expiry, and `> Stop service`; Back hides it while the service continues, and Stop closes it and revokes the code. Desktop is unsupported. The `.oct` archive carries music, selected portable preferences, and optionally media; it is not a complete device backup. Destination-local USB role, MIDI/audio endpoint IDs, and favourites remain local. Rolling `Default > Backups` are patch-only, not full System snapshots.
 
-`System > HDMI Video > Mode` displays `Terminal` for the canonical stored/runtime value `none`. Terminal releases and disables Octessera framebuffer output so Linux terminal ownership can show, while snapshots retain the black/inactive HDMI grid for compatibility. `Bars per cycle` appears only for `cycle-behaviors` and sets how many musical bars each behavior remains shown before Cycle Behaviors advances.
+`System > Display > HDMI Video > Mode` displays `Terminal` for the canonical stored/runtime value `none`. Terminal releases and disables Octessera framebuffer output so Linux terminal ownership can show, while snapshots retain the black/inactive HDMI grid for compatibility. `Bars per cycle` appears only for `cycle-behaviors` and sets how many musical bars each behavior remains shown before Cycle Behaviors advances.

@@ -17,7 +17,7 @@ To use the port with USB devices instead:
 
 1. Disconnect the computer's USB data cable.
 2. Turn USB Audio and USB MIDI off.
-3. Open `System > Setup > USB Role` and select **Host**.
+3. Open `System > Connections > USB Role` and select **Host**.
 4. Save the setting and wait for the OLED to report the reboot result.
 5. After reboot, connect the device through an ID-grounded micro-USB OTG
    adapter. A powered hub is useful only when its upstream path cannot
@@ -43,7 +43,7 @@ while the instrument is running.
 
 A [Bluetooth keyboard](../bluetooth.md) works in either role.
 
-Keyboard capture is available only when `System > HDMI Video > Mode` is a
+Keyboard capture is available only when `System > Display > HDMI Video > Mode` is a
 graphical mode: `live-grid`, `plain-grid`, `active-behavior`, or
 `cycle-behaviors`. `Terminal` releases capture; changing back to a graphical
 mode picks up a supported connected keyboard again.
@@ -76,12 +76,12 @@ binds that position as `KEY_Z`, whether the keycap says Y or Z. Space remains
 the hardware S button; the letter S is the Aux 2 encoder click.
 
 To return to Gadget mode, disconnect the USB device, select
-`System > Setup > USB Role > Gadget`, save, and reboot. Then connect the data port to a
+`System > Connections > USB Role > Gadget`, save, and reboot. Then connect the data port to a
 computer with the USB-A-to-Micro-USB cable.
 
 ## Orange Pi
 
-Orange has fixed image-defined USB roles and no `System > Setup > USB Role` switch. USB
+Orange has fixed image-defined USB roles and no `System > Connections > USB Role` switch. USB
 data is optional for normal use. Its fixed USB-A host connector accepts the
 keyboard independently of USB0 OTG/gadget behavior; there is no Orange role
 switch to change.

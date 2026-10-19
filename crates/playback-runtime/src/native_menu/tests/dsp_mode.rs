@@ -51,7 +51,7 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
         .expect("Raspberry USB Role help target");
     let role_entry = crate::native_help::resolve_native_help_entry(&role_target)
         .expect("Raspberry USB Role help entry");
-    assert_eq!(role_entry.path, "System > Setup > USB Role");
+    assert_eq!(role_entry.path, "System > Connections > USB Role");
     assert_eq!(role_entry.title, "USB Role");
     assert_eq!(
         role_entry.line1,
@@ -130,7 +130,7 @@ fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
     let sd2 = menu
         .help_targets()
         .into_iter()
-        .find(|target| target.path == "Menu > System > SD Card 2")
+        .find(|target| target.path == "Menu > System > Connections > SD Card 2")
         .expect("SD Card 2 help target");
     let sd2_entry =
         crate::native_help::resolve_native_help_entry(&sd2).expect("SD Card 2 help entry");

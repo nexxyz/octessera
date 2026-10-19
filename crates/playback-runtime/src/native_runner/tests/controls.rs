@@ -90,7 +90,7 @@ pub(crate) fn contextual_help_does_not_change_static_navigation_memory() {
         .unwrap();
 
     runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 2;
+    runner.menu.state.cursor = 3;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

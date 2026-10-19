@@ -123,7 +123,7 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
         vec!["Master Vol", "Polyphony", "Engine"]
     );
     assert!(!system_labels(&desktop).iter().any(|label| label == "USB"));
-    assert!(!system_labels(&desktop)
+    assert!(!group_labels(&desktop, "Display")
         .iter()
         .any(|label| label == "HDMI Video"));
     assert!(!NativeMenuModel::new(desktop)
@@ -156,7 +156,7 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
         vec!["MIDI Active", "MIDI Host", "USB Device", "Sync / Clock"]
     );
     assert_eq!(
-        group_labels(&pi, "SD Card 2"),
+        group_labels(&pi, "Connections > SD Card 2"),
         vec!["Start Transfer", "Stop Transfer"]
     );
 
@@ -221,7 +221,7 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
 
     assert!(menu.focus_item_key("system.clearAll"));
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "/SYS/Reset");
+    assert_eq!(snapshot.path, "/SYS/Maintenance/Reset");
     assert!(snapshot.lines.iter().any(|line| line == ">!Load Empty"));
 
     assert!(menu.focus_item_key("system.reboot"));
@@ -252,7 +252,7 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
 pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
     let mut menu = NativeMenuModel::new(config());
     menu.state.stack = vec![5];
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
@@ -271,7 +271,7 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
 pub(crate) fn static_navigation_memory_clears_on_rebuild() {
     let mut menu = NativeMenuModel::new(config());
     menu.state.stack = vec![5];
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     menu.turn(1);
     menu.back();
@@ -280,7 +280,7 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
 
     menu.rebuild(config());
     menu.state.stack = vec![5];
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     assert_eq!(menu.current_label(), Some("Note Length"));
 }
@@ -289,7 +289,7 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
 pub(crate) fn static_navigation_memory_back_while_editing_stays_in_group() {
     let mut menu = NativeMenuModel::new(config());
     menu.state.stack = vec![5];
-    menu.state.cursor = 2;
+    menu.state.cursor = 3;
     let _ = menu.press();
     menu.turn(1);
     assert_eq!(menu.current_label(), Some("Vel Scale"));

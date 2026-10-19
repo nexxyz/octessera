@@ -1,6 +1,6 @@
 # Data backup and restore
 
-Use `System > Setup > Backup / Restore` on a Pi before reflashing. The `.oct`
+Use `System > Maintenance > Backup / Restore` on a Pi before reflashing. The `.oct`
 archive carries music, selected portable preferences such as brightness, and
 optionally user media.
 It is not a complete System backup or a device clone: USB role, MIDI/audio
@@ -34,7 +34,7 @@ save the musical Patch.
 
 ## Back up your data
 
-1. On the Pi, choose `System > Setup > Backup / Restore`.
+1. On the Pi, choose `System > Maintenance > Backup / Restore`.
 2. The OLED Ready card shows the regular network `IP`, `PORT 8081`, a generated
    10-character `CODE`, and the remaining lifetime. Build `URL` as
    `http://<regular-ip>:8081` and use the displayed code.
@@ -72,7 +72,7 @@ there is anything on the fresh board you want to keep.
 2. Save `octessera-user-data.oct` somewhere off the board.
 3. Flash the matching Raspberry or Orange image and complete its normal first
    boot and network setup.
-4. On the fresh board, choose `System > Setup > Backup / Restore` again. Use the
+4. On the fresh board, choose `System > Maintenance > Backup / Restore` again. Use the
    new `URL` and OLED code:
 
    ```sh

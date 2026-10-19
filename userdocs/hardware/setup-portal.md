@@ -6,7 +6,7 @@ network, password, SSH mode, or hostname.
 
 ## Steps
 
-1. On the instrument, open `System > Setup > Configure WiFi > Open Portal`.
+1. On the instrument, open `System > Connections > Wi-Fi > Setup Portal > Open Portal`.
 2. On a phone or computer, join `Octessera Setup <suffix>`.
 3. Browse to `http://192.168.42.1`.
 4. Choose the country and Wi-Fi network, set the local device password, choose
@@ -25,7 +25,7 @@ password, or off. Root login is not available.
 - The browser may disconnect while settings apply. Leave the instrument powered
   and wait for the OLED result.
 - A successful result gives the board a usable Wi-Fi address. Find it later at
-  `System > Sys. Info`; no reboot is needed.
+  `System > Maintenance > Sys. Info`; no reboot is needed.
 - If the OLED reports a failure or timeout, dismiss it and start a new attempt
   with **Open Portal**.
 

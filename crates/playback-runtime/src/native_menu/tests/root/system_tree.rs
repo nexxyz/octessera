@@ -8,16 +8,15 @@ fn desktop_system_tree_has_exact_order() {
         system_labels(&desktop),
         vec![
             "Load Preset",
+            "Saves",
             "Recording",
             "Notes",
-            "MIDI",
             "Audio",
-            "UI",
-            "Saves",
-            "Setup",
-            "Reset",
+            "MIDI",
+            "Connections",
+            "Display",
+            "Maintenance",
             "Panic",
-            "Sys. Info",
             "Basic Help",
             "Reboot",
             "Shutdown",
@@ -48,13 +47,36 @@ fn desktop_system_tree_has_exact_order() {
         group_labels(&desktop, "Audio > Engine"),
         vec!["CPU Warn %", "Bus Idle", "Buf Frames"]
     );
+    assert_eq!(group_labels(&desktop, "Connections"), vec!["Wi-Fi"]);
     assert_eq!(
-        group_labels(&desktop, "Setup"),
+        group_labels(&desktop, "Connections > Wi-Fi"),
+        vec!["Setup Portal"]
+    );
+    assert_eq!(
+        group_labels(&desktop, "Maintenance"),
         vec![
             "Updates",
-            "Configure WiFi",
             "Backup / Restore",
-            "Hardware Test"
+            "Hardware Test",
+            "Reset",
+            "Sys. Info"
+        ]
+    );
+    assert_eq!(
+        group_labels(&desktop, "Maintenance > Reset"),
+        vec!["Load Empty", "Load Factory"]
+    );
+    assert_eq!(
+        group_labels(&desktop, "Display"),
+        vec![
+            "Ghost Cells",
+            "Auto Map",
+            "Number Style",
+            "Dim Timer",
+            "OLED Sleep",
+            "OLED Bright",
+            "Grid Bright",
+            "Button Bright"
         ]
     );
     assert_eq!(
@@ -86,19 +108,16 @@ fn orange_system_tree_has_exact_order() {
         system_labels(&orange),
         vec![
             "Load Preset",
+            "Saves",
             "Recording",
             "Notes",
-            "MIDI",
             "Audio",
-            "UI",
-            "SD Card 2",
-            "HDMI Video",
-            "Bluetooth",
-            "Saves",
-            "Setup",
-            "Reset",
+            "MIDI",
+            "Connections",
+            "Display",
+            "Live Show Mode",
+            "Maintenance",
             "Panic",
-            "Sys. Info",
             "Basic Help",
             "Reboot",
             "Shutdown",
@@ -125,23 +144,38 @@ fn orange_system_tree_has_exact_order() {
     );
     assert_eq!(group_labels(&orange, "MIDI > USB Device"), vec!["USB MIDI"]);
     assert_eq!(
-        group_labels(&orange, "SD Card 2"),
+        group_labels(&orange, "Connections > SD Card 2"),
         vec!["Start Transfer", "Stop Transfer"]
     );
     assert_eq!(
-        group_labels(&orange, "HDMI Video"),
+        group_labels(&orange, "Display > HDMI Video"),
         vec!["Mode", "Grid Lines"]
     );
     assert_eq!(
-        group_labels(&orange, "Setup"),
+        group_labels(&orange, "Connections"),
+        vec!["Wi-Fi", "Bluetooth", "SD Card 2"]
+    );
+    assert_eq!(
+        group_labels(&orange, "Connections > Wi-Fi"),
+        vec!["Turn Off", "Turn On", "Setup Portal"]
+    );
+    assert_eq!(
+        group_labels(&orange, "Live Show Mode"),
+        vec!["Start 48h", "End"]
+    );
+    assert_eq!(
+        group_labels(&orange, "Maintenance"),
         vec![
             "Updates",
-            "Live Show Mode",
-            "Wi-Fi",
-            "Configure WiFi",
             "Backup / Restore",
-            "Hardware Test"
+            "Hardware Test",
+            "Reset",
+            "Sys. Info"
         ]
+    );
+    assert_eq!(
+        group_labels(&orange, "Display").last().map(String::as_str),
+        Some("HDMI Video")
     );
 }
 
@@ -156,19 +190,16 @@ fn raspberry_gadget_system_tree_has_exact_order() {
         system_labels(&raspberry_gadget),
         vec![
             "Load Preset",
+            "Saves",
             "Recording",
             "Notes",
-            "MIDI",
             "Audio",
-            "UI",
-            "SD Card 2",
-            "HDMI Video",
-            "Bluetooth",
-            "Saves",
-            "Setup",
-            "Reset",
+            "MIDI",
+            "Connections",
+            "Display",
+            "Live Show Mode",
+            "Maintenance",
             "Panic",
-            "Sys. Info",
             "Basic Help",
             "Reboot",
             "Shutdown",
@@ -190,22 +221,24 @@ fn raspberry_gadget_system_tree_has_exact_order() {
         ]
     );
     assert_eq!(
-        group_labels(&raspberry_gadget, "Setup"),
+        group_labels(&raspberry_gadget, "Connections"),
+        vec!["Wi-Fi", "Bluetooth", "SD Card 2", "USB Role"]
+    );
+    assert_eq!(
+        group_labels(&raspberry_gadget, "Maintenance"),
         vec![
-            "USB Role",
             "Updates",
-            "Live Show Mode",
-            "Wi-Fi",
-            "Configure WiFi",
             "Backup / Restore",
             "Hardware Test",
+            "Reset",
+            "Sys. Info"
         ]
     );
     assert!(NativeMenuModel::new(raspberry_gadget.clone())
         .item_for_key("midi.output.none")
         .is_none());
     assert_eq!(
-        group_labels(&raspberry_gadget, "SD Card 2"),
+        group_labels(&raspberry_gadget, "Connections > SD Card 2"),
         vec!["Start Transfer", "Stop Transfer"]
     );
 }
@@ -221,19 +254,16 @@ fn raspberry_host_system_tree_has_exact_order() {
         system_labels(&raspberry_host),
         vec![
             "Load Preset",
+            "Saves",
             "Recording",
             "Notes",
-            "MIDI",
             "Audio",
-            "UI",
-            "SD Card 2",
-            "HDMI Video",
-            "Bluetooth",
-            "Saves",
-            "Setup",
-            "Reset",
+            "MIDI",
+            "Connections",
+            "Display",
+            "Live Show Mode",
+            "Maintenance",
             "Panic",
-            "Sys. Info",
             "Basic Help",
             "Reboot",
             "Shutdown",
@@ -258,7 +288,7 @@ fn raspberry_host_system_tree_has_exact_order() {
         ]
     );
     assert_eq!(
-        group_labels(&raspberry_host, "SD Card 2"),
+        group_labels(&raspberry_host, "Connections > SD Card 2"),
         vec!["Stop Transfer"]
     );
     assert!(NativeMenuModel::new(raspberry_host.clone())

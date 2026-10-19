@@ -12,7 +12,7 @@ and nothing gets in the way of the audio until you turn it on.
 
 ## Turn it on
 
-Go to `System > Bluetooth` and set **Bluetooth** to On. A few more rows appear:
+Go to `System > Connections > Bluetooth` and set **Bluetooth** to On. A few more rows appear:
 
 - **Audio Out** sends a copy of the music to a paired speaker (see below).
 - **Devices** lists keyboards and speakers you have paired. A connected one
@@ -28,7 +28,7 @@ next time a paired keyboard usually reconnects on its own once you wake it up.
 1. Put the keyboard into pairing mode. This is usually a long press on a
    Bluetooth or Fn key combination until a light blinks; the keyboard's manual
    knows the exact trick.
-2. Open `System > Bluetooth > Pair New` and wait a few seconds. Keyboards show
+2. Open `System > Connections > Bluetooth > Pair New` and wait a few seconds. Keyboards show
    up as `name [kbd]` as they are found. The search stops when you leave the
    page, or after a minute.
 3. Click the keyboard's row.
@@ -42,7 +42,7 @@ pairing mode and try once more; keyboards are a bit picky about timing.
 ## Good to know
 
 - The keyboard follows the same rule as a USB keyboard: it only controls the
-  instrument while `System > HDMI Video > Mode` is a graphical mode, not
+  instrument while `System > Display > HDMI Video > Mode` is a graphical mode, not
   `Terminal`.
 - Only the first keyboard Octessera picks up gets the controls.
 - The setting lives in the System save, so it survives a reboot.
@@ -53,9 +53,9 @@ A Bluetooth speaker or pair of headphones can play along as a **monitor**: a
 copy of the same final mix that goes to the DAC, for listening on the sofa or
 practising without cables.
 
-1. Put the speaker into pairing mode, open `System > Bluetooth > Pair New`, and
+1. Put the speaker into pairing mode, open `System > Connections > Bluetooth > Pair New`, and
    click its row (`name [audio]`). Speakers don't ask for a code.
-2. Set `System > Bluetooth > Audio Out` to On.
+2. Set `System > Connections > Bluetooth > Audio Out` to On.
 
 That's it: whenever the paired speaker is connected, it plays along. Turn the
 speaker off or walk out of range and the monitor simply stops; the wired

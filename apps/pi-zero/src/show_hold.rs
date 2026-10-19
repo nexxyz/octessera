@@ -1,4 +1,4 @@
-//! System > Setup > Live Show Mode and Wi-Fi: the runtime records both board
+//! System > Live Show Mode and Connections > Wi-Fi: the runtime records both board
 //! switches as files that root's `octessera-show-hold-apply` acts on. The
 //! show-hold expiry gates fstrim, logrotate, tmpfiles-clean (and the Raspberry
 //! network logger) and blocks the radio for the show; the Wi-Fi switch turns

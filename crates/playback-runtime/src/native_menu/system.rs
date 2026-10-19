@@ -1,6 +1,7 @@
-use super::system_io::{audio_group, hdmi_video_group, midi_group, sd_card_2_group};
+use super::system_connections::connections_group;
+use super::system_io::{audio_group, hdmi_video_group, midi_group};
+use super::system_maintenance::{live_show_group, maintenance_group};
 use super::system_saves::{load_preset_group, saves_group};
-use super::system_setup::setup_group;
 use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, NativeMenuAction,
     NativeMenuConfig, NativeMenuItem,
@@ -10,6 +11,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
     let host_role = config.usb_data_role_available && config.usb_data_role.is_host();
     let mut children = vec![
         load_preset_group(&config.preset_names),
+        saves_group(config),
         group(
             "Recording",
             vec![
@@ -65,83 +67,20 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 ),
             ],
         ),
-        midi_group(config, sync_index, host_role),
         audio_group(config, host_role),
-        group(
-            "UI",
-            vec![
-                bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
-                bool_item("Auto Map", "auxAutoMapEnabled", config.aux_auto_map_enabled),
-                enum_item(
-                    "Number Style",
-                    "numericDisplayMode",
-                    vec!["bar", "numbers", "bar+numbers"],
-                    selected_index(
-                        &["bar", "numbers", "bar+numbers"],
-                        &config.numeric_display_mode,
-                    ),
-                ),
-                number_item(
-                    "Dim Timer",
-                    "dimTimerSeconds",
-                    i32::from(config.dim_timer_seconds),
-                    0,
-                    600,
-                    10,
-                ),
-                number_item(
-                    "OLED Sleep",
-                    "screenSleepSeconds",
-                    i32::from(config.screen_sleep_seconds),
-                    0,
-                    600,
-                    10,
-                ),
-                number_item(
-                    "OLED Bright",
-                    "displayBrightness",
-                    i32::from(config.display_brightness),
-                    10,
-                    100,
-                    5,
-                ),
-                number_item(
-                    "Grid Bright",
-                    "gridBrightness",
-                    i32::from(config.grid_brightness),
-                    10,
-                    100,
-                    5,
-                ),
-                number_item(
-                    "Button Bright",
-                    "buttonBrightness",
-                    i32::from(config.button_brightness),
-                    10,
-                    100,
-                    5,
-                ),
-            ],
-        ),
+        midi_group(config, sync_index, host_role),
+        connections_group(config, host_role),
+        display_group(config),
     ];
     if config.jack_audio_required {
-        children.push(sd_card_2_group(host_role));
-        children.push(hdmi_video_group(config));
-        children.push(super::system_bluetooth::bluetooth_group(config));
+        children.push(live_show_group());
     }
     children.extend([
-        saves_group(config),
-        setup_group(config),
-        reset_group(),
+        maintenance_group(),
         action_item(
             "Panic",
             "midi.panic",
             NativeMenuAction::PlatformEffect("midi.panic".into()),
-        ),
-        action_item(
-            "Sys. Info",
-            "system.info",
-            NativeMenuAction::PlatformEffect("system.info".into()),
         ),
         action_item(
             "Basic Help",
@@ -162,20 +101,62 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
     group("System", children)
 }
 
-fn reset_group() -> NativeMenuItem {
-    group(
-        "Reset",
-        vec![
-            action_item(
-                "Load Empty",
-                "system.clearAll",
-                NativeMenuAction::PlatformEffect("system.clearAll".into()),
+fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
+    let mut children = vec![
+        bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
+        bool_item("Auto Map", "auxAutoMapEnabled", config.aux_auto_map_enabled),
+        enum_item(
+            "Number Style",
+            "numericDisplayMode",
+            vec!["bar", "numbers", "bar+numbers"],
+            selected_index(
+                &["bar", "numbers", "bar+numbers"],
+                &config.numeric_display_mode,
             ),
-            action_item(
-                "Load Factory",
-                "factory.load",
-                NativeMenuAction::PlatformEffect("factory.load".into()),
-            ),
-        ],
-    )
+        ),
+        number_item(
+            "Dim Timer",
+            "dimTimerSeconds",
+            i32::from(config.dim_timer_seconds),
+            0,
+            600,
+            10,
+        ),
+        number_item(
+            "OLED Sleep",
+            "screenSleepSeconds",
+            i32::from(config.screen_sleep_seconds),
+            0,
+            600,
+            10,
+        ),
+        number_item(
+            "OLED Bright",
+            "displayBrightness",
+            i32::from(config.display_brightness),
+            10,
+            100,
+            5,
+        ),
+        number_item(
+            "Grid Bright",
+            "gridBrightness",
+            i32::from(config.grid_brightness),
+            10,
+            100,
+            5,
+        ),
+        number_item(
+            "Button Bright",
+            "buttonBrightness",
+            i32::from(config.button_brightness),
+            10,
+            100,
+            5,
+        ),
+    ];
+    if config.jack_audio_required {
+        children.push(hdmi_video_group(config));
+    }
+    group("Display", children)
 }

@@ -79,7 +79,7 @@ live kernel and the electrical setup.
 
 To exercise the setup portal on either fixed board path:
 
-- at the instrument, choose `System > Setup > Configure WiFi > Open Portal`;
+- at the instrument, choose `System > Connections > Wi-Fi > Setup Portal > Open Portal`;
 - join the setup AP and load the captive page;
 - apply Wi-Fi, hostname, SSH mode, and login settings;
 - wait for the OLED terminal result before reconnecting;

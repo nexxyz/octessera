@@ -6,7 +6,7 @@ pub(super) fn run() {
     {
         let mut menu = VisibleMenuDriver::new(&mut device);
         menu.open_group("System");
-        menu.open_group("UI");
+        menu.open_group("Display");
         menu.select_visible("OLED Bright");
     }
     device.press_main();

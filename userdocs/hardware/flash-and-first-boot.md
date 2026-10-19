@@ -54,7 +54,7 @@ remains available for either board.
 
 On the instrument, open:
 
-`System > Setup > Configure WiFi > Open Portal`
+`System > Connections > Wi-Fi > Setup Portal > Open Portal`
 
 The setup hotspot can be joined by anyone nearby. Open it while you are present,
 complete setup promptly, and do not leave setup mode running in public.
@@ -74,7 +74,7 @@ Then, on a phone or computer:
 
 The browser may disconnect while the settings apply. That is expected. Trust
 the result shown on the OLED rather than the browser's temporary state. After a
-successful setup, `System > Sys. Info` shows the device address. If setup fails,
+successful setup, `System > Maintenance > Sys. Info` shows the device address. If setup fails,
 dismiss the OLED message and run **Open Portal** again.
 
 ## 5. Finish the open-air checks

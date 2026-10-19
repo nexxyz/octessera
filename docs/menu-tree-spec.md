@@ -30,14 +30,14 @@ The Shape FX bus tree stores Duck `Source Tap` as `pre|post` and displays it as 
 
 Short breadcrumb forms use `B`, `L`, `S`, and `P` for Build, Link, Shape, and Play.
 
-The System section puts the dynamic Load Preset shortcut first, followed by Recording, Notes, MIDI,
-Audio, UI, conditional SD Card 2, conditional HDMI Video, conditional Bluetooth, Saves, Setup, and Reset. The direct actions
-Panic, Sys. Info, Basic Help, Reboot, and Shutdown follow the groups in that order. There is no
+The System section puts the dynamic Load Preset shortcut first, followed by Saves, Recording, Notes,
+Audio, MIDI, Connections, Display, conditional Live Show Mode, and Maintenance. The direct actions
+Panic, Basic Help, Reboot, and Shutdown follow the groups in that order. There is no
 duplicate direct Save Current row; `System > Saves > Library > Save Current` is the only Save Current
 row. Audio orders conditional USB Audio, conditional HDMI Audio, Master Vol, conditional Perf. Mode,
 Polyphony, and Engine; Master Vol keeps key `masterVolume`.
-SD Card 2, HDMI Video, and Bluetooth are board-only groups and are omitted on desktop. USB Role is a
-Raspberry-capability-only child of Setup before Updates. The complete resolved System order and every
+Bluetooth, SD Card 2 (under Connections), HDMI Video (under Display), and Live Show Mode are
+board-only and omitted on desktop. USB Role is a Raspberry-capability-only last child of Connections. The complete resolved System order and every
 recursive branch are in the [System split-out tree](menu-tree/system.md).
 
 The root Load Preset group contains a `(none)` refresh action and one confirmed action
@@ -61,10 +61,10 @@ visible on Orange and on Raspberry only in Gadget role. `MIDI Active` is the glo
 selects no port or device. USB MIDI enables the bidirectional Gadget MIDI endpoint after restart and
 automatically owns both input and output while enabled; Host-selected ports are ignored during that
 time. On Orange, those Host selections are retained for later use after USB Device MIDI is disabled.
-`System > Setup > USB Role` is Raspberry-only and precedes
+`System > Connections > USB Role` is Raspberry-only and precedes
 Updates. Host hides and disables USB Audio, USB MIDI, and SD Card 2 Start Transfer, while HDMI Audio
 and Stop Transfer remain available for cleanup. Gadget does not restore previously disabled outputs.
-`System > SD Card 2` contains Start Transfer and Stop Transfer; it exposes the second card to a USB
+`System > Connections > SD Card 2` contains Start Transfer and Stop Transfer; it exposes the second card to a USB
 host only while conflicting USB audio, MIDI, and recording are inactive. HDMI Video contains the
 existing Mode, Bars per cycle, and Grid Lines controls. Bluetooth contains the Bluetooth toggle and,
 only while it is On, Audio Out, Devices, Pair New, and Forget.
@@ -91,15 +91,17 @@ Within `System > Saves`, Library precedes Default, then System. Library's Save A
 Load, Rename, and Delete precede Save Current and Refresh List. Within Default,
 Auto Save and Backups precede Save Patch and Load Patch; System contains Save System
 and Load System. Within
-`System > Setup`, conditional USB Role and the Updates submenu precede Configure WiFi, Backup /
-Restore, and Hardware Test. Setup rows retain their existing action/config keys. `Configure WiFi`
+`System > Connections`, Wi-Fi comes first, then board-only Bluetooth and SD Card 2, then the
+Raspberry-only USB Role. `Wi-Fi` holds board-only Turn Off and Turn On, then `Setup Portal`.
+`System > Maintenance` holds Updates, Backup / Restore, Hardware Test, Reset, and Sys. Info.
+All moved rows keep their existing action/config keys. `Setup Portal`
 uses stable key `system.configureWifi`. After confirmation, native runtime stops and resets playback,
 sends MIDI panic/note cleanup, never auto-resumes, and emits the typed
 setup portal effect. The setup modal reports `starting`, `portal_ready` with
 the four-character code and `192.168.42.1` for 10 minutes, `finalizing`,
 `succeeded`, `failed`, `timed_out`, or desktop `unsupported`.
 
-`System > Setup > Backup / Restore` is a direct, unconfirmed action with stable
+`System > Maintenance > Backup / Restore` is a direct, unconfirmed action with stable
 key `system.backupRestore`. On Pi it opens the existing authenticated service
 on `http://<regular-ip>:8081` using a generated 10-character code and a
 15-minute lifetime. Desktop is unsupported, and the action is separate from
