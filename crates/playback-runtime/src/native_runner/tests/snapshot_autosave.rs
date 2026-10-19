@@ -201,8 +201,8 @@ pub(crate) fn save_default_flash_expires_by_time_not_snapshot_count() {
 pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 2;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Layer Label");
     runner.menu.press();
 
     let messages = runner
@@ -232,8 +232,8 @@ pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
 #[test]
 pub(crate) fn deferred_text_edit_survives_leaving_name_row_before_flush() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 2;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Layer Label");
     runner.menu.press();
 
     runner

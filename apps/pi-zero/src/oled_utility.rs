@@ -321,7 +321,7 @@ fn color_at(x: usize, y: usize) -> u16 {
         return palette::WHITE_RGB565;
     }
     match x / 16 {
-        0 => palette::RED_RGB565,
+        0 => palette::MAGENTA_RGB565,
         1 => palette::GREEN_RGB565,
         2 => palette::BLUE_RGB565,
         3 => palette::YELLOW_RGB565,

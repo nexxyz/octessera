@@ -203,8 +203,14 @@ pub(crate) fn recording_actions_emit_platform_effects() {
 #[test]
 pub(crate) fn synth_gain_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2, 0, 0, 2, 4];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Volume",
+    ]);
+    runner.menu.select_label("Gain");
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -249,8 +255,10 @@ pub(crate) fn sampler_tune_edits_into_config_payload() {
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 7;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+    runner.menu.select_label("Tune");
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -296,39 +304,61 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
 
-    runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 11;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+    runner.menu.select_label("Base Velocity");
     runner.menu.state.editing = true;
     runner.menu.turn(-20);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.cursor = 12;
+    runner.menu.select_label("Vel Levels");
     runner.menu.turn(1);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 14];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: samp direct",
+        "Sampler",
+        "Vel Levels",
+    ]);
+    runner.menu.select_label("High");
     runner.menu.state.editing = true;
     runner.menu.turn(-10);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 15];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: samp direct",
+        "Sampler",
+        "Filter",
+    ]);
+    runner.menu.select_label("Type");
     runner.menu.state.editing = true;
     runner.menu.turn(1);
     runner.apply_current_menu_edit().unwrap();
-    runner.menu.state.cursor = 1;
+    runner.menu.select_label("Cutoff");
     runner.menu.turn(-10);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 16;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+    runner.menu.select_label("Vel Sens");
     runner.menu.state.editing = true;
     runner.menu.turn(-25);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 17];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: samp direct",
+        "Sampler",
+        "Amp Env",
+    ]);
+    runner.menu.select_label("Attack");
     runner.menu.state.editing = true;
     runner.menu.turn(4);
     runner.apply_current_menu_edit().unwrap();

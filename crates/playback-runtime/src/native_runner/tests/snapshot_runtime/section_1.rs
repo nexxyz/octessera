@@ -138,7 +138,7 @@ pub(crate) fn voice_stealing_mode_change_emits_full_audio_config_command() {
 pub(crate) fn runtime_snapshot_serializes_menu_scroll_metadata() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.menu.press();
-    runner.menu.state.cursor = 7;
+    runner.menu.select_label("L8: life");
 
     let snapshot = runner.snapshot().unwrap();
 
@@ -266,8 +266,14 @@ pub(crate) fn toasts_expire_after_timeout() {
 #[test]
 pub(crate) fn repeated_aux_turns_keep_the_toast_at_its_end_and_update_the_value() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
-    runner.menu.state.cursor = 1;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Filter",
+    ]);
+    runner.menu.select_label("Cutoff");
     let turn = |runner: &mut NativeRunner| {
         let messages = runner
             .send(HostMessage::DeviceInput {

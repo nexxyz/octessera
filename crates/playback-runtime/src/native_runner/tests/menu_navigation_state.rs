@@ -71,8 +71,8 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
 #[test]
 pub(crate) fn button_a_release_does_not_navigate_back() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![0];
-    runner.menu.state.cursor = 2;
+    runner.menu.open_labels(&["Build"]);
+    runner.menu.select_label("L3: life");
 
     runner
         .send(HostMessage::DeviceInput {

@@ -21,7 +21,7 @@ export type { GridCell, GridDomain } from "./gridDomain";
 export {
   BLACK_COLOR,
   DISPLAY_PALETTE,
-  RED_COLOR,
+  MAGENTA_COLOR,
   YELLOW_COLOR,
   GRAY_COLOR,
   BLUE_COLOR,

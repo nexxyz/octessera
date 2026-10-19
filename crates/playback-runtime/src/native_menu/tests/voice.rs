@@ -70,35 +70,41 @@ pub(crate) fn missing_instrument_config_shows_runtime_defaults() {
     config.instrument_synth_filter_types.clear();
     let mut menu = NativeMenuModel::new(config);
 
-    menu.state.stack = vec![2, 0, 0];
+    menu.open_labels(&["Shape", "Instruments", "I1: synth direct"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Note Mode"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "oneshot")));
 
-    menu.state.stack = vec![2, 0, 0, 2, 1];
+    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 1"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Wave"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "saw")));
 
-    menu.state.stack = vec![2, 0, 0, 2, 2];
+    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 2"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Wave"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "square")));
 
-    menu.state.stack = vec![2, 0, 0, 2, 3];
+    menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Filter",
+    ]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Type"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "lowpass")));
 
-    menu.state.stack = vec![2, 0, 0, 3];
+    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -112,7 +118,7 @@ pub(crate) fn missing_fx_bus_config_shows_default_slots_and_params() {
     config.fx_buses.clear();
     let mut menu = NativeMenuModel::new(config);
 
-    menu.state.stack = vec![2, 1, 0];
+    menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -126,7 +132,7 @@ pub(crate) fn missing_fx_bus_config_shows_default_slots_and_params() {
         .iter()
         .any(|item| item.label == "Slot 3: None"));
 
-    menu.state.stack = vec![2, 1, 0, 0];
+    menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck", "Slot 1: Delay"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -143,14 +149,14 @@ pub(crate) fn missing_fx_bus_config_shows_default_slots_and_params() {
         .any(|item| item.label == "Mix %"
             && matches!(item.value, NativeMenuValue::Number { value: 35, .. })));
 
-    menu.state.stack = vec![2, 1, 0, 1];
+    menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck", "Slot 2: Duck"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Source"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "I2")));
 
-    menu.state.stack = vec![2, 1, 1];
+    menu.open_labels(&["Shape", "FX Buses", "B2: None"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -168,7 +174,7 @@ pub(crate) fn partial_fx_params_show_effect_defaults() {
     config.fx_buses[0].slot1_params = serde_json::json!({ "feedback": 0.42 });
     let mut menu = NativeMenuModel::new(config);
 
-    menu.state.stack = vec![2, 1, 0, 0];
+    menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck", "Slot 1: Delay"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -184,8 +190,8 @@ pub(crate) fn partial_fx_params_show_effect_defaults() {
 #[test]
 pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![2, 0, 0, 3];
-    menu.state.cursor = 2;
+    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
+    menu.select_label("Pan Pos");
     let pan = menu.snapshot();
     assert!(pan.lines.iter().any(|line| line == "> Pan Pos C"));
     assert!(pan.lines.iter().any(|line| line == "  Volume 100"));
@@ -195,8 +201,8 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     );
 
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 4];
-    menu.state.cursor = 0;
+    menu.open_labels(&["System", "Audio"]);
+    menu.select_label("Master Vol");
     let volume = menu.snapshot();
     assert!(volume.lines.iter().any(|line| line == "> Master Vol 100"));
     assert!(matches!(
@@ -211,8 +217,8 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     let mut numbers_config = config();
     numbers_config.numeric_display_mode = "numbers".into();
     let mut menu = NativeMenuModel::new(numbers_config);
-    menu.state.stack = vec![5, 4];
-    menu.state.cursor = 0;
+    menu.open_labels(&["System", "Audio"]);
+    menu.select_label("Master Vol");
     let numbers = menu.snapshot();
     assert!(numbers.bar_values.iter().all(Option::is_none));
 }
@@ -223,14 +229,14 @@ pub(crate) fn mixer_menu_uses_current_volume_and_pan_values() {
     config.instrument_volumes = vec![70];
     config.instrument_pan_positions = vec![10];
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![2, 0, 0, 3];
-    menu.state.cursor = 1;
+    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
+    menu.select_label("Volume");
     let _snapshot = menu.snapshot();
     let NativeMenuValue::Number { value, .. } = menu.current_siblings()[1].value else {
         panic!("volume should be number");
     };
     assert_eq!(value, 70);
-    menu.state.cursor = 2;
+    menu.select_label("Pan Pos");
     let pan = menu.snapshot();
     assert!(pan.lines.iter().any(|line| line == "> Pan Pos L6"));
 }
@@ -240,8 +246,8 @@ pub(crate) fn mixer_pan_is_non_editable_when_routed_to_fx_bus() {
     let mut config = config();
     config.instrument_routes = vec!["fx_bus_1".into()];
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![2, 0, 0, 3];
-    menu.state.cursor = 2;
+    menu.open_labels(&["Shape", "Instruments", "I1: synth fxb1", "Mixer"]);
+    menu.select_label("Pan Pos -- (bus)");
     let snapshot = menu.snapshot();
     assert!(snapshot
         .lines
@@ -268,12 +274,12 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
     config.global_fx_params[0] =
         serde_json::json!({ "cracklePct": 9, "warpDepthPct": 6, "mixPct": 80 });
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![2, 1, 0];
+    menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Slot 1: Delay"));
-    menu.state.stack = vec![2, 1, 0, 0];
+    menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck", "Slot 1: Delay"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -297,12 +303,12 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
                     ..
                 }
             )));
-    menu.state.stack = vec![2, 2];
+    menu.open_labels(&["Shape", "Global FX"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Slot 1: Vinyl"));
-    menu.state.stack = vec![2, 2, 0];
+    menu.open_labels(&["Shape", "Global FX", "Slot 1: Vinyl"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -343,8 +349,8 @@ pub(crate) fn duck_source_param_displays_source_text() {
     config.fx_buses[0].slot1_type = "duck".into();
     config.fx_buses[0].slot1_params = serde_json::json!({ "source": "B2" });
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![2, 1, 0, 0];
-    menu.state.cursor = 1;
+    menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck", "Slot 1: Duck"]);
+    menu.select_label("Source");
     let snapshot = menu.snapshot();
     assert!(snapshot.lines.iter().any(|line| line == "> Source B2"));
     assert!(!snapshot.lines.iter().any(|line| line.contains("Source 0")));

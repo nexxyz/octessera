@@ -138,7 +138,7 @@ fn trellis_led_check(trellis: &mut NeoTrellis) -> bool {
     let mut passed = true;
     println!("STEP NeoTrellis LED board colors: 0x2E magenta, 0x2F green, 0x30 cyan, 0x31 white");
     let mut frame = [[0_u8; 3]; 64];
-    fill_board(&mut frame, 2, dim(palette::RED, 2));
+    fill_board(&mut frame, 2, dim(palette::MAGENTA, 2));
     fill_board(&mut frame, 3, dim(palette::GREEN, 2));
     fill_board(&mut frame, 0, dim(palette::BLUE, 2));
     fill_board(&mut frame, 1, dim(palette::WHITE, 2));
@@ -164,7 +164,7 @@ fn trellis_led_check(trellis: &mut NeoTrellis) -> bool {
 
     println!("STEP NeoTrellis corners: (0,0)=magenta (7,0)=green (0,7)=cyan (7,7)=white");
     frame = [[0_u8; 3]; 64];
-    frame[0] = dim(palette::RED, 2);
+    frame[0] = dim(palette::MAGENTA, 2);
     frame[7] = dim(palette::GREEN, 2);
     frame[56] = dim(palette::BLUE, 2);
     frame[63] = dim(palette::WHITE, 2);
@@ -177,7 +177,7 @@ fn neokey_led_check(neokey: &mut NeoKey) -> bool {
     let mut passed = true;
     println!("STEP NeoKey LEDs: key0 magenta, key1 green, key2 cyan, key3 white");
     for (index, color) in [
-        dim(palette::RED, 2),
+        dim(palette::MAGENTA, 2),
         dim(palette::GREEN, 2),
         dim(palette::BLUE, 2),
         dim(palette::WHITE, 2),

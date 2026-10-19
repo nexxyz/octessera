@@ -34,7 +34,7 @@ fn assert_mapping_entry(lines: &[String], prefix: &str, source: &str, label: &st
 fn fn_main_opens_scrollable_aux_mapping_popup_and_aux_inputs_are_ignored() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = synth_stack(&runner, "Filter");
-    runner.menu.state.cursor = 1;
+    runner.menu.select_label("Cutoff");
     runner.menu.state.editing = true;
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),

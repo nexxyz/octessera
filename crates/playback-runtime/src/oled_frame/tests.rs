@@ -123,7 +123,7 @@ fn missed_quantum_flash_inverts_cpu_slot_over_high_cpu_and_preserves_save_icon()
     let mut high_cpu = base();
     high_cpu.metrics = OledPresentationMetrics::from_status(Some(0.9), true, false, false);
     let high_cpu_frame = render_oled_frame(&high_cpu);
-    assert_eq!(pixel(&high_cpu_frame, 118, 6), rgb565(palette::RED));
+    assert_eq!(pixel(&high_cpu_frame, 118, 6), rgb565(palette::MAGENTA));
 
     let mut missed = high_cpu;
     missed.metrics.missed_quantum_flash = true;

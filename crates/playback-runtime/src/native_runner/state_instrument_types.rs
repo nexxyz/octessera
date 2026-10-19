@@ -34,6 +34,8 @@ pub(super) struct NativeInstrumentSlot {
     pub(super) sample_velocity_low: u8,
     pub(super) sample_follow_transpose: bool,
     pub(super) sample_follow_pitch: bool,
+    /// The Cell Tune / Cell Fine / Cell Level rows: what Assign stamps next.
+    pub(super) cell_stamp: NativeCellStamp,
     pub(super) midi_enabled: bool,
     pub(super) midi_channel: u8,
     pub(super) midi_velocity: u8,
@@ -124,6 +126,7 @@ impl NativeInstrumentSlot {
             sample_velocity_levels_enabled: false,
             sample_follow_transpose: false,
             sample_follow_pitch: false,
+            cell_stamp: NativeCellStamp::default(),
             sample_velocity_high: 120,
             sample_velocity_medium: 85,
             sample_velocity_low: 45,

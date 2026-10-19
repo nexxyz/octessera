@@ -33,7 +33,7 @@ pub(crate) fn build_layer_menu_uses_selected_layers_behavior_params() {
     runner.menu.rebuild(runner.menu_config());
 
     let _ = runner.menu.press();
-    runner.menu.state.cursor = 2;
+    runner.menu.select_label("L3: brain");
     let _ = runner.menu.press();
     let snapshot = runner.menu.snapshot();
 

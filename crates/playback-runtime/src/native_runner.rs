@@ -410,7 +410,6 @@ pub struct NativeRunner {
     play_drum_selected_slot: Option<usize>,
     drum_selected_voices: Vec<usize>,
     drum_assign: Option<(usize, u8)>,
-    cell_stamps: Vec<NativeCellStamp>,
     play_fx_selected: Value,
     play_fx_assign: Option<Value>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,

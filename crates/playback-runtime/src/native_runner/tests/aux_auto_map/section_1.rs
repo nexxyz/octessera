@@ -20,7 +20,7 @@ pub(crate) fn aux_auto_map_config_load_disables_automatic_bindings() {
 
     runner.apply_config_payload(payload).unwrap();
     runner.menu.state.stack = synth_stack(&runner, "Filter");
-    runner.menu.state.cursor = 1;
+    runner.menu.select_label("Cutoff");
 
     runner
         .send(HostMessage::DeviceInput {
@@ -49,7 +49,7 @@ pub(crate) fn aux_auto_map_config_load_disables_automatic_bindings() {
 pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = synth_stack(&runner, "Filter");
-    runner.menu.state.cursor = 1;
+    runner.menu.select_label("Cutoff");
 
     runner
         .send(HostMessage::DeviceInput {
@@ -104,8 +104,10 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 6;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+    runner.menu.select_label("Assign");
 
     let opened = runner.messages_with_snapshot().unwrap();
     assert!(snapshot_from(&opened)["display"]["lines"]
@@ -127,8 +129,8 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
 #[test]
 pub(crate) fn auto_map_is_disabled_in_link_and_unbound_toast_uses_short_format() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![1];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&["Link"]);
+    runner.menu.select_label("BPM");
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -149,7 +151,7 @@ pub(crate) fn disabled_auto_map_suppresses_display_prefixes() {
     runner.aux_auto_map_enabled = false;
     runner.menu.rebuild(runner.menu_config());
     runner.menu.state.stack = synth_stack(&runner, "Filter");
-    runner.menu.state.cursor = 1;
+    runner.menu.select_label("Cutoff");
 
     let messages = runner.messages_with_snapshot().unwrap();
     assert!(snapshot_from(&messages)["display"]["lines"]
@@ -194,7 +196,7 @@ pub(crate) fn custom_aux_binding_still_works_when_auto_map_is_disabled() {
 pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.state.stack = synth_stack(&runner, "Filter");
-    runner.menu.state.cursor = 0;
+    runner.menu.select_label("Type");
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
         press_action: None,
@@ -231,8 +233,8 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
 #[test]
 pub(crate) fn custom_binding_is_used_on_build_non_mapped_rows_even_when_auto_map_is_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Behavior: life");
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
         press_action: None,
@@ -272,7 +274,7 @@ pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
         life_items,
         "layers.0.build.behaviorConfig.randomTickInterval",
     );
-    runner.menu.state.stack = vec![0, 0];
+    runner.menu.open_labels(&["Build", "L1: life"]);
     runner.menu.state.cursor = interval_cursor;
 
     let before = runner

@@ -34,7 +34,7 @@ pub(super) fn parity_corpus() -> Vec<(String, Value)> {
 
     let mut colors = menu_snapshot();
     colors["display"]["colors"] = json!([
-        platform_core::palette::RED_RGB565,
+        platform_core::palette::MAGENTA_RGB565,
         platform_core::palette::GREEN_RGB565,
         platform_core::palette::BLUE_RGB565,
         platform_core::palette::YELLOW_RGB565,

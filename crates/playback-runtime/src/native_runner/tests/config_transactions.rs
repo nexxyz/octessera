@@ -192,8 +192,8 @@ pub(crate) fn malformed_supplied_global_lfo_bank_is_rejected_without_fallback() 
 pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.menu.state.stack = vec![0, 1];
-    runner.menu.state.cursor = 2;
+    runner.menu.open_labels(&["Build", "L2: life"]);
+    runner.menu.select_label("Layer Label");
     runner.xy_touch.active = true;
     runner.xy_touch.x = 0.23;
     runner.active_play_fx = vec![("mixer.volume".into(), "instruments.0".into())];

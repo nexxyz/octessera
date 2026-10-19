@@ -44,8 +44,8 @@ pub(crate) fn layer_and_bus_names_round_trip_with_auto_name_flags() {
 #[test]
 pub(crate) fn native_text_row_edits_layer_name_and_clears_auto_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 2;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Layer Label");
 
     runner.menu.press();
     runner.menu.turn(1);
@@ -82,8 +82,8 @@ pub(crate) fn lowercase_text_edit_and_manual_instrument_name_round_trip() {
         "lead bass"
     );
 
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 2;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Layer Label");
     runner.menu.press();
     runner.menu.turn(27);
     let snapshot = runner.menu.snapshot();

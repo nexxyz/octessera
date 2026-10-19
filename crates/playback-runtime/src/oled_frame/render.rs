@@ -178,8 +178,8 @@ fn draw_scrollbar(frame: &mut [u8], input: &OledPresentationInput, track: u16, t
 }
 
 fn render_runtime_error_frame(frame: &mut [u8], error: &OledRuntimeErrorMetadata, brightness: f32) {
-    let warning = rgb565(scale(palette::RED, brightness));
-    let dim_warning = rgb565(scale(dim(palette::RED, 6), brightness));
+    let warning = rgb565(scale(palette::MAGENTA, brightness));
+    let dim_warning = rgb565(scale(dim(palette::MAGENTA, 6), brightness));
     let text = rgb565(scale(palette::GRAY, brightness));
     fill_rect(frame, 0, 0, 128, 128, dim_warning);
     fill_rect(

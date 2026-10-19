@@ -111,7 +111,7 @@ pub(crate) fn play_mode_edits_outside_play_page_do_not_activate_overlay() {
     runner.menu.rebuild(runner.menu_config());
 
     assert!(runner.menu.focus_item_key("play.page.pan"));
-    runner.menu.state.stack = vec![0];
+    runner.menu.open_labels(&["Build"]);
     runner.apply_or_schedule_menu_key("play.page.pan").unwrap();
 
     assert_eq!(runner.play_mode, "pan");
@@ -227,8 +227,8 @@ pub(crate) fn changing_play_page_uses_static_visible_menu_rows() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("play.page.fx"));
     runner.apply_or_schedule_menu_key("play.page.fx").unwrap();
-    runner.menu.state.stack = vec![3, 2];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&["Play", "FX"]);
+    runner.menu.select_label("FX Type");
     let fx_snapshot = runner.snapshot().unwrap();
     let fx_lines = fx_snapshot["display"]["lines"]
         .as_array()
@@ -241,8 +241,8 @@ pub(crate) fn changing_play_page_uses_static_visible_menu_rows() {
 
     assert!(runner.menu.focus_item_key("play.page.xy"));
     runner.apply_or_schedule_menu_key("play.page.xy").unwrap();
-    runner.menu.state.stack = vec![3, 5];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&["Play", "XY"]);
+    runner.menu.select_label("X Axis: (none)");
     let xy_snapshot = runner.snapshot().unwrap();
     let xy_lines = xy_snapshot["display"]["lines"]
         .as_array()

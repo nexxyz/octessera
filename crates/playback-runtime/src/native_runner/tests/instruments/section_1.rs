@@ -24,50 +24,82 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
         Some("lowpass".into())
     );
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 1];
-    runner.menu.state.cursor = 0;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 1"]);
+    runner.menu.select_label("Wave");
     runner.menu.state.editing = true;
     runner.menu.turn(1);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.cursor = 1;
+    runner.menu.select_label("Octave");
     runner.menu.turn(1);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.cursor = 2;
+    runner.menu.select_label("Level");
     runner.menu.turn(5);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.cursor = 3;
+    runner.menu.select_label("Detune");
     runner.menu.turn(10);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Filter",
+    ]);
+    runner.menu.select_label("Type");
     runner.menu.state.editing = true;
     runner.menu.turn(1);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
-    runner.menu.state.cursor = 1;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Filter",
+    ]);
+    runner.menu.select_label("Cutoff");
     runner.menu.state.editing = true;
     runner.menu.turn(-2);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
-    runner.menu.state.cursor = 2;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Filter",
+    ]);
+    runner.menu.select_label("Res");
     runner.menu.state.editing = true;
     runner.menu.turn(5);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 4];
-    runner.menu.state.cursor = 1;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Volume",
+    ]);
+    runner.menu.select_label("Vel Sens");
     runner.menu.state.editing = true;
     runner.menu.turn(-20);
     runner.apply_current_menu_edit().unwrap();
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 5];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Amp Env",
+    ]);
+    runner.menu.select_label("Attack");
     runner.menu.state.editing = true;
     runner.menu.turn(5);
     runner.apply_current_menu_edit().unwrap();

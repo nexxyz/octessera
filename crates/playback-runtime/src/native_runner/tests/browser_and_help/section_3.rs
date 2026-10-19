@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn contextual_help_scrolls_and_back_closes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.cursor = 5;
+    runner.menu.select_label("System");
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_shift", "pressed": true }),

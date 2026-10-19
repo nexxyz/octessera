@@ -21,7 +21,7 @@ pub(crate) fn root_snapshot_includes_play_separator_and_system() {
         snapshot.colors,
         vec![
             platform_core::palette::GREEN_RGB565,
-            platform_core::palette::RED_RGB565,
+            platform_core::palette::MAGENTA_RGB565,
             platform_core::palette::BLUE_RGB565,
             platform_core::palette::YELLOW_RGB565,
             platform_core::palette::WHITE_RGB565,
@@ -93,12 +93,12 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
         },
     ];
     let mut menu = NativeMenuModel::new(cfg);
-    menu.state.stack = vec![0, 0];
+    menu.open_labels(&["Build", "L1: life"]);
 
-    menu.state.cursor = 1;
+    menu.select_label("Play");
     assert_eq!(menu.selected_play_mode(), None);
 
-    menu.state.cursor = 3;
+    menu.select_label("Sync");
     assert_eq!(menu.selected_sync_source(), Some(SyncSource::External));
 }
 
@@ -251,8 +251,8 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
 #[test]
 pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5];
-    menu.state.cursor = 3;
+    menu.open_labels(&["System"]);
+    menu.select_label("Notes");
     let _ = menu.press();
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
@@ -270,8 +270,8 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
 #[test]
 pub(crate) fn static_navigation_memory_clears_on_rebuild() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5];
-    menu.state.cursor = 3;
+    menu.open_labels(&["System"]);
+    menu.select_label("Notes");
     let _ = menu.press();
     menu.turn(1);
     menu.back();
@@ -279,8 +279,8 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
     assert_eq!(menu.current_label(), Some("Vel Scale"));
 
     menu.rebuild(config());
-    menu.state.stack = vec![5];
-    menu.state.cursor = 3;
+    menu.open_labels(&["System"]);
+    menu.select_label("Notes");
     let _ = menu.press();
     assert_eq!(menu.current_label(), Some("Note Length"));
 }
@@ -288,8 +288,8 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
 #[test]
 pub(crate) fn static_navigation_memory_back_while_editing_stays_in_group() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5];
-    menu.state.cursor = 3;
+    menu.open_labels(&["System"]);
+    menu.select_label("Notes");
     let _ = menu.press();
     menu.turn(1);
     assert_eq!(menu.current_label(), Some("Vel Scale"));

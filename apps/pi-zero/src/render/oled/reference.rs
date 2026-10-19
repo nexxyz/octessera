@@ -245,8 +245,8 @@ fn render_splash_frame(frame: &mut [u8], splash: &str, brightness: f32) {
 }
 
 fn render_runtime_error_frame(frame: &mut [u8], error: &Value, brightness: f32) {
-    let warning = rgb565(scale(palette::RED, brightness));
-    let dim_warning = rgb565(scale(dim(palette::RED, 6), brightness));
+    let warning = rgb565(scale(palette::MAGENTA, brightness));
+    let dim_warning = rgb565(scale(dim(palette::MAGENTA, 6), brightness));
     let text = rgb565(scale(palette::GRAY, brightness));
     fill_rect(frame, 0, 0, 128, 128, dim_warning);
     fill_rect(

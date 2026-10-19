@@ -17,7 +17,7 @@ pub(super) fn draw_status_indicators(frame: &mut [u8], snapshot: &Value, brightn
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        draw_cpu_icon(frame, 117, 5, rgb565(scale(palette::RED, brightness)));
+        draw_cpu_icon(frame, 117, 5, rgb565(scale(palette::MAGENTA, brightness)));
     }
     let save_flash = snapshot
         .get("settings")
@@ -51,7 +51,7 @@ pub(super) fn draw_footer(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     draw_transport_icon(frame, snapshot, brightness);
     if snapshot.get("eventDotOn").and_then(Value::as_bool).unwrap_or(false) {
         let voice_steal = snapshot.get("voiceSteal").and_then(Value::as_bool).unwrap_or(false);
-        let color = if voice_steal { palette::RED } else { palette::WHITE };
+        let color = if voice_steal { palette::MAGENTA } else { palette::WHITE };
         let dot = rgb565(scale(color, brightness));
         fill_rect(frame, 119, 119, 5, 5, dot);
     }
@@ -64,7 +64,7 @@ fn draw_transport_icon(frame: &mut [u8], snapshot: &Value, brightness: f32) {
     let rgb = match (icon_name, flash) {
         ("play", "measure") => palette::GREEN,
         ("play", "beat") => palette::YELLOW,
-        ("stop", _) => palette::RED,
+        ("stop", _) => palette::MAGENTA,
         ("pause", _) => palette::BLUE,
         _ => palette::WHITE,
     };

@@ -18,14 +18,14 @@ mod tests {
     #[test]
     fn display_palette_matches_canonical_values() {
         assert_eq!(GREEN, [99, 210, 63]);
-        assert_eq!(RED, [221, 130, 205]);
+        assert_eq!(MAGENTA, [221, 130, 205]);
         assert_eq!(BLUE, [53, 207, 242]);
         assert_eq!(YELLOW, [255, 212, 71]);
         assert_eq!(GRAY, [201, 206, 214]);
         assert_eq!(WHITE, [255, 255, 255]);
         assert_eq!(BLACK, [0, 0, 0]);
         assert_eq!(GREEN_RGB565, 0x6687);
-        assert_eq!(RED_RGB565, 0xDC19);
+        assert_eq!(MAGENTA_RGB565, 0xDC19);
         assert_eq!(BLUE_RGB565, 0x367E);
         assert_eq!(YELLOW_RGB565, 0xFEA8);
         assert_eq!(GRAY_RGB565, 0xCE7A);

@@ -167,7 +167,7 @@ pub(crate) fn play_fx_page_is_flat_and_shows_selected_type_params() {
         .play_fx_params
         .insert("rateHz".into(), serde_json::json!(12));
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![3, 2];
+    menu.open_labels(&["Play", "FX"]);
     let _snapshot = menu.snapshot();
     assert!(menu
         .current_siblings()
@@ -198,7 +198,7 @@ pub(crate) fn pitch_fx_page_exposes_independent_slide_rows() {
     config.play_mode = "fx".into();
     config.play_fx_type = "pitch_shift".into();
     let mut menu = NativeMenuModel::new(config);
-    menu.state.stack = vec![3, 2];
+    menu.open_labels(&["Play", "FX"]);
     let rows = menu.current_siblings();
     for (label, key, value) in [
         ("Slide In", "play.fx.params.slideInMs", 120),

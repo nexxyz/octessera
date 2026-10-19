@@ -39,8 +39,8 @@ test("display palette matches the canonical instrument colors", () => {
     rgb: [99, 210, 63],
     rgb565: 0x6687,
   });
-  assert.deepEqual(DISPLAY_PALETTE.red, {
-    label: "Red",
+  assert.deepEqual(DISPLAY_PALETTE.magenta, {
+    label: "Magenta",
     hex: "#DD82CD",
     rgb: [221, 130, 205],
     rgb565: 0xdc19,

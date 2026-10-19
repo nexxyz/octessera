@@ -20,8 +20,8 @@ pub(crate) fn cursor_only_navigation_does_not_apply_menu_values() {
 #[test]
 pub(crate) fn cursor_only_navigation_does_not_apply_group_browsing_side_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&["System"]);
+    runner.menu.select_label("Load Preset");
     runner.transport.sync_source = SyncSource::External;
 
     let messages = runner
@@ -41,8 +41,8 @@ pub(crate) fn cursor_only_navigation_does_not_apply_group_browsing_side_effects(
 #[test]
 pub(crate) fn entering_group_does_not_apply_group_side_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5];
-    runner.menu.state.cursor = 3;
+    runner.menu.open_labels(&["System"]);
+    runner.menu.select_label("Notes");
     runner.transport.sync_source = SyncSource::External;
 
     let messages = runner
@@ -121,8 +121,8 @@ pub(crate) fn behavior_config_number_param_edit_via_menu() {
     })
     .unwrap();
 
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 4;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Spawn Count");
     runner.menu.state.editing = true;
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
@@ -150,8 +150,8 @@ pub(crate) fn behavior_config_second_number_param_edit_via_menu() {
     })
     .unwrap();
 
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 5;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Spawn Interval");
     runner.menu.state.editing = true;
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
@@ -169,8 +169,8 @@ pub(crate) fn behavior_config_enum_param_edits_via_menu() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 4;
+    runner.menu.open_labels(&["Build", "L1: keys"]);
+    runner.menu.select_label("Quantize");
     runner.menu.state.editing = true;
 
     let _ = runner

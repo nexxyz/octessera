@@ -3,14 +3,14 @@
 
 :root {
   --palette-green-rgb: 99 210 63;
-  --palette-red-rgb: 221 130 205;
+  --palette-magenta-rgb: 221 130 205;
   --palette-blue-rgb: 53 207 242;
   --palette-yellow-rgb: 255 212 71;
   --palette-gray-rgb: 201 206 214;
   --palette-white-rgb: 255 255 255;
   --palette-black-rgb: 0 0 0;
   --palette-green: rgb(var(--palette-green-rgb));
-  --palette-red: rgb(var(--palette-red-rgb));
+  --palette-magenta: rgb(var(--palette-magenta-rgb));
   --palette-blue: rgb(var(--palette-blue-rgb));
   --palette-yellow: rgb(var(--palette-yellow-rgb));
   --palette-gray: rgb(var(--palette-gray-rgb));

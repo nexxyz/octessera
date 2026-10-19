@@ -250,8 +250,8 @@ mod hardware_render_tests {
         hardware.leds.brightness = 50;
         hardware.leds.off = off;
         hardware.neo_key.colors = [
-            palette::RED,
-            palette::RED,
+            palette::MAGENTA,
+            palette::MAGENTA,
             dim(palette::GRAY, 3),
             dim(palette::GRAY, 3),
         ];

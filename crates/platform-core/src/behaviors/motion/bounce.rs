@@ -197,7 +197,7 @@ pub fn bounce_render_model(state: &BounceState) -> BehaviorRenderModel {
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLACK,
-            stable: crate::palette::RED,
+            stable: crate::palette::MAGENTA,
         },
         trigger_types: Some(state.trigger_types.clone()),
     }

@@ -14,8 +14,8 @@ use super::{
     instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
     instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
     instrument_synth_osc2_waveforms, instrument_types, instrument_volumes, link_layer_configs,
-    param_binding_spec_from_native, param_mod_configs, velocity_curve_id, NativeCellStamp,
-    NativeLinkLfoConfig, NativeRunner, Value,
+    param_binding_spec_from_native, param_mod_configs, velocity_curve_id, NativeLinkLfoConfig,
+    NativeRunner, Value,
 };
 #[cfg(test)]
 use super::{device_runtime_config, portable_patch_projection, CONFIG_KIND, CONFIG_SCHEMA_VERSION};
@@ -95,9 +95,9 @@ impl NativeRunner {
             ),
             instrument_sample_follow_pitch: instrument_sample_follow_pitch(&self.instruments),
             instrument_cell_stamps: self
-                .cell_stamps
+                .instruments
                 .iter()
-                .map(NativeCellStamp::menu_value)
+                .map(|instrument| instrument.cell_stamp.menu_value())
                 .collect(),
             instrument_sample_velocity_medium: instrument_sample_velocity_medium(&self.instruments),
             instrument_sample_velocity_low: instrument_sample_velocity_low(&self.instruments),

@@ -21,6 +21,8 @@ pub struct InstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) drum: Option<DrumDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) cell_stamp: Option<CellStampDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) sample: Option<SampleDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi: Option<MidiInstrumentDto>,
@@ -28,6 +30,17 @@ pub struct InstrumentDto {
     pub(super) midi_engine: Option<MidiInstrumentDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) mixer: Option<InstrumentMixerDto>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CellStampDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tune_semis: Option<i8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tune_cents: Option<i8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) level: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

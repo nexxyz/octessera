@@ -14,8 +14,8 @@ export const DISPLAY_PALETTE = {
     ],
     "rgb565": 26247
   },
-  "red": {
-    "label": "Red",
+  "magenta": {
+    "label": "Magenta",
     "hex": "#DD82CD",
     "rgb": [
       221,
@@ -77,7 +77,7 @@ export const DISPLAY_PALETTE = {
 } as const;
 
 export const GREEN_COLOR = DISPLAY_PALETTE.green.rgb;
-export const RED_COLOR = DISPLAY_PALETTE.red.rgb;
+export const MAGENTA_COLOR = DISPLAY_PALETTE.magenta.rgb;
 export const BLUE_COLOR = DISPLAY_PALETTE.blue.rgb;
 export const YELLOW_COLOR = DISPLAY_PALETTE.yellow.rgb;
 export const GRAY_COLOR = DISPLAY_PALETTE.gray.rgb;

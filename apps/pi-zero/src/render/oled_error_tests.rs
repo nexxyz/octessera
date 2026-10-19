@@ -110,8 +110,8 @@ fn runtime_error_frame_has_priority_over_splash_and_footer() {
 
     let frame = oled_frame(&snapshot);
 
-    assert_eq!(pixel(&frame, 0, 0), rgb565(dim(palette::RED, 6)));
-    assert_eq!(pixel(&frame, 10, 10), palette::RED_RGB565);
+    assert_eq!(pixel(&frame, 0, 0), rgb565(dim(palette::MAGENTA, 6)));
+    assert_eq!(pixel(&frame, 10, 10), palette::MAGENTA_RGB565);
     assert_eq!(pixel(&frame, 119, 119), rgb565(palette::BLACK));
 }
 

@@ -74,8 +74,8 @@ pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
     let mut cfg = config();
     cfg.preset_names = vec!["One".into(), "Two".into()];
     let mut menu = NativeMenuModel::new(cfg);
-    menu.state.stack = vec![5, 1, 0, 1];
-    menu.state.cursor = 1;
+    menu.open_labels(&["System", "Saves", "Library", "Load"]);
+    menu.select_label("Two");
     assert_eq!(menu.current_label(), Some("Two"));
     menu.back();
     assert_eq!(menu.current_label(), Some("Load"));
@@ -87,8 +87,8 @@ pub(crate) fn static_navigation_memory_ignores_dynamic_preset_lists() {
 #[test]
 pub(crate) fn static_navigation_memory_does_not_affect_focus_item_key() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![5, 3];
-    menu.state.cursor = 1;
+    menu.open_labels(&["System", "Notes"]);
+    menu.select_label("Vel Scale");
     menu.back();
     let _ = menu.press();
     assert_eq!(menu.current_label(), Some("Vel Scale"));
@@ -105,7 +105,7 @@ pub(crate) fn entering_build_selects_active_layer_row() {
         ..config()
     });
     let _ = menu.press();
-    menu.state.cursor = 2;
+    menu.select_label("L3: life");
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Build");
     let selected_row = snapshot.selected_row.expect("selected row");
@@ -131,7 +131,7 @@ pub(crate) fn entering_link_selects_active_layer_row_after_global_rows() {
     assert_eq!(snapshot.path, "/Link");
     let selected_row = snapshot.selected_row.expect("selected row");
     assert!(snapshot.lines[selected_row].contains("L3: life"));
-    assert_eq!(snapshot.colors[0], platform_core::palette::RED_RGB565);
+    assert_eq!(snapshot.colors[0], platform_core::palette::MAGENTA_RGB565);
 }
 
 #[test]
@@ -180,7 +180,7 @@ pub(crate) fn entered_root_short_paths_keep_section_colors() {
     let _ = menu.press();
     assert_eq!(
         menu.snapshot().colors[0],
-        platform_core::palette::RED_RGB565
+        platform_core::palette::MAGENTA_RGB565
     );
 
     let mut menu = root_menu_at(2);
@@ -209,7 +209,7 @@ pub(crate) fn aux_mappings_follow_platform_aux_encoder_count() {
     let mut menu = NativeMenuModel::new(config());
     menu.turn(1);
     let _ = menu.press();
-    menu.state.cursor = 2;
+    menu.select_label("Aux Mappings");
     let _ = menu.press();
     let snapshot = menu.snapshot();
 
@@ -222,7 +222,7 @@ pub(crate) fn aux_mappings_follow_platform_aux_encoder_count() {
 #[test]
 pub(crate) fn auto_map_toggle_lives_under_system_ui_not_aux_mappings() {
     let mut menu = NativeMenuModel::new(config());
-    menu.state.stack = vec![1, 2];
+    menu.open_labels(&["Link", "Aux Mappings"]);
     let aux_snapshot = menu.snapshot();
     assert!(!aux_snapshot
         .lines
@@ -241,7 +241,7 @@ pub(crate) fn auto_map_toggle_lives_under_system_ui_not_aux_mappings() {
 pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
     let mut menu = NativeMenuModel::new(config());
     let _ = menu.press();
-    menu.state.cursor = 7;
+    menu.select_label("L8: life");
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Build");
     assert_eq!(snapshot.selected_row, Some(5));

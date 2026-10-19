@@ -30,7 +30,7 @@ impl NativeRunner {
         for assignment in &instrument.sample_assignments {
             let color = if assignment.sample_slot == selected_sample_slot {
                 match assignment.level.as_deref() {
-                    Some("high") => LedColor::RED,
+                    Some("high") => LedColor::MAGENTA,
                     Some("medium") => LedColor::YELLOW,
                     Some("low") => LedColor::GREEN,
                     _ => LedColor::SYSTEM,
@@ -101,7 +101,7 @@ impl NativeRunner {
         for y in 0..GRID_HEIGHT {
             for x in 0..GRID_WIDTH {
                 let color = match map.get(y * GRID_WIDTH + x).map(String::as_str) {
-                    Some("low") => LedColor::RED,
+                    Some("low") => LedColor::MAGENTA,
                     Some("high") => LedColor::YELLOW,
                     Some("full") => LedColor::GREEN,
                     _ => LedColor::BLACK,
@@ -165,7 +165,7 @@ impl NativeRunner {
         slot: usize,
     ) {
         let color = if binding.invert {
-            LedColor::RED
+            LedColor::MAGENTA
         } else {
             LedColor::GREEN
         };
@@ -289,7 +289,7 @@ impl NativeRunner {
                 .map(|bus| bus.pan_pos)
                 .unwrap_or(instrument.pan_pos);
             let color = match bus_index {
-                0 => LedColor::RED,
+                0 => LedColor::MAGENTA,
                 1 => LedColor::BLUE,
                 2 => LedColor::GREEN,
                 3 => LedColor::YELLOW,

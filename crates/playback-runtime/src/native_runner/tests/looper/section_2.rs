@@ -51,8 +51,8 @@ pub(crate) fn looper_length_edit_after_punch_reinitializes_from_config() {
             request_snapshot: None,
         })
         .unwrap();
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 4;
+    runner.menu.open_labels(&["Build", "L1: looper"]);
+    runner.menu.select_label("Punch In/Out");
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -61,8 +61,8 @@ pub(crate) fn looper_length_edit_after_punch_reinitializes_from_config() {
         .unwrap();
     assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
 
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 5;
+    runner.menu.open_labels(&["Build", "L1: looper"]);
+    runner.menu.select_label("Length");
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -114,8 +114,8 @@ pub(crate) fn looper_length_edit_uses_config_defaults_when_mode_is_absent() {
     pulse_step(&mut runner);
     assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
 
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 5;
+    runner.menu.open_labels(&["Build", "L1: looper"]);
+    runner.menu.select_label("Length");
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {

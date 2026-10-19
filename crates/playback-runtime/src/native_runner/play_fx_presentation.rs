@@ -5,7 +5,7 @@ pub(super) fn play_fx_color(fx_type: &str) -> LedColor {
         "stutter" => LedColor::YELLOW,
         "freeze" => LedColor::BLUE,
         "filter_sweep" => LedColor::GREEN,
-        "pitch_shift" => LedColor::RED,
+        "pitch_shift" => LedColor::MAGENTA,
         _ => LedColor::SYSTEM,
     }
 }

@@ -18,6 +18,7 @@ impl NativeRunner {
                 continue;
             };
             apply_instrument_identity_payload(slot, instrument);
+            apply_instrument_cell_stamp_payload(slot, instrument);
             apply_instrument_mixer_payload(slot, instrument);
             apply_instrument_sample_payload(slot, instrument);
             apply_instrument_synth_payload(slot, instrument);

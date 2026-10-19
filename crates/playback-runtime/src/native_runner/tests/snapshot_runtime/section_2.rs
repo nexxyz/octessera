@@ -96,8 +96,10 @@ pub(crate) fn inactive_layer_transport_tick_applies_param_modulation() {
 #[test]
 pub(crate) fn native_snapshot_reserves_bottom_oled_row_for_status() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2, 0, 0, 2, 1];
-    runner.menu.state.cursor = 0;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 1"]);
+    runner.menu.select_label("Wave");
     let snapshot = runner.snapshot().unwrap();
 
     assert!(snapshot["display"]["lines"].as_array().unwrap().len() <= 6);

@@ -10,7 +10,7 @@ impl NativeRunner {
         presentation: DisplayTransientPresentation,
     ) -> [[u8; 3]; 4] {
         let space = match self.transport.transport {
-            RuntimeTransportState::Stopped => LedColor::RED,
+            RuntimeTransportState::Stopped => LedColor::MAGENTA,
             RuntimeTransportState::Paused => LedColor::BLUE,
             RuntimeTransportState::Playing => match presentation.transport_flash {
                 TransportFlash::Measure => LedColor::GREEN,
@@ -26,7 +26,7 @@ impl NativeRunner {
             self.display.ui.combined_modifier_held,
             self.display.ui.fn_held,
         );
-        [LedColor::RED, space, shift, function].map(|led| [led.r, led.g, led.b])
+        [LedColor::MAGENTA, space, shift, function].map(|led| [led.r, led.g, led.b])
     }
 }
 

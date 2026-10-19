@@ -35,6 +35,8 @@ mod model_navigation_memory;
 mod model_root;
 mod model_search;
 mod model_snapshot;
+#[cfg(test)]
+mod model_test_navigation;
 mod model_values;
 mod note_mapping;
 mod numeric_edit;

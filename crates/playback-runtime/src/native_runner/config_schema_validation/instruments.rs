@@ -83,6 +83,12 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
             )?;
             validate_route(mixer, &mixer_path)?;
         }
+        if let Some(stamp) = object_field(instrument, "cellStamp", &path)? {
+            let stamp_path = format!("{path}.cellStamp");
+            signed_field(stamp, "tuneSemis", &stamp_path, -24, 24)?;
+            signed_field(stamp, "tuneCents", &stamp_path, -100, 100)?;
+            enum_field(stamp, "level", &stamp_path, &["high", "medium", "low"])?;
+        }
         validate_sample(instrument, &path)?;
         validate_synth(instrument, &path)?;
         validate_fm(instrument, &path)?;

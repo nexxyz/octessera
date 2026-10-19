@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   GRID_HEIGHT,
   GRID_WIDTH,
-  RED_COLOR,
+  MAGENTA_COLOR,
   createOledFrameRevision,
 } from '@octessera/device-contracts';
 import {
@@ -431,7 +431,7 @@ test('runtime applies native ledsDimmed to desktop NeoKey LEDs', async () => {
 
   assert.deepEqual(
     runtime.getSnapshot().neoKeyLeds.space,
-    RED_COLOR.map((channel) => Math.floor((channel * 600 + 5000) / 10000)),
+    MAGENTA_COLOR.map((channel) => Math.floor((channel * 600 + 5000) / 10000)),
   );
 });
 
@@ -447,7 +447,7 @@ test('display off does not dim desktop NeoKey LEDs', async () => {
 
   assert.deepEqual(
     runtime.getSnapshot().neoKeyLeds.space,
-    RED_COLOR.map((channel) => Math.floor((channel * 7500 + 5000) / 10000)),
+    MAGENTA_COLOR.map((channel) => Math.floor((channel * 7500 + 5000) / 10000)),
   );
 });
 

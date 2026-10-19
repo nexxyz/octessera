@@ -23,7 +23,7 @@ fn status_icons_are_invisible_until_warning_or_save_flash() {
     high_cpu["workerUtilization"] = json!(0.9);
     high_cpu["highCpuSteady"] = json!(true);
     let frame = oled_frame(&high_cpu);
-    assert_eq!(pixel(&frame, 118, 6), palette::RED_RGB565);
+    assert_eq!(pixel(&frame, 118, 6), palette::MAGENTA_RGB565);
 
     let mut missed = high_cpu.clone();
     missed["missedQuantumFlash"] = json!(true);

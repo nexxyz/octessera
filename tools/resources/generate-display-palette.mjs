@@ -14,7 +14,7 @@ const check = process.argv.includes("--check");
 
 const entries = [
   ["green", "Green"],
-  ["red", "Red"],
+  ["magenta", "Magenta"],
   ["blue", "Blue"],
   ["yellow", "Yellow"],
   ["gray", "Gray"],
@@ -57,7 +57,7 @@ export type DisplayPaletteRgb = readonly [number, number, number];
 export const DISPLAY_PALETTE = ${JSON.stringify(palette, null, 2)} as const;
 
 export const GREEN_COLOR = DISPLAY_PALETTE.green.rgb;
-export const RED_COLOR = DISPLAY_PALETTE.red.rgb;
+export const MAGENTA_COLOR = DISPLAY_PALETTE.magenta.rgb;
 export const BLUE_COLOR = DISPLAY_PALETTE.blue.rgb;
 export const YELLOW_COLOR = DISPLAY_PALETTE.yellow.rgb;
 export const GRAY_COLOR = DISPLAY_PALETTE.gray.rgb;
@@ -75,7 +75,7 @@ ${entries.map(([key]) => `  --palette-${key}: rgb(var(--palette-${key}-rgb));`).
 `;
 
 const rustContent = `pub const GREEN: [u8; 3] = [${palette.green.rgb.join(", ")}];
-pub const RED: [u8; 3] = [${palette.red.rgb.join(", ")}];
+pub const MAGENTA: [u8; 3] = [${palette.magenta.rgb.join(", ")}];
 pub const BLUE: [u8; 3] = [${palette.blue.rgb.join(", ")}];
 pub const YELLOW: [u8; 3] = [${palette.yellow.rgb.join(", ")}];
 pub const GRAY: [u8; 3] = [${palette.gray.rgb.join(", ")}];
@@ -83,7 +83,7 @@ pub const WHITE: [u8; 3] = [${palette.white.rgb.join(", ")}];
 pub const BLACK: [u8; 3] = [${palette.black.rgb.join(", ")}];
 
 pub const GREEN_RGB565: u16 = ${rgb565Source(palette.green.rgb565)};
-pub const RED_RGB565: u16 = ${rgb565Source(palette.red.rgb565)};
+pub const MAGENTA_RGB565: u16 = ${rgb565Source(palette.magenta.rgb565)};
 pub const BLUE_RGB565: u16 = ${rgb565Source(palette.blue.rgb565)};
 pub const YELLOW_RGB565: u16 = ${rgb565Source(palette.yellow.rgb565)};
 pub const GRAY_RGB565: u16 = ${rgb565Source(palette.gray.rgb565)};

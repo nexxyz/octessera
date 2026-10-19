@@ -82,8 +82,8 @@ pub(crate) fn looper_clear_loop_action_releases_playback_cells_and_marks_dirty()
     assert!(runner.engine.model().unwrap().cells[index]);
 
     runner.config_dirty = false;
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 6;
+    runner.menu.open_labels(&["Build", "L1: looper"]);
+    runner.menu.select_label("Clear Loop");
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -145,8 +145,8 @@ pub(crate) fn looper_length_edit_reinitializes_sequence_from_config() {
     let before = runner.engine.serialized_state().unwrap();
     assert_eq!(before["steps"][0].as_array().unwrap().len(), 1);
 
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 5;
+    runner.menu.open_labels(&["Build", "L1: looper"]);
+    runner.menu.select_label("Length");
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
@@ -189,8 +189,8 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     assert_eq!(looper_mode_and_step(&runner).1, 1);
     runner.config_dirty = false;
 
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 4;
+    runner.menu.open_labels(&["Build", "L1: looper"]);
+    runner.menu.select_label("Punch In/Out");
     let messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

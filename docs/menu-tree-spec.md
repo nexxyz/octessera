@@ -72,11 +72,11 @@ USB and HDMI audio mirror the canonical Jack mix and do not replace it; HDMI aud
 separate from HDMI video. Restart-sensitive edits use the native Save Setting flow shared with
 Audio.
 
-Aggregate audio-load and voice-steal status is separate from the red persistent-
+Aggregate audio-load and voice-steal status is separate from the magenta persistent-
 worker CPU icon. The icon is at `(117,5)` and requires valid persistent
 `high_cpu_steady` metric; inline or missing metrics hide it. An active
 missed-quantum flash takes priority in that CPU slot and inverts the CPU glyph
-white/black; the red CPU icon is hidden until the flash clears. The yellow save
+white/black; the magenta CPU icon is hidden until the flash clears. The yellow save
 icon at `(107,5)` may coexist with either CPU-slot state. A matching newly missed quantum repeats the
 previous final master quantum once; subsequent pending-recovery refills are
 silent. `missedQuantumFlash` stays true for five emitted seconds, clears on the

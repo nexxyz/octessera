@@ -5,9 +5,14 @@ impl NativeRunner {
     pub(super) fn fast_cell_stamp_key(&mut self, slot: usize, key: &str, field: &str) -> bool {
         let number = self.menu.number_for_key(key);
         let level = self.menu.value_for_key(key);
-        let Some(stamp) = self.cell_stamps.get_mut(slot) else {
+        let Some(stamp) = self
+            .instruments
+            .get_mut(slot)
+            .map(|instrument| &mut instrument.cell_stamp)
+        else {
             return false;
         };
+        let before = stamp.clone();
         match field {
             "cell.tuneSemis" => {
                 if let Some(value) = number {
@@ -28,6 +33,9 @@ impl NativeRunner {
                 };
             }
             _ => return false,
+        }
+        if *stamp != before {
+            self.mark_fast_autosave_dirty();
         }
         true
     }
@@ -52,7 +60,10 @@ impl NativeRunner {
     }
 
     pub(super) fn cell_stamp(&self, slot: usize) -> NativeCellStamp {
-        self.cell_stamps.get(slot).cloned().unwrap_or_default()
+        self.instruments
+            .get(slot)
+            .map(|instrument| instrument.cell_stamp.clone())
+            .unwrap_or_default()
     }
 
     pub(super) fn handle_sample_assignment_grid_press(&mut self, x: usize, y: usize) {

@@ -17,7 +17,7 @@ const KEY_SPAWN_MAX: Duration = Duration::from_millis(2_200);
 const SLEEP_COLORS: [[u8; 3]; 6] = [
     palette::BLUE,
     palette::GREEN,
-    palette::RED,
+    palette::MAGENTA,
     palette::YELLOW,
     palette::WHITE,
     palette::GRAY,

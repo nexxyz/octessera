@@ -26,6 +26,8 @@ if ! "${cargo_bin[@]}" llvm-cov --version >/dev/null 2>&1; then
 fi
 
 threshold="${1:-80}"
+# Stale .profraw files from earlier runs skew the merged report, so start clean.
+"${cargo_bin[@]}" llvm-cov clean --workspace
 packages=(
   platform-core
   playback-runtime

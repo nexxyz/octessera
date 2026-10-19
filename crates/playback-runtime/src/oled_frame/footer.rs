@@ -14,7 +14,7 @@ pub(super) fn draw_status_indicators(
     if input.metrics.missed_quantum_flash {
         draw_missed_quantum_icon(frame, 117, 5, brightness);
     } else if input.metrics.high_cpu_steady {
-        draw_cpu_icon(frame, 117, 5, rgb565(scale(palette::RED, brightness)));
+        draw_cpu_icon(frame, 117, 5, rgb565(scale(palette::MAGENTA, brightness)));
     }
     if input.save_flash == OledSaveFlash::Flash {
         draw_save_icon(frame, 107, 5, rgb565(scale(palette::YELLOW, brightness)));
@@ -40,7 +40,7 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
     draw_transport_icon(frame, input, brightness);
     if input.event_dot_on {
         let color = if input.metrics.voice_steal {
-            palette::RED
+            palette::MAGENTA
         } else {
             palette::WHITE
         };
@@ -52,7 +52,7 @@ fn draw_transport_icon(frame: &mut [u8], input: &OledPresentationInput, brightne
     let rgb = match (&input.transport.icon, &input.transport.flash) {
         (OledTransportIcon::Play, OledTransportFlash::Measure) => palette::GREEN,
         (OledTransportIcon::Play, OledTransportFlash::Beat) => palette::YELLOW,
-        (OledTransportIcon::Stop, _) => palette::RED,
+        (OledTransportIcon::Stop, _) => palette::MAGENTA,
         (OledTransportIcon::Pause, _) => palette::BLUE,
         _ => palette::WHITE,
     };

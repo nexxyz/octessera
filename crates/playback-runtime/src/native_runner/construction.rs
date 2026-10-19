@@ -103,7 +103,6 @@ impl NativeRunner {
             play_drum_selected_slot: None,
             drum_selected_voices: vec![0; INSTRUMENT_COUNT],
             drum_assign: None,
-            cell_stamps: vec![NativeCellStamp::default(); INSTRUMENT_COUNT],
             play_fx_selected: seed.play_fx_selected,
             play_fx_assign: None,
             play_fx_assignments: vec![],

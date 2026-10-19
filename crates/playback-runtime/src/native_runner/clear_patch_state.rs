@@ -77,7 +77,9 @@ impl NativeRunner {
         self.sync_engine_runtime_config();
         self.sample_assign = None;
         self.drum_assign = None;
-        self.cell_stamps.fill(NativeCellStamp::default());
+        for instrument in &mut self.instruments {
+            instrument.cell_stamp = NativeCellStamp::default();
+        }
         self.drum_selected_voices.fill(0);
         self.play_drum_selected_slot = None;
         self.pending.cell_hits.clear();

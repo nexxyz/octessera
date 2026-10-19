@@ -120,10 +120,25 @@ fn drum_cells_stamp_tune_fine_and_level_and_restamping_replaces_or_clears() {
     press(&mut runner, 1, 0);
     assert!(cell(&runner, 1, 0).is_none());
     assert_eq!(runner.snapshot().unwrap()["display"]["toast"], "Cleared");
-    assert!(runner.cell_stamps[0] != NativeCellStamp::default());
-    assert!(!runner.config_payload()["runtimeConfig"]
-        .to_string()
-        .contains("cellStamp"));
+    let payload = runner.config_payload();
+    assert_eq!(
+        payload["runtimeConfig"]["instruments"][0]["cellStamp"],
+        json!({ "tuneSemis": -3, "tuneCents": 0 })
+    );
+    let mut reloaded = drum_runner();
+    reloaded.apply_config_payload(payload).unwrap();
+    assert_eq!(
+        reloaded.instruments[0].cell_stamp,
+        NativeCellStamp {
+            tune_semis: -3,
+            tune_cents: 0,
+            level: None,
+        }
+    );
+    assert_eq!(
+        reloaded.menu.number_for_key("instruments.0.cell.tuneSemis"),
+        Some(-3)
+    );
 }
 
 #[test]

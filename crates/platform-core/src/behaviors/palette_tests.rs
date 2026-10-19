@@ -2,7 +2,7 @@ use super::NativeBehavior;
 use crate::behavior::BehaviorRenderPalette;
 use crate::palette::{
     BEHAVIOR_DIM_GREEN, BEHAVIOR_PRIMARY_MAGENTA, BEHAVIOR_PRIMARY_YELLOW, BLACK, BLUE, GRAY,
-    GREEN, RED, WHITE, YELLOW,
+    GREEN, MAGENTA, WHITE, YELLOW,
 };
 use serde_json::Value;
 
@@ -102,7 +102,7 @@ fn behavior_render_palettes_match_themes() {
             BehaviorRenderPalette {
                 active: WHITE,
                 inactive: BLACK,
-                stable: RED,
+                stable: MAGENTA,
             },
         ),
         (
@@ -150,7 +150,7 @@ fn behavior_render_palettes_match_themes() {
             BehaviorRenderPalette {
                 active: WHITE,
                 inactive: BLACK,
-                stable: RED,
+                stable: MAGENTA,
             },
         ),
         (

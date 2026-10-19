@@ -112,7 +112,7 @@ pub(in crate::native_menu) fn section_color_for_label(label: &str) -> u16 {
         return platform_core::palette::GREEN_RGB565;
     }
     if label == LINK_LABEL || label == LINK_SHORT_LABEL {
-        return platform_core::palette::RED_RGB565;
+        return platform_core::palette::MAGENTA_RGB565;
     }
     if label == SHAPE_LABEL || label == SHAPE_SHORT_LABEL {
         return platform_core::palette::BLUE_RGB565;

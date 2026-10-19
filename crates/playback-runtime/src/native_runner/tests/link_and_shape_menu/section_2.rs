@@ -67,8 +67,10 @@ pub(crate) fn midi_instrument_params_edit_through_menu() {
     runner.instruments[0].kind = "midi".into();
     runner.instruments[0].name = "midi".into();
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 1;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: midi ch1", "MIDI"]);
+    runner.menu.select_label("Channel");
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -89,7 +91,7 @@ pub(crate) fn midi_instrument_params_edit_through_menu() {
         })
         .unwrap();
 
-    runner.menu.state.cursor = 2;
+    runner.menu.select_label("Velocity");
 
     let _ = runner
         .send(HostMessage::DeviceInput {

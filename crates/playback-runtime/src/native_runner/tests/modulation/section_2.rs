@@ -115,7 +115,7 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_cells() {
     );
     assert_eq!(
         cells[display_index(1, 3)],
-        led_rgb(platform_core::palette::RED)
+        led_rgb(platform_core::palette::MAGENTA)
     );
     assert_eq!(
         cells[display_index(3, 1)],

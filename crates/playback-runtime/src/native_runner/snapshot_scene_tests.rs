@@ -63,7 +63,7 @@ fn typed_oled_preserves_menu_scroll_and_separate_runtime_error_metadata() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     let _ = runner.menu.press();
-    runner.menu.state.cursor = 7;
+    runner.menu.select_label("L8: life");
     let metrics = OledPresentationMetrics::default();
     let metadata = OledRuntimeErrorMetadata {
         domain: Some("runtime".into()),

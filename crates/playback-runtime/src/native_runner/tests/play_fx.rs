@@ -179,7 +179,7 @@ pub(crate) fn play_fx_overlay_uses_canonical_fx_palette() {
     );
     assert_eq!(
         cells[display_index(3, 0)],
-        led_rgb(platform_core::palette::RED)
+        led_rgb(platform_core::palette::MAGENTA)
     );
 }
 

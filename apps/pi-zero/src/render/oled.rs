@@ -13,11 +13,11 @@ use super::{dim, rgb565};
 pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     frame.fill(0);
     let warning = rgb565(if lit {
-        palette::RED
+        palette::MAGENTA
     } else {
-        dim(palette::RED, 3)
+        dim(palette::MAGENTA, 3)
     });
-    let dim_warning = rgb565(dim(palette::RED, 6));
+    let dim_warning = rgb565(dim(palette::MAGENTA, 6));
     let text = rgb565(palette::GRAY);
     fill_rect(frame, 0, 0, 128, 128, dim_warning);
     fill_rect(frame, 4, 4, 120, 120, rgb565(palette::BLACK));

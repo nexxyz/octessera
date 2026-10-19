@@ -175,7 +175,7 @@ pub(crate) fn behavior_menu_actions_dispatch_selected_action_type() {
             )
         })
         .expect("spawnAnt action row");
-    runner.menu.state.stack = vec![0, 0];
+    runner.menu.open_labels(&["Build", "L1: ant"]);
     runner.menu.state.cursor = action_cursor;
 
     let _ = runner

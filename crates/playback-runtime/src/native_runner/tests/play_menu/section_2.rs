@@ -79,7 +79,7 @@ pub(crate) fn entering_build_or_link_clears_active_play_overlay_but_keeps_select
 
     runner.active_play_mode = "pan".into();
     runner.menu.state.stack.clear();
-    runner.menu.state.cursor = 1;
+    runner.menu.select_label("Link");
 
     let link_response = runner
         .send(HostMessage::DeviceInput {
@@ -351,7 +351,7 @@ pub(crate) fn play_trigger_gate_leds_show_layer_modes_and_all_layers_actions() {
 pub(crate) fn back_exits_active_play_overlay_and_menu_context() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "fx".into();
-    runner.menu.state.stack = vec![3];
+    runner.menu.open_labels(&["Play"]);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_a", "pressed": true }),

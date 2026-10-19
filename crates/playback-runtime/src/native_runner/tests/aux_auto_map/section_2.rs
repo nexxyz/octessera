@@ -9,7 +9,7 @@ pub(crate) fn auto_map_context_updates_after_navigation_only_group_enter() {
         "layers.0.build.behaviorConfig.randomTickInterval",
     );
 
-    runner.menu.state.stack = vec![0, 0];
+    runner.menu.open_labels(&["Build", "L1: life"]);
     runner.menu.state.cursor = interval_cursor;
     runner
         .send(HostMessage::DeviceInput {
@@ -60,7 +60,7 @@ pub(crate) fn auto_map_env_and_osc_pages_drive_expected_slots() {
         (synth_group, amp_env_group, osc1_group)
     };
     runner.menu.state.stack = vec![2, 0, 0, synth_group, amp_env_group];
-    runner.menu.state.cursor = 0;
+    runner.menu.select_label("Attack");
 
     runner
         .send(HostMessage::DeviceInput {
@@ -88,7 +88,7 @@ pub(crate) fn auto_map_env_and_osc_pages_drive_expected_slots() {
     );
 
     runner.menu.state.stack = vec![2, 0, 0, synth_group, osc1_group];
-    runner.menu.state.cursor = 0;
+    runner.menu.select_label("Wave");
 
     runner
         .send(HostMessage::DeviceInput {

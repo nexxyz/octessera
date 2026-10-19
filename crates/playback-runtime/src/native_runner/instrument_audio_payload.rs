@@ -1,5 +1,13 @@
-use super::{sample_assignments_payload, NativeInstrumentSlot, Value};
+use super::{sample_assignments_payload, NativeCellStamp, NativeInstrumentSlot, Value};
 use serde_json::json;
+
+fn cell_stamp_payload(stamp: &NativeCellStamp) -> Value {
+    let mut payload = json!({ "tuneSemis": stamp.tune_semis, "tuneCents": stamp.tune_cents });
+    if let Some(level) = &stamp.level {
+        payload["level"] = level.as_str().into();
+    }
+    payload
+}
 
 pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Value {
     let sample_slots = instrument
@@ -16,6 +24,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
         "fm": instrument.fm_config,
         "pluck": instrument.pluck_config,
         "drum": instrument.drum_config,
+        "cellStamp": cell_stamp_payload(&instrument.cell_stamp),
         "sample": {
             "selectedSlot": instrument.selected_sample_slot,
             "baseVelocity": instrument.sample_base_velocity,

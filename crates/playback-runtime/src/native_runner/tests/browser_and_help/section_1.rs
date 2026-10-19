@@ -7,8 +7,10 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![2, 0, 0, 2];
-    runner.menu.state.cursor = 3;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+    runner.menu.select_label("S1 Browse");
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -41,8 +43,14 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
             },
         })
         .unwrap();
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
-    runner.menu.state.cursor = 1;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: samp direct",
+        "Sampler",
+        "S1 Browse",
+    ]);
+    runner.menu.select_label("kick.wav");
 
     let preview = runner
         .send(HostMessage::DeviceInput {
@@ -63,8 +71,14 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
             }]
     )));
 
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
-    runner.menu.state.cursor = 1;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: samp direct",
+        "Sampler",
+        "S1 Browse",
+    ]);
+    runner.menu.select_label("kick.wav");
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -125,8 +139,14 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
             is_dir: false,
         }],
     });
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
-    runner.menu.state.cursor = 3;
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Filter",
+    ]);
+    runner.menu.select_label("Env Amount");
     runner.menu.rebuild(runner.menu_config());
 
     let snapshot = runner.menu.snapshot();
@@ -162,8 +182,14 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     loaded.apply_config_payload(payload).unwrap();
     assert_eq!(loaded.sample_favourite_dirs, vec![String::from("Samples")]);
 
-    loaded.menu.state.stack = vec![2, 0, 0, 2, 3];
-    loaded.menu.state.cursor = 3;
+    loaded.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: samp direct",
+        "Sampler",
+        "S1 Browse",
+    ]);
+    loaded.menu.select_label("Remove fav");
     let snapshot = loaded.menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
     assert_eq!(snapshot.lines[selected_row], ">!Remove fav");
@@ -195,7 +221,13 @@ pub(crate) fn sample_browser_shows_non_deletable_builtin_favourites() {
         dir: String::new(),
         entries: vec![],
     });
-    runner.menu.state.stack = vec![2, 0, 0, 2, 3];
+    runner.menu.open_labels(&[
+        "Shape",
+        "Instruments",
+        "I1: synth direct",
+        "Synth",
+        "Filter",
+    ]);
     runner.menu.rebuild(runner.menu_config());
 
     let snapshot = runner.menu.snapshot();

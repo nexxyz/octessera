@@ -68,7 +68,7 @@ pub(crate) fn sample_assign_mode_supports_shift_row_and_fn_shift_column() {
 pub(crate) fn sample_assignment_stamps_tune_and_level_and_an_exact_restamp_clears() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
-    runner.cell_stamps[0] = NativeCellStamp {
+    runner.instruments[0].cell_stamp = NativeCellStamp {
         tune_semis: 5,
         tune_cents: -10,
         level: Some("medium".into()),

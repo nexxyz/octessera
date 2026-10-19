@@ -82,15 +82,28 @@ Both Pi modes pass the actual elapsed interval to the shared runtime. These
 metrics diagnose trigger cadence and event batching; use `AudioDrain` separately
 for queue/control-drain measurements.
 
-## Backlog: shared-path timing smoke
+## Shared-path timing smoke
 
-Make a short, repeatable on-device smoke profile for changes to shared audio
-processing or musical-event emission: bus-FX routing, general parameter
-modulation, transport, or event dispatch. Run it on both Pi variants with a
-Playing default patch, OLED awake, and representative parameter turns. Compare
-the same conditions before and after the change: note/event cadence, cumulative
-drift, late or batched pulses, and audio underruns. Do not call a shared-path
-change qualified if timing regresses or drift continues to accumulate.
+Changes to shared audio processing or musical-event emission (bus-FX routing,
+general parameter modulation, transport, event dispatch) need a short on-device
+smoke on both boards. `tools/pi/board-timing-smoke.sh` plays the board's default
+patch with a candidate binary from a cloned store, OLED awake, for 10 minutes by
+default. It runs detached on the board, so no SSH traffic disturbs the
+measurement. Afterwards it restores the installed service, checks that the
+original presets are unchanged, and prints underruns, pulse cadence, and
+runtime lateness:
+
+```bash
+tools/pi/board-timing-smoke.sh rpi "$PiTarget" target/pi-cross/octessera-pi
+tools/pi/board-timing-smoke.sh opi "$OrangeTarget" target/orange-pi-cross/octessera-pi
+```
+
+Logs land in `target/board-timing-smoke/`. Run one board at a time, and compare
+with a smoke of the previous build under the same conditions. Do not call a
+shared-path change qualified if underruns appear, pulses batch
+(`max_pulses` above 1), or cadence drifts from 240-241 dispatches per 5 s. It
+works on clean production images; the AutoAux study below needs a wake-trace
+drop-in that images do not ship.
 
 An individual new instrument or Build behavior can use focused tests and its
 own on-device profile unless it changes one of those shared paths. The existing

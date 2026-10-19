@@ -3,8 +3,8 @@ use super::*;
 #[test]
 pub(crate) fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![2];
-    runner.menu.state.cursor = 0;
+    runner.menu.open_labels(&["Shape"]);
+    runner.menu.select_label("Instruments");
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -55,7 +55,7 @@ pub(crate) fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
 #[test]
 pub(crate) fn submenu_snapshot_does_not_append_transport_status_line() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![1];
+    runner.menu.open_labels(&["Link"]);
     let messages = runner.messages_with_snapshot().unwrap();
     let lines = snapshot_from(&messages)["display"]["lines"]
         .as_array()
@@ -71,8 +71,10 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].pan_pos = 10;
     runner.menu.rebuild(runner.menu_config());
-    runner.menu.state.stack = vec![2, 0, 0, 3];
-    runner.menu.state.cursor = 2;
+    runner
+        .menu
+        .open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
+    runner.menu.select_label("Pan Pos");
     runner.menu.state.editing = true;
 
     let _ = runner
@@ -203,8 +205,8 @@ pub(crate) fn config_load_queues_midi_port_selection_effects() {
 #[test]
 pub(crate) fn contextual_help_includes_midi_output_guidance() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.state.stack = vec![5, 3];
-    runner.menu.state.cursor = 1;
+    runner.menu.open_labels(&["System", "Notes"]);
+    runner.menu.select_label("Vel Scale");
     runner.display.ui.combined_modifier_held = true;
 
     let opened = runner
@@ -232,8 +234,8 @@ pub(crate) fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.menu.state.stack = vec![0, 0];
-    runner.menu.state.cursor = 4;
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Spawn Count");
     runner.display.ui.combined_modifier_held = true;
 
     let opened = runner
