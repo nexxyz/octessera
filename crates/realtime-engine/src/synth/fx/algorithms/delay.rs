@@ -107,8 +107,9 @@ pub(in crate::synth) fn process_mod_delay(
         return input;
     };
     cache.refresh(&params, sample_rate);
-    let delay_ms =
-        (params.base_ms + params.depth_ms * ((*phase).sin() + 1.0) * 0.5).clamp(0.1, 100.0);
+    let delay_ms = (params.base_ms
+        + params.depth_ms * (crate::sine::sin_radians(*phase) + 1.0) * 0.5)
+        .clamp(0.1, 100.0);
     let delayed = read_delay(buf, *idx, delay_ms * sample_rate as f32 / 1000.0);
     buf[*idx] = (input + delayed * params.feedback).clamp(-2.0, 2.0);
     *idx = (*idx + 1) % buf.len();

@@ -3,19 +3,24 @@ pub(super) fn fade(value: f32) -> f32 {
     1.0 - t * t * (3.0 - 2.0 * t)
 }
 
+/// Phases are in turns; index terms are in radians and are converted on the way in.
 pub(super) fn sample(
-    carrier_phase: f32,
-    modulator_phase: f32,
+    carrier_turns: f32,
+    modulator_turns: f32,
     modulator: f32,
     env: f32,
     voice: &super::Voice,
 ) -> f32 {
     let second = if voice.fm_index_second > 0.0 {
-        voice.fm_index_second * env * (2.0 * modulator_phase).sin()
+        voice.fm_index_second * env * crate::sine::sin_turns(2.0 * modulator_turns)
     } else {
         0.0
     };
-    let carrier = (carrier_phase + (voice.fm_index_fundamental * env) * modulator + second).sin();
+    let carrier = crate::sine::sin_turns(
+        carrier_turns
+            + ((voice.fm_index_fundamental * env) * modulator + second)
+                * (1.0 / std::f32::consts::TAU),
+    );
     if voice.fm_direct_mix == 0.0 {
         carrier
     } else {
@@ -48,7 +53,8 @@ mod tests {
                 voice.fm_index_second = index * second;
                 voice.fm_direct_mix = direct;
                 voice.fm_normalization = 1.0 / (1.0 + direct);
-                sample(carrier, phase, phase.sin(), 1.0, &voice)
+                let tau = std::f32::consts::TAU;
+                sample(carrier / tau, phase / tau, phase.sin(), 1.0, &voice)
             };
             for raw_modulator in [0.45, 0.49, 0.5] {
                 let rendered = output(raw_modulator, 0.3);

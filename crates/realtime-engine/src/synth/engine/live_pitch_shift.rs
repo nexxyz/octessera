@@ -55,8 +55,8 @@ impl LivePitchShift {
 
         let phase = ((pos_norm / range) + 0.5) % 1.0;
         let angle = phase * PI;
-        let gain_a = angle.cos().powi(2);
-        let gain_b = angle.sin().powi(2);
+        let gain_a = crate::sine::cos_radians(angle).powi(2);
+        let gain_b = crate::sine::sin_radians(angle).powi(2);
 
         let out_l = gain_a * Self::interp(&self.buf, read_a, 0)
             + gain_b * Self::interp(&self.buf, read_b, 0);

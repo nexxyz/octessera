@@ -70,4 +70,25 @@ fn main() {
     let output_path = PathBuf::from(env::var("OUT_DIR").unwrap())
         .join("synth_platform_capabilities.generated.rs");
     fs::write(output_path, generated).unwrap();
+    write_sine_table();
+}
+
+/// One cycle of sine in `SINE_TABLE_STEPS` steps plus a guard entry for interpolation.
+fn write_sine_table() {
+    const STEPS: usize = 4096;
+    let values = (0..=STEPS)
+        .map(|step| {
+            let value = (std::f64::consts::TAU * step as f64 / STEPS as f64).sin() as f32;
+            format!("{value:?}")
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let generated = format!(
+        "const SINE_TABLE_STEPS: usize = {STEPS};
+static SINE_TABLE: [f32; {}] = [{values}];
+",
+        STEPS + 1
+    );
+    let output_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("sine_table.generated.rs");
+    fs::write(output_path, generated).unwrap();
 }

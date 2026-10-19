@@ -1,5 +1,6 @@
 use super::*;
-use std::f32::consts::{PI, TAU};
+use crate::sine::sin_turns;
+use std::f32::consts::TAU;
 
 pub(super) mod synth_voice_render;
 
@@ -320,12 +321,14 @@ pub(super) fn synth_source_sample(cfg: &SynthVoiceRenderConfig, v: &mut Voice) -
 pub(super) fn fm_source_sample(index: f32, v: &mut Voice) -> f32 {
     v.phase1 = (v.phase1 + v.osc1_inc).fract();
     v.phase2 = (v.phase2 + v.osc2_inc).fract();
-    let modulator = (TAU * v.phase2).sin();
+    let modulator = sin_turns(v.phase2);
     if v.fm_neutral {
-        (TAU * v.phase1 + index.min(v.fm_index_limit) * v.index_env.next() * modulator).sin()
+        sin_turns(
+            v.phase1 + index.min(v.fm_index_limit) * v.index_env.next() * modulator * (1.0 / TAU),
+        )
     } else {
         let env = v.index_env.next();
-        crate::synth::engine::fm_render::sample(TAU * v.phase1, TAU * v.phase2, modulator, env, v)
+        crate::synth::engine::fm_render::sample(v.phase1, v.phase2, modulator, env, v)
     }
 }
 
@@ -346,7 +349,7 @@ fn osc_sample_precomputed(cfg: OscRenderConfig, inc: f32, phase: &mut f32) -> f3
     *phase = (*phase + inc).fract();
 
     let raw = match cfg.waveform {
-        WaveformId::Sine => (2.0 * PI * *phase).sin(),
+        WaveformId::Sine => sin_turns(*phase),
         WaveformId::Triangle => 4.0 * (*phase - 0.5).abs() - 1.0,
         WaveformId::Saw => 2.0 * *phase - 1.0,
         WaveformId::Square => {

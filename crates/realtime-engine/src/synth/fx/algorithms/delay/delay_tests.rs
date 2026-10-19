@@ -237,8 +237,9 @@ fn reference_process_mod_delay(
     if buf.len() < need.max(2) {
         buf.resize(need.max(2), 0.0);
     }
-    let delay_ms =
-        (params.base_ms + params.depth_ms * ((*phase).sin() + 1.0) * 0.5).clamp(0.1, 100.0);
+    let delay_ms = (params.base_ms
+        + params.depth_ms * (crate::sine::sin_radians(*phase) + 1.0) * 0.5)
+        .clamp(0.1, 100.0);
     let delayed = reference_read_delay(buf, *idx, delay_ms * sample_rate as f32 / 1000.0);
     buf[*idx] = (input + delayed * params.feedback).clamp(-2.0, 2.0);
     *idx = (*idx + 1) % buf.len();

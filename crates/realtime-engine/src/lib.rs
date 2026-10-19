@@ -1,4 +1,5 @@
 mod simd;
+pub mod sine;
 
 pub mod synth;
 

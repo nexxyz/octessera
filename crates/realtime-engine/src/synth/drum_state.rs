@@ -1,5 +1,6 @@
 use super::drum_config::{DrumSound, DrumVoiceConfig};
 use super::types::CELL_PITCH_CENTS_LIMIT;
+use crate::sine::sin_turns;
 use std::f32::consts::TAU;
 
 #[derive(Clone, Copy, Debug)]
@@ -148,9 +149,9 @@ impl DrumState {
             1.0
         };
         let modal = if self.noise_mix < 1.0 {
-            (TAU * self.phase1).sin()
+            sin_turns(self.phase1)
                 + if self.inc2 > 0.0 {
-                    (TAU * self.phase2).sin() * self.upper_mix
+                    sin_turns(self.phase2) * self.upper_mix
                 } else {
                     0.0
                 }

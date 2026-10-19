@@ -42,7 +42,8 @@ pub(in crate::synth::fx) fn process_vinyl_mono_bus(
     state.wow_phase = wrap_phase(state.wow_phase + 2.0 * PI * 0.33 / sample_rate as f32);
     state.flutter_phase = wrap_phase(state.flutter_phase + 2.0 * PI * 4.7 / sample_rate as f32);
     let warp = 1.0
-        + ((state.wow_phase.sin() * 0.75 + state.flutter_phase.sin() * 0.25)
+        + ((crate::sine::sin_radians(state.wow_phase) * 0.75
+            + crate::sine::sin_radians(state.flutter_phase) * 0.25)
             * 0.08
             * params.warp_depth);
 
@@ -70,7 +71,8 @@ pub(in crate::synth::fx) fn process_vinyl_stereo(
     state.wow_phase = wrap_phase(state.wow_phase + 2.0 * PI * 0.33 / sample_rate as f32);
     state.flutter_phase = wrap_phase(state.flutter_phase + 2.0 * PI * 4.7 / sample_rate as f32);
     let warp = 1.0
-        + ((state.wow_phase.sin() * 0.75 + state.flutter_phase.sin() * 0.25)
+        + ((crate::sine::sin_radians(state.wow_phase) * 0.75
+            + crate::sine::sin_radians(state.flutter_phase) * 0.25)
             * 0.08
             * params.warp_depth);
 

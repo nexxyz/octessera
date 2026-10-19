@@ -105,7 +105,9 @@ impl ModulationProcessState {
             .ok_or_else(|| format!("LFO target `{}` has no numeric range", binding.key))?;
         let phase =
             f64::from(lfo.phase_pulses) / f64::from(note_unit_to_pulses(&lfo.period).max(1));
-        let mut delta = (phase * std::f64::consts::TAU).sin() * 0.5 * f64::from(lfo.depth_pct)
+        let mut delta = f64::from(realtime_engine::sine::sin_turns(phase as f32))
+            * 0.5
+            * f64::from(lfo.depth_pct)
             / 100.0
             * (max - min);
         if binding.invert {

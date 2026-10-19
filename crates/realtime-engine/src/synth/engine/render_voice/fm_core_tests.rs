@@ -112,11 +112,13 @@ fn fm_neutral_source_is_sample_identical_to_legacy_equation() {
         expected_voice.phase2 = (expected_voice.phase2 + expected_voice.osc2_inc).fract();
         phase_wraps += usize::from(expected_voice.phase1 < previous_phase1);
         phase_wraps += usize::from(expected_voice.phase2 < previous_phase2);
-        let expected = (std::f32::consts::TAU * expected_voice.phase1
-            + (67.0_f32 * 0.04).min(expected_voice.fm_index_limit)
-                * expected_voice.index_env.next()
-                * (std::f32::consts::TAU * expected_voice.phase2).sin())
-        .sin();
+        let expected = crate::sine::sin_turns(
+            expected_voice.phase1
+                + (67.0_f32 * 0.04).min(expected_voice.fm_index_limit)
+                    * expected_voice.index_env.next()
+                    * crate::sine::sin_turns(expected_voice.phase2)
+                    * (1.0 / std::f32::consts::TAU),
+        );
         let actual = source_sample(&config, &mut actual_voice, &mut ring);
         assert_eq!(actual.to_bits(), expected.to_bits());
         assert_eq!(

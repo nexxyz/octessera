@@ -272,8 +272,8 @@ fn analytic_zero_depth_two_tone_case(taps: &[f64]) {
     for _ in 0..512 {
         let carrier_phase = (voice.phase1 + voice.osc1_inc).fract();
         let modulator_phase = (voice.phase2 + voice.osc2_inc).fract();
-        let expected = ((TAU as f32 * carrier_phase).sin()
-            + voice.fm_direct_mix * (TAU as f32 * modulator_phase).sin())
+        let expected = (crate::sine::sin_turns(carrier_phase)
+            + voice.fm_direct_mix * crate::sine::sin_turns(modulator_phase))
             * voice.fm_normalization;
         let actual = source_sample(&render_config, &mut voice, &mut ring);
         assert_eq!(actual.to_bits(), expected.to_bits());
@@ -359,8 +359,8 @@ fn render_high_rate(
             modulator_phase = (modulator_phase + modulator_hz / high_rate).fract();
             let modulator = (TAU * modulator_phase) as f32;
             let value = fm_render::sample(
-                (TAU * carrier_phase) as f32,
-                (TAU * modulator_phase) as f32,
+                carrier_phase as f32,
+                modulator_phase as f32,
                 modulator.sin(),
                 voice.index_env.level,
                 &voice,

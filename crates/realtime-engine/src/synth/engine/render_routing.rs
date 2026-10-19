@@ -312,10 +312,10 @@ fn stereo_balance_gains_from_pan(pan_pos: Option<usize>, pan_positions: usize) -
 fn stereo_balance_gains(pos: f32) -> (f32, f32) {
     let pos = pos.clamp(0.0, 1.0);
     if pos <= 0.5 {
-        let right = (pos * 2.0 * std::f32::consts::FRAC_PI_2).sin();
+        let right = crate::sine::sin_turns(pos * 0.5);
         (1.0, right)
     } else {
-        let left = ((1.0 - pos) * 2.0 * std::f32::consts::FRAC_PI_2).sin();
+        let left = crate::sine::sin_turns((1.0 - pos) * 0.5);
         (left, 1.0)
     }
 }

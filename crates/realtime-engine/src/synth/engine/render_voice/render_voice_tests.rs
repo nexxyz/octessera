@@ -301,7 +301,7 @@ fn reference_osc_sample(cfg: OscConfig, base_freq: f32, phase: &mut f32, sample_
     *phase = (*phase + inc).fract();
 
     let raw = match cfg.waveform {
-        WaveformId::Sine => (2.0 * PI * *phase).sin(),
+        WaveformId::Sine => crate::sine::sin_turns(*phase),
         WaveformId::Triangle => 4.0 * (*phase - 0.5).abs() - 1.0,
         WaveformId::Saw => 2.0 * *phase - 1.0,
         WaveformId::Square => {

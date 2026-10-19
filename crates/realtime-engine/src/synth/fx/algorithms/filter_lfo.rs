@@ -74,7 +74,7 @@ fn process_filter_lfo_channel(
     params: &FilterLfoParams,
     sample_rate: u32,
 ) -> f32 {
-    let sweep = ((*phase).sin() + 1.0) * 0.5;
+    let sweep = (crate::sine::sin_radians(*phase) + 1.0) * 0.5;
     let semis = (sweep - 0.5) * 48.0 * params.depth;
     let cutoff = (params.center_hz * 2.0_f32.powf(semis / 12.0)).clamp(40.0, 18_000.0);
     *phase = wrap_phase(*phase + phase_inc);
@@ -237,7 +237,7 @@ mod tests {
         params: &FilterLfoParams,
         sample_rate: u32,
     ) -> f32 {
-        let sweep = ((*phase).sin() + 1.0) * 0.5;
+        let sweep = (crate::sine::sin_radians(*phase) + 1.0) * 0.5;
         let semis = (sweep - 0.5) * 48.0 * params.depth;
         let cutoff = (params.center_hz * 2.0_f32.powf(semis / 12.0)).clamp(40.0, 18_000.0);
         *phase = wrap_phase(*phase + 2.0 * PI * params.rate_hz / sample_rate as f32);

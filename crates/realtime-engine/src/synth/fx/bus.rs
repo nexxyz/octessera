@@ -15,7 +15,7 @@ pub(in crate::synth) fn process_fx_bus_slot(
                 *state = FxBusState::Tremolo { phase: 0.0 };
                 return input;
             };
-            let gain = (1.0 - depth) + depth * ((phase.sin() + 1.0) * 0.5);
+            let gain = (1.0 - depth) + depth * ((crate::sine::sin_radians(*phase) + 1.0) * 0.5);
             *phase = wrap_phase(*phase + 2.0 * PI * rate_hz / sample_rate as f32);
             input * gain
         }
@@ -89,7 +89,7 @@ pub(in crate::synth) fn process_fx_bus_slot(
                 };
                 return input;
             };
-            *pos = 0.5 + ((*phase).sin() * 0.5 * depth);
+            *pos = 0.5 + (crate::sine::sin_radians(*phase) * 0.5 * depth);
             *phase = wrap_phase(*phase + 2.0 * PI * rate_hz / sample_rate as f32);
             input
         }
