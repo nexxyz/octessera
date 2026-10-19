@@ -79,6 +79,8 @@ run_pre_push_checks() {
   run_check "pnpm quality:audit" corepack pnpm run quality:audit
   run_check "cargo fmt" cargo fmt --all --check
   run_check "file length" check_file_length
+  run_check "repository integrity fixtures" bash ./tools/quality/test-repository-integrity.sh
+  run_check "repository integrity gate" bash ./tools/quality/repository-integrity.sh
   run_check "cargo test" \
     cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source
   run_check "cargo test pi routing-tree executor" \
