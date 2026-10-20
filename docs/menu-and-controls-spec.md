@@ -232,9 +232,9 @@ Modulation slots, Aux Turn bindings, Play XY axes, and LFO targets share one men
 - The tree mirrors the root order (`Build`, `Link`, `Shape`, `Play`, `System`). Under Build, layers
   with behavior `none` expose no behavior targets; other layers expose their own Step Rate as
   `layers.N.algorithmStep` and their config fields/actions as `layers.N.build.behaviorConfig.*`.
-- `Range Min`/`Range Max` constrain modulation output while keeping the target's capability
-  `min`/`max` metadata. Missing sides fall back to the target range; equal values produce a fixed
-  value. Enum and bool bindings ignore user ranges.
+- `Range Min`/`Range Max` constrain the output of every source (slots, XY, LFOs) while keeping the
+  target's capability `min`/`max` metadata. Missing sides fall back to the target range; equal
+  values produce a fixed value. Enum and bool bindings ignore user ranges.
 - LFO target pickers list only numeric, live-safe targets and never another LFO's settings. The
   instrument-specific numeric targets are listed in [shape.md](menu-tree/shape.md#binding-targets).
 
