@@ -1,101 +1,118 @@
 # Data backup and restore
 
-Use `System > Maintenance > Backup / Restore` on a Pi before reflashing. The `.oct`
-archive carries music, selected portable preferences such as brightness, and
-optionally user media.
-It is not a complete System backup or a device clone: USB role, MIDI/audio
-endpoint IDs, and favourite folders stay with the destination instrument.
-Ordinary System preferences save separately from the musical patch. Rolling
-saves and recovery backups protect the musical patch only.
+Octessera keeps two kinds of data apart:
 
-## Save local settings and music
+- **Music:** the patch (layers, Link, instruments, FX, Play setup) and your
+  named presets.
+- **System settings:** device preferences such as brightness, Auto Save, USB
+  role, audio outputs and MIDI ports.
 
-Changed ordinary local preferences, such as display brightness and Auto Save,
-save once when you leave their editor with Main or Back, not on every turn;
-unchanged or reverted edits do not save. You can still use
-`System > Saves > System > Save System` to save settings explicitly, or
-`System > Saves > System > Load System` to load them. Load System asks for
-confirmation but does not stop music or silently reboot. Restart-sensitive
-USB and audio-output choices save only after confirmed **Apply**. If a System
-save is still underway, Reboot and Shutdown refuse with `System save pending,
-try again`; press again once it finishes.
+Saving, autosave and rolling backups all work on one or the other, never
+both. The board's `Backup / Restore` export carries your music plus a few
+portable preferences off the board so you can reflash without losing anything.
 
-Use `System > Saves > Default > Save Patch` to save and
-`System > Saves > Default > Load Patch` to load the local musical default, not
-device settings. An eligible Load Patch asks for confirmation; a confirmed load
-stops and resets playback and clears held notes. If a patch save is pending or
-an Auto Save-eligible edit is still dirty, it refuses with `Save pending, try
-again`. With Auto Save off and no pending write, confirmation may discard
-unsaved music. Named presets under `System > Saves > Library` are musical and portable.
-Patch autosaves, rolling backups, and recovery copies protect patches only;
-they do not back up System settings. Changing the Auto Save preference is a
-System setting: it saves after a changed editor exit and does not immediately
-save the musical Patch.
+## Saving music
 
-## Back up your data
+| Menu | What it does |
+|---|---|
+| `System > Saves > Default > Save Patch` | Saves the current patch as this instrument's default patch. |
+| `System > Saves > Default > Load Patch` | Loads it back, after asking. |
+| `System > Saves > Default > Auto Save` | Saves patch edits automatically. Off by default. |
+| `System > Saves > Default > Backups` | Keeps rolling backups of the patch. |
+| `System > Saves > Library` | Named presets: **Save As**, **Load**, **Rename**, **Delete**, **Save Current**. |
+| `System > Load Preset` | Shortcut to load a named preset. |
 
-1. On the Pi, choose `System > Maintenance > Backup / Restore`.
-2. The OLED Ready card shows the regular network `IP`, `PORT 8081`, a generated
-   10-character `CODE`, and the remaining lifetime. Build `URL` as
-   `http://<regular-ip>:8081` and use the displayed code.
-3. Download the backup:
+A confirmed load stops and rewinds playback and silences held notes. If a save
+is still being written (or, with Auto Save on, an edit hasn't been saved yet)
+the load refuses with `Save pending, try again`; give it a moment. With Auto
+Save off, loading throws away unsaved changes, so save first if you care.
+
+Patches remember their samples by path, including your own and SD-card
+samples.
+
+## Saving system settings
+
+Most System settings save themselves once when you finish editing the row
+(with *Main* or *Back*), not on every turn, and only if the value actually
+changed. Settings that need a restart save only after you confirm **Apply**.
+
+You can also use `System > Saves > System > Save System` and **Load System**.
+Load System asks first, but doesn't stop the music or reboot. While a System
+save is still being written, **Reboot** and **Shutdown** refuse with
+`System save pending, try again`; press again once it's done.
+
+Changing Auto Save is itself a System setting. It saves the preference, not
+the patch.
+
+## Back up a board
+
+Backup and restore run on the Raspberry and Orange boards over Wi-Fi. The
+desktop simulator doesn't have it.
+
+1. On the board, choose `System > Maintenance > Backup / Restore`.
+2. The OLED shows the board's `IP`, `PORT 8081`, a 10-character `CODE` and how
+   long is left (15 minutes). If the board has no network address, it can't
+   start.
+3. On a computer on the same network, download the backup:
 
    ```sh
-   URL="http://<regular-ip>:8081"
+   URL="http://<board-ip>:8081"
    CODE="<10-character code shown on the OLED>"
    curl -fL -H "X-Octessera-Transfer-Code: $CODE" \
      -o octessera-user-data.oct "$URL/export"
    ```
 
-   To include optional user media, use `$URL/export?media=1` instead. Keep the
-   downloaded `octessera-user-data.oct` somewhere safe before removing or
-   flashing the source card.
+   Use `$URL/export?media=1` instead to include media: samples you added to
+   the board and your recordings. Samples on the SD2 card stay on the card.
 
-   Patches keep their sample paths, including your own and SD-card samples.
-   If a sample isn't on the device you restore to, that slot stays silent and
-   shows `N/A-<name>`, and a popup lists what's missing. Copy the WAVs across
-   (or include them with `media=1`) and the slots come back, or pick
-   replacements. Samples you added to the device travel only in the `media=1`
-   export; SD-card samples stay on the card.
+4. Keep `octessera-user-data.oct` somewhere safe before you flash or reuse the
+   card.
 
-If no regular network address is available, the action cannot start. **Back**
-hides the Ready card while the transfer remains available. Choose **> Stop service**
-when you are finished; the code also expires automatically.
+*Back* hides the OLED card while the service keeps running. Choose
+**> Stop service** when you're finished; the code also expires on its own.
 
-## Restore your data
+## Restore onto a board
 
-Restoring replaces the destination's current user data. Export it first if
-there is anything on the fresh board you want to keep.
+Restoring replaces the destination's user data, so export it first if there's
+anything on that board you want to keep.
 
-1. Export from the old board before flashing it. Include media for supported
-   extra files and saved recordings; see the local-sample warning above.
-2. Save `octessera-user-data.oct` somewhere off the board.
-3. Flash the matching Raspberry or Orange image and complete its normal first
-   boot and network setup.
-4. On the fresh board, choose `System > Maintenance > Backup / Restore` again. Use the
-   new `URL` and OLED code:
+1. Flash the matching Raspberry or Orange image and finish its normal
+   [first boot and network setup](hardware/flash-and-first-boot.md).
+2. Choose `System > Maintenance > Backup / Restore` on the fresh board and
+   note its new address and code.
+3. Upload the backup:
 
    ```sh
    curl -f -X POST --data-binary @octessera-user-data.oct \
      -H "X-Octessera-Transfer-Code: $CODE" "$URL/restore"
    ```
 
-5. The upload prepares the restore but does not change your data yet. When the
-   OLED asks for confirmation, press the Main encoder to apply it or **Back** to
-   cancel. During the restore, the OLED shows `Restoring...` and `Please wait`,
-   and normal input is blocked.
-6. Wait for the final result before stopping the service or powering down. An
-   invalid upload or a failure before applying it leaves the destination data
-   in place. If reloading fails after the store tree is replaced, the
-   instrument reports failure and blocks saves; it does not automatically
-   roll back to the old tree. Keep your source card and downloaded archive.
+4. The upload only prepares the restore. When the OLED asks, click *Main* to
+   apply it or press *Back* to cancel. While it runs, the OLED shows
+   `Restoring...` and `Please wait`, and other input is blocked.
+5. Wait for the final result before stopping the service or powering down.
 
-Never remove power, the storage card, or the board's microSD card during a
-transfer or restore. Do not erase the source card until the backup file is
-downloaded and safely stored.
+A broken upload, or a failure before applying, leaves the board's data as it
+was. If something fails after the data has been replaced, the instrument
+reports it and stops saving; it doesn't roll back on its own. That's why you
+keep the source card and the downloaded file until you're happy.
 
-`System > Saves > Default > Backups` controls rolling local patch backups, not
-System settings. Keep a separate copy of any device settings you need to record;
-the `.oct` archive is portable by design, not a full instrument clone. The OLED
-SD2 `octessera/saves` directory is also separate; copy it manually when you
-want to preserve those files.
+If a restored patch uses a sample that isn't on the new board, that slot stays
+silent and shows `N/A-<name>`, and a popup lists what's missing. Copy the WAVs
+across (or restore a `media=1` export) and the slots come back, or pick
+replacements.
+
+Never pull the power or either microSD card during a transfer or restore.
+
+## What the backup doesn't carry
+
+The `.oct` file is portable by design, not a clone of the instrument. These
+stay with whichever board you restore onto:
+
+- USB role, MIDI and audio device choices, and favourite sample folders.
+- Any other System settings beyond the few portable preferences (such as
+  brightness) the archive carries.
+- The SD2 card's `octessera/saves` folder. Copy that by hand if you want it.
+
+Rolling patch backups (`System > Saves > Default > Backups`) protect the patch
+only, not System settings.

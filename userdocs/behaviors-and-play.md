@@ -1,127 +1,162 @@
-# Behaviors and Play pages: FX and XY
+# Behaviors and Play pages
 
-Each layer runs one behavior. Think of a behavior as a small rule-based system: you seed it, nudge it, sometimes interrupt it, and listen to what it decides to become.
+Each of the eight layers runs one behavior. A behavior is a small rule-based
+world: you seed it, nudge it, sometimes interrupt it, and listen to what it
+decides to become.
 
-You can run several layers at once. One layer might be a stable pulse. Another might be a strange little colony. Another might be your fingers. The fun starts when they disagree politely.
+Run several at once. One layer might be a steady pulse, another a strange
+little colony, another your own fingers. Things get interesting when they
+disagree politely.
+
+How a behavior's cells turn into notes is covered in
+[Sound and Link](sound-and-link.md).
 
 ## Start with a small patch
 
-The factory preset is a good orientation point: it has a self-sustaining `life`
-pattern on Layer 1 and a basic `sequencer` rhythm on Layer 2. These five
-behaviors make a useful first tour:
+The shipped patch is a good place to start. Layer 1 runs a self-sustaining
+`life` pattern into a synth, Layer 2 a `sequencer` into the sampler, Layer 3 a
+`looper` into a plucked string, and Layer 4 another `sequencer` into the FM
+voice. These five behaviors make a good first tour:
 
 | Behavior | First thing to try |
 |---|---|
-| `life` | Seed a few cells and listen to birth, survival, and death move through the grid. Glider injection is part of `life`; use Glider Interval, Spawn Step, and Spawn Glider to shape it. |
+| `life` | Seed a few cells and listen to birth, survival and death move through the grid. Glider Interval, Spawn Step and Spawn Glider add gliders. |
 | `sequencer` | Set a manual rhythm, then add probability if it feels too square. |
-| `keys` | Press cells for momentary finger-drumming; release them to stop. |
+| `keys` | Press cells to play; release to stop. Finger drumming, basically. |
 | `raindrops` | Start with a sparse cell and let drops and ripples bloom outward. |
 | `bounce` | Seed moving particles and listen to their repeating collisions. |
 
 ## Full behavior catalog
 
-| Behavior | Category | What it is good for |
+Names are shown as they appear on the OLED. Behaviors are grouped by category
+in **Build**.
+
+| Behavior | Category | What it's good for |
 |---|---|---|
-| `none` | Human | Inactive layer. Useful when you want space, or when you are setting up before sound. |
-| `keys` | Human | Momentary finger-drumming. Press a cell to play; release it to stop. Immediate and human. |
-| `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. Add probability if it feels too square. |
-| `looper` | Human | Records and replays grid presses/releases. Use Punch In/Out to overdub or perform. |
-| `weave` | Human | Two interlaced melodic strands crossing over the grid. Useful for quick counterpoint-ish motion. |
-| `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. Good for patterns that refuse to line up too neatly. |
-| `breaks` | Rhythm | A rearranging breakbeat grid: kicks, cuts, gaps, and little glitchy fragments. |
-| `fills` | Rhythm | A base groove that opens up near phrase ends with denser fill gestures. |
-| `clave` | Rhythm | A compact clave-style rhythmic cell, rotated and shared across lanes. |
+| `none` | Human | Inactive layer, for when you want space or are setting up. |
+| `keys` | Human | Press a cell to play, release it to stop. Immediate and human. |
+| `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. |
+| `looper` | Human | Records and replays grid presses and releases. Use Punch In/Out to overdub. |
+| `weave` | Human | Two interlaced melodic strands crossing the grid. Quick counterpoint-ish motion. |
+| `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. |
+| `breaks` | Rhythm | A rearranging breakbeat grid: kicks, cuts, gaps and glitchy fragments. |
+| `fills` | Rhythm | A base groove that opens up into denser fills near phrase ends. |
+| `clave` | Rhythm | A compact clave-style cell, rotated and shared across lanes. |
 | `groove` | Rhythm | A coherent kick/snare/hat-style grid for fast beat foundations. |
-| `euclid` | Rhythm | Evenly distributed hits across uneven lane lengths. Simple controls, surprisingly useful loops. |
-| `ostinato` | Musical | A repeating melodic figure that shifts without losing its little anchor. |
-| `motif` | Musical | A short melodic shape that mutates, folds, and returns. |
-| `canon` | Musical | Delayed copies of a line, stacked into layered motion. Tiny grid fugue, if it behaves. |
+| `euclid` | Rhythm | Evenly spread hits across uneven lane lengths. Simple controls, surprisingly useful loops. |
+| `ostinato` | Musical | A repeating melodic figure that shifts without losing its anchor. |
+| `motif` | Musical | A short melodic shape that mutates, folds and returns. |
+| `canon` | Musical | Delayed copies of a line, stacked into layered motion. A tiny grid fugue, if it behaves. |
 | `chords` | Musical | Moving triad-like cells for harmonic blocks and chord strikes. |
-| `contour` | Musical | Melody-like cells following rise, fall, arch, and valley shapes. |
+| `contour` | Musical | Melody-like cells following rise, fall, arch and valley shapes. |
 | `cadence` | Musical | Harmonic movement with repeated tension and resolution points. |
-| `phrase` | Musical | A phrase-shaped pattern with opening, development, rest, and return. |
-| `life` | Cellular | Conway-style cells that birth, survive, and die. It also includes glider injection through Glider Interval, Spawn Step, and Spawn Glider. |
-| `brain` | Cellular | Brian's Brain style states. It tends to leave trails and pulses rather than simply living/dying. |
-| `cyclic` | Cellular | Multi-state wave fronts chase each other around the grid. Bright, discrete, and a little arcade-creature-ish. |
-| `forest_fire` | Cellular | Trees grow, catch from neighboring flames, and occasionally get zapped by lightning. Grid presses plant and ignite a cell. |
-| `predator_prey` | Cellular | Grass feeds herbivores, herbivores feed predators, and starvation keeps the little ecosystem moving. |
-| `ant` | Cellular | Langton-like motion. A tiny agent walks the grid and changes cell states as it goes. |
-| `twinkle` | Cellular | A small constellation: stars appear one at a time, linger, then fade. Cluster Bias decides whether they bunch up or scatter. Sparse and gentle. |
-| `bounce` | Motion | Moving particles that bounce through the grid. Nice for kinetic patterns and repeating collisions. |
-| `bubbles` | Motion | Bottom-born bubbles drift upward, merge when they touch, and vanish past the top. Good for light, buoyant motion. |
-| `gravity` | Motion | Sand grains fall, slide, settle, and flip direction when you invert gravity. Crunchy little avalanches. |
-| `boids` | Motion | A small flock steers by separation, alignment, and cohesion. It chirps when agents enter new cells. |
-| `orbit` | Motion | Particles circle a moving attractor, making little orbital flickers as they cross grid cells. |
-| `lava_lamp` | Motion | Soft blobs drift, merge, and split into a warm little metaball lamp. |
-| `sand_ripples` | Motion | Wind pushes grains into migrating dune crests. Gust it, shift the wind, and listen to the ridges move. |
-| `shapes` | Geometry | Geometric areas and edges as musical material. Good when you want a pattern with a visible skeleton. |
-| `ink` | Fields | Pigment blooms, diffuses, and fades. Press or drop ink for a splash, then listen as it thins out. |
-| `ising` | Fields | Magnetic domains flip between two states under temperature, noise, and field pressure. Tiny spin weather. |
-| `kuramoto` | Fields | Coupled phase bubbles drift toward synchronization. Notes appear at wrap flashes rather than from a permanently lit grid. |
-| `lightning` | Fields | Branching leaders crawl from one edge toward a target edge, flash when they connect, then decay and restart. |
-| `raindrops` | Fields | Drops/ripples across the grid. Great for sparse starts that bloom into motion. |
-| `reaction_diffusion` | Fields | Two little chemicals chase each other into spots and edges. Seed it, then let the pattern brew. |
-| `rivers` | Fields | Rain falls, water finds downhill paths, and the terrain slowly erodes and deposits sediment. |
-| `wave` | Fields | A little vibrating membrane: impulses travel, reflect at the edges, and fade as damping eats the motion. |
-| `cracks` | Growth | Crack tips crawl through stressed glass until the pane shatters and clears. Sharp, brittle, and dramatic. |
-| `coral` | Growth | Competing colonies grow along exposed edges, leave skeletons, and break away in little reef chunks. |
-| `crystal_growth` | Growth | Icy crystal clusters that spread by cross, diagonal, or snowflake symmetry. Press a cell to seed or refresh it. |
+| `phrase` | Musical | A phrase-shaped pattern with opening, development, rest and return. |
+| `life` | Cellular | Conway-style cells that are born, survive and die, plus optional glider injection. |
+| `brain` | Cellular | Brian's Brain states. Leaves trails and pulses rather than plain living and dying. |
+| `cyclic` | Cellular | Multi-state wave fronts chasing each other round the grid. A bit arcade-creature-ish. |
+| `forest fire` | Cellular | Trees grow, catch from burning neighbours and occasionally get zapped by lightning. Presses plant and ignite. |
+| `predator prey` | Cellular | Grass feeds herbivores, herbivores feed predators, and starvation keeps the ecosystem moving. |
+| `ant` | Cellular | Langton-style: a tiny agent walks the grid and flips cells as it goes. |
+| `twinkle` | Cellular | Stars appear one at a time, linger and fade. Cluster Bias decides whether they bunch up or scatter. |
+| `bounce` | Motion | Particles bouncing through the grid. Good for kinetic, repeating patterns. |
+| `bubbles` | Motion | Bubbles rise from the bottom, merge when they touch and vanish past the top. |
+| `gravity` | Motion | Sand grains fall, slide and settle, and flip direction when you invert gravity. Crunchy little avalanches. |
+| `boids` | Motion | A small flock steering by separation, alignment and cohesion. It chirps when agents enter new cells. |
+| `orbit` | Motion | Particles circling a moving attractor, flickering as they cross cells. |
+| `lava lamp` | Motion | Soft blobs drift, merge and split. |
+| `sand ripples` | Motion | Wind pushes grains into migrating dune crests. Gust it, shift the wind, listen to the ridges move. |
+| `shapes` | Geometry | Geometric areas and edges as musical material, with a visible skeleton. |
+| `fractal explorer` | Geometry | A drifting Mandelbrot/Julia explorer that turns changes in detail into accents. |
+| `maze growth` | Geometry | Maze corridors carve, walkers wander them, and old passages sometimes crumble back to wall. |
+| `ink` | Fields | Pigment blooms, diffuses and fades. Press for a splash, then listen as it thins out. |
+| `ising` | Fields | Magnetic domains flipping under temperature, noise and field pressure. Tiny spin weather. |
+| `kuramoto` | Fields | Coupled phases drifting toward sync. Notes come at wrap flashes, not from a permanently lit grid. |
+| `lightning` | Fields | Branching leaders crawl toward a target edge, flash when they connect, then decay and restart. |
+| `raindrops` | Fields | Drops and ripples. Great for sparse starts that bloom into motion. |
+| `reaction diffusion` | Fields | Two chemicals chasing each other into spots and edges. Seed it and let it brew. |
+| `rivers` | Fields | Rain falls, water finds downhill paths, and the terrain slowly erodes. |
+| `wave` | Fields | A vibrating membrane: impulses travel, reflect at the edges and fade. |
+| `cracks` | Growth | Crack tips crawl through stressed glass until the pane shatters and clears. |
+| `coral` | Growth | Competing colonies grow along exposed edges, leave skeletons and break off in chunks. |
+| `crystal growth` | Growth | Icy clusters spreading by cross, diagonal or snowflake symmetry. Press to seed or refresh. |
 | `dla` | Growth | Diffusion-limited aggregation. Slow-growing clusters; more sculpture than step sequencer. |
-| `physarum` | Growth | Slime agents sniff trails and food, leaving evaporating paths as they wander. |
-| `vines` | Growth | Tendrils climb toward light, branch into open space, leaf out, and prune themselves back. |
-| `fractal_explorer` | Geometry | A drifting Mandelbrot/Julia explorer that zooms through regions and turns detail changes into accents. |
-| `maze_growth` | Geometry | Tiny maze corridors carve, walkers wander them, and old passages sometimes crumble back to wall. |
+| `physarum` | Growth | Slime agents sniff trails and food, leaving evaporating paths. |
+| `vines` | Growth | Tendrils climb toward light, branch, leaf out and prune themselves back. |
 
 ## Trigger types
 
 | Trigger | Meaning |
 |---|---|
-| `activate` | A cell becomes active. |
-| `stable` | A cell remains active. |
+| `activate` | A cell turns on. |
+| `stable` | A cell stays on. |
 | `deactivate` | A cell turns off. |
-| `scanned` | The scan layer finds an active cell while scanning is enabled. |
-| `scanned empty` | The scan layer visits an inactive cell while scanning is enabled. |
+| `scanned` | The scan cursor finds a lit cell (scanning layers only). |
+| `scanned_empty` | The scan cursor crosses a dark cell (scanning layers only). |
 
-These triggers connect grid activity to Link, probability, note mapping,
-instruments, effects, and output. That is how cell state becomes sound.
+Link turns these into notes. See [Sound and Link](sound-and-link.md#link-what-counts-as-a-note).
 
 ## Play pages
 
-Play pages are performance overlays. They temporarily borrow the grid so you can play the whole instrument, not just edit it.
+Play pages are performance overlays. They borrow the grid for a moment so you
+can play the whole instrument instead of editing one layer.
 
-Hold **Fn** and use the right grid column to choose a Play page.
+Hold *Fn* and press a cell in the right-hand grid column to open a page.
+From the bottom up: Mix, Pan, FX, Trigger Gate, Transpose, XY, Drums (the top
+cell is unused). *Back*, or *Fn* plus a layer in the left column, leaves the
+page.
 
-| Page | Grid role | Use it for |
+| Page | What the grid becomes | Use it for |
 |---|---|---|
-| Mix | Grid turns into a mixer. | Change the volume of each layer. |
-| Pan | Grid becomes a stereo field. | Move around the layers' stereo position. |
-| FX | Grid cells hold live effects. | Press mapped cells to trigger effects; release to stop them. |
-| Trigger Gate | Grid becomes a trigger gate. | Quickly block, allow, or use custom probability for each layer's triggers. |
-| Transpose | Grid becomes a pitch offset picker. | Temporarily transpose Synth, FM, Plucked, and enabled MIDI notes; not Sampler or Drum. |
-| XY | Grid becomes a mappable two-axis surface. | Live-manipulate assigned parameters with X/Y touch position. |
-| Drums | Grid plays mapped drum voices. | Pick a Drum slot and tap its assigned cells, even while stopped. Empty cells stay quiet. |
+| Mix | One column per instrument; bottom row is mute, top row is 100%. | Setting each instrument's volume. |
+| Pan | One row per instrument; left edge is hard left, right edge hard right. | Placing instruments in the stereo field. Bus-routed instruments move their bus pan. |
+| FX | Cells you've mapped with momentary effects. | Press to start an effect, release to stop it. |
+| Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three cells set every layer at once. |
+| Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum cells only follow when their **Follow Transp.** is on. Not saved with the patch. |
+| XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. |
+| Drums | The cells stamped on the selected Drum slot. | Tapping drum hits directly, even while stopped. Empty cells stay quiet. |
 
-## Play FX details
+Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
+it, so you can be reckless and still get your patch back.
 
-Play FX are momentary. Pressing a mapped grid cell starts the effect. Releasing it stops the effect. Octessera limits them to keep effects manageable:
+## Play FX
 
-- At most two momentary FX are active at once.
-- Only one active cell of the same FX type is allowed.
-- A second cell of the same FX type is ignored while that type is already active.
-- Targets can be `global`, an FX bus, or an instrument insertion point.
+Set up momentary effects under `Play > FX`: choose an **FX Type** (`stutter`,
+`freeze`, `filter_sweep` or `pitch_shift`), a **Target**, and its settings,
+then use **Map to Grid** and press a cell. That cell remembers the whole lot.
+Mapping `none` clears a cell.
+
+- **Target** is `master` (the whole mix), one of the FX buses, or a single
+  instrument.
+- Two momentary effects can run at once.
+- Only one of each type at a time. A second cell of the same type is ignored
+  while the first is held, and a toast tells you why. Blocked cells dim.
 
 ## A useful patch recipe
 
-The factory preset is a good orientation point: it has a self-sustaining `life` pattern on Layer 1 and a basic `sequencer` rhythm on Layer 2.
-
-1. Use `sequencer` or `looper`, route it to a `sampler`, and create a basic rhythm loop to ground your track.
-2. Add a generative layer: `life`, `raindrops`, `bounce`, `bubbles`, or `dla`, and route it to a `synth`.
-3. Use probability on your sequencer cells to make patterns play back in a more interesting way.
-4. Bind one or two aux encoders to the parameters or actions you keep reaching for.
-5. Open Play Mix or Trigger Gate and perform the layers like little weather systems.
+1. Use `sequencer` or `looper` into a `sampler` or `drum` and build a basic
+   rhythm to ground the track.
+2. Add a generative layer (`life`, `raindrops`, `bounce`, `bubbles` or `dla`)
+   into a `synth`.
+3. Paint some probability onto the sequencer cells so the rhythm breathes.
+4. Bind one or two Aux encoders to whatever you keep reaching for (*Fn* +
+   click an Aux encoder on the highlighted row).
+5. Open Play Mix or Trigger Gate and perform the layers like little weather
+   systems.
 
 ## Seeds: surprises you can keep
 
-By default every random-ish world rolls fresh dice each time. If a layer just did something you love, switch on `Build > Lx > Seeded` (and `Link > Lx > Seeded` if trigger probability or a random arp is part of the magic). Seeded layers follow the one `Build > Seed` number, and their dice restart from it whenever you play from stop or load the patch. A world that has already grown keeps growing from where it is, so for the same weather again, reload the patch (or hit Reset) and play it the same way. Turn the Seed to reroll every seeded layer at once; leave other layers unseeded to keep a little chaos around. Your live playing still nudges things, which is rather the point.
+By default every random-ish world rolls fresh dice each time. If a layer just
+did something you love, switch on `Build > Lx > Seeded`, and
+`Link > Lx > Seeded` too if trigger probability or a random arp is part of the
+magic.
 
-That is the heart of octessera for me: not a song file, not a rigid pattern, but a few small systems making music together.
+Seeded layers all follow the one `Build > Seed` number (1 to 9999), and their
+dice restart from it whenever you play from stop or load the patch. A world
+that has already grown keeps growing from where it is, so for the same weather
+again, reload the patch (or Reset the layer) and play it the same way. Turn
+Seed to reroll every seeded layer at once, and leave other layers unseeded to
+keep a bit of chaos around. Your live playing still nudges things, which is
+rather the point.
+
+That's the heart of Octessera for me. There's no song file and no fixed
+pattern, only a few small systems making music together, with you nudging.

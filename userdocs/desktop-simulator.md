@@ -1,38 +1,56 @@
 # Desktop simulator
 
-You can try Octessera without a PCB, Pi, OLED, sample card, or soldering iron.
-The simulator is a quick place to set up musical world-bubbles, hear them move,
-and learn the controls.
+You can try Octessera without a PCB, a Pi, an OLED, a sample card or a
+soldering iron. The simulator runs the same native engine as the hardware, so
+it's a good place to set up a few world-bubbles, hear them move and learn the
+controls before you commit to any soldering.
 
 ## Download and launch
 
 1. Open the project's [release page](https://github.com/nexxyz/octessera/releases).
-2. Download the desktop package for your computer.
-3. For a portable ZIP, extract it to a writable folder and launch
-   `octessera.exe`. For an installer or Linux package, install it and launch
-   Octessera from your usual application menu.
+2. Download the desktop package for your computer: a Windows installer, a
+   Windows portable ZIP, or a Linux `.deb` or AppImage.
+3. For the portable ZIP, extract it to a writable folder and run
+   `octessera.exe`. Otherwise install it and start Octessera from your usual
+   application menu.
 
 ## Make a first sound
 
-1. In **Build**, select a layer and choose `life`, `brain`, or `raindrops`.
-2. Draw a few cells on the grid.
-3. Open **Shape** and choose a **synth** for the layer.
-4. Press **Space** to start playback.
-5. Open **Play Pan**. Each grid row represents an instrument. On your synth's
-   row, press toward the left, center, or right to move its sound across the
-   stereo field. Use **Back** or the normal navigation controls to leave it.
+The shipped patch already has Layer 1 running `life` into a synth.
 
-Start with a **synth** for the simplest first sound. A sampler is also
-available with the default sample library. You can add your own samples
-through the sample browser.
+1. In **Build**, stay on Layer 1 (or pick `brain` or `raindrops` for it).
+2. Click a few cells on the grid.
+3. Press **Space** to start playback.
+4. Hold **Ctrl** (the simulator's *Fn*) and click the second cell from the
+   bottom in the right-hand grid column to open **Play Pan**. Each row is an
+   instrument; click left, centre or right on the synth's row (the bottom one)
+   to move it across the stereo field.
+5. Press **Backspace** to leave Play Pan.
 
-The simulator's keyboard and UI controls mirror the hardware. The
-[controls cheat sheet](controls-cheat-sheet.md) has the complete map, and
-[behaviors and Play pages](behaviors-and-play.md) explains the moving parts.
+The sampler slot comes with the bundled sample library. To add your own WAVs,
+see [Samples](README.md#samples).
+
+## Keyboard and mouse
+
+| Simulator | Instrument control |
+|---|---|
+| Arrow keys or mouse wheel | Turn *Main* |
+| *Enter* | Click *Main* |
+| *Backspace* or *Escape* | *Back* |
+| *Space* | *Play* |
+| *Shift* | *Shift* |
+| *Ctrl* | *Fn* |
+| On-screen encoders | The three Aux encoders |
+
+Everything else works the same as on the hardware, combos included, so the
+[controls cheat sheet](controls-cheat-sheet.md) applies here too.
+[Behaviors and Play pages](behaviors-and-play.md) explains the moving parts.
 
 ## Limits
 
-The simulator uses the computer's available audio output. Its saved audio
-settings do not change the computer's default output. It does not reproduce the
-physical grid, encoders, LEDs, OLED, DAC, power behavior, or USB gadget
-connections.
+The simulator plays through your computer's audio output, and its own audio
+settings don't change the computer's default output. It doesn't reproduce the
+feel of the physical grid and encoders, the LED brightness, the DAC, power
+behaviour or USB gadget connections, and board-only rows (Bluetooth, SD Card 2,
+HDMI Video, Live Show Mode) aren't in its System menu. Recording works and
+saves to your Music folder; see [Recording](recording.md).

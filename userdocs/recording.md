@@ -1,60 +1,77 @@
 # Recording audio and video
 
-Octessera can capture its sound, or a small picture-and-sound record of the
-instrument. Keep the board powered and the storage card in place while
-recording.
+Octessera can record what it plays, either as sound alone or as a little video
+of the instrument with the sound attached. Everything lives under
+`System > Recording`.
 
 ## Start and stop
 
-Open `System > Recording`:
+| Row | What it does |
+|---|---|
+| **Max Time** | Upper limit for either kind of take, 1 to 120 minutes (default 10). The take stops and saves itself when it's reached. |
+| **Start Audio** | Records the final stereo mix as a WAV file: 44.1 kHz, stereo, 16-bit. |
+| **Audio+Video** | Records an AVI with the same stereo sound plus a 272 x 128 picture at 20 fps. |
+| **Stop** | Ends the take and finishes the file. |
 
-- **Max Time** sets the limit in minutes for either recording type.
-- **Start Audio** writes the final stereo mix as a WAV file at 44.1 kHz, stereo,
-  signed 16-bit PCM. External MIDI-only instruments are not included because
-  their sound is made by the outside device.
-- **Audio+Video** writes an AVI with the same stereo sound plus a 272x128
-  lossless picture at 20 fps (each frame is a PNG, so every pixel is exactly
-  what the instrument showed): the OLED on the left, the four NeoKeys as a little
-  column in the middle (Back at the top, Fn at the bottom, each wearing a tiny
-  black keycap glyph), and the 8x8 grid on the right as chunky blocks. The
-  LEDs are shown at full color, so a video still reads fine if you play with
-  Grid Bright turned way down. Audio is the master clock, so picture and sound
-  stay in step.
-- A successful start shows **Recording started**. Starting again while a take is
-  active shows **Recording is already running**.
-- The OLED goes to sleep on its usual **OLED Sleep** timer even while a take
-  runs, so a long unattended recording won't burn your menu into the screen.
-  The video then shows the screen as it really was: asleep. Touch any control
-  to wake it, or set OLED Sleep to 0 (always on) for a session where you want
-  the screen in every frame and are around to play.
-- **Stop** ends the active take and finalizes the file. Manual stop shows
-  **Recording saved** or **Recording incomplete**. A clean max-time completion
-  shows **Max time: saved**. Use Stop before rebooting or shutting down when
-  possible.
+The video is lossless (every frame is a PNG, so every pixel is exactly what
+the instrument showed). The OLED sits on the left, the four NeoKeys make a
+little column in the middle (Back at the top, Fn at the bottom, each wearing a
+tiny keycap glyph), and the 8 x 8 grid fills the right as chunky blocks. LEDs
+are drawn at full colour, so a video still reads fine if you play with Grid
+Bright turned way down. Audio is the master clock, so picture and sound stay
+in step.
 
-Max Time also stops a take automatically. Never remove power, the recording
-storage, or the board's microSD card while a take is active.
+External MIDI instruments aren't in either recording. Their sound is made by
+the other device, so record that separately.
+
+What the OLED tells you:
+
+- `Recording started` when a take begins, or `Recording is already running` if
+  one is.
+- `Recording saved` or `Recording incomplete` after you press Stop.
+- `Max time: saved` when Max Time ended a clean take.
+
+The OLED still goes to sleep on its usual `System > Display > OLED Sleep`
+timer during a take, so a long unattended recording won't burn your menu into
+the screen. The video then shows the screen as it really was: asleep. Touch
+any control to wake it, or set OLED Sleep to 0 (always on) for a session where
+you want the screen in every frame and you're there to play.
+
+Press Stop before rebooting or shutting down. Never pull the power, the
+recording storage or the board's microSD card while a take is running.
 
 ## Where files land
 
-| Host | Audio WAV | Audio+Video AVI |
+| Host | Audio (WAV) | Audio+Video (AVI) |
 |---|---|---|
 | Desktop | `Music/Octessera/recordings/` | `Music/Octessera/screen-recordings/` |
 | Raspberry Pi | `/home/pi/recordings/` | `/home/pi/screen-recordings/` |
 | Orange Pi | `/var/lib/octessera/recordings/` | `/var/lib/octessera/screen-recordings/` |
 
+On the desktop, `Music` is your system's music folder. On the boards, the
+[backup export](data-backup-restore.md) with media included carries your
+recordings off the board too.
+
 ## Interrupted takes
 
-An interrupted take may leave a `.partial.wav` or `.partial.avi` file. It is
-not finished. An `.incomplete.wav` or `.incomplete.avi` file means Octessera
-detected dropped audio, so treat it as an incomplete recording. (If the
-recorder ever has to skip a screen frame, the video just holds the previous
-picture a moment longer; that doesn't spoil the take.) Existing takes are not overwritten.
+Existing takes are never overwritten.
+
+- A `.partial.wav` or `.partial.avi` file is a take that never finished, for
+  example because the power went.
+- An `.incomplete.wav` or `.incomplete.avi` file finished, but Octessera
+  noticed dropped audio while recording it.
+
+If the recorder has to skip a video frame, the picture holds a moment longer
+and the take is still fine.
 
 ## Playing the result
 
-WAV files work with Audacity, a normal DAW, VLC, `ffplay`, and most everyday
-audio tools. Try VLC, mpv, or `ffplay` for an Audio+Video AVI. Some video
-editors don't read PNG-frame AVIs directly; convert first with FFmpeg, e.g.
-`ffmpeg -i take.avi -c:v libx264 -crf 12 -pix_fmt yuv444p -c:a aac take.mp4`,
-or keep it pixel-exact with `-c:v ffv1`.
+WAV files open in Audacity, any DAW, VLC, `ffplay` and most everyday audio
+tools. For an Audio+Video AVI, try VLC, mpv or `ffplay`. Some video editors
+don't read PNG-frame AVIs; convert first with FFmpeg:
+
+```sh
+ffmpeg -i take.avi -c:v libx264 -crf 12 -pix_fmt yuv444p -c:a aac take.mp4
+```
+
+or keep it pixel-exact with `-c:v ffv1` instead.

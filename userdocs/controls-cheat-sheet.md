@@ -1,163 +1,173 @@
 # Controls cheat sheet
 
-This is the map to keep beside the instrument while you learn where everything
-lives.
+Keep this beside the instrument while you learn where everything lives. It
+prints on a few pages; the [printable quick reference](print/quick-reference.pdf)
+is the one-sheet version.
 
-Octessera has regular controls and temporary modes: Play pages, grid assignment
-modes, sample assignment, and context help. When in doubt, watch the OLED. It
-shows what the controls are acting on.
+Octessera has regular controls and a few temporary modes (Play pages, cell
+assignment, the probability painter, context help). When in doubt, look at
+the OLED. It always shows what the controls are acting on.
 
-The performance area is **Play**, with **Play FX** for momentary effects.
+## Learn these five first
 
-## Learn these five controls first
-
-| Learn this | First use |
+| Control | What it does |
 |---|---|
-| *Turn Main* | Move through menus or change the value being edited. |
-| *Click Main* | Select, enter, edit, or confirm. |
-| *Back* | Leave an edit, overlay, or menu level. |
-| *Play* / *Space* | Start or pause playback. |
-| Hold *Fn* and use a grid column | Preview layers on the left and Play pages on the right; press a cell to jump there. |
-
-Once these feel familiar, use the exact tables below for stop, reset, binding,
-probability, transpose, and Play FX behavior.
+| Turn *Main* | Move through menus, or change the value you're editing. |
+| Click *Main* | Select, enter, edit or confirm. |
+| *Back* | Leave an edit, an overlay or a menu level. |
+| *Play* (*Space* in the simulator) | Start or pause. |
+| Hold *Fn*, press a grid edge cell | Left column picks a layer, right column picks a Play page. |
 
 ## Regular controls
 
-| Control | Area | What it does |
-|---|---|---|
-| *Turn main encoder* | **Menu navigation/editing** | Navigate the menu; while editing a number, plain turns are coarse and *Fn* turns are fine. *Shift* and combined *Shift*+*Fn* turns remain coarse. Times, frequencies and decay amounts take smaller steps where small changes matter: an attack moves 1 ms at a time near zero, a filter or LFO rate by about a quarter-tone. Other edit types keep their ordinary turn behavior. |
-| *Click main encoder* | **Menu selection** | Select menu entries, enter groups, edit values, or confirm actions. |
-| *Back* | **Exit current location** | Exit the current edit, leave the current overlay, or go back one menu level. |
-| *Play* / *Space* | **Transport** | Play or pause. |
-| *Play* / *Space* | **Sample browser preview** | In sample browser menus, preview the highlighted sample. |
-| *Shift* + *Play* | **Stop** | Stop playback. In external sync, this arms a one-shot resync at the next 96-PPQN (one-bar) boundary instead of stopping the external clock; playback and the grid continue, then the transport origin resets and the arm clears. |
-| *Fn* + *Play* | **Reset stop** | Stop, reset the transport position, and silence Octessera-owned notes. |
-| *Fn* + turn main encoder right (not editing) | **Single step** | While paused or stopped, advance one step/tick. Turning left is a no-op; while playing, the OLED asks you to pause first. Editing takes priority: on numbers *Fn* turns are fine, and enums/text keep their ordinary edit behavior. |
-| *Shift* + *Fn* + *Play* | **Reserved** | No action for now. A tiny patch of silence in the shortcut garden. |
-| *Shift* + *Back* | **Clear active layer** | Re-initialize the active layer. Very useful. Also very easy to press on purpose only. |
-| *Shift* + *Fn* + *click main encoder* | **Context help** | Hold *Shift* + *Fn*, then click a menu item with *Main* to open help for that item. |
+| Control | What it does |
+|---|---|
+| Turn *Main* | Move through the menu. While editing a number, plain turns are coarse and *Fn* turns are fine; *Shift* and *Shift* + *Fn* turns stay coarse. |
+| Click *Main* | Select a row, enter a group, start or finish an edit, or run an action. |
+| *Back* | Finish the current edit, leave the current overlay, or go up one menu level. |
+| *Play* | Play or pause. In the sample browser it previews the highlighted sample instead. |
+| *Shift* + *Play* | Stop and return to the start. Under external MIDI sync it instead arms a one-off resync at the next bar; playback carries on, then the transport snaps back to its origin. |
+| *Fn* + *Play* | Stop and return to the start, always, even in the sample browser or under external sync. |
+| *Fn* + turn *Main* right (not editing) | While paused or stopped, step the world forward one generation. Left does nothing; while playing, the OLED asks you to pause first. |
+| *Shift* + *Fn* + *Play* | Nothing yet. A tiny patch of silence in the shortcut garden. |
+| *Shift* + *Back* | Clear and re-initialize the active layer. Very useful, and you have to mean it. While editing text, it deletes a character instead. |
+| *Shift* + *Fn* + click *Main* | Context help for the highlighted row. |
+| *Fn* + click *Main* | Open the [Aux mappings](#aux-mappings-modal) list. |
 
-Stop, accepted MIDI Start, and resync reset the transport origin, scan, autonomous
-Build cadence, Pattern phase, and Looper playback position. They keep evolved
-worlds, settings, and the recorded loop. Pause/Continue resumes the exact phase.
+Stopping (and an accepted MIDI Start or resync) rewinds the transport, the
+scan cursor, Pattern phase and the Looper's playback position. It keeps your
+evolved worlds, your settings and the recorded loop. Pause and continue picks
+up exactly where it left off.
+
+**Curved steps.** Times, frequencies and decay amounts take smaller steps where
+small changes matter. Millisecond times move 1 ms per detent below 20 ms, 5 ms
+up to 100 ms, 25 ms up to a second and 100 ms beyond (with *Fn*, one notch
+finer). Effect frequencies, rates and Q move about a quarter-tone per detent.
+Reverb Decay and delay Feedback slow down near the top so long tails stay
+settable. Instrument filter cutoffs keep their ordinary steps, and everything
+else moves in plain even steps.
 
 ## USB-host keyboard
 
-When the keyboard is acting as a host control surface, it follows the instrument's
-controls rather than becoming a tiny typing machine:
+A computer keyboard plugged into the instrument (or a paired
+[Bluetooth keyboard](bluetooth.md)) acts as a second set of controls, not a
+typing machine:
 
 | Keyboard | Instrument control |
 |---|---|
-| *←* / *↑* or *→* / *↓* | Turn *Main* left or right. |
+| *←* / *↑* and *→* / *↓* | Turn *Main* left / right. |
 | *Enter* | Click *Main*. |
-| *Q* / *W* / *E* | Turn *Aux 1* left / click / right. |
-| *A* / *S* / *D* | Turn *Aux 2* left / click / right. |
-| *Y/Z* / *X* / *C* | Turn *Aux 3* left / click / right. The first key is the physical key immediately right of left Shift. |
+| *Q* / *W* / *E* | *Aux 1* left / click / right. |
+| *A* / *S* / *D* | *Aux 2* left / click / right. |
+| *Y/Z* / *X* / *C* | *Aux 3* left / click / right. The first key is the one immediately right of left *Shift*, whatever its keycap says. |
 | *Backspace* / *Escape* | *Back*. |
-| *Space* | *Play*. |
-| *Shift* | *Shift* modifier. |
-| *Control* | *Fn* modifier. |
+| *Space* | *Play*. (The letter *S* is the *Aux 2* click.) |
+| *Shift* | *Shift*. |
+| *Control* | *Fn*. |
 
-A paired [Bluetooth keyboard](bluetooth.md) uses the same map.
-Only the first supported keyboard gets the controls. For host-role, mode-gating,
-and shortcut details, see the [menu and controls specification](../docs/menu-and-controls-spec.md).
-On Linux, the physical Aux 3 left key is bound as `KEY_Z` even on a QWERTZ
-keyboard whose keycap says Y. Space remains the hardware S button; the letter S
-is the Aux 2 encoder click.
+Two conditions apply. `System > Display > HDMI Video > Mode` has to be a
+graphical mode, not `Terminal` (and `Terminal` is the shipped default, so
+change it first). A wired keyboard on the Raspberry also needs
+`System > Connections > USB Role` set to Host; the Orange has a fixed USB-A
+port for it. Only the first keyboard picked up gets the controls. The
+[USB roles page](hardware/usb-roles.md) has the wiring side.
 
 ## Context help
 
-To use context help, highlight the menu item you want with *Main*, hold *Shift*
-and *Fn*, then click *Main*. The OLED opens help for that item. Turn *Main* to
-scroll and click *Main* to close it; *Back* also leaves the help display.
+Highlight a row with *Main*, hold *Shift* and *Fn*, then click *Main*. Turn
+*Main* to scroll; click *Main* or press *Back* to close it.
 
-Help is specific to the selected menu item, whether it is a parameter, action,
-selector, or mode. To read help for another item, close help, highlight that
-item, and use the shortcut again. The same shortcuts work on the hardware and
-in the simulator.
+Help belongs to the highlighted row, whether it's a parameter, action,
+selector or mode. For another row, close help, highlight that row and ask
+again. Hold *Shift*, *Fn* or both for more than a second and the OLED reminds
+you what they do. `System > Basic Help` shows the core shortcuts in one place.
 
 ## Aux mappings modal
 
 | Control | What it does |
 |---|---|
-| *Fn* + click *Main* | Open the scrollable Aux mappings modal from anywhere, stopped or playing. Let go of *Fn* and the modal stays open. Holding *Fn* alone does not open it. |
-| Turn *Main* | Scroll the modal. |
-| Click *Main*, *Fn* + click *Main* again, or press *Back* | Close the modal. |
+| *Fn* + click *Main* | Open the list from anywhere, stopped or playing. It stays open after you let go of *Fn*. |
+| Turn *Main* | Scroll. |
+| Click *Main*, *Fn* + click *Main*, or *Back* | Close. |
 
-The modal lists all three Aux encoders' Turn and Click mappings in both the
-normal and shifted banks, including unbound entries as `-`. Normal mappings use
-custom bindings first, then auto-map. Shifted mappings use custom bindings only.
-Aux turns and clicks do nothing while the modal is open, so they cannot change
-the menu or trigger a binding.
-
-*Shift* + *Fn* + click *Main* opens context help instead. After closing the
-modal, ordinary *Main* and *Shift* + *Main* clicks, *Fn* fine turns, and *Aux*
-bindings work as usual.
-
-## Grid navigation shortcuts
-
-| Control | Area | What it does |
-|---|---|---|
-| *Fn* + left grid column | **Navigate to Layer 1–8** | Jump to the chosen layer. Bottom row is layer 1. |
-| *Hold* *Fn* | **Navigation preview** | Left column shows layers: cyan for navigation/current focus, green for configured layers, gray/black for inactive or unavailable cells. Right column shows Play pages in yellow, with the active page in green. |
-| *Shift* + *Fn* + left grid column | **Layer trigger toggle** | Toggle that layer's emissions without changing the active layer. |
-| *Fn* + right grid column | **Navigate to Play pages** | Jump to *Mix*, *Pan*, *FX*, *Trigger Gate*, *Transpose*, *XY*, or *Drums*. If Play is already active, this exits Play. |
-| *Fn* + *aux encoder click* | **Bind focused value/action** | Assign the highlighted menu value to that aux turn, or the highlighted action to that aux click. |
+It shows all three Aux encoders' turn and click mappings in the normal and
+*Shift* banks, with `-` for unbound. Aux turns and clicks do nothing while it's
+open, so you can't change anything by accident.
 
 ## Aux encoders and auto-map
 
-Auto-map maps *Aux encoders 1–3* to the most important parameters and actions of the menu area you are currently in. It temporarily overrides the manual binding you might have created.
+Each Aux encoder has a **turn** binding (changes a value) and a **click**
+binding (runs an action). Auto-map gives any turn or click you haven't bound
+yourself the most useful control of whatever menu area you're in. Your own
+bindings always win. `System > Display > Auto Map` switches it off.
 
-Each *Aux encoder* has two possible bindings:
+- Bind your own: highlight a row and press *Fn* + click that Aux encoder. A
+  value becomes its turn binding, an action its click binding.
+- *Shift* + *Fn* + click an Aux encoder binds into the *Shift* bank instead.
+  Hold *Shift* while turning or clicking to use it. That bank has no auto-map
+  and no fallback.
+- On numbers, a plain Aux turn is coarse and *Fn* + turn is fine; the same
+  goes for *Shift* and *Shift* + *Fn* in the *Shift* bank. Lists and switches
+  move one option per detent.
 
-- **Turn binding**: turning the encoder changes a value.
-- **Click binding**: clicking the encoder triggers an action.
-
-You can bind aux controls yourself with *Fn* + *aux encoder click* while a bindable menu item is selected.
-
-On numeric targets, a plain Aux turn is coarse and *Fn*+turn is fine. *Shift* selects the shifted custom bank and stays coarse; combined *Shift*+*Fn* uses that same bank finely. The shifted bank does not fall back to normal bindings or auto-map. Enum and bool targets keep their discrete turns.
-
-How to read OLED markers:
+OLED markers:
 
 | Marker | Meaning |
 |---|---|
 | `1-Cutoff` | *Aux 1* turn is bound or auto-mapped to Cutoff. |
 | `1!Assign` | *Aux 1* click is bound or auto-mapped to Assign. |
-| `1-` and `1!` on one item | That aux has both a turn binding and a click binding in this context. |
-| `not active` toast | The binding still exists, but the target is hidden or inactive right now. |
+| `1-` and `1!` on one row | That encoder has both a turn and a click binding here. |
+| `not active` toast | The binding still exists, but its target is hidden or inactive right now. |
+
+## Grid navigation
+
+| Control | What it does |
+|---|---|
+| Hold *Fn* | Preview: the left column shows layers (cyan for the current one, green for layers with a behavior, dim for empty ones; with a Play page open, every layer with a behavior shows cyan). The right column shows Play pages in dim yellow with the open one in green. |
+| *Fn* + left column | Jump to that layer (bottom row is Layer 1). This also closes any open Play page. |
+| *Fn* + right column | Open a Play page. From the bottom: Mix, Pan, FX, Trigger Gate, Transpose, XY, Drums. |
+| *Shift* + *Fn* + left column | Mute or unmute that layer's triggers without switching to it. Muting releases its held notes. |
+| *Fn* + click an Aux encoder | Bind the highlighted value or action to that encoder. |
+
+The Play pages themselves are explained in
+[Behaviors and Play pages](behaviors-and-play.md#play-pages).
+
+## Assignment modes
+
+These take over the grid until you press *Back*. In all of them, *Shift* +
+cell applies to the whole row and *Shift* + *Fn* + cell to the whole column.
+
+| Mode | Opened from | What a press does |
+|---|---|---|
+| Sample assignment | `Sampler > Assign` | Stamps the sample slot plus Cell Tune, Fine and Level. High, Medium and Low cells light magenta, yellow and green; Base cells pale white; other slots dim grey. |
+| Drum assignment | `Drum > Assign` | Stamps the selected voice plus the Cell values. The selected voice's cells light bright white, other voices dim white. |
+| Trigger probability map | `Link > Lx > Trigger Prob. > Map Prob Grid` | Cycles the cell through zero, low, high and full (dark, magenta, yellow, green). |
+| Play FX mapping | `Play > FX > Map to Grid` | Stores the current momentary effect on the cell. |
+
+When stamping, pressing a cell that already holds exactly that stamp clears it;
+anything else gets overwritten. More in
+[Sound and Link](sound-and-link.md#drum-and-sampler-cells-are-stamps).
 
 ## Cell-to-audio flow
 
 ![Cell-to-audio flowchart](print/cell-to-audio-flow.svg)
 
-Scanning is optional. If a layer is not scanning, it can still emit events such
-as `activate` or direct grid events from `keys` and `looper`.
-
-## Special modes
-
-| Area | What changes |
-|---|---|
-| Sample assignment | Each press stamps the sample plus the Cell Tune/Fine/Level values. *Shift* + cell stamps the whole row; *Shift* + *Fn* + cell the whole column. Press an exact match again to clear it. |
-| Drum assignment | Select a Drum voice, set the Cell rows, then Assign. *Shift* + cell stamps its row; *Shift* + *Fn* + cell its column. Re-stamp a cell to change it. |
-| Trigger probability map | Cells set trigger chance for the selected layer: never, low, high, or always. *Shift* + cell maps the whole row. *Shift* + *Fn* + cell maps the whole column. |
-| Play Mix | Grid turns into a mixer, where you can change the volume of each layer. |
-| Play Pan | Grid lets you move around the layers' stereo position. |
-| Play FX | Press mapped cells to trigger live effects. Releasing the cell stops the effect. |
-| Play Trigger Gate | Grid lets you quickly block, allow, or use custom probability for each layer's triggers. |
-| Play Transpose | Grid temporarily transposes Synth, FM, Plucked, and enabled MIDI notes; not Sampler or Drum. |
-| Play XY | Mappable two-axis surface for live-manipulating parameters. |
-| Play Drums | Tap assigned cells in the selected Drum slot, even with transport stopped; empty cells are silent. |
+Scanning is optional. A layer that isn't scanning still plays from cell events
+like `activate`, or directly from your presses in `keys` and `looper`.
 
 ## Sample browser
 
-In the sample browser, `..` goes to the parent, `[folder]` opens a folder, file
-rows are samples, and `(empty)` means there are no entries. Press *Play* /
-*Space* to preview the highlighted sample. Long names clip or scroll without
-overlapping other OLED text.
+`..` goes up a folder, `[folder]` opens one, the other rows are samples, and
+`(empty)` means there's nothing here. *Play* previews the highlighted sample.
+Long names clip or scroll rather than run into other text.
 
 ## Tiny survival notes
 
-- The OLED is the truth. If the grid behaves in an unexpected way, you are probably in an overlay or Play page. Take a look at the OLED, and back out using *Back* or navigate away using *Fn*.
-- Help is *Shift* + *Fn* + *click main encoder*. I made it a button combination so it is hard to hit by accident.
-- If a behavior gets too busy, try probability before you delete the pattern. Let it breathe.
+- The OLED is the truth. If the grid does something odd, you're probably on a
+  Play page or in an assignment mode. Check the OLED, then press *Back* or
+  jump away with *Fn*.
+- Help is *Shift* + *Fn* + click *Main*. I made it a three-finger combo so you
+  won't open it by accident (you also won't remember it the first week, which
+  is why it's on the startup screen).
+- If a behavior gets too busy, try probability before you delete the pattern.
+  Let it breathe.
