@@ -44,7 +44,6 @@ function capabilitiesFrom(source) {
     maxSampleVoices: positiveInteger(source, "maxSampleVoices"),
     maxSynthVoicesPerSlot: positiveInteger(source, "maxSynthVoicesPerSlot"),
     maxSampleVoicesPerSlot: positiveInteger(source, "maxSampleVoicesPerSlot"),
-    busFxWarningSlotCount: positiveInteger(source, "busFxWarningSlotCount"),
     busCount: positiveInteger(source, "busCount"),
     globalFxSlotCount: positiveInteger(source, "globalFxSlotCount"),
     auxEncoderCount: positiveInteger(source, "auxEncoderCount"),

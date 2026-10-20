@@ -98,7 +98,6 @@ test("platform capabilities match the hardware profile", () => {
     maxSampleVoices: 64,
     maxSynthVoicesPerSlot: 8,
     maxSampleVoicesPerSlot: 8,
-    busFxWarningSlotCount: 12,
     busCount: 4,
     globalFxSlotCount: 2,
     auxEncoderCount: 3,

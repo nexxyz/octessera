@@ -45,7 +45,6 @@ fn main() {
          pub const MAX_SAMPLE_VOICES: usize = {};\n\
          pub const MAX_SYNTH_VOICES_PER_SLOT: usize = {};\n\
          pub const MAX_SAMPLE_VOICES_PER_SLOT: usize = {};\n\
-         pub const BUS_FX_WARNING_SLOT_COUNT: usize = {};\n\
          pub const GLOBAL_FX_SLOT_COUNT: usize = {};\n\
          pub const INSTRUMENT_SLOT_COUNT: usize = {};\n\
          pub const BUS_COUNT: usize = {};\n\
@@ -59,7 +58,6 @@ fn main() {
         positive_usize(&value, "maxSampleVoices"),
         positive_usize(&value, "maxSynthVoicesPerSlot"),
         positive_usize(&value, "maxSampleVoicesPerSlot"),
-        positive_usize(&value, "busFxWarningSlotCount"),
         positive_usize(&value, "globalFxSlotCount"),
         positive_usize(&value, "instrumentCount"),
         positive_usize(&value, "busCount"),

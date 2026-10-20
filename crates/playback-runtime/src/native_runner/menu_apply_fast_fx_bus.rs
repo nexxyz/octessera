@@ -227,7 +227,6 @@ impl NativeRunner {
                 params,
             });
         }
-        self.warn_if_bus_fx_over_budget();
         true
     }
 

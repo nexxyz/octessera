@@ -34,7 +34,6 @@ fn main() {
     let global_fx_slot_count = positive_usize(&value, "globalFxSlotCount");
     let aux_encoder_count = positive_usize(&value, "auxEncoderCount");
     let play_fx_max_concurrent = positive_usize(&value, "playFxMaxConcurrent");
-    let bus_fx_warning_slot_count = positive_usize(&value, "busFxWarningSlotCount");
     let pan_position_count = positive_u8(&value, "panPositionCount");
     let oled_width = positive_usize(&value, "oledWidth");
     let oled_height = positive_usize(&value, "oledHeight");
@@ -59,7 +58,6 @@ pub const BUS_COUNT: usize = {bus_count};
 pub const GLOBAL_FX_SLOT_COUNT: usize = {global_fx_slot_count};
 pub const AUX_ENCODER_COUNT: usize = {aux_encoder_count};
 pub const PLAY_FX_MAX_CONCURRENT: usize = {play_fx_max_concurrent};
-pub const BUS_FX_WARNING_SLOT_COUNT: usize = {bus_fx_warning_slot_count};
 pub const SCAN_SECTION_COUNTS: &[usize] = &[{scan_section_counts_source}];
 pub const PAN_POSITION_COUNT: u8 = {pan_position_count};
 pub const OLED_WIDTH: usize = {oled_width};
@@ -78,7 +76,6 @@ pub const PLATFORM_CAPABILITIES: PlatformCapabilities = PlatformCapabilities {{
     global_fx_slot_count: GLOBAL_FX_SLOT_COUNT,
     aux_encoder_count: AUX_ENCODER_COUNT,
     play_fx_max_concurrent: PLAY_FX_MAX_CONCURRENT,
-    bus_fx_warning_slot_count: BUS_FX_WARNING_SLOT_COUNT,
     scan_section_counts: SCAN_SECTION_COUNTS,
     pan_position_count: PAN_POSITION_COUNT,
     oled_width: OLED_WIDTH,

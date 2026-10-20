@@ -395,62 +395,6 @@ pub(crate) fn sparse_fx_bus_payload_defaults_omitted_slot3_to_none() {
 }
 
 #[test]
-pub(crate) fn active_bus_fx_slot_count_includes_slot3() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot3_type = "tremolo".into();
-
-    assert_eq!(runner.active_bus_fx_slot_count(), 1);
-}
-
-#[test]
-pub(crate) fn active_bus_fx_warning_allows_exact_product_budget() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    for bus in &mut runner.fx_buses {
-        bus.slot1_type = "delay".into();
-        bus.slot2_type = "reverb".into();
-        bus.slot3_type = "eq".into();
-    }
-
-    runner.warn_if_bus_fx_over_budget();
-
-    assert_eq!(runner.active_bus_fx_slot_count(), 12);
-    assert!(runner.display.toast.is_none());
-}
-
-#[test]
-pub(crate) fn active_bus_fx_warning_reports_synthetic_over_budget_state() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    for bus in &mut runner.fx_buses {
-        bus.slot1_type = "delay".into();
-        bus.slot2_type = "reverb".into();
-        bus.slot3_type = "eq".into();
-    }
-    runner.fx_buses[0].slot1_type = "none".into();
-    let mut extra = runner.fx_buses[0].clone();
-    extra.slot1_type = "delay".into();
-    extra.slot2_type = "none".into();
-    extra.slot3_type = "none".into();
-    runner.fx_buses.push(extra);
-    runner.menu.rebuild(runner.menu_config());
-    assert!(runner.menu.focus_item_key("mixer.buses.0.slot1.type"));
-    runner.menu.state.editing = true;
-
-    let _messages = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-
-    assert_eq!(runner.active_bus_fx_slot_count(), 13);
-    assert!(runner
-        .display
-        .toast
-        .as_ref()
-        .is_some_and(|toast| toast.message.contains("13/12")));
-}
-
-#[test]
 pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = unversioned_payload(runner.config_payload());
