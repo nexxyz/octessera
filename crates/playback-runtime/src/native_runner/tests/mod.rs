@@ -81,6 +81,7 @@ mod duck_fx_ranges;
 mod external_resync_boundary;
 mod factory_instrument_load;
 mod factory_kit_assets;
+mod factory_sound_sanity;
 mod fast_dispatch_parity;
 mod fm;
 mod fm_device;
