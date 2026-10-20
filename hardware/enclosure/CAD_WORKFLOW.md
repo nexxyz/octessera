@@ -106,17 +106,25 @@ Use this checklist before changing generated solids, Z transitions, or board-adj
   asks to move the ports/cutouts themselves. Port geometry is hardware-layout
   critical. Icon/mark placement requests do not imply physical port movement.
 
-## Bottom plate plan
+## Bottom plate
 
-The bottom artifact is a flat drill/alignment plate, not the final enclosure tray.
+The bottom is the shipped lower shell of the enclosure, not just a drilling
+template.
 
 - Source: `generate_bottom_plate_cadquery.py`.
 - Exports: `step/case_bottom_plate_cadquery.step` and `stl/case_bottom_plate_cadquery.stl`.
 - Footprint: same rounded rectangle as the faceplate.
-- Holes: one M3 clearance hole and bottom-side counterbore at each `faceplate_insert_pillars_v22` position.
-- Guide walls: low inset perimeter ribs align the faceplate without forming a full tray.
-- Scope exclusions for this step: no full-height side walls, no port cutouts, no PCB retention, no NeoTrellis retention, no internal towers.
-- Validate with `validate_bottom_plate.py` after changing insert positions or bottom-plate dimensions.
+- Screw holes: one M3 clearance hole with a bottom-side counterbore at each
+  `faceplate_insert_pillars_v22` position. The four corner counterbores are
+  `5.8 mm`; the other four are `6.4 mm`.
+- Guide walls: low inset perimeter ribs that align the faceplate, with keepouts
+  around the screw positions.
+- Support pillars: one per `bottom_component_support_pillars_v22` entry (four
+  each for the compute board, OLED, DAC and NeoKey, two for the power breakout,
+  and eight taller NeoTrellis pillars).
+- No full-height side walls and no port cutouts; the top owns those.
+- Run `validate_bottom_plate.py` after changing insert positions, pillars or
+  bottom-plate dimensions.
 
 ## Required roof checks
 
@@ -141,6 +149,17 @@ Top enclosure artifact filenames include the full board name. Use `rpi` for Rasp
 - `stl/case_top_two_level_cadquery_orange-pi-zero-2w.stl`: Orange Pi Zero 2W printable/check-fit mesh.
 - `3mf-single-material/case_top_two_level_cadquery_orange-pi-zero-2w.3mf`: Orange Pi Zero 2W single-material top.
 - `3mf-multicolor/case_top_two_level_orange-pi-zero-2w_multicolor.3mf`: Orange Pi Zero 2W multicolor top.
+
+The other parts of the print set have their own generators:
+
+| Parts | Generator |
+|---|---|
+| Encoder caps | `generate_encoder_caps_cadquery.py` |
+| MX keycaps | `generate_mx_keycaps_cadquery.py` |
+| Standoff pillars and top pins | `generate_standoff_pillars.py`, `generate_standoff_top_pins.py` |
+| Friction-insert plug and pin | `generate_friction_insert_plug_pins.py` |
+| Multicolor 3MF caps, keycaps and tops | `generate_multimaterial_caps_3mf.py` |
+| Single-material 3MF set | `generate_single_material_3mf_from_stl.py` |
 
 STEP, STL, and 3MF files are generated artifacts. Edit the CadQuery source, not
 the exported files.

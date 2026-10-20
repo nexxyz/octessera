@@ -1,101 +1,80 @@
 # USB roles
 
-Use this page after [flash and first boot](flash-and-first-boot.md) when you
-need to connect a computer or USB device.
+Use this page after [flash and first boot](flash-and-first-boot.md), when you
+want to plug the instrument into a computer (as a USB audio/MIDI device) or plug
+a USB device, such as a keyboard, into the instrument.
 
-Keep the instrument powered through the enclosure USB-C power breakout. The
-data cable is not a second power supply. Never connect two power sources and
-never rely on a cable or adapter to prevent back-feed.
+> **Power first:** Keep the instrument powered through the enclosure's USB-C
+> power breakout. A USB data cable is not a second power supply. Never connect
+> two power supplies, and never rely on a cable or adapter to prevent back-feed.
+> The details are in [safety and power](safety-and-power.md).
 
 ## Raspberry Pi
 
-The Raspberry Pi USB data port starts in **Gadget** mode. In this mode, connect
-the Pi's micro-USB data/gadget port to a computer with a USB-A-to-Micro-USB
-cable.
+The Raspberry Pi's USB data port can do one of two jobs, chosen at boot:
 
-To use the port with USB devices instead:
+| Role | What it does | Connect |
+|---|---|---|
+| **Gadget** (default) | The instrument appears to a computer as USB Audio, USB MIDI and, on request, the SD2 card transfer. | The Pi's micro-USB data port to a computer's USB-A port, with a USB-A-to-micro-USB cable. |
+| **Host** | The instrument talks to USB devices such as a keyboard or a MIDI controller. | A USB device through a micro-USB OTG adapter. |
 
-1. Disconnect the computer's USB data cable.
-2. Turn USB Audio and USB MIDI off.
+For the computer connection, use a USB-A port on the computer or a hub. Avoid
+USB-C-to-USB-C cables and USB Power Delivery chargers or ports for this.
+
+### Switch to Host
+
+1. Unplug the computer's USB cable.
+2. Turn **USB Audio** and **USB MIDI** off.
 3. Open `System > Connections > USB Role` and select **Host**.
-4. Save the setting and wait for the OLED to report the reboot result.
-5. After reboot, connect the device through an ID-grounded micro-USB OTG
-   adapter. A powered hub is useful only when its upstream path cannot
-   back-feed the instrument.
+4. Confirm the save. The OLED reminds you to unplug the computer and offers
+   **Reboot now**; the new role only takes effect after a reboot.
+5. After the reboot, connect your device through the OTG adapter. A powered hub
+   is fine only if it cannot back-feed power into the instrument.
 
-The role changes on the next boot; do not try to change it while the port is
-live. Host mode disables gadget USB Audio, gadget USB MIDI, and new SD2
-transfers. Gadget mode makes USB Audio, USB MIDI, and SD2 transfer available
-again, but switching back to Gadget does not restore USB features or audio
-outputs that Host mode disabled.
-After reboot, turn the desired USB features back on separately.
+In Host mode, USB Audio, USB MIDI and starting new SD2 transfers are
+unavailable.
 
-Use a USB-A host or hub connection for the bench cable. Avoid USB-C-to-USB-C
-and USB Power Delivery cables for this connection.
+### Switch back to Gadget
 
-### Keyboard control
-
-With the persisted role set to **Host**, connect one supported USB keyboard
-through the OTG adapter. Octessera captures the first supported keyboard only
-and grabs it exclusively while capture is active. A second keyboard waits until
-the first one is unplugged. Plugging in or unplugging a keyboard takes effect
-while the instrument is running.
-
-A [Bluetooth keyboard](../bluetooth.md) works in either role.
-
-Keyboard capture is available only when `System > Display > HDMI Video > Mode` is a
-graphical mode: `live-grid`, `plain-grid`, `active-behavior`, or
-`cycle-behaviors`. `Terminal` releases capture; changing back to a graphical
-mode picks up a supported connected keyboard again.
-
-The base keys mirror simulator controls. USB-host capture additionally maps the
-three AUX encoder rows:
-
-| Keyboard key | Control |
-|---|---|
-| ← / ↑ | Main encoder turn left |
-| → / ↓ | Main encoder turn right |
-| Enter | Main encoder press |
-| Q / W / E | Aux 1 turn left / click / right |
-| A / S / D | Aux 2 turn left / click / right |
-| Y/Z / X / C | Aux 3 turn left / click / right |
-| Backspace / Escape | Back |
-| Space | Play / Pause |
-| Shift | Shift |
-| Control | Fn |
-
-Arrow and Aux turn repeats turn their encoder again. Repeats for Enter, Aux
-clicks, Back, Space, Shift, and Control are ignored; their key releases still
-release the matching native control. That keeps combinations such as
-Shift+Space and Control+Space on the same native path as the buttons:
-Shift+Space is Stop (or Resync arm under external sync), and Control+Space is
-Reset stop.
-
-The Aux 3 left key is the physical key immediately right of left Shift. Linux
-binds that position as `KEY_Z`, whether the keycap says Y or Z. Space remains
-the hardware S button; the letter S is the Aux 2 encoder click.
-
-To return to Gadget mode, disconnect the USB device, select
-`System > Connections > USB Role > Gadget`, save, and reboot. Then connect the data port to a
-computer with the USB-A-to-Micro-USB cable.
+1. Unplug the USB device.
+2. Select `System > Connections > USB Role > Gadget`, save, and reboot.
+3. Connect the data port to a computer with the USB-A-to-micro-USB cable.
+4. Turn USB Audio or USB MIDI back on yourself if you want them. Switching back
+   to Gadget does not re-enable the features that Host mode switched off.
 
 ## Orange Pi
 
-Orange has fixed image-defined USB roles and no `System > Connections > USB Role` switch. USB
-data is optional for normal use. Its fixed USB-A host connector accepts the
-keyboard independently of USB0 OTG/gadget behavior; there is no Orange role
-switch to change.
+The Orange Pi's USB roles are fixed by the image, so there is no
+`System > Connections > USB Role` setting. Its separate USB host port takes a
+keyboard regardless of what the other (OTG/gadget) port is doing. USB data is
+optional for normal use.
 
-The same graphical HDMI gate and keyboard mapping apply on Orange. HDMI mode
-changes and keyboard hotplug are live, and capture remains exclusive to the
-first supported keyboard. The Aux 3 left key follows the same physical Y/Z
-rule, and the letter S remains Aux 2 click rather than the hardware Space/S
-button.
+On Orange, while **USB MIDI** (the computer-facing USB Device MIDI) is on, it is
+the active MIDI route. Any MIDI Host output you chose is remembered for when you
+turn USB Device MIDI off; **Disconnect** forgets that remembered choice but does
+not switch USB Device MIDI off.
 
-On Orange, USB Device MIDI remains the active route while it is enabled. Host
-MIDI output choices are retained for later use when USB Device MIDI is disabled;
-Disconnect clears the retained Host choice but does not disable active USB Device
-MIDI.
+## USB keyboard control
 
-For the physical openings, see [enclosure](enclosure.md). For the shared power
-rules, see [safety and power](safety-and-power.md).
+A USB keyboard can drive the instrument with the same controls as the
+hardware. The key map is in the [controls cheat
+sheet](../controls-cheat-sheet.md#usb-host-keyboard).
+
+- **Where to plug it in:** on the Raspberry Pi, the USB role must be **Host**
+  (see above). On the Orange Pi, use its USB host port.
+- **When it works:** only while `System > Display > HDMI Video > Mode` is one of
+  the graphical modes: `live-grid`, `plain-grid`, `active-behavior` or
+  `cycle-behaviors`. `Terminal` releases the keyboard; switching back to a
+  graphical mode picks it up again.
+- **One at a time:** the first supported keyboard is captured exclusively. A
+  second one waits until the first is unplugged. Plugging and unplugging works
+  while the instrument is running.
+- **Held keys:** arrow and Aux-turn keys repeat when held, like turning the
+  knob further. Held Enter, Aux clicks, Back, Space, Shift and Control do not
+  repeat, so combinations such as Shift+Space (Stop) and Control+Space (Reset
+  stop) behave like the buttons.
+
+A [Bluetooth keyboard](../bluetooth.md) uses the same map and works in either
+Raspberry USB role.
+
+For the physical openings, see [enclosure](enclosure.md).

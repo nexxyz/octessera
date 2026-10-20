@@ -1,92 +1,132 @@
 # Flash and first boot
 
-Use this shared flow after the open assembly is wired and ready to power. The
-Raspberry Pi Zero 2 W and Orange Pi Zero 2W use different images, but the
-user-facing first boot is the same.
+This is the moment the soldering turns into an instrument. Do it with the
+[open assembly](assembly-manual.md#4-open-assembly) wired up and the case still
+off, so anything that misbehaves is still within reach.
+
+The Raspberry Pi Zero 2 W and the Orange Pi Zero 2W use different images, but
+from here on the steps are the same.
 
 ## 1. Download the board image
 
-Open the [current release page](https://github.com/nexxyz/octessera/releases)
-and download the image for the board in your instrument:
+Open the [releases page](https://github.com/nexxyz/octessera/releases) and
+download the image for **your** board:
 
-- **Raspberry Pi Zero 2 W:** choose the Raspberry Pi Zero 2 W image.
-- **Orange Pi Zero 2W:** choose the Orange Pi Zero 2W image.
+| Board | Image file | Checksum file |
+|---|---|---|
+| Raspberry Pi Zero 2 W | `octessera-<version>-raspberry-pi-zero-2w.img.zip` | `SHA256SUMS-pi.txt` |
+| Orange Pi Zero 2W | `octessera-<version>-orange-pi-zero-2w.img.xz` | `octessera-<version>-orange-pi-zero-2w.img.xz.sha256` |
 
-If the release provides a checksum, use the checksum belonging to that exact
-image. Do not use the other board's image.
+If you want to check the download, compare it against the checksum file for
+that exact image. The two boards' images are not interchangeable: an Orange card
+in a Raspberry (or the other way round) won't boot.
 
 ## 2. Flash the microSD card
 
-1. Insert the instrument's boot microSD card into your computer or card reader.
-2. Open [BalenaEtcher](https://etcher.balena.io/) or another suitable image
-   flasher.
-3. Select the downloaded image, select the microSD card, and start the flash.
-4. Eject the card safely when the flasher finishes.
+1. Put the boot microSD card into your computer or card reader.
+2. Open [BalenaEtcher](https://etcher.balena.io/). It reads the `.img.zip` and
+   `.img.xz` files directly; no need to unpack them first.
+3. Select the downloaded image, select the microSD card, and start flashing.
+   Double-check the target drive. Flashers erase whatever you point them at.
+4. When it finishes, eject the card safely.
 
-### Optional Raspberry Pi Imager alternative
+BalenaEtcher is the normal path for both boards, and the one to use for the
+Orange Pi.
 
-On the Raspberry Pi path, Raspberry Pi Imager can use the release's
-`.rpi-imager-manifest` as a custom repository or the image as a custom OS.
-This is optional; BalenaEtcher or another image flasher is the normal path.
-To use it, open Imager's **App Options**, edit **Content Repository**, choose
-**Use custom file** or **Use custom URL**, select the release manifest, and
-choose **Apply and Restart**.
-> **Preferred Raspberry setup:** Flash the image as-is, then use Octessera's
-> built-in Wi-Fi setup below to configure Wi-Fi, the device password, and SSH.
-> If you customize with Raspberry Pi Imager instead, keep the username exactly
-> `pi`. **Do not change it.** Octessera's Raspberry runtime requires that fixed
-> account.
+### Optional: Raspberry Pi Imager (Raspberry only)
 
-Imager may configure SSH, the hostname, and Wi-Fi. An unconfigured/raw
-Raspberry flash keeps SSH disabled by default. The shared setup portal below
-remains available for either board.
+The Raspberry release also includes
+`octessera-<version>-raspberry-pi-zero-2w.rpi-imager-manifest`, which lets
+Raspberry Pi Imager show Octessera as an OS choice:
+
+1. Open Imager and choose **App Options**.
+
+   ![Raspberry Pi Imager App Options button](images/assembly/rpi-imager-options.png)
+
+2. Next to **Content Repository**, choose **Edit**.
+
+   ![Content Repository Edit button](images/assembly/rpi-content-repository.png)
+
+3. Choose **Use custom file** (and browse to the downloaded manifest) or **Use
+   custom URL**, then **Apply & Restart**.
+
+   ![Custom repository source choices](images/assembly/rpi-repository-source.png)
+
+> **Important:** The easiest route is to flash the image as-is and set up
+> Wi-Fi, the password and SSH with Octessera's own [setup
+> portal](#4-configure-wi-fi-and-access). If you do use Imager's customisation
+> instead, keep the username exactly `pi`. **Do not change it.** The Raspberry
+> runtime depends on that account.
+
+Imager can configure SSH, the hostname and Wi-Fi. A plain flash without Imager
+customisation leaves SSH switched off until you turn it on in the setup portal.
 
 ## 3. Power the open assembly
 
-1. Insert the flashed boot card into the selected compute board.
+1. Put the flashed card into the compute board.
 2. Keep the enclosure open for this first boot.
 3. Connect audio if you want to hear the first result.
-4. Power the instrument through the enclosure USB-C power breakout. Do not
-   power the Raspberry Pi through its own micro-USB power connector.
-5. Wait for the Octessera splash screen and normal menu.
+4. Power the instrument through the USB-C power breakout. Not through the
+   Raspberry Pi's own micro-USB power connector; see [safety and
+   power](safety-and-power.md).
+5. Wait for the Octessera boot animation and then the normal menu. The first
+   boot can take a little longer than later ones.
+
+Nothing on the OLED, or flickering? Unplug and check [troubleshooting](../troubleshooting.md)
+before trying again.
 
 ## 4. Configure Wi-Fi and access
 
+Wi-Fi is optional for making music, but it is how you get updates, backups and
+SSH. A fresh image does not start a hotspot or SSH on its own; you ask for it.
+
 On the instrument, open:
 
-`System > Connections > Wi-Fi > Setup Portal > Open Portal`
+`System > Connections > Wi-Fi > Setup Portal`
 
-The setup hotspot can be joined by anyone nearby. Open it while you are present,
-complete setup promptly, and do not leave setup mode running in public.
+and confirm **Open Portal**. The OLED then shows the hotspot name, the address
+to open, and a 10-minute countdown for the portal.
 
-Then, on a phone or computer:
+> **Heads-up:** Until setup finishes, anyone nearby who joins the setup hotspot
+> can configure the instrument. Open it while you are there, finish promptly,
+> and do not leave it running in a public place.
 
-1. Join `Octessera Setup <suffix>`.
+On a phone or computer:
+
+1. Join the Wi-Fi network `Octessera Setup <suffix>` shown on the OLED.
 2. Browse to `http://192.168.42.1`.
-3. Choose the country and the network. Select a scanned network or enter an
-   SSID manually, then enter its password or choose an open network.
-4. Set the local device password. The portal names the account it is for:
-   `pi` on the Raspberry Pi, `octessera` on the Orange Pi.
-5. Choose an SSH mode: key, password, or off.
-6. Enter an optional hostname. Leave it blank to keep the default:
-   `octessera-rpi` on the Raspberry Pi, `octessera-opi` on the Orange Pi.
+3. Enter your two-letter country code, then pick a scanned network or type its
+   name, and enter its password (or tick the open-network box).
+4. Set the local device password, at least 8 characters. The page tells you
+   which account it is for: `pi` on the Raspberry Pi, `octessera` on the Orange
+   Pi. You need it even if you switch SSH off.
+5. Choose how you want SSH:
+   - **SSH key (recommended):** paste your public key; password login stays
+     off.
+   - **SSH password:** SSH accepts the local device password from step 4.
+   - **No SSH setup:** remote access stays off.
+6. Optionally enter a device name (hostname). Leave it blank to keep the current
+   one: `octessera-rpi` on the Raspberry Pi or `octessera-opi` on the Orange Pi
+   on a fresh card.
 7. Press **Apply setup**.
 
-The browser may disconnect while the settings apply. That is expected. Trust
-the result shown on the OLED rather than the browser's temporary state. After a
-successful setup, `System > Maintenance > Sys. Info` shows the device address. If setup fails,
-dismiss the OLED message and run **Open Portal** again.
+The browser will probably lose its connection while the settings apply, because
+the hotspot goes away. That is expected. Leave the instrument powered and trust
+the OLED, not the browser. On success, the board's address appears under
+`System > Maintenance > Sys. Info`; no reboot is needed. If the OLED reports a
+failure or a timeout, close the message and open the portal again.
+
+To change the network, password, SSH or name later, see [setup
+portal](setup-portal.md).
 
 ## 5. Finish the open-air checks
 
-Once the OLED reports a successful setup, close the portal if it is still open,
-and check the OLED, encoders, and the NeoTrellis connection while everything is
-accessible. We recommend leaving the Cherry MX switches off until the enclosure
-top can guide and friction-hold them. You can seat the top without screws for
-an early switch test; testing bare switches risks bent pins or a broken NeoKey
-and is best left to builders with spares. Follow the [enclosure
-steps](assembly-manual.md#6-enclosure), then check all four keys, the full grid,
-and audio in the [final check](assembly-manual.md#7-final-check).
+With setup done (or skipped), close the portal message if it is still showing,
+and check the encoders, OLED and NeoTrellis connection while everything is still
+in reach. The full checklist, and why the NeoKey switches wait for the
+enclosure top, are in the [assembly manual](assembly-manual.md#5-flash-and-setup).
 
-For a later network or credential change, use [Open or reopen the setup
-portal](setup-portal.md). For USB data roles, see [USB roles](usb-roles.md).
+Then carry on with the [enclosure steps](assembly-manual.md#6-enclosure) and the
+[final check](assembly-manual.md#7-final-check).
+
+For USB connections to a computer or USB devices, see [USB roles](usb-roles.md).

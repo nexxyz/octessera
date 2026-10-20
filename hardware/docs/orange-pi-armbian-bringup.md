@@ -95,7 +95,7 @@ route, DNS, or ICMP.
 Once SSH is reachable, run the read-only Windows probe:
 
 ```powershell
-$OrangeTarget = "orangepi@<ORANGE_HOST>"
+$OrangeTarget = "octessera@<ORANGE_HOST>"
 .\tools\orange-pi\run-opi-bringup.ps1 -Target $OrangeTarget
 ```
 

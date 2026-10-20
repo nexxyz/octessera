@@ -20,7 +20,11 @@ the Raspberry Pi build.
 
 - The USB-C breakout feeds the shared `+5V` rail for the Pi, OLED, NeoKey,
   NeoTrellis connector, and DAC.
+- Only the breakout's `VBUS` and `GND` are wired; its `CC`, `D+`, `D-` and
+  `SBU` pins are unconnected, so the USB-C input is power-only.
 - `C1` is a `470uF` polarized capacitor across `+5V` and `GND`.
+- `D1` is an `SA5.0A` TVS diode with its cathode (pad 1) on `+5V` and anode on
+  `GND`.
 - The Raspberry Pi micro-USB power connector is not used by the Octessera PCB;
   power enters through the enclosure USB-C breakout.
 
@@ -69,6 +73,11 @@ is `0x3F`.
 | `SW3` | aux2 | GPIO27 / pin 13 | GPIO4 / pin 7 | GPIO14 / pin 8 |
 | `SW4` | aux3 | GPIO26 / pin 37 | GPIO24 / pin 18 | GPIO22 / pin 15 |
 
+A and B are the encoder pad labels on the PCB. The Raspberry board profile in
+`crates/hal/src/board_profiles.rs` reads them the other way round (for example
+`SW1` as `a: 6, b: 5`) so that clockwise turns count up; do not "fix" either
+side to match the other.
+
 `SW3` uses `GPIO14` / physical pin 8, which is also Raspberry UART TX. The
 image leaves the UART inactive (`enable_uart=0` and no serial-console kernel
 token) so GPIO14 remains an encoder input. `GPIO20` is reserved for OLED
@@ -88,6 +97,9 @@ Dupont cable connects it to the 5-pin header on the upper-left NeoTrellis board.
 | 3 | GND | `GND` |
 | 4 | SCL | `GPIO3` / physical pin 5 |
 | 5 | SDA | `GPIO2` / physical pin 3 |
+
+On the PCB the five signals are labelled `INT`, `VIN`, `GND`, `SCL` and `SDA`
+next to `J1`. Match them by label at both ends of the cable.
 
 The NeoKey shares I2C bus 1 power and data with the NeoTrellis. Its `INT` is on
 the same interrupt net as the NeoTrellis connector. The DAC is powered from
