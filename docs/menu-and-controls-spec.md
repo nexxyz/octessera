@@ -1,67 +1,99 @@
 # Menu and Controls Spec (Authoritative)
 
-This is the entry point for the canonical menu/control spec. The full menu tree is split into `docs/menu-tree-spec.md`; that file is part of this authoritative spec and must stay in sync with native menu changes.
+This is the contract that the native runtime, the two Pi boards, and the desktop simulator are built
+and tested against. It runs long because a hardware detent and a simulator keypress have to do the
+same thing, down to the toast text.
 
-Context-help copy source: `resources/menu-help-texts.tsv` (required header row). Each row provides a title plus two short text fields. Keep one idea per text field; the runtime may join and wrap them for the target display.
-Platform capability source: `resources/platform-capabilities.json`; generated TypeScript and Rust constants must stay in sync with it. Display palette source: `resources/display-palette.json`; generated TypeScript, CSS, and Rust constants must stay in sync with it.
+## How the spec is split
+
+| File | Owns |
+|---|---|
+| This file | Controls and modifiers, value editing, OLED and LED presentation, overlay priority, aux bindings, modulation, save/load, and the native behavior contract |
+| [`menu-tree-spec.md`](menu-tree-spec.md) | Root menu, tree notation, and the index of section trees |
+| [`menu-tree/build.md`](menu-tree/build.md) | Build tree, behavior categories, per-behavior config rows, behavior notes |
+| [`menu-tree/link.md`](menu-tree/link.md) | Link tree, event mapping and timing, LFOs, Arp, X/Y axis slots, Aux Mappings |
+| [`menu-tree/shape.md`](menu-tree/shape.md) | Instruments, FX buses, global FX, routing, sample and drum assignment |
+| [`menu-tree/play.md`](menu-tree/play.md) | Play pages, their grid layouts, Play FX, XY |
+| [`menu-tree/system.md`](menu-tree/system.md) | System tree per platform and every System setting and action |
+
+All seven files are one spec. Each statement lives in one file and the others link to it. Any
+control, menu, runtime, or parity-affecting change updates the file that owns the statement in the
+same commit.
+
+Data sources the spec relies on:
+
+- Help copy: `resources/menu-help-texts.tsv`, with the required header row
+  `id path key kind title line1 line2`. Each row matches a menu entry and supplies a title plus two
+  short text fields. Keep one idea per field; the runtime joins and wraps them for the display.
+  Every submenu, parameter, action, and non-file selector must resolve to an entry, and native tests
+  fail on missing coverage. Behavior selector leaves use behavior-specific help, behavior category
+  rows use the stable `behavior.category.*` keys, parameter-picker leaves resolve to the target
+  parameter's help, and dynamic file rows (sample browser files and folders) keep their `sample.*`
+  action help.
+- Platform dimensions and limits: `resources/platform-capabilities.json` (layer count, instrument
+  count, sample slots, bus count, global FX slots, aux encoder count, Play FX concurrency, scan
+  section counts, OLED size, pan positions). Generated TypeScript and Rust constants must match it.
+- Display palette: `resources/display-palette.json`. Generated TypeScript, CSS, and Rust constants
+  must match it. See [Palette](#palette).
+- Shipped defaults: `config/defaults/base.json` with the `desktop.json` and `pi.json` overrides.
 
 ## Cheat Sheet
 
 | Combo | Function | Notes |
 |---|---|---|
-| Shift + Space | Stop | Internal sync: stop/reset, silence internal audio, and clear held MIDI notes without broad panic.
-| Shift + Space (external sync) | Resync arm | External sync: arms a one-shot resync at the next 96-PPQN (one-bar) boundary; playback and the grid continue, then transport origins reset to zero and the arm clears.
-| Shift + Back | Clear active layer | Re-initializes current active layer behavior state.
-| Shift + Fn | Combined modifier | Acts as its own logical button; Fn and Shift are inactive while both physical buttons are held.
-| Combined modifier + Main press | Context help | Opens help for highlighted menu entry.
-| Fn + Main press | Aux mappings modal | Opens the scrollable mappings modal from anywhere, whether stopped or playing. Holding Fn alone does not open it.
-| Fn + Main encoder turn right outside edit | Single step | While paused/stopped, advances exactly one behavior generation and remains paused/stopped; while playing, shows `Pause first`. Turning left is consumed with no action. Numeric edit takes priority over this gesture.
-| Main numeric edit turn | Coarse/fine value change | Plain Main is coarse; Fn+Main is fine. Shift+Main and combined Shift+Fn+Main remain coarse. Fn does not change enum, bool, or text edit turns.
-| Aux1–3 numeric turn | Coarse/fine bound value change | Plain turn is coarse and Fn turn fine in the normal custom/auto-map target. Shift is coarse and combined Shift+Fn fine in the shifted custom bank only, with no fallback.
-| Fn + Space | Reset stop | Stops/resets, silences internal audio, and clears held MIDI notes without broad panic; takes priority over sample preview.
-| Combined modifier + Space | Reserved | No-op.
-| Fn + leftmost grid column | Navigate layers (1..8) | Mirrors `Build > Layer`.
-| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing active layer. Only this disable transition releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus external MIDI notes; an already-ringing one-shot Drum hit finishes its decay. Ordinary Play Trigger Gate edits to `0%` only suppress future admissions. Other layers are unaffected, and re-enable does not resurrect released notes.
-| Fn held + leftmost column LEDs | Navigation indicators | Cyan = navigation/current layer focus, green = configured layer, gray/black = inactive or non-navigable.
-| Fn + rightmost grid column | Navigate Play pages | Opens `Play` and enables Play page if currently off; exits Play if already active.
-| Combined modifier held LEDs | Layer-only indicators | Shows the left/layer side of Fn navigation only; Play page column is hidden/reserved.
-| Sample assign + Shift + cell | Row assign step | Applies current selected-cell assign step to the whole row.
-| Sample assign + combined modifier + cell | Column assign step | Applies current selected-cell assign step to the whole column.
-| Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or focused action as its `!` press target.
+| Shift + Space | Stop | Internal sync: stop/reset, silence internal audio, and clear held MIDI notes without broad panic. |
+| Shift + Space (external sync) | Resync arm | Arms a one-shot resync at the next 96-PPQN (one-bar) boundary. Playback and the grid continue; at the boundary the transport origins reset to zero and the arm clears. |
+| Shift + Back | Clear active layer | Re-initializes the active layer's behavior state. |
+| Shift + Fn | Combined modifier | Acts as its own logical button. Fn and Shift functions are inactive while both physical buttons are held. |
+| Combined modifier + Main press | Context help | Opens help for the highlighted menu entry. |
+| Fn + Main press | Aux mappings modal | Opens the scrollable mappings modal from anywhere, stopped or playing. Holding Fn alone does not open it. |
+| Fn + Main turn right, outside edit | Single step | While paused or stopped, advances exactly one behavior generation and stays paused/stopped. While playing, shows `Pause first`. Turning left is consumed with no action. Numeric edit takes priority over this gesture. |
+| Main numeric edit turn | Coarse/fine value change | Plain Main is coarse; Fn+Main is fine. Shift+Main and Shift+Fn+Main stay coarse. Fn does not change enum, bool, or text edit turns. |
+| Aux1–3 numeric turn | Coarse/fine bound value change | In the normal custom/auto-map target, a plain turn is coarse and an Fn turn is fine. In the shifted custom bank only (no fallback), Shift is coarse and Shift+Fn is fine. |
+| Fn + Space | Reset stop | Stops/resets, silences internal audio, and clears held MIDI notes without broad panic. Takes priority over sample preview. |
+| Combined modifier + Space | Reserved | No-op. |
+| Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
+| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Only this disable transition releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes; an already-ringing one-shot Drum hit finishes its decay. Ordinary Play Trigger Gate edits to `0%` only suppress future admissions. Other layers are unaffected, and re-enabling does not resurrect released notes. |
+| Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. See [Grid overlays](#overlays-and-priority). |
+| Fn + rightmost grid column | Select Play page | Selects and activates the page on that row (rows 0..6) and moves the menu to it. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
+| Combined modifier held | Layer-only LEDs | Shows only the left (layer) column of Fn navigation; the Play page column is hidden and reserved. |
+| Sample/Drum assign + Shift + cell | Row stamp | Stamps the current selection on the whole world-space row. |
+| Sample/Drum assign + combined modifier + cell | Column stamp | Stamps the current selection on the whole column. |
+| Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or the focused action as its `!` press target. |
 
 ## Control Mapping
 
-| Control | Simulator Key | Function |
+| Control | Simulator key | Function |
 |---|---|---|
 | Main encoder turn | ← → | Move cursor / adjust values |
-| Main encoder press | Enter | Enter group / enter/exit edit / trigger action |
+| Main encoder press | Enter | Enter group / enter or exit edit / trigger action |
 | Back button | Backspace / Esc | Go back / exit edit / clear grid (with Shift) |
 | Space button | Space | Play / Pause |
-| Shift + Space | Shift+Space | Stop/reset with internal-audio silence and bounded held-note cleanup; external sync arms the next 96-PPQN boundary instead |
+| Shift + Space | Shift+Space | Stop/reset with internal-audio silence and bounded held-note cleanup; under external sync, arms the next 96-PPQN boundary instead |
 | Fn + Space | Ctrl+Space | Reset stop with internal-audio silence and bounded held-note cleanup |
 | Shift + Fn + Space | Shift+Ctrl+Space | Reserved no-op |
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
-| Aux encoder 1-3 turn | (simulated) | Adjust a numeric target coarsely, or retain ordinary discrete turns for enum/bool targets; Orange SW1/SW2/SW4 use the native GPIO event path |
-| Aux encoder 1-3 press | (simulated) | Trigger bound press mapping; Orange AUX2's switch line is unavailable only while UART0 TX is active and is enabled by the input-routing overlay |
-| Fn + Aux encoder press | Fn + (simulated) | Alternate action: bind current value as Turn target or current action as `!` press target |
+| Aux encoder 1-3 turn | (simulated) | Adjust a numeric target coarsely; enum/bool targets keep ordinary discrete turns. Orange SW1/SW2/SW4 use the native GPIO event path |
+| Aux encoder 1-3 press | (simulated) | Trigger the bound press mapping. Orange AUX2's switch line is unavailable only while UART0 TX is active and is enabled by the input-routing overlay |
+| Fn + Aux encoder press | Fn + (simulated) | Alternate action: bind the current value as Turn target or the current action as `!` press target |
 | Fn + Main encoder press | Fn+Enter | Open/close the Aux mappings modal; holding Fn alone does not open it |
-| Shift + Aux encoder turn/press | Shift + (simulated) | Numeric turns are coarse; use only the shifted aux binding bank |
+| Shift + Aux encoder turn/press | Shift + (simulated) | Numeric turns are coarse; uses only the shifted aux binding bank |
 | Fn + Aux encoder turn | Fn + (simulated) | Fine numeric turn on the normal custom/auto-map target |
-| Shift + Fn + Aux encoder press | Shift+Ctrl + (simulated) | Bind current value/action into shifted aux binding bank |
+| Shift + Fn + Aux encoder press | Shift+Ctrl + (simulated) | Bind the current value/action into the shifted aux binding bank |
 | Shift + Fn + Aux encoder turn | Shift+Ctrl + (simulated) | Fine numeric turn using only the shifted custom bank |
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
-| Combined modifier + Main press | Shift+Ctrl+Enter | Context help for highlighted entry |
-| Fn + Main encoder turn right outside editing | Ctrl+→ | Single behavior/world generation step while paused/stopped; while editing, numeric values turn finely and other edit types keep their ordinary turn behavior |
-| Fn + leftmost grid column | Ctrl + leftmost grid column | Navigate active layer (1..8); hold Fn to see layer indicators |
-| Fn + rightmost grid column | Ctrl + rightmost grid column | Navigate/activate Play Play page; hold Fn to see page indicators |
-| Shift + Fn + leftmost grid column | Shift+Ctrl + leftmost grid column | Toggle that layer's trigger gate without changing active layer; disabling releases its held Synth, FM, Plucked, Sampler, and external MIDI notes and suppresses future triggers; one-shot Drum hits finish their decay |
-| Sample assign mode + Shift + cell press | Shift + cell | Apply current assign toggle/level step to entire row |
-| Sample assign mode + combined modifier + cell press | Shift+Ctrl + cell | Apply current assign toggle/level step to entire column |
+| Combined modifier + Main press | Shift+Ctrl+Enter | Context help for the highlighted entry |
+| Fn + Main encoder turn right outside editing | Ctrl+→ | Single behavior generation step while paused/stopped. While editing, numeric values turn finely and other edit types keep their ordinary turn |
+| Fn + leftmost grid column | Ctrl + leftmost grid column | Select the active layer (1..8); hold Fn to see layer indicators |
+| Fn + rightmost grid column | Ctrl + rightmost grid column | Select/activate a Play page; hold Fn to see page indicators |
+| Shift + Fn + leftmost grid column | Shift+Ctrl + leftmost grid column | Toggle that layer's trigger gate without changing the active layer (see the Cheat Sheet for note release) |
+| Sample/Drum assign + Shift + cell press | Shift + cell | Stamp the entire row |
+| Sample/Drum assign + combined modifier + cell press | Shift+Ctrl + cell | Stamp the entire column |
 
-## USB-host keyboard
+### USB-host keyboard
 
-The base keyboard controls mirror the simulator controls. USB-host capture
-additionally maps the three AUX encoder rows:
+The base keyboard controls mirror the simulator keys. USB-host capture also maps the three AUX
+encoder rows:
 
 | Keyboard key | Native control | Repeat |
 |---|---|---|
@@ -76,367 +108,612 @@ additionally maps the three AUX encoder rows:
 | Shift | Shift modifier | Suppressed |
 | Control | Fn modifier | Suppressed |
 
-Key presses and releases update the corresponding native button or modifier state. Arrow and AUX turn key-repeat events emit additional turns; repeat events for Enter, AUX click keys, Back, Space, Shift, and Control do not emit additional edges. AUX click key releases clear their held keyboard state without retriggering the encoder click, and disconnect, disable, read failure, and shutdown use the same held-state cleanup. The AUX3 left key is the physical key immediately right of left Shift; Linux binds that position as `KEY_Z` whether its keycap is `Y` or `Z`. Space remains the hardware Space/S button; the letter `S` is the AUX2 encoder click. Modifier combinations therefore retain their normal semantics: Shift+Space is Stop (or Resync arm under external sync), Control+Space is Reset stop, and Shift+Control+Enter opens context help.
+- Key presses and releases update the matching native button or modifier state. Key-repeat on
+  arrow and AUX turn keys emits extra turns; repeats of Enter, the AUX click keys, Back, Space,
+  Shift, and Control emit no extra edges.
+- Releasing an AUX click key clears its held keyboard state without retriggering the click.
+  Disconnect, disable, read failure, and shutdown use the same held-state cleanup.
+- The AUX3 left key is the physical key right of left Shift. Linux reports that position as
+  `KEY_Z` whether the keycap says `Y` or `Z`.
+- Space is the hardware Space/S button; the letter `S` is the AUX2 click. Modifier combinations
+  keep their meaning: Shift+Space is Stop (Resync arm under external sync), Control+Space is Reset
+  stop, and Shift+Control+Enter opens context help.
+- Raspberry captures only while the persisted USB role is `Host`; changing the role still uses the
+  save-and-reboot flow. Orange captures on its fixed USB-A host connector, independent of USB0
+  OTG/gadget behavior.
+- Both boards capture only in the graphical HDMI modes `live-grid`, `plain-grid`,
+  `active-behavior`, and `cycle-behaviors`. `Terminal` disables capture. While Bluetooth is On,
+  Bluetooth keyboards are accepted under the same gate.
+- Hotplug and HDMI-mode changes apply live. The first supported keyboard is selected and grabbed
+  exclusively, a second keyboard is ignored while one is selected, and a disconnect or gate change
+  releases held logical controls and the grab.
 
-Raspberry capture requires the persisted USB role to be `Host`; changing that role still uses the existing save-and-reboot flow. Orange capture uses the fixed USB-A host connector and is independent of USB0 OTG/gadget behavior. On both boards, capture is enabled only for graphical HDMI modes: `live-grid`, `plain-grid`, `active-behavior`, and `cycle-behaviors`. `Terminal` disables capture. Hotplug and HDMI-mode transitions are live: the first supported keyboard is selected and exclusively grabbed, a second keyboard is ignored while it is selected, and disconnects or gate changes release held logical controls and the grab.
+### Input dispatch
 
-Simulator grid drag behavior follows the active behavior's declared interaction mode. Paint behaviors drag-toggle/draw cells for editing; momentary behaviors such as Keys release the previous cell when the pointer enters another cell, matching a single finger sliding across grid buttons.
+- Simulator grid drag follows the active behavior's interaction mode. Paint behaviors drag-toggle
+  or draw cells; momentary behaviors such as Keys release the previous cell when the pointer enters
+  another one, like a finger sliding across the grid buttons.
+- Raspberry and Orange share one encoder dispatch: consecutive same-direction turns from one encoder
+  coalesce and clamp to a `-127..127` delta, reversals stay ordered, and pending turns dispatch
+  before an encoder press. Each input pickup drains at most 16 encoder events so other runtime work
+  is not starved.
 
-Raspberry and Orange use the same native encoder dispatch semantics: consecutive turns from one encoder in one direction coalesce and clamp to a `-127..127` delta, reversals remain ordered, and pending turns dispatch before an encoder press. Each input pickup drains at most 16 encoder events so other runtime work is not starved.
+### Help popup and Aux mappings modal
 
-Help popup behavior:
+Help popup:
 
-- Main encoder turn scrolls help text
-- Main encoder press closes help
+- Combined modifier + Main press opens it. Main turn scrolls the text; Main press closes it.
 
-Aux mappings modal behavior:
+Aux mappings modal:
 
-- Fn + Main encoder press opens the scrollable modal from anywhere, whether transport is stopped or playing. Releasing Fn does not close it; Fn held alone does not open it.
-- The modal shows all 12 mappings, including unbound rows as `-`:
+- Fn + Main press opens it from anywhere, stopped or playing. Releasing Fn does not close it, and
+  holding Fn alone does not open it.
+- It lists all 12 mappings, with unbound entries shown as `-`:
 
   | Bank | Aux | Turn | Click |
   |---|---|---|---|
-  | Normal | 1 | Mapping or `-` | Mapping or `-` |
-  | Normal | 2 | Mapping or `-` | Mapping or `-` |
-  | Normal | 3 | Mapping or `-` | Mapping or `-` |
-  | Shifted | 1 | Mapping or `-` | Mapping or `-` |
-  | Shifted | 2 | Mapping or `-` | Mapping or `-` |
-  | Shifted | 3 | Mapping or `-` | Mapping or `-` |
+  | Normal | 1..3 | Mapping or `-` | Mapping or `-` |
+  | Shifted | 1..3 | Mapping or `-` | Mapping or `-` |
 
-- Normal mappings use a custom binding first, then auto-map; shifted mappings use the shifted custom bank only, with no fallback.
-- Main encoder turn scrolls the modal. Aux turns and clicks do nothing while it is open; they do not affect the underlying menu or bindings.
-- Plain Main press, Fn + Main press again, or Back closes the modal. Shift + Fn + Main press opens context help instead. After closing, normal Main/Shift+Main clicks, Fn fine turns, and Aux bindings work as usual.
+- Normal mappings show the custom binding first, then auto-map. Shifted mappings come from the
+  shifted custom bank only, with no fallback.
+- Main turn scrolls. Aux turns and clicks do nothing while it is open and do not touch the
+  underlying menu or bindings.
+- Plain Main press, Fn + Main press again, or Back closes it. Shift + Fn + Main press opens context
+  help instead. After closing, Main, Shift+Main, Fn fine turns, and Aux bindings work as usual.
 
-## Transport States
+## Transport
 
-- Play: `▶` (green flash on full-note/measure boundaries, yellow flash on other beat boundaries)
-- Pause: `⏸`
-- Stop: `■`
-- Stop, accepted MIDI Start, and resync reset the transport origin, generic scan cursor, autonomous Build cadence, Pattern phase, and Looper playback position while preserving evolved worlds, configuration, and recorded loop; behavior-owned state follows each behavior's reset contract. While transport runs, clearing or replacing a behavior reinitializes or restores its behavior-owned state as defined, while preserving the transport-owned generic interpretation cursor, fractional accumulator, and page/section phase. Only Sequencer has origin-immediate static-grid semantics: page 1 step 1 is anchored at transport origin, empty leading cells are timed rests, and later pages continue without restarting. For an armed external resync, clocks strictly before the next 96-PPQN boundary process normally; the boundary clock is consumed by the reset, scanning Sequencer layers process their origin tick at reported PPQN 0, and non-Sequencer layers do not receive a zero-elapsed tick. The following clock reports PPQN 1 and does not repeat the origin tick. Pause and layer trigger-gate changes preserve phase; true stop/reset returns to origin. Pause/Continue resumes the exact phase.
+- Icons: Play `▶` (green flash on full-note/measure boundaries, yellow flash on other beats),
+  Pause `⏸`, Stop `■`.
+- Stop, accepted MIDI Start, and resync reset the transport origin, the generic scan cursor, the
+  autonomous Build cadence, Pattern phase, and the Looper playback position. Evolved worlds,
+  configuration, and recorded loops are kept; other behavior-owned state follows each behavior's
+  reset contract.
+- While transport runs, clearing or replacing a behavior reinitializes or restores its own state but
+  keeps the transport-owned interpretation cursor, fractional accumulator, and page/section phase.
+- Sequencer alone has origin-immediate static-grid semantics: page 1 step 1 sits on the transport
+  origin, empty leading cells are timed rests, and later pages continue without restarting.
+- Armed external resync: clocks strictly before the next 96-PPQN boundary process normally. The
+  boundary clock is consumed by the reset; scanning Sequencer layers process their origin tick at
+  reported PPQN 0, and non-Sequencer layers get no zero-elapsed tick. The next clock reports PPQN 1
+  and does not repeat the origin tick.
+- Pause and layer trigger-gate changes preserve phase, and Pause/Continue resumes the exact phase.
+  A true stop/reset returns to origin.
 
 ## Seeded Randomness
 
-Randomness is unseeded unless a source opts in. `Build > Seed` (`randomSeed`, `1..9999`, default `1`) is one shared per-patch seed. `Build > Lx > Seeded` makes that layer's behavior randomness, including hash-style choices and the Rhythm/Musical/weave pattern seed, follow a stream mixed from Seed and the layer index. `Link > Lx > Seeded` does the same for that layer's trigger probability and random arp order; unseeded Link layers keep the shared unseeded streams. Seeded streams restart on every transport reset (stop, play-from-stop, accepted MIDI Start, resync), on patch load, and when Seed or the layer's Seeded switch changes, so the same starting world, inputs, and timing replay the same result on every platform. Restarting a stream never resets an evolved grid. Instrument and FX audio-rate noise is never seeded.
+- Randomness is unseeded unless a source opts in.
+- `Build > Seed` (`randomSeed`, `1..9999`, default `1`) is one shared per-patch seed.
+- `Build > Lx > Seeded` (`layers.N.build.seeded`, default off) makes that layer's behavior
+  randomness, including hash-style choices and the Rhythm/Musical/weave pattern seed, follow a
+  stream mixed from Seed and the layer index.
+- `Link > Lx > Seeded` (`layers.N.link.seeded`, default off) does the same for that layer's trigger
+  probability and random arp order. Unseeded Link layers share the unseeded streams.
+- Seeded streams restart on every transport reset (stop, play-from-stop, accepted MIDI Start,
+  resync), on patch load, and when Seed or the layer's Seeded switch changes. The same starting
+  world, inputs, and timing then replay the same result on every platform.
+- Restarting a stream never resets an evolved grid, so an exact replay starts from the same world
+  (a loaded patch with saved grid state, or Reset).
+- Instrument and FX audio-rate noise is never seeded.
 
-## Menu Tree
+## Menu Structure
 
-The full native menu tree lives in [`menu-tree-spec.md`](menu-tree-spec.md). Keep that file in sync with native menu/control changes.
+- The full tree is in [`menu-tree-spec.md`](menu-tree-spec.md). The root order is Build, Link,
+  Shape, Play, a blank spacer row, then System.
+- Rows that open a submenu or selector render a trailing `>`.
+- System groups list parameters and submenus before action rows, with two exceptions:
+  `Maintenance` keeps the `Reset` group between `Hardware Test` and `Sys. Info`, and the dynamic
+  `Rename` group lists preset choices before `New Name` and `Apply`. Other sections use the orders
+  shown in their trees.
+- Navigation memory applies only to `System`, `System > Notes`, `System > Audio`,
+  `System > Audio > Engine`, and `System > Display`. It is native and ephemeral, is cleared on menu
+  rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port
+  list, parameter picker, help, confirm dialog, or assignment overlay.
+- Breadcrumbs show the current submenu label in full and its ancestors short, front-ellipsized to
+  28 characters with `...` so the current location stays visible. Short forms: `Build`/`B`,
+  `Link`/`L`, `Shape`/`S`, `Play`/`P`, `System`/`SYS`; ancestor labels starting `Layer N` or
+  `Bus N` shorten to `LN`/`BN`. Real paths look like `/B/L1: life`, `/S/FX Buses`, and
+  `/SYS/Maintenance/Reset`. Section color follows the canonical section path, not the truncated
+  text.
+- Named target selectors (instrument slot, layer index, mixer route) display computed names, for
+  example `I1: synth`, `L3: rain`, `fxb2`, never raw IDs.
+- The instrument selectors under `Link > Lx > Scanning` and `Link > Lx > Events` keep options as
+  `none` plus `I#: name`. Unselected rows show only `I#`. The selected row uses exactly two body
+  rows: its plain heading, then `> I#: name` (`>* I#: name` while editing). Long selected details
+  scroll horizontally while browsing and editing.
 
-System children are ordered as Load Preset, Saves, Recording, Notes, Audio, MIDI, Connections, Display,
-conditional Live Show Mode, Maintenance, then Panic, Basic Help, Reboot, and Shutdown.
-Within each recursive group, parameters and submenus precede action rows, except that the dynamic Rename group lists preset choices before its Rename actions. The System tree fully expands
-the desktop, Orange, Raspberry Gadget, and Raspberry Host branches.
+### Parameter target pickers
+
+Modulation slots, Aux Turn bindings, Play XY axes, and LFO targets share one menu-mirrored picker.
+
+- Children: `(none)`, then `Current: <label>` when bound, then `Range Min` and `Range Max` when the
+  binding is numeric and the picker is not an Aux Turn picker, then the target tree.
+- The tree mirrors the root order (`Build`, `Link`, `Shape`, `Play`, `System`). Under Build, layers
+  with behavior `none` expose no behavior targets; other layers expose their own Step Rate as
+  `layers.N.algorithmStep` and their config fields/actions as `layers.N.build.behaviorConfig.*`.
+- `Range Min`/`Range Max` constrain modulation output while keeping the target's capability
+  `min`/`max` metadata. Missing sides fall back to the target range; equal values produce a fixed
+  value. Enum and bool bindings ignore user ranges.
+- LFO target pickers list only numeric, live-safe targets and never another LFO's settings. The
+  instrument-specific numeric targets are listed in [shape.md](menu-tree/shape.md#binding-targets).
+
+## Value Editing
+
+- Number, enum, and bool rows enter edit mode on Main press; Main or Back finishes the row. In the
+  restart flow, Back means Cancel at the `Apply System` choice and Continue at the `Restart?`
+  choice.
+- Bool rows behave like a two-option enum, display `On`/`Off`, and change on encoder turn, not on
+  row press. Text rows show a `*` prefix and an in-text cursor while editing.
+- Structural selector edits apply immediately while the row is in edit mode, through key-specific
+  fast paths: instrument type, instrument route, FX bus slot type, and master FX slot type. A
+  behavior applies when its selector item is pressed. Dynamic parameter rows also apply while
+  editing.
+
+### Numeric steps
+
+The same rule covers Main and Aux turns, coarse and fine (Fn). Saved values and ranges never
+change; only the distance per detent does.
+
+| Row kind | Coarse detent | Fine (Fn) detent |
+|---|---|---|
+| Linear (default) | `step × m`, where `m = (span + 10·step) / (20·step)` rounded down and clamped to `1..5` | one `step` |
+| Times: every row whose key ends in `Ms`, except XY Smoothing | 1 ms below 20 ms, 5 ms to 100 ms, 25 ms to 1 s, 100 ms above | 0.1 ms below 20 ms where the value stores tenths (otherwise 1 ms), 1 ms to 100 ms, 5 ms to 1 s, 25 ms above |
+| Frequencies and Q: keys ending in `Hz` except instrument `cutoffHz`, plus FX `Q` and `Mid Q` | multiply by 2^(1/24), about a quarter-tone | multiply by 2^(1/96) |
+| Reverb `Decay` and delay `Feedback` (non-negative ranges) | distance to the top (1.0, or 100%) scales by 2^(1/4) | scales by 2^(1/16) |
+
+- Time steps snap to the step size; frequency steps always move at least one stored unit. Curved
+  rows ignore the row's linear `step`.
+- Time rows include envelope Attack/Decay/Release on every instrument; Plucked Decay; Drum Decay,
+  Attack, and Sweep ms; `Note Length`, Arp `Length ms`, MIDI `Duration`, bus FX delay/slice/
+  compressor/duck times, mod-delay `Base ms` and `Depth ms` (stored in tenths), and the Play FX
+  times (Freeze `Release Ms`, Filter Sweep `Sweep In`/`Sweep Out`, Pitch Shift `Slide In`/
+  `Slide Out`).
+- Frequency rows include Plucked `Body Hz`, FX `Rate Hz`, `Center`, EQ `Mid Freq Hz`, and the Play
+  Stutter `Rate Hz`. Instrument filter cutoffs keep their logarithmic `0..255` index with linear
+  steps.
+- Bipolar mod-delay `Feedback` stays linear. `Play > XY > Smoothing` stays on plain 10 ms steps
+  because saved smoothing is 0 or a multiple of 10 ms.
 
 ## OLED Display
 
-- Native presentation publishes a positive-revision `oled_frame` (`128x128`, `rgb565be`) only when the frame bytes change, immediately before the semantic snapshot that references `oledFrameRevision`. PlaybackRuntime owns OLED brightness conversion and must not emit a snapshot with revision `0`, including when presentation input is absent or malformed. Before the first valid frame, an invalid snapshot is suppressed and typed fault/status is emitted; after a valid frame, non-OLED snapshot state continues with the prior positive revision and a typed retain-last-good fault/status. Desktop consumes these runtime frames. Raspberry and Orange render their OLED, LEDs, and HDMI from the native presentation scene on the render worker, with the runtime error state attached; no TypeScript or semantic Pi renderer fallback is permitted.
-- Every snapshot `display` object carries the required `bodyLayout`: `rows` preserves the existing menu/help/sample/restore/confirmation/System Info/concise-MIDI row semantics, including its 28-character/7-row normalization, bars, selected-line scrolling, and scrollbars; `card` is used for setup-portal and Backup / Restore status and keeps every complete semantic source string in `display.lines`. Card rendering uses the shared `x=4`, `width=120`, `y=18`, `height=91`, `rowAdvance=13` body rectangle (20 monospace columns by 7 rows), reserves the final visual row for the selected action, and ignores row bars/scroll metadata. When card prose wraps or later semantic lines do not fit, only the final visible prose row receives `...`. The canonical native renderer and the Pi renderer use the same fixed-font layout metrics and wrapping rules.
-- On Raspberry and Orange, the first menu frame at boot, runtime-error and dismissal frames, the power terminal frame, and the Raspberry audio-fault frame are all native presentation scenes. The first scene must be physically written before native scenes, HDMI, or candidate readiness proceed. A changed snapshot revision schedules a scene even when the display generation is unchanged, so host-side state such as runtime errors reaches the screen. Boot splash, direct boot fault, shutdown splash, suspend, and ownership lifecycle frames remain adapter paths.
+### Frames and layout
 
-- 128×128 pixel, simulated in desktop app
-- 20 characters × 8 lines of text (5×7 font, 16px line height)
-- Top line: title bar (colored by section)
-- Canonical display palette names are independent from menu sections: `GREEN` `#63D23F` for `Build`, `MAGENTA` `#DD82CD` for `Link`, `BLUE` `#35CFF2` for `Shape`, `YELLOW` `#FFD447` for `Play`, `GRAY` `#C9CED6` for `System`, plus white `#FFFFFF` and black `#000000`. Runtime, Pi, and desktop UI colors use this palette unless a behavior deliberately owns its own palette.
-- Body lines 2-8: menu items use a `> ` marker and inverted highlight on the selected row, and `* ` when editing; while browsing, selected value rows stay compact on one row (for example `> Cutoff 127`) instead of adding a separate value row
-- Native menu snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`) for the current body window. Desktop renders this as a 1-2 px scrollbar inside the OLED body only when total rendered rows exceed visible body rows; it does not consume text columns and is omitted for splash/help/confirm overlays unless menu metadata is present.
-- Context help for every submenu, parameter, action, and non-file selector menu item must resolve to an entry from `resources/menu-help-texts.tsv`; native tests must fail on missing coverage. Behavior selector leaves use behavior-specific help, behavior category menu items use stable `behavior.category.*` help keys, and parameter binding picker leaves resolve to the underlying target parameter help. Dynamic file menu items such as sample browser files and folders keep their own `sample.*` action help.
-- Platform-sized menu/runtime limits such as layer count, instrument count, sample slots, bus count, global FX slots, Play-FX concurrency, scan section counts, OLED size, and pan position count come from `resources/platform-capabilities.json`.
-- Splash graphics use the shared static `SPLASH_SLEEP_SHUTDOWN` logo+wordmark background for sleep/shutdown with the existing toaster geometry; the native sleep transition toast is exactly `Going to sleep`; regular logo presentation remains unchanged for startup/wakeup.
-- On Pi, `display.off` keeps the OLED dark. Otherwise a top-level `runtimeError` takes full-frame priority over splash, menu, and footer toast content; it shows the typed domain/code/operation/message fault and leaves transport/event indicators hidden. The native MIDI input-list failure presentation is the exception: it keeps the concise `MIDI INPUTS` / `MIDI unavailable` menu frame and toast. With no runtime error, splash precedes the normal menu/footer priority described below.
-- Full runtime errors use seven fixed body rows at the existing card geometry: `DOMAIN ` plus 11 identifier cells, `CODE ` plus 13, `OP ` plus 15, then `MSG ` plus up to 14 message cells and three continuation rows with a four-space prefix plus up to 14 cells. Identifier underscores become spaces; controls and whitespace collapse; unsupported glyphs become visible `?`; missing identifiers show `unknown`. Messages preserve supported path punctuation and underscores, use `needs attention` when missing, wrap words and hard-break long words across the four message rows, and end the final content row with `...` when truncated. Unused continuation rows are empty. PlaybackRuntime owns this layout; Pi consumes the resulting rows.
-- `PlaybackRuntime::latched_errors` is the sole canonical owner of presented runtime-error visibility. While its top error is visible, ordinary physical `DeviceInput` messages are rewritten internally and never forwarded to platform adapters; `requestSnapshot: false` is ignored on this gated path. Awake `DeviceInput::ButtonA { pressed: Some(true) }` (the Back button) or `DeviceInput::EncoderPress { id: Some("main") }` dismisses only the exact captured top error; the transaction then emits the underlying menu/modal/OLED snapshot. A dismissal does not restart transport or emit any action/effect/event/command. Every other input, including button releases, encoder turns, aux inputs, grid presses/releases, and `Other`, is consumed without changing the underlying state. Wake handling still has precedence: the first input that wakes the OLED is consumed as wake input and does not dismiss the error frame.
-- While the error gate is active, Shift/Fn/combined-modifier press and release inputs update only their physical pressed/held state. They do not execute mapped controls, and dismissal does not blindly clear a modifier that is still physically held; a release received during the error gate reconciles the held state before the underlying UI is restored.
-- The runtime error frame shows the compact `Back/Press: close` affordance below the fixed metadata/message rows.
-- A visible setup portal modal has priority after confirmation dialogs and ahead of system-info and help modals.
-- A visible Backup / Restore card has the same modal priority after confirmation dialogs and setup-portal presentation, ahead of system-info and help modals.
-- Bottom-right corner: transport icon (`▶` / `⏸` / `■`), hidden while a footer toast is active
-- Transport color: the native snapshot owns the NeoKey presentation. Back is magenta; Space is magenta stopped, blue paused, dim green while playing at rest, yellow on beat flashes, and green on measure flashes. Combined modifiers are blue, held modifiers are yellow, and inactive modifiers are dim gray.
-- Event-dot and transport-flash presentation uses native monotonic deadlines: 45 ms for the event dot and 90 ms for beat/measure flashes. A visible start, flash-kind change, or expiry transition forces one snapshot; same-state retriggers extend only.
-- Aggregate audio-load telemetry is separate from worker warning presentation. Recent voice stealing turns the active event dot magenta; aggregate load and voice-steal status remain on the desktop audio-load bridge and do not drive the worker icon.
-- Persistent-worker CPU icon: magenta at `(117,5)` only when valid persistent worker metrics report `high_cpu_steady`; missing or inline metrics hide it. A missed-quantum flash has priority in that same CPU slot and uses the inverted white/black CPU glyph, so the red CPU icon is hidden while the miss is active. The save icon remains yellow at `(107,5)` and may coexist with either CPU-slot state. A newly missed persistent quantum replays the previous final master quantum exactly once when its frame count matches; otherwise it emits silence, and subsequent refills during recovery emit silence. `missedQuantumFlash` is armed for five emitted seconds (`sampleRate * 5`), clears on the exact emitted-frame crossing, and resets on a later miss. These status transitions do not change the existing OLED layout or coordinates.
-- Toast text: displayed at bottom for feedback messages
+- Native presentation publishes a positive-revision `oled_frame` (`128x128`, `rgb565be`) only when
+  the bytes change, immediately before the semantic snapshot that references `oledFrameRevision`.
+  PlaybackRuntime owns OLED brightness conversion and never emits a snapshot with revision `0`,
+  including when presentation input is absent or malformed. Before the first valid frame an invalid
+  snapshot is suppressed and a typed fault/status is emitted; after a valid frame, non-OLED
+  snapshot state continues with the prior positive revision and a typed retain-last-good
+  fault/status.
+- Desktop consumes these runtime frames. Raspberry and Orange render OLED, LEDs, and HDMI from the
+  native presentation scene on the render worker, with the runtime error state attached. No
+  TypeScript or semantic Pi renderer fallback is permitted.
+- On Raspberry and Orange, the first menu frame at boot, runtime-error and dismissal frames, the
+  power terminal frame, and the Raspberry audio-fault frame are native presentation scenes. The
+  first scene is physically written before native scenes, HDMI, or candidate readiness proceed. A
+  changed snapshot revision schedules a scene even when the display generation is unchanged, so
+  host-side state such as runtime errors reaches the screen. Boot splash, direct boot fault,
+  shutdown splash, suspend, and ownership lifecycle frames remain adapter paths.
+- Geometry: 5×7 glyphs on a 6 px advance. The top line is the title bar, colored by section. The
+  menu body is 19 columns by 7 rows (`x=6`, `y=18`, 13 px rows). The toast line at the bottom is 17
+  columns wide.
+- Every snapshot `display` object carries the required `bodyLayout`:
+  - `rows` keeps the menu/help/sample/restore/confirmation/System Info/concise-MIDI row
+    semantics, including the 28-character/7-row normalization, bars, selected-line scrolling, and
+    scrollbars.
+  - `card` is used for the setup portal and Backup / Restore status and keeps every complete
+    semantic source string in `display.lines`. Cards use `x=4`, `width=120`, `y=18`, `height=91`,
+    `rowAdvance=13` (20 columns by 7 rows), reserve the final row for the selected action, and
+    ignore row bars and scroll metadata. When card prose wraps or later lines do not fit, only the
+    final visible prose row gets `...`. The native and Pi renderers share the fixed-font metrics and
+    wrapping rules.
+- Splash graphics use the shared static `SPLASH_SLEEP_SHUTDOWN` logo and wordmark for sleep and
+  shutdown with the existing toast geometry. The sleep toast is exactly `Going to sleep`. Startup
+  and wake keep the regular logo.
 
-NeoKey snapshot contract:
+### Palette
 
-- `neoKeyLeds.back`, `.space`, `.shift`, and `.fn` are required native RGB values before brightness scaling. Desktop and Pi apply the same basis-point rule: normal scale is `buttonBrightness * 100`; dimmed scale is zero for zero brightness, otherwise `max(buttonBrightness * 8, 400)`; each channel is `(channel * scale + 5000) / 10000`.
-- `eventDotOn`, `transportIcon`, and `transportFlash` are required top-level snapshot fields. `transportFlash` is not duplicated under `settings`.
+Palette names are independent of menu sections. Runtime, Pi, and desktop UI colors use this
+palette unless a behavior deliberately owns its own.
 
-## Grid Coordinate Boundary
+| Name | Hex | Section |
+|---|---|---|
+| `GREEN` | `#63D23F` | Build |
+| `MAGENTA` | `#DD82CD` | Link |
+| `BLUE` | `#35CFF2` | Shape |
+| `YELLOW` | `#FFD447` | Play |
+| `GRAY` | `#C9CED6` | System |
+| `WHITE` | `#FFFFFF` | |
+| `BLACK` | `#000000` | |
 
-- The fixed grid is 8×8. Native behavior/world coordinates use a lower-left origin: `(0,0)` is bottom-left and `y` increases upward.
-- Display and hardware frames use top-left row-major order at the boundary. `platform-core` owns the pure logical row-major and logical/display projection helpers; `playback-runtime` delegates its existing display-index API to them.
-- Desktop `GRID_DOMAIN` remains a deliberate boundary mirror for input/rendering and is checked against every cell in `resources/grid-projection-v1.json`. The fixture is verification data, not a runtime projection table.
-- HAL NeoTrellis wiring remains fixed adapter data: four device quadrants, physical keys, device addresses, and GRB output are kept separate from the shared world/display projection.
+### Body rows
 
-Value editing semantics:
+- Menu rows use a `> ` marker with an inverted highlight on the selected row, and `* ` while
+  editing. While browsing, a selected value row stays compact on one line (for example
+  `> Cutoff 127`); edit mode shows a separate value-focused row.
+- `!` marks an action row. Plain action rows drop one leading display space so the text lines up
+  with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
+  the same width.
+- Snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`).
+  Desktop draws a 1-2 px scrollbar inside the OLED body only when rendered rows exceed visible
+  rows. It uses no text columns and is omitted for splash/help/confirm overlays unless menu metadata
+  is present.
+- When `Number Style` is `bar` or `bar+numbers`, bounded number rows keep the value on the selected
+  text row and draw a compact bar on the next body row, so the value is not shortened. Bars use the
+  row/menu color, keep a visible bounding box when empty, partial, or full, draw marker-style
+  values as a tick inside the box, and keep contrast on highlighted rows.
+- Bars apply to FX params, synth/FM/sample shaping controls, editable mixer and FX bus volume/pan,
+  Play FX controls, System sound/UI controls, Link axis controls, and behavior controls such as
+  spawn interval/count, threshold, lifespan, and radius. Selector-like numeric rows stay plain text:
+  MIDI channels, instrument/sample slots, layer selectors, and MIDI note ranges.
+- Bar value text uses compact units: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, pan as
+  `L15`/`C`/`R15`. Internal `0..1` ranges display as `0..100`.
 
-- Numeric steps follow the parameter's shape; the same rule applies to Main and Aux turns, coarse and fine (Fn). Saved values and their ranges never change, only how far a detent moves.
-  - Times in milliseconds (envelope Attack/Decay/Release, Plucked and Drum Decay, Drum Sweep ms, Note Length, Link Length, MIDI Duration, FX delay/slice/compressor/duck times, mod-delay Base and Depth): 1 ms per detent below 20 ms, 5 ms to 100 ms, 25 ms to 1 s and 100 ms above, snapped to that step. Fn is one notch finer: 1 ms below 100 ms (0.1 ms where the value stores tenths), 5 ms to 1 s, 25 ms above.
-  - Frequencies, rates and Q (Plucked Body Hz, FX Center, EQ Mid Freq, FX LFO Rate, Q, Mid Q, Play stutter Rate): each detent multiplies by 2^(1/24), about 3% or a quarter-tone, and by 2^(1/96) with Fn; a detent always moves at least one unit. Instrument filter cutoffs keep their logarithmic 0..255 index with plain steps.
-  - Reverb Decay and delay Feedback (0..98%): the distance to the top changes by 2^(1/4) per detent (2^(1/16) with Fn), so long tails stay settable. Bipolar mod-delay Feedback stays linear.
-  - XY Smoothing keeps 10 ms steps because saved smoothing is 0 or a multiple of 10 ms; every other numeric parameter keeps its linear step.
-- Number/enum/bool rows enter edit mode on Main press; Main or Back finishes the row. At the Save Setting choice, Back means Cancel; at the Restart? choice, Back means Continue.
-- Navigation memory is limited to `System`, `System > Notes`, `System > Audio`, `System > Audio > Engine`, and `System > Display`. It is native, ephemeral, cleared on menu rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port list, parameter picker, help, confirm dialog, or assignment overlay.
-- `System > Audio > Engine` persists `runtimeConfig.dsp.workerWarningThreshold` as `70/75/80/85/90/95` with default `85`, and `runtimeConfig.dsp.busIdleThreshold` as `exact/-140/-120/-100/-80` with default `-120`. These typed settings propagate directly to the realtime engine without rebuilding prepared audio or changing structural render-plan revisions. Worker warning presentation and bus silence behavior are separate runtime phases.
-- Steady high-CPU presentation uses persistent worker metrics only: the configured threshold is immediate, clearing requires utilization strictly below `threshold - 5 percentage points` for five rendered seconds, and equality remains in the hold band and resets clear accumulation. Absent worker metrics hide the icon. `DeadlineMiss` is native, nonterminal ownership recovery; a valid previous final master quantum is repeated once on the first matching missed quantum, then pending refills are silent until the late state recovers. `missedQuantumFlash` remains a native status flag for five emitted seconds, including exact boundary clearing and reset on a later miss; it does not alter the existing visual structure. Structural worker failures (`DispatchFailed`, `CompletionFailed`, `WorkerExited`, and `InvalidBlock`) remain sticky terminal states and do not enter this recovery path.
-- `System > Notes` keeps the existing `sound.noteLengthMs`, `sound.velocityScalePct`, and `sound.velocityCurve` keys and semantics. `System > Audio > Perf. Mode` persists `runtimeConfig.sound.optimizeFor` as `latency|capacity`; its compact OLED values are `Lat` and `Cap` for the full Latency and Capacity choices, it is visible on Raspberry and Orange, and it is hidden on desktop. `System > Audio > Polyphony` keeps the existing `sound.voiceStealingMode` values `fixed12/fixed16/auto-soft/auto-balanced/auto-hard/none`; `Engine` keeps the existing DSP threshold keys and values. Neither performance mode changes voice or FX limits.
-- `System > Saves` separates local device settings from portable music. `System > Saves > System` contains `Save System` and `Load System`; `System > Saves > Default` contains `Auto Save`, `Backups`, `Save Patch`, and `Load Patch`. `Library` keeps its named-preset actions unchanged. These actions use the same native input semantics on hardware and desktop.
-- Restart-sensitive edits to Audio, `System > MIDI > USB Device > USB MIDI`, `System > Connections > USB Role`, and their output settings use the native confirmed System-only Apply flow and `Restart required.` warning. Its default is `Cancel`. A Host pre-save warning shows `Restart required.`, `Before Host reboot:`, `Unplug computer USB.`, and `Audio/MIDI/SD2 off.` The confirmed Apply saves the setting to the System file; it does not discard unsaved musical edits. A successful Host save shows `Restart?` / `Saved. Reboot to apply?` followed by `Unplug computer USB`, `before Host reboot.`, and `Audio/MIDI/SD2 off.`; non-Host acknowledgements retain the existing two-line dialog. Both use default `Continue` and optional `Reboot now`; stale or failed acknowledgements never reboot or advance the persisted baseline. Setting-only saves preserve unrelated dirty edits. `Start Transfer` and `Stop Transfer` under `System > Connections > SD Card 2` retain their existing modal/cancel behavior. General MIDI enable/input/clock/sync remains under `System > MIDI`.
-- `System > Audio` exposes conditional USB Audio, conditional HDMI Audio, Master Vol, conditional Perf. Mode, Polyphony, and Engine in that order; the output rows are optional mirrors of the always-on Jack mix and are only on Pi boards. USB Audio is hidden and disabled in USB Host mode, while HDMI Audio remains visible. `System > MIDI` contains `MIDI Active`, then conditional `MIDI Host` and `USB Device` groups, then Sync / Clock. MIDI Active is the global runtime gate and selects no port or device. MIDI Host contains MIDI Out then MIDI In and is shown on desktop and Orange, and on Raspberry only in Host mode. USB Device contains USB MIDI and is shown on Orange and on Raspberry only in Gadget mode; it is the computer-facing gadget interface and automatically owns both Gadget MIDI input and output while enabled. Host-selected input/output IDs are ignored while USB Device MIDI is enabled; on Orange they are retained for later use after it is disabled. USB Device changes are restart-sensitive: pending edits do not change the live route until the next process startup. `System > Connections > USB Role` is Raspberry-capability-only and precedes Updates. Host also hides SD Card 2 Start Transfer while retaining Stop Transfer for cleanup, and Gadget does not restore previously disabled outputs. `System > Connections > SD Card 2` contains Start Transfer and Stop Transfer; the second card is exposed to a USB host only while conflicting USB audio, MIDI, and recording are inactive. `System > Display > HDMI Video` contains the existing HDMI display controls; SD Card 2 and HDMI Video are board-only. HDMI Audio is independent of HDMI video. Simultaneous physical outputs use independent unsynchronized clocks and can drift or echo; this phase does not provide sample alignment.
-- `System > Reboot` and `System > Shutdown` confirm before emitting their native effects, after the recovery-save effect. One board-neutral terminal lifecycle requires that save to succeed, atomically stops non-terminal follow-ups and new input, independently attempts external MIDI panic and internal audio silence, then only after both succeed publishes and physically acknowledges the final shutdown/reboot snapshot and LED/OLED state before submitting the board-specific fixed power request. Save, safety, terminal acknowledgement, and power-submission failures are typed/logged and never resume normal follow-ups incorrectly. The exact ordinary-menu toasts remain `Rebooting` and `Shutting down`; the OLED frame stays preserved while native hardware teardown completes. Raspberry uses the exact noninteractive power commands allowed by `/etc/sudoers.d/octessera-shutdown`, with no broad `NOPASSWD` grant. Orange uses its fixed root-owned `/run/octessera-device-apply/reboot.sock` with exact `reboot\n` and `poweroff\n` requests and exact `accepted\n`/`rejected\n` responses. Orange reboot still validates persisted config in the root helper; poweroff does not depend on that config validation. This bounded contract applies to confirmed instrument-menu actions, not arbitrary administrative `systemctl poweroff` or `systemctl reboot` commands.
-- `System > Maintenance > Updates > Check` emits `RuntimePlatformEffect::UpdateCheck` without confirmation. On supported Raspberry Pi hosts, the updater reports whether the GitHub release contains the installed profile's ZIP/checksum pair. On Orange, Check/Apply/Rollback use the root-owned broker and guarded updater with the explicit profile-qualified `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt` pair. These actions update only the managed runtime release; full Armbian, kernel, device-tree, and image replacement remains manual, and the standalone manual runtime ZIP is not an OTA asset. Orange profile, asset, manifest, checksum, and health mismatches fail closed; it never consumes Raspberry assets or falls back to the manual ZIP or image path. On desktop, Check opens the GitHub releases page; desktop Apply and Rollback report unsupported. On supported Raspberry and Orange hosts, Apply and Rollback confirm first, stage the candidate or previous runtime release, and schedule guarded validation. The immediate Apply result may be `Update health validation scheduled.`; it is not a completed-update result. The guard validates process identity and stability before committing; downloaded Apply candidates also require profile/version readiness, and a failed validation automatically restores the previous release. Legacy installations must be provisioned or updated with the current OS bundle, or reflashed, before online apply; the legacy updater must not apply new releases.
-- On the Orange production runtime, native musical events, runtime audio commands, and silence route through the realtime engine at the shared 44.1 kHz runtime rate. Jack is always-on primary; selected USB or HDMI audio routes are optional mirrors of the canonical Jack mix. Readiness depends on Jack; an absent, waiting, or faulted optional mirror is route-local and never blocks or replaces Jack. HDMI audio is separate from HDMI video, and simultaneous physical outputs are not sample-synchronized. MIDI uses the native host adapter, including USB MIDI when the configured gadget port is present. The service polls NeoTrellis/NeoKey over `/dev/i2c-2` at about 10 ms and uses the native gpiocdev v2 encoder path for all four encoders. Orange HAL descriptors reverse each literal board A/B net at the event boundary so all four produce canonical turn direction without changing shared quadrature decoding. AUX2 A/B offsets 227/269 are always requested; switch offset 224 is omitted only while UART0 is active and is requested once the dedicated UART0-disabled input-routing overlay is applied. Lower-left grid and GRB output semantics remain unchanged.
-- `System > Maintenance > Sys. Info` opens a native loading popup and emits `RuntimePlatformEffect::SystemInfoRequest`. Desktop and Pi return an asynchronously identified, sanitized `RuntimeSystemInfo` containing OS/version, Octessera version, primary IP/MAC when available, hostname, and explicit board profile. The desktop UI only renders the resulting snapshot.
-- `System > Connections > Wi-Fi > Setup Portal` uses stable key `system.configureWifi` and keeps its existing confirmation and native setup-portal behavior. `System > Maintenance > Backup / Restore` uses stable key `system.backupRestore` and remains a direct, unconfirmed action. Updates and Hardware Test remain under Setup without action-key changes.
-- `System > Live Show Mode` is board-only (Raspberry and Orange) and sits between Display and Maintenance. `Start 48h` (`maintenance.hold`) opens a `Live Show Mode` confirmation (Cancel / Start) that says Wi-Fi goes off for 48 h; `End` (`maintenance.release`) is direct. Both emit `RuntimePlatformEffect::MaintenanceHold { active }` and show the `Live Show Mode: 48h` / `Live Show Mode off` toast. The board writes or removes `/var/lib/octessera/show-hold/until` (Unix expiry seconds); the images' `ExecCondition` drop-ins skip fstrim, logrotate, systemd-tmpfiles-clean, and the Raspberry network-health logger (the daily dpkg-db-backup timer is masked on both images) while that time is in the future and no more than about 48 h away. On both boards `octessera-show-hold.path` runs `octessera-show-hold-apply` whenever the file changes (and at boot): while the mode is on it blocks the Wi-Fi radio (`rfkill block wlan`; Bluetooth is untouched), on the Raspberry also stops `octessera-network-health.timer`, and schedules a transient timer that re-runs the script at expiry; End or expiry unblocks Wi-Fi and, on the Raspberry, starts the timer again unless the Wi-Fi switch is off. Skipped jobs run at their next schedule; the hold survives reboots. Desktop reports it as board-only.
-- `System > Connections > Wi-Fi` is the first Connections row: the board-only `Wi-Fi` On/Off switch, then Setup Portal on every platform. The switch (key `wifi.enabled`) is a local System setting persisted as `runtimeConfig.wifi.enabled` (default on). It is never part of portable patches or `.oct` backups, so a restore cannot switch a fresh board's radio off. A change applies immediately with the `Wi-Fi off: no SSH` / `Wi-Fi on` toast. The Pi host mirrors the setting into `/var/lib/octessera/show-hold/wifi-off` on every change and once at startup, writing or removing the file; `octessera-show-hold-apply` (also run at boot and whenever that file changes) sets NetworkManager's radio with `nmcli radio wifi off|on`, which keeps the saved connections. The switch and Live Show Mode are independent: the show blocks the radio with `rfkill` only while it lasts, and its End or expiry only lifts that block, so a switched-off radio stays off. On the Raspberry the network-health timer runs only while no show is active and the switch is on. Opening the setup portal (`system.configureWifi`) switches the setting back on and removes the switch file before it turns the radio on. Desktop has no switch row.
-- `System > Display > HDMI Video` displays `Mode` as `Terminal | live-grid | plain-grid | active-behavior | cycle-behaviors` and persists the canonical `runtimeConfig.hdmi.mode` value (`none|live-grid|plain-grid|active-behavior|cycle-behaviors`, default `none`). `Terminal` is the compatibility label for stored/runtime `none`; it releases and disables Octessera framebuffer output so Linux terminal ownership can show, while snapshots retain their existing black/inactive HDMI grid semantics. `Bars per cycle` appears only in `cycle-behaviors` mode.
-- `System > Connections > Bluetooth` is board-only. It contains `Bluetooth` (key `bluetooth.enabled`, persisted as `runtimeConfig.bluetooth.enabled`, default Off) and, only while it is On, `Audio Out`, `Devices`, `Pair New`, and `Forget`. The setting powers the board radio; Off powers it down. `Audio Out` (key `bluetooth.audio`, persisted as `runtimeConfig.bluetooth.audio`, default Off) sends a copy of the final mix to the first paired, connected speaker: the primary callback fills a bounded, never-blocking monitor tap, and a background feeder (SCHED_OTHER, nice 10, on the DSP cores) plays it through bluez-alsa. Monitor audio is dropped under pressure, lags by a few hundred milliseconds, and never changes the wired outputs; a disconnected speaker simply stops it. `Devices` lists paired devices as `name [kbd]` or `name [audio]` with ` - on` for connected ones, and pressing a row connects or disconnects it. `Pair New` emits `BluetoothScan { active: true }` when it opens and `active: false` when Back leaves it; it opens while still empty and lists found unpaired keyboards and speakers. Pressing a row pairs, trusts, and then connects the device; a passkey shows as a modal, and Back or a Main click cancels pairing. `Forget` removes a pairing. Results and failures arrive as `BluetoothStatus` toasts. While Bluetooth is On, keyboard capture also accepts Bluetooth keyboards under the same HDMI gate, so Raspberry Gadget can be played from a Bluetooth keyboard.
-- Hardware HDMI timing can be sampled on Pi/Orange Pi without framebuffer writes using `cargo run -p octessera-pi --bin octessera-pi-hdmi-bench --release`.
-- `System > Recording` persists `runtimeConfig.recording.maxMinutes` with default `10` and clamps to `1..120`; the same limit applies to WAV and Audio+Video AVI. `Start Audio` emits `RuntimePlatformEffect::RecordingStartAudio { max_minutes }` and writes 44.1 kHz stereo signed-16 little-endian PCM WAV. `Audio+Video` emits `RuntimePlatformEffect::RecordingStartAudioOled { max_minutes }` and writes an AVI with 272x128 lossless PNG-frame video (`MPNG`) at 20 fps (OLED on the left, the four NeoKeys as a bottom-aligned 16-pixel column in the middle with black back/play/shift/layer glyphs, the 8x8 NeoTrellis grid on the right as 16-pixel blocks, LED colors at full brightness) plus 44.1 kHz stereo signed-16 little-endian PCM audio. Audio is the master clock, so each video frame advances every 2,205 audio frames and accepted OLED frames and native LED colors are held between updates. `Stop` emits `RuntimePlatformEffect::RecordingStop` and is safe when idle. Both actions capture the final internal stereo output; external MIDI instrument audio is not captured.
-- Recording roots are fixed by host adapter: desktop uses the Tauri Audio/Music directory under `Octessera/recordings` for WAV and `Octessera/screen-recordings` for Audio+Video; Raspberry uses `/home/pi/recordings` and `/home/pi/screen-recordings`; Orange uses `/var/lib/octessera/recordings` and `/var/lib/octessera/screen-recordings`. A reserved `.partial.*` file becomes `.wav`/`.avi` after successful finalization, or `.incomplete.wav`/`.incomplete.avi` after audio gaps or audio ingress overflow (a dropped screen frame only holds the previous picture and is logged); failed workers retain the partial file and existing takes are never replaced.
-- Recording feedback is native: a successful start shows `Recording started`; a duplicate start shows `Recording is already running`; manual Stop shows `Recording saved` or `Recording incomplete`; clean max-duration completion shows `Max time: saved`. Recording does not hold the OLED awake: the normal `OLED Sleep` timer applies, and an Audio+Video take records all-black frames (OLED, keys and grid) while the screen sleeps.
-- Browsing selected values are shown on the selected label row; edit mode uses a separate value-focused row for clarity.
-- Breadcrumbs use full labels for the current submenu and short labels for ancestors, e.g. `/S/FX/Bus 1` and, one level deeper, `/S/FX/B1/Slot 1`. Top-level ancestors use `Build`/`B`, `Link`/`L`, `Shape`/`S`, `Play`/`P`; layer ancestors use `Layer N`/`LN`; FX bus ancestors use `Bus N`/`BN`. Overlong breadcrumbs are front-ellipsized with `...` so the current location remains visible. Section color follows the canonical section path, not the truncated display text.
-- Menu items that lead to a submenu or selector render with a trailing `>` marker. `Build > Layer > Behavior: <id>` is a synthetic browser-style selector, not an editable enum. It groups behavior items under `[Human]`, `[Rhythm]`, `[Musical]`, then alphabetically under `[Cellular]`, `[Fields]`, `[Geometry]`, `[Growth]`, and `[Motion]`, uses `..` items for parent navigation, and writes the selected native behavior ID to that layer's persisted `behaviorId` field. Human includes direct play plus `weave`; Rhythm includes `polyrhythm`, `breaks`, `fills`, `clave`, `groove`, and `euclid`; Musical includes `ostinato`, `motif`, `canon`, `chords`, `contour`, `cadence`, and `phrase`. Selecting a behavior uses a targeted native Build refresh for that layer and does not rebuild the full menu tree. `arp` is not a native Build behavior; arpeggiation lives under `Link > L* > Arp`. `glider` is no longer a behavior ID; its glider injection controls are part of `life`. `forest_fire` is the canonical Forest Fire behavior ID, with no `forest` alias. `bubbles` belongs to Motion; its current, drift, and buoyancy items use eighth-cell units per tick, and `Add Bubble` spawns one bottom-origin rising bubble immediately.
-- Forest Fire renders trees and burning cells as visible, but event interpretation follows the behavior's trigger types: tree-to-fire and manual ignition emit activate triggers, burned-out cells emit deactivate triggers, visible non-burning trees are stable, and unrelated empty cells emit no event.
-- `crystal_growth` is the canonical Crystal Growth behavior ID, with no `crystal` or `crystals` alias. It belongs to Growth before `dla`. `cross` grows through cardinal neighbors only; `diagonal` grows through diagonal neighbors only; `snowflake` grows through cardinal neighbors plus parity-selected diagonals: even `(x + y)` uses NW/SE, odd uses NE/SW. Grid press seeds or refreshes the exact lower-left world-space cell without toggling it off or changing its phase; scheduled/action seeding chooses deterministic cells.
-- `lightning` is the canonical Lightning behavior ID, with no aliases. It belongs to Fields before `raindrops`. Target edges use lower-left world space: north is `y=max`, south is `y=0`, east is `x=max`, and west is `x=0`; automatic strikes seed from the opposite edge. On the connection tick, all visible lightning cells emit activate once, then remain stable during decay and deactivate when cleared.
-- `kuramoto` is the canonical Kuramoto behavior ID, with no aliases. It belongs to Fields before `lightning`. Cells are visible only near the sync/wrap window; phase wraps emit activate, stable sync-window cells stay quiet, grid press sets the exact lower-left world-space cell just before wrap and emits activate, and `Desync Pulse` perturbs phases without immediate activate events.
-- `wave` is the canonical Wave behavior ID, with no aliases. It belongs to Fields near `raindrops` but uses oscillating displacement/velocity rather than ripple rings or diffusion. Grid press applies an impulse to the exact lower-left world-space cell and emits activate; threshold crossings activate/deactivate as the wave propagates and damps. `Impulse Interval` and `Spawn Step` schedule deterministic small impulses so the default patch keeps breathing.
-- `gravity` is the canonical Gravity behavior ID, with no aliases. It belongs to Motion after `bubbles`. It is falling granular sand only: gravity directions use lower-left world space, movement into a new cell activates the destination and deactivates the origin, unchanged settled grains are stable, and near-saturated/stalled defaults drain a few settled grains instead of staying full.
-- `boids` is the canonical Boids behavior ID, with no aliases. It belongs to Motion after `bubbles` and `gravity`. It renders many quantized flocking agents; cell entry activates, vacated cells deactivate only when no boid remains, and scatter changes velocity without immediate activation.
-- `orbit` is the canonical Orbit behavior ID, with no aliases. It belongs to Motion after `boids`. Particles orbit one moving attractor; particle cell entry activates, vacated cells deactivate only when no particle remains, and attractor-only cells render stable except press/reset forced accents.
-- `sand_ripples` is the canonical Sand Ripples behavior ID, with no aliases. It belongs to Motion after `orbit`. It models wind-driven grain transport and migrating crests, with no water flow or gravity avalanche behavior; saturated defaults shed tiny deterministic gaps so dunes keep moving.
-- `lava_lamp` is the canonical Lava Lamp behavior ID, with no aliases. It belongs to Motion between `boids` and `orbit`. It renders soft moving blobs/metaball-like fields that merge and split; it is not flocking, orbiting, or passive diffusion.
-- `ink` is the canonical Ink behavior ID, with no aliases. It belongs to Fields before `ising`. Ink diffuses toward cardinal-neighbor average and fades; direct drops force activate, passive threshold crossings activate/deactivate, and low pigment remains quiet. `Drop Interval` and `Spawn Step` schedule deterministic small drops for default liveness.
-- `ising` is the canonical Ising behavior ID, with no aliases. It belongs to Fields between `ink` and `kuramoto`. It models binary magnetic domains with temperature, noise, and field bias; spin flips to +1 activate, flips to -1 deactivate, unchanged +1 cells remain stable, and -1 cells are quiet.
-- `reaction_diffusion` is the canonical Reaction-Diffusion behavior ID, with no aliases. It belongs to Fields between `raindrops` and `wave`. It uses two-chemical Gray-Scott-style integer pattern formation; B concentration drives visibility, upward threshold crossings activate, downward visibility crossings deactivate, and grid presses splash chemicals into the exact lower-left world-space cell plus cardinal neighbors. `Seed Interval` and `Spawn Step` schedule deterministic small chemical splashes for default liveness.
-- `rivers` is the canonical Rivers behavior ID, with no aliases. It belongs to Fields between `reaction_diffusion` and `wave`. It models water flow over height with erosion/deposition, cardinal non-wrapping downhill movement, and visible water threshold triggers.
-- `cracks` is the canonical Cracks behavior ID, with no aliases. It belongs to Growth before `crystal_growth`. Crack tips propagate through stressed cells, new tips activate, stress-only cells are stable/quiet, and shatter/replace removes visible pane cells in bounded staged passes with deactivate triggers.
-- `coral` is the canonical Coral behavior ID, with no aliases. It belongs to Growth before `cracks`. Exposed cardinal colony surfaces grow, adjacent opposing colonies become skeletons instead of directly converting, breakaway clearing deactivates removed cells, and full defaults thin a few cells deterministically instead of staying solid.
-- `physarum` is the canonical Physarum behavior ID, with no aliases. It belongs to Growth after `dla`. Bounded agents follow trail and food, deposit evaporating memory, food is stable/quiet, and seed slime forces new agent-cell activate accents.
-- `vines` is the canonical Vines behavior ID, with no aliases. It belongs to Growth after `physarum`. Directional tendril tips seek light and open space, branches reserve empty cells without wrapping, pruning deactivates removed vines, full defaults shed a few old cells deterministically, and direct planting uses exact lower-left world-space cells.
-- `fractal_explorer` is the canonical Fractal Explorer behavior ID, with no aliases. It belongs to Geometry before `shapes`. It dynamically samples Mandelbrot/Julia regions with drift and zoom; class increases activate, class disappearance deactivates, and grid press recenters the exact world-space cell with a one-shot forced activate. Its mode action key is `toggleFractalMode`.
-- `maze_growth` is the canonical Maze Growth behavior ID, with no aliases. It belongs to Geometry between `fractal_explorer` and `shapes`. It carves one-cell corridors from frontiers, moves walkers over visible cells, never wraps neighbors, and collapse/removal deactivates visible cells.
-- `predator_prey` is the canonical Predator–Prey behavior ID, with no aliases. Grass persistence and regrowth are visible, quiet `Stable` background events; animals emit activate on entry, birth, and reseed, deactivate on move-out or death, and stable while persisting. Predator eating a herbivore adds a one-tick trigger-only cardinal burst without mutating neighbor cells, so visible grass cells may briefly emit activate as predator-event accents. Saturated defaults reopen a few cells instead of staying full.
-- `twinkle` is the canonical Twinkle behavior ID, with no aliases. It keeps a deterministic 1–5 star cap, with `Activate` on births, `Deactivate` on deaths, `Stable` on persisting stars, and quiet inactive cells. A manual birth at the cap replaces one deterministic existing star. One tick may perform at most one eligible fade and one birth; `Star Life` gates fading, and `Cluster Bias` selects clipped, non-wrapping neighborhoods versus global empty cells. Missing saved cells seed the deterministic default, while an explicit empty array stays empty. `Reseed Stars` and `Clear Stars` are the only Twinkle actions; Build `Reset` remains the generic behavior reset.
-- `cyclic` is the canonical Cyclic behavior ID, with no aliases. It belongs to Cellular between `brain` and `forest_fire`. Cells chase the next discrete state through a clipped Moore neighborhood; advancement emits activate except wrap-to-zero, which emits deactivate. Zero cells are inactive and quiet.
-- Bool behaves like a 2-option enum (`off`/`on`) and changes on encoder turn, not immediate row press
-- Named target selectors (instrument slot, layer index, mixer route) display their computed names via `formatDisplayValue()` (e.g. `I1: synth`, `L3: rain`, `fxb2`)
-- The instrument target enums under `Link > Layer > Scanning` and `Link > Layer > Events` keep canonical options as `I#: name`; their unselected rows show only `I#`, while the selected item uses exactly two body rows: its plain item-specific heading followed by the selected `> I#: name` detail (or `>* I#: name` while editing). Long selected details scroll horizontally in both browsing and edit mode. Other named selectors retain their existing presentation.
-- Behavior `none` hides Build Step Rate, dynamic behavior config rows, and Reset while preserving stored values. Instrument Type `none` hides Note Mode, engine-specific params, mixer/MIDI rows, and Slot Actions while preserving stored config.
-- `Shape > Instruments > I# > Type` offers `fm` (shown as `FM`) alongside synth, sampler, and MIDI. An FM slot keeps Type, Note Mode, FM, Mixer, Auto Label, Name, and Slot Actions in that order. FM opens to seven rows: `Preset >`, `Tone >`, `Index Env >`, `Filter >`, `Volume >`, `Amp Env >`, `Filter Env >`; all fit below the OLED title. `Preset > Load` offers Init, Soft Keys, and Bell for this slot's FM settings. Tone contains exactly Ratio (`0.5|1|2|3|4|5|6|8`, default `2`, displayed as `1:2|1:1|2:1|3:1|4:1|5:1|6:1|8:1`), Fine cents (-100..100, default 0, shown with sign and `c`), Index (0..100, default 50, mapped to 0..4 radians), Vel to Index (0..100%, default 0), Mod Shape (0..100%, default 0), and Mod Mix (0..100%, default 0), in that order. The six Tone rows fit on the existing OLED body. Fine cents offsets the modulator interval relative to the carrier, not carrier tuning. Vel to Index scales harmonic depth rather than directly scaling amplitude or Volume; Mod Shape blends a second harmonic when Index is above 0; Mod Mix adds audible modulator tone even at Index 0 and can reinforce at Ratio 1. Tone edits can reshape notes already ringing. Index Env starts at Attack 0 ms, Decay 250 ms, Sustain 20%, Release 120 ms. Volume starts at Gain 80%, Vel Sens 100%; Amp Env starts at 5/300/70/350. FM Filter and Filter Env use Synth's control scales and defaults, saved under this slot's own `fm` block. Use the familiar edit encoder and Back to nudge the tone; FM audio follows the same Mixer and FX bus path as Synth, while MIDI remains external.
-- FM parameter binding pickers expose Index, Volume Gain, Filter Cutoff, and Filter Res as numeric targets for modulation, XY, and Aux. Their saved labels carry an `FM` prefix and fit on the OLED's selected Current row. Ratio and Filter Type stay menu selectors, not continuous binding targets.
-- `Shape > Instruments > I# > Type` also offers `pluck` (shown as `Plucked`). A Plucked slot keeps Type, Note Mode, Plucked, Mixer, Auto Label, Name, and Slot Actions in that order. Plucked opens to six rows: `Preset >`, `String >`, `Filter >`, `Volume >`, `Amp Env >`, `Filter Env >`, all below the OLED title. `Preset > Load` offers Init, Nylon, Steel, and Muted for this slot's Plucked settings. String has seven rows in order: Decay (`100..5000 ms`, default `1500`), Brightness (`0..100%`, default `65`), Pick Pos (`5..50%`, default `25`), Pick Depth (`0..100%`, default `65`), Stiffness (`0..100%`, default `0`), Body Amt (`0..100%`, default `0`), and Body Hz (`100..2000 Hz`, default `500`). These fit the existing seven-row OLED body. Decay and Brightness edits can reshape ringing notes; the four new String controls apply to the next pluck. Pick Depth changes excitation color, not Pick Pos or Brightness. Stiffness shapes wire-like inharmonic upper partials; it is not a literal material, weight, or tension model. Body Amt adds coloration outside the string feedback, and Body Hz moves that coloration rather than shared Filter cutoff; Body Hz is dormant at zero Body Amt. Volume starts at Gain 80% and Vel Sens 100%; Amp Env starts at 0/0/100/900. Filter and Filter Env keep Synth's scales and defaults but save under this slot's `pluck` block. Use the normal edit encoder and Back. Plucked audio uses the same Mixer and FX bus path as Synth and FM.
-- Plucked binding pickers offer numeric Decay, Brightness, Pick Pos, Gain, Filter Cutoff, and Filter Res. Decay and Brightness adjust ringing strings; Pick Pos shapes the next pluck and does not change a note already ringing. Filter Type and instrument Type are not smooth numeric targets.
-- Sampler binding pickers offer Tune, Gain, Base Velocity, velocity sensitivity/levels, and Filter Cutoff/Res as audible audio targets. Filter Type, Env Amount, Key Tracking, Amp Env, and Filter Env remain editable and saved in the Sampler menu, but are not currently rendered as sampler audio controls and are not offered as new binding targets.
-- `Sampler > Kit > Load` is the first Sampler group; Sample Slot, the loaded sample, Browse, Cell Tune, Cell Fine, Cell Level (only while Vel Levels is on), Assign, Tune, Follow Transp., Follow Pitch, Gain, Base Velocity, Vel Levels switch, the Vel Levels group (only while on), Filter, Vel Sens, Amp Env, and Filter Env keep that order. The `Cell ...` rows are stamp values, not live sound settings: Assign copies Cell Tune (-24..24 st), Cell Fine (-100..100 cents), and Cell Level (Base, High, Medium, Low) onto each cell it stamps. Tune, Gain, Base Velocity, the Vel Levels velocities, Filter, and the envelopes stay slot-wide. Follow Transp. (default off) lets Play Transpose shift this sampler's cells as well. Follow Pitch (default off) plays each cell at the incoming Link note relative to C4 (MIDI 60): the stamped Cell Tune/Fine then says how far to retune the sample so it sounds right at C4. The combined cell pitch is clamped to ±48 semitones. Stamped values are offsets, so slot-wide Tune, Gain, Filter, velocity shaping, and their modulation bindings still act on every stamped cell. SDB Kit, Synth Kit, and Dist Kit replace this slot's eight sample paths, not its cell assignments/per-cell levels, selected sample slot, or other sample settings. The browser still offers `..`, folders, files, `(empty)`, and Space preview; loading a kit does not preview it.
-- `Shape > Instruments > I# > Type` also offers `drum` (shown as `Drum`). A Drum slot shows Type, Drum, Mixer, Auto Label, Name, Slot Actions; Note Mode is hidden because hits are always one-shot. Drum has thirteen rows: `Kit >`, Voice, `Edit >`, Cell Tune, Cell Fine, Cell Level, Assign, Preview, `Vel Levels >` (High 120, Medium 85, Low 45), Follow Transp. (default off), Follow Pitch (default off, same C4-relative rule as Sampler; Play Drums presses have no Link note and play the stamped pitch), `Filter >`, `Volume >`. The OLED shows seven body rows at once; turn to scroll down to Volume without covering the footer. `Kit > Load` offers Default, Tight, and Heavy: loading changes eight voice sounds/settings, not stamped cells. Voice lists `V1: Kick` through `V8: Rim`, deriving each name from its current Sound. Edit preserves Sound (`kick`, `snare`, `closed_hat`, `open_hat`, `low_tom`, `high_tom`, `clap`, `rim`), Tune (-12..12 semitones), Decay (20..2000 ms), Tone (0..100%), and Attack (0..50 ms), then appends Sweep st (0..36 semitones), Sweep ms (0..200 ms), Noise % (0..100), and Level % (0..100). The nine Edit rows scroll within the existing seven-row OLED body. For legacy data missing these controls, Sound defaults are Kick 24/55/12/100, Snare 3/25/80/100, Closed/Open Hat 0/0/95/100, Low Tom 8/70/15/100, High Tom 6/50/15/100, Clap 0/0/95/100, and Rim 0/0/35/100 (Sweep st/ms/Noise %/Level %). Sweep and Noise shape the next hit, not one already ringing; Sweep ms at 0 causes no pitch excursion even when Sweep st is positive. Noise % blends noise against pitched tone. Level % attenuates the selected kit voice, not kit-wide Gain. Sound resets that voice's style controls; other voices and stamped cells stay put. Drum keeps its own Filter and Volume values using Synth's control scales, with default Gain 80% and Vel Sens 100%; no Amp Env or Filter Env page.
-- The four per-slot Load lists use the existing Synth preset confirmation: choosing an entry opens confirmation with Cancel selected; nothing changes until Confirm. A confirmed load affects only that slot and shows which slot, type, and entry was loaded; custom names and mixer routing remain. No load action plays an automatic preview. `System > Saves` is still the separate whole-patch workflow, not a per-slot kit save manager.
-- Assign stamps the selected voice plus Cell Tune, Cell Fine, and Cell Level onto grid cells with the Sample Assignment gestures: plain press stamps that cell, Shift+press its whole world-space row (bottom row `y=0`), combined modifier+press its column; a row or column gets the same values on every cell. Pressing where every target cell already holds exactly that stamp clears them (`Cleared`); anything else is overwritten, and the toast shows the stamp (for example `V1 +7 -25c High`). To change a cell, re-stamp it; there is no per-cell editor. Base-level cells play at the trigger velocity; High/Medium/Low cells play the Vel Levels velocities, still scaled by velocity shaping. Each instrument saves its stamp values with the patch (`instruments[i].cellStamp`), like any other menu setting. Assignments start empty, never auto-fill the grid; Back exits without undoing work. Preview plays the selected voice at its own Tune with zero cell offset through the main encoder, without Space or the sample browser. Numeric kit Tune/Decay/Tone/Attack bindings change **next hits**, never ringing hits; slot Gain/Filter Cutoff/Res remain live targets. Voice, Sound, `Cell ...` stamp values, Follow Transp., Follow Pitch, Filter Type, and instrument Type are not smooth numeric targets.
-- `Play > Drums` is seventh in the Play page list (Fn+right world `y=6`), leaving rows 0..5 alone. `Slot` displays `I#: Drum` for existing Drum slots and initially selects the first one for this session. The seventh Play row reads `No Drum slot` when none exists; the menu does not add a selectable guidance row. Assigned grid presses on the Drums page play one immediate hit even when stopped; releases are consumed. Empty cells/non-Drum slots are silent. This direct performance mode does not also invoke behavior, Link, or trigger probability. Outside it, behavior-triggered Drum hits still follow their normal Link/probability/timing path.
-- Parameter target pickers mirror the main menu root order (`Build`, `Link`, `Shape`, `Play`, `System`) so modulation, Aux, and XY target browsing use the same mental model as normal navigation. Within `Build`, Behavior targets are generated per layer: layers with behavior `none` expose no behavior targets; real behavior layers expose their own Step Rate as `layers.N.algorithmStep` and config fields/actions as `layers.N.build.behaviorConfig.*`.
-- Global Play XY and layer X/Y parameter-mod bindings may store optional user `Range Min`/`Range Max` values. These constrain modulation output while preserving the target capability `min`/`max` metadata. Enum and bool bindings ignore user ranges.
-- `Play > XY` is ordered `X Axis`, `Y Axis`, `Smoothing`, `Invert X`, `Invert Y`, `Release`. `Smoothing` is `Off` at `0`, or `10–500 ms` in `10 ms` steps with a shipped default of `80 ms`; it displays `Off` or `<n> ms`. Raw XY markers update immediately, while mapped normalized axes glide independently from their current mapped values without overshoot before target range/step conversion. Elapsed time is monotonic; sample-hold retains and completes an active glide, reset-center moves the marker immediately to center and glides mapped axes to `0.5` when enabled, and inversion retargets only the affected mapped axis while the marker remains non-inverted.
-- `Link > LFOs > L1..L8` is the canonical global exact-eight bank stored as `runtimeConfig.linkLfos`. Slots are not associated with layers. Targets are additive, numeric, and live-safe only; exclusive controls and every LFO configuration key are excluded. Phase and live contributions are transient and are not serialized; playback-runtime composes the current contributions once per affected endpoint and emits transient audio commands without mutating the persistent config.
-- Layer X/Y, global Play XY, and global LFO target assignments are staged through the native claim validator. An exclusive target may have only one layer/Play claim, and an LFO may never claim one; rejected assignments leave the binding, contribution, revision, autosave state, and menu focus unchanged and show a bounded `Mapping rejected` toast. Accepted assignments and removals refresh the visible `Current:` claim label.
-- Each layer has `Link > L* > Arp` stored as `layers.N.link.arp` with `mode`, `source`, `stepIntervalSteps`, `noteLengthMs`, `gatePct`, and `octaveSpread`. Defaults are `none`, `simultaneous`, `1`, `120`, `80`, and `0`. Sources are `simultaneous` routed note-on batches and playback-runtime tracked `held` notes; unsupported sources normalize to `simultaneous`. `none` preserves the normal Link path. Other modes emit finite note-ons using `noteLengthMs * gatePct / 100` and do not create held notes; matching note-offs update held membership and do not cut off arp-owned finite notes. `stepIntervalSteps` is clamped to 1..16, `noteLengthMs` to 10..2000, `gatePct` to 1..100, and `octaveSpread` to 0..3.
-- Link event mappings (`activate`, `stable`, `deactivate`, `scanned`, `scanned_empty`) have per-target Delay and Retrig controls. Delay is counted in that layer's link ticks; Retrig is extra repeats after the original at delay+1, delay+2, and so on. Trigger probability is evaluated once before scheduling.
-- Link collapses only same-tick NoteOn duplicates within one CellTriggerKind group and mapping context, after finalized instrument routing and before Delay/Retrig scheduling; it keeps the first event and duration and uses the highest velocity. Other event kinds, lanes, ticks, layers, mappings, and durations remain distinct.
-- Musical timing selectors use the 24 PPQN vocabulary `1/32T`, `1/32`, `1/16T`, `1/16`, `1/8T`, `1/8`, `1/4T`, `1/4`, `1/2T`, `1/2`, `1/1T`, `1/1`. Straight `1/64` is intentionally not exposed because it is 1.5 pulses at 24 PPQN; triplet values are exact. Invalid timing labels use the canonical `1/8`/12-pulse default when presented in selectors; delay metadata continues to normalize invalid labels to the nearest note derived from `timeMs`.
-- When `Number Style` is `bar` or `bar+numbers`, bounded sound/control/behavior number items keep the numeric value on the selected text row and render a compact bounded bar on the next body row, so the value is not shortened to make room for the bar. Bars use the current row/menu color, keep a visible bounding box for empty/partial/full states, render marker-style values as a tick inside the same box, and preserve contrast on highlighted rows.
-- Bar display applies automatically to FX params, synth/FM/sample shaping controls, editable mixer volume/pan, FX bus volume/pan, Play FX controls, system sound/UI controls, Link axis controls, and behavior controls such as spawn interval/count, threshold, lifespan, and radius
-- `Play > FX > Pitch Shift` exposes `Semitones`, `Cents`, `Slide In`, `Slide Out`, and `Mix`. Slide times are `10..3000 ms` in `10 ms` steps with defaults of `120 ms` and `180 ms`; pitch amount glides linearly in octaves, independently of the fixed `PITCH_FILL_FRAMES=1088` live-input fill and fixed 10 ms wet/dry anti-click envelopes.
-- DLA has `Cell Life` (`0..256`, default `96`) so old aggregate cells age out and the cluster keeps renewing instead of filling the grid forever. `0` disables DLA aging/removal. If aging removes the whole cluster, DLA reseeds its small starter cluster.
-- Selector-like numeric rows stay plain text, including MIDI channels, instrument/sample slots, layer selectors, and MIDI note ranges
-- Structural selector edits apply immediately while the menu item is in edit mode through key-specific fast paths. This covers instrument type, instrument route, FX bus slot type, and master FX slot type. Behavior selection applies immediately when a behavior action item is pressed. Dynamic parameter menu items also apply immediately while editing.
-- Runtime audio commands and full audio-config payloads use the same native normalization on desktop and Pi. Malformed instrument/FX payloads retain the last good audio state and surface a typed audio failure; sample preview resolves and decodes through the host adapter before entering the selected realtime instrument path.
-- If a loaded sample cannot be found or decoded on the current platform, the native loaded-sample row and matching browser row display `N/A-<filename>` using the saved path's basename. The original path remains the replacement action's source and remains unchanged in patch/config payloads; available samples keep their normal names. A missing or undecodable sample leaves only its own slot silent; the rest of the instrument loads. The host reports the affected paths once per audio preparation, and the runtime opens a scrollable `Samples missing` popup listing each newly unavailable slot as `I<n> <path>`. Slots already shown as `N/A-` do not reopen the popup.
-- FX buses expose three ordered mono-chain slots: `Slot 1`, `Slot 2`, and `Slot 3`, with keys under `mixer.buses.N.slot1.*`, `slot2.*`, and `slot3.*`. When bus config is missing, the menu displays shipped defaults (`Slot 1: Delay`, `Slot 2: Duck`, `Slot 3: None`) rather than selecting the first option by accident. Old runtime/default configs that omit `slot3` load it as `none`; saved configs include explicit `slot3`. Global/master FX remains two stereo slots and does not expand with bus slot count.
-- The Pi active bus FX warning budget is 12 active bus slots, matching the current 4 buses × 3 slots maximum after Pi DSP profiling. The warning budget excludes the two global/master FX slots and does not reject saved patches.
-- Bus Delay FX exposes `Mix %`, `Spread %`, `Time Mode`, `Time Note`, and `Time ms`. Editing `Time Note` switches to note mode and materializes `timeMs` from the current BPM; later BPM edits retime note-mode bus Delays. Editing `Time ms` switches to ms mode and remains manual. Runtime/audio commands carry `timeMs` only, while `timeMode` and `timeNote` persist as patch metadata and are excluded from modulation, Aux, and XY binding targets. `Spread %` is 0..100 and widens only the final FX bus output; instruments, sampler voices, bus sends, and the FX slot chain remain mono. Delay Mix 0 with Spread 100 produces no widening.
-- Bus Duck FX exposes `Source`, `Source Tap` (`pre|post`, displayed as `Pre|Post`), `Threshold` 0..1, `Amount %` 0..100, `Attack` 1..500 ms, and `Release` 1..5000 ms. For an Instrument source, `Pre` is the raw source before its fader; `Post` applies its fader before instrument-target momentary FX and pan. For a Bus source, `Pre` is the bus input before its fader and Slot 1→2→3 chain; `Post` applies that bus fader to the same pre-chain input. A bus input already includes routed instruments' faders and instrument-target momentary FX. Both modes exclude source-bus slot FX, bus-target momentary FX, spread/pan, global FX, and master volume. Missing `sourceTap` defaults to `pre` for legacy patches. These are the canonical menu, saved-config, and realtime ranges; accepted values are passed to the ducking renderer without a narrower downstream range.
-- Bus input and Slot 1→2→3 processing remain mono. Bus `Volume`, `Pan Pos`, and delay `Spread %` apply only at the final bus output stage before summing into the main mix.
-- Bar value text uses compact units where useful: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, and pan as `L15`/`C`/`R15`; ambiguous internal `0..1` ranges display as `0..100`
-- `Link > Swing` is a global groove amount. `0%` is straight timing. Swing delays internal off-beat step/scan progression and catches up before the next beat; external MIDI clock output remains straight.
+### Display priority
 
-Action row markers:
+1. On Pi, `display.off` keeps the OLED dark.
+2. A top-level `runtimeError` takes the full frame over splash, menu, and footer toast, and hides
+   transport and event indicators. Exception: the native MIDI input-list failure keeps the concise
+   `MIDI INPUTS` / `MIDI unavailable` menu frame and toast.
+3. Splash.
+4. Confirmation dialogs.
+5. The setup portal modal, then the Backup / Restore card.
+6. System info and help.
+7. The menu with its footer. Context toasts never change LED overlay priority.
 
-- `!` prefix means the row is an action item
-- Plain action rows reduce one leading display space so the action text aligns visually with ordinary menu item text despite the `!` marker. Auto-mapped rows keep the normal alignment because `1-` and `1!` prefixes are equal width.
+### Runtime errors
 
-## Grid LED Behavior (NeoKey per-key RGB)
+- The error frame has seven fixed body rows in its own rectangle (`x=10`, `y=34`, 18 columns,
+  12 px rows): `DOMAIN ` plus 11 identifier cells, `CODE ` plus 13, `OP ` plus 15, then `MSG ` plus
+  up to 14 message cells and three continuation rows with a four-space prefix plus up to 14 cells.
+  The compact `Back/Press: close` footer sits below them.
+- Identifier underscores become spaces, controls and whitespace collapse, unsupported glyphs show as
+  `?`, and missing identifiers show `unknown`. Messages keep supported path punctuation and
+  underscores, use `needs attention` when missing, wrap words and hard-break long words across the
+  four message rows, and end the last content row with `...` when truncated. Unused continuation
+  rows stay empty. PlaybackRuntime owns this layout; Pi consumes the rows.
+- `PlaybackRuntime::latched_errors` is the sole owner of presented runtime-error visibility. While
+  its top error is visible, ordinary physical `DeviceInput` messages are rewritten internally and
+  never forwarded to platform adapters; `requestSnapshot: false` is ignored on this path.
+- Awake `DeviceInput::ButtonA { pressed: Some(true) }` (Back) or
+  `DeviceInput::EncoderPress { id: Some("main") }` dismisses only the exact captured top error, then
+  emits the underlying menu/modal/OLED snapshot. Dismissal does not restart transport or emit any
+  action, effect, event, or command. Every other input (releases, turns, aux, grid, `Other`) is
+  consumed without changing state. Wake still wins: the input that wakes the OLED is consumed as wake
+  input and does not dismiss.
+- During the error gate, Shift/Fn/combined-modifier presses and releases update only physical held
+  state and execute no mapped controls. Dismissal does not clear a modifier that is still held, and
+  a release received during the gate reconciles held state before the UI is restored.
 
-Each cell in the 8×8 grid is mapped to an LED with color based on its behavior palette and `CellTriggerType`. Every behavior provides inactive, active, and stable colors. Defaults are inactive black, active yellow, and stable green. Inactive black is preferred unless a behavior needs a different off-state color.
+### Status icons and transport indicators
+
+- The transport icon (`▶` / `⏸` / `■`) sits bottom-right and hides while a footer toast is shown.
+- Event-dot and transport-flash timing uses native monotonic deadlines: 45 ms for the event dot,
+  90 ms for beat/measure flashes. A visible start, flash-kind change, or expiry forces one snapshot;
+  same-state retriggers only extend the deadline.
+- Recent voice stealing turns the event dot magenta. Aggregate audio-load and voice-steal status
+  stay on the desktop audio-load bridge and do not drive the worker icon.
+- The persistent-worker CPU icon is magenta at `(117,5)` and shows only while valid persistent
+  worker metrics report `high_cpu_steady`; missing or inline metrics hide it. The configured
+  threshold (`System > Audio > Engine > CPU Warn %`) applies immediately. Clearing needs
+  utilization strictly below `threshold - 5` percentage points for five rendered seconds; equality
+  stays in the hold band and resets the clear timer.
+- A missed-quantum flash takes the same CPU slot with the inverted white/black CPU glyph and hides
+  the magenta icon while active. The yellow save icon at `(107,5)` may coexist with either CPU-slot
+  state.
+- `DeadlineMiss` is native, nonterminal ownership recovery. A newly missed persistent quantum
+  replays the previous final master quantum exactly once when its frame count matches, otherwise it
+  emits silence; later refills during recovery are silent. `missedQuantumFlash` stays set for five
+  emitted seconds (`sampleRate * 5`), clears on the exact emitted-frame crossing, and resets on a
+  later miss. Structural worker failures (`DispatchFailed`, `CompletionFailed`, `WorkerExited`,
+  `InvalidBlock`) stay sticky terminal states and skip this recovery path.
+- None of these status changes alter OLED layout or coordinates.
+
+### Toasts
+
+- Toasts render on the single bottom line with a 17-column visible window. Longer messages scroll
+  horizontally by one native offset per display snapshot attempt; the host supplies the 33 ms
+  attempt cadence while scrolling. Short messages schedule no scrolling.
+- Selected long menu rows use the same attempt pacing, advancing one character every four attempts
+  with a three-space cycle gap. Short selected rows schedule no scrolling.
+- Toast offsets reset when a toast is replaced. There is no `startedAtMs` wall-clock contract.
+- Long Aux turn toasts scroll once to their rightmost position and hold there without wrapping, so
+  the changing value stays visible (for example `...r Cutoff: 56`). A held toast stops scheduling
+  scroll attempts.
+- Context changes show toasts such as `Layer: L3 rain` or `Play: fx`. Help and confirm modals keep
+  display priority over them.
+- Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a hint
+  toast: `Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Enter`. Startup shows
+  `Help: Sh+Fn+Enter` too. Existing toasts, help/confirm dialogs, assignment overlays, and consumed
+  mappings suppress the hint.
+
+### NeoKey snapshot contract
+
+- The native snapshot owns NeoKey presentation. Back is magenta. Space is magenta when stopped, blue
+  when paused, dim green while playing at rest, yellow on beat flashes, and green on measure
+  flashes. Shift and Fn are blue while combined, yellow while held, and dim gray otherwise.
+- `neoKeyLeds.back`, `.space`, `.shift`, and `.fn` are required native RGB values before brightness
+  scaling. Desktop and Pi apply the same basis-point rule: normal scale is
+  `buttonBrightness * 100`; dimmed scale is zero for zero brightness, otherwise
+  `max(buttonBrightness * 8, 400)`; each channel is `(channel * scale + 5000) / 10000`.
+- `eventDotOn`, `transportIcon`, and `transportFlash` are required top-level snapshot fields.
+  `transportFlash` is not duplicated under `settings`.
+
+## Grid
+
+### Coordinate boundary
+
+- The grid is a fixed 8×8. Native behavior/world coordinates use a lower-left origin: `(0,0)` is
+  bottom-left and `y` increases upward.
+- Display and hardware frames use top-left row-major order at the boundary. `platform-core` owns the
+  pure logical row-major and logical/display projection helpers; `playback-runtime` delegates its
+  display-index API to them.
+- Desktop `GRID_DOMAIN` is a deliberate boundary mirror for input and rendering, checked against
+  every cell in `resources/grid-projection-v1.json`. The fixture is verification data, not a runtime
+  projection table.
+- HAL NeoTrellis wiring stays fixed adapter data: four device quadrants, physical keys, device
+  addresses, and GRB output are kept apart from the shared world/display projection.
+
+### Cell colors
+
+Each cell's LED color comes from its behavior palette and `CellTriggerType`. Every behavior provides
+inactive, active, and stable colors; the defaults are inactive black, active yellow, and stable
+green. Inactive black is preferred unless a behavior needs another off color.
 
 | Condition | Color |
 |---|---|
 | Cell off | Behavior inactive color |
 | `activate` | Behavior active color |
 | `stable` | Behavior stable color |
-| `deactivate` | Gray |
-| `scanned` | Cyan (only if scan mode is "scanning") |
+| `deactivate` | `GRAY` |
+| `scanned` | `BLUE` (only in scan mode `scanning`) |
 
-Brightness is scaled by the Grid Bright setting after the behavior palette is applied. Runtime snapshots also expose logical active-cell booleans so simulator paint controls do not infer cell state from RGB values.
+Grid Bright scales the result after the palette is applied. Snapshots also expose logical
+active-cell booleans so simulator paint controls never infer cell state from RGB.
 
-Overrides:
+### Overlays and priority
 
-- While Fn is held for navigation: non-navigation cells are fully off. The leftmost column shows navigation/current-layer focus cells in cyan, configured layers in green when Play is not active, and inactive/non-navigable cells in dim gray. The rightmost Play page column uses yellow for page cells, green for the active page, and dim gray for non-page cells. While Shift+Fn is held, only the left/layer column is shown and the Play page column is hidden/reserved. The Fn navigation overlay is suppressed while sample, Drum, trigger probability, or Play FX assignment overlays are active.
-- While sample assignment mode is active: grid shows assignment overlay using magenta for high, yellow for medium, green for low, gray for other assigned cells, and black for unassigned dark cells.
-- While any Play Page (`mix`, `pan`, `fx`, `trigger-gate`, `transpose`, `xy`, `drums`) is active: grid shows the Play performance overlay instead of active behavior cells. Play Transpose uses the left column for eligible layer selection, Shift + left column to enable/disable all eligible layers, and columns 1..7 as a three-octave piano offset picker for Synth, FM, Plucked, and enabled MIDI note targets; Sampler and Drum cells are transposed only when their Follow Transp. is on. In the transpose picker, the selected offset is green, the unselected center key is white, and available offsets are dim blue. Held transposed notes are safely drained with exact routed note-offs when transpose routing is retargeted, disabled, stopped, or reset.
-- Drum assignment overlays take priority after FX and Sample assignment but before probability assignment and Play Drums. The selected kit voice's assigned cells are bright white, other assigned cells dim white, and empty cells dark; the winning assignment overlay paints after Play and hides Fn navigation LEDs. World coordinates keep the bottom-left origin and the LED display conversion.
-- In `Play`, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` act as page-select rows: main encoder press selects and activates the page without entering an empty submenu. `FX`, `XY`, and `Drums` remain enterable when they expose configuration rows.
-- When Ghost Cells is on, inactive layers' active cells render as very dim green behind the active layer. Active layer cells and sample assignment overlays take priority.
-- Active context changes use OLED toast/status feedback, for example `Layer: L3 rain` or `Play: fx`; these toasts do not change LED overlay priority. Modal help/confirm displays keep display priority over context feedback.
-- Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a concise hint toast (`Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Enter`). Startup uses the same button combination: `Help: Sh+Fn+Enter`. Existing toasts, help/confirm dialogs, assignment overlays, and consumed mappings suppress the hint.
+The grid is composed in this order; each step paints over the previous one.
 
-## Sectioned Scanning
+1. Behavior cell colors.
+2. Scan progress: on the active layer in scan mode `scanning`, the current scan line or lane
+   segment gets a dim white lift.
+3. The active Play page overlay (see [play.md](menu-tree/play.md)). `Map to Grid` switches to the
+   `fx` page, so FX assignment uses the FX page overlay. The `drums` page blacks out the grid; the
+   other pages dim behavior cells to a quarter and draw their markers on top.
+4. Unless FX assignment is active: sample assignment, otherwise Drum assignment, otherwise
+   probability assignment. Each blacks out the grid first.
+   - Sample assignment: cells of the selected sample slot light magenta (High), yellow (Medium),
+     green (Low), or gray (Base); cells of other sample slots light dim gray.
+   - Drum assignment: the selected voice's cells are bright white, other assigned cells dim white,
+     empty cells dark.
+   - Probability map: black `0%`, magenta `low`, yellow `high`, green `100%`.
+5. Param-mod lanes, only while Shift is held without Fn, no Play page or assignment is active, and
+   the highlighted row is a bindable parameter. Rows `y=0..1` and columns `x=0..1` show dim gray
+   lanes; X slot 1/2 paint row 0/1 and Y slot 1/2 paint column 0/1, green (magenta when inverted),
+   bright for the highlighted target and dim otherwise. Cells `(0,0)` and `(1,1)` are white.
+6. Fn navigation, while Fn or Shift+Fn is held and no assignment is active. All other cells go
+   black. The left column is the layer column: without an active Play page the active layer is
+   blue, configured layers green, and `none` layers dim gray; with an active Play page every
+   configured layer is blue. The right column lists the Play pages by row, dim yellow, with the
+   active page green; row 7 is dim gray. Shift+Fn shows only the layer column.
 
-- `Sections=1` preserves current scan behavior: `columns` scans one full column per step; `rows` scans one full row per step.
-- `Sections=2`, `4`, or `8` split the perpendicular axis into that many lanes and scan each lane in sequence.
-- For `rows` with `Sections=2`, each lane is 4 rows tall; the scan ray moves left-to-right across lane 1, then lane 2. Total steps: `gridWidth * sections`.
-- For `columns` with `Sections=2`, each lane is 4 columns wide; the scan ray moves bottom-to-top/top-to-bottom by row across each lane. Total steps: `gridHeight * sections`.
-- Stop/emergency reset scan index to origin.
-- `Restart Section` on Pitch Steps makes pitch stepping local to the lane for the matching scan orientation: X restart applies to column sections; Y restart applies to row sections.
-- Note mapping uses the bindable `Set` parent at `layers.N.link.pitch.scale`. Main enters its four folders (`Scales`, `Chord Tones`, `Pentatonic`, `Symmetric`); category Main opens a `..`-first leaf list, and Back/Main on `..` returns one level. The parent renders `Set: <compact> >` within 19 columns. The canonical flat binding/modulation list contains all 25 wire IDs. Sets constrain the concrete notes in `Low Note..High Note` that match the selected set and `Root`; they do not emit simultaneous chords or choose inversions. Hirajoshi-like, In Sen-like, and Iwato-like names are common Western 12-TET approximations with varying forms. Mapping chooses the nearest set note to `Start Note` with lower-note tie breaking and applies X/Y pitch steps before clamp/wrap. `wrap` wraps within that concrete note list, so wrapped notes remain in the selected set; Play transpose remains downstream.
+World coordinates keep the bottom-left origin and the normal LED display conversion in every
+overlay.
 
-## Save and Load
+Ghost Cells (`System > Display`): when on, inactive layers' active cells are meant to render very
+dim green behind the active layer, below active-layer cells and sample assignment. The runtime
+currently stores and exports this setting but does not render ghost cells.
 
-- Ordinary System preferences, including the Auto Save and Backups preferences, are saved when a changed editor is exited with Main or Back; unchanged or reverted edits do not save. Turning a value does not write on each step or dirty the musical patch. If a System write is still pending when another edit completes, only the latest completed snapshot is kept for the follow-up write; overlapping edits do not each guarantee a physical write. `System > Saves > System > Save System` remains available as an optional explicit flush, and `Load System` loads local device settings. Loading System settings does not stop music or silently reboot. Restart-sensitive settings use confirmed Apply to save only the System settings and must preserve unsaved music. Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up remains pending; allowed Shutdown preserves Patch-only recovery.
-- `System > Saves > Default > Auto Save` and `Backups` govern the default musical patch in `default.patch.json`. When enabled, eligible musical edits emit deferred saves; fast audio-facing edits update state/audio immediately and coalesce payload generation for about 150ms so storage writes the latest settled value. Auto Save is disabled by default. Changing the Auto Save preference itself is saved to System after a changed editor exit; it does not immediately write the musical Patch.
-- Patch autosave, rolling backups, and recovery saves are patch-only. Backups are enabled by default; the first eligible dirty edit may trigger one immediately, later backups are at least five minutes apart, and hosts keep the latest 20 rolling patch backups.
-- `Save Patch` explicitly writes the default patch. Confirmed `Load Patch` and named-preset loads stop/reset playback and panic/clear held notes while retaining local System settings and ports. A known pending patch write or Auto Save-eligible dirty patch refuses with `Save pending, try again` before confirmation; the same check after confirmation catches a newly pending write. With Auto Save off and no pending write, the usual confirmation may deliberately discard unsaved patch edits.
-- Patches, named presets, `.oct` musical exports, Local Default Patch, rolling backups, and recovery all keep any safe relative WAV sample path (no absolute paths, `..`, or backslashes), even when the media is unavailable. A patch moved to another device loads cleanly where the same files exist; elsewhere the affected slots show `N/A-<filename>` and can be remapped. The bundled library is the plain `samples/` folder; there is no sample manifest.
-- Named presets remain portable patch files. Loading one applies musical patch state only and preserves local settings such as brightness, MIDI ports/sync, USB, HDMI, recording settings, audio buffer, Auto Save/Backups preferences, and sample favourites. Device/System aux bindings stay local; musical aux bindings travel with the patch.
-- `System > Maintenance > Reset > Load Empty` opens `Confirm Load Empty`. Cancel is a no-op. Confirm stops playback with the same MIDI panic/note-safety path, loads an empty `none`-behavior patch, regenerates the preset draft name, marks the patch dirty for autosave, and preserves device/user preferences: brightness, ghost cells, numeric display, sleep/dim timers, master volume, Auto Save/Backups settings, MIDI setup/status/sync settings, sync source, audio output buffer frames, sample favourites, input-events-while-paused, aux auto-map enabled, and the available preset name list.
+### Sectioned scanning
+
+- `Sections=1` scans one full column per step for `columns` and one full row per step for `rows`.
+- `Sections=2`, `4`, or `8` split the grid into that many lanes across the scan direction and scan
+  each lane in turn:
+  - `columns`: lanes are `8 / Sections` rows tall, starting at the bottom. The column-segment ray
+    moves left to right across lane 1, then lane 2, and so on. Total steps: `gridWidth * sections`.
+  - `rows`: lanes are `8 / Sections` columns wide, starting at the left. The row-segment ray moves
+    bottom to top through lane 1, then lane 2. Total steps: `gridHeight * sections`.
+  - `reverse` runs the same step sequence backwards.
+- Stop and emergency reset return the scan index to origin.
+- `Restart Section` on Pitch Steps is meant to make pitch stepping local to the lane of the matching
+  scan orientation (X for column sections, Y for row sections). The runtime currently stores and
+  edits the switch but does not apply it to pitch mapping.
 
 ## Aux Encoder Binding
 
-- Each aux encoder has two independent custom slots:
-  - turn slot: bound to value parameters (number/enum/bool)
-  - press slot: bound to actions
-- Each aux encoder also has a separate shifted custom bank with the same turn/press slot shape. Shift + aux turn/press uses only the shifted bank; plain aux turn/press uses the normal bank plus auto-map fallback. `Link > Aux Mappings` labels these rows `Trn`, `Clk`, `S+Trn`, and `S+Clk`.
-- Fn + aux press is an alternate action on a bindable item that binds/overwrites the relevant custom slot:
-  - while editing a value item: binds Turn slot
-  - while selecting an action item: binds `!` press slot
-- Shift + Fn + aux press binds/overwrites the shifted custom bank instead of the normal bank.
-- Regular aux press triggers the press slot action (if any)
-- Regular aux turn adjusts the turn slot value (if any)
-- Aux toasts use compact labels such as `Trn-1`, `Clk-1`, `S+Trn-1`, and `S+Clk-1`.
-- `Auto Map` lives under `System > Display`. When enabled, context-sensitive auto mappings fill unbound aux slots for the active menu context; custom aux bindings keep precedence when present.
-- FM Tone maps Index, Cutoff, Res, Gain to A1–A4; Plucked String maps Decay, Brightness, Pick Pos, Gain. Drum Voice/Edit maps Tune, Decay, Tone, Attack for the selected kit voice. Each type's Filter maps Cutoff, Res, Env, Key; Volume maps Gain, Vel Sens to A1–A2. Sampler Filter maps only audible Cutoff and Res to A1–A2; A3–A4 are empty, and Sampler Amp Env/Filter Env have no automatic mappings because those saved controls are not rendered. Sampler Volume and sample-slot mappings remain available. FM Index, Plucked Decay, and selected Drum voice Tone turns emit typed controls without reinitializing a whole slot.
-- Auto-map does not fill shifted aux slots; shifted aux bindings are custom-only and persist as `runtimeConfig.shiftAuxBindings`, mirroring `runtimeConfig.auxBindings`.
-- In supported contexts, focused menu items show auto-map indicators like `1-Cutoff` and `1!Assign`, preserving selection markers on focused items such as `> 1!Assign`.
-- If no slot is bound, toast shows labels like `Trn-1: No binding` or `S+Clk-1: No binding`
-- Turn toasts show current value, e.g. `Trn-1: Spawn Count: 3`
-- Repeated turns of the same Aux target keep the visible turn toast instead of restarting it: only the value changes in place and the 1.2 s timeout restarts with each turn. A different target, or a turn after the toast has expired or been replaced, starts a fresh toast; fresh turn toasts for different targets are throttled to one per 500 ms, showing the latest queued one when the throttle ends.
-- Shared route currently implemented:
-  - `trigger.life.spawn_now` resolves per behavior (sequencer has no implementation)
-- Enum turning is clamped (no wrap)
-- Bool turning is clamped with directional behavior (`-1 => Off`, `+1 => On`)
-- `activeBehavior` and `behaviorConfig.*` updates re-initialize behavior state
-- Aux value changes become autosave-eligible after the native 150 ms edit debounce. Pi autosaves coalesce the latest eligible revision for two seconds, regardless of whether transport is Playing or Stopped; a newer eligible revision restarts that deadline.
+- Each aux encoder has a turn slot (value parameters: number/enum/bool) and a press slot (actions),
+  plus a separate shifted custom bank of the same shape.
+- Plain turn/press uses the normal bank with auto-map fallback; Shift turn/press uses only the
+  shifted bank. Auto-map never fills shifted slots. Shifted bindings persist as
+  `runtimeConfig.shiftAuxBindings`, mirroring `runtimeConfig.auxBindings`.
+- Fn + aux press binds or overwrites the matching custom slot: while editing a value it binds the
+  Turn slot; on an action row it binds the `!` press slot. Shift + Fn + aux press writes the shifted
+  bank instead.
+- A regular press triggers the press slot action; a regular turn adjusts the turn slot value. Enum
+  turns clamp without wrapping; bool turns go `-1 => Off`, `+1 => On`.
+- `activeBehavior` and `behaviorConfig.*` updates re-initialize behavior state.
+- Aux value changes become autosave-eligible after the native 150 ms edit debounce. Pi autosaves
+  coalesce the latest eligible revision for two seconds, whether transport is playing or stopped; a
+  newer eligible revision restarts that deadline.
+- The menu lives under [`Link > Aux Mappings`](menu-tree/link.md#aux-mappings).
 
-### Stale (Inactive) Binding Detection
+### Auto-map
 
-- Bindings are **not** automatically removed when the target context changes
-- If a bound target becomes inactive, the input is ignored and a scoped `not active` toast is shown
-- The binding remains intact so the user can re-activate the target later
+- `System > Display > Auto Map` turns it on. Context-sensitive mappings fill unbound normal slots
+  for the focused menu context; custom bindings keep precedence.
+- Focused rows show indicators such as `1-Cutoff` and `1!Assign`, keeping selection markers
+  (`> 1!Assign`).
+- Behavior rows map Step Rate to A1 and a behavior-specific set to A2 onward (for example Life:
+  Count, then Interval with a Spawn press, then Glider with a Glider press). Behaviors without
+  their own layout map only Step Rate.
+- Instrument layouts: FM rows map Index, Cutoff, Res, Gain; Plucked rows map Decay, Bright, Pick,
+  Gain; Drum Voice/Edit rows map Tune, Decay, Tone, Attack of the selected voice; every type's
+  Filter maps Cutoff, Res, Env, Key; Volume maps Gain, Vel; Synth oscillators and the Synth, FM,
+  and Plucked envelopes have their own layouts. Sampler Filter maps only the audible Cutoff and
+  Res, and Sampler Amp Env/Filter Env have no mappings because those saved controls are not
+  rendered. Other Sampler rows map Slot (with an Assign press), Base, Tune, Levels. Mixer maps
+  Vol, Pan, Route.
+- Layouts list up to four entries, but there are three aux encoders (`auxEncoderCount: 3`), so a
+  fourth entry is never reachable from hardware.
+- FM Index, Plucked Decay, and the selected Drum voice Tone emit typed controls without
+  reinitializing the whole slot.
+- No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout
+  (also listed in [`Play > FX > Aux Map`](menu-tree/play.md)).
 
-#### Turn (Stale Target)
-- **FX param**: param does not exist for the current slot type, e.g. `Trn-1: B1 Time ms not active`
-- **Instrument subtree**: instrument type changed away from the bound subtree, e.g. `Trn-1: I1 Filter cutoff not active`
-- **Layer scan field**: `scanMode` is not `"scanning"`, e.g. `Trn-1: L1 Scan Direction not active`
-- **Behavior config param**: param is not in the current behavior's `configMenu()`, e.g. `Trn-1: L1 Spawn Count not active`
+### Aux toasts
 
-#### Press (Stale Action)
-- **Spawn route**: current behavior has no spawn action, e.g. `S1: L1 Spawn Now not active`
-- **Concrete action**: action type is not in current behavior's `configMenu()`, e.g. `S1: L1 Spawn Random not active`
+- Compact labels: `Trn-1`, `Clk-1`, `S+Trn-1`, `S+Clk-1`.
+- Unbound: `Trn-1: No binding`, `S+Clk-1: No binding`.
+- Turn: current value, for example `Trn-1: Spawn Count: 3`.
+- Repeated turns of the same target keep the visible toast: only the value changes in place and the
+  1.2 s timeout restarts with each turn. A different target, or a turn after the toast expired or
+  was replaced, starts a fresh toast. Fresh turn toasts for different targets are throttled to one
+  per 500 ms, showing the latest queued one when the throttle ends.
 
-#### Scope Prefixes
-- `B<N+1>` — bus number (1-indexed)
-- `I<N+1>` — instrument number (1-indexed)
-- `L<N+1>` — layer number (1-indexed)
-- Global behavior config uses active layer scope `L<active+1>`
+### Inactive (stale) bindings
 
-### Toast Scrolling
+- Bindings are not removed when their target context changes. If a bound target is inactive, the
+  input is ignored, a scoped `not active` toast is shown, and the binding stays for later.
+- Turn examples:
+  - FX param missing for the current slot type: `Trn-1: B1 Time ms not active`
+  - Instrument type changed away from the bound subtree: `Trn-1: I1 Filter cutoff not active`
+  - Layer scan field while `scanMode` is not `scanning`: `Trn-1: L1 Scan Direction not active`
+  - Behavior config param missing from the current behavior's `configMenu()`:
+    `Trn-1: L1 Spawn Count not active`
+- Press bindings store the behavior action key. A press fires only if the active layer's behavior
+  exposes the same key, otherwise `Clk-1: L1 Spawn Random not active`. A Sample Assign press whose
+  instrument is no longer a Sampler is also `not active`.
+- Scope prefixes are 1-indexed: `B<N>` bus, `I<N>` instrument, `L<N>` layer. Behavior config uses
+  the active layer scope.
 
-- Toast messages are rendered on a single OLED bottom line with the physical 17-column visible window.
-- Messages longer than the physical 17-column toast width scroll horizontally by one native offset per display snapshot attempt; the host supplies the 33ms attempt cadence while scrolling is active. Short messages do not schedule scrolling.
-- Selected long menu items use the same display-attempt pacing, advancing one character every four attempts with a three-space cycle gap; short selected items do not schedule scrolling.
-- Native toast offsets reset when a toast is replaced; there is no `startedAtMs` wall-clock scrolling contract.
-- Long Aux turn toasts scroll once to their rightmost position and then hold there (no wrap), so the changing value stays visible, e.g. `...r Cutoff: 56`. A held toast stops scheduling scroll attempts.
+## Modulation
+
+- Behavior ticks and held XY input update persistent source contributions without cloning or
+  reapplying unchanged held targets. Global Link LFOs advance at 24 PPQN only.
+- The native process combines persistent, held tick/XY, and LFO contributions, clamps once, and
+  applies one resolved value per target endpoint. An active LFO step visits only dirty LFO target
+  keys plus other contributors sharing them.
+- Ordinary menu/Aux base edits rebase and recompose only the edited key/endpoint and keep held
+  sources, so clearing a source restores the new base.
+- Changed persistent grid/XY targets from one step share one revision and one delayed autosave
+  payload; no immediate full payload or behavior-state serialization is emitted.
+- Config/patch transactions reset candidate modulation state, install all persistent owners, and
+  resample active XY afterwards so its captured base is the loaded value.
+- Enabled targeted LFO phases advance and wrap even at depth zero. Other PPQN paths and wall-clock
+  timing never advance LFOs or process unrelated held sources.
+- Layer X/Y, Play XY, and LFO assignments are staged through the native claim validator. An
+  exclusive target may have one layer/Play claim, and an LFO may never claim one. A rejected
+  assignment leaves binding, contribution, revision, autosave state, and menu focus unchanged and
+  shows `Mapping rejected: unsupported target`, `Mapping rejected: target type mismatch`,
+  `Mapping rejected: LFO needs a live numeric target`, or
+  `Mapping rejected: target already claimed`. Accepted assignments and removals refresh the visible
+  `Current:` label.
+- Link axis lanes ([link.md](menu-tree/link.md)):
+  - Pitch is additive across axes (`X Steps + Y Steps`), signed `-16..16`, and uses scale-degree
+    stepping, not post-quantize.
+  - `Velocity` modulates outgoing `note_on` velocity. `Filter Cutoff` emits CC74 (lowpass cutoff)
+    and `Filter Res` emits CC71 (lowpass resonance).
+  - Each value lane applies its curve after `Grid Offs`: `linear` maps position `t` directly,
+    `curve` uses the quadratic ease-in `t²`. Both clamp `t` to `0..1`, hit `From` and `To` exactly,
+    and stay inside the inclusive range between them, including when `From > To`.
+  - `Grid Offs` rotates axis indexing (offset 5 treats cell 5 as first, then wraps). Its bounds are
+    `-(GRID_SIZE-1)..+(GRID_SIZE-1)`, so `-7..7`.
+
+## Save and Load
+
+- Ordinary System preferences, including Auto Save and Backups, are saved when a changed editor is
+  exited with Main or Back. Unchanged or reverted edits do not save, turning does not write on every
+  step, and System edits never dirty the musical patch. If a System write is pending when another
+  edit completes, only the latest completed snapshot is kept for the follow-up; overlapping edits do
+  not each guarantee a physical write.
+- `System > Saves > System > Save System` is an optional explicit flush; `Load System` loads local
+  device settings without stopping music or silently rebooting. Restart-sensitive settings save
+  through the confirmed Apply flow ([system.md](menu-tree/system.md#restart-sensitive-settings)),
+  which writes only System settings and keeps unsaved music.
+- Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up
+  is pending. An allowed Shutdown keeps Patch-only recovery.
+- `Auto Save` and `Backups` under `System > Saves > Default` govern the default patch in
+  `default.patch.json`. Auto Save is off by default. When on, eligible musical edits emit deferred
+  saves; fast audio-facing edits update state and audio immediately and coalesce payload generation
+  for about 150 ms, so storage writes the latest settled value. Changing the Auto Save preference
+  itself saves to System after a changed editor exit and does not write the Patch.
+- Patch autosave, rolling backups, and recovery saves are patch-only. Backups are on by default: the
+  first eligible dirty edit may trigger one immediately, later backups are at least five minutes
+  apart, and hosts keep the latest 20 rolling patch backups.
+- `Save Patch` writes the default patch. Confirmed `Load Patch` and named-preset loads stop/reset
+  playback and panic/clear held notes while keeping local System settings and ports.
+- A load refuses with `Save pending, try again` before confirmation when a patch write is pending or
+  an Auto Save-eligible patch edit is dirty; the same check after confirmation catches a newly
+  pending write. With Auto Save off and no pending write, the confirmation may discard unsaved patch
+  edits on purpose.
+- Patches, named presets, `.oct` musical exports, the local default patch, rolling backups, and
+  recovery all keep any safe relative WAV sample path (no absolute paths, `..`, or backslashes),
+  even when the media is missing. On another device the patch loads cleanly where the same files
+  exist; elsewhere the affected slots show `N/A-<filename>` and can be remapped. The bundled library
+  is the plain `samples/` folder; there is no sample manifest.
+- Named presets are portable patch files. Loading one applies musical patch state only and keeps
+  local settings such as brightness, MIDI ports/sync, USB, HDMI, recording settings, audio buffer,
+  Auto Save/Backups, and sample favourites. Device/System aux bindings stay local; musical aux
+  bindings travel with the patch.
+- Patch-persistent state and transient state per section are listed in
+  [build.md](menu-tree/build.md#layer-runtime-behavior) and [play.md](menu-tree/play.md#persistence).
 
 ## Config Persistence (ConfigPayload)
 
 - Native `ConfigPayload` is produced and consumed by `crates/playback-runtime/src/native_runner.rs`.
-- It stores active behavior, per-layer behavior/config/state, Link settings, mapping, instruments, mixer, FX, Play settings, MIDI settings, UI settings, and persistence flags.
-- Restore accepts current payloads and supported older saved shapes, sanitizes external compatibility data, then applies only native-owned runtime/core fields.
-- Behavior state is restored when saved and compatible; behavior changes initialize the new behavior state through the native behavior engine.
-- Transport timing accumulators are reset on restore so loaded configs start from a deterministic runtime position.
+- It stores the active behavior, per-layer behavior/config/state, Link settings, mapping,
+  instruments, mixer, FX, Play settings, MIDI settings, UI settings, and persistence flags.
+- Restore accepts current payloads and supported older saved shapes, sanitizes external
+  compatibility data, then applies only native-owned runtime/core fields.
+- Behavior state is restored when saved and compatible; a behavior change initializes the new
+  behavior's state through the native behavior engine.
+- Transport timing accumulators reset on restore so a loaded config starts from a deterministic
+  position.
 
-## Brightness Behavior
+## Brightness
 
-- OLED Bright is applied by PlaybackRuntime while producing native OLED frame bytes. Grid Bright and Button Bright scale their LEDs; the Dim Timer applies an additional dim with its existing visible floor while the OLED remains on. Once `OLED Sleep`/Screen Sleep turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz sparse, independently pulsing dim-star animation. The sleep animation ignores `ledsDimmed`, remains bounded by the existing sleep dim scale, and preserves a zero-brightness blackout.
-- Grid Bright scales matrix LED RGB intensity.
-- Button Bright scales NeoKey button LED intensity.
-
-## Modulation Behavior
-
-- Central modulation process contract: behavior ticks and held XY input update persistent source contributions without cloning or reapplying unchanged held targets. Global Link LFOs advance at 24 PPQN only. The native process combines persistent, held tick/XY, and LFO contributions, clamps the result once, and applies one resolved value per target endpoint; an active LFO step visits only dirty LFO target keys plus other contributors sharing those keys. Ordinary menu/Aux base edits rebase and recompose only the edited key/endpoint, preserving held sources so clearing a source restores the new base. Changed persistent grid/XY targets from one step share one revision and delayed autosave payload; no immediate full payload or behavior-state serialization is emitted. Config/patch transactions reset candidate modulation state, install all persistent owners, and resample active XY afterward so its captured base is the loaded value. Enabled targeted LFO phases advance and wrap even at depth zero; other PPQN paths and wall-clock timing must not advance LFOs or process unrelated held sources.
-- Pitch modulation is additive across axes (`X Steps + Y Steps`).
-- Axis pitch steps are signed (`-16..16`).
-- Pitch note generation uses scale-degree stepping (not post-quantize).
-- `Velocity` lane modulates outgoing `note_on` velocity.
-- `Filter Cutoff` lane emits CC74 (mapped to lowpass cutoff).
-- `Filter Res` lane emits CC71 (mapped to lowpass resonance).
-- Each value lane applies its selected curve after `Grid Offs`: `linear` maps normalized position `t` directly, while `curve` uses the quadratic ease-in `t²`. Both clamp `t` to `0..1`, preserve the exact `From` and `To` endpoints, and stay within the inclusive range between them, including when `From > To`.
-- `Grid Offs` rotates axis indexing (offset=5 => cell 5 treated as first, then wraps).
-- `Grid Offs` bounds are derived: `-(GRID_SIZE-1) .. +(GRID_SIZE-1)` → `-7..7`.
-
-## Edit Marker
-
-- Selected editable value line uses compact marker: `*Value`.
-- In text edit mode: `*` prefix and cursor shown within the text.
+- OLED Bright is applied by PlaybackRuntime while producing native OLED frame bytes.
+- Grid Bright scales matrix LED RGB intensity; Button Bright scales NeoKey LED intensity.
+- The Dim Timer applies an extra dim, with its visible floor, while the OLED stays on.
+- Once `OLED Sleep` turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz
+  sparse dim-star animation of independently pulsing stars. It ignores `ledsDimmed`, stays within
+  the sleep dim scale, and keeps a zero-brightness blackout dark.
 
 ## Native Behavior Contract
 
-Native behaviors implement the Rust `BehaviorEngine` trait in `crates/platform-core/src/behavior.rs` and are registered from `crates/platform-core/src/behaviors/`.
+Native behaviors implement the Rust `BehaviorEngine` trait in `crates/platform-core/src/behavior.rs`
+and are registered from `crates/platform-core/src/behaviors/`. Each behavior provides:
 
-Behavior engines provide:
-
-- stable behavior id
+- a stable behavior id
 - initial state from config
 - input and tick transitions
-- render model for the grid
-- serialization/deserialization for saved state
-- optional behavior config menu items
+- a render model for the grid
+- serialization/deserialization of saved state
+- optional config menu items
 - optional immediate input-transition interpretation
-- optional grid interaction mode such as paint or momentary
+- an optional grid interaction mode such as paint or momentary
+
+Input events:
+
+- `DeviceInput` carries `grid_press` and `grid_release`. Behaviors that ignore `grid_release` do
+  nothing with it. `keys` uses press→activate and release→deactivate; `looper` uses the same live
+  semantics and can overdub step-quantized press/release events into its loop.
+- With immediate input-transition interpretation, `platform-core` runs grid changes from input
+  through the same Link/mapping pipeline as a tick and produces immediate musical events. `keys` and
+  `looper` use this for finger-drumming response.
+
+### Trigger types
 
 All behaviors use `CellTriggerType`: `activate`, `stable`, `deactivate`, `scanned`, or `none`.
 
-### Input Events
-
-`DeviceInput` supports `grid_press` and `grid_release` events. Behaviors that do not handle `grid_release` simply ignore it. `keys` uses press→activate and release→deactivate semantics; `looper` uses the same live semantics and can overdub step-quantized press/release events into its loop.
-
-Looper uses a `Punch In/Out` action instead of an editable mode row. Pressing it toggles between overdub and play, preserves the recorded loop and live playback state, and shows `Looper: Overdub` or `Looper: Play`.
-
-When a behavior enables immediate input-transition interpretation, `platform-core` interprets grid changes from input through the same Link/mapping pipeline used during tick, producing immediate musical events. `keys` and `looper` use this to provide immediate finger-drumming response.
-
-## 4 Trigger Types
-
 | Type | Source | When |
 |---|---|---|
-| `activate` | Algorithm | Cell becomes active (birth, shape hits cell, etc.) |
-| `stable` | Algorithm | Cell stays active (alive, inside shape interior, etc.) |
-| `deactivate` | Algorithm | Cell becomes inactive (death, shape leaves cell, etc.) |
-| `scanned` | Scanning layer | Cell found active during scan (only in "scanning" mode) |
+| `activate` | Behavior | Cell becomes active (birth, shape hits cell, etc.) |
+| `stable` | Behavior | Cell stays active (alive, inside shape interior, etc.) |
+| `deactivate` | Behavior | Cell becomes inactive (death, shape leaves cell, etc.) |
+| `scanned` | Scanning layer | Cell found active during a scan (scan mode `scanning` only) |
 
-Scan mode "none" generates NO `scanned` triggers. Only "scanning" mode (column/row) generates `scanned` triggers.
-`State Notes` only controls non-scan state-note events; `scanned` triggers remain active while scanning.
-
-## Maintenance Rule
-
-Any control/menu/runtime behavior change must update this document in the same commit.
+Scan mode `none` produces no `scanned` triggers. `State Notes` controls only non-scan state-note
+events; `scanned` triggers stay active while scanning.

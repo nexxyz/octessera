@@ -1,143 +1,178 @@
 # Link Menu Tree
 
-This file is part of the canonical split-out menu tree spec. See [`../menu-tree-spec.md`](../menu-tree-spec.md) for the canonical index.
+Part of the authoritative menu/control spec; see [`../menu-tree-spec.md`](../menu-tree-spec.md) for
+the index and notation. Link turns what a layer's world does into notes: which events reach which
+instrument, when, at what pitch, and how the grid position bends other parameters.
 
-### Link
+## Tree
 
 ```
-
-Link event `Delay` waits that many layer link ticks before emitting. `Retrig` adds extra repeats after the original, spaced one tick apart after the delay. Probability is rolled once before scheduling; delayed repeats do not re-roll.
 Link
 ├── BPM: [40..240] step 1  default 120
 ├── Swing: [0..75] step 1 %  default 0
 ├── Aux Mappings (group)
 │   ├── Aux 1 (group)
-│   │   ├── Turn (group)
-│   │   │   ├── (none) (action)
-│   │   │   └── parameter tree...            ← same shared browser as Play X/Y target selection; Aux turn bindings do not show Range Min/Range Max rows
-│   │   └── Click (group)
-│   │       ├── (none) (action)
-│   │       └── action tree...               ← behavior actions, sample assign, selected FX map-to-grid
+│   │   ├── Trn: <target | (none)> (group)       ← parameter picker; no Range Min/Range Max rows
+│   │   ├── Clk: <mapped | (none)> (group)       ← click action picker
+│   │   ├── S+Trn: <target | (none)> (group)     ← shifted bank
+│   │   └── S+Clk: <mapped | (none)> (group)     ← shifted bank
 │   ├── Aux 2 (group)
 │   └── Aux 3 (group)
 ├── LFOs (group)                                  ← exactly eight global slots
 │   ├── L1 (group)
-│   │   ├── Enabled: [on | off]
-│   │   ├── Target (group)                         ← additive, live-safe numeric controls only
-│   │   ├── Period: [same 24 PPQN note units]
-│   │   └── Depth %: [0..100] step 1
-│   ├── L2 (group)
-│   ├── L3 (group)
-│   ├── L4 (group)
-│   ├── L5 (group)
-│   ├── L6 (group)
-│   ├── L7 (group)
-│   └── L8 (group)
-├── Paused Events: [on | off]              default on; when on, grid input may still emit events while transport is stopped/paused
-├── L1: ... (group)                              ← one group per layer
+│   │   ├── Enabled: [on | off]                   default off
+│   │   ├── Target: <target | (none)> (group)     ← numeric, live-safe targets only
+│   │   ├── Period: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]  default 1/1
+│   │   └── Depth %: [0..100] step 1              default 100
+│   └── L2 .. L8 (group)
+├── Paused Events: [on | off]                     default on
+├── L1: <label> (group)                           ← one group per layer; entering it makes that layer active
 │   ├── Scanning (group)
 │   │   ├── Scan Mode: [none | scanning]
-│   │   ├── Scan Axis: [rows | columns]           ← visible when scanning
-│   │   ├── Scan Unit: [1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2T, 1/2, 1/1T, 1/1] ← visible when scanning
-│   │   ├── Scan Direction: [forward | reverse]   ← visible when scanning
-│   │   ├── Sections: [1 | 2 | 4 | 8]             ← visible when scanning; 1=current behavior, higher values scan smaller lanes
-│   │   ├── Instrument: [1..8]                    ← visible when scanning
-│   │   ├── Action: [none | note_on | note_off]   ← visible when scanning
-│   │   ├── Scan Delay: [0..16]                   ← visible when scanning
-│   │   ├── Scan Retrig: [0..8]                   ← visible when scanning
-│   │   ├── Empty Inst: [1..8]                    ← visible when scanning
-│   │   ├── Empty Trig: [none | note_on | note_off] ← visible when scanning
-│   │   ├── Empty Delay: [0..16]                  ← visible when scanning
-│   │   └── Empty Retrig: [0..8]                  ← visible when scanning
+│   │   ├── Scan Axis: [rows | columns]           ← the rows below show only while scanning
+│   │   ├── Scan Unit: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]
+│   │   ├── Scan Direction: [forward | reverse]
+│   │   ├── Sections: [1 | 2 | 4 | 8]
+│   │   ├── Instrument: [none | I1: <name> .. I8: <name>]
+│   │   ├── Action: [none | note_on | note_off]
+│   │   ├── Scan Delay: [0..16]
+│   │   ├── Scan Retrig: [0..8]
+│   │   ├── Empty Inst: [none | I1: <name> .. I8: <name>]
+│   │   ├── Empty Trig: [none | note_on | note_off]
+│   │   ├── Empty Delay: [0..16]
+│   │   └── Empty Retrig: [0..8]
 │   ├── Events (group)
-│   │   ├── Event Triggers: [on | off]
-│   │   ├── State Notes: [on | off]               default on (all layers)
-│   │   ├── On Inst: [1..8]
-│   │   ├── On Trig: [none | note_on | note_off]
-│   │   ├── On Delay: [0..16]
-│   │   ├── On Retrig: [0..8]
-│   │   ├── Hold Inst: [1..8]
-│   │   ├── Hold Trig: [none | note_on | note_off]
-│   │   ├── Hold Delay: [0..16]
-│   │   ├── Hold Retrig: [0..8]
-│   │   ├── Off Inst: [1..8]
-│   │   ├── Off Trig: [none | note_on | note_off]
-│   │   ├── Off Delay: [0..16]
-│   │   └── Off Retrig: [0..8]
+│   │   ├── Event Triggers: [on | off]            default on
+│   │   ├── State Notes: [on | off]               default on
+│   │   ├── On Inst / On Trig / On Delay / On Retrig          ← activate
+│   │   ├── Hold Inst / Hold Trig / Hold Delay / Hold Retrig  ← stable
+│   │   └── Off Inst / Off Trig / Off Delay / Off Retrig      ← deactivate
+│   │       (Inst: [none | I1: <name> .. I8: <name>]; Trig: [none | note_on | note_off]; Delay: [0..16]; Retrig: [0..8])
 │   ├── Trigger Prob. (group)
-│   │   ├── Mode: [zero | custom | full]
-│   │   ├── Low Prob: [0..100] step 1
-│   │   ├── High Prob: [0..100] step 1
+│   │   ├── Mode: [zero | custom | full]          default full
+│   │   ├── Prob Low: [0..100] step 1             default 0
+│   │   ├── Prob High: [0..100] step 1            default 100
 │   │   └── Map Prob Grid (action)
 │   ├── Note Mapping (group)
-│   │   ├── Low Note: [0..127] step 1          ← lower bound, displayed as note name + MIDI number, e.g. C2 (36)
-│   │   ├── High Note: [0..127] step 1         ← upper bound, displayed as note name + MIDI number, e.g. D5 (74)
-│   │   ├── Start Note: [0..127] step 1        ← nearest scale start index, displayed as note name + MIDI number, e.g. C4 (60)
-│   │   ├── Set: <compact> > (bindable enum; Main enters the foldered selector)
-│   │   │   ├── Scales (group)
-│   │   │   │   ├── `..` returns to the category list
-│   │   │   │   └── Chromatic | Major | Natural Minor | Harmonic Minor | Dorian | Mixolydian
-│   │   │   ├── Chord Tones (group)
-│   │   │   │   ├── `..` returns to the category list
-│   │   │   │   └── Major Triad | Minor Triad | Diminished Triad | Sus 2 | Sus 4 | Major 7 | Dominant 7 | Minor 7 | Major 9 | Dominant 9
-│   │   │   ├── Pentatonic (group)
-│   │   │   │   ├── `..` returns to the category list
-│   │   │   │   └── Major Pentatonic | Minor Pentatonic | Suspended Penta | Hirajoshi-like | In Sen-like | Iwato-like
-│   │   │   └── Symmetric (group)
-│   │   │       ├── `..` returns to the category list
-│   │   │       └── Whole Tone | Octatonic H-W | Octatonic W-H
-│   │   ├── Canonical flat Set IDs for binding/modulation: chromatic, major, natural_minor, harmonic_minor, dorian, mixolydian, major_triad, minor_triad, diminished_triad, suspended_second, suspended_fourth, major_seventh, dominant_seventh, minor_seventh, major_ninth, dominant_ninth, major_pentatonic, minor_pentatonic, suspended_pentatonic, hirajoshi_like, in_sen_like, iwato_like, whole_tone, octatonic_half_whole, octatonic_whole_half
-│   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]
-│   │   └── Out of Range: [clamp | wrap]
+│   │   ├── Low Note: [0..127] step 1             default 24; shown as note name + MIDI number, e.g. C1 (24)
+│   │   ├── High Note: [0..127] step 1            default 84
+│   │   ├── Start Note: [0..127] step 1           default 60
+│   │   ├── Set: <compact> > (bindable enum)      default chromatic; Main opens the foldered selector
+│   │   │   ├── Scales (group)                    ← `..` first, then: Chromatic | Major | Natural Minor | Harmonic Minor | Dorian | Mixolydian
+│   │   │   ├── Chord Tones (group)               ← `..` first, then: Major Triad | Minor Triad | Diminished Triad | Sus 2 | Sus 4 | Major 7 | Dominant 7 | Minor 7 | Major 9 | Dominant 9
+│   │   │   ├── Pentatonic (group)                ← `..` first, then: Major Pentatonic | Minor Pentatonic | Suspended Penta | Hirajoshi-like | In Sen-like | Iwato-like
+│   │   │   └── Symmetric (group)                 ← `..` first, then: Whole Tone | Octatonic H-W | Octatonic W-H
+│   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]  default C
+│   │   └── Out of Range: [clamp | wrap]          default wrap
 │   ├── X Axis (group)
-│   │   ├── Slot 1 (group)
-│   │   │   ├── (none) (action)
-│   │   │   └── parameter tree...                ← same shared browser as Play X/Y target selection; current numeric bindings expose Range Min/Range Max
+│   │   ├── Slot 1: <target | (none)> (group)     ← parameter picker with Range Min/Range Max for numeric bindings
 │   │   ├── Slot 1 Invert: [on | off]
-│   │   ├── Slot 2 (group)
-│   │   │   ├── (none) (action)
-│   │   │   └── parameter tree...
+│   │   ├── Slot 2: <target | (none)> (group)
 │   │   ├── Slot 2 Invert: [on | off]
 │   │   ├── Pitch Steps (group)
-│   │   │   ├── Enabled: [on | off]
-│   │   │   ├── Steps: [-16..16] step 1       ← visible when enabled
-│   │   │   └── Restart Section: [on | off]   ← visible when enabled; restarts pitch within column sections
-│   │   ├── Velocity (group)
-│   │   │   ├── Enabled: [on | off]
-│   │   │   ├── From: [0..127] step 1         ← visible when enabled
-│   │   │   ├── To: [0..127] step 1
-│   │   │   ├── Grid Offs: [-7..7] step 1
-│   │   │   └── Curve: [linear | curve]
-│   │   ├── Filter Cutoff (group)
-│   │   │   ├── Enabled: [on | off]
-│   │   │   ├── From: [0..127] step 1
-│   │   │   ├── To: [0..127] step 1
-│   │   │   ├── Grid Offs: [-7..7] step 1
-│   │   │   └── Curve: [linear | curve]
-│   │   └── Filter Res (group)
-│   │       ├── Enabled: [on | off]
-│   │       ├── From: [0..127] step 1
-│   │       ├── To: [0..127] step 1
-│   │       ├── Grid Offs: [-7..7] step 1
-│   │       └── Curve: [linear | curve]
-│   ├── Y Axis (group)
-│   │   └── (same sub-structure as X Axis, modulation target keys use param:N:y:slot, config keys use y.* prefix, defaults: Pitch Steps steps=3; Restart Section affects row sections)
+│   │   │   ├── Enabled: [on | off]               default on
+│   │   │   ├── Steps: [-16..16] step 1           ← while enabled; default 1 (X), 3 (Y)
+│   │   │   └── Restart Section: [on | off]       ← while enabled
+│   │   ├── Velocity (group)                      ← default From 1, To 127
+│   │   ├── Filter Cutoff (group)                 ← default From 20, To 127
+│   │   └── Filter Res (group)                    ← default From 10, To 90
+│   │       (each lane: Enabled [on | off] default off; while enabled: From [0..127], To [0..127], Grid Offs [-7..7], Curve [linear | curve])
+│   ├── Y Axis (group)                            ← same structure; picker targets param:N:y:slot, config keys y.*
 │   ├── Arp (group)
-│   │   ├── Mode: [none | direct | up | down | bounce | outside_in | rotating | random | octave_spread | chord_strike | strum]
-│   │   ├── Source: [simultaneous | held]
-│   │   ├── Step: [1..16] step 1
-│   │   ├── Length ms: [10..2000] step 10
-│   │   ├── Gate %: [1..100] step 1
-│   │   └── Octaves: [0..3] step 1
-│   └── Seeded: [off | on]                         ← on: trigger probability and random arp order follow Build > Seed
-├── L2: ... (group)
-├── L3: ... (group)
+│   │   ├── Mode: [none | direct | up | down | bounce | outside_in | rotating | random | octave_spread | chord_strike | strum]  default none
+│   │   ├── Source: [simultaneous | held]         default simultaneous
+│   │   ├── Step: [1..16] step 1                  default 1
+│   │   ├── Length ms: [10..2000]                 default 120
+│   │   ├── Gate %: [1..100] step 1               default 80
+│   │   └── Octaves: [0..3] step 1                default 0
+│   └── Seeded: [on | off]                        default off
+├── L2: <label> (group)
+└── ...                                           ← layerCount groups in total
 ```
 
-Global LFO slots are persisted under `runtimeConfig.linkLfos` and are independent of the active layer. Phase and live contributions are transient and are never serialized. Playback-runtime sums live LFO deltas once per affected endpoint, clamps the final value to the canonical target range, and emits the transient audio command.
+The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `major`,
+`natural_minor`, `harmonic_minor`, `dorian`, `mixolydian`, `major_triad`, `minor_triad`,
+`diminished_triad`, `suspended_second`, `suspended_fourth`, `major_seventh`, `dominant_seventh`,
+`minor_seventh`, `major_ninth`, `dominant_ninth`, `major_pentatonic`, `minor_pentatonic`,
+`suspended_pentatonic`, `hirajoshi_like`, `in_sen_like`, `iwato_like`, `whole_tone`,
+`octatonic_half_whole`, `octatonic_whole_half`.
 
-Target claims are validated before assignment. Exclusive targets accept one layer/Play claim only, LFO targets must remain additive and live-safe, and rejected claims leave the current binding and focus untouched while showing a bounded `Mapping rejected` toast.
+## Transport and timing
 
-Link `Seeded` (`layers.N.link.seeded`, default off) gives the layer its own trigger-probability and random-arp streams derived from Build `Seed`, restarted at the same points as seeded Build layers. Unseeded Link layers keep sharing the existing unseeded streams.
+- `Swing` is a global groove amount. `0%` is straight. Swing delays internal off-beat step/scan
+  progression and catches up before the next beat; external MIDI clock out stays straight.
+- Musical timing selectors use the 24 PPQN vocabulary `1/32T`, `1/32`, `1/16T`, `1/16`, `1/8T`,
+  `1/8`, `1/4T`, `1/4`, `1/2T`, `1/2`, `1/1T`, `1/1`. Straight `1/64` is left out because it would
+  be 1.5 pulses at 24 PPQN; triplet values are exact. Invalid labels show the canonical `1/8`
+  (12-pulse) default in selectors; delay metadata still normalizes invalid labels to the nearest
+  note derived from `timeMs`.
+- `Paused Events` (`inputEventsWhilePaused`) controls whether direct grid input can emit musical
+  events while transport is stopped or paused. Behavior ticks stay stopped either way.
 
-Link Arp transforms simultaneous routed note-on batches or playback-runtime tracked held notes. `none` preserves the existing Link path; other modes emit finite notes using Length ms and Gate %, with strum-like modes spaced by Step Link ticks.
+## Events and scanning
+
+- Event mappings (`activate`, `stable`, `deactivate`, `scanned`, `scanned_empty`) each have Delay
+  and Retrig. Delay counts that layer's Link ticks. Retrig adds extra repeats after the original,
+  at delay+1, delay+2, and so on. Trigger probability is rolled once before scheduling; delayed
+  repeats do not re-roll.
+- Link collapses only same-tick NoteOn duplicates within one CellTriggerKind group and mapping
+  context, after final instrument routing and before Delay/Retrig scheduling. It keeps the first
+  event and duration and uses the highest velocity. Other event kinds, lanes, ticks, layers,
+  mappings, and durations stay distinct.
+- Scanning lanes are defined in
+  [Sectioned scanning](../menu-and-controls-spec.md#sectioned-scanning).
+
+## Note mapping
+
+- `Set` is the bindable parent at `layers.N.link.pitch.scale`. Main enters its four folders; Main on
+  a folder opens a `..`-first leaf list, and Back or Main on `..` goes up one level. The parent
+  renders `Set: <compact> >` within 19 columns.
+- A set constrains the concrete notes in `Low Note..High Note` that match the set and `Root`. Sets
+  do not emit simultaneous chords or choose inversions. Hirajoshi-like, In Sen-like, and Iwato-like
+  are common Western 12-TET approximations of scales with varying forms.
+- Mapping picks the set note nearest `Start Note` (lower note wins ties) and applies X/Y pitch steps
+  before clamp/wrap. `wrap` wraps within that concrete note list, so wrapped notes stay in the set.
+  Play Transpose applies downstream.
+
+## X/Y axes
+
+- `Slot 1` and `Slot 2` assign per-layer X/Y modulation targets through the shared parameter picker
+  ([Parameter target pickers](../menu-and-controls-spec.md#parameter-target-pickers)). The same
+  assignment is available from the grid with Shift held (see
+  [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority)).
+- Lane behavior (pitch steps, velocity, CC74/CC71, curves, Grid Offs) is defined under
+  [Modulation](../menu-and-controls-spec.md#modulation).
+
+## LFOs
+
+- `Link > LFOs > L1..L8` is the global bank stored as `runtimeConfig.linkLfos`, exactly eight slots,
+  independent of the active layer.
+- Targets are additive, numeric, and live-safe; exclusive controls and every LFO configuration key
+  are excluded. Claims are validated as described under
+  [Modulation](../menu-and-controls-spec.md#modulation).
+- Phase and live contributions are transient and never serialized. Playback-runtime sums live LFO
+  deltas once per affected endpoint, clamps the result to the target's canonical range, and emits
+  transient audio commands without changing the persistent config.
+
+## Arp
+
+- Stored as `layers.N.link.arp` with `mode`, `source`, `stepIntervalSteps`, `noteLengthMs`,
+  `gatePct`, and `octaveSpread`.
+- Sources: `simultaneous` routed note-on batches, or `held` notes tracked by playback-runtime.
+  Unsupported sources normalize to `simultaneous`.
+- `none` keeps the normal Link path. Other modes emit finite note-ons lasting
+  `noteLengthMs * gatePct / 100` and create no held notes; strum-like modes space notes by `Step`
+  Link ticks. Matching note-offs update held membership and never cut off arp-owned finite notes.
+- Clamps: `stepIntervalSteps` 1..16, `noteLengthMs` 10..2000, `gatePct` 1..100, `octaveSpread`
+  0..3.
+
+## Aux Mappings
+
+- Each `Aux N` group holds four pickers, labelled with the current binding: `Trn`, `Clk`, `S+Trn`,
+  and `S+Clk` (the last two write the shifted bank).
+- `Trn` pickers are the shared parameter picker without `Range Min`/`Range Max`.
+- `Clk` pickers list `(none)`, `Current` when bound, a `Behavior` group with the active layer's
+  behavior actions (when it has any), a `Sample Assign` group with one row per instrument, and an
+  `Actions` group with `Map FX` and `Reset Behavior`.
+- Binding rules, auto-map, and toasts are defined under
+  [Aux Encoder Binding](../menu-and-controls-spec.md#aux-encoder-binding).
