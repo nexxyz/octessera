@@ -140,7 +140,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             RuntimeSetupPortalPhase::Succeeded,
             vec![
                 "Setup complete",
-                "IP in System > Sys. Info",
+                "IP in Maintenance > Sys. Info",
                 "No reboot needed",
                 "> Close",
             ],

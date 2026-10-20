@@ -222,7 +222,7 @@ for root, account, hostname in zip(UI_ROOTS, UI_ACCOUNTS, UI_HOSTNAMES):
         "Applying setup",
         "Watch the OLED for the final result.",
         "After success, find the address in",
-        "System &gt; Sys. Info",
+        "System &gt; Maintenance &gt; Sys. Info",
     ):
         assert text in html
     for text in ("Setup request sent", "Load failed", "authoritative", "success screen"):

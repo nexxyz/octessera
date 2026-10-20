@@ -300,7 +300,7 @@ pub(super) fn parity_corpus() -> Vec<(String, Value)> {
             "setup-succeeded",
             vec![
                 "Setup complete",
-                "IP in System > Sys. Info",
+                "IP in Maintenance > Sys. Info",
                 "No reboot needed",
                 "> Close",
             ],

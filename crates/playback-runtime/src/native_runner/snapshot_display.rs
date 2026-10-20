@@ -224,7 +224,7 @@ fn setup_portal_display(state: &super::NativeSetupPortalState) -> DisplaySnapsho
             "Wi-Fi Setup".to_string(),
             vec![
                 "Setup complete".into(),
-                "IP in System > Sys. Info".into(),
+                "IP in Maintenance > Sys. Info".into(),
                 "No reboot needed".into(),
             ],
             "Close",
