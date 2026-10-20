@@ -26,7 +26,7 @@ impl SynthEngine {
                 return;
             };
             if voice.active && matches(voice) {
-                self.sample_voice_pool.deactivate_lane(lane);
+                voice.begin_release(self.sample_rate);
             }
         }
         self.sample_voice_pool.compact_slot_lanes(slot);
@@ -174,6 +174,8 @@ impl SynthEngine {
             step,
             gain,
             filt: BiquadState::new(),
+            release_left: 0,
+            release_len: 0,
         };
         if self
             .sample_voice_pool

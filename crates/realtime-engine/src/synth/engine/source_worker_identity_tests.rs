@@ -211,13 +211,17 @@ fn synth_release_returns_identity_without_changing_it_during_release() {
 }
 
 #[test]
-fn sample_note_off_returns_logical_identity_immediately() {
+fn sample_note_off_returns_logical_identity_after_its_release_fade() {
     let mut engine = sample_engine();
     engine.source_worker_load = Some(load([100, 1]));
     engine.note_on(0, 36, 100, 5_000);
     let lane = engine.sample_voice_pool.slot_lanes(0).expect("slot lanes")[0];
     assert_eq!(engine.sample_voice_pool.canonical_lane(lane), Some(0));
     engine.note_off(0, 36);
+    assert_eq!(engine.sample_voice_pool.canonical_lane(lane), Some(0));
+    for _ in 0..engine.sample_rate / 200 {
+        engine.next_stereo_sample();
+    }
     assert_eq!(engine.sample_voice_pool.canonical_lane(lane), None);
     assert_eq!(
         engine.sample_voice_pool.first_free_canonical_lane(),
@@ -267,6 +271,9 @@ fn sample_cell_hits_pitch_by_cents_and_release_only_their_own_cell() {
     assert!((step(5) / step(9) - 2.0).abs() < 1e-4);
 
     engine.cell_hit(0, 0, 5, 0, 0);
+    for _ in 0..engine.sample_rate / 200 {
+        engine.next_stereo_sample();
+    }
     assert_eq!(
         voices(&engine)
             .iter()

@@ -83,7 +83,34 @@ pub(super) struct SampleVoice {
     pub(super) step: f32,
     pub(super) gain: f32,
     pub(super) filt: BiquadState,
+    /// Frames left in the release fade; 0 while the voice plays normally.
+    pub(super) release_left: u16,
+    pub(super) release_len: u16,
 }
+
+impl SampleVoice {
+    /// Starts a short linear fade instead of stopping dead, which would click.
+    pub(super) fn begin_release(&mut self, sample_rate: u32) {
+        if self.release_left == 0 {
+            self.release_len =
+                (sample_rate / SAMPLE_RELEASE_FADE_DIVISOR).clamp(1, u32::from(u16::MAX)) as u16;
+            self.release_left = self.release_len;
+        }
+    }
+
+    /// Gain for the next frame of a release fade; `None` once the fade has finished.
+    #[inline(always)]
+    pub(super) fn release_gain(&mut self) -> Option<f32> {
+        if self.release_left == 0 {
+            return None;
+        }
+        self.release_left -= 1;
+        Some(f32::from(self.release_left) / f32::from(self.release_len))
+    }
+}
+
+/// Released sample voices fade out over 1/200 s (5 ms).
+const SAMPLE_RELEASE_FADE_DIVISOR: u32 = 200;
 
 impl SampleVoice {
     pub(super) fn off() -> Self {
@@ -100,6 +127,8 @@ impl SampleVoice {
             step: 1.0,
             gain: 0.0,
             filt: BiquadState::new(),
+            release_left: 0,
+            release_len: 0,
         }
     }
 }

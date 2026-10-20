@@ -181,6 +181,8 @@ fn sample_voice(
         step,
         gain: 0.75,
         filt: BiquadState::new(),
+        release_left: 0,
+        release_len: 0,
     }
 }
 

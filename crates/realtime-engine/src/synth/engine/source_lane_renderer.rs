@@ -210,6 +210,14 @@ pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u3
         sample_rate,
     );
     voice.pos += voice.step;
+    if voice.release_left > 0 {
+        let fade = voice.release_gain().unwrap_or(0.0);
+        if voice.release_left == 0 {
+            voice.active = false;
+            voice.canonical_lane = None;
+        }
+        return Some(filtered * voice.gain * fade);
+    }
     Some(filtered * voice.gain)
 }
 
@@ -239,6 +247,9 @@ pub(super) fn render_sample_voice_block(
     voice
         .filt
         .prepare(FilterType::Lowpass, voice.filter_cutoff_hz, q, sample_rate);
+    if voice.release_left > 0 {
+        return render_releasing_sample_voice_block(voice, frames, sample_rate, samples);
+    }
     let step = voice.step;
     let gain = voice.gain;
     let active = &mut voice.active;
@@ -261,6 +272,28 @@ pub(super) fn render_sample_voice_block(
         *pos += step;
         *sample = filtered * gain;
         rendered_frames += 1;
+    }
+    rendered_frames
+}
+
+/// The release-fade variant of the block loop, kept separate so playing voices stay on the plain
+/// loop; it ends the voice when the fade reaches zero.
+fn render_releasing_sample_voice_block(
+    voice: &mut SampleVoice,
+    frames: usize,
+    sample_rate: u32,
+    samples: &mut [f32],
+) -> usize {
+    let mut rendered_frames = 0;
+    for sample in samples[..frames].iter_mut() {
+        let Some(value) = render_sample_voice_frame(voice, sample_rate) else {
+            break;
+        };
+        *sample = value;
+        rendered_frames += 1;
+        if !voice.active {
+            break;
+        }
     }
     rendered_frames
 }
