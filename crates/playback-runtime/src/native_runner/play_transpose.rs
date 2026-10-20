@@ -230,7 +230,16 @@ impl NativeRunner {
         let Some(instrument) = self.instruments.get(slot) else {
             return false;
         };
-        matches!(instrument.kind.as_str(), "synth" | "fm" | "pluck")
-            || (instrument.kind == "midi" && instrument.midi_enabled)
+        match instrument.kind.as_str() {
+            "synth" | "fm" | "pluck" => true,
+            "midi" => instrument.midi_enabled,
+            "sampler" => instrument.sample_follow_transpose,
+            "drum" => instrument
+                .drum_config
+                .get("followTranspose")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            _ => false,
+        }
     }
 }

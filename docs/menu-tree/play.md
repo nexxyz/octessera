@@ -123,8 +123,9 @@ The `ms` rows use the curved time steps from
   -1/0/+1. Center C at `x=1, y=3` is no transpose. A press sets the offset for every selected,
   enabled layer and toasts `Transpose <±n>`.
 - A layer is eligible when any of its Link mappings sends `note_on` or `note_off` to a Synth, FM, or
-  Plucked slot or an enabled MIDI slot. Offsets apply after mapping and before routing. Sampler and
-  Drum cells on an eligible layer shift only when their `Follow Transp.` is on.
+  Plucked slot, an enabled MIDI slot, or a Sampler or Drum slot with `Follow Transp.` on. Offsets
+  apply after mapping and before routing. Sampler and Drum cells shift only when their
+  `Follow Transp.` is on.
 - LEDs: left column green (selected and enabled), dim blue (selected, disabled), dim gray
   (unselected), dark (ineligible). Keys: the active offset green, center C white, other offsets dim
   blue.

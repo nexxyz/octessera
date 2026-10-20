@@ -178,6 +178,27 @@ fn stamped_drum_level_scales_velocity_and_follow_pitch_and_transpose_are_opt_in(
 }
 
 #[test]
+fn follow_transpose_lets_a_layer_that_only_feeds_drums_or_samples_transpose() {
+    let mut runner = drum_runner();
+    for slot in 0..4 {
+        runner.instruments[slot].kind = "drum".into();
+    }
+    runner.play_transpose_selected[0] = true;
+    runner.play_transpose_enabled[0] = true;
+    runner.play_transpose_offsets[0] = 5;
+    assert_eq!(runner.play_transpose_offsets_for_routing()[0], 0);
+
+    runner.instruments[0].drum_config["followTranspose"] = json!(true);
+    assert_eq!(runner.play_transpose_offsets_for_routing()[0], 5);
+
+    runner.instruments[0].drum_config["followTranspose"] = json!(false);
+    runner.instruments[0].kind = "sampler".into();
+    assert_eq!(runner.play_transpose_offsets_for_routing()[0], 0);
+    runner.instruments[0].sample_follow_transpose = true;
+    assert_eq!(runner.play_transpose_offsets_for_routing()[0], 5);
+}
+
+#[test]
 fn play_drums_oled_keeps_slot_cursor_and_scroll_metadata_without_selectable_guidance() {
     let mut runner = drum_runner();
     assert!(runner.menu.focus_item_key("play.page.drums"));
