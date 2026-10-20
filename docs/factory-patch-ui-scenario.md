@@ -91,9 +91,10 @@ The pre-push hook runs it too. The recipe lives in
 ### 7. Playback
 
 1. Start transport and clock; musical events must appear.
-2. Mute L1 (`Fn+Grid 0,0` to select it, then Fn+Play); L2 and L3 must keep
-   playing. Unmute it.
-3. Same for L2 (`Fn+Grid 0,1`).
+2. Mute L1 with `Shift+Fn+Grid 0,0`; L2 must keep playing. Unmute it. (L1's
+   Life cross settles after its first notes, so L2 is the reliable source.)
+3. Mute L2 with `Shift+Fn+Grid 0,1`; its sampler must go silent. Unmute it and
+   it must play again.
 4. Mute L1 and L2, select L3 (`Fn+Grid 0,2`), hold looper keys `0..3,0` while
    clocking; the looper must produce output. Unmute L1 and L2.
 5. `Fn+Grid 7,5` opens the XY page; pressing `6,6` and clocking must send a

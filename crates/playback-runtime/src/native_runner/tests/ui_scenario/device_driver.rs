@@ -61,7 +61,6 @@ impl DeviceDriver {
         self.send_device(button_input(id, true));
     }
 
-    #[allow(dead_code)]
     pub(super) fn release_button(&mut self, id: &str) {
         self.send_device(button_input(id, false));
     }
@@ -168,10 +167,17 @@ impl DeviceDriver {
         self.release_button("fn");
     }
 
-    pub(super) fn toggle_active_layer_mute(&mut self) {
+    pub(super) fn toggle_layer_mute(&mut self, layer_index: usize) {
+        self.hold_button("shift");
         self.hold_button("fn");
-        self.press_button("play");
+        self.press_grid(0, layer_index);
+        self.release_grid(0, layer_index);
         self.release_button("fn");
+        self.release_button("shift");
+    }
+
+    pub(super) fn layer_muted(&self, layer_index: usize) -> bool {
+        self.runner.trigger_gate_modes[layer_index] == "zero"
     }
 
     pub(super) fn respond_to_latest_sample_list_request(&mut self, entries: Vec<SampleEntry>) {

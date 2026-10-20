@@ -14,22 +14,13 @@ pub(super) fn assert_configured_patch_emits(device: &mut DeviceDriver) {
 pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) {
     play_and_expect_events(device, "initial full patch playback");
 
-    device.select_layer_with_fn(0);
-    device.toggle_active_layer_mute();
-    device.start();
-    play_and_expect_events(device, "L1 muted, L2/L3 still active");
-    device.toggle_active_layer_mute();
+    toggle_mute_expecting(device, 0, true);
+    play_and_expect_events(device, "L1 muted, L2 still active");
+    toggle_mute_expecting(device, 0, false);
+    assert_muted_sampler_layer_stays_silent(device);
 
-    device.select_layer_with_fn(1);
-    device.toggle_active_layer_mute();
-    device.start();
-    play_and_expect_events(device, "L2 muted, L1/L3 still active");
-    device.toggle_active_layer_mute();
-
-    device.select_layer_with_fn(0);
-    device.toggle_active_layer_mute();
-    device.select_layer_with_fn(1);
-    device.toggle_active_layer_mute();
+    toggle_mute_expecting(device, 0, true);
+    toggle_mute_expecting(device, 1, true);
     device.select_layer_with_fn(2);
     let before_looper = device.output().played_event_count();
     for x in 0..4 {
@@ -44,10 +35,8 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
     if device.output().played_event_count() <= before_looper {
         device.fail("L3 looper key presses did not produce musical output while L1/L2 were muted");
     }
-    device.select_layer_with_fn(0);
-    device.toggle_active_layer_mute();
-    device.select_layer_with_fn(1);
-    device.toggle_active_layer_mute();
+    toggle_mute_expecting(device, 0, false);
+    toggle_mute_expecting(device, 1, false);
 
     let synth_before = device.output().synth_param_count;
     device.select_layer_with_fn(0);
@@ -80,6 +69,28 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
     if device.output().sample_bank_param_count <= sample_before {
         device.fail("Aux1 turn did not emit a sample-bank command");
     }
+}
+
+fn toggle_mute_expecting(device: &mut DeviceDriver, layer: usize, muted: bool) {
+    device.toggle_layer_mute(layer);
+    if device.layer_muted(layer) != muted {
+        device.fail(&format!(
+            "Shift+Fn+left column did not toggle the mute of layer {layer}"
+        ));
+    }
+}
+
+fn assert_muted_sampler_layer_stays_silent(device: &mut DeviceDriver) {
+    toggle_mute_expecting(device, 1, true);
+    let hits = device.output().cell_hit_count;
+    for _ in 0..96 {
+        device.clock_pulses(6);
+    }
+    if device.output().cell_hit_count != hits {
+        device.fail("L2 is muted but its sampler still played");
+    }
+    toggle_mute_expecting(device, 1, false);
+    play_and_expect_events(device, "L2 unmuted again");
 }
 
 fn play_and_expect_events(device: &mut DeviceDriver, label: &str) {
