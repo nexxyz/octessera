@@ -30,6 +30,8 @@ pub struct DlaState {
 struct DlaConfig {
     #[serde(rename = "spawnInterval")]
     spawn_interval: Option<usize>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<usize>,
     #[serde(rename = "cellLife")]
     cell_life: Option<usize>,
 }
@@ -58,7 +60,7 @@ pub fn dla_init(config: Value) -> Result<DlaState, String> {
         ages: vec![0; CELL_COUNT],
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         spawn_interval: config.spawn_interval.unwrap_or(2),
-        spawn_step: 0,
+        spawn_step: config.spawn_step.unwrap_or(0).min(63),
         cell_life: config
             .cell_life
             .unwrap_or(DEFAULT_CELL_LIFE)
@@ -231,6 +233,14 @@ pub fn dla_config_menu() -> Vec<BehaviorConfigItem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn init_reads_spawn_step_from_config() {
+        let state = dla_init(serde_json::json!({ "spawnStep": 7 })).unwrap();
+        assert_eq!(state.spawn_step, 7);
+        let state = dla_init(serde_json::json!({ "spawnStep": 999 })).unwrap();
+        assert_eq!(state.spawn_step, 63);
+    }
 
     #[test]
     fn init_creates_seed_cluster_and_grid_press_toggles_cell() {

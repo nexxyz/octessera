@@ -43,6 +43,8 @@ pub struct RaindropsState {
 struct RaindropsConfig {
     #[serde(rename = "autoDropInterval")]
     auto_drop_interval: Option<usize>,
+    #[serde(rename = "spawnStep")]
+    spawn_step: Option<usize>,
     #[serde(rename = "splashRadius")]
     splash_radius: Option<usize>,
 }
@@ -56,7 +58,7 @@ pub fn raindrops_init(config: Value) -> Result<RaindropsState, String> {
         trigger_types: vec![CellTriggerType::None; CELL_COUNT],
         auto_drop_interval: config.auto_drop_interval.unwrap_or(3),
         splash_radius: config.splash_radius.unwrap_or(6),
-        spawn_step: 0,
+        spawn_step: config.spawn_step.unwrap_or(0).min(63),
         tick_counter: 0,
     })
 }
@@ -187,6 +189,14 @@ pub fn raindrops_config_menu() -> Vec<BehaviorConfigItem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn init_reads_spawn_step_from_config() {
+        let state = raindrops_init(serde_json::json!({ "spawnStep": 7 })).unwrap();
+        assert_eq!(state.spawn_step, 7);
+        let state = raindrops_init(serde_json::json!({ "spawnStep": 999 })).unwrap();
+        assert_eq!(state.spawn_step, 63);
+    }
 
     #[test]
     fn drop_falls_lands_and_splash_radius_controls_ring_creation() {
