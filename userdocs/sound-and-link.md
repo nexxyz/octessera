@@ -81,8 +81,8 @@ has its own **Enabled** switch.
 - **Slot 1** and **Slot 2** can drive any mappable parameter (an FX mix, a
   synth's detune, a bus volume), each with its own **Invert** row.
 
-This is where the co-writing happens. A `boids` flock drifting right can
-open a filter while a `wave` on another layer makes the delay bloom.
+A `boids` flock drifting right can open a filter while a `wave` on another
+layer makes the delay bloom.
 
 ### Trigger probability: not every time
 
@@ -135,8 +135,6 @@ point at them.
 | `Drum` | An eight-voice kit; cells are stamped with voices | **Kit** > Load, set the **Cell** rows, then **Assign** |
 | `sampler` | Eight WAV slots; cells are stamped with samples | **Browse** for a sample, set the **Cell** rows, then **Assign** |
 | `midi` | Sends notes to external gear instead of making sound | **MIDI** > Enabled, then Channel, Velocity and Duration |
-
-A few things worth knowing:
 
 - **Presets and kits.** Synth, FM and Plucked have **Preset > Load**; Drum and
   Sampler have **Kit > Load**. Loading asks first and only changes that slot.
@@ -238,4 +236,3 @@ so a short attack or a long reverb tail is easy to set. The details are in the
 
 The drums anchor the beat, the flock wanders and opens the filter, the delay
 ducks out of the kick's way, and the LFO keeps the echoes from sitting still.
-Then change one thing and listen to what the little worlds do with it.

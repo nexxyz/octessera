@@ -12,13 +12,13 @@ from here on the steps are the same.
 Open the [releases page](https://github.com/nexxyz/octessera/releases) and
 download the image for **your** board:
 
-| Board | Image file | Checksum file |
-|---|---|---|
-| Raspberry Pi Zero 2 W | `octessera-<version>-raspberry-pi-zero-2w.img.zip` | `SHA256SUMS-pi.txt` |
-| Orange Pi Zero 2W | `octessera-<version>-orange-pi-zero-2w.img.xz` | `octessera-<version>-orange-pi-zero-2w.img.xz.sha256` |
+| Board | Image file |
+|---|---|
+| Raspberry Pi Zero 2 W | `octessera-<version>-raspberry-pi-zero-2w.img.zip` |
+| Orange Pi Zero 2W | `octessera-<version>-orange-pi-zero-2w.img.xz` |
 
-If you want to check the download, compare it against the checksum file for
-that exact image. The two boards' images are not interchangeable: an Orange card
+If you want to check the download, compare it against its line in
+`SHA256SUMS.txt`, which covers both images. The two boards' images are not interchangeable: an Orange card
 in a Raspberry (or the other way round) won't boot.
 
 ## 2. Flash the microSD card

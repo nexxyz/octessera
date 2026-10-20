@@ -65,8 +65,8 @@ desktop simulator doesn't have it.
    Use `$URL/export?media=1` instead to include media: samples you added to
    the board and your recordings. Samples on the SD2 card stay on the card.
 
-4. Keep `octessera-user-data.oct` somewhere safe before you flash or reuse the
-   card.
+4. Keep `octessera-user-data.oct` somewhere safe, and don't erase or reuse the
+   old card until a restore from it has worked.
 
 *Back* hides the OLED card while the service keeps running. Choose
 **> Stop service** when you're finished; the code also expires on its own.

@@ -120,8 +120,8 @@ they made the audio stutter for a few seconds at a random time each day.
 A handful of useful housekeeping jobs still run on a timer: log rotation, SD
 card trim, temp-file cleanup and, on the Raspberry, a once-a-minute Wi-Fi
 health check. Each has been run during playback without disturbing the sound,
-but if you'd rather not find out the hard way, use
-**System > Live Show Mode > Start 48h** before a show:
+but you can postpone them with **System > Live Show Mode > Start 48h** before
+a show:
 
 - It asks first, because it also switches Wi-Fi off. No SSH, no updates and no
   Wi-Fi setup until it ends, and nothing on the network can poke the board

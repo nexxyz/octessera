@@ -29,7 +29,7 @@ the OLED. It always shows what the controls are acting on.
 | *Shift* + *Play* | Stop and return to the start. Under external MIDI sync it instead arms a one-off resync at the next bar; playback carries on, then the transport snaps back to its origin. |
 | *Fn* + *Play* | Stop and return to the start, always, even in the sample browser or under external sync. |
 | *Fn* + turn *Main* right (not editing) | While paused or stopped, step the world forward one generation. Left does nothing; while playing, the OLED asks you to pause first. |
-| *Shift* + *Fn* + *Play* | Nothing yet. A tiny patch of silence in the shortcut garden. |
+| *Shift* + *Fn* + *Play* | Nothing yet. |
 | *Shift* + *Back* | Clear and re-initialize the active layer. Very useful, and you have to mean it. While editing text, it deletes a character instead. |
 | *Shift* + *Fn* + click *Main* | Context help for the highlighted row. |
 | *Fn* + click *Main* | Open the [Aux mappings](#aux-mappings-modal) list. |

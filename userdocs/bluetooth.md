@@ -64,8 +64,6 @@ Whenever the paired speaker is connected, it plays along. Switch it off or
 walk out of range and the monitor stops; the wired outputs carry on
 untouched.
 
-Two honest warnings:
-
 - Bluetooth audio is late, usually by a couple of hundred milliseconds. Fine
   for listening, terrible for playing in time, so keep your ears on the wired
   output when you play live.

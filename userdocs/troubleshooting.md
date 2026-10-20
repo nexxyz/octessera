@@ -3,7 +3,7 @@
 Find the row that matches what you're seeing and start with the first action.
 Power down before opening the case, moving wiring or reseating a connector.
 And take both microSD cards out before you open or close the case: they catch
-on the enclosure and break. Don't ask me how I found that out. Twice.
+on the enclosure and break.
 
 ## Sound and playing
 

@@ -46,21 +46,21 @@ in **Build**.
 | `euclid` | Rhythm | Evenly spread hits across uneven lane lengths. Simple controls, surprisingly useful loops. |
 | `ostinato` | Musical | A repeating melodic figure that shifts without losing its anchor. |
 | `motif` | Musical | A short melodic shape that mutates, folds and returns. |
-| `canon` | Musical | Delayed copies of a line, stacked into layered motion. A tiny grid fugue, if it behaves. |
+| `canon` | Musical | Delayed copies of a line, stacked into layered motion. |
 | `chords` | Musical | Moving triad-like cells for harmonic blocks and chord strikes. |
 | `contour` | Musical | Melody-like cells following rise, fall, arch and valley shapes. |
 | `cadence` | Musical | Harmonic movement with repeated tension and resolution points. |
 | `phrase` | Musical | A phrase-shaped pattern with opening, development, rest and return. |
 | `life` | Cellular | Conway-style cells that are born, survive and die, plus optional glider injection. |
 | `brain` | Cellular | Brian's Brain states. Leaves trails and pulses rather than plain living and dying. |
-| `cyclic` | Cellular | Multi-state wave fronts chasing each other round the grid. A bit arcade-creature-ish. |
+| `cyclic` | Cellular | Multi-state wave fronts chasing each other round the grid. |
 | `forest fire` | Cellular | Trees grow, catch from burning neighbours and occasionally get zapped by lightning. Presses plant and ignite. |
 | `predator prey` | Cellular | Grass feeds herbivores, herbivores feed predators, and starvation keeps the ecosystem moving. |
 | `ant` | Cellular | Langton-style: a tiny agent walks the grid and flips cells as it goes. |
 | `twinkle` | Cellular | Stars appear one at a time, linger and fade. Cluster Bias decides whether they bunch up or scatter. |
 | `bounce` | Motion | Particles bouncing through the grid. Good for kinetic, repeating patterns. |
 | `bubbles` | Motion | Bubbles rise from the bottom, merge when they touch and vanish past the top. |
-| `gravity` | Motion | Sand grains fall, slide and settle, and flip direction when you invert gravity. Crunchy little avalanches. |
+| `gravity` | Motion | Sand grains fall, slide and settle, and flip direction when you invert gravity. |
 | `boids` | Motion | A small flock steering by separation, alignment and cohesion. It chirps when agents enter new cells. |
 | `orbit` | Motion | Particles circling a moving attractor, flickering as they cross cells. |
 | `lava lamp` | Motion | Soft blobs drift, merge and split. |
@@ -69,7 +69,7 @@ in **Build**.
 | `fractal explorer` | Geometry | A drifting Mandelbrot/Julia explorer that turns changes in detail into accents. |
 | `maze growth` | Geometry | Maze corridors carve, walkers wander them, and old passages sometimes crumble back to wall. |
 | `ink` | Fields | Pigment blooms, diffuses and fades. Press for a splash, then listen as it thins out. |
-| `ising` | Fields | Magnetic domains flipping under temperature, noise and field pressure. Tiny spin weather. |
+| `ising` | Fields | Magnetic domains flipping under temperature, noise and field pressure. |
 | `kuramoto` | Fields | Coupled phases drifting toward sync. Notes come at wrap flashes, not from a permanently lit grid. |
 | `lightning` | Fields | Branching leaders crawl toward a target edge, flash when they connect, then decay and restart. |
 | `raindrops` | Fields | Drops and ripples. Great for sparse starts that bloom into motion. |
@@ -116,7 +116,7 @@ page.
 | Drums | The cells stamped on the selected Drum slot. | Tapping drum hits directly, even while stopped. Empty cells stay quiet. |
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
-it, so you can be reckless and still get your patch back.
+it, so the patch keeps its saved mode.
 
 ## Play FX
 
@@ -140,8 +140,7 @@ Mapping `none` clears a cell.
 3. Paint some probability onto the sequencer cells so the rhythm breathes.
 4. Bind one or two Aux encoders to whatever you keep reaching for (*Fn* +
    click an Aux encoder on the highlighted row).
-5. Open Play Mix or Trigger Gate and perform the layers like little weather
-   systems.
+5. Open Play Mix or Trigger Gate and perform the layers.
 
 ## Seeds: surprises you can keep
 
@@ -157,6 +156,3 @@ again, reload the patch (or Reset the layer) and play it the same way. Turn
 Seed to reroll every seeded layer at once, and leave other layers unseeded to
 keep a bit of chaos around. Your live playing still nudges things, which is
 rather the point.
-
-That's the heart of Octessera for me. There's no song file and no fixed
-pattern, only a few small systems making music together, with you nudging.

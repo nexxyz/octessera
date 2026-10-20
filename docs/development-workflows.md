@@ -8,16 +8,16 @@ here to play the thing rather than change it, the
 
 Use the focused page for the responsibility you are changing:
 
-- [Desktop development](workflows/desktop-development.md) — simulator,
+- [Desktop development](workflows/desktop-development.md): simulator,
   hardware-free matrix, Tauri builds, and the heavy UI scenario.
-- [Pi development and profiling](workflows/pi-development-and-profiling.md) —
+- [Pi development and profiling](workflows/pi-development-and-profiling.md):
   host builds, Orange cross-build tools, the shared-path timing smoke, Pi
   profiling, and audio probes.
-- [Image construction](workflows/image-construction-and-proof.md) —
+- [Image construction](workflows/image-construction-and-proof.md):
   pi-gen/Armbian construction, boot layers, image modes, and validators.
-- [Release assembly](workflows/release-assembly.md) — artifact formats, staging,
+- [Release assembly](workflows/release-assembly.md): artifact formats, staging,
   update boundaries, and attribution companions.
-- [Pi and board deployment](workflows/deployment.md) — state-changing board
+- [Pi and board deployment](workflows/deployment.md): state-changing board
   actions, Raspberry and Orange development deployment, Orange input routing,
   and runtime debug loops.
 

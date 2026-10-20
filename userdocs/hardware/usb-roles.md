@@ -71,8 +71,8 @@ sheet](../controls-cheat-sheet.md#usb-host-keyboard).
   while the instrument is running.
 - **Held keys:** arrow and Aux-turn keys repeat when held, like turning the
   knob further. Held Enter, Aux clicks, Back, Space, Shift and Control do not
-  repeat, so combinations such as Shift+Space (Stop) and Control+Space (Reset
-  stop) behave like the buttons.
+  repeat, so combinations such as Shift+Space (Shift+Play) and Control+Space
+  (Fn+Play) behave like the buttons.
 
 A [Bluetooth keyboard](../bluetooth.md) uses the same map and works in either
 Raspberry USB role.

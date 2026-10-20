@@ -30,12 +30,12 @@ drill files, the KiCad job file, and [`gerber.zip`](pcb/gerber/gerber.zip).
 
 The enclosure source tree includes
 [`CAD_WORKFLOW.md`](enclosure/CAD_WORKFLOW.md) and the CadQuery generators,
-tests, and wrappers. Its committed generated output sets are:
+tests, and wrappers. It commits four generated output sets of 18 files each:
 
-- [`hardware/enclosure/step/`](enclosure/step/): exactly 18 STEP files;
-- [`hardware/enclosure/stl/`](enclosure/stl/): exactly 18 printable STL files;
-- [`hardware/enclosure/3mf-single-material/`](enclosure/3mf-single-material/): exactly 18 single-material 3MF files;
-- [`hardware/enclosure/3mf-multicolor/`](enclosure/3mf-multicolor/): exactly 18 3MF files.
+- [`hardware/enclosure/step/`](enclosure/step/): STEP files;
+- [`hardware/enclosure/stl/`](enclosure/stl/): printable STL files;
+- [`hardware/enclosure/3mf-single-material/`](enclosure/3mf-single-material/): single-material 3MF files;
+- [`hardware/enclosure/3mf-multicolor/`](enclosure/3mf-multicolor/): multicolor 3MF files.
 
 The multicolor set is a complete print set: 12 authored two-material designs
 plus six one-material support pieces.
@@ -46,7 +46,7 @@ waterproof, or transport-qualified product.
 
 ## Attribution and notices
 
-Consult these companions as applicable:
+See also:
 
 - [`hardware/ATTRIBUTIONS.md`](ATTRIBUTIONS.md)
 - [`NOTICE`](../NOTICE)

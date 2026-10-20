@@ -147,8 +147,10 @@ address jumpers, because you set them from the back, where left and right swap.
 2. Turn the whole arrangement over as one piece. From here on, positions are as
    seen **from the bottom**.
 3. Solder 20 straight male header pins between neighbouring boards to join them.
-4. Add 5 straight male header pins on the left side of the upper-left board.
-   This is where the cable to `J1` connects.
+4. Add 5 straight male header pins to the board that is upper-left as seen
+   from the play surface, on its left edge. Looking at the bottom, that's the
+   right-hand edge of the upper-right board. This is where the cable to `J1`
+   connects.
 5. Still looking at the bottom, solder the address jumpers:
 
    | Position (seen from the bottom) | Jumpers | Address |
