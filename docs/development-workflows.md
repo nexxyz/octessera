@@ -1,7 +1,8 @@
 # Development workflows
 
-This page indexes the current contributor commands and workflow references.
-Start user-facing work at [`userdocs/README.md`](../userdocs/README.md).
+This page indexes the contributor commands and workflow references. If you are
+here to play the thing rather than change it, the
+[user guide](../userdocs/README.md) is the better door.
 
 ## Workflow map
 
@@ -10,13 +11,15 @@ Use the focused page for the responsibility you are changing:
 - [Desktop development](workflows/desktop-development.md) — simulator,
   hardware-free matrix, Tauri builds, and the heavy UI scenario.
 - [Pi development and profiling](workflows/pi-development-and-profiling.md) —
-  host builds, Orange cross-build tools, Pi profiling, and audio probes.
+  host builds, Orange cross-build tools, the shared-path timing smoke, Pi
+  profiling, and audio probes.
 - [Image construction](workflows/image-construction-and-proof.md) —
   pi-gen/Armbian construction, boot layers, image modes, and validators.
 - [Release assembly](workflows/release-assembly.md) — artifact formats, staging,
   update boundaries, and attribution companions.
 - [Pi and board deployment](workflows/deployment.md) — state-changing board
-  actions, Raspberry deployment, Orange input routing, and runtime debug loops.
+  actions, Raspberry and Orange development deployment, Orange input routing,
+  and runtime debug loops.
 
 The [Orange production reference](../hardware/docs/orange-pi-production-reference.md)
 owns detailed production image, service, storage, audio, USB, and updater
@@ -29,13 +32,20 @@ contracts. The technical workbench/hardware-gate procedure remains in
 corepack pnpm install
 ```
 
-Use pnpm workspaces; do not use npm or yarn.
+Use pnpm workspaces; npm and yarn will only confuse the lockfile.
+
+The repository integrity gate checks generated assets (configs, capabilities,
+palette, logos), legal inventories, internal Markdown links and anchors, and
+the code-quality thresholds. Run it after documentation or generator changes:
 
 ```bash
-python tools/docs/check_links.py
-python3 tools/docs/test_release_documentation.py
+bash tools/quality/repository-integrity.sh
 git diff --check
 ```
+
+Skip a class with `--skip-stale-assets`, `--skip-legal`, `--skip-links`, or
+`--skip-quality`. The link check on its own is
+`python tools/docs/check_links.py`.
 
 Menu/help changes also use the focused runtime test:
 
@@ -54,6 +64,9 @@ cargo test -p playback-runtime
   responsibility boundaries.
 - [`menu-and-controls-spec.md`](menu-and-controls-spec.md) owns parity-sensitive
   controls and menu behavior.
+- [`save-format-split-backlog.md`](workflows/save-format-split-backlog.md)
+  records which settings belong to the System file and which to the musical
+  patch, including the menu-location exceptions.
 - Contributor-only branding guidance lives in
   [`hardware/docs/branding-assets.md`](../hardware/docs/branding-assets.md).
 
@@ -89,9 +102,32 @@ cargo test -p realtime-engine -p rodio-engine-source --features rodio-engine-sou
 ```
 
 The last command covers the routing-tree executor that production Pi builds
-use; default-feature tests do not compile it.
+use. Default-feature tests do not compile it, which is easy to forget and
+annoying to rediscover.
 
 These checks keep native runtime behavior in `platform-core` and
 `playback-runtime`, internal Synth, FM, Plucked, Drum, and Sampler paths in
 `realtime-engine`, and MIDI instruments on external MIDI paths. Desktop
 TypeScript remains a UI and bridge layer.
+
+## Pre-push hook
+
+`.githooks/pre-push` delegates to `tools/quality/pre-push.sh`; the check list
+lives in `tools/quality/pre-push-checks.sh`. The full profile runs lint,
+typecheck, format checks, JS tests and coverage, the quality audit, `cargo fmt`,
+the file-length limit, the repository integrity fixtures and gate, workspace
+and routing-tree-executor Rust tests, enum help coverage, the
+[factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage, the
+Tauri build smoke, desktop and Pi checks, and both Clippy passes. It takes a
+while. Give `git push` a long timeout rather than skipping the hook.
+
+If git does not already run hooks from `.githooks/`, point it there:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook refuses to run on a dirty working tree. Set
+`OCTESSERA_PRE_PUSH_COMMITTED_TREE=1` for the push to validate the committed
+`HEAD` in a temporary worktree instead. Run `tools/quality/pre-push.sh --fast`
+by hand when you only want lint, typecheck, formatting, and file length.

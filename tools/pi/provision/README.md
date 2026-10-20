@@ -1,8 +1,9 @@
 # Pi provisioning
 
-`../provision-pi.ps1` installs the development Pi OS, boot, network, sudoers,
-performance, and splash configuration. It is safe to run again after changing
-the tracked files in this directory or the shared Pi image files.
+`tools/pi/provision-pi.ps1` uploads this directory and runs `provision.sh` on
+the board. It installs the development Pi OS, boot, network, sudoers,
+performance, and splash configuration, and it is safe to run again after
+changing the tracked files here or the shared Pi image files.
 
 Provision the device before the first fast deployment:
 

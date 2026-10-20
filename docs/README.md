@@ -1,8 +1,9 @@
 # Technical guide
 
-This is the short route through Octessera's current implementation contracts,
-fixed hardware paths, build tools, and provenance. For operating the instrument,
-start with the [user manual](../userdocs/README.md).
+This is the short route through Octessera's implementation contracts, fixed
+hardware paths, build tools, and provenance. It is written for people changing
+the code. For playing or building the instrument, start with the
+[user guide](../userdocs/README.md) instead; it is friendlier.
 
 ## Repository map
 
@@ -14,7 +15,7 @@ start with the [user manual](../userdocs/README.md).
 - `userdocs/` — end-user build, controls, and operation guides.
 - `docs/` — technical specifications, workflows, and contributor references.
 - `tools/` — build, image, hardware, release, and verification tooling.
-- `samples/` — bundled sample content, source acknowledgements, and manifests.
+- `samples/` — the bundled WAV sample library and its upstream licence.
 - `licenses/` + `third_party/` — generated dependency inventories and vendored/source provenance.
 - `assets/` — shared branding and device visual assets.
 - `userpatches/` — Armbian image overlays and device files; it stays at the root because Armbian consumes this conventional path.
@@ -44,16 +45,21 @@ start with the [user manual](../userdocs/README.md).
 
 ## Development, build, and deployment
 
-- [Development workflows](development-workflows.md) — contributor workflow map
-  and focused references.
+- [Development workflows](development-workflows.md) — install, checks,
+  generators, and the pre-push hook.
 - [Desktop development](workflows/desktop-development.md) — simulator
   development and desktop builds.
+- [Pi development and profiling](workflows/pi-development-and-profiling.md) —
+  host builds, the shared-path timing smoke, and board profiling.
 - [Pi provisioning](../tools/pi/provision/README.md) — Raspberry OS and boot
   configuration.
-- [Board deployment](workflows/deployment.md) — Raspberry deployment and Orange
-  input-routing operations.
-- [Orange Pi tools](../tools/orange-pi/README.md) — Orange SSH bootstrap and
-  cross-build commands.
+- [Board deployment](workflows/deployment.md) — Raspberry and Orange
+  development deployment and Orange input routing.
+- [Orange Pi tools](../tools/orange-pi/README.md) — Orange SSH bootstrap,
+  cross-builds, and study tools.
+- [Image construction](workflows/image-construction-and-proof.md) and
+  [release assembly](workflows/release-assembly.md) — building board images
+  and release assets.
 
 ## Attribution and licensing
 

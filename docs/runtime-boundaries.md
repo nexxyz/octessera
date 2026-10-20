@@ -1,10 +1,34 @@
 # Runtime Boundaries
 
-This contributor contract keeps UI, host adapters, native runtime logic, core behavior logic, and audio rendering in separate layers.
+This contributor contract keeps UI, host adapters, native runtime logic, core
+behavior logic, and audio rendering in separate layers. When a change makes you
+wonder where something belongs, this page should answer it; if it doesn't, the
+page needs fixing, not the layering.
 
-The shared board-runtime scheduler in `apps/pi-zero/src/hardware_runtime_scheduler.rs` owns Raspberry and Orange timing policy: 8 ms realtime work, 50 ms stopped maintenance, 33 ms playing snapshot cadence/publication gating, native one-shot and continuous display deadlines, bounded wake/input pickup, accepted-revision dedupe/retry, configured sync-source requests, and playing input-snapshot suppression. It contains no board, hardware, audio, adapter, or thread ownership. Both boards run one runtime loop (`apps/pi-zero/src/runtime_loop.rs`) on an `octessera-runtime` thread with one `PiHostAdapter`; between scheduled ticks the loop blocks on the grid/NeoKey/keyboard input channel, so live presses dispatch on arrival instead of at the next tick (encoders and MIDI still use the tick). At startup both board binaries `mlockall` with `MCL_ONFAULT` and lock their own and their libraries' read-only mappings up front, so memory pressure or first use cannot page audio-path code in from the SD card (the services grant `LimitMEMLOCK=infinity`); per-board hooks cover only audio upkeep (Orange recovery, health and readiness; Raspberry load status and Jack fault) and what a power request does.
+The authoritative menu/control behavior spec is
+[`menu-and-controls-spec.md`](menu-and-controls-spec.md). Board-specific facts
+are in [`board-profiles.md`](board-profiles.md).
 
-Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
+## Board runtime loop
+
+- `apps/pi-zero/src/hardware_runtime_scheduler.rs` owns Raspberry and Orange
+  timing policy: 8 ms realtime work, 50 ms stopped maintenance, 33 ms playing
+  snapshot cadence/publication gating, native one-shot and continuous display
+  deadlines, bounded wake/input pickup, accepted-revision dedupe/retry,
+  configured sync-source requests, and playing input-snapshot suppression. It
+  owns no board, hardware, audio, adapter, or thread.
+- Both boards run one runtime loop (`apps/pi-zero/src/runtime_loop.rs`) on an
+  `octessera-runtime` thread with one `PiHostAdapter`. Between scheduled ticks
+  the loop blocks on the grid/NeoKey/keyboard input channel, so live presses
+  dispatch on arrival instead of at the next tick. Encoders and MIDI still use
+  the tick.
+- At startup both board binaries `mlockall` with `MCL_ONFAULT` and lock their
+  own and their libraries' read-only mappings up front, so memory pressure or
+  first use cannot page audio-path code in from the SD card. The services grant
+  `LimitMEMLOCK=infinity`.
+- Per-board hooks cover only audio upkeep (Orange recovery, health, and
+  readiness; Raspberry load status and Jack fault) and what a power request
+  does.
 
 ## Layer Responsibilities
 
@@ -36,11 +60,6 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - owns live Play trigger-gate semantics. Disabling a layer immediately drains held notes owned by that layer from internal Synth, FM, Plucked, and Sampler paths and external MIDI, leaves other layers untouched, suppresses future triggers, and does not resurrect released notes when re-enabled. Already-ringing one-shot Drum hits are not held notes and finish their own decay.
   - owns the portable Data Backup/Restore bundle contract: canonical patch migration and validation, the allowlisted preference delta, manifest/hash metadata, and typed transfer status; it does not perform transfer or filesystem I/O
   - delegates its display-ordered grid index API to the pure fixed-grid projection helpers in `platform-core`; it does not own a second projection table or geometry rule
-  - The Orange production service keeps this native ownership through the shared Pi host adapter and Orange-specific construction, audio recovery, and power handling: `octessera.service` runs the native runtime as the locked `octessera-runtime` account, while the separate `octessera` account is for interactive setup and administration. The adapter owns OLED, NeoTrellis, NeoKey, four encoder, store, sample, and MIDI device I/O; Seesaw uses polling and encoder GPIO uses the HAL's gpiocdev v2 edge backend. Internal Synth, FM, Plucked, Drum, and Sampler audio routes through `AudioService` and the realtime engine at 44.1 kHz; MIDI leaves through the native host adapter. Jack is always-on primary on Raspberry Latency and Capacity and Orange Latency and Capacity modes; USB and HDMI audio are independently selectable optional mirrors of the canonical Jack mix, and HDMI audio is separate from HDMI video. Readiness depends on Jack; an absent, waiting, or faulted optional mirror is route-local and never blocks or replaces Jack. The service grants FIFO priority 70 through `LimitRTPRIO=70`; its sole ambient and bounding capability is `CAP_SYS_TTY_CONFIG` for native VT leasing, and it adds no `CAP_SYS_NICE`. Orange USB gadget composition is an image-side adapter decision from `/var/lib/octessera/presets/system.json`: `audioOutputs.usb` controls UAC2 and `usb.midiOutEnabled` controls MIDI, with no gadget, MIDI-only, UAC2-only, and combined states. The staged `usr/share/octessera/defaults/pi-default.json` is immutable image-build metadata, not an active runtime default. The root-owned socket-activated apply lane accepts only the fixed reboot request after validating that persisted System config; it is not a general privilege broker. Orange Check, Apply, and Rollback use the separate root-owned guarded updater lane and only the profile-qualified runtime-updater asset; profile or asset failures stop without a Raspberry, manual-ZIP, or image fallback. The updater does not replace Armbian, kernel, device-tree, or image assets.
-  - The production Orange image constructs the AHUB0 vendor dummy-codec route and exact `octessera-dac` playback card (`hw:CARD=octesseradac,DEV=0`) during image construction; it does not use a manual or experimental audio overlay. Selected Orange audio routes also include UAC2 (`hw:CARD=UAC2Gadget,DEV=0`) and HDMI (`hw:CARD=HDMI,DEV=0`) PCMs. Simultaneous physical outputs use independent, unsynchronized clocks and can drift or echo; this phase provides no sample alignment. The Orange HDMI connector path is `/sys/class/drm/card0-HDMI-A-1`; Raspberry runtime code pins the card0 connector identity and does not scan or fall back to card1. HDMI audio is selected independently from video.
-  - Orange SD2 transfer source behavior is implemented through the root-owned, exact-command `/run/octessera-orange-storage-control/storage.sock` lane and the shared label-safe SD helper/library. The board/storage adapter owns UDC, gadget mass-storage setup/teardown, local unmount/remount, and recovery handling; the external host owns its eject action.
-  - Orange offline DSP profiling is a native `apps/pi-zero` diagnostic branch before hardware startup. It exercises the existing realtime-engine scenarios and reports snapshots; it does not implement playback, control, device, or TypeScript fallback behavior. Orange profiling requires the explicit `--profile-dsp` argument.
-  - Orange runtime failure policy is three attempts in a 30-second systemd start-limit window: the initial start plus two `Restart=on-failure` retries at five-second intervals. After that, the unit stays `start-limit-hit` until an operator runs `sudo systemctl reset-failed octessera.service` and then `sudo systemctl start octessera.service`.
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
 
 - Core logic layer (`crates/platform-core`)
@@ -70,7 +89,8 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - owns all internal musical audio rendering, instrument route/pan, FX bus sends, FX bus processing, sidechain ducking, and final stereo mix
   - persistent workers own whole bus chains plus instrument- and bus-targeted momentary FX; CPU1 owns coordinator reduction, global-target momentary FX, global/master processing, and final stereo work
   - optional persistent source-worker rendering keeps one canonical partition+scratch `OwnerEnvelope` per parity plus exactly four logical `BusChainCarrier` positions in lifecycle-owned capacity-one home mailboxes, work/completion transport, worker local state, or a short callback lease; `SourceWorkerRuntime` owns no DSP bundles or bus carriers at callback boundaries, while `SourceWorkerLifecycle` owns fault mailboxes, completion receivers, joins, and final owner destruction. Typed stamped source commands validate runtime, plan, sequence, phase, frame, and sample-clock identity; invalid completions go to fault escrow. Lifecycle-first drop on another thread waits for runtime close; same-thread reverse destruction is prohibited. The default inline path remains available
-  - generates synth slot/sample/pan constants from `resources/platform-capabilities.json`
+  - generates synth slot/sample/pan constants from `resources/platform-capabilities.json`, and its build script generates the 4096-step sine table behind `src/sine.rs`. Oscillators, LFOs, panning, and crossfades use that table; filter and EQ coefficient design keeps `f32::sin`/`cos` for precision near DC
+  - the block renderer picks each voice's source (Synth, FM, Plucked, Drum) once per block and runs a loop specialized for that source (`synth/engine/render_voice`); the single-frame path shares the same per-source sample functions, so frame and block rendering stay bit-identical
   - `crates/rodio-engine-source` owns shared non-realtime file opening and WAV decoding into `SampleBuffer`, plus refill, previous-master cache repeat/silence, and overload status publication
   - stores the typed DSP worker-warning and bus-idle configuration received through direct control events; evaluates worker warning state only from valid persistent paired completions, while threshold interpretation does not alter prepared audio topology
   - `EngineSource` receives prepared sample buffers and control events; shared file opening/decoding remains strictly outside the audio callback
@@ -80,6 +100,60 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
   - is the only path for Synth, FM, Plucked, Drum, and Sampler internal audio before device output
   - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample preparation, preview/bank orchestration, and typed error adaptation
   - desktop and Pi return the same typed audio-command/config failures, preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
+
+## Orange production service
+
+The Orange image keeps the same native ownership through the shared Pi host
+adapter, plus Orange-specific construction, audio recovery, and power handling.
+
+- `octessera.service` runs the native runtime as the locked
+  `octessera-runtime` account; the separate `octessera` account is for
+  interactive setup and administration.
+- The adapter owns OLED, NeoTrellis, NeoKey, four-encoder, store, sample, and
+  MIDI device I/O. Seesaw uses polling; encoder GPIO uses the HAL's gpiocdev v2
+  edge backend.
+- Internal Synth, FM, Plucked, Drum, and Sampler audio routes through
+  `AudioService` and the realtime engine at 44.1 kHz; MIDI leaves through the
+  native host adapter.
+- Jack is the always-on primary route in both Latency and Capacity modes on
+  both boards. USB and HDMI audio are independently selectable mirrors of the
+  canonical Jack mix, and HDMI audio is separate from HDMI video. Readiness
+  depends on Jack; an absent, waiting, or faulted mirror stays route-local.
+- The image constructs the AHUB0 vendor dummy-codec route and the exact
+  `octessera-dac` playback card (`hw:CARD=octesseradac,DEV=0`); no manual or
+  experimental audio overlay is used. The optional routes are UAC2
+  (`hw:CARD=UAC2Gadget,DEV=0`) and HDMI (`hw:CARD=HDMI,DEV=0`). Simultaneous
+  outputs run on independent clocks and can drift or echo; nothing aligns them.
+- The HDMI connector is `/sys/class/drm/card0-HDMI-A-1`. Raspberry runtime
+  code pins the card0 identity and never scans or falls back to card1.
+- The service grants FIFO priority 70 through `LimitRTPRIO=70`. Its only
+  ambient and bounding capability is `CAP_SYS_TTY_CONFIG` for native VT
+  leasing; it adds no `CAP_SYS_NICE`.
+- USB gadget composition is an image-side decision from
+  `/var/lib/octessera/presets/system.json`: `audioOutputs.usb` controls UAC2
+  and `usb.midiOutEnabled` controls MIDI, giving no gadget, MIDI only, UAC2
+  only, or combined. The staged `usr/share/octessera/defaults/pi-default.json`
+  is image-build metadata, not an active default.
+- Reboot and power-off use the fixed socket lane in the
+  [device apply boundary](#device-apply-boundary). Check, Apply, and Rollback
+  use the separate root-owned guarded updater and only the profile-qualified
+  runtime-updater asset; profile or asset failures stop without a Raspberry,
+  manual-ZIP, or image fallback. The updater never replaces Armbian, kernel,
+  device-tree, or image assets.
+- SD2 transfer goes through the root-owned, exact-command
+  `/run/octessera-orange-storage-control/storage.sock` lane and the shared
+  label-safe SD helper. The board/storage adapter owns the UDC, gadget
+  mass-storage setup/teardown, local unmount/remount, and recovery; the
+  external host owns its eject.
+- Offline DSP profiling (`--profile-dsp`) is a native `apps/pi-zero`
+  diagnostic branch that runs before hardware startup. It exercises the
+  existing realtime-engine scenarios and reports snapshots; it implements no
+  playback, control, device, or TypeScript fallback.
+- Failure policy is three attempts in a 30-second start-limit window: the
+  initial start plus two `Restart=on-failure` retries five seconds apart.
+  After that the unit stays `start-limit-hit` until someone runs
+  `sudo systemctl reset-failed octessera.service` and then
+  `sudo systemctl start octessera.service`.
 
 ## Native Audio Recording Boundary
 
@@ -134,9 +208,20 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 
 ## OLED Boot Handoff Boundary
 
-- The final systemd paths on the fixed Raspberry Pi Zero 2 W and Orange Pi 2W use the same source-defined OLED boot sweep from `resources/oled/boot-sweep-v1.json`: the mounted SSD1351 controller origin decreases by 303 px while the physical panel motion is left-to-right. In canonical bottom-to-top coordinates the top-row origin is 127 px less X than the bottom-row origin (`bottom_origin - row_y`); this produces the physical-panel slash, with green, magenta, cyan, and yellow bands reading left to right (the Build, Link, Shape, and Play menu colors), 8 px bands, and 4 px separators. The sweep uses 30 frames over a 1,200,000,000 ns cycle (25 fps); the clean logo+wordmark frame follows it and continuous boot loops retain that frame for a responsive 2,000,000,000 ns inter-loop rest. This is a source and test contract; exercise hardware output through the board test procedures.
-- Normal first boot is not designed to wait six minutes. Upstream filesystem resize is ordered before runtime, and six minutes is only the upstream maximum timeout; the normal animated splash covers this boot work. Raspberry and Orange root-installed systemd animators are the sole loops and run concurrently with service loading after their fixed OLED devices are ready. Raspberry explicitly wants and waits for `systemd-udev-settle.service` before opening its GPIO/SPI devices; it does not depend on unavailable device units or polling. Either board may remain blank until systemd starts its animator. Native startup requests release, waits for the shared OLED lock, adopts the already-initialized display without reset, and stops the animation or persistent handoff status immediately before publishing the acknowledged first normal menu frame. If native ownership has not arrived by the 30-second handoff window, both board source paths write one static polished `STARTUP DELAYED` / `PLEASE WAIT` frame and continue polling the same handoff state as the sole OLED writer. The frame is delayed-start legibility/recovery mitigation. A matching stop request releases without black/off; only genuine writer errors or termination signals use the black-frame/display-off failure cleanup. Sleep and shutdown are separate OLED lifecycle paths, not boot-handoff states.
-- Native runtime owns the confirmed instrument-menu lifecycle presentation. `Going to sleep`, `Shutting down`, and `Rebooting` are exact native toasts over the shared static `SPLASH_SLEEP_SHUTDOWN` background and existing toaster geometry. Ordinary Reboot and Shutdown use one board-neutral lifecycle: the recovery save must succeed, the lifecycle atomically accepts the terminal transition and stops non-terminal follow-ups/input, it independently attempts external MIDI panic and internal audio silence, then only after both succeed force-publishes and physically acknowledges the latest terminal snapshot, zeros the grid and NeoKey LEDs, preserves the OLED pixels/on state while detaching its handles, and finally invokes the board adapter's fixed power path. Save, safety, or terminal acknowledgement failures never submit power; power submission failures leave the accepted lifecycle closed and are reported as typed/logged failures. This contract does not claim presentation for arbitrary administrative `systemctl poweroff` or `systemctl reboot` commands.
+- The final systemd paths on both boards use the same source-defined OLED boot sweep from `resources/oled/boot-sweep-v1.json`.
+  - The mounted SSD1351 controller origin decreases by 303 px while the physical panel motion is left-to-right. In canonical bottom-to-top coordinates the top-row origin is 127 px less X than the bottom-row origin (`bottom_origin - row_y`), which produces the physical-panel slash.
+  - Green, magenta, cyan, and yellow bands read left to right (the Build, Link, Shape, and Play menu colors), with 8 px bands and 4 px separators.
+  - 30 frames over a 1,200,000,000 ns cycle (25 fps). The clean logo+wordmark frame follows, and continuous boot loops hold it for a 2,000,000,000 ns rest between loops.
+  - This is a source and test contract; check the real panel through the board test procedures.
+- First boot is not designed to wait six minutes. Upstream filesystem resize is ordered before the runtime, and six minutes is only the upstream maximum timeout; the normal animated splash covers that work.
+  - The root-installed systemd animators on both boards are the only loops and run alongside service loading once their fixed OLED devices are ready. Raspberry explicitly wants and waits for `systemd-udev-settle.service` before opening its GPIO/SPI devices, rather than depending on device units or polling. Either board may stay blank until systemd starts its animator.
+  - Native startup requests release, waits for the shared OLED lock, adopts the already-initialized display without reset, and stops the animation or persistent handoff status immediately before publishing the acknowledged first normal menu frame.
+  - If native ownership has not arrived within the 30-second handoff window, both boards write one static `STARTUP DELAYED` / `PLEASE WAIT` frame and keep polling the same handoff state as the only OLED writer.
+  - A matching stop request releases without black/off; only genuine writer errors or termination signals use the black-frame/display-off cleanup. Sleep and shutdown are separate OLED lifecycle paths, not boot-handoff states.
+- Native runtime owns the confirmed instrument-menu lifecycle presentation. `Going to sleep`, `Shutting down`, and `Rebooting` are exact native toasts over the shared static `SPLASH_SLEEP_SHUTDOWN` background and existing toaster geometry.
+  - Ordinary Reboot and Shutdown share one board-neutral lifecycle, in order: the recovery save must succeed; the lifecycle atomically accepts the terminal transition and stops non-terminal follow-ups and input; it independently attempts external MIDI panic and internal audio silence; only after both succeed does it force-publish and physically acknowledge the latest terminal snapshot, zero the grid and NeoKey LEDs, and detach the OLED handles while keeping its pixels on; finally it invokes the board adapter's fixed power path.
+  - Save, safety, or acknowledgement failures never submit power. Power submission failures leave the accepted lifecycle closed and are reported as typed/logged failures.
+  - None of this covers arbitrary administrative `systemctl poweroff` or `systemctl reboot` commands.
 - Orange's boot-loop handoff has a monotonic 30-second deadline that begins immediately after `handoff.start()`, before OLED initialization or adoption. At the deadline it writes the static `STARTUP DELAYED` / `PLEASE WAIT` frame once and keeps polling; matching stop requests release without black/off. Genuine errors or termination signals attempt an exact 32768-byte black RGB565 frame, then display-off `0xAE` independently, close once, and publish one attachable `failed` state. A failed handoff keeps the current boot ID and matching valid request ID so native recovery can attach it. Signal handlers only set a flag and do no I/O.
 - Orange startup-fatal presentation is adapter-owned and fixed: `GRID NOT FOUND`, `NEOKEY NOT FOUND`, `CONTROLS NOT FOUND`, `AUDIO NOT FOUND`, `OLED NOT READY`, or generic `STARTUP FAILED`. The splash remains the sole OLED writer; it gives short power/connection guidance. A fatal frame is bright initially, redraws once at a dim but readable level after 60 seconds if unchanged, and becomes bright again with a changed code; detailed causes remain in the `octessera.service` journal (`journalctl -u octessera.service --no-pager`). Power must be off before checking or reseating connections. Raspberry's corresponding change here is logo-only delayed-frame cleanup and does not consume the Orange fatal state.
 - Orange runtime failure does not stop or mask NetworkManager, and it does not stop an already-enabled SSH service. Fresh images keep SSH off until setup selects a key or password, and setup enables SSH only for those two modes. Wi-Fi association after a warm reboot is not guaranteed.
@@ -185,7 +270,14 @@ Authoritative menu/control behavior spec: `docs/menu-and-controls-spec.md`.
 - Pi audio preparation treats superseded revisions as cancellation: no stale-prep fault is returned or latched.
 - Identified asynchronous results retain their request ID/revision through the runner round trip; `PlaybackRuntime` observes each result once and clears only the matching fault.
 - Emission and persistence faults clear only after the corresponding native emission or identified save/recovery acknowledgement succeeds. Native save confirmation/toast feedback is emitted after that acknowledgement, not when a save request is queued.
-- `octessera.patch` schema version 2 carries musical patch state, while `system.json` carries local System settings. Native edit classification saves ordinary System preferences only after a changed editor exits with Main or Back; unchanged or reverted edits do not save, parameter turns do not write individually, and these preferences do not dirty the musical patch. When a System write is pending, only the latest completed snapshot is retained for a follow-up write rather than guaranteeing a physical write for each overlapping edit. Pi and desktop adapters perform the atomic write on their existing platform workers, off the runtime thread, and return an identified completion that updates the save baseline. Explicit System Save remains available; restart-sensitive settings persist only after confirmed Apply. Confirmed System Load changes settings without stopping music or silently rebooting. Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up remains pending; an allowed shutdown preserves Patch-only recovery. Local `default.patch.json`, autosave backups, recovery, named presets, and `.oct` musical exports all keep safe relative sample references, including user and SD-card paths. Device/System aux bindings stay local; musical aux bindings travel with the patch. Patch autosave, rolling backups, and recovery are patch-only. Confirmed Patch/Named Load stops and resets music, sends MIDI panic/note cleanup, and retains local System settings and ports. A pending patch write or Auto Save-eligible dirty patch blocks load with `Save pending, try again`; with Auto Save off and no pending write, the normal confirmation can discard dirty patch edits. Portable parity for named presets and `.oct` musical state means the same sample paths, not equality of the full device config; samples missing on the receiving device show `N/A-` until remapped. Data Backup/Restore `.oct` archives carry music and selected portable preferences, optionally media, but are not full System backups or device clones.
+- Saves are split into two documents: `octessera.patch` schema version 2 (stored locally as `default.patch.json`) carries the musical patch, and `system.json` carries local System settings. Ownership exceptions are listed in [`save-format-split-backlog.md`](workflows/save-format-split-backlog.md).
+  - Ordinary System preferences save once, when a changed editor exits with Main or Back. Unchanged or reverted edits do not save, parameter turns do not write individually, and these edits never dirty the patch. While a System write is pending, only the latest completed snapshot is kept for a follow-up write; there is no promise of one physical write per overlapping edit.
+  - Pi and desktop adapters perform the atomic write on their existing platform workers, off the runtime thread, and return an identified completion that updates the save baseline.
+  - Explicit System Save remains available. Restart-sensitive settings persist only after confirmed Apply. Confirmed System Load changes settings without stopping music or silently rebooting.
+  - Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up is pending; an allowed shutdown keeps Patch-only recovery.
+  - Patch autosave, rolling backups, and recovery are patch-only. Local `default.patch.json`, backups, recovery, named presets, and `.oct` musical exports all keep safe relative sample references, including user and SD-card paths. Musical aux bindings travel with the patch; device/System aux bindings stay local.
+  - Confirmed Patch/Named Load stops and resets music, sends MIDI panic/note cleanup, and keeps local System settings and ports. A pending patch write or an Auto Save-eligible dirty patch blocks load with `Save pending, try again`; with Auto Save off and no pending write, the normal confirmation can discard dirty patch edits.
+  - Portable parity for named presets and `.oct` musical state means the same sample paths, not an identical device config. Samples missing on the receiving device show `N/A-` until remapped. Data Backup/Restore `.oct` archives carry music and selected portable preferences, optionally media, but are not full System backups or device clones.
 - Stop-and-silence recovery independently attempts runner transport stop, internal instrument silence, and external MIDI panic on both hosts.
 - `snapshot` is the runtime display/input-facing state payload; `musical_events`, `cell_hits`, `midi_events`, `platform_effects`, and `audio_commands` are the resolved outputs that Rust schedules or dispatches.
 - `oled_frame` carries a positive revisioned 128×128 `rgb565be` Base64 payload on the JSON bridge; typed native pixels remain immutable bytes before serialization. Desktop, Raspberry, and Orange adapter caches stage candidates and promote only on matching snapshot references, validate dimensions, format, Base64, exact byte length, revision idempotency/conflicts, and expose sticky typed cache faults. Same-revision byte conflicts remove candidates or poison accepted revisions until a strictly newer valid snapshot matches. Raspberry and Orange normal OLED publication consumes accepted native bytes with no semantic renderer fallback; before acceptance they publish explicit black, and after acceptance they retain last-good bytes rather than black on a bad reference.

@@ -4,12 +4,21 @@ The two fixed board image paths are separate: Raspberry uses pi-gen and Orange
 uses Armbian. Their source-bound constructor contracts are separate from
 runtime-only respins and hardware testing.
 
+Which workflow builds what:
+
+| Workflow | Builds | Use it for |
+| --- | --- | --- |
+| `release-board-artifacts.yml` | Both production images, runtimes, kernel package, and device ZIPs | Release images and full constructor runs (see [Board image dispatch](#board-image-dispatch)) |
+| `respin-board-image.yml` | An Orange image with a new runtime on the reviewed parent | Boot-neutral Orange runtime refreshes |
+| `armbian-image.yml` | Orange **diagnostic** images only | Validating `userpatches/` and Armbian inputs, bring-up images |
+
 ## Armbian workflow
 
-`.github/workflows/armbian-image.yml` builds through `armbian/build`.
-Validation-only runs may inspect the default ref; every image intended for
-hardware validation requires a pinned full 40-character Armbian commit SHA.
-Local checks are:
+`.github/workflows/armbian-image.yml` builds through `armbian/build`. Both of
+its build jobs pass `image_kind: diagnostic`, so its images never contain the
+production runtime bundle or `octessera.service`.
+
+Local checks:
 
 ```bash
 bash -n userpatches/customize-image.sh tools/armbian-image/validate.sh
@@ -18,53 +27,41 @@ shellcheck userpatches/customize-image.sh tools/armbian-image/validate.sh
 actionlint .github/workflows/armbian-image.yml
 ```
 
-The validation path requires `dtc`, `fdtoverlay`, and `fdtget` from
-`device-tree-compiler`. GitHub validation-only smoke test:
+The validation path needs `dtc`, `fdtoverlay`, and `fdtget` from
+`device-tree-compiler`.
+
+The workflow defaults already describe the Orange board (`orangepizero2w`,
+`trixie`, `current`, `minimal`, `sha,img,xz`). The four Octessera extensions
+(`octessera_midi`, `octessera_audio`, `octessera_sd2`,
+`octessera_image_sanitize`) are mandatory, and
+`tools/armbian-image/resolve-armbian-extensions.sh` appends any you leave out
+of `extensions`.
+
+Validation only:
 
 ```bash
-gh workflow run armbian-image.yml -f run_build=false -f artifact_mode=public-generic
+gh workflow run armbian-image.yml -f run_build=false
 # Optional public values are one compact JSON object:
-gh workflow run armbian-image.yml -f 'public_inputs={"public_preset_configuration_url":"https://example.invalid/preset.conf"}'
-```
-
-The Orange validation shape is:
-
-```bash
-gh workflow run armbian-image.yml \
-  -f board=orangepizero2w \
-  -f release=trixie \
-  -f kernel_branch=current \
-  -f ui=minimal \
-  -f compression=xz \
-  -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
-  -f run_build=false \
-  -f artifact_mode=public-generic \
+gh workflow run armbian-image.yml -f run_build=false \
   -f 'public_inputs={"public_preset_configuration_url":"https://example.invalid/preset.conf"}'
 ```
 
-The no-secret full-build shape is:
+A full build needs a pinned 40-character Armbian commit; `validate.sh` refuses
+`run_build=true` with anything else:
 
 ```bash
 gh workflow run armbian-image.yml \
-  -f board=orangepizero2w \
-  -f release=trixie \
-  -f kernel_branch=current \
-  -f ui=minimal \
-  -f compression=xz \
-  -f 'extensions=preset-firstrun octessera_midi octessera_image_sanitize' \
   -f run_build=true \
   -f artifact_mode=public-generic \
   -f armbian_build_ref=<40-character-armbian-commit>
 ```
 
-Do not pass secrets as workflow inputs. Private first-run payloads belong to
-the protected environment and its repository/environment secrets.
-
-Public generic builds may use board/release/kernel/UI/compression/extensions and
-one bounded public JSON input. Do not pass raw Wi-Fi, user, SSH, or private
-first-run values. Personalized builds use `artifact_mode=private-personalized`
-and repository/environment secrets. Personalized artifacts are not release
-assets.
+Never pass secrets as workflow inputs. Public generic builds take the
+board/release/kernel/UI/compression/extensions inputs and one bounded public
+JSON input, and nothing like raw Wi-Fi, user, or SSH values.
+`artifact_mode=private-personalized` reads its first-run payload from the
+protected `armbian-image-personalized` environment secrets, only runs from
+`main` or a tag, and its artifacts are never release assets.
 
 For workflow or `userpatches/` changes, run:
 
@@ -75,15 +72,14 @@ node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 git diff --check
 ```
 
-For an extracted root filesystem or ext4 root partition image, inspect the
-artifact directly:
+To inspect an extracted root filesystem or ext4 root partition image:
 
 ```bash
 tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
 ```
 
-Use `full-constructor` for source-built images. Orange runtime-only respins are
-checked by `tools/image-respin/respin.py` itself (see below).
+Orange runtime-only respins are checked by `tools/image-respin/respin.py`
+itself (see below).
 
 ## Source-bound constructor procedure
 
@@ -141,9 +137,19 @@ refresh the record from a new constructor run before then.
 
 ## Board image dispatch
 
-`release-board-artifacts.yml` accepts the required `tag`, `version`, and exact
-`source_sha` inputs and builds both complete production images. Use the
-constructor workflow for Raspberry image changes; the runtime-only path is
+`release-board-artifacts.yml` is the full constructor for both boards. The
+release workflow calls it, and you can dispatch it on its own with the three
+required inputs:
+
+```bash
+gh workflow run release-board-artifacts.yml \
+  -f tag=v<x.y.z> -f version=<x.y.z> -f source_sha=<40-character-commit>
+```
+
+It checks out exactly `source_sha`, builds each board runtime once, builds the
+Raspberry kernel package, and then builds the Raspberry pi-gen image, the
+Orange production Armbian image, and both device ZIPs from those runtimes. Any
+Raspberry image change goes through this workflow; the runtime-only respin is
 Orange-only.
 
 ## OLED boot layer checks
@@ -203,22 +209,16 @@ health, and physical display behavior separately.
 
 ## Orange production and diagnostic image modes
 
-Only `raspberry-pi-zero-2w` and `orange-pi-zero-2w` are supported cross-build
-IDs. Raspberry selects `hardware-raspberry-pi-zero-2w`; Orange selects
-`hardware-orange-pi-zero-2w`. The Orange image uses the locked
-`octessera-runtime` account and `octessera.service`; every valid Pi audio set
-includes always-on Jack. USB and HDMI are independently selectable optional
-mirrors of the Jack mix; their absent, waiting, or faulted status is route-local
-and never blocks or replaces Jack. HDMI audio remains separate from video. Full Armbian, kernel, device-tree, and image replacement
-remains manual; the standalone manual ZIP is not an OTA asset.
-
-The WSL Docker-only local Orange cross-build is documented in
-[`pi-development-and-profiling.md`](pi-development-and-profiling.md). It does
-not produce a production image or runtime bundle. The shared action's explicit
-`image_kind=diagnostic` builds a separate bring-up image; `production` requires
-the hash-bound Orange runtime bundle. The generic workflow uses diagnostic mode;
-the release workflow invokes production mode. Diagnostic mode does not contain
-or enable `octessera.service`.
+The shared `.github/actions/build-armbian-image` action takes an explicit
+`image_kind`. `diagnostic` builds a separate bring-up image without
+`octessera.service`; `production` requires the hash-bound Orange runtime
+bundle and runs it as the locked `octessera-runtime` account. `armbian-image.yml`
+always uses diagnostic mode, and `release-board-artifacts.yml` uses production
+mode. The local WSL Docker Orange cross-build in
+[`pi-development-and-profiling.md`](pi-development-and-profiling.md) produces
+neither. Audio routes, accounts, and the updater boundary are described in
+[`board-profiles.md`](../board-profiles.md) and
+[`runtime-boundaries.md`](../runtime-boundaries.md).
 
 The image path compiles and merges the separate
 `octessera-h618-input-routing` overlay against the exact boot-selected H618 DTB.

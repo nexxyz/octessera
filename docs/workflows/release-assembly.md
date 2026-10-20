@@ -1,7 +1,21 @@
 # Release assembly
 
 The release artifact entrypoint is `.github/workflows/release-artifacts.yml`.
-It builds the custom GitHub release files listed below.
+Create a draft GitHub release for an exact `vX.Y.Z` tag first, with no assets
+attached, then dispatch the workflow with that tag:
+
+```bash
+gh workflow run release-artifacts.yml -f tag=v<x.y.z>
+```
+
+It checks that the tag commit and every application version agree, builds the
+desktop artifacts, and calls `release-board-artifacts.yml` with the `tag`,
+`version`, and `source_sha` for both board runtimes, images, and device ZIPs.
+It then assembles and verifies the custom files listed below, uploads them, and
+leaves the release as a draft. Checking the downloaded bytes, the
+exact-artifact hardware test from the
+[manual hardware test suite](../../hardware/docs/manual-hardware-test-suite.md),
+and pressing Publish are still yours to do.
 
 Published versions, tags, and assets are immutable. New bytes require a new
 exact semantic version; do not replace bytes for an existing version.

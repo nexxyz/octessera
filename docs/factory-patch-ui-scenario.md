@@ -1,99 +1,102 @@
-# Factory Patch UI Scenario
+# Factory patch UI scenario
 
-This scenario builds the factory-patch candidate through the native menu as a user would. It runs in memory, captures runtime output, and never calls private menu setters from the scenario recipe.
-
-Command:
+This heavy test builds the factory-patch candidate through the native menu,
+the way a person at the instrument would: it reads visible OLED labels, turns
+encoders, and presses grid keys. It runs in memory, captures runtime output, and
+never pokes private menu state. If a row label changes, this is the test that
+notices first.
 
 ```bash
 cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
 ```
 
-## Input notation
+The pre-push hook runs it too. The recipe lives in
+`crates/playback-runtime/src/native_runner/tests/ui_scenario/`
+(`factory_patch_scenario.rs`, `factory_patch_configuration.rs`, and
+`factory_patch_playback.rs`); this page is the readable version of that code.
 
-- `M-ENC Turn +N/-N`: main encoder turns.
-- `M-ENC Click`: main encoder press.
-- `Back`: Back button press.
-- `Grid x,y`: grid press at zero-based display coordinates.
-- `Fn+Grid x,y`: hold Fn, press grid, release grid, release Fn.
-- `Shift+Fn+Grid x,y`: hold Shift+Fn, press grid, release grid, release modifiers.
-- `Aux1 Turn +N`: Aux encoder 1 turn.
-- `Clock N`: send `N` PPQN pulses through `HostMessage::TransportPulseStep`.
+## How the driver works
 
-The test driver chooses rows by visible OLED labels. It fails with a trace and the latest OLED rows if a row does not appear or does not refresh naturally.
+- It picks rows by their visible OLED label and fails with a trace and the
+  latest OLED rows if a row never appears or does not refresh.
+- Grid coordinates are zero-based display coordinates.
+- `Fn+Grid x,y` means hold Fn, press and release the grid key, release Fn.
+- Clocking sends PPQN pulses through `HostMessage::TransportPulseStep`.
 
-## Named sequence
+## The sequence
 
-### 1. Clear to blank patch
+### 1. Clear to an empty patch
 
-1. Open `System`.
-2. Open `Reset`.
-3. Select `Load Empty`.
-3. Confirm `Confirm Load Empty`.
-4. Return to root.
+`System > Maintenance > Reset > Load Empty`, then `Confirm Load Empty`.
 
-Expected result: transport stops, MIDI panic/note safety runs, all layers and instruments are `none`, grids are clear, and device preferences stay intact.
+### 2. Build and paint
 
-### 2. Build and grid seed
-
-1. `Build > L1 > Behavior > Cellular > life`.
-2. Set `Step Rate` to `1/16`.
-3. Set `Spawn Count` to `0`; minimize `Spawn Interval`.
-4. Paint L1 double-line cross:
-   - `Grid 0..7,3`, `Grid 0..7,4`
-   - `Grid 3,0..7`, `Grid 4,0..7`
-5. `L2 > Behavior > Play > sequencer`.
-6. Set `Step Rate` to `1/8`.
-7. Paint L2 pattern:
-   - bottom row: `Grid 0,0`, `2,0`, `4,0`, `6,0`
-   - next row: `Grid 2,1`, `4,1`
-   - next row: `Grid 1,2`, `3,2`, `5,2`, `7,2`
-8. `L3 > Behavior > Play > looper`.
-9. Set `Step Rate` to `1/8`.
+1. `Build > L1 > Behavior > Cellular > life`; `Step Rate 1/16`; turn
+   `Spawn Count` and `Spawn Interval` all the way down (`0` and `1`).
+2. Paint the L1 double-line cross: rows 3 and 4, then columns 3 and 4.
+3. `L2 > Behavior > Human > sequencer`; `Step Rate 1/8`.
+4. Paint L2: `0,0 2,0 4,0 6,0`, then `2,1 4,1`, then `1,2 3,2 5,2 7,2`.
+5. `L3 > Behavior > Human > looper`; `Step Rate 1/8`.
 
 ### 3. Link
 
-1. `Route`; verify `BPM 120`.
-2. `L1 > Events`; verify activation routes to `I1` and `note_on`.
-3. `L1 > Note Mapping`; verify pentatonic scale and root `D`; nudge `Start Note` to D.
-4. `L2 > Scanning`; set `Scan Mode scanning`, `Scan Axis rows`, `Sections 1`, `Scan Unit 1/8`.
-5. `L2 > Events`; set `Event Triggers On`; verify route to `I2`.
-6. `L3 > Events`; set `Event Triggers On`; verify activation to `I3`; set deactivation action to `note_off`.
-7. `L3 > Note Mapping`; verify pentatonic scale and root `D`; nudge `Start Note` to D.
+1. `Link`: check `BPM 120`.
+2. `L1 > Events`: check `On Trig note_on` and `On Inst I1`.
+3. `L1 > Note Mapping > Set > Pentatonic > Major Pentatonic`; check
+   `Set Maj Pent` and `Root D`; turn `Start Note` up by 2.
+4. `L2 > Scanning`: `Scan Mode scanning`, `Scan Axis rows`, `Sections 1`,
+   `Scan Unit 1/8`.
+5. `L2 > Events`: `Event Triggers On`; check `On Inst I2`.
+6. `L3 > Events`: `Event Triggers On`; check `On Inst I3`, `On Trig note_on`,
+   and `Off Inst I3`; set the deactivation trigger to `note_off`.
+7. `L3 > Note Mapping`: same scale, root, and `Start Note` steps as L1.
 
 ### 4. Shape and samples
 
-1. `Shape > Instruments > I1`.
-2. Set `Type synth`.
-3. `Synth > Filter > Cutoff`; turn the cutoff upward.
-4. `Mixer > Route`; set `fx_bus_1`.
-5. `I2`; set `Type sampler`.
-6. `Sampler > Sample Slot 1 > Browse`; respond to the sample-list request with `Kick2.wav`; pick it; choose `Assign`; assign full bottom row.
-7. `Sample Slot 2 > Browse`; respond with `distkit-clap.wav`; pick it; assign full next row.
-8. `Sample Slot 3 > Browse`; respond with `165028__rodrigo-the-mad__mini-909ish-open-hat.wav`; pick it; assign full next row.
-9. `I3`; set `Type synth`, `Note Mode hold`, `Mixer > Route fx_bus_1`.
-10. `FX Buses > B1 > Slot 1`; set type `delay`.
-11. `B1 > Slot 2`; set type `duck`, source `I2`, amount `60`.
+1. `Shape > Instruments > I1`: `Type synth`; `Synth > Filter`, turn `Cutoff`
+   up by 10; `Mixer > Route fxb1`.
+2. `I2`: `Type sampler`, then `Sampler`. For each sample, turn `Sample Slot`,
+   open `Browse`, answer the sample-list request with one file, pick it, choose
+   `Assign`, and press a whole grid row:
+   - `Kick2.wav` on row 0;
+   - `distkit-clap.wav` on row 1;
+   - `165028__rodrigo-the-mad__mini-909ish-open-hat.wav` on row 2.
 
-### 5. Aux, XY, and Play FX mappings
+   The slot turns are relative (0, then +1, then +2), so the hat ends up in
+   the fourth slot; the expected fixture records exactly that.
+3. `I3`: `Type synth`, `Note Mode hold`, `Mixer > Route fxb1`.
+4. `FX Buses > B1 > Slot 1`: `Type delay`. `Slot 2`: `Type duck`,
+   `Source I2`; check `Amount 60`.
 
-1. `Link > Aux Mappings > Aux 1 > Turn`.
-2. Pick `Shape > Instruments > I2 > Sampler > Filter > Cutoff`.
-3. `Play > XY > X Axis`; pick `Shape > Instruments > I1 > Synth > Filter > Cutoff`.
-4. `Play > XY > Y Axis`; pick `Shape > Instruments > I1 > Synth > Filter > Res`.
-5. `Play > FX`; set `FX Type stutter`; choose `Map to Grid`; press `Grid 0,0`.
-6. Set `FX Type freeze`; map `Grid 1,0`.
-7. Set `FX Type pitch_shift`; map `Grid 2,0`.
-8. Set `Semitones` to a different value; map another pitch-shift cell at `Grid 3,0`.
+### 5. Aux, XY, and Play FX
 
-### 6. Playback assertions
+1. `Link > Aux Mappings > Aux 1 > Trn`: pick
+   `Shape > Instruments > I2 > Sampler > Filter > Cutoff`.
+2. `Play > XY > X Axis`: pick I1 `Synth > Filter > Cutoff`. `Y Axis`: pick
+   I1 `Synth > Filter > Res`.
+3. `Play > FX`: step the FX type and `Map` a cell each time: stutter on `0,0`,
+   freeze on `1,0`, pitch_shift on `2,0`. Turn `Semitones` up by 7 and map a
+   second pitch-shift cell on `3,0`.
 
-1. Start transport; clock the pattern and assert musical output appears.
-2. `Shift+Fn+Grid 0,0`: mute L1; assert any L1-owned notes release immediately, then clock and assert L2/L3 still output.
-3. `Shift+Fn+Grid 0,0`: unmute L1; assert released L1 notes do not return without a new trigger.
-4. `Shift+Fn+Grid 0,1`: mute L2; assert any L2-owned notes release immediately, then clock and assert L1/L3 still output.
-5. `Shift+Fn+Grid 0,1`: unmute L2; assert released L2 notes do not return without a new trigger.
-6. Mute L1 and L2, select L3, press several looper grid keys, clock across the loop, and assert output from the looper layer.
-7. Unmute L1 and L2.
-8. `Fn+Grid 7,5`: activate XY page; press an XY grid cell; clock once; assert a synth parameter command reaches audio.
-9. `Fn+Grid 7,2`: activate FX page; press and release mapped FX cells; assert momentary FX start/stop commands are captured.
-10. `Aux1 Turn +1`; assert the sampler bank cutoff command reaches audio.
+### 6. Save, reload, compare
+
+1. Walk the Build menu and check the generated values (behaviors, step rates,
+   spawn values, looper `Length 16`, `Punch`, `Clear Loop`).
+2. `System > Saves > Library > Save As` with the name `test.json`, then
+   `Save` and `Confirm Save`.
+3. In a fresh runner, `System > Load Preset > test.json` and `Confirm Load`.
+4. Walk the Build menu again. Both the original and the reloaded config must
+   match the expected fixture exactly.
+
+### 7. Playback
+
+1. Start transport and clock; musical events must appear.
+2. Mute L1 (`Fn+Grid 0,0` to select it, then Fn+Play); L2 and L3 must keep
+   playing. Unmute it.
+3. Same for L2 (`Fn+Grid 0,1`).
+4. Mute L1 and L2, select L3 (`Fn+Grid 0,2`), hold looper keys `0..3,0` while
+   clocking; the looper must produce output. Unmute L1 and L2.
+5. `Fn+Grid 7,5` opens the XY page; pressing `6,6` and clocking must send a
+   synth parameter command.
+6. `Fn+Grid 7,2` opens the FX page; holding `0,0` must start a momentary FX.
+7. Turning Aux 1 by +1 must send a sample-bank command.

@@ -1,7 +1,7 @@
 # Pi development and profiling
 
-This page covers host-only Pi builds and board-specific profiling. It does not
-replace the ordered Orange bring-up procedure or the deployment runbook.
+This page covers host-only Pi builds and board profiling. It does not replace
+the ordered Orange bring-up procedure or the [deployment runbook](deployment.md).
 
 Canonical board IDs are `raspberry-pi-zero-2w` and `orange-pi-zero-2w`; their
 images, pinouts, port roles, and deployment adapters are not interchangeable.
@@ -22,8 +22,15 @@ Hardware HAL target check when the Rust target is installed:
 cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
 ```
 
-The Orange cross-builder is WSL Docker-only. It never contacts or deploys to a
-board and writes checked artifacts under `target/orange-pi-cross/`:
+There are two cross-builders, and they are not interchangeable:
+
+- `tools/pi/build-rpi-opi-cross.ps1` builds `octessera-pi` for either board
+  (`-BoardProfile`, default Raspberry) into `target/pi-cross/` or `-OutDir`.
+  Raspberry deploys use it; for Orange its output is good for the timing smoke
+  but not for deployment.
+- `tools/orange-pi/build-opi-cross.ps1` is WSL Docker-only and writes checked
+  Orange artifacts under `target/orange-pi-cross/`. Orange deploys need its
+  `-Profile release` output.
 
 ```powershell
 ./tools/orange-pi/build-opi-cross.ps1 -Binary orange-oled-smoke -Profile release
@@ -31,11 +38,11 @@ board and writes checked artifacts under `target/orange-pi-cross/`:
 ./tools/orange-pi/test-build-opi-cross.ps1
 ```
 
-Cargo and rustup caches use persistent named Docker volumes; `-DryRun` prints
-the command without starting Docker. The helper accepts the two diagnostic
-smoke binaries and a local Orange `octessera-pi` development binary. It does
-not produce a production image or its `production-runtime` bundle, and no
-artifact is run against the board by this helper.
+The Orange builder never contacts a board. Cargo and rustup caches live in
+persistent named Docker volumes, and `-DryRun` prints the command without
+starting Docker. It builds the two diagnostic smoke binaries and a local
+Orange `octessera-pi` development binary, not a production image or its
+`production-runtime` bundle.
 
 ## Pi UI and audio profiling
 
@@ -51,13 +58,13 @@ snapshot/config sync, hardware polling, and LED/NeoKey/OLED phase timings.
 
 Use Pi-side probes for rhythmic timing, trigger latency, audio-drain latency,
 and DSP budget questions. PC/runtime-only probes do not measure hardware audio
-timing. `tools/pi/run-pi-timing-probes.ps1` is
-Raspberry-only; never point it at Orange.
+timing. `tools/pi/run-pi-timing-probes.ps1` is Raspberry-only; never point it
+at Orange.
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
 
-# Shared native logical wake probe.
+# Shared native logical wake probe, on the PC.
 cargo run -p playback-runtime --bin playback_timing_probe -- --durations 6s --scenarios idle --wake-intervals-ms 2,4,6,8,10,12
 
 # Runtime-only probe; leaves service and live audio untouched.
@@ -76,11 +83,13 @@ cargo run -p playback-runtime --bin playback_timing_probe -- --durations 6s --sc
 ./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode DspFxLimits -AllowServiceInterruption -AudioRenderQuantumFrames 256
 ```
 
-The shared binary uses a deterministic logical matrix and the Pi RuntimeOnly
-mode leaves the service and live audio untouched. Pi Live opens live audio.
-Both Pi modes pass the actual elapsed interval to the shared runtime. These
-metrics diagnose trigger cadence and event batching; use `AudioDrain` separately
-for queue/control-drain measurements.
+The shared binary uses a deterministic logical matrix. RuntimeOnly leaves the
+service running; Live, AudioDrain, and DSP modes stop `octessera.service`,
+restart it afterwards, and therefore need `-AllowServiceInterruption`. Use
+`-PrintOnly` to see the remote command first. Both Pi modes pass the actual
+elapsed interval to the shared runtime. These metrics diagnose trigger cadence
+and event batching; use `AudioDrain` separately for queue/control-drain
+measurements.
 
 ## Shared-path timing smoke
 
@@ -88,35 +97,35 @@ Changes to shared audio processing or musical-event emission (bus-FX routing,
 general parameter modulation, transport, event dispatch) need a short on-device
 smoke on both boards. `tools/pi/board-timing-smoke.sh` plays the board's default
 patch with a candidate binary from a cloned store, OLED awake, for 10 minutes by
-default. It runs detached on the board, so no SSH traffic disturbs the
-measurement. Afterwards it restores the installed service, checks that the
-original presets are unchanged, and prints underruns, pulse cadence, and
-runtime lateness:
+default (an optional fourth argument sets the seconds). It runs detached on the
+board, so no SSH traffic disturbs the measurement. Afterwards it restores the
+installed service, checks that the original presets are unchanged, and prints
+underruns, pulse cadence, and runtime lateness:
 
 ```bash
 tools/pi/board-timing-smoke.sh rpi "$PiTarget" target/pi-cross/octessera-pi
 tools/pi/board-timing-smoke.sh opi "$OrangeTarget" target/orange-pi-cross/octessera-pi
 ```
 
-Logs land in `target/board-timing-smoke/`. Run one board at a time, and compare
-with a smoke of the previous build under the same conditions. Do not call a
-shared-path change qualified if underruns appear, pulses batch
-(`max_pulses` above 1), or cadence drifts from 240-241 dispatches per 5 s. It
-works on clean production images; the AutoAux study below needs a wake-trace
-drop-in that images do not ship.
+Either Orange cross-build output works here. Logs land in
+`target/board-timing-smoke/`. Run one board at a time, and compare with a smoke
+of the previous build under the same conditions. Do not call a shared-path
+change qualified if underruns appear, pulses batch (`max_pulses` above 1), or
+cadence drifts from 240-241 dispatches per 5 s. It works on clean production
+images; the AutoAux study below needs a wake-trace drop-in that images do not
+ship.
 
 An individual new instrument or Build behavior can use focused tests and its
-own on-device profile unless it changes one of those shared paths. The existing
-Raspberry probes and Pi UI summaries help, but PC-only or DSP-only results
-would not have caught a Playing display/control stall. Reuse the existing board
-profiling tools for this smoke rather than adding a new CI framework.
+own on-device profile unless it changes one of those shared paths. PC-only or
+DSP-only results would not have caught a Playing display/control stall, which
+is the whole reason this smoke exists.
 
-The wrapper stops `octessera.service` for live/audio/DSP modes and restarts it
-afterward; those modes require `-AllowServiceInterruption`. Runtime-only leaves
-it running. Use `-PrintOnly` to inspect the remote command first.
+### Raspberry Aux/autosave study
 
-For the Raspberry normal-runtime, OLED-awake Aux/autosave study, first cross-build
-the current clean source, then run the candidate against an isolated preset clone:
+For the Raspberry normal-runtime, OLED-awake Aux/autosave study, first
+cross-build the current clean source, then run the candidate against an
+isolated preset clone. It needs the wake-trace drop-in from
+`provision-pi.ps1 -WakeTrace`.
 
 ```powershell
 ./tools/pi/run-pi-autoaux-study.ps1 -Target $PiTarget -Artifact target/pi-cross/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json -LiveSeconds 30 -AllowServiceInterruption
@@ -127,14 +136,13 @@ with `OCTESSERA_TIMING_AUTOPLAY=1` and `OCTESSERA_TIMING_KEEP_AWAKE=1`) and one
 report format; only the `raspberry-autoaux`/`orange-autoaux` prefix differs.
 On both boards `OCTESSERA_TIMING_AUTOPLAY=1` alone starts playback at boot,
 and `OCTESSERA_TIMING_KEEP_AWAKE=1` stops startup unless the loaded settings
-keep the display awake. Raspberry baselines captured before this driver used
-`oled_frame_*`/`synth_cutoff_commands` keys.
+keep the display awake.
 
 This one-shot study stops and restores the installed service. It requires a
 matching final automatic-save receipt and verifies that the original presets
 remain unchanged. Inspect its staged candidate and kernel journals for timing
 and audio errors; missing error text alone does not prove that no underrun
-occurred. On failure, retain the study evidence and clone until service
+occurred. On failure, keep the study evidence and clone until service
 restoration and the original-store checks are resolved.
 
 ### Capacity and live-latency studies
@@ -161,15 +169,21 @@ each `sudo` wakes D-Bus and systemd, and over a long soak a 20-second sampler
 roughly tripled the Raspberry's underrun count and turned a clean Orange into
 one that clicked every few minutes. Judge long runs only with sampling off.
 
+### Underrun causes found so far
+
+Each of these took a soak, a trace, and some head-scratching to find. They are
+fixed in the images; the notes say what to look for if one comes back.
+
 On the Raspberry, ordinary tasks that wake on the audio core (CPU 1) can take
 it from the callback for a few milliseconds: the kernel's fair server reserves
 them time even against real-time threads. The once-a-minute network-health job,
 D-Bus, systemd launching that job and the hourly cron run were the culprits,
-so all four are limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's `init.scope` is set at
-every boot by `octessera-performance-governor.service`, as scopes keep no
-persistent drop-ins). Quiet Latency soaks with 16 held notes went from about
-10 underruns per 2 hours to none, and Live Show Mode stops the job entirely. If underruns come back, trace CPU 1 and look for the
-callback being switched out while still runnable (`prev_state=R`). The same
+so all four are limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's
+`init.scope` is set at every boot by `octessera-performance-governor.service`,
+as scopes keep no persistent drop-ins). Quiet Latency soaks with 16 held notes
+went from about 10 underruns per 2 hours to none, and Live Show Mode stops the
+job entirely. If underruns come back, trace CPU 1 and look for the callback
+being switched out while still runnable (`prev_state=R`). The same
 unit also keeps unbound kernel workers, such as the SD-card writeback behind a
 long recording, off the audio core (`/sys/devices/virtual/workqueue/cpumask` =
 `d`); a traced recording underrun showed about 60 of their slices interrupting
@@ -216,7 +230,7 @@ move while `kcompactd` runs. `/etc/sysctl.d/60-octessera-audio.conf` sets
 memory stays put. Raspberry Audio+Video soaks went from 14 to 18 underruns per
 2 hours to none. Look for `kcompactd` next to callback `D` states in a trace.
 
-Tools that found real problems:
+### Tools that found real problems
 
 - Orange has `perf`: `perf record -k CLOCK_MONOTONIC -C 1` on the audio core, or
   `-g -t <runtime tid>` for the runtime thread, lines up with journal timestamps.
@@ -235,7 +249,5 @@ $PiTarget = "pi@<PI_HOST>"
 ./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget 'sudo journalctl -u octessera.service -b --no-pager'
 ```
 
-Use `-PrintOnly` before any live or service-changing probe. Runtime-only mode
-leaves the service running; live, audio-drain, and DSP modes stop the service
-and restart it afterward. These probes measure timing and audio-path behavior;
-they do not replace board bring-up or image checks.
+These probes measure timing and audio-path behavior; they do not replace board
+bring-up or image checks.

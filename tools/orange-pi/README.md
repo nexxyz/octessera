@@ -1,12 +1,16 @@
 # Orange Pi tools
 
-This is a one-key bootstrap for an Armbian Orange Pi. It creates only the
-dedicated `octessera` deployment account and its SSH key authorization. It does
-not edit global `sshd` configuration, passwords, firewall rules, or default
-users. Supply the deployed board target explicitly; the bootstrap examples below
-remain generic for bringing up a replacement image.
+Workstation tools for the Orange Pi Zero 2W: SSH bootstrap, the SSH/SCP
+wrapper, cross-builds, development deployment, performance studies, and the
+USB gadget composer. Every example takes the board target explicitly; nothing
+here guesses which board you meant.
 
 ## SSH bootstrap
+
+The bootstrap sets up one key for an Armbian Orange Pi. It creates only the
+dedicated `octessera` deployment account and its SSH key authorization, and
+leaves global `sshd` configuration, passwords, firewall rules, and default
+users alone.
 
 ### 1. Generate the key on Windows
 
@@ -152,7 +156,9 @@ under `target/orange-pi-cross/`:
 ./tools/orange-pi/test-build-opi-cross.ps1
 ```
 
-Use `-DryRun` to print the Docker command. The canonical outputs are
+Use `-DryRun` to print the Docker command. The builder refuses a dirty
+repository, and its default profile is `pi-dev`, so pass `-Profile release`
+for anything you plan to deploy. The canonical outputs are
 `orange-oled-smoke`, `orange-seesaw-smoke`, and `octessera-pi`, each with its
 adjacent `.metadata.json` file. The production image and runtime bundle use the
 contracts in the [Orange production reference](../../hardware/docs/orange-pi-production-reference.md).
@@ -174,41 +180,51 @@ $OrangeTarget = "octessera@<ORANGE_HOST>"
 
 ### Persistent Orange development runtime (explicit opt-in)
 
-This is **not** the release updater and is separate from the temporary
-foreground `/pi-smoke orange` run. After reviewing the target, artifact, and
-service interruption, use the exact cross-built runtime candidate and its
-unchanged adjacent metadata sidecar:
+This is **not** the release updater. After reviewing the target, artifact,
+and service interruption, deploy the `build-opi-cross.ps1 -Profile release`
+output with its unchanged adjacent metadata sidecar:
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
 ./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -LocalBinary target/orange-pi-cross/octessera-pi
 # Later, to return to the installed release:
 ./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -Restore
+# Command-generation tests for the wrapper:
 ./tools/orange-pi/test-deploy-opi-fast.ps1
 ```
 
-The binary must match the current repository HEAD and be an ELF64 AArch64
+The binary must match the current repository `HEAD` and be an ELF64 AArch64
 `runtime-candidate` for `orange-pi-zero-2w`, with schema-2 release-profile
-metadata and matching SHA-256. This does **not** promote `runtime_ready` or
-write release/updater metadata. On the board, the tool stages a root-owned
-copy at `/opt/octessera/dev/<source-commit>/octessera-pi` and overrides only
-`ExecStart` using `/etc/systemd/system/octessera.service.d/90-octessera-dev.conf`.
-It refuses a pre-existing drop-in or an unexpected service/executable, checks
-the restarted process, and tries to restore the installed service on activation
-failure. `-Restore` removes only the recognized development override; it does
-not delete the development binary. Neither action touches `current`, releases,
-the installed executable symlink, boot files, or the image. A failure to verify
-rollback requires immediate manual service inspection. Journal errors and
-underruns are reported as warnings; an active service is not proof of clean
-audio. Keep hardware listening and control checks in the operator loop. The
-tool refuses an existing `/opt/octessera/dev/<source-commit>` directory rather
-than overwriting a previously staged build; restore leaves that directory in
-place for explicit operator review or cleanup.
+metadata and a matching SHA-256. The shared `build-rpi-opi-cross.ps1` output
+does not pass this check. The `octessera` account needs passwordless sudo
+(`bootstrap-armbian-ssh.sh --allow-deploy-sudo`).
+
+On the board, the tool:
+
+- stages a root-owned copy at `/opt/octessera/dev/<source-commit>/octessera-pi`
+  and refuses an existing directory there rather than overwriting it;
+- overrides only `ExecStart`, through
+  `/etc/systemd/system/octessera.service.d/90-octessera-dev.conf`;
+- refuses to start if any drop-in already exists (including its own from an
+  earlier deploy, so run `-Restore` first) or the service or executable looks
+  unexpected;
+- checks the restarted process and its readiness marker, and tries to restore
+  the installed service if activation fails.
+
+`-Restore` removes only the recognized development override and leaves the
+staged directory for you to review or clean up. Neither action touches
+`current`, releases, the installed executable symlink, updater metadata, boot
+files, or the image, and nothing is promoted to `runtime_ready`. If rollback
+cannot be verified, inspect the service by hand before doing anything else.
+Journal errors and underruns are reported as warnings; an active service is
+not proof of clean audio, so keep listening and control checks in the loop.
 
 ## Performance tools
 
-The current performance commands are also listed in
-[`docs/workflows/pi-development-and-profiling.md`](../../docs/workflows/pi-development-and-profiling.md):
+For the shared-path timing smoke on a clean production image, use
+`tools/pi/board-timing-smoke.sh opi`, described in
+[`pi-development-and-profiling.md`](../../docs/workflows/pi-development-and-profiling.md#shared-path-timing-smoke).
+The Orange-specific study tools are:
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
@@ -278,8 +294,9 @@ sudo bash ./tools/orange-pi/orange-pi-usb-gadget.sh teardown
 bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
 
-Supported modes are no gadget, `midi`, `uac2`, and `combined`; the installed
-image uses `combined`. Setup and teardown share
+The mode follows those two settings: no gadget, `midi`, `uac2`, or
+`combined`. Shipped defaults have both off, so a fresh image starts with no
+gadget until you enable USB Audio or USB MIDI. Setup and teardown share
 `/run/lock/octessera-orange-usb-gadget.lock`. `--lock-file`, `--configfs-root`,
 and `--udc-root` are available for isolated fake-ConfigFS tests.
 
