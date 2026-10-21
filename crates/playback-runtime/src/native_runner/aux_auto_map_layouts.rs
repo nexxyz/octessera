@@ -1,4 +1,4 @@
-use super::aux_auto_map::ResolvedAuxSlot;
+use super::aux_auto_map::{aux_auto_map, AuxAutoMap, ResolvedAuxSlot};
 use super::aux_auto_map_instrument_layouts::{
     instrument_amp_auto_map, instrument_drum_voice_auto_map, instrument_envelope_auto_map,
     instrument_filter_auto_map, instrument_fm_tone_auto_map, instrument_mixer_auto_map,
@@ -13,9 +13,9 @@ impl NativeRunner {
         path: &str,
         selected_key: Option<&str>,
         selected_action: Option<&NativeMenuAction>,
-    ) -> [Option<ResolvedAuxSlot>; 4] {
+    ) -> AuxAutoMap {
         if !self.aux_auto_map_enabled || path.contains(LINK_LABEL) {
-            return [None, None, None, None];
+            return AuxAutoMap::default();
         }
 
         if path.contains(PLAY_LABEL)
@@ -54,7 +54,7 @@ impl NativeRunner {
             }
         }
 
-        [None, None, None, None]
+        AuxAutoMap::default()
     }
 
     fn is_behavior_auto_map_key(&self, key: &str) -> bool {
@@ -65,7 +65,7 @@ impl NativeRunner {
             ))
     }
 
-    fn behavior_auto_map(&self) -> [Option<ResolvedAuxSlot>; 4] {
+    fn behavior_auto_map(&self) -> AuxAutoMap {
         let layer_prefix = format!("layers.{}.build.behaviorConfig", self.active_layer_index);
         match self.behavior.id() {
             "life" => self.with_step_rate([
@@ -159,29 +159,22 @@ impl NativeRunner {
                 None,
                 None,
             ]),
-            "none" => [None, None, None, None],
-            _ => [
-                Some(self.turn_slot("algorithmStep".into(), "Step")),
-                None,
-                None,
-                None,
-            ],
+            "none" => AuxAutoMap::default(),
+            _ => aux_auto_map([Some(self.turn_slot("algorithmStep".into(), "Step"))]),
         }
     }
 
-    fn with_step_rate(
-        &self,
-        trailing: [Option<ResolvedAuxSlot>; 3],
-    ) -> [Option<ResolvedAuxSlot>; 4] {
-        [
+    fn with_step_rate(&self, trailing: [Option<ResolvedAuxSlot>; 3]) -> AuxAutoMap {
+        let [first, second, third] = trailing;
+        aux_auto_map([
             Some(self.turn_slot("algorithmStep".into(), "Step")),
-            trailing[0].clone(),
-            trailing[1].clone(),
-            trailing[2].clone(),
-        ]
+            first,
+            second,
+            third,
+        ])
     }
 
-    fn instrument_auto_map(&self, key: &str) -> Option<[Option<ResolvedAuxSlot>; 4]> {
+    fn instrument_auto_map(&self, key: &str) -> Option<AuxAutoMap> {
         let (index, field) = parse_instrument_binding_key(key)?;
         let prefix = format!("instruments.{index}");
         instrument_filter_auto_map(self, field, &prefix)
@@ -195,11 +188,11 @@ impl NativeRunner {
             .or_else(|| instrument_mixer_auto_map(self, field, &prefix))
     }
 
-    fn sample_action_auto_map(&self, action: &str) -> Option<[Option<ResolvedAuxSlot>; 4]> {
+    fn sample_action_auto_map(&self, action: &str) -> Option<AuxAutoMap> {
         let rest = action.strip_prefix("sample.assign:")?;
         let (instrument_slot, sample_slot, _) = parse_sample_action(rest).ok()?;
         let prefix = format!("instruments.{instrument_slot}.sample");
-        Some([
+        Some(aux_auto_map([
             Some(self.turn_press_slot(
                 format!("{prefix}.selectedSlot"),
                 "Slot",
@@ -209,9 +202,10 @@ impl NativeRunner {
                 )),
                 "Assign",
             )),
-            Some(self.turn_slot(format!("{prefix}.baseVelocity"), "Base")),
             Some(self.turn_slot(format!("{prefix}.tuneSemis"), "Tune")),
+            Some(self.turn_slot(format!("{prefix}.baseVelocity"), "Base")),
             Some(self.turn_slot(format!("{prefix}.velocityLevelsEnabled"), "Levels")),
-        ])
+            Some(self.turn_slot(format!("{prefix}.amp.gainPct"), "Gain")),
+        ]))
     }
 }

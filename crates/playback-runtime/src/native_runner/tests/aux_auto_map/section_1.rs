@@ -96,7 +96,12 @@ pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().unwrap_or("").contains("4-Key")));
+        .any(|line| line.as_str().unwrap_or("").contains("S1-Key")));
+    assert!(snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|line| line.as_str().unwrap_or("").contains("S2-Type")));
 }
 
 #[test]

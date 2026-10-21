@@ -97,6 +97,8 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
             "instruments.0.pluck.decayMs",
             "instruments.0.pluck.brightnessPct",
             "instruments.0.pluck.pickPositionPct",
+            "instruments.0.pluck.bodyAmountPct",
+            "instruments.0.pluck.dispersionPct",
             "instruments.0.pluck.amp.gainPct",
         ]
     );

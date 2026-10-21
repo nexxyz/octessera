@@ -129,7 +129,7 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
         snapshot["display"]["lines"]
             .as_array()
             .unwrap()
-            .contains(&json!("> Fine cents:")),
+            .contains(&json!("> S2-Fine cents:")),
         "{snapshot:?}"
     );
     assert!(
@@ -192,7 +192,7 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
         snapshot["display"]["lines"]
             .as_array()
             .unwrap()
-            .contains(&json!("> Fine cents +0c")),
+            .contains(&json!("> S2-Fine cents +0c")),
         "{snapshot:?}"
     );
 }

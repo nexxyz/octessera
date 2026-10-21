@@ -29,8 +29,10 @@ fn instrument_scalar_target_matrix_excludes_fm_enums_and_structural_sample_contr
             .collect::<Vec<_>>(),
         [
             "instruments.0.fm.index",
+            "instruments.0.fm.ratio",
             "instruments.0.fm.filter.cutoffHz",
             "instruments.0.fm.filter.resonance",
+            "instruments.0.fm.ratioFineCents",
             "instruments.0.fm.amp.gainPct"
         ]
     );

@@ -104,8 +104,9 @@ bindings always win. `System > Display > Auto Map` switches it off.
 - Bind your own: highlight a row and press *Fn* + click that Aux encoder. A
   value becomes its turn binding, an action its click binding.
 - *Shift* + *Fn* + click an Aux encoder binds into the *Shift* bank instead.
-  Hold *Shift* while turning or clicking to use it. That bank has no auto-map
-  and no fallback.
+  Hold *Shift* while turning or clicking to use it. Auto-map puts the three
+  most-used controls on the plain encoders and the next three on the *Shift*
+  bank.
 - On numbers, a plain Aux turn is coarse and *Fn* + turn is fine; the same
   goes for *Shift* and *Shift* + *Fn* in the *Shift* bank. Lists and switches
   move one option per detent.
@@ -116,6 +117,7 @@ OLED markers:
 |---|---|
 | `1-Cutoff` | *Aux 1* turn is bound or auto-mapped to Cutoff. |
 | `1!Assign` | *Aux 1* click is bound or auto-mapped to Assign. |
+| `S1-Key` | *Shift* + *Aux 1* turn is auto-mapped to Key. |
 | `1-` and `1!` on one row | That encoder has both a turn and a click binding here. |
 | `not active` toast | The binding still exists, but its target is hidden or inactive right now. |
 

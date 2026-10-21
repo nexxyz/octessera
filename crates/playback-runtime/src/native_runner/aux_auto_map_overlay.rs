@@ -7,7 +7,7 @@ impl NativeRunner {
     pub(super) fn aux_mapping_popup(&self) -> NativeHelpPopup {
         let normal_slots = self.overlay_aux_slots();
         let shifted_slots = (0..platform_core::AUX_ENCODER_COUNT)
-            .map(|index| self.resolve_shift_aux_slot(index))
+            .map(|index| self.effective_shift_aux_slot(index))
             .collect::<Vec<_>>();
         let mut lines = Vec::new();
         let context = self.aux_overlay_context_label();

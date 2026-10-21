@@ -49,7 +49,7 @@ Data sources the spec relies on:
 | Fn + Main press | Aux mappings modal | Opens the scrollable mappings modal from anywhere, stopped or playing. Holding Fn alone does not open it. |
 | Fn + Main turn right, outside edit | Single step | While paused or stopped, advances exactly one behavior generation and stays paused/stopped. While playing, shows `Pause first`. Turning left is consumed with no action. Numeric edit takes priority over this gesture. |
 | Main numeric edit turn | Coarse/fine value change | Plain Main is coarse; Fn+Main is fine. Shift+Main and Shift+Fn+Main stay coarse. Fn does not change enum, bool, or text edit turns. |
-| Aux1–3 numeric turn | Coarse/fine bound value change | In the normal custom/auto-map target, a plain turn is coarse and an Fn turn is fine. In the shifted custom bank only (no fallback), Shift is coarse and Shift+Fn is fine. |
+| Aux1–3 numeric turn | Coarse/fine bound value change | In the normal custom/auto-map target, a plain turn is coarse and an Fn turn is fine. In the shifted custom/auto-map target, Shift is coarse and Shift+Fn is fine. |
 | Fn + Space | Reset stop | Stops/resets, silences internal audio, and clears held MIDI notes without broad panic. Takes priority over sample preview. |
 | Combined modifier + Space | Reserved | No-op. |
 | Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
@@ -155,8 +155,7 @@ Aux mappings modal:
   | Normal | 1..3 | Mapping or `-` | Mapping or `-` |
   | Shifted | 1..3 | Mapping or `-` | Mapping or `-` |
 
-- Normal mappings show the custom binding first, then auto-map. Shifted mappings come from the
-  shifted custom bank only, with no fallback.
+- Both banks show the custom binding first, then auto-map.
 - Main turn scrolls. Aux turns and clicks do nothing while it is open and do not touch the
   underlying menu or bindings.
 - Plain Main press, Fn + Main press again, or Back closes it. Shift + Fn + Main press opens context
@@ -334,7 +333,7 @@ palette unless a behavior deliberately owns its own.
   `> Cutoff 127`); edit mode shows a separate value-focused row.
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
   with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
-  the same width.
+  the same width; shifted rows use `S1-`/`S1!`.
 - Snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`).
   Desktop draws a 1-2 px scrollbar inside the OLED body only when rendered rows exceed visible
   rows. It uses no text columns and is omitted for splash/help/confirm overlays unless menu metadata
@@ -525,8 +524,8 @@ currently stores and exports this setting but does not render ghost cells.
 
 - Each aux encoder has a turn slot (value parameters: number/enum/bool) and a press slot (actions),
   plus a separate shifted custom bank of the same shape.
-- Plain turn/press uses the normal bank with auto-map fallback; Shift turn/press uses only the
-  shifted bank. Auto-map never fills shifted slots. Shifted bindings persist as
+- Plain turn/press uses the normal bank and Shift turn/press the shifted bank, each with auto-map
+  fallback. Shifted bindings persist as
   `runtimeConfig.shiftAuxBindings`, mirroring `runtimeConfig.auxBindings`.
 - Fn + aux press binds or overwrites the matching custom slot: while editing a value it binds the
   Turn slot; on an action row it binds the `!` press slot. Shift + Fn + aux press writes the shifted
@@ -541,22 +540,53 @@ currently stores and exports this setting but does not render ghost cells.
 
 ### Auto-map
 
-- `System > Display > Auto Map` turns it on. Context-sensitive mappings fill unbound normal slots
-  for the focused menu context; custom bindings keep precedence.
-- Focused rows show indicators such as `1-Cutoff` and `1!Assign`, keeping selection markers
-  (`> 1!Assign`).
-- Behavior rows map Step Rate to A1 and a behavior-specific set to A2 onward (for example Life:
-  Count, then Interval with a Spawn press, then Glider with a Glider press). Behaviors without
-  their own layout map only Step Rate.
-- Instrument layouts: FM rows map Index, Cutoff, Res, Gain; Plucked rows map Decay, Bright, Pick,
-  Gain; Drum Voice/Edit rows map Tune, Decay, Tone, Attack of the selected voice; every type's
-  Filter maps Cutoff, Res, Env, Key; Volume maps Gain, Vel; Synth oscillators and the Synth, FM,
-  and Plucked envelopes have their own layouts. Sampler Filter maps only the audible Cutoff and
-  Res, and Sampler Amp Env/Filter Env have no mappings because those saved controls are not
-  rendered. Other Sampler rows map Slot (with an Assign press), Base, Tune, Levels. Mixer maps
-  Vol, Pan, Route.
-- Layouts list up to four entries, but there are three aux encoders (`auxEncoderCount: 3`), so a
-  fourth entry is never reachable from hardware.
+- `System > Display > Auto Map` turns it on. Context-sensitive mappings fill unbound slots of both
+  banks for the focused menu context; custom bindings keep precedence.
+- Each layout lists up to six entries in order of how often they are played: the first three go
+  to Aux 1-3, the rest to Shift + Aux 1-3.
+- Focused rows show indicators such as `1-Cutoff`, `1!Assign` and `S1-Key`, keeping selection
+  markers (`> 1!Assign`).
+- Behavior rows map Step Rate to Aux 1 and a behavior-specific set after it (for example Life:
+  Count, then Interval with a Spawn press, then Glider with a Glider press on Shift + Aux 1).
+  Behaviors without their own layout map only Step Rate.
+- Instrument layouts (Aux 1-3 | Shift + Aux 1-3):
+
+  | Context | Aux 1-3 | Shift + Aux 1-3 |
+  |---|---|---|
+  | Synth, FM, Plucked, Drum Filter | Cutoff, Res, Env | Key, Type |
+  | Sampler Filter | Cutoff, Res | |
+  | Amp (every type) | Gain, Vel | |
+  | Envelopes (Synth, FM, Plucked) | Atk, Dec, Rel | Sus |
+  | Synth oscillator | Wave, Level, Detune | PW, Octave |
+  | FM tone rows | Index, Ratio, Cutoff | Res, Fine, Gain |
+  | Plucked string rows | Decay, Bright, Pick | Body, Disp, Gain |
+  | Drum Voice/Edit (selected voice) | Tune, Decay, Tone | Level, Noise, Attack |
+  | Other Sampler rows, Sample Assign | Slot (Assign press), Tune, Base | Levels, Gain |
+  | Mixer | Vol, Pan, Route | |
+
+  Sampler Amp Env/Filter Env have no mappings because those saved controls are not rendered.
+- FX slot layouts:
+
+  | FX | Aux 1-3 | Shift + Aux 1-3 |
+  |---|---|---|
+  | reverb | Mix, Decay, Damp | |
+  | delay | FB, Mix, Time | Spread |
+  | tremolo, auto_pan | Rate, Depth | |
+  | vibrato | Rate, Depth, Base | Mix, FB |
+  | chorus | Mix, Depth, Rate | FB, Base |
+  | flanger | FB, Rate, Depth | Mix, Base |
+  | wah, filter_lfo | Rate, Depth, Center | Q |
+  | duck | Amt, Rel, Th | Atk |
+  | bitcrusher | Bits, Div, Mix | |
+  | saturator | Drive, Mix | |
+  | distortion | Drive, Clip, Mix | |
+  | glitch | Chance, Slice, Mix | |
+  | compressor | Thresh, Ratio, Makeup | Atk, Rel, Mix |
+  | eq | Low, Mid, High | MidHz, MidQ, Mix |
+  | vinyl | Crackle, Warp, Sat | Mix |
+
+- Play FX layouts (Aux 1 click is always `Map`): stutter Rate, Depth; freeze Release, Mix;
+  filter_sweep Cutoff, Res, In | Out; pitch_shift Semi, Cents, Mix | In, Out.
 - FM Index, Plucked Decay, and the selected Drum voice Tone emit typed controls without
   reinitializing the whole slot.
 - No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout

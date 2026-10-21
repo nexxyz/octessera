@@ -28,41 +28,38 @@ pub(super) struct ResolvedAuxSlot {
     pub(super) press_source: AuxBindingSource,
 }
 
+/// Auto-map slots: the plain Aux 1-3 first, then the Shift + Aux 1-3 bank.
+pub(super) const AUX_AUTO_MAP_SLOTS: usize = 2 * platform_core::AUX_ENCODER_COUNT;
+pub(super) type AuxAutoMap = [Option<ResolvedAuxSlot>; AUX_AUTO_MAP_SLOTS];
+
+/// Lays out slots in priority order, leaving the rest of the six empty.
+pub(super) fn aux_auto_map<const N: usize>(slots: [Option<ResolvedAuxSlot>; N]) -> AuxAutoMap {
+    let mut map = AuxAutoMap::default();
+    for (index, slot) in slots.into_iter().enumerate() {
+        map[index] = slot;
+    }
+    map
+}
+
 impl NativeRunner {
     pub(super) fn effective_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
         if self.display.ui.shift_held || self.display.ui.combined_modifier_held {
-            return self.resolve_shift_aux_slot(index);
+            return self.effective_shift_aux_slot(index);
         }
-        let auto = self.current_auto_aux_map();
         let custom = self.resolve_custom_aux_slot(index);
-        let auto_slot = auto.get(index).and_then(|slot| slot.as_ref());
-        let custom_slot = custom.as_ref();
-        ResolvedAuxSlot {
-            turn: custom_slot
-                .and_then(|slot| slot.turn.clone())
-                .or_else(|| auto_slot.and_then(|slot| slot.turn.clone())),
-            press: custom_slot
-                .and_then(|slot| slot.press.clone())
-                .or_else(|| auto_slot.and_then(|slot| slot.press.clone())),
-            turn_source: resolved_aux_binding_source(
-                custom_slot.and_then(|slot| slot.turn.as_ref()).is_some(),
-                auto_slot.and_then(|slot| slot.turn.as_ref()).is_some(),
-            ),
-            press_source: resolved_aux_binding_source(
-                custom_slot.and_then(|slot| slot.press.as_ref()).is_some(),
-                auto_slot.and_then(|slot| slot.press.as_ref()).is_some(),
-            ),
-        }
+        merge_aux_slots(custom, self.current_auto_aux_slot(index))
     }
 
-    pub(super) fn resolve_shift_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
-        self.resolve_custom_aux_slot_from(&self.shift_aux_bindings, index)
-            .unwrap_or(ResolvedAuxSlot {
-                turn: None,
-                press: None,
-                turn_source: AuxBindingSource::None,
-                press_source: AuxBindingSource::None,
-            })
+    pub(super) fn effective_shift_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
+        let custom = self.resolve_custom_aux_slot_from(&self.shift_aux_bindings, index);
+        merge_aux_slots(
+            custom,
+            self.current_auto_aux_slot(index + platform_core::AUX_ENCODER_COUNT),
+        )
+    }
+
+    fn current_auto_aux_slot(&self, index: usize) -> Option<ResolvedAuxSlot> {
+        self.current_auto_aux_map().into_iter().nth(index).flatten()
     }
 
     pub(super) fn auto_map_prefix_for_line(
@@ -76,9 +73,10 @@ impl NativeRunner {
             let Some(slot) = slot else {
                 continue;
             };
+            let encoder = aux_encoder_label(index);
             if let Some(key) = key {
                 if slot.turn.as_ref().map(|turn| turn.key.as_str()) == Some(key) {
-                    return Some(format!("{}-", index + 1));
+                    return Some(format!("{encoder}-"));
                 }
             }
             if let Some(action) = action {
@@ -88,7 +86,7 @@ impl NativeRunner {
                     .map(|press| self.aux_actions_match(&press.action, action))
                     .unwrap_or(false)
                 {
-                    return Some(format!("{}!", index + 1));
+                    return Some(format!("{encoder}!"));
                 }
             }
         }
@@ -193,11 +191,43 @@ impl NativeRunner {
             _ => false,
         }
     }
-    fn current_auto_aux_map(&self) -> Vec<Option<ResolvedAuxSlot>> {
+    fn current_auto_aux_map(&self) -> AuxAutoMap {
         let (selected_key, selected_action) = self.menu.current_binding_target();
         let path = self.menu.current_focus_path();
         self.resolve_aux_auto_map(&path, selected_key.as_deref(), selected_action.as_ref())
-            .to_vec()
+    }
+}
+
+fn aux_encoder_label(index: usize) -> String {
+    let count = platform_core::AUX_ENCODER_COUNT;
+    if index < count {
+        format!("{}", index + 1)
+    } else {
+        format!("S{}", index - count + 1)
+    }
+}
+
+fn merge_aux_slots(
+    custom: Option<ResolvedAuxSlot>,
+    auto: Option<ResolvedAuxSlot>,
+) -> ResolvedAuxSlot {
+    let custom = custom.as_ref();
+    let auto = auto.as_ref();
+    ResolvedAuxSlot {
+        turn: custom
+            .and_then(|slot| slot.turn.clone())
+            .or_else(|| auto.and_then(|slot| slot.turn.clone())),
+        press: custom
+            .and_then(|slot| slot.press.clone())
+            .or_else(|| auto.and_then(|slot| slot.press.clone())),
+        turn_source: resolved_aux_binding_source(
+            custom.and_then(|slot| slot.turn.as_ref()).is_some(),
+            auto.and_then(|slot| slot.turn.as_ref()).is_some(),
+        ),
+        press_source: resolved_aux_binding_source(
+            custom.and_then(|slot| slot.press.as_ref()).is_some(),
+            auto.and_then(|slot| slot.press.as_ref()).is_some(),
+        ),
     }
 }
 

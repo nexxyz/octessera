@@ -13,15 +13,21 @@ fn focus(runner: &mut NativeRunner, key: &str) {
     assert!(runner.menu.focus_item_key(key), "{key}");
 }
 
-fn assert_map(runner: &NativeRunner, expected: [Option<(&str, &str)>; 4]) {
-    for (index, expected) in expected.into_iter().enumerate() {
-        let slot = runner.effective_aux_slot(index);
+/// Expected turns in priority order: Aux 1-3, then Shift + Aux 1-3; the rest must be empty.
+fn assert_map<const N: usize>(runner: &NativeRunner, expected: [Option<(&str, &str)>; N]) {
+    let count = platform_core::AUX_ENCODER_COUNT;
+    for index in 0..2 * count {
+        let slot = if index < count {
+            runner.effective_aux_slot(index)
+        } else {
+            runner.effective_shift_aux_slot(index - count)
+        };
         assert_eq!(
             slot.turn
                 .as_ref()
                 .map(|turn| (turn.key.as_str(), turn.label.as_str())),
-            expected,
-            "A{}",
+            expected.get(index).copied().flatten(),
+            "slot {}",
             index + 1
         );
     }
@@ -99,12 +105,14 @@ fn fm_tone_auto_map_turns_index_without_replacing_any_slot() {
         &runner,
         [
             Some(("instruments.0.fm.index", "Index")),
+            Some(("instruments.0.fm.ratio", "Ratio")),
             Some(("instruments.0.fm.filter.cutoffHz", "Cutoff")),
             Some(("instruments.0.fm.filter.resonance", "Res")),
+            Some(("instruments.0.fm.ratioFineCents", "Fine")),
             Some(("instruments.0.fm.amp.gainPct", "Gain")),
         ],
     );
-    assert_overlay(&mut runner, "Aux Map", ["Index", "Cutoff", "Res"]);
+    assert_overlay(&mut runner, "Aux Map", ["Index", "Ratio", "Cutoff"]);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
@@ -133,6 +141,7 @@ fn fm_tone_auto_map_turns_index_without_replacing_any_slot() {
             Some(("instruments.0.fm.filter.resonance", "Res")),
             Some(("instruments.0.fm.filter.envAmountPct", "Env")),
             Some(("instruments.0.fm.filter.keyTrackingPct", "Key")),
+            Some(("instruments.0.fm.filter.type", "Type")),
         ],
     );
     focus(&mut runner, "instruments.0.fm.amp.gainPct");
@@ -158,6 +167,8 @@ fn plucked_string_auto_map_turns_decay_without_replacing_any_slot() {
             Some(("instruments.0.pluck.decayMs", "Decay")),
             Some(("instruments.0.pluck.brightnessPct", "Bright")),
             Some(("instruments.0.pluck.pickPositionPct", "Pick")),
+            Some(("instruments.0.pluck.bodyAmountPct", "Body")),
+            Some(("instruments.0.pluck.dispersionPct", "Disp")),
             Some(("instruments.0.pluck.amp.gainPct", "Gain")),
         ],
     );
@@ -190,6 +201,7 @@ fn plucked_string_auto_map_turns_decay_without_replacing_any_slot() {
             Some(("instruments.0.pluck.filter.resonance", "Res")),
             Some(("instruments.0.pluck.filter.envAmountPct", "Env")),
             Some(("instruments.0.pluck.filter.keyTrackingPct", "Key")),
+            Some(("instruments.0.pluck.filter.type", "Type")),
         ],
     );
     focus(&mut runner, "instruments.0.pluck.amp.gainPct");
@@ -215,6 +227,8 @@ fn drum_voice_auto_map_follows_selected_voice_and_edits_only_its_tone() {
             Some(("instruments.0.drum.voices.0.tuneSemis", "Tune")),
             Some(("instruments.0.drum.voices.0.decayMs", "Decay")),
             Some(("instruments.0.drum.voices.0.tonePct", "Tone")),
+            Some(("instruments.0.drum.voices.0.levelPct", "Level")),
+            Some(("instruments.0.drum.voices.0.noiseMixPct", "Noise")),
             Some(("instruments.0.drum.voices.0.attackMs", "Attack")),
         ],
     );
@@ -232,6 +246,8 @@ fn drum_voice_auto_map_follows_selected_voice_and_edits_only_its_tone() {
         Some(("instruments.0.drum.voices.2.tuneSemis", "Tune")),
         Some(("instruments.0.drum.voices.2.decayMs", "Decay")),
         Some(("instruments.0.drum.voices.2.tonePct", "Tone")),
+        Some(("instruments.0.drum.voices.2.levelPct", "Level")),
+        Some(("instruments.0.drum.voices.2.noiseMixPct", "Noise")),
         Some(("instruments.0.drum.voices.2.attackMs", "Attack")),
     ];
     assert_map(&runner, voice_two);
@@ -256,6 +272,7 @@ fn drum_voice_auto_map_follows_selected_voice_and_edits_only_its_tone() {
             Some(("instruments.0.drum.filter.resonance", "Res")),
             Some(("instruments.0.drum.filter.envAmountPct", "Env")),
             Some(("instruments.0.drum.filter.keyTrackingPct", "Key")),
+            Some(("instruments.0.drum.filter.type", "Type")),
         ],
     );
     focus(&mut runner, "instruments.0.drum.amp.gainPct");
@@ -279,8 +296,6 @@ fn sampler_auto_map_excludes_unrendered_filter_and_envelope_controls() {
         [
             Some(("instruments.0.sample.filter.cutoffHz", "Cutoff")),
             Some(("instruments.0.sample.filter.resonance", "Res")),
-            None,
-            None,
         ],
     );
     assert_overlay(&mut runner, "Sample Filter", ["Cutoff", "Res", "-"]);
@@ -289,7 +304,7 @@ fn sampler_auto_map_excludes_unrendered_filter_and_envelope_controls() {
         "instruments.0.sample.filterEnv.attackMs",
     ] {
         focus(&mut runner, key);
-        assert_map(&runner, [None, None, None, None]);
+        assert_map(&runner, [None]);
     }
     focus(&mut runner, "instruments.0.sample.amp.gainPct");
     assert_map(
@@ -297,8 +312,6 @@ fn sampler_auto_map_excludes_unrendered_filter_and_envelope_controls() {
         [
             Some(("instruments.0.sample.amp.gainPct", "Gain")),
             Some(("instruments.0.sample.amp.velocitySensitivityPct", "Vel")),
-            None,
-            None,
         ],
     );
     focus(&mut runner, "instruments.0.sample.baseVelocity");
@@ -306,9 +319,10 @@ fn sampler_auto_map_excludes_unrendered_filter_and_envelope_controls() {
         &runner,
         [
             Some(("instruments.0.sample.selectedSlot", "Slot")),
-            Some(("instruments.0.sample.baseVelocity", "Base")),
             Some(("instruments.0.sample.tuneSemis", "Tune")),
+            Some(("instruments.0.sample.baseVelocity", "Base")),
             Some(("instruments.0.sample.velocityLevelsEnabled", "Levels")),
+            Some(("instruments.0.sample.amp.gainPct", "Gain")),
         ],
     );
 }
