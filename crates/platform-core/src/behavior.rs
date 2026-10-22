@@ -73,6 +73,9 @@ pub struct BehaviorContext {
     pub bpm: f32,
     #[serde(skip)]
     pub emitted_events: Vec<MusicalEvent>,
+    /// Transport position (24 pulses per beat) of the step being played; 0 outside playback.
+    #[serde(skip)]
+    pub transport_pulse: u64,
 }
 
 impl BehaviorContext {
@@ -80,6 +83,7 @@ impl BehaviorContext {
         Self {
             bpm,
             emitted_events: Vec::new(),
+            transport_pulse: 0,
         }
     }
 

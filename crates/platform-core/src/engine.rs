@@ -58,6 +58,7 @@ pub struct NativeLayerEngine {
     tick: usize,
     held_notes: BTreeSet<HeldNote>,
     random: LayerRandom,
+    transport_pulse: u64,
 }
 
 impl NativeLayerEngine {
@@ -93,6 +94,7 @@ impl NativeLayerEngine {
             tick: 0,
             held_notes: BTreeSet::new(),
             random: LayerRandom::new(config.random_seed),
+            transport_pulse: 0,
         })
     }
 
@@ -188,6 +190,7 @@ impl NativeLayerEngine {
     ) -> Result<NativeTickResult, String> {
         let before = self.behavior.render_model(&self.state)?;
         let mut context = BehaviorContext::new(bpm);
+        context.transport_pulse = self.transport_pulse;
         let behavior = self.behavior;
         let state = self.state.clone();
         self.state = self
@@ -278,6 +281,11 @@ impl NativeLayerEngine {
 
     pub fn restart_random(&mut self) {
         self.random.restart();
+    }
+
+    /// The transport position of the next step, for behaviors that follow musical time.
+    pub fn set_transport_pulse(&mut self, pulse: u64) {
+        self.transport_pulse = pulse;
     }
 
     pub fn set_interpretation_tick(&mut self, tick: usize) {

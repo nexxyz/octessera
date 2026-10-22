@@ -35,7 +35,7 @@ in **Build**.
 |---|---|---|
 | `none` | Human | Inactive layer, for when you want space or are setting up. |
 | `keys` | Human | Press a cell to play, release it to stop. Immediate and human. |
-| `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. |
+| `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. It can hold up to 4x4 pages of 8x8: pick the page in view with Page X and Page Y, or let Advance turn the pages for you every beat, bar, or few bars. |
 | `looper` | Human | Records and replays grid presses and releases. Use Punch In/Out to overdub. |
 | `weave` | Human | Two interlaced melodic strands crossing the grid. Quick counterpoint-ish motion. |
 | `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. |

@@ -159,6 +159,11 @@ impl NativeRunner {
                 None,
                 None,
             ]),
+            "sequencer" => self.with_step_rate([
+                Some(self.turn_slot(format!("{layer_prefix}.pageX"), "Page X")),
+                Some(self.turn_slot(format!("{layer_prefix}.pageY"), "Page Y")),
+                Some(self.turn_slot(format!("{layer_prefix}.advance"), "Advance")),
+            ]),
             "none" => AuxAutoMap::default(),
             _ => aux_auto_map([Some(self.turn_slot("algorithmStep".into(), "Step"))]),
         }

@@ -118,7 +118,18 @@ impl NativeRunner {
         } else {
             next_config.clone()
         };
-        self.replace_layer_engine_with_config(layer_index, behavior, engine_config.clone(), None)?;
+        // A sequencer's pattern is drawn by hand, so its settings (pages, view, advance) keep it;
+        // other behaviors re-initialise their world from the new settings.
+        let saved_state = (behavior_id == "sequencer")
+            .then(|| self.serialized_state_for_layer(layer_index).ok())
+            .flatten()
+            .filter(|state| !state.is_null());
+        self.replace_layer_engine_with_config(
+            layer_index,
+            behavior,
+            engine_config.clone(),
+            saved_state,
+        )?;
         self.set_layer_behavior_config(layer_index, behavior_id.as_str(), engine_config);
         if mark_autosave {
             for field in fields {

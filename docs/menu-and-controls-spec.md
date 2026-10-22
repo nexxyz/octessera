@@ -532,7 +532,8 @@ currently stores and exports this setting but does not render ghost cells.
   bank instead.
 - A regular press triggers the press slot action; a regular turn adjusts the turn slot value. Enum
   turns clamp without wrapping; bool turns go `-1 => Off`, `+1 => On`.
-- `activeBehavior` and `behaviorConfig.*` updates re-initialize behavior state.
+- `activeBehavior` and `behaviorConfig.*` updates re-initialize behavior state, except on a
+  sequencer, whose settings (pages, view, advance) keep the drawn pattern.
 - Aux value changes become autosave-eligible after the native 150 ms edit debounce. Pi autosaves
   coalesce the latest eligible revision for two seconds, whether transport is playing or stopped; a
   newer eligible revision restarts that deadline.
@@ -548,7 +549,8 @@ currently stores and exports this setting but does not render ghost cells.
   markers (`> 1!Assign`).
 - Behavior rows map Step Rate to Aux 1 and a behavior-specific set after it (for example Life:
   Count, then Interval with a Spawn press, then Glider with a Glider press on Shift + Aux 1).
-  Behaviors without their own layout map only Step Rate.
+  Sequencer maps Step Rate, Page X, Page Y, then Advance on Shift + Aux 1. Behaviors without
+  their own layout map only Step Rate.
 - Instrument layouts (Aux 1-3 | Shift + Aux 1-3):
 
   | Context | Aux 1-3 | Shift + Aux 1-3 |
