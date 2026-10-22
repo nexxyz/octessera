@@ -46,6 +46,7 @@ fn teaser_score_follows_the_v40_picture_timing() {
         played: octessera_desktop_lib::headless::PlayedScenario {
             start_frame: (PREROLL * 44_100.0) as usize,
             start_pulse: 0,
+            observations: Vec::new(),
         },
         session: &session,
     };

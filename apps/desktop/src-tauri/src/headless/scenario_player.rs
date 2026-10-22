@@ -11,11 +11,17 @@ pub struct PlayedScenario {
     pub start_frame: usize,
     /// Transport pulse at B1; pulse cues and event pulses count from it.
     pub start_pulse: u64,
+    /// The snapshot right after each timed input, in cue order: (seconds after B1, snapshot).
+    pub observations: Vec<(f64, serde_json::Value)>,
 }
 
 impl HeadlessSession {
     /// Plays `scenario`: setup (checking each checkpoint title), `preroll_seconds` of silence,
     /// then the timed section from B1 until `end_seconds` after B1 and every cue has run.
+    ///
+    /// The engine applies queued configuration while it renders, as a running device does, so a
+    /// scenario whose setup changes instruments needs some pre-roll (0.5 s is plenty) before
+    /// its first note.
     pub fn play_scenario(
         &mut self,
         scenario: &Scenario,
@@ -40,9 +46,10 @@ impl HeadlessSession {
             self.input(button("button_s", true))?;
             self.input(button("button_s", false))?;
         }
-        let played = PlayedScenario {
+        let mut played = PlayedScenario {
             start_frame: self.frames(),
             start_pulse: self.transport_pulse(),
+            observations: Vec::new(),
         };
         let b1_seconds = self.virtual_seconds();
         let mut stopped_at: Option<(f64, u64)> = None;
@@ -78,6 +85,8 @@ impl HeadlessSession {
                 if !applied[index] && due {
                     applied[index] = true;
                     self.input(timed.input.clone())?;
+                    let snapshot = self.snapshot().cloned().unwrap_or_default();
+                    played.observations.push((since_b1, snapshot));
                 }
             }
             if since_b1 >= end_seconds && applied.iter().all(|done| *done) {
