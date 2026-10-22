@@ -42,7 +42,7 @@ impl NativeMenuModel {
         canonicalize_help_path(&self.stack_labels_with_menu().join(" > "))
     }
 
-    pub(super) fn current_siblings(&self) -> &Vec<NativeMenuItem> {
+    pub(crate) fn current_siblings(&self) -> &Vec<NativeMenuItem> {
         &self.current_node().children
     }
 

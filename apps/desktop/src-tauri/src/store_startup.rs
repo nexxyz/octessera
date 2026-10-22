@@ -77,7 +77,7 @@ where
     app_data_dir().map_err(|source| DesktopStoreStartupError::ResolveAppData { source })
 }
 
-fn ensure_store_dir_at(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError> {
+pub(crate) fn ensure_store_dir_at(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError> {
     std::fs::create_dir_all(&dir).map_err(|error| {
         DesktopStoreStartupError::CreateStoreDirectory {
             path: dir.clone(),

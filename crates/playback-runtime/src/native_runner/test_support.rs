@@ -68,6 +68,55 @@ impl NativeRunner {
     pub fn test_fail_next_snapshot(&self) {
         self.test_snapshot_failure.set(true);
     }
+
+    pub fn test_menu_sibling_labels(&self) -> Vec<String> {
+        self.menu
+            .current_siblings()
+            .iter()
+            .map(|item| item.label.clone())
+            .collect()
+    }
+
+    pub fn test_menu_at_root(&self) -> bool {
+        self.menu.state.stack.is_empty() && !self.menu.state.editing
+    }
+
+    pub fn test_menu_value(&self, key: &str) -> Option<String> {
+        self.menu.value_for_key(key)
+    }
+
+    pub fn test_menu_number(&self, key: &str) -> Option<i32> {
+        self.menu.number_for_key(key)
+    }
+
+    pub fn test_active_play_mode(&self) -> &str {
+        &self.active_play_mode
+    }
+
+    pub fn test_transport_pulse(&self) -> u64 {
+        self.transport.current_ppqn_pulse
+    }
+
+    pub fn test_display_title(&self) -> String {
+        self.snapshot()
+            .ok()
+            .and_then(|snapshot| snapshot["display"]["title"].as_str().map(str::to_owned))
+            .unwrap_or_default()
+    }
+
+    pub fn test_display_lines(&self) -> Vec<String> {
+        self.snapshot()
+            .ok()
+            .and_then(|snapshot| {
+                snapshot["display"]["lines"].as_array().map(|lines| {
+                    lines
+                        .iter()
+                        .filter_map(|line| line.as_str().map(str::to_owned))
+                        .collect()
+                })
+            })
+            .unwrap_or_default()
+    }
 }
 
 fn find_menu_item<'a>(item: &'a NativeMenuItem, key: &str) -> Option<&'a NativeMenuItem> {

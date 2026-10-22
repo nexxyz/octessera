@@ -9,6 +9,8 @@ pub mod oled_frame;
 mod preset_name_policy;
 mod protocol;
 mod runtime;
+#[cfg(any(test, feature = "test-support"))]
+pub mod scenario;
 mod timing_probe;
 mod timing_units;
 pub mod user_data_bundle;

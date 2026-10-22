@@ -3,6 +3,8 @@ mod audio_prep_service;
 mod audio_thread;
 mod commands;
 mod desktop_platform_service;
+#[cfg(feature = "headless")]
+pub mod headless;
 mod host_adapter;
 mod midi;
 mod persistence;

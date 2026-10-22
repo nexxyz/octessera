@@ -24,7 +24,7 @@ mod shutdown;
 #[cfg(test)]
 mod tests;
 
-use config::desktop_native_runner_config;
+pub(crate) use config::desktop_native_runner_config;
 #[cfg(debug_assertions)]
 use perf::RuntimePerfCounters;
 use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};

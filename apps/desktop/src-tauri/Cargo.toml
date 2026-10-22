@@ -10,6 +10,13 @@ license-file.workspace = true
 name = "octessera_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+headless = ["playback-runtime/test-support"]
+
+[[test]]
+name = "e2e"
+required-features = ["headless"]
+
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }
 

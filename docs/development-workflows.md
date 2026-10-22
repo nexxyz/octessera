@@ -110,6 +110,31 @@ These checks keep native runtime behavior in `platform-core` and
 `realtime-engine`, and MIDI instruments on external MIDI paths. Desktop
 TypeScript remains a UI and bridge layer.
 
+## End-to-end scenarios
+
+```bash
+corepack pnpm run e2e
+```
+
+These play scripted device sessions through the real desktop runtime, host
+adapter, sample preparation and engine, without a window or a sound card. The
+`headless` feature of `octessera-desktop` pulls audio from the engine itself
+and advances the runtime clock by exactly the audio it rendered, so a 40 s
+scenario checks in a few seconds and its timing is sample-exact.
+
+- Scenarios are written with `playback_runtime::scenario::ScenarioBuilder`
+  (feature `test-support`): menu paths become the encoder turns and presses a
+  player would make, with checkpoints on the OLED title, then timed inputs cued
+  on transport pulses or seconds after B1.
+- The tests live in `apps/desktop/src-tauri/tests/e2e/`. A failing scenario
+  keeps its audio as a WAV under the system temp folder
+  (`octessera-e2e/`) so you can listen to it.
+- `record_teaser_v40_take` is ignored by default: it renders the teaser score
+  in real time with the device's Audio+Video recorder running.
+
+They are not part of the pre-push hook; run them after changes to playback,
+menus, Link mapping, instruments or FX.
+
 ## Pre-push hook
 
 `.githooks/pre-push` delegates to `tools/quality/pre-push.sh`; the check list
