@@ -12,7 +12,7 @@ use crate::audio_prep_service::{
 };
 use crate::desktop_platform_service::spawn_desktop_platform_service;
 use crate::host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
-use crate::recording::{DesktopRecording, RecordingEngineSource};
+use crate::recording::{DesktopRecording, RecordingEngineSource, RecordingTapState};
 use crate::sample_decode_cache::SampleDecodeCache;
 use crate::store_startup::ensure_store_dir_at;
 use logging_adapter::LoggingAdapter;
@@ -59,6 +59,8 @@ pub struct HeadlessSession {
     platform_rx: Receiver<Vec<HostMessage>>,
     audio: Vec<f32>,
     events: Vec<PlayedEvent>,
+    recording_tap: RecordingTapState,
+    recording_started_frame: Option<usize>,
     last_snapshot_at: f64,
     pace: Pace,
     started: Instant,
@@ -73,6 +75,7 @@ impl HeadlessSession {
             recordings_dir.join("recordings"),
             recordings_dir.join("screen-recordings"),
         );
+        let recording_tap = recording.tap_state();
         let source = RecordingEngineSource::new(
             EngineSource::with_load_status_tx(engine_rx, DEFAULT_AUDIO_SAMPLE_RATE, None),
             recording.tap_state(),
@@ -117,6 +120,8 @@ impl HeadlessSession {
             platform_rx: platform_service.result_rx,
             audio: Vec::new(),
             events: Vec::new(),
+            recording_tap,
+            recording_started_frame: None,
             last_snapshot_at: 0.0,
             pace,
             started: Instant::now(),
@@ -148,6 +153,12 @@ impl HeadlessSession {
 
     pub fn events(&self) -> &[PlayedEvent] {
         &self.events
+    }
+
+    /// The frame at which the device's recorder started, so a recording's own timeline can be
+    /// related to this session's audio.
+    pub fn recording_started_frame(&self) -> Option<usize> {
+        self.recording_started_frame
     }
 
     pub fn snapshot(&self) -> Option<&Value> {
@@ -187,14 +198,37 @@ impl HeadlessSession {
     pub fn input(&mut self, input: Value) -> Result<(), String> {
         let output = self.playback.dispatch(
             RuntimeDispatchInput::HostMessage(HostMessage::DeviceInput {
-                input,
+                input: input.clone(),
                 request_snapshot: Some(true),
             }),
             &mut self.runner,
             &mut self.adapter,
         )?;
         self.absorb(output)?;
-        self.poll_services().map(|_| ())
+        self.poll_services()?;
+        if std::env::var_os("OCTESSERA_E2E_TRACE").is_some() {
+            let display = self.snapshot().map(|snapshot| &snapshot["display"]);
+            let selected = display
+                .and_then(|display| {
+                    let row = display["selectedRow"].as_u64()? as usize;
+                    display["lines"].get(row)?.as_str()
+                })
+                .unwrap_or("");
+            eprintln!(
+                "e2e {:>8.3}s {input} -> {} | {selected}",
+                self.virtual_seconds(),
+                self.title()
+            );
+            if self.title() == "RUNTIME ERROR" {
+                eprintln!(
+                    "e2e   {}",
+                    display
+                        .map(|display| display["lines"].to_string())
+                        .unwrap_or_default()
+                );
+            }
+        }
+        Ok(())
     }
 
     /// Waits (in wall time) until sample preparation and other host services have gone quiet,
@@ -247,6 +281,11 @@ impl HeadlessSession {
     }
 
     fn absorb(&mut self, output: RuntimeIngest) -> Result<(), String> {
+        if self.recording_started_frame.is_none()
+            && self.recording_tap.read().is_ok_and(|tap| tap.is_some())
+        {
+            self.recording_started_frame = Some(self.frames());
+        }
         self.adapter.inner.submit_recording_frames(&self.playback)?;
         self.stamp_heard_events();
         for follow_up in output.follow_ups {

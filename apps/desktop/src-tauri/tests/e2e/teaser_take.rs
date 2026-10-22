@@ -1,6 +1,8 @@
 use crate::support::{assert_clean_audio, keep_audio, session, Timeline};
-use crate::teaser::{bar, teaser_v40, END, FREEZE, GLITTER, PAUSE, RELEASE};
-use octessera_desktop_lib::headless::{HeadlessSession, Pace, PlayedEvent};
+use crate::teaser::{
+    bar, teaser_v40, BUILD_START, END, FREEZE, GLITTER, GLITTER_END, PAUSE, RELEASE,
+};
+use octessera_desktop_lib::headless::{HeadlessSession, Pace, PlayedEvent, PlayedScenario};
 
 const PREROLL: f64 = 2.0;
 const TYPING: u8 = 4;
@@ -29,25 +31,20 @@ fn rms_db(timeline: &Timeline, from: f64, to: f64) -> f64 {
     timeline.rms_db(from / 2.0, to / 2.0)
 }
 
-fn play(pace: Pace, record: bool, name: &str) -> HeadlessSession {
+fn play(pace: Pace, record: bool, name: &str) -> (HeadlessSession, PlayedScenario) {
     let mut session = session(name, pace);
     let played = session
         .play_scenario(&teaser_v40(record), PREROLL, END + 1.0)
         .unwrap_or_else(|error| panic!("{name}: {error}"));
-    assert_eq!(played.start_frame, (PREROLL * 44_100.0) as usize);
-    session
+    (session, played)
 }
 
 #[test]
 fn teaser_score_follows_the_v40_picture_timing() {
-    let session = play(Pace::Fast, false, "teaser-v40");
+    let (session, played) = play(Pace::Fast, false, "teaser-v40");
     let wav = keep_audio(&session, "teaser-v40");
     let timeline = Timeline {
-        played: octessera_desktop_lib::headless::PlayedScenario {
-            start_frame: (PREROLL * 44_100.0) as usize,
-            start_pulse: 0,
-            observations: Vec::new(),
-        },
+        played,
         session: &session,
     };
     assert_clean_audio(&session, "teaser");
@@ -70,7 +67,18 @@ fn teaser_score_follows_the_v40_picture_timing() {
     assert!((first - GLITTER).abs() < 0.003, "glitter starts at {first}");
     assert!(glitter
         .iter()
-        .all(|event| seconds(&timeline, event) < bar(5)));
+        .all(|event| seconds(&timeline, event) < GLITTER_END));
+    let ring_out = timeline
+        .session
+        .events()
+        .iter()
+        .filter(|event| event.frame >= timeline.played.start_frame)
+        .any(|event| (GLITTER_END..BUILD_START - 0.35).contains(&seconds(&timeline, event)));
+    assert!(!ring_out, "notes during the glitter ring-out");
+    assert!(
+        rms_db(&timeline, GLITTER_END, GLITTER_END + 0.5) > -50.0,
+        "the glitter should ring out after {GLITTER_END}, audio in {wav:?}"
+    );
 
     let entries = [(0, 5), (1, 7), (3, 7), (2, 11)];
     for (slot, entry_bar) in entries {
@@ -82,6 +90,16 @@ fn teaser_score_follows_the_v40_picture_timing() {
             bar(entry_bar)
         );
     }
+    assert!(
+        events_between(&timeline, 0, bar(7), bar(9) - 0.01).is_empty(),
+        "Life drops out for the kick and bass bars"
+    );
+    let life_back = events_between(&timeline, 0, bar(9) - 0.01, bar(11));
+    let back_at = seconds(&timeline, life_back.first().expect("Life never comes back"));
+    assert!(
+        (back_at - bar(9)).abs() < 0.01,
+        "Life comes back at {back_at}"
+    );
     let kick_only = events_between(&timeline, 1, bar(7), bar(9));
     assert!(
         kick_only.iter().all(|event| event.note < 8),
@@ -112,10 +130,14 @@ fn teaser_score_follows_the_v40_picture_timing() {
 #[test]
 #[ignore = "records a take; run explicitly"]
 fn record_teaser_v40_take() {
-    let session = play(Pace::Realtime, true, "teaser-v40-take");
+    let (session, played) = play(Pace::Realtime, true, "teaser-v40-take");
     let wav = keep_audio(&session, "teaser-v40-take");
+    let recording_start = session
+        .recording_started_frame()
+        .expect("recorder never started");
+    let b1 = played.start_frame - recording_start;
     eprintln!(
-        "B1 at {PREROLL} s = sample {}; audio {wav:?}",
-        (PREROLL * 44_100.0) as usize
+        "B1 in the recording at sample {b1} ({:.4} s); audio {wav:?}",
+        b1 as f64 / 44_100.0
     );
 }

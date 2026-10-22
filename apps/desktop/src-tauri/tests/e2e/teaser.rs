@@ -3,9 +3,10 @@
 use crate::support::builder;
 use playback_runtime::scenario::{button, grid, press_main, Scenario, ScenarioBuilder};
 
-/// Seconds after B1 of bar `n` (1-based) in the build-up, after the intro's 1.5 s pause.
+/// Seconds after B1 of bar `n` (1-based) in the build-up, which starts after the glitter has
+/// rung out.
 pub fn bar(n: u32) -> f64 {
-    9.5 + 2.0 * f64::from(n - 5)
+    BUILD_START + 2.0 * f64::from(n - 5)
 }
 
 /// Typed lines: (start, letters with spaces, letter spacing, stamp row).
@@ -24,11 +25,16 @@ const DOT_ROW: usize = 3;
 const PERIOD_ROW: usize = 2;
 pub const ECHO_KILL: f64 = 6.85;
 pub const GLITTER: f64 = 8.5;
-pub const FREEZE: f64 = 29.5;
-pub const PAUSE: f64 = 37.4;
-pub const RELEASE: f64 = 39.3;
-pub const END: f64 = 39.9;
+/// The glitter layer is muted here and its notes, delay and reverb ring out.
+pub const GLITTER_END: f64 = 9.5;
+const RING_OUT: f64 = 1.5;
+pub const BUILD_START: f64 = GLITTER_END + RING_OUT;
+pub const FREEZE: f64 = BUILD_START + 20.0;
+pub const PAUSE: f64 = FREEZE + 7.9;
+pub const RELEASE: f64 = FREEZE + 9.8;
+pub const END: f64 = FREEZE + 10.4;
 const FREEZE_CELL: (usize, usize) = (2, 6);
+const KICKS: [(usize, usize); 4] = [(0, 0), (2, 0), (4, 0), (6, 0)];
 const CLAP_HATS: [(usize, usize); 6] = [(2, 1), (6, 1), (1, 2), (3, 2), (5, 2), (7, 2)];
 
 /// Letter times for one typed line: steady with a small, repeatable unevenness; no hit on
@@ -155,8 +161,55 @@ fn echo_bus(take: &mut ScenarioBuilder) {
     take.checkpoint("echo bus");
 }
 
+/// L2 on two pages: page 1 the kick alone, page 2 the full beat. Aux 3 turns the page.
+fn beat_pages(take: &mut ScenarioBuilder) {
+    let config = "layers.1.build.behaviorConfig";
+    take.open(&["Build", "L2:"]);
+    take.set_number("Pages X", &format!("{config}.pagesX"), 2);
+    take.set_number("Page X", &format!("{config}.pageX"), 2);
+    take.select_layer_now(1);
+    for (x, y) in KICKS.into_iter().chain(CLAP_HATS) {
+        take.tap_now(x, y);
+    }
+    take.open(&["Build", "L2:"]);
+    take.set_number("Page X", &format!("{config}.pageX"), 1);
+    take.select("Page X");
+    take.input(press_main());
+    take.with_mods_now(&["button_fn"], &[json_press("aux3")]);
+    take.input(press_main());
+    take.select_layer_now(1);
+    for (x, y) in CLAP_HATS {
+        take.tap_now(x, y);
+    }
+    take.checkpoint("beat pages");
+}
+
 fn json_press(id: &str) -> serde_json::Value {
     serde_json::json!({ "type": "encoder_press", "id": id })
+}
+
+/// Bus 4 for the glitter: a wide 1/8-triplet delay into a long reverb, so the dissolve blooms.
+fn glitter_bus(take: &mut ScenarioBuilder) {
+    let slot = |n: u32| format!("mixer.buses.3.slot{n}");
+    take.open(&["Shape", "FX Buses", "B4:", "Slot 1"]);
+    take.checkpoint("glitter slot 1");
+    take.set_value("Type", &format!("{}.type", slot(1)), "delay");
+    take.set_value("Time Mode", &format!("{}.params.timeMode", slot(1)), "note");
+    take.set_value("Time Note", &format!("{}.params.timeNote", slot(1)), "1/8T");
+    take.set_number("Feedback", &format!("{}.params.feedback", slot(1)), 40);
+    take.set_number("Spread %", &format!("{}.params.spreadPct", slot(1)), 80);
+    take.set_number("Mix %", &format!("{}.params.mixPct", slot(1)), 35);
+    take.checkpoint("glitter delay");
+    take.open(&["Shape", "FX Buses", "B4:", "Slot 2"]);
+    take.checkpoint("glitter slot 2");
+    take.set_value("Type", &format!("{}.type", slot(2)), "reverb");
+    take.set_number("Decay", &format!("{}.params.decay", slot(2)), 850);
+    take.set_number("Damp", &format!("{}.params.damp", slot(2)), 30);
+    take.set_number("Mix %", &format!("{}.params.mixPct", slot(2)), 45);
+    take.checkpoint("glitter reverb");
+    take.open(&["Shape", "Instruments", "I6:", "Mixer"]);
+    take.set_value("Route", "instruments.5.mixer.route", "fx_bus_4");
+    take.checkpoint("glitter bus");
 }
 
 fn glitter_layer(take: &mut ScenarioBuilder) {
@@ -208,10 +261,8 @@ pub fn teaser_v40(record: bool) -> Scenario {
     typing_kit(&mut take);
     echo_bus(&mut take);
     glitter_layer(&mut take);
-    take.select_layer_now(1);
-    for (x, y) in CLAP_HATS {
-        take.tap_now(x, y);
-    }
+    glitter_bus(&mut take);
+    beat_pages(&mut take);
     for layer in 0..4 {
         take.toggle_mute_now(layer);
     }
@@ -241,6 +292,11 @@ pub fn teaser_v40(record: bool) -> Scenario {
     take.at_seconds(GLITTER - 0.0125, button("button_s", false));
 
     take.gesture_at_seconds(
+        &["button_shift", "button_fn"],
+        GLITTER_END - 0.005,
+        &[grid(0, 5, true), grid(0, 5, false)],
+    );
+    take.gesture_at_seconds(
         &["button_fn"],
         bar(5) - 0.3,
         &[button("button_s", true), button("button_s", false)],
@@ -248,12 +304,7 @@ pub fn teaser_v40(record: bool) -> Scenario {
     take.gesture_at_seconds(
         &["button_shift", "button_fn"],
         bar(5) - 0.08,
-        &[
-            grid(0, 5, true),
-            grid(0, 5, false),
-            grid(0, 0, true),
-            grid(0, 0, false),
-        ],
+        &[grid(0, 0, true), grid(0, 0, false)],
     );
     take.at_seconds(bar(5), button("button_s", true));
     take.at_seconds(bar(5) + 0.02, button("button_s", false));
@@ -266,24 +317,19 @@ pub fn teaser_v40(record: bool) -> Scenario {
         &["button_shift", "button_fn"],
         bar(7) - 0.01,
         &[
+            grid(0, 0, true),
+            grid(0, 0, false),
             grid(0, 1, true),
             grid(0, 1, false),
             grid(0, 3, true),
             grid(0, 3, false),
         ],
     );
+    // Bar 9: Aux 3 turns L2 to its full-beat page and Life comes back, both on the downbeat.
+    take.at_seconds(bar(9) - 0.2, aux_turn("aux3", 1));
     take.gesture_at_seconds(
-        &["button_fn"],
-        bar(9) - 0.3,
-        &[grid(0, 1, true), grid(0, 1, false)],
-    );
-    for (x, y) in CLAP_HATS {
-        take.at_seconds(bar(9) - 0.01, grid(x, y, true));
-        take.at_seconds(bar(9) + 0.05, grid(x, y, false));
-    }
-    take.gesture_at_seconds(
-        &["button_fn"],
-        bar(9) + 0.3,
+        &["button_shift", "button_fn"],
+        bar(9) - 0.01,
         &[grid(0, 0, true), grid(0, 0, false)],
     );
     take.gesture_at_seconds(

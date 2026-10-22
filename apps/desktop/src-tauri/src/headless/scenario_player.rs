@@ -103,7 +103,11 @@ impl HeadlessSession {
     fn run_setup(&mut self, setup: &[SetupStep]) -> Result<(), String> {
         for step in setup {
             match step {
-                SetupStep::Input(input) => self.input(input.clone())?,
+                SetupStep::Input(input) => {
+                    self.input(input.clone())?;
+                    // A running device's engine drains its event queue every few milliseconds.
+                    self.render_block(super::BLOCK_FRAMES)?;
+                }
                 SetupStep::Checkpoint { name, title } => {
                     self.settle()?;
                     let shown = self.title();

@@ -4,6 +4,7 @@
 mod default_patch;
 mod gestures;
 mod instruments;
+mod sequencer_pages;
 mod support;
 mod teaser;
 mod teaser_take;
