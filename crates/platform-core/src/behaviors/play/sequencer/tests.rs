@@ -134,3 +134,13 @@ fn config_starts_a_layer_on_its_saved_view() {
         (3, 2, "1/2")
     );
 }
+
+#[test]
+fn a_single_page_saves_exactly_as_before_pages() {
+    let state = press(init(Value::Null).unwrap(), 1, 1);
+    let saved = serialize(&state).unwrap();
+    assert_eq!(saved.as_object().unwrap().len(), 3, "{saved}");
+    assert_eq!(deserialize(saved).unwrap(), state);
+    let paged = with_config(&state, json!({ "pagesX": 2 }));
+    assert!(serialize(&paged).unwrap().get("pages").is_some());
+}

@@ -39,8 +39,9 @@ pub struct SequencerState {
     pub page_y: usize,
     #[serde(default = "advance_off")]
     pub advance: String,
-    #[serde(default)]
-    pub pages: Vec<StoredPage>,
+    /// Every drawn page. Absent in single-page saves, whose `cells` are page 1, 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pages: Option<Vec<StoredPage>>,
     /// Which advance period the last step fell in.
     #[serde(
         default,
@@ -68,14 +69,15 @@ pub fn init(config: Value) -> Result<SequencerState, String> {
 }
 
 /// Clamps the canvas and view after a config change or an older save, and shows the page in
-/// view. Saves from before pages had only `cells`: that becomes page 1, 1.
+/// view. A save without `pages` (single-page, or from before pages) holds page 1, 1 in `cells`.
 fn normalized(mut state: SequencerState) -> SequencerState {
     state.cells.resize(CELL_COUNT, false);
     state.width = GRID_WIDTH;
     state.height = GRID_HEIGHT;
-    if state.pages.is_empty() && state.page_x == 1 && state.page_y == 1 {
-        let cells = state.cells.clone();
-        store_page(&mut state.pages, 1, 1, &cells);
+    if state.pages.is_none() {
+        let mut pages = Vec::new();
+        store_page(&mut pages, 1, 1, &state.cells);
+        state.pages = Some(pages);
     }
     state.pages_x = state.pages_x.clamp(1, MAX_PAGES_PER_AXIS);
     state.pages_y = state.pages_y.clamp(1, MAX_PAGES_PER_AXIS);
@@ -89,9 +91,13 @@ fn normalized(mut state: SequencerState) -> SequencerState {
 }
 
 fn show_page(state: &mut SequencerState) {
-    state.cells = stored_page(&state.pages, state.page_x, state.page_y)
-        .map(|page| page.cells.clone())
-        .unwrap_or_else(|| vec![false; CELL_COUNT]);
+    state.cells = stored_page(
+        state.pages.as_deref().unwrap_or_default(),
+        state.page_x,
+        state.page_y,
+    )
+    .map(|page| page.cells.clone())
+    .unwrap_or_else(|| vec![false; CELL_COUNT]);
 }
 
 pub fn on_input(
@@ -105,7 +111,8 @@ pub fn on_input(
             let index = grid_index(x, y);
             next.cells[index] = !next.cells[index];
             let cells = next.cells.clone();
-            store_page(&mut next.pages, next.page_x, next.page_y, &cells);
+            let pages = next.pages.get_or_insert_with(Vec::new);
+            store_page(pages, next.page_x, next.page_y, &cells);
             next
         }
         _ => state,
@@ -163,8 +170,24 @@ pub fn config_menu() -> Vec<BehaviorConfigItem> {
     ]
 }
 
+/// A plain single page saves exactly as before pages existed.
 pub fn serialize(state: &SequencerState) -> Result<Value, String> {
-    serde_json::to_value(state).map_err(|error| error.to_string())
+    let mut value = serde_json::to_value(state).map_err(|error| error.to_string())?;
+    let single_page = state.pages_x == 1 && state.pages_y == 1 && state.advance == "off";
+    if let (true, Some(object)) = (single_page, value.as_object_mut()) {
+        for key in [
+            "pagesX",
+            "pagesY",
+            "pageX",
+            "pageY",
+            "advance",
+            "pages",
+            "advanceSlot",
+        ] {
+            object.remove(key);
+        }
+    }
+    Ok(value)
 }
 
 pub fn deserialize(data: Value) -> Result<SequencerState, String> {
