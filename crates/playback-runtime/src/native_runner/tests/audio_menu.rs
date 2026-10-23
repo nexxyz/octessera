@@ -368,7 +368,7 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     assert_eq!(sample["velocityLevelsEnabled"], true);
     assert_eq!(sample["velocityLevels"]["high"], 110);
     assert_eq!(sample["filter"]["type"], "highpass");
-    assert_eq!(sample["filter"]["cutoffHz"], 6548);
+    assert_eq!(sample["filter"]["cutoffHz"], 15254);
     assert_eq!(sample["amp"]["velocitySensitivityPct"], 75);
     assert_eq!(sample["ampEnv"]["attackMs"], 20);
 }

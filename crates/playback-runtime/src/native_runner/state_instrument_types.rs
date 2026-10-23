@@ -90,10 +90,13 @@ impl NativeInstrumentSlot {
         let synth_config = synth_preset_config("init");
         let sample_amp_env =
             json!({ "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 5 });
-        let sample_filter = synth_config
-            .get("filter")
-            .cloned()
-            .unwrap_or_else(|| json!({}));
+        let sample_filter = json!({
+            "type": "lowpass",
+            "cutoffHz": 20_000,
+            "resonance": 0,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0
+        });
         let sample_filter_env = synth_config
             .get("filterEnv")
             .cloned()

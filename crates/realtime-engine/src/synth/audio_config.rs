@@ -397,12 +397,12 @@ fn normalize_sample(sample: AudioSamplePayload) -> NormalizedSampleConfig {
             .filter
             .as_ref()
             .and_then(|filter| filter.cutoff_hz)
-            .unwrap_or(8000.0),
+            .unwrap_or(20_000.0),
         filter_resonance: sample
             .filter
             .as_ref()
             .and_then(|filter| filter.resonance)
-            .unwrap_or(20.0),
+            .unwrap_or(0.0),
         shape,
     }
 }

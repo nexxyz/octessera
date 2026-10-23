@@ -274,30 +274,63 @@ fn render_sample_source_block(
     voice
         .filt
         .prepare(voice.shape.filter_kind, cutoff, q, sample_rate);
-    let step = voice.step;
-    let gain = voice.gain;
-    let active = &mut voice.active;
-    let canonical_lane = &mut voice.canonical_lane;
-    let pos = &mut voice.pos;
-    let filt = &mut voice.filt;
-    let mut rendered_frames = 0;
-    for sample in samples[..frames].iter_mut() {
-        if *pos >= end_position {
-            *active = false;
-            *canonical_lane = None;
-            break;
-        }
-        let frame = pos.floor() as usize;
-        let frac = *pos - frame as f32;
-        let next_frame = (frame + 1).min(buffer_frames - 1);
-        let input = buffer_view.mono_frame(frame) * (1.0 - frac)
-            + buffer_view.mono_frame(next_frame) * frac;
-        let filtered = filt.process_prepared(input).clamp(-8.0, 8.0);
-        *pos += step;
-        *sample = filtered * gain;
-        rendered_frames += 1;
+    let read = PlainSampleRead {
+        view: &buffer_view,
+        buffer_frames,
+        end_position,
+        step: voice.step,
+        gain: voice.gain,
+    };
+    let (rendered_frames, ended) = if voice.filt.is_open() {
+        read.frames(&mut voice.pos, &mut samples[..frames], |input| input)
+    } else {
+        let filt = &mut voice.filt;
+        read.frames(&mut voice.pos, &mut samples[..frames], |input| {
+            filt.process_prepared(input)
+        })
+    };
+    if ended {
+        voice.active = false;
+        voice.canonical_lane = None;
     }
     rendered_frames
+}
+
+/// One plain block of sample reading; the filter is a closure so an open filter compiles to its
+/// own loop with no filter work at all.
+struct PlainSampleRead<'a> {
+    view: &'a SampleBufferView<'a>,
+    buffer_frames: usize,
+    end_position: f32,
+    step: f32,
+    gain: f32,
+}
+
+impl PlainSampleRead<'_> {
+    #[inline(always)]
+    fn frames(
+        &self,
+        pos: &mut f32,
+        samples: &mut [f32],
+        mut filter: impl FnMut(f32) -> f32,
+    ) -> (usize, bool) {
+        let mut rendered_frames = 0;
+        for sample in samples.iter_mut() {
+            if *pos >= self.end_position {
+                return (rendered_frames, true);
+            }
+            let frame = pos.floor() as usize;
+            let frac = *pos - frame as f32;
+            let next_frame = (frame + 1).min(self.buffer_frames - 1);
+            let input = self.view.mono_frame(frame) * (1.0 - frac)
+                + self.view.mono_frame(next_frame) * frac;
+            let filtered = filter(input).clamp(-8.0, 8.0);
+            *pos += self.step;
+            *sample = filtered * self.gain;
+            rendered_frames += 1;
+        }
+        (rendered_frames, false)
+    }
 }
 
 /// The enveloped variant of the block loop, kept separate so plain voices stay on the plain loop;

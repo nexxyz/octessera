@@ -126,7 +126,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["cutoffHz"],
-        6969
+        6768
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["filter"]["resonance"],

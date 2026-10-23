@@ -33,8 +33,8 @@ pub(super) fn sample_number(
 }
 
 pub(super) fn cutoff_hz_to_display(hz: i32) -> i32 {
-    let h = hz.clamp(80, 16_000) as f64;
-    ((h / 80.0).ln() / (16_000.0_f64 / 80.0).ln() * 255.0).round() as i32
+    let h = hz.clamp(20, 20_000) as f64;
+    ((h / 20.0).ln() / (20_000.0_f64 / 20.0).ln() * 255.0).round() as i32
 }
 
 pub(super) fn sample_string(

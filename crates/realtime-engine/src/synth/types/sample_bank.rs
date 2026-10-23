@@ -66,8 +66,8 @@ impl Default for SampleBankConfig {
             tune_semis: 0.0,
             gain_pct: 100.0,
             velocity_sensitivity_pct: 100.0,
-            filter_cutoff_hz: 8000.0,
-            filter_resonance: 20.0,
+            filter_cutoff_hz: 20_000.0,
+            filter_resonance: 0.0,
             shape: SampleShapeConfig::default(),
         }
     }

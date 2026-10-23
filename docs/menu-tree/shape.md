@@ -189,6 +189,9 @@ Shape
 - SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths only. Cell assignments and
   levels, the selected Sample Slot, and the other sample settings stay.
 - Tune, Gain, Base Velocity, the Vel Levels velocities, Filter, and the envelopes are slot-wide.
+- Samples play neutral by default: the filter starts as a lowpass at the top of Cutoff with Res
+  0, which skips the filter entirely. Cutoff's 0..255 spans 20 Hz to 20 kHz on every instrument;
+  a lowpass at 255 or a highpass at 0 with no resonance does no filter work on any instrument.
 - Filter Type picks lowpass, highpass, bandpass or notch. Env Amount (-100..100) lets Filter Env
   move Cutoff, and Key Tracking moves Cutoff with the played pitch (Tune plus the cell's tune),
   100 % being an octave per octave. Amp Env shapes each hit; a note-off starts its release. The

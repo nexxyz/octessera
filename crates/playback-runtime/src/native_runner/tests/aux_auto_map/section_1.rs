@@ -37,7 +37,7 @@ pub(crate) fn aux_auto_map_config_load_disables_automatic_bindings() {
         runner
             .menu
             .number_for_key("instruments.0.synth.filter.cutoffHz"),
-        Some(222)
+        Some(221)
     );
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
@@ -75,7 +75,7 @@ pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
         runner
             .menu
             .number_for_key("instruments.0.synth.filter.cutoffHz"),
-        Some(223)
+        Some(222)
     );
     assert!(snapshot["display"]["lines"]
         .as_array()
@@ -231,7 +231,7 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
         runner
             .menu
             .number_for_key("instruments.0.synth.filter.cutoffHz"),
-        Some(222)
+        Some(221)
     );
 }
 

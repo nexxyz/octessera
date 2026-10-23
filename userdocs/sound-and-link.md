@@ -146,8 +146,8 @@ point at them.
   scan's empty action are for. Drum hits are always one-shot.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and
   Decay runs after the attack whatever the attack length. A sampler's Amp Env
-  starts out flat (no attack, full sustain, a 5 ms release), so a sample plays
-  exactly as recorded until you shape it. Give it a slow attack for swells, or a
+  starts out flat (no attack, full sustain, a 5 ms release) and its filter
+  starts fully open, so a sample plays exactly as recorded until you shape it. Give it a slow attack for swells, or a
   short decay and low sustain to chop a loop into stabs. Its Filter Env only
   moves the filter once **Env Amount** is off zero.
 - **MIDI.** A `midi` slot sends nothing until its **MIDI > Enabled** is on

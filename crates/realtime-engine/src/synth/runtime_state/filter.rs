@@ -29,8 +29,8 @@ pub(in crate::synth) struct BiquadState {
     sample_rate: u32,
     coeffs: BiquadCoeffs,
     /// Samples to pass through unfiltered: `OPEN` while a resonance-free lowpass sits at the top
-    /// of the range (audio is unchanged, so nothing runs), then two counted samples on re-engaging
-    /// that refill the history the biquad needs.
+    /// of the range or a resonance-free highpass at the bottom (nothing runs), then two counted
+    /// samples on re-engaging that refill the history the biquad needs.
     pass_frames: u8,
 }
 
@@ -67,15 +67,23 @@ impl BiquadState {
             self.q = qv;
             self.sample_rate = sample_rate;
             self.coeffs = biquad_coeffs(mode, cutoff, qv, sample_rate);
-            let open = mode == FilterType::Lowpass
-                && cutoff >= OPEN_LOWPASS_CUTOFF_HZ
-                && qv <= std::f32::consts::FRAC_1_SQRT_2;
+            let open = qv <= std::f32::consts::FRAC_1_SQRT_2
+                && match mode {
+                    FilterType::Lowpass => cutoff >= OPEN_LOWPASS_CUTOFF_HZ,
+                    FilterType::Highpass => cutoff <= OPEN_HIGHPASS_CUTOFF_HZ,
+                    FilterType::Bandpass | FilterType::Notch => false,
+                };
             if open {
                 self.pass_frames = OPEN;
             } else if self.pass_frames == OPEN {
                 self.pass_frames = HISTORY_FRAMES;
             }
         }
+    }
+
+    /// True while the prepared settings leave audio unchanged, so callers can skip the filter.
+    pub(in crate::synth) fn is_open(&self) -> bool {
+        self.pass_frames == OPEN
     }
 
     pub(in crate::synth) fn process_prepared(&mut self, x: f32) -> f32 {
@@ -130,6 +138,7 @@ pub(in crate::synth) fn prepare_count_for_test() -> usize {
 }
 
 const OPEN_LOWPASS_CUTOFF_HZ: f32 = 20_000.0;
+const OPEN_HIGHPASS_CUTOFF_HZ: f32 = 20.0;
 const OPEN: u8 = u8::MAX;
 const HISTORY_FRAMES: u8 = 2;
 

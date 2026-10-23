@@ -138,3 +138,39 @@ fn filter_type_env_amount_and_key_tracking_change_the_sound() {
     );
     assert!(SampleVoiceShape::start(&SampleShapeConfig::default(), 0.0, RATE).is_static());
 }
+
+#[test]
+fn only_neutral_filter_settings_skip_the_filter() {
+    use super::super::runtime_state::BiquadState;
+    let open = |kind, cutoff, q| {
+        let mut filter = BiquadState::new();
+        filter.prepare(kind, cutoff, q, RATE);
+        filter.is_open()
+    };
+    assert!(open(FilterType::Lowpass, 20_000.0, 0.5));
+    assert!(open(FilterType::Highpass, 20.0, 0.5));
+    assert!(!open(FilterType::Lowpass, 19_000.0, 0.5));
+    assert!(!open(FilterType::Lowpass, 20_000.0, 2.8), "resonance colours it");
+    assert!(!open(FilterType::Highpass, 40.0, 0.5));
+    assert!(!open(FilterType::Bandpass, 20_000.0, 0.5));
+    assert!(!open(FilterType::Notch, 20.0, 0.5));
+}
+
+#[test]
+fn default_sampler_plays_the_sample_through_untouched() {
+    let bank = SampleBankConfig::default();
+    assert_eq!((bank.filter_cutoff_hz, bank.filter_resonance), (20_000.0, 0.0));
+    let ramp = (0..4_800).map(|index| (index as f32 * 0.01).sin() * 0.5).collect::<Vec<_>>();
+    let mut engine = sampler_engine(SampleShapeConfig::default(), ramp.clone());
+    engine.sample_banks[0].filter_cutoff_hz = bank.filter_cutoff_hz;
+    engine.sample_banks[0].filter_resonance = bank.filter_resonance;
+    engine.note_on(0, 36, 127, 50_000);
+    let rendered = render(&mut engine, 2_000);
+    let gain = rendered[1_000] / ramp[1_000];
+    for index in 10..2_000 {
+        assert!(
+            (rendered[index] - ramp[index] * gain).abs() < 1e-5,
+            "sample {index} is filtered"
+        );
+    }
+}

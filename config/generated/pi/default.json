@@ -119,10 +119,10 @@
           "assignments": [],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -386,10 +386,10 @@
           ],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -540,10 +540,10 @@
           "assignments": [],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -699,10 +699,10 @@
           "assignments": [],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -821,10 +821,10 @@
           "assignments": [],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -943,10 +943,10 @@
           "assignments": [],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -1065,10 +1065,10 @@
           "assignments": [],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {
@@ -1187,10 +1187,10 @@
           "assignments": [],
           "baseVelocity": 100,
           "filter": {
-            "cutoffHz": 8000,
+            "cutoffHz": 20000,
             "envAmountPct": 0,
             "keyTrackingPct": 0,
-            "resonance": 20,
+            "resonance": 0,
             "type": "lowpass"
           },
           "filterEnv": {

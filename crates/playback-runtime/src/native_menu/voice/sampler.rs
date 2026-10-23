@@ -116,7 +116,11 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
                 number_item(
                     "Cutoff",
                     format!("{prefix}.sample.filter.cutoffHz"),
-                    cutoff_hz_to_display(sample_number(config.sample_filter, &["cutoffHz"], 8000)),
+                    cutoff_hz_to_display(sample_number(
+                        config.sample_filter,
+                        &["cutoffHz"],
+                        20_000,
+                    )),
                     0,
                     255,
                     1,
@@ -124,7 +128,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
                 number_item(
                     "Res",
                     format!("{prefix}.sample.filter.resonance"),
-                    sample_number(config.sample_filter, &["resonance"], 20),
+                    sample_number(config.sample_filter, &["resonance"], 0),
                     0,
                     255,
                     1,
