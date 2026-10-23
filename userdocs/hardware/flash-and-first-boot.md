@@ -129,3 +129,8 @@ Then carry on with the [enclosure steps](assembly-manual.md#6-enclosure) and the
 [final check](assembly-manual.md#7-final-check).
 
 For USB connections to a computer or USB devices, see [USB roles](usb-roles.md).
+
+One habit worth forming early: Auto Save is off, so the instrument only keeps
+what you save (`System > Saves > Default > Save Patch`, or a named preset under
+`System > Saves > Library`). Reboot and Shutdown from the menu save a recovery
+copy first; yanking the power cable doesn't.

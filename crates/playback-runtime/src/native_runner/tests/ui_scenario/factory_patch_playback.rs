@@ -62,7 +62,7 @@ pub(super) fn assert_mute_looper_xy_fx_and_aux_paths(device: &mut DeviceDriver) 
 
     let sample_before = device.output().sample_bank_param_count;
     let audio_before = device.output().audio_command_count;
-    device.turn_aux("aux1", 1);
+    device.turn_aux("aux1", -1);
     if device.output().audio_command_count <= audio_before {
         device.fail("Aux1 turn did not emit any audio command");
     }

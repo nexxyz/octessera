@@ -32,6 +32,10 @@ The shipped patch already has Layer 1 running `life` into a synth.
    to move it across the stereo field.
 5. Press **Backspace** to leave Play Pan.
 
+Auto Save is off here too: edits stay in memory until you use
+`System > Saves > Default > Save Patch` or save a named preset under
+`System > Saves > Library`.
+
 The sampler slot comes with the bundled sample library. To add your own WAVs,
 see [Samples](README.md#samples).
 

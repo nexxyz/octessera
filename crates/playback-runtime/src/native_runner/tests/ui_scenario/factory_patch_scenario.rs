@@ -152,7 +152,7 @@ fn expected_factory_patch_fixture() -> Value {
                     "type": "synth",
                     "name": "Synth",
                     "mixer": { "route": "fx_bus_1" },
-                    "synth": { "filter": { "cutoffHz": 9921 } }
+                    "synth": { "filter": { "cutoffHz": 10439 } }
                 },
                 {
                     "type": "sampler",

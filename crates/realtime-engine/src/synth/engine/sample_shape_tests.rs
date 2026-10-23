@@ -150,7 +150,10 @@ fn only_neutral_filter_settings_skip_the_filter() {
     assert!(open(FilterType::Lowpass, 20_000.0, 0.5));
     assert!(open(FilterType::Highpass, 20.0, 0.5));
     assert!(!open(FilterType::Lowpass, 19_000.0, 0.5));
-    assert!(!open(FilterType::Lowpass, 20_000.0, 2.8), "resonance colours it");
+    assert!(
+        !open(FilterType::Lowpass, 20_000.0, 2.8),
+        "resonance colours it"
+    );
     assert!(!open(FilterType::Highpass, 40.0, 0.5));
     assert!(!open(FilterType::Bandpass, 20_000.0, 0.5));
     assert!(!open(FilterType::Notch, 20.0, 0.5));
@@ -159,8 +162,13 @@ fn only_neutral_filter_settings_skip_the_filter() {
 #[test]
 fn default_sampler_plays_the_sample_through_untouched() {
     let bank = SampleBankConfig::default();
-    assert_eq!((bank.filter_cutoff_hz, bank.filter_resonance), (20_000.0, 0.0));
-    let ramp = (0..4_800).map(|index| (index as f32 * 0.01).sin() * 0.5).collect::<Vec<_>>();
+    assert_eq!(
+        (bank.filter_cutoff_hz, bank.filter_resonance),
+        (20_000.0, 0.0)
+    );
+    let ramp = (0..4_800)
+        .map(|index| (index as f32 * 0.01).sin() * 0.5)
+        .collect::<Vec<_>>();
     let mut engine = sampler_engine(SampleShapeConfig::default(), ramp.clone());
     engine.sample_banks[0].filter_cutoff_hz = bank.filter_cutoff_hz;
     engine.sample_banks[0].filter_resonance = bank.filter_resonance;

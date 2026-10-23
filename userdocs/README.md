@@ -50,6 +50,12 @@ a synth.
    **Play Mix**. Each column is an instrument; press higher for louder.
 4. Press **Back** to leave Play Mix, then go and poke at the other layers.
 
+**Save what you like.** Auto Save is off, so your edits live in memory until
+you save them: `System > Saves > Default > Save Patch`, or a named preset under
+`System > Saves > Library`. Reboot and Shutdown from the menu save a recovery
+copy first. Pulling the plug doesn't, and the last half hour of tinkering goes
+with it.
+
 If you've changed things and want the starting point back,
 `System > Maintenance > Reset > Load Factory` restores it (it asks first).
 
