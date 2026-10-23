@@ -501,9 +501,10 @@ The grid is composed in this order; each step paints over the previous one.
 World coordinates keep the bottom-left origin and the normal LED display conversion in every
 overlay.
 
-Ghost Cells (`System > Display`): when on, inactive layers' active cells are meant to render very
-dim green behind the active layer, below active-layer cells and sample assignment. The runtime
-currently stores and exports this setting but does not render ghost cells.
+Ghost Cells (`System > Display`, off by default): when on, every cell that is lit on another
+non-`none` layer but not on the active layer gets a very dim green lift (`+16,+35,+10`) on top of
+the active layer's background colour. Ghosts sit below everything else: the active layer's own
+cells, the scan progress ray and every overlay above draw over them.
 
 ### Sectioned scanning
 
@@ -516,9 +517,11 @@ currently stores and exports this setting but does not render ghost cells.
     bottom to top through lane 1, then lane 2. Total steps: `gridHeight * sections`.
   - `reverse` runs the same step sequence backwards.
 - Stop and emergency reset return the scan index to origin.
-- `Restart Section` on Pitch Steps is meant to make pitch stepping local to the lane of the matching
-  scan orientation (X for column sections, Y for row sections). The runtime currently stores and
-  edits the switch but does not apply it to pitch mapping.
+- `Restart Section` on Pitch Steps makes pitch stepping local to each lane on the axis the lanes
+  split: Y Restart applies to `columns` sections (Y counts from the bottom row of each lane), X
+  Restart applies to `rows` sections (X counts from the left column of each lane). It changes the
+  pitch of every trigger on that layer, scanned or not. With `Sections=1`, the other scan axis, or
+  scanning off, the switch has no effect. Off keeps one continuous pitch index across lanes.
 
 ## Aux Encoder Binding
 

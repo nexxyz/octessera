@@ -46,12 +46,18 @@ pub enum TickStrategy {
         sections: Option<usize>,
         #[serde(default)]
         reverse: bool,
+        /// Y pitch counts from the bottom of each section lane.
+        #[serde(default)]
+        restart_pitch: bool,
     },
     ScanRowActive {
         #[serde(default)]
         sections: Option<usize>,
         #[serde(default)]
         reverse: bool,
+        /// X pitch counts from the left edge of each section lane.
+        #[serde(default)]
+        restart_pitch: bool,
     },
 }
 
@@ -158,7 +164,7 @@ pub(crate) fn interpret_grid_with_marker_authority(
             x,
             y,
             kind,
-            degree: compute_degree(next.height, x, y, profile),
+            degree: compute_degree(next.width, next.height, x, y, profile),
         })
         .collect()
 }

@@ -100,6 +100,7 @@ impl NativeRunner {
         let model = self.engine.model()?;
         let active_cells = display_active_cells(&model.cells);
         let mut leds = base_led_snapshot(&model);
+        self.apply_ghost_cells(&mut leds, &model);
         self.apply_scan_progress_overlay(&mut leds);
         self.apply_play_overlay(&mut leds);
         if self.play_fx_assign.is_none() {

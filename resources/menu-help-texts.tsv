@@ -398,13 +398,13 @@ link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Y Cutoff
 link_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Y Resonance Lane	Maps Y position to CC71 resonance modulation range.	Lower ranges are usually easier to control musically.
 axis_pitch_enabled_x_part	*	key:layers.*.link.x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence for this layer.
 axis_pitch_steps_x_part	*	key:layers.*.link.x.pitch.steps	number	X Pitch Steps	Sets semitone-step influence per X grid step.	Larger values create wider horizontal intervals.
-axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Section	When On, X pitch stepping restarts from the lane origin in each scan section.	Turn it Off to keep pitch indexing continuous across section boundaries.
+axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Section	When On with row scan sections, X pitch counts from the left edge of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_x_part	*	key:layers.*.link.x.velocity.enabled	bool	X Velocity Enabled	Enables velocity modulation from X position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_x_part	*	key:layers.*.link.x.filterCutoff.enabled	bool	X Cutoff Enabled	Enables cutoff CC modulation from X position.	Outputs CC74 when this lane is active.
 axis_res_enabled_x_part	*	key:layers.*.link.x.filterResonance.enabled	bool	X Resonance Enabled	Enables resonance CC modulation from X position.	Outputs CC71 when this lane is active.
 axis_pitch_enabled_y_part	*	key:layers.*.link.y.pitch.enabled	bool	Y Pitch Enabled	Enables pitch stepping derived from Y position.	Disable to remove vertical pitch influence for this layer.
 axis_pitch_steps_y_part	*	key:layers.*.link.y.pitch.steps	number	Y Pitch Steps	Sets semitone-step influence per Y grid step.	Larger values create wider vertical intervals.
-axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Section	When On, Y pitch stepping restarts from the lane origin in each scan section.	Turn it Off to keep pitch indexing continuous across section boundaries.
+axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Section	When On with column scan sections, Y pitch counts from the bottom of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_y_part	*	key:layers.*.link.y.velocity.enabled	bool	Y Velocity Enabled	Enables velocity modulation from Y position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_y_part	*	key:layers.*.link.y.filterCutoff.enabled	bool	Y Cutoff Enabled	Enables cutoff CC modulation from Y position.	Outputs CC74 when this lane is active.
 axis_res_enabled_y_part	*	key:layers.*.link.y.filterResonance.enabled	bool	Y Resonance Enabled	Enables resonance CC modulation from Y position.	Outputs CC71 when this lane is active.

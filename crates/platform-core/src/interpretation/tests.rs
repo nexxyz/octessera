@@ -68,6 +68,7 @@ fn interprets_scan_row_with_degree() {
         &profile(TickStrategy::ScanRowActive {
             sections: None,
             reverse: false,
+            restart_pitch: false,
         }),
     );
     assert_eq!(
@@ -136,6 +137,7 @@ fn reverse_scan_row_starts_from_last_row() {
         &profile(TickStrategy::ScanRowActive {
             sections: None,
             reverse: true,
+            restart_pitch: false,
         }),
     );
     assert!(intents
@@ -157,6 +159,7 @@ fn sectioned_scan_row_limits_output_to_current_section() {
         &profile(TickStrategy::ScanRowActive {
             sections: Some(2),
             reverse: false,
+            restart_pitch: false,
         }),
     );
     let scanned = intents
@@ -183,6 +186,7 @@ fn sectioned_scan_column_limits_output_to_current_section_and_reverse() {
         &profile(TickStrategy::ScanColumnActive {
             sections: Some(2),
             reverse: true,
+            restart_pitch: false,
         }),
     );
     let scanned = intents
@@ -213,6 +217,7 @@ fn zero_sized_scan_snapshot_is_safe() {
         &profile(TickStrategy::ScanRowActive {
             sections: None,
             reverse: false,
+            restart_pitch: false,
         }),
     )
     .is_empty());
@@ -229,6 +234,7 @@ fn scan_column_emits_scanned_and_scanned_empty_for_all_rows() {
         &profile(TickStrategy::ScanColumnActive {
             sections: None,
             reverse: false,
+            restart_pitch: false,
         }),
     );
     let state_intents = intents
@@ -260,6 +266,7 @@ fn scan_row_emits_scanned_empty_for_dead_cells() {
         &profile(TickStrategy::ScanRowActive {
             sections: None,
             reverse: false,
+            restart_pitch: false,
         }),
     );
     let state_intents = intents
@@ -409,4 +416,34 @@ fn fresh_tick_markers_preserve_nonzero_activation_intents() {
 
     assert_eq!(intents.len(), 1);
     assert_eq!(intents[0].kind, CellTriggerKind::Activate);
+}
+
+#[test]
+fn restart_pitch_counts_from_each_section_lane_on_the_split_axis() {
+    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
+    let next = snapshot(&[1, 1, 1, 1, 1, 1, 1, 1]);
+    let degrees = |tick: TickStrategy, step: usize| {
+        let mut intents = interpret_grid(&previous, &next, step, &profile(tick))
+            .into_iter()
+            .filter(|intent| intent.kind == CellTriggerKind::Scanned)
+            .map(|intent| (intent.x, intent.y, intent.degree))
+            .collect::<Vec<_>>();
+        intents.sort();
+        intents
+    };
+    let columns = |restart_pitch| TickStrategy::ScanColumnActive {
+        sections: Some(2),
+        reverse: false,
+        restart_pitch,
+    };
+    assert_eq!(degrees(columns(false), 5), vec![(1, 1, 3)]);
+    assert_eq!(degrees(columns(true), 5), vec![(1, 1, 1)]);
+
+    let rows = |restart_pitch| TickStrategy::ScanRowActive {
+        sections: Some(2),
+        reverse: false,
+        restart_pitch,
+    };
+    assert_eq!(degrees(rows(false), 2), vec![(2, 0, 2), (3, 0, 3)]);
+    assert_eq!(degrees(rows(true), 2), vec![(2, 0, 0), (3, 0, 1)]);
 }

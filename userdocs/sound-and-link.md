@@ -75,7 +75,10 @@ one chord, so even chaos sounds like it meant it.
 has its own **Enabled** switch.
 
 - **Pitch Steps** moves the pitch by **Steps** (-16 to 16) per cell along that
-  axis. **Restart Section** starts counting again in each scan section.
+  axis. **Restart Section** turns scan sections into little grids of their own:
+  each lane counts from its own edge, so they all play in the same register.
+  It works on the axis the lanes split (Y for column sections, X for row
+  sections).
 - **Velocity**, **Filter Cutoff** and **Filter Res** map position onto a
   **From** to **To** range, with a **Curve** and a small **Grid Offs** nudge.
 - **Slot 1** and **Slot 2** can drive any mappable parameter (an FX mix, a

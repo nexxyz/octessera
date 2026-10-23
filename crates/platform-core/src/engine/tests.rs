@@ -168,6 +168,7 @@ fn scan_interpretation_advances_with_engine_ticks() {
                 tick: TickStrategy::ScanRowActive {
                     sections: None,
                     reverse: false,
+                    restart_pitch: false,
                 },
             },
             x: AxisStrategy::ScaleStep { step: 1 },

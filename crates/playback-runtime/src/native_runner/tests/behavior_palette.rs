@@ -122,3 +122,63 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
     assert_ne!(tick_leds[display_index(2, 3)], led_rgb([80, 48, 24]));
     assert_ne!(tick_leds[display_index(3, 3)], led_rgb([80, 48, 24]));
 }
+
+#[test]
+pub(crate) fn ghost_cells_lift_other_layers_cells_under_the_active_layer() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    select_behavior(&mut runner, "life");
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
+    let send = |runner: &mut NativeRunner, input: Value| {
+        runner
+            .send(HostMessage::DeviceInput {
+                input,
+                request_snapshot: None,
+            })
+            .unwrap();
+    };
+    send(&mut runner, json!({ "type": "other" }));
+    send(&mut runner, json!({ "type": "grid_press", "x": 2, "y": 5 }));
+    send(
+        &mut runner,
+        json!({ "type": "grid_release", "x": 2, "y": 5 }),
+    );
+    send(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    send(&mut runner, json!({ "type": "grid_press", "x": 0, "y": 1 }));
+    send(
+        &mut runner,
+        json!({ "type": "grid_release", "x": 0, "y": 1 }),
+    );
+    send(
+        &mut runner,
+        json!({ "type": "button_fn", "pressed": false }),
+    );
+    assert_eq!(runner.active_layer_index, 1);
+    select_behavior(&mut runner, "life");
+    send(&mut runner, json!({ "type": "grid_press", "x": 6, "y": 6 }));
+    send(
+        &mut runner,
+        json!({ "type": "grid_release", "x": 6, "y": 6 }),
+    );
+
+    let background = led_rgb(platform_core::palette::BEHAVIOR_DIM_GREEN);
+    let leds = led_cells(&runner.snapshot().unwrap());
+    assert_eq!(
+        leds[display_index(2, 5)],
+        background,
+        "ghost cells start off"
+    );
+
+    runner.display.ui.ghost_cells = true;
+    let leds = led_cells(&runner.snapshot().unwrap());
+    assert_eq!(
+        leds[display_index(2, 5)],
+        json!({ "r": 16, "g": 83, "b": 10 })
+    );
+    assert_eq!(leds[display_index(4, 4)], background);
+    assert_eq!(
+        leds[display_index(6, 6)],
+        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW),
+        "the active layer's own cells draw over ghosts"
+    );
+}

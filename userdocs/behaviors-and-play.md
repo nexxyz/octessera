@@ -8,6 +8,10 @@ Run several at once. One layer might be a steady pulse, another a strange
 little colony, another your own fingers. Things get interesting when they
 disagree politely.
 
+The grid only shows the layer you're on. To keep an eye on the others, switch on
+**System > Display > Ghost Cells**: their lit cells then glow faintly green
+underneath, and anything the current layer draws sits on top.
+
 How a behavior's cells turn into notes is covered in
 [Sound and Link](sound-and-link.md).
 

@@ -20,7 +20,9 @@ pub(crate) fn select_state_candidates(
             }
             out
         }
-        TickStrategy::ScanColumnActive { sections, reverse } => {
+        TickStrategy::ScanColumnActive {
+            sections, reverse, ..
+        } => {
             let sections = section_count(*sections, next.height);
             if sections > 1 {
                 return scan_column_sections(next, tick, sections, *reverse);
@@ -42,7 +44,9 @@ pub(crate) fn select_state_candidates(
             out
         }
         TickStrategy::WholeGridTransitions => Vec::new(),
-        TickStrategy::ScanRowActive { sections, reverse } => {
+        TickStrategy::ScanRowActive {
+            sections, reverse, ..
+        } => {
             let sections = section_count(*sections, next.width);
             if sections > 1 {
                 return scan_row_sections(next, tick, sections, *reverse);
@@ -142,12 +146,32 @@ fn section_count(value: Option<usize>, size: usize) -> usize {
 }
 
 pub(crate) fn compute_degree(
+    grid_width: usize,
     grid_height: usize,
     x: usize,
     y: usize,
     profile: &InterpretationProfile,
 ) -> i32 {
     let row_from_bottom = y.min(grid_height.saturating_sub(1));
+    let (x, row_from_bottom) = match profile.state.tick {
+        TickStrategy::ScanColumnActive {
+            sections,
+            restart_pitch: true,
+            ..
+        } => {
+            let lane_height = (grid_height / section_count(sections, grid_height)).max(1);
+            (x, row_from_bottom % lane_height)
+        }
+        TickStrategy::ScanRowActive {
+            sections,
+            restart_pitch: true,
+            ..
+        } => {
+            let lane_width = (grid_width / section_count(sections, grid_width)).max(1);
+            (x % lane_width, row_from_bottom)
+        }
+        _ => (x, row_from_bottom),
+    };
     axis_value(&profile.x, x) + axis_value(&profile.y, row_from_bottom)
 }
 

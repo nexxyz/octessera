@@ -28,7 +28,43 @@ impl NativeRunner {
         );
         [LedColor::MAGENTA, space, shift, function].map(|led| [led.r, led.g, led.b])
     }
+
+    pub(super) fn apply_ghost_cells(
+        &self,
+        leds: &mut [LedColor],
+        active: &platform_core::BehaviorRenderModel,
+    ) {
+        if !self.display.ui.ghost_cells {
+            return;
+        }
+        let mut ghosts = [false; GRID_WIDTH * GRID_HEIGHT];
+        for (index, engine) in self.layer_engines.iter().enumerate() {
+            if index == self.active_layer_index
+                || self
+                    .layer_behavior_ids
+                    .get(index)
+                    .is_none_or(|id| id == "none")
+            {
+                continue;
+            }
+            let Some(model) = engine.as_ref().and_then(|engine| engine.model().ok()) else {
+                continue;
+            };
+            for (ghost, alive) in ghosts.iter_mut().zip(&model.cells) {
+                *ghost |= *alive;
+            }
+        }
+        for (logical_index, ghost) in ghosts.into_iter().enumerate() {
+            if ghost && !active.cells.get(logical_index).copied().unwrap_or(false) {
+                let led = &mut leds
+                    [display_index(logical_index % GRID_WIDTH, logical_index / GRID_WIDTH)];
+                *led = led.lift(GHOST_CELL);
+            }
+        }
+    }
 }
+
+const GHOST_CELL: LedColor = LedColor::rgb(16, 35, 10);
 
 pub(super) fn base_led_snapshot(model: &platform_core::BehaviorRenderModel) -> Vec<LedColor> {
     let mut leds = vec![LedColor::BLACK; GRID_WIDTH * GRID_HEIGHT];

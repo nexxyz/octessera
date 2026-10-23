@@ -241,3 +241,24 @@ pub(crate) fn button_s_toggles_transport() {
             if effects.contains(&RuntimePlatformEffect::MidiPanic)
     )));
 }
+
+#[test]
+pub(crate) fn restart_section_reaches_the_active_scan_profile_on_the_lane_split_axis() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_axis = "columns".into();
+    runner.link_layers[0].scan_sections = 2;
+    runner.menu.rebuild(runner.menu_config());
+    let key = "layers.0.link.y.pitch.restartEachSection";
+    assert!(runner.menu.set_bool_value_for_key(key, true), "{key}");
+    runner.apply_or_schedule_menu_key(key).unwrap();
+
+    assert_eq!(
+        runner.interpretation_profile.state.tick,
+        platform_core::TickStrategy::ScanColumnActive {
+            sections: Some(2),
+            reverse: false,
+            restart_pitch: true,
+        }
+    );
+}

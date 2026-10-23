@@ -28,10 +28,14 @@ impl LedColor {
     }
 
     pub fn add_dim_white(self, amount: u8) -> Self {
+        self.lift(Self::rgb(amount, amount, amount))
+    }
+
+    pub fn lift(self, other: Self) -> Self {
         Self::rgb(
-            self.r.saturating_add(amount),
-            self.g.saturating_add(amount),
-            self.b.saturating_add(amount),
+            self.r.saturating_add(other.r),
+            self.g.saturating_add(other.g),
+            self.b.saturating_add(other.b),
         )
     }
 

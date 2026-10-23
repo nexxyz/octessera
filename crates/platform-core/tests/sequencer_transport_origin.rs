@@ -17,6 +17,7 @@ fn scanning_engine() -> NativeLayerEngine {
                 tick: TickStrategy::ScanRowActive {
                     sections: None,
                     reverse: false,
+                    restart_pitch: false,
                 },
             },
             x: AxisStrategy::TimingOnly,

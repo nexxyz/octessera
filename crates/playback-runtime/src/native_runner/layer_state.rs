@@ -80,9 +80,17 @@ impl NativeRunner {
         profile.state.tick = if sense.scan_mode == "scanning" {
             let reverse = sense.scan_direction == "reverse";
             if sense.scan_axis == "columns" {
-                TickStrategy::ScanColumnActive { sections, reverse }
+                TickStrategy::ScanColumnActive {
+                    sections,
+                    reverse,
+                    restart_pitch: sense.y_pitch_restart_each_section,
+                }
             } else {
-                TickStrategy::ScanRowActive { sections, reverse }
+                TickStrategy::ScanRowActive {
+                    sections,
+                    reverse,
+                    restart_pitch: sense.x_pitch_restart_each_section,
+                }
             }
         } else {
             TickStrategy::WholeGridTransitions
