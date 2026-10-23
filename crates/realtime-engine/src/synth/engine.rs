@@ -98,7 +98,10 @@ mod routing_tree_worker;
 mod sample_buffer_view_tests;
 #[cfg(test)]
 mod sample_filter_block_tests;
+#[cfg(test)]
+mod sample_shape_tests;
 mod sample_voice_pool;
+mod sample_voice_shape;
 #[cfg(test)]
 mod source_lane_prefix_tests;
 mod source_lane_renderer;

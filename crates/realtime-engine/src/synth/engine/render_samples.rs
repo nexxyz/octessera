@@ -26,7 +26,9 @@ impl SynthEngine {
                 return;
             };
             if voice.active && matches(voice) {
-                voice.begin_release(self.sample_rate);
+                voice
+                    .shape
+                    .begin_release(&self.sample_banks[slot].shape, self.sample_rate);
             }
         }
         self.sample_voice_pool.compact_slot_lanes(slot);
@@ -55,6 +57,7 @@ impl SynthEngine {
             tune_semis,
             filter_cutoff_hz,
             filter_resonance,
+            shape,
             sample_count,
             sample_channels,
             sample_rate,
@@ -69,6 +72,7 @@ impl SynthEngine {
                         bank.tune_semis,
                         bank.filter_cutoff_hz,
                         bank.filter_resonance,
+                        bank.shape,
                         buffer.samples.len(),
                         buffer.channels,
                         buffer.sample_rate,
@@ -84,7 +88,8 @@ impl SynthEngine {
         let vel = (velocity.max(1) as f32 / 127.0).clamp(0.0, 1.0);
         let vel_sens = (velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
         let gain = (gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
-        let pitch = 2.0_f32.powf((tune_semis + f32::from(pitch_cents) / 100.0) / 12.0);
+        let pitch_semis = tune_semis + f32::from(pitch_cents) / 100.0;
+        let pitch = 2.0_f32.powf(pitch_semis / 12.0);
         let step = pitch * sample_rate as f32 / self.sample_rate as f32;
         self.sample_voice_pool.compact_slot_lanes(slot);
         let active = self
@@ -180,8 +185,11 @@ impl SynthEngine {
             step,
             gain,
             filt: BiquadState::new(),
-            release_left: 0,
-            release_len: 0,
+            shape: super::sample_voice_shape::SampleVoiceShape::start(
+                &shape,
+                pitch_semis,
+                self.sample_rate,
+            ),
             last_output: 0.0,
             declick,
         };

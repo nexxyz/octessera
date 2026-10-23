@@ -43,6 +43,25 @@ impl EnvState {
         }
     }
 
+    pub(in crate::synth) fn off() -> Self {
+        Self {
+            stage: EnvStage::Off,
+            level: 0.0,
+            stage_pos: 0,
+            stage_len: 0,
+            sustain: 0.0,
+            release_start: 0.0,
+            decay_len: 0,
+        }
+    }
+
+    /// True while the envelope sits at full level and will stay there until released.
+    pub(in crate::synth) fn holds_full_level(&self) -> bool {
+        self.sustain >= 1.0
+            && (self.stage == EnvStage::Sustain
+                || (self.stage == EnvStage::Decay && self.stage_len == 0))
+    }
+
     pub(in crate::synth) fn begin_release(&mut self, cfg: EnvConfig, sample_rate: u32) {
         if self.stage == EnvStage::Release || self.stage == EnvStage::Off {
             return;

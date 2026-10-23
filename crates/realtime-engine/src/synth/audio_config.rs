@@ -1,8 +1,9 @@
 use super::param_path_validation::validate_fx_type;
 use super::types::{
-    default_synth_config, DrumConfig, FmConfig, FxBusConfig, FxBusSlotConfig,
-    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig,
-    PluckConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    default_synth_config, DrumConfig, EnvConfig, FilterType, FmConfig, FxBusConfig,
+    FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
+    MasterFxConfig, MixerConfig, PluckConfig, SampleBankConfig, SampleShapeConfig,
+    SampleSlotConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
     SAMPLE_SLOTS_PER_INSTRUMENT,
 };
 use serde::Deserialize;
@@ -33,6 +34,22 @@ pub struct NormalizedSampleConfig {
     pub velocity_sensitivity_pct: f32,
     pub filter_cutoff_hz: f32,
     pub filter_resonance: f32,
+    pub shape: SampleShapeConfig,
+}
+
+impl NormalizedSampleConfig {
+    /// The bank a host builds once it has loaded (or failed to load) each slot's buffer.
+    pub fn bank(&self, slots: Vec<SampleSlotConfig>) -> SampleBankConfig {
+        SampleBankConfig {
+            slots,
+            tune_semis: self.tune_semis,
+            gain_pct: self.gain_pct,
+            velocity_sensitivity_pct: self.velocity_sensitivity_pct,
+            filter_cutoff_hz: self.filter_cutoff_hz,
+            filter_resonance: self.filter_resonance,
+            shape: self.shape,
+        }
+    }
 }
 
 impl NormalizedAudioConfig {
@@ -64,12 +81,13 @@ impl NormalizedAudioConfig {
                     .collect::<Vec<_>>()
                     .join("|");
                 format!(
-                    "{paths}|t={}|g={}|v={}|fc={}|fr={}",
+                    "{paths}|t={}|g={}|v={}|fc={}|fr={}|s={:?}",
                     sample.tune_semis,
                     sample.gain_pct,
                     sample.velocity_sensitivity_pct,
                     sample.filter_cutoff_hz,
-                    sample.filter_resonance
+                    sample.filter_resonance,
+                    sample.shape
                 )
             })
             .collect::<Vec<_>>()
@@ -126,6 +144,10 @@ struct AudioSamplePayload {
     amp: Option<AudioSampleAmpPayload>,
     #[serde(default)]
     filter: Option<AudioSampleFilterPayload>,
+    #[serde(default, rename = "ampEnv")]
+    amp_env: Option<EnvConfig>,
+    #[serde(default, rename = "filterEnv")]
+    filter_env: Option<EnvConfig>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -144,10 +166,16 @@ struct AudioSampleAmpPayload {
 
 #[derive(Clone, Deserialize)]
 struct AudioSampleFilterPayload {
+    #[serde(default, rename = "type")]
+    kind: Option<FilterType>,
     #[serde(default, rename = "cutoffHz")]
     cutoff_hz: Option<f32>,
     #[serde(default)]
     resonance: Option<f32>,
+    #[serde(default, rename = "envAmountPct")]
+    env_amount_pct: Option<f32>,
+    #[serde(default, rename = "keyTrackingPct")]
+    key_tracking_pct: Option<f32>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -346,6 +374,7 @@ fn validate_fm_config(fm: &FmConfig) -> Result<(), String> {
 }
 
 fn normalize_sample(sample: AudioSamplePayload) -> NormalizedSampleConfig {
+    let shape = normalize_sample_shape(&sample);
     NormalizedSampleConfig {
         slots: sample
             .slots
@@ -374,6 +403,27 @@ fn normalize_sample(sample: AudioSamplePayload) -> NormalizedSampleConfig {
             .as_ref()
             .and_then(|filter| filter.resonance)
             .unwrap_or(20.0),
+        shape,
+    }
+}
+
+fn normalize_sample_shape(sample: &AudioSamplePayload) -> SampleShapeConfig {
+    let neutral = SampleShapeConfig::default();
+    let filter = sample.filter.as_ref();
+    SampleShapeConfig {
+        filter_type: filter
+            .and_then(|filter| filter.kind)
+            .unwrap_or(neutral.filter_type),
+        filter_env_amount_pct: filter
+            .and_then(|filter| filter.env_amount_pct)
+            .map_or(neutral.filter_env_amount_pct, |pct| {
+                pct.clamp(-100.0, 100.0)
+            }),
+        filter_key_tracking_pct: filter
+            .and_then(|filter| filter.key_tracking_pct)
+            .map_or(neutral.filter_key_tracking_pct, |pct| pct.clamp(0.0, 100.0)),
+        amp_env: sample.amp_env.unwrap_or(neutral.amp_env),
+        filter_env: sample.filter_env.unwrap_or(neutral.filter_env),
     }
 }
 

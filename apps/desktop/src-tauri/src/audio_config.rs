@@ -110,14 +110,7 @@ fn sample_bank_for_slot(
         }
         slots[index].buffer = buffer;
     }
-    SampleBankConfig {
-        slots,
-        tune_semis: sample.tune_semis,
-        gain_pct: sample.gain_pct,
-        velocity_sensitivity_pct: sample.velocity_sensitivity_pct,
-        filter_cutoff_hz: sample.filter_cutoff_hz,
-        filter_resonance: sample.filter_resonance,
-    }
+    sample.bank(slots)
 }
 
 #[cfg(test)]

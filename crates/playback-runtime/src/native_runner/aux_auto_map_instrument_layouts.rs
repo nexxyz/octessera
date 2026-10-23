@@ -6,14 +6,7 @@ pub(super) fn instrument_filter_auto_map(
     field: &str,
     prefix: &str,
 ) -> Option<AuxAutoMap> {
-    if field.starts_with("sample.filter.") {
-        let base = format!("{prefix}.sample.filter");
-        return Some(aux_auto_map([
-            Some(runner.turn_slot(format!("{base}.cutoffHz"), "Cutoff")),
-            Some(runner.turn_slot(format!("{base}.resonance"), "Res")),
-        ]));
-    }
-    ["synth", "fm", "pluck", "drum"]
+    ["synth", "fm", "pluck", "drum", "sample"]
         .into_iter()
         .find(|kind| field.starts_with(&format!("{kind}.filter.")))
         .map(|kind| filter_auto_map(runner, &format!("{prefix}.{kind}.filter")))
@@ -48,8 +41,10 @@ pub(super) fn instrument_envelope_auto_map(
         Some(runner.env_auto_map(&format!("{prefix}.pluck.ampEnv")))
     } else if field.starts_with("pluck.filterEnv.") {
         Some(runner.env_auto_map(&format!("{prefix}.pluck.filterEnv")))
-    } else if field.starts_with("sample.ampEnv.") || field.starts_with("sample.filterEnv.") {
-        Some(AuxAutoMap::default())
+    } else if field.starts_with("sample.ampEnv.") {
+        Some(runner.env_auto_map(&format!("{prefix}.sample.ampEnv")))
+    } else if field.starts_with("sample.filterEnv.") {
+        Some(runner.env_auto_map(&format!("{prefix}.sample.filterEnv")))
     } else {
         None
     }

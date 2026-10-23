@@ -4,7 +4,9 @@ mod filter;
 use super::drum_state::DrumState;
 use super::pluck_string::PluckState;
 pub(super) use super::steal_declick::StealDeclick;
-pub(super) use envelope::{ms_to_samples, EnvStage, EnvState};
+#[cfg(test)]
+pub(super) use envelope::EnvStage;
+pub(super) use envelope::{ms_to_samples, EnvState};
 pub(super) use filter::BiquadState;
 #[cfg(test)]
 pub(super) use filter::{prepare_count_for_test, reset_prepare_count_for_test};
@@ -83,24 +85,8 @@ impl Voice {
             filter_key_scale: 1.0,
             filter_control_countdown: 0,
             index_env: EnvState::note_on(super::types::FmConfig::default().index_env, 44_100),
-            amp_env: EnvState {
-                stage: EnvStage::Off,
-                level: 0.0,
-                stage_pos: 0,
-                stage_len: 0,
-                sustain: 0.0,
-                release_start: 0.0,
-                decay_len: 0,
-            },
-            filt_env: EnvState {
-                stage: EnvStage::Off,
-                level: 0.0,
-                stage_pos: 0,
-                stage_len: 0,
-                sustain: 0.0,
-                release_start: 0.0,
-                decay_len: 0,
-            },
+            amp_env: EnvState::off(),
+            filt_env: EnvState::off(),
             filt: BiquadState::new(),
             last_output: 0.0,
             declick: StealDeclick::default(),

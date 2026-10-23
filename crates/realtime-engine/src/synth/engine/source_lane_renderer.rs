@@ -202,23 +202,29 @@ pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u3
     let frac = voice.pos - frame as f32;
     let next_frame = (frame + 1).min(frames - 1);
     let sample = mono_frame(buffer, frame) * (1.0 - frac) + mono_frame(buffer, next_frame) * frac;
-    let filtered = sample_lowpass(
-        sample,
-        &mut voice.filt,
-        voice.filter_cutoff_hz,
-        voice.filter_resonance,
-        sample_rate,
-    );
+    let q = sample_filter_q(voice.filter_resonance);
+    let amp = if voice.shape.is_static() {
+        let cutoff = voice
+            .shape
+            .static_cutoff(voice.filter_cutoff_hz, sample_rate);
+        voice
+            .filt
+            .prepare(voice.shape.filter_kind, cutoff, q, sample_rate);
+        1.0
+    } else if let Some(amp) =
+        voice
+            .shape
+            .next_frame(&mut voice.filt, voice.filter_cutoff_hz, q, sample_rate)
+    {
+        amp
+    } else {
+        voice.active = false;
+        voice.canonical_lane = None;
+        return None;
+    };
+    let filtered = voice.filt.process_prepared(sample).clamp(-8.0, 8.0);
     voice.pos += voice.step;
-    if voice.release_left > 0 {
-        let fade = voice.release_gain().unwrap_or(0.0);
-        if voice.release_left == 0 {
-            voice.active = false;
-            voice.canonical_lane = None;
-        }
-        return Some(filtered * voice.gain * fade);
-    }
-    Some(filtered * voice.gain)
+    Some(filtered * voice.gain * amp)
 }
 
 pub(super) fn render_sample_voice_block(
@@ -258,13 +264,16 @@ fn render_sample_source_block(
         voice.canonical_lane = None;
         return 0;
     }
+    if !voice.shape.is_static() {
+        return render_shaped_sample_voice_block(voice, frames, sample_rate, samples);
+    }
     let q = sample_filter_q(voice.filter_resonance);
+    let cutoff = voice
+        .shape
+        .static_cutoff(voice.filter_cutoff_hz, sample_rate);
     voice
         .filt
-        .prepare(FilterType::Lowpass, voice.filter_cutoff_hz, q, sample_rate);
-    if voice.release_left > 0 {
-        return render_releasing_sample_voice_block(voice, frames, sample_rate, samples);
-    }
+        .prepare(voice.shape.filter_kind, cutoff, q, sample_rate);
     let step = voice.step;
     let gain = voice.gain;
     let active = &mut voice.active;
@@ -291,9 +300,9 @@ fn render_sample_source_block(
     rendered_frames
 }
 
-/// The release-fade variant of the block loop, kept separate so playing voices stay on the plain
-/// loop; it ends the voice when the fade reaches zero.
-fn render_releasing_sample_voice_block(
+/// The enveloped variant of the block loop, kept separate so plain voices stay on the plain loop;
+/// it ends the voice when the amp envelope's release reaches zero.
+fn render_shaped_sample_voice_block(
     voice: &mut SampleVoice,
     frames: usize,
     sample_rate: u32,

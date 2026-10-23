@@ -574,10 +574,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 
   | Context | Aux 1-3 | Shift + Aux 1-3 |
   |---|---|---|
-  | Synth, FM, Plucked, Drum Filter | Cutoff, Res, Env | Key, Type |
-  | Sampler Filter | Cutoff, Res | |
+  | Synth, FM, Plucked, Drum, Sampler Filter | Cutoff, Res, Env | Key, Type |
   | Amp (every type) | Gain, Vel | |
-  | Envelopes (Synth, FM, Plucked) | Atk, Dec, Rel | Sus |
+  | Envelopes (Synth, FM, Plucked, Sampler) | Atk, Dec, Rel | Sus |
   | Synth oscillator | Wave, Level, Detune | PW, Octave |
   | FM tone rows | Index, Ratio, Cutoff | Res, Fine, Gain |
   | Plucked string rows | Decay, Bright, Pick | Body, Disp, Gain |
@@ -585,7 +584,6 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   | Other Sampler rows, Sample Assign | Slot (Assign press), Tune, Base | Levels, Gain |
   | Mixer | Vol, Pan, Route | |
 
-  Sampler Amp Env/Filter Env have no mappings because those saved controls are not rendered.
 - FX slot layouts:
 
   | FX | Aux 1-3 | Shift + Aux 1-3 |

@@ -111,10 +111,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [],
           "baseVelocity": 100,
@@ -233,10 +233,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [
             {
@@ -532,10 +532,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [],
           "baseVelocity": 100,
@@ -691,10 +691,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [],
           "baseVelocity": 100,
@@ -813,10 +813,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [],
           "baseVelocity": 100,
@@ -935,10 +935,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [],
           "baseVelocity": 100,
@@ -1057,10 +1057,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [],
           "baseVelocity": 100,
@@ -1179,10 +1179,10 @@
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 5,
+            "sustainPct": 100
           },
           "assignments": [],
           "baseVelocity": 100,

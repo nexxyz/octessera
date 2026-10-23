@@ -288,7 +288,7 @@ fn drum_voice_auto_map_follows_selected_voice_and_edits_only_its_tone() {
 }
 
 #[test]
-fn sampler_auto_map_excludes_unrendered_filter_and_envelope_controls() {
+fn sampler_auto_map_covers_filter_envelopes_and_amp_like_other_instruments() {
     let mut runner = instrument_runner("sampler");
     focus(&mut runner, "instruments.0.sample.filter.cutoffHz");
     assert_map(
@@ -296,15 +296,30 @@ fn sampler_auto_map_excludes_unrendered_filter_and_envelope_controls() {
         [
             Some(("instruments.0.sample.filter.cutoffHz", "Cutoff")),
             Some(("instruments.0.sample.filter.resonance", "Res")),
+            Some(("instruments.0.sample.filter.envAmountPct", "Env")),
+            Some(("instruments.0.sample.filter.keyTrackingPct", "Key")),
+            Some(("instruments.0.sample.filter.type", "Type")),
         ],
     );
-    assert_overlay(&mut runner, "Sample Filter", ["Cutoff", "Res", "-"]);
-    for key in [
-        "instruments.0.sample.ampEnv.attackMs",
-        "instruments.0.sample.filterEnv.attackMs",
-    ] {
-        focus(&mut runner, key);
-        assert_map(&runner, [None]);
+    assert_overlay(&mut runner, "Sample Filter", ["Cutoff", "Res", "Env"]);
+    for env in ["ampEnv", "filterEnv"] {
+        focus(&mut runner, &format!("instruments.0.sample.{env}.attackMs"));
+        let key = |field: &str| format!("instruments.0.sample.{env}.{field}");
+        let (attack, decay, release, sustain) = (
+            key("attackMs"),
+            key("decayMs"),
+            key("releaseMs"),
+            key("sustainPct"),
+        );
+        assert_map(
+            &runner,
+            [
+                Some((attack.as_str(), "Atk")),
+                Some((decay.as_str(), "Dec")),
+                Some((release.as_str(), "Rel")),
+                Some((sustain.as_str(), "Sus")),
+            ],
+        );
     }
     focus(&mut runner, "instruments.0.sample.amp.gainPct");
     assert_map(

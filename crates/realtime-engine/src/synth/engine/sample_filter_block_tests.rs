@@ -167,8 +167,11 @@ fn sample_voice(
         step,
         gain: 0.75,
         filt: BiquadState::new(),
-        release_left: 0,
-        release_len: 0,
+        shape: super::sample_voice_shape::SampleVoiceShape::start(
+            &crate::synth::SampleShapeConfig::default(),
+            0.0,
+            48_000,
+        ),
         last_output: 0.0,
         declick: Default::default(),
     }

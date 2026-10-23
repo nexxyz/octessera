@@ -67,8 +67,8 @@ Shape
 │   │   │   ├── Vel Levels (group)               ← High / Medium / Low [1..127]; only while Vel Levels is on
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
 │   │   │   ├── Vel Sens: [0..100]
-│   │   │   ├── Amp Env (group)                  ← saved, not rendered
-│   │   │   └── Filter Env (group)               ← saved, not rendered
+│   │   │   ├── Amp Env (group)                  ← default A 0 / D 0 / S 100 / R 5 ms
+│   │   │   └── Filter Env (group)               ← moves Cutoff by Env Amount
 │   │   ├── MIDI (group)                         ← type midi
 │   │   │   ├── Enabled: [on | off]
 │   │   │   ├── Channel: [1..16]
@@ -189,8 +189,11 @@ Shape
 - SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths only. Cell assignments and
   levels, the selected Sample Slot, and the other sample settings stay.
 - Tune, Gain, Base Velocity, the Vel Levels velocities, Filter, and the envelopes are slot-wide.
-- Filter Type, Env Amount, Key Tracking, Amp Env, and Filter Env are saved and editable but not
-  currently rendered by the sampler.
+- Filter Type picks lowpass, highpass, bandpass or notch. Env Amount (-100..100) lets Filter Env
+  move Cutoff, and Key Tracking moves Cutoff with the played pitch (Tune plus the cell's tune),
+  100 % being an octave per octave. Amp Env shapes each hit; a note-off starts its release. The
+  default Amp Env (A 0, D 0, S 100 %, R 5 ms) plays a sample exactly as recorded, and with Env
+  Amount and Key Tracking at 0 the filter stays fixed.
 - A loaded sample that cannot be found or decoded shows `N/A-<filename>` (the saved path's
   basename) on the loaded-sample row and the matching browser row. The saved path stays the
   replacement action's source and is unchanged in patch/config payloads. Only that slot goes
