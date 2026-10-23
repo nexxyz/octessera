@@ -23,7 +23,7 @@ function New-OrangeLiveBenchmarkPayloadBundle {
     [Parameter(Mandatory)][ValidateSet("enabled", "disabled")][string]$WorkerTimingMode,
     [Parameter(Mandatory)][ValidateSet("inline", "routing_tree_persistent")][string]$ExecutorMode,
     [Parameter(Mandatory)][ValidateSet("runtime-candidate", "diagnostic-only")][string]$ExpectedArtifactKind,
-    [Parameter(Mandatory)][ValidateSet("hardware-orange-pi-zero-2w", "hardware-orange-pi-zero-2w benchmark-voice-pools-128", "hardware-orange-pi-zero-2w benchmark-voice-pools-256", "hardware-orange-pi-zero-2w routing-tree-benchmark", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-256")][string]$ExpectedCargoFeature,
+    [Parameter(Mandatory)][ValidateSet("hardware-orange-pi-zero-2w profiling", "hardware-orange-pi-zero-2w benchmark-voice-pools-128", "hardware-orange-pi-zero-2w benchmark-voice-pools-256", "hardware-orange-pi-zero-2w routing-tree-benchmark", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-128", "hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-256")][string]$ExpectedCargoFeature,
     [switch]$ContinueOnRecoveredMiss
   )
   if (@("enabled", "disabled") -cnotcontains $WorkerTimingMode) { throw "WorkerTimingMode must be exactly enabled or disabled." }
@@ -38,7 +38,7 @@ function New-OrangeLiveBenchmarkPayloadBundle {
   $isFrameSearch = $null -ne $Selection.PSObject.Properties["FrameSearchProfile"]
   if ($isFrameSearch -and ($ExpectedArtifactKind -cne "diagnostic-only" -or $ExpectedCargoFeature -cne $Selection.DiagnosticArtifactFeature)) { throw "Frame-search payload identity must use the exact diagnostic pool artifact for the selected executor." }
   if ($isCapacityDiagnostic -and -not $isFrameSearch -and ($ExpectedArtifactKind -cne "diagnostic-only" -or ($isRoutingExecutor -and $ExpectedCargoFeature -cnotmatch '^hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-(128|256)$') -or (-not $isRoutingExecutor -and $ExpectedCargoFeature -cnotmatch '^hardware-orange-pi-zero-2w benchmark-voice-pools-(128|256)$'))) { throw "Dynamic capacity payload identity must be diagnostic-only with an exact benchmark pool feature." }
-  if (-not $isCapacityDiagnostic -and (($isRoutingExecutor -and ($ExpectedArtifactKind -cne "diagnostic-only" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w routing-tree-benchmark")) -or (-not $isRoutingExecutor -and ($ExpectedArtifactKind -cne "runtime-candidate" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w")))) { throw "Fixed live payload identity does not match the selected executor." }
+  if (-not $isCapacityDiagnostic -and (($isRoutingExecutor -and ($ExpectedArtifactKind -cne "diagnostic-only" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w routing-tree-benchmark")) -or (-not $isRoutingExecutor -and ($ExpectedArtifactKind -cne "diagnostic-only" -or $ExpectedCargoFeature -cne "hardware-orange-pi-zero-2w profiling")))) { throw "Fixed live payload identity does not match the selected executor." }
 
   $readinessHelpers = Get-OrangeReadinessHelpers
   $body = @'

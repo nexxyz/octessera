@@ -26,7 +26,10 @@ impl PiHostAdapter {
         )
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(all(
+        not(feature = "hardware-orange-pi-zero-2w"),
+        any(test, feature = "profiling")
+    ))]
     pub(super) fn with_platform_service(
         audio: Option<AudioService>,
         samples_dir: PathBuf,

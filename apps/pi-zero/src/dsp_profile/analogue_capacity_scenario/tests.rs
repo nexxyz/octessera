@@ -231,7 +231,7 @@ fn apply_through_source(scenario: &LiveScenarioSpec) -> (SynthProfileSnapshot, V
     let first_momentary = scenario
         .events
         .iter()
-        .position(|event| matches!(event, EngineEvent::PreparedMomentaryFxStart(_)))
+        .position(|event| matches!(event, EngineEvent::PreparedMomentaryFxStart { .. }))
         .expect("capacity momentary events");
     for event in &scenario.events[..first_momentary] {
         sender.send(event.clone()).expect("capacity event queue");

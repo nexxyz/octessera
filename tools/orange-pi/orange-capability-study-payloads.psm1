@@ -398,7 +398,7 @@ if [ "__VERIFY_ARTIFACT__" = yes ]; then
   printf '%s\n' "$remote_sha" > "$root/runtime-candidate-sha256.txt"
   test "$remote_sha" = "$expected_sha"
   "$binary" --print-build-metadata > "$root/runtime-candidate-metadata.json"
-  grep -q '"artifact_kind":"runtime-candidate"' "$root/runtime-candidate-metadata.json"
+  grep -q '"artifact_kind":"diagnostic-only"' "$root/runtime-candidate-metadata.json"
   grep -q '"profile":"release"' "$root/runtime-candidate-metadata.json"
 fi
 __BODY__

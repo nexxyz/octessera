@@ -20,26 +20,12 @@ mod audio_output_open;
 mod audio_profile;
 mod audio_stream_lifecycle;
 mod cpal_audio_callback;
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-    )
-))]
+#[cfg(live_audio_benchmark)]
 pub(crate) use audio_stream_lifecycle::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
     AudioStreamShutdownReport,
 };
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-    )
-))]
+#[cfg(live_audio_benchmark)]
 pub(crate) use cpal_audio_callback::CallbackSource;
 mod cpal_audio_output;
 #[cfg(test)]
@@ -57,10 +43,12 @@ use audio_output_open::open_orange_audio_sink;
 use audio_output_open::recordings_dir;
 use audio_output_open::screen_recordings_dir;
 use audio_output_open::{AudioConstructionConfig, AudioSinkOpener};
+#[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
+pub(crate) use audio_profile::AudioProfileGeometry;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(super) use audio_profile::OrangeAudioProfile;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) use audio_profile::{AudioProfileGeometry, RaspberryAudioProfile};
+pub(crate) use audio_profile::RaspberryAudioProfile;
 use cpal_audio_output::probe_cpal_sink;
 use cpal_audio_output::BuiltAudioStream;
 use media_recording::RecordingTap;
@@ -195,7 +183,7 @@ impl AudioManager {
         )
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
     pub(crate) fn new_timing_probe<T: Into<AudioOutputSet>>(
         output_buffer_frames: Option<u32>,
         internal_block_frames: Option<usize>,

@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 pub const CANONICAL_BINARY_NAME: &str = "orange-oled-smoke";
 pub const SEESAW_BINARY_NAME: &str = "orange-seesaw-smoke";
 pub const RUNTIME_CANDIDATE_BINARY_NAME: &str = "octessera-pi";
+pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING: &str =
+    "hardware-orange-pi-zero-2w profiling";
 pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128: &str =
     "hardware-orange-pi-zero-2w benchmark-voice-pools-128";
 pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256: &str =
@@ -311,7 +313,8 @@ pub fn validate_runtime_candidate_metadata(
 fn validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature: &str) -> Result<(), String> {
     if matches!(
         cargo_feature,
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128
+        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING
+            | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128
             | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256
             | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING
             | RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128
@@ -320,7 +323,7 @@ fn validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature: &str) -> R
         Ok(())
     } else {
         Err(
-            "runtime benchmark diagnostic metadata requires an exact routing or 128/256 voice-pool cargo feature"
+            "runtime benchmark diagnostic metadata requires an exact profiling, routing or 128/256 voice-pool cargo feature"
                 .into(),
         )
     }

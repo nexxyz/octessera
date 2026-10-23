@@ -83,22 +83,20 @@ const ORANGE_METADATA_CARGO_FEATURE: &str =
 
 #[cfg(all(
     feature = "hardware-orange-pi-zero-2w",
-    any(
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-        feature = "benchmark-voice-pools-256"
-    )
-))]
-const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime benchmark diagnostic";
-
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
+    feature = "profiling",
+    not(feature = "routing-tree-benchmark"),
     not(any(
-        feature = "routing-tree-benchmark",
         feature = "benchmark-voice-pools-128",
         feature = "benchmark-voice-pools-256"
     ))
 ))]
+const ORANGE_METADATA_CARGO_FEATURE: &str =
+    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING;
+
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
+const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime benchmark diagnostic";
+
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", not(feature = "profiling")))]
 const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime-candidate";
 
 #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
@@ -275,14 +273,7 @@ pub fn print_build_metadata() {
     );
 }
 
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    any(
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-        feature = "benchmark-voice-pools-256"
-    )
-))]
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
 fn print_orange_build_metadata() {
     let result = octessera_hal::orange_metadata::print_runtime_benchmark_diagnostic_metadata(
         ORANGE_METADATA_CARGO_FEATURE,
@@ -293,14 +284,7 @@ fn print_orange_build_metadata() {
     }
 }
 
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    not(any(
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-        feature = "benchmark-voice-pools-256"
-    ))
-))]
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", not(feature = "profiling")))]
 fn print_orange_build_metadata() {
     if let Err(error) = octessera_hal::orange_metadata::print_runtime_candidate_metadata() {
         eprintln!("Orange {ORANGE_METADATA_CONTRACT_NAME} metadata check failed: {error}");

@@ -141,19 +141,23 @@ fn orange_metadata_selection_matches_the_compiled_contract() {
         super::ORANGE_METADATA_CARGO_FEATURE,
         octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256
     );
-    #[cfg(any(
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-        feature = "benchmark-voice-pools-256"
-    ))]
+    #[cfg(feature = "profiling")]
     assert_eq!(
         super::ORANGE_METADATA_CONTRACT_NAME,
         "runtime benchmark diagnostic"
     );
-    #[cfg(not(any(
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-        feature = "benchmark-voice-pools-256"
-    )))]
+    #[cfg(not(feature = "profiling"))]
     assert_eq!(super::ORANGE_METADATA_CONTRACT_NAME, "runtime-candidate");
+    #[cfg(all(
+        feature = "profiling",
+        not(feature = "routing-tree-benchmark"),
+        not(any(
+            feature = "benchmark-voice-pools-128",
+            feature = "benchmark-voice-pools-256"
+        ))
+    ))]
+    assert_eq!(
+        super::ORANGE_METADATA_CARGO_FEATURE,
+        octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING
+    );
 }

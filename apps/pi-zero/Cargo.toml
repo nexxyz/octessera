@@ -42,19 +42,24 @@ source-worker-benchmark-timing = [
     "realtime-engine/source-worker-benchmark-timing",
     "rodio-engine-source/source-worker-benchmark-timing",
 ]
+# Instrumented diagnostic builds only: DSP profiles, timing probes and live audio benchmarks.
+# Production images and fast deploys build without it.
+profiling = ["native-audio", "source-worker-benchmark-timing"]
 benchmark-voice-pools-128 = [
     "native-audio",
+    "profiling",
     "realtime-engine/benchmark-voice-pools-128",
     "rodio-engine-source/benchmark-voice-pools-128",
 ]
 benchmark-voice-pools-256 = [
     "native-audio",
+    "profiling",
     "realtime-engine/benchmark-voice-pools-256",
     "rodio-engine-source/benchmark-voice-pools-256",
 ]
 routing-tree-benchmark = [
     "native-audio",
-    "source-worker-benchmark-timing",
+    "profiling",
     "realtime-engine/routing-tree-executor",
     "rodio-engine-source/routing-tree-executor",
     "rodio-engine-source/output-provenance",
@@ -76,7 +81,6 @@ hardware-raspberry-pi-zero-2w = [
 hardware-orange-pi-zero-2w = [
     "octessera-hal/orange-pi-zero-2w",
     "external-midi",
-    "source-worker-benchmark-timing",
     "routing-tree-executor",
 ]
 

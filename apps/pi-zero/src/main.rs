@@ -37,7 +37,9 @@ mod boot_oled_handoff;
 mod boot_startup_delayed;
 mod candidate_readiness;
 mod device_update;
+#[cfg(feature = "profiling")]
 mod dsp_profile;
+#[cfg(feature = "profiling")]
 mod dsp_scenarios;
 mod encoder_queue;
 mod fat_diagnostic;
@@ -64,14 +66,7 @@ mod initial_audio_prep;
 #[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
 mod input;
 mod keyboard_capture;
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-    )
-))]
+#[cfg(live_audio_benchmark)]
 mod live_audio_benchmark;
 mod main_paths;
 #[cfg(feature = "external-midi")]
@@ -96,6 +91,7 @@ mod pi_host_core;
 mod pi_store_test_support;
 mod platform_service;
 mod power_lifecycle;
+mod profiling_modes;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod raspberry_power;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -123,7 +119,7 @@ mod show_hold;
 mod test_temp_dir;
 mod timing_input;
 mod timing_load;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
 mod timing_probe;
 mod ui_profile;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -225,20 +221,7 @@ fn main() {
         }
         utility_mode::UtilityMode::Normal => {}
     }
-    if dsp_profile::profile_requested() && live_audio_benchmark::requested() {
-        eprintln!("--profile-dsp and live audio benchmark cannot be combined");
-        std::process::exit(2);
-    }
-    if dsp_profile::profile_requested() {
-        std::process::exit(exit_code(dsp_profile::run_dsp_profile().is_ok()));
-    }
-    if live_audio_benchmark::requested() {
-        let result = live_audio_benchmark::run();
-        if let Err(error) = &result {
-            eprintln!("Live audio benchmark failed: {error}");
-        }
-        std::process::exit(exit_code(result.is_ok()));
-    }
+    profiling_modes::run_requested();
     #[cfg(feature = "native-audio")]
     pin_normal_startup_thread();
     #[cfg(target_os = "linux")]
@@ -429,12 +412,7 @@ fn main() {
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn run_requested_utility() {
-    if dsp_profile::profile_requested() {
-        std::process::exit(exit_code(dsp_profile::run_dsp_profile().is_ok()));
-    }
-    if timing_probe::requested() {
-        std::process::exit(exit_code(timing_probe::run()));
-    }
+    profiling_modes::run_requested();
     if oled_utility::requested() {
         std::process::exit(exit_code(oled_utility::run()));
     }
@@ -456,6 +434,7 @@ fn diagnostic_result_exit_code(result: Result<bool, String>) -> i32 {
     }
 }
 
+#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
 fn exit_code(success: bool) -> i32 {
     if success {
         0

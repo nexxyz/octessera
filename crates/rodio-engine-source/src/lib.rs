@@ -35,7 +35,10 @@ use persistent_output::{PreviousMasterQuantum, RefillResult};
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
 #[cfg(test)]
 use realtime_engine::synth::SourceWorkerRuntime;
-#[cfg(feature = "source-worker-benchmark-timing")]
+#[cfg(all(
+    feature = "source-worker-benchmark-timing",
+    any(test, feature = "routing-tree-executor")
+))]
 use realtime_engine::synth::SourceWorkerTimingProbe;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use realtime_engine::synth::SynthProfileSnapshot;
@@ -57,7 +60,10 @@ use source_worker::{EngineSourceMode, EngineSourceWorkerState};
 pub use source_worker::{EngineSourceWorkerShutdownError, EngineSourceWorkerShutdownOwner};
 use source_worker_reaper::SourceShutdownEnvelope;
 pub use source_worker_reaper::SOURCE_REAPER_THREAD_NAME;
-#[cfg(feature = "source-worker-benchmark-timing")]
+#[cfg(all(
+    feature = "source-worker-benchmark-timing",
+    any(test, feature = "routing-tree-executor")
+))]
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};

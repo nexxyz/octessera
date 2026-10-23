@@ -97,7 +97,10 @@ impl PiHostAdapter {
         self.core.take_transfer_status()
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(all(
+        not(feature = "hardware-orange-pi-zero-2w"),
+        any(test, feature = "profiling")
+    ))]
     pub fn new<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,

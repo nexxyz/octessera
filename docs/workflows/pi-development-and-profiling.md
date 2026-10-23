@@ -61,6 +61,17 @@ and DSP budget questions. PC/runtime-only probes do not measure hardware audio
 timing. `tools/pi/run-pi-timing-probes.ps1` is Raspberry-only; never point it
 at Orange.
 
+The timing probes, the offline DSP profile (`--profile-dsp`) and the live audio
+benchmarks live only in the instrumented `profiling` build; production images
+and fast deploys leave them out and refuse those flags. Build one with
+`./tools/pi/build-rpi-opi-cross.ps1 -Profiling` (writes
+`target/pi-cross-diagnostics/profiling/octessera-pi`) or, on the Orange,
+`./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release -Profiling`
+(`target/orange-pi-cross-diagnostics/profiling/`). Copy it to the board and pass
+its path with `-Binary` (or `-Artifact`/`-Metadata` for the Orange studies). The
+routing-tree and voice-pool benchmark builds include `profiling` already. The
+10-minute `board-timing-smoke.sh` still runs the production binary.
+
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
 

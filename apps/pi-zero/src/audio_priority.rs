@@ -488,10 +488,10 @@ pub(crate) use dsp_worker_scheduling::pi_worker_start_hook;
 pub(crate) use dsp_worker_scheduling::pin_background_worker_to_dsp_cpus;
 #[cfg(test)]
 pub(crate) use dsp_worker_scheduling::{ORANGE_WORKER_CPUS, ORANGE_WORKER_PRIORITY};
-#[cfg(feature = "source-worker-benchmark-timing")]
+#[cfg(all(feature = "source-worker-benchmark-timing", live_audio_benchmark))]
 pub(crate) use syscalls::cpu_sampler;
 
-#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+#[cfg(live_audio_benchmark)]
 pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
     syscalls::scheduling_policy_name(policy)
 }

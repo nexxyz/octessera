@@ -5,15 +5,9 @@ use crate::audio_route::readiness as route_readiness;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::audio_route::status as route_status;
 use crate::audio_route::AudioRouteRegistry;
+#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
 pub(crate) use crate::audio_stream_health::AudioStreamHealth;
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-    )
-))]
+#[cfg(live_audio_benchmark)]
 pub(crate) use crate::audio_stream_health::AudioStreamStatus;
 use media_recording::OledIngress;
 mod audio_defaults;
@@ -29,14 +23,7 @@ pub(crate) use audio_output::MixTaps;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use audio_output::OrangeAudioProfile;
 pub(crate) use audio_output::{AudioManager, AudioSink, MixTapState};
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-    )
-))]
+#[cfg(live_audio_benchmark)]
 pub(crate) use audio_output::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
     AudioStreamShutdownReport, CallbackSource,

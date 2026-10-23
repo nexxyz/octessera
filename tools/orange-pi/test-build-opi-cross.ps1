@@ -156,6 +156,25 @@ foreach ($expected in @(
   }
 }
 
+$profiling = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; Profiling = $true }
+foreach ($expected in @(
+    "target/orange-pi-cross-diagnostics/profiling/octessera-pi",
+    "--features.*hardware-orange-pi-zero-2w profiling",
+    "--no-default-features"
+  )) {
+  if ($profiling -notmatch $expected) {
+    throw "Orange profiling dry run is missing: $expected"
+  }
+}
+if ($profiling -match "target/orange-pi-cross/octessera-pi") {
+  throw "Orange profiling build selected the production candidate output path."
+}
+foreach ($binary in @("orange-oled-smoke", "orange-seesaw-smoke")) {
+  $rejected = $false
+  try { Invoke-DryRun @{ Binary = $binary; Profiling = $true } | Out-Null } catch { $rejected = $true }
+  if (-not $rejected) { throw "Orange cross-builder accepted a profiling build for a HAL smoke binary." }
+}
+
 foreach ($capacity in @(128, 256)) {
   $routingDiagnostic = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; BenchmarkVoicePoolCapacity = $capacity; RoutingTreeBenchmark = $true }
   foreach ($expected in @(

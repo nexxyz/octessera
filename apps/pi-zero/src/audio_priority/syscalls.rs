@@ -261,7 +261,7 @@ pub(super) fn format_affinity_failure(label: &str, failure: SchedulingFailure) -
     )
 }
 
-#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+#[cfg(live_audio_benchmark)]
 pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
     #[cfg(target_os = "linux")]
     {
@@ -286,7 +286,7 @@ pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
     }
 }
 
-#[cfg(feature = "source-worker-benchmark-timing")]
+#[cfg(all(feature = "source-worker-benchmark-timing", live_audio_benchmark))]
 pub(crate) fn cpu_sampler() -> u32 {
     #[cfg(target_os = "linux")]
     {

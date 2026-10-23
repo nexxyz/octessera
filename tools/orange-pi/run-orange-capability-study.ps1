@@ -144,8 +144,8 @@ function Assert-StudyArtifact {
   $buildSpec = if (-not $isCapacityDiagnostic -and -not $isRoutingExecutor) {
     [pscustomobject]@{
       Package = "octessera-pi"
-      Feature = "hardware-orange-pi-zero-2w"
-      ArtifactKind = "runtime-candidate"
+      Feature = "hardware-orange-pi-zero-2w profiling"
+      ArtifactKind = "diagnostic-only"
     }
   } else {
     $metadataRecord = Read-OrangeBuildMetadata $MetadataPath
@@ -286,7 +286,7 @@ if ($artifactRequired -and $artifactExists) {
   throw "A release Orange octessera-pi artifact is required for ${Mode}: $Artifact"
 }
 $isRoutingExecutor = $null -ne $liveSelection -and $liveSelection.ExecutorMode -ceq "routing_tree_persistent"
-$expectedArtifactKind = if ($isCapacityDiagnostic -or $isRoutingExecutor) { "diagnostic-only" } else { "runtime-candidate" }
+$expectedArtifactKind = "diagnostic-only"
 $expectedCargoFeature = if ($isCapacityDiagnostic -and $null -ne $artifactIdentity) {
   $artifactIdentity.CargoFeature
 } elseif ($isCapacityDiagnostic) {
@@ -295,7 +295,7 @@ $expectedCargoFeature = if ($isCapacityDiagnostic -and $null -ne $artifactIdenti
 } elseif ($isRoutingExecutor) {
   "hardware-orange-pi-zero-2w routing-tree-benchmark"
 } else {
-  "hardware-orange-pi-zero-2w"
+  "hardware-orange-pi-zero-2w profiling"
 }
 
 $remoteRoot = "/tmp/octessera-orange-study-$artifactHash-$runId"

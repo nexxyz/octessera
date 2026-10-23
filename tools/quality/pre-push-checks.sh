@@ -82,7 +82,8 @@ run_pre_push_checks() {
   run_check "repository integrity fixtures" bash ./tools/quality/test-repository-integrity.sh
   run_check "repository integrity gate" bash ./tools/quality/repository-integrity.sh
   run_check "cargo test" \
-    cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source
+    cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source \
+    --features octessera-pi/profiling
   run_check "cargo test pi routing-tree executor" \
     cargo test -p realtime-engine -p rodio-engine-source --features rodio-engine-source/routing-tree-executor
   run_check "enum help coverage" \
@@ -98,5 +99,5 @@ run_pre_push_checks() {
     cargo clippy --workspace --lib --bins -- -W clippy::cognitive_complexity -D warnings
   run_check "cargo clippy" \
     cargo clippy --workspace --exclude octessera-desktop --exclude rodio-engine-source \
-    --all-targets -- -D warnings
+    --features octessera-pi/profiling --all-targets -- -D warnings
 }

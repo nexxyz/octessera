@@ -1,6 +1,6 @@
 use playback_runtime::AudioOptimization;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct AudioProfileGeometry {
     pub(crate) output_buffer_frames: u32,
@@ -38,6 +38,7 @@ impl RaspberryAudioProfile {
         }
     }
 
+    #[cfg(any(test, feature = "profiling"))]
     pub(crate) fn from_timing_probe(
         output_buffer_frames: Option<u32>,
         internal_block_frames: Option<usize>,
@@ -52,6 +53,7 @@ impl RaspberryAudioProfile {
         profile
     }
 
+    #[cfg(feature = "profiling")]
     pub(crate) fn geometry(self) -> AudioProfileGeometry {
         AudioProfileGeometry {
             output_buffer_frames: self.output_buffer_frames,

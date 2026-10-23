@@ -147,7 +147,8 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
   mass-storage setup/teardown, local unmount/remount, and recovery; the
   external host owns its eject.
 - Offline DSP profiling (`--profile-dsp`) is a native `apps/pi-zero`
-  diagnostic branch that runs before hardware startup. It exercises the
+  diagnostic branch that runs before hardware startup, compiled only into the
+  `profiling` build (production builds refuse the flag). It exercises the
   existing realtime-engine scenarios and reports snapshots; it implements no
   playback, control, device, or TypeScript fallback.
 - Failure policy is three attempts in a 30-second start-limit window: the

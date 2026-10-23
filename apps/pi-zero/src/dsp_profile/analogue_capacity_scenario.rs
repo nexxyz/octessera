@@ -35,15 +35,18 @@ pub(crate) fn build(
     let synth_slots = synth_slots(units);
     let sample_slots = sample_slots(units);
     let instruments = instruments(units);
-    let mut events = vec![EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-        instruments,
-        Some(crate::dsp_profile::samples::long_sample_banks(
+    let mut events = vec![EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_audio_config(
+            instruments,
+            Some(crate::dsp_profile::samples::long_sample_banks(
+                sample_rate,
+                sample_lifetime_seconds,
+            )),
+            Some(VoiceStealingMode::None),
             sample_rate,
-            sample_lifetime_seconds,
-        )),
-        Some(VoiceStealingMode::None),
-        sample_rate,
-    ))];
+        ),
+    }];
     push_synth_notes(
         &mut events,
         &distribute(3 * units, synth_slots),
@@ -174,6 +177,8 @@ fn instruments(units: usize) -> InstrumentsConfig {
             .enumerate()
             .map(|(slot, kind)| InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -262,17 +267,15 @@ fn momentary_events(units: usize, sample_rate: u32) -> Vec<EngineEvent> {
     ]
     .into_iter()
     .take(momentary_count(units))
-    .map(|(id, kind, params)| {
-        EngineEvent::PreparedMomentaryFxStart(
-            prepare_momentary_fx_start(
-                id.into(),
-                kind.into(),
-                params,
-                MomentaryFxTarget::Global,
-                sample_rate,
-            )
-            .expect("analogue capacity momentary FX is valid"),
+    .map(|(id, kind, params)| EngineEvent::PreparedMomentaryFxStart {
+        config: prepare_momentary_fx_start(
+            id.into(),
+            kind.into(),
+            params,
+            MomentaryFxTarget::Global,
+            sample_rate,
         )
+        .expect("analogue capacity momentary FX is valid"),
     })
     .collect()
 }

@@ -40,7 +40,7 @@ function Assert-Contains {
 }
 
 if ($driverSource -notmatch '\$arguments \+= @\("-Mode", "LiveAudioBenchmark", "-WorkerTimingMode", "disabled", "-ExecutorMode", "inline", "-Scenario", \$Cell\.scenario') { throw "Orange baseline live child arguments did not retain the inline executor and disabled worker timing." }
-Assert-Contains $driverSource 'Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate"'
+Assert-Contains $driverSource 'Feature = "hardware-orange-pi-zero-2w profiling"; ArtifactKind = "diagnostic-only"'
 Assert-Contains $driverSource '-BuildSpec $buildSpec'
 if ($driverSource -match 'persistent_two_workers') { throw "Orange performance baseline retained the removed two-worker executor." }
 Assert-Throws { & $driver -PrintOnly } "omitted target"
@@ -172,8 +172,8 @@ Assert-Contains $baselineLivePrint "output=128 period=32 engine=32"
 Assert-Contains $baselineLivePrint "worker-timing=disabled executor=inline"
 Assert-Contains $baselineLivePrint "--worker-timing disabled"
 Assert-Contains $baselineLivePrint "--executor inline"
-Assert-Contains $baselineLivePrint '"artifact_kind":"runtime-candidate"'
-Assert-Contains $baselineLivePrint '"cargo_feature":"hardware-orange-pi-zero-2w"'
+Assert-Contains $baselineLivePrint '"artifact_kind":"diagnostic-only"'
+Assert-Contains $baselineLivePrint '"cargo_feature":"hardware-orange-pi-zero-2w profiling"'
 if ($runnerSource -match "with-rpi-ssh|run-pi-performance-baseline") { throw "Orange runner references Raspberry tooling." }
 if ($driverSource -match "with-rpi-ssh|run-pi-timing-probes") { throw "Orange driver references Raspberry tooling." }
 

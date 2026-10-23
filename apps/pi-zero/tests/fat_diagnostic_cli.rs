@@ -28,7 +28,28 @@ fn normal_metadata_mode_does_not_enter_hardware_runtime() {
     assert!(String::from_utf8_lossy(&output.stdout).contains("board_profile"));
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(not(feature = "profiling"))]
+#[test]
+fn production_builds_refuse_profiling_modes() {
+    for args in [
+        ["--profile-dsp"],
+        ["--timing-probe"],
+        ["--benchmark-orange-audio"],
+    ] {
+        let output = clean_command()
+            .args(args)
+            .output()
+            .expect("profiling request should start");
+
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("build"),
+            "{args:?}"
+        );
+    }
+}
+
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
 #[test]
 fn orange_normal_profile_utility_does_not_select_diagnostics() {
     let output = clean_command()

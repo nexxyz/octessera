@@ -218,7 +218,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run canonical host tests
-        run: cargo test -p octessera-pi --no-default-features --features "${{ matrix.feature }}"
+        run: cargo test -p octessera-pi --no-default-features --features "${{ matrix.feature }} profiling"
       - name: Run production cognitive clippy
         run: cargo clippy -p octessera-pi --no-default-features --features "${{ matrix.feature }}" --bin octessera-pi -- -W clippy::cognitive_complexity -D warnings
 

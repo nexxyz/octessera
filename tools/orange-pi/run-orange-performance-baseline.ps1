@@ -261,7 +261,7 @@ if ($needsActiveRun) {
   Assert-PerformanceBaselineSourceContext $repositoryIdentity.Head $repositoryIdentity.Status
   if (-not (Test-Path -LiteralPath $Artifact -PathType Leaf)) { throw "Orange baseline artifact was not found: $Artifact" }
   $localArtifactHash = (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash.ToLowerInvariant()
-  $buildSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate" }
+  $buildSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w profiling"; ArtifactKind = "diagnostic-only" }
   Assert-OrangeBuildMetadata -MetadataPath $Metadata -BinaryPath $Artifact -SelectedBinary "octessera-pi" -SelectedTarget "aarch64-unknown-linux-gnu" -SelectedProfile "release" -BuildSpec $buildSpec -SourceCommit $repositoryIdentity.Head
 }
 if ($null -eq $repositoryIdentity) { $repositoryIdentity = Get-RepositoryIdentity }

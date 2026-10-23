@@ -65,12 +65,15 @@ pub(crate) fn build(
             mixed_instruments(),
         ),
     };
-    let mut events = vec![EngineEvent::SetPreparedAudioConfig(prepare_audio_config(
-        instruments,
-        sample_banks,
-        Some(VoiceStealingMode::None),
-        sample_rate,
-    ))];
+    let mut events = vec![EngineEvent::SetPreparedAudioConfig {
+        generation: 0,
+        config: prepare_audio_config(
+            instruments,
+            sample_banks,
+            Some(VoiceStealingMode::None),
+            sample_rate,
+        ),
+    }];
     push_synth_notes(&mut events, &synth_counts, note_duration_ms);
     push_sample_notes(&mut events, &sample_counts, note_duration_ms);
     if matches!(scenario, CapacityScenario::Mixed { .. }) {
@@ -200,6 +203,8 @@ fn instruments_config(
             .enumerate()
             .map(|(slot, kind)| InstrumentSlotConfig {
                 fm: None,
+                pluck: None,
+                drum: None,
                 kind: (*kind).into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
@@ -254,17 +259,15 @@ fn momentary_events(sample_rate: u32) -> Vec<EngineEvent> {
         ),
     ]
     .into_iter()
-    .map(|(id, kind, params)| {
-        EngineEvent::PreparedMomentaryFxStart(
-            prepare_momentary_fx_start(
-                id.into(),
-                kind.into(),
-                params,
-                MomentaryFxTarget::Global,
-                sample_rate,
-            )
-            .expect("capacity scenario momentary FX is valid"),
+    .map(|(id, kind, params)| EngineEvent::PreparedMomentaryFxStart {
+        config: prepare_momentary_fx_start(
+            id.into(),
+            kind.into(),
+            params,
+            MomentaryFxTarget::Global,
+            sample_rate,
         )
+        .expect("capacity scenario momentary FX is valid"),
     })
     .collect()
 }
@@ -480,7 +483,7 @@ mod tests {
             .events
             .iter()
             .find_map(|event| match event {
-                EngineEvent::SetPreparedAudioConfig(config) => Some(config),
+                EngineEvent::SetPreparedAudioConfig { config, .. } => Some(config),
                 _ => None,
             })
             .unwrap()

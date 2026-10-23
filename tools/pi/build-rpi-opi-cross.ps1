@@ -6,6 +6,7 @@ param(
   [string]$BoardProfile = "raspberry-pi-zero-2w",
   [string]$OutDir = "target/pi-cross",
   [switch]$RaspberryLiveAudioBenchmark,
+  [switch]$Profiling,
   [string]$Image = "octessera-pi-cross:latest",
   [string]$Sysroot = "",
   [string]$PkgConfigPath = ""
@@ -24,6 +25,9 @@ if ($isRaspberryLiveAudioBenchmark) {
 $boardSpec = Get-PiBoardProfileSpec $BoardProfile
 $cargoFeature = if ($isRaspberryLiveAudioBenchmark) {
   Get-RaspberryLiveBenchmarkCargoFeature
+} elseif ($Profiling) {
+  if ($OutDir -ceq "target/pi-cross") { $OutDir = "target/pi-cross-diagnostics/profiling" }
+  "$($boardSpec.CargoFeature) profiling"
 } else {
   $boardSpec.CargoFeature
 }
