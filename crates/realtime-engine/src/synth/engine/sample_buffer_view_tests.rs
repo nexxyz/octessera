@@ -183,6 +183,8 @@ fn sample_voice(
         filt: BiquadState::new(),
         release_left: 0,
         release_len: 0,
+        last_output: 0.0,
+        declick: Default::default(),
     }
 }
 

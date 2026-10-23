@@ -161,6 +161,12 @@ impl SynthEngine {
         } else {
             legacy_lane
         };
+        let declick = victim_lane
+            .and_then(|victim| self.sample_voice_pool.lane(victim))
+            .filter(|victim| usize::from(victim.instrument_slot) == slot)
+            .map_or_else(StealDeclick::default, |victim| {
+                StealDeclick::from_output(victim.last_output)
+            });
         let voice = SampleVoice {
             active: true,
             canonical_lane: None,
@@ -176,19 +182,17 @@ impl SynthEngine {
             filt: BiquadState::new(),
             release_left: 0,
             release_len: 0,
+            last_output: 0.0,
+            declick,
         };
-        if self
-            .sample_voice_pool
-            .replace_lane_for_admission(
-                lane,
-                slot,
-                victim_lane,
-                canonical_lane,
-                voice,
-                &mut self.pending_render_retired.sample_voices,
-            )
-            .is_err()
-        {
+        if !self.sample_voice_pool.replace_lane_for_admission(
+            lane,
+            slot,
+            victim_lane,
+            canonical_lane,
+            voice,
+            &mut self.pending_render_retired.sample_voices,
+        ) {
             self.record_voice_admission_drop();
             return;
         }
@@ -245,7 +249,9 @@ impl SynthEngine {
             };
             debug_assert_eq!(voice.instrument_slot as usize, slot);
             if let Some(sample) = render_sample_voice_frame(voice, self.sample_rate) {
-                out += sample;
+                out += voice
+                    .declick
+                    .finish_frame(&mut voice.last_output, sample, self.sample_rate);
                 slot_active = true;
             }
         }

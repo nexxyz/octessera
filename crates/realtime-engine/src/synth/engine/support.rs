@@ -86,6 +86,8 @@ pub(super) struct SampleVoice {
     /// Frames left in the release fade; 0 while the voice plays normally.
     pub(super) release_left: u16,
     pub(super) release_len: u16,
+    pub(super) last_output: f32,
+    pub(super) declick: StealDeclick,
 }
 
 impl SampleVoice {
@@ -129,6 +131,8 @@ impl SampleVoice {
             filt: BiquadState::new(),
             release_left: 0,
             release_len: 0,
+            last_output: 0.0,
+            declick: StealDeclick::default(),
         }
     }
 }

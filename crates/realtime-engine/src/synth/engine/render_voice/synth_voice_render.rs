@@ -24,6 +24,21 @@ pub(in crate::synth::engine) fn render_synth_voice_frame(
     frame_sample_clock: u64,
     context: SynthVoiceFrameContext,
 ) -> Option<f32> {
+    let value = render_source_frame(voice, ring, slot_idx, frame_sample_clock, context)?;
+    Some(
+        voice
+            .declick
+            .finish_frame(&mut voice.last_output, value, context.sample_rate),
+    )
+}
+
+fn render_source_frame(
+    voice: &mut Voice,
+    ring: &mut PluckRing,
+    slot_idx: usize,
+    frame_sample_clock: u64,
+    context: SynthVoiceFrameContext,
+) -> Option<f32> {
     if !voice.active {
         return None;
     }
@@ -73,6 +88,32 @@ pub(in crate::synth::engine) fn render_synth_voice_frame(
 }
 
 pub(in crate::synth::engine) fn render_synth_voice_block(
+    voice: &mut Voice,
+    ring: &mut PluckRing,
+    slot_idx: usize,
+    frames: usize,
+    base_sample_clock: u64,
+    context: SynthVoiceFrameContext,
+    samples: &mut [f32],
+) -> usize {
+    let rendered = render_source_block(
+        voice,
+        ring,
+        slot_idx,
+        frames,
+        base_sample_clock,
+        context,
+        samples,
+    );
+    voice.declick.finish_block(
+        &mut voice.last_output,
+        &mut samples[..rendered],
+        context.sample_rate,
+    );
+    rendered
+}
+
+fn render_source_block(
     voice: &mut Voice,
     ring: &mut PluckRing,
     slot_idx: usize,

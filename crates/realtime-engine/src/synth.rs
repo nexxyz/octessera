@@ -16,6 +16,7 @@ mod scalar_param;
 mod source_worker_timing;
 #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
 mod source_worker_timing_tests;
+mod steal_declick;
 mod synth_voice_partition;
 mod synth_voice_pool;
 #[cfg(test)]

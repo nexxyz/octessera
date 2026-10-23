@@ -143,3 +143,81 @@ fn none_rejects_sample_admission_at_physical_capacity_without_mutation() {
         u64::MAX
     );
 }
+
+fn steady_level_across_a_steal(kind: &str, block: bool) -> (f32, f32) {
+    let mut engine = SynthEngine::new(48_000);
+    let mut synth = default_synth_config();
+    synth.amp_env.attack_ms = 0.0;
+    synth.amp_env.decay_ms = 0.0;
+    synth.amp_env.sustain_pct = 100.0;
+    synth.osc1.waveform = WaveformId::Sine;
+    synth.osc2.level_pct = 0.0;
+    engine.set_instrument_slot(
+        0,
+        InstrumentSlotConfig {
+            fm: None,
+            pluck: None,
+            drum: None,
+            kind: kind.into(),
+            synth,
+            mixer: None,
+        },
+    );
+    let mut bank = SampleBankConfig::default();
+    bank.slots[0] = SampleSlotConfig {
+        buffer: Some(SampleBuffer {
+            samples: vec![0.1; 48_000].into(),
+            channels: 1,
+            sample_rate: 48_000,
+        }),
+    };
+    engine.set_sample_banks(vec![bank; INSTRUMENT_SLOT_COUNT]);
+    let voices = if kind == "sampler" {
+        MAX_SAMPLE_VOICES_PER_SLOT
+    } else {
+        MAX_SYNTH_VOICES_PER_SLOT
+    };
+    for _ in 0..voices {
+        engine.note_on(0, 0, 100, 50_000);
+    }
+    let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
+    let mut render = |engine: &mut SynthEngine, frames: usize| {
+        if block {
+            engine.render_interleaved_block(frames, &mut left, &mut right, &mut out);
+            *left.last().unwrap()
+        } else {
+            (0..frames).fold(0.0, |_, _| engine.next_stereo_sample().0)
+        }
+    };
+    let before = render(&mut engine, 4_800);
+    engine.note_on(0, 0, 100, 50_000);
+    let after = render(&mut engine, 1);
+    assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
+    engine.assert_voice_pool_invariants();
+    (before, after)
+}
+
+#[test]
+fn stolen_lanes_ramp_from_the_old_voice_instead_of_stepping() {
+    for kind in ["sampler", "synth"] {
+        for block in [false, true] {
+            let (before, after) = steady_level_across_a_steal(kind, block);
+            let one_voice = before / 8.0;
+            assert!(
+                before.abs() > 0.05,
+                "{kind} block={block}: steady level {before}"
+            );
+            // A new sample starts at full level, a new low sine at zero; neither may lose
+            // the stolen voice's share in one step.
+            let kept = if kind == "sampler" {
+                after > before - one_voice * 0.1
+            } else {
+                (after - before).abs() < one_voice.abs() * 0.1
+            };
+            assert!(
+                kept,
+                "{kind} block={block}: stolen share dropped out: {before} -> {after}"
+            );
+        }
+    }
+}

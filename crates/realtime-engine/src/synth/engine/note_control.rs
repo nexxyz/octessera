@@ -301,6 +301,12 @@ impl SynthEngine {
         } else {
             crate::synth::pluck_string::PluckState::off()
         };
+        let declick = victim_lane
+            .and_then(|victim| self.synth_voice_pool.lane(victim))
+            .filter(|victim| usize::from(victim.instrument_slot) == slot)
+            .map_or_else(StealDeclick::default, |victim| {
+                StealDeclick::from_output(victim.last_output)
+            });
         let mut voice = Voice {
             active: true,
             canonical_lane: None,
@@ -351,6 +357,8 @@ impl SynthEngine {
             amp_env,
             filt_env,
             filt: BiquadState::new(),
+            last_output: 0.0,
+            declick,
         };
         refresh_synth_voice_render_cache(
             &mut voice,

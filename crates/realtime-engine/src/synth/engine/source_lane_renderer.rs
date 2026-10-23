@@ -227,6 +227,21 @@ pub(super) fn render_sample_voice_block(
     sample_rate: u32,
     samples: &mut [f32],
 ) -> usize {
+    let rendered = render_sample_source_block(voice, frames, sample_rate, samples);
+    voice.declick.finish_block(
+        &mut voice.last_output,
+        &mut samples[..rendered],
+        sample_rate,
+    );
+    rendered
+}
+
+fn render_sample_source_block(
+    voice: &mut SampleVoice,
+    frames: usize,
+    sample_rate: u32,
+    samples: &mut [f32],
+) -> usize {
     if frames == 0 || !voice.active {
         return 0;
     }

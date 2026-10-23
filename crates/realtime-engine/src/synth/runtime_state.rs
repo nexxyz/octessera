@@ -3,6 +3,7 @@ mod filter;
 
 use super::drum_state::DrumState;
 use super::pluck_string::PluckState;
+pub(super) use super::steal_declick::StealDeclick;
 pub(super) use envelope::{ms_to_samples, EnvStage, EnvState};
 pub(super) use filter::BiquadState;
 #[cfg(test)]
@@ -44,6 +45,9 @@ pub(super) struct Voice {
     pub(super) amp_env: EnvState,
     pub(super) filt_env: EnvState,
     pub(super) filt: BiquadState,
+    /// The lane's latest rendered sample, which a voice stealing this lane ramps down from.
+    pub(super) last_output: f32,
+    pub(super) declick: StealDeclick,
 }
 
 impl Voice {
@@ -98,6 +102,8 @@ impl Voice {
                 decay_len: 0,
             },
             filt: BiquadState::new(),
+            last_output: 0.0,
+            declick: StealDeclick::default(),
         }
     }
 }
