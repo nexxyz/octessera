@@ -149,6 +149,16 @@ pub(crate) fn is_factory_library_path(relative: &str, is_dir: bool) -> bool {
     !relative.is_empty() && !sd_card_path_requested(relative) && (is_dir || relative.contains('/'))
 }
 
+/// The image installs the bundled library as these top-level folders; anything else in the
+/// samples directory, foldered or not, is the player's own.
+const PACKAGED_LIBRARY_FOLDERS: [&str; 5] = ["Drum", "FX", "Found", "Loop", "Vocal"];
+
+pub(crate) fn is_packaged_library_file(relative: &str) -> bool {
+    relative
+        .split_once('/')
+        .is_some_and(|(folder, _)| PACKAGED_LIBRARY_FOLDERS.contains(&folder))
+}
+
 fn normalize_sample_dir(input: &str) -> Result<String, String> {
     let input = input.trim().replace('\\', "/");
     if input.is_empty() {
@@ -197,7 +207,7 @@ fn sd_card_samples_available(samples_dir: &Path) -> bool {
     path.is_dir() && is_mount_point(&path) && samples_dir.join(SD_CARD_SAMPLE_BROWSER_DIR).is_dir()
 }
 
-fn sd_card_path_requested(dir: &str) -> bool {
+pub(crate) fn sd_card_path_requested(dir: &str) -> bool {
     dir == SD_CARD_SAMPLE_DIR || dir.starts_with("sd-card/")
 }
 

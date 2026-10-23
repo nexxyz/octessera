@@ -63,7 +63,8 @@ desktop simulator doesn't have it.
    ```
 
    Use `$URL/export?media=1` instead to include media: samples you added to
-   the board and your recordings. Samples on the SD2 card stay on the card.
+   the board (folders too, up to four levels deep) and your recordings. The
+   bundled library and samples on the SD2 card stay where they are.
 
 4. Keep `octessera-user-data.oct` somewhere safe, and don't erase or reuse the
    old card until a restore from it has worked.

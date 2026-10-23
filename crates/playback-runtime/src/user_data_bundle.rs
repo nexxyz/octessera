@@ -133,6 +133,20 @@ pub fn is_safe_user_data_name(name: &str) -> bool {
     name.chars().count() <= USER_DATA_MAX_PRESET_NAME_CHARS && is_valid_preset_name(name)
 }
 
+/// Custom samples may sit in folders, so a sample id is a relative path of safe names.
+pub const USER_DATA_MAX_SAMPLE_PATH_PARTS: usize = 4;
+
+pub fn is_safe_user_data_media_id(kind: &UserDataMediaKind, id: &str) -> bool {
+    match kind {
+        UserDataMediaKind::Sample => {
+            let parts = id.split('/').collect::<Vec<_>>();
+            parts.len() <= USER_DATA_MAX_SAMPLE_PATH_PARTS
+                && parts.iter().all(|part| is_safe_user_data_name(part))
+        }
+        UserDataMediaKind::Audio | UserDataMediaKind::Screen => is_safe_user_data_name(id),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn new_user_data_bundle(
     metadata: UserDataBundleMetadata,

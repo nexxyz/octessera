@@ -52,14 +52,14 @@ pub use timing_probe::{
 pub use user_data_bundle::apply_user_data_patch_and_preferences;
 pub use user_data_bundle::{
     apply_user_preference_delta, decode_user_data_bundle, encode_user_data_bundle,
-    is_safe_user_data_name, manifest_for_user_data_bundle, media_reference_from_bytes,
-    new_user_data_bundle, preference_delta_from_config, validate_user_data_bundle, UserDataBundle,
-    UserDataBundleMetadata, UserDataManifestEntry, UserDataManifestEntryKind, UserDataMediaKind,
-    UserDataMediaReference, UserDataMusicalState, UserDataPreset, UserPreferenceDelta,
-    USER_DATA_BUNDLE_KIND, USER_DATA_BUNDLE_SCHEMA_VERSION, USER_DATA_MAX_BUNDLE_BYTES,
-    USER_DATA_MAX_ITEM_BYTES, USER_DATA_MAX_MANIFEST_ENTRIES, USER_DATA_MAX_MEDIA_BYTES,
-    USER_DATA_MAX_MEDIA_REFERENCES, USER_DATA_MAX_METADATA_CHARS, USER_DATA_MAX_PRESETS,
-    USER_DATA_MAX_PRESET_NAME_CHARS, USER_DATA_MAX_TOTAL_MEDIA_BYTES,
+    is_safe_user_data_media_id, is_safe_user_data_name, manifest_for_user_data_bundle,
+    media_reference_from_bytes, new_user_data_bundle, preference_delta_from_config,
+    validate_user_data_bundle, UserDataBundle, UserDataBundleMetadata, UserDataManifestEntry,
+    UserDataManifestEntryKind, UserDataMediaKind, UserDataMediaReference, UserDataMusicalState,
+    UserDataPreset, UserPreferenceDelta, USER_DATA_BUNDLE_KIND, USER_DATA_BUNDLE_SCHEMA_VERSION,
+    USER_DATA_MAX_BUNDLE_BYTES, USER_DATA_MAX_ITEM_BYTES, USER_DATA_MAX_MANIFEST_ENTRIES,
+    USER_DATA_MAX_MEDIA_BYTES, USER_DATA_MAX_MEDIA_REFERENCES, USER_DATA_MAX_METADATA_CHARS,
+    USER_DATA_MAX_PRESETS, USER_DATA_MAX_PRESET_NAME_CHARS, USER_DATA_MAX_TOTAL_MEDIA_BYTES,
 };
 
 #[cfg(test)]

@@ -1,9 +1,9 @@
 use super::{
-    format, is_safe_user_data_name, preferences, UserDataBundle, UserDataBundleMetadata,
-    UserDataManifestEntryKind, UserDataMediaReference, USER_DATA_BUNDLE_KIND,
-    USER_DATA_BUNDLE_SCHEMA_VERSION, USER_DATA_MAX_MANIFEST_ENTRIES, USER_DATA_MAX_MEDIA_BYTES,
-    USER_DATA_MAX_MEDIA_REFERENCES, USER_DATA_MAX_METADATA_CHARS, USER_DATA_MAX_PRESETS,
-    USER_DATA_MAX_TOTAL_MEDIA_BYTES,
+    format, is_safe_user_data_media_id, is_safe_user_data_name, preferences, UserDataBundle,
+    UserDataBundleMetadata, UserDataManifestEntryKind, UserDataMediaKind, UserDataMediaReference,
+    USER_DATA_BUNDLE_KIND, USER_DATA_BUNDLE_SCHEMA_VERSION, USER_DATA_MAX_MANIFEST_ENTRIES,
+    USER_DATA_MAX_MEDIA_BYTES, USER_DATA_MAX_MEDIA_REFERENCES, USER_DATA_MAX_METADATA_CHARS,
+    USER_DATA_MAX_PRESETS, USER_DATA_MAX_TOTAL_MEDIA_BYTES,
 };
 use serde_json::{Map, Value};
 use std::collections::BTreeSet;
@@ -72,8 +72,12 @@ pub(super) fn name(name: &str, path: &str) -> Result<(), String> {
 }
 
 pub(super) fn media_reference(reference: &UserDataMediaReference) -> Result<(), String> {
-    name(&reference.id, "media id")?;
-    name(&reference.display_name, "media display name")?;
+    if !is_safe_user_data_media_id(&reference.kind, &reference.id) {
+        return Err("media id is unsafe or too long".into());
+    }
+    if !is_safe_user_data_media_id(&reference.kind, &reference.display_name) {
+        return Err("media display name is unsafe or too long".into());
+    }
     if reference.size > USER_DATA_MAX_MEDIA_BYTES || !format::is_sha256(&reference.sha256) {
         return Err(format!("media reference `{}` is invalid", reference.id));
     }
@@ -106,11 +110,16 @@ pub(super) fn manifest_shape(bundle: &UserDataBundle) -> Result<(), String> {
                 .and_then(|path| path.strip_suffix(".json"))
                 .is_some_and(|name| !name.contains('/') && is_safe_user_data_name(name)),
             UserDataManifestEntryKind::Media => {
-                let mut parts = entry.path.split('/');
-                matches!(parts.next(), Some("media"))
-                    && matches!(parts.next(), Some("sample" | "audio" | "screen"))
-                    && parts.next().is_some_and(is_safe_user_data_name)
-                    && parts.next().is_none()
+                let kind = match entry.path.split('/').nth(1) {
+                    Some("sample") => Some(UserDataMediaKind::Sample),
+                    Some("audio") => Some(UserDataMediaKind::Audio),
+                    Some("screen") => Some(UserDataMediaKind::Screen),
+                    _ => None,
+                };
+                kind.zip(entry.path.splitn(3, '/').nth(2))
+                    .is_some_and(|(kind, id)| {
+                        entry.path.starts_with("media/") && is_safe_user_data_media_id(&kind, id)
+                    })
             }
         };
         if !valid_path {

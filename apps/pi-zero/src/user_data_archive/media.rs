@@ -34,13 +34,6 @@ fn collect_sample_files(
         if metadata.file_type().is_symlink() {
             return Err("sample directory contains a symlink".into());
         }
-        if metadata.is_dir() {
-            collect_sample_files(root, &path, result)?;
-            continue;
-        }
-        if !metadata.is_file() {
-            continue;
-        }
         let relative = path
             .strip_prefix(root)
             .map_err(|_| "sample path escaped its root".to_string())?;
@@ -48,14 +41,20 @@ fn collect_sample_files(
             .to_str()
             .ok_or_else(|| "sample file name is not valid UTF-8".to_string())?
             .replace('\\', "/");
-        if crate::sample_browser::is_factory_library_path(&relative, false) {
+        if crate::sample_browser::sd_card_path_requested(&relative) {
             continue;
         }
-        if relative.contains('/') {
-            return Err("nested custom sample directories are not supported yet".into());
+        if metadata.is_dir() {
+            collect_sample_files(root, &path, result)?;
+            continue;
         }
-        if !playback_runtime::is_safe_user_data_name(&relative) {
-            return Err("custom sample file name is not safe for transfer".into());
+        if !metadata.is_file() || crate::sample_browser::is_packaged_library_file(&relative) {
+            continue;
+        }
+        if !playback_runtime::is_safe_user_data_media_id(&UserDataMediaKind::Sample, &relative) {
+            return Err(format!(
+                "custom sample path `{relative}` is not safe for transfer or is nested too deep"
+            ));
         }
         let reference = media_reference_for_file(&relative, &path, UserDataMediaKind::Sample)?;
         result.push(MediaFile { reference, path });

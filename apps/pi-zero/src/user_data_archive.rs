@@ -255,6 +255,9 @@ pub(crate) fn stage_archive(
             return Err("user-data media exceeds its size limit".into());
         }
         let path = stage_root.join(media_stage_dir(&kind)).join(&id);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(io_error)?;
+        }
         let mut output = OpenOptions::new()
             .write(true)
             .create_new(true)

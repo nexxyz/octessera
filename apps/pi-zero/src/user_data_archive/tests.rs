@@ -205,6 +205,42 @@ fn archive_round_trip_stages_media_and_rejects_mutation_on_invalid_archive() {
 }
 
 #[test]
+fn foldered_custom_samples_keep_their_relative_paths_through_an_archive() {
+    let root = root("foldered");
+    let store = root.join("store");
+    let samples = root.join("samples");
+    let recordings = root.join("recordings");
+    let screen_recordings = root.join("screen-recordings");
+    fs::create_dir_all(store.join("patches")).unwrap();
+    fs::create_dir_all(samples.join("Mine/Kicks")).unwrap();
+    fs::create_dir_all(samples.join("Drum/kick")).unwrap();
+    fs::create_dir_all(samples.join("sd-card")).unwrap();
+    fs::write(samples.join("Drum/kick/Factory.wav"), b"factory").unwrap();
+    fs::write(samples.join("sd-card/Card.wav"), b"card").unwrap();
+    write_split_store(&store, &canonical_defaults());
+    fs::write(samples.join("Mine/Kicks/Deep.wav"), b"deep kick").unwrap();
+    let plan = build_export_plan(&store, &samples, &recordings, &screen_recordings, true).unwrap();
+    let archive_path = root.join("bundle.oct");
+    let mut archive = File::create(&archive_path).unwrap();
+    write_archive(&plan, &mut archive).unwrap();
+    archive.sync_all().unwrap();
+
+    let staged = stage_archive(&archive_path, &root.join("stage")).unwrap();
+    assert_eq!(
+        staged.bundle.media.len(),
+        1,
+        "factory and SD2 files stay out"
+    );
+    assert_eq!(staged.bundle.media[0].id, "Mine/Kicks/Deep.wav");
+    assert_eq!(fs::read(&staged.media[0].path).unwrap(), b"deep kick");
+
+    fs::create_dir_all(samples.join("a/b/c/d")).unwrap();
+    fs::write(samples.join("a/b/c/d/Too Deep.wav"), b"x").unwrap();
+    assert!(build_export_plan(&store, &samples, &recordings, &screen_recordings, true).is_err());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn audio_media_stages_separately_from_samples() {
     let root = root("future-media");
     let empty_sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
@@ -262,4 +298,23 @@ fn audio_media_stages_separately_from_samples() {
         "audio"
     );
     let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn packaged_library_folders_match_the_bundled_sample_tree() {
+    let bundled = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
+    for entry in fs::read_dir(bundled).unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name().into_string().unwrap();
+        if entry.file_type().unwrap().is_dir() && name != "upstream" {
+            assert!(
+                crate::sample_browser::is_packaged_library_file(&format!("{name}/x.wav")),
+                "{name} is bundled but treated as a custom folder"
+            );
+        }
+    }
+    assert!(!crate::sample_browser::is_packaged_library_file(
+        "Mine/x.wav"
+    ));
+    assert!(!crate::sample_browser::is_packaged_library_file("Top.wav"));
 }
