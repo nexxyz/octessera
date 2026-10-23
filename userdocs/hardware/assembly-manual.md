@@ -147,10 +147,10 @@ address jumpers, because you set them from the back, where left and right swap.
 2. Turn the whole arrangement over as one piece. From here on, positions are as
    seen **from the bottom**.
 3. Solder 20 straight male header pins between neighbouring boards to join them.
-4. Add 5 straight male header pins to the board that is upper-left as seen
-   from the play surface, on its left edge. Looking at the bottom, that's the
-   right-hand edge of the upper-right board. This is where the cable to `J1`
-   connects.
+4. Add 5 straight male header pins at the north end of the west (left) edge of
+   the board that is upper-left as seen from the play surface. Looking at the
+   bottom, that's the top end of the upper-right board's right-hand edge. This
+   is where the cable to `J1` connects.
 5. Still looking at the bottom, solder the address jumpers:
 
    | Position (seen from the bottom) | Jumpers | Address |
@@ -257,7 +257,7 @@ Then build it up:
 9. Turn the device over carefully and fasten the bottom to the top with the
    eight M3 screws from underneath. Tighten gently. Add the optional rubber feet
    or screw-hole plugs.
-10. Press the four encoder caps onto their shafts. Then fit the four Cherry MX
+10. Press the four encoder caps onto their shafts; they are a friction fit. Then fit the four Cherry MX
     switches into the NeoKey through the top openings, and press the keycaps on.
     The top guides the switch pins and holds the switches by friction.
 

@@ -48,7 +48,7 @@ impl fmt::Display for DesktopStoreStartupError {
             ),
             Self::InvalidStore { detail } => write!(
                 formatter,
-                "desktop storage requires supervised conversion or repair: {detail}"
+                "desktop storage can't be opened: {detail}"
             ),
         }
     }
@@ -112,7 +112,7 @@ fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStart
     if legacy_path.exists() {
         return Err(DesktopStoreStartupError::InvalidStore {
             detail: format!(
-                "legacy mixed default.json is present at {}; preserve it and use the supervised conversion process",
+                "an old single-file default.json is in the store folder ({}); move it out of that folder and start again, and the simulator creates a fresh default",
                 legacy_path.display()
             ),
         });
@@ -164,7 +164,7 @@ fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStart
         }
         (system_exists, patch_exists) => Err(DesktopStoreStartupError::InvalidStore {
             detail: format!(
-                "split store is incomplete (system.json: {system_exists}, default.patch.json: {patch_exists}); preserve existing bytes and use supervised conversion or repair"
+                "the store is incomplete (system.json: {system_exists}, default.patch.json: {patch_exists}); move both files out of the store folder and start again for a fresh default"
             ),
         }),
     }
@@ -263,7 +263,7 @@ mod tests {
         fs::write(root.join("default.json"), original).expect("malformed default");
 
         let error = ensure_store_dir_at(root.clone()).expect_err("legacy file needs conversion");
-        assert!(error.to_string().contains("supervised conversion"));
+        assert!(error.to_string().contains("start again"));
 
         assert_eq!(
             fs::read(root.join("default.json")).expect("existing default"),
@@ -358,7 +358,7 @@ mod tests {
         .expect("write custom default");
 
         let error = ensure_store_dir_at(root.clone()).expect_err("legacy file needs conversion");
-        assert!(error.to_string().contains("supervised conversion"));
+        assert!(error.to_string().contains("start again"));
         assert_eq!(
             fs::read(root.join("default.json")).unwrap(),
             serde_json::to_vec(&custom).unwrap()

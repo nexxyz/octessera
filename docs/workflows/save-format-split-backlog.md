@@ -3,8 +3,9 @@
 **Status:** the split landed on `main` on 2026-10-01 and runs on both
 development boards. The latest published release (v0.8.6) predates it, so
 stores written by v0.8.6 or earlier still hold the old mixed `default.json`.
-Desktop startup refuses that file, and an incomplete split store, and asks for
-supervised conversion or repair rather than guessing. Once the next release
+Desktop startup refuses that file, and an incomplete split store, rather than
+guessing: the message asks you to move the old files out of the store folder
+and start again, which seeds a fresh default. Once the next release
 ships, fold the table below into
 [`menu-and-controls-spec.md`](../menu-and-controls-spec.md) and delete this
 page.

@@ -69,8 +69,7 @@ customisation leaves SSH switched off until you turn it on in the setup portal.
 4. Power the instrument through the USB-C power breakout. Not through the
    Raspberry Pi's own micro-USB power connector; see [safety and
    power](safety-and-power.md).
-5. Wait for the Octessera boot animation and then the normal menu. The first
-   boot can take a little longer than later ones.
+5. Wait for the Octessera boot animation and then the normal menu.
 
 Nothing on the OLED, or flickering? Unplug and check [troubleshooting](../troubleshooting.md)
 before trying again.

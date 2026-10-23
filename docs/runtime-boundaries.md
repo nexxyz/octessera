@@ -76,6 +76,7 @@ are in [`board-profiles.md`](board-profiles.md).
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
   - desktop and board adapters validate string-path controls into fixed native parameter IDs before audio transport, prepare structural owners and momentary payloads off-callback, and preserve playback-runtime generations/epochs unchanged. Safe latest-value controls bypass preparation queues; complete configs, owner replacements, and previews use bounded preparation lanes
   - desktop `AudioRuntime` retains the rodio `Sink` and constructs the inline `EngineSource` with the existing load-status sender, wrapping that final source once with the desktop recording tap; desktop does not select the Orange routing-tree capacity path or create source-worker lifecycle state
+  - the test-only `headless` feature (`apps/desktop/src-tauri/src/headless.rs`) wires the same runtime, host adapter, sample preparation and recording tap without Tauri or a sound card, pulls the engine's audio itself and advances the runtime by exactly the audio it rendered; it adds no runtime behavior and is not built into the app
   - MIDI input/output uses Tauri-side midir adapters
   - storage and sample-browser filesystem access remain host adapter responsibilities
   - desktop and Pi retain sample path resolution/containment, caching, preparation, preview/bank orchestration, and typed error adaptation

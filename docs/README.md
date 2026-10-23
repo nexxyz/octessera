@@ -46,7 +46,7 @@ the code. For playing or building the instrument, start with the
 ## Development, build, and deployment
 
 - [Development workflows](development-workflows.md): install, checks,
-  generators, and the pre-push hook.
+  generators, end-to-end scenarios, and the pre-push hook.
 - [Desktop development](workflows/desktop-development.md): simulator
   development and desktop builds.
 - [Pi development and profiling](workflows/pi-development-and-profiling.md):

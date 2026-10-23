@@ -99,7 +99,7 @@ $OrangeTarget = "octessera@<ORANGE_HOST>"
 .\tools\orange-pi\run-opi-bringup.ps1 -Target $OrangeTarget
 ```
 
-The owner check requires passwordless `sudo -n` or a root SSH session. Add
+The owner check requires passwordless `sudo -n`. Add
 `-WithSudoChecks` only after SSH/recovery is stable. The probe never binds a
 gadget; use the separate composer for USB tests.
 

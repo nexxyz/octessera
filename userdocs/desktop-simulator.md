@@ -14,6 +14,11 @@ controls before you commit to any soldering.
    `octessera.exe`. Otherwise install it and start Octessera from your usual
    application menu.
 
+Coming from a very old version (v0.8.6 or earlier)? Its single `default.json`
+can't be opened any more, and the simulator says so at startup. Move that file
+out of the folder the message names and start again: you get a fresh default
+patch. Anything you want to keep from the old one, set up again and save.
+
 ## Make a first sound
 
 The shipped patch already has Layer 1 running `life` into a synth.
