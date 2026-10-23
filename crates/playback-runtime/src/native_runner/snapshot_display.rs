@@ -58,6 +58,8 @@ impl NativeRunner {
             usb_sd_transfer_modal_display(modal)
         } else if let Some(modal) = &self.display.system_info_modal {
             system_info_modal_display(modal)
+        } else if let Some(test) = &self.display.hardware_test {
+            hardware_test_display(test)
         } else if let Some(pairing) = self.bluetooth.pairing() {
             super::bluetooth::bluetooth_pairing_display(pairing)
         } else if let Some(help) = &self.display.help_popup {
@@ -352,6 +354,21 @@ fn system_info_modal_display(modal: &super::NativeSystemInfoModal) -> DisplaySna
             visible_rows: line_count,
         }),
         selected_row: Some(line_count.saturating_sub(1)),
+    }
+}
+
+fn hardware_test_display(test: &super::NativeHardwareTest) -> DisplaySnapshot {
+    let lines = test.lines();
+    let line_count = lines.len();
+    DisplaySnapshot {
+        body_layout: OledDisplayLayout::Rows,
+        title: test.title().into(),
+        lines,
+        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
+        bar_values: vec![None; line_count],
+        full_lines: vec![None; line_count],
+        scroll: None,
+        selected_row: None,
     }
 }
 

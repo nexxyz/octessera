@@ -212,6 +212,9 @@ impl NativeRunner {
                 } else if action_type == "system.controlsHelp" {
                     self.open_controls_help();
                     Ok(None)
+                } else if action_type == "system.hardwareTest" {
+                    self.open_hardware_test();
+                    Ok(None)
                 } else if action_type == "system.info" {
                     self.open_system_info();
                     self.platform_effect_for_action(&action_type)

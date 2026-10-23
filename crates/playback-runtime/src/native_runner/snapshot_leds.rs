@@ -9,6 +9,9 @@ impl NativeRunner {
         &self,
         presentation: DisplayTransientPresentation,
     ) -> [[u8; 3]; 4] {
+        if let Some(test) = &self.display.hardware_test {
+            return test.key_leds().map(|led| [led.r, led.g, led.b]);
+        }
         let space = match self.transport.transport {
             RuntimeTransportState::Stopped => LedColor::MAGENTA,
             RuntimeTransportState::Paused => LedColor::BLUE,

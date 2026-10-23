@@ -292,7 +292,6 @@ export const SHARED_RUNTIME_CONTRACT_FIXTURES: RuntimeContractFixture[] = [
       {
         type: "platform_effects",
         effects: [
-          { type: "hardware_test" },
           { type: "update_check" },
           { type: "update_apply" },
           { type: "rollback" },

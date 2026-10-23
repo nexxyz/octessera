@@ -433,7 +433,7 @@ system_wifi_group	Menu > System > Connections > Wi-Fi		group	Wi-Fi	The Wi-Fi rad
 wifi_enabled	Menu > System > Connections > Wi-Fi > Wi-Fi	key:wifi.enabled	bool	Wi-Fi	Switches the Wi-Fi radio on or off; off lasts across reboots.	No SSH, updates or Wi-Fi setup while off; saved networks stay, and Setup Portal turns it back on.
 system_update_apply	Menu > System > Maintenance > Updates > Apply	action:system_update_apply	action	Apply	Downloads and applies the selected device release.	Requires confirmation before changing the active release.
 system_rollback	Menu > System > Maintenance > Updates > Rollback	action:system_rollback	action	Rollback	Restores the previous release.	Requires confirmation before switching versions.
-system_hardware_test	Menu > System > Maintenance > Hardware Test	action:system_hardware_test	action	Hardware Test	Runs the Pi pre-hardware diagnostic checks.	Requires confirmation before running the guided test.
+system_hardware_test	Menu > System > Maintenance > Hardware Test	action:system_hardware_test	action	Hardware Test	Walks through grid LEDs, pads, keys, encoders and a test tone.	Main moves on; Back leaves, except while testing the keys.
 presets_library_group	Menu > System > Saves > Library		group	Preset Library	Named save/load/rename/delete workflow for patch states.	Use Refresh if external files were changed.
 save_as_group	Menu > System > Saves > Library > Save As		group	Save As	Creates a preset from the current runtime state.	Enter a name then run Save to write it.
 load_group	Menu > System > Saves > Library > Load		group	Load Preset	Lists available presets to load into current state.	Loading replaces current runtime config.

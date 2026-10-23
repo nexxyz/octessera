@@ -259,6 +259,15 @@ Expected:
 - I2C devices remain detectable after service stop.
 - Runtime input/output behavior matches hardware semantics.
 
+## On-Device Hardware Test
+
+On both boards and in the simulator, `System > Maintenance > Hardware Test` runs a
+guided check on the instrument itself: grid LED colours and corner orientation,
+every pad, the four keys, all encoder turns and Aux clicks, and an A440 tone on
+the first internal synth slot. *Main* moves on, and the last screen summarises
+what was seen. The steps are specified in
+[menu-and-controls-spec.md](../../docs/menu-and-controls-spec.md).
+
 ## Interactive Hardware Test Command
 
 This is the Raspberry-only interactive hardware command. It actuates LEDs, scans

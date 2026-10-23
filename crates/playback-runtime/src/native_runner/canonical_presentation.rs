@@ -12,6 +12,7 @@ impl NativeRunner {
                 .is_none_or(|setup| !setup.visible)
             && self.display.usb_sd_transfer_modal.is_none()
             && self.display.system_info_modal.is_none()
+            && self.display.hardware_test.is_none()
             && self.display.help_popup.is_none()
             && !self.display.aux_mapping_peek_visible
             && self.display.runtime_error_presentation.is_none()
@@ -39,7 +40,7 @@ mod tests {
         runner.display.oled_mode = NativeOledMode::Off;
         assert!(!runner.is_canonical_menu_presentation());
 
-        let modal_factories: [fn(&mut NativeRunner); 8] = [
+        let modal_factories: [fn(&mut NativeRunner); 9] = [
             |runner| {
                 runner.display.confirm_dialog = Some(NativeConfirmDialog {
                     title: "Confirm".into(),
@@ -90,6 +91,7 @@ mod tests {
             |runner| {
                 runner.display.oled_splash_until = Some(Instant::now());
             },
+            |runner| runner.open_hardware_test(),
             |runner| {
                 runner.display.ui.fn_held = true;
                 runner.display.aux_mapping_peek_visible = true;

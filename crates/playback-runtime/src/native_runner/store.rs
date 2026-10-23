@@ -138,7 +138,6 @@ impl NativeRunner {
                 max_minutes: self.recording_max_minutes,
             }),
             "recording.stop" => Some(RuntimePlatformEffect::RecordingStop),
-            "system.hardwareTest" => Some(RuntimePlatformEffect::HardwareTest),
             "system.info" => Some(RuntimePlatformEffect::SystemInfoRequest),
             "system.configureWifi" => Some(RuntimePlatformEffect::SetupPortalOpen),
             "system.backupRestore" => Some(RuntimePlatformEffect::UserDataTransferOpen),

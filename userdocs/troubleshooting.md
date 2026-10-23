@@ -36,8 +36,9 @@ on the enclosure and break.
 | Brownout, reboot, heat or power instability | Power down and check the regulated supply, input, cables and ventilation. | [Safety and power](hardware/safety-and-power.md) |
 | The case doesn't fit or a port is blocked | Don't force it. Remove the microSD cards, then check the fit and cable routing. | [Assembly manual](hardware/assembly-manual.md), [enclosure notes](hardware/enclosure.md) |
 
-On a board, `System > Maintenance > Hardware Test` runs the guided hardware
-diagnostic (it asks first). If nothing here matches, stop before changing wiring and
+`System > Maintenance > Hardware Test` walks you through the grid LEDs, every
+pad, the four keys, the encoders and a test tone, then tells you what it saw.
+It's handy right after assembly, or when one pad seems to have gone quiet. If nothing here matches, stop before changing wiring and
 go back to the [flash and first-boot guide](hardware/flash-and-first-boot.md),
 [USB roles](hardware/usb-roles.md) or [safety and power](hardware/safety-and-power.md)
 page that best fits the problem.

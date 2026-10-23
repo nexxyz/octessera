@@ -114,6 +114,9 @@ impl NativeRunner {
         }
         self.apply_param_mod_overlay(&mut leds);
         self.apply_fn_overlay(&mut leds);
+        if let Some(test) = &self.display.hardware_test {
+            test.paint_grid(&mut leds);
+        }
         let mut led_rgb = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT * 3);
         for led in leds {
             led.append_rgb(&mut led_rgb);

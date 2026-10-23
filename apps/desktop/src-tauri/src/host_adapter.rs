@@ -353,7 +353,6 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
                     .map(|result| HostMessage::RuntimeResult { result })
                     .collect())
             }
-            RuntimePlatformEffect::HardwareTest => Ok(vec![]),
             RuntimePlatformEffect::UpdateCheck => Ok(vec![HostMessage::RuntimeResult {
                 result: open_releases_page(),
             }]),

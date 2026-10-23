@@ -168,7 +168,6 @@ export const RUNTIME_PLATFORM_EFFECT_FIXTURES = [
   { type: "recording_stop" },
   { type: "reboot" },
   { type: "shutdown" },
-  { type: "hardware_test" },
   { type: "update_check" },
   { type: "update_apply" },
   { type: "rollback" },

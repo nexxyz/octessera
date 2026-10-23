@@ -73,7 +73,6 @@ pub enum RuntimePlatformEffect {
     MidiPanic,
     Reboot,
     Shutdown,
-    HardwareTest,
     UpdateCheck,
     UpdateApply,
     Rollback,
@@ -126,8 +125,7 @@ impl RuntimePlatformEffect {
             | Self::BluetoothScan { .. }
             | Self::BluetoothDevice { .. }
             | Self::Reboot
-            | Self::Shutdown
-            | Self::HardwareTest => RuntimeOperation::RuntimeDispatch,
+            | Self::Shutdown => RuntimeOperation::RuntimeDispatch,
             Self::SystemInfoRequest => RuntimeOperation::SystemInfo,
             Self::SetupPortalOpen => RuntimeOperation::SetupPortal,
             Self::UserDataTransferOpen | Self::UserDataTransferClose => {

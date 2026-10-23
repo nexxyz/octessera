@@ -86,6 +86,7 @@ mod fast_dispatch_parity;
 mod fm;
 mod fm_device;
 mod happy_path;
+mod hardware_test;
 mod hdmi;
 mod input_events;
 mod input_events_midi;

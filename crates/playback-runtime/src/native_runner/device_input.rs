@@ -134,6 +134,9 @@ impl NativeRunner {
         if self.display.system_info_modal.is_some() {
             return self.handle_system_info_modal_input(input);
         }
+        if self.display.hardware_test.is_some() {
+            return self.handle_hardware_test_input(input);
+        }
         if self.display.aux_mapping_peek_visible
             && matches!(
                 &input,

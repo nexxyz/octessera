@@ -506,6 +506,22 @@ non-`none` layer but not on the active layer gets a very dim green lift (`+16,+3
 the active layer's background colour. Ghosts sit below everything else: the active layer's own
 cells, the scan progress ray and every overlay above draw over them.
 
+Hardware Test (`System > Maintenance`, confirmed) stops the transport and takes over the OLED, grid
+and NeoKey LEDs until it ends. *Main* click moves on; *Back* leaves, except on the Keys step where it
+is one of the keys under test.
+
+1. Grid LEDs: every pad dim white, corners `(0,0)` magenta, `(7,0)` green, `(0,7)` blue, `(7,7)`
+   white. NeoKeys show magenta, green, blue, white from Back to Fn.
+2. Pads: pressed pads stay green (white while held); the OLED counts `Seen N/64`. Presses don't
+   reach the layer.
+3. Keys: each of Back, Play, Shift and Fn marks `ok` and turns its key green.
+4. Encoders: turning Main and each Aux, and clicking each Aux, marks `ok`.
+5. Sound: an 800 ms A440 on the first Synth, FM or Plucked slot, again on *Play*; without one the
+   OLED says so.
+6. A summary of pads, keys and encoders seen; *Main* returns to the menu.
+
+The SSH `--hardware-test` command (Raspberry only) is separate and has no menu entry.
+
 ### Sectioned scanning
 
 - `Sections=1` scans one full column per step for `columns` and one full row per step for `rows`.
