@@ -1,26 +1,20 @@
 //! Hand-drawn step patterns on a canvas of 8x8 pages. The grid is a viewport onto one page; the
-//! layer's Link scanning plays whatever is in view. Advance turns the page on musical time (from
-//! the transport, not from scanning), so it lines up with any scan unit or section count.
+//! layer's Link scanning plays whatever is in view. Advance turns the page every N of the
+//! layer's own steps (its Step Rate), counted from Play, independent of scanning.
 mod pages;
 
 use crate::behavior::{BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput};
-use crate::behaviors::native_impl::config_items::{enum_item, number_item};
+use crate::behaviors::native_impl::config_items::number_item;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
-use pages::{
-    advance_pulses, next_page, store_page, stored_page, StoredPage, ADVANCE_OPTIONS,
-    MAX_PAGES_PER_AXIS,
-};
+use pages::{next_page, store_page, stored_page, StoredPage, MAX_PAGES_PER_AXIS};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
+const MAX_ADVANCE_STEPS: usize = 64;
 
 fn one() -> usize {
     1
-}
-
-fn advance_off() -> String {
-    "off".into()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,18 +31,15 @@ pub struct SequencerState {
     pub page_x: usize,
     #[serde(default = "one", rename = "pageY")]
     pub page_y: usize,
-    #[serde(default = "advance_off")]
-    pub advance: String,
+    /// Turn to the next page every this many steps; 0 is off.
+    #[serde(default, rename = "advanceSteps")]
+    pub advance_steps: usize,
     /// Every drawn page. Absent in single-page saves, whose `cells` are page 1, 1.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pages: Option<Vec<StoredPage>>,
-    /// Which advance period the last step fell in.
-    #[serde(
-        default,
-        rename = "advanceSlot",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub advance_slot: Option<u64>,
+    /// Steps played since Play; cleared when the transport restarts.
+    #[serde(default, rename = "tickCounter")]
+    pub tick_counter: usize,
 }
 
 pub fn init(config: Value) -> Result<SequencerState, String> {
@@ -59,7 +50,7 @@ pub fn init(config: Value) -> Result<SequencerState, String> {
     });
     let mut merged = empty;
     if let (Some(target), Some(config)) = (merged.as_object_mut(), config.as_object()) {
-        for key in ["pagesX", "pagesY", "pageX", "pageY", "advance"] {
+        for key in ["pagesX", "pagesY", "pageX", "pageY", "advanceSteps"] {
             if let Some(value) = config.get(key) {
                 target.insert(key.into(), value.clone());
             }
@@ -83,9 +74,7 @@ fn normalized(mut state: SequencerState) -> SequencerState {
     state.pages_y = state.pages_y.clamp(1, MAX_PAGES_PER_AXIS);
     state.page_x = state.page_x.clamp(1, state.pages_x);
     state.page_y = state.page_y.clamp(1, state.pages_y);
-    if !ADVANCE_OPTIONS.contains(&state.advance.as_str()) {
-        state.advance = advance_off();
-    }
+    state.advance_steps = state.advance_steps.min(MAX_ADVANCE_STEPS);
     show_page(&mut state);
     state
 }
@@ -119,22 +108,18 @@ pub fn on_input(
     }
 }
 
-/// Turns the page when the transport has moved into a new advance period. A transport that
-/// went back (stop, reset) restarts the count without turning.
-pub fn on_tick(state: SequencerState, context: &mut BehaviorContext) -> SequencerState {
-    let Some(period) = advance_pulses(&state.advance) else {
+/// Turns the page on every `advance_steps`-th step after the first, so with Step Rate 1/1 and
+/// 1 step the view changes on each new bar.
+pub fn on_tick(state: SequencerState, _context: &mut BehaviorContext) -> SequencerState {
+    if state.advance_steps == 0 {
         return state;
-    };
-    let slot = context.transport_pulse / period;
+    }
     let mut next = state;
-    let turns = match next.advance_slot {
-        Some(last) if slot > last => slot - last,
-        _ => 0,
-    };
-    next.advance_slot = Some(slot);
-    if turns > 0 && next.pages_x * next.pages_y > 1 {
+    let due = next.tick_counter > 0 && next.tick_counter.is_multiple_of(next.advance_steps);
+    next.tick_counter += 1;
+    if due && next.pages_x * next.pages_y > 1 {
         (next.page_x, next.page_y) =
-            next_page(next.page_x, next.page_y, next.pages_x, next.pages_y, turns);
+            next_page(next.page_x, next.page_y, next.pages_x, next.pages_y, 1);
         show_page(&mut next);
     }
     next
@@ -166,23 +151,23 @@ pub fn config_menu() -> Vec<BehaviorConfigItem> {
         number_item("pagesY", "Pages Y", 1, max, 1),
         number_item("pageX", "Page X", 1, max, 1),
         number_item("pageY", "Page Y", 1, max, 1),
-        enum_item("advance", "Advance", &ADVANCE_OPTIONS),
+        number_item("advanceSteps", "Advance", 0, MAX_ADVANCE_STEPS as i32, 1),
     ]
 }
 
 /// A plain single page saves exactly as before pages existed.
 pub fn serialize(state: &SequencerState) -> Result<Value, String> {
     let mut value = serde_json::to_value(state).map_err(|error| error.to_string())?;
-    let single_page = state.pages_x == 1 && state.pages_y == 1 && state.advance == "off";
+    let single_page = state.pages_x == 1 && state.pages_y == 1 && state.advance_steps == 0;
     if let (true, Some(object)) = (single_page, value.as_object_mut()) {
         for key in [
             "pagesX",
             "pagesY",
             "pageX",
             "pageY",
-            "advance",
+            "advanceSteps",
             "pages",
-            "advanceSlot",
+            "tickCounter",
         ] {
             object.remove(key);
         }

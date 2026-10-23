@@ -17,7 +17,8 @@ fn sequencer_pages_advance_every_bar_in_step_with_scanning() {
     take.tap_now(0, 2);
     take.open(&["Build", "L2:"]);
     take.set_number("Page X", &format!("{config}.pageX"), 1);
-    take.set_value("Advance", &format!("{config}.advance"), "1/1");
+    // L2 steps at 1/8, one per scan column, so 8 steps make a bar.
+    take.set_number("Advance", &format!("{config}.advanceSteps"), 8);
     take.checkpoint("pages set");
     for layer in [0, 2, 3] {
         take.toggle_mute_now(layer);

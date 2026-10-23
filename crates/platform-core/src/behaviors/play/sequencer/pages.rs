@@ -1,28 +1,7 @@
-//! The sequencer canvas: a rectangle of 8x8 pages, one of them in view, and the musical clock
-//! that can turn the page.
+//! The sequencer canvas: a rectangle of 8x8 pages, one of them in view.
 use serde::{Deserialize, Serialize};
 
 pub const MAX_PAGES_PER_AXIS: usize = 4;
-
-/// Advance settings, shortest first: note values (with triplets), then whole bars.
-pub const ADVANCE_OPTIONS: [&str; 16] = [
-    "off", "1/32T", "1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2T", "1/2", "1/1T",
-    "1/1", "2 bars", "4 bars", "8 bars",
-];
-
-/// Transport pulses (24 per beat, 96 per bar) between page turns; `None` when advance is off.
-pub fn advance_pulses(advance: &str) -> Option<u64> {
-    if let Some(bars) = advance.strip_suffix(" bars") {
-        return bars.parse::<u64>().ok().map(|bars| bars * 96);
-    }
-    let (value, triplet) = match advance.strip_suffix('T') {
-        Some(value) => (value, true),
-        None => (advance, false),
-    };
-    let denominator = value.strip_prefix("1/")?.parse::<u64>().ok()?;
-    let pulses = 96 / denominator;
-    Some(if triplet { pulses * 2 / 3 } else { pulses })
-}
 
 /// One stored page; pages never touched are not stored.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,21 +40,6 @@ pub fn next_page(x: usize, y: usize, pages_x: usize, pages_y: usize, steps: u64)
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn advance_values_are_musical_lengths_in_pulses() {
-        assert_eq!(advance_pulses("off"), None);
-        assert_eq!(advance_pulses("1/32T"), Some(2));
-        assert_eq!(advance_pulses("1/16"), Some(6));
-        assert_eq!(advance_pulses("1/8T"), Some(8));
-        assert_eq!(advance_pulses("1/4"), Some(24));
-        assert_eq!(advance_pulses("1/1T"), Some(64));
-        assert_eq!(advance_pulses("1/1"), Some(96));
-        assert_eq!(advance_pulses("4 bars"), Some(384));
-        for option in ADVANCE_OPTIONS.iter().skip(1) {
-            assert!(advance_pulses(option).is_some(), "{option}");
-        }
-    }
 
     #[test]
     fn pages_advance_along_the_row_then_up() {

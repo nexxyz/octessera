@@ -153,7 +153,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 | sequencer | Pages Y: [1..4] | number, step 1 (default 1): pages stacked up |
 | sequencer | Page X: [1..4] | number, step 1 (default 1): the column of pages in view, clamped to Pages X |
 | sequencer | Page Y: [1..4] | number, step 1 (default 1): the row of pages in view, clamped to Pages Y |
-| sequencer | Advance: [1/32T .. 1/1, 2 bars, 4 bars, 8 bars, off] | enum (default off): how often the view turns to the next page |
+| sequencer | Advance: [0..64] | number, step 1 (default 0 = off): turn to the next page every this many steps |
 | keys | Quantize: [immediate, step] | enum (default immediate) |
 | looper | !Punch In/Out | action |
 | looper | Length: [1..64] | number, step 1 (default 16) |
@@ -345,7 +345,7 @@ Event semantics that the menu rows above do not show. All coordinates are lower-
 
 | Behavior | Notes |
 |---|---|
-| `sequencer` | A canvas of `Pages X` x `Pages Y` 8x8 pages; the grid is a viewport onto one page (`Page X`, `Page Y`) and shows, edits, and plays only that page. Pages never drawn on stay empty. `Advance` turns the view to the next page in reading order (along the row of pages, then up a row, wrapping) whenever the transport crosses a multiple of the chosen length, so with an 8-column scan at 1/8 an Advance of 1/1 turns exactly on the scan wrap. Advance follows the transport only, never Step Rate, Link scanning, or its sections; stopping or resetting does not turn the page. Changing these rows keeps the drawn pages (other behaviors re-initialize). Saves from before pages load as page 1, 1. |
+| `sequencer` | A canvas of `Pages X` x `Pages Y` 8x8 pages; the grid is a viewport onto one page (`Page X`, `Page Y`) and shows, edits, and plays only that page. Pages never drawn on stay empty. `Advance` turns the view to the next page in reading order (along the row of pages, then up a row, wrapping) every `Advance` steps of the layer's Step Rate, counted from Play: steps 1 to N play the page in view and step N + 1 turns. Step Rate also paces the layer's scanning, so keep it at the scan unit: with Step Rate 1/8 and an 8-column scan, Advance 8 turns on every bar and Advance 2 on every beat. Stop or reset restarts the count; Link scanning settings and sections never change it. Changing these rows keeps the drawn pages (other behaviors re-initialize). Saves from before pages load as page 1, 1. |
 | `looper` | `Punch In/Out` toggles between overdub and play, keeps the recorded loop and live playback, and toasts `Looper: Overdub` or `Looper: Play`. There is no editable mode row. |
 | `bubbles` | Current, Drift, and Buoyancy use eighth-cell units per tick. `Add Bubble` spawns one bottom-origin rising bubble immediately. |
 | `forest_fire` | Trees and burning cells render as visible, but events follow trigger types: tree-to-fire and manual ignition activate, burned-out cells deactivate, visible non-burning trees are stable, unrelated empty cells emit nothing. |

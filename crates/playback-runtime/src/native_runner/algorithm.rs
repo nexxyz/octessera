@@ -104,7 +104,6 @@ impl NativeRunner {
                         continue;
                     };
                     engine.set_global_sound(effective_sound.clone());
-                    engine.set_transport_pulse(self.transport.current_ppqn_pulse);
                     engine.set_interpretation_profile(profile.clone());
                     engine.set_mapping_config(mapping.clone());
                     engine.tick_filtered(effective_bpm, |intent| {
@@ -253,8 +252,6 @@ impl NativeRunner {
         while self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses
         {
             self.transport.layer_pulse_accumulators[self.active_layer_index] -= active_step_pulses;
-            self.engine
-                .set_transport_pulse(self.transport.current_ppqn_pulse);
             let tick = self.active_engine_tick_result()?;
             self.transport.tick = self.transport.tick.saturating_add(1);
             if let Some(layer_tick) = self.transport.layer_ticks.get_mut(self.active_layer_index) {
