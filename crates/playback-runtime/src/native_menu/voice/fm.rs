@@ -95,7 +95,7 @@ pub(super) fn fm_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nativ
                     number_item(
                         "Cutoff",
                         format!("{prefix}.fm.filter.cutoffHz"),
-                        cutoff_hz_to_display(synth_number(fm, &["filter", "cutoffHz"], 8000)),
+                        cutoff_hz_to_display(synth_number(fm, &["filter", "cutoffHz"], 20_000)),
                         0,
                         255,
                         1,
@@ -103,9 +103,9 @@ pub(super) fn fm_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nativ
                     number_item(
                         "Res",
                         format!("{prefix}.fm.filter.resonance"),
-                        synth_number(fm, &["filter", "resonance"], 20),
+                        synth_number(fm, &["filter", "resonance"], 0),
                         0,
-                        255,
+                        100,
                         1,
                     ),
                     number_item(

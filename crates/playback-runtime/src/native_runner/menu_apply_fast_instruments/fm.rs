@@ -68,7 +68,8 @@ pub(in super::super) fn numeric_field(field: &str) -> Option<(&[&str], i32, i32)
         }
         "velocityToIndexPct" | "modShapePct" | "modMixPct" => (0, 100),
         "ratioFineCents" => (-100, 100),
-        "filter.cutoffHz" | "filter.resonance" => (0, 255),
+        "filter.cutoffHz" => (0, 255),
+        "filter.resonance" => (0, 100),
         "filter.envAmountPct" => (-100, 100),
         "indexEnv.attackMs" | "indexEnv.decayMs" | "ampEnv.attackMs" | "ampEnv.decayMs"
         | "filterEnv.attackMs" | "filterEnv.decayMs" => (0, 5000),

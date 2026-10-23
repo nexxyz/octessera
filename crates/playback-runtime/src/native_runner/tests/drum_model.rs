@@ -48,7 +48,10 @@ fn drum_defaults_are_eight_independent_voices_with_empty_assignments_and_own_mix
         drum["ampEnv"],
         json!({ "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 30 })
     );
-    assert_eq!(drum["filter"], runner.instruments[0].synth_config["filter"]);
+    assert_eq!(
+        drum["filter"],
+        json!({ "type": "lowpass", "cutoffHz": 20_000, "resonance": 0, "envAmountPct": 0, "keyTrackingPct": 0 })
+    );
     assert_eq!(
         drum["filterEnv"],
         runner.instruments[0].synth_config["filterEnv"]

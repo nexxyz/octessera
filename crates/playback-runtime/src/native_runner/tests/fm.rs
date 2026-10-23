@@ -42,7 +42,7 @@ fn fm_defaults_validate_and_legacy_config_loads_without_a_schema_bump() {
     );
     assert_eq!(
         defaults["filter"],
-        runner.instruments[0].synth_config["filter"]
+        json!({ "type": "lowpass", "cutoffHz": 20_000, "resonance": 0, "envAmountPct": 0, "keyTrackingPct": 0 })
     );
     assert_eq!(
         defaults["filterEnv"],

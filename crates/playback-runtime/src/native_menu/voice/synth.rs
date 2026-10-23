@@ -114,7 +114,7 @@ fn filter_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuIt
                 format!("{prefix}.synth.filter.resonance"),
                 i32::from(config.synth_filter_resonance),
                 0,
-                255,
+                100,
                 1,
             ),
             number_item(

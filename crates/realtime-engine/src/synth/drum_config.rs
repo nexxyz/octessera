@@ -1,4 +1,6 @@
-use super::types::{default_synth_config, AmpConfig, EnvConfig, FilterConfig, SynthConfig};
+use super::types::{
+    default_synth_config, AmpConfig, EnvConfig, FilterConfig, FilterType, SynthConfig,
+};
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -220,7 +222,12 @@ impl Default for DrumConfig {
                 sustain_pct: 100.0,
                 release_ms: 30.0,
             },
-            filter: synth.filter,
+            filter: FilterConfig {
+                kind: FilterType::Lowpass,
+                cutoff_hz: 20_000.0,
+                resonance: 0.0,
+                ..synth.filter
+            },
             filter_env: synth.filter_env,
         }
     }

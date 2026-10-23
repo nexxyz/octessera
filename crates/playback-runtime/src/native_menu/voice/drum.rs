@@ -243,7 +243,7 @@ fn filter_group(drum: Option<&serde_json::Value>, prefix: &str) -> NativeMenuIte
             number_item(
                 "Cutoff",
                 format!("{prefix}.drum.filter.cutoffHz"),
-                cutoff_hz_to_display(synth_number(drum, &["filter", "cutoffHz"], 8000)),
+                cutoff_hz_to_display(synth_number(drum, &["filter", "cutoffHz"], 20_000)),
                 0,
                 255,
                 1,
@@ -251,9 +251,9 @@ fn filter_group(drum: Option<&serde_json::Value>, prefix: &str) -> NativeMenuIte
             number_item(
                 "Res",
                 format!("{prefix}.drum.filter.resonance"),
-                synth_number(drum, &["filter", "resonance"], 20),
+                synth_number(drum, &["filter", "resonance"], 0),
                 0,
-                255,
+                100,
                 1,
             ),
             number_item(

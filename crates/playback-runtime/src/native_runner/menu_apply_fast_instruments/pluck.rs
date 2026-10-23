@@ -68,7 +68,7 @@ pub(in super::super) fn numeric_field(field: &str) -> Option<(&[&str], i32, i32)
         "amp.gainPct" => (&["amp", "gainPct"], (0, 100)),
         "amp.velocitySensitivityPct" => (&["amp", "velocitySensitivityPct"], (0, 100)),
         "filter.cutoffHz" => (&["filter", "cutoffHz"], (0, 255)),
-        "filter.resonance" => (&["filter", "resonance"], (0, 255)),
+        "filter.resonance" => (&["filter", "resonance"], (0, 100)),
         "filter.envAmountPct" => (&["filter", "envAmountPct"], (-100, 100)),
         "filter.keyTrackingPct" => (&["filter", "keyTrackingPct"], (0, 100)),
         "ampEnv.attackMs" => (&["ampEnv", "attackMs"], (0, 5000)),

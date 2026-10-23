@@ -130,7 +130,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
                     format!("{prefix}.sample.filter.resonance"),
                     sample_number(config.sample_filter, &["resonance"], 0),
                     0,
-                    255,
+                    100,
                     1,
                 ),
                 number_item(

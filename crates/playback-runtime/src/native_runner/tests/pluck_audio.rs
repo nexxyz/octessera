@@ -130,7 +130,7 @@ fn pluck_scalar_paths_and_ranges_match_dsp_typed_ids() {
         ("ampEnv.sustainPct", 0, 100),
         ("ampEnv.releaseMs", 0, 10000),
         ("filter.cutoffHz", 0, 255),
-        ("filter.resonance", 0, 255),
+        ("filter.resonance", 0, 100),
         ("filter.envAmountPct", -100, 100),
         ("filter.keyTrackingPct", 0, 100),
         ("filterEnv.attackMs", 0, 5000),

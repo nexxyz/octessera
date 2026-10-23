@@ -174,7 +174,7 @@ fn fm_picker_exposes_only_selected_continuous_controls() {
             (
                 "instruments.0.fm.filter.resonance",
                 Some(0),
-                Some(255),
+                Some(100),
                 Some(1)
             ),
             ("instruments.0.fm.amp.gainPct", Some(0), Some(100), Some(1)),
@@ -259,7 +259,7 @@ fn fm_defaults_ranges_and_saved_values_are_independent_from_synth() {
         ("filterEnv.decayMs", 120, 0, 5000, 5),
         ("filterEnv.sustainPct", 70, 0, 100, 1),
         ("filterEnv.releaseMs", 180, 0, 10000, 5),
-        ("filter.resonance", 20, 0, 255, 1),
+        ("filter.resonance", 0, 0, 100, 1),
         ("filter.envAmountPct", 0, -100, 100, 1),
         ("filter.keyTrackingPct", 0, 0, 100, 1),
     ] {

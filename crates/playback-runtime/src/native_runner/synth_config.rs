@@ -50,7 +50,13 @@ pub(super) fn fm_default_config() -> Value {
         "indexEnv": { "attackMs": 0, "decayMs": 250, "sustainPct": 20, "releaseMs": 120 },
         "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
         "ampEnv": { "attackMs": 5, "decayMs": 300, "sustainPct": 70, "releaseMs": 350 },
-        "filter": synth["filter"],
+        "filter": {
+            "type": "lowpass",
+            "cutoffHz": 20_000,
+            "resonance": 0,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0
+        },
         "filterEnv": synth["filterEnv"]
     })
 }
@@ -165,7 +171,7 @@ pub(super) fn synth_preset_config(id: &str) -> Value {
         ),
         _ => synth_config(
             "saw", 80, 0, 0, 50, "square", 72, 0, 0, 50, 80, 100, 5, 120, 70, 180, "lowpass", 8000,
-            20, 0, 0, 5, 120, 70, 180,
+            0, 0, 0, 5, 120, 70, 180,
         ),
     }
 }

@@ -111,7 +111,7 @@ fn plucked_defaults_ranges_and_saved_values_stay_in_own_block() {
         ("dispersionPct", 0, 0, 100, 1),
         ("bodyAmountPct", 0, 0, 100, 1),
         ("bodyFrequencyHz", 500, 100, 2000, 1),
-        ("filter.resonance", 20, 0, 255, 1),
+        ("filter.resonance", 0, 0, 100, 1),
         ("filter.envAmountPct", 0, -100, 100, 1),
         ("filter.keyTrackingPct", 0, 0, 100, 1),
         ("amp.gainPct", 80, 0, 100, 1),
@@ -252,7 +252,7 @@ fn plucked_picker_offers_six_numeric_controls_without_structural_targets() {
             ("instruments.0.pluck.brightnessPct", Some(0), Some(100)),
             ("instruments.0.pluck.pickPositionPct", Some(5), Some(50)),
             ("instruments.0.pluck.filter.cutoffHz", Some(0), Some(255)),
-            ("instruments.0.pluck.filter.resonance", Some(0), Some(255)),
+            ("instruments.0.pluck.filter.resonance", Some(0), Some(100)),
             ("instruments.0.pluck.amp.gainPct", Some(0), Some(100)),
         ]
     );

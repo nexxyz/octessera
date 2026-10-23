@@ -102,7 +102,7 @@ fn apply_synth_resonance_field(
     else {
         return false;
     };
-    let resonance = resonance.clamp(0, 255) as u8;
+    let resonance = resonance.clamp(0, 100) as u8;
     if synth_filter_resonance(instrument) == resonance {
         return false;
     }

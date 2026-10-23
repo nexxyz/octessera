@@ -109,9 +109,9 @@ pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
                     number_item(
                         "Res",
                         format!("{prefix}.pluck.filter.resonance"),
-                        synth_number(pluck, &["filter", "resonance"], 20),
+                        synth_number(pluck, &["filter", "resonance"], 0),
                         0,
-                        255,
+                        100,
                         1,
                     ),
                     number_item(

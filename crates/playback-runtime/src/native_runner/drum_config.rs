@@ -90,7 +90,13 @@ pub(super) fn drum_default_config() -> Value {
         "followPitch": false,
         "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
         "ampEnv": { "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 30 },
-        "filter": synth["filter"],
+        "filter": {
+            "type": "lowpass",
+            "cutoffHz": 20_000,
+            "resonance": 0,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0
+        },
         "filterEnv": synth["filterEnv"],
     })
 }
@@ -148,7 +154,7 @@ pub(super) fn common_numeric_field(field: &str) -> Option<(&[&str], i32, i32)> {
         "drum.amp.gainPct" => Some((&["amp", "gainPct"], 0, 100)),
         "drum.amp.velocitySensitivityPct" => Some((&["amp", "velocitySensitivityPct"], 0, 100)),
         "drum.filter.cutoffHz" => Some((&["filter", "cutoffHz"], 0, 255)),
-        "drum.filter.resonance" => Some((&["filter", "resonance"], 0, 255)),
+        "drum.filter.resonance" => Some((&["filter", "resonance"], 0, 100)),
         "drum.filter.envAmountPct" => Some((&["filter", "envAmountPct"], -100, 100)),
         "drum.filter.keyTrackingPct" => Some((&["filter", "keyTrackingPct"], 0, 100)),
         _ => None,

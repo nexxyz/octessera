@@ -430,7 +430,7 @@ pub fn default_synth_config() -> SynthConfig {
         filter: FilterConfig {
             kind: FilterType::Lowpass,
             cutoff_hz: 8000.0,
-            resonance: 20.0,
+            resonance: 0.0,
             env_amount_pct: 0.0,
             key_tracking_pct: 0.0,
         },

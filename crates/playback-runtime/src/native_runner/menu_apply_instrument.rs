@@ -293,7 +293,7 @@ fn apply_sampler_filter_fields(
 fn sampler_filter_field_specs() -> &'static [(&'static str, &'static [&'static str], i32, i32)] {
     &[
         ("filter.cutoffHz", &["cutoffHz"], 0, 255),
-        ("filter.resonance", &["resonance"], 0, 255),
+        ("filter.resonance", &["resonance"], 0, 100),
         ("filter.envAmountPct", &["envAmountPct"], -100, 100),
         ("filter.keyTrackingPct", &["keyTrackingPct"], 0, 100),
     ]

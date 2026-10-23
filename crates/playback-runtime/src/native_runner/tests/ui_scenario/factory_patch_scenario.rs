@@ -306,7 +306,7 @@ fn expected_factory_patch_fixture() -> Value {
                     "key": "instruments.0.synth.filter.resonance",
                     "kind": "number",
                     "label": "Res",
-                    "max": 255.0,
+                    "max": 100.0,
                     "min": 0.0,
                     "step": 1.0
                 }

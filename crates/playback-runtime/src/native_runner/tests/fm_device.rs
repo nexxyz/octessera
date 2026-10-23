@@ -32,11 +32,11 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
         ("fm.amp.gainPct", -1, "fm.amp.gainPct", 79.0),
         (
             "fm.filter.cutoffHz",
-            1,
+            -1,
             "fm.filter.cutoffHz",
-            cutoff_display_to_hz(cutoff_hz_to_display(8000) + 1) as f32,
+            cutoff_display_to_hz(cutoff_hz_to_display(20_000) - 1) as f32,
         ),
-        ("fm.filter.resonance", 1, "fm.filter.resonance", 21.0),
+        ("fm.filter.resonance", 1, "fm.filter.resonance", 1.0),
         ("fm.ampEnv.sustainPct", 1, "fm.ampEnv.sustainPct", 71.0),
         ("fm.filterEnv.releaseMs", 1, "fm.filterEnv.releaseMs", 185.0),
     ] {

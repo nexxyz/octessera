@@ -145,7 +145,7 @@ pub(super) struct RoutingTreeWorkerContext {
     pub(super) bus_count: usize,
     pub(super) sample_rate: u32,
     pub(super) synth_context: SynthSourceContext,
-    pub(super) sample_filter: [(f32, f32); INSTRUMENT_SLOT_COUNT],
+    pub(super) sample_filter: [super::source_lane_renderer::PreviewFilter; INSTRUMENT_SLOT_COUNT],
     pub(super) bus_idle_threshold: BusIdleThreshold,
     pub(super) fx_activity_hold_frames: u32,
 }
@@ -193,11 +193,7 @@ impl RoutingTreeWorkerContext {
             sample_rate: engine.sample_rate,
             synth_context: engine.synth_source_context(),
             sample_filter: std::array::from_fn(|slot| {
-                engine
-                    .sample_banks
-                    .get(slot)
-                    .map(|bank| (bank.filter_cutoff_hz, bank.filter_resonance))
-                    .unwrap_or((8000.0, 20.0))
+                super::source_lane_renderer::PreviewFilter::of(engine.sample_banks.get(slot))
             }),
             bus_idle_threshold: engine.dsp_config.bus_idle_threshold,
             fx_activity_hold_frames: engine.fx_activity_hold_frames,

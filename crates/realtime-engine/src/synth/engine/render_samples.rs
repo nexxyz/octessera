@@ -1,4 +1,4 @@
-use super::source_lane_renderer::{render_sample_voice_frame, sample_lowpass};
+use super::source_lane_renderer::{render_sample_voice_frame, PreviewFilter};
 use super::source_worker_placement;
 use super::*;
 
@@ -275,12 +275,7 @@ impl SynthEngine {
         &mut self,
         slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
     ) -> bool {
-        let filters = std::array::from_fn(|slot| {
-            self.sample_banks
-                .get(slot)
-                .map(|bank| (bank.filter_cutoff_hz, bank.filter_resonance))
-                .unwrap_or((8000.0, 20.0))
-        });
+        let filters = std::array::from_fn(|slot| PreviewFilter::of(self.sample_banks.get(slot)));
         let (completed, active) = render_preview_sample_voices_frame_into(
             &mut self.preview_sample_voices,
             &filters,
@@ -298,7 +293,7 @@ impl SynthEngine {
 #[cfg(feature = "routing-tree-executor")]
 pub(super) fn render_preview_sample_voices_block_into(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    filters: &[(f32, f32); INSTRUMENT_SLOT_COUNT],
+    filters: &[PreviewFilter; INSTRUMENT_SLOT_COUNT],
     sample_rate: u32,
     frames: usize,
     slot_out: &mut [Vec<f32>; INSTRUMENT_SLOT_COUNT],
@@ -330,7 +325,7 @@ pub(super) fn render_preview_sample_voices_block_into(
 
 fn render_preview_sample_voices_frame(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    filters: &[(f32, f32); INSTRUMENT_SLOT_COUNT],
+    filters: &[PreviewFilter; INSTRUMENT_SLOT_COUNT],
     sample_rate: u32,
     mut write: impl FnMut(usize, f32),
 ) -> bool {
@@ -349,8 +344,7 @@ fn render_preview_sample_voices_frame(
         let next_frame = (source_frame + 1).min(voice_frames - 1);
         let sample = mono_frame(&voice.buffer, source_frame) * (1.0 - frac)
             + mono_frame(&voice.buffer, next_frame) * frac;
-        let (cutoff_hz, resonance) = filters[voice.slot];
-        let filtered = sample_lowpass(sample, &mut voice.filt, cutoff_hz, resonance, sample_rate);
+        let filtered = filters[voice.slot].process(sample, &mut voice.filt, sample_rate);
         write(voice.slot, filtered * voice.gain);
         voice.pos += voice.step;
         active = true;
@@ -360,7 +354,7 @@ fn render_preview_sample_voices_frame(
 
 pub(super) fn render_preview_sample_voices_frame_into(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    filters: &[(f32, f32); INSTRUMENT_SLOT_COUNT],
+    filters: &[PreviewFilter; INSTRUMENT_SLOT_COUNT],
     sample_rate: u32,
     frames: usize,
     slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
