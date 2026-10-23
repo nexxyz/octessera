@@ -2,7 +2,9 @@
 //! the encoders and the audio path, driven entirely by the instrument's own controls.
 
 use super::led_color::LedColor;
+use super::snapshot_display::DisplaySnapshot;
 use super::{display_index, NativeRunner, RuntimeTransportState, GRID_HEIGHT, GRID_WIDTH};
+use crate::oled_frame::OledDisplayLayout;
 use crate::protocol::RunnerMessage;
 use platform_core::{DeviceInput, MusicalEvent};
 
@@ -140,7 +142,22 @@ impl NativeHardwareTest {
         }
     }
 
-    pub(super) fn title(&self) -> &'static str {
+    pub(super) fn display(&self) -> DisplaySnapshot {
+        let lines = self.lines();
+        let line_count = lines.len();
+        DisplaySnapshot {
+            body_layout: OledDisplayLayout::Rows,
+            title: self.title().into(),
+            lines,
+            colors: vec![platform_core::palette::WHITE_RGB565; line_count],
+            bar_values: vec![None; line_count],
+            full_lines: vec![None; line_count],
+            scroll: None,
+            selected_row: None,
+        }
+    }
+
+    fn title(&self) -> &'static str {
         match self.step {
             Step::GridLeds => "Test 1/5: Grid LEDs",
             Step::Pads => "Test 2/5: Pads",
@@ -151,7 +168,7 @@ impl NativeHardwareTest {
         }
     }
 
-    pub(super) fn lines(&self) -> Vec<String> {
+    fn lines(&self) -> Vec<String> {
         match self.step {
             Step::GridLeds => vec![
                 "Every pad lit?".into(),
