@@ -1438,7 +1438,6 @@
         "build": {
           "behaviorConfig": null,
           "behaviorId": "life",
-          "saveGridState": true,
           "savedState": {
             "cells": [
               false,
@@ -1772,7 +1771,6 @@
         "build": {
           "behaviorConfig": null,
           "behaviorId": "sequencer",
-          "saveGridState": true,
           "savedState": {
             "cells": [
               true,
@@ -2039,7 +2037,6 @@
             "mode": "overdub"
           },
           "behaviorId": "looper",
-          "saveGridState": true,
           "savedState": {
             "lengthSteps": 32,
             "mode": "overdub",
@@ -2345,7 +2342,6 @@
         "build": {
           "behaviorConfig": null,
           "behaviorId": "sequencer",
-          "saveGridState": true,
           "savedState": {
             "cells": [
               false,
@@ -2608,8 +2604,7 @@
         },
         "build": {
           "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": true
+          "behaviorId": "none"
         },
         "xy": {
           "x": null,
@@ -2801,8 +2796,7 @@
         },
         "build": {
           "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": true
+          "behaviorId": "none"
         },
         "xy": {
           "x": null,
@@ -2994,8 +2988,7 @@
         },
         "build": {
           "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": true
+          "behaviorId": "none"
         },
         "xy": {
           "x": null,
@@ -3187,8 +3180,7 @@
         },
         "build": {
           "behaviorConfig": null,
-          "behaviorId": "none",
-          "saveGridState": true
+          "behaviorId": "none"
         },
         "xy": {
           "x": null,

@@ -126,11 +126,6 @@ pub(crate) fn looper_saved_state_persists_sequence_only_when_grid_state_is_saved
     assert_eq!(build["savedState"]["steps"].as_array().unwrap().len(), 2);
     assert_eq!(build["savedState"]["steps"][0].as_array().unwrap().len(), 1);
     assert_eq!(build["savedState"]["steps"][1].as_array().unwrap().len(), 1);
-
-    runner.save_grid_states[0] = false;
-    let payload = runner.config_payload();
-    let build = &payload["runtimeConfig"]["layers"][0]["build"];
-    assert!(build.get("savedState").is_none());
 }
 
 #[test]

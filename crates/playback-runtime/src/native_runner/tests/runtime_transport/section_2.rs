@@ -205,7 +205,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
             ],
             "layers": [
                 {
-                    "build": { "behaviorId": "life", "behaviorConfig": {}, "saveGridState": false },
+                    "build": { "behaviorId": "life", "behaviorConfig": {} },
                     "link": {
                         "eventEnabled": true,
                         "stateNotesEnabled": false,
@@ -223,7 +223,6 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                     "build": {
                         "behaviorId": "sequencer",
                         "behaviorConfig": {},
-                        "saveGridState": true,
                         "savedState": {
                             "width": 8,
                             "height": 8,

@@ -106,11 +106,6 @@ fn apply_layer_build_payload(
     let Some(behavior_id) = runner.layer_behavior_ids.get(index).cloned() else {
         return Ok(());
     };
-    if let Some(save_grid_state) = build.get("saveGridState").and_then(Value::as_bool) {
-        if let Some(target) = runner.save_grid_states.get_mut(index) {
-            *target = save_grid_state;
-        }
-    }
     if let Some(seeded) = build.get("seeded").and_then(Value::as_bool) {
         if let Some(target) = runner.layer_seeded.get_mut(index) {
             *target = seeded;

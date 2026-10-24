@@ -109,9 +109,8 @@ Build
 
 - All layers run in parallel while transport runs. Switching the active layer never clears or resets
   any layer, and the newly selected layer's current state shows immediately.
-- `layers.N.build.saveGridState` (default true, no menu row) controls only whether preset/default
-  save payloads include that layer's grid state. With it on, `looper` stores its recorded sequence in
-  `savedState` as step-bucketed press/release events; live-held cells and currently sounding
+- Preset/default save payloads always include each layer's grid state. `looper` stores its recorded
+  sequence in `savedState` as step-bucketed press/release events; live-held cells and currently sounding
   playback cells are not saved, and a loaded loop restarts from step 1.
 - Patch-persistent, and round-tripped through preset/default/autosave payloads: Step Rate, behavior
   selection and config, Link mapping, trigger probabilities, instruments, mixer, the selected Play

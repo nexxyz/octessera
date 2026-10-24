@@ -230,18 +230,10 @@ impl NativeRunner {
             .get("behaviorConfig")
             .cloned()
             .unwrap_or_else(|| self.layer_behavior_config(layer_index));
-        let save_grid_state = build
-            .get("saveGridState")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        let state = save_grid_state
-            .then(|| {
-                build
-                    .get("savedState")
-                    .filter(|value| !value.is_null())
-                    .cloned()
-            })
-            .flatten();
+        let state = build
+            .get("savedState")
+            .filter(|value| !value.is_null())
+            .cloned();
         self.replace_layer_engine_with_config(
             layer_index,
             behavior,

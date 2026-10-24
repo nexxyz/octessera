@@ -438,7 +438,6 @@ pub struct NativeRunner {
     layer_behavior_ids: Vec<String>,
     layer_names: Vec<String>,
     layer_auto_names: Vec<bool>,
-    save_grid_states: Vec<bool>,
     random_seed: u16,
     layer_seeded: Vec<bool>,
     seeded_link_streams: random_streams::SeededLinkStreams,

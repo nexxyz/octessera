@@ -71,7 +71,6 @@ struct NativeLayerConfigSnapshot {
     behavior_config: Value,
     behavior_config_history: BTreeMap<String, Value>,
     config_overrides: BTreeMap<String, Value>,
-    save_grid_state: bool,
     seeded: bool,
     name: String,
     auto_name: bool,
@@ -111,7 +110,7 @@ impl NativeConfigSnapshot {
     pub(super) fn serializable_behavior_state_count(&self) -> usize {
         self.layers
             .iter()
-            .filter(|layer| layer.save_grid_state && layer.behavior_id != "none")
+            .filter(|layer| layer.behavior_id != "none")
             .count()
     }
 
@@ -227,7 +226,6 @@ impl NativeConfigSnapshot {
             .enumerate()
             .map(|(index, behavior_id)| {
                 let auto_name = runner.layer_auto_names.get(index).copied().unwrap_or(true);
-                let save_grid_state = runner.save_grid_states.get(index).copied().unwrap_or(true);
                 let behavior_config = if index == runner.active_layer_index {
                     runner.behavior_config.clone()
                 } else {
@@ -237,7 +235,7 @@ impl NativeConfigSnapshot {
                         .cloned()
                         .unwrap_or(Value::Null)
                 };
-                let saved_state = if save_grid_state && behavior_id != "none" {
+                let saved_state = if behavior_id != "none" {
                     let engine = if index == runner.active_layer_index {
                         Some(&runner.engine)
                     } else {
@@ -268,7 +266,6 @@ impl NativeConfigSnapshot {
                     config_overrides: runner
                         .modulation_process
                         .persistent_behavior_config_overrides(index),
-                    save_grid_state,
                     seeded: runner.layer_seeded.get(index).copied().unwrap_or(false),
                     name: if auto_name {
                         behavior_id.clone()
@@ -390,7 +387,6 @@ impl NativeLayerConfigSnapshot {
             "behaviorConfigHistory".into(),
             Value::Object(self.behavior_config_history.into_iter().collect()),
         );
-        build.insert("saveGridState".into(), json!(self.save_grid_state));
         build.insert("seeded".into(), json!(self.seeded));
         if let Some((behavior, state)) = self.saved_state {
             if let Ok(state) = behavior.serialize(&state) {

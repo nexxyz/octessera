@@ -131,13 +131,6 @@ pub(crate) fn formatted_snapshot_saved_state_round_trips_after_capture() {
 
 #[test]
 pub(crate) fn snapshot_preserves_saved_state_omission_rules_and_sequencer_state() {
-    let mut no_grid = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    no_grid.save_grid_states[0] = false;
-    let no_grid_payload = no_grid.capture_config_snapshot().into_payload();
-    let no_grid_build = &no_grid_payload["runtimeConfig"]["layers"][0]["build"];
-    assert_eq!(no_grid_build["saveGridState"], false);
-    assert!(no_grid_build.get("savedState").is_none());
-
     let none_config = NativeRunnerConfig {
         behavior_id: "none".into(),
         ..NativeRunnerConfig::default()

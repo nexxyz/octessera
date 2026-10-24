@@ -182,10 +182,8 @@ layer_pattern_cycle	*	key:layers.*.build.behaviorConfig.cycleLength	number	Patte
 layer_looper_punch	*	action:behavior_action:toggleMode	action	Punch In/Out	Toggles the looper between overdub and play.	Keeps the recorded loop and current playback position.
 layer_looper_length	*	key:layers.*.build.behaviorConfig.lengthSteps	number	Length	Sets the loop length in this layer's behavior steps.	Use a faster Step Rate for tighter recording and playback resolution.
 layer_looper_clear	*	action:behavior_action:clearLoop	action	Clear Loop	Clears the recorded looper sequence for this layer.	Live-held cells stay active; loop playback cells are released.
-layer_save_grid_state	*	key:layers.*.build.saveGridState	bool	Save Grid State	When On, this layer's runtime/grid snapshot is stored in preset and default saves.	Turn it Off if you want to keep configuration but not the current live cell state.
 layer_auto_name	*	key:layers.*.autoName	bool	Auto Label	When On, the layer label follows the active behavior or generated default label.	Turn it Off before typing a custom layer label you want to keep.
 layer_name	*	key:layers.*.name	text	Layer Label	Sets the user-visible label for this layer.	Used across menus and overlays when Auto Label is off.
-build_save_grid_state	Menu > Build > Save Grid State		bool	Save Grid State	When On, this layer's runtime/grid state is stored in preset/default saves.	When Off, saves keep this layer's config but not its current runtime/grid snapshot.
 scan_mode	*	key:layers.*.link.scanMode	enum	Scan Mode	none interprets the whole grid without a cursor; scanning advances one cursor through the selected axis.	scanning emits filled and empty scan triggers; none uses the normal event/state interpretation.
 scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	rows scans across row lanes; columns scans down column lanes.	The selected axis defines which coordinate the cursor advances.
 scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	T values are triplets; the number is the exact 24-PPQN pulse count between scan moves.

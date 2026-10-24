@@ -208,7 +208,7 @@ pub(crate) fn sequencer_grid_state_is_serialized_and_rehydrated_for_all_layers()
 }
 
 #[test]
-pub(crate) fn save_grid_state_controls_saved_state_payload_and_restore() {
+pub(crate) fn grid_state_is_always_saved_and_the_old_save_grid_state_key_is_ignored() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -222,10 +222,9 @@ pub(crate) fn save_grid_state_controls_saved_state_payload_and_restore() {
         .unwrap();
     let mut payload = runner.config_payload();
 
-    assert_eq!(
-        payload["runtimeConfig"]["layers"][0]["build"]["saveGridState"],
-        true
-    );
+    assert!(payload["runtimeConfig"]["layers"][0]["build"]
+        .get("saveGridState")
+        .is_none());
     assert!(!payload["runtimeConfig"]["layers"][0]["build"]["savedState"].is_null());
     assert!(payload["runtimeConfig"]["layers"][0]["build"]["savedState"]["generation"].is_null());
     assert!(payload["runtimeConfig"]["layers"][0]["build"]["savedState"]["tickCounter"].is_null());
@@ -234,10 +233,10 @@ pub(crate) fn save_grid_state_controls_saved_state_payload_and_restore() {
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(payload).unwrap();
 
-    assert!(!loaded.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
-    assert_eq!(
-        loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]["saveGridState"],
-        false
+    assert!(loaded.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+    assert!(
+        loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]
+            .get("saveGridState")
+            .is_none()
     );
-    assert!(loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]["savedState"].is_null());
 }

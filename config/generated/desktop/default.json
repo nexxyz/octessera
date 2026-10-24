@@ -1488,7 +1488,6 @@
             }
           },
           "behaviorId": "life",
-          "saveGridState": true,
           "savedState": {
             "cells": [
               false,
@@ -1837,7 +1836,6 @@
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "sequencer",
-          "saveGridState": true,
           "savedState": {
             "cells": [
               true,
@@ -2124,7 +2122,6 @@
             }
           },
           "behaviorId": "looper",
-          "saveGridState": true,
           "savedState": {
             "lengthSteps": 32,
             "mode": "overdub",
@@ -2445,7 +2442,6 @@
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "sequencer",
-          "saveGridState": true,
           "savedState": {
             "cells": [
               false,
@@ -2724,7 +2720,6 @@
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true,
           "seeded": false
         }
       },
@@ -2932,7 +2927,6 @@
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true,
           "seeded": false
         }
       },
@@ -3140,7 +3134,6 @@
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true,
           "seeded": false
         }
       },
@@ -3348,7 +3341,6 @@
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
           "behaviorId": "none",
-          "saveGridState": true,
           "seeded": false
         }
       }

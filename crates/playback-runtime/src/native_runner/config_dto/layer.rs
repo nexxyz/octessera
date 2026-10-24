@@ -31,8 +31,6 @@ pub struct BuildDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) behavior_config_history: Option<std::collections::BTreeMap<String, Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) save_grid_state: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) seeded: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) step_rate: Option<String>,
