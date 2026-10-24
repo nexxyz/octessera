@@ -90,7 +90,6 @@ test("platform capabilities match the hardware profile", () => {
     instrumentCount: 8,
     sampleSlotCount: 8,
     audioSampleRate: 44100,
-    audioOutputBufferFrames: 256,
     audioRenderQuantumFrames: 128,
     synthVoiceLaneCapacity: 64,
     sampleVoiceLaneCapacity: 64,

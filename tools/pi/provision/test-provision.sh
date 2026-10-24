@@ -188,7 +188,6 @@ run_provision() {
       explicit) export UPDATE_INITRAMFS=1 ;;
       *) echo "unknown fixture provisioning mode: $mode" >&2; exit 2 ;;
     esac
-    export WAKE_TRACE=0
     export REMOTE_REPO="${REMOTE_REPO_VALUE:-/home/pi/octessera-dev}"
     export PATH="$FAKE_BIN:$REAL_PATH"
     sh "$PACKAGE/provision.sh"

@@ -221,18 +221,14 @@ pub(crate) fn drain_encoder_events(
     if adapter.shutdown_pending() {
         return;
     }
-    let _ = crate::encoder_queue::drain_encoder_events(
-        event_rx,
-        pending_encoder_turns,
-        |message| {
+    let _ =
+        crate::encoder_queue::drain_encoder_events(event_rx, pending_encoder_turns, |message| {
             if adapter.shutdown_pending() {
                 return Err(());
             }
             dispatch_or_log(playback, runner, adapter, message);
             Ok::<(), ()>(())
-        },
-        crate::wake_trace::log_encoder_event,
-    );
+        });
 }
 
 pub(crate) fn maybe_advance_runtime(

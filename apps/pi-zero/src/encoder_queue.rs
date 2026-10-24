@@ -46,15 +46,13 @@ impl PendingEncoderTurns {
     }
 }
 
-pub(crate) fn drain_encoder_events<E, D, O>(
+pub(crate) fn drain_encoder_events<E, D>(
     event_rx: &Receiver<HardwareEvent>,
     pending: &mut PendingEncoderTurns,
     mut dispatch: D,
-    mut observe_event: O,
 ) -> Result<usize, E>
 where
     D: FnMut(HostMessage) -> Result<(), E>,
-    O: FnMut(HardwareEvent),
 {
     let mut event_count = 0;
     for _ in 0..ENCODER_EVENT_BUDGET {
@@ -62,7 +60,6 @@ where
             break;
         };
         event_count += 1;
-        observe_event(event);
         match event {
             HardwareEvent::EncoderTurn { id, delta } => pending.enqueue(id, delta),
             HardwareEvent::EncoderPress { id } => {
@@ -196,15 +193,10 @@ mod tests {
         let mut pending = PendingEncoderTurns::default();
         let mut messages = Vec::new();
 
-        let drained = drain_encoder_events(
-            &event_rx,
-            &mut pending,
-            |message| {
-                messages.push(message);
-                Ok::<(), ()>(())
-            },
-            |_| {},
-        )
+        let drained = drain_encoder_events(&event_rx, &mut pending, |message| {
+            messages.push(message);
+            Ok::<(), ()>(())
+        })
         .unwrap();
 
         assert_eq!(drained, ENCODER_EVENT_BUDGET);
@@ -230,15 +222,10 @@ mod tests {
         let mut pending = PendingEncoderTurns::default();
         let mut messages = Vec::new();
 
-        drain_encoder_events(
-            &event_rx,
-            &mut pending,
-            |message| {
-                messages.push(message);
-                Ok::<(), ()>(())
-            },
-            |_| {},
-        )
+        drain_encoder_events(&event_rx, &mut pending, |message| {
+            messages.push(message);
+            Ok::<(), ()>(())
+        })
         .unwrap();
 
         assert_eq!(messages.len(), 2);

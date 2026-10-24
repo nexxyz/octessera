@@ -5,8 +5,7 @@ param(
   [string]$RemoteRepo = "/home/pi/octessera-dev",
   [string]$Service = "octessera.service",
   [string]$BoardProfile = "raspberry-pi-zero-2w",
-  [switch]$UpdateInitramfs,
-  [switch]$WakeTrace
+  [switch]$UpdateInitramfs
 )
 
 $ErrorActionPreference = "Stop"
@@ -87,13 +86,12 @@ try {
   $serviceValue = ConvertTo-ShellSingleQuoted $Service
   $boardProfileValue = ConvertTo-ShellSingleQuoted $BoardProfile
   $updateInitramfsValue = if ($UpdateInitramfs) { "1" } else { "0" }
-  $wakeTraceValue = if ($WakeTrace) { "1" } else { "0" }
   $provisionCommand = @"
 set -e
 rm -rf '$remotePackage'
 mkdir -p '$remotePackage'
 tar -xzf '$remoteArchive' -C '$remotePackage'
-BOARD_PROFILE=$boardProfileValue REMOTE_REPO=$remoteRepoValue SERVICE=$serviceValue UPDATE_INITRAMFS=$updateInitramfsValue WAKE_TRACE=$wakeTraceValue sh '$remotePackage/provision.sh'
+BOARD_PROFILE=$boardProfileValue REMOTE_REPO=$remoteRepoValue SERVICE=$serviceValue UPDATE_INITRAMFS=$updateInitramfsValue sh '$remotePackage/provision.sh'
 rm -rf '$remotePackage' '$remoteArchive'
 "@
   Invoke-PiSsh $provisionCommand

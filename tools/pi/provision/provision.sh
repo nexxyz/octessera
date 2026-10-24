@@ -9,7 +9,6 @@ REMOTE_REPO=${REMOTE_REPO:-/home/pi/octessera-dev}
 SERVICE=${SERVICE:-octessera.service}
 BOARD_PROFILE=${BOARD_PROFILE:-raspberry-pi-zero-2w}
 UPDATE_INITRAMFS=${UPDATE_INITRAMFS-}
-WAKE_TRACE=${WAKE_TRACE:-0}
 SYSROOT=${SYSROOT:-}
 
 update_initramfs_argument=0
@@ -401,15 +400,8 @@ test -d "$REMOTE_REPO_TARGET" && test ! -L "$REMOTE_REPO_TARGET"
 test "$(stat -c '%u:%g:%a' "$REMOTE_REPO_TARGET")" = "$pi_uid:$pi_gid:755"
 
 REMOTE_REPO_ESCAPED=$(escape_sed_replacement "$REMOTE_REPO")
-if [ "$WAKE_TRACE" = "1" ]; then
-    WAKE_TRACE_LINE=Environment=OCTESSERA_WAKE_TRACE=1
-else
-    WAKE_TRACE_LINE=
-fi
-WAKE_TRACE_ESCAPED=$(escape_sed_replacement "$WAKE_TRACE_LINE")
 sed \
     -e "s|@REMOTE_REPO@|$REMOTE_REPO_ESCAPED|g" \
-    -e "s|@WAKE_TRACE@|$WAKE_TRACE_ESCAPED|g" \
     "$PROVISION_ROOT/etc/systemd/system/octessera.service.template" |
     sudo tee "$SERVICE_TARGET" >/dev/null
 sudo chmod 0644 "$SERVICE_TARGET"

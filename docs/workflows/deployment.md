@@ -10,8 +10,7 @@ Raspberry.
 
 Provision a development Raspberry Pi, or refresh its tracked OS and boot
 configuration, with `provision-pi.ps1`. It is safe to repeat. See
-[Pi provisioning](../../tools/pi/provision/README.md) for `-UpdateInitramfs`
-and `-WakeTrace`.
+[Pi provisioning](../../tools/pi/provision/README.md) for `-UpdateInitramfs`.
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"

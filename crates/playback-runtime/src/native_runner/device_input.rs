@@ -7,9 +7,6 @@ use super::{
     SyncSource,
 };
 
-mod device_input_wake_trace;
-use device_input_wake_trace::{trace_device_input_wake, WakeTraceContext};
-
 impl NativeRunner {
     pub(super) fn refresh_modifier_state(&mut self) {
         let was_modifier_held = self.display.ui.fn_held
@@ -86,20 +83,16 @@ impl NativeRunner {
         {
             self.advance_oled_sleep_state();
         }
-        let trace_context = WakeTraceContext::capture(self, &input);
         if self.display.startup_splash_presented
             && self.display.oled_mode == super::NativeOledMode::Splash
             && self.display.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
         {
-            trace_device_input_wake(trace_context.as_ref(), false, true, "startup_splash");
             return self.messages_with_forced_snapshot();
         }
         let woke_display = self.record_display_interaction();
         if woke_display {
-            trace_device_input_wake(trace_context.as_ref(), true, true, "wake_consumed");
             return self.messages_with_forced_snapshot();
         }
-        trace_device_input_wake(trace_context.as_ref(), false, false, "active_dispatch");
         if force_error_presentation || self.display.runtime_error_presentation.is_some() {
             return self.handle_runtime_error_presentation_input(input, force_error_presentation);
         }

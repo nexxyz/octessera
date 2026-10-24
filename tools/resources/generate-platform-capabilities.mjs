@@ -36,7 +36,6 @@ function capabilitiesFrom(source) {
     instrumentCount: positiveInteger(source, "instrumentCount"),
     sampleSlotCount: positiveInteger(source, "sampleSlotCount"),
     audioSampleRate: positiveInteger(source, "audioSampleRate"),
-    audioOutputBufferFrames: positiveInteger(source, "audioOutputBufferFrames"),
     audioRenderQuantumFrames: positiveInteger(source, "audioRenderQuantumFrames"),
     synthVoiceLaneCapacity: positiveInteger(source, "synthVoiceLaneCapacity"),
     sampleVoiceLaneCapacity: positiveInteger(source, "sampleVoiceLaneCapacity"),

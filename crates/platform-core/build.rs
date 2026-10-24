@@ -26,7 +26,6 @@ fn main() {
     let layer_count = positive_usize(&value, "layerCount");
     let instrument_count = positive_usize(&value, "instrumentCount");
     let sample_slot_count = positive_usize(&value, "sampleSlotCount");
-    let audio_output_buffer_frames = positive_usize(&value, "audioOutputBufferFrames");
     let audio_render_quantum_frames = positive_usize(&value, "audioRenderQuantumFrames");
     let synth_voice_lane_capacity = positive_usize(&value, "synthVoiceLaneCapacity");
     let sample_voice_lane_capacity = positive_usize(&value, "sampleVoiceLaneCapacity");
@@ -50,7 +49,6 @@ pub const GRID_HEIGHT: usize = {grid_height};
 pub const LAYER_COUNT: usize = {layer_count};
 pub const INSTRUMENT_COUNT: usize = {instrument_count};
 pub const SAMPLE_SLOT_COUNT: usize = {sample_slot_count};
-pub const AUDIO_OUTPUT_BUFFER_FRAMES: usize = {audio_output_buffer_frames};
 pub const AUDIO_RENDER_QUANTUM_FRAMES: usize = {audio_render_quantum_frames};
 pub const SYNTH_VOICE_LANE_CAPACITY: usize = {synth_voice_lane_capacity};
 pub const SAMPLE_VOICE_LANE_CAPACITY: usize = {sample_voice_lane_capacity};
@@ -68,7 +66,6 @@ pub const PLATFORM_CAPABILITIES: PlatformCapabilities = PlatformCapabilities {{
     layer_count: LAYER_COUNT,
     instrument_count: INSTRUMENT_COUNT,
     sample_slot_count: SAMPLE_SLOT_COUNT,
-    audio_output_buffer_frames: AUDIO_OUTPUT_BUFFER_FRAMES,
     audio_render_quantum_frames: AUDIO_RENDER_QUANTUM_FRAMES,
     synth_voice_lane_capacity: SYNTH_VOICE_LANE_CAPACITY,
     sample_voice_lane_capacity: SAMPLE_VOICE_LANE_CAPACITY,

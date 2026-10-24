@@ -131,7 +131,6 @@ mod user_data_archive;
 mod user_data_restore;
 mod user_data_transfer;
 mod utility_mode;
-mod wake_trace;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use audio::AudioManager;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
