@@ -7,6 +7,7 @@ mod results;
 mod runtime_error;
 mod setup_portal;
 mod status;
+mod system_info;
 mod user_data_restore;
 mod user_data_transfer;
 
@@ -28,9 +29,7 @@ pub use bluetooth::{
 };
 pub use messages::{CellHit, HostMessage, RunnerMessage};
 pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
-pub use results::{
-    MidiPort, RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError, SampleEntry,
-};
+pub use results::{MidiPort, RuntimeStoreResult, SampleEntry};
 pub(crate) use runtime_error::{
     is_midi_input_list_failure, MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,
 };
@@ -43,6 +42,7 @@ pub use setup_portal::{
     RuntimeSetupPortalStatus, SETUP_PORTAL_SUFFIX_MAX_CHARS,
 };
 pub use status::{RuntimeStatus, RuntimeStatusState, RuntimeTransportState, SyncSource};
+pub use system_info::{RuntimeSystemInfo, RuntimeSystemInfoError};
 pub use user_data_restore::{RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus};
 pub use user_data_transfer::{
     RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus, USER_DATA_TRANSFER_CODE_ALPHABET,
