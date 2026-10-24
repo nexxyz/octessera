@@ -1,6 +1,4 @@
 use crate::device_update;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use crate::orange_device_apply::OrangeDeviceApplyTransaction;
 #[cfg(all(test, any(unix, windows)))]
 use crate::setup_portal::SetupPortalEnvironment;
 use crate::setup_portal::SetupPortalService;
@@ -20,6 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 mod pi_pending_persistence;
+mod platform_job;
 pub(crate) mod platform_native_autosave;
 mod platform_native_autosave_worker;
 pub(crate) mod platform_native_persistence;
@@ -37,6 +36,7 @@ mod platform_service_test_support;
 mod platform_service_worker;
 mod system_info;
 pub(crate) use pi_pending_persistence::PendingPiPersistence;
+pub use platform_job::{PlatformJob, PlatformJobKind};
 use platform_native_persistence::{
     NativeDefaultCompletion, NativePresetCompletion, NativePresetWrite, PlatformResult,
     PlatformWorkItem,
@@ -395,84 +395,6 @@ impl Drop for PiPlatformService {
     fn drop(&mut self) {
         self.setup_portal_stop.store(true, Ordering::Release);
         self.user_data_transfer.stop();
-    }
-}
-
-pub struct PlatformJob {
-    pub request: RuntimePlatformRequest,
-    pub kind: PlatformJobKind,
-    store_write_generation: Option<u64>,
-}
-
-pub enum PlatformJobKind {
-    ListPresets,
-    SavePreset {
-        name: String,
-        payload: serde_json::Value,
-    },
-    DeletePreset {
-        name: String,
-    },
-    SaveDefault {
-        payload: serde_json::Value,
-        is_auto: Option<bool>,
-    },
-    SaveSystem {
-        payload: serde_json::Value,
-    },
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    PrepareOrangeDeviceApply {
-        payload: serde_json::Value,
-        completed: SyncSender<Result<OrangeDeviceApplyTransaction, String>>,
-    },
-    SaveBackup {
-        payload: serde_json::Value,
-    },
-    ListSamples {
-        instrument_slot: usize,
-        sample_slot: usize,
-        dir: String,
-    },
-    UsbSdTransferStart,
-    UsbSdTransferStop,
-    UpdateCheck,
-    UpdateApply,
-    Rollback,
-    SystemInfo,
-    #[cfg(test)]
-    TestBarrier {
-        completed: SyncSender<()>,
-    },
-    #[cfg(test)]
-    #[cfg_attr(all(test, feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
-    TestGate {
-        entered: SyncSender<()>,
-        release: Receiver<()>,
-    },
-}
-
-impl PlatformJob {
-    pub fn new(request: RuntimePlatformRequest, kind: PlatformJobKind) -> Self {
-        Self {
-            request,
-            kind,
-            store_write_generation: None,
-        }
-    }
-}
-
-impl PlatformJobKind {
-    fn is_store_write(&self) -> bool {
-        match self {
-            Self::SavePreset { .. }
-            | Self::DeletePreset { .. }
-            | Self::SaveDefault { .. }
-            | Self::SaveSystem { .. }
-            | Self::SaveBackup { .. } => true,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            Self::PrepareOrangeDeviceApply { .. } => true,
-            _ => false,
-        }
     }
 }
 
