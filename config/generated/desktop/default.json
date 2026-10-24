@@ -3373,7 +3373,7 @@
           "slot1": {
             "params": {
               "feedback": 0.35,
-              "mixPct": 84,
+              "mixPct": 35,
               "timeMode": "ms",
               "timeMs": 250,
               "timeNote": "1/8"

@@ -3168,7 +3168,7 @@
           "slot1": {
             "params": {
               "feedback": 0.35,
-              "mixPct": 84,
+              "mixPct": 35,
               "timeMs": 250
             },
             "type": "delay"

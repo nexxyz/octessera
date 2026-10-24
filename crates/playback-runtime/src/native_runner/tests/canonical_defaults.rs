@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 const PI_DEFAULT_BYTES: &[u8] =
     include_bytes!("fixtures/config_persistence/pi_canonical_default.json");
-const PI_DEFAULT_SHA256: &str = "e20dd5867010498069a06d0f2520b649346aa1b0c0e8231851457f0c6aec0638";
+const PI_DEFAULT_SHA256: &str = "1de60c113b1e89001f8143e4f1fc54ce72cc7d7ab22aec1f3e4abcf33e56553c";
 
 #[test]
 pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
