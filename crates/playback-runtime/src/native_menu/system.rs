@@ -69,14 +69,16 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
         ),
         audio_group(config, host_role),
         midi_group(config, sync_index, host_role),
-        connections_group(config, host_role),
-        display_group(config),
     ];
+    if config.jack_audio_required {
+        children.push(connections_group(config, host_role));
+    }
+    children.push(display_group(config));
     if config.jack_audio_required {
         children.push(live_show_group());
     }
     children.extend([
-        maintenance_group(),
+        maintenance_group(config.jack_audio_required),
         action_item(
             "Panic",
             "midi.panic",

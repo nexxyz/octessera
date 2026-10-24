@@ -83,7 +83,11 @@ fn identity_layers(result: &RuntimeStoreResult) -> usize {
 #[test]
 fn identified_setup_portal_failure_uses_the_native_failed_modal() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     let mut host = FakeHost {
         setup_portal_result: Some(RuntimeStoreResult::SetupPortalStatus {
             status: RuntimeSetupPortalStatus {

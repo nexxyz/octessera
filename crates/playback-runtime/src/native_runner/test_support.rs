@@ -134,7 +134,11 @@ mod tests {
 
     #[test]
     fn focuses_update_item_by_stable_key() {
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        let mut runner = NativeRunner::new(NativeRunnerConfig {
+            jack_audio_required: true,
+            ..NativeRunnerConfig::default()
+        })
+        .unwrap();
 
         assert_eq!(
             runner.test_focus_menu_item("system.updateApply").unwrap(),

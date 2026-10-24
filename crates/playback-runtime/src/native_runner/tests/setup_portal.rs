@@ -57,7 +57,11 @@ fn display_lines(messages: &[RunnerMessage]) -> Vec<String> {
 
 #[test]
 pub(crate) fn configure_wifi_replay_confirms_with_one_stop_panic_and_portal_effect() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     assert!(runner.menu.focus_item_key("system.configureWifi"));
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.current_ppqn_pulse = 96;

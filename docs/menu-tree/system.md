@@ -60,11 +60,11 @@ System
 │       ├── Clock Out: [on | off]
 │       ├── Clock In: [on | off]
 │       └── Follow S/S: [on | off]
-├── Connections (group)
+├── Connections (group)                ← Raspberry and Orange
 │   ├── Wi-Fi (group)
-│   │   ├── Wi-Fi: [on | off]            ← Raspberry and Orange; default on
+│   │   ├── Wi-Fi: [on | off]            default on
 │   │   └── Setup Portal: (action)       ← confirm Open Wi-Fi Setup
-│   ├── Bluetooth (group)                ← Raspberry and Orange
+│   ├── Bluetooth (group)
 │   │   ├── Bluetooth: [on | off]        default off
 │   │   ├── Audio Out: [on | off]        ← while Bluetooth is on; default off
 │   │   ├── Devices (group)              ← while Bluetooth is on; one connect/disconnect action per paired device
@@ -93,9 +93,9 @@ System
 ├── Maintenance (group)
 │   ├── Updates (group)
 │   │   ├── Check: (action)
-│   │   ├── Apply: (action)
-│   │   └── Rollback: (action)
-│   ├── Backup / Restore: (action)
+│   │   ├── Apply: (action)              ← Raspberry and Orange
+│   │   └── Rollback: (action)           ← Raspberry and Orange
+│   ├── Backup / Restore: (action)       ← Raspberry and Orange
 │   ├── Hardware Test: (action)
 │   ├── Reset (group)
 │   │   ├── Load Empty: (action)
@@ -131,7 +131,6 @@ Conditional branches:
 Desktop
   Audio: Master Vol; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
-  Connections: Wi-Fi (Setup Portal)
   Display: Ghost Cells … Button Bright; no HDMI Video
 
 Orange
@@ -152,8 +151,11 @@ Raspberry Host
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
   Display: Ghost Cells … Button Bright; HDMI Video
 
-Every platform
+Raspberry and Orange
   Maintenance: Updates (Check, Apply, Rollback); Backup / Restore; Hardware Test; Reset (Load Empty, Load Factory); Sys. Info
+
+Desktop
+  Maintenance: Updates (Check); Hardware Test; Reset (Load Empty, Load Factory); Sys. Info
 ```
 
 Raspberry Host hides USB Audio, USB MIDI, and SD Card 2 Start Transfer, but keeps HDMI Audio and
@@ -291,7 +293,7 @@ dirty edits. Stale or failed acknowledgements never reboot or advance the persis
 
 ### Setup Portal
 
-- Stable key `system.configureWifi`, on every platform. The confirmation is `Open Wi-Fi Setup`
+- Stable key `system.configureWifi`, on Raspberry and Orange. The confirmation is `Open Wi-Fi Setup`
   (`Playback stops.`, `Wi-Fi disconnects.`, `Setup may change:`, `SSH, hostname,`, `and login.`)
   with `Cancel` and `Open Portal`; Cancel toasts `Cancelled`.
 - `Open Portal` stops and resets playback, clears note state, and sends MIDI panic/all-notes-off
@@ -372,7 +374,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 ### Updates
 
 - `Check` emits `RuntimePlatformEffect::UpdateCheck` without confirmation. On desktop it opens the
-  GitHub releases page; desktop `Apply` and `Rollback` report unsupported.
+  GitHub releases page; desktop has no `Apply` or `Rollback` rows.
 - On Raspberry, Check reports whether the GitHub release contains the installed profile's
   ZIP/checksum pair.
 - On Orange, Check/Apply/Rollback use the root-owned broker and guarded updater with the
@@ -397,7 +399,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   `wlan0` IPv4 address, a generated 10-character code, and a 15-minute lifetime. The OLED card shows
   IP, port, code, expiry, and `> Stop service`. Back hides the card while the service keeps running;
   Stop closes it and revokes the code. The card ranks after confirmation dialogs and the setup
-  portal, ahead of system info and help. Desktop is unsupported.
+  portal, ahead of system info and help. Desktop has no Backup / Restore row.
 - The `.oct` archive carries music, selected portable preferences, and optionally media. It is not a
   complete device backup: USB role, MIDI/audio endpoint IDs, and favourites stay local to the
   destination. Rolling `Saves > Default > Backups` are separate and patch-only.

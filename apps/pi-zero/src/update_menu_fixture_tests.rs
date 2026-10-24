@@ -94,7 +94,11 @@ impl UpdateMenuFixture {
         let root = temporary_root();
         std::fs::create_dir_all(&root).unwrap();
         let executor = Arc::new(ScriptedExecutor::new(responses));
-        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        let mut runner = NativeRunner::new(NativeRunnerConfig {
+            jack_audio_required: true,
+            ..NativeRunnerConfig::default()
+        })
+        .unwrap();
         runner.skip_startup_splash();
         let mut fixture = Self {
             root: root.clone(),

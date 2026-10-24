@@ -1,39 +1,38 @@
 use super::{action_item, group, NativeMenuAction, NativeMenuItem};
 
-pub(super) fn maintenance_group() -> NativeMenuItem {
-    group(
-        "Maintenance",
-        vec![
-            updates_group(),
-            action_item(
-                "Backup / Restore",
-                "system.backupRestore",
-                NativeMenuAction::PlatformEffect("system.backupRestore".into()),
-            ),
-            action_item(
-                "Hardware Test",
-                "system.hardwareTest",
-                NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
-            ),
-            reset_group(),
-            action_item(
-                "Sys. Info",
-                "system.info",
-                NativeMenuAction::PlatformEffect("system.info".into()),
-            ),
-        ],
-    )
+pub(super) fn maintenance_group(device: bool) -> NativeMenuItem {
+    let mut children = vec![updates_group(device)];
+    if device {
+        children.push(action_item(
+            "Backup / Restore",
+            "system.backupRestore",
+            NativeMenuAction::PlatformEffect("system.backupRestore".into()),
+        ));
+    }
+    children.extend([
+        action_item(
+            "Hardware Test",
+            "system.hardwareTest",
+            NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
+        ),
+        reset_group(),
+        action_item(
+            "Sys. Info",
+            "system.info",
+            NativeMenuAction::PlatformEffect("system.info".into()),
+        ),
+    ]);
+    group("Maintenance", children)
 }
 
-fn updates_group() -> NativeMenuItem {
-    group(
-        "Updates",
-        vec![
-            action_item(
-                "Check",
-                "system.updateCheck",
-                NativeMenuAction::PlatformEffect("system.updateCheck".into()),
-            ),
+fn updates_group(device: bool) -> NativeMenuItem {
+    let mut children = vec![action_item(
+        "Check",
+        "system.updateCheck",
+        NativeMenuAction::PlatformEffect("system.updateCheck".into()),
+    )];
+    if device {
+        children.extend([
             action_item(
                 "Apply",
                 "system.updateApply",
@@ -44,8 +43,9 @@ fn updates_group() -> NativeMenuItem {
                 "system.rollback",
                 NativeMenuAction::PlatformEffect("system.rollback".into()),
             ),
-        ],
-    )
+        ]);
+    }
+    group("Updates", children)
 }
 
 fn reset_group() -> NativeMenuItem {

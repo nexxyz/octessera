@@ -59,9 +59,9 @@ fn wifi_switch_toggles_a_saved_device_setting_that_stays_out_of_portable_patches
 }
 
 #[test]
-fn wifi_switch_is_board_only_and_setup_portal_is_everywhere() {
+fn wifi_switch_and_setup_portal_are_board_only() {
     let mut desktop = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(!desktop.menu.focus_item_key("wifi.enabled"));
-    assert!(desktop.menu.focus_item_key("system.configureWifi"));
+    assert!(!desktop.menu.focus_item_key("system.configureWifi"));
     assert!(board_runner().menu.focus_item_key("system.configureWifi"));
 }

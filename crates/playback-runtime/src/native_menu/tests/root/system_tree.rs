@@ -13,7 +13,6 @@ fn desktop_system_tree_has_exact_order() {
             "Notes",
             "Audio",
             "MIDI",
-            "Connections",
             "Display",
             "Maintenance",
             "Panic",
@@ -47,20 +46,13 @@ fn desktop_system_tree_has_exact_order() {
         group_labels(&desktop, "Audio > Engine"),
         vec!["CPU Warn %", "Bus Idle"]
     );
-    assert_eq!(group_labels(&desktop, "Connections"), vec!["Wi-Fi"]);
-    assert_eq!(
-        group_labels(&desktop, "Connections > Wi-Fi"),
-        vec!["Setup Portal"]
-    );
     assert_eq!(
         group_labels(&desktop, "Maintenance"),
-        vec![
-            "Updates",
-            "Backup / Restore",
-            "Hardware Test",
-            "Reset",
-            "Sys. Info"
-        ]
+        vec!["Updates", "Hardware Test", "Reset", "Sys. Info"]
+    );
+    assert_eq!(
+        group_labels(&desktop, "Maintenance > Updates"),
+        vec!["Check"]
     );
     assert_eq!(
         group_labels(&desktop, "Maintenance > Reset"),

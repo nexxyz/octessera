@@ -23,7 +23,11 @@ fn send_main(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
 
 #[test]
 pub(crate) fn backup_restore_menu_action_is_direct_and_emits_open_effect() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     assert!(runner.menu.focus_item_key("system.backupRestore"));
     let messages = send_main(
         &mut runner,
