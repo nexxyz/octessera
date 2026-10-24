@@ -77,7 +77,7 @@ pub(super) fn validate_hdmi(runtime: &Map<String, Value>) -> Result<(), String> 
         "mode",
         "runtimeConfig.hdmi",
         &[
-            "none",
+            "terminal",
             "live-grid",
             "plain-grid",
             "active-behavior",

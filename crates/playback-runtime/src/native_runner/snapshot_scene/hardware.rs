@@ -36,7 +36,7 @@ pub struct NativeControlButtonPresentation {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NativeHdmiMode {
-    None,
+    Terminal,
     LiveGrid,
     PlainGrid,
     ActiveBehavior,
@@ -46,7 +46,7 @@ pub enum NativeHdmiMode {
 impl NativeHdmiMode {
     fn from_name(name: &str) -> Self {
         match name {
-            "none" => Self::None,
+            "terminal" => Self::Terminal,
             "live-grid" => Self::LiveGrid,
             "plain-grid" => Self::PlainGrid,
             "active-behavior" => Self::ActiveBehavior,
@@ -57,7 +57,7 @@ impl NativeHdmiMode {
 
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::None => "none",
+            Self::Terminal => "terminal",
             Self::LiveGrid => "live-grid",
             Self::PlainGrid => "plain-grid",
             Self::ActiveBehavior => "active-behavior",

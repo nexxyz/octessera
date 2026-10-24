@@ -155,7 +155,7 @@ Unpack each archive into `target/board-stores/rpi/` and `target/board-stores/opi
 then compose every patch and backup against its board's `system.json`:
 
 ```bash
-OCTESSERA_STORE_COPY=target/board-stores cargo test -p playback-runtime --test board_store_compose -- --ignored --nocapture
+OCTESSERA_STORE_COPY="$PWD/target/board-stores" cargo test -p playback-runtime --test board_store_compose -- --ignored --nocapture
 ```
 
 Old saves that still carry a retired key are cleaned on load in

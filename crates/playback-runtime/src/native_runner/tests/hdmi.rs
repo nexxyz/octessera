@@ -10,7 +10,7 @@ fn hdmi_runner() -> NativeRunner {
 }
 
 #[test]
-fn hdmi_menu_displays_terminal_while_config_and_snapshot_remain_none() {
+fn hdmi_menu_displays_terminal_for_the_stored_terminal_mode() {
     let mut runner = hdmi_runner();
     let item = runner.menu.item_for_key("hdmi.mode").unwrap();
     assert_eq!(
@@ -40,20 +40,20 @@ fn hdmi_menu_displays_terminal_while_config_and_snapshot_remain_none() {
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["hdmi"]["mode"],
-        "none"
+        "terminal"
     );
     assert_eq!(
         snapshot_from(&runner.messages_with_snapshot().unwrap())["hdmi"]["mode"],
-        "none"
+        "terminal"
     );
 }
 
 #[test]
-fn hdmi_snapshot_defaults_to_none_black_grid() {
+fn hdmi_snapshot_defaults_to_terminal_black_grid() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
 
-    assert_eq!(snapshot["hdmi"]["mode"], "none");
+    assert_eq!(snapshot["hdmi"]["mode"], "terminal");
     assert_eq!(snapshot["hdmi"]["showGridlines"], false);
     assert_eq!(snapshot["hdmi"]["cycleMeasures"], 4);
     assert_eq!(
@@ -111,7 +111,7 @@ fn hdmi_menu_can_return_to_none() {
     assert!(runner.apply_menu_key_fast("hdmi.mode"));
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["hdmi"]["mode"],
-        "none"
+        "terminal"
     );
 }
 
@@ -127,12 +127,12 @@ fn hdmi_full_menu_apply_normalizes_terminal() {
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["hdmi"]["mode"],
-        "none"
+        "terminal"
     );
 }
 
 #[test]
-fn hdmi_raw_none_payload_remains_accepted_and_displays_terminal() {
+fn hdmi_terminal_payload_displays_terminal() {
     let mut runner = hdmi_runner();
     runner
         .apply_config_payload(json!({
@@ -142,7 +142,7 @@ fn hdmi_raw_none_payload_remains_accepted_and_displays_terminal() {
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
-                "hdmi": { "mode": "none", "showGridlines": true }
+                "hdmi": { "mode": "terminal", "showGridlines": true }
             }
         }))
         .unwrap();
@@ -153,18 +153,18 @@ fn hdmi_raw_none_payload_remains_accepted_and_displays_terminal() {
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["hdmi"]["mode"],
-        "none"
+        "terminal"
     );
     assert_eq!(
         snapshot_from(&runner.messages_with_snapshot().unwrap())["hdmi"]["mode"],
-        "none"
+        "terminal"
     );
 }
 
 #[test]
 fn hdmi_bars_per_cycle_is_only_present_in_cycle_behaviors() {
     for (delta, mode) in [
-        (0, "none"),
+        (0, "terminal"),
         (1, "live-grid"),
         (2, "plain-grid"),
         (3, "active-behavior"),

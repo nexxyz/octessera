@@ -341,9 +341,9 @@ dirty edits. Stale or failed acknowledgements never reboot or advance the persis
   [Auto-map](../menu-and-controls-spec.md#auto-map), `Ghost Cells` under
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority), and the brightness
   rows under [Brightness](../menu-and-controls-spec.md#brightness).
-- `HDMI Video > Mode` shows `Terminal` for the stored/runtime value `none` and persists
-  `runtimeConfig.hdmi.mode` (`none|live-grid|plain-grid|active-behavior|cycle-behaviors`, default
-  `none`). Terminal releases and disables Octessera framebuffer output so the Linux terminal can
+- `HDMI Video > Mode` persists `runtimeConfig.hdmi.mode`
+  (`terminal|live-grid|plain-grid|active-behavior|cycle-behaviors`, default `terminal`; older saves
+  stored `none`, which loads as `terminal`). Terminal releases and disables Octessera framebuffer output so the Linux terminal can
   show, while snapshots keep their black/inactive HDMI grid.
 - `Bars per cycle` (`hdmi.cycleMeasures`) appears only in `cycle-behaviors` and sets how many bars
   each behavior stays on screen before Cycle Behaviors advances.

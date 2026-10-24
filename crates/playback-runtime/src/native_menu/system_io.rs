@@ -191,7 +191,7 @@ pub(super) fn sd_card_2_group(host_role: bool) -> NativeMenuItem {
 
 pub(super) fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mode_values = [
-        "none",
+        "terminal",
         "live-grid",
         "plain-grid",
         "active-behavior",

@@ -73,7 +73,7 @@ impl KeyboardCaptureControl {
     }
 
     pub(crate) fn observe_hdmi_mode(&self, mode: playback_runtime::NativeHdmiMode) {
-        self.update(|state| state.hdmi_allows = mode != playback_runtime::NativeHdmiMode::None);
+        self.update(|state| state.hdmi_allows = mode != playback_runtime::NativeHdmiMode::Terminal);
     }
 
     pub(crate) fn observe_bluetooth(&self, enabled: bool) {

@@ -13,7 +13,7 @@ use render::hdmi;
 fn main() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).expect("native runner");
     for mode in [
-        "none",
+        "terminal",
         "live-grid",
         "plain-grid",
         "active-behavior",

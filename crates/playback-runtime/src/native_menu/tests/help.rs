@@ -61,7 +61,7 @@ pub(crate) fn hdmi_help_covers_terminal_and_bars_per_cycle_copy() {
     let mode_entry =
         crate::native_help::resolve_native_help_entry(&mode_target).expect("HDMI mode help entry");
     let mode_copy = format!("{} {}", mode_entry.line1, mode_entry.line2).to_lowercase();
-    for phrase in ["terminal", "none", "live-grid", "cycle-behaviors"] {
+    for phrase in ["terminal", "live-grid", "cycle-behaviors"] {
         assert!(
             mode_copy.contains(phrase),
             "HDMI mode help omitted {phrase}"

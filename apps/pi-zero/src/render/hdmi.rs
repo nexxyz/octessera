@@ -142,7 +142,7 @@ pub fn compose_frame_with_stride(
     bytes_per_pixel: usize,
 ) -> Option<Vec<u8>> {
     assert_typed_grid(presentation);
-    if presentation.mode == NativeHdmiMode::None {
+    if presentation.mode == NativeHdmiMode::Terminal {
         return None;
     }
     let rgb = &presentation.grid.rgb;
@@ -227,7 +227,7 @@ fn write_pixel(pixel: &mut [u8], color: [u8; 3], bytes_per_pixel: usize) {
 
 pub fn hdmi_signature(presentation: &NativeHdmiPresentation) -> u64 {
     assert_typed_grid(presentation);
-    if presentation.mode == NativeHdmiMode::None {
+    if presentation.mode == NativeHdmiMode::Terminal {
         return 0;
     }
     let mut hash = 0xcbf29ce484222325_u64;
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn none_mode_has_no_signature_or_frame() {
-        let none = typed_hdmi(vec![255; 64 * 3], NativeHdmiMode::None, false);
+        let none = typed_hdmi(vec![255; 64 * 3], NativeHdmiMode::Terminal, false);
         assert_eq!(hdmi_signature(&none), 0);
         assert!(compose_frame_with_stride(&none, 64, 64, 256, 4).is_none());
     }

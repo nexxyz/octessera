@@ -258,7 +258,7 @@ fn gate_allows_only_graphical_hdmi_snapshots() {
         json!({}),
         json!({ "hdmi": {} }),
         json!({ "hdmi": { "mode": null } }),
-        json!({ "hdmi": { "mode": "none" } }),
+        json!({ "hdmi": { "mode": "terminal" } }),
         json!({ "hdmi": { "mode": "terminal" } }),
         json!({ "hdmi": { "mode": "unknown" } }),
         json!({ "hdmi": [] }),
@@ -284,7 +284,7 @@ fn bluetooth_lets_a_board_without_usb_host_capture_keyboards() {
         }
     );
 
-    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::None);
+    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::Terminal);
     assert!(
         !control.is_enabled(),
         "terminal mode hands keyboards to the console"
@@ -297,7 +297,7 @@ fn control_transitions_wake_and_update_gate() {
     assert!(!control.is_enabled());
     control.observe_snapshot(&json!({ "hdmi": { "mode": "live-grid" } }));
     assert!(control.is_enabled());
-    control.observe_snapshot(&json!({ "hdmi": { "mode": "none" } }));
+    control.observe_snapshot(&json!({ "hdmi": { "mode": "terminal" } }));
     assert!(!control.is_enabled());
 }
 
@@ -313,7 +313,7 @@ fn typed_hdmi_modes_keep_keyboard_capture_gate_in_lockstep() {
         control.observe_hdmi_mode(mode);
         assert!(control.is_enabled());
     }
-    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::None);
+    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::Terminal);
     assert!(!control.is_enabled());
     let disabled = KeyboardCaptureControl::new(false);
     disabled.observe_hdmi_mode(playback_runtime::NativeHdmiMode::LiveGrid);

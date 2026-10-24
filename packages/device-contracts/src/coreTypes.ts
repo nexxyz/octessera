@@ -107,7 +107,7 @@ export type NeoKeyLeds = {
 };
 
 type HdmiMode =
-  "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors";
+  "terminal" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors";
 
 type HdmiSnapshot = {
   mode: HdmiMode;

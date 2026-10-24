@@ -107,7 +107,7 @@ impl HdmiDevice {
     ) -> HdmiRenderOutcome {
         super::assert_typed_grid(presentation);
         self.render_with_frame(
-            presentation.mode == NativeHdmiMode::None,
+            presentation.mode == NativeHdmiMode::Terminal,
             now,
             &|geometry| {
                 compose_frame_with_stride(

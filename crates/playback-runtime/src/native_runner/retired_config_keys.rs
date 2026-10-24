@@ -11,6 +11,7 @@ const RETIRED_RUNTIME_KEYS: [&str; 5] = [
 /// Saves written before the settings were folded still carry these duplicates; the kept copies
 /// (`sound.*`, `transport.bpm`, `midi`) hold the same values, so loading simply drops them. The
 /// old `sound.audioOutputBufferFrames` setting never reached an audio stream and goes the same way.
+/// The HDMI Terminal mode was stored as `none` before it got its own name.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     let mut document = document.clone();
     let Some(runtime) = document
@@ -24,6 +25,14 @@ pub(crate) fn without_retired_keys(document: &Value) -> Value {
     }
     if let Some(sound) = runtime.get_mut("sound").and_then(Value::as_object_mut) {
         sound.remove("audioOutputBufferFrames");
+    }
+    if let Some(mode) = runtime
+        .get_mut("hdmi")
+        .and_then(|hdmi| hdmi.get_mut("mode"))
+    {
+        if mode == "none" {
+            *mode = "terminal".into();
+        }
     }
     for layer in runtime
         .get_mut("layers")
@@ -79,6 +88,7 @@ mod tests {
 
         let mut old_system = documents.system.clone();
         old_system["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
+        old_system["runtimeConfig"]["hdmi"]["mode"] = json!("none");
 
         let composed = compose_local_system_patch_documents(&old_system, &old_patch).unwrap();
         let fresh =
@@ -87,6 +97,7 @@ mod tests {
 
         let mut old_full = with_old_duplicates(full);
         old_full["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
+        old_full["runtimeConfig"]["hdmi"]["mode"] = json!("none");
         assert_eq!(split_system_patch_documents(&old_full).unwrap(), documents);
     }
 }

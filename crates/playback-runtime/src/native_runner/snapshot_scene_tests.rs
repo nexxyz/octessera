@@ -352,7 +352,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     runner.display.runtime_error_presentation = None;
     runner.display.confirm_dialog = None;
     runner.display.help_popup = None;
-    for mode in ["none", "live-grid", "plain-grid", "active-behavior"] {
+    for mode in ["terminal", "live-grid", "plain-grid", "active-behavior"] {
         runner.display.hdmi.mode = mode.into();
         let scene = converted_scene(&runner, false);
         assert_eq!(scene["hdmi"]["mode"], mode);
@@ -364,7 +364,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
             scene["leds"]["active"].as_array().unwrap().len(),
             GRID_WIDTH * GRID_HEIGHT
         );
-        if mode == "none" {
+        if mode == "terminal" {
             assert_eq!(scene["hdmi"]["showGridlines"], false);
             assert_eq!(scene["hdmi"]["cycleMeasures"], 4);
             assert!(scene["hdmi"]["grid"]["rgb"]

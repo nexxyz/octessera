@@ -32,11 +32,10 @@ impl NativeRunner {
             }
             "hdmi.mode" => Some(self.fast_string_menu_key(key, |runner, value| {
                 let value = match value.as_str() {
-                    "Terminal" => "none".into(),
-                    "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => {
-                        value
-                    }
-                    _ => "none".into(),
+                    "Terminal" => "terminal".into(),
+                    "terminal" | "live-grid" | "plain-grid" | "active-behavior"
+                    | "cycle-behaviors" => value,
+                    _ => "terminal".into(),
                 };
                 let changed = value_changed(&mut runner.display.hdmi.mode, value);
                 if changed {

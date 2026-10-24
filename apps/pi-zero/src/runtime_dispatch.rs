@@ -372,7 +372,7 @@ mod tests {
         observe_snapshot_messages(
             &adapter,
             &[RunnerMessage::Snapshot {
-                snapshot: json!({ "hdmi": { "mode": "none" } }),
+                snapshot: json!({ "hdmi": { "mode": "terminal" } }),
             }],
         );
         assert!(!control.is_enabled());

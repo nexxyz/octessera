@@ -111,7 +111,7 @@ fn pending_hdmi_restore_survives_reversion_to_accepted_signature() {
     );
     let mut hdmi = hdmi::HdmiFramebuffer::from_device(device);
     let accepted = hdmi_presentation([255, 0, 0], NativeHdmiMode::LiveGrid);
-    let terminal = hdmi_presentation([0, 0, 0], NativeHdmiMode::None);
+    let terminal = hdmi_presentation([0, 0, 0], NativeHdmiMode::Terminal);
     let mut cache = HardwareRenderCache::default();
     let start = Instant::now();
 

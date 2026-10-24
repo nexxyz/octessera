@@ -288,8 +288,10 @@ impl NativeRunner {
         };
         if let Some(mode) = hdmi.get("mode").and_then(Value::as_str) {
             self.display.hdmi.mode = match mode {
-                "none" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => mode,
-                _ => "none",
+                "terminal" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => {
+                    mode
+                }
+                _ => "terminal",
             }
             .into();
         }

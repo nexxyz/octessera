@@ -72,7 +72,7 @@ impl NativeRunnerConstructionSeed {
             now,
             ui,
             hdmi: NativeHdmiConfig {
-                mode: "none".into(),
+                mode: "terminal".into(),
                 show_gridlines: false,
                 cycle_measures: 4,
                 source_layer_index: 0,

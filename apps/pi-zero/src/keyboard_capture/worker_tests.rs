@@ -94,7 +94,7 @@ impl WorkerHarness {
 
     fn disable(&self) {
         self.control
-            .observe_snapshot(&serde_json::json!({ "hdmi": { "mode": "none" } }));
+            .observe_snapshot(&serde_json::json!({ "hdmi": { "mode": "terminal" } }));
     }
 
     fn recv_input(&self) -> Value {

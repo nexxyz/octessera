@@ -27,7 +27,7 @@ fn accepted_snapshot_ingestion_updates_orange_keyboard_gate() {
     observe_snapshot_messages(
         &host,
         &[RunnerMessage::Snapshot {
-            snapshot: json!({"hdmi":{"mode":"none"}}),
+            snapshot: json!({"hdmi":{"mode":"terminal"}}),
         }],
     );
     assert!(!control.is_enabled());

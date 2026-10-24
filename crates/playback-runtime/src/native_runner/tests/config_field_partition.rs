@@ -248,7 +248,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         "audio": alternate_bool(&canonical_runtime["bluetooth"]["audio"])
     });
     source_runtime["hdmi"] = json!({
-        "mode": alternate_enum(&canonical_runtime["hdmi"]["mode"], "none", "live-grid"),
+        "mode": alternate_enum(&canonical_runtime["hdmi"]["mode"], "terminal", "live-grid"),
         "showGridlines": alternate_bool(&canonical_runtime["hdmi"]["showGridlines"]),
         "cycleMeasures": alternate_unsigned(&canonical_runtime["hdmi"]["cycleMeasures"], 1, 64)
     });

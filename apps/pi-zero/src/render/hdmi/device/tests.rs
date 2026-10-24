@@ -177,7 +177,7 @@ fn failed_write_retries_and_none_mode_restores_text() {
     assert_eq!(control.lock().unwrap().writes.len(), 1);
     assert!(
         device
-            .render(&presentation([0, 0, 0], NativeHdmiMode::None), next)
+            .render(&presentation([0, 0, 0], NativeHdmiMode::Terminal), next)
             .applied
     );
     assert!(events(&control).ends_with(&["close_fb".into(), "close_tty".into()]));
@@ -191,7 +191,7 @@ fn events(control: &SharedControl) -> Vec<String> {
 fn terminal_startup_does_not_touch_devices() {
     let (mut device, control) = fake_device();
     let outcome = device.render(
-        &presentation([1, 2, 3], NativeHdmiMode::None),
+        &presentation([1, 2, 3], NativeHdmiMode::Terminal),
         Instant::now(),
     );
     assert!(outcome.applied);
@@ -222,7 +222,7 @@ fn graphics_to_terminal_restores_without_black_frame() {
     control.lock().unwrap().events.clear();
     assert!(
         device
-            .render(&presentation([0, 0, 0], NativeHdmiMode::None), now)
+            .render(&presentation([0, 0, 0], NativeHdmiMode::Terminal), now)
             .applied
     );
     assert_eq!(
