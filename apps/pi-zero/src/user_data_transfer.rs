@@ -262,6 +262,7 @@ impl UserDataTransferService {
 mod barrier;
 mod http;
 mod http_protocol;
+mod restore_space;
 mod restore_worker;
 mod session;
 
