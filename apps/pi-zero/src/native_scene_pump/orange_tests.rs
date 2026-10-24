@@ -289,11 +289,9 @@ fn runtime_error_and_dismissal_are_captured_as_native_scenes() {
     scheduler.record_native_scene_capture(error_capture, playback.last_snapshot_revision());
     assert_eq!(pump.capture_count, 1);
     assert!(!scheduler.snapshot_unpresented(&playback));
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while pump.generation.is_some() && Instant::now() < deadline {
-        pump.poll(&mut runner);
-        std::thread::sleep(Duration::from_millis(1));
-    }
+    let error_generation = pump.generation.take().unwrap();
+    pump.pending.clear();
+    runner.acknowledge_display_scene(error_generation);
 
     playback
         .dispatch_host_message_music_first(
@@ -309,7 +307,7 @@ fn runtime_error_and_dismissal_are_captured_as_native_scenes() {
     assert!(scheduler.snapshot_unpresented(&playback));
     assert!(pump
         .submit(
-            now + SNAPSHOT_TICK * 2,
+            error_capture + SNAPSHOT_TICK,
             due,
             &playback,
             &mut runner,
