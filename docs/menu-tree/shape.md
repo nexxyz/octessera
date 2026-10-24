@@ -193,8 +193,8 @@ Shape
   0, which skips the filter entirely. Drum and FM slots start the same way; Synth and Plucked start
   as an unresonant lowpass at 8 kHz. Cutoff's 0..255 spans 20 Hz to 20 kHz and Res runs 0..100 on
   every instrument; a lowpass at 255 or a highpass at 0 with Res 0 does no filter work.
-- The browser's sample preview plays through the slot's filter type, Cutoff and Res, without the
-  envelopes or key tracking.
+- The browser's sample preview plays the file exactly as recorded, at its own pitch and level,
+  straight into the master: none of the slot's sampler settings, mixer, bus FX or route apply.
 - Filter Type picks lowpass, highpass, bandpass or notch. Env Amount (-100..100) lets Filter Env
   move Cutoff, and Key Tracking moves Cutoff with the played pitch (Tune plus the cell's tune),
   100 % being an octave per octave. Amp Env shapes each hit; a note-off starts its release. The
@@ -279,8 +279,8 @@ Instrument rows offered as modulation, XY, and Aux targets:
   (`/home/pi/samples/sd-card/octessera/samples`, with `/home/pi/samples/sd-card` expected to be the
   OLED SD2 `OCTESSERA` mount point). An unmounted SD card shows a clear unavailable message.
   Desktop has a built-in `User data` favourite.
-- Sample preview and assigned sample playback both follow the instrument route, pan, volume, bus FX,
-  and master output gain.
+- Assigned sample playback follows the instrument route, pan, volume, bus FX, and master output gain.
+  The browser preview skips all of those and joins the master directly, centred, before master FX.
 - Runtime audio commands and full audio-config payloads use the same native normalization on desktop
   and Pi. Malformed instrument/FX payloads keep the last good audio state and raise a typed audio
   failure. Sample preview resolves and decodes through the host adapter before entering the selected

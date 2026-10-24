@@ -56,12 +56,9 @@ impl SynthEngine {
         retired
     }
 
-    pub fn preview_sample(
-        &mut self,
-        instrument_slot: u8,
-        buffer: SampleBuffer,
-        velocity: u8,
-    ) -> RetiredAudioState {
+    /// Auditions a file from the sample browser: its own pitch and level, straight into the master,
+    /// with none of the slot's sampler settings, mixer, bus FX or route.
+    pub fn preview_sample(&mut self, buffer: SampleBuffer) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
@@ -71,27 +68,11 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return retired;
         }
-        let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
         if buffer.samples.is_empty() || buffer.channels == 0 || buffer.sample_rate == 0 {
             store_retired_preview_buffer(&mut retired.preview_sample_buffers, buffer);
             return retired;
         }
-        let (velocity_sensitivity_pct, gain_pct, tune_semis) = self
-            .sample_banks
-            .get(slot)
-            .map(|bank| {
-                (
-                    bank.velocity_sensitivity_pct,
-                    bank.gain_pct,
-                    bank.tune_semis,
-                )
-            })
-            .unwrap_or((100.0, 100.0, 0.0));
-        let vel = (velocity.max(1) as f32 / 127.0).clamp(0.0, 1.0);
-        let vel_sens = (velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
-        let gain = (gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
-        let pitch = 2.0_f32.powf(tune_semis / 12.0);
-        let step = pitch * buffer.sample_rate as f32 / self.sample_rate as f32;
+        let step = buffer.sample_rate as f32 / self.sample_rate as f32;
         let order = self.preview_sample_next_order;
         self.preview_sample_next_order = self.preview_sample_next_order.saturating_add(1);
         let preview_slot = self
@@ -110,12 +91,9 @@ impl SynthEngine {
         }
         self.preview_sample_orders[preview_slot] = order;
         self.preview_sample_voices[preview_slot] = Some(PreviewSampleVoice {
-            slot,
             buffer,
             pos: 0.0,
             step,
-            gain,
-            filt: BiquadState::new(),
         });
         retired
     }

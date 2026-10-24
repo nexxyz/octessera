@@ -184,28 +184,39 @@ fn default_sampler_plays_the_sample_through_untouched() {
 }
 
 #[test]
-fn sample_preview_uses_the_slot_filter_type() {
-    let dc = vec![0.5; RATE as usize];
-    let preview_level = |filter_type| {
-        let shape = SampleShapeConfig {
-            filter_type,
-            ..SampleShapeConfig::default()
-        };
-        let mut engine = sampler_engine(shape, dc.clone());
-        engine.sample_banks[0].filter_cutoff_hz = 1_000.0;
-        let _ = engine.preview_sample(
-            0,
-            SampleBuffer {
-                samples: dc.clone().into(),
-                channels: 1,
-                sample_rate: RATE,
-            },
-            127,
-        );
-        render(&mut engine, ms(50.0))[ms(40.0)].abs()
+fn sample_preview_plays_the_file_untouched_whatever_the_slot_does() {
+    let file: Vec<f32> = (0..2_000)
+        .map(|index| (index as f32 * 0.02).sin() * 0.4)
+        .collect();
+    let preview = |shape: SampleShapeConfig, tune: f32, gain: f32, cutoff: f32| {
+        let mut engine = sampler_engine(shape, file.clone());
+        engine.sample_banks[0].tune_semis = tune;
+        engine.sample_banks[0].gain_pct = gain;
+        engine.sample_banks[0].filter_cutoff_hz = cutoff;
+        let _ = engine.preview_sample(SampleBuffer {
+            samples: file.clone().into(),
+            channels: 1,
+            sample_rate: RATE,
+        });
+        render(&mut engine, 1_000)
     };
-    let lowpass = preview_level(FilterType::Lowpass);
-    let highpass = preview_level(FilterType::Highpass);
-    assert!(lowpass > 0.05, "lowpass passes DC: {lowpass}");
-    assert!(highpass < lowpass * 0.01, "highpass removes DC: {highpass}");
+    let neutral = preview(SampleShapeConfig::default(), 0.0, 100.0, 20_000.0);
+    let shaped = preview(
+        SampleShapeConfig {
+            filter_type: FilterType::Highpass,
+            filter_env_amount_pct: 100.0,
+            amp_env: EnvConfig {
+                attack_ms: 50.0,
+                decay_ms: 10.0,
+                sustain_pct: 20.0,
+                release_ms: 10.0,
+            },
+            ..SampleShapeConfig::default()
+        },
+        12.0,
+        30.0,
+        400.0,
+    );
+    assert_eq!(neutral, shaped, "no sampler setting reaches the preview");
+    assert!(neutral[500] != 0.0);
 }

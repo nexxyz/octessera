@@ -102,7 +102,7 @@ fn sample_instrument_routes_through_bus_fx_slot3_delay_tail() {
 }
 
 #[test]
-fn sample_preview_routes_through_bus_fx_delay_tail() {
+fn sample_preview_skips_the_slot_bus_and_its_delay_tail() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
@@ -140,23 +140,28 @@ fn sample_preview_routes_through_bus_fx_delay_tail() {
         channels: 1,
         sample_rate: 48_000,
     };
-    engine.preview_sample(0, buffer, 127);
+    engine.preview_sample(buffer);
 
-    for _ in 0..47 {
+    let first = engine.next_stereo_sample();
+    for _ in 0..46 {
         let _ = engine.next_stereo_sample();
     }
     let before_tail = engine.next_sample().abs();
     let tail = engine.next_sample().abs();
 
+    assert!(
+        first.0 > 0.5 && first.0 == first.1,
+        "the preview plays dry and centred: {first:?}"
+    );
     assert!(before_tail < 1.0e-6);
     assert!(
-        tail > 0.1,
-        "sample preview should route through the delay bus"
+        tail < 1.0e-6,
+        "the preview must not feed the slot's delay bus"
     );
 }
 
 #[test]
-fn sample_filter_cutoff_changes_active_and_preview_voice_output() {
+fn sample_filter_cutoff_changes_active_voices_but_never_the_preview() {
     let mut dry = sample_filter_engine(20_000.0, 20.0);
     let mut filtered = sample_filter_engine(200.0, 20.0);
     dry.note_on(0, 36, 127, 1_000);
@@ -175,14 +180,10 @@ fn sample_filter_cutoff_changes_active_and_preview_voice_output() {
     };
     let mut dry_preview = sample_filter_engine(20_000.0, 20.0);
     let mut filtered_preview = sample_filter_engine(200.0, 20.0);
-    dry_preview.preview_sample(0, buffer.clone(), 127);
-    filtered_preview.preview_sample(0, buffer, 127);
+    dry_preview.preview_sample(buffer.clone());
+    filtered_preview.preview_sample(buffer);
 
-    let dry_preview_out = dry_preview.next_sample().abs();
-    let filtered_preview_out = filtered_preview.next_sample().abs();
-    assert!(dry_preview_out.is_finite());
-    assert!(filtered_preview_out.is_finite());
-    assert!(filtered_preview_out < dry_preview_out * 0.2);
+    assert_eq!(dry_preview.next_sample(), filtered_preview.next_sample());
 }
 
 #[test]

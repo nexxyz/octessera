@@ -12,17 +12,17 @@ fn sample_buffer(value: f32, frames: usize) -> SampleBuffer {
 fn preview_slots_replace_oldest_and_retire_displaced_state() {
     let mut engine = SynthEngine::new(48_000);
     assert!(engine
-        .preview_sample(0, sample_buffer(1.0, 64), 100)
+        .preview_sample(sample_buffer(1.0, 64))
         .preview_sample_voices
         .iter()
         .all(Option::is_none));
     assert!(engine
-        .preview_sample(0, sample_buffer(2.0, 64), 100)
+        .preview_sample(sample_buffer(2.0, 64))
         .preview_sample_voices
         .iter()
         .all(Option::is_none));
 
-    let retired = engine.preview_sample(0, sample_buffer(3.0, 64), 100);
+    let retired = engine.preview_sample(sample_buffer(3.0, 64));
 
     assert_eq!(engine.profile_snapshot().active_preview_sample_voices, 2);
     let retired_values: Vec<f32> = retired
@@ -44,7 +44,7 @@ fn preview_slots_replace_oldest_and_retire_displaced_state() {
 #[test]
 fn completed_preview_moves_to_pending_render_retirement() {
     let mut engine = SynthEngine::new(48_000);
-    let _ = engine.preview_sample(0, sample_buffer(1.0, 1), 100);
+    let _ = engine.preview_sample(sample_buffer(1.0, 1));
 
     let _ = engine.next_stereo_sample();
 
@@ -59,15 +59,11 @@ fn completed_preview_moves_to_pending_render_retirement() {
 fn invalid_preview_moves_its_buffer_to_retirement() {
     let mut engine = SynthEngine::new(48_000);
 
-    let retired = engine.preview_sample(
-        0,
-        SampleBuffer {
-            samples: vec![1.0].into(),
-            channels: 0,
-            sample_rate: 48_000,
-        },
-        100,
-    );
+    let retired = engine.preview_sample(SampleBuffer {
+        samples: vec![1.0].into(),
+        channels: 0,
+        sample_rate: 48_000,
+    });
 
     assert_eq!(engine.profile_snapshot().active_preview_sample_voices, 0);
     assert_eq!(retired.preview_sample_buffers.iter().flatten().count(), 1);
@@ -77,8 +73,8 @@ fn invalid_preview_moves_its_buffer_to_retirement() {
 #[test]
 fn all_notes_off_returns_preview_payloads_for_retirement() {
     let mut engine = SynthEngine::new(48_000);
-    let _ = engine.preview_sample(0, sample_buffer(1.0, 64), 100);
-    let _ = engine.preview_sample(0, sample_buffer(2.0, 64), 100);
+    let _ = engine.preview_sample(sample_buffer(1.0, 64));
+    let _ = engine.preview_sample(sample_buffer(2.0, 64));
 
     let retired = engine.all_notes_off();
 

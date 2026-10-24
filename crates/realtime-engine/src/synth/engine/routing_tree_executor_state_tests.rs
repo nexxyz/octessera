@@ -27,15 +27,11 @@ fn routing_tree_rejects_stale_or_malformed_plans_without_state_commit() {
         target.note_on(0, 36, 127, 1_000);
         target.note_on(1, 60, 100, 1_000);
         target.note_on(2, 67, 100, 1_000);
-        target.preview_sample(
-            0,
-            SampleBuffer {
-                samples: vec![0.25, 0.5, 0.25].into(),
-                channels: 1,
-                sample_rate: 48_000,
-            },
-            100,
-        );
+        target.preview_sample(SampleBuffer {
+            samples: vec![0.25, 0.5, 0.25].into(),
+            channels: 1,
+            sample_rate: 48_000,
+        });
         for (id, target_kind) in [
             ("instrument", MomentaryFxTarget::Instrument { index: 1 }),
             ("bus", MomentaryFxTarget::FxBus { index: 0 }),

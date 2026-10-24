@@ -1,4 +1,4 @@
-use super::source_lane_renderer::{render_sample_voice_frame, PreviewFilter};
+use super::source_lane_renderer::render_sample_voice_frame;
 use super::source_worker_placement;
 use super::*;
 
@@ -271,113 +271,66 @@ impl SynthEngine {
         }
     }
 
-    pub(super) fn render_preview_sample_voices(
-        &mut self,
-        slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
-    ) -> bool {
-        let filters = std::array::from_fn(|slot| PreviewFilter::of(self.sample_banks.get(slot)));
-        let (completed, active) = render_preview_sample_voices_frame_into(
-            &mut self.preview_sample_voices,
-            &filters,
-            self.sample_rate,
-            1,
-            slot_out,
-        );
-        for voice in completed.into_iter().flatten() {
+    /// The browser preview's mono contribution to this frame, already at unity, for the master.
+    pub(super) fn render_preview_sample_voices(&mut self) -> (f32, bool) {
+        let (sample, active) = render_preview_frame(&mut self.preview_sample_voices);
+        for voice in take_completed_previews(&mut self.preview_sample_voices)
+            .into_iter()
+            .flatten()
+        {
             self.retire_render_preview(voice);
         }
-        active
+        (sample, active)
     }
 }
 
 #[cfg(feature = "routing-tree-executor")]
 pub(super) fn render_preview_sample_voices_block_into(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    filters: &[PreviewFilter; INSTRUMENT_SLOT_COUNT],
-    sample_rate: u32,
     frames: usize,
-    slot_out: &mut [Vec<f32>; INSTRUMENT_SLOT_COUNT],
+    preview_out: &mut [f32],
     active_frames: &mut [bool],
 ) -> [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS] {
-    let mut frame = 0;
-    while frame < frames {
-        active_frames[frame] =
-            render_preview_sample_voices_frame(voices, filters, sample_rate, |slot, sample| {
-                slot_out[slot][frame] += sample
-            });
-        frame += 1;
+    for frame in 0..frames {
+        (preview_out[frame], active_frames[frame]) = render_preview_frame(voices);
     }
-    let mut completed = std::array::from_fn(|_| None);
-    for index in 0..voices.len() {
-        let complete = voices[index]
-            .as_ref()
-            .map(|voice| {
-                let frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
-                frames == 0 || voice.pos >= frames as f32
-            })
-            .unwrap_or(false);
-        if complete {
-            completed[index] = voices[index].take();
-        }
-    }
-    completed
+    take_completed_previews(voices)
 }
 
-fn render_preview_sample_voices_frame(
+fn render_preview_frame(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    filters: &[PreviewFilter; INSTRUMENT_SLOT_COUNT],
-    sample_rate: u32,
-    mut write: impl FnMut(usize, f32),
-) -> bool {
+) -> (f32, bool) {
+    let mut out = 0.0;
     let mut active = false;
     for voice in voices.iter_mut().flatten() {
         let voice_frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
-        if voice_frames == 0
-            || voice.pos >= voice_frames as f32
-            || voice.slot >= INSTRUMENT_SLOT_COUNT
-        {
+        if voice_frames == 0 || voice.pos >= voice_frames as f32 {
             voice.pos = voice_frames as f32;
             continue;
         }
         let source_frame = voice.pos.floor() as usize;
         let frac = voice.pos - source_frame as f32;
         let next_frame = (source_frame + 1).min(voice_frames - 1);
-        let sample = mono_frame(&voice.buffer, source_frame) * (1.0 - frac)
+        out += mono_frame(&voice.buffer, source_frame) * (1.0 - frac)
             + mono_frame(&voice.buffer, next_frame) * frac;
-        let filtered = filters[voice.slot].process(sample, &mut voice.filt, sample_rate);
-        write(voice.slot, filtered * voice.gain);
         voice.pos += voice.step;
         active = true;
     }
-    active
+    (out, active || voices.iter().any(Option::is_some))
 }
 
-pub(super) fn render_preview_sample_voices_frame_into(
+fn take_completed_previews(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    filters: &[PreviewFilter; INSTRUMENT_SLOT_COUNT],
-    sample_rate: u32,
-    frames: usize,
-    slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
-) -> ([Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS], bool) {
-    let mut active = false;
-    for _ in 0..frames {
-        active |=
-            render_preview_sample_voices_frame(voices, filters, sample_rate, |slot, sample| {
-                slot_out[slot] += sample
-            });
-    }
-    let mut completed = std::array::from_fn(|_| None);
-    for index in 0..voices.len() {
-        let complete = voices[index]
-            .as_ref()
-            .map(|voice| {
-                let frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
-                frames == 0 || voice.pos >= frames as f32
-            })
-            .unwrap_or(false);
+) -> [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS] {
+    std::array::from_fn(|index| {
+        let complete = voices[index].as_ref().is_some_and(|voice| {
+            let frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
+            frames == 0 || voice.pos >= frames as f32
+        });
         if complete {
-            completed[index] = voices[index].take();
+            voices[index].take()
+        } else {
+            None
         }
-    }
-    (completed, active || voices.iter().any(Option::is_some))
+    })
 }

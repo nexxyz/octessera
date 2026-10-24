@@ -221,15 +221,13 @@ fn all_notes_off_event_clears_engine_voices() {
     let (tx, rx) = event_queue();
     let mut source = EngineSource::new(rx, 44_100);
     source.engine.note_on(0, 60, 100, 1_000);
-    source.engine.preview_sample(
-        0,
-        realtime_engine::synth::SampleBuffer {
+    source
+        .engine
+        .preview_sample(realtime_engine::synth::SampleBuffer {
             samples: vec![0.25; 256].into_boxed_slice().into(),
             channels: 1,
             sample_rate: 44_100,
-        },
-        100,
-    );
+        });
     tx.send(EngineEvent::AllNotesOff).unwrap();
 
     for _ in 0..20_000 {

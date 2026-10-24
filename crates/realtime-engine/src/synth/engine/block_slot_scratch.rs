@@ -9,6 +9,7 @@ pub(super) struct BlockSlotScratch {
     pub(super) sample_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
     pub(super) synth_active: [Vec<bool>; INSTRUMENT_SLOT_COUNT],
     pub(super) source_active: Vec<bool>,
+    pub(super) preview_out: Vec<f32>,
     pub(super) bus_active: Vec<bool>,
 }
 
@@ -21,6 +22,7 @@ impl BlockSlotScratch {
             sample_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
             synth_active: std::array::from_fn(|_| vec![false; BLOCK_SLOT_SCRATCH_FRAMES]),
             source_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
+            preview_out: vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES],
             bus_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
         }
     }
@@ -42,6 +44,7 @@ impl BlockSlotScratch {
             buffer[..frames].fill(false);
         }
         self.source_active[..frames].fill(false);
+        self.preview_out[..frames].fill(0.0);
         self.bus_active[..frames].fill(false);
         true
     }

@@ -110,14 +110,7 @@ pub(super) fn move_engine_aux_to_owners(
         let Some(voice) = engine.preview_sample_voices[index].take() else {
             continue;
         };
-        let Some(worker) = assignment.worker_for_slot(voice.slot) else {
-            return false;
-        };
-        let target = if worker == 0 {
-            &mut *first
-        } else {
-            &mut *second
-        };
+        let target = &mut *first;
         if target.preview_sample_voices[index].is_some() {
             return false;
         }
@@ -231,7 +224,8 @@ fn owner_state_matches(
             .preview_sample_voices
             .iter()
             .flatten()
-            .all(|voice| assignment.worker_for_slot(voice.slot) == Some(parity))
+            .next()
+            .is_none_or(|_| parity == 0)
         && owner.momentary_fx.iter().all(|state| match state.target {
             MomentaryFxTarget::Instrument { index } => {
                 assignment.worker_for_slot(index) == Some(parity)
@@ -255,9 +249,8 @@ fn preflight_engine_aux(
             .iter()
             .enumerate()
             .all(|(index, voice)| {
-                voice.as_ref().is_none_or(|voice| {
-                    assignment.worker_for_slot(voice.slot).is_some()
-                        && first.preview_sample_voices[index].is_none()
+                voice.as_ref().is_none_or(|_| {
+                    first.preview_sample_voices[index].is_none()
                         && second.preview_sample_voices[index].is_none()
                 })
             })
@@ -307,16 +300,11 @@ fn engine_aux_targets_valid(
     engine: &SynthEngine,
     assignment: &super::routing_tree_executor::RoutingTreeAssignment,
 ) -> bool {
-    engine
-        .preview_sample_voices
-        .iter()
-        .flatten()
-        .all(|voice| assignment.worker_for_slot(voice.slot).is_some())
-        && engine.momentary_fx.iter().all(|state| match state.target {
-            MomentaryFxTarget::Global => true,
-            MomentaryFxTarget::Instrument { index } => assignment.worker_for_slot(index).is_some(),
-            MomentaryFxTarget::FxBus { index } => assignment.worker_for_bus(index).is_some(),
-        })
+    engine.momentary_fx.iter().all(|state| match state.target {
+        MomentaryFxTarget::Global => true,
+        MomentaryFxTarget::Instrument { index } => assignment.worker_for_slot(index).is_some(),
+        MomentaryFxTarget::FxBus { index } => assignment.worker_for_bus(index).is_some(),
+    })
 }
 
 fn retirement_capacity_available(

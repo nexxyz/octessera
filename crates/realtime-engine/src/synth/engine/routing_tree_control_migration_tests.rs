@@ -92,7 +92,7 @@ fn routing_tree_supports_preview_and_local_momentary_at_control_gate() {
         &mut right,
         &mut out,
         |engine| {
-            drop(engine.preview_sample(0, preview, 100));
+            drop(engine.preview_sample(preview));
             engine.momentary_fx_start(
                 "instrument-filter".into(),
                 "filter_sweep".into(),

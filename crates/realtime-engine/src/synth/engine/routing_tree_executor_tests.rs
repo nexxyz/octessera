@@ -37,8 +37,8 @@ fn routing_tree_matches_canonical_for_sample_source() {
         channels: 1,
         sample_rate: 48_000,
     };
-    tree.preview_sample(0, preview.clone(), 100);
-    reference.preview_sample(0, preview, 100);
+    tree.preview_sample(preview.clone());
+    reference.preview_sample(preview);
     tree.note_on(0, 36, 127, 1_000);
     reference.note_on(0, 36, 127, 1_000);
     assert_routing_tree_matches_reference(&mut tree, &mut reference, 64);
@@ -60,7 +60,7 @@ fn routing_tree_reuses_canonical_source_kernels() {
     for frame in 0..64 {
         let mut expected = [0.0; INSTRUMENT_SLOT_COUNT];
         reference.render_sample_voices(&mut expected);
-        reference.render_preview_sample_voices(&mut expected);
+        let _ = reference.render_preview_sample_voices();
         reference.render_synth_voices(&mut expected);
         for (slot, expected_sample) in expected.iter().enumerate() {
             let actual = tree.block_slot_scratch.sample_slot_out[slot][frame]

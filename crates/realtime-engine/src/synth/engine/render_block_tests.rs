@@ -75,8 +75,8 @@ fn prepared_block_slot_render_matches_canonical_with_preview_active() {
     let preview = sample_buffer(vec![0.25, 0.5, 0.25, 0.0]);
     block.note_on(0, 36, 127, 1_000);
     reference.note_on(0, 36, 127, 1_000);
-    block.preview_sample(0, preview.clone(), 100);
-    reference.preview_sample(0, preview, 100);
+    block.preview_sample(preview.clone());
+    reference.preview_sample(preview);
     block.note_on(1, 60, 96, 1_000);
     reference.note_on(1, 60, 96, 1_000);
     assert_eq!(block.profile_snapshot().active_sample_voices, 1);

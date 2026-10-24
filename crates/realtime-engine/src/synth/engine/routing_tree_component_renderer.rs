@@ -61,6 +61,9 @@ pub(super) fn stage_components(
                 return Err(());
             }
         }
+        let preview = routing.scratch.preview_out[frame];
+        routing.output.left[frame] += preview;
+        routing.output.right[frame] += preview;
         routing.output.source_active[frame] = source_active || local_active;
         let bus_snapshot: [f32; BUS_COUNT] =
             std::array::from_fn(|bus| routing.scratch.bus_input[bus][frame]);

@@ -70,7 +70,7 @@ impl Scenario {
                 let _ = engine.set_sample_banks(vec![sample_bank()]);
             }
             Self::SamplePreview => {
-                drop(engine.preview_sample(0, sample_buffer(), 96));
+                drop(engine.preview_sample(sample_buffer()));
             }
             _ => {}
         }

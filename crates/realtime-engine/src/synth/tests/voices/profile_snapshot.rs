@@ -52,15 +52,11 @@ fn profile_snapshot_reports_active_counts_and_steals() {
 
     engine.set_sample_banks(vec![sample_bank(vec![1.0; 16_384]); INSTRUMENT_SLOT_COUNT]);
     engine.note_on(1, 36, 100, 1_000);
-    engine.preview_sample(
-        1,
-        SampleBuffer {
-            samples: vec![0.25; 256].into_boxed_slice().into(),
-            channels: 1,
-            sample_rate: 48_000,
-        },
-        100,
-    );
+    engine.preview_sample(SampleBuffer {
+        samples: vec![0.25; 256].into_boxed_slice().into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     engine.momentary_fx_start(
         "fx-1".into(),
         "filter_sweep".into(),

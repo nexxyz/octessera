@@ -110,15 +110,11 @@ fn all_notes_off_clears_synth_sample_and_preview_voices() {
     engine.set_sample_banks(vec![sample_bank(vec![1.0; 16_384]); INSTRUMENT_SLOT_COUNT]);
     engine.note_on(0, 60, 100, 50_000);
     engine.note_on(1, 36, 100, 50_000);
-    engine.preview_sample(
-        1,
-        SampleBuffer {
-            samples: vec![0.25; 256].into_boxed_slice().into(),
-            channels: 1,
-            sample_rate: 48_000,
-        },
-        100,
-    );
+    engine.preview_sample(SampleBuffer {
+        samples: vec![0.25; 256].into_boxed_slice().into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
 
     assert_eq!(engine.profile_snapshot().active_synth_voices, 1);
     assert_eq!(engine.profile_snapshot().active_sample_voices, 1);

@@ -111,13 +111,11 @@ impl SampleVoice {
 }
 
 #[derive(Clone, Debug)]
+/// A browser audition: the file at its own pitch and level, mixed straight into the master.
 pub(super) struct PreviewSampleVoice {
-    pub(super) slot: usize,
     pub(super) buffer: SampleBuffer,
     pub(super) pos: f32,
     pub(super) step: f32,
-    pub(super) gain: f32,
-    pub(super) filt: BiquadState,
 }
 
 pub(super) fn parse_route(route: &str) -> usize {

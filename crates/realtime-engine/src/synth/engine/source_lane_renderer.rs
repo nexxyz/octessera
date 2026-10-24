@@ -1,7 +1,7 @@
-use super::super::runtime_state::{BiquadState, InstrumentMod};
+use super::super::runtime_state::InstrumentMod;
 use super::super::synth_voice_pool::SynthVoicePartition;
 use super::super::types::{
-    FilterType, SampleBankConfig, SynthConfig, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
+    SynthConfig, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
     SAMPLE_VOICE_PARTITION_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
     SYNTH_VOICE_PARTITION_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
@@ -353,38 +353,6 @@ fn render_shaped_sample_voice_block(
         }
     }
     rendered_frames
-}
-
-/// A sampler slot's fixed filter as the browser preview hears it: type, Cutoff and Res, without
-/// the envelopes or key tracking that belong to played notes.
-#[derive(Clone, Copy, Debug)]
-pub(super) struct PreviewFilter {
-    kind: FilterType,
-    cutoff_hz: f32,
-    resonance: f32,
-}
-
-impl PreviewFilter {
-    pub(super) fn of(bank: Option<&SampleBankConfig>) -> Self {
-        match bank {
-            Some(bank) => Self {
-                kind: bank.shape.filter_type,
-                cutoff_hz: bank.filter_cutoff_hz,
-                resonance: bank.filter_resonance,
-            },
-            None => Self {
-                kind: FilterType::Lowpass,
-                cutoff_hz: 20_000.0,
-                resonance: 0.0,
-            },
-        }
-    }
-
-    pub(super) fn process(self, sample: f32, filt: &mut BiquadState, sample_rate: u32) -> f32 {
-        let q = sample_filter_q(self.resonance);
-        filt.process(sample, self.kind, self.cutoff_hz, q, sample_rate)
-            .clamp(-8.0, 8.0)
-    }
 }
 
 fn sample_filter_q(resonance: f32) -> f32 {

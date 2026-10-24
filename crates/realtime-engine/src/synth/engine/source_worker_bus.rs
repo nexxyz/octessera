@@ -124,7 +124,7 @@ pub(super) fn stage_source_block(
             *output = engine.block_slot_scratch.sample_slot_out[slot][frame];
             sample_active |= engine.block_slot_scratch.sample_active[slot][frame];
         }
-        let preview_active = engine.render_preview_sample_voices(&mut slot_out);
+        let (preview, preview_active) = engine.render_preview_sample_voices();
         for (slot, output) in slot_out.iter_mut().enumerate() {
             *output += engine.block_slot_scratch.synth_slot_out[slot][frame];
             synth_active |= engine.block_slot_scratch.synth_active[slot][frame];
@@ -134,6 +134,7 @@ pub(super) fn stage_source_block(
         if !stage_carrier_frame(engine, carriers, &slot_out, frame, left, right) {
             return false;
         }
+        engine.block_slot_scratch.preview_out[frame] = preview;
         for bus in 0..engine.bus_pan_pos.len() {
             for slot in 0..BUS_SLOTS_PER_BUS {
                 let Some((DuckSource::Instrument(index), source_tap)) =
@@ -375,7 +376,10 @@ fn apply_bus_output(
             if carrier.owner.as_ref().is_some_and(BusChainOwner::is_active) {
                 active_buses += 1;
             }
-            if !carrier.scratch.executed || frame >= carrier.scratch.processed_prefix {
+            if !carrier.scratch.executed
+                || frame >= carrier.scratch.processed_prefix
+                || !carrier.scratch.active[frame]
+            {
                 continue;
             }
             let mut mono = carrier.scratch.mono_output[frame];

@@ -249,7 +249,7 @@ impl<'a> ControlDrain<'a> {
             return;
         }
         let retired = Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-            engine.preview_sample(instrument_slot, buffer, velocity)
+            engine.preview_sample(buffer)
         });
         self.retire_state(retired);
     }

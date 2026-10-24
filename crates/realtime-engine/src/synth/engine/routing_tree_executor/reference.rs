@@ -88,7 +88,7 @@ impl SynthEngine {
                 *output = self.block_slot_scratch.sample_slot_out[slot][frame];
                 sample_active |= self.block_slot_scratch.sample_active[slot][frame];
             }
-            let preview_active = self.render_preview_sample_voices(&mut slot_out);
+            let (preview, preview_active) = self.render_preview_sample_voices();
             for (slot, output) in slot_out.iter_mut().enumerate() {
                 *output += self.block_slot_scratch.synth_slot_out[slot][frame];
                 synth_active |= self.block_slot_scratch.synth_active[slot][frame];
@@ -104,8 +104,8 @@ impl SynthEngine {
             let (mut frame_left, mut frame_right) = {
                 let scratch = &self.routing_tree_scratch;
                 (
-                    scratch.worker_left[0][frame] + scratch.worker_left[1][frame],
-                    scratch.worker_right[0][frame] + scratch.worker_right[1][frame],
+                    scratch.worker_left[0][frame] + scratch.worker_left[1][frame] + preview,
+                    scratch.worker_right[0][frame] + scratch.worker_right[1][frame] + preview,
                 )
             };
             let master_signal = self.signal_present(frame_left, frame_right)

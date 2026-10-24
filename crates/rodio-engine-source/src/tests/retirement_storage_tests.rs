@@ -110,15 +110,11 @@ fn retirement_disconnect_fails_closed_for_structural_work() {
 fn pending_render_retirement_is_deferred_when_storage_is_full() {
     let (_tx, rx) = event_queue();
     let (mut source, _actual_retired_rx) = EngineSource::with_test_retirement_receiver(rx, 44_100);
-    let _ = source.engine.preview_sample(
-        0,
-        SampleBuffer {
-            samples: vec![0.25].into(),
-            channels: 1,
-            sample_rate: 44_100,
-        },
-        100,
-    );
+    let _ = source.engine.preview_sample(SampleBuffer {
+        samples: vec![0.25].into(),
+        channels: 1,
+        sample_rate: 44_100,
+    });
     source.fill_retirement_storage_for_transport_test();
     let _ = source.next();
     assert_eq!(source.retired_backlog_len(), RETIREMENT_BACKLOG_CAPACITY);

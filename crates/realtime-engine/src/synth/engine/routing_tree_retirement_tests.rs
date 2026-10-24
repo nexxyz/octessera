@@ -10,15 +10,11 @@ use std::time::Duration;
 fn routing_tree_completed_preview_and_momentary_payloads_retire_with_fifo_owners() {
     let samples: Arc<[f32]> = Arc::from(vec![0.25]);
     let mut engine = retirement_engine();
-    drop(engine.preview_sample(
-        0,
-        SampleBuffer {
-            samples: Arc::clone(&samples),
-            channels: 1,
-            sample_rate: 44_100,
-        },
-        100,
-    ));
+    drop(engine.preview_sample(SampleBuffer {
+        samples: Arc::clone(&samples),
+        channels: 1,
+        sample_rate: 44_100,
+    }));
     engine.momentary_fx_start(
         "retiring".into(),
         "stutter".into(),
@@ -56,15 +52,11 @@ fn routing_tree_no_control_preserves_nonempty_sample_preview_refs_and_owners() {
     let samples: Arc<[f32]> = Arc::from(vec![0.25; 16_384]);
     let mut engine = sample_engine_with_shared_buffer(Arc::clone(&samples));
     engine.note_on(0, 36, 100, 5_000);
-    drop(engine.preview_sample(
-        0,
-        SampleBuffer {
-            samples: Arc::clone(&samples),
-            channels: 1,
-            sample_rate: 48_000,
-        },
-        100,
-    ));
+    drop(engine.preview_sample(SampleBuffer {
+        samples: Arc::clone(&samples),
+        channels: 1,
+        sample_rate: 48_000,
+    }));
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
             .expect("routing-tree runtime");

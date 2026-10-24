@@ -203,6 +203,14 @@ impl SourceWorkerRuntime {
             self.reclaim_available(engine);
             return self.render_failure_disposition();
         }
+        for (frame, preview) in engine.block_slot_scratch.preview_out[..frames]
+            .iter_mut()
+            .enumerate()
+        {
+            left[frame] += *preview;
+            right[frame] += *preview;
+            *preview = 0.0;
+        }
         engine.finish_persistent_block(frames, left, right);
         #[cfg(feature = "source-worker-benchmark-timing")]
         {

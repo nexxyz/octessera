@@ -250,13 +250,7 @@ fn bus_and_master_routing_controls_bound_output_energy() {
     })
     .unwrap();
     let _ = block(&mut source);
-    tx.send(EngineEvent::PreviewSample {
-        instrument_slot: 0,
-        generation: 0,
-        buffer: sample_bank().slots[0].buffer.clone().unwrap(),
-        velocity: 127,
-    })
-    .unwrap();
+    send_sample_hit(&tx);
     let audible = block(&mut source);
     assert!(energy(&audible) > 0.0);
 
@@ -267,13 +261,7 @@ fn bus_and_master_routing_controls_bound_output_energy() {
         volume_pct: Some(0.0),
     })
     .unwrap();
-    tx.send(EngineEvent::PreviewSample {
-        instrument_slot: 0,
-        generation: 0,
-        buffer: sample_bank().slots[0].buffer.clone().unwrap(),
-        velocity: 127,
-    })
-    .unwrap();
+    send_sample_hit(&tx);
     assert!(energy(&block(&mut source)) < energy(&audible) * 0.01);
 
     tx.send(EngineEvent::SetFxBusMixer {
@@ -283,13 +271,7 @@ fn bus_and_master_routing_controls_bound_output_energy() {
         volume_pct: Some(100.0),
     })
     .unwrap();
-    tx.send(EngineEvent::PreviewSample {
-        instrument_slot: 0,
-        generation: 0,
-        buffer: sample_bank().slots[0].buffer.clone().unwrap(),
-        velocity: 127,
-    })
-    .unwrap();
+    send_sample_hit(&tx);
     let audible_before_master_mute = block(&mut source);
     assert!(energy(&audible_before_master_mute) > 0.0);
 
@@ -298,13 +280,7 @@ fn bus_and_master_routing_controls_bound_output_energy() {
         volume_pct: 0.0,
     })
     .unwrap();
-    tx.send(EngineEvent::PreviewSample {
-        instrument_slot: 0,
-        generation: 0,
-        buffer: sample_bank().slots[0].buffer.clone().unwrap(),
-        velocity: 127,
-    })
-    .unwrap();
+    send_sample_hit(&tx);
     assert!(energy(&block(&mut source)) < f32::EPSILON);
 }
 
@@ -457,4 +433,15 @@ fn probe_mark_fence_spills_controls_into_following_source_blocks() {
         assert_eq!(energy(&block(&mut source)), 0.0);
     }
     assert!(energy(&block(&mut source)) > 0.0);
+}
+
+/// The browser preview skips the slot mixer and buses, so routing checks play a real sampler hit.
+fn send_sample_hit(tx: &EngineEventSender) {
+    tx.send(EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note: 36,
+        velocity: 127,
+        duration_ms: 1_000,
+    })
+    .unwrap();
 }

@@ -28,15 +28,11 @@ fn assert_persistent_matches_inline(frames: usize, reverse_completion: bool) {
         engine.note_on(0, 36, 100, 5_000);
         engine.note_on(1, 60, 96, 5_000);
         engine.note_on(2, 67, 88, 5_000);
-        engine.preview_sample(
-            0,
-            SampleBuffer {
-                samples: Arc::from(vec![0.25, -0.1, 0.4, -0.2, 0.0]),
-                channels: 1,
-                sample_rate: 48_000,
-            },
-            100,
-        );
+        engine.preview_sample(SampleBuffer {
+            samples: Arc::from(vec![0.25, -0.1, 0.4, -0.2, 0.0]),
+            channels: 1,
+            sample_rate: 48_000,
+        });
         install_momentaries(engine);
     }
     let (lifecycle, mut runtime) =

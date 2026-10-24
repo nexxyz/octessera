@@ -193,12 +193,9 @@ pub(crate) fn apply_events(
                 slot_index, config, ..
             } => retired
                 .push(engine.apply_prepared_global_fx_slot((*slot_index).into(), config.clone())),
-            EngineEvent::PreviewSample {
-                instrument_slot,
-                buffer,
-                velocity,
-                ..
-            } => retired.push(engine.preview_sample(*instrument_slot, buffer.clone(), *velocity)),
+            EngineEvent::PreviewSample { buffer, .. } => {
+                retired.push(engine.preview_sample(buffer.clone()))
+            }
             EngineEvent::NoteOn {
                 instrument_slot,
                 note,

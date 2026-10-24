@@ -31,7 +31,7 @@ fn routing_tree_reassociation_changes_only_final_worker_sum() {
     for frame in 0..128 {
         let mut slot_out = [0.0; INSTRUMENT_SLOT_COUNT];
         source_reference.render_sample_voices(&mut slot_out);
-        source_reference.render_preview_sample_voices(&mut slot_out);
+        let _ = source_reference.render_preview_sample_voices();
         source_reference.render_synth_voices(&mut slot_out);
         let mut worker_left = [0.0; 2];
         let mut worker_right = [0.0; 2];

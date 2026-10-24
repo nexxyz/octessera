@@ -24,15 +24,22 @@ impl SynthEngine {
         }
         let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
         let sample_active = self.render_sample_voices(&mut slot_out);
-        let preview_active = self.render_preview_sample_voices(&mut slot_out);
+        let (preview, preview_active) = self.render_preview_sample_voices();
         let synth_active = self.render_synth_voices(&mut slot_out);
-        self.finish_serial_frame(slot_out, sample_active, preview_active, synth_active)
+        self.finish_serial_frame(
+            slot_out,
+            sample_active,
+            preview,
+            preview_active,
+            synth_active,
+        )
     }
 
     fn finish_serial_frame(
         &mut self,
         slot_out: [f32; INSTRUMENT_SLOT_COUNT],
         sample_active: bool,
+        preview: f32,
         preview_active: bool,
         synth_active: bool,
     ) -> (f32, f32) {
@@ -44,6 +51,8 @@ impl SynthEngine {
         if process_buses {
             (left, right) = self.mix_fx_buses(&slot_out, left, right);
         }
+        left += preview;
+        right += preview;
         let master_signal = self.signal_present(left, right)
             || synth_active
             || sample_active
@@ -138,13 +147,18 @@ impl SynthEngine {
                 *out += self.block_slot_scratch.sample_slot_out[slot][frame];
                 sample_active |= self.block_slot_scratch.sample_active[slot][frame];
             }
-            let preview_active = self.render_preview_sample_voices(&mut slot_out);
+            let (preview, preview_active) = self.render_preview_sample_voices();
             for (slot, out) in slot_out.iter_mut().enumerate() {
                 *out += self.block_slot_scratch.synth_slot_out[slot][frame];
                 synth_active |= self.block_slot_scratch.synth_active[slot][frame];
             }
-            let (left, right) =
-                self.finish_serial_frame(slot_out, sample_active, preview_active, synth_active);
+            let (left, right) = self.finish_serial_frame(
+                slot_out,
+                sample_active,
+                preview,
+                preview_active,
+                synth_active,
+            );
             left_out[frame] = left;
             right_out[frame] = right;
         }
@@ -198,7 +212,7 @@ impl SynthEngine {
             start.elapsed().as_nanos() as u64;
 
         let start = Instant::now();
-        let preview_active = self.render_preview_sample_voices(&mut slot_out);
+        let (preview, preview_active) = self.render_preview_sample_voices();
         self.render_profile.stage_ns[render_profile::PROFILE_PREVIEW_SAMPLE_VOICES] =
             start.elapsed().as_nanos() as u64;
 
@@ -220,6 +234,8 @@ impl SynthEngine {
         if process_buses {
             (left, right) = self.mix_fx_buses(&slot_out, left, right);
         }
+        left += preview;
+        right += preview;
         self.render_profile.stage_ns[render_profile::PROFILE_FX_BUSES] =
             start.elapsed().as_nanos() as u64;
 

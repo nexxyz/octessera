@@ -31,6 +31,7 @@ pub(super) struct RoutingTreeWorkerScratch {
     pub(super) bus_input: [Vec<f32>; BUS_COUNT],
     pub(super) source: RoutingTreeSourceBlockScratch,
     pub(super) preview_active: Vec<bool>,
+    pub(super) preview_out: Vec<f32>,
     pub(super) momentary_active: Vec<bool>,
 }
 
@@ -41,6 +42,7 @@ impl RoutingTreeWorkerScratch {
             bus_input: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
             source: RoutingTreeSourceBlockScratch::new(),
             preview_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            preview_out: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
             momentary_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
         }
     }
@@ -56,6 +58,7 @@ impl RoutingTreeWorkerScratch {
             input[..frames].fill(0.0);
         }
         self.preview_active[..frames].fill(false);
+        self.preview_out[..frames].fill(0.0);
         self.momentary_active[..frames].fill(false);
         self.source.prepare(frames)
     }
@@ -145,7 +148,6 @@ pub(super) struct RoutingTreeWorkerContext {
     pub(super) bus_count: usize,
     pub(super) sample_rate: u32,
     pub(super) synth_context: SynthSourceContext,
-    pub(super) sample_filter: [super::source_lane_renderer::PreviewFilter; INSTRUMENT_SLOT_COUNT],
     pub(super) bus_idle_threshold: BusIdleThreshold,
     pub(super) fx_activity_hold_frames: u32,
 }
@@ -192,9 +194,6 @@ impl RoutingTreeWorkerContext {
             bus_count,
             sample_rate: engine.sample_rate,
             synth_context: engine.synth_source_context(),
-            sample_filter: std::array::from_fn(|slot| {
-                super::source_lane_renderer::PreviewFilter::of(engine.sample_banks.get(slot))
-            }),
             bus_idle_threshold: engine.dsp_config.bus_idle_threshold,
             fx_activity_hold_frames: engine.fx_activity_hold_frames,
         })
@@ -244,10 +243,8 @@ pub(super) fn render_owner(
         } else {
             let completed = render_preview_sample_voices_block_into(
                 &mut routing.preview_sample_voices,
-                &context.sample_filter,
-                context.sample_rate,
                 stamp.frames,
-                &mut routing.scratch.slot_out,
+                &mut routing.scratch.preview_out,
                 &mut routing.scratch.preview_active,
             );
             for voice in completed.into_iter().flatten() {
