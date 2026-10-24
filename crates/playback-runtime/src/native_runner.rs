@@ -132,6 +132,7 @@ mod menu_apply_link_fx;
 mod menu_apply_structural;
 mod menu_value_apply;
 mod message_dispatch;
+mod modal_popups;
 mod modulation;
 #[cfg(test)]
 mod music_first_grid_persistence_tests;
