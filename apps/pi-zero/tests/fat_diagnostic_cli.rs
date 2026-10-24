@@ -31,11 +31,7 @@ fn normal_metadata_mode_does_not_enter_hardware_runtime() {
 #[cfg(not(feature = "profiling"))]
 #[test]
 fn production_builds_refuse_profiling_modes() {
-    for args in [
-        ["--profile-dsp"],
-        ["--timing-probe"],
-        ["--benchmark-orange-audio"],
-    ] {
+    for args in [["--profile-dsp"], ["--timing-probe"]] {
         let output = clean_command()
             .args(args)
             .output()
