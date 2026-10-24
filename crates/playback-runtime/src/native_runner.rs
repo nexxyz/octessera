@@ -40,6 +40,7 @@ use std::time::{Duration, Instant};
 
 mod action_bindings;
 mod action_control;
+mod action_platform_effects;
 mod algorithm;
 mod apply_payload;
 mod apply_payload_instrument_values;
