@@ -27,7 +27,7 @@ class TauriNoticeResourceTests(unittest.TestCase):
         self.assertIn("legal:stage-desktop", config["build"]["beforeBuildCommand"])
 
     def test_native_setup_resolves_the_stable_samples_resource(self) -> None:
-        samples = (ROOT / "apps/desktop/src-tauri/src/samples.rs").read_text(encoding="utf-8")
+        samples = (ROOT / "apps/desktop/src-tauri/src/samples/sample_roots.rs").read_text(encoding="utf-8")
         desktop = (ROOT / "apps/desktop/src-tauri/src/lib.rs").read_text(encoding="utf-8")
         self.assertIn('resolve("samples", BaseDirectory::Resource)', samples)
         self.assertIn("samples::initialize_samples_root(app)", desktop)
