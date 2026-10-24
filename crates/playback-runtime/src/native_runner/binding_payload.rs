@@ -269,7 +269,6 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
             || matches!(
                 key,
                 "masterVolume"
-                    | "sound.audioOutputBufferFrames"
                     | "autoSaveDefault"
                     | "rollingBackups"
                     | "ghostCells"

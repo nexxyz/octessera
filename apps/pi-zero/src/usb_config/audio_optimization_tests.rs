@@ -50,20 +50,3 @@ fn rejects_invalid_persisted_audio_optimization() {
         )
     );
 }
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-#[test]
-fn raspberry_startup_reads_persisted_audio_output_buffer_frames() {
-    let store_dir = crate::test_temp_dir::unique_temp_path("octessera-audio-buffer-config");
-    std::fs::create_dir_all(&store_dir).unwrap();
-    let mut full: serde_json::Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
-    full["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = serde_json::json!(1024);
-    write_pair(&store_dir, &full);
-
-    assert_eq!(
-        audio_output_buffer_frames_from_system_patch_config(&store_dir),
-        Some(1024)
-    );
-    let _ = std::fs::remove_dir_all(store_dir);
-}

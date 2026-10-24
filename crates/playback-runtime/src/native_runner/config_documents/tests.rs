@@ -85,8 +85,8 @@ fn assert_round_trip(source: &str) {
         full["runtimeConfig"]["sound"]["voiceStealingMode"]
     );
     assert_eq!(
-        documents.system["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
-        full["runtimeConfig"]["sound"]["audioOutputBufferFrames"]
+        documents.system["runtimeConfig"]["sound"]["optimizeFor"],
+        full["runtimeConfig"]["sound"]["optimizeFor"]
     );
     assert_eq!(
         documents.patch["runtimeConfig"]["instruments"][0]["midi"]["channel"],
@@ -398,12 +398,12 @@ fn split_and_composition_reject_wrong_envelopes_dropped_fields_and_invalid_sampl
         .unwrap()
         .remove("hdmi");
     assert!(compose_system_patch_documents(&missing_hdmi_output, &documents.patch).is_err());
-    let mut missing_audio_buffer = documents.system.clone();
-    missing_audio_buffer["runtimeConfig"]["sound"]
+    let mut missing_audio_optimization = documents.system.clone();
+    missing_audio_optimization["runtimeConfig"]["sound"]
         .as_object_mut()
         .unwrap()
-        .remove("audioOutputBufferFrames");
-    assert!(compose_system_patch_documents(&missing_audio_buffer, &documents.patch).is_err());
+        .remove("optimizeFor");
+    assert!(compose_system_patch_documents(&missing_audio_optimization, &documents.patch).is_err());
     let mut missing_voice_stealing_mode = documents.patch.clone();
     missing_voice_stealing_mode["runtimeConfig"]["sound"]
         .as_object_mut()

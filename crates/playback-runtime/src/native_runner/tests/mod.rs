@@ -150,6 +150,14 @@ mod user_data_transfer;
 mod wifi_switch;
 mod xy_smoothing;
 
+pub(crate) fn optimization_capable_runner() -> NativeRunner {
+    NativeRunner::new(NativeRunnerConfig {
+        audio_optimization_capacity_available: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap()
+}
+
 pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
     messages
         .iter()

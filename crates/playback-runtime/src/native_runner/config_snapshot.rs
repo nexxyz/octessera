@@ -34,7 +34,6 @@ pub struct NativeConfigSnapshot {
     velocity_scale_pct: u16,
     velocity_curve: VelocityCurve,
     voice_stealing_mode: String,
-    audio_output_buffer_frames: u32,
     audio_optimization: AudioOptimization,
     dsp_config: DspRuntimeConfig,
     ghost_cells: bool,
@@ -170,7 +169,6 @@ impl NativeConfigSnapshot {
                     "velocityScalePct": self.velocity_scale_pct,
                     "velocityCurve": velocity_curve_id(self.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode,
-                    "audioOutputBufferFrames": self.audio_output_buffer_frames,
                     "optimizeFor": self.audio_optimization
                 },
                 "dsp": self.dsp_config,
@@ -325,7 +323,6 @@ impl NativeConfigSnapshot {
             velocity_scale_pct: runner.global_sound.velocity_scale_pct,
             velocity_curve: runner.global_sound.velocity_curve,
             voice_stealing_mode: runner.voice_stealing_mode.clone(),
-            audio_output_buffer_frames: runner.audio_output_buffer_frames,
             audio_optimization: runner.audio_optimization,
             dsp_config: runner.dsp_config,
             ghost_cells: runner.display.ui.ghost_cells,

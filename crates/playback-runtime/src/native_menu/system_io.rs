@@ -65,7 +65,7 @@ pub(super) fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeM
             &config.voice_stealing_mode,
         ),
     ));
-    let mut engine_children = vec![
+    let engine_children = vec![
         enum_item(
             "CPU Warn %",
             "dsp.workerWarningThreshold",
@@ -85,17 +85,6 @@ pub(super) fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeM
             ),
         ),
     ];
-    if !config.audio_optimization_capacity_available {
-        engine_children.push(enum_item(
-            "Buf Frames",
-            "sound.audioOutputBufferFrames",
-            vec!["64", "128", "256", "512", "1024", "2048"],
-            selected_index(
-                &["64", "128", "256", "512", "1024", "2048"],
-                &config.audio_output_buffer_frames.to_string(),
-            ),
-        ));
-    }
     children.push(group("Engine", engine_children));
     group("Audio", children)
 }

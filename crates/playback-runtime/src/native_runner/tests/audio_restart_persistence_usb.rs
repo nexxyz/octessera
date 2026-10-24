@@ -108,14 +108,9 @@ fn usb_midi_setting_survives_unrelated_restart_setting_save_and_reload() {
         runner.test_config_payload()["runtimeConfig"]["usb"]["midiOutEnabled"],
         true
     );
-    let buffer_payload = save_setting_payload(
-        &mut runner,
-        "sound.audioOutputBufferFrames",
-        1,
-        "buffer-save",
-    );
+    let hdmi_payload = save_setting_payload(&mut runner, "audioOutputs.hdmi", 1, "hdmi-save");
 
-    let reloaded = reload_system_payload(buffer_payload);
+    let reloaded = reload_system_payload(hdmi_payload);
     assert_eq!(
         reloaded.test_config_payload()["runtimeConfig"]["usb"]["midiOutEnabled"],
         true

@@ -33,11 +33,11 @@ pub(super) fn enter_edit(runner: &mut NativeRunner, key: &str) {
     press(runner);
 }
 
-fn changed_buffer_runner(auto_save: bool) -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+fn changed_optimization_runner(auto_save: bool) -> NativeRunner {
+    let mut runner = optimization_capable_runner();
     runner.auto_save_default = auto_save;
     runner.menu.rebuild(runner.menu_config());
-    enter_edit(&mut runner, "sound.audioOutputBufferFrames");
+    enter_edit(&mut runner, "sound.optimizeFor");
     turn(&mut runner, 1);
     runner
 }
@@ -186,9 +186,9 @@ fn start_ordinary_default_write(runner: &mut NativeRunner, request_id: &str) -> 
 
 #[test]
 fn restart_save_waits_for_pending_ordinary_write_without_overwriting_it() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = optimization_capable_runner();
     let ordinary_revision = start_ordinary_default_write(&mut runner, "ordinary-1");
-    enter_edit(&mut runner, "sound.audioOutputBufferFrames");
+    enter_edit(&mut runner, "sound.optimizeFor");
     turn(&mut runner, 1);
     let _ = press(&mut runner);
 
@@ -227,9 +227,9 @@ fn restart_save_waits_for_pending_ordinary_write_without_overwriting_it() {
 
 #[test]
 fn restart_cancel_does_not_cancel_pending_ordinary_write() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = optimization_capable_runner();
     let revision = start_ordinary_default_write(&mut runner, "ordinary-1");
-    enter_edit(&mut runner, "sound.audioOutputBufferFrames");
+    enter_edit(&mut runner, "sound.optimizeFor");
     turn(&mut runner, 1);
     let _ = press(&mut runner);
     back(&mut runner);
@@ -247,7 +247,7 @@ fn restart_cancel_does_not_cancel_pending_ordinary_write() {
 
 #[test]
 fn restart_results_require_the_unique_identified_transaction() {
-    let mut runner = changed_buffer_runner(true);
+    let mut runner = changed_optimization_runner(true);
     let _ = press(&mut runner);
     let messages = choose_save_everything(&mut runner);
     assert!(messages.iter().any(|message| matches!(message,
@@ -343,7 +343,7 @@ fn restart_dialogs_and_sound_rows_fit_the_oled_body() {
     .unwrap();
     assert_menu_lines_fit(&capacity);
 
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let messages = press(&mut runner);
     assert_dialog_lines_fit(&snapshot_from(&messages));
     let _ = choose_save_everything(&mut runner);
@@ -353,7 +353,7 @@ fn restart_dialogs_and_sound_rows_fit_the_oled_body() {
 
 #[test]
 fn back_during_save_and_restart_choice_only_cancels_restart_ui() {
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let _ = press(&mut runner);
     let _ = choose_save_everything(&mut runner);
     let revision = runner.restart_settings.pending_write_revision().unwrap();
@@ -379,9 +379,9 @@ fn back_during_save_and_restart_choice_only_cancels_restart_ui() {
 #[test]
 fn immediate_system_apply_adapter_failure_exits_saving() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = optimization_capable_runner();
     let mut host = ImmediateFailureHost::default();
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
 
     for event in [
         json!({ "type": "encoder_press", "id": "main" }),

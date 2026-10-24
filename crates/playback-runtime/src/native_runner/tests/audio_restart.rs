@@ -1,11 +1,11 @@
 use super::*;
 use crate::RuntimePlatformRequest;
 
-fn changed_buffer_runner(auto_save_default: bool) -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+fn changed_optimization_runner(auto_save_default: bool) -> NativeRunner {
+    let mut runner = optimization_capable_runner();
     runner.auto_save_default = auto_save_default;
     runner.menu.rebuild(runner.menu_config());
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -33,8 +33,9 @@ fn changed_buffer_runner(auto_save_default: bool) -> NativeRunner {
     runner
 }
 
-fn dirty_bpm_hdmi_buffer_runner() -> NativeRunner {
+fn dirty_bpm_hdmi_optimization_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
+        audio_optimization_capacity_available: true,
         jack_audio_required: true,
         ..NativeRunnerConfig::default()
     })
@@ -88,7 +89,7 @@ fn dirty_bpm_hdmi_buffer_runner() -> NativeRunner {
     );
     let _ = commit_with_back(&mut runner);
 
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -208,10 +209,10 @@ fn assert_dialog_lines_fit(snapshot: &Value) {
 
 #[test]
 fn restart_sensitive_edit_opens_save_setting_dialog() {
-    let runner = changed_buffer_runner(false);
+    let runner = changed_optimization_runner(false);
     let snapshot = runner.snapshot().unwrap();
 
-    assert_eq!(snapshot["display"]["title"], "/SYS/Audio/Engine");
+    assert_eq!(snapshot["display"]["title"], "/SYS/Audio");
     let mut runner = runner;
     let messages = commit_with_main(&mut runner);
     let snapshot = snapshot_from(&messages);
@@ -236,8 +237,8 @@ fn restart_sensitive_edit_opens_save_setting_dialog() {
 
 #[test]
 fn repeated_restart_setting_turns_wait_for_main_commit() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    let mut runner = optimization_capable_runner();
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
@@ -258,10 +259,7 @@ fn repeated_restart_setting_turns_wait_for_main_commit() {
                 request_snapshot: None,
             })
             .unwrap();
-        assert_eq!(
-            snapshot_from(&messages)["display"]["title"],
-            "/SYS/Audio/Engine"
-        );
+        assert_eq!(snapshot_from(&messages)["display"]["title"], "/SYS/Audio");
         assert!(runner.display.confirm_dialog.is_none());
     }
     runner
@@ -270,7 +268,7 @@ fn repeated_restart_setting_turns_wait_for_main_commit() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.audio_output_buffer_frames, 1024);
+    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
 
     let messages = commit_with_main(&mut runner);
     assert_eq!(snapshot_from(&messages)["display"]["title"], "Apply System");
@@ -279,7 +277,7 @@ fn repeated_restart_setting_turns_wait_for_main_commit() {
 
 #[test]
 fn restart_sensitive_back_commit_opens_save_setting_dialog() {
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let messages = commit_with_back(&mut runner);
 
     assert_eq!(snapshot_from(&messages)["display"]["title"], "Apply System");
@@ -288,7 +286,7 @@ fn restart_sensitive_back_commit_opens_save_setting_dialog() {
 
 #[test]
 fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_state() {
-    let mut runner = dirty_bpm_hdmi_buffer_runner();
+    let mut runner = dirty_bpm_hdmi_optimization_runner();
     let patch_dirty_revision = runner.dirty_revision;
 
     let _ = commit_with_main(&mut runner);
@@ -308,10 +306,7 @@ fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_st
 
     assert_eq!(payload["kind"], "octessera.system");
     assert_eq!(payload["schemaVersion"], 1);
-    assert_eq!(
-        payload["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
-        512
-    );
+    assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "capacity");
     assert_eq!(payload["runtimeConfig"]["audioOutputs"]["hdmi"], false);
     assert_eq!(runner.transport.bpm, 121.0);
     assert!(runner.audio_outputs.hdmi());
@@ -321,7 +316,7 @@ fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_st
 
     let _ = identified_save_result(&mut runner, "save-setting", true);
     assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Restart?");
-    assert_eq!(runner.audio_output_buffer_frames, 512);
+    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
     assert_eq!(runner.transport.bpm, 121.0);
     assert!(runner.audio_outputs.hdmi());
     assert!(runner.config_dirty);
@@ -337,7 +332,7 @@ fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_st
 
 #[test]
 fn apply_save_system_settings_writes_a_system_document_only() {
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let _ = commit_with_main(&mut runner);
     let messages = choose_save_everything(&mut runner);
     let payload = messages
@@ -364,10 +359,10 @@ fn apply_save_system_settings_writes_a_system_document_only() {
 
 #[test]
 fn patch_auto_save_policy_does_not_automatically_apply_system_restart_settings() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = optimization_capable_runner();
     runner.auto_save_default = true;
     runner.menu.rebuild(runner.menu_config());
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

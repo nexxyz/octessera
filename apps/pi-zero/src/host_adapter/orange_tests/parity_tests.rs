@@ -174,8 +174,8 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
         native_payload["runtimeConfig"]["audioOutputs"]
     );
     assert_eq!(
-        device["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
-        native_payload["runtimeConfig"]["sound"]["audioOutputBufferFrames"]
+        device["runtimeConfig"]["sound"]["optimizeFor"],
+        native_payload["runtimeConfig"]["sound"]["optimizeFor"]
     );
     assert!(orange_patch["runtimeConfig"]
         .get("displayBrightness")

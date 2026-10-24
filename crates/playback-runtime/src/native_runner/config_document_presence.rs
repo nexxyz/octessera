@@ -41,7 +41,6 @@ const SOUND_KEYS: &[&str] = &[
     "velocityScalePct",
     "velocityCurve",
     "voiceStealingMode",
-    "audioOutputBufferFrames",
     "optimizeFor",
 ];
 const MIDI_KEYS: &[&str] = &[

@@ -29,18 +29,6 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     enum_field(runtime, "playMode", "runtimeConfig", PLAY_MODES)?;
     enum_field(runtime, "xyRelease", "runtimeConfig", XY_RELEASES)?;
     validate_dsp(runtime)?;
-    unsigned_field(
-        runtime,
-        "audioOutputBufferFrames",
-        "runtimeConfig",
-        64,
-        2048,
-    )?;
-    if let Some(value) = runtime.get("audioOutputBufferFrames") {
-        if !matches!(value.as_u64(), Some(64 | 128 | 256 | 512 | 1024 | 2048)) {
-            return Err("runtimeConfig.audioOutputBufferFrames is unsupported".into());
-        }
-    }
     instruments::validate_sound(runtime)?;
     modulation::validate_global_modulation(runtime)?;
     layers::validate_layers(runtime)?;

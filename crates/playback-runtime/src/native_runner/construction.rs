@@ -71,9 +71,6 @@ impl NativeRunner {
             link_arp_random_state: LINK_ARP_RANDOM_SEED,
             emitted_route_note_owners: vec![BTreeSet::new(); LAYER_COUNT],
             emitted_route_cell_owners: vec![BTreeSet::new(); LAYER_COUNT],
-            audio_output_buffer_frames: normalize_audio_output_buffer_frames(
-                seed.audio_output_buffer_frames,
-            ),
             display: NativeDisplayState::new(seed.ui, seed.now, seed.hdmi),
             midi_enabled: seed.midi_enabled,
             audio_outputs: seed.audio_outputs,

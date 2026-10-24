@@ -45,7 +45,7 @@ fn desktop_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&desktop, "Audio > Engine"),
-        vec!["CPU Warn %", "Bus Idle", "Buf Frames"]
+        vec!["CPU Warn %", "Bus Idle"]
     );
     assert_eq!(group_labels(&desktop, "Connections"), vec!["Wi-Fi"]);
     assert_eq!(

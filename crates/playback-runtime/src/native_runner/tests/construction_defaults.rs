@@ -80,7 +80,6 @@ fn non_default_transport_and_display_defaults_are_seeded_without_menu_rebuild_co
         behavior_id: "keys".into(),
         bpm: 61.0,
         swing_pct: 12,
-        audio_output_buffer_frames: 1024,
         ..defaults
     };
     let behavior = platform_core::get_native_behavior(&config.behavior_id).unwrap();
@@ -96,7 +95,6 @@ fn non_default_transport_and_display_defaults_are_seeded_without_menu_rebuild_co
     assert_eq!(runner.behavior.id(), "keys");
     assert_eq!(runner.transport.bpm, 61.0);
     assert_eq!(runner.transport.swing_pct, 12);
-    assert_eq!(runner.audio_output_buffer_frames, 1024);
     assert_eq!(runner.active_layer_index, expected_menu.active_layer_index);
     assert_eq!(
         runner.menu.item_for_key("behaviorId").unwrap().label,

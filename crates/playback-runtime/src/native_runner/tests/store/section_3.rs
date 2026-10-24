@@ -192,7 +192,7 @@ pub(crate) fn patch_load_preserves_device_aux_turn_keys() {
         press_action: None,
     });
     loaded.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("sound.audioOutputBufferFrames".into()),
+        turn_key: Some("displayBrightness".into()),
         press_action: None,
     });
 
@@ -208,7 +208,7 @@ pub(crate) fn patch_load_preserves_device_aux_turn_keys() {
         loaded.aux_bindings[1]
             .as_ref()
             .and_then(|binding| binding.turn_key.as_deref()),
-        Some("sound.audioOutputBufferFrames")
+        Some("displayBrightness")
     );
 }
 
@@ -239,7 +239,6 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 21;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.audio_output_buffer_frames = 256;
 
     runner
         .apply_patch_payload_preserving_device(json!({
@@ -249,8 +248,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
                 "activeBehavior": "sequencer",
                 "layers": [{ "build": { "behaviorId": "sequencer" } }],
                 "displayBrightness": 99,
-                "usb": { "midiOutEnabled": true },
-                "sound": { "audioOutputBufferFrames": 1024 }
+                "usb": { "midiOutEnabled": true }
             }
         }))
         .unwrap();
@@ -261,7 +259,6 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
         runner.audio_outputs,
         AudioOutputSet::from_flags(true, true, false).unwrap()
     );
-    assert_eq!(runner.audio_output_buffer_frames, 256);
 }
 
 #[test]

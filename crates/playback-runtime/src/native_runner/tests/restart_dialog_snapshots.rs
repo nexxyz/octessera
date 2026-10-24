@@ -78,8 +78,8 @@ fn host_restart_choice_with_auto_save_enabled() -> NativeRunner {
 }
 
 fn non_host_save_choice() -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.menu.focus_item_key("sound.audioOutputBufferFrames");
+    let mut runner = optimization_capable_runner();
+    runner.menu.focus_item_key("sound.optimizeFor");
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),

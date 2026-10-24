@@ -52,7 +52,7 @@ fn explicit_orange_default_payload(mut payload: Value) -> Value {
     payload["runtimeConfig"]["displayBrightness"] = json!(13);
     payload["runtimeConfig"]["gridBrightness"] = json!(17);
     payload["runtimeConfig"]["buttonBrightness"] = json!(19);
-    payload["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(2048);
+    payload["runtimeConfig"]["sound"]["optimizeFor"] = json!("capacity");
     payload["runtimeConfig"]["audioOutputs"] = json!({
         "dac": false,
         "usb": true,
@@ -161,7 +161,7 @@ pub(crate) fn portable_projection_excludes_history_and_device_fields_without_num
     assert!(orange_patch["runtimeConfig"]["sound"]
         .as_object()
         .unwrap()
-        .get("audioOutputBufferFrames")
+        .get("optimizeFor")
         .is_none());
     assert!(orange_patch["runtimeConfig"]["auxBindings"]["aux1"].is_null());
     assert!(orange_patch["runtimeConfig"]["shiftAuxBindings"]["aux1"].is_null());

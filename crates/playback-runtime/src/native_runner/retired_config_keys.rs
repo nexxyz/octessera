@@ -9,7 +9,8 @@ const RETIRED_RUNTIME_KEYS: [&str; 5] = [
 ];
 
 /// Saves written before the settings were folded still carry these duplicates; the kept copies
-/// (`sound.*`, `transport.bpm`, `midi`) hold the same values, so loading simply drops them.
+/// (`sound.*`, `transport.bpm`, `midi`) hold the same values, so loading simply drops them. The
+/// old `sound.audioOutputBufferFrames` setting never reached an audio stream and goes the same way.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     let mut document = document.clone();
     let Some(runtime) = document
@@ -20,6 +21,9 @@ pub(crate) fn without_retired_keys(document: &Value) -> Value {
     };
     for key in RETIRED_RUNTIME_KEYS {
         runtime.remove(key);
+    }
+    if let Some(sound) = runtime.get_mut("sound").and_then(Value::as_object_mut) {
+        sound.remove("audioOutputBufferFrames");
     }
     for layer in runtime
         .get_mut("layers")
@@ -73,12 +77,16 @@ mod tests {
         let documents = split_system_patch_documents(&full).unwrap();
         let old_patch = with_old_duplicates(documents.patch.clone());
 
-        let composed = compose_local_system_patch_documents(&documents.system, &old_patch).unwrap();
+        let mut old_system = documents.system.clone();
+        old_system["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
+
+        let composed = compose_local_system_patch_documents(&old_system, &old_patch).unwrap();
         let fresh =
             compose_local_system_patch_documents(&documents.system, &documents.patch).unwrap();
         assert_eq!(composed, fresh);
 
-        let old_full = with_old_duplicates(full);
+        let mut old_full = with_old_duplicates(full);
+        old_full["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
         assert_eq!(split_system_patch_documents(&old_full).unwrap(), documents);
     }
 }

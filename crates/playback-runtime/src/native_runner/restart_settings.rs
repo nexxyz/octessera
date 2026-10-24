@@ -13,7 +13,6 @@ pub(super) enum RestartSetting {
     AudioOutputHdmi,
     UsbMidiOut,
     UsbDataRole,
-    AudioOutputBufferFrames,
     AudioOptimization,
 }
 
@@ -25,7 +24,6 @@ impl RestartSetting {
             "audioOutputs.hdmi" => Some(Self::AudioOutputHdmi),
             "usb.midiOutEnabled" => Some(Self::UsbMidiOut),
             "usb.dataRole" => Some(Self::UsbDataRole),
-            "sound.audioOutputBufferFrames" => Some(Self::AudioOutputBufferFrames),
             "sound.optimizeFor" => Some(Self::AudioOptimization),
             _ => None,
         }
@@ -38,7 +36,6 @@ impl RestartSetting {
             Self::AudioOutputHdmi => ("audioOutputs", "hdmi"),
             Self::UsbMidiOut => ("usb", "midiOutEnabled"),
             Self::UsbDataRole => ("usb", "dataRole"),
-            Self::AudioOutputBufferFrames => ("sound", "audioOutputBufferFrames"),
             Self::AudioOptimization => ("sound", "optimizeFor"),
         }
     }

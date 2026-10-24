@@ -13,7 +13,6 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) audio_optimization_capacity_available: bool,
     pub(super) bpm: f64,
     pub(super) swing_pct: u8,
-    pub(super) audio_output_buffer_frames: u32,
     pub(super) sync_source: SyncSource,
     pub(super) algorithm_step_pulses: u32,
     pub(super) instruments: Vec<NativeInstrumentSlot>,
@@ -84,7 +83,6 @@ impl NativeRunnerConstructionSeed {
             audio_optimization_capacity_available: config.audio_optimization_capacity_available,
             bpm: config.bpm,
             swing_pct: config.swing_pct.min(75),
-            audio_output_buffer_frames: config.audio_output_buffer_frames,
             sync_source: config.sync_source.clone(),
             algorithm_step_pulses: DEFAULT_ALGORITHM_STEP_RED,
             instruments: default_instruments(),
@@ -287,7 +285,6 @@ impl NativeRunnerConstructionSeed {
             xy_invert_y: self.xy_invert_y,
             bpm: crate::delay_timing::visible_bpm_u16(self.bpm),
             swing_pct: self.swing_pct,
-            audio_output_buffer_frames: self.audio_output_buffer_frames,
             sync_source: self.sync_source.clone(),
         }
     }

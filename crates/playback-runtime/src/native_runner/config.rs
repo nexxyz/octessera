@@ -195,7 +195,6 @@ impl NativeRunner {
             xy_invert_y: self.xy_invert_y,
             bpm: crate::delay_timing::visible_bpm_u16(self.transport.bpm),
             swing_pct: self.transport.swing_pct,
-            audio_output_buffer_frames: self.audio_output_buffer_frames,
             sync_source: self.transport.sync_source.clone(),
         }
     }

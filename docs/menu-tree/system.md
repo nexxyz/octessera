@@ -47,8 +47,7 @@ System
 │   ├── Polyphony: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]
 │   └── Engine (group)
 │       ├── CPU Warn %: [70 | 75 | 80 | 85 | 90 | 95]  default 85
-│       ├── Bus Idle: [exact | -140 | -120 | -100 | -80]  default -120
-│       └── Buf Frames: [64 | 128 | 256 | 512 | 1024 | 2048] ← only where Perf. Mode is unavailable (desktop); restart-sensitive
+│       └── Bus Idle: [exact | -140 | -120 | -100 | -80]  default -120
 ├── MIDI (group)
 │   ├── MIDI Active: [on | off]
 │   ├── MIDI Host (group)                ← desktop, Orange, and Raspberry Host
@@ -130,7 +129,7 @@ Conditional branches:
 
 ```
 Desktop
-  Audio: Master Vol; Polyphony; Engine (CPU Warn %, Bus Idle, Buf Frames)
+  Audio: Master Vol; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Connections: Wi-Fi (Setup Portal)
   Display: Ghost Cells … Button Bright; no HDMI Video
@@ -245,7 +244,6 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   rebuilding prepared audio or changing structural render-plan revisions. Worker warning
   presentation ([status icons](../menu-and-controls-spec.md#status-icons-and-transport-indicators))
   and bus silence handling are separate runtime phases.
-- `Buf Frames` (`sound.audioOutputBufferFrames`) appears only where Perf. Mode is unavailable.
 
 ## MIDI
 
@@ -260,7 +258,7 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 
 ## Restart-sensitive settings
 
-USB Audio, HDMI Audio, Perf. Mode, Buf Frames, USB MIDI, and USB Role are restart-sensitive. A
+USB Audio, HDMI Audio, Perf. Mode, USB MIDI, and USB Role are restart-sensitive. A
 changed edit opens the native confirmed System-only Apply flow:
 
 1. `Apply System` with `Restart required.`. In Host role it adds `Before Host reboot:`,

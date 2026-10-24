@@ -61,7 +61,6 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
             0,
             (platform_core::SAMPLE_SLOT_COUNT - 1) as u64,
         )?,
-        "audioOutputBufferFrames" => unsigned_value(value, path)?,
         "enabled" | "autoName" | "eventEnabled" | "stateNotesEnabled" | "seeded" | "xInvert"
         | "yInvert" | "invert" | "showGridlines" => bool_value(value, path)?,
         "path" | "turnKey" => {}

@@ -151,6 +151,7 @@ fn compose_system_patch_documents_structure(
     system: &Value,
     patch: &Value,
 ) -> Result<Value, String> {
+    let system = &without_retired_keys(system);
     let patch = &without_retired_keys(patch);
     let system_runtime =
         document_runtime(system, SYSTEM_DOCUMENT_KIND, SYSTEM_DOCUMENT_VERSION, false)?;

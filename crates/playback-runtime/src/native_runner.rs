@@ -382,7 +382,6 @@ pub struct NativeRunner {
     link_arp_random_state: u32,
     emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
     emitted_route_cell_owners: Vec<BTreeSet<(u8, u8)>>,
-    audio_output_buffer_frames: u32,
     display: NativeDisplayState,
     midi_enabled: bool,
     preset_names: Vec<String>,
@@ -485,13 +484,6 @@ pub struct NativeRunner {
     active_link_refresh_calls: usize,
     #[cfg(any(test, feature = "test-support"))]
     test_snapshot_failure: Cell<bool>,
-}
-
-fn normalize_audio_output_buffer_frames(value: u32) -> u32 {
-    match value {
-        64 | 128 | 256 | 512 | 1024 | 2048 => value,
-        _ => 256,
-    }
 }
 
 #[cfg(test)]

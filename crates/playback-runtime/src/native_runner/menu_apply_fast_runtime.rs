@@ -122,9 +122,6 @@ impl NativeRunner {
             "play.xy.release" => Some(self.fast_xy_release_menu_key()),
             "play.xy.invertX" => Some(self.fast_xy_invert_menu_key(true)),
             "play.xy.invertY" => Some(self.fast_xy_invert_menu_key(false)),
-            "sound.audioOutputBufferFrames" => {
-                Some(self.fast_audio_output_buffer_frames_menu_key())
-            }
             "sound.optimizeFor" => Some(self.fast_audio_optimization_menu_key()),
             _ => None,
         }

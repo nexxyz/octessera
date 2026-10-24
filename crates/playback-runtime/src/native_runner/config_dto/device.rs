@@ -63,8 +63,6 @@ pub struct DeviceRuntimeConfigDto {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceSoundDto {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) audio_output_buffer_frames: Option<u32>,
     #[serde(default)]
     pub(super) optimize_for: AudioOptimization,
 }
@@ -102,7 +100,6 @@ impl DeviceRuntimeConfigDto {
             usb: runtime.usb.clone(),
             audio_outputs: runtime.audio_outputs.clone(),
             sound: runtime.sound.as_ref().map(|sound| DeviceSoundDto {
-                audio_output_buffer_frames: sound.audio_output_buffer_frames,
                 optimize_for: sound.optimize_for,
             }),
             recording: runtime.recording.as_ref().map(|recording| RecordingDto {

@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn stale_save_ack_does_not_advance_restart_flow() {
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let _ = commit_with_main(&mut runner);
     runner.display.confirm_dialog.as_mut().unwrap().cursor = 2;
 
@@ -25,7 +25,7 @@ fn stale_save_ack_does_not_advance_restart_flow() {
 
 #[test]
 fn failed_save_does_not_reboot_or_advance_baseline() {
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let baseline = runner.restart_settings.persisted_default.clone();
     let _ = commit_with_main(&mut runner);
     let _ = choose_save_everything(&mut runner);
@@ -42,7 +42,7 @@ fn failed_save_does_not_reboot_or_advance_baseline() {
 
 #[test]
 fn successful_save_offers_reboot_and_reboot_uses_recovery_lifecycle() {
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let _ = commit_with_main(&mut runner);
     let _ = choose_save_everything(&mut runner);
     let _ = identified_save_result(&mut runner, "save-1", true);
@@ -86,7 +86,7 @@ fn successful_save_offers_reboot_and_reboot_uses_recovery_lifecycle() {
 
 #[test]
 fn continue_after_successful_save_does_not_reboot() {
-    let mut runner = changed_buffer_runner(false);
+    let mut runner = changed_optimization_runner(false);
     let _ = commit_with_main(&mut runner);
     let _ = choose_save_everything(&mut runner);
     let _ = identified_save_result(&mut runner, "save-1", true);

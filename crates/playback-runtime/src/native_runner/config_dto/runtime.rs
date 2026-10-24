@@ -192,8 +192,6 @@ pub struct SoundDto {
     pub(super) velocity_curve: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) voice_stealing_mode: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) audio_output_buffer_frames: Option<u32>,
     #[serde(default)]
     pub(super) optimize_for: AudioOptimization,
 }
@@ -317,7 +315,6 @@ impl RuntimeConfigDto {
             object.remove(key);
         }
         if let Some(sound) = object.get_mut("sound").and_then(Value::as_object_mut) {
-            sound.remove("audioOutputBufferFrames");
             sound.remove("optimizeFor");
         }
         Ok(value)

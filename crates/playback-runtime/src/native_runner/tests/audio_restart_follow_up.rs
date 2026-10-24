@@ -124,12 +124,12 @@ fn start_ordinary_write(
         .expect("ordinary default write")
 }
 
-fn edit_buffer_and_commit(
+fn edit_optimization_and_commit(
     runtime: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     host: &mut ReplayHost,
 ) {
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     let _ = press(runtime, runner, host);
     let _ = turn(runtime, runner, host, 1);
     let _ = press(runtime, runner, host);
@@ -155,13 +155,17 @@ fn identified_system_save(request: &RuntimePlatformRequest, ok: bool) -> HostMes
 #[test]
 fn restart_sensitive_system_apply_waits_for_patch_save_then_persists_system_only() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        audio_optimization_capacity_available: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     runner.auto_save_default = true;
     runner.menu.rebuild(runner.menu_config());
     let mut host = ReplayHost::default();
     let patch_request = start_ordinary_write(&mut runtime, &mut runner, &mut host);
 
-    edit_buffer_and_commit(&mut runtime, &mut runner, &mut host);
+    edit_optimization_and_commit(&mut runtime, &mut runner, &mut host);
     assert_eq!(
         runner
             .display
@@ -206,7 +210,7 @@ fn restart_sensitive_system_apply_waits_for_patch_save_then_persists_system_only
         &system_request.effect,
         RuntimePlatformEffect::StoreSaveSystem { payload }
             if payload["kind"] == "octessera.system"
-                && payload["runtimeConfig"]["sound"]["audioOutputBufferFrames"].is_number()
+                && payload["runtimeConfig"]["sound"]["optimizeFor"] == "capacity"
     ));
     assert_eq!(system_request.revision, None);
 
@@ -236,7 +240,11 @@ fn restart_sensitive_system_apply_waits_for_patch_save_then_persists_system_only
 
 #[test]
 fn duplicate_setting_only_success_does_not_reconcile_unrelated_dirty_state() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        audio_optimization_capacity_available: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
     runner.auto_save_default = false;
     assert!(runner.menu.focus_item_key("transport.bpm"));
     let _ = direct_input(
@@ -252,7 +260,7 @@ fn duplicate_setting_only_success_does_not_reconcile_unrelated_dirty_state() {
         json!({ "type": "encoder_press", "id": "main" }),
     );
 
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     let _ = direct_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
@@ -312,7 +320,6 @@ fn assert_focused_sound_row_fits(runner: &mut NativeRunner, key: &str) {
     let expected_title = match key {
         "masterVolume" => "/SYS/Audio",
         "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.velocityCurve" => "/SYS/Notes",
-        "sound.audioOutputBufferFrames" => "/SYS/Audio/Engine",
         _ => "/SYS/Audio",
     };
     assert_eq!(snapshot["display"]["title"], expected_title);
@@ -333,7 +340,6 @@ fn every_sound_key_and_value_fits_for_both_capability_variants() {
         "sound.velocityScalePct",
         "sound.velocityCurve",
         "sound.voiceStealingMode",
-        "sound.audioOutputBufferFrames",
     ] {
         assert_focused_sound_row_fits(&mut standard, key);
     }

@@ -3,20 +3,6 @@ use super::restart_settings::RestartSetting;
 use super::{AudioOptimization, NativeRunner};
 
 impl NativeRunner {
-    pub(super) fn fast_audio_output_buffer_frames_menu_key(&mut self) -> bool {
-        let Some(value) = self.menu.value_for_key("sound.audioOutputBufferFrames") else {
-            return false;
-        };
-        let value = value
-            .parse::<u32>()
-            .map(super::normalize_audio_output_buffer_frames)
-            .unwrap_or(256);
-        if value_changed(&mut self.audio_output_buffer_frames, value) {
-            self.commit_restart_sensitive_setting(RestartSetting::AudioOutputBufferFrames);
-        }
-        true
-    }
-
     pub(super) fn fast_audio_optimization_menu_key(&mut self) -> bool {
         let Some(value) = self.menu.value_for_key("sound.optimizeFor") else {
             return false;

@@ -125,18 +125,6 @@ pub(crate) fn parse_audio_optimization(
         })
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) fn audio_output_buffer_frames_from_system_patch_config(store_dir: &Path) -> Option<u32> {
-    let payload = crate::pi_boot_config::read_composed_runtime_config(store_dir).ok()?;
-    payload
-        .get("runtimeConfig")
-        .unwrap_or(&payload)
-        .get("sound")
-        .and_then(|sound| sound.get("audioOutputBufferFrames"))
-        .and_then(serde_json::Value::as_u64)
-        .map(|value| value as u32)
-}
-
 pub(crate) fn parse_usb_runtime_config(
     payload: &serde_json::Value,
 ) -> Result<UsbRuntimeConfig, UsbConfigError> {

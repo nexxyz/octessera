@@ -118,15 +118,6 @@ impl NativeRunner {
             }
         }
         if let Some(value) = sound
-            .and_then(|sound| sound.get("audioOutputBufferFrames"))
-            .and_then(Value::as_u64)
-        {
-            if let Ok(value) = u32::try_from(value) {
-                self.audio_output_buffer_frames =
-                    super::normalize_audio_output_buffer_frames(value);
-            }
-        }
-        if let Some(value) = sound
             .and_then(|sound| sound.get("optimizeFor"))
             .and_then(Value::as_str)
         {
@@ -147,15 +138,6 @@ impl NativeRunner {
             }
         }
         let sound = runtime.get("sound");
-        if let Some(value) = sound
-            .and_then(|sound| sound.get("audioOutputBufferFrames"))
-            .and_then(Value::as_u64)
-        {
-            if let Ok(value) = u32::try_from(value) {
-                self.audio_output_buffer_frames =
-                    super::normalize_audio_output_buffer_frames(value);
-            }
-        }
         if let Some(value) = sound
             .and_then(|sound| sound.get("optimizeFor"))
             .and_then(Value::as_str)

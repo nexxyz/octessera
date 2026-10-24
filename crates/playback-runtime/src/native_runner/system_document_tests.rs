@@ -158,7 +158,6 @@ fn system_audio_changes_queue_existing_config_commands_without_resetting_live_pa
     let audio_revision = runner.audio_config_revision;
     let mut system = system_document(&runner);
     system["runtimeConfig"]["masterVolume"] = json!(44);
-    system["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(512);
     system["runtimeConfig"]["dsp"]["workerWarningThreshold"] = json!("90");
 
     runner
@@ -210,7 +209,7 @@ fn invalid_system_device_values_are_rejected_before_mutation() {
     assert_system_rejected_without_mutation(
         &mut runner,
         invalid_restart_setting,
-        |system| system["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(u64::MAX),
+        |system| system["runtimeConfig"]["usb"]["dataRole"] = json!("printer"),
         "restart-sensitive",
     );
     let unavailable_optimization = system_document(&runner);

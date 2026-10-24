@@ -105,6 +105,7 @@ fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
 fn setting_only_system_save_remains_available_with_local_samples() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
+        audio_optimization_capacity_available: true,
         ..NativeRunnerConfig::default()
     })
     .unwrap();
@@ -117,7 +118,7 @@ fn setting_only_system_save_remains_available_with_local_samples() {
     let patch_dirty_revision = runner.dirty_revision;
     let patch = portable_patch_projection(&runner.config_payload()).unwrap();
 
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     let _ = input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),

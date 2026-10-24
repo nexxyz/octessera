@@ -23,7 +23,6 @@ fn system_document_matches_the_device_projection_for_mixed_runtime_config() {
     runner.midi_enabled = true;
     runner.selected_midi_output_id = Some("midi-out-2".into());
     runner.selected_midi_input_id = Some("midi-in-3".into());
-    runner.audio_output_buffer_frames = 256;
     runner.recording_max_minutes = 23;
     runner.aux_bindings[0] = Some(crate::native_runner::NativeAuxBinding {
         turn_key: Some("displayBrightness".into()),

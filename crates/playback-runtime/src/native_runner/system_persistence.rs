@@ -244,7 +244,6 @@ impl SystemPersistenceState {
             },
             "audioOutputs": runner.audio_outputs.as_value(),
             "sound": {
-                "audioOutputBufferFrames": runner.audio_output_buffer_frames,
                 "optimizeFor": runner.audio_optimization,
             },
             "recording": { "maxMinutes": runner.recording_max_minutes },
@@ -268,7 +267,6 @@ impl SystemPersistenceState {
             ("audioOutputs", "hdmi"),
             ("usb", "midiOutEnabled"),
             ("usb", "dataRole"),
-            ("sound", "audioOutputBufferFrames"),
             ("sound", "optimizeFor"),
         ] {
             let Some(value) = runner

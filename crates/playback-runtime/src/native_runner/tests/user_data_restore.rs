@@ -66,7 +66,7 @@ fn identified_default_save(request_id: &str, revision: u64) -> HostMessage {
 }
 
 fn pending_restart_runner() -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = optimization_capable_runner();
     runner.auto_save_default = true;
     assert!(runner.menu.focus_item_key("transport.bpm"));
     let _ = input(
@@ -83,7 +83,7 @@ fn pending_restart_runner() -> NativeRunner {
     let revision = runner.restart_settings.pending_write_revision().unwrap();
     runner.register_default_write_request("deferred-restore", Some(revision));
 
-    assert!(runner.menu.focus_item_key("sound.audioOutputBufferFrames"));
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     let _ = input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
@@ -105,7 +105,7 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
     for outcome in ["failed", "missing", "invalid"] {
         let mut runner = pending_restart_runner();
         let bpm = runner.transport.bpm;
-        let buffer = runner.audio_output_buffer_frames;
+        let optimization = runner.audio_optimization;
         assert!(runner
             .send(HostMessage::RuntimeResult {
                 result: restore_status(RuntimeUserDataRestorePhase::Restoring),
@@ -186,7 +186,7 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
         }
         assert!(!runner.restore_rehydration_pending(), "{outcome}");
         assert_eq!(runner.transport.bpm, bpm, "{outcome}");
-        assert_eq!(runner.audio_output_buffer_frames, buffer, "{outcome}");
+        assert_eq!(runner.audio_optimization, optimization, "{outcome}");
 
         for _ in 0..2 {
             if runner.display.user_data_restore.is_none() {

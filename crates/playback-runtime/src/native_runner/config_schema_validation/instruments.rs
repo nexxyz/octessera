@@ -39,18 +39,6 @@ pub(super) fn validate_sound(runtime: &Map<String, Value>) -> Result<(), String>
         "runtimeConfig.sound",
         &["latency", "capacity"],
     )?;
-    unsigned_field(
-        sound,
-        "audioOutputBufferFrames",
-        "runtimeConfig.sound",
-        64,
-        2048,
-    )?;
-    if let Some(value) = sound.get("audioOutputBufferFrames") {
-        if !matches!(value.as_u64(), Some(64 | 128 | 256 | 512 | 1024 | 2048)) {
-            return Err("runtimeConfig.sound.audioOutputBufferFrames is unsupported".into());
-        }
-    }
     Ok(())
 }
 

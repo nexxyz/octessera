@@ -281,11 +281,6 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
             "95",
         )
     });
-    source_runtime["sound"]["audioOutputBufferFrames"] = alternate_unsigned(
-        &canonical_runtime["sound"]["audioOutputBufferFrames"],
-        64,
-        2048,
-    );
     source_runtime["sound"]["optimizeFor"] = alternate_enum(
         &canonical_runtime["sound"]["optimizeFor"],
         "latency",
@@ -328,11 +323,11 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     );
     assert_eq!(
         keys(&device["runtimeConfig"]["sound"]),
-        expected(&["audioOutputBufferFrames", "optimizeFor"])
+        expected(&["optimizeFor"])
     );
     assert_eq!(
         keys(&preferences.values["sound"]),
-        expected(&["audioOutputBufferFrames", "optimizeFor"])
+        expected(&["optimizeFor"])
     );
     assert_eq!(
         keys(&portable["runtimeConfig"]["auxBindings"]["aux1"]),

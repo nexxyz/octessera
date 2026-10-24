@@ -89,7 +89,6 @@ fn audio_optimization_is_device_local_and_stripped_from_portable_payloads() {
 
     assert_eq!(device["sound"]["optimizeFor"], "capacity");
     assert!(portable["sound"].get("optimizeFor").is_none());
-    assert!(portable["sound"].get("audioOutputBufferFrames").is_none());
 }
 
 #[test]

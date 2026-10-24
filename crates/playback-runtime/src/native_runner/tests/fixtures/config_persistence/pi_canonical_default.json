@@ -3266,7 +3266,6 @@
       "aux3": null
     },
     "sound": {
-      "audioOutputBufferFrames": 512,
       "noteLengthMs": 120,
       "velocityCurve": "linear",
       "velocityScalePct": 100,

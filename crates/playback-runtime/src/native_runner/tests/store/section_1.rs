@@ -93,7 +93,6 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     runner.display.ui.display_brightness = 44;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi_enabled = true;
-    runner.audio_output_buffer_frames = 512;
 
     let patch = runner.patch_payload().unwrap();
     assert_eq!(patch["kind"], "octessera.patch");
@@ -101,7 +100,6 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     assert!(patch["runtimeConfig"]["usb"].is_null());
     assert!(patch["runtimeConfig"]["midi"].is_null());
     assert!(patch["runtimeConfig"]["displayBrightness"].is_null());
-    assert!(patch["runtimeConfig"]["sound"]["audioOutputBufferFrames"].is_null());
     assert!(patch["runtimeConfig"]["auxBindings"].is_object());
 
     let device = runner.device_config_payload().unwrap();
@@ -111,10 +109,6 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     );
     assert_eq!(device["runtimeConfig"]["midi"]["enabled"], true);
     assert_eq!(device["runtimeConfig"]["displayBrightness"], 44);
-    assert_eq!(
-        device["runtimeConfig"]["sound"]["audioOutputBufferFrames"],
-        512
-    );
 }
 
 #[test]
@@ -123,7 +117,6 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
     runner.display.ui.display_brightness = 22;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi_enabled = false;
-    runner.audio_output_buffer_frames = 256;
 
     runner
         .send(HostMessage::RuntimeResult {
@@ -135,8 +128,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
                         "layers": [{ "build": { "behaviorId": "sequencer" } }],
                         "displayBrightness": 88,
                         "usb": { "midiOutEnabled": true },
-                        "midi": { "enabled": true },
-                        "sound": { "audioOutputBufferFrames": 1024 }
+                        "midi": { "enabled": true }
                     }
                 })),
             },
@@ -150,7 +142,6 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
         AudioOutputSet::from_flags(true, true, false).unwrap()
     );
     assert!(!runner.midi_enabled);
-    assert_eq!(runner.audio_output_buffer_frames, 256);
 }
 
 #[test]
@@ -160,14 +151,12 @@ pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
         .apply_config_payload(json!({
             "runtimeConfig": {
                 "displayBrightness": 77,
-                "midi": { "enabled": true },
-                "sound": { "audioOutputBufferFrames": 1024 }
+                "midi": { "enabled": true }
             }
         }))
         .unwrap();
     assert_eq!(runner.display.ui.display_brightness, 77);
     assert!(runner.midi_enabled);
-    assert_eq!(runner.audio_output_buffer_frames, 1024);
 
     runner
         .apply_device_config_payload_preserving_patch(json!({
