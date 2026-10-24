@@ -4,6 +4,7 @@ mod messages;
 mod oled;
 mod platform;
 mod results;
+mod runtime_error;
 mod setup_portal;
 mod status;
 mod user_data_restore;
@@ -30,18 +31,18 @@ pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{
     MidiPort, RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError, SampleEntry,
 };
+pub(crate) use runtime_error::{
+    is_midi_input_list_failure, MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,
+};
+pub use runtime_error::{
+    RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery,
+};
 pub use setup_portal::{
     RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase,
     RuntimeSetupPortalStatus, SETUP_PORTAL_SUFFIX_MAX_CHARS,
 };
-pub(crate) use status::{
-    is_midi_input_list_failure, MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,
-};
-pub use status::{
-    RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
-    RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState,
-    RuntimeTransportState, SyncSource,
-};
+pub use status::{RuntimeStatus, RuntimeStatusState, RuntimeTransportState, SyncSource};
 pub use user_data_restore::{RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus};
 pub use user_data_transfer::{
     RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus, USER_DATA_TRANSFER_CODE_ALPHABET,
