@@ -12,17 +12,6 @@ pub fn all_sample_banks(sample_rate: u32) -> Vec<SampleBankConfig> {
         .collect()
 }
 
-#[cfg(any(
-    feature = "benchmark-voice-pools-128",
-    feature = "benchmark-voice-pools-256",
-    feature = "hardware-orange-pi-zero-2w",
-    test
-))]
-pub fn long_sample_banks(sample_rate: u32, duration_seconds: u32) -> Vec<SampleBankConfig> {
-    let frames = sample_rate as usize * duration_seconds as usize + sample_rate as usize;
-    sample_banks(sample_rate, frames)
-}
-
 pub fn profile_sample_banks(sample_rate: u32) -> Vec<SampleBankConfig> {
     sample_banks(sample_rate, profile_sample_coverage_frames(sample_rate))
 }
@@ -66,23 +55,11 @@ fn sample_buffer_data_for_frames(frames: usize) -> Vec<f32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        long_sample_banks, profile_sample_banks, profile_sample_coverage_frames,
-        INSTRUMENT_SLOT_COUNT,
-    };
+    use super::{profile_sample_banks, profile_sample_coverage_frames, INSTRUMENT_SLOT_COUNT};
     use crate::dsp_profile::timing::{
         PROFILE_MAX_MEASURE_FRAMES, PROFILE_MEASUREMENT_OBSERVATIONS, PROFILE_WARMUP_SECONDS,
     };
     use std::sync::Arc;
-
-    #[test]
-    fn long_sample_banks_share_one_backing_arc() {
-        let banks = long_sample_banks(44_100, 125);
-        let first = banks[0].slots[0].buffer.as_ref().unwrap();
-        let second = banks[1].slots[0].buffer.as_ref().unwrap();
-        assert!(Arc::ptr_eq(&first.samples, &second.samples));
-        assert!(first.samples.len() >= 44_100 * 125);
-    }
 
     #[test]
     fn profile_sample_banks_cover_the_maximum_profile_window() {

@@ -8,9 +8,6 @@ param(
   [string]$Target = "aarch64-unknown-linux-gnu",
   [ValidatePattern("^[A-Za-z0-9][A-Za-z0-9._/:@-]{0,127}$")]
   [string]$Image = "rust:1-bookworm",
-  [ValidateSet(64, 128, 256)]
-  [int]$BenchmarkVoicePoolCapacity = 64,
-  [switch]$RoutingTreeBenchmark,
   [switch]$Profiling,
   [switch]$DryRun
 )
@@ -87,20 +84,12 @@ function Get-WslDockerArguments {
 function Get-BuildSpec {
   param(
     [Parameter(Mandatory)][string]$SelectedBinary,
-    [Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity,
-    [bool]$SelectedRoutingTreeBenchmark = $false,
     [bool]$SelectedProfiling = $false
   )
 
   if ($SelectedBinary -in @("orange-oled-smoke", "orange-seesaw-smoke")) {
-    if ($SelectedRoutingTreeBenchmark) {
-      throw "Routing-tree benchmark builds support only octessera-pi."
-    }
     if ($SelectedProfiling) {
       throw "Profiling builds support only octessera-pi."
-    }
-    if ($SelectedBenchmarkVoicePoolCapacity -ne 64) {
-      throw "Expanded benchmark voice-pool capacities support only octessera-pi."
     }
     return [pscustomobject]@{
       Package = "octessera-hal"
@@ -110,22 +99,17 @@ function Get-BuildSpec {
   }
 
   if ($SelectedBinary -eq "octessera-pi") {
-    if ($SelectedRoutingTreeBenchmark) {
-      $poolFeature = if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { $null } else { "benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity" }
-      $feature = if ($null -eq $poolFeature) { "hardware-orange-pi-zero-2w routing-tree-benchmark" } else { "hardware-orange-pi-zero-2w routing-tree-benchmark $poolFeature" }
+    if ($SelectedProfiling) {
       return [pscustomobject]@{
         Package = "octessera-pi"
-        Feature = $feature
+        Feature = "hardware-orange-pi-zero-2w profiling"
         ArtifactKind = "diagnostic-only"
       }
     }
-    $benchmarkFeature = if ($SelectedBenchmarkVoicePoolCapacity -ne 64) { "benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity" } elseif ($SelectedProfiling) { "profiling" } else { $null }
-    $feature = if ($null -eq $benchmarkFeature) { "hardware-orange-pi-zero-2w" } else { "hardware-orange-pi-zero-2w $benchmarkFeature" }
-    $artifactKind = if ($null -eq $benchmarkFeature) { "runtime-candidate" } else { "diagnostic-only" }
     return [pscustomobject]@{
       Package = "octessera-pi"
-      Feature = $feature
-      ArtifactKind = $artifactKind
+      Feature = "hardware-orange-pi-zero-2w"
+      ArtifactKind = "runtime-candidate"
     }
   }
 
@@ -212,27 +196,15 @@ aarch64-linux-gnu-readelf -h '/work/$SelectedOutputRelativePath/$Binary' | grep 
 }
 
 function Get-OutputRelativePath {
-  param(
-    [Parameter(Mandatory)][int]$SelectedBenchmarkVoicePoolCapacity,
-    [bool]$SelectedRoutingTreeBenchmark = $false,
-    [bool]$SelectedProfiling = $false
-  )
-  if ($SelectedRoutingTreeBenchmark) {
-    if ($SelectedBenchmarkVoicePoolCapacity -eq 64) { return "target/orange-pi-cross-diagnostics/routing-tree-benchmark" }
-    return "target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity"
-  }
-  if ($SelectedBenchmarkVoicePoolCapacity -eq 64) {
-    if ($SelectedProfiling) { return "target/orange-pi-cross-diagnostics/profiling" }
-    return "target/orange-pi-cross"
-  }
-  return "target/orange-pi-cross-diagnostics/benchmark-voice-pools-$SelectedBenchmarkVoicePoolCapacity"
+  param([bool]$SelectedProfiling = $false)
+  if ($SelectedProfiling) { return "target/orange-pi-cross-diagnostics/profiling" }
+  return "target/orange-pi-cross"
 }
 
 $repositoryRoot = Resolve-RepositoryRoot
 $sourceCommit = Get-RepositorySourceCommit $repositoryRoot
-if ($RoutingTreeBenchmark -and $Binary -ne "octessera-pi") { throw "Routing-tree benchmark builds support only octessera-pi." }
-$buildSpec = Get-BuildSpec -SelectedBinary $Binary -SelectedBenchmarkVoicePoolCapacity $BenchmarkVoicePoolCapacity -SelectedRoutingTreeBenchmark:$RoutingTreeBenchmark -SelectedProfiling:$Profiling
-$selectedOutputRelativePath = Get-OutputRelativePath $BenchmarkVoicePoolCapacity -SelectedRoutingTreeBenchmark:$RoutingTreeBenchmark -SelectedProfiling:$Profiling
+$buildSpec = Get-BuildSpec -SelectedBinary $Binary -SelectedProfiling:$Profiling
+$selectedOutputRelativePath = Get-OutputRelativePath -SelectedProfiling:$Profiling
 $outputDirectory = Join-Path $repositoryRoot $selectedOutputRelativePath.Replace("/", "\")
 $outputBinary = Join-Path $outputDirectory $Binary
 $outputMetadata = "$outputBinary.metadata.json"

@@ -424,9 +424,6 @@ mod persistent_terminal_tests;
 
 mod persistent_output_integration_tests;
 
-#[cfg(feature = "output-provenance")]
-mod persistent_output_rebase_tests;
-
 mod pcm_mirror_integration_tests;
 
 mod persistent_flash_tests;

@@ -3,10 +3,14 @@
 # cloned store with the OLED awake, then restores the installed service and the original store.
 set -Eeuo pipefail
 board=$1 live_seconds=$2 root=$3
+shift 3
+extra_env=()
+for setting in "$@"; do extra_env+=("--setenv=$setting"); done
 run_id=${root##*-}
+store_id=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d " \n")
 service=octessera.service
 unit="octessera-smoke-$run_id.service"
-store_dir="/var/lib/octessera/study-stores/octessera-smoke-$run_id"
+store_dir="/var/lib/octessera/study-stores/octessera-study-$store_id.service"
 health="/run/octessera/smoke-ready-$run_id.json"
 if [ "$board" = rpi ]; then
   runtime_user=pi live_store=/home/pi/presets samples_dir=/home/pi/samples
@@ -66,6 +70,6 @@ sudo -n systemd-run --unit="$unit" --property=Restart=no --property=RuntimeMaxSe
   --setenv=OCTESSERA_TIMING_AUTOPLAY=1 --setenv=OCTESSERA_PI_UI_PROFILE=1 \
   --setenv=OCTESSERA_RUNTIME_TIMING_TRACE=1 --setenv="OCTESSERA_PI_STORE_DIR=$store_dir" \
   --setenv="OCTESSERA_PI_SAMPLES_DIR=$samples_dir" --setenv="OCTESSERA_CANDIDATE_HEALTH_PATH=$health" \
-  "$root/octessera-pi"
+  "${extra_env[@]}" "$root/octessera-pi"
 for _ in $(seq 1 30); do sudo -n test -f "$health" && break; systemctl is-active --quiet "$unit" || break; sleep 1; done
 for _ in $(seq 1 "$live_seconds"); do systemctl is-active --quiet "$unit" || { echo 'candidate exited early'; break; }; sleep 1; done

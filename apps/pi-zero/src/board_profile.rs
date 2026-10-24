@@ -31,65 +31,7 @@ pub const BOARD_PROFILE_ID: &str = BOARD_COMPOSITION.profile_id();
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub const BINARY_NAME: &str = "octessera-pi";
 
-#[cfg(all(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "routing-tree-benchmark",
-    feature = "benchmark-voice-pools-128",
-))]
-mod raspberry_live_benchmark_metadata;
-
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "routing-tree-benchmark",
-    feature = "benchmark-voice-pools-128"
-))]
-const ORANGE_METADATA_CARGO_FEATURE: &str =
-    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128;
-
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "routing-tree-benchmark",
-    feature = "benchmark-voice-pools-256"
-))]
-const ORANGE_METADATA_CARGO_FEATURE: &str =
-    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256;
-
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "routing-tree-benchmark",
-    not(any(
-        feature = "benchmark-voice-pools-128",
-        feature = "benchmark-voice-pools-256"
-    ))
-))]
-const ORANGE_METADATA_CARGO_FEATURE: &str =
-    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING;
-
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    not(feature = "routing-tree-benchmark"),
-    feature = "benchmark-voice-pools-128"
-))]
-const ORANGE_METADATA_CARGO_FEATURE: &str =
-    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128;
-
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    not(feature = "routing-tree-benchmark"),
-    feature = "benchmark-voice-pools-256"
-))]
-const ORANGE_METADATA_CARGO_FEATURE: &str =
-    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256;
-
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "profiling",
-    not(feature = "routing-tree-benchmark"),
-    not(any(
-        feature = "benchmark-voice-pools-128",
-        feature = "benchmark-voice-pools-256"
-    ))
-))]
+#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
 const ORANGE_METADATA_CARGO_FEATURE: &str =
     octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING;
 
@@ -247,20 +189,7 @@ fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> 
 pub fn print_build_metadata() {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     print_orange_build_metadata();
-    #[cfg(all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-    ))]
-    raspberry_live_benchmark_metadata::print_build_metadata();
-    #[cfg(not(any(
-        feature = "hardware-orange-pi-zero-2w",
-        all(
-            feature = "hardware-raspberry-pi-zero-2w",
-            feature = "routing-tree-benchmark",
-            feature = "benchmark-voice-pools-128",
-        )
-    )))]
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     println!(
         "{}",
         serde_json::json!({

@@ -261,48 +261,6 @@ pub(super) fn format_affinity_failure(label: &str, failure: SchedulingFailure) -
     )
 }
 
-#[cfg(live_audio_benchmark)]
-pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
-    #[cfg(target_os = "linux")]
-    {
-        if policy == libc::SCHED_FIFO {
-            "SCHED_FIFO"
-        } else {
-            "unknown"
-        }
-    }
-    #[cfg(all(not(target_os = "linux"), test))]
-    {
-        if policy == SCHED_FIFO_POLICY {
-            "SCHED_FIFO"
-        } else {
-            "unsupported"
-        }
-    }
-    #[cfg(all(not(target_os = "linux"), not(test)))]
-    {
-        let _ = policy;
-        "unsupported"
-    }
-}
-
-#[cfg(all(feature = "source-worker-benchmark-timing", live_audio_benchmark))]
-pub(crate) fn cpu_sampler() -> u32 {
-    #[cfg(target_os = "linux")]
-    {
-        let cpu = unsafe { libc::sched_getcpu() };
-        if cpu >= 0 {
-            cpu as u32
-        } else {
-            u32::MAX
-        }
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        u32::MAX
-    }
-}
-
 fn format_cpu_mask(mask: CpuMask) -> String {
     if mask.extra_cpu {
         format!("0x{:x}+extra", mask.bits[0])

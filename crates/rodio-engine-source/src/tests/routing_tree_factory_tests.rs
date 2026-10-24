@@ -133,29 +133,6 @@ fn product_routing_hook_failure_joins_workers_without_returning_a_source() {
 }
 
 #[test]
-fn benchmark_routing_constructors_remain_compatible() {
-    let (_tx, rx) = event_queue();
-    let (source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark(rx, 44_100, 128, None)
-            .unwrap();
-    drop(source);
-    assert_eq!(shutdown.shutdown().joined_workers, 2);
-
-    let (_tx, rx) = event_queue();
-    let (source, shutdown) =
-        EngineSource::with_routing_tree_persistent_workers_for_benchmark_with_hook(
-            rx,
-            44_100,
-            128,
-            None,
-            successful_start_hook,
-        )
-        .unwrap();
-    drop(source);
-    assert_eq!(shutdown.shutdown().joined_workers, 2);
-}
-
-#[test]
 fn product_routing_source_retirement_waits_off_the_source_callback() {
     let (_tx, rx) = event_queue();
     let (source, shutdown) =

@@ -1,26 +1,8 @@
 use super::*;
 use std::mem::size_of;
 
-#[cfg(not(any(
-    feature = "benchmark-voice-pools-128",
-    feature = "benchmark-voice-pools-256"
-)))]
 const MAX_PRACTICAL_RETIREMENT_ITEM_BYTES: usize = 12 * 1024;
-#[cfg(any(
-    feature = "benchmark-voice-pools-128",
-    feature = "benchmark-voice-pools-256"
-))]
-const MAX_PRACTICAL_RETIREMENT_ITEM_BYTES: usize = 16 * 1024;
-#[cfg(not(any(
-    feature = "benchmark-voice-pools-128",
-    feature = "benchmark-voice-pools-256"
-)))]
 const MAX_PRACTICAL_RETIREMENT_STORAGE_BYTES: usize = 4 * 1024 * 1024;
-#[cfg(any(
-    feature = "benchmark-voice-pools-128",
-    feature = "benchmark-voice-pools-256"
-))]
-const MAX_PRACTICAL_RETIREMENT_STORAGE_BYTES: usize = 8 * 1024 * 1024;
 
 const _: () = assert!(size_of::<RetiredAudioItem>() <= MAX_PRACTICAL_RETIREMENT_ITEM_BYTES);
 const _: () = assert!(

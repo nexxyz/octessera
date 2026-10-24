@@ -1,17 +1,10 @@
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use super::control_drain;
-mod output_provenance;
 use super::telemetry::DrainedControlEvents;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use super::EngineSource;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use super::{MAX_BLOCK_FRAMES, MIN_BLOCK_FRAMES, OUTPUT_CHANNELS};
-#[cfg(any(test, feature = "routing-tree-executor"))]
-use output_provenance::PersistentOutputKind;
-#[cfg(feature = "output-provenance")]
-use output_provenance::PersistentOutputProvenance;
-#[cfg(feature = "output-provenance")]
-pub use output_provenance::PersistentOutputProvenanceSnapshot;
 use realtime_engine::synth::AudioLoadStatus;
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use realtime_engine::synth::{SourceWorkerRenderDisposition, BLOCK_SLOT_SCRATCH_FRAMES};
@@ -31,6 +24,15 @@ pub struct PersistentOutputCounters {
     pub deadline_recoveries: u64,
 }
 
+#[cfg(any(test, feature = "routing-tree-executor"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PersistentOutputKind {
+    Fresh,
+    Repeated,
+    DroppedSilence,
+    FatalSilence,
+}
+
 pub(super) struct PreviousMasterQuantum {
     #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) samples: [f32; BLOCK_SLOT_SCRATCH_FRAMES * OUTPUT_CHANNELS],
@@ -46,8 +48,6 @@ pub(super) struct PreviousMasterQuantum {
     pub(super) deadline_misses: u64,
     pub(super) deadline_recoveries: u64,
     pub(super) flash_frames_remaining: u64,
-    #[cfg(feature = "output-provenance")]
-    provenance: PersistentOutputProvenance,
 }
 
 impl PreviousMasterQuantum {
@@ -67,8 +67,6 @@ impl PreviousMasterQuantum {
             deadline_misses: 0,
             deadline_recoveries: 0,
             flash_frames_remaining: 0,
-            #[cfg(feature = "output-provenance")]
-            provenance: PersistentOutputProvenance::default(),
         }
     }
 
@@ -77,14 +75,14 @@ impl PreviousMasterQuantum {
         let samples = frames.saturating_mul(OUTPUT_CHANNELS);
         if frames > BLOCK_SLOT_SCRATCH_FRAMES || output.len() < samples {
             self.valid = false;
-            return self.tag_block(PersistentOutputKind::FatalSilence, frames);
+            return PersistentOutputKind::FatalSilence;
         }
         self.samples[..samples].copy_from_slice(&output[..samples]);
         self.cached_frames = frames;
         self.valid = true;
         self.repeat_used_for_current_recovery = false;
         self.rendered_quantums = self.rendered_quantums.saturating_add(1);
-        self.tag_block(PersistentOutputKind::Fresh, frames)
+        PersistentOutputKind::Fresh
     }
 
     #[cfg(any(test, feature = "routing-tree-executor"))]
@@ -105,14 +103,14 @@ impl PreviousMasterQuantum {
             output[..samples].copy_from_slice(&self.samples[..samples]);
             self.repeat_used_for_current_recovery = true;
             self.repeated_quantums = self.repeated_quantums.saturating_add(1);
-            self.tag_block(PersistentOutputKind::Repeated, frames)
+            PersistentOutputKind::Repeated
         } else {
             if self.valid && self.cached_frames != frames {
                 self.valid = false;
             }
             output.fill(0.0);
             self.dropped_quantums = self.dropped_quantums.saturating_add(1);
-            self.tag_block(PersistentOutputKind::DroppedSilence, frames)
+            PersistentOutputKind::DroppedSilence
         }
     }
 
@@ -120,19 +118,13 @@ impl PreviousMasterQuantum {
     pub(super) fn recovery_silence(&mut self, output: &mut [f32]) -> PersistentOutputKind {
         output.fill(0.0);
         self.dropped_quantums = self.dropped_quantums.saturating_add(1);
-        self.tag_block(
-            PersistentOutputKind::DroppedSilence,
-            output.len() / OUTPUT_CHANNELS,
-        )
+        PersistentOutputKind::DroppedSilence
     }
 
     #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn fatal_silence(&mut self, output: &mut [f32]) -> PersistentOutputKind {
         output.fill(0.0);
-        self.tag_block(
-            PersistentOutputKind::FatalSilence,
-            output.len() / OUTPUT_CHANNELS,
-        )
+        PersistentOutputKind::FatalSilence
     }
 
     #[cfg(any(test, feature = "routing-tree-executor"))]
@@ -160,23 +152,7 @@ impl PreviousMasterQuantum {
         }
     }
 
-    #[cfg(any(test, feature = "routing-tree-executor"))]
-    fn tag_block(&mut self, kind: PersistentOutputKind, frames: usize) -> PersistentOutputKind {
-        #[cfg(feature = "output-provenance")]
-        self.provenance.start_block(kind, frames);
-        #[cfg(not(feature = "output-provenance"))]
-        let _ = frames;
-        kind
-    }
-
-    #[cfg(feature = "output-provenance")]
-    pub(super) fn provenance_snapshot(&self) -> PersistentOutputProvenanceSnapshot {
-        self.provenance.snapshot()
-    }
-
     pub(super) fn consume_frame(&mut self) -> bool {
-        #[cfg(feature = "output-provenance")]
-        self.provenance.consume_frame();
         if self.flash_frames_remaining == 0 {
             return false;
         }
@@ -188,17 +164,6 @@ impl PreviousMasterQuantum {
 impl Default for PreviousMasterQuantum {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(feature = "output-provenance")]
-impl EngineSource {
-    pub fn persistent_output_provenance_snapshot(&self) -> PersistentOutputProvenanceSnapshot {
-        self.persistent_output.provenance_snapshot()
-    }
-
-    pub fn rebase_persistent_output_provenance(&mut self) {
-        self.persistent_output.provenance.rebase();
     }
 }
 

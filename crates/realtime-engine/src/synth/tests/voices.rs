@@ -211,10 +211,7 @@ fn auto_hard_global_voice_budget_reduces_polyphony_under_load() {
 
     assert!(active <= (SYNTH_VOICE_LANE_CAPACITY as f32 * 0.45).round() as usize);
     assert!(active > MAX_SYNTH_VOICES);
-    #[cfg(not(feature = "benchmark-voice-pools-256"))]
     assert!(status.voice_steal);
-    #[cfg(feature = "benchmark-voice-pools-256")]
-    assert!(!status.voice_steal);
     assert!(status.ratio > 1.0);
     assert!(!engine.audio_load_status().voice_steal);
 }

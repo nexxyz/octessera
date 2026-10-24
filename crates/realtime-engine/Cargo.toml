@@ -10,8 +10,6 @@ path = "src/lib.rs"
 [features]
 test-support = []
 source-worker-benchmark-timing = []
-benchmark-voice-pools-128 = []
-benchmark-voice-pools-256 = []
 routing-tree-executor = []
 
 [dependencies]

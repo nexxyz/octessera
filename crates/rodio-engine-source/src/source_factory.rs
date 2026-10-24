@@ -122,33 +122,6 @@ impl EngineSource {
         )
     }
 
-    #[cfg(feature = "routing-tree-executor")]
-    pub fn with_routing_tree_persistent_workers_for_benchmark(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        Self::with_routing_tree_persistent_workers(control_rx, sample_rate, block_frames, load_tx)
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    pub fn with_routing_tree_persistent_workers_for_benchmark_with_hook(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-        start_hook: SourceWorkerStartHook,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        Self::with_routing_tree_persistent_workers_with_hook(
-            control_rx,
-            sample_rate,
-            block_frames,
-            load_tx,
-            start_hook,
-        )
-    }
-
     #[cfg(all(
         feature = "routing-tree-executor",
         feature = "source-worker-benchmark-timing"

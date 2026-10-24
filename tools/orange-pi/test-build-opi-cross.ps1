@@ -29,10 +29,6 @@ foreach ($required in @(
     "orange-seesaw-smoke",
     "octessera-pi",
     "--no-default-features",
-    "BenchmarkVoicePoolCapacity",
-    "RoutingTreeBenchmark",
-    "routing-tree-benchmark",
-    "benchmark-voice-pools-",
     "diagnostic-only",
     "orange-pi-cross-diagnostics",
     "ELF64",
@@ -96,10 +92,6 @@ function Invoke-DryRun {
 }
 
 $default = Invoke-DryRun @{}
-$defaultExplicitCapacity = Invoke-DryRun @{ BenchmarkVoicePoolCapacity = 64 }
-if ($defaultExplicitCapacity -cne $default) {
-  throw "Explicit default benchmark voice-pool capacity changed the normal Orange build command."
-}
 foreach ($expected in @(
     "no Docker container was started",
     "target/orange-pi-cross/orange-oled-smoke",
@@ -138,24 +130,6 @@ foreach ($expected in @(
 }
 
 $candidate = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release" }
-$candidateExplicitCapacity = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; BenchmarkVoicePoolCapacity = 64 }
-if ($candidateExplicitCapacity -cne $candidate) {
-  throw "Explicit default benchmark voice-pool capacity changed the runtime-candidate command."
-}
-
-$routing = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; RoutingTreeBenchmark = $true }
-foreach ($expected in @(
-    "target/orange-pi-cross-diagnostics/routing-tree-benchmark/octessera-pi",
-    "octessera-pi.metadata.json",
-    "-p.*octessera-pi",
-    "--features.*hardware-orange-pi-zero-2w routing-tree-benchmark",
-    "--no-default-features"
-  )) {
-  if ($routing -notmatch $expected) {
-    throw "Orange routing-tree benchmark dry run is missing: $expected"
-  }
-}
-
 $profiling = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; Profiling = $true }
 foreach ($expected in @(
     "target/orange-pi-cross-diagnostics/profiling/octessera-pi",
@@ -175,28 +149,6 @@ foreach ($binary in @("orange-oled-smoke", "orange-seesaw-smoke")) {
   if (-not $rejected) { throw "Orange cross-builder accepted a profiling build for a HAL smoke binary." }
 }
 
-foreach ($capacity in @(128, 256)) {
-  $routingDiagnostic = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; BenchmarkVoicePoolCapacity = $capacity; RoutingTreeBenchmark = $true }
-  foreach ($expected in @(
-      "target/orange-pi-cross-diagnostics/routing-tree-benchmark/benchmark-voice-pools-$capacity/octessera-pi",
-      "--features.*hardware-orange-pi-zero-2w routing-tree-benchmark benchmark-voice-pools-$capacity"
-    )) {
-    if ($routingDiagnostic -notmatch $expected) {
-      throw "Orange routing-tree benchmark capacity $capacity dry run is missing: $expected"
-    }
-  }
-  if ($routingDiagnostic -match "target/orange-pi-cross/octessera-pi") {
-    throw "Orange routing-tree benchmark capacity $capacity selected the production candidate output path."
-  }
-}
-foreach ($parameters in @(
-    @{ Binary = "orange-oled-smoke"; RoutingTreeBenchmark = $true },
-    @{ Binary = "orange-seesaw-smoke"; RoutingTreeBenchmark = $true }
-  )) {
-  $rejected = $false
-  try { Invoke-DryRun $parameters | Out-Null } catch { $rejected = $true }
-  if (-not $rejected) { throw "Orange cross-builder accepted routing-tree benchmark for a HAL smoke binary." }
-}
 foreach ($expected in @(
     "target/orange-pi-cross/octessera-pi",
     "octessera-pi.metadata.json",
@@ -209,39 +161,12 @@ foreach ($expected in @(
   }
 }
 
-foreach ($capacity in @(128, 256)) {
-  $diagnostic = Invoke-DryRun @{ Binary = "octessera-pi"; Profile = "release"; BenchmarkVoicePoolCapacity = $capacity }
-  $feature = "benchmark-voice-pools-$capacity"
-  foreach ($expected in @(
-      "target/orange-pi-cross-diagnostics/benchmark-voice-pools-$capacity/octessera-pi",
-      "octessera-pi.metadata.json",
-      "-p.*octessera-pi",
-      "--features.*hardware-orange-pi-zero-2w $feature",
-      "--no-default-features"
-    )) {
-    if ($diagnostic -notmatch $expected) {
-      throw "Orange diagnostic voice-pool $capacity dry run is missing: $expected"
-    }
-  }
-  if ($diagnostic -match "target/orange-pi-cross/octessera-pi") {
-    throw "Orange diagnostic voice-pool $capacity dry run selected the production candidate output path."
-  }
-}
-foreach ($parameters in @(
-    @{ Binary = "orange-oled-smoke"; BenchmarkVoicePoolCapacity = 128 },
-    @{ Binary = "octessera-pi"; BenchmarkVoicePoolCapacity = 512 }
-  )) {
-  $rejected = $false
-  try { Invoke-DryRun $parameters | Out-Null } catch { $rejected = $true }
-  if (-not $rejected) { throw "Orange cross-builder accepted an unsupported diagnostic capacity: $($parameters | ConvertTo-Json -Compress)" }
-}
-
 $dev = Invoke-DryRun @{ Profile = "dev" }
 if ($dev -notmatch "/work/target/orange-cross-cargo/aarch64-unknown-linux-gnu/debug/orange-oled-smoke") {
   throw "Dev profile dry run did not use Cargo's debug artifact directory"
 }
 
-foreach ($dryRun in @($default, $hal, $seesaw, $candidate, $routing, $dev)) {
+foreach ($dryRun in @($default, $hal, $seesaw, $candidate, $profiling, $dev)) {
   if ($dryRun -match "target/release" -or $dryRun -notmatch "/work/target/orange-cross-cargo/aarch64-unknown-linux-gnu") {
     throw "Orange cross-builder dry run used a shared release target or omitted the dedicated Cargo target directory."
   }
@@ -398,24 +323,22 @@ $diagnosticBinary = Join-Path $diagnosticDirectory "octessera-pi"
 $diagnosticMetadata = "$diagnosticBinary.metadata.json"
 New-Item -ItemType Directory -Path $diagnosticDirectory | Out-Null
 try {
-  foreach ($capacity in @(128, 256)) {
-    $diagnosticSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w benchmark-voice-pools-$capacity"; ArtifactKind = "diagnostic-only" }
-    $diagnosticParameters = @{
-      BinaryPath = $diagnosticBinary
-      MetadataPath = $diagnosticMetadata
-      SelectedBinary = "octessera-pi"
-      SelectedTarget = "aarch64-unknown-linux-gnu"
-      SelectedProfile = "release"
-      BuildSpec = $diagnosticSpec
-      SourceCommit = $sourceCommit
-    }
-    [IO.File]::WriteAllBytes($diagnosticBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x01))
-    Publish-OrangeBuildMetadata @diagnosticParameters
-    Assert-OrangeBuildMetadata @diagnosticParameters
-    $diagnosticMetadataJson = [IO.File]::ReadAllText($diagnosticMetadata)
-    if ($diagnosticMetadataJson -notmatch '"artifact_kind":"diagnostic-only"' -or $diagnosticMetadataJson -notmatch ('"cargo_feature":"hardware-orange-pi-zero-2w benchmark-voice-pools-' + $capacity + '"')) {
-      throw "Orange diagnostic metadata did not bind its pool stage and artifact kind: $capacity"
-    }
+  $diagnosticSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w profiling"; ArtifactKind = "diagnostic-only" }
+  $diagnosticParameters = @{
+    BinaryPath = $diagnosticBinary
+    MetadataPath = $diagnosticMetadata
+    SelectedBinary = "octessera-pi"
+    SelectedTarget = "aarch64-unknown-linux-gnu"
+    SelectedProfile = "release"
+    BuildSpec = $diagnosticSpec
+    SourceCommit = $sourceCommit
+  }
+  [IO.File]::WriteAllBytes($diagnosticBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x01))
+  Publish-OrangeBuildMetadata @diagnosticParameters
+  Assert-OrangeBuildMetadata @diagnosticParameters
+  $diagnosticMetadataJson = [IO.File]::ReadAllText($diagnosticMetadata)
+  if ($diagnosticMetadataJson -notmatch '"artifact_kind":"diagnostic-only"' -or $diagnosticMetadataJson -notmatch '"cargo_feature":"hardware-orange-pi-zero-2w profiling"') {
+    throw "Orange diagnostic metadata did not bind its profiling feature and artifact kind"
   }
 } finally {
   Remove-Item -LiteralPath $diagnosticDirectory -Recurse -Force -ErrorAction SilentlyContinue

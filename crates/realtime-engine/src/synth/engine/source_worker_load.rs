@@ -111,10 +111,6 @@ mod tests {
                 * crate::synth::types::BUS_SLOTS_PER_BUS
                 * BUS_CHAIN_SLOT_COST_UNITS as usize) as u16;
         assert_eq!(SOURCE_WORKER_MAX_COST_UNITS, expected);
-        #[cfg(not(any(
-            feature = "benchmark-voice-pools-128",
-            feature = "benchmark-voice-pools-256"
-        )))]
         assert_eq!(SOURCE_WORKER_MAX_COST_UNITS, 208);
     }
 

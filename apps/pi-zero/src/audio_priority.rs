@@ -464,18 +464,6 @@ pub(crate) use syscalls::{
 };
 
 #[cfg(any(
-    all(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "routing-tree-benchmark"
-    ),
-    all(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128",
-    )
-))]
-pub(crate) use dsp_worker_scheduling::benchmark_worker_start_hook;
-#[cfg(any(
     test,
     feature = "hardware-orange-pi-zero-2w",
     feature = "hardware-raspberry-pi-zero-2w"
@@ -488,12 +476,6 @@ pub(crate) use dsp_worker_scheduling::pi_worker_start_hook;
 pub(crate) use dsp_worker_scheduling::pin_background_worker_to_dsp_cpus;
 #[cfg(test)]
 pub(crate) use dsp_worker_scheduling::{ORANGE_WORKER_CPUS, ORANGE_WORKER_PRIORITY};
-#[cfg(all(feature = "source-worker-benchmark-timing", live_audio_benchmark))]
-pub(crate) use syscalls::cpu_sampler;
 
-#[cfg(live_audio_benchmark)]
-pub(crate) fn scheduling_policy_name(policy: i32) -> &'static str {
-    syscalls::scheduling_policy_name(policy)
-}
 #[cfg(test)]
 mod tests;

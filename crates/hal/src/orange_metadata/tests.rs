@@ -3,10 +3,7 @@ use super::{
     read_metadata_text, validate_executable_name, validate_executable_name_for, validate_metadata,
     validate_metadata_for, validate_runtime_benchmark_diagnostic_metadata,
     validate_runtime_candidate_metadata, BuildMetadata, CANONICAL_BINARY_NAME, MAX_METADATA_BYTES,
-    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128, RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256,
-    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING,
-    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128,
-    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256, RUNTIME_CANDIDATE_BINARY_NAME,
+    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING, RUNTIME_CANDIDATE_BINARY_NAME,
     SEESAW_BINARY_NAME,
 };
 use std::fs;
@@ -255,18 +252,11 @@ fn runtime_candidate_metadata_is_hash_bound_but_not_runtime_ready() {
 #[test]
 fn runtime_benchmark_diagnostic_accepts_only_exact_supported_features() {
     let hash = "e".repeat(64);
-    for cargo_feature in [
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128,
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256,
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING,
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128,
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256,
-    ] {
-        let metadata = valid_runtime_benchmark_metadata(cargo_feature, &hash);
-        assert!(
-            validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, cargo_feature).is_ok()
-        );
-    }
+    let cargo_feature = RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING;
+    let metadata = valid_runtime_benchmark_metadata(cargo_feature, &hash);
+    assert!(
+        validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, cargo_feature).is_ok()
+    );
 }
 
 #[test]
@@ -277,14 +267,14 @@ fn runtime_benchmark_diagnostic_print_rejects_an_unapproved_feature() {
     .unwrap_err();
     assert_eq!(
         error,
-        "runtime benchmark diagnostic metadata requires an exact routing or 128/256 voice-pool cargo feature"
+        "runtime benchmark diagnostic metadata requires the exact profiling cargo feature"
     );
 }
 
 #[test]
 fn runtime_benchmark_diagnostic_rejects_wrong_stage_kind_package_feature_and_hash() {
     let hash = "e".repeat(64);
-    let feature = RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128;
+    let feature = RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING;
 
     let mut metadata = valid_runtime_benchmark_metadata(feature, &hash);
     metadata.runtime_ready = true;
@@ -298,9 +288,7 @@ fn runtime_benchmark_diagnostic_rejects_wrong_stage_kind_package_feature_and_has
     metadata.package = "octessera-hal".into();
     assert!(validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, feature).is_err());
 
-    let mut metadata =
-        valid_runtime_benchmark_metadata(RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256, &hash);
-    assert!(validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, feature).is_err());
+    let mut metadata = valid_runtime_benchmark_metadata(feature, &hash);
     metadata.cargo_feature = "hardware-orange-pi-zero-2w benchmark-voice-pools-512".into();
     assert!(validate_runtime_benchmark_diagnostic_metadata(
         &metadata,
@@ -337,13 +325,15 @@ fn metadata_mismatch_errors_name_the_contract() {
         "metadata identity fields do not match the Orange runtime-candidate contract"
     );
 
-    let mut benchmark =
-        valid_runtime_benchmark_metadata(RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128, &hash);
+    let mut benchmark = valid_runtime_benchmark_metadata(
+        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING,
+        &hash,
+    );
     benchmark.package = "wrong-package".into();
     let benchmark_error = validate_runtime_benchmark_diagnostic_metadata(
         &benchmark,
         &hash,
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128,
+        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING,
     )
     .unwrap_err();
     assert_eq!(

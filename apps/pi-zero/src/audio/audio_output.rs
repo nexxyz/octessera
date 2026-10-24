@@ -20,13 +20,6 @@ mod audio_output_open;
 mod audio_profile;
 mod audio_stream_lifecycle;
 mod cpal_audio_callback;
-#[cfg(live_audio_benchmark)]
-pub(crate) use audio_stream_lifecycle::{
-    AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
-    AudioStreamShutdownReport,
-};
-#[cfg(live_audio_benchmark)]
-pub(crate) use cpal_audio_callback::CallbackSource;
 mod cpal_audio_output;
 #[cfg(test)]
 mod direct_cpal_tests;

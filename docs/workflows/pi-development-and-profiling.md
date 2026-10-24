@@ -61,16 +61,17 @@ and DSP budget questions. PC/runtime-only probes do not measure hardware audio
 timing. `tools/pi/run-pi-timing-probes.ps1` is Raspberry-only; never point it
 at Orange.
 
-The timing probes, the offline DSP profile (`--profile-dsp`) and the live audio
-benchmarks live only in the instrumented `profiling` build; production images
-and fast deploys leave them out and refuse those flags. Build one with
+The timing probes and the offline DSP profile (`--profile-dsp`) live only in the
+instrumented `profiling` build; production images and fast deploys leave them
+out and refuse those flags. Build one with
 `./tools/pi/build-rpi-opi-cross.ps1 -Profiling` (writes
 `target/pi-cross-diagnostics/profiling/octessera-pi`) or, on the Orange,
 `./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release -Profiling`
 (`target/orange-pi-cross-diagnostics/profiling/`). Copy it to the board and pass
-its path with `-Binary` (or `-Artifact`/`-Metadata` for the Orange studies). The
-routing-tree and voice-pool benchmark builds include `profiling` already. The
-10-minute `board-timing-smoke.sh` still runs the production binary.
+its path with `-Binary`. On the Orange, run the DSP profile by hand with the
+service stopped: `sudo systemctl stop octessera.service`, then
+`<binary> --profile-dsp`, then start the service again. The 10-minute
+`board-timing-smoke.sh` runs the production binary.
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
@@ -123,52 +124,42 @@ Either Orange cross-build output works here. Logs land in
 of the previous build under the same conditions. Do not call a shared-path
 change qualified if underruns appear, pulses batch (`max_pulses` above 1), or
 cadence drifts from 240-241 dispatches per 5 s. It works on clean production
-images; the AutoAux study below needs a wake-trace drop-in that images do not
-ship.
+images.
 
 An individual new instrument or Build behavior can use focused tests and its
 own on-device profile unless it changes one of those shared paths. PC-only or
 DSP-only results would not have caught a Playing display/control stall, which
 is the whole reason this smoke exists.
 
-### Raspberry Aux/autosave study
+### Aux/autosave and load studies
 
-For the Raspberry normal-runtime, OLED-awake Aux/autosave study, first
-cross-build the current clean source, then run the candidate against an
-isolated preset clone. It needs the wake-trace drop-in from
-`provision-pi.ps1 -WakeTrace`.
+The smoke passes extra `OCTESSERA_TIMING_*=value` arguments (after the seconds)
+to the candidate, and its cloned store is a valid study store, so the same
+script runs the two opt-in studies on either board:
 
-```powershell
-./tools/pi/run-pi-autoaux-study.ps1 -Target $PiTarget -Artifact target/pi-cross/octessera-pi -Metadata target/pi-cross/octessera-pi.metadata.json -LiveSeconds 30 -AllowServiceInterruption
+```bash
+# Aux timing: scripted Cutoff turns through the real menu, then an automatic save.
+tools/pi/board-timing-smoke.sh rpi "$PiTarget" target/pi-cross/octessera-pi 60   OCTESSERA_TIMING_AUTOAUX=1 OCTESSERA_TIMING_KEEP_AWAKE=1
+# Load ramp: held notes from 8 to 64 in steps of 8, 20 seconds each.
+tools/pi/board-timing-smoke.sh opi "$OrangeTarget" target/orange-pi-cross/octessera-pi 600   OCTESSERA_TIMING_LOAD=8,8,64,20
 ```
 
-Raspberry and Orange share one Aux timing driver (`OCTESSERA_TIMING_AUTOAUX=1`
-with `OCTESSERA_TIMING_AUTOPLAY=1` and `OCTESSERA_TIMING_KEEP_AWAKE=1`) and one
-report format; only the `raspberry-autoaux`/`orange-autoaux` prefix differs.
-On both boards `OCTESSERA_TIMING_AUTOPLAY=1` alone starts playback at boot,
-and `OCTESSERA_TIMING_KEEP_AWAKE=1` stops startup unless the loaded settings
-keep the display awake.
+Raspberry and Orange share one Aux timing driver and one report format; only
+the `raspberry-autoaux`/`orange-autoaux` prefix differs. The candidate turns
+Auto Save on in the clone through the Saves menu, so the final edit has a due
+save, and the report line carries that save's revision and timing. The smoke
+prints the report line at the end, and the original presets stay untouched.
 
-This one-shot study stops and restores the installed service. It requires a
-matching final automatic-save receipt and verifies that the original presets
-remain unchanged. Inspect its staged candidate and kernel journals for timing
-and audio errors; missing error text alone does not prove that no underrun
-occurred. On failure, keep the study evidence and clone until service
-restoration and the original-store checks are resolved.
-
-### Capacity and live-latency studies
-
-`OCTESSERA_TIMING_LOAD=start,step,max,seconds` (with `OCTESSERA_TIMING_AUTOPLAY=1`
-and an isolated study store, same rules as the Aux study) ramps held 2-second
+`OCTESSERA_TIMING_LOAD=start,step,max,seconds` ramps held 2-second
 notes across Synth, Pluck, and FM through the host musical-event path on top of
 the loaded patch, logging one `timing-load step=...` line per step. Every ~0.7 s
 it also presses grid cell (0,0) through the real input dispatch and reports
 `probe_wait` (arrival to dispatch) and `probe_dispatch_to_audio` (dispatch to
-the note reaching the audio service); put a Keys layer with Link events enabled
-on the active layer in the clone, or the probe reports `probe_silent`. Set
-`sound.voiceStealingMode` to `none` in the clone's patch so stealing does not
-hide the limit. Correlate the step lines with `underrun occurred` lines and the
-`pi-ui-profile` windows in the candidate journal. Add
+the note reaching the audio service). The smoke clones the board's own patch,
+so set it up on the board first and put it back afterwards: a Keys layer with
+Link events enabled on the active layer (or the probe reports `probe_silent`),
+and Voice Stealing `none`, so stealing does not hide the limit. Correlate the step lines with `underrun occurred` lines and the
+`pi-ui-profile` windows in the journal. Add
 `OCTESSERA_TIMING_RECORD=1` to run the same study while an Audio+Video take
 records (up to 120 minutes) into the board's screen-recordings folder; delete
 the take afterwards.

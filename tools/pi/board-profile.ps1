@@ -1,5 +1,5 @@
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot "..\performance\performance-baseline-json.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "strict-json.psm1") -Force
 
 $RaspberryPiZero2WProfileId = "raspberry-pi-zero-2w"
 $OrangePiZero2WProfileId = "orange-pi-zero-2w"

@@ -102,45 +102,6 @@ fn orange_runtime_requires_an_explicit_profile_contract() {
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
 fn orange_metadata_selection_matches_the_compiled_contract() {
-    #[cfg(all(
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-128"
-    ))]
-    assert_eq!(
-        super::ORANGE_METADATA_CARGO_FEATURE,
-        octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_128
-    );
-    #[cfg(all(
-        feature = "routing-tree-benchmark",
-        feature = "benchmark-voice-pools-256"
-    ))]
-    assert_eq!(
-        super::ORANGE_METADATA_CARGO_FEATURE,
-        octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING_256
-    );
-    #[cfg(all(
-        feature = "routing-tree-benchmark",
-        not(any(
-            feature = "benchmark-voice-pools-128",
-            feature = "benchmark-voice-pools-256"
-        ))
-    ))]
-    assert_eq!(
-        super::ORANGE_METADATA_CARGO_FEATURE,
-        octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_ROUTING
-    );
-    #[cfg(feature = "benchmark-voice-pools-128")]
-    #[cfg(not(feature = "routing-tree-benchmark"))]
-    assert_eq!(
-        super::ORANGE_METADATA_CARGO_FEATURE,
-        octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_128
-    );
-    #[cfg(feature = "benchmark-voice-pools-256")]
-    #[cfg(not(feature = "routing-tree-benchmark"))]
-    assert_eq!(
-        super::ORANGE_METADATA_CARGO_FEATURE,
-        octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_256
-    );
     #[cfg(feature = "profiling")]
     assert_eq!(
         super::ORANGE_METADATA_CONTRACT_NAME,
@@ -148,14 +109,7 @@ fn orange_metadata_selection_matches_the_compiled_contract() {
     );
     #[cfg(not(feature = "profiling"))]
     assert_eq!(super::ORANGE_METADATA_CONTRACT_NAME, "runtime-candidate");
-    #[cfg(all(
-        feature = "profiling",
-        not(feature = "routing-tree-benchmark"),
-        not(any(
-            feature = "benchmark-voice-pools-128",
-            feature = "benchmark-voice-pools-256"
-        ))
-    ))]
+    #[cfg(feature = "profiling")]
     assert_eq!(
         super::ORANGE_METADATA_CARGO_FEATURE,
         octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING

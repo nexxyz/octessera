@@ -1,13 +1,3 @@
-#[cfg(any(
-    feature = "benchmark-voice-pools-128",
-    feature = "benchmark-voice-pools-256"
-))]
-pub(crate) mod analogue_capacity_scenario;
-#[cfg(any(
-    feature = "benchmark-voice-pools-128",
-    feature = "benchmark-voice-pools-256"
-))]
-pub(crate) mod capacity_scenarios;
 mod report;
 mod runtime_timing;
 pub(crate) mod samples;

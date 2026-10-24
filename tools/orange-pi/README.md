@@ -221,65 +221,12 @@ not proof of clean audio, so keep listening and control checks in the loop.
 
 ## Performance tools
 
-For the shared-path timing smoke on a clean production image, use
-`tools/pi/board-timing-smoke.sh opi`, described in
+The shared-path timing smoke, the Aux/autosave study and the load ramp all run
+through `tools/pi/board-timing-smoke.sh opi`, described in
 [`pi-development-and-profiling.md`](../../docs/workflows/pi-development-and-profiling.md#shared-path-timing-smoke).
-The Orange-specific study tools are:
-
-```powershell
-$OrangeTarget = "octessera@<ORANGE_HOST>"
-./tools/orange-pi/run-orange-capability-study.ps1 -Target $OrangeTarget -Mode PassiveBaseline -PrintOnly
-./tools/orange-pi/run-orange-capability-study.ps1 -Target $OrangeTarget -Mode Dsp64 -AllowServiceInterruption -PrintOnly
-./tools/orange-pi/run-orange-capability-study.ps1 -Target $OrangeTarget -Mode Dsp256 -AllowServiceInterruption -PrintOnly
-./tools/orange-pi/run-orange-live-audio-matrix.ps1 -Target $OrangeTarget -PrintOnly
-./tools/orange-pi/run-orange-performance-baseline.ps1 -Target $OrangeTarget -PrintOnly
-```
-
-Active runs use `-AllowServiceInterruption`; the live matrix additionally uses
-`-AllowMatrixServiceInterruption`. The command-generation checks are:
-
-```powershell
-./tools/orange-pi/test-with-opi-ssh.ps1
-./tools/orange-pi/test-run-orange-capability-study.ps1
-./tools/orange-pi/test-run-orange-live-audio-matrix.ps1
-./tools/orange-pi/test-run-orange-performance-baseline.ps1
-```
-
-For an isolated Orange AWAKE live candidate, the workstation-only Aux timing
-smoke is separately opt-in. It runs a short cutoff-edit pattern after the native
-menu and host path are verified, then requires an accepted, identified automatic
-default-save success for the final edit revision. The native worker emits that
-completion only after writing the clone's default config. The existing AWAKE
-wrapper uses a temporary study-store clone:
-
-```powershell
-$OrangeTarget = "octessera@<ORANGE_HOST>"
-$previousAutoAux = $env:OCTESSERA_ORANGE_STUDY_AUTOAUX
-$env:OCTESSERA_ORANGE_STUDY_AUTOAUX = "1"
-try {
-  ./tools/orange-pi/run-orange-capability-study.ps1 `
-    -Target $OrangeTarget -Mode LiveCandidate -UiProfile -AutoPlay -KeepAwake `
-    -AllowServiceInterruption -LiveSeconds 30
-} finally {
-  if ($null -eq $previousAutoAux) {
-    Remove-Item Env:OCTESSERA_ORANGE_STUDY_AUTOAUX -ErrorAction SilentlyContinue
-  } else {
-    $env:OCTESSERA_ORANGE_STUDY_AUTOAUX = $previousAutoAux
-  }
-}
-```
-
-Without the workstation opt-in, `-KeepAwake` does not schedule Aux turns. The
-candidate refuses the timing sequence unless all its timing/profile gates and
-the isolated study-store path are present; it never rewrites the installed
-user store. If Auto Save is off, the candidate enables it through the native
-Saves menu in the temporary clone so the final edit has a due save. The one-line
-`orange-autoaux` report includes the final save revision, request ID, and elapsed
-time from the edit burst to accepted completion, alongside the existing input,
-OLED, and host-command evidence. A missing completion or matching failed save
-fails the opt-in smoke; unrelated, stale-revision, manual, and unidentified
-results do not count. The installed default and original user store remain
-untouched.
+For the DSP profile, build the profiling binary with
+`./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release -Profiling`
+and run it by hand with `--profile-dsp` while the service is stopped.
 
 ## Orange Pi USB gadget composer
 
