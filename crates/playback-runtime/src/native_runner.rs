@@ -100,6 +100,7 @@ mod instrument_audio_payload;
 mod instrument_collections;
 mod instrument_runtime;
 mod json_path;
+mod layer_behavior_config;
 mod layer_replacement;
 mod layer_state;
 mod led_color;
