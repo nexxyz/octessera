@@ -20,6 +20,7 @@ mod presentation;
 #[cfg(test)]
 mod presentation_state_tests;
 mod pulse_phase;
+mod request_identity;
 #[cfg(test)]
 mod restore_handoff_tests;
 mod status;

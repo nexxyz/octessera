@@ -1,4 +1,5 @@
 use super::*;
+use crate::{RuntimeConfig, RuntimeOperation};
 
 fn identity_layers(result: &RuntimeStoreResult) -> usize {
     match result {
