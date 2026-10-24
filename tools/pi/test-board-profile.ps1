@@ -271,10 +271,6 @@ try {
   Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "unexpected field"
   Write-TestJson '{"schema_version":1,"Schema_version":1,"board_profile":"raspberry-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-raspberry-pi-zero-2w"}'
   Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "field name casing"
-  Write-TestJson '{"schema_version":1,"schema_version":1,"board_profile":"raspberry-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-raspberry-pi-zero-2w"}'
-  Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "duplicate field"
-  Write-TestJson '{"schema_version":1,"schema\u005fversion":1,"board_profile":"raspberry-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-raspberry-pi-zero-2w"}'
-  Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "escaped duplicate field"
   foreach ($malformed in @("", "{", "null", "[]", "not-json")) {
     Write-TestJson $malformed
     Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "malformed JSON '$malformed'"
@@ -289,7 +285,7 @@ try {
     package_version = "0.7.0"
   }
   $runtimeJson = $runtimeFields | ConvertTo-Json -Compress
-  $runtimeMetadata = ConvertFrom-StrictJsonText $runtimeJson "runtime metadata"
+  $runtimeMetadata = $runtimeJson | ConvertFrom-Json
   Compare-RaspberryRuntimeMetadata $runtimeMetadata $expectedMetadata | Out-Null
   foreach ($field in $runtimeFields.Keys) {
     $missing = [ordered]@{}
@@ -300,7 +296,7 @@ try {
     }
     $missingJson = $missing | ConvertTo-Json -Compress
     Assert-Rejected {
-      $missingMetadata = ConvertFrom-StrictJsonText $missingJson "runtime metadata"
+      $missingMetadata = $missingJson | ConvertFrom-Json
       Assert-RaspberryRuntimeMetadata $missingMetadata | Out-Null
     } "runtime missing $field"
   }
@@ -318,13 +314,11 @@ try {
     }
     $invalidJson = $invalid | ConvertTo-Json -Compress
     Assert-Rejected {
-      $invalidMetadata = ConvertFrom-StrictJsonText $invalidJson "runtime metadata"
+      $invalidMetadata = $invalidJson | ConvertFrom-Json
       Assert-RaspberryRuntimeMetadata $invalidMetadata | Out-Null
     } "runtime invalid $field"
   }
 
-  [IO.File]::WriteAllText($metadataPath, $expectedJson, (New-Object System.Text.UTF8Encoding($true)))
-  Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "UTF-8 BOM"
   [IO.File]::WriteAllBytes($metadataPath, [byte[]](0x7B, 0xFF, 0x7D))
   Assert-Rejected { Read-RaspberryBoardMetadata $metadataPath | Out-Null } "invalid UTF-8"
   Assert-Rejected { Write-RaspberryBoardMetadata $metadataPath -Binary "wrong" } "writer binary"

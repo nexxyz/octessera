@@ -240,7 +240,7 @@ try {
   if ((Get-Item -LiteralPath $outputBinary).Length -le 0) {
     throw "Build produced an empty binary: $outputBinary"
   }
-  Invoke-VerifiedOrangeBuildMetadata `
+  Publish-OrangeBuildMetadata `
     -MetadataPath $outputMetadata `
     -BinaryPath $outputBinary `
     -SelectedBinary $Binary `

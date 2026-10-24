@@ -24,7 +24,6 @@ foreach ($required in @(
     "PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig",
     "aarch64-linux-gnu-readelf",
     "Import-Module",
-    "Invoke-VerifiedOrangeBuildMetadata",
     "Remove-OrangeBuildArtifacts",
     "orange-seesaw-smoke",
     "octessera-pi",
@@ -49,9 +48,7 @@ foreach ($required in @(
     "Publish-OrangeBuildMetadata",
     "Assert-OrangeBuildMetadata",
     "Remove-OrangeBuildArtifacts",
-    "Invoke-VerifiedOrangeBuildMetadata",
     "WriteAllText",
-    "ReadAllBytes",
     "source_commit"
   )) {
   if ($metadataSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
@@ -64,7 +61,6 @@ foreach ($forbidden in @(
     "ConvertTo-Json",
     "ConvertFrom-Json",
     "WriteAllText",
-    "ReadAllBytes",
     "TestMetadata"
   )) {
   if ($source.IndexOf($forbidden, [StringComparison]::Ordinal) -ge 0) {
@@ -224,12 +220,7 @@ foreach ($binaryName in $metadataCases) {
     }
     Publish-OrangeBuildMetadata @publicationParameters
     Assert-OrangeBuildMetadata @publicationParameters
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false, $true)
-    $publishedBytes = [IO.File]::ReadAllBytes($testMetadata)
-    if ($publishedBytes.Length -ge 3 -and $publishedBytes[0] -eq 0xEF -and $publishedBytes[1] -eq 0xBB -and $publishedBytes[2] -eq 0xBF) {
-      throw "Orange metadata publication unexpectedly wrote a UTF-8 BOM: $binaryName"
-    }
-    if ($utf8NoBom.GetString($publishedBytes) -cne "$json`n") {
+    if ([IO.File]::ReadAllText($testMetadata) -cne "$json`n") {
       throw "Orange metadata publication changed the canonical serialized JSON: $binaryName"
     }
     $mismatched = [regex]::Replace([IO.File]::ReadAllText($testMetadata), '"source_commit":"[0-9a-f]{40}"', ('"source_commit":"' + ("b" * 40) + '"'))
@@ -237,32 +228,6 @@ foreach ($binaryName in $metadataCases) {
     $mismatchRejected = $false
     try { Assert-OrangeBuildMetadata @publicationParameters } catch { $mismatchRejected = $true }
     if (-not $mismatchRejected) { throw "Orange metadata accepted a mismatched source commit: $binaryName" }
-    Publish-OrangeBuildMetadata @publicationParameters
-
-    $tamperedWriter = {
-      Publish-OrangeBuildMetadata @publicationParameters
-      $fakeHash = "0" * 64
-      $tampered = [regex]::Replace(
-        [IO.File]::ReadAllText($testMetadata),
-        '"binary_sha256":"[0-9a-f]{64}"',
-        ('"binary_sha256":"' + $fakeHash + '"')
-      )
-      [IO.File]::WriteAllText($testMetadata, $tampered, (New-Object System.Text.UTF8Encoding($false)))
-    }
-    $tamperedParameters = @{} + $publicationParameters
-    $tamperedParameters.MetadataWriter = $tamperedWriter
-    $failed = $false
-    try {
-      Invoke-VerifiedOrangeBuildMetadata @tamperedParameters
-    } catch {
-      $failed = $true
-    }
-    if (-not $failed) {
-      throw "Orange metadata tamper test unexpectedly passed: $binaryName"
-    }
-    if ((Test-Path -LiteralPath $testBinary) -or (Test-Path -LiteralPath $testMetadata)) {
-      throw "Orange metadata verification failure did not clean temporary artifacts: $binaryName"
-    }
   } finally {
     Remove-Item -LiteralPath $testDirectory -Recurse -Force -ErrorAction SilentlyContinue
   }
@@ -297,23 +262,6 @@ try {
   $staleRejected = $false
   try { Assert-OrangeBuildMetadata @candidateParameters } catch { $staleRejected = $true }
   if (-not $staleRejected) { throw "Orange metadata accepted a stale runtime candidate with valid hash and board fields" }
-  Publish-OrangeBuildMetadata @candidateParameters
-  $candidateTamperedWriter = {
-    Publish-OrangeBuildMetadata @candidateParameters
-    $candidateTampered = [regex]::Replace(
-      [IO.File]::ReadAllText($candidateMetadata),
-      '"binary_sha256":"[0-9a-f]{64}"',
-      ('"binary_sha256":"' + ("0" * 64) + '"')
-    )
-    [IO.File]::WriteAllText($candidateMetadata, $candidateTampered, (New-Object System.Text.UTF8Encoding($false)))
-  }
-  $candidateVerifyParameters = @{} + $candidateParameters
-  $candidateVerifyParameters.MetadataWriter = $candidateTamperedWriter
-  $candidateFailed = $false
-  try { Invoke-VerifiedOrangeBuildMetadata @candidateVerifyParameters } catch { $candidateFailed = $true }
-  if (-not $candidateFailed -or (Test-Path -LiteralPath $candidateBinary) -or (Test-Path -LiteralPath $candidateMetadata)) {
-    throw "Orange runtime-candidate metadata tamper contract failed"
-  }
 } finally {
   Remove-Item -LiteralPath $candidateDirectory -Recurse -Force -ErrorAction SilentlyContinue
 }

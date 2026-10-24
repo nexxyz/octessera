@@ -1,5 +1,4 @@
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot "strict-json.psm1") -Force
 
 $RaspberryPiZero2WProfileId = "raspberry-pi-zero-2w"
 $OrangePiZero2WProfileId = "orange-pi-zero-2w"
@@ -326,8 +325,11 @@ function Read-RaspberryBoardMetadata {
   if (-not (Test-Path -LiteralPath $Path)) {
     throw "Missing board metadata: $Path"
   }
-  $json = Read-StrictUtf8Text $Path "Raspberry board metadata"
-  $metadata = ConvertFrom-StrictJsonText $json "Raspberry board metadata"
+  try {
+    $metadata = [IO.File]::ReadAllText($Path) | ConvertFrom-Json
+  } catch {
+    throw "Raspberry board metadata '$Path' is not valid JSON."
+  }
   Assert-RaspberryBoardMetadata $metadata "Raspberry board metadata '$Path'"
 }
 

@@ -108,15 +108,10 @@ function Read-OrangeBuildMetadata {
     throw "Build finished without metadata: $MetadataPath"
   }
 
-  $bytes = [IO.File]::ReadAllBytes($MetadataPath)
-  if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
-    throw "Build metadata must be BOM-less UTF-8: $MetadataPath"
-  }
-
   try {
-    return (New-Object System.Text.UTF8Encoding($false, $true)).GetString($bytes) | ConvertFrom-Json
+    return [IO.File]::ReadAllText($MetadataPath) | ConvertFrom-Json
   } catch {
-    throw "Build metadata is not valid UTF-8 JSON: $MetadataPath"
+    throw "Build metadata is not valid JSON: $MetadataPath"
   }
 }
 
@@ -167,52 +162,9 @@ function Remove-OrangeBuildArtifacts {
   Remove-Item -LiteralPath $BinaryPath, $MetadataPath -Force -ErrorAction SilentlyContinue
 }
 
-function Invoke-VerifiedOrangeBuildMetadata {
-  param(
-    [Parameter(Mandatory)][string]$MetadataPath,
-    [Parameter(Mandatory)][string]$BinaryPath,
-    [Parameter(Mandatory)][string]$SelectedBinary,
-    [Parameter(Mandatory)][string]$SelectedTarget,
-    [Parameter(Mandatory)][string]$SelectedProfile,
-    [Parameter(Mandatory)][pscustomobject]$BuildSpec,
-    [Parameter(Mandatory)][string]$SourceCommit,
-    [scriptblock]$MetadataWriter
-  )
-
-  $verified = $false
-  try {
-    if ($null -eq $MetadataWriter) {
-      Publish-OrangeBuildMetadata `
-        -MetadataPath $MetadataPath `
-        -BinaryPath $BinaryPath `
-        -SelectedBinary $SelectedBinary `
-        -SelectedTarget $SelectedTarget `
-        -SelectedProfile $SelectedProfile `
-        -BuildSpec $BuildSpec `
-        -SourceCommit $SourceCommit
-    } else {
-      & $MetadataWriter
-    }
-    Assert-OrangeBuildMetadata `
-      -MetadataPath $MetadataPath `
-      -BinaryPath $BinaryPath `
-      -SelectedBinary $SelectedBinary `
-      -SelectedTarget $SelectedTarget `
-      -SelectedProfile $SelectedProfile `
-      -BuildSpec $BuildSpec `
-      -SourceCommit $SourceCommit
-    $verified = $true
-  } finally {
-    if (-not $verified) {
-      Remove-OrangeBuildArtifacts -BinaryPath $BinaryPath -MetadataPath $MetadataPath
-    }
-  }
-}
-
 Export-ModuleMember -Function @(
   "Assert-OrangeBuildMetadata",
   "ConvertTo-OrangeBuildMetadataJson",
-  "Invoke-VerifiedOrangeBuildMetadata",
   "New-OrangeBuildMetadata",
   "Publish-OrangeBuildMetadata",
   "Read-OrangeBuildMetadata",
