@@ -30,7 +30,7 @@ jobs:
     name: Build Raspberry runtime once
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
@@ -94,7 +94,7 @@ jobs:
           if sorted(path.name for path in bundle.iterdir()) != ["SHA256SUMS", "octessera-pi", "octessera-runtime.json"]:
               raise SystemExit("Raspberry runtime bundle entries are not exact")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-raspberry-runtime
           path: ./runtime-bundle/*
@@ -103,7 +103,7 @@ jobs:
     name: Build Orange runtime once
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
@@ -176,7 +176,7 @@ jobs:
           if sorted(path.name for path in bundle.iterdir()) != ["SHA256SUMS", "octessera-pi", "octessera-runtime.json"]:
               raise SystemExit("Orange runtime bundle entries are not exact")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-orange-runtime
           path: ./runtime-bundle/*
@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
@@ -221,7 +221,7 @@ jobs:
             --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
             --checksum-file raspberry-kernel/SHA256SUMS
           (cd raspberry-kernel && sha256sum -c SHA256SUMS)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-raspberry-kernel-release-assets
           path: ./raspberry-kernel/*
@@ -232,7 +232,7 @@ jobs:
     needs: [raspberry_runtime, raspberry_kernel]
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
@@ -248,11 +248,11 @@ jobs:
             test -f "target/save-documents/pi/$document"
             test ! -L "target/save-documents/pi/$document"
           done
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: octessera-raspberry-runtime
           path: runtime-bundle
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: octessera-raspberry-kernel-release-assets
           path: kernel-bundle
@@ -353,7 +353,7 @@ jobs:
             --manifest-out "release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.rpi-imager-manifest"
           sudo bash tools/pi-image/verify-sanitized-image.sh --runtime-bundle runtime-bundle "$asset"
           (cd release-assets && sha256sum ./*.zip ./*.rpi-imager-manifest > SHA256SUMS-pi.txt && sha256sum -c SHA256SUMS-pi.txt)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-raspberry-image-release-assets
           path: ./release-assets/*
@@ -364,13 +364,13 @@ jobs:
     needs: [orange_runtime]
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
           path: custom
       - run: test "$(git -C custom rev-parse HEAD)" = "${{ inputs.source_sha }}"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: octessera-orange-runtime
           path: orange-runtime
@@ -416,7 +416,7 @@ jobs:
             test -f "$required" || { echo "Missing Orange release asset: $required" >&2; exit 1; }
           done
           (cd release-assets && sha256sum -c "$(basename "$image.sha256")" && sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}" > SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-orange-image-release-assets
           path: ./release-assets/*
@@ -428,12 +428,12 @@ jobs:
     needs: [raspberry_runtime]
     if: ${{ always() && needs.raspberry_runtime.result == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
       - run: test "$(git rev-parse HEAD)" = "${{ inputs.source_sha }}"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: octessera-raspberry-runtime
           path: runtime-bundle
@@ -447,7 +447,7 @@ jobs:
             --board-profile raspberry-pi-zero-2w \
             --tag "${{ inputs.tag }}" \
             --version "${{ inputs.version }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-raspberry-device-release-assets
           path: ./release-assets/*
@@ -459,12 +459,12 @@ jobs:
     needs: [orange_runtime]
     if: ${{ always() && needs.orange_runtime.result == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
       - run: test "$(git rev-parse HEAD)" = "${{ inputs.source_sha }}"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: octessera-orange-runtime
           path: runtime-bundle
@@ -478,7 +478,7 @@ jobs:
             --board-profile orange-pi-zero-2w \
             --tag "${{ inputs.tag }}" \
             --version "${{ inputs.version }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-orange-device-release-assets
           path: ./release-assets/*

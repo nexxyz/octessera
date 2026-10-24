@@ -19,7 +19,7 @@ jobs:
     name: Validate workflow definition from main
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.workflow_sha }}
       - run: |
@@ -74,7 +74,7 @@ jobs:
       release_id: ${{ needs.resolve_draft.outputs.release_id }}
       source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.resolve_draft.outputs.tag }}
           fetch-depth: 0
@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: release_info
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.release_info.outputs.source_sha }}
           fetch-depth: 0
@@ -153,7 +153,7 @@ jobs:
     runs-on: windows-latest
     needs: release_info
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.release_info.outputs.source_sha }}
       - name: Verify immutable source checkout
@@ -163,7 +163,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -215,7 +215,7 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $installRoot) { Remove-Item -LiteralPath $installRoot -Recurse -Force }
           }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-windows-release-assets
           path: ./release-assets/*
@@ -226,7 +226,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: release_info
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.release_info.outputs.source_sha }}
       - name: Verify immutable source checkout
@@ -234,7 +234,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
@@ -274,7 +274,7 @@ jobs:
             APPIMAGE_EXTRACT_AND_RUN=1 "$GITHUB_WORKSPACE/release-assets/${{ needs.release_info.outputs.asset_prefix }}-ubuntu-x86_64.AppImage" --appimage-extract
           )
           python3 tools/release/verify_desktop_artifact.py --repository-root . --resource-root "$appimage_root/squashfs-root/usr/lib/octessera"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: octessera-ubuntu-release-assets
           path: ./release-assets/*
@@ -299,23 +299,23 @@ jobs:
       draft_ready: ${{ steps.draft_handoff.outputs.draft_ready }}
     needs: [release_info, updater_protocol, windows, ubuntu, board_artifacts, workflow_static]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.release_info.outputs.source_sha }}
           fetch-depth: 0
       - name: Verify source
         run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
       - name: Download release artifacts into board-separated directories
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: octessera-*-release-assets
           path: gathered-release-assets
           merge-multiple: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: octessera-raspberry-runtime
           path: gathered-runtime/raspberry
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: octessera-orange-runtime
           path: gathered-runtime/orange

@@ -94,7 +94,7 @@ run_pre_push_checks() {
   run_check "tauri build smoke" corepack pnpm run tauri:build:ci
   run_check "cargo check desktop" cargo check -p octessera-desktop
   run_check "cargo test desktop" cargo test -p octessera-desktop
-  run_check "cargo check pi" cargo check -p octessera-pi
+  run_check "cargo test pi production" cargo test -p octessera-pi
   run_check "cargo clippy production cognitive" \
     cargo clippy --workspace --lib --bins -- -W clippy::cognitive_complexity -D warnings
   run_check "cargo clippy" \

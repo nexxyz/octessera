@@ -61,7 +61,7 @@ jobs:
       payload_url: ${{ steps.public-inputs.outputs.payload_url }}
       payload_sha256: ${{ steps.public-inputs.outputs.payload_sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Validate public JSON inputs
         id: public-inputs
         env:
@@ -110,7 +110,7 @@ jobs:
     if: ${{ inputs.run_build && inputs.artifact_mode == 'public-generic' }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: custom
       - name: Build generic image
@@ -131,7 +131,7 @@ jobs:
           OCTESSERA_PAYLOAD_URL: ${{ needs.validate.outputs.payload_url }}
           OCTESSERA_PAYLOAD_SHA256: ${{ needs.validate.outputs.payload_sha256 }}
       - name: Upload generic image artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: octessera-armbian-${{ inputs.board }}-${{ inputs.release }}
           path: ./build/output/images/*
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment: armbian-image-personalized
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: custom
       - name: Reject public first-run input in private mode
@@ -211,7 +211,7 @@ jobs:
           OCTESSERA_PAYLOAD_URL: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_URL }}
           OCTESSERA_PAYLOAD_SHA256: ${{ secrets.OCTESSERA_PRIVATE_PAYLOAD_SHA256 }}
       - name: Upload private image artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PRIVATE-octessera-armbian-${{ inputs.board }}-${{ inputs.release }}
           path: ./build/output/images/*

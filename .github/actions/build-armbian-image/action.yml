@@ -94,7 +94,7 @@ runs:
         docker system prune -af || true
         df -h
     - name: Checkout Armbian build framework
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: armbian/build
         ref: ${{ inputs.armbian_build_ref }}
