@@ -70,15 +70,15 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
         audio_group(config, host_role),
         midi_group(config, sync_index, host_role),
     ];
-    if config.jack_audio_required {
+    if config.board {
         children.push(connections_group(config, host_role));
     }
     children.push(display_group(config));
-    if config.jack_audio_required {
+    if config.board {
         children.push(live_show_group());
     }
     children.extend([
-        maintenance_group(config.jack_audio_required),
+        maintenance_group(config.board),
         action_item(
             "Panic",
             "midi.panic",
@@ -157,7 +157,7 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             5,
         ),
     ];
-    if config.jack_audio_required {
+    if config.board {
         children.push(hdmi_video_group(config));
     }
     group("Display", children)

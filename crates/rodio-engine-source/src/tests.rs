@@ -429,12 +429,12 @@ mod pcm_mirror_integration_tests;
 mod persistent_flash_tests;
 
 #[test]
-fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
+fn exact_frames_persistent_constructor_rejects_invalid_frames_before_setup() {
     for block_frames in [31, 2049] {
         let reaper_spawn_failure = source_worker_reaper::fail_next_reaper_spawn_for_test();
         let (_tx, rx) = event_queue();
         let result =
-            EngineSource::with_persistent_workers_for_benchmark(rx, 44_100, block_frames, None);
+            EngineSource::with_persistent_workers_exact_frames(rx, 44_100, block_frames, None);
         assert!(matches!(
             result,
             Err(SourceWorkerSetupError::InvalidBlockFrames {
@@ -447,7 +447,7 @@ fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
     }
 }
 
-mod benchmark_tests;
+mod exact_frames_tests;
 
 mod block_configuration_tests;
 

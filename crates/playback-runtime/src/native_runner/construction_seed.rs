@@ -243,7 +243,7 @@ impl NativeRunnerConstructionSeed {
             midi_clock_in_enabled: self.midi_clock_in_enabled,
             midi_respond_to_start_stop: self.midi_respond_to_start_stop,
             audio_outputs: self.audio_outputs,
-            jack_audio_required: self.jack_audio_required,
+            board: self.jack_audio_required,
             usb_data_role: self.usb_data_role,
             usb_data_role_available: self.usb_data_role_available,
             audio_optimization: self.audio_optimization,

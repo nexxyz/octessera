@@ -1,10 +1,9 @@
 use super::{
-    hash_file, metadata_path, parse_metadata, print_runtime_benchmark_diagnostic_metadata,
-    read_metadata_text, validate_executable_name, validate_executable_name_for, validate_metadata,
-    validate_metadata_for, validate_runtime_benchmark_diagnostic_metadata,
-    validate_runtime_candidate_metadata, BuildMetadata, CANONICAL_BINARY_NAME, MAX_METADATA_BYTES,
-    RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING, RUNTIME_CANDIDATE_BINARY_NAME,
-    SEESAW_BINARY_NAME,
+    hash_file, metadata_path, parse_metadata, print_runtime_profiling_metadata, read_metadata_text,
+    validate_executable_name, validate_executable_name_for, validate_metadata,
+    validate_metadata_for, validate_runtime_candidate_metadata,
+    validate_runtime_profiling_metadata, BuildMetadata, CANONICAL_BINARY_NAME, MAX_METADATA_BYTES,
+    RUNTIME_CANDIDATE_BINARY_NAME, RUNTIME_PROFILING_CARGO_FEATURE, SEESAW_BINARY_NAME,
 };
 use std::fs;
 use std::path::Path;
@@ -45,7 +44,7 @@ fn valid_metadata(hash: &str) -> BuildMetadata {
     valid_metadata_for(CANONICAL_BINARY_NAME, hash)
 }
 
-fn valid_runtime_benchmark_metadata(cargo_feature: &str, hash: &str) -> BuildMetadata {
+fn valid_runtime_profiling_metadata(cargo_feature: &str, hash: &str) -> BuildMetadata {
     let mut metadata = valid_metadata_for(RUNTIME_CANDIDATE_BINARY_NAME, hash);
     metadata.artifact_kind = "diagnostic-only".into();
     metadata.package = "octessera-pi".into();
@@ -250,58 +249,49 @@ fn runtime_candidate_metadata_is_hash_bound_but_not_runtime_ready() {
 }
 
 #[test]
-fn runtime_benchmark_diagnostic_accepts_only_exact_supported_features() {
+fn runtime_profiling_accepts_only_exact_supported_features() {
     let hash = "e".repeat(64);
-    let cargo_feature = RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING;
-    let metadata = valid_runtime_benchmark_metadata(cargo_feature, &hash);
-    assert!(
-        validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, cargo_feature).is_ok()
-    );
+    let cargo_feature = RUNTIME_PROFILING_CARGO_FEATURE;
+    let metadata = valid_runtime_profiling_metadata(cargo_feature, &hash);
+    assert!(validate_runtime_profiling_metadata(&metadata, &hash, cargo_feature).is_ok());
 }
 
 #[test]
-fn runtime_benchmark_diagnostic_print_rejects_an_unapproved_feature() {
-    let error = print_runtime_benchmark_diagnostic_metadata(
-        "hardware-orange-pi-zero-2w benchmark-voice-pools-512",
-    )
-    .unwrap_err();
+fn runtime_profiling_print_rejects_an_unapproved_feature() {
+    let error =
+        print_runtime_profiling_metadata("hardware-orange-pi-zero-2w unknown-feature").unwrap_err();
     assert_eq!(
         error,
-        "runtime benchmark diagnostic metadata requires the exact profiling cargo feature"
+        "runtime profiling metadata requires the exact profiling cargo feature"
     );
 }
 
 #[test]
-fn runtime_benchmark_diagnostic_rejects_wrong_stage_kind_package_feature_and_hash() {
+fn runtime_profiling_rejects_wrong_stage_kind_package_feature_and_hash() {
     let hash = "e".repeat(64);
-    let feature = RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING;
+    let feature = RUNTIME_PROFILING_CARGO_FEATURE;
 
-    let mut metadata = valid_runtime_benchmark_metadata(feature, &hash);
+    let mut metadata = valid_runtime_profiling_metadata(feature, &hash);
     metadata.runtime_ready = true;
-    assert!(validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, feature).is_err());
+    assert!(validate_runtime_profiling_metadata(&metadata, &hash, feature).is_err());
 
-    let mut metadata = valid_runtime_benchmark_metadata(feature, &hash);
+    let mut metadata = valid_runtime_profiling_metadata(feature, &hash);
     metadata.artifact_kind = "runtime-candidate".into();
-    assert!(validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, feature).is_err());
+    assert!(validate_runtime_profiling_metadata(&metadata, &hash, feature).is_err());
 
-    let mut metadata = valid_runtime_benchmark_metadata(feature, &hash);
+    let mut metadata = valid_runtime_profiling_metadata(feature, &hash);
     metadata.package = "octessera-hal".into();
-    assert!(validate_runtime_benchmark_diagnostic_metadata(&metadata, &hash, feature).is_err());
+    assert!(validate_runtime_profiling_metadata(&metadata, &hash, feature).is_err());
 
-    let mut metadata = valid_runtime_benchmark_metadata(feature, &hash);
-    metadata.cargo_feature = "hardware-orange-pi-zero-2w benchmark-voice-pools-512".into();
-    assert!(validate_runtime_benchmark_diagnostic_metadata(
-        &metadata,
-        &hash,
-        metadata.cargo_feature.as_str()
-    )
-    .is_err());
-
-    let metadata = valid_runtime_benchmark_metadata(feature, &hash);
+    let mut metadata = valid_runtime_profiling_metadata(feature, &hash);
+    metadata.cargo_feature = "hardware-orange-pi-zero-2w unknown-feature".into();
     assert!(
-        validate_runtime_benchmark_diagnostic_metadata(&metadata, &"f".repeat(64), feature)
+        validate_runtime_profiling_metadata(&metadata, &hash, metadata.cargo_feature.as_str())
             .is_err()
     );
+
+    let metadata = valid_runtime_profiling_metadata(feature, &hash);
+    assert!(validate_runtime_profiling_metadata(&metadata, &"f".repeat(64), feature).is_err());
 }
 
 #[test]
@@ -325,19 +315,13 @@ fn metadata_mismatch_errors_name_the_contract() {
         "metadata identity fields do not match the Orange runtime-candidate contract"
     );
 
-    let mut benchmark = valid_runtime_benchmark_metadata(
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING,
-        &hash,
-    );
-    benchmark.package = "wrong-package".into();
-    let benchmark_error = validate_runtime_benchmark_diagnostic_metadata(
-        &benchmark,
-        &hash,
-        RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING,
-    )
-    .unwrap_err();
+    let mut profiling = valid_runtime_profiling_metadata(RUNTIME_PROFILING_CARGO_FEATURE, &hash);
+    profiling.package = "wrong-package".into();
+    let profiling_error =
+        validate_runtime_profiling_metadata(&profiling, &hash, RUNTIME_PROFILING_CARGO_FEATURE)
+            .unwrap_err();
     assert_eq!(
-        benchmark_error,
-        "metadata identity fields do not match the Orange runtime benchmark diagnostic contract"
+        profiling_error,
+        "metadata identity fields do not match the Orange runtime profiling contract"
     );
 }

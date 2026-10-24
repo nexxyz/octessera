@@ -94,7 +94,7 @@ fn desktop_system_tree_has_exact_order() {
 #[test]
 fn orange_system_tree_has_exact_order() {
     let mut orange = config();
-    orange.jack_audio_required = true;
+    orange.board = true;
     orange.audio_optimization_capacity_available = true;
     assert_eq!(
         system_labels(&orange),
@@ -174,7 +174,7 @@ fn orange_system_tree_has_exact_order() {
 #[test]
 fn raspberry_gadget_system_tree_has_exact_order() {
     let mut raspberry_gadget = config();
-    raspberry_gadget.jack_audio_required = true;
+    raspberry_gadget.board = true;
     raspberry_gadget.audio_optimization_capacity_available = true;
     raspberry_gadget.usb_data_role_available = true;
     raspberry_gadget.usb_data_role = crate::native_runner::UsbDataRole::Gadget;
@@ -238,7 +238,7 @@ fn raspberry_gadget_system_tree_has_exact_order() {
 #[test]
 fn raspberry_host_system_tree_has_exact_order() {
     let mut raspberry_host = config();
-    raspberry_host.jack_audio_required = true;
+    raspberry_host.board = true;
     raspberry_host.audio_optimization_capacity_available = true;
     raspberry_host.usb_data_role_available = true;
     raspberry_host.usb_data_role = crate::native_runner::UsbDataRole::Host;

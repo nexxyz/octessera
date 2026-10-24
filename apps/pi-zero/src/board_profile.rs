@@ -33,10 +33,10 @@ pub const BINARY_NAME: &str = "octessera-pi";
 
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
 const ORANGE_METADATA_CARGO_FEATURE: &str =
-    octessera_hal::orange_metadata::RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING;
+    octessera_hal::orange_metadata::RUNTIME_PROFILING_CARGO_FEATURE;
 
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
-const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime benchmark diagnostic";
+const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime profiling";
 
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", not(feature = "profiling")))]
 const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime-candidate";
@@ -204,7 +204,7 @@ pub fn print_build_metadata() {
 
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
 fn print_orange_build_metadata() {
-    let result = octessera_hal::orange_metadata::print_runtime_benchmark_diagnostic_metadata(
+    let result = octessera_hal::orange_metadata::print_runtime_profiling_metadata(
         ORANGE_METADATA_CARGO_FEATURE,
     );
     if let Err(error) = result {

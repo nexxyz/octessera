@@ -87,7 +87,7 @@ pub(crate) fn aux_mappings_include_plain_and_shifted_rows() {
 
 pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     let mut board = config();
-    board.jack_audio_required = true;
+    board.board = true;
     let mut configs = vec![config(), board];
 
     let mut dynamic = config();

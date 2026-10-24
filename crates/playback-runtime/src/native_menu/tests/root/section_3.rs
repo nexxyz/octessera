@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn orange_shows_both_midi_host_and_usb_device_groups() {
     let mut config = config();
-    config.jack_audio_required = true;
+    config.board = true;
     config.audio_optimization_capacity_available = true;
     config.usb_data_role = crate::native_runner::UsbDataRole::Host;
 

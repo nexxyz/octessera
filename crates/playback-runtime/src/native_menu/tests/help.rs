@@ -49,7 +49,7 @@ pub(crate) fn configure_wifi_uses_a_stable_resolvable_action_help_key() {
 #[test]
 pub(crate) fn hdmi_help_covers_terminal_and_bars_per_cycle_copy() {
     let mut config = config();
-    config.jack_audio_required = true;
+    config.board = true;
     config.hdmi_mode = "cycle-behaviors".into();
     let menu = NativeMenuModel::new(config);
 

@@ -138,7 +138,7 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
         }));
 
     let mut pi = config();
-    pi.jack_audio_required = true;
+    pi.board = true;
     pi.audio_optimization_capacity_available = true;
     assert_eq!(
         group_labels(&pi, "Audio"),

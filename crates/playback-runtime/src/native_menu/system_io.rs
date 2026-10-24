@@ -6,7 +6,7 @@ use crate::native_runner::UsbDataRole;
 
 pub(super) fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
     let mut children = Vec::new();
-    if config.jack_audio_required {
+    if config.board {
         if !host_role {
             children.push(bool_item(
                 "USB Audio",
@@ -104,7 +104,7 @@ pub(super) fn midi_group(
             ],
         ));
     }
-    if config.jack_audio_required && !host_role {
+    if config.board && !host_role {
         children.push(group(
             "USB Device",
             vec![bool_item(

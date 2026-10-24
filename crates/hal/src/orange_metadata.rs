@@ -10,8 +10,7 @@ use std::path::{Path, PathBuf};
 pub const CANONICAL_BINARY_NAME: &str = "orange-oled-smoke";
 pub const SEESAW_BINARY_NAME: &str = "orange-seesaw-smoke";
 pub const RUNTIME_CANDIDATE_BINARY_NAME: &str = "octessera-pi";
-pub const RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING: &str =
-    "hardware-orange-pi-zero-2w profiling";
+pub const RUNTIME_PROFILING_CARGO_FEATURE: &str = "hardware-orange-pi-zero-2w profiling";
 pub const METADATA_SUFFIX: &str = ".metadata.json";
 pub const METADATA_SCHEMA_VERSION: u64 = 2;
 pub const MAX_METADATA_BYTES: usize = 4096;
@@ -141,14 +140,14 @@ pub fn print_runtime_candidate_metadata() -> Result<(), String> {
     )
 }
 
-pub fn print_runtime_benchmark_diagnostic_metadata(cargo_feature: &str) -> Result<(), String> {
-    validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature)?;
+pub fn print_runtime_profiling_metadata(cargo_feature: &str) -> Result<(), String> {
+    validate_runtime_profiling_cargo_feature(cargo_feature)?;
     print_metadata_for(
         RUNTIME_CANDIDATE_BINARY_NAME,
         "diagnostic-only",
         "octessera-pi",
         cargo_feature,
-        "runtime benchmark diagnostic",
+        "runtime profiling",
     )
 }
 
@@ -268,12 +267,12 @@ pub fn validate_metadata_for(
     )
 }
 
-pub fn validate_runtime_benchmark_diagnostic_metadata(
+pub fn validate_runtime_profiling_metadata(
     metadata: &BuildMetadata,
     executable_hash: &str,
     cargo_feature: &str,
 ) -> Result<(), String> {
-    validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature)?;
+    validate_runtime_profiling_cargo_feature(cargo_feature)?;
     validate_metadata_contract(
         metadata,
         executable_hash,
@@ -281,7 +280,7 @@ pub fn validate_runtime_benchmark_diagnostic_metadata(
         "diagnostic-only",
         "octessera-pi",
         cargo_feature,
-        "runtime benchmark diagnostic",
+        "runtime profiling",
     )
 }
 
@@ -300,14 +299,11 @@ pub fn validate_runtime_candidate_metadata(
     )
 }
 
-fn validate_runtime_benchmark_diagnostic_cargo_feature(cargo_feature: &str) -> Result<(), String> {
-    if cargo_feature == RUNTIME_BENCHMARK_DIAGNOSTIC_CARGO_FEATURE_PROFILING {
+fn validate_runtime_profiling_cargo_feature(cargo_feature: &str) -> Result<(), String> {
+    if cargo_feature == RUNTIME_PROFILING_CARGO_FEATURE {
         Ok(())
     } else {
-        Err(
-            "runtime benchmark diagnostic metadata requires the exact profiling cargo feature"
-                .into(),
-        )
+        Err("runtime profiling metadata requires the exact profiling cargo feature".into())
     }
 }
 

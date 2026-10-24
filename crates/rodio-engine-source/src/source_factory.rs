@@ -38,7 +38,7 @@ impl EngineSource {
     }
 
     #[cfg(test)]
-    pub fn with_persistent_workers_for_benchmark(
+    pub fn with_persistent_workers_exact_frames(
         control_rx: EngineEventReceiver,
         sample_rate: u32,
         block_frames: usize,
@@ -57,31 +57,6 @@ impl EngineSource {
             block_frames,
             load_tx,
             Box::new(SynthEngine::new(sample_rate)),
-        )
-    }
-
-    #[cfg(test)]
-    pub fn with_persistent_workers_for_benchmark_with_hook(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-        start_hook: SourceWorkerStartHook,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        if !(MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(&block_frames) {
-            return Err(SourceWorkerSetupError::InvalidBlockFrames {
-                requested: block_frames,
-                min: MIN_BLOCK_FRAMES,
-                max: MAX_BLOCK_FRAMES,
-            });
-        }
-        Self::with_persistent_workers_with_engine_and_hook(
-            control_rx,
-            sample_rate,
-            block_frames,
-            load_tx,
-            Box::new(SynthEngine::new(sample_rate)),
-            start_hook,
         )
     }
 

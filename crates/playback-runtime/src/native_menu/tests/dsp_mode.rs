@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn performance_mode_help_covers_both_values_on_pi() {
     let mut config = config();
-    config.jack_audio_required = true;
+    config.board = true;
     config.audio_optimization_capacity_available = true;
     let target = NativeMenuModel::new(config)
         .help_targets()
@@ -30,7 +30,7 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
     }));
 
     let mut pi_config = config();
-    pi_config.jack_audio_required = true;
+    pi_config.board = true;
     pi_config.usb_data_role_available = true;
     let pi_targets = NativeMenuModel::new(pi_config);
     let usb_target = pi_targets
@@ -66,7 +66,7 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
 #[test]
 fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
     let mut config = config();
-    config.jack_audio_required = true;
+    config.board = true;
     let menu = NativeMenuModel::new(config);
 
     let enabled = menu

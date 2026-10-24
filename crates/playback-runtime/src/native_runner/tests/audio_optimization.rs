@@ -185,7 +185,7 @@ fn jack_menu_is_hidden_when_jack_is_required() {
     let mut runner = capacity_runner();
     runner.audio_optimization = AudioOptimization::Capacity;
     runner.menu.rebuild(runner.menu_config());
-    assert!(runner.menu_config().jack_audio_required);
+    assert!(runner.menu_config().board);
     assert!(!runner.menu.focus_item_key("audioOutputs.dac"));
     assert!(runner.menu.focus_item_key("audioOutputs.usb"));
     assert_eq!(runner.menu.current_label(), Some("USB Audio"));
