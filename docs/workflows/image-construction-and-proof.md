@@ -1,15 +1,13 @@
 # Image construction and checks
 
 The two fixed board image paths are separate: Raspberry uses pi-gen and Orange
-uses Armbian. Their source-bound constructor contracts are separate from
-runtime-only respins and hardware testing.
+uses Armbian. Building an image is separate from hardware testing.
 
 Which workflow builds what:
 
 | Workflow | Builds | Use it for |
 | --- | --- | --- |
 | `release-board-artifacts.yml` | Both production images, runtimes, kernel package, and device ZIPs | Release images and full constructor runs (see [Board image dispatch](#board-image-dispatch)) |
-| `respin-board-image.yml` | An Orange image with a new runtime on the reviewed parent | Boot-neutral Orange runtime refreshes |
 | `armbian-image.yml` | Orange **diagnostic** images only | Validating `userpatches/` and Armbian inputs, bring-up images |
 
 ## Armbian workflow
@@ -78,9 +76,6 @@ To inspect an extracted root filesystem or ext4 root partition image:
 tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
 ```
 
-Orange runtime-only respins are checked by `tools/image-respin/respin.py`
-itself (see below).
-
 ## Constructor procedure
 
 1. Cross-build the matching native binary first.
@@ -90,36 +85,6 @@ itself (see below).
    or `tools/pi-image/verify-sanitized-image.sh` (Raspberry), then use the
    [deployment workflow](deployment.md) and the board bring-up procedure for
    hardware testing.
-
-## Runtime-only respin boundary
-
-Dispatch the Orange runtime-only workflow for a boot-neutral refresh:
-
-```bash
-gh workflow run respin-board-image.yml --ref main
-```
-
-The workflow downloads the parent image named in
-`resources/image-parents/orange-pi-zero-2w-current.json`, checks its sha256
-against that record, and runs `tools/image-respin/respin.py`. The respin
-installs the new runtime release, flips the `current` and binary links, and
-updates `update-state.json` and the runtime keys in `build-metadata.env`. It
-fails if the partition table, the pre-partition bytes, or any file under
-`/boot` changes, so this path cannot change the kernel, device tree,
-initramfs, or base OS. Those changes require the full constructor workflow.
-
-To try a respin locally (Linux or WSL, as root), download the parent artifact
-and run:
-
-```bash
-sudo python3 tools/image-respin/respin.py \
-  --parent-record resources/image-parents/orange-pi-zero-2w-current.json \
-  --parent-image <parent .img.xz> --runtime-bundle <runtime_bundle.py output> \
-  --version <x.y.z> --output <dir>/octessera-<x.y.z>-orange-pi-zero-2w-derived-runtime-respin.img.xz
-```
-
-The parent is a GitHub Actions artifact and expires on the date in its record;
-refresh the record from a new constructor run before then.
 
 ## Board image dispatch
 
@@ -134,9 +99,9 @@ gh workflow run release-board-artifacts.yml \
 
 It checks out exactly `source_sha`, builds each board runtime once, builds the
 Raspberry kernel package, and then builds the Raspberry pi-gen image, the
-Orange production Armbian image, and both device ZIPs from those runtimes. Any
-Raspberry image change goes through this workflow; the runtime-only respin is
-Orange-only.
+Orange production Armbian image, and both device ZIPs from those runtimes. Every
+image change goes through this workflow; runtime-only changes reach the boards
+through the device updater.
 
 ## OLED boot layer checks
 
@@ -243,12 +208,6 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-state.py
 bash tools/armbian-image/validate.sh
 node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 ```
-
-Root-required mutation and disk fixtures run in CI as
-`sudo python3 tools/image-respin/test_respin.py` and
-`sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'`.
-The current-parent exercise is the Orange runtime-only path for boot-neutral
-updates. It does not replace a constructor image or a hardware test.
 
 For full production image, kernel, setup-portal, sample, sanitization, and
 runtime-bundle contracts, see the [Orange production reference](../../hardware/docs/orange-pi-production-reference.md).

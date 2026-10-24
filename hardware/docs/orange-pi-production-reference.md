@@ -100,16 +100,7 @@ bytes. There is no sudo fallback or command discovery.
 
 The Orange source tree is `userpatches/overlay`. The
 Raspberry source tree is `tools/pi-image/stage4-octessera/files/root`. Setup
-changes ship through a full constructor image; the respin lane only replaces
-the runtime release.
-
-The setup constructor requires the parent to already contain
-`openssh-server`, `network-manager`, `dnsmasq`, `python3-minimal`,
-`/usr/local/bin/wifi-connect`, `/usr/bin/python3`, and their service units. It
-does not create missing package, account, executable, service, preimage,
-ownership, mode, or xattr data. Orange requires
-`octessera:octessera` at `/home/octessera` with `/bin/bash` and
-`octessera-runtime:octessera-runtime` at `/nonexistent` with `/usr/sbin/nologin`.
+changes ship through a full constructor image.
 
 The portal owns first-boot setup: anyone who joins the setup hotspot before
 completion can configure it, while the production constructor removes

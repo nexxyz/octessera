@@ -167,13 +167,10 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
 - Board adapters and the desktop adapter attach exactly one tap to the canonical final stereo mix; mirrored USB/HDMI output callbacks do not create recording owners, and recording ingress performs no filesystem I/O in an audio callback.
 - Desktop UI only emits the native recording actions and renders native status; it has no recording or file-writing path.
 
-## Constructor and Respin Boundary
+## Constructor Boundary
 
-- Board constructors derive images from source-bound boot-layer contracts. Source
-  and build metadata establish that derivation.
-- `tools/image-respin` has one boot-neutral Orange runtime/setup
-  respin lane. It does not replace constructor changes to the image, kernel,
-  device tree, or initramfs.
+- Every image change goes through the board constructors
+  (`release-board-artifacts.yml`).
 - Raspberry runtime updates do not replace the full image, kernel, or device
   tree. Raspberry full-image update remains manual.
 
@@ -235,7 +232,7 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
 - Normal Raspberry and Orange output apply their board-specific clockwise RGB565 framebuffer transform (`source (x, y) -> transmitted (127 - y, x)`) in the HAL before writing accepted native RGB565BE bytes. Orange uses a reusable 32 KiB transform buffer, preserves RGB565 byte pairs, and keeps SSD1351 remap `0x74`. The Python splash is a separate renderer with the same physical orientation; its SSD1351 command byte is sent with D/C low and command data with D/C high, matching the Rust transport framing.
 - HDMI `Terminal` leaves Linux in control of `/dev/tty1`; native grid output takes a native VT lease around `/dev/fb0` and restores text on release. It does not force a connector or start/use a display server. A missing framebuffer or transient open, geometry, or write failure is nonfatal and retried. During boot handoff the splash is an observer until `first_menu_rendered`; a native startup fatal condition lets it reclaim OLED presentation for the typed fatal frame. These are source contracts; hardware display behavior is exercised separately.
 - Raspberry's selected initramfs writes one clean logo+wordmark frame and does not sweep, loop, publish a marker, or adopt the OLED. Its root-installed systemd service remains the sole animator and runs concurrently with service loading; Orange's selected initramfs likewise writes one static RGB565 frame with its fixed Python closure, while its root-installed renderer, lifecycle modules, assets, and `octessera-orange-boot-splash.service` remain the only loop. These are adapter differences around one shared handoff contract.
-- Boot source, service, and selected-initramfs changes are constructor-required for both boards. The Orange runtime respin lane is boot-neutral and does not apply to this layer.
+- Boot source, service, and selected-initramfs changes are constructor-required for both boards.
 
 ## Dependency Rules
 

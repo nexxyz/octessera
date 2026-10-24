@@ -434,35 +434,20 @@ jobs:
           python3 tools/release/test_version_consistency.py
           python3 -m unittest discover -s tools/release -p 'test_*.py'
 
-  image_respin:
-    name: Image respin tests
+  workflow_lint:
+    name: Workflow lint
     runs-on: ubuntu-24.04
-    env:
-      CI: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Install image respin test dependencies
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cpio dosfstools e2fsprogs kpartx shellcheck unzip util-linux xz-utils zstd
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
       - name: Install pinned actionlint
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Lint workflows and every embedded shell script
         run: |
-          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/respin-board-image.yml .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml
-      - name: Compile all image respin Python files
-        run: python3 -m py_compile tools/image-respin/*.py
-      - name: Run disk and runtime image respin tests as root
-        run: |
-          sudo python3 tools/image-respin/test_respin.py
-          sudo python3 -m unittest discover -s tools/image-respin -p 'test_disk_*.py'
-      - name: Run runtime bundle tests without root
-        run: |
-          python3 tools/image-respin/test_runtime_bundle.py
+          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml
 
   updater_protocol:
     name: Device updater protocol checks
