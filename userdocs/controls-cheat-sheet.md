@@ -28,7 +28,7 @@ the OLED. It always shows what the controls are acting on.
 | *Play* | Play or pause. In the sample browser it previews the highlighted sample instead. |
 | *Shift* + *Play* | Stop and return to the start. Under external MIDI sync it instead arms a one-off resync at the next bar; playback carries on, then the transport snaps back to its origin. |
 | *Fn* + *Play* | Stop and return to the start, always, even in the sample browser or under external sync. |
-| *Fn* + turn *Main* right (not editing) | While paused or stopped, step the world forward one generation. Left does nothing; while playing, the OLED asks you to pause first. |
+| *Fn* + turn *Main* right (not editing) | While paused or stopped, step the active layer's world forward one generation. Left does nothing; while playing, the OLED asks you to pause first. |
 | *Shift* + *Fn* + *Play* | Nothing yet. |
 | *Shift* + *Back* | Clear and re-initialize the active layer. Very useful, and you have to mean it. While editing text, it deletes a character instead. |
 | *Shift* + *Fn* + click *Main* | Context help for the highlighted row. |
@@ -170,6 +170,6 @@ Long names clip or scroll rather than run into other text.
   jump away with *Fn*.
 - Help is *Shift* + *Fn* + click *Main*. I made it a three-finger combo so you
   won't open it by accident (you also won't remember it the first week, which
-  is why it's on the startup screen).
+  is why it pops up right after the startup screen).
 - If a behavior gets too busy, try probability before you delete the pattern.
   Let it breathe.
