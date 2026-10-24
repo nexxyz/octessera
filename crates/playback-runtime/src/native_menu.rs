@@ -31,6 +31,7 @@ mod model;
 mod model_binding_specs;
 mod model_current;
 mod model_edit;
+mod model_input;
 mod model_navigation_memory;
 mod model_root;
 mod model_search;
@@ -64,7 +65,7 @@ mod voice_env_groups;
 
 pub(crate) use fx::{fx_bus_slot_children_for_key, global_fx_slot_children_for_key};
 pub(in crate::native_menu) use item_builders::*;
-pub use model::NativeMenuPressResult;
+pub use model_input::NativeMenuPressResult;
 pub(crate) use options::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
 pub use types::*;
 
