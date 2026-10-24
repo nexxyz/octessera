@@ -2,8 +2,9 @@ use super::config_document_presence::{require_aux_banks, require_full_runtime_pr
 use super::{
     device_config_payload_from_payload, local_patch_payload_for_save,
     portable_patch_payload_for_save, portable_patch_projection, prepare_config_payload,
-    validate_config_payload, validate_patch_fields, validate_patch_sample_paths, ConfigDto, Value,
-    CONFIG_KIND, CONFIG_SCHEMA_VERSION, GLOBAL_LFO_COUNT, GRID_HEIGHT, GRID_WIDTH, PATCH_KIND,
+    validate_config_payload, validate_patch_fields, validate_patch_sample_paths,
+    without_retired_keys, ConfigDto, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION, GLOBAL_LFO_COUNT,
+    GRID_HEIGHT, GRID_WIDTH, PATCH_KIND,
 };
 use serde_json::{json, Map};
 use std::collections::BTreeSet;
@@ -150,6 +151,7 @@ fn compose_system_patch_documents_structure(
     system: &Value,
     patch: &Value,
 ) -> Result<Value, String> {
+    let patch = &without_retired_keys(patch);
     let system_runtime =
         document_runtime(system, SYSTEM_DOCUMENT_KIND, SYSTEM_DOCUMENT_VERSION, false)?;
     let patch_runtime = document_runtime(patch, PATCH_KIND, CONFIG_SCHEMA_VERSION, true)?;
@@ -200,6 +202,7 @@ fn normalize_full_config(full_config: &Value) -> Result<Value, String> {
 }
 
 fn normalize_full_config_structure(full_config: &Value) -> Result<Value, String> {
+    let full_config = &without_retired_keys(full_config);
     let runtime = full_config
         .get("runtimeConfig")
         .ok_or_else(|| "full config is missing runtimeConfig".to_string())?;

@@ -150,6 +150,7 @@ mod patch_load_admission_tests;
 mod patch_sample_path;
 #[cfg(test)]
 mod persistence_intent_tests;
+mod retired_config_keys;
 #[cfg(test)]
 mod system_document_tests;
 #[cfg(test)]
@@ -253,6 +254,7 @@ pub use config_documents::{
 pub use config_schema_validation::is_valid_fx_string_param;
 pub use config_snapshot::NativeConfigSnapshot;
 pub use persistence_intent::NativePersistenceIntent;
+pub(crate) use retired_config_keys::without_retired_keys;
 pub use runner_config::NativeRunnerConfig;
 pub use snapshot_scene::{
     NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,

@@ -1,7 +1,7 @@
 use crate::is_valid_preset_name;
 use crate::native_runner::{
     apply_user_data_patch_payload, normalize_user_data_patch_payload,
-    validate_user_data_config_payload,
+    validate_user_data_config_payload, without_retired_keys,
 };
 use crate::{compose_system_patch_documents, split_system_patch_documents};
 use serde::{Deserialize, Serialize};
@@ -400,9 +400,10 @@ fn validate_canonical_patch(
     canonical_defaults: &Value,
     path: &str,
 ) -> Result<(), String> {
+    let patch = without_retired_keys(patch);
     let normalized = normalize_user_data_patch_payload(patch.clone(), canonical_defaults)
         .map_err(|error| format!("{path}: {error}"))?;
-    if normalized != *patch {
+    if normalized != patch {
         return Err(format!("{path} is not a canonical patch"));
     }
     Ok(())
