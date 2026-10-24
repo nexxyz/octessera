@@ -16,18 +16,10 @@ impl SourceWorkerRuntime {
         wait: bool,
         phase: WorkerPhase,
         deadline: Instant,
-        record_dispatch_timing: bool,
     ) -> Option<()> {
         if self.expected_phase != Some(phase) {
             self.latch_completion_failure(0b11);
             return None;
-        }
-        if record_dispatch_timing {
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            {
-                let deadline_start = Instant::now();
-                self.record_dispatch_to_deadline_start(deadline_start, deadline);
-            }
         }
         while self.in_flight_mask != 0 {
             for parity in 0..SOURCE_WORKER_COUNT {
@@ -49,17 +41,8 @@ impl SourceWorkerRuntime {
             }
             if self.health.status() != SourceWorkerHealth::Healthy {
                 if self.health.status().is_recovering() {
-                    #[cfg(feature = "source-worker-benchmark-timing")]
-                    self.freeze_timing(true, None);
                     return None;
                 }
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                self.freeze_timing(
-                    true,
-                    (self.health.status() == SourceWorkerHealth::DeadlineMiss)
-                        .then(|| self.dispatch_elapsed())
-                        .flatten(),
-                );
                 self.reclaim_available(engine);
             }
             if self.in_flight_mask == 0 {
@@ -73,24 +56,16 @@ impl SourceWorkerRuntime {
                     self.latch_deadline_or_exit();
                 }
                 if self.health.status().is_recovering() {
-                    #[cfg(feature = "source-worker-benchmark-timing")]
-                    self.freeze_timing(true, self.dispatch_elapsed());
                     return None;
                 }
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                self.freeze_timing(true, self.dispatch_elapsed());
                 self.reclaim_available(engine);
                 return None;
             }
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
             if self.health.status().is_recovering() {
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                self.freeze_timing(true, None);
                 return None;
             }
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
             self.reclaim_available(engine);
             return None;
         }
@@ -114,14 +89,8 @@ impl SourceWorkerRuntime {
         if self.mode != super::super::source_worker_protocol::SourceWorkerMode::Persistent {
             return SourceWorkerRenderDisposition::Fatal;
         }
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.timing_output_sequence = None;
-        }
         if self.health.status() != SourceWorkerHealth::Healthy {
             self.reclaim_available(engine);
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
             return if self.health.status().is_recovering() {
                 SourceWorkerRenderDisposition::Recovering
             } else {
@@ -157,12 +126,10 @@ impl SourceWorkerRuntime {
         });
         if !self.dispatch_sources(engine, operation_started_at, deadline) {
             self.reclaim_available(engine);
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
             return self.render_failure_disposition();
         }
         if self
-            .collect_wave_with_deadline(engine, true, WorkerPhase::Sources, deadline, true)
+            .collect_wave_with_deadline(engine, true, WorkerPhase::Sources, deadline)
             .is_none()
         {
             return self.render_failure_disposition();
@@ -185,8 +152,6 @@ impl SourceWorkerRuntime {
         }
         if !self.dispatch_buses(engine, stamp) {
             self.reclaim_available(engine);
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, self.dispatch_elapsed());
             return self.render_failure_disposition();
         }
         #[cfg(test)]
@@ -194,7 +159,7 @@ impl SourceWorkerRuntime {
             hook(self);
         }
         if self
-            .collect_wave_with_deadline(engine, true, WorkerPhase::Buses, deadline, false)
+            .collect_wave_with_deadline(engine, true, WorkerPhase::Buses, deadline)
             .is_none()
         {
             return self.render_failure_disposition();
@@ -212,10 +177,6 @@ impl SourceWorkerRuntime {
             *preview = 0.0;
         }
         engine.finish_persistent_block(frames, left, right);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.record_output_sequence(stamp.quantum_sequence);
-        }
         SourceWorkerRenderDisposition::Fresh
     }
 

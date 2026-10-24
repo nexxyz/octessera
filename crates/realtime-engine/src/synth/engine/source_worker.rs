@@ -1,5 +1,3 @@
-#[cfg(feature = "source-worker-benchmark-timing")]
-use super::super::source_worker_timing::SourceWorkerTimingProbe;
 #[cfg(feature = "routing-tree-executor")]
 use super::routing_tree_worker::RoutingTreeOutputBlock;
 use super::source_worker_health::{
@@ -39,19 +37,6 @@ pub struct SourceWorkerRuntime {
     jobs_started: Option<[Arc<AtomicU64>; SOURCE_WORKER_COUNT]>,
     #[cfg(any(test, feature = "test-support"))]
     render_attempts: AtomicU64,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    dispatch_started_at: Option<Instant>,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    coordinator_remainder_started_at: Option<Instant>,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    timing_output_sequence: Option<u64>,
-    #[cfg(all(
-        feature = "routing-tree-executor",
-        feature = "source-worker-benchmark-timing"
-    ))]
-    routing_coordinator_remainder_started_at: Option<(u64, Instant)>,
     #[cfg(any(test, feature = "test-support"))]
     worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
     #[cfg(any(test, feature = "test-support"))]
@@ -104,8 +89,6 @@ impl SourceWorkerRuntime {
     }
 
     pub fn retire(mut self) -> SourceWorkerRetirement {
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        self.freeze_timing(self.health.status().is_terminal(), None);
         #[cfg(feature = "routing-tree-executor")]
         self.clear_routing_absolute_deadline();
         let Some(close) = self.runtime_close.take() else {
@@ -158,20 +141,14 @@ impl SourceWorkerRuntime {
         }
         if self.health.status() != SourceWorkerHealth::Healthy {
             self.reclaim_available(engine);
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
             return None;
         }
         if frames > BLOCK_SLOT_SCRATCH_FRAMES {
             self.latch_invalid_block();
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
             return None;
         }
         if self.in_flight_mask != 0 || !self.home_is_ready() {
             self.latch_dispatch_failure(0b11);
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
             return None;
         }
         self.expected_stamp = Some(WorkStamp {
@@ -183,8 +160,6 @@ impl SourceWorkerRuntime {
         });
         if !self.dispatch(engine) {
             self.reclaim_available(engine);
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            self.freeze_timing(true, None);
             return None;
         }
         self.collect_with(engine, true, render)
@@ -209,7 +184,6 @@ impl SourceWorkerRuntime {
             wait,
             super::source_worker_protocol::WorkerPhase::Sources,
             deadline,
-            true,
         )?;
         self.finish_completed(engine, render)
     }
@@ -252,9 +226,6 @@ mod pipeline_probe;
 pub use pipeline_probe::RoutingTreePipelineProbe;
 
 mod recovery;
-
-#[cfg(feature = "source-worker-benchmark-timing")]
-mod timing_integration;
 
 mod reduction;
 

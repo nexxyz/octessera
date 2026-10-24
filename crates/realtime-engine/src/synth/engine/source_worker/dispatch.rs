@@ -40,12 +40,6 @@ impl SourceWorkerRuntime {
         self.bus_load_observations = std::array::from_fn(|_| None);
         self.bus_dispatch_residency_valid = false;
         self.force_fault_mask = 0;
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let dispatch_started_at = self.timing_probe.as_ref().map(|_| operation_started_at);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if let Some(probe) = self.timing_probe.as_ref() {
-            let _ = probe.begin_sequence(sequence, deadline.duration_since(operation_started_at));
-        }
         let Some(mut first) = self.lease_home(0) else {
             self.latch_dispatch_failure(0b11);
             return false;
@@ -55,28 +49,8 @@ impl SourceWorkerRuntime {
             self.latch_dispatch_failure(0b11);
             return false;
         };
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.dispatch_started_at = dispatch_started_at;
-        }
-        let first_sent = self.send_work(
-            engine,
-            stamp,
-            first,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at,
-        );
-        let second_sent = self.send_work(
-            engine,
-            stamp,
-            second,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at,
-        );
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if let Some(probe) = self.timing_probe.as_ref() {
-            probe.record_dispatch(sequence, self.in_flight_mask);
-        }
+        let first_sent = self.send_work(engine, stamp, first);
+        let second_sent = self.send_work(engine, stamp, second);
         first_sent && second_sent && self.health.status() == SourceWorkerHealth::Healthy
     }
 
@@ -93,10 +67,6 @@ impl SourceWorkerRuntime {
             return false;
         }
         self.expected_phase = Some(WorkerPhase::Buses);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if let Some(probe) = self.timing_probe.as_ref() {
-            probe.record_bus_dispatch(stamp.quantum_sequence);
-        }
         let Some(mut first) = self.lease_home(0) else {
             self.latch_dispatch_failure(0b11);
             return false;
@@ -131,13 +101,7 @@ impl SourceWorkerRuntime {
         false
     }
 
-    fn send_work(
-        &mut self,
-        engine: &SynthEngine,
-        stamp: WorkStamp,
-        mut lease: OwnerLease,
-        #[cfg(feature = "source-worker-benchmark-timing")] dispatch_started_at: Option<Instant>,
-    ) -> bool {
+    fn send_work(&mut self, engine: &SynthEngine, stamp: WorkStamp, mut lease: OwnerLease) -> bool {
         let Some(owner) = lease.take_owner() else {
             self.latch_dispatch_failure(1 << lease.parity);
             return false;
@@ -149,10 +113,6 @@ impl SourceWorkerRuntime {
             sample_context: SampleSourceContext {
                 sample_rate: engine.sample_rate,
             },
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe: self.timing_probe.clone(),
         };
         let parity = lease.parity;
         let Some(work_tx) = self.work_txs.as_ref().map(|work_txs| &work_txs[parity]) else {
@@ -213,10 +173,6 @@ impl SourceWorkerRuntime {
             sample_rate: engine.sample_rate,
             bus_idle_threshold: engine.dsp_config.bus_idle_threshold,
             fx_activity_hold_frames: engine.fx_activity_hold_frames,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at: self.dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe: self.timing_probe.clone(),
         };
         let Some(work_tx) = self.work_txs.as_ref().map(|work_txs| &work_txs[parity]) else {
             let WorkerCommand::Buses { owner, .. } = command else {

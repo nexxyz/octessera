@@ -36,24 +36,6 @@ impl SourceWorkerRuntime {
             self.return_owner(completion.owner, false, channel_parity);
             return;
         }
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if let (Some(probe), Some(dispatch_started_at)) =
-            (self.timing_probe.as_ref(), self.dispatch_started_at)
-        {
-            if completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses {
-                probe.record_completion(
-                    completion.stamp.quantum_sequence,
-                    parity,
-                    dispatch_started_at.elapsed(),
-                );
-            } else {
-                probe.record_bus_completion(
-                    completion.stamp.quantum_sequence,
-                    parity,
-                    dispatch_started_at.elapsed(),
-                );
-            }
-        }
         self.health
             .record_completion(completion.stamp.quantum_sequence);
         self.in_flight_mask &= !worker_mask;

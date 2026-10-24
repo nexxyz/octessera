@@ -145,10 +145,6 @@ impl SourceWorkerRuntime {
         self.in_flight_mask &= !(1 << channel_parity);
         self.completed_mask |= 1 << channel_parity;
         self.health.record_completion(sequence);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let phase = completion.phase;
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        self.record_recovery_timing(phase, channel_parity, sequence);
         self.return_owner(completion.owner, true, channel_parity);
     }
 
@@ -262,32 +258,6 @@ impl SourceWorkerRuntime {
         self.force_fault_mask = 0;
         #[cfg(feature = "routing-tree-executor")]
         self.clear_routing_absolute_deadline();
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.dispatch_started_at = None;
-            self.coordinator_remainder_started_at = None;
-            self.timing_output_sequence = None;
-            #[cfg(feature = "routing-tree-executor")]
-            {
-                self.routing_coordinator_remainder_started_at = None;
-            }
-        }
-    }
-
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    fn record_recovery_timing(&self, phase: WorkerPhase, parity: usize, sequence: u64) {
-        let Some(probe) = self.timing_probe.as_ref() else {
-            return;
-        };
-        let Some(dispatch_started_at) = self.dispatch_started_at else {
-            return;
-        };
-        let elapsed = dispatch_started_at.elapsed();
-        if phase == WorkerPhase::Sources {
-            probe.record_recovery_completion(sequence, parity, elapsed);
-        } else {
-            probe.record_recovery_bus_completion(sequence, parity, elapsed);
-        }
     }
 }
 

@@ -449,9 +449,6 @@ fn benchmark_persistent_constructor_rejects_invalid_frames_before_setup() {
 
 mod benchmark_tests;
 
-#[cfg(feature = "source-worker-benchmark-timing")]
-mod persistent_timing_tests;
-
 mod block_configuration_tests;
 
 #[cfg(feature = "routing-tree-executor")]

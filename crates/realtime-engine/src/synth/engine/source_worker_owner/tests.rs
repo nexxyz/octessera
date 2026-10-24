@@ -21,10 +21,6 @@ fn active_cost_units_uses_sparse_render_lane_counts() {
         sample_context: SampleSourceContext {
             sample_rate: 48_000,
         },
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        dispatch_started_at: None,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        timing_probe: None,
     };
 
     assert_eq!(work.active_cost_units(), 2 * 3 + 3 * 2);

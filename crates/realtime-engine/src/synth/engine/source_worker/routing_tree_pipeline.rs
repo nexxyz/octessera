@@ -46,10 +46,6 @@ impl SourceWorkerRuntime {
         {
             return SourceWorkerRenderDisposition::Fatal;
         }
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.timing_output_sequence = None;
-        }
         if frames == 0
             || frames > self.lookahead_frames
             || frames > BLOCK_SLOT_SCRATCH_FRAMES
@@ -111,11 +107,6 @@ impl SourceWorkerRuntime {
             self.latch_completion_failure(0b11);
             return SourceWorkerRenderDisposition::Fatal;
         };
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let reduction_started_at = self
-            .timing_probe
-            .as_ref()
-            .map(|_| std::time::Instant::now());
         for frame in 0..frames {
             left[frame] = outputs[0].left[frame] + outputs[1].left[frame];
             right[frame] = outputs[0].right[frame] + outputs[1].right[frame];
@@ -124,14 +115,6 @@ impl SourceWorkerRuntime {
             engine.block_slot_scratch.bus_active[frame] =
                 outputs[0].bus_active[frame] || outputs[1].bus_active[frame];
         }
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if let Some(started_at) = reduction_started_at {
-            if let Some(probe) = self.timing_probe.as_ref() {
-                probe.record_reduction(_output_stamp.quantum_sequence, started_at.elapsed());
-            }
-        }
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let coordinator_remainder_started_at = std::time::Instant::now();
         engine.set_routing_tree_profile([&outputs[0], &outputs[1]]);
         #[cfg(any(test, feature = "test-support"))]
         if let Some(probe) = self.routing_tree_probe.as_ref() {
@@ -140,18 +123,7 @@ impl SourceWorkerRuntime {
                 _output_stamp.base_sample_clock,
             );
         }
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.routing_coordinator_remainder_started_at = Some((
-                _output_stamp.quantum_sequence,
-                coordinator_remainder_started_at,
-            ));
-        }
         engine.finish_persistent_block(frames, left, right);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.record_output_sequence(_output_stamp.quantum_sequence);
-        }
         self.routing_output_ready = false;
         self.routing_output_stamp = None;
         SourceWorkerRenderDisposition::Fresh
@@ -194,14 +166,6 @@ impl SourceWorkerRuntime {
         self.expected_phase = Some(WorkerPhase::RoutingTree);
         self.source_load_observations = [None; SOURCE_WORKER_COUNT];
         self.force_fault_mask = 0;
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            self.dispatch_started_at = self.timing_probe.as_ref().map(|_| dispatch_started_at);
-            if let Some(probe) = self.timing_probe.as_ref() {
-                let _ = probe.begin_sequence(sequence, self.routing_tree_deadline_duration(frames));
-                probe.record_dispatch(sequence, 0b11);
-            }
-        }
         let Some(mut first) = self.lease_home(0) else {
             self.latch_dispatch_failure(0b11);
             return false;
@@ -249,10 +213,6 @@ impl SourceWorkerRuntime {
             stamp,
             owner,
             context,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at: self.dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe: self.timing_probe.clone(),
         };
         let parity = lease.parity;
         let Some(work_tx) = self.work_txs.as_ref().map(|txs| &txs[parity]) else {
@@ -300,7 +260,7 @@ impl SourceWorkerRuntime {
     ) -> Option<()> {
         self.clear_routing_absolute_deadline();
         let stamp = self.expected_stamp?;
-        self.collect_wave_with_deadline(engine, wait, WorkerPhase::RoutingTree, deadline, true)?;
+        self.collect_wave_with_deadline(engine, wait, WorkerPhase::RoutingTree, deadline)?;
         if self.completed_mask != 0b11 || !self.home_is_ready() {
             self.latch_completion_failure(0b11);
             return None;

@@ -12,10 +12,6 @@ mod pluck_dispersion;
 mod pluck_string;
 mod runtime_state;
 mod scalar_param;
-#[cfg(feature = "source-worker-benchmark-timing")]
-mod source_worker_timing;
-#[cfg(all(test, feature = "source-worker-benchmark-timing"))]
-mod source_worker_timing_tests;
 mod steal_declick;
 mod synth_voice_partition;
 mod synth_voice_pool;
@@ -63,11 +59,6 @@ pub use param_path_validation::{
 };
 pub use scalar_param::{
     DrumParamId, FmParamId, PluckParamId, SampleBankParamId, ScalarMutation, SynthParamId,
-};
-#[cfg(feature = "source-worker-benchmark-timing")]
-pub use source_worker_timing::{
-    SourceWorkerCoordinatorTimingSnapshot, SourceWorkerCpuSampler, SourceWorkerTimingProbe,
-    SourceWorkerTimingSnapshot, SourceWorkerWorkerTimingSnapshot,
 };
 pub use types::{
     default_synth_config, AudioLoadStatus, BlockPeak, DrumAssignment, DrumConfig, DrumSound,

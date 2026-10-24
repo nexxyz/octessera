@@ -1,7 +1,5 @@
 #[cfg(any(test, feature = "test-support"))]
 use super::super::dsp_config::BusIdleThreshold;
-#[cfg(feature = "source-worker-benchmark-timing")]
-use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::synth_voice_pool::SynthVoicePartition;
 #[cfg(feature = "routing-tree-executor")]
 use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
@@ -11,10 +9,6 @@ use super::source_lane_renderer::{
     SynthSourceContext,
 };
 use super::source_worker_protocol::{WorkStamp, WorkerPhase};
-#[cfg(feature = "source-worker-benchmark-timing")]
-use std::sync::Arc;
-#[cfg(feature = "source-worker-benchmark-timing")]
-use std::time::Instant;
 
 pub(super) struct SourceWorkerScratch {
     pub(super) synth: SourceLaneBlockScratch,
@@ -72,11 +66,6 @@ pub(super) enum WorkerCommand {
         owner: OwnerEnvelope,
         synth_context: SynthSourceContext,
         sample_context: SampleSourceContext,
-
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        dispatch_started_at: Option<Instant>,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     },
     #[cfg(any(test, feature = "test-support"))]
     Buses {
@@ -86,20 +75,12 @@ pub(super) enum WorkerCommand {
         sample_rate: u32,
         bus_idle_threshold: BusIdleThreshold,
         fx_activity_hold_frames: u32,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        dispatch_started_at: Option<Instant>,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     },
     #[cfg(feature = "routing-tree-executor")]
     RoutingTree {
         stamp: WorkStamp,
         owner: OwnerEnvelope,
         context: RoutingTreeWorkerContext,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        dispatch_started_at: Option<Instant>,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
     },
 }
 
@@ -108,10 +89,6 @@ pub(super) struct SourceWork {
     pub(super) stamp: WorkStamp,
     pub(super) synth_context: SynthSourceContext,
     pub(super) sample_context: SampleSourceContext,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    pub(super) dispatch_started_at: Option<Instant>,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
 #[cfg(feature = "routing-tree-executor")]
@@ -119,10 +96,6 @@ pub(super) struct RoutingTreeWork {
     pub(super) owner: OwnerEnvelope,
     pub(super) stamp: WorkStamp,
     pub(super) context: RoutingTreeWorkerContext,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    pub(super) dispatch_started_at: Option<Instant>,
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    pub(super) timing_probe: Option<Arc<SourceWorkerTimingProbe>>,
 }
 
 impl WorkerCommand {
@@ -132,10 +105,6 @@ impl WorkerCommand {
             owner,
             synth_context,
             sample_context,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe,
         } = self
         else {
             return None;
@@ -145,10 +114,6 @@ impl WorkerCommand {
             stamp,
             synth_context,
             sample_context,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe,
         })
     }
 
@@ -158,10 +123,6 @@ impl WorkerCommand {
             owner,
             stamp,
             context,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe,
         } = self
         else {
             return None;
@@ -170,10 +131,6 @@ impl WorkerCommand {
             owner,
             stamp,
             context,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe,
         })
     }
 }

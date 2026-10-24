@@ -10,8 +10,6 @@ use super::super::source_worker_protocol::WorkerPhase;
 use super::super::source_worker_transfer;
 use super::super::SynthEngine;
 use super::SourceWorkerRuntime;
-#[cfg(feature = "source-worker-benchmark-timing")]
-use std::time::Instant;
 
 impl SourceWorkerRuntime {
     pub(super) fn finish_source_wave<R>(
@@ -47,21 +45,11 @@ impl SourceWorkerRuntime {
             &mut second,
             |engine, scratch, carriers| {
                 source_worker_transfer::compact_source_pools(engine);
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                let reduction_started_at = self.timing_probe.as_ref().map(|_| Instant::now());
                 self.reduce_sources(
                     engine,
                     scratch,
                     self.expected_stamp.expect("completed source stamp").frames,
                 );
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                if let (Some(probe), Some(started_at), Some(stamp)) = (
-                    self.timing_probe.as_ref(),
-                    reduction_started_at,
-                    self.expected_stamp,
-                ) {
-                    probe.record_reduction(stamp.quantum_sequence, started_at.elapsed());
-                }
                 for slot in 0..super::super::super::types::INSTRUMENT_SLOT_COUNT {
                     engine.active_synth_slots[slot] = engine
                         .synth_voice_pool
@@ -73,11 +61,6 @@ impl SourceWorkerRuntime {
                         .active_count_for_slot(slot)
                         .unwrap_or(0)
                         > 0;
-                }
-                #[cfg(feature = "source-worker-benchmark-timing")]
-                {
-                    self.coordinator_remainder_started_at =
-                        self.timing_probe.as_ref().map(|_| Instant::now());
                 }
                 engine.with_source_worker_load(load, |engine| process(engine, scratch, carriers))
             },
@@ -221,7 +204,5 @@ impl SourceWorkerRuntime {
         self.bus_load_observations = [None; 2];
         self.bus_dispatch_residency_valid = false;
         self.latch_completion_failure(0b11);
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        self.freeze_timing(true, None);
     }
 }

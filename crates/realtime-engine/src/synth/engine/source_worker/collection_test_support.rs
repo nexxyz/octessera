@@ -23,7 +23,7 @@ impl SourceWorkerRuntime {
         } else if self.expected_phase == Some(WorkerPhase::Buses) {
             let deadline = Instant::now()
                 + self.rendezvous_deadline(self.expected_stamp.map_or(0, |stamp| stamp.frames));
-            self.collect_wave_with_deadline(engine, false, WorkerPhase::Buses, deadline, false)
+            self.collect_wave_with_deadline(engine, false, WorkerPhase::Buses, deadline)
                 .is_some()
         } else {
             self.collect(engine, false)
@@ -38,7 +38,7 @@ impl SourceWorkerRuntime {
         } else if self.expected_phase == Some(WorkerPhase::Buses) {
             let deadline = Instant::now()
                 + self.rendezvous_deadline(self.expected_stamp.map_or(0, |stamp| stamp.frames));
-            self.collect_wave_with_deadline(engine, true, WorkerPhase::Buses, deadline, false)
+            self.collect_wave_with_deadline(engine, true, WorkerPhase::Buses, deadline)
                 .is_some()
         } else {
             self.collect(engine, true)

@@ -359,10 +359,6 @@ impl SourceWorkerLifecycle {
             sample_context: SampleSourceContext {
                 sample_rate: engine.sample_rate,
             },
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at: None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe: None,
         };
         self.workers[parity]
             .work_tx

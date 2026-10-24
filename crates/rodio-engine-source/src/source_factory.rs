@@ -98,8 +98,6 @@ impl EngineSource {
             block_frames,
             load_tx,
             None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            None,
         )
     }
 
@@ -117,30 +115,6 @@ impl EngineSource {
             block_frames,
             load_tx,
             Some(start_hook),
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            None,
-        )
-    }
-
-    #[cfg(all(
-        feature = "routing-tree-executor",
-        feature = "source-worker-benchmark-timing"
-    ))]
-    pub fn with_routing_tree_persistent_workers_for_benchmark_with_timing_probe_and_hook(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-        timing_probe: Arc<SourceWorkerTimingProbe>,
-        start_hook: SourceWorkerStartHook,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        Self::with_routing_tree_persistent_workers_impl(
-            control_rx,
-            sample_rate,
-            block_frames,
-            load_tx,
-            Some(start_hook),
-            Some(timing_probe),
         )
     }
 
@@ -151,9 +125,6 @@ impl EngineSource {
         block_frames: usize,
         load_tx: Option<AudioLoadStatusSender>,
         start_hook: Option<SourceWorkerStartHook>,
-        #[cfg(feature = "source-worker-benchmark-timing")] timing_probe: Option<
-            Arc<SourceWorkerTimingProbe>,
-        >,
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
         Self::validate_routing_tree_block_frames(block_frames)?;
         let mut engine = Box::new(SynthEngine::new(sample_rate));
@@ -165,12 +136,8 @@ impl EngineSource {
             )?,
             None => SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, block_frames)?,
         };
-        #[cfg(any(test, feature = "source-worker-benchmark-timing"))]
+        #[cfg(test)]
         let mut runtime = runtime;
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if let Some(timing_probe) = timing_probe {
-            runtime.attach_timing_probe(timing_probe);
-        }
         #[cfg(test)]
         runtime.set_deadline_for_test(Duration::from_secs(1));
         Self::finish_workers(
@@ -209,70 +176,6 @@ impl EngineSource {
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
         let (lifecycle, runtime) =
             SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, block_frames)?;
-        Self::finish_persistent_workers(
-            control_rx,
-            sample_rate,
-            block_frames,
-            load_tx,
-            engine,
-            lifecycle,
-            runtime,
-        )
-    }
-
-    #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
-    pub fn with_persistent_workers_for_benchmark_with_timing_probe(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-        timing_probe: Arc<SourceWorkerTimingProbe>,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        if !(MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(&block_frames) {
-            return Err(SourceWorkerSetupError::InvalidBlockFrames {
-                requested: block_frames,
-                min: MIN_BLOCK_FRAMES,
-                max: MAX_BLOCK_FRAMES,
-            });
-        }
-        let mut engine = Box::new(SynthEngine::new(sample_rate));
-        let (lifecycle, mut runtime) =
-            SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, block_frames)?;
-        runtime.attach_timing_probe(timing_probe);
-        Self::finish_persistent_workers(
-            control_rx,
-            sample_rate,
-            block_frames,
-            load_tx,
-            engine,
-            lifecycle,
-            runtime,
-        )
-    }
-
-    #[cfg(all(test, feature = "source-worker-benchmark-timing"))]
-    pub fn with_persistent_workers_for_benchmark_with_timing_probe_and_hook(
-        control_rx: EngineEventReceiver,
-        sample_rate: u32,
-        block_frames: usize,
-        load_tx: Option<AudioLoadStatusSender>,
-        timing_probe: Arc<SourceWorkerTimingProbe>,
-        start_hook: SourceWorkerStartHook,
-    ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
-        if !(MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(&block_frames) {
-            return Err(SourceWorkerSetupError::InvalidBlockFrames {
-                requested: block_frames,
-                min: MIN_BLOCK_FRAMES,
-                max: MAX_BLOCK_FRAMES,
-            });
-        }
-        let mut engine = Box::new(SynthEngine::new(sample_rate));
-        let (lifecycle, mut runtime) = SourceWorkerLifecycle::start_prewarmed_with_frames_and_hook(
-            &mut engine,
-            block_frames,
-            start_hook,
-        )?;
-        runtime.attach_timing_probe(timing_probe);
         Self::finish_persistent_workers(
             control_rx,
             sample_rate,

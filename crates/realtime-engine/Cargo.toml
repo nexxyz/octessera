@@ -9,7 +9,6 @@ path = "src/lib.rs"
 
 [features]
 test-support = []
-source-worker-benchmark-timing = []
 routing-tree-executor = []
 
 [dependencies]

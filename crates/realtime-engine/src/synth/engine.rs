@@ -160,8 +160,6 @@ mod source_worker_start_hook_tests;
 mod source_worker_test_fixtures;
 #[cfg(test)]
 mod source_worker_tests;
-#[cfg(all(test, feature = "source-worker-benchmark-timing"))]
-mod source_worker_timing_integration_tests;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_transfer;
 #[cfg(test)]

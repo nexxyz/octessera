@@ -38,20 +38,7 @@ pub(super) fn process(
     let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
     #[cfg(not(any(test, feature = "test-support")))]
     let should_panic = false;
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    let timing_start = work.timing_probe.as_ref().map(|probe| probe.worker_start());
-    let render_started_at = {
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        {
-            timing_start.map_or_else(Instant::now, |start| {
-                super::SourceWorkerTimingProbe::render_start(start)
-            })
-        }
-        #[cfg(not(feature = "source-worker-benchmark-timing"))]
-        {
-            Instant::now()
-        }
-    };
+    let render_started_at = Instant::now();
     let source_cost_units = work.active_cost_units();
     let render_result = catch_unwind(AssertUnwindSafe(|| {
         if work.owner.parity != parity {
@@ -71,18 +58,6 @@ pub(super) fn process(
         .elapsed()
         .as_nanos()
         .min(u128::from(u64::MAX)) as u64;
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    if render_ok {
-        if let (Some(probe), Some(start)) = (work.timing_probe.as_ref(), timing_start) {
-            probe.record_worker(
-                parity,
-                work.stamp.quantum_sequence,
-                start,
-                dsp_duration_ns,
-                work.dispatch_started_at,
-            );
-        }
-    }
     if !render_ok {
         return Some(finish_worker(
             state,

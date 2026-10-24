@@ -1,5 +1,3 @@
-#[cfg(feature = "source-worker-benchmark-timing")]
-use super::super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::super::source_worker_protocol::{SourceWorkerStartHook, WorkerCommand};
 use super::{CompletedEnvelope, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
@@ -355,18 +353,7 @@ fn worker_loop(
         #[cfg(not(any(test, feature = "test-support")))]
         let should_panic = false;
         let active_cost_units = work.active_cost_units();
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let timing_start = work.timing_probe.as_ref().map(|probe| probe.worker_start());
-        let render_started_at = {
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            {
-                timing_start.map_or_else(Instant::now, SourceWorkerTimingProbe::render_start)
-            }
-            #[cfg(not(feature = "source-worker-benchmark-timing"))]
-            {
-                Instant::now()
-            }
-        };
+        let render_started_at = Instant::now();
         let render_ok = catch_unwind(AssertUnwindSafe(|| {
             if should_panic {
                 panic!("source worker test panic");
@@ -378,18 +365,6 @@ fn worker_loop(
             .elapsed()
             .as_nanos()
             .min(u128::from(u64::MAX)) as u64;
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        if render_ok {
-            if let (Some(probe), Some(start)) = (work.timing_probe.as_ref(), timing_start) {
-                probe.record_worker(
-                    parity,
-                    work.stamp.quantum_sequence,
-                    start,
-                    dsp_duration_ns,
-                    work.dispatch_started_at,
-                );
-            }
-        }
         if !render_ok {
             return finish_worker(
                 &state,

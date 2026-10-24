@@ -134,10 +134,6 @@ impl SourceWorkerRuntime {
             sample_rate,
             bus_idle_threshold,
             fx_activity_hold_frames,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at: self.dispatch_started_at,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe: self.timing_probe.clone(),
         };
         match work_tx.try_send(command) {
             Ok(()) => {

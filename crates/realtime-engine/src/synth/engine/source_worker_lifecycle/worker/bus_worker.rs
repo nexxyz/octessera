@@ -20,10 +20,6 @@ pub(super) fn process(
         sample_rate,
         bus_idle_threshold,
         fx_activity_hold_frames,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        dispatch_started_at,
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        timing_probe,
     } = command
     else {
         unreachable!("bus worker received a source command");
@@ -71,17 +67,6 @@ pub(super) fn process(
         .elapsed()
         .as_nanos()
         .min(u128::from(u64::MAX)) as u64;
-    #[cfg(feature = "source-worker-benchmark-timing")]
-    if matches!(render_result, Ok(Ok(_))) {
-        if let Some(probe) = timing_probe.as_ref() {
-            probe.record_bus_worker(
-                parity,
-                stamp.quantum_sequence,
-                dsp_duration_ns,
-                dispatch_started_at,
-            );
-        }
-    }
     let (render_ok, worker_exited, active_cost_units) = match render_result {
         Ok(Ok(active_cost_units)) => (true, false, active_cost_units),
         Ok(Err(())) => (false, false, 0),

@@ -1,5 +1,3 @@
-#[cfg(feature = "source-worker-benchmark-timing")]
-use super::super::source_worker_timing::SourceWorkerTimingProbe;
 use super::routing_tree_executor_test_support::{
     assert_momentary_state_matches, assert_reassociated_close,
 };
@@ -169,78 +167,6 @@ fn routing_tree_pipeline_has_no_callback_allocations_after_prewarm() {
             )
         });
     assert_eq!((allocations, deallocations), (0, 0));
-    shutdown(lifecycle, runtime);
-}
-
-#[cfg(feature = "source-worker-benchmark-timing")]
-#[test]
-fn routing_tree_pipeline_recovers_after_a_deadline_miss() {
-    let (mut engine, lifecycle, mut runtime) = start_runtime();
-    let probe = Arc::new(RoutingTreePipelineProbe::default());
-    let timing_probe = Arc::new(SourceWorkerTimingProbe::new(None));
-    runtime.set_routing_tree_probe_for_test(Arc::clone(&probe));
-    runtime.attach_timing_probe(Arc::clone(&timing_probe));
-    runtime.set_pause_for_parity_for_test(0, true);
-    runtime.set_deadline_for_test(Duration::ZERO);
-    assert_eq!(
-        render_block(&mut engine, &mut runtime),
-        SourceWorkerRenderDisposition::Fresh
-    );
-    assert!(runtime.wait_until_paused_for_test(0, Duration::from_secs(1)));
-    assert_eq!(
-        render_block(&mut engine, &mut runtime),
-        SourceWorkerRenderDisposition::NewlyMissed
-    );
-    assert_eq!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::DeadlineMiss
-    );
-    let failed_sequence = timing_probe
-        .snapshot()
-        .coordinator
-        .sequence
-        .expect("failed routing timing sequence");
-
-    runtime.set_pause_for_parity_for_test(0, false);
-    runtime.set_deadline_for_test(Duration::from_secs(1));
-    let mut disposition = SourceWorkerRenderDisposition::Recovering;
-    let recovery_deadline = std::time::Instant::now() + Duration::from_secs(1);
-    while disposition != SourceWorkerRenderDisposition::Fresh {
-        disposition = render_block(&mut engine, &mut runtime);
-        assert!(std::time::Instant::now() < recovery_deadline);
-        std::thread::yield_now();
-    }
-    assert_eq!(disposition, SourceWorkerRenderDisposition::Fresh);
-    assert_eq!(probe.last_coordinator_base_sample_clock(), 256);
-    assert_eq!(probe.last_dispatch_base_sample_clock(), 384);
-    assert_eq!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::Healthy
-    );
-    assert_ne!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::DispatchFailed
-    );
-    let recovered_timing = timing_probe.snapshot();
-    assert_eq!(recovered_timing.coordinator.sequence, Some(failed_sequence));
-    assert!(recovered_timing.coordinator.failed);
-    assert_eq!(recovered_timing.coordinator.completed_mask, Some(0b11));
-    assert!(recovered_timing
-        .workers
-        .iter()
-        .all(|worker| worker.finished));
-    assert_eq!(
-        render_block(&mut engine, &mut runtime),
-        SourceWorkerRenderDisposition::Fresh
-    );
-    assert_eq!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::Healthy
-    );
-    assert_eq!(
-        timing_probe.snapshot().coordinator.sequence,
-        Some(failed_sequence)
-    );
     shutdown(lifecycle, runtime);
 }
 

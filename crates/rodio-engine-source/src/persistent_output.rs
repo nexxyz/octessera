@@ -254,8 +254,6 @@ impl EngineSource {
             engine.sample_clock().saturating_add(*block_frames as u64)
         };
         let mut drained = DrainedControlEvents::default();
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let engine_block_started_at = runtime.timing_block_start();
         let disposition = if control_rx.has_pending() {
             #[cfg(all(test, feature = "routing-tree-executor"))]
             {
@@ -299,8 +297,6 @@ impl EngineSource {
                 buf,
             )
         };
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        runtime.record_engine_block_total(engine_block_started_at);
         *cached_profile_snapshot = engine.profile_snapshot();
         let defer_status = drained.control_events > 0 || drained.config_events > 0;
         match disposition {
@@ -414,8 +410,6 @@ impl EngineSource {
             None => (DrainedControlEvents::default(), cached),
         };
         *cached_profile_snapshot = profile_snapshot;
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        let engine_block_started_at = runtime.timing_block_start();
         let disposition = engine.render_interleaved_block_with_source_runtime_ready(
             runtime,
             *block_frames,
@@ -423,8 +417,6 @@ impl EngineSource {
             right_buf,
             buf,
         );
-        #[cfg(feature = "source-worker-benchmark-timing")]
-        runtime.record_engine_block_total(engine_block_started_at);
         match disposition {
             SourceWorkerRenderDisposition::Fresh => persistent_output.fresh(*block_frames, buf),
             SourceWorkerRenderDisposition::NewlyMissed => {

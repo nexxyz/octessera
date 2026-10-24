@@ -27,19 +27,6 @@ impl SourceWorkerRuntime {
             jobs_started: None,
             #[cfg(any(test, feature = "test-support"))]
             render_attempts: AtomicU64::new(0),
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe: None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at: None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            coordinator_remainder_started_at: None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_output_sequence: None,
-            #[cfg(all(
-                feature = "routing-tree-executor",
-                feature = "source-worker-benchmark-timing"
-            ))]
-            routing_coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: None,
             #[cfg(any(test, feature = "test-support"))]
@@ -149,19 +136,6 @@ impl SourceWorkerRuntime {
             ]),
             #[cfg(any(test, feature = "test-support"))]
             render_attempts: AtomicU64::new(0),
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_probe: None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            dispatch_started_at: None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            coordinator_remainder_started_at: None,
-            #[cfg(feature = "source-worker-benchmark-timing")]
-            timing_output_sequence: None,
-            #[cfg(all(
-                feature = "routing-tree-executor",
-                feature = "source-worker-benchmark-timing"
-            ))]
-            routing_coordinator_remainder_started_at: None,
             #[cfg(any(test, feature = "test-support"))]
             worker_pauses: Some(lifecycle.worker_pause_controls_for_test()),
             #[cfg(any(test, feature = "test-support"))]
