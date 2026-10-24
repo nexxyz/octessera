@@ -16,6 +16,7 @@ mod dispatch_profile;
 mod midi;
 mod music_first;
 mod oled;
+mod presentation;
 #[cfg(test)]
 mod presentation_state_tests;
 mod pulse_phase;
