@@ -135,6 +135,33 @@ scenario checks in a few seconds and its timing is sample-exact.
 They are not part of the pre-push hook; run them after changes to playback,
 menus, Link mapping, instruments or FX.
 
+## Saved-key changes
+
+The save loaders reject any key the current model does not know, so removing or
+renaming a saved key can stop a board from booting its own store. Before such a
+change lands, compose both boards' real stores with the new code. Copy them to
+`target/board-stores/` (they hold your music, so keep them out of the tree):
+
+```powershell
+$PiTarget = "pi@<PI_HOST>"; $OrangeTarget = "octessera@<ORANGE_HOST>"
+New-Item -ItemType Directory -Force target/board-stores | Out-Null
+./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget "tar czf /tmp/stores.tgz --exclude='*.wav' -C /home/pi/presets ."
+./tools/pi/with-rpi-ssh.ps1 scp -Target $PiTarget "${PiTarget}:/tmp/stores.tgz" target/board-stores/rpi.tgz
+./tools/orange-pi/with-opi-ssh.ps1 ssh -Target $OrangeTarget "sudo -n tar czf /tmp/stores.tgz -C /var/lib/octessera/presets . && sudo -n chown octessera /tmp/stores.tgz"
+./tools/orange-pi/with-opi-ssh.ps1 scp -Target $OrangeTarget "${OrangeTarget}:/tmp/stores.tgz" target/board-stores/opi.tgz
+```
+
+Unpack each archive into `target/board-stores/rpi/` and `target/board-stores/opi/`,
+then compose every patch and backup against its board's `system.json`:
+
+```bash
+OCTESSERA_STORE_COPY=target/board-stores cargo test -p playback-runtime --test board_store_compose -- --ignored --nocapture
+```
+
+Old saves that still carry a retired key are cleaned on load in
+`native_runner/retired_config_keys.rs`; add the key there rather than loosening
+the strict checks.
+
 ## Pre-push hook
 
 `.githooks/pre-push` delegates to `tools/quality/pre-push.sh`; the check list
@@ -143,7 +170,8 @@ typecheck, format checks, JS tests and coverage, the quality audit, `cargo fmt`,
 the file-length limit, the repository integrity fixtures and gate, workspace
 and routing-tree-executor Rust tests, enum help coverage, the
 [factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage, the
-Tauri build smoke, desktop and Pi checks, and both Clippy passes. It takes a
+Tauri build smoke, desktop tests, the Pi crate's tests in both the production
+and the `profiling` shape, and both Clippy passes. It takes a
 while. Give `git push` a long timeout rather than skipping the hook.
 
 If git does not already run hooks from `.githooks/`, point it there:
