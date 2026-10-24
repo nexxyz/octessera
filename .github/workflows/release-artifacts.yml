@@ -22,10 +22,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.workflow_sha }}
-      - name: Verify board-image release records
-        run: python3 -m unittest tools.release.test_board_image_release
       - run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck && test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && python3 tools/release/test_version_consistency.py && python3 -m unittest tools.release.test_release_asset_assembly && python3 tools/release/test_desktop_artifact.py && python3 tools/release/check_version_consistency.py && grep -q -- '--manifest tools/kernel-patches/orange-midi-interface-manifest.json' .github/workflows/release-artifacts.yml && bash tools/armbian-image/test-release-workflow.sh && bash -n tools/armbian-image/test-release-workflow.sh && shellcheck -x tools/armbian-image/test-release-workflow.sh
+          sudo apt-get update && sudo apt-get install -y shellcheck && test "$(git rev-parse HEAD)" = "${{ github.workflow_sha }}" && python3 tools/release/test_version_consistency.py && python3 -m unittest tools.release.test_release_asset_assembly && python3 tools/release/test_desktop_artifact.py && python3 tools/release/check_version_consistency.py
 
   resolve_draft:
     name: Resolve draft release through the API
@@ -116,11 +114,10 @@ jobs:
           python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_contract.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/updater_profiles.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
           python3 -m unittest discover -s tools/device-update -p 'test_*.py'
           bash tools/device-update/smoke-test.sh
-          bash tools/armbian-image/test-build-armbian-action.sh
           bash -n tools/device-update/*.sh tools/pi-image/verify-sanitized-image.sh tools/pi-image/verify-rpi-kernel-image.sh tools/pi-kernel/*.sh tools/armbian-image/*.sh
           shellcheck tools/device-update/*.sh tools/pi-kernel/*.sh
           shellcheck -x tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/test-orange-pi-usb-gadget*.sh userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget*.sh tools/pi-image/test-sanitized-image-boot-layout*.sh
-          find tools/armbian-image -maxdepth 1 -type f -name '*.sh' ! -name 'test-release-workflow.sh' -exec shellcheck -x userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh userpatches/extensions/octessera_midi.sh userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh {} +
+          find tools/armbian-image -maxdepth 1 -type f -name '*.sh' -exec shellcheck -x userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh userpatches/extensions/octessera_midi.sh userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh userpatches/overlay/usr/local/share/octessera/device-tree/spi-overlay-validation.sh userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-overlay-validation.sh userpatches/overlay/usr/local/share/octessera/device-tree/input-routing-boot-config.sh userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh {} +
           cmp tools/device-update/octessera-update tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update userpatches/overlay/usr/local/sbin/octessera-update
           cmp tools/device-update/octessera-update-guard tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard
@@ -306,8 +303,8 @@ jobs:
         with:
           ref: ${{ needs.release_info.outputs.source_sha }}
           fetch-depth: 0
-      - name: Verify source and install final image proof dependencies
-        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}" && sudo apt-get update && sudo apt-get install -y --no-install-recommends cpio device-tree-compiler zstd
+      - name: Verify source
+        run: test "$(git rev-parse HEAD)" = "${{ needs.release_info.outputs.source_sha }}"
       - name: Download release artifacts into board-separated directories
         uses: actions/download-artifact@v4
         with:
@@ -325,7 +322,6 @@ jobs:
       - name: Assemble and verify exact release assets
         env:
           RELEASE_VERSION: ${{ needs.release_info.outputs.version }}
-          RELEASE_SOURCE_SHA: ${{ needs.release_info.outputs.source_sha }}
         run: |
           set -euo pipefail
           python3 tools/release/assemble_release_assets.py \
@@ -334,9 +330,7 @@ jobs:
             --raspberry-runtime "$GITHUB_WORKSPACE/gathered-runtime/raspberry" \
             --orange-runtime "$GITHUB_WORKSPACE/gathered-runtime/orange" \
             --release-assets "$GITHUB_WORKSPACE/release-assets" \
-            --evidence-staging "$GITHUB_WORKSPACE/release-evidence" \
-            --version "$RELEASE_VERSION" \
-            --source-sha "$RELEASE_SOURCE_SHA" \
+            --version "$RELEASE_VERSION"
       - name: Revalidate exact draft immediately before upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

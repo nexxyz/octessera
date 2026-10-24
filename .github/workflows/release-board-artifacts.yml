@@ -402,8 +402,6 @@ jobs:
           share_log: yes
           image_kind: production
           runtime_bundle_path: ${{ github.workspace }}/orange-runtime
-          boot_proof_mode: constructor
-          construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
       - name: Normalize and verify Orange release handoff
         run: |
           set -euo pipefail
@@ -429,26 +427,10 @@ jobs:
             test -f "build/output/images/$package" || { echo "Missing canonical Orange package: $package" >&2; exit 1; }
             install -m 0644 "build/output/images/$package" "release-assets/$package"
           done
-          evidence=build/output/images/octessera-orange-kernel-evidence.env
-          test -f "$evidence"
-          cp "$evidence" release-assets/octessera-orange-kernel-evidence.env
-          image_proof=build/output/images/octessera-orange-image-proof.json
-          test -f "$image_proof"
-          cp "$image_proof" release-assets/octessera-orange-image-proof.json
-          sudo bash "$custom_root/tools/armbian-image/verify-orange-image.sh" \
-            --image "$image" \
-            --linux-image "${canonical_release_paths[0]}" \
-            --linux-dtb "${canonical_release_paths[1]}" \
-            --evidence release-assets/octessera-orange-kernel-evidence.env \
-            --manifest "$custom_root/tools/kernel-patches/orange-midi-interface-manifest.json" \
-            --boot-proof-mode constructor \
-            --construction-contract "$custom_root/resources/image-construction/boot-layers/orange-pi-zero-2w.json" \
-            --output release-assets/octessera-orange-image-proof.json \
-            --mode production
-          for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}" release-assets/octessera-orange-kernel-evidence.env release-assets/octessera-orange-image-proof.json; do
+          for required in "$image" "$image.sha256" "${canonical_release_paths[0]}" "${canonical_release_paths[1]}"; do
             test -f "$required" || { echo "Missing Orange release asset: $required" >&2; exit 1; }
           done
-          (cd release-assets && sha256sum -c "$(basename "$image.sha256")" && sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}" octessera-orange-kernel-evidence.env octessera-orange-image-proof.json > SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt)
+          (cd release-assets && sha256sum -c "$(basename "$image.sha256")" && sha256sum "$(basename "$image.sha256")" "${canonical_packages[0]}" "${canonical_packages[1]}" > SHA256SUMS-orange-pi-zero-2w.txt && sha256sum -c SHA256SUMS-orange-pi-zero-2w.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: octessera-orange-image-release-assets

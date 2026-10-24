@@ -175,7 +175,7 @@ devices, and the first rendered snapshot.
 ### Production and diagnostic images
 
 Production images are named `octessera-<version>-orange-pi-zero-2w.img.xz`, with
-matching SHA-256 and image-proof files. They contain the hash-bound runtime
+a matching SHA-256 file. They contain the hash-bound runtime
 bundle (`octessera-pi`, `octessera-runtime.json`, `SHA256SUMS`) and declare
 `artifact_kind=production-runtime` and `runtime_ready=true`.
 

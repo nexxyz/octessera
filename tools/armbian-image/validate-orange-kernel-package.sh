@@ -2,23 +2,17 @@
 set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 <linux-image.deb> <linux-dtb.deb> [--evidence-output <file>] [--expected-config-sha256 <sha256>] [--manifest <test-manifest>]" >&2
+  echo "Usage: $0 <linux-image.deb> <linux-dtb.deb> [--expected-config-sha256 <sha256>] [--manifest <test-manifest>]" >&2
   exit 2
 fi
 
 image_package="$1"
 dtb_package="$2"
 shift 2
-evidence_output=
 expected_config_sha256=
 manifest_override=
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --evidence-output)
-      [[ $# -ge 2 ]] || { echo "--evidence-output requires a path." >&2; exit 2; }
-      evidence_output="$2"
-      shift 2
-      ;;
     --expected-config-sha256)
       [[ $# -ge 2 ]] || { echo "--expected-config-sha256 requires a SHA-256." >&2; exit 2; }
       expected_config_sha256="$2"
@@ -207,7 +201,6 @@ mapfile -t configs < <(find "$image_root/boot" -maxdepth 1 -type f -name 'config
 config="${configs[0]}"
 expected_config="$image_root/boot/config-$expected_kernel_release"
 [[ "$config" == "$expected_config" ]] || { echo "Unexpected packaged kernel config: $(basename -- "$config")" >&2; exit 1; }
-config_sha256="$(sha256sum -- "$config" | awk '{print $1}')"
 normalized_config="$work/config.normalized"
 if ! python3 - "$root" "$config" "$normalized_config" <<'PY'
 import sys
@@ -285,7 +278,6 @@ package_dtb="$dtb_root/boot/dtb-$expected_kernel_release/allwinner/$expected_dtb
 [[ -s "$package_dtb" ]] || { echo "Required Zero 2W DTB is missing from linux-dtb." >&2; exit 1; }
 stock_i2c1_dtbo="$dtb_root/boot/dtb-$expected_kernel_release/allwinner/overlay/$stock_i2c1_dtbo_name"
 [[ -f "$stock_i2c1_dtbo" && ! -L "$stock_i2c1_dtbo" ]] || { echo "Required stock i2c1-pi DTBO is missing or symlinked from linux-dtb." >&2; exit 1; }
-stock_i2c1_dtbo_sha256="$(sha256sum -- "$stock_i2c1_dtbo" | awk '{print $1}')"
 fdt_magic() {
   local value
   value="$(od -An -tx1 -N4 -- "$1" | tr -d '[:space:]')"
@@ -296,8 +288,6 @@ fdt_magic() {
 }
 fdt_magic "$image_dtb"
 fdt_magic "$package_dtb"
-image_dtb_sha256="$(sha256sum -- "$image_dtb" | awk '{print $1}')"
-dtb_package_dtb_sha256="$(sha256sum -- "$package_dtb" | awk '{print $1}')"
 cmp -- "$image_dtb" "$package_dtb" || {
   echo "linux-image and linux-dtb contain different Zero 2W DTBs." >&2
   exit 1
@@ -313,7 +303,6 @@ module_evidence="$(ORANGE_KERNEL_MODULE_ROOT="$image_root/" bash "$(dirname "${B
 module_relative_path=
 module_compressed_sha256=
 module_decompressed_sha256=
-module_vermagic=
 module_interface_string_marker=
 module_interface_options_marker=
 module_interface_runtime_marker=
@@ -322,7 +311,7 @@ while IFS='=' read -r key value; do
     module_relative_path) module_relative_path="$value" ;;
     module_compressed_sha256) module_compressed_sha256="$value" ;;
     module_decompressed_sha256) module_decompressed_sha256="$value" ;;
-    module_vermagic) module_vermagic="$value" ;;
+    module_vermagic) ;;
     module_interface_string_marker) module_interface_string_marker="$value" ;;
     module_interface_options_marker) module_interface_options_marker="$value" ;;
     module_interface_runtime_marker) module_interface_runtime_marker="$value" ;;
@@ -337,35 +326,5 @@ done <<< "$module_evidence"
   echo "usb_f_midi module interface string evidence is incomplete." >&2
   exit 1
 }
-
-if [[ -n "$evidence_output" ]]; then
-  mkdir -p -- "$(dirname "$evidence_output")"
-  evidence_tmp="$work/evidence.env"
-  printf '%s\n' \
-    "image_package_native_basename=$image_basename" \
-    "dtb_package_native_basename=$dtb_basename" \
-    "artifact_suffix=$image_suffix" \
-    "image_package_sha256=$(sha256sum -- "$image_package" | awk '{print $1}')" \
-    "dtb_package_sha256=$(sha256sum -- "$dtb_package" | awk '{print $1}')" \
-    "image_dtb_sha256=$image_dtb_sha256" \
-    "dtb_package_dtb_sha256=$dtb_package_dtb_sha256" \
-    "dtb_byte_equal=true" \
-    "stock_i2c1_dtbo_path=boot/dtb-$expected_kernel_release/allwinner/overlay/$stock_i2c1_dtbo_name" \
-    "stock_i2c1_dtbo_sha256=$stock_i2c1_dtbo_sha256" \
-    "audio_dts_path=$audio_dts_relative" \
-    "audio_dts_sha256=$audio_dts_sha256_expected" \
-    "audio_dtbo_forbidden=$audio_dtbo_name" \
-    "packaged_config_expected_sha256=$manifest_packaged_config_normalized_sha256" \
-    "final_config_sha256=$config_sha256" \
-    "normalized_config_sha256=$normalized_config_sha256" \
-    "module_relative_path=$module_relative_path" \
-    "module_compressed_sha256=$module_compressed_sha256" \
-    "module_decompressed_sha256=$module_decompressed_sha256" \
-    "module_vermagic=$module_vermagic" \
-    "module_interface_string_marker=$module_interface_string_marker" \
-    "module_interface_options_marker=$module_interface_options_marker" \
-    "module_interface_runtime_marker=$module_interface_runtime_marker" > "$evidence_tmp"
-  mv -f -- "$evidence_tmp" "$evidence_output"
-fi
 
 printf 'Orange linux-image and linux-dtb package validation passed: %s %s\n' "$image_package" "$dtb_package"

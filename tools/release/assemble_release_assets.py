@@ -9,7 +9,7 @@ import stat
 import sys
 import zipfile
 from pathlib import Path, PurePosixPath
-from typing import Iterable, cast
+from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -19,13 +19,13 @@ sys.path.insert(0, str(ROOT / "tools" / "device-update"))
 from package_notice_zip import package_notice_zip  # type: ignore[import-not-found]
 from verify_notice_archive import verify_notice_archive  # type: ignore[import-not-found]
 from updater_profiles import ORANGE_PROFILE, RASPBERRY_PROFILE, updater_asset_names  # type: ignore[import-not-found]
-from tools.release.board_image_release import (  # type: ignore[import-not-found]
-    ReleaseArtifactError,
-    verify_and_stage_board_images,
-)
-
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
 RUNTIME_FILES = ("SHA256SUMS", "octessera-pi", "octessera-runtime.json")
+
+
+class ReleaseArtifactError(ValueError):
+    pass
+
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
@@ -199,17 +199,18 @@ def _verify_runtime_and_devices(root: Path, runtime_root: Path, device_zip: Path
     _verify_device_zip(root, runtime_root, device_zip, version, profile)
 
 
-def _make_evidence_zip(staging: Path, output: Path) -> None:
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for path in sorted(staging.rglob("*")):
-            if path.is_file():
-                relative = path.relative_to(staging).as_posix()
-                info = zipfile.ZipInfo(relative, (1980, 1, 1, 0, 0, 0))
-                info.compress_type = zipfile.ZIP_DEFLATED
-                info.external_attr = 0o100644 << 16
-                archive.writestr(info, path.read_bytes())
-    with zipfile.ZipFile(output) as archive:
-        _require(archive.testzip() is None, f"evidence ZIP is corrupt: {output}")
+def _stage_board_images(gathered_root: Path, release_assets: Path, prefix: str) -> None:
+    rpi_image_dir = gathered_root / "octessera-raspberry-image-release-assets"
+    orange_image_dir = gathered_root / "octessera-orange-image-release-assets"
+    rpi_image = f"{prefix}-raspberry-pi-zero-2w.img.zip"
+    rpi_manifest = f"{prefix}-raspberry-pi-zero-2w.rpi-imager-manifest"
+    orange_image = f"{prefix}-orange-pi-zero-2w.img.xz"
+    _require_exact_files(rpi_image_dir, (rpi_image, rpi_manifest, "SHA256SUMS-pi.txt"))
+    _verify_checksum_file(rpi_image_dir, "SHA256SUMS-pi.txt")
+    _verify_checksum_file(orange_image_dir, f"{orange_image}.sha256")
+    _verify_checksum_file(orange_image_dir, "SHA256SUMS-orange-pi-zero-2w.txt")
+    for source in (rpi_image_dir / rpi_image, rpi_image_dir / rpi_manifest, orange_image_dir / orange_image):
+        _copy_file(source, release_assets / source.name, "release asset")
 
 
 def _ensure_empty_directory(path: Path, label: str) -> None:
@@ -226,18 +227,12 @@ def assemble_release_assets(
     raspberry_runtime: Path,
     orange_runtime: Path,
     release_assets: Path,
-    evidence_staging: Path,
     version: str,
-    source_sha: str,
 ) -> None:
     root = root.resolve()
     gathered_root = gathered_root.resolve()
     release_assets = release_assets.resolve()
-    evidence_staging = evidence_staging.resolve()
     _ensure_empty_directory(release_assets, "release asset output")
-    _ensure_empty_directory(evidence_staging, "release evidence output")
-    for relative in ("windows", "ubuntu", "raspberry/image", "raspberry/device", "raspberry/kernel", "raspberry/runtime", "orange/image", "orange/device", "orange/kernel", "orange/runtime", "legal"):
-        (evidence_staging / relative).mkdir(parents=True, exist_ok=True)
 
     prefix = f"octessera-{version}"
     windows_dir = gathered_root / "octessera-windows-release-assets"
@@ -254,7 +249,7 @@ def assemble_release_assets(
     _require_exact_files(rpi_device_dir, (rpi_device_zip, rpi_device_sums))
     _require_exact_files(orange_device_dir, (orange_device_zip, "SHA256SUMS-orange-pi-zero-2w-device.txt", orange_updater_zip, orange_updater_sums))
 
-    verify_and_stage_board_images(root, gathered_root, release_assets, evidence_staging, raspberry_runtime, orange_runtime, version, source_sha)
+    _stage_board_images(gathered_root, release_assets, prefix)
     for source, name in (
         (windows_dir / f"{prefix}-windows-installer.exe", f"{prefix}-windows-installer.exe"),
         (windows_dir / f"{prefix}-windows-portable.zip", f"{prefix}-windows-portable.zip"),
@@ -279,22 +274,9 @@ def assemble_release_assets(
 
     portable = release_assets / f"{prefix}-windows-portable.zip"
     verify_notice_archive(root, portable, "octessera.exe")
-    for source, destination in (
-        (windows_dir / "SHA256SUMS-windows.txt", evidence_staging / "windows/SHA256SUMS-windows.txt"),
-        (ubuntu_dir / "SHA256SUMS-ubuntu.txt", evidence_staging / "ubuntu/SHA256SUMS-ubuntu.txt"),
-        (rpi_device_dir / rpi_device_sums, evidence_staging / f"raspberry/device/{rpi_device_sums}"),
-        (raspberry_runtime / "SHA256SUMS", evidence_staging / "raspberry/runtime/SHA256SUMS"),
-        (orange_device_dir / "SHA256SUMS-orange-pi-zero-2w-device.txt", evidence_staging / "orange/device/SHA256SUMS-orange-pi-zero-2w-device.txt"),
-        (orange_device_dir / orange_updater_sums, evidence_staging / f"orange/device/{orange_updater_sums}"),
-        (orange_runtime / "SHA256SUMS", evidence_staging / "orange/runtime/SHA256SUMS"),
-    ):
-        _copy_file(source, destination, "release evidence")
-
-    notices = evidence_staging / "legal" / f"{prefix}-notices.zip"
+    notices = release_assets / f"{prefix}-notices.zip"
     package_notice_zip(root, notices)
     verify_notice_archive(root, notices)
-    evidence_zip = release_assets / f"{prefix}-release-evidence.zip"
-    _make_evidence_zip(evidence_staging, evidence_zip)
 
     expected_root_assets = [
         f"{prefix}-windows-installer.exe",
@@ -309,7 +291,7 @@ def assemble_release_assets(
         orange_device_zip,
         orange_updater_zip,
         orange_updater_sums,
-        f"{prefix}-release-evidence.zip",
+        f"{prefix}-notices.zip",
     ]
     _write_checksums(release_assets, "SHA256SUMS.txt", expected_root_assets)
     expected_root_assets.append("SHA256SUMS.txt")
@@ -324,9 +306,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--raspberry-runtime", type=Path, required=True)
     parser.add_argument("--orange-runtime", type=Path, required=True)
     parser.add_argument("--release-assets", type=Path, required=True)
-    parser.add_argument("--evidence-staging", type=Path, required=True)
     parser.add_argument("--version", required=True)
-    parser.add_argument("--source-sha", required=True)
     args = parser.parse_args(argv)
     try:
         assemble_release_assets(
@@ -335,9 +315,7 @@ def main(argv: list[str] | None = None) -> int:
             args.raspberry_runtime,
             args.orange_runtime,
             args.release_assets,
-            args.evidence_staging,
             args.version,
-            args.source_sha,
         )
     except (ReleaseArtifactError, ValueError, KeyError, OSError, zipfile.BadZipFile) as error:
         print(f"release asset verification failed: {error}", file=sys.stderr)

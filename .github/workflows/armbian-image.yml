@@ -123,8 +123,6 @@ jobs:
           compression: ${{ inputs.compression }}
           extensions: ${{ inputs.extensions }}
           armbian_build_ref: ${{ inputs.armbian_build_ref }}
-          boot_proof_mode: constructor
-          construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
           image_kind: diagnostic
           share_log: yes
         env:
@@ -206,8 +204,6 @@ jobs:
           compression: ${{ inputs.compression }}
           extensions: ${{ inputs.extensions }}
           armbian_build_ref: ${{ inputs.armbian_build_ref }}
-          boot_proof_mode: constructor
-          construction_contract: resources/image-construction/boot-layers/orange-pi-zero-2w.json
           image_kind: diagnostic
           share_log: no
         env:

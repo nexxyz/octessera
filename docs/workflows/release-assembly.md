@@ -36,7 +36,7 @@ The current contract contains exactly fourteen custom root files:
 - `octessera-<version>-orange-pi-zero-2w-standalone-manual-aarch64.zip`
 - `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip`
 - `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`
-- `octessera-<version>-release-evidence.zip`
+- `octessera-<version>-notices.zip`, the third-party licence notices
 - `SHA256SUMS.txt`, lowercase and sorted
 
 The Raspberry updater ZIP contains exactly `octessera-pi`,
@@ -47,8 +47,7 @@ asset. The Orange runtime-updater ZIP contains exactly
 `octessera-pi`, `octessera-device-release.json`, `LICENSE`, and `NOTICE`.
 
 GitHub's automatic source archives are not custom assets and are not in
-`SHA256SUMS.txt`. The release workflow generates the release-evidence archive
-as one of the custom files above.
+`SHA256SUMS.txt`.
 
 ## Image staging and update boundaries
 

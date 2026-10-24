@@ -81,29 +81,15 @@ tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
 Orange runtime-only respins are checked by `tools/image-respin/respin.py`
 itself (see below).
 
-## Source-bound constructor procedure
+## Constructor procedure
 
-Construct each board from its source-bound boot-layer contract, not from the
-Orange current-parent respin lane:
-
-1. List any new source inputs in
-   `resources/image-construction/boot-layers/raspberry-pi-zero-2w.json` or
-   `orange-pi-zero-2w.json` (paths only; the mounted-image checks compare the
-   installed bytes with the source); cross-build the matching native binary
-   first.
-2. Run the Raspberry pi-gen and Orange Armbian constructors. Stage the
-   canonical welcome, preserve declared hushlogin behavior, encode Raspberry's
-   inactive-UART state, and install each board's declared runtime/initramfs
-   inputs. Regenerate selected initramfs images only in the constructor.
-3. Run mounted-image checks before board deployment. Raspberry must show the
-   selected initramfs, enabled early writer, welcome, exact hushlogin,
-   inactive-UART and serial-console state, and expected service masks. Orange
-   must show the welcome, root-installed renderer/lifecycle/assets, fixed
-   SPI/GPIO dependencies, static initramfs frame/Python closure, and one
-   `/run/octessera-boot` owner with no second writer.
-4. Preserve the image and its source/build metadata. Then use the
-   [deployment workflow](deployment.md) and the board-specific bring-up
-   procedure for hardware testing.
+1. Cross-build the matching native binary first.
+2. Run the Raspberry pi-gen and Orange Armbian constructors (see
+   [Board image dispatch](#board-image-dispatch)).
+3. Inspect the result with `tools/armbian-image/inspect-built-image.sh` (Orange)
+   or `tools/pi-image/verify-sanitized-image.sh` (Raspberry), then use the
+   [deployment workflow](deployment.md) and the board bring-up procedure for
+   hardware testing.
 
 ## Runtime-only respin boundary
 
@@ -163,7 +149,6 @@ python3 tools/pi-image/test-boot-layer-contract.py
 bash tools/pi-image/test-rpi-boot-services.sh
 python3 tools/armbian-image/test_orange_oled_logo.py
 python3 tools/armbian-image/test_orange_oled_handoff.py
-python3 tools/armbian-image/test-orange-construction.py
 bash tools/armbian-image/test-octessera-sd-card.sh
 bash tools/armbian-image/test-orange-storage-lifecycle.sh
 python3 tools/armbian-image/test-orange-storage-control.py

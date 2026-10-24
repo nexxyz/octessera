@@ -25,8 +25,6 @@ assert config_path.is_file() and not config_path.is_symlink()
 assert config_path.read_text(encoding="utf-8") == expected_config
 assert config_path.name.startswith("00-") and config_path.name < "50-default.conf"
 assert sorted(path.name for path in config_path.parent.glob("*.conf")) == [config_path.name]
-construction = json.loads((root / "resources/image-construction/boot-layers/orange-pi-zero-2w.json").read_text(encoding="utf-8"))
-assert next(item for item in construction["managed_outputs"] if item["path"] == "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf") == {"path": "etc/rsyslog.d/00-octessera-orange-hdmi-plugin.conf", "mode": 420, "uid": 0, "gid": 0}
 
 customize = customize_path.read_text(encoding="utf-8")
 runtime_assets = runtime_assets_path.read_text(encoding="utf-8")

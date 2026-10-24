@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(sys.argv[1]) / "tools/armbian-image"))
-from orange_boot_contract import normalize_kernel_config
+from orange_kernel_config import normalize_kernel_config
 
 print(hashlib.sha256(normalize_kernel_config(sys.argv[2].encode() + b"\n")).hexdigest())
 PY
@@ -365,10 +365,6 @@ printf 'x' >> "$work/bad-dtb-equality-dtb/boot/dtb-6.18.46-current-sunxi64/allwi
 dpkg-deb --build "$work/bad-dtb-equality-dtb" "$(dtb_package bad-dtb-equality)" >/dev/null
 reject_validator bad-dtb-equality
 
-evidence="$work/good-evidence.env"
-OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --manifest "$fixture_manifest" --expected-config-sha256 "$good_normalized_config_sha256" --evidence-output "$evidence" >/dev/null
-grep -q "^packaged_config_expected_sha256=$good_normalized_config_sha256$" "$evidence"
-grep -q "^final_config_sha256=$good_config_sha256$" "$evidence"
-grep -q "^normalized_config_sha256=$good_normalized_config_sha256$" "$evidence"
+OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --manifest "$fixture_manifest" --expected-config-sha256 "$good_normalized_config_sha256" >/dev/null
 
 printf 'Orange linux-image/linux-dtb package tests passed\n'
