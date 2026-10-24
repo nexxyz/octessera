@@ -73,7 +73,7 @@ fn apply_waits_behind_queued_default_save() {
     let (mut adapter, root) = adapter("fifo");
     let prior_system_bytes = std::fs::read(root.join("store/system.json")).unwrap();
     let mut earlier = documents().patch;
-    earlier["runtimeConfig"]["bpm"] = json!(110);
+    earlier["runtimeConfig"]["transport"]["bpm"] = json!(110);
     let applied = system_for_apply();
     assert!(adapter
         .handle_platform_effect(&request(

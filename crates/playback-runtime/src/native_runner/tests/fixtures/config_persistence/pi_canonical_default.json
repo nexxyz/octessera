@@ -54,7 +54,6 @@
       "aux2": null,
       "aux3": null
     },
-    "bpm": 120.0,
     "buttonBrightness": 50,
     "dimTimerSeconds": 60,
     "displayBrightness": 85,
@@ -68,11 +67,6 @@
           "channel": 1,
           "durationMs": 120,
           "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
           "velocity": 100
         },
         "mixer": {
@@ -190,11 +184,6 @@
           "channel": 1,
           "durationMs": 120,
           "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
           "velocity": 100
         },
         "mixer": {
@@ -459,11 +448,6 @@
           "enabled": false,
           "velocity": 100
         },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
-          "velocity": 100
-        },
         "mixer": {
           "panPos": 16,
           "route": "fx_bus_1",
@@ -611,11 +595,6 @@
           "channel": 1,
           "durationMs": 120,
           "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
           "velocity": 100
         },
         "mixer": {
@@ -772,9 +751,121 @@
           "enabled": false,
           "velocity": 100
         },
-        "midiEngine": {
+        "mixer": {
+          "panPos": 16,
+          "route": "direct",
+          "volume": 100
+        },
+        "name": "None",
+        "noteBehavior": "oneshot",
+        "sample": {
+          "amp": {
+            "gainPct": 100,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "assignments": [],
+          "baseVelocity": 100,
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "selectedSlot": 0,
+          "slots": [
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            },
+            {
+              "path": null
+            }
+          ],
+          "tuneSemis": 0,
+          "velocityLevels": {
+            "high": 120,
+            "low": 45,
+            "medium": 85
+          },
+          "velocityLevelsEnabled": false
+        },
+        "synth": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "filter": {
+            "cutoffHz": 8000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "osc1": {
+            "detuneCents": 0,
+            "levelPct": 80,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "saw"
+          },
+          "osc2": {
+            "detuneCents": 0,
+            "levelPct": 72,
+            "octave": 0,
+            "pulseWidthPct": 50,
+            "waveform": "square"
+          }
+        },
+        "type": "none"
+      },
+      {
+        "autoName": true,
+        "midi": {
           "channel": 1,
           "durationMs": 120,
+          "enabled": false,
           "velocity": 100
         },
         "mixer": {
@@ -894,11 +985,6 @@
           "enabled": false,
           "velocity": 100
         },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
-          "velocity": 100
-        },
         "mixer": {
           "panPos": 16,
           "route": "direct",
@@ -1014,133 +1100,6 @@
           "channel": 1,
           "durationMs": 120,
           "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
-          "velocity": 100
-        },
-        "mixer": {
-          "panPos": 16,
-          "route": "direct",
-          "volume": 100
-        },
-        "name": "None",
-        "noteBehavior": "oneshot",
-        "sample": {
-          "amp": {
-            "gainPct": 100,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "assignments": [],
-          "baseVelocity": 100,
-          "filter": {
-            "cutoffHz": 8000,
-            "envAmountPct": 0,
-            "keyTrackingPct": 0,
-            "resonance": 20,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "selectedSlot": 0,
-          "slots": [
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            },
-            {
-              "path": null
-            }
-          ],
-          "tuneSemis": 0,
-          "velocityLevels": {
-            "high": 120,
-            "low": 45,
-            "medium": 85
-          },
-          "velocityLevelsEnabled": false
-        },
-        "synth": {
-          "amp": {
-            "gainPct": 80,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "filter": {
-            "cutoffHz": 8000,
-            "envAmountPct": 0,
-            "keyTrackingPct": 0,
-            "resonance": 20,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "osc1": {
-            "detuneCents": 0,
-            "levelPct": 80,
-            "octave": 0,
-            "pulseWidthPct": 50,
-            "waveform": "saw"
-          },
-          "osc2": {
-            "detuneCents": 0,
-            "levelPct": 72,
-            "octave": 0,
-            "pulseWidthPct": 50,
-            "waveform": "square"
-          }
-        },
-        "type": "none"
-      },
-      {
-        "autoName": true,
-        "midi": {
-          "channel": 1,
-          "durationMs": 120,
-          "enabled": false,
-          "velocity": 100
-        },
-        "midiEngine": {
-          "channel": 1,
-          "durationMs": 120,
           "velocity": 100
         },
         "mixer": {
@@ -3294,7 +3253,6 @@
         ]
       }
     },
-    "noteLengthMs": 120,
     "numericDisplayMode": "bar+numbers",
     "recording": {
       "maxMinutes": 10
@@ -3430,9 +3388,6 @@
     "usb": {
       "midiOutEnabled": true
     },
-    "velocityCurve": "linear",
-    "velocityScalePct": 100,
-    "voiceStealingMode": "auto-balanced",
     "xyRelease": "sample-hold",
     "audioOutputs": {
       "dac": true,

@@ -117,7 +117,6 @@ export function snapshotFromCore(
     displayBrightness: settings?.displayBrightness ?? 75,
     buttonBrightness: settings?.buttonBrightness ?? 75,
     masterVolume: cache.masterVolume,
-    voiceStealingMode: settings?.voiceStealingMode ?? 'auto-balanced',
     audioLoad: audio.audioLoad,
     instruments: cache.instruments,
     mixer: cache.mixer,

@@ -174,10 +174,6 @@ impl NativeConfigSnapshot {
                     "optimizeFor": self.audio_optimization
                 },
                 "dsp": self.dsp_config,
-                "noteLengthMs": self.note_length_ms,
-                "velocityScalePct": self.velocity_scale_pct,
-                "velocityCurve": velocity_curve_id(self.velocity_curve),
-                "voiceStealingMode": self.voice_stealing_mode,
                 "ghostCells": self.ghost_cells,
                 "inputEventsWhilePaused": self.input_events_while_paused,
                 "numericDisplayMode": self.numeric_display_mode,
@@ -189,7 +185,6 @@ impl NativeConfigSnapshot {
                 "autoSaveDefault": self.auto_save_default,
                 "rollingBackups": self.rolling_backups,
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
-                "bpm": self.bpm,
                 "playMode": self.play_mode,
                 "auxBindings": aux_bindings_payload(&self.aux_bindings),
                 "shiftAuxBindings": aux_bindings_payload(&self.shift_aux_bindings),

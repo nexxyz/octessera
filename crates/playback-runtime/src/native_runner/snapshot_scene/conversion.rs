@@ -62,10 +62,6 @@ impl PresentationScene {
                     "velocityCurve": super::super::velocity_curve_id(sound.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode
                 },
-                "noteLengthMs": sound.note_length_ms,
-                "velocityScalePct": sound.velocity_scale_pct,
-                "velocityCurve": super::super::velocity_curve_id(sound.velocity_curve),
-                "voiceStealingMode": self.voice_stealing_mode,
                 "ghostCells": ui.ghost_cells,
                 "inputEventsWhilePaused": self.input_events_while_paused,
                 "numericDisplayMode": ui.numeric_display_mode,

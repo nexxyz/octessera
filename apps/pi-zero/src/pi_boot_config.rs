@@ -182,7 +182,7 @@ mod tests {
         );
 
         let mut conflicting = pair.system;
-        conflicting["runtimeConfig"]["bpm"] = serde_json::json!(99);
+        conflicting["runtimeConfig"]["transport"]["bpm"] = serde_json::json!(99);
         write_pair(&root, &conflicting, &pair.patch);
         let system_bytes = std::fs::read(root.join("system.json")).unwrap();
         let patch_bytes = std::fs::read(root.join("default.patch.json")).unwrap();

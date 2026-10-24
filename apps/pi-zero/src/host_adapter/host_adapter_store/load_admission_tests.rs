@@ -94,7 +94,7 @@ fn deferred_default_autosave_rejects_load_without_cancelling_or_reading_file() {
     );
 
     let mut restored_full = full_default;
-    restored_full["runtimeConfig"]["bpm"] = json!(91);
+    restored_full["runtimeConfig"]["transport"]["bpm"] = json!(91);
     let restored_documents =
         playback_runtime::split_system_patch_documents(&restored_full).unwrap();
     std::fs::write(

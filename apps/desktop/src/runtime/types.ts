@@ -23,13 +23,6 @@ export type SimulatorSnapshot = {
     [number, number, number]
   >;
   masterVolume: number;
-  voiceStealingMode:
-    | 'fixed12'
-    | 'fixed16'
-    | 'auto-soft'
-    | 'auto-balanced'
-    | 'auto-hard'
-    | 'none';
   audioLoad: import('../audio/audioLoadEvents').AudioLoadStatus;
   instruments: unknown[];
   mixer: unknown;

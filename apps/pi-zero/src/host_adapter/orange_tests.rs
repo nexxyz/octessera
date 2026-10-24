@@ -96,7 +96,7 @@ fn first_backup_effect_does_not_latch_an_error() {
 fn default_and_preset_round_trips_use_atomic_service() {
     let (mut adapter, store, samples) = adapter();
     let mut full = crate::user_data_archive::canonical_defaults();
-    full["runtimeConfig"]["bpm"] = json!(99);
+    full["runtimeConfig"]["transport"]["bpm"] = json!(99);
     let payload = playback_runtime::split_system_patch_documents(&full)
         .unwrap()
         .patch;

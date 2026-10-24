@@ -43,14 +43,6 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) sound: Option<SoundDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) note_length_ms: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_scale_pct: Option<u16>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_curve: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) voice_stealing_mode: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) ghost_cells: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) input_events_while_paused: Option<bool>,
@@ -74,10 +66,6 @@ pub struct RuntimeConfigDto {
     pub(super) rolling_backups: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_auto_map_enabled: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) bpm: Option<serde_json::Number>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) swing_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) play_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

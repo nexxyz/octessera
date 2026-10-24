@@ -31,7 +31,7 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let mut prior_full = crate::user_data_archive::canonical_defaults();
-    prior_full["runtimeConfig"]["bpm"] = json!(100);
+    prior_full["runtimeConfig"]["transport"]["bpm"] = json!(100);
     let prior_documents = playback_runtime::split_system_patch_documents(&prior_full).unwrap();
     std::fs::write(
         store.join("system.json"),
@@ -46,7 +46,7 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
     let mut system = prior_documents.system.clone();
     system["runtimeConfig"]["screenSleepSeconds"] = json!(45);
     let mut next_full = prior_full;
-    next_full["runtimeConfig"]["bpm"] = json!(140);
+    next_full["runtimeConfig"]["transport"]["bpm"] = json!(140);
     let default_payload = playback_runtime::split_system_patch_documents(&next_full)
         .unwrap()
         .patch;

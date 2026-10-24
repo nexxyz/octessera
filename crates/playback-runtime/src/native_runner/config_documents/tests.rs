@@ -15,11 +15,8 @@ fn distinct_full_config(source: &str) -> Value {
     runtime["midi"]["outId"] = json!("device-midi-out");
     runtime["midi"]["inId"] = json!("device-midi-in");
     runtime["playMode"] = json!("pan");
-    runtime["noteLengthMs"] = json!(777);
     runtime["sound"]["noteLengthMs"] = json!(777);
-    runtime["velocityScalePct"] = json!(143);
     runtime["sound"]["velocityScalePct"] = json!(143);
-    runtime["bpm"] = json!(137.25);
     runtime["transport"]["bpm"] = json!(137.25);
     runtime["instruments"][0]["midi"]["channel"] = json!(13);
     runtime["instruments"][0]["mixer"]["volume"] = json!(31);
@@ -79,7 +76,6 @@ fn assert_round_trip(source: &str) {
         documents.system["runtimeConfig"]["midi"]["outId"],
         "device-midi-out"
     );
-    assert_eq!(documents.patch["runtimeConfig"]["noteLengthMs"], 777);
     assert_eq!(
         documents.patch["runtimeConfig"]["sound"]["noteLengthMs"],
         777

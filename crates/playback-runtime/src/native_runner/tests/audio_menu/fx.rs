@@ -216,7 +216,7 @@ pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
-                "bpm": 60,
+                "transport": { "bpm": 60 },
                 "mixer": {
                     "buses": [{
                         "slot1": { "type": "delay", "params": { "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 } }
@@ -236,7 +236,7 @@ pub(crate) fn note_mode_delay_config_load_uses_visible_bpm_clamp() {
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
-                "bpm": 20,
+                "transport": { "bpm": 20 },
                 "mixer": {
                     "buses": [{
                         "slot1": { "type": "delay", "params": { "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 } }

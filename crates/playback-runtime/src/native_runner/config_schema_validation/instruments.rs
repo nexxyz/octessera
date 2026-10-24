@@ -94,14 +94,12 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
         validate_fm(instrument, &path)?;
         validate_pluck(instrument, &path)?;
         validate_drum(instrument, &path)?;
-        for key in ["midi", "midiEngine"] {
-            if let Some(midi) = object_field(instrument, key, &path)? {
-                let midi_path = format!("{path}.{key}");
-                bool_field(midi, "enabled", &midi_path)?;
-                unsigned_field(midi, "channel", &midi_path, 1, 16)?;
-                unsigned_field(midi, "velocity", &midi_path, 1, 127)?;
-                unsigned_field(midi, "durationMs", &midi_path, 10, 2000)?;
-            }
+        if let Some(midi) = object_field(instrument, "midi", &path)? {
+            let midi_path = format!("{path}.midi");
+            bool_field(midi, "enabled", &midi_path)?;
+            unsigned_field(midi, "channel", &midi_path, 1, 16)?;
+            unsigned_field(midi, "velocity", &midi_path, 1, 127)?;
+            unsigned_field(midi, "durationMs", &midi_path, 10, 2000)?;
         }
     }
     Ok(())

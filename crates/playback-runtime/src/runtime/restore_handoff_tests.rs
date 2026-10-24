@@ -137,7 +137,7 @@ fn matching_system_then_patch_restore_acknowledges_once_after_native_apply() {
     let (mut system, mut patch) = documents();
     system["runtimeConfig"]["displayBrightness"] = json!(27);
     patch["runtimeConfig"]["transport"]["bpm"] = json!(133.0);
-    patch["runtimeConfig"]["bpm"] = json!(133.0);
+    patch["runtimeConfig"]["transport"]["bpm"] = json!(133.0);
     patch["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"] =
         json!("userdata/User Kit/restore.wav");
     host.system_reply = Some(RuntimeStoreResult::LoadSystemResult {
@@ -205,7 +205,7 @@ fn matching_system_then_patch_restore_acknowledges_once_after_native_apply() {
     runner.register_platform_request(&ordinary_request);
     let mut ordinary_patch = patch;
     ordinary_patch["runtimeConfig"]["transport"]["bpm"] = json!(127.0);
-    ordinary_patch["runtimeConfig"]["bpm"] = json!(127.0);
+    ordinary_patch["runtimeConfig"]["transport"]["bpm"] = json!(127.0);
     runtime
         .dispatch_host_message(
             HostMessage::RuntimeResult {

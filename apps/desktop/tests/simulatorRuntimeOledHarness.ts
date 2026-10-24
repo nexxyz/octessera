@@ -84,7 +84,6 @@ export function snapshot(
       displayBrightness: 75,
       buttonBrightness: 75,
       masterVolume,
-      voiceStealingMode: 'auto-balanced' as const,
       autoSaveFlash: 'none' as const,
       stopLatched: false,
       shiftHeld: false,

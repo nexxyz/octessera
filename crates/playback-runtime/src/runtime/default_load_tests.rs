@@ -11,7 +11,7 @@ fn ordinary_default_load_does_not_ack_restore() {
     let (mut runtime, mut runner, mut host) = runtime_runner();
     let (_, mut patch) = documents();
     patch["runtimeConfig"]["transport"]["bpm"] = json!(127.0);
-    patch["runtimeConfig"]["bpm"] = json!(127.0);
+    patch["runtimeConfig"]["transport"]["bpm"] = json!(127.0);
     let request = runtime.next_platform_request(RuntimePlatformEffect::StoreLoadDefault);
     runner.register_platform_request(&request);
     runtime

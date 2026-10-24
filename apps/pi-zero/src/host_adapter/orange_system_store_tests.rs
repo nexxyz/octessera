@@ -33,7 +33,7 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
     let (mut adapter, root) = adapter("separate");
     let store = root.join("store");
     let mut full = crate::user_data_archive::canonical_defaults();
-    full["runtimeConfig"]["bpm"] = json!(100);
+    full["runtimeConfig"]["transport"]["bpm"] = json!(100);
     let prior_documents = playback_runtime::split_system_patch_documents(&full).unwrap();
     std::fs::write(
         store.join("system.json"),
@@ -82,7 +82,7 @@ fn system_store_is_separate_and_does_not_cancel_queued_default_write() {
     );
 
     let mut next_full = full;
-    next_full["runtimeConfig"]["bpm"] = json!(140);
+    next_full["runtimeConfig"]["transport"]["bpm"] = json!(140);
     let default_payload = playback_runtime::split_system_patch_documents(&next_full)
         .unwrap()
         .patch;

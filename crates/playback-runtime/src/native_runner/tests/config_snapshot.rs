@@ -74,7 +74,6 @@ pub(crate) fn config_snapshot_capture_is_owned_and_matches_frozen_payload_fields
             "activeBehavior": "life",
             "activeLayerIndex": 0,
             "transport": { "bpm": 120, "swingPct": 0 },
-            "bpm": 120.0,
             "instruments": [{ "synth": { "filter": { "cutoff": 182 } } }]
         }
     });
@@ -84,7 +83,7 @@ pub(crate) fn config_snapshot_capture_is_owned_and_matches_frozen_payload_fields
         frozen_prior_fields["schemaVersion"]
     );
     assert_eq!(payload["revision"], frozen_prior_fields["revision"]);
-    for key in ["activeBehavior", "activeLayerIndex", "transport", "bpm"] {
+    for key in ["activeBehavior", "activeLayerIndex", "transport"] {
         assert_eq!(
             payload["runtimeConfig"][key],
             frozen_prior_fields["runtimeConfig"][key]

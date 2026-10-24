@@ -9,7 +9,7 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
     let service = PiPlatformService::new(store.clone(), root.join("samples"));
     std::fs::create_dir_all(store.join("patches")).unwrap();
     let mut restored_full = crate::user_data_archive::canonical_defaults();
-    restored_full["runtimeConfig"]["bpm"] = serde_json::json!(88);
+    restored_full["runtimeConfig"]["transport"]["bpm"] = serde_json::json!(88);
     let restored_documents =
         playback_runtime::split_system_patch_documents(&restored_full).unwrap();
     std::fs::write(

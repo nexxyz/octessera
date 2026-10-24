@@ -25,11 +25,11 @@ pub(crate) fn config_payload_includes_complete_sample_and_fx_param_shapes() {
         100
     );
     assert_eq!(
-        payload["runtimeConfig"]["instruments"][0]["midiEngine"]["velocity"],
+        payload["runtimeConfig"]["instruments"][0]["midi"]["velocity"],
         100
     );
     assert_eq!(
-        payload["runtimeConfig"]["instruments"][0]["midiEngine"]["channel"],
+        payload["runtimeConfig"]["instruments"][0]["midi"]["channel"],
         1
     );
     assert!(payload["runtimeConfig"]["instruments"][0]["sample"]["ampEnv"].is_object());
@@ -43,8 +43,8 @@ pub(crate) fn config_payload_includes_complete_sample_and_fx_param_shapes() {
     payload["runtimeConfig"]["instruments"][0]["sample"]["filter"] =
         json!({ "type": "highpass", "cutoffHz": 1200 });
     payload["runtimeConfig"]["instruments"][0]["sample"]["filterEnv"] = json!({ "releaseMs": 222 });
-    payload["runtimeConfig"]["instruments"][0]["midiEngine"] =
-        json!({ "channel": 7, "velocity": 66, "durationMs": 444 });
+    payload["runtimeConfig"]["instruments"][0]["midi"] =
+        json!({ "enabled": false, "channel": 7, "velocity": 66, "durationMs": 444 });
     payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
         json!({ "type": "delay", "params": { "timeMs": 333, "feedback": 0.42, "mixPct": 44 } });
     payload["runtimeConfig"]["mixer"]["master"]["slots"][0] =

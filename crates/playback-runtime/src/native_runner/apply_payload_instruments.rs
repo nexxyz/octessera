@@ -252,14 +252,12 @@ impl NativeRunner {
         let transport = runtime.get("transport");
         if let Some(value) = transport
             .and_then(|transport| transport.get("bpm"))
-            .or_else(|| runtime.get("bpm"))
             .and_then(Value::as_f64)
         {
             self.transport.bpm = crate::delay_timing::clamp_visible_bpm(value);
         }
         if let Some(value) = transport
             .and_then(|transport| transport.get("swingPct"))
-            .or_else(|| runtime.get("swingPct"))
             .and_then(Value::as_u64)
         {
             if let Ok(value) = u8::try_from(value) {

@@ -27,8 +27,6 @@ pub struct InstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi: Option<MidiInstrumentDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) midi_engine: Option<MidiInstrumentDto>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) mixer: Option<InstrumentMixerDto>,
 }
 

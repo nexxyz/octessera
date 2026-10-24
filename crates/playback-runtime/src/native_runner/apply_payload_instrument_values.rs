@@ -203,23 +203,11 @@ pub(super) fn apply_instrument_drum_payload(slot: &Value, instrument: &mut Nativ
 }
 
 pub(super) fn apply_instrument_midi_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(midi) = slot.get("midi") {
-        apply_midi_value_block(midi, true, instrument);
-    }
-    if let Some(midi_engine) = slot.get("midiEngine") {
-        apply_midi_value_block(midi_engine, false, instrument);
-    }
-}
-
-pub(super) fn apply_midi_value_block(
-    value: &Value,
-    allow_enabled: bool,
-    instrument: &mut NativeInstrumentSlot,
-) {
-    if allow_enabled {
-        if let Some(enabled) = value.get("enabled").and_then(Value::as_bool) {
-            instrument.midi_enabled = enabled;
-        }
+    let Some(value) = slot.get("midi") else {
+        return;
+    };
+    if let Some(enabled) = value.get("enabled").and_then(Value::as_bool) {
+        instrument.midi_enabled = enabled;
     }
     if let Some(channel) = value.get("channel").and_then(Value::as_u64) {
         if let Ok(channel) = u8::try_from(channel) {

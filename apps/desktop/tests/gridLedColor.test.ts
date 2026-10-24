@@ -57,7 +57,6 @@ const settings = (
   gridBrightness: 100,
   buttonBrightness: 75,
   masterVolume: 73,
-  voiceStealingMode: 'auto-balanced',
   autoSaveFlash: 'none',
   stopLatched: false,
   shiftHeld: false,

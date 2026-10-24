@@ -20,8 +20,6 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
         0,
         (platform_core::LAYER_COUNT - 1) as u64,
     )?;
-    enum_field(runtime, "velocityCurve", "runtimeConfig", VELOCITY_CURVES)?;
-    enum_field(runtime, "voiceStealingMode", "runtimeConfig", VOICE_MODES)?;
     enum_field(
         runtime,
         "numericDisplayMode",
@@ -78,12 +76,11 @@ pub(super) fn validate_system(root: &Map<String, Value>) -> Result<(), String> {
 }
 
 fn validate_transport(runtime: &Map<String, Value>) -> Result<(), String> {
-    number_field(runtime, "bpm", "runtimeConfig", 40.0, 240.0)?;
     if let Some(transport) = object_field(runtime, "transport", "runtimeConfig")? {
         number_field(transport, "bpm", "runtimeConfig.transport", 40.0, 240.0)?;
         unsigned_field(transport, "swingPct", "runtimeConfig.transport", 0, 75)?;
     }
-    unsigned_field(runtime, "swingPct", "runtimeConfig", 0, 75)
+    Ok(())
 }
 
 fn validate_play(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -144,15 +141,6 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
     }
 }
 
-const VELOCITY_CURVES: &[&str] = &["linear", "soft", "hard"];
-const VOICE_MODES: &[&str] = &[
-    "none",
-    "fixed12",
-    "fixed16",
-    "auto-soft",
-    "auto-balanced",
-    "auto-hard",
-];
 const DISPLAY_MODES: &[&str] = &["bar", "numbers", "bar+numbers"];
 const PLAY_MODES: &[&str] = &[
     "mix",

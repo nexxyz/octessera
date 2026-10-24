@@ -115,7 +115,7 @@ fn default_load_rejects_queued_legacy_save_without_cancelling_it() {
     )
     .unwrap();
     let mut prior = documents.patch.clone();
-    prior["runtimeConfig"]["bpm"] = serde_json::json!(90);
+    prior["runtimeConfig"]["transport"]["bpm"] = serde_json::json!(90);
     std::fs::write(
         store.join("system.json"),
         serde_json::to_vec(&documents.system).unwrap(),
@@ -145,7 +145,7 @@ fn default_load_rejects_queued_legacy_save_without_cancelling_it() {
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap();
     let mut payload = documents.patch;
-    payload["runtimeConfig"]["bpm"] = serde_json::json!(111);
+    payload["runtimeConfig"]["transport"]["bpm"] = serde_json::json!(111);
     service
         .enqueue(PlatformJob::new(
             RuntimePlatformRequest::new(
@@ -214,7 +214,7 @@ fn named_preset_load_rejects_queued_named_save_without_cancelling_it() {
     )
     .unwrap();
     let mut prior = documents.patch.clone();
-    prior["runtimeConfig"]["bpm"] = serde_json::json!(90);
+    prior["runtimeConfig"]["transport"]["bpm"] = serde_json::json!(90);
     std::fs::write(
         store.join("patches").join("preset.json"),
         serde_json::to_vec(&prior).unwrap(),
@@ -239,7 +239,7 @@ fn named_preset_load_rejects_queued_named_save_without_cancelling_it() {
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap();
     let mut payload = documents.patch;
-    payload["runtimeConfig"]["bpm"] = serde_json::json!(111);
+    payload["runtimeConfig"]["transport"]["bpm"] = serde_json::json!(111);
     service
         .enqueue(PlatformJob::new(
             RuntimePlatformRequest::new(

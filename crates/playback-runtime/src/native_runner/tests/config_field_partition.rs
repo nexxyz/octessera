@@ -20,10 +20,6 @@ const FULL_FIELDS: &[&str] = &[
     "mixer",
     "masterVolume",
     "sound",
-    "noteLengthMs",
-    "velocityScalePct",
-    "velocityCurve",
-    "voiceStealingMode",
     "ghostCells",
     "inputEventsWhilePaused",
     "numericDisplayMode",
@@ -36,7 +32,6 @@ const FULL_FIELDS: &[&str] = &[
     "autoSaveDefault",
     "rollingBackups",
     "auxAutoMapEnabled",
-    "bpm",
     "playMode",
     "randomSeed",
     "auxBindings",
@@ -58,11 +53,6 @@ const PATCH_FIELDS: &[&str] = &[
     "xyRelease",
     "instruments",
     "mixer",
-    "noteLengthMs",
-    "velocityScalePct",
-    "velocityCurve",
-    "voiceStealingMode",
-    "bpm",
     "playMode",
     "randomSeed",
 ];
@@ -121,11 +111,6 @@ const PORTABLE_FIELDS: &[&str] = &[
     "xyRelease",
     "instruments",
     "mixer",
-    "noteLengthMs",
-    "velocityScalePct",
-    "velocityCurve",
-    "voiceStealingMode",
-    "bpm",
     "playMode",
     "randomSeed",
     "sound",
@@ -208,7 +193,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     let canonical_runtime = source_runtime(&canonical).clone();
     let source_runtime = source_runtime_mut(&mut source);
     source_runtime["instruments"][0]["mixer"]["volume"] = json!(61);
-    source_runtime["bpm"] = json!(if canonical_runtime["bpm"] == 40.0 {
+    source_runtime["transport"]["bpm"] = json!(if canonical_runtime["transport"]["bpm"] == 40 {
         240.0
     } else {
         40.0

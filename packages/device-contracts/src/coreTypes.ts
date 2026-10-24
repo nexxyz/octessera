@@ -132,13 +132,6 @@ export type RuntimeSnapshotSettings = {
   gridBrightness?: number;
   buttonBrightness: number;
   masterVolume: number;
-  voiceStealingMode:
-    | "fixed12"
-    | "fixed16"
-    | "auto-soft"
-    | "auto-balanced"
-    | "auto-hard"
-    | "none";
   instruments?: unknown[];
   mixer?: unknown;
   panPositions?: number;
