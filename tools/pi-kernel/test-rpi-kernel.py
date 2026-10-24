@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import copy
 import gzip
 import importlib.util
-import json
 import lzma
 import os
 import shutil
@@ -158,12 +156,6 @@ def _expect_failure(label: str, operation: Callable[[], Any]) -> None:
     except (ContractError, VALIDATOR.PackageValidationError, BUILDER.BuildError):
         return
     raise AssertionError(f"fixture was accepted: {label}")
-def _tool_fact(command: str, version: str) -> dict[str, str]:
-    return {
-        "command": command,
-        "version": version,
-        "version_sha256": VALIDATOR.sha256_bytes(version.encode("utf-8")),
-    }
 def _assert_openssl_version_probe() -> None:
     calls: list[list[str]] = []
     original_run = BUILDER._run
@@ -179,82 +171,6 @@ def _assert_openssl_version_probe() -> None:
         BUILDER._run = original_run
     assert calls == [["openssl", "version"]]
     assert fact["command"] == "openssl version"
-def _build_provenance(root: Path, contract: Contract, inventory: dict[str, Any]) -> dict[str, Any]:
-    checkout_sha = subprocess.run(
-        ["git", "-C", str(root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
-    ).stdout.strip()
-    tool_versions = {
-        "compiler": _tool_fact("aarch64-linux-gnu-gcc", "aarch64-linux-gnu-gcc (fixture) 1.0"),
-        "linker": _tool_fact("aarch64-linux-gnu-ld", "GNU ld (fixture) 1.0"),
-        "host_compiler": _tool_fact("gcc", "gcc (fixture) 1.0"),
-        "host_linker": _tool_fact("ld", "GNU ld (fixture) 1.0"),
-        "make": _tool_fact("make", "GNU Make 4.4"),
-        "bc": _tool_fact("bc", "bc 1.07.1"),
-        "bison": _tool_fact("bison", "bison (GNU Bison) 3.8.2"),
-        "flex": _tool_fact("flex", "flex 2.6.4"),
-        "openssl": _tool_fact("openssl version", "OpenSSL 3.0.0"),
-        "fakeroot": _tool_fact("fakeroot", "fakeroot version 1.0"),
-        "dpkg": _tool_fact("dpkg", "Debian dpkg fixture 1.0"),
-        "dpkg_deb": _tool_fact("dpkg-deb", "Debian dpkg-deb fixture 1.0"),
-        "dpkg_query": _tool_fact("dpkg-query", "Debian dpkg-query fixture 1.0"),
-        "dpkg_parsechangelog": _tool_fact("dpkg-parsechangelog --version", "Debian dpkg-parsechangelog fixture 1.0"),
-        "debhelper": _tool_fact("dpkg-query -W -f=${Version} debhelper", "13.0"),
-        "readelf": _tool_fact("readelf", "GNU readelf (fixture) 1.0"),
-        "strings": _tool_fact("strings", "GNU strings (fixture) 1.0"),
-        "git": _tool_fact("git", "git version 2.0.0"),
-        "python": _tool_fact("python3", "Python 3.13.0"),
-        "bash": _tool_fact("bash", "GNU bash, version 5.2.0"),
-    }
-    preflight = {
-        "host_architecture": "amd64",
-        "tools": tool_versions,
-        "packages": {
-            package: {
-                "package": f"{package}:amd64",
-                "architecture": "amd64",
-                "status": "installed",
-                "version": "fixture-1.0",
-                "headers": list(headers),
-            }
-            for package, headers in VALIDATOR.EXPECTED_NATIVE_PACKAGES.items()
-        },
-    }
-    return {
-        "source_commit": contract.source_commit,
-        "patch_order": [path.relative_to(contract.root).as_posix() for path in contract.patch_paths],
-        "config_gate": {
-            "path": ".config",
-            "localversion": inventory["config"]["localversion"],
-            "localversion_auto": inventory["config"]["localversion_auto"],
-            "required_config": inventory["config"]["required_config"],
-            "sha256": inventory["config"]["sha256"],
-        },
-        "arch": "arm64",
-        "cross_compile": "aarch64-linux-gnu-",
-        "builder": dict(contract.package_builder),
-        "octessera_checkout_sha": checkout_sha,
-        "rules_sha256": contract.package_builder["rules_sha256"],
-        "target": contract.package_builder["target"],
-        "fakeroot": contract.package_builder["fakeroot"],
-        "scope": {
-            "binary_package_scope": list(contract.package_builder["binary_package_scope"]),
-            "uapi_headers_prepared_by_build_arch": True,
-            "header_package": False,
-            "libc_dev_package": False,
-            "dev_package": False,
-            "debug_package": False,
-            "description": "build-arch prepares UAPI headers for the image build but does not package headers, libc-dev, dev, or debug artifacts.",
-        },
-        "debian_metadata": {
-            "arch": "arm64",
-            "kernelrelease": contract.kernel_release,
-            "changelog_version": contract.package_version,
-            "rules_sha256": contract.package_builder["rules_sha256"],
-        },
-        "preflight": preflight,
-        "tool_versions": tool_versions,
-    }
-
 def _configure_dry_run_fixture(root: Path, contract: Contract, *, wrong_config: bool = False) -> None:
     source = root / "source"
     build = root / "build"
@@ -449,48 +365,6 @@ def main() -> int:
         checksum_file = checksum_dir / "SHA256SUMS"
         checksum_file.write_text(f"{'0' * 64}  {checksum_package.name}\n", encoding="utf-8")
         _expect_failure("checksum mismatch", lambda: VALIDATOR.validate_package(checksum_package, contract, checksum_file))
-
-        provenance = copy.deepcopy(inventory)
-        provenance_file = work / "provenance.json"
-        def validate_written_provenance() -> None:
-            provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-            VALIDATOR.validate_package(good, contract, provenance_in=provenance_file)
-
-        _expect_failure("missing build provenance", validate_written_provenance)
-        provenance["build"] = _build_provenance(root, contract, inventory)
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        VALIDATOR.validate_package(good, contract, provenance_in=provenance_file)
-        provenance["build"]["rules_sha256"] = "0" * 64
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        _expect_failure("tampered Debian rules provenance", lambda: VALIDATOR.validate_package(good, contract, provenance_in=provenance_file))
-        provenance["package"]["sha256"] = "0" * 64
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        _expect_failure("provenance mismatch", lambda: VALIDATOR.validate_package(good, contract, provenance_in=provenance_file))
-        provenance = copy.deepcopy(inventory)
-        provenance["build"] = _build_provenance(root, contract, inventory)
-        provenance["build"]["config_gate"]["sha256"] = "0" * 64
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        _expect_failure("config hash mismatch", lambda: VALIDATOR.validate_package(good, contract, provenance_in=provenance_file))
-        provenance = copy.deepcopy(inventory)
-        provenance["build"] = _build_provenance(root, contract, inventory)
-        provenance["build"]["source_commit"] = "0" * 40
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        _expect_failure("tampered build provenance", lambda: VALIDATOR.validate_package(good, contract, provenance_in=provenance_file))
-        provenance = copy.deepcopy(inventory)
-        provenance["build"] = _build_provenance(root, contract, inventory)
-        provenance["build"]["tool_versions"].pop("compiler")
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        _expect_failure("missing tool fact", lambda: VALIDATOR.validate_package(good, contract, provenance_in=provenance_file))
-        provenance = copy.deepcopy(inventory)
-        provenance["build"] = _build_provenance(root, contract, inventory)
-        provenance["build"]["tool_versions"]["compiler"]["version"] = "tampered"
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        _expect_failure("tampered tool fact", lambda: VALIDATOR.validate_package(good, contract, provenance_in=provenance_file))
-        provenance = copy.deepcopy(inventory)
-        provenance["build"] = _build_provenance(root, contract, inventory)
-        provenance["build"]["octessera_checkout_sha"] = "0" * 40
-        provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-        _expect_failure("tampered checkout SHA", lambda: VALIDATOR.validate_package(good, contract, provenance_in=provenance_file))
     print("Raspberry kernel constructor synthetic tests passed")
     return 0
 

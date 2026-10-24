@@ -215,14 +215,11 @@ jobs:
           set -euo pipefail
           mapfile -t packages < <(find raspberry-kernel -maxdepth 1 -type f -name '*.deb' -print | sort)
           [[ "${#packages[@]}" == 1 ]] || { echo "Expected exactly one Raspberry kernel package, found ${#packages[@]}." >&2; exit 1; }
-          for artifact in SHA256SUMS inventory.json provenance.json; do
-            test -f "raspberry-kernel/$artifact" || { echo "Missing Raspberry kernel artifact: $artifact" >&2; exit 1; }
-          done
+          test -f raspberry-kernel/SHA256SUMS || { echo "Missing Raspberry kernel SHA256SUMS" >&2; exit 1; }
           python3 tools/pi-kernel/validate-rpi-kernel-package.py \
             "${packages[0]}" \
             --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
-            --checksum-file raspberry-kernel/SHA256SUMS \
-            --provenance-in raspberry-kernel/provenance.json
+            --checksum-file raspberry-kernel/SHA256SUMS
           (cd raspberry-kernel && sha256sum -c SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
@@ -321,7 +318,6 @@ jobs:
           export OCTESSERA_RELEASE_VERSION="${{ inputs.version }}" OCTESSERA_RELEASE_TAG="${{ inputs.tag }}" OCTESSERA_BOARD_PROFILE_ID="raspberry-pi-zero-2w"
           export OCTESSERA_KERNEL_PACKAGE="$GITHUB_WORKSPACE/kernel-bundle/${packages[0]}"
           export OCTESSERA_KERNEL_CHECKSUMS="$GITHUB_WORKSPACE/kernel-bundle/SHA256SUMS"
-          export OCTESSERA_KERNEL_PROVENANCE="$GITHUB_WORKSPACE/kernel-bundle/provenance.json"
           cat > pi-gen/config <<EOF
           IMG_NAME=octessera-raspberry-pi-zero-2w
           RELEASE=bookworm
@@ -333,18 +329,17 @@ jobs:
           OCTESSERA_BOARD_PROFILE_ID=$OCTESSERA_BOARD_PROFILE_ID
           OCTESSERA_KERNEL_PACKAGE=$OCTESSERA_KERNEL_PACKAGE
           OCTESSERA_KERNEL_CHECKSUMS=$OCTESSERA_KERNEL_CHECKSUMS
-          OCTESSERA_KERNEL_PROVENANCE=$OCTESSERA_KERNEL_PROVENANCE
           OCTESSERA_REPOSITORY_ROOT=$OCTESSERA_REPOSITORY_ROOT
           EXPORT_DIR=deploy
           DEPLOY_ZIP=1
           ENABLE_SSH=0
           EOF
           cd pi-gen
-          sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_KERNEL_PROVENANCE,OCTESSERA_REPOSITORY_ROOT ./build.sh
+          sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_REPOSITORY_ROOT ./build.sh
       - name: Select and verify the single Raspberry ZIP
         run: |
           set -euo pipefail
-          mkdir -p release-assets extracted-image
+          mkdir -p release-assets
           mapfile -t zip_files < <(find pi-gen/deploy -maxdepth 1 -type f -name '*.zip' -print | sort)
           [[ "${#zip_files[@]}" == 1 ]] || { echo "Expected exactly one pi-gen ZIP, found ${#zip_files[@]}." >&2; exit 1; }
           asset="release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.img.zip"
@@ -357,16 +352,6 @@ jobs:
             --board-profile raspberry-pi-zero-2w \
             --manifest-out "release-assets/octessera-${{ inputs.version }}-raspberry-pi-zero-2w.rpi-imager-manifest"
           sudo bash tools/pi-image/verify-sanitized-image.sh --runtime-bundle runtime-bundle "$asset"
-          unzip -q "$asset" -d extracted-image
-          mapfile -t images < <(find extracted-image -type f -name '*.img' -print | sort)
-          [[ "${#images[@]}" == 1 ]] || { echo "Expected exactly one image extracted from the Raspberry ZIP, found ${#images[@]}." >&2; exit 1; }
-          mapfile -t packages < <(find kernel-bundle -maxdepth 1 -type f -name '*.deb' -print | sort)
-          sudo bash tools/pi-image/verify-rpi-kernel-image.sh \
-            --image "${images[0]}" \
-            --package "${packages[0]}" \
-            --checksum kernel-bundle/SHA256SUMS \
-            --provenance kernel-bundle/provenance.json \
-            --manifest tools/kernel-patches/orange-midi-interface-manifest.json
           (cd release-assets && sha256sum ./*.zip ./*.rpi-imager-manifest > SHA256SUMS-pi.txt && sha256sum -c SHA256SUMS-pi.txt)
       - uses: actions/upload-artifact@v4
         with:

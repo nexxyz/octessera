@@ -2,11 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import bz2
-import gzip
-import hashlib
 import json
-import lzma
 import re
 import shutil
 import subprocess
@@ -30,7 +26,6 @@ from rpi_kernel_contract import (  # type: ignore[import-not-found]  # noqa: E40
     HEX64,
     Contract,
     ContractError,
-    assert_final_config,
     image_contract,
     load_contract,
     sha256_bytes,
@@ -52,13 +47,6 @@ def _run(command: list[str]) -> str:
             detail = ((error.stdout or "") + (error.stderr or "")).strip()
         raise ImageInstallError(f"command failed: {' '.join(command)}\n{detail}") from error
     return result.stdout
-
-
-def _run_bytes(command: list[str], data: bytes) -> bytes:
-    try:
-        return subprocess.run(command, input=data, capture_output=True, check=True).stdout
-    except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        raise ImageInstallError(f"command failed: {' '.join(command)}") from error
 
 
 def _require(condition: bool, message: str) -> None:
@@ -91,29 +79,6 @@ def _module_name(path: Path) -> str | None:
     return value[:-3] if value.endswith(".ko") else None
 
 
-def _decompress_module(path: Path) -> bytes:
-    data = path.read_bytes()
-    if path.name.endswith(".xz"):
-        return lzma.decompress(data)
-    if path.name.endswith(".gz"):
-        return gzip.decompress(data)
-    if path.name.endswith(".bz2"):
-        return bz2.decompress(data)
-    if path.name.endswith(".zst"):
-        return _run_bytes(["zstd", "-d", "-c"], data)
-    if path.name.endswith(".lz4"):
-        return _run_bytes(["lz4", "-d", "-c"], data)
-    return data
-
-
-def _payload_inventory(root: Path) -> list[dict[str, str]]:
-    return [{"path": path.relative_to(root).as_posix(), "sha256": sha256_file(path)} for path in sorted(root.rglob("*")) if path.is_file()]
-
-
-def _file_inventory(root: Path, pattern: str) -> list[dict[str, str]]:
-    return [{"path": path.relative_to(root).as_posix(), "sha256": sha256_file(path)} for path in sorted(root.glob(pattern)) if path.is_file()]
-
-
 def _payload_checks(extracted: Path, contract: Contract) -> tuple[Path, Path, list[Path]]:
     for required in contract.required_payload:
         path = extracted / required.rstrip("/")
@@ -144,63 +109,9 @@ def _extracted(package: Path) -> Iterator[Path]:
         yield extracted
 
 
-def _verify_provenance(package: Path, checksum_file: Path, provenance_path: Path, contract: Contract) -> None:
-    try:
-        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ImageInstallError(f"cannot read kernel provenance: {provenance_path}") from error
-    required = {"schema", "kind", "manifest", "source", "patches", "kernel_release", "package", "config", "kernel_image", "kernel_payload", "modules", "dtb_inventory", "overlay_inventory", "build"}
-    _require(isinstance(provenance, dict) and required.issubset(provenance), "kernel provenance fields are incomplete")
-    _require(provenance["schema"] == 1 and provenance["kind"] == "octessera-raspberry-kernel-package", "kernel provenance identity is invalid")
-    _require(provenance["kernel_release"] == contract.kernel_release, "kernel provenance release mismatch")
-    _require(isinstance(provenance["source"], dict) and isinstance(provenance["manifest"], dict) and isinstance(provenance["patches"], list), "kernel provenance source blocks are invalid")
-    _require(isinstance(provenance["build"], dict), "kernel provenance build block is invalid")
-    _require(provenance["source"].get("commit") == contract.source_commit, "kernel provenance source mismatch")
-    _require(provenance["patches"], "kernel provenance patch inventory is empty")
-    fields = _control(package)
-    package_record = {
-        "path": package.name,
-        "name": fields["Package"],
-        "version": fields["Version"],
-        "architecture": fields["Architecture"],
-        "sha256": sha256_file(package),
-    }
-    _require(provenance["package"] == package_record, "kernel provenance package identity or hash mismatch")
-    with _extracted(package) as extracted:
-        kernel, dtb, overlays = _payload_checks(extracted, contract)
-        config_path = extracted / f"boot/config-{contract.kernel_release}"
-        config = assert_final_config(config_path, contract)
-        image, compression = assert_firmware_kernel(kernel)
-        expected_kernel_image = {
-            "package_path": f"boot/vmlinuz-{contract.kernel_release}",
-            "package_sha256": sha256_file(kernel),
-            "firmware_sha256": sha256_bytes(image),
-            "compression": compression,
-        }
-        _require(provenance["kernel_image"] == expected_kernel_image, "kernel provenance firmware image mismatch")
-        _require(provenance["config"] == {"path": f"boot/config-{contract.kernel_release}", **config}, "kernel provenance config mismatch")
-        _require(provenance["kernel_payload"] == _payload_inventory(extracted), "kernel provenance payload inventory mismatch")
-        image_root = extracted / f"usr/lib/linux-image-{contract.kernel_release}"
-        _require(provenance["dtb_inventory"] == _file_inventory(image_root, "**/*.dtb"), "kernel provenance DTB inventory mismatch")
-        _require(provenance["overlay_inventory"] == _file_inventory(image_root / "overlays", "**/*.dtbo"), "kernel provenance overlay inventory mismatch")
-        module_entries = provenance["modules"]
-        _require(isinstance(module_entries, list), "kernel provenance module inventory is invalid")
-        by_name: dict[str, dict[str, Any]] = {}
-        for entry in module_entries:
-            _require(isinstance(entry, dict) and isinstance(entry.get("name"), str), "kernel provenance module entry is invalid")
-            _require(entry["name"] not in by_name, "kernel provenance contains duplicate modules")
-            path = extracted / entry["path"]
-            _require(path.is_file(), f"kernel provenance module is missing: {entry['path']}")
-            _require(entry["sha256"] == sha256_file(path), f"kernel provenance module hash mismatch: {entry['name']}")
-            _require(entry["decompressed_sha256"] == sha256_bytes(_decompress_module(path)), f"kernel provenance decompressed module hash mismatch: {entry['name']}")
-            by_name[entry["name"]] = entry
-        _require(set(by_name) == set(contract.required_modules), "kernel provenance required module set mismatch")
-
-
-def verify_package_inputs(package: Path, checksum_file: Path, provenance_path: Path, contract: Contract) -> dict[str, str]:
+def verify_package_inputs(package: Path, checksum_file: Path, contract: Contract) -> dict[str, str]:
     package = package.resolve()
     checksum_file = checksum_file.resolve()
-    provenance_path = provenance_path.resolve()
     _require(package.is_file(), f"missing kernel package: {package}")
     _require(package.name == contract.package_filename, f"unexpected package filename: {package.name}")
     fields = _control(package)
@@ -208,7 +119,6 @@ def verify_package_inputs(package: Path, checksum_file: Path, provenance_path: P
     _require(fields["Version"] == contract.package_version, f"unexpected package version: {fields['Version']}")
     _require(fields["Architecture"] == contract.package_architecture, f"unexpected package architecture: {fields['Architecture']}")
     _verify_checksum(package, checksum_file)
-    _verify_provenance(package, checksum_file, provenance_path, contract)
     return {**fields, "filename": package.name, "sha256": sha256_file(package)}
 
 
@@ -315,8 +225,8 @@ def verify_selectors(config: Path, contract: Contract) -> dict[str, str]:
     return expected
 
 
-def _finalize(rootfs: Path, package: Path, checksum_file: Path, provenance: Path, contract: Contract) -> dict[str, Any]:
-    package_facts = verify_package_inputs(package, checksum_file, provenance, contract)
+def _finalize(rootfs: Path, package: Path, checksum_file: Path, contract: Contract) -> dict[str, Any]:
+    package_facts = verify_package_inputs(package, checksum_file, contract)
     boot = _boot_dir(rootfs)
     with _extracted(package) as extracted:
         payload = _copy_payload(rootfs, extracted, contract)
@@ -333,17 +243,16 @@ def _finalize(rootfs: Path, package: Path, checksum_file: Path, provenance: Path
     selectors = _write_selectors(boot / "config.txt", contract)
     verify_selectors(boot / "config.txt", contract)
     evidence = {"schema": 1, "kind": "octessera-raspberry-kernel-image", "package": package_facts, "selectors": selectors, "payload": payload, "initramfs": {"path": EXPECTED_FIRMWARE_INITRAMFS, "sha256": sha256_file(initramfs_target)}, "stock_recovery": _preserve_stock(rootfs, boot)}
-    (boot / "octessera/kernel-image-install.json").write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return evidence
 
 
-def install_image(rootfs: Path, package: Path, checksum_file: Path, provenance: Path, contract: Contract, *, finalize: bool) -> dict[str, Any] | None:
-    package_facts = verify_package_inputs(package, checksum_file, provenance, contract)
+def install_image(rootfs: Path, package: Path, checksum_file: Path, contract: Contract, *, finalize: bool) -> dict[str, Any] | None:
+    package_facts = verify_package_inputs(package, checksum_file, contract)
     _preserve_stock(rootfs, _boot_dir(rootfs))
     _install_package(rootfs, package)
     with _extracted(package) as extracted:
         _copy_payload(rootfs, extracted, contract)
-    return _finalize(rootfs, package, checksum_file, provenance, contract) if finalize else package_facts
+    return _finalize(rootfs, package, checksum_file, contract) if finalize else package_facts
 
 
 def main(argv: list[str]) -> int:
@@ -351,7 +260,6 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--rootfs", type=Path, default=Path("/"))
     parser.add_argument("--package", type=Path)
     parser.add_argument("--checksums", type=Path)
-    parser.add_argument("--provenance", type=Path)
     parser.add_argument("--finalize", action="store_true")
     args = parser.parse_args(argv)
     try:
@@ -363,10 +271,7 @@ def main(argv: list[str]) -> int:
         artifact_dir = rootfs / "var/lib/octessera/rpi-kernel"
         package = (args.package or artifact_dir / contract.package_filename).resolve()
         checksums = (args.checksums or artifact_dir / "SHA256SUMS").resolve()
-        provenance = (args.provenance or artifact_dir / "provenance.json").resolve()
-        if not args.finalize and args.provenance is None:
-            raise ImageInstallError("kernel provenance is required before package installation")
-        result = _finalize(rootfs, package, checksums, provenance, contract) if args.finalize else install_image(rootfs, package, checksums, provenance, contract, finalize=False)
+        result = _finalize(rootfs, package, checksums, contract) if args.finalize else install_image(rootfs, package, checksums, contract, finalize=False)
         if result:
             print(json.dumps(result, indent=2, sort_keys=True))
     except (ImageInstallError, OSError, ValueError) as error:

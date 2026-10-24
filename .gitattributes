@@ -49,7 +49,6 @@ userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before
 /tools/pi-image/test-boot-layer-contract.py text eol=lf
 /tools/pi-image/test-rpi-boot-splash.sh text eol=lf
 /tools/pi-image/rpi_initramfs_proof.py text eol=lf
-/tools/pi-image/verify-rpi-kernel-image.py text eol=lf
 /tools/armbian-image/fixtures/python313-initramfs-closure/*.py text eol=lf
 /tools/kernel-patches/orange-midi-interface-manifest.json text eol=lf
 /tools/armbian-image/test-orange-boot-splash-hook.sh text eol=lf

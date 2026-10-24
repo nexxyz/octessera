@@ -41,11 +41,6 @@
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service"},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"},
     {"path": "tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf"},
-    {"path": "tools/pi-image/verify-rpi-kernel-image.py"},
-    {"path": "tools/pi-image/rpi_kernel_image_mount.py"},
-    {"path": "tools/pi-image/rpi_kernel_boot_proof.py"},
-    {"path": "tools/pi-image/rpi_kernel_payload_proof.py"},
-    {"path": "tools/pi-image/rpi_kernel_stock_recovery.py"},
     {"path": "tools/pi-image/rpi_initramfs_proof.py"},
     {"path": "tools/pi-image/verify-boot-layout.sh"},
     {"path": "tools/pi-image/verify-rpi-samples.py"},
@@ -130,8 +125,7 @@
     {"name": "initramfs-watchdog", "path": "tools/pi-image/test-rpi-boot-splash.sh"},
     {"name": "systemd-graph", "path": "tools/pi-image/test-rpi-boot-services.sh"},
     {"name": "sanitized-image", "path": "tools/pi-image/verify-sanitized-image.sh"},
-    {"name": "boot-layout-fixture", "path": "tools/pi-image/test-sanitized-image-boot-layout.sh"},
-    {"name": "kernel-image", "path": "tools/pi-image/verify-rpi-kernel-image.py"}
+    {"name": "boot-layout-fixture", "path": "tools/pi-image/test-sanitized-image-boot-layout.sh"}
   ],
   "expected_changes": {
     "packages": [],

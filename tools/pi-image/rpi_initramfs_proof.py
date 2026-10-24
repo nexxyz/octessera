@@ -308,7 +308,7 @@ def verify_command_layout(path: Path, listing: str, selected: dict[str, Any]) ->
         _validate_extracted_command_layout(destination, records, selected)
 
 
-def _load_selected_contract(path: Path) -> dict[str, Any]:
+def load_selected_contract(path: Path) -> dict[str, Any]:
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -339,12 +339,15 @@ def validate_rootfs_bindings(root: Path, selected: dict[str, Any]) -> None:
             _require(stat.S_ISREG(metadata.st_mode) and metadata.st_mode & 0o111 != 0, f"rootfs byte binding is not an executable regular file: {path}")
 
 
-def verify_command_layout_file(path: Path, contract_path: Path, root: Path | None = None) -> None:
-    selected = _load_selected_contract(contract_path)
+def run_lsinitramfs(path: Path) -> str:
     try:
-        listing = subprocess.run(["lsinitramfs", "-l", str(path)], capture_output=True, text=True, check=True).stdout
+        return subprocess.run(["lsinitramfs", "-l", str(path)], capture_output=True, text=True, check=True).stdout
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
         raise ValueError(f"cannot inspect initramfs {path} with lsinitramfs") from error
+
+
+def verify_selected_initramfs(path: Path, selected: dict[str, Any], root: Path | None = None, listing: str | None = None) -> None:
+    listing = run_lsinitramfs(path) if listing is None else listing
     verify_command_layout(path, listing, selected)
     if root is not None:
         validate_rootfs_bindings(root, selected)
@@ -353,6 +356,10 @@ def verify_command_layout_file(path: Path, contract_path: Path, root: Path | Non
         executable_entries = tuple(required)
         extracted = extract_regular_files(path, required, lambda _: listing, executable_entries, selected)
         compare_rootfs_files(root, extracted, tuple((binding["archive_path"], binding["rootfs_path"]) for binding in bindings))
+
+
+def verify_command_layout_file(path: Path, contract_path: Path, root: Path | None = None) -> None:
+    verify_selected_initramfs(path, load_selected_contract(contract_path), root)
 
 
 def _resolve_rootfs_regular_file(root: Path, relative: str) -> Path:

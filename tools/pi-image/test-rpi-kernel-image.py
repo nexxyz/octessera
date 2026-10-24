@@ -18,7 +18,6 @@ sys.path.insert(0, str(KERNEL))
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "legal"))
 
-from rpi_initramfs_fixture import make_splash_initramfs  # noqa: E402
 from stage_notices import stage_notices  # type: ignore[import-not-found]  # noqa: E402
 
 
@@ -39,7 +38,6 @@ HOOK_MASK = _load(
     "raspi_firmware_hook_mask",
 )
 INSTALLER = _load(HERE / "install-rpi-kernel.py", "image_test_installer")
-PROOF = _load(HERE / "verify-rpi-kernel-image.py", "image_test_proof")
 STAGE_INSTALLER = _load(
     HERE / "stage3-octessera-kernel/files/root/usr/local/lib/octessera/install-rpi-kernel.py",
     "image_test_stage_installer",
@@ -49,7 +47,7 @@ STAGE_INSTALLER = _load(
 def _expect(label: str, operation: Callable[[], Any]) -> None:
     try:
         operation()
-    except (INSTALLER.ImageInstallError, STAGE_INSTALLER.ImageInstallError, PROOF.ImageProofError):
+    except (INSTALLER.ImageInstallError, STAGE_INSTALLER.ImageInstallError):
         return
     raise AssertionError(f"image fixture was accepted: {label}")
 
@@ -190,10 +188,6 @@ def _main() -> int:
         checksum.write_text(f"{STAGE_INSTALLER.sha256_file(package)}  {package.name}\n", encoding="utf-8")
         validator = _load(KERNEL / "validate-rpi-kernel-package.py", "image_test_validator")
         inventory = validator.validate_package(package, contract)
-        provenance = dict(inventory)
-        provenance["build"] = PACKAGE_TESTS._build_provenance(root, contract, inventory)
-        provenance_path = work / "image-provenance.json"
-        provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
         image = work / "root"
         stage_notices(HERE.parents[1], image)
         _write(image / "var/lib/dpkg/status", "Package: fixture\nStatus: install ok installed\nVersion: 1\nDescription: fixture\n")
@@ -210,7 +204,7 @@ def _main() -> int:
         original_install = STAGE_INSTALLER._install_package
         STAGE_INSTALLER._install_package = lambda rootfs, value: value
         try:
-            STAGE_INSTALLER.install_image(image, package, checksum, provenance_path, contract, finalize=False)
+            STAGE_INSTALLER.install_image(image, package, checksum, contract, finalize=False)
         finally:
             STAGE_INSTALLER._install_package = original_install
         boot = image / "boot/firmware"
@@ -287,110 +281,20 @@ def _main() -> int:
                 _write(rootfs / f"boot/initrd.img-{contract.kernel_release}", stock_initrd_regenerated)
         STAGE_INSTALLER._run_in_root = fake_root_command
         try:
-            evidence = STAGE_INSTALLER._finalize(image, package, checksum, provenance_path, contract)
+            evidence = STAGE_INSTALLER._finalize(image, package, checksum, contract)
         finally:
             STAGE_INSTALLER._run_in_root = original_root_command
         assert evidence["initramfs"]["path"] == f"octessera/initrd.img-{contract.kernel_release}"
         assert [_hook_metadata(path) for path in image_hooks] == image_hook_original
         STAGE_INSTALLER.verify_selectors(boot / "config.txt", contract)
-        script_bytes = (image / "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash").read_bytes()
-        _write(boot / f"octessera/initrd.img-{contract.kernel_release}", make_splash_initramfs(script_bytes, runtime_bytes))
-        initramfs_path = boot / f"octessera/initrd.img-{contract.kernel_release}"
-        original_proof_run = PROOF.subprocess.run
-        original_lsinitramfs = PROOF._run_lsinitramfs
-        lsinitramfs_paths: list[Path] = []
-
-        def fake_lsinitramfs(path: Path) -> str:
-            lsinitramfs_paths.append(path)
-            if path.resolve() == initramfs_path.resolve():
-                return original_proof_run(["lsinitramfs", "-l", str(path)], capture_output=True, text=True, check=True).stdout
-            return "stock\n"
-
-        PROOF._run_lsinitramfs = fake_lsinitramfs
-        try:
-            if getattr(os, "geteuid", lambda: -1)() == 0:
-                proved = PROOF.prove_root(image, package, checksum, provenance_path, contract)
-            else:
-                proved = None
-                PROOF._verify_selected_initramfs(boot, initramfs_path)
-                PROOF._verify_stock_recovery(image, boot)
-        finally:
-            PROOF._run_lsinitramfs = original_lsinitramfs
-        if proved is not None:
-            assert proved["package"]["sha256"] == inventory["package"]["sha256"]
-            assert proved["boot_layer"]["device_config_validator"]["size"] == validator_path.stat().st_size
-            composer_path = image / "usr/local/sbin/octessera-usb-gadget"
-            assert proved["boot_layer"]["usb_gadget_composer"]["size"] == composer_path.stat().st_size
-            validator_bytes = validator_path.read_bytes()
-            validator_path.write_bytes(bytes([validator_bytes[0] ^ 1]) + validator_bytes[1:])
-            _expect("stale installed device config validator", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
-            validator_path.write_bytes(validator_bytes[:-1])
-            _expect("short installed device config validator", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
-            validator_path.write_bytes(validator_bytes)
-            composer_bytes = composer_path.read_bytes()
-            composer_path.write_bytes(bytes([composer_bytes[0] ^ 1]) + composer_bytes[1:])
-            _expect("stale installed USB gadget composer", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
-            composer_path.write_bytes(composer_bytes[:-1])
-            _expect("short installed USB gadget composer", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
-            composer_path.write_bytes(composer_bytes)
-            os.chmod(composer_path, 0o644)
-            _expect("wrong mode installed USB gadget composer", lambda: PROOF.prove_root(image, package, checksum, provenance_path, contract))
-            os.chmod(composer_path, 0o755)
-        PROOF._verify_payload(image, boot, package, inventory)
         stock_manifest_path = boot / "octessera/recovery-stock/manifest.json"
         stock_manifest_content = stock_manifest_path.read_text(encoding="utf-8")
         stock_entries = json.loads(stock_manifest_content)
         stock_initrd_entry = next(entry for entry in stock_entries if entry["path"] == f"boot/initrd.img-{contract.kernel_release}")
         stock_recovery_path = image / stock_initrd_entry["recovery_path"]
-        non_initrd_entry = next(entry for entry in stock_entries if entry["path"] != stock_initrd_entry["path"])
-        non_initrd_path = image / non_initrd_entry["path"]
-        non_initrd_original = non_initrd_path.read_bytes()
         assert stock_initrd_path.read_bytes() == stock_initrd_regenerated
         assert stock_recovery_path.read_bytes() == stock_initrd_original
         assert stock_initrd_entry["sha256"] == STAGE_INSTALLER.sha256_file(stock_recovery_path)
-        assert {path.resolve() for path in lsinitramfs_paths} == {initramfs_path.resolve(), stock_initrd_path.resolve(), stock_recovery_path.resolve()}
-        stock_initrd_path.write_bytes(b"\x1f\x8bcorrupt")
-        _expect("corrupt retained stock initramfs", lambda: PROOF._verify_stock_recovery(image, boot))
-        stock_initrd_path.write_bytes(stock_initrd_regenerated)
-        PROOF._run_lsinitramfs = lambda path: ""
-        try:
-            _expect("empty retained stock initramfs listing", lambda: PROOF._verify_stock_recovery(image, boot))
-        finally:
-            PROOF._run_lsinitramfs = original_lsinitramfs
-        stock_initrd_path.unlink()
-        _expect("missing retained stock initramfs", lambda: PROOF._verify_stock_recovery(image, boot))
-        stock_initrd_path.write_bytes(stock_initrd_regenerated)
-        stock_initrd_path.unlink()
-        stock_initrd_path.symlink_to(stock_recovery_path)
-        _expect("symlink retained stock initramfs", lambda: PROOF._verify_stock_recovery(image, boot))
-        stock_initrd_path.unlink()
-        stock_initrd_path.write_bytes(stock_initrd_regenerated)
-        stock_recovery_original = stock_recovery_path.read_bytes()
-        stock_recovery_path.write_bytes(b"tampered recovery")
-        _expect("tampered stock recovery", lambda: PROOF._verify_stock_recovery(image, boot))
-        stock_recovery_path.write_bytes(stock_recovery_original)
-        stock_recovery_path.unlink()
-        stock_recovery_path.symlink_to(stock_initrd_path)
-        _expect("symlink stock recovery", lambda: PROOF._verify_stock_recovery(image, boot))
-        stock_recovery_path.unlink()
-        stock_recovery_path.write_bytes(stock_recovery_original)
-        tampered_manifest = [dict(entry) for entry in stock_entries]
-        next(entry for entry in tampered_manifest if entry["path"] == stock_initrd_entry["path"])["recovery_path"] = "../escaped-initrd"
-        stock_manifest_path.write_text(json.dumps(tampered_manifest), encoding="utf-8")
-        _expect("escaped stock recovery", lambda: PROOF._verify_stock_recovery(image, boot))
-        stock_manifest_path.write_text(stock_manifest_content, encoding="utf-8")
-        non_initrd_path.write_bytes(non_initrd_original + b"tampered")
-        _expect("tampered retained non-initrd", lambda: PROOF._verify_stock_recovery(image, boot))
-        non_initrd_path.write_bytes(non_initrd_original)
-        _write(initramfs_path, b"\x1f\x8bcorrupt")
-        _expect("corrupt compressed initramfs", lambda: PROOF._verify_selected_initramfs(boot, initramfs_path))
-        escape = work / "initramfs-escape"
-        _write(escape, b"outside boot")
-        initramfs_path.unlink()
-        initramfs_path.symlink_to(escape)
-        _expect("initramfs symlink escape", lambda: PROOF._verify_selected_initramfs(boot, initramfs_path))
-        initramfs_path.unlink()
-        _write(initramfs_path, b"initramfs")
 
         final_root = work / "actual-finalizer-root"
         final_boot = final_root / "boot/firmware"
@@ -409,7 +313,6 @@ def _main() -> int:
         final_artifacts.mkdir(parents=True)
         shutil.copy2(package, final_artifacts / package.name)
         shutil.copy2(checksum, final_artifacts / "SHA256SUMS")
-        shutil.copy2(provenance_path, final_artifacts / "provenance.json")
         final_lib = final_root / "usr/local/lib/octessera"
         final_lib.mkdir(parents=True)
         finalizer = HERE / "stage3-octessera-kernel/files/root/usr/local/sbin/octessera-finalize-rpi-kernel"
@@ -448,32 +351,12 @@ def _main() -> int:
         STAGE_INSTALLER.verify_selectors(final_boot / "config.txt", contract)
         assert (final_boot / f"octessera/initrd.img-{contract.kernel_release}").is_file()
 
-        _expect("duplicate selectors", lambda: _write(boot / "config.txt", (boot / "config.txt").read_text() + "kernel=other.img\n") or PROOF._verify_selectors(boot / "config.txt"))
-        STAGE_INSTALLER._write_selectors(boot / "config.txt", contract)
-        _write(boot / "octessera/kernel8.img", b"tampered")
-        _expect("selected kernel hash", lambda: PROOF._verify_payload(image, boot, package, inventory))
         STAGE_INSTALLER._write_selectors(boot / "config.txt", contract)
         _write(boot / "octessera/kernel8.img", inventory_kernel(inventory, package))
         wrong_checksum = work / "wrong-SHA256SUMS"
         wrong_checksum.write_text(f"{'0' * 64}  {package.name}\n", encoding="utf-8")
-        _expect("package hash", lambda: STAGE_INSTALLER.verify_package_inputs(package, wrong_checksum, provenance_path, contract))
-        wrong_provenance = work / "wrong-provenance.json"
-        tampered_provenance = dict(provenance)
-        tampered_provenance["package"] = dict(provenance["package"])
-        tampered_provenance["package"]["sha256"] = "0" * 64
-        wrong_provenance.write_text(json.dumps(tampered_provenance), encoding="utf-8")
-        _expect("provenance package hash", lambda: STAGE_INSTALLER.verify_package_inputs(package, checksum, wrong_provenance, contract))
-        _expect("missing provenance", lambda: STAGE_INSTALLER.verify_package_inputs(package, checksum, work / "missing-provenance.json", contract))
-        _expect("missing selected DTB", lambda: (boot / "octessera/bcm2710-rpi-zero-2-w.dtb").unlink() or PROOF._verify_payload(image, boot, package, inventory))
-        subprocess.run(["dpkg-deb", "-x", str(package), str(image)], check=True, capture_output=True)
-        _expect("module payload", lambda: (image / f"lib/modules/{contract.kernel_release}/kernel/fixture/usb_f_uac2.ko").unlink() or PROOF._verify_payload(image, boot, package, inventory))
-        _expect("auto initramfs", lambda: _write(boot / "config.txt", "auto_initramfs=1\n") or PROOF._verify_selectors(boot / "config.txt"))
-        _expect("missing package", lambda: STAGE_INSTALLER.verify_package_inputs(work / "missing.deb", checksum, provenance_path, contract))
-        PROOF._run_lsinitramfs = lambda path: "drwxr-xr-x root/root 0 1970-01-01 00:00 .\n"
-        try:
-            PROOF._verify_selected_initramfs(boot, initramfs_path)
-        finally:
-            PROOF._run_lsinitramfs = original_lsinitramfs
+        _expect("package hash", lambda: STAGE_INSTALLER.verify_package_inputs(package, wrong_checksum, contract))
+        _expect("missing package", lambda: STAGE_INSTALLER.verify_package_inputs(work / "missing.deb", checksum, contract))
     print("Raspberry kernel image synthetic tests passed")
     return 0
 

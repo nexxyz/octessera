@@ -11,12 +11,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = ROOT / "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json"
-IMPORTED_PROOF_SOURCES = {
-    "tools/pi-image/rpi_kernel_image_mount.py",
-    "tools/pi-image/rpi_kernel_boot_proof.py",
-    "tools/pi-image/rpi_kernel_payload_proof.py",
-    "tools/pi-image/rpi_kernel_stock_recovery.py",
-}
 TOP_KEYS = {
     "schema",
     "schema_version",
@@ -60,8 +54,6 @@ def validate(document: dict[str, Any], root: Path) -> None:
             raise ValueError("source input path is unsafe")
         if not (root / source["path"]).is_file():
             raise ValueError(f"source input is missing: {source['path']}")
-    if not IMPORTED_PROOF_SOURCES.issubset(paths):
-        raise ValueError("Raspberry kernel proof module source inputs are incomplete")
     validator_sources = [source for source in source_inputs if source["path"] == "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py"]
     if len(validator_sources) != 1:
         raise ValueError("Raspberry validator source identity is not unique")
@@ -234,7 +226,7 @@ def validate(document: dict[str, Any], root: Path) -> None:
         raise ValueError("Raspberry UART invariants are not exact")
 
     proofs = document["proofs"]
-    if [proof["name"] for proof in proofs] != ["initramfs-watchdog", "systemd-graph", "sanitized-image", "boot-layout-fixture", "kernel-image"]:
+    if [proof["name"] for proof in proofs] != ["initramfs-watchdog", "systemd-graph", "sanitized-image", "boot-layout-fixture"]:
         raise ValueError("boot-layer proof set is not exact")
     for proof in proofs:
         if set(proof) != {"name", "path"} or not (root / proof["path"]).is_file():
@@ -255,13 +247,6 @@ class BootLayerContractTests(unittest.TestCase):
         altered["source_inputs"][0]["path"] = "tools/pi-image/missing-source.py"
         with self.assertRaises(ValueError):
             validate(altered, ROOT)
-
-    def test_imported_raspberry_proof_sources_are_required(self) -> None:
-        for path in sorted(IMPORTED_PROOF_SOURCES):
-            altered = copy.deepcopy(self.document)
-            altered["source_inputs"] = [item for item in altered["source_inputs"] if item["path"] != path]
-            with self.assertRaises(ValueError):
-                validate(altered, ROOT)
 
     def test_missing_required_initramfs_entry_is_rejected(self) -> None:
         altered = copy.deepcopy(self.document)

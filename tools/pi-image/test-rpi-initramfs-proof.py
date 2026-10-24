@@ -23,7 +23,6 @@ def _load(path: Path, name: str) -> Any:
     return module
 
 
-PROOF = _load(ROOT / "tools/pi-image/verify-rpi-kernel-image.py", "rpi_initramfs_proof_test")
 FIXTURES = _load(ROOT / "tools/pi-image/rpi_initramfs_fixture.py", "rpi_initramfs_fixture_test")
 HELPER = _load(ROOT / "tools/pi-image/rpi_initramfs_proof.py", "rpi_initramfs_proof_helper_test")
 
@@ -31,9 +30,13 @@ HELPER = _load(ROOT / "tools/pi-image/rpi_initramfs_proof.py", "rpi_initramfs_pr
 def _expect_rejected(operation: Callable[[], None], label: str) -> None:
     try:
         operation()
-    except (PROOF.ImageProofError, ValueError):
+    except (OSError, ValueError):
         return
     raise AssertionError(f"initramfs proof accepted {label}")
+
+
+def _verify(initramfs: Path, contract: dict[str, Any], root: Path, listing: str | None = None) -> None:
+    HELPER.verify_selected_initramfs(initramfs, contract["selected_initramfs"], root, listing)
 
 
 def _listing_line(name: str, mode: str = "-rwxr-xr-x", links: int = 1, size: int = 1, target: str | None = None) -> str:
@@ -83,7 +86,7 @@ def _remove_path(path: Path) -> None:
 def main() -> int:
     script = (ROOT / "tools/pi-image/stage4-octessera/files/root/etc/initramfs-tools/scripts/init-premount/octessera-boot-splash").read_bytes()
     runtime = b"current-runtime-bundle\n"
-    contract = PROOF._load_boot_layer_contract()
+    contract = {"selected_initramfs": HELPER.load_selected_contract(ROOT / "resources/image-construction/boot-layers/raspberry-pi-zero-2w.json")}
     with tempfile.TemporaryDirectory(prefix="octessera-rpi-initramfs-proof-test-") as temporary:
         root = Path(temporary) / "root"
         script_path = root / "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash"
@@ -99,7 +102,7 @@ def main() -> int:
         (root / "usr/local/bin/octessera-pi").symlink_to("/opt/octessera/current/octessera-pi")
         initramfs = root / "initramfs.img"
         initramfs.write_bytes(FIXTURES.make_splash_initramfs(script, runtime))
-        PROOF._verify_selected_initramfs_entries(initramfs, contract, root)
+        _verify(initramfs, contract, root)
 
         canonical_listing = _canonical_listing(script, runtime)
         records = HELPER.parse_initramfs_listing(canonical_listing)
@@ -117,7 +120,7 @@ def main() -> int:
             current_link.unlink()
             current_link.symlink_to(target)
             try:
-                _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), label)
+                _expect_rejected(lambda: _verify(initramfs, contract, root), label)
             finally:
                 current_link.unlink()
                 current_link.symlink_to(original_current_target)
@@ -164,7 +167,7 @@ def main() -> int:
         expect_runtime_variant("hardlinked resolved runtime", "/opt/octessera/releases/9.8.7", make_hardlink)
         runtime_link.unlink()
         runtime_link.symlink_to("/tmp/outside-runtime")
-        _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), "unsafe runtime link")
+        _expect_rejected(lambda: _verify(initramfs, contract, root), "unsafe runtime link")
         runtime_link.unlink()
         runtime_link.symlink_to("/opt/octessera/current/octessera-pi")
         trailing_listing = canonical_listing + "\n" + "\n".join(
@@ -180,7 +183,7 @@ def main() -> int:
                     command_records=tuple(record for record in canonical_records if record[0] != executable),
                 )
             )
-            _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), f"missing {executable}")
+            _expect_rejected(lambda: _verify(initramfs, contract, root), f"missing {executable}")
 
         for symlink, target in (("bin", "wrong"), ("usr/bin/sh", "../sh")):
             initramfs.write_bytes(
@@ -190,7 +193,7 @@ def main() -> int:
                     command_records=_replace_command_record(canonical_records, symlink, target.encode(), 0o120777),
                 )
             )
-            _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), f"wrong {symlink} target")
+            _expect_rejected(lambda: _verify(initramfs, contract, root), f"wrong {symlink} target")
 
         for label, payload, mode, links in (
             ("zero command payload", b"", 0o100755, 1),
@@ -206,7 +209,7 @@ def main() -> int:
                     command_records=_replace_command_record(canonical_records, "usr/bin/sleep", payload, mode, links),
                 )
             )
-            _expect_rejected(lambda label=label: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), label)
+            _expect_rejected(lambda label=label: _verify(initramfs, contract, root), label)
 
         altered = FIXTURES.make_splash_initramfs(
             script,
@@ -214,12 +217,7 @@ def main() -> int:
             command_records=_replace_command_record(canonical_records, "bin", b"wrong", 0o120777),
         )
         initramfs.write_bytes(altered)
-        original_listing = PROOF._run_lsinitramfs
-        PROOF._run_lsinitramfs = lambda _: canonical_listing
-        try:
-            _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), "extraction-backed symlink mutation")
-        finally:
-            PROOF._run_lsinitramfs = original_listing
+        _expect_rejected(lambda: _verify(initramfs, contract, root, canonical_listing), "extraction-backed symlink mutation")
 
         initramfs.write_bytes(
             FIXTURES.make_splash_initramfs(
@@ -228,11 +226,7 @@ def main() -> int:
                 command_records=_replace_command_record(canonical_records, "usr/bin/sleep", b"", 0o100755),
             )
         )
-        PROOF._run_lsinitramfs = lambda _: canonical_listing
-        try:
-            _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), "extraction-backed zero payload")
-        finally:
-            PROOF._run_lsinitramfs = original_listing
+        _expect_rejected(lambda: _verify(initramfs, contract, root, canonical_listing), "extraction-backed zero payload")
 
         for label, replacement in (
             ("wrong symlink", ("bin", "lrwxrwxrwx", 1, 7, "wrong")),
@@ -299,17 +293,17 @@ def main() -> int:
             )
         )
         _expect_rejected(
-            lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root),
+            lambda: _verify(initramfs, contract, root),
             "obsolete initramfs-tools archive path",
         )
 
         stale_script = script.replace(b"sleep 3", b"sleep 2", 1)
         initramfs.write_bytes(FIXTURES.make_splash_initramfs(stale_script, runtime))
-        _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), "stale initramfs script")
+        _expect_rejected(lambda: _verify(initramfs, contract, root), "stale initramfs script")
 
         stale_runtime = b"stale-runtime-bundle\n"
         initramfs.write_bytes(FIXTURES.make_splash_initramfs(script, stale_runtime))
-        _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), "stale initramfs binary")
+        _expect_rejected(lambda: _verify(initramfs, contract, root), "stale initramfs binary")
 
         initramfs.write_bytes(
             FIXTURES.make_splash_initramfs(
@@ -318,7 +312,7 @@ def main() -> int:
                 runtime_record=(b"/opt/octessera/current/octessera-pi", 0o120777, 1),
             )
         )
-        _expect_rejected(lambda: PROOF._verify_selected_initramfs_entries(initramfs, contract, root), "archive runtime symlink")
+        _expect_rejected(lambda: _verify(initramfs, contract, root), "archive runtime symlink")
 
         entry = "scripts/init-premount/octessera-boot-splash"
         for label, record in (

@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -139,16 +138,6 @@ def select_exact_linux_image_package(candidates: list[Path], contract: Contract)
 def _write_checksum(package: Path, path: Path) -> None:
     digest = sha256_file(package)
     path.write_text(f"{digest}  {package.name}\n", encoding="utf-8")
-
-def _write_json(path: Path, value: dict[str, Any]) -> None:
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-def _checkout_sha(root: Path) -> str:
-    value = _run(["git", "-C", str(root), "rev-parse", "HEAD"], capture=True).strip()
-    if re.fullmatch(r"[0-9a-f]{40}", value) is None:
-        raise BuildError("Octessera checkout SHA is not a full SHA-1")
-    return value
-
 
 def _tool_version(command: str, *, version_argument: str = "--version", recorded_command: str | None = None) -> dict[str, str]:
     output = _run([command, version_argument], capture=True)
@@ -358,19 +347,6 @@ def _run_image_package(args: argparse.Namespace, build: Path, kernelrelease: str
     _run(_image_package_command(args, build, kernelrelease), cwd=build, env=environment)
 
 
-def _provenance_scope(contract: Contract) -> dict[str, Any]:
-    scope = list(contract.package_builder["binary_package_scope"])
-    return {
-        "binary_package_scope": scope,
-        "uapi_headers_prepared_by_build_arch": True,
-        "header_package": False,
-        "libc_dev_package": False,
-        "dev_package": False,
-        "debug_package": False,
-        "description": "build-arch prepares UAPI headers for the image build but does not package headers, libc-dev, dev, or debug artifacts.",
-    }
-
-
 def _build(args: argparse.Namespace, contract: Contract, run_dir: Path) -> None:
     source, actual_commit = _prepare_source(contract, args.source_dir, run_dir)
     applied_patches = _apply_patches(contract, source)
@@ -383,7 +359,7 @@ def _build(args: argparse.Namespace, contract: Contract, run_dir: Path) -> None:
 
     preflight = preflight_build_environment(args)
     build = run_dir / "build"
-    metadata = _generate_debian_metadata(args, contract, source, build, contract.kernel_release)
+    _generate_debian_metadata(args, contract, source, build, contract.kernel_release)
     output = args.output_dir.resolve()
     if output.exists() and any(output.iterdir()):
         raise BuildError(f"output directory must be empty: {output}")
@@ -404,8 +380,7 @@ def _build(args: argparse.Namespace, contract: Contract, run_dir: Path) -> None:
     _write_checksum(staged_package, checksum)
 
     validator = Path(__file__).with_name("validate-rpi-kernel-package.py")
-    inventory_path = staging / "inventory.json"
-    provenance_path = staging / "provenance.json"
+    inventory_path = run_dir / "inventory.json"
     _run([
         sys.executable,
         str(validator),
@@ -416,45 +391,14 @@ def _build(args: argparse.Namespace, contract: Contract, run_dir: Path) -> None:
         str(checksum),
         "--inventory-out",
         str(inventory_path),
-        "--provenance-out",
-        str(provenance_path),
     ])
     inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
     if inventory["config"]["sha256"] != config["sha256"]:
         raise BuildError("packaged kernel config hash does not match the configured config hash")
-    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
-    provenance["build"] = {
-        "source_commit": actual_commit,
-        "patch_order": applied_patches,
-        "config_gate": config,
-        "arch": "arm64",
-        "cross_compile": args.cross_compile,
-        "builder": dict(contract.package_builder),
-        "octessera_checkout_sha": _checkout_sha(contract.root),
-        "rules_sha256": metadata["rules_sha256"],
-        "target": contract.package_builder["target"],
-        "fakeroot": contract.package_builder["fakeroot"],
-        "scope": _provenance_scope(contract),
-        "debian_metadata": metadata,
-        "preflight": preflight,
-        "tool_versions": preflight["tools"],
-    }
-    _write_json(provenance_path, provenance)
-    _run([
-        sys.executable,
-        str(validator),
-        str(staged_package),
-        "--manifest",
-        str(contract.manifest_path),
-        "--checksum-file",
-        str(checksum),
-        "--provenance-in",
-        str(provenance_path),
-    ])
     if output.exists() and any(output.iterdir()):
         raise BuildError(f"output directory is no longer empty: {output}")
     output.mkdir(parents=True, exist_ok=True)
-    for artifact in (staged_package, checksum, inventory_path, provenance_path):
+    for artifact in (staged_package, checksum):
         shutil.copy2(artifact, output / artifact.name)
     final_package = output / contract.package_filename
     print(f"Raspberry kernel package written: {final_package}")
