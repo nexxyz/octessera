@@ -318,7 +318,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cpio device-tree-compiler initramfs-tools shellcheck zstd
-          bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/deploy-pi.sh tools/pi/provision/provision.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
+          bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/provision/provision.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
           bash -n tools/pi/provision/test-provision.sh tools/pi/provision/test-provision-role-cases.sh tools/pi/provision/test-provision-host-isolation.sh
           bash tools/pi/test-board-profile.sh
           python3 tools/pi-image/test-board-profile.py
@@ -458,9 +458,10 @@ jobs:
       - name: Check image shell scripts
         run: |
           bash -n tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh
-          bash -n tools/pi/provision/provision.sh tools/pi/deploy-pi.sh userpatches/customize-image.sh tools/armbian-image/validate.sh tools/armbian-image/smoke-built-image.sh
+          bash -n tools/pi/provision/provision.sh userpatches/customize-image.sh tools/armbian-image/validate.sh tools/armbian-image/smoke-built-image.sh
           shellcheck tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh userpatches/overlay/usr/local/sbin/octessera-wifi-foundation
           bash tools/pi-image/test-wifi-foundation.sh
+          shellcheck tools/pi-kernel/*.sh
       - name: Validate Linux sudoers and systemd layout
         run: |
           sudo visudo -cf tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update

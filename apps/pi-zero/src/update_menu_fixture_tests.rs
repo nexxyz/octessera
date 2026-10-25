@@ -261,7 +261,11 @@ impl UpdateMenuFixture {
 fn native_update_menu_fixture_exercises_pi_update_flow() {
     let mut fixture = UpdateMenuFixture::new([
         response(false, b"", b"check unavailable\n"),
-        response(true, b"Installing v1.2.3; Octessera restarts in a moment\n", b""),
+        response(
+            true,
+            b"Installing v1.2.3; Octessera restarts in a moment\n",
+            b"",
+        ),
         response(false, b"", b"rollback broke\n"),
     ]);
 

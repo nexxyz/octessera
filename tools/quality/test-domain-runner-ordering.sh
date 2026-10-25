@@ -30,7 +30,7 @@ chmod 0755 "$fake_bin/sh" "$fake_bin/bash"
 check_raspberry_usb_gadget_runner() {
   local expected=$'test-usb-gadget-layout.sh\ntest-usb-gadget-gadget.sh\ntest-usb-gadget-host.sh\ntest-usb-gadget-electrical.sh'
   : > "$trace"
-  PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE= "$real_bash" "$root/tools/pi-image/test-usb-gadget.sh"
+  PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE='' "$real_bash" "$root/tools/pi-image/test-usb-gadget.sh"
   [[ "$(cat "$trace")" == "$expected" ]]
   : > "$trace"
   local status
@@ -46,7 +46,7 @@ check_raspberry_usb_gadget_runner() {
 check_orange_usb_gadget_runner() {
   local expected=$'test-orange-pi-usb-gadget-host-enumeration.sh\ntest-orange-pi-usb-gadget-function.sh\ntest-orange-pi-usb-gadget-passive.sh\ntest-orange-pi-usb-gadget-electrical.sh'
   : > "$trace"
-  PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE= "$real_bash" "$root/tools/orange-pi/test-orange-pi-usb-gadget.sh"
+  PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE='' "$real_bash" "$root/tools/orange-pi/test-orange-pi-usb-gadget.sh"
   [[ "$(cat "$trace")" == "$expected" ]]
   : > "$trace"
   local status
