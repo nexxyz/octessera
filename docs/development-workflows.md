@@ -14,7 +14,7 @@ Use the focused page for the responsibility you are changing:
   host builds, Orange cross-build tools, the shared-path timing smoke, Pi
   profiling, and audio probes.
 - [Image construction](workflows/image-construction-and-proof.md):
-  pi-gen/Armbian construction, boot layers, image modes, and validators.
+  pi-gen/Armbian construction, boot layers, and validators.
 - [Release assembly](workflows/release-assembly.md): artifact formats, staging,
   update boundaries, and attribution companions.
 - [Pi and board deployment](workflows/deployment.md): state-changing board

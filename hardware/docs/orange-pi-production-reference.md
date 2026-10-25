@@ -6,28 +6,24 @@ image, service, storage, audio, and updater contracts. Use the ordered
 use [`docs/workflows/image-construction-and-proof.md`](../../docs/workflows/image-construction-and-proof.md)
 for image construction commands.
 
-## Artifact and image-mode contract
+## Artifact contract
 
 The fixed production path is Armbian Debian 13/Trixie for the exact board ID
 `orangepizero2w`. A production image uses a version-qualified
 `octessera-<version>-orange-pi-zero-2w.img.xz` name with a matching SHA-256
-file. Its build metadata contains
-`OCTESSERA_IMAGE_MODE=production` and its runtime metadata declares
-`artifact_kind=production-runtime`, `runtime_ready=true`, and
-`orange-pi-zero-2w`.
+file. Its build metadata in `/etc/octessera/build-metadata.env` records
+`OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w` and the runtime hashes, and its
+runtime metadata declares `artifact_kind=production-runtime`,
+`runtime_ready=true`, and `orange-pi-zero-2w`.
 
 Production stages the exact hash-bound three-file runtime bundle:
-`octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`. The separate
-diagnostic artifact is the canonical `orange-oled-smoke` ELF with its adjacent
-schema-2 `orange-oled-smoke.metadata.json` sidecar and lowercase
-`binary_sha256`. Keep those names together. `orange-seesaw-smoke` uses the same
-sidecar contract and is limited to the reset/HW-ID check on `/dev/i2c-2`.
-
-Diagnostic mode is explicit as `OCTESSERA_IMAGE_MODE=diagnostic`; it has no
-production runtime bundle and does not contain or enable `octessera.service`.
-The shared action's `image_kind=diagnostic` is for bring-up; `production`
-requires the hash-bound runtime bundle. Never infer mode from a local binary or
-payload; inspect `/etc/octessera/build-metadata.env`.
+`octessera-pi`, `octessera-runtime.json`, and `SHA256SUMS`. There is no
+diagnostic image. The bring-up smoke tool is the canonical `orange-oled-smoke`
+ELF with its adjacent schema-2 `orange-oled-smoke.metadata.json` sidecar and
+lowercase `binary_sha256`; it is cross-built separately and copied to a
+production-image board. Keep those names together. `orange-seesaw-smoke` uses
+the same sidecar contract and is limited to the reset/HW-ID check on
+`/dev/i2c-2`.
 
 ## Production service contract
 

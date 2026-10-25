@@ -26,13 +26,8 @@ inputs:
   share_log:
     required: true
     description: Armbian SHARE_LOG value
-  image_kind:
-    required: false
-    default: diagnostic
-    description: Image mode; diagnostic or production
   runtime_bundle_path:
-    required: false
-    default: ""
+    required: true
     description: Local production runtime bundle directory
 runs:
   using: composite
@@ -52,7 +47,6 @@ runs:
         OCTESSERA_ARMBIAN_COMPRESSION: ${{ inputs.compression }}
         OCTESSERA_ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
-        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
@@ -71,19 +65,12 @@ runs:
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_sd2([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_sd2.' >&2; exit 1; }
         [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
         [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
-        [[ "$OCTESSERA_IMAGE_KIND" == diagnostic || "$OCTESSERA_IMAGE_KIND" == production ]] || { echo 'image_kind must be diagnostic or production.' >&2; exit 1; }
-        if [[ "$OCTESSERA_IMAGE_KIND" == diagnostic && -n "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]]; then
-          echo 'Diagnostic images must not receive a runtime bundle.' >&2
-          exit 1
-        fi
-        if [[ "$OCTESSERA_IMAGE_KIND" == production ]]; then
-          [[ -n "$OCTESSERA_RUNTIME_BUNDLE_PATH" && -d "$OCTESSERA_RUNTIME_BUNDLE_PATH" && ! -L "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Production images require a local runtime bundle directory.' >&2; exit 1; }
-          runtime_entries="$(find -P "$OCTESSERA_RUNTIME_BUNDLE_PATH" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)"
-          [[ "$runtime_entries" == $'SHA256SUMS\noctessera-pi\noctessera-runtime.json' ]] || { echo 'Production runtime bundle must contain exactly octessera-pi, octessera-runtime.json, and SHA256SUMS.' >&2; exit 1; }
-          while IFS= read -r runtime_entry; do
-            [[ -f "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" && ! -L "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" ]] || { echo "Production runtime bundle entry is not a regular file: $runtime_entry" >&2; exit 1; }
-          done <<< "$runtime_entries"
-        fi
+        [[ -n "$OCTESSERA_RUNTIME_BUNDLE_PATH" && -d "$OCTESSERA_RUNTIME_BUNDLE_PATH" && ! -L "$OCTESSERA_RUNTIME_BUNDLE_PATH" ]] || { echo 'Production images require a local runtime bundle directory.' >&2; exit 1; }
+        runtime_entries="$(find -P "$OCTESSERA_RUNTIME_BUNDLE_PATH" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)"
+        [[ "$runtime_entries" == $'SHA256SUMS\noctessera-pi\noctessera-runtime.json' ]] || { echo 'Production runtime bundle must contain exactly octessera-pi, octessera-runtime.json, and SHA256SUMS.' >&2; exit 1; }
+        while IFS= read -r runtime_entry; do
+          [[ -f "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" && ! -L "$OCTESSERA_RUNTIME_BUNDLE_PATH/$runtime_entry" ]] || { echo "Production runtime bundle entry is not a regular file: $runtime_entry" >&2; exit 1; }
+        done <<< "$runtime_entries"
         [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
         [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
     - name: Free runner disk space
@@ -105,7 +92,6 @@ runs:
     - name: Install Octessera userpatches
       shell: bash
       env:
-        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
       run: |
         set -euo pipefail
@@ -138,24 +124,12 @@ runs:
         install -m 0755 custom/tools/storage/octessera-orange-storage build/userpatches/overlay/usr/local/sbin/octessera-orange-storage
         install -m 0755 custom/tools/storage/octessera-orange-storage-control build/userpatches/overlay/usr/local/sbin/octessera-orange-storage-control
         install -D -m 0755 custom/tools/device-update/octessera-update build/userpatches/overlay/usr/local/sbin/octessera-update
-        if [[ "$OCTESSERA_IMAGE_KIND" == production ]]; then
-          runtime_bundle="$(cd "$OCTESSERA_RUNTIME_BUNDLE_PATH" && pwd)"
-          production_runtime="build/userpatches/overlay/usr/local/lib/octessera/production-runtime"
-          mkdir -p "$production_runtime" build/userpatches/overlay/etc/octessera
-          for runtime_entry in octessera-pi octessera-runtime.json SHA256SUMS; do
-            install -m 0644 "$runtime_bundle/$runtime_entry" "$production_runtime/$runtime_entry"
-          done
-          cat > build/userpatches/overlay/etc/octessera/image-contract.json <<'EOF'
-        {
-          "schema_version": 1,
-          "image_kind": "production",
-          "runtime_enabled_default": true
-        }
-        EOF
-        elif [[ -e build/userpatches/overlay/usr/local/lib/octessera/production-runtime || -L build/userpatches/overlay/usr/local/lib/octessera/production-runtime ]]; then
-          echo 'Diagnostic images must not stage a runtime bundle.' >&2
-          exit 1
-        fi
+        runtime_bundle="$(cd "$OCTESSERA_RUNTIME_BUNDLE_PATH" && pwd)"
+        production_runtime="build/userpatches/overlay/usr/local/lib/octessera/production-runtime"
+        mkdir -p "$production_runtime"
+        for runtime_entry in octessera-pi octessera-runtime.json SHA256SUMS; do
+          install -m 0644 "$runtime_bundle/$runtime_entry" "$production_runtime/$runtime_entry"
+        done
     - name: Install Armbian build requirements
       shell: bash
       run: |
@@ -183,7 +157,6 @@ runs:
         OCTESSERA_ARMBIAN_COMPRESSION: ${{ inputs.compression }}
         OCTESSERA_ARMBIAN_EXTENSIONS: ${{ inputs.extensions }}
         OCTESSERA_ARMBIAN_SHARE_LOG: ${{ inputs.share_log }}
-        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
@@ -259,14 +232,11 @@ runs:
     - name: Smoke-check built image
       shell: bash
       env:
-        OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
         OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
       run: |
         set -euo pipefail
         custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
-        bundle_args=()
-        [[ "$OCTESSERA_IMAGE_KIND" != production ]] || bundle_args=(--runtime-bundle "$OCTESSERA_RUNTIME_BUNDLE_PATH")
-        bash "$custom_root/tools/armbian-image/smoke-built-image.sh" --mode "$OCTESSERA_IMAGE_KIND" "${bundle_args[@]}" build/output/images
+        bash "$custom_root/tools/armbian-image/smoke-built-image.sh" "$OCTESSERA_RUNTIME_BUNDLE_PATH" build/output/images
     - name: Verify generated image checksums
       shell: bash
       run: |

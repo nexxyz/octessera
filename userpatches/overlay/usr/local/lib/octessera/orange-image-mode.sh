@@ -104,11 +104,6 @@ octessera_require_updater_overlay() {
   done
 }
 
-octessera_require_diagnostic_updater_overlay() {
-  [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]] || return 0
-  octessera_require_updater_overlay "$1"
-}
-
 octessera_configure_runtime_hardware_groups() {
   local group_record
   local group_name
@@ -199,38 +194,14 @@ octessera_hold_boot_chain_packages() {
     xargs -r apt-mark hold >/dev/null
 }
 
-octessera_load_image_contract() {
+octessera_load_production_runtime() {
   local overlay_root="$1"
-  local contract="$overlay_root/etc/octessera/image-contract.json"
 
-  octessera_require_regular_file "$contract" || return 1
-  command -v jq >/dev/null 2>&1 || {
-    echo "jq is required to validate the Orange image contract." >&2
+  [[ -f "$overlay_root/etc/systemd/system/octessera.service" && ! -L "$overlay_root/etc/systemd/system/octessera.service" ]] || {
+    echo "Orange image requires the octessera.service template." >&2
     return 1
   }
-  jq -e 'type == "object" and ((keys | sort) == ["image_kind", "runtime_enabled_default", "schema_version"]) and .schema_version == 1 and (.image_kind == "diagnostic" or .image_kind == "production") and (.runtime_enabled_default == (.image_kind == "production"))' "$contract" >/dev/null || {
-    echo "Orange image contract must explicitly select diagnostic or production." >&2
-    return 1
-  }
-  OCTESSERA_IMAGE_MODE="$(jq -r '.image_kind' "$contract")"
-  OCTESSERA_RUNTIME_ENABLED_DEFAULT="$(jq -r '.runtime_enabled_default | tostring' "$contract")"
-  OCTESSERA_IMAGE_CONTRACT_SHA256="$(sha256sum "$contract" | awk '{ print $1 }')"
-  export OCTESSERA_IMAGE_MODE OCTESSERA_RUNTIME_ENABLED_DEFAULT OCTESSERA_IMAGE_CONTRACT_SHA256
-  if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
-    [[ -f "$overlay_root/etc/systemd/system/octessera.service" && ! -L "$overlay_root/etc/systemd/system/octessera.service" ]] || {
-      echo "Production image contract requires the Orange octessera.service template." >&2
-      return 1
-    }
-    octessera_validate_production_bundle "$overlay_root" || return 1
-  elif [[ -e "$overlay_root/usr/local/lib/octessera/production-runtime" || -L "$overlay_root/usr/local/lib/octessera/production-runtime" ]]; then
-    echo "Diagnostic image contract must not stage an Orange runtime bundle." >&2
-    return 1
-  else
-    OCTESSERA_RUNTIME_VERSION=none
-    OCTESSERA_RUNTIME_BINARY_SHA256=none
-    OCTESSERA_RUNTIME_MANIFEST_SHA256=none
-    OCTESSERA_RUNTIME_METADATA_SHA256=none
-  fi
+  octessera_validate_production_bundle "$overlay_root" || return 1
   export OCTESSERA_RUNTIME_VERSION OCTESSERA_RUNTIME_BINARY_SHA256 OCTESSERA_RUNTIME_MANIFEST_SHA256 OCTESSERA_RUNTIME_METADATA_SHA256
 }
 

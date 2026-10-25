@@ -61,13 +61,3 @@ bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun 
 bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun,octessera_midi' | grep -qxF 'preset-firstrun,octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'
 bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'other-extension preset-firstrun' | grep -qxF 'other-extension preset-firstrun octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'
 
-if [[ "${OCTESSERA_IMAGE_MODE:-diagnostic}" == diagnostic ]]; then
-  diagnostic_runtime_paths="$(find "$root/userpatches/overlay" -type f -name octessera-pi -print)" || {
-    echo 'Unable to inspect diagnostic Orange image runtime paths.' >&2
-    exit 1
-  }
-  [[ -z "$diagnostic_runtime_paths" ]] || {
-    echo 'Diagnostic Orange image overlay must not carry a runtime binary.' >&2
-    exit 1
-  }
-fi

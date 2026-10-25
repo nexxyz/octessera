@@ -379,7 +379,6 @@ jobs:
           extensions: octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize
           armbian_build_ref: 3da49cffcb8ac58a919d86816fec4659c410ff1e
           share_log: yes
-          image_kind: production
           runtime_bundle_path: ${{ github.workspace }}/orange-runtime
       - name: Normalize and verify Orange release handoff
         run: |

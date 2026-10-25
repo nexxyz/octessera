@@ -8,67 +8,35 @@ Which workflow builds what:
 | Workflow | Builds | Use it for |
 | --- | --- | --- |
 | `release-board-artifacts.yml` | Both production images, runtimes, kernel package, and device ZIPs | Release images and full constructor runs (see [Board image dispatch](#board-image-dispatch)) |
-| `armbian-image.yml` | Orange **diagnostic** images only | Validating `userpatches/` and Armbian inputs, bring-up images |
 
-## Armbian workflow
+## Orange userpatches checks
 
-`.github/workflows/armbian-image.yml` builds through `armbian/build`. Both of
-its build jobs pass `image_kind: diagnostic`, so its images never contain the
-production runtime bundle or `octessera.service`.
+The Orange image is built through `armbian/build` by the shared
+`.github/actions/build-armbian-image` action, which
+`release-board-artifacts.yml` calls with the Orange runtime bundle. There is
+no separate Orange image workflow.
 
-Local checks:
+Local checks for workflow or `userpatches/` changes:
 
 ```bash
 bash -n userpatches/customize-image.sh tools/armbian-image/validate.sh
-tools/armbian-image/validate.sh
+bash tools/armbian-image/validate.sh
 shellcheck userpatches/customize-image.sh tools/armbian-image/validate.sh
-actionlint .github/workflows/armbian-image.yml
+actionlint .github/workflows/release-board-artifacts.yml
+python3 tools/pi-image/test-board-profile.py
+node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
+git diff --check
 ```
 
 The validation path needs `dtc`, `fdtoverlay`, and `fdtget` from
 `device-tree-compiler`.
 
-The workflow defaults already describe the Orange board (`orangepizero2w`,
-`trixie`, `current`, `minimal`, `sha,img,xz`). The four Octessera extensions
+The action accepts only the Orange board (`orangepizero2w`, `current` kernel)
+and the reviewed Armbian commit. The four Octessera extensions
 (`octessera_midi`, `octessera_audio`, `octessera_sd2`,
 `octessera_image_sanitize`) are mandatory, and
 `tools/armbian-image/resolve-armbian-extensions.sh` appends any you leave out
 of `extensions`.
-
-Validation only:
-
-```bash
-gh workflow run armbian-image.yml -f run_build=false
-# Optional public values are one compact JSON object:
-gh workflow run armbian-image.yml -f run_build=false \
-  -f 'public_inputs={"public_preset_configuration_url":"https://example.invalid/preset.conf"}'
-```
-
-A full build needs a pinned 40-character Armbian commit; `validate.sh` refuses
-`run_build=true` with anything else:
-
-```bash
-gh workflow run armbian-image.yml \
-  -f run_build=true \
-  -f artifact_mode=public-generic \
-  -f armbian_build_ref=<40-character-armbian-commit>
-```
-
-Never pass secrets as workflow inputs. Public generic builds take the
-board/release/kernel/UI/compression/extensions inputs and one bounded public
-JSON input, and nothing like raw Wi-Fi, user, or SSH values.
-`artifact_mode=private-personalized` reads its first-run payload from the
-protected `armbian-image-personalized` environment secrets, only runs from
-`main` or a tag, and its artifacts are never release assets.
-
-For workflow or `userpatches/` changes, run:
-
-```bash
-bash tools/armbian-image/validate.sh
-python3 tools/pi-image/test-board-profile.py
-node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
-git diff --check
-```
 
 ## Constructor procedure
 
@@ -84,7 +52,7 @@ The Orange check runs inside the shared Armbian build action on every image. It
 reads the root partition with `debugfs` and checks that the three Octessera
 `.dtbo` overlays are installed and listed in `user_overlays`, that a production
 image has `octessera.service` enabled and the release binary matches the runtime
-bundle (a diagnostic image must have neither), that no SSH keys or
+bundle, that no SSH keys or
 NetworkManager profiles are baked in, and that the legal notice tree is
 canonical.
 
@@ -165,16 +133,14 @@ Each output needs its adjacent metadata sidecar with the matching profile.
 Inspect initramfs contents, services, mounted-image layout, OLED handoff, DAC
 health, and physical display behavior separately.
 
-## Orange production and diagnostic image modes
+## Orange production image
 
-The shared `.github/actions/build-armbian-image` action takes an explicit
-`image_kind`. `diagnostic` builds a separate bring-up image without
-`octessera.service`; `production` requires the hash-bound Orange runtime
-bundle and runs it as the locked `octessera-runtime` account. `armbian-image.yml`
-always uses diagnostic mode, and `release-board-artifacts.yml` uses production
-mode. The local WSL Docker Orange cross-build in
-[`pi-development-and-profiling.md`](pi-development-and-profiling.md) produces
-neither. Audio routes, accounts, and the updater boundary are described in
+The shared `.github/actions/build-armbian-image` action builds only the
+production image: it requires the hash-bound Orange runtime bundle and runs it
+as the locked `octessera-runtime` account. The local WSL Docker Orange
+cross-build in
+[`pi-development-and-profiling.md`](pi-development-and-profiling.md) builds
+binaries, not images. Audio routes, accounts, and the updater boundary are described in
 [`board-profiles.md`](../board-profiles.md) and
 [`runtime-boundaries.md`](../runtime-boundaries.md).
 

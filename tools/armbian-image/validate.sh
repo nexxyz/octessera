@@ -4,7 +4,6 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 welcome_stager="$root/tools/armbian-image/stage-canonical-welcome.sh"
 device_config_stager="$root/tools/armbian-image/stage-device-config.py"
-image_mode_helper="$root/userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"
 welcome_overlay="$root/userpatches/overlay/etc/profile.d/octessera-welcome.sh"
 welcome_overlay_preexisting=false
 if [[ -e "$welcome_overlay" || -L "$welcome_overlay" ]]; then
@@ -26,15 +25,6 @@ if [[ "${ARMBIAN_BOARD+x}" == x && "$ARMBIAN_BOARD" != orangepizero2w ]]; then
 fi
 if [[ "${ARMBIAN_RUN_BUILD:-false}" == true && ! "${ARMBIAN_BUILD_REF:-}" =~ ^[0-9a-fA-F]{40}$ ]]; then
   echo 'Qualification builds require a reviewed immutable 40-character Armbian commit SHA.' >&2
-  exit 1
-fi
-
-# shellcheck source=userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh
-source "$image_mode_helper"
-requested_image_mode="${OCTESSERA_IMAGE_MODE:-}"
-octessera_load_image_contract "$root/userpatches/overlay"
-if [[ -n "$requested_image_mode" && "$requested_image_mode" != "$OCTESSERA_IMAGE_MODE" ]]; then
-  echo "Armbian validation contract mode $OCTESSERA_IMAGE_MODE does not match caller mode $requested_image_mode." >&2
   exit 1
 fi
 

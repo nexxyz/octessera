@@ -6,11 +6,6 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh
 source "$root/userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh"
 
-octessera_load_image_contract "$root/userpatches/overlay"
-[[ "$OCTESSERA_IMAGE_MODE" == diagnostic && "$OCTESSERA_RUNTIME_ENABLED_DEFAULT" == false ]] || {
-  echo "The checked-in Orange contract must be diagnostic and runtime-disabled." >&2
-  exit 1
-}
 grep -qF 'octessera_configure_runtime_account' "$root/userpatches/customize-image.sh"
 if grep -qF 'systemctl enable octessera-setup.service' "$root/userpatches/customize-image.sh"; then
   echo 'Orange image construction must not enable the setup service.' >&2
@@ -22,24 +17,17 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 overlay="$work/overlay"
 bundle="$overlay/usr/local/lib/octessera/production-runtime"
-mkdir -p "$overlay/etc/octessera" "$overlay/etc/systemd/system" "$bundle"
+mkdir -p "$overlay/etc/systemd/system" "$bundle"
 cp "$root/userpatches/overlay/etc/systemd/system/octessera.service" "$overlay/etc/systemd/system/octessera.service"
-cat > "$overlay/etc/octessera/image-contract.json" <<'EOF'
-{
-  "schema_version": 1,
-  "image_kind": "production",
-  "runtime_enabled_default": true
-}
-EOF
 printf '\177ELF\002\001\001\000\000\000\000\000\000\000\000\000\002\000\267\000' > "$bundle/octessera-pi"
 binary_hash="$(sha256sum "$bundle/octessera-pi" | awk '{ print $1 }')"
 cat > "$bundle/octessera-runtime.json" <<EOF
 {"name":"octessera-pi","profile":"orange-pi-zero-2w","version":"1.2.3","artifact_kind":"production-runtime","runtime_ready":true,"binary_sha256":"$binary_hash"}
 EOF
 printf '%s  octessera-pi\n' "$binary_hash" > "$bundle/SHA256SUMS"
-octessera_load_image_contract "$overlay"
-[[ "$OCTESSERA_IMAGE_MODE" == production && "$OCTESSERA_RUNTIME_ENABLED_DEFAULT" == true && "$OCTESSERA_RUNTIME_VERSION" == 1.2.3 ]] || {
-  echo "The production Orange contract did not load its hash-bound bundle." >&2
+octessera_load_production_runtime "$overlay"
+[[ "$OCTESSERA_RUNTIME_VERSION" == 1.2.3 && "$OCTESSERA_RUNTIME_BINARY_SHA256" == "$binary_hash" ]] || {
+  echo "The Orange image did not load its hash-bound runtime bundle." >&2
   exit 1
 }
 
@@ -71,7 +59,7 @@ if grep -RIE 'setup-status\.py|setup-status-cli\.py|setup-call\.py|setup-sidecar
   "$root/userpatches/overlay/usr/local/sbin/octessera-setup" \
   "$root/userpatches/overlay/usr/local/lib/octessera/setup_config.py" \
   "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py"; then
-  echo 'Diagnostic setup sources retain removed orchestration state.' >&2
+  echo 'Setup sources retain removed orchestration state.' >&2
   exit 1
 fi
 
@@ -108,4 +96,4 @@ fi
   fi
 )
 
-printf 'Orange image mode and runtime bundle tests passed\n'
+printf 'Orange runtime bundle tests passed\n'

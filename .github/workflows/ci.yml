@@ -330,7 +330,7 @@ jobs:
           bash tools/pi/provision/test-provision-host-isolation.sh
           python3 tools/pi-image/test-welcome.py
           sudo python3 tools/pi-image/test-rpi-kernel-image.py
-          OCTESSERA_IMAGE_MODE=diagnostic bash tools/armbian-image/validate.sh
+          bash tools/armbian-image/validate.sh
           shellcheck tools/orange-pi/opi-bringup-probe.sh tools/orange-pi/test-opi-bringup-probe.sh tools/orange-pi/opi-bringup-validator.sh tools/orange-pi/opi-bringup-identity-validator.sh tools/orange-pi/opi-bringup-hardware-validator.sh tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/input-routing-provision.sh tools/orange-pi/test-orange-pi-usb-gadget.sh tools/orange-pi/test-orange-pi-usb-gadget-electrical.sh tools/orange-pi/test-orange-pi-usb-gadget-fixture.sh tools/orange-pi/test-orange-pi-usb-gadget-function.sh tools/orange-pi/test-orange-pi-usb-gadget-host-enumeration.sh tools/orange-pi/test-orange-pi-usb-gadget-passive.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh tools/pi-image/test-usb-gadget-electrical.sh tools/pi-image/test-usb-gadget-fixture.sh tools/pi-image/test-usb-gadget-gadget.sh tools/pi-image/test-usb-gadget-host.sh tools/pi-image/test-usb-gadget-layout.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/stage4-octessera/03-boot-config/00-run.sh tools/pi/provision/provision.sh tools/armbian-image/stage-canonical-welcome.sh tools/armbian-image/validation-assertions.sh
           shellcheck tools/pi-image/export-image-octessera/02-sanitize-userconf/00-run.sh
           shellcheck tools/pi/provision/test-provision.sh tools/pi/provision/test-provision-role-cases.sh tools/pi/provision/test-provision-host-isolation.sh
@@ -440,7 +440,7 @@ jobs:
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Lint workflows and every embedded shell script
         run: |
-          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml .github/workflows/armbian-image.yml
+          "$(go env GOPATH)/bin/actionlint" -shellcheck shellcheck .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/release-board-artifacts.yml
 
   updater_protocol:
     name: Device updater protocol checks

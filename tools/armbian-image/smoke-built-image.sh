@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage() { echo "Usage: $0 --mode diagnostic|production [--runtime-bundle <dir>] <armbian-output-images-dir>" >&2; exit 2; }
-[[ $# -ge 3 && "$1" == --mode && ( "$2" == diagnostic || "$2" == production ) ]] || usage
-mode="$2"; shift 2
-runtime_bundle=""
-if [[ "${1:-}" == --runtime-bundle ]]; then runtime_bundle="${2:-}"; shift 2; fi
-[[ $# -eq 1 && ( "$mode" == diagnostic || -n "$runtime_bundle" ) ]] || usage
+[[ $# -eq 2 && -n "$1" ]] || { echo "Usage: $0 <runtime-bundle-dir> <armbian-output-images-dir>" >&2; exit 2; }
+runtime_bundle="$1"; shift
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'chmod -R u+w "$work"; rm -rf "$work"' EXIT
@@ -28,17 +24,12 @@ for overlay in octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octesse
 done
 grep -qxF 'user_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102' "$root/boot/armbianEnv.txt" || fail "armbianEnv.txt does not list the Octessera user overlays"
 
-service="$root/etc/systemd/system/octessera.service"
-if [[ "$mode" == production ]]; then
-  [[ -f "$service" && -L "$root/etc/systemd/system/multi-user.target.wants/octessera.service" ]] || fail "octessera.service is not installed and enabled"
-  [[ "$(readlink "$root/opt/octessera/current")" == /opt/octessera/releases/* ]] || fail "opt/octessera/current does not point at a release"
-  cmp -s "$root$(readlink "$root/opt/octessera/current")/octessera-pi" "$runtime_bundle/octessera-pi" || fail "installed release binary differs from the runtime bundle"
-else
-  [[ ! -e "$service" && ! -e "$root/opt/octessera/current" ]] || fail "diagnostic image contains the production runtime"
-fi
+[[ -f "$root/etc/systemd/system/octessera.service" && -L "$root/etc/systemd/system/multi-user.target.wants/octessera.service" ]] || fail "octessera.service is not installed and enabled"
+[[ "$(readlink "$root/opt/octessera/current")" == /opt/octessera/releases/* ]] || fail "opt/octessera/current does not point at a release"
+cmp -s "$root$(readlink "$root/opt/octessera/current")/octessera-pi" "$runtime_bundle/octessera-pi" || fail "installed release binary differs from the runtime bundle"
 
 [[ -z "$(find "$root/etc/ssh" "$root/root" "$root/home" \( -name 'ssh_host_*_key' -o -path '*/.ssh/authorized_keys' \) -print -quit 2>/dev/null)" ]] || fail "SSH keys are baked into the image"
 [[ ! -d "$root/etc/NetworkManager/system-connections" || -z "$(find "$root/etc/NetworkManager/system-connections" -type f -print -quit)" ]] || fail "NetworkManager connection profiles are baked into the image"
 python3 "$repository_root/tools/legal/stage_notices.py" --repository-root "$repository_root" --destination-root "$root" --check >/dev/null || fail "installed legal notice tree is not canonical"
 
-echo "Orange image smoke check passed ($mode mode)"
+echo "Orange image smoke check passed"

@@ -4,7 +4,6 @@ EXPECTED_MODEL="OrangePi Zero 2W"
 EXPECTED_BOARD="orangepizero2w"
 EXPECTED_IMAGE_KIND="armbian"
 EXPECTED_BOARD_PROFILE="orange-pi-zero-2w"
-EXPECTED_RUNTIME_ENABLED="false"
 
 require_exact_assignment() {
   local file_path="$1"
@@ -68,8 +67,6 @@ validate_artifact_metadata() {
   require_exact_assignment "$metadata_path" OCTESSERA_IMAGE_KIND "$EXPECTED_IMAGE_KIND" \
     "Orange artifact metadata"
   require_exact_assignment "$metadata_path" OCTESSERA_BOARD_PROFILE_ID "$EXPECTED_BOARD_PROFILE" \
-    "Orange artifact metadata"
-  require_exact_assignment "$metadata_path" OCTESSERA_RUNTIME_ENABLED_DEFAULT "$EXPECTED_RUNTIME_ENABLED" \
     "Orange artifact metadata"
 }
 

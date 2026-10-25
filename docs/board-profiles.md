@@ -172,16 +172,14 @@ The HAL descriptors record `/dev/i2c-2` at `5002400.i2c`, `/dev/spidev1.0` at
 Runtime readiness means healthy required audio, initialized control-surface
 devices, and the first rendered snapshot.
 
-### Production and diagnostic images
+### Production image
 
-Production images are named `octessera-<version>-orange-pi-zero-2w.img.xz`, with
+Orange images are named `octessera-<version>-orange-pi-zero-2w.img.xz`, with
 a matching SHA-256 file. They contain the hash-bound runtime
 bundle (`octessera-pi`, `octessera-runtime.json`, `SHA256SUMS`) and declare
-`artifact_kind=production-runtime` and `runtime_ready=true`.
-
-Diagnostic images (`OCTESSERA_IMAGE_MODE=diagnostic`) carry the OLED and Seesaw
-smoke utilities and bring-up tools, but no production runtime bundle and no
-`octessera.service`. They are for bring-up, not a substitute for production.
+`artifact_kind=production-runtime` and `runtime_ready=true`. There is no
+separate diagnostic image; the smoke utilities below are copied to a board
+running the production image.
 
 ### Smoke utilities
 

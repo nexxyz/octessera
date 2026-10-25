@@ -44,10 +44,19 @@ is 45 ms.
 
 ### 1. Choose and inspect the image
 
-Use the exact Orange production or diagnostic mode described in the
+Use the Orange production image described in the
 [production reference](orange-pi-production-reference.md). Do not use a
 Raspberry image or a runtime-only updater ZIP as a full image. Follow the
 linked image workflow for image construction and its source checks.
+
+There is no separate diagnostic image. The `orange-oled-smoke` and
+`orange-seesaw-smoke` bring-up tools are cross-built with
+`./tools/orange-pi/build-opi-cross.ps1 -Binary <name> -Profile release`, copied
+with their `.metadata.json` sidecars to a board running the production image,
+and run over SSH (see the smoke utilities in
+[`docs/board-profiles.md`](../../docs/board-profiles.md)). Stop
+`octessera.service` first so the tool, not the runtime, owns the OLED and I2C
+devices.
 
 Before any board change, inspect the basic Armbian state:
 

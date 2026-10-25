@@ -15,15 +15,11 @@ if [[ ! -d "$overlay_dir" ]]; then
   exit 1
 fi
 image_mode_helper="$overlay_dir/usr/local/lib/octessera/orange-image-mode.sh"
-diagnostic_payload_helper="$overlay_dir/usr/local/lib/octessera/diagnostic-payload.sh"
 sample_assets_helper="$overlay_dir/usr/local/lib/octessera/orange-sample-assets.sh"
 [[ -f "$image_mode_helper" && ! -L "$image_mode_helper" ]] || { echo "Missing Orange image mode helper." >&2; exit 1; }
-[[ -f "$diagnostic_payload_helper" && ! -L "$diagnostic_payload_helper" ]] || { echo "Missing diagnostic payload helper." >&2; exit 1; }
 [[ -f "$sample_assets_helper" && ! -L "$sample_assets_helper" ]] || { echo "Missing Orange sample asset helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/lib/octessera/orange-image-mode.sh
 source "$image_mode_helper"
-# shellcheck source=userpatches/overlay/usr/local/lib/octessera/diagnostic-payload.sh
-source "$diagnostic_payload_helper"
 # shellcheck disable=SC1090
 source "$sample_assets_helper"
 orange_runtime_assets_helper="$overlay_dir/usr/local/lib/octessera/orange-runtime-assets-install.sh"
@@ -42,11 +38,7 @@ rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-st
 apt-get update
 apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc bluez bluez-alsa-utils
 sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' /etc/bluetooth/main.conf
-octessera_load_image_contract "$overlay_dir"
-if [[ "$OCTESSERA_IMAGE_MODE" == production && ( -n "${OCTESSERA_PAYLOAD_URL:-}" || -n "${OCTESSERA_PAYLOAD_SHA256:-}" ) ]]; then
-  echo "Production Orange images do not accept payload URLs or payload hashes." >&2
-  exit 1
-fi
+octessera_load_production_runtime "$overlay_dir"
 
 mapfile -t kernel_configs < <(find -P /boot -maxdepth 1 -type f -name 'config-*' -print | LC_ALL=C sort)
 [[ "${#kernel_configs[@]}" == 1 ]] || { echo "Expected exactly one Orange kernel config in /boot." >&2; exit 1; }
@@ -343,7 +335,6 @@ welcome_overlay="$overlay_dir/etc/profile.d/octessera-welcome.sh"
 [[ -f "$welcome_overlay" && ! -L "$welcome_overlay" ]] || { echo "Missing staged canonical welcome file. Run tools/armbian-image/stage-canonical-welcome.sh." >&2; exit 1; }
 install -D -m 0644 -o root -g root "$welcome_overlay" /etc/profile.d/octessera-welcome.sh
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
-install_overlay_file etc/octessera/image-contract.json /etc/octessera/image-contract.json 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
 install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
@@ -371,9 +362,7 @@ install_overlay_file etc/systemd/system/octessera-update-switch@.service /etc/sy
 install_overlay_file etc/systemd/system/octessera-update.socket /etc/systemd/system/octessera-update.socket 0644
 install_overlay_file etc/systemd/system/octessera-update@.service /etc/systemd/system/octessera-update@.service 0644
 install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
-if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
-  octessera_install_orange_production_assets "$overlay_dir"
-fi
+octessera_install_orange_production_assets "$overlay_dir"
 bash "$setup_layer_installer" "$overlay_dir"
 
 if ! id octessera >/dev/null 2>&1; then
@@ -427,16 +416,13 @@ ln -s ../octessera-setup-request.path "$setup_request_link"
 [[ "$(readlink "$setup_request_link")" == "../octessera-setup-request.path" ]] || { echo "Setup request path symlink target is not canonical." >&2; exit 1; }
 octessera_enable_orange_runtime_services
 systemctl enable octessera-update.socket >/dev/null
-[[ "$OCTESSERA_IMAGE_MODE" != production ]] || systemctl enable octessera.service >/dev/null
+systemctl enable octessera.service >/dev/null
 update-initramfs -u
 
 cat >/etc/octessera/build-metadata.env <<EOF
 OCTESSERA_IMAGE_KIND=armbian
-OCTESSERA_IMAGE_MODE=${OCTESSERA_IMAGE_MODE}
 OCTESSERA_BOARD_PROFILE_ID=orange-pi-zero-2w
 OCTESSERA_IMAGE_BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-OCTESSERA_RUNTIME_ENABLED_DEFAULT=${OCTESSERA_RUNTIME_ENABLED_DEFAULT}
-OCTESSERA_IMAGE_CONTRACT_SHA256=${OCTESSERA_IMAGE_CONTRACT_SHA256}
 OCTESSERA_RUNTIME_VERSION=${OCTESSERA_RUNTIME_VERSION}
 OCTESSERA_RUNTIME_BINARY_SHA256=${OCTESSERA_RUNTIME_BINARY_SHA256}
 OCTESSERA_RUNTIME_MANIFEST_SHA256=${OCTESSERA_RUNTIME_MANIFEST_SHA256}
@@ -446,23 +432,8 @@ EOF
 chown root:root /etc/octessera/build-metadata.env
 chmod 0644 /etc/octessera/build-metadata.env
 
-payload_url="${OCTESSERA_PAYLOAD_URL:-}"
-payload_sha256="${OCTESSERA_PAYLOAD_SHA256:-}"
-if [[ "$OCTESSERA_IMAGE_MODE" == diagnostic ]]; then
-  octessera_install_diagnostic_payload "$payload_url" "$payload_sha256"
-elif [[ -n "$payload_url" || -n "$payload_sha256" ]]; then
-  echo "Production Orange images do not accept payload URLs or payload hashes." >&2
-  exit 1
-fi
-
-if [[ -n "${PUBLIC_PRESET_CONFIGURATION_URL:-}" ]]; then
-  export PRESET_CONFIGURATION="$PUBLIC_PRESET_CONFIGURATION_URL"
-fi
-
-if [[ "$OCTESSERA_IMAGE_MODE" == production ]]; then
-  rm -f /root/.not_logged_in_yet
-  [[ ! -e /root/.not_logged_in_yet && ! -L /root/.not_logged_in_yet ]] || { echo "Orange Armbian onboarding marker remains." >&2; exit 1; }
-fi
+rm -f /root/.not_logged_in_yet
+[[ ! -e /root/.not_logged_in_yet && ! -L /root/.not_logged_in_yet ]] || { echo "Orange Armbian onboarding marker remains." >&2; exit 1; }
 
 apt-get clean
 rm -rf /var/lib/apt/lists/*
