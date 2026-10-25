@@ -28,7 +28,7 @@ function Invoke-PiPayload {
   $payloadPath = Join-Path ([IO.Path]::GetTempPath()) ("octessera-pi-payload-" + [guid]::NewGuid().ToString("N") + ".sh")
   try {
     [IO.File]::WriteAllText($payloadPath, $Contents, (New-Object System.Text.UTF8Encoding($false)))
-    & $transport ssh-payload -Board rpi -Target $Target $payloadPath
+    & $transport ssh-payload -Board rpi -Target $Target $payloadPath | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "Raspberry $Label failed (exit $LASTEXITCODE)." }
   } finally {
     Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue

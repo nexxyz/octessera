@@ -35,13 +35,18 @@ elif [[ "$(systemctl is-active "$service" 2>/dev/null)" != active ]]; then reaso
 elif [[ "$(property User)" != "$user" ]]; then reason="$service does not run as $user"; fi
 check service "$reason"
 
-marker=$(read_root /run/octessera/candidate-ready.json)
-reason=ok
-if [[ -z $marker ]]; then reason='/run/octessera/candidate-ready.json is missing'
-elif [[ "$(json_value "$marker" schema_version)" != 1 || "$(json_value "$marker" board_profile)" != "$BOARD_PROFILE" ]]; then
-  reason="readiness marker is not a schema 1 $BOARD_PROFILE marker"
-elif [[ "$(json_value "$marker" pid)" != "$(property MainPID)" || "$(json_value "$marker" systemd_invocation_id)" != "$(property InvocationID)" ]]; then
-  reason='readiness marker is stale for the running service'; fi
+# A just-restarted runtime needs a few seconds to bring audio and hardware up; the updater allows 60.
+for _ in $(seq 1 60); do
+  marker=$(read_root /run/octessera/candidate-ready.json)
+  reason=ok
+  if [[ -z $marker ]]; then reason='/run/octessera/candidate-ready.json is missing'
+  elif [[ "$(json_value "$marker" schema_version)" != 1 || "$(json_value "$marker" board_profile)" != "$BOARD_PROFILE" ]]; then
+    reason="readiness marker is not a schema 1 $BOARD_PROFILE marker"
+  elif [[ "$(json_value "$marker" pid)" != "$(property MainPID)" || "$(json_value "$marker" systemd_invocation_id)" != "$(property InvocationID)" ]]; then
+    reason='readiness marker is stale for the running service'; fi
+  [[ $reason == ok ]] && break
+  sleep 1
+done
 check readiness "$reason"
 readiness=$reason
 
