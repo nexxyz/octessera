@@ -167,7 +167,7 @@ fn fallback_message(action: &str, ok: bool, detail: &str) -> String {
         }
     }
     if ok && matches!(action, "apply" | "rollback") {
-        format!("Update {action} health validation scheduled")
+        format!("Update {action} started")
     } else if ok {
         format!("Update {action} completed")
     } else {
@@ -227,7 +227,7 @@ mod tests {
         assert!(matches!(
             report("apply", true, b"", b""),
             RuntimeStoreResult::DeviceUpdateStatus { ok: true, message }
-                if message == "Update apply health validation scheduled"
+                if message == "Update apply started"
         ));
         assert!(matches!(
             report("check", false, b"", b""),

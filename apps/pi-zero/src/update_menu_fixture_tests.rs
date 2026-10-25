@@ -261,7 +261,7 @@ impl UpdateMenuFixture {
 fn native_update_menu_fixture_exercises_pi_update_flow() {
     let mut fixture = UpdateMenuFixture::new([
         response(false, b"", b"check unavailable\n"),
-        response(true, b"Update health validation scheduled.\n", b""),
+        response(true, b"Installing v1.2.3; Octessera restarts in a moment\n", b""),
         response(false, b"", b"rollback broke\n"),
     ]);
 
@@ -306,8 +306,8 @@ fn native_update_menu_fixture_exercises_pi_update_flow() {
     fixture.confirm_current_dialog();
     fixture.assert_playing();
     fixture.assert_last_platform_effect(RuntimePlatformEffect::UpdateApply);
-    fixture.wait_for_toast("Update health validation scheduled.");
-    fixture.assert_last_update_output("Update health validation scheduled.");
+    fixture.wait_for_toast("Installing v1.2.3; Octessera restarts in a moment");
+    fixture.assert_last_update_output("Installing v1.2.3; Octessera restarts in a moment");
     assert_eq!(
         fixture.calls(),
         vec![expected_call("check"), expected_call("apply")]

@@ -73,19 +73,16 @@ hardware with the board powered down, then use `rsyslogd -N1 -f /etc/rsyslog.con
 
 ## Runtime-only updater contract
 
-Orange Check/Apply/Rollback goes through the root-owned broker and guarded
-updater. It accepts only the profile-qualified pair:
+Orange Check/Apply/Rollback goes through the root-owned update socket to
+`octessera-update`. It takes only this board's pair:
 
-- `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip`
-- `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt`
+- `octessera-<version>-orange-pi-zero-2w-device-aarch64.zip`
+- `SHA256SUMS-orange-pi-zero-2w-device.txt`
 
-The updater validates the board profile, manifest, checksum, and candidate
-health, then updates only the managed runtime release and binary link. It does
-not replace the Armbian image, kernel, device tree, or other full-image assets.
-Full image replacement remains manual, and the standalone manual runtime ZIP is
-a manual bundle rather than an OTA asset. Orange never consumes Raspberry assets
-or falls back to a manual ZIP or full-image path. Missing or mismatched profile,
-asset, manifest, checksum, or health precondition fails closed.
+Apply verifies the checksum, unpacks the release to
+`/opt/octessera/releases/<version>`, and switches `current` with a restart. If
+the runtime is not up and ready within 60 seconds, it switches back. It never
+replaces the Armbian image, kernel, or device tree; those need a reflash.
 
 ## Power boundary
 

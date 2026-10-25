@@ -375,22 +375,19 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 
 - `Check` emits `RuntimePlatformEffect::UpdateCheck` without confirmation. On desktop it opens the
   GitHub releases page; desktop has no `Apply` or `Rollback` rows.
-- On Raspberry, Check reports whether the GitHub release contains the installed profile's
-  ZIP/checksum pair.
-- On Orange, Check/Apply/Rollback use the root-owned broker and guarded updater with the
-  profile-qualified `octessera-<version>-orange-pi-zero-2w-runtime-updater-aarch64.zip` and
-  `SHA256SUMS-orange-pi-zero-2w-runtime-updater.txt` pair. Profile, asset, manifest, checksum, and
-  health mismatches fail closed. Orange never uses Raspberry assets and never falls back to the
-  manual ZIP or the image path.
-- These actions update only the managed runtime release. Full Armbian, kernel, device-tree, and
-  image replacement stays manual, and the standalone manual runtime ZIP is not an OTA asset.
-- On Raspberry and Orange, Apply and Rollback confirm first, stage the candidate or previous
-  runtime release, and schedule guarded validation. The immediate result may be
-  `Update health validation scheduled.`, which is not a completed update. The guard checks process
-  identity and stability before committing; downloaded Apply candidates also need profile/version
-  readiness, and a failed validation restores the previous release automatically.
-- Legacy installations must be provisioned or updated with the current OS bundle, or reflashed,
-  before an online apply; the legacy updater must not apply new releases.
+- On both boards Check reports the newest published release that has this board's
+  `octessera-<version>-<profile>-device-aarch64.zip` and `SHA256SUMS-<profile>-device.txt`
+  pair, or `Up to date (v<installed>)`. Raspberry runs the updater through `sudo -n`; Orange
+  sends the action over the root-owned update socket. Neither board uses the other's assets.
+- These actions update only the runtime release. Armbian, kernel, device-tree, and image changes
+  still need a reflash.
+- Apply and Rollback confirm first. Apply downloads the release, verifies its checksum (a mismatch
+  stops before anything changes), and replies `Installing v<version>; Octessera restarts in a
+  moment`. Rollback replies `Going back to v<version>; ...`, or `No previous release to go back to`.
+  Both refuse while a development build drop-in is active.
+- The switch then restarts the runtime. If it is not active with its readiness marker within
+  60 seconds, the previous release comes back automatically. The device keeps the current and the
+  previous release and removes older ones.
 
 ### Backup / Restore
 

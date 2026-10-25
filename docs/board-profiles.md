@@ -44,7 +44,7 @@ provision, preflight, pi-gen, and Raspberry Pi Imager tools accept only
 numbering, or an audio backend. Orange image work stays on the Armbian path.
 
 Pi binaries expose `--print-build-metadata`, and release manifests, installed
-service metadata, and device update manifests carry the same canonical ID, so a
+service metadata, and device ZIP names carry the same canonical ID, so a
 mismatched binary or artifact fails closed wherever the host can check. The
 staged `octessera-pi` sidecar is a runtime-candidate contract; the installed
 `/opt/octessera/releases/<version>/octessera-runtime.json` is the separate
@@ -144,9 +144,9 @@ capability is `CAP_SYS_TTY_CONFIG` for native VT leasing, with no
 `CAP_SYS_NICE`. Reboot and power-off go through one narrow root-owned socket
 that accepts only `reboot\n` and `poweroff\n`; see the
 [device apply boundary](runtime-boundaries.md#device-apply-boundary). Check,
-Apply, and Rollback use the root-owned broker and guarded updater with the
-Orange runtime-updater ZIP and checksum pair only; full Armbian, kernel,
-device-tree, and image replacement stays manual.
+Apply, and Rollback go through the root-owned update socket to
+`octessera-update`, which takes only the Orange device ZIP and checksum; full
+Armbian, kernel, device-tree, and image replacement stays a reflash.
 
 On SIGINT the runtime shows the normal shutdown frame, clears the LEDs with a
 bounded 750 ms cleanup/retry (the shared `render_loop.rs` and `seesaw_io.rs`

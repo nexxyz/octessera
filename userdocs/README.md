@@ -160,6 +160,26 @@ doesn't boot at all. The boards hold those packages so apt leaves them alone;
 please don't go fishing with `--allow-change-held-packages`. Octessera updates
 come through **System > Maintenance > Updates** or a fresh image.
 
+### Updates
+
+With Wi-Fi on, **System > Maintenance > Updates > Check** tells you whether a
+newer Octessera is out for your board. **Apply** downloads it, checks that the
+download arrived intact (if it didn't, nothing changes), and restarts the
+instrument on the new version. Give it a minute. If the new version doesn't
+come up properly, the board quietly switches back to the one you had, so a
+bad update costs you a restart, not an evening.
+
+**Rollback** goes back to the version you had before the last update, and
+pressing it again goes forward again. The board keeps those two versions and
+tidies away older ones. One honest caveat: pull the power during that minute
+of restarting and the board may wake up on the new version without having
+checked it. If that version then misbehaves, Rollback (or a fresh image) puts
+things right.
+
+Updates only replace the Octessera program itself. Your patches, samples and
+settings stay where they are, and the operating system, kernel and boot setup
+only change when you flash a new image.
+
 ### Samples
 
 The bundled library is about 300 WAV files from the attribution-free
