@@ -21,6 +21,7 @@ if (-not $Restore -and [string]::IsNullOrWhiteSpace($LocalBinary)) {
 
 $transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 $remoteScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\dev-runtime.sh")).Path
+$boardCheck = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\board-check.sh")).Path
 $hash = ""
 if (-not $Restore) {
   $binary = (Resolve-Path -LiteralPath $LocalBinary -ErrorAction Stop).Path
@@ -30,17 +31,21 @@ if (-not $Restore) {
   $hash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
-function Invoke-OrangeAction {
-  param([string]$Action)
+function Invoke-OrangePayload {
+  param([string]$Contents, [string]$Label)
   $payloadPath = Join-Path ([IO.Path]::GetTempPath()) ("octessera-dev-payload-" + [guid]::NewGuid().ToString("N") + ".sh")
   try {
-    $contents = "ACTION='$Action'`nBOARD_PROFILE='orange-pi-zero-2w'`nHASH='$hash'`n" + [IO.File]::ReadAllText($remoteScript)
-    [IO.File]::WriteAllText($payloadPath, $contents, (New-Object System.Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText($payloadPath, $Contents, (New-Object System.Text.UTF8Encoding($false)))
     & $transport ssh-payload -Board opi -Target $Target $payloadPath
-    if ($LASTEXITCODE -ne 0) { throw "Orange $Action failed (exit $LASTEXITCODE)." }
+    if ($LASTEXITCODE -ne 0) { throw "Orange $Label failed (exit $LASTEXITCODE)." }
   } finally {
     Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
   }
+}
+
+function Invoke-OrangeAction {
+  param([string]$Action)
+  Invoke-OrangePayload ("ACTION='$Action'`nBOARD_PROFILE='orange-pi-zero-2w'`nHASH='$hash'`n" + [IO.File]::ReadAllText($remoteScript)) $Action
 }
 
 if ($Restore) {
@@ -51,3 +56,8 @@ Invoke-OrangeAction "preflight"
 & $transport scp -Board opi -Target $Target $binary "${Target}:/tmp/octessera-pi-dev"
 if ($LASTEXITCODE -ne 0) { throw "Orange binary upload failed (exit $LASTEXITCODE)." }
 Invoke-OrangeAction "activate"
+try {
+  Invoke-OrangePayload ("BOARD_PROFILE='orange-pi-zero-2w'`n" + [IO.File]::ReadAllText($boardCheck)) "board check"
+} catch {
+  throw "Board check failed; run -Restore. $_"
+}

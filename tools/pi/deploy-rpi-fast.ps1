@@ -21,6 +21,7 @@ if ([string]::IsNullOrWhiteSpace($RemoteRepo) -or $RemoteRepo -notlike '/*' -or 
 
 $transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 $remoteScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\dev-runtime.sh")).Path
+$boardCheck = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\board-check.sh")).Path
 
 function Invoke-PiPayload {
   param([string]$Contents, [string]$Label)
@@ -90,6 +91,11 @@ $hash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvari
 Invoke-DevRuntime "preflight"
 Copy-ToPi $binary "/tmp/octessera-pi-dev"
 Invoke-DevRuntime "activate" $hash
+try {
+  Invoke-PiPayload ("BOARD_PROFILE='raspberry-pi-zero-2w'`n" + [IO.File]::ReadAllText($boardCheck)) "board check"
+} catch {
+  throw "Board check failed; run -Restore. $_"
+}
 if (-not $NoTail) {
   & $transport ssh -Board rpi -Target $Target "journalctl -u octessera.service -f"
 }

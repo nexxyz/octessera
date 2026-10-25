@@ -43,8 +43,9 @@ exit 0
   $calls = [IO.File]::ReadAllText($log) -replace "`r", ""
   $expected = "(?s)ssh-payload opi octessera@board .*ACTION='preflight'\nBOARD_PROFILE='orange-pi-zero-2w'.*" +
     "scp opi octessera@board octessera@board:/tmp/octessera-pi-dev\n" +
-    "ssh-payload opi octessera@board .*ACTION='activate'\nBOARD_PROFILE='orange-pi-zero-2w'\nHASH='$hash'"
-  if ($calls -notmatch $expected) { throw "Deploy did not preflight, upload, and activate in order:`n$calls" }
+    "ssh-payload opi octessera@board .*ACTION='activate'\nBOARD_PROFILE='orange-pi-zero-2w'\nHASH='$hash'\n" +
+    "ssh-payload opi octessera@board [^\n]*\nBOARD_PROFILE='orange-pi-zero-2w'\n#!/usr/bin/env bash\n# Runs on the board, piped over SSH[^\n]*\n$"
+  if ($calls -notmatch $expected) { throw "Deploy did not preflight, upload, activate, and check the board in order:`n$calls" }
 
   [IO.File]::Delete($log)
   & $copy -Target "octessera@board" -Restore *> $null

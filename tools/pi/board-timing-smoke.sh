@@ -23,6 +23,10 @@ root="/tmp/octessera-smoke-$(date +%s)"
 out="target/board-timing-smoke/$board-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$out"
 
+profile=raspberry-pi-zero-2w
+[[ "$board" == opi ]] && profile=orange-pi-zero-2w
+{ printf "BOARD_PROFILE='%s'\n" "$profile"; cat tools/board-dev/board-check.sh; } > "$out/board-check.sh"
+remote ssh-payload -Target "$target" "$(local_path "$out/board-check.sh")" || { echo "board check failed; not measuring" >&2; exit 1; }
 remote ssh -Target "$target" "mkdir -m 755 $root"
 remote scp -Target "$target" "$(local_path "$binary")" "$target:$root/octessera-pi" >/dev/null
 remote scp -Target "$target" "$(local_path tools/pi/board-timing-smoke-payload.sh)" "$target:$root/payload.sh" >/dev/null
