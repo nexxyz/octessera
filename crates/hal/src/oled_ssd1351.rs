@@ -25,8 +25,6 @@ const CMD_DISPLAY_OFF: u8 = 0xAE;
 #[cfg(feature = "raspberry-pi-zero-2w")]
 const CMD_NORMAL_DISPLAY: u8 = 0xA6;
 #[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_DISPLAY_ALL_ON: u8 = 0xA5;
-#[cfg(feature = "raspberry-pi-zero-2w")]
 const CMD_SET_REMAP: u8 = 0xA0;
 #[cfg(feature = "raspberry-pi-zero-2w")]
 const CMD_SET_START_LINE: u8 = 0xA1;
@@ -234,10 +232,6 @@ impl OledSsd1351 {
         Ok(())
     }
 
-    pub fn display_all_on(&mut self) -> Result<(), String> {
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_ALL_ON, &[])
-    }
-
     pub fn display_on(&mut self) -> Result<(), String> {
         Self::write_command(&mut self.spi, &mut self.dc, CMD_NORMAL_DISPLAY, &[])?;
         Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_ON, &[])
@@ -326,13 +320,6 @@ impl OledSsd1351 {
             .write_frame(frame)
     }
 
-    pub fn display_all_on(&mut self) -> Result<(), String> {
-        self.transport
-            .as_mut()
-            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .display_on()
-    }
-
     pub fn display_on(&mut self) -> Result<(), String> {
         self.transport
             .as_mut()
@@ -391,10 +378,6 @@ impl OledSsd1351 {
         Err("Orange OLED requires a Linux target".into())
     }
 
-    pub fn display_all_on(&mut self) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
     pub fn display_on(&mut self) -> Result<(), String> {
         Err("Orange OLED requires a Linux target".into())
     }
@@ -428,10 +411,6 @@ impl OledSsd1351 {
     }
 
     pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn display_all_on(&mut self) -> Result<(), String> {
         Ok(())
     }
 
