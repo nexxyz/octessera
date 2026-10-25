@@ -36,7 +36,7 @@ native-audio = [
 ]
 # Instrumented diagnostic builds only: DSP profiles and timing probes.
 # Production images and fast deploys build without it.
-profiling = ["native-audio"]
+profiling = ["native-audio", "rodio-engine-source/profiling"]
 routing-tree-executor = [
     "native-audio",
     "realtime-engine/routing-tree-executor",
