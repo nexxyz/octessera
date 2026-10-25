@@ -42,7 +42,6 @@ mod dsp_profile;
 #[cfg(feature = "profiling")]
 mod dsp_scenarios;
 mod encoder_queue;
-mod fat_diagnostic;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_fault;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -174,7 +173,6 @@ fn main() {
         return;
     }
     match utility_mode {
-        utility_mode::UtilityMode::FatDiagnostic => std::process::exit(fat_diagnostic_exit_code()),
         utility_mode::UtilityMode::InteractiveHardware
         | utility_mode::UtilityMode::InteractiveNoise => {
             eprintln!(
@@ -209,7 +207,6 @@ fn main() {
         return;
     }
     match utility_mode {
-        utility_mode::UtilityMode::FatDiagnostic => std::process::exit(fat_diagnostic_exit_code()),
         utility_mode::UtilityMode::InteractiveHardware => {
             std::process::exit(exit_code(hardware_test::run_interactive()))
         }
@@ -332,22 +329,6 @@ fn run_requested_utility() {
     profiling_modes::run_requested();
     if oled_utility::requested() {
         std::process::exit(exit_code(oled_utility::run()));
-    }
-}
-
-fn fat_diagnostic_exit_code() -> i32 {
-    diagnostic_result_exit_code(fat_diagnostic::run())
-}
-
-fn diagnostic_result_exit_code(result: Result<bool, String>) -> i32 {
-    match result {
-        Ok(true) => 0,
-        Ok(false) => 1,
-        Err(error) if error == "help requested" => 0,
-        Err(error) => {
-            eprintln!("FAT diagnostic argument/error: {error}");
-            2
-        }
     }
 }
 

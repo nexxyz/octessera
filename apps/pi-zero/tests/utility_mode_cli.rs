@@ -57,36 +57,6 @@ fn orange_normal_profile_utility_does_not_select_diagnostics() {
     assert!(String::from_utf8_lossy(&output.stdout).contains("board_profile,orange-pi-zero-2w"));
 }
 
-#[test]
-fn fat_diagnostic_without_a_profile_is_rejected_before_hardware_access() {
-    let output = clean_command()
-        .arg("--fat-diagnostic")
-        .output()
-        .expect("diagnostic command should start");
-
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("--board-profile is required"));
-}
-
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
-#[test]
-fn default_build_rejects_fat_diagnostics_before_hardware_access() {
-    let output = clean_command()
-        .args([
-            "--fat-diagnostic",
-            "--board-profile",
-            "raspberry-pi-zero-2w",
-        ])
-        .output()
-        .expect("diagnostic command should start");
-
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("canonical hardware build"));
-}
-
 #[cfg(not(any(
     feature = "hardware-raspberry-pi-zero-2w",
     feature = "hardware-orange-pi-zero-2w"
@@ -100,36 +70,6 @@ fn interactive_modes_are_rejected_together() {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("cannot be combined; choose one"));
-}
-
-#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-#[test]
-fn raspberry_build_rejects_orange_fat_diagnostics() {
-    let output = clean_command()
-        .args(["--fat-diagnostic", "--board-profile", "orange-pi-zero-2w"])
-        .output()
-        .expect("diagnostic command should start");
-
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr)
-        .contains("canonical compiled hardware profile raspberry-pi-zero-2w"));
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[test]
-fn orange_build_rejects_raspberry_fat_diagnostics() {
-    let output = clean_command()
-        .args([
-            "--fat-diagnostic",
-            "--board-profile",
-            "raspberry-pi-zero-2w",
-        ])
-        .output()
-        .expect("diagnostic command should start");
-
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr)
-        .contains("canonical compiled hardware profile orange-pi-zero-2w"));
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
