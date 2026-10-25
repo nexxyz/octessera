@@ -1,12 +1,11 @@
 use super::super::timing_probe_report::intervals;
-use super::super::{ProbeHost, ProbeRunner, SendMetric};
+use super::super::{ProbeHost, ProbeRunner, SendMetric, TimingProbeOptions, TimingProbeScenario};
 use super::{
     apply_scenario, crossed_boundaries, encoder_delta, play_page, pulses_stress_actions,
     wake_endpoints,
 };
-use crate::{
+use playback_runtime::{
     HostAdapter, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
-    TimingProbeOptions, TimingProbeScenario,
 };
 use std::time::Duration;
 

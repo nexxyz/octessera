@@ -1,5 +1,5 @@
 use super::{ProbeHost, ProbeRunner};
-use crate::{PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
+use playback_runtime::{PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
 
 pub(super) fn process_probe_output(
     runtime: &mut PlaybackRuntime,

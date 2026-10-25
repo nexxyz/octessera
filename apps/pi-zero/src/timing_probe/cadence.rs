@@ -1,6 +1,7 @@
 use super::live_probe::{LiveProbeHost, LiveProbeRunner, LiveSendRecord};
+use super::TimingProbeScenario;
 use super::{send_device_input, send_fn_play, send_play_page_input};
-use playback_runtime::{PlaybackRuntime, TimingProbeScenario};
+use playback_runtime::PlaybackRuntime;
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug, Default)]

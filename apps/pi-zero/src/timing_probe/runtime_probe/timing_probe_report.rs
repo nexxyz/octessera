@@ -2,7 +2,7 @@ use super::{
     cadence::AdvanceCorrelation, EventRecord, TimingProbeCountSummary, TimingProbeReport,
     TimingProbeScenario, TimingProbeStreamReport, TimingProbeSummary,
 };
-use crate::MusicalEvent;
+use playback_runtime::MusicalEvent;
 use std::time::Duration;
 
 const MAX_WAKE_INTERVAL_MS: u64 = 1_000;

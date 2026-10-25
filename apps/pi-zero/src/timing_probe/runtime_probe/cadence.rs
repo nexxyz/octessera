@@ -1,5 +1,5 @@
-use super::{ProbeHost, ProbeRunner, SendMetric};
-use crate::{HostMessage, PlaybackRuntime, TimingProbeScenario};
+use super::{ProbeHost, ProbeRunner, SendMetric, TimingProbeScenario};
+use playback_runtime::{HostMessage, PlaybackRuntime};
 use serde_json::Value;
 
 #[derive(Clone, Copy, Debug, Default)]

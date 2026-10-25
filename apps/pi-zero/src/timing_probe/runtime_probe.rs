@@ -1,4 +1,4 @@
-use crate::{
+use playback_runtime::{
     CoreRunner, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig,
     RuntimeStoreResult, SyncSource,
 };
@@ -304,7 +304,7 @@ fn send_runtime_message(
 ) -> Result<(), String> {
     let messages = runner.send(message)?;
     let output = runtime.dispatch(
-        crate::RuntimeDispatchInput::RunnerMessages(messages),
+        playback_runtime::RuntimeDispatchInput::RunnerMessages(messages),
         runner,
         host,
     )?;
@@ -325,7 +325,7 @@ fn load_config(
         },
     })?;
     let output = runtime.dispatch(
-        crate::RuntimeDispatchInput::RunnerMessages(messages),
+        playback_runtime::RuntimeDispatchInput::RunnerMessages(messages),
         runner,
         host,
     )?;

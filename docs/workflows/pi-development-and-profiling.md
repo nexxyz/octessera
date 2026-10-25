@@ -75,9 +75,6 @@ service stopped: `sudo systemctl stop octessera.service`, then
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
 
-# Shared native logical wake probe, on the PC.
-cargo run -p playback-runtime --bin playback_timing_probe -- --durations 6s --scenarios idle --wake-intervals-ms 2,4,6,8,10,12
-
 # Runtime-only probe; leaves service and live audio untouched.
 ./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode RuntimeOnly -Durations 15s -Scenarios idle,pulses-stress -WakeIntervalsMs 2,4,6,8,10,12 -Snapshots
 
@@ -94,10 +91,9 @@ cargo run -p playback-runtime --bin playback_timing_probe -- --durations 6s --sc
 ./tools/pi/run-pi-timing-probes.ps1 -Target $PiTarget -Mode DspFxLimits -AllowServiceInterruption -AudioRenderQuantumFrames 256
 ```
 
-The shared binary uses a deterministic logical matrix. RuntimeOnly leaves the
-service running; Live, AudioDrain, and DSP modes stop `octessera.service`,
-restart it afterwards, and therefore need `-AllowServiceInterruption`. Use
-`-PrintOnly` to see the remote command first. Both Pi modes pass the actual
+RuntimeOnly leaves the service running; Live, AudioDrain, and DSP modes stop
+`octessera.service`, restart it afterwards, and therefore need
+`-AllowServiceInterruption`. Use `-PrintOnly` to see the remote command first. Both Pi modes pass the actual
 elapsed interval to the shared runtime. These metrics diagnose trigger cadence
 and event batching; use `AudioDrain` separately for queue/control-drain
 measurements.

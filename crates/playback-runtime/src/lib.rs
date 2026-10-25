@@ -11,7 +11,6 @@ mod protocol;
 mod runtime;
 #[cfg(any(test, feature = "test-support"))]
 pub mod scenario;
-mod timing_probe;
 mod timing_units;
 pub mod user_data_bundle;
 
@@ -43,11 +42,6 @@ pub use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarni
 pub use runtime::{
     CoreRunner, HostAdapter, NativeStoreRequest, PlaybackRuntime, RuntimeConfig,
     RuntimeDispatchInput, RuntimeIngest, RuntimePresentationMetrics,
-};
-pub use timing_probe::{
-    parse_timing_probe_durations, parse_timing_probe_scenarios,
-    parse_timing_probe_wake_intervals_ms, print_timing_probe_summary, run_timing_probe,
-    TimingProbeCountSummary, TimingProbeOptions, TimingProbeReport, TimingProbeScenario,
 };
 pub use user_data_bundle::apply_user_data_patch_and_preferences;
 pub use user_data_bundle::{

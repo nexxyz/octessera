@@ -24,9 +24,5 @@ sha2 = "0.10"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [[bin]]
-name = "playback_timing_probe"
-path = "src/bin/playback_timing_probe.rs"
-
-[[bin]]
 name = "split_default_config"
 path = "src/bin/split_default_config.rs"

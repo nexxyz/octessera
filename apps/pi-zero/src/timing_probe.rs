@@ -3,7 +3,7 @@ use crate::main_paths::{default_samples_dir, default_store_dir, ensure_runtime_d
 use crate::{host_adapter::PiHostAdapter, sample_browser::builtin_favourite_dirs};
 use playback_runtime::{
     HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, RuntimeIngest,
-    RuntimePlatformEffect, SyncSource, TimingProbeOptions, TimingProbeScenario,
+    RuntimePlatformEffect, SyncSource,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -13,6 +13,7 @@ mod cadence;
 mod live_probe;
 mod live_report;
 mod probe_options;
+mod runtime_probe;
 
 use cadence::{apply_scenario, observe_advance, LiveCadence};
 use live_probe::{LiveProbeHost, LiveProbeRunner, LiveSummary, LiveTimingProbeReport};
@@ -25,6 +26,7 @@ use probe_options::{
     audio_drain_requested, options_from_env_and_args, run_audio_drain_probe, run_runtime_only,
     runtime_only_requested,
 };
+use runtime_probe::{TimingProbeOptions, TimingProbeScenario};
 
 pub(crate) fn run() -> bool {
     let options = match options_from_env_and_args() {

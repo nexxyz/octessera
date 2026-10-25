@@ -10,7 +10,7 @@ use std::time::Instant;
 
 #[derive(Serialize)]
 pub(super) struct LiveTimingProbeReport {
-    pub(super) scenario: playback_runtime::TimingProbeScenario,
+    pub(super) scenario: super::TimingProbeScenario,
     pub(super) duration_ms: u64,
     pub(super) measured_duration_ms: u64,
     pub(super) wake_interval_ms: u64,
