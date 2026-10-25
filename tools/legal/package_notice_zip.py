@@ -2,45 +2,41 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import shutil
-import tempfile
 import zipfile
 from pathlib import Path
 
-from stage_notices import load_manifest, stage_notices
+from stage_notices import MANIFEST_RELATIVE, load_manifest, notice_files
 
 
-def _digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def notice_payload(repository_root: Path) -> dict[str, bytes]:
+    """The legal files as they appear in release archives, under `legal/`."""
+    manifest_path = repository_root / MANIFEST_RELATIVE
+    files = notice_files(repository_root, load_manifest(manifest_path))
+    payload = {f"legal/{destination}": data for destination, data in files.items()}
+    payload["legal/notice-bundle.json"] = manifest_path.read_bytes()
+    return payload
+
+
+def checksum_text(files: dict[str, bytes]) -> str:
+    return "".join(f"{hashlib.sha256(files[name]).hexdigest()}  {name}\n" for name in sorted(files))
+
+
+def write_archive(output: Path, files: dict[str, bytes], first: list[str] | None = None) -> None:
+    """Writes `files` plus SHA256SUMS with fixed timestamps, so the same input gives the same bytes."""
+    files = {**files, "SHA256SUMS": checksum_text(files).encode("utf-8")}
+    leading = first or []
+    names = [*leading, *[name for name in sorted(files) if name not in leading and name != "SHA256SUMS"], "SHA256SUMS"]
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for name in names:
+            info = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, files[name])
 
 
 def package_notice_zip(repository_root: Path, output: Path) -> None:
-    repository_root = repository_root.resolve()
-    manifest_path = repository_root / "resources/legal/notice-bundle.json"
-    manifest = load_manifest(manifest_path)
-    with tempfile.TemporaryDirectory(prefix="octessera-notice-zip-") as temporary:
-        staged = Path(temporary) / "staged"
-        stage_notices(repository_root, staged, ownership="filesystem")
-        legal_root = staged / "usr/share/doc/octessera"
-        package_root = Path(temporary) / "package"
-        (package_root / "legal").mkdir(parents=True)
-        for item in manifest["files"]:
-            source = legal_root / item["destination"]
-            target = package_root / "legal" / item["destination"]
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-        shutil.copyfile(manifest_path, package_root / "legal/notice-bundle.json")
-        checksum_paths = sorted(path.relative_to(package_root).as_posix() for path in (package_root / "legal").rglob("*") if path.is_file())
-        checksum_text = "".join(f"{_digest(package_root / relative)}  {relative}\n" for relative in checksum_paths)
-        (package_root / "SHA256SUMS").write_text(checksum_text, encoding="utf-8")
-        output.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-            for relative in [*checksum_paths, "SHA256SUMS"]:
-                path = package_root / relative
-                info = zipfile.ZipInfo(relative, (1980, 1, 1, 0, 0, 0))
-                info.compress_type = zipfile.ZIP_DEFLATED
-                info.external_attr = 0o100644 << 16
-                archive.writestr(info, path.read_bytes())
+    write_archive(output, notice_payload(repository_root.resolve()))
 
 
 def main() -> int:

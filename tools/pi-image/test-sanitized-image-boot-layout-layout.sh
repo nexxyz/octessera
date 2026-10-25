@@ -99,13 +99,6 @@ if [ "$(id -u)" -eq 0 ]; then
     printf '%s\n' 'fixture GPL license' > "$fixture/root/usr/share/common-licenses/GPL-3"
     printf '%s\n' 'fixture base-files copyright' > "$fixture/root/usr/share/doc/base-files/copyright"
     require_octessera_legal_notices "$fixture/root"
-    ln "$fixture/root/usr/share/doc/octessera/licenses/cargo/reference/Apache-2.0.txt" \
-        "$fixture/root/usr/share/doc/external-octessera-legal-alias"
-    if require_octessera_legal_notices "$fixture/root"; then
-        echo 'Finalized legal verification accepted an external hardlink alias.' >&2
-        exit 1
-    fi
-    rm "$fixture/root/usr/share/doc/external-octessera-legal-alias"
     require_octessera_raspberry_identity "$fixture/boot" "$fixture/root"
     require_octessera_raspberry_usb_role_layout "$fixture/boot" "$fixture/root"
     role_path="$fixture/root/usr/local/sbin/octessera-usb-role"

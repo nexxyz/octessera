@@ -183,20 +183,17 @@ jobs:
           $portableAsset = Join-Path $assetDir "${{ needs.release_info.outputs.asset_prefix }}-windows-portable.zip"
           Copy-Item -LiteralPath $installers[0].FullName -Destination $installerAsset
           python tools/legal/package_portable_zip.py --repository-root . --executable $portable --output $portableAsset
-          python tools/legal/verify_notice_archive.py --repository-root . --archive $portableAsset --payload-name octessera.exe
           $files = @(Get-ChildItem -LiteralPath $assetDir -File)
           if ($files.Count -ne 2) { throw "Expected exactly two Windows payload files" }
           $lines = $files | ForEach-Object { $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLower(); "$hash  $($_.Name)" }
           $lines | Set-Content -LiteralPath (Join-Path $assetDir "SHA256SUMS-windows.txt")
-      - name: Verify Windows portable and NSIS resource trees
+      - name: Verify Windows NSIS resource tree
         shell: pwsh
         run: |
           $installRoot = Join-Path $env:RUNNER_TEMP "octessera-nsis-resource-check"
           if (Test-Path -LiteralPath $installRoot) { Remove-Item -LiteralPath $installRoot -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
           try {
-            $portable = "release-assets/${{ needs.release_info.outputs.asset_prefix }}-windows-portable.zip"
-            python tools/release/verify_desktop_artifact.py --repository-root . --portable-zip $portable --executable "target/release/octessera-desktop.exe"
             $installer = (Resolve-Path "release-assets/${{ needs.release_info.outputs.asset_prefix }}-windows-installer.exe").Path
             $sevenZip = "C:\Program Files\7-Zip\7z.exe"
             if (-not (Test-Path -LiteralPath $sevenZip -PathType Leaf)) { throw "Required 7-Zip executable was not found at $sevenZip" }

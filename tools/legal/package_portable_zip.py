@@ -1,47 +1,24 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
-import shutil
 import sys
-import tempfile
-import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from package_notice_zip import package_notice_zip
+from package_notice_zip import notice_payload, write_archive
 from verify_notice_archive import verify_notice_archive
 from tools.samples.sample_library import sample_media_payload_files
 
 
 def package_portable_zip(repository_root: Path, executable: Path, output: Path) -> None:
-    with tempfile.TemporaryDirectory(prefix="octessera-portable-") as temporary:
-        notice_zip = Path(temporary) / "notices.zip"
-        package_notice_zip(repository_root, notice_zip)
-        package = Path(temporary) / "package"
-        package.mkdir()
-        with zipfile.ZipFile(notice_zip) as archive:
-            archive.extractall(package)
-        shutil.copyfile(executable, package / "octessera.exe")
-        sample_files = sample_media_payload_files(repository_root)
-        for name, payload in sample_files.items():
-            target = package / name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(payload)
-        names = sorted(path.relative_to(package).as_posix() for path in package.rglob("*") if path.is_file())
-        checksum_names = [name for name in names if name != "SHA256SUMS"]
-        (package / "SHA256SUMS").write_text(
-            "".join(f"{hashlib.sha256((package / name).read_bytes()).hexdigest()}  {name}\n" for name in checksum_names),
-            encoding="utf-8",
-        )
-        output.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-            for name in ["octessera.exe", *[name for name in names if name != "octessera.exe"]]:
-                info = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
-                info.compress_type = zipfile.ZIP_DEFLATED
-                info.external_attr = 0o100644 << 16
-                archive.writestr(info, (package / name).read_bytes())
+    repository_root = repository_root.resolve()
+    files = {
+        **notice_payload(repository_root),
+        **sample_media_payload_files(repository_root),
+        "octessera.exe": executable.read_bytes(),
+    }
+    write_archive(output, files, first=["octessera.exe"])
     verify_notice_archive(repository_root, output, "octessera.exe")
 
 
