@@ -16,12 +16,16 @@ function Invoke-Wrapper {
   param([object[]]$Arguments)
 
   [IO.File]::WriteAllText($recordPath, "")
-  try {
-    & $scriptPath @Arguments *> $null
-    $LASTEXITCODE
-  } catch {
-    -1
+  $quoted = @($Arguments | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join " "
+  $process = Start-Process powershell.exe -NoNewWindow -PassThru `
+    -ArgumentList "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$scriptPath`" $quoted" `
+    -RedirectStandardOutput (Join-Path $testRoot "out.log") -RedirectStandardError (Join-Path $testRoot "err.log")
+  $null = $process.Handle
+  if (-not $process.WaitForExit(60000)) {
+    $process.Kill()
+    throw "Wrapper did not finish: $($Arguments -join ' ')"
   }
+  $process.ExitCode
 }
 
 function Read-Record {
@@ -77,7 +81,7 @@ exit 7
   }
 
   if ((Invoke-Wrapper @("ssh", "-Board", "rpi", "-Target", "pi@board.test", "printf ok")) -ne 7) {
-    throw "Wrapper did not return the ssh exit code."
+    throw "Wrapper did not return the ssh exit code: $([IO.File]::ReadAllText((Join-Path $testRoot 'err.log')))"
   }
   $record = Read-Record
   $expected = @("-i", (Join-Path $sshDirectory "octessera_pi_dev"), "-o", "IdentitiesOnly=yes",
