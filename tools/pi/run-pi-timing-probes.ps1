@@ -1,7 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Target,
-  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$Binary = "/usr/local/bin/octessera-pi",
   [string]$Service = "octessera.service",
   [ValidateSet("RuntimeOnly", "Live", "AudioDrain", "DspFxLimits", "DspSoak", "ProfileBaseline")]
@@ -26,7 +25,7 @@ $ErrorActionPreference = "Stop"
 Assert-DeploymentTarget $Target | Out-Null
 $boardProfilePath = Join-Path $PSScriptRoot "board-profile.ps1"
 . $boardProfilePath
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 $interruptsService = -not $KeepServiceRunning -and $Mode -ne "RuntimeOnly"
 if (-not $PrintOnly -and $interruptsService -and -not $AllowServiceInterruption) { throw "$Mode requires -AllowServiceInterruption." }
 
@@ -64,7 +63,7 @@ function Invoke-PiSsh {
   try {
     $encoding = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText($payloadPath, $Command, $encoding)
-    & $transport "ssh-payload" -Target $Target -Key $Key $payloadPath
+    & $transport "ssh-payload" -Board rpi -Target $Target $payloadPath
     $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
   } finally {
     Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue

@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 $deployScript = Join-Path $PSScriptRoot "deploy-rpi-fast.ps1"
 $deployText = [IO.File]::ReadAllText($deployScript)
 $targetValidationIndex = $deployText.IndexOf('Assert-DeploymentTarget $Target | Out-Null', [StringComparison]::Ordinal)
-$transportIndex = $deployText.IndexOf('with-rpi-ssh.ps1', [StringComparison]::Ordinal)
+$transportIndex = $deployText.IndexOf('with-board-ssh.ps1', [StringComparison]::Ordinal)
 if ($deployText.IndexOf('[Parameter(Mandatory = $true)]', [StringComparison]::Ordinal) -lt 0 -or $deployText.IndexOf('[string]$Target', [StringComparison]::Ordinal) -lt 0) {
   throw "Fast deployment must require an explicit target."
 }
@@ -105,7 +105,7 @@ function Invoke-DeployScript {
 try {
   New-Item -ItemType Directory -Path $fakeBin, $sshDirectory, (Split-Path -Parent $binaryPath) -Force | Out-Null
   Write-Utf8NoBom (Join-Path $sshDirectory "known_hosts") "pi.test.invalid ssh-ed25519 fake"
-  Write-Utf8NoBom (Join-Path $testRoot "key with spaces") "fake private key"
+  Write-Utf8NoBom (Join-Path $sshDirectory "octessera_pi_dev") "fake private key"
   Write-Utf8NoBom (Join-Path $fakeBin "record-transport.ps1") @'
 [IO.File]::AppendAllText($env:OCTESSERA_PI_TRANSPORT_LOG, "$($args[0])`n")
 $exitCode = if ($null -eq $env:OCTESSERA_PI_TRANSPORT_EXIT_CODE) { 0 } else { [int]$env:OCTESSERA_PI_TRANSPORT_EXIT_CODE }

@@ -143,10 +143,10 @@ change lands, compose both boards' real stores with the new code. Copy them to
 ```powershell
 $PiTarget = "pi@<PI_HOST>"; $OrangeTarget = "octessera@<ORANGE_HOST>"
 New-Item -ItemType Directory -Force target/board-stores | Out-Null
-./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget "tar czf /tmp/stores.tgz --exclude='*.wav' -C /home/pi/presets ."
-./tools/pi/with-rpi-ssh.ps1 scp -Target $PiTarget "${PiTarget}:/tmp/stores.tgz" target/board-stores/rpi.tgz
-./tools/orange-pi/with-opi-ssh.ps1 ssh -Target $OrangeTarget "sudo -n tar czf /tmp/stores.tgz -C /var/lib/octessera/presets . && sudo -n chown octessera /tmp/stores.tgz"
-./tools/orange-pi/with-opi-ssh.ps1 scp -Target $OrangeTarget "${OrangeTarget}:/tmp/stores.tgz" target/board-stores/opi.tgz
+./tools/board-dev/with-board-ssh.ps1 ssh -Board rpi -Target $PiTarget "tar czf /tmp/stores.tgz --exclude='*.wav' -C /home/pi/presets ."
+./tools/board-dev/with-board-ssh.ps1 scp -Board rpi -Target $PiTarget "${PiTarget}:/tmp/stores.tgz" target/board-stores/rpi.tgz
+./tools/board-dev/with-board-ssh.ps1 ssh -Board opi -Target $OrangeTarget "sudo -n tar czf /tmp/stores.tgz -C /var/lib/octessera/presets . && sudo -n chown octessera /tmp/stores.tgz"
+./tools/board-dev/with-board-ssh.ps1 scp -Board opi -Target $OrangeTarget "${OrangeTarget}:/tmp/stores.tgz" target/board-stores/opi.tgz
 ```
 
 Unpack each archive into `target/board-stores/rpi/` and `target/board-stores/opi/`,

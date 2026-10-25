@@ -1,7 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Target,
-  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$BoardProfile = "raspberry-pi-zero-2w"
 )
 
@@ -11,7 +10,7 @@ Assert-DeploymentTarget $Target | Out-Null
 . (Join-Path $PSScriptRoot "board-profile.ps1")
 Assert-RaspberryBoardProfile $BoardProfile
 
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 
 $remote = @'
 set -u
@@ -54,7 +53,7 @@ $payloadPath = Join-Path $env:TEMP ("octessera-pi-preflight-" + [guid]::NewGuid(
 try {
   $encoding = New-Object System.Text.UTF8Encoding($false)
   [IO.File]::WriteAllText($payloadPath, $remote, $encoding)
-  & $transport "ssh-payload" -Target $Target -Key $Key $payloadPath
+  & $transport "ssh-payload" -Board rpi -Target $Target $payloadPath
   $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
 } finally {
   Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue

@@ -24,7 +24,7 @@ Assert-DeploymentTarget $Target | Out-Null
 Assert-RaspberryBoardProfile $BoardProfile
 Assert-OctesseraServiceName $Service
 
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 $script:PiTransportExitCode = 0
 $script:PiFailureExitCode = 0
 
@@ -63,9 +63,9 @@ function Invoke-PiSsh {
       $payloadPath = Join-Path $env:TEMP ("octessera-pi-command-" + [guid]::NewGuid().ToString("N") + ".sh")
       $encoding = New-Object System.Text.UTF8Encoding($false)
       [IO.File]::WriteAllText($payloadPath, $Command, $encoding)
-      $output = @(& $transport "ssh-payload" -Target $Target -Key $Key $payloadPath)
+      $output = @(& $transport "ssh-payload" -Board rpi -Target $Target $payloadPath)
     } else {
-      $output = @(& $transport "ssh" -Target $Target -Key $Key $Command)
+      $output = @(& $transport "ssh" -Board rpi -Target $Target $Command)
     }
     $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
   } finally {
@@ -98,7 +98,7 @@ function Invoke-PiLockedSsh {
 function Copy-ToPi {
   param([string]$Source, [string]$Destination)
 
-  $output = @(& $transport "scp" -Target $Target -Key $Key $Source "${Target}:$Destination")
+  $output = @(& $transport "scp" -Board rpi -Target $Target $Source "${Target}:$Destination")
   $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
   if ($script:PiTransportExitCode -ne 0) {
     $script:PiFailureExitCode = $script:PiTransportExitCode
@@ -249,7 +249,7 @@ rm -rf $syncDirValue $remoteArchiveValue
   Copy-ToPi $lockHelperPath $remoteLockHelperPath
   Invoke-PiLockedSsh "set -e; chmod 755 $remoteHelperValue; sudo python3 $remoteLockHelperValue $updaterLockValue 0 $transactionPathValue $remoteHelperValue $helperArgumentString"
   if (-not $NoTail) {
-    $tailOutput = @(& $transport "ssh" -Target $Target -Key $Key "journalctl -u $serviceValue -f")
+    $tailOutput = @(& $transport "ssh" -Board rpi -Target $Target "journalctl -u $serviceValue -f")
     $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     if ($script:PiTransportExitCode -ne 0) {
       $script:PiFailureExitCode = $script:PiTransportExitCode

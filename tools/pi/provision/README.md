@@ -21,14 +21,16 @@ the binary or source, restarts the service, and can tail its logs.
 Raspberry Pi provisioning rejects `orange-pi-zero-2w`; Orange Pi uses the
 separate Armbian bring-up path.
 
-The shared transport wrapper reads an encrypted-key passphrase only from the
-process environment and removes its temporary askpass script when it exits.
-Set `OCTESSERA_PI_PASSPHRASE` in the current PowerShell process first:
+The shared board transport wrapper (`-Board rpi` or `-Board opi`) uses that
+board's dedicated key and strict host checking. It reads an encrypted-key
+passphrase only from the process environment and removes its temporary askpass
+script when it exits. Set `OCTESSERA_PI_PASSPHRASE` in the current PowerShell
+process first:
 
 ```powershell
 # Set OCTESSERA_PI_PASSPHRASE in this PowerShell process before these commands.
 $PiTarget = "pi@<PI_HOST>"
-./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget "hostname"
-./tools/pi/with-rpi-ssh.ps1 scp -Target $PiTarget ./candidate.bin "${PiTarget}:/tmp/candidate.bin"
-./tools/pi/with-rpi-ssh.ps1 ssh-payload -Target $PiTarget ./remote-script.sh
+./tools/board-dev/with-board-ssh.ps1 ssh -Board rpi -Target $PiTarget "hostname"
+./tools/board-dev/with-board-ssh.ps1 scp -Board rpi -Target $PiTarget ./candidate.bin "${PiTarget}:/tmp/candidate.bin"
+./tools/board-dev/with-board-ssh.ps1 ssh-payload -Board rpi -Target $PiTarget ./remote-script.sh
 ```

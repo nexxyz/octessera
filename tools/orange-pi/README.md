@@ -130,14 +130,14 @@ specific board, hostnames, IP addresses, or generated SSH config to Git.
 
 ## Target and transport
 
-Set the target for the board you are operating. Use `with-opi-ssh.ps1` for
-SSH and SCP; it supplies the dedicated key,
-`known_hosts`, strict host-key checking, and the passphrase from
-`OCTESSERA_PI_PASSPHRASE`.
+Set the target for the board you are operating. Use
+`tools/board-dev/with-board-ssh.ps1 -Board opi` for SSH and SCP; it supplies
+the dedicated Orange key, `known_hosts`, strict host-key checking, and the
+passphrase from `OCTESSERA_PI_PASSPHRASE`.
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
-./tools/orange-pi/with-opi-ssh.ps1 ssh -Target $OrangeTarget "id -un; hostname"
+./tools/board-dev/with-board-ssh.ps1 ssh -Board opi -Target $OrangeTarget "id -un; hostname"
 ```
 
 For input-routing changes, use the [Orange input-routing reference](../../hardware/docs/orange-pi-input-routing.md)
@@ -168,11 +168,11 @@ the binary and sidecar names:
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
-./tools/orange-pi/with-opi-ssh.ps1 scp `
+./tools/board-dev/with-board-ssh.ps1 scp -Board opi `
   -Target $OrangeTarget `
   target/orange-pi-cross/octessera-pi `
   "${OrangeTarget}:/tmp/octessera-pi"
-./tools/orange-pi/with-opi-ssh.ps1 scp `
+./tools/board-dev/with-board-ssh.ps1 scp -Board opi `
   -Target $OrangeTarget `
   target/orange-pi-cross/octessera-pi.metadata.json `
   "${OrangeTarget}:/tmp/octessera-pi.metadata.json"

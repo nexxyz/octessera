@@ -21,7 +21,7 @@ if ($Restore) {
   throw "-LocalBinary is required for Orange development deployment."
 }
 
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-opi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 $remoteScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "deploy-opi-fast-remote.sh")).Path
 $source = ""
 $hash = ""
@@ -71,7 +71,7 @@ function Invoke-OrangePayload {
     $prefix = "ACTION='$Action'`nSOURCE='$source'`nHASH='$hash'`nSTAGE='$stage'`n"
     $contents = $prefix + [IO.File]::ReadAllText($remoteScript)
     [IO.File]::WriteAllText($payloadPath, $contents, (New-Object System.Text.UTF8Encoding($false)))
-    & $transport ssh-payload -Target $Target $payloadPath
+    & $transport ssh-payload -Board opi -Target $Target $payloadPath
     if ($LASTEXITCODE -ne 0) { throw "Orange $Action payload failed (exit $LASTEXITCODE)." }
   } finally {
     if (Test-Path -LiteralPath $payloadPath) { Remove-Item -LiteralPath $payloadPath -Force }
@@ -85,9 +85,9 @@ if ($Restore) {
 
 Invoke-OrangePayload "preflight"
 try {
-  & $transport scp -Target $Target $binary "${Target}:$stage/octessera-pi"
+  & $transport scp -Board opi -Target $Target $binary "${Target}:$stage/octessera-pi"
   if ($LASTEXITCODE -ne 0) { throw "Orange binary staging failed (exit $LASTEXITCODE)." }
-  & $transport scp -Target $Target $metadata "${Target}:$stage/octessera-pi.metadata.json"
+  & $transport scp -Board opi -Target $Target $metadata "${Target}:$stage/octessera-pi.metadata.json"
   if ($LASTEXITCODE -ne 0) { throw "Orange metadata staging failed (exit $LASTEXITCODE)." }
   Invoke-OrangePayload "activate"
 } finally {

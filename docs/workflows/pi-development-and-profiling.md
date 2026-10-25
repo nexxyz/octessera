@@ -248,7 +248,7 @@ After live probes, inspect the current boot's service journal:
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
-./tools/pi/with-rpi-ssh.ps1 ssh -Target $PiTarget 'sudo journalctl -u octessera.service -b --no-pager'
+./tools/board-dev/with-board-ssh.ps1 ssh -Board rpi -Target $PiTarget 'sudo journalctl -u octessera.service -b --no-pager'
 ```
 
 These probes measure timing and audio-path behavior; they do not replace board

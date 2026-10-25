@@ -15,13 +15,9 @@ shift $(($# < 4 ? $# : 4))
 for setting in "$@"; do
   [[ "$setting" =~ ^OCTESSERA_TIMING_[A-Z_]+=[0-9A-Za-z,._-]+$ ]] || { echo "bad setting: $setting" >&2; exit 2; }
 done
-case "$board" in
-  rpi) transport=tools/pi/with-rpi-ssh.ps1 ;;
-  opi) transport=tools/orange-pi/with-opi-ssh.ps1 ;;
-  *) echo "board must be rpi or opi" >&2; exit 2 ;;
-esac
+[[ "$board" == rpi || "$board" == opi ]] || { echo "board must be rpi or opi" >&2; exit 2; }
 cd "$(git rev-parse --show-toplevel)"
-remote() { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$transport" "$@"; }
+remote() { powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/board-dev/with-board-ssh.ps1 -Board "$board" "$@"; }
 local_path() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
 root="/tmp/octessera-smoke-$(date +%s)"
 out="target/board-timing-smoke/$board-$(date +%Y%m%d-%H%M%S)"

@@ -23,7 +23,7 @@ try {
   $log = Join-Path $temp "calls.txt"
   $fake = Join-Path $temp "fake-transport.ps1"
   [IO.File]::WriteAllText($fake, @'
-param([string]$Command, [string]$Target, [Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest)
+param([string]$Command, [string]$Board, [string]$Target,[Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest)
 $log = $env:OCTESSERA_DEPLOY_TEST_LOG
 [IO.File]::AppendAllText($log, "$Command $Target`n")
 if ($Command -eq 'ssh-payload') {
@@ -35,7 +35,7 @@ exit 0
   $rootLiteral = "'" + $PSScriptRoot.Replace("'", "''") + "'"
   $fakeLiteral = "'" + $fake.Replace("'", "''") + "'"
   $copySource = $source.Replace('$PSScriptRoot', $rootLiteral)
-  $transportLine = '$transport = (Resolve-Path -LiteralPath (Join-Path ' + $rootLiteral + ' "with-opi-ssh.ps1")).Path'
+  $transportLine = '$transport = (Resolve-Path -LiteralPath (Join-Path ' + $rootLiteral + ' "..\board-dev\with-board-ssh.ps1")).Path'
   if (-not $copySource.Contains($transportLine)) { throw "test could not replace exact transport binding" }
   $copySource = $copySource.Replace($transportLine, '$transport = ' + $fakeLiteral)
   [IO.File]::WriteAllText($copy, $copySource, (New-Object System.Text.UTF8Encoding($false)))

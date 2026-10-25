@@ -1,7 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Target,
-  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$RemoteRepo = "/home/pi/octessera-dev",
   [string]$Service = "octessera.service",
   [string]$BoardProfile = "raspberry-pi-zero-2w",
@@ -15,7 +14,7 @@ Assert-DeploymentTarget $Target | Out-Null
 Assert-RaspberryBoardProfile $BoardProfile
 Assert-OctesseraServiceName $Service
 
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 $script:PiTransportExitCode = 0
 $script:PiFailureExitCode = 0
 
@@ -26,7 +25,7 @@ function Invoke-PiSsh {
   try {
     $encoding = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText($payloadPath, $Command, $encoding)
-    $output = @(& $transport "ssh-payload" -Target $Target -Key $Key $payloadPath)
+    $output = @(& $transport "ssh-payload" -Board rpi -Target $Target $payloadPath)
     $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
   } finally {
     Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
@@ -41,7 +40,7 @@ function Invoke-PiSsh {
 function Copy-ToPi {
   param([string]$Source, [string]$Destination)
 
-  $output = @(& $transport "scp" -Target $Target -Key $Key $Source "${Target}:$Destination")
+  $output = @(& $transport "scp" -Board rpi -Target $Target $Source "${Target}:$Destination")
   $script:PiTransportExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
   if ($script:PiTransportExitCode -ne 0) {
     $script:PiFailureExitCode = $script:PiTransportExitCode

@@ -1,7 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Target,
-  [string]$Key = "$env:USERPROFILE\.ssh\octessera_pi_dev",
   [string]$OutputDir = "diagnostics"
 )
 
@@ -17,7 +16,7 @@ $hostName = $Target.Split("@")[1]
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $safeTarget = $Target -replace "[^A-Za-z0-9_.-]", "_"
 $outputPath = Join-Path $OutputDir "pi-network-$safeTarget-$timestamp.txt"
-$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "with-rpi-ssh.ps1")).Path
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 
 $remote = @'
 set -u
@@ -73,7 +72,7 @@ journalctl -b -1 -o short-iso --no-pager 2>/dev/null | grep -Ei 'wlan0|wifi|brcm
   try {
     $encoding = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText($payloadPath, $remote, $encoding)
-    & $transport "ssh-payload" -Target $Target -Key $Key $payloadPath
+    & $transport "ssh-payload" -Board rpi -Target $Target $payloadPath
     $script:PiDiagnosticExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
   } finally {
     Remove-Item -LiteralPath $payloadPath -Force -ErrorAction SilentlyContinue
