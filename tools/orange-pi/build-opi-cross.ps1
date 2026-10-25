@@ -103,13 +103,11 @@ function Get-BuildSpec {
       return [pscustomobject]@{
         Package = "octessera-pi"
         Feature = "hardware-orange-pi-zero-2w profiling"
-        ArtifactKind = "diagnostic-only"
       }
     }
     return [pscustomobject]@{
       Package = "octessera-pi"
       Feature = "hardware-orange-pi-zero-2w"
-      ArtifactKind = "runtime-candidate"
     }
   }
 
@@ -207,7 +205,7 @@ $buildSpec = Get-BuildSpec -SelectedBinary $Binary -SelectedProfiling:$Profiling
 $selectedOutputRelativePath = Get-OutputRelativePath -SelectedProfiling:$Profiling
 $outputDirectory = Join-Path $repositoryRoot $selectedOutputRelativePath.Replace("/", "\")
 $outputBinary = Join-Path $outputDirectory $Binary
-$outputMetadata = "$outputBinary.metadata.json"
+$outputMetadata = if ($Binary -eq "octessera-pi") { $null } else { "$outputBinary.metadata.json" }
 $repositoryWslPath = Convert-ToWslPath $repositoryRoot
 $dockerCommand = New-DockerShellCommand -RepositoryWslPath $repositoryWslPath -BuildSpec $buildSpec -SelectedOutputRelativePath $selectedOutputRelativePath
 
@@ -215,7 +213,7 @@ if ($DryRun) {
   Write-Output "Dry run: no Docker container was started and no board connection is attempted."
   Write-Output "wsl bash -lc $dockerCommand"
   Write-Output "Output: $outputBinary"
-  Write-Output "Metadata: $outputMetadata"
+  if ($outputMetadata) { Write-Output "Metadata: $outputMetadata" }
   return
 }
 
@@ -236,18 +234,20 @@ try {
   if ((Get-Item -LiteralPath $outputBinary).Length -le 0) {
     throw "Build produced an empty binary: $outputBinary"
   }
-  Publish-OrangeBuildMetadata `
-    -MetadataPath $outputMetadata `
-    -BinaryPath $outputBinary `
-    -SelectedBinary $Binary `
-    -SelectedTarget $Target `
-    -SelectedProfile $Profile `
-    -BuildSpec $buildSpec `
-    -SourceCommit $sourceCommit
+  if ($outputMetadata) {
+    Publish-OrangeBuildMetadata `
+      -MetadataPath $outputMetadata `
+      -BinaryPath $outputBinary `
+      -SelectedBinary $Binary `
+      -SelectedTarget $Target `
+      -SelectedProfile $Profile `
+      -BuildSpec $buildSpec `
+      -SourceCommit $sourceCommit
+  }
   $artifactReady = $true
 } finally {
   if (-not $artifactReady) {
     Remove-OrangeBuildArtifacts -BinaryPath $outputBinary -MetadataPath $outputMetadata
   }
 }
-Write-Output "Built ELF64 AArch64 binary and metadata sidecar: $outputBinary"
+Write-Output "Built ELF64 AArch64 binary: $outputBinary"

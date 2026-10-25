@@ -167,12 +167,6 @@ fn main() {
             std::process::exit(2);
         }
     };
-    if utility_mode == utility_mode::UtilityMode::Normal
-        && octessera_pi::board_profile::metadata_requested()
-    {
-        octessera_pi::board_profile::print_build_metadata();
-        return;
-    }
     match utility_mode {
         utility_mode::UtilityMode::InteractiveHardware
         | utility_mode::UtilityMode::InteractiveNoise => {

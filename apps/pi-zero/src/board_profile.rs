@@ -31,16 +31,6 @@ pub const BOARD_PROFILE_ID: &str = BOARD_COMPOSITION.profile_id();
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub const BINARY_NAME: &str = "octessera-pi";
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
-const ORANGE_METADATA_CARGO_FEATURE: &str =
-    octessera_hal::orange_metadata::RUNTIME_PROFILING_CARGO_FEATURE;
-
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
-const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime profiling";
-
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", not(feature = "profiling")))]
-const ORANGE_METADATA_CONTRACT_NAME: &str = "runtime-candidate";
-
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 const fn same_profile_id(left: &str, right: &str) -> bool {
     let left = left.as_bytes();
@@ -92,10 +82,8 @@ fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> 
     Ok(())
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub fn print_build_metadata() {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    print_orange_build_metadata();
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     println!(
         "{}",
         serde_json::json!({
@@ -108,25 +96,7 @@ pub fn print_build_metadata() {
     );
 }
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
-fn print_orange_build_metadata() {
-    let result = octessera_hal::orange_metadata::print_runtime_profiling_metadata(
-        ORANGE_METADATA_CARGO_FEATURE,
-    );
-    if let Err(error) = result {
-        eprintln!("Orange {ORANGE_METADATA_CONTRACT_NAME} metadata check failed: {error}");
-        std::process::exit(1);
-    }
-}
-
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", not(feature = "profiling")))]
-fn print_orange_build_metadata() {
-    if let Err(error) = octessera_hal::orange_metadata::print_runtime_candidate_metadata() {
-        eprintln!("Orange {ORANGE_METADATA_CONTRACT_NAME} metadata check failed: {error}");
-        std::process::exit(1);
-    }
-}
-
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub fn metadata_requested() -> bool {
     std::env::args()
         .skip(1)

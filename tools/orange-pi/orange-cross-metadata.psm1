@@ -33,10 +33,10 @@ function Publish-OrangeBuildMetadata {
 function Remove-OrangeBuildArtifacts {
   param(
     [Parameter(Mandatory)][string]$BinaryPath,
-    [Parameter(Mandatory)][string]$MetadataPath
+    [string]$MetadataPath
   )
 
-  Remove-Item -LiteralPath $BinaryPath, $MetadataPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath @($BinaryPath, $MetadataPath | Where-Object { $_ }) -Force -ErrorAction SilentlyContinue
 }
 
 Export-ModuleMember -Function @("Publish-OrangeBuildMetadata", "Remove-OrangeBuildArtifacts")

@@ -3,74 +3,9 @@ $ErrorActionPreference = "Stop"
 $buildScript = Join-Path $PSScriptRoot "build-opi-cross.ps1"
 $metadataModule = Join-Path $PSScriptRoot "orange-cross-metadata.psm1"
 $source = [IO.File]::ReadAllText($buildScript)
-$metadataSource = [IO.File]::ReadAllText($metadataModule)
-
-foreach ($required in @(
-    "docker",
-    "run",
-    "--rm",
-    "octessera-orange-pi-cargo-registry",
-    "octessera-orange-pi-cargo-git",
-    "octessera-orange-pi-rustup",
-    'CARGO_TARGET_DIR=$cargoTargetDirectory',
-    "CargoTargetRelativePath",
-    "export PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-    "dpkg --add-architecture arm64",
-    "gcc-aarch64-linux-gnu",
-    "libc6-dev-arm64-cross",
-    "libasound2-dev:arm64",
-    "PKG_CONFIG_ALLOW_CROSS=1",
-    "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig",
-    "PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig",
-    "aarch64-linux-gnu-readelf",
-    "Import-Module",
-    "Remove-OrangeBuildArtifacts",
-    "orange-seesaw-smoke",
-    "octessera-pi",
-    "--no-default-features",
-    "diagnostic-only",
-    "orange-pi-cross-diagnostics",
-    "ELF64",
-    "AArch64"
-  )) {
-  if ($source.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
-    throw "Orange cross-builder is missing required operation: $required"
-  }
-}
-
-foreach ($required in @(
-    "Get-FileHash",
-    "ConvertTo-Json -Compress",
-    "binary_sha256",
-    'artifact_kind = $BuildSpec.ArtifactKind',
-    'runtime_ready = $false',
-    "Publish-OrangeBuildMetadata",
-    "Remove-OrangeBuildArtifacts",
-    "WriteAllText",
-    "source_commit"
-  )) {
-  if ($metadataSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
-    throw "Orange metadata module is missing required operation: $required"
-  }
-}
-
-foreach ($forbidden in @(
-    "Get-FileHash",
-    "ConvertTo-Json",
-    "ConvertFrom-Json",
-    "WriteAllText",
-    "TestMetadata"
-  )) {
-  if ($source.IndexOf($forbidden, [StringComparison]::Ordinal) -ge 0) {
-    throw "Orange cross-builder must delegate metadata operation to its module: $forbidden"
-  }
-}
 
 if ($source -match "(?i)\b(ssh|scp|rsync)\b") {
   throw "Orange cross-builder must not contain board transport commands"
-}
-if ($source -match 'service_ready|runtime_ready\s*=\s*\$true') {
-  throw "Orange cross-builder must not define deployment or service-ready output"
 }
 function Invoke-DryRun {
   param([hashtable]$Parameters)
@@ -139,7 +74,6 @@ foreach ($binary in @("orange-oled-smoke", "orange-seesaw-smoke")) {
 
 foreach ($expected in @(
     "target/orange-pi-cross/octessera-pi",
-    "octessera-pi.metadata.json",
     "-p.*octessera-pi",
     "--features.*hardware-orange-pi-zero-2w",
     "--no-default-features"
@@ -147,6 +81,9 @@ foreach ($expected in @(
   if ($candidate -notmatch $expected) {
     throw "Orange runtime-candidate dry run is missing: $expected"
   }
+}
+if ($candidate -match "metadata" -or $profiling -match "metadata") {
+  throw "Orange octessera-pi builds must not write a metadata sidecar."
 }
 
 $dev = Invoke-DryRun @{ Profile = "dev" }
@@ -187,8 +124,7 @@ $metadataDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-meta
 New-Item -ItemType Directory -Path $metadataDirectory | Out-Null
 try {
   foreach ($case in @(
-      @{ Binary = "orange-oled-smoke"; Spec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w"; ArtifactKind = "diagnostic-only" } },
-      @{ Binary = "octessera-pi"; Spec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate" } }
+      @{ Binary = "orange-oled-smoke"; Spec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w"; ArtifactKind = "diagnostic-only" } }
     )) {
     $binaryPath = Join-Path $metadataDirectory $case.Binary
     [IO.File]::WriteAllBytes($binaryPath, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7))

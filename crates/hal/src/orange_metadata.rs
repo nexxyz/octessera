@@ -9,8 +9,6 @@ use std::path::{Path, PathBuf};
 
 pub const CANONICAL_BINARY_NAME: &str = "orange-oled-smoke";
 pub const SEESAW_BINARY_NAME: &str = "orange-seesaw-smoke";
-pub const RUNTIME_CANDIDATE_BINARY_NAME: &str = "octessera-pi";
-pub const RUNTIME_PROFILING_CARGO_FEATURE: &str = "hardware-orange-pi-zero-2w profiling";
 pub const METADATA_SUFFIX: &str = ".metadata.json";
 pub const METADATA_SCHEMA_VERSION: u64 = 2;
 pub const MAX_METADATA_BYTES: usize = 4096;
@@ -130,44 +128,7 @@ pub fn print_build_metadata() -> Result<(), String> {
     print_build_metadata_for(CANONICAL_BINARY_NAME)
 }
 
-pub fn print_runtime_candidate_metadata() -> Result<(), String> {
-    print_metadata_for(
-        RUNTIME_CANDIDATE_BINARY_NAME,
-        "runtime-candidate",
-        "octessera-pi",
-        "hardware-orange-pi-zero-2w",
-        "runtime-candidate",
-    )
-}
-
-pub fn print_runtime_profiling_metadata(cargo_feature: &str) -> Result<(), String> {
-    validate_runtime_profiling_cargo_feature(cargo_feature)?;
-    print_metadata_for(
-        RUNTIME_CANDIDATE_BINARY_NAME,
-        "diagnostic-only",
-        "octessera-pi",
-        cargo_feature,
-        "runtime profiling",
-    )
-}
-
 pub fn print_build_metadata_for(expected_binary: &str) -> Result<(), String> {
-    print_metadata_for(
-        expected_binary,
-        "diagnostic-only",
-        "octessera-hal",
-        "orange-pi-zero-2w",
-        "diagnostic-only",
-    )
-}
-
-fn print_metadata_for(
-    expected_binary: &str,
-    artifact_kind: &str,
-    package: &str,
-    cargo_feature: &str,
-    contract_name: &str,
-) -> Result<(), String> {
     let executable_location = env::current_exe()
         .map_err(|error| format!("cannot locate executable for metadata sidecar: {error}"))?;
     validate_executable_name_for(&executable_location, expected_binary)?;
@@ -175,15 +136,7 @@ fn print_metadata_for(
     let metadata_text = read_metadata_text(&metadata_path)?;
     let metadata = parse_metadata(&metadata_text)?;
     let executable_hash = hash_running_executable()?;
-    validate_metadata_contract(
-        &metadata,
-        &executable_hash,
-        expected_binary,
-        artifact_kind,
-        package,
-        cargo_feature,
-        contract_name,
-    )?;
+    validate_metadata_for(&metadata, &executable_hash, expected_binary)?;
     println!("{}", metadata_text.trim_end());
     Ok(())
 }
@@ -256,79 +209,19 @@ pub fn validate_metadata_for(
     executable_hash: &str,
     expected_binary: &str,
 ) -> Result<(), String> {
-    validate_metadata_contract(
-        metadata,
-        executable_hash,
-        expected_binary,
-        "diagnostic-only",
-        "octessera-hal",
-        "orange-pi-zero-2w",
-        "diagnostic-only",
-    )
-}
-
-pub fn validate_runtime_profiling_metadata(
-    metadata: &BuildMetadata,
-    executable_hash: &str,
-    cargo_feature: &str,
-) -> Result<(), String> {
-    validate_runtime_profiling_cargo_feature(cargo_feature)?;
-    validate_metadata_contract(
-        metadata,
-        executable_hash,
-        RUNTIME_CANDIDATE_BINARY_NAME,
-        "diagnostic-only",
-        "octessera-pi",
-        cargo_feature,
-        "runtime profiling",
-    )
-}
-
-pub fn validate_runtime_candidate_metadata(
-    metadata: &BuildMetadata,
-    executable_hash: &str,
-) -> Result<(), String> {
-    validate_metadata_contract(
-        metadata,
-        executable_hash,
-        RUNTIME_CANDIDATE_BINARY_NAME,
-        "runtime-candidate",
-        "octessera-pi",
-        "hardware-orange-pi-zero-2w",
-        "runtime-candidate",
-    )
-}
-
-fn validate_runtime_profiling_cargo_feature(cargo_feature: &str) -> Result<(), String> {
-    if cargo_feature == RUNTIME_PROFILING_CARGO_FEATURE {
-        Ok(())
-    } else {
-        Err("runtime profiling metadata requires the exact profiling cargo feature".into())
-    }
-}
-
-fn validate_metadata_contract(
-    metadata: &BuildMetadata,
-    executable_hash: &str,
-    expected_binary: &str,
-    expected_artifact_kind: &str,
-    expected_package: &str,
-    expected_cargo_feature: &str,
-    contract_name: &str,
-) -> Result<(), String> {
     if metadata.schema_version != METADATA_SCHEMA_VERSION
         || metadata.board_profile != "orange-pi-zero-2w"
-        || metadata.artifact_kind != expected_artifact_kind
+        || metadata.artifact_kind != "diagnostic-only"
         || metadata.runtime_ready
         || metadata.binary != expected_binary
-        || metadata.package != expected_package
+        || metadata.package != "octessera-hal"
         || metadata.arch != "aarch64-unknown-linux-gnu"
-        || metadata.cargo_feature != expected_cargo_feature
+        || metadata.cargo_feature != "orange-pi-zero-2w"
         || !matches!(metadata.profile.as_str(), "release" | "pi-dev" | "dev")
     {
-        return Err(format!(
-            "metadata identity fields do not match the Orange {contract_name} contract"
-        ));
+        return Err(
+            "metadata identity fields do not match the Orange diagnostic-only contract".into(),
+        );
     }
     if !is_lower_hex_sha256(&metadata.binary_sha256) {
         return Err("metadata binary_sha256 must be 64 lowercase hexadecimal characters".into());

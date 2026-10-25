@@ -43,13 +43,13 @@ provision, preflight, pi-gen, and Raspberry Pi Imager tools accept only
 `raspberry-pi-zero-2w` and reject Orange rather than guessing at pins, GPIO
 numbering, or an audio backend. Orange image work stays on the Armbian path.
 
-Pi binaries expose `--print-build-metadata`, and release manifests, installed
-service metadata, and device ZIP names carry the same canonical ID, so a
-mismatched binary or artifact fails closed wherever the host can check. The
-staged `octessera-pi` sidecar is a runtime-candidate contract; the installed
-`/opt/octessera/releases/<version>/octessera-runtime.json` is the separate
-production-runtime contract. Passing the candidate metadata command does not
-qualify an image.
+Raspberry binaries expose `--print-build-metadata`, and release manifests,
+installed service metadata, and device ZIP names carry the same canonical ID,
+so a mismatched binary or artifact fails closed wherever the host can check.
+On Orange, the installed
+`/opt/octessera/releases/<version>/octessera-runtime.json` is the
+production-runtime contract; a deployed development binary is identified by
+its `sha256sum`.
 
 ## Accounts, stores, and setup
 
@@ -183,15 +183,14 @@ running the production image.
 
 ### Smoke utilities
 
-Build and stage a binary together with its exact-name sidecar:
+Build and stage a smoke binary together with its exact-name sidecar:
 
 ```powershell
 ./tools/orange-pi/build-opi-cross.ps1 -Binary orange-oled-smoke -Profile release
 ./tools/orange-pi/build-opi-cross.ps1 -Binary orange-seesaw-smoke -Profile release
-./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release
 ```
 
-The builder writes a schema-2 `.metadata.json` beside each AArch64 ELF, with a
+The builder writes a schema-2 `.metadata.json` beside each smoke ELF, with a
 lowercase SHA-256 of the copied binary. Do not run the ELF on Windows (it will
 not work, and it will not tell you why in a helpful way). Before a remote test,
 copy both files without renaming them, run the binary with

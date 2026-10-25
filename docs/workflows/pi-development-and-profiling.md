@@ -28,7 +28,8 @@ There are two cross-builders:
   (`-BoardProfile`, default Raspberry) into `target/pi-cross/` or `-OutDir`.
   Raspberry deploys use it.
 - `tools/orange-pi/build-opi-cross.ps1` is WSL Docker-only and writes Orange
-  artifacts with their metadata sidecars under `target/orange-pi-cross/`.
+  artifacts under `target/orange-pi-cross/` (the smoke tools with their
+  metadata sidecars).
   Orange deploys use its `-Profile release` output.
 
 ```powershell

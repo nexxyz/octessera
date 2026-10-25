@@ -40,17 +40,3 @@ fn orange_runtime_requires_an_explicit_profile_contract() {
         "OCTESSERA_EXPECTED_BOARD_PROFILE must be set to orange-pi-zero-2w"
     );
 }
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[test]
-fn orange_metadata_selection_matches_the_compiled_contract() {
-    #[cfg(feature = "profiling")]
-    assert_eq!(super::ORANGE_METADATA_CONTRACT_NAME, "runtime profiling");
-    #[cfg(not(feature = "profiling"))]
-    assert_eq!(super::ORANGE_METADATA_CONTRACT_NAME, "runtime-candidate");
-    #[cfg(feature = "profiling")]
-    assert_eq!(
-        super::ORANGE_METADATA_CARGO_FEATURE,
-        octessera_hal::orange_metadata::RUNTIME_PROFILING_CARGO_FEATURE
-    );
-}

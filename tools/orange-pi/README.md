@@ -146,8 +146,8 @@ covers Raspberry deployment, Orange development deployment, and Orange input rou
 
 ## Cross-build and stage
 
-The WSL Docker builder writes AArch64 binaries and schema-2 metadata sidecars
-under `target/orange-pi-cross/`:
+The WSL Docker builder writes AArch64 binaries under `target/orange-pi-cross/`,
+plus schema-2 metadata sidecars for the two smoke tools:
 
 ```powershell
 ./tools/orange-pi/build-opi-cross.ps1 -Binary orange-oled-smoke -Profile release
@@ -158,23 +158,21 @@ under `target/orange-pi-cross/`:
 
 Use `-DryRun` to print the Docker command. The default profile is `pi-dev`,
 so pass `-Profile release` for anything you plan to deploy. The canonical outputs are
-`orange-oled-smoke`, `orange-seesaw-smoke`, and `octessera-pi`, each with its
-adjacent `.metadata.json` file. The production image and runtime bundle use the
+`orange-oled-smoke` and `orange-seesaw-smoke`, each with its adjacent
+`.metadata.json` file, and `octessera-pi`, whose identity on the board is its
+`sha256sum`. The production image and runtime bundle use the
 contracts in the [Orange production reference](../../hardware/docs/orange-pi-production-reference.md).
 
-To stage an output on the fixed board, use the canonical wrapper and preserve
-the binary and sidecar names:
+To stage a smoke tool on the fixed board, use the canonical wrapper and
+preserve the binary and sidecar names:
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
 ./tools/board-dev/with-board-ssh.ps1 scp -Board opi `
   -Target $OrangeTarget `
-  target/orange-pi-cross/octessera-pi `
-  "${OrangeTarget}:/tmp/octessera-pi"
-./tools/board-dev/with-board-ssh.ps1 scp -Board opi `
-  -Target $OrangeTarget `
-  target/orange-pi-cross/octessera-pi.metadata.json `
-  "${OrangeTarget}:/tmp/octessera-pi.metadata.json"
+  target/orange-pi-cross/orange-oled-smoke `
+  target/orange-pi-cross/orange-oled-smoke.metadata.json `
+  "${OrangeTarget}:/tmp/"
 ```
 
 ### Persistent Orange development runtime (explicit opt-in)
