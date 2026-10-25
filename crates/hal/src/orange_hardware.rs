@@ -16,10 +16,6 @@ use std::path::{Path, PathBuf};
 #[cfg(target_os = "linux")]
 use std::time::Duration;
 
-#[cfg(any(test, target_os = "linux"))]
-const ORANGE_OLED_SPI_HZ_LADDER: &[u32] = &[
-    1_000_000, 2_000_000, 4_000_000, 8_000_000, 12_000_000, 16_000_000,
-];
 #[cfg(target_os = "linux")]
 const OLED_FRAME_BYTES: usize = timing::OLED_FRAME_BYTES;
 #[cfg(any(test, target_os = "linux"))]
@@ -420,41 +416,15 @@ fn request_gpio(chip_path: &Path, plan: OrangeGpioDescriptor) -> Result<Request,
 #[cfg(target_os = "linux")]
 fn open_spi(path: &str) -> Result<spidev::Spidev, String> {
     use spidev::{SpiModeFlags, Spidev, SpidevOptions};
-    let speed_hz = orange_oled_spi_hz_from_env(
-        std::env::var("OCTESSERA_ORANGE_OLED_SPI_HZ")
-            .ok()
-            .as_deref(),
-    )?;
     let mut spi = Spidev::open(path).map_err(|error| format!("SPI open failed: {error}"))?;
     let options = SpidevOptions::new()
         .bits_per_word(8)
-        .max_speed_hz(speed_hz)
+        .max_speed_hz(timing::SPI_SPEED_HZ as u32)
         .mode(SpiModeFlags::SPI_MODE_0)
         .build();
     spi.configure(&options)
         .map_err(|error| format!("SPI configure failed: {error}"))?;
     Ok(spi)
-}
-
-#[cfg(any(test, target_os = "linux"))]
-fn orange_oled_spi_hz_from_env(value: Option<&str>) -> Result<u32, String> {
-    let Some(value) = value else {
-        return Ok(crate::orange_timing::SPI_SPEED_HZ as u32);
-    };
-    let speed_hz = value.parse::<u32>().map_err(|_| {
-        format!(
-            "OCTESSERA_ORANGE_OLED_SPI_HZ must be one of {:?} Hz; got {value:?}",
-            ORANGE_OLED_SPI_HZ_LADDER
-        )
-    })?;
-    if ORANGE_OLED_SPI_HZ_LADDER.contains(&speed_hz) {
-        Ok(speed_hz)
-    } else {
-        Err(format!(
-            "OCTESSERA_ORANGE_OLED_SPI_HZ must be one of {:?} Hz; got {value:?}",
-            ORANGE_OLED_SPI_HZ_LADDER
-        ))
-    }
 }
 
 #[cfg(target_os = "linux")]

@@ -14,10 +14,7 @@ pub(crate) struct HdmiConnectorProbe {
 
 impl HdmiConnectorProbe {
     pub(crate) fn fixed() -> Self {
-        let root = std::env::var_os("OCTESSERA_DRM_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/sys/class/drm"));
-        Self::from_root(root)
+        Self::from_root("/sys/class/drm")
     }
 
     pub(crate) fn from_root(root: impl Into<PathBuf>) -> Self {

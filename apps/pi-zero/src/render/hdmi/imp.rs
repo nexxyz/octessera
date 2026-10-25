@@ -83,10 +83,8 @@ pub struct HdmiFramebuffer {
 
 impl HdmiFramebuffer {
     pub fn new() -> Self {
-        let framebuffer_path =
-            std::env::var("OCTESSERA_HDMI_FB").unwrap_or_else(|_| "/dev/fb0".into());
         Self {
-            device: HdmiDevice::new(Box::new(LinuxIo), framebuffer_path, "/dev/tty1"),
+            device: HdmiDevice::new(Box::new(LinuxIo), "/dev/fb0", "/dev/tty1"),
         }
     }
 

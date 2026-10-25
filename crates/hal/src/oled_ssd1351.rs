@@ -118,14 +118,13 @@ impl OledSsd1351 {
     fn open(preserve_existing: bool) -> Result<Self, String> {
         let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
         // Open SPI device
-        let spi_device =
-            std::env::var("OCTESSERA_OLED_SPI_DEVICE").unwrap_or_else(|_| "/dev/spidev0.0".into());
-        let mut spi = Spidev::open(&spi_device).map_err(|e| format!("SPI open failed: {}", e))?;
+        let mut spi =
+            Spidev::open("/dev/spidev0.0").map_err(|e| format!("SPI open failed: {}", e))?;
 
         // Configure SPI: mode 0, 8-bit, 16MHz for the Adafruit SSD1351 breakout.
         let mut config = spidev::SpidevOptions::new();
-        config.mode(spi_mode_from_env());
-        config.max_speed_hz(spi_speed_hz_from_env());
+        config.mode(spidev::SpiModeFlags::SPI_MODE_0);
+        config.max_speed_hz(16_000_000);
         config.bits_per_word(8);
         spi.configure(&config)
             .map_err(|e| format!("SPI configure failed: {}", e))?;
@@ -268,24 +267,6 @@ fn write_all_chunked(spi: &mut Spidev, data: &[u8]) -> std::io::Result<()> {
         spi.write_all(chunk)?;
     }
     Ok(())
-}
-
-#[cfg(feature = "raspberry-pi-zero-2w")]
-fn spi_speed_hz_from_env() -> u32 {
-    std::env::var("OCTESSERA_OLED_SPI_SPEED_HZ")
-        .ok()
-        .and_then(|value| value.parse::<u32>().ok())
-        .unwrap_or(16_000_000)
-}
-
-#[cfg(feature = "raspberry-pi-zero-2w")]
-fn spi_mode_from_env() -> spidev::SpiModeFlags {
-    match std::env::var("OCTESSERA_OLED_SPI_MODE").as_deref() {
-        Ok("1") => spidev::SpiModeFlags::SPI_MODE_1,
-        Ok("2") => spidev::SpiModeFlags::SPI_MODE_2,
-        Ok("3") => spidev::SpiModeFlags::SPI_MODE_3,
-        _ => spidev::SpiModeFlags::SPI_MODE_0,
-    }
 }
 
 /// Stub for non-Pi builds
