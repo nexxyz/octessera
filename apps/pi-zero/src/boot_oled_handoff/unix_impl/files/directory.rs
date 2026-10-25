@@ -118,6 +118,7 @@ impl HandoffDirectory {
             if let Some(mode) = atomic_temp_mode(&name) {
                 let file = match open_named(self, &name, libc::O_RDONLY) {
                     Ok(file) => file,
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
                     Err(error) => {
                         result = Err(format!(
                             "cannot open OLED temporary entry {name:?}: {error}"
