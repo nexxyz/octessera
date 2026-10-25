@@ -91,7 +91,6 @@ if grep -RInE --exclude=wifi-connect '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0
   exit 1
 fi
 [[ -f "$overlay_dir/etc/octessera/armbian-image.txt" ]] || { echo "Missing Octessera Armbian marker overlay." >&2; exit 1; }
-[[ -f "$overlay_dir/usr/local/sbin/octessera-armbian-diagnostics" ]] || { echo "Missing Octessera Armbian diagnostics overlay." >&2; exit 1; }
 env_token_helper="$overlay_dir/usr/local/share/octessera/device-tree/armbian-env-token.sh"
 [[ -f "$env_token_helper" ]] || { echo "Missing Armbian environment token helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/armbian-env-token.sh
@@ -335,7 +334,6 @@ welcome_overlay="$overlay_dir/etc/profile.d/octessera-welcome.sh"
 [[ -f "$welcome_overlay" && ! -L "$welcome_overlay" ]] || { echo "Missing staged canonical welcome file. Run tools/armbian-image/stage-canonical-welcome.sh." >&2; exit 1; }
 install -D -m 0644 -o root -g root "$welcome_overlay" /etc/profile.d/octessera-welcome.sh
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
-install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
 install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
 octessera_install_orange_runtime_assets "$overlay_dir"

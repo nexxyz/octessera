@@ -178,7 +178,6 @@ systemctl status octessera-setup.service
 journalctl -u octessera-setup.service --no-pager
 systemctl is-enabled ssh.service || true
 ls /etc/ssh/ssh_host_* 2>/dev/null || true
-sudo octessera-armbian-diagnostics
 cat /etc/octessera/build-metadata.env
 ```
 
