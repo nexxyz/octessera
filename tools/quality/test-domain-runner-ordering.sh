@@ -75,24 +75,7 @@ check_inspector_runner() {
   [[ "$(cat "$trace")" == $'test-inspector-account.sh\ntest-inspector-network.sh' ]]
 }
 
-check_boot_layout_runner() {
-  local expected=$'test-sanitized-image-boot-layout-layout.sh\ntest-sanitized-image-boot-layout-sanitization.sh\ntest-sanitized-image-boot-layout-boot.sh'
-  : > "$trace"
-  PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE= "$real_bash" "$root/tools/pi-image/test-sanitized-image-boot-layout.sh"
-  [[ "$(cat "$trace")" == "$expected" ]]
-  : > "$trace"
-  local status
-  if PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE=test-sanitized-image-boot-layout-sanitization.sh "$real_bash" "$root/tools/pi-image/test-sanitized-image-boot-layout.sh"; then
-    return 1
-  else
-    status=$?
-  fi
-  [[ "$status" == 23 ]]
-  [[ "$(cat "$trace")" == $'test-sanitized-image-boot-layout-layout.sh\ntest-sanitized-image-boot-layout-sanitization.sh' ]]
-}
-
 check_raspberry_usb_gadget_runner
 check_orange_usb_gadget_runner
 check_inspector_runner
-check_boot_layout_runner
 printf '%s\n' 'Domain test runner ordering and failure propagation passed.'

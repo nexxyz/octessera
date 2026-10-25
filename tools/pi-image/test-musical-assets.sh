@@ -14,15 +14,10 @@ for save_document in system.json default.patch.json; do
 done
 bash "$root/tools/pi-image/stage-musical-assets.sh" "$fixture/root"
 mkdir -p "$fixture/rootfs/home/pi/samples" "$fixture/rootfs/usr/share/octessera/samples"
-mkdir -p "$fixture/rootfs/etc"
-printf '%s\n' 'root:x:0:0:root:/root:/bin/sh' 'pi:x:1000:1000:Pi:/home/pi:/bin/bash' > "$fixture/rootfs/etc/passwd"
-printf '%s\n' 'root:x:0:' 'pi:x:1000:' > "$fixture/rootfs/etc/group"
 printf 'user sentinel\n' > "$fixture/rootfs/home/pi/samples/user-sample.wav"
 bash "$root/tools/pi-image/install-musical-assets.sh" "$fixture/root" "$fixture/rootfs"
-chown -R 1000:1000 "$fixture/rootfs/home/pi/samples"
-python3 "$root/tools/pi-image/verify-rpi-samples.py" --root "$fixture/rootfs" --repository-root "$root"
 test ! -e "$fixture/rootfs/usr/share/octessera/samples/files"
-python3 - "$root" "$fixture/root" <<'PY'
+python3 - "$root" "$fixture/root" "$fixture/rootfs" <<'PY'
 import pathlib
 import sys
 
@@ -31,8 +26,9 @@ stage = pathlib.Path(sys.argv[2])
 sys.path.insert(0, str(root / "tools/samples"))
 from sample_library import verify_media_tree, verify_metadata_tree
 
-verify_media_tree(stage / "home/pi/samples", root / "samples", ("sd-card",))
-verify_metadata_tree(stage / "usr/share/octessera/samples", root / "samples")
+for tree in (stage, pathlib.Path(sys.argv[3])):
+    verify_media_tree(tree / "home/pi/samples", root / "samples", ("sd-card",))
+    verify_metadata_tree(tree / "usr/share/octessera/samples", root / "samples")
 if not (stage / "home/pi/samples/sd-card").is_dir():
     raise SystemExit("Raspberry SD-card mount subtree is missing")
 if (stage / "home/pi/samples/sd-card").is_symlink():

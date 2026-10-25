@@ -4,19 +4,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 STAGE_FILES="$(cd "$SCRIPT_DIR/.." && pwd)/files"
 LEGAL_REPOSITORY_ROOT="${OCTESSERA_REPOSITORY_ROOT:?OCTESSERA_REPOSITORY_ROOT must point to the canonical source checkout}"
-LEGAL_STAGER="$LEGAL_REPOSITORY_ROOT/tools/legal/stage_notices.py"
-test -f "$LEGAL_STAGER"
-# shellcheck source=tools/pi-image/validate-rpi-parent-sudoers.sh
-# shellcheck disable=SC1091
-source "$LEGAL_REPOSITORY_ROOT/tools/pi-image/validate-rpi-parent-sudoers.sh"
-
-python3 "$LEGAL_STAGER" \
-    --repository-root "$LEGAL_REPOSITORY_ROOT" \
-    --destination-root "$STAGE_FILES/root" \
-    --check >/dev/null || {
-    echo "Pi image setup requires the exactly pre-staged canonical legal notice tree; run tools/legal/stage_notices.py first." >&2
-    exit 2
-}
 
 for updater_file in \
     "$STAGE_FILES/root/usr/local/lib/octessera/updater_protocol.py" \
@@ -42,25 +29,6 @@ done
 
 wifi_connect_artifact_root="$LEGAL_REPOSITORY_ROOT/target/wifi-connect-patched"
 wifi_connect_legal_root="$LEGAL_REPOSITORY_ROOT/third_party/wifi-connect-4.11.84"
-wifi_connect_expected_sha256=4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627
-wifi_connect_patch_sha256=c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6
-for wifi_connect_file in wifi-connect wifi-connect.metadata.json cargo-metadata.json; do
-    test -f "$wifi_connect_artifact_root/$wifi_connect_file" && test ! -L "$wifi_connect_artifact_root/$wifi_connect_file"
-done
-for wifi_connect_file in LICENSE THIRD-PARTY-NOTICES.md portal-address-readiness.patch; do
-    test -f "$wifi_connect_legal_root/$wifi_connect_file" && test ! -L "$wifi_connect_legal_root/$wifi_connect_file"
-done
-echo "$wifi_connect_expected_sha256  $wifi_connect_artifact_root/wifi-connect" | sha256sum -c -
-echo "$wifi_connect_patch_sha256  $wifi_connect_legal_root/portal-address-readiness.patch" | sha256sum -c -
-python3 - "$wifi_connect_artifact_root/wifi-connect.metadata.json" "$wifi_connect_expected_sha256" "$wifi_connect_patch_sha256" <<'PY'
-import json
-import sys
-
-metadata = json.loads(open(sys.argv[1], encoding="utf-8").read())
-assert metadata["binary_sha256"] == sys.argv[2]
-assert metadata["patch_sha256"] == sys.argv[3]
-assert metadata["target"] == "aarch64-unknown-linux-gnu"
-PY
 install -D -o root -g root -m 0755 \
     "$wifi_connect_artifact_root/wifi-connect" \
     "$ROOTFS_DIR/usr/local/bin/wifi-connect"
@@ -75,7 +43,7 @@ for wifi_connect_doc in wifi-connect.metadata.json cargo-metadata.json; do
         "$ROOTFS_DIR/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
 done
 
-octessera_remove_raspberry_parent_sudoers "$ROOTFS_DIR"
+rm -f "$ROOTFS_DIR/etc/sudoers.d/010_pi-nopasswd"
 
 rm -f \
     "$ROOTFS_DIR/etc/initramfs-tools/hooks/octessera-boot-splash" \

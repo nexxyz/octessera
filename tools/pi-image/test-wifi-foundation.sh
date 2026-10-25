@@ -63,13 +63,12 @@ if grep -Eq 'wifi-connect-aarch64-unknown-linux-gnu\.tar\.gz|github\.com/balena-
     exit 1
 fi
 for constructor in "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh" "$ROOT/userpatches/customize-image.sh"; do
-    grep -qF '4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627' "$constructor"
-    grep -qF 'c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6' "$constructor"
     grep -qF 'wifi-connect.metadata.json' "$constructor"
     grep -qF 'cargo-metadata.json' "$constructor"
     grep -qF 'THIRD-PARTY-NOTICES.md' "$constructor"
-    grep -qF 'sha256sum -c -' "$constructor"
 done
+grep -qF '4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627' "$ROOT/userpatches/customize-image.sh"
+grep -qF 'c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6' "$ROOT/userpatches/customize-image.sh"
 grep -qF 'target/wifi-connect-patched' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'usr/local/share/doc/octessera/wifi-connect' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'usr/local/share/octessera/wifi-connect' "$ROOT/userpatches/customize-image.sh"

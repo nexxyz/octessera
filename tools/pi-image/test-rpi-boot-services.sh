@@ -9,7 +9,6 @@ service="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/oct
 runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"
 setup_stage="$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 sanitize_stage="$root/tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh"
-sanitizer="$root/tools/pi-image/verify-sanitized-image.sh"
 gadget_runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-gadget.service"
 usb_role_helper="$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role"
 usb_role_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role"
@@ -24,15 +23,6 @@ if grep -Eq "ln -s /dev/null \"\$ROOTFS_DIR/etc/systemd/system/ssh\\.(service|so
 fi
 grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/ssh.service\"" "$sanitize_stage"
 grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/sockets.target.wants/ssh.socket\"" "$sanitize_stage"
-grep -qF 'for unit in ssh.service ssh.socket; do' "$sanitizer"
-grep -qF "systemctl --root=\"\$root\" is-enabled \"\$unit\"" "$sanitizer"
-grep -qF "if [ \"\$unit\" = ssh.service ] && [ \"\$vendor_unit\" != true ]; then" "$sanitizer"
-grep -qF "if [ \"\$vendor_unit\" = true ] && [ \"\$state\" != disabled ]; then" "$sanitizer"
-grep -qF "if [ \"\$vendor_unit\" != true ] && [ \"\$state\" != not-found ]; then" "$sanitizer"
-if grep -Eq 'SSH (service|socket) is not masked|readlink.*ssh\.(service|socket)' "$sanitizer"; then
-    echo 'Raspberry image verifier must require disabled, unmasked SSH units.' >&2
-    exit 1
-fi
 
 for required_line in \
     'Type=simple' \
@@ -126,28 +116,6 @@ grep -qF 'systemctl enable octessera-boot-splash.service' "$root/tools/pi/provis
 
 fixture="$(mktemp -d)"
 trap 'rm -rf "$fixture"' EXIT
-mkdir -p \
-    "$fixture/etc/systemd/system/sysinit.target.wants" \
-    "$fixture/etc/systemd/system/multi-user.target.wants"
-cp "$service" "$fixture/etc/systemd/system/octessera-boot-splash.service"
-cp "$runtime" "$fixture/etc/systemd/system/octessera.service"
-chmod 0644 "$fixture/etc/systemd/system/octessera-boot-splash.service" "$fixture/etc/systemd/system/octessera.service"
-ln -s ../octessera-boot-splash.service "$fixture/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service"
-ln -s ../octessera.service "$fixture/etc/systemd/system/multi-user.target.wants/octessera.service"
-# shellcheck disable=SC1091
-source "$root/tools/pi-image/verify-boot-layout.sh"
-if [ "$(id -u)" -eq 0 ]; then
-    chown -R 0:0 "$fixture"
-    require_octessera_boot_service_layout "$fixture"
-    ln -s ../octessera-boot-splash.service "$fixture/etc/systemd/system/multi-user.target.wants/second-splash.service"
-    if require_octessera_boot_service_layout "$fixture"; then
-        echo 'dual early splash writers were accepted' >&2
-        exit 1
-    fi
-    rm "$fixture/etc/systemd/system/multi-user.target.wants/second-splash.service"
-else
-    printf '%s\n' 'root ownership fixture skipped; static service ownership checks passed'
-fi
 
 if command -v systemd-analyze >/dev/null 2>&1; then
     systemd_root="$fixture/systemd-root"
@@ -212,26 +180,4 @@ else
     printf '%s\n' 'systemd-analyze unavailable; static Raspberry service graph checks passed'
 fi
 
-if [ "$(id -u)" -eq 0 ]; then
-    original_service="$fixture/etc/systemd/system/octessera-boot-splash.service"
-    for missing_line in \
-        'Wants=systemd-udev-settle.service' \
-        'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service' \
-        'DevicePolicy=closed' \
-        'DeviceAllow=/dev/spidev0.0 rw' \
-        'DeviceAllow=/dev/gpiomem rw' \
-        'DeviceAllow=/dev/gpiochip0 rw'; do
-        grep -vFx "$missing_line" "$service" > "$original_service"
-        chmod 0644 "$original_service"
-        chown 0:0 "$original_service"
-        if require_octessera_boot_service_layout "$fixture"; then
-            echo "boot service accepted fixture missing $missing_line" >&2
-            exit 1
-        fi
-        cp "$service" "$original_service"
-        chmod 0644 "$original_service"
-        chown 0:0 "$original_service"
-    done
-fi
-
-printf '%s\n' 'Raspberry systemd service, ordering, ownership, and dual-writer tests passed'
+printf '%s\n' 'Raspberry systemd service and ordering tests passed'

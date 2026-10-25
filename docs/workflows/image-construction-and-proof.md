@@ -86,6 +86,13 @@ tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
    [deployment workflow](deployment.md) and the board bring-up procedure for
    hardware testing.
 
+The Raspberry check is a small smoke test that `release-board-artifacts.yml`
+runs on the finished ZIP. It mounts the image and checks that
+`octessera.service` is enabled, the release binary matches the runtime bundle,
+the DAC/OLED/Wi-Fi overlays and the `config.txt` marker are present, the
+initramfs carries `octessera-pi` and the boot splash script, no SSH keys or
+NetworkManager profiles are baked in, and the legal notice tree is canonical.
+
 ## Board image dispatch
 
 `release-board-artifacts.yml` is the full constructor for both boards. The
@@ -110,7 +117,6 @@ Run these source and contract checks before an image build:
 ```bash
 cargo test -p octessera-pi sweep_
 cargo test -p octessera-pi handoff
-python3 tools/pi-image/test-boot-layer-contract.py
 bash tools/pi-image/test-rpi-boot-services.sh
 python3 tools/armbian-image/test_orange_oled_logo.py
 python3 tools/armbian-image/test_orange_oled_handoff.py

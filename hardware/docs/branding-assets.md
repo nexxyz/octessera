@@ -75,8 +75,7 @@ on the physical panel and ending at a bottom-row origin of `-48`. Frames 0 and
 25 fps with absolute deadlines, wraps directly from frame 29 to frame 0, and
 inserts no extra pause or cumulative-sleep drift.
 
-The sweep is implemented for Raspberry and Orange. Its boot-layer inputs are
-constructor-required.
+The sweep is implemented for Raspberry and Orange.
 
 ## Enclosure branding
 
