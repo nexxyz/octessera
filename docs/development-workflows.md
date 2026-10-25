@@ -167,7 +167,8 @@ the strict checks.
 `.githooks/pre-push` delegates to `tools/quality/pre-push.sh`; the check list
 lives in `tools/quality/pre-push-checks.sh`. The full profile runs lint,
 typecheck, format checks, JS tests and coverage, the quality audit, `cargo fmt`,
-the file-length limit, the repository integrity fixtures and gate, workspace
+the file-length limit, the repository integrity fixtures and gate, the
+`tools/legal` packaging tests, workspace
 and routing-tree-executor Rust tests, enum help coverage, the
 [factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage, the
 Tauri build smoke, desktop tests, the Pi crate's tests in both the production
