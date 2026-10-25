@@ -124,7 +124,7 @@ for required_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on
 done
 octessera_reject_file_match 'Orange runtime service couples failure or shutdown to NetworkManager or SSH.' -Eiq 'NetworkManager|network-manager|(^|[^[:alnum:]])ssh(d)?([^[:alnum:]]|$)' "$service"
 octessera_reject_file_match 'Orange runtime service has an unapproved failure dependency.' -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$service"
-[[ "$(grep -c '^Requires=' "$service")" == 3 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
+[[ "$(grep -c '^Requires=' "$service")" == 2 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
 expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
 [[ "$(cat -- "$udev_rule")" == "$expected_udev_rule" ]] || { echo 'Orange runtime udev rule content is not exact.' >&2; exit 1; }
 if command -v udevadm >/dev/null 2>&1 && getent group octessera-runtime >/dev/null 2>&1 && udevadm help 2>&1 | grep -qE '(^|[[:space:]])verify([[:space:]]|$)'; then
