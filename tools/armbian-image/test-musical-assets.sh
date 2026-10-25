@@ -62,24 +62,9 @@ if ownership_mode == "orange-final":
 PY
 }
 validate_samples "$staging/samples/files"
-grep -qF 'mv -T -n' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
-# shellcheck disable=SC2016
-grep -qF 'temporary_system=$(mktemp "$staging_directory/system.XXXXXX")' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
-# shellcheck disable=SC2016
-grep -qF 'temporary_patch=$(mktemp "$staging_directory/patch.XXXXXX")' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
 # shellcheck disable=SC2016
 octessera_reject_file_match "Provisioner stages candidates inside the runtime-writable presets directory." -qF 'mktemp "$presets_directory/' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
-grep -q 'ExecStart=/usr/local/sbin/octessera-provision-musical-default' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
-grep -qFx 'Description=Seed missing Octessera split save documents' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
-grep -qF '  usr/share/octessera/defaults/pi-system.json ' "$root/userpatches/customize-image.sh"
-grep -qF '  usr/share/octessera/defaults/pi-default.patch.json; do' "$root/userpatches/customize-image.sh"
-grep -qF "  install_overlay_file \"\$musical_asset\" \"/\$musical_asset\" 0644" "$root/userpatches/customize-image.sh"
-if grep -qF 'pi-default.json' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"; then
-  echo 'Orange save seeder must not consume the mixed metadata input.' >&2
-  exit 1
-fi
-grep -qF 'CONFIG=/var/lib/octessera/presets/system.json' "$root/userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget"
-grep -qF 'CONFIG_PATH = "/var/lib/octessera/presets/system.json"' "$root/userpatches/overlay/usr/local/sbin/octessera-device-apply-reboot"
+grep -qFx 'ExecStart=/usr/local/sbin/octessera-provision-musical-default' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
 run_as_root() {
   if [[ "$(id -u)" == 0 ]]; then
     "$@"

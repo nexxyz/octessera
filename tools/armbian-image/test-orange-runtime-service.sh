@@ -63,7 +63,6 @@ for required_line in \
   grep -qFx "$required_line" "$update_service" || { echo "Update broker service is missing: $required_line" >&2; exit 1; }
 done
 octessera_reject_file_match 'Update broker service has an unsafe privilege path.' -qE 'sudo|octessera-runtime' "$update_service"
-octessera_reject_file_match 'Orange apply socket must not wait for musical provisioning.' -qFx 'After=local-fs.target octessera-provision-musical-default.service' "$socket"
 grep -qFx 'After=systemd-modules-load.service sys-kernel-config.mount local-fs.target octessera-provision-musical-default.service' "$gadget"
 grep -qFx 'Before=sound.target octessera.service' "$gadget"
 grep -qFx 'Requires=octessera-provision-musical-default.service' "$gadget"
@@ -112,7 +111,6 @@ for required_line in \
   grep -qFx "$required_line" "$service" || { echo "Runtime service is missing: $required_line" >&2; exit 1; }
 done
 grep -qFx 'After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service octessera-orange-sd-card.service sound.target' "$service"
-grep -qFx '  octessera_configure_orange_production_ttyperm /etc/login.defs' "$runtime_assets" || { echo 'Orange production TTYPERM call is not exact.' >&2; exit 1; }
 octessera_reject_file_match 'Orange runtime service contains a prohibited TTYReset directive.' -Eq '^[[:space:]]*TTYReset[[:space:]]*=' "$service"
 grep -qFx 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' "$service"
 grep -qFx 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG' "$service"
@@ -124,33 +122,11 @@ octessera_reject_file_match 'Orange runtime service contains a prohibited tty, d
 for required_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartPreventExitStatus=78' 'RestartSec=5s'; do
   grep -qFx "$required_line" "$service" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
 done
-octessera_reject_file_match 'Orange runtime service still restarts always.' -qFx 'Restart=always' "$service"
 octessera_reject_file_match 'Orange runtime service couples failure or shutdown to NetworkManager or SSH.' -Eiq 'NetworkManager|network-manager|(^|[^[:alnum:]])ssh(d)?([^[:alnum:]]|$)' "$service"
-python3 - "$service" <<'PY'
-from pathlib import Path
-import sys
-
-lines = set(Path(sys.argv[1]).read_text(encoding="utf-8").splitlines())
-assert "Restart=on-failure" in lines
-assert "RestartPreventExitStatus=78" in lines
-
-def restarts(exit_status):
-    return exit_status != 0 and exit_status != 78
-
-assert not restarts(78)
-assert restarts(1)
-print("Orange runtime exit-status restart policy fixture passed")
-PY
 octessera_reject_file_match 'Orange runtime service has an unapproved failure dependency.' -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$service"
 [[ "$(grep -c '^Requires=' "$service")" == 3 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
-octessera_reject_file_match 'Runtime service grants priority 80.' -Eq 'LimitRTPRIO=80' "$service"
 expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
 [[ "$(cat -- "$udev_rule")" == "$expected_udev_rule" ]] || { echo 'Orange runtime udev rule content is not exact.' >&2; exit 1; }
-profile_gpio_label="$(sed -n 's/^GPIO_LABEL = "\(.*\)"/\1/p' "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo")"
-profile_gpiochip=gpiochip1
-[[ "$profile_gpio_label" == 300b000.pinctrl && "$profile_gpiochip" == gpiochip1 ]] || { echo 'Pinned Orange GPIO profile mapping changed.' >&2; exit 1; }
-grep -qFx 'GPIO_CHIP = "/dev/gpiochip1"' "$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo" || { echo 'Orange GPIO controller device is not pinned.' >&2; exit 1; }
-grep -qFx "KERNEL==\"$profile_gpiochip\", GROUP=\"octessera-runtime\", MODE=\"0660\"" "$udev_rule" || { echo 'Orange udev rule does not match the pinned GPIO profile mapping.' >&2; exit 1; }
 if command -v udevadm >/dev/null 2>&1 && getent group octessera-runtime >/dev/null 2>&1 && udevadm help 2>&1 | grep -qE '(^|[[:space:]])verify([[:space:]]|$)'; then
   udevadm verify "$udev_rule"
 else

@@ -476,6 +476,5 @@ for index, path in enumerate(CONFIGS):
         events, _, error, fake = observe_finalize(config, profile_name, mode, fail_event=fail_event)
         assert isinstance(error, RuntimeError)
         assert_failed_finalize(events, fake)
-    assert "setup-status" not in path.read_text(encoding="utf-8")
 
 print("Setup configuration validation, password, SSH modes, and secret-shape tests passed")

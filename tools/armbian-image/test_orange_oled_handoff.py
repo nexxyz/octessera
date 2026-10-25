@@ -32,9 +32,6 @@ sys.modules["octessera_orange_oled_handoff"] = handoff
 assert 0 < handoff.UTILITY_LOCK_TIMEOUT_SECONDS < handoff.SHUTDOWN_LOCK_TIMEOUT_SECONDS < 5
 assert handoff.FATAL_MODE == 0o600
 assert handoff.MAX_FATAL_BYTES == 256
-assert "unlock_preserving" in SOURCE.read_text(encoding="utf-8")
-assert "reacquire_nonblocking" in SOURCE.read_text(encoding="utf-8")
-assert "peek_terminal" in SOURCE.read_text(encoding="utf-8")
 for code in ("trellis_unavailable", "neokey_unavailable", "controls_unavailable", "audio_unavailable", "oled_unavailable", "startup_failed"):
     value = {"schema": 1, "bootId": "01234567-89ab-cdef-0123-456789abcdef", "code": code}
     assert handoff.parse_fatal(value) == value

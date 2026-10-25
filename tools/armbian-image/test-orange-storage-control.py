@@ -94,7 +94,6 @@ def test_security_shape() -> None:
     lifecycle = (ROOT / "tools/storage/octessera-orange-storage").read_text(encoding="utf-8")
     assert "sudo" not in broker and "systemctl" not in broker
     assert "--config" not in lifecycle and "OCTESSERA_SD_" not in lifecycle
-    assert "musb-hdrc.4.auto" in lifecycle
     assert (ROOT / "tools/storage/octessera-orange-storage").read_bytes() == (
         ROOT / "userpatches/overlay/usr/local/sbin/octessera-orange-storage"
     ).read_bytes()

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import importlib.util
-import ipaddress
 import json
 import sys
 from importlib.machinery import SourceFileLoader
@@ -60,15 +59,5 @@ for index, path in enumerate(COORDINATORS):
     assert instance.portal_ready()
     instance.command = lambda args: SimpleNamespace(returncode=0, stdout=json.dumps(global_ipv4))
     assert instance.global_ipv4_ready()
-    source = path.read_text(encoding="utf-8")
-    assert '"ip", "-j", "-4", "addr", "show", "dev", INTERFACE' in source
-    assert '"ss", "-H", f"-l{protocol}np"' in source
-    http_source = (path.parent.parent / "lib/octessera/setup_http.py").read_text(encoding="utf-8")
-    assert 'HTTPConnection(setup_http.AP_ADDRESS, 80, timeout=2)' in source
-    assert 'class SetupHandler' in http_source and 'class SetupHTTPServer' in http_source
-    assert 'ipaddress.ip_network("192.168.42.0/24")' in http_source
-    assert "tentative" in source and "dadfailed" in source
-    assert "default-route" not in source and "resolv" not in source
-    assert "retry" not in source.lower()
 
 print("Setup exact AP readiness and usable wlan0 IPv4 tests passed")

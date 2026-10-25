@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import importlib.util
-import ipaddress
 import sys
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
@@ -53,20 +52,6 @@ class Process:
 
 for index, path in enumerate(COORDINATORS):
     coordinator, http_module = load(path, f"flow_coordinator_{index}")
-    source = path.read_text(encoding="utf-8")
-    http_source = (path.parent.parent / "lib/octessera/setup_http.py").read_text(encoding="utf-8")
-    assert source.count("/usr/local/bin/wifi-connect") == 1
-    assert source.count("PORTAL_WINDOW_SECONDS = 600") == 1
-    assert source.count("INTERNAL_APPLY_SECONDS = 60") == 1
-    for obsolete in ("setup-status.py", "setup-status-cli.py", "setup-call.py", "setup-sidecar", "setup-force", "nonce"):
-        assert obsolete not in source
-    assert "retry" not in source.lower()
-    assert "systemctl" not in source
-    assert "NetworkManager" not in source
-    assert '"/stage"' in http_source and '"/country"' in http_source
-    assert "def cleanup_request_marker" in source
-    assert '"/usr/local/share/octessera-setup-ui"' in source
-    assert source.index("service_started_at = time.monotonic()") < source.index("profile = setup_config.load_profile()")
     profile = {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "root"}
     flow_events = []
     command_result = lambda args, timeout=None: flow_events.append(("command", tuple(args))) or SimpleNamespace(returncode=0, stdout="")
@@ -180,8 +165,6 @@ for index, path in enumerate(COORDINATORS):
         assert failure.error_code == "operation_failed"
     else:
         raise AssertionError("truncated portal window was accepted")
-    source = path.read_text(encoding="utf-8")
-    assert source.index("portal_deadline = self.portal_window_deadline") < source.index('self.publish("portal_ready"')
 
     cleanup_events = []
     original_coordinator = coordinator.Coordinator

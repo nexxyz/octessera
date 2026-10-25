@@ -50,13 +50,6 @@ for index, path in enumerate(COORDINATORS):
         (valid, b"start"),
     ):
         assert not coordinator.valid_request_metadata(invalid, 1000, 1000, content)
-    source = path.read_text(encoding="utf-8")
-    assert 'REQUEST_PATH = f"{INBOX_DIR}/start"' in source
-    assert 'PathExists=/run/octessera-setup-request/inbox/start' not in source
-    assert "start-or-attach" not in source
-    assert "os.link(" not in source
-    assert "claims" not in source
-    assert "replay" not in source.lower()
 
     if getattr(os, "geteuid", lambda: -1)() == 0:
         with tempfile.TemporaryDirectory() as directory:

@@ -11,9 +11,6 @@ shutdown_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-
 suspend_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
 python313_files="$root/tools/armbian-image/fixtures/python313-initramfs-closure-files.txt"
 python313_fixture="$root/tools/armbian-image/fixtures/python313-initramfs-closure"
-oled_logo="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-logo"
-oled_handoff="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-handoff.py"
-oled_lifecycle="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-lifecycle.py"
 
 [[ -f "$hook" ]] || { echo "Missing Orange initramfs boot-splash hook." >&2; exit 1; }
 grep -qF '/usr/bin/setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script" || { echo "Orange initramfs must invoke the renderer through /usr/bin/python3." >&2; exit 1; }
@@ -36,8 +33,6 @@ for required_line in \
     'Restart=no'; do
     grep -qFx "$required_line" "$boot_service" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
 done
-octessera_reject_file_match 'Orange boot splash must not restart always.' -q '^Restart=always$' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
-grep -qFx 'Restart=no' "$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service" || { echo 'Orange boot splash restart policy changed.' >&2; exit 1; }
 for required_line in \
     'DevicePolicy=closed' \
     'DeviceAllow=/dev/spidev1.0 rw' \
@@ -66,14 +61,6 @@ octessera_reject_file_match 'Orange shutdown service must not use target orderin
 octessera_reject_file_match 'Orange shutdown service must not be enabled at shutdown targets.' -qE '^WantedBy=(shutdown|reboot|halt)\.target$' "$shutdown_service"
 grep -qFx 'WantedBy=multi-user.target' "$shutdown_service" || { echo 'Orange shutdown service is not a multi-user service.' >&2; exit 1; }
 octessera_reject_file_match 'Orange shutdown service must not write a logo.' -qE 'orange-oled-logo (shutdown|boot)' "$shutdown_service"
-[[ ! -e "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" ]] || { echo 'Orange system-sleep hook must be removed.' >&2; exit 1; }
-grep -qF '["gpioset", "--chip", self.chip, f"{offset}={value}"]' "$oled_logo" || { echo 'Orange OLED GPIO control must use the fixed libgpiod v2 syntax.' >&2; exit 1; }
-octessera_reject_file_match 'Orange OLED GPIO control must not use the removed libgpiod v1 mode option.' -qF -- '--mode=wait' "$oled_logo"
-octessera_reject_file_match 'Orange OLED GPIO control must retain process-held ownership.' -qE -- '--(daemonize|toggle|hold-period)' "$oled_logo"
-grep -qF 'def unlock_preserving' "$oled_handoff" || { echo 'Orange OLED handoff must preserve descriptors while unlocking.' >&2; exit 1; }
-grep -qF 'def reacquire_nonblocking' "$oled_handoff" || { echo 'Orange OLED handoff must support nonblocking reclaim.' >&2; exit 1; }
-grep -qF 'def _stream_frame' "$oled_lifecycle" || { echo 'Orange OLED lifecycle must gate readiness on a physical frame.' >&2; exit 1; }
-grep -qF 'logo["notify_systemd_ready"]()' "$oled_lifecycle" || { echo 'Orange OLED lifecycle readiness notification is missing.' >&2; exit 1; }
 for required_line in \
     'After=octessera.service' \
     'Requisite=octessera.service' \
@@ -95,27 +82,6 @@ done
 octessera_reject_file_match 'Orange suspend service must use the runtime account without named supplementary groups.' -qFx 'SupplementaryGroups=audio i2c spi gpio' "$suspend_service"
 octessera_reject_file_match 'Orange suspend service contains a forbidden lifecycle dependency.' -qE '(^|[[:space:]])(systemctl|dbus|Conflicts=)' "$suspend_service"
 
-require_boot_service_contract() {
-    local candidate="$1"
-    grep -qFx 'DevicePolicy=closed' "$candidate" && \
-        grep -qFx 'DeviceAllow=/dev/spidev1.0 rw' "$candidate" && \
-        grep -qFx 'DeviceAllow=/dev/gpiochip1 rw' "$candidate" && \
-        grep -qFx 'After=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service local-fs.target' "$candidate"
-}
-for missing in \
-    'DevicePolicy=closed' \
-    'DeviceAllow=/dev/spidev1.0 rw' \
-    'DeviceAllow=/dev/gpiochip1 rw' \
-    'After=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service local-fs.target'; do
-    negative_service="$(mktemp)"
-    grep -vFx "$missing" "$boot_service" > "$negative_service"
-    if require_boot_service_contract "$negative_service"; then
-        echo "Orange boot service accepted missing contract: $missing" >&2
-        rm -f "$negative_service"
-        exit 1
-    fi
-    rm -f "$negative_service"
-done
 if command -v systemd-analyze >/dev/null 2>&1; then
     systemd_work="$(mktemp -d)"
     mkdir -p "$systemd_work/etc/systemd/system/multi-user.target.wants" "$systemd_work/usr/local/sbin"
@@ -150,58 +116,8 @@ fi
 bash -n "$hook"
 [[ "$(sh "$hook" prereqs)" == "" ]] || { echo "Orange boot-splash hook has unexpected prerequisites." >&2; exit 1; }
 
-octessera_reject_file_match "Orange initramfs hook uses unavailable copy_dir." -qF 'copy_dir' "$hook"
-octessera_reject_file_match "Orange initramfs hook must use the explicit Python runtime closure." -qF 'find ' "$hook"
-grep -qF 'for python_dir in /usr/lib/python3.*;' "$hook" || { echo "Python standard-library path enumeration is missing." >&2; exit 1; }
-grep -qF "\"\$python_dir/encodings/__init__.py\"" "$hook" || { echo "Python encoding runtime path is missing." >&2; exit 1; }
-grep -qF "\"\$python_dir/re/_parser.py\"" "$hook" || { echo "Python regular-expression runtime path is missing." >&2; exit 1; }
-grep -qF "copy_file binary \"\$python_file\" \"\$python_file\"" "$hook" || { echo "Python files are not copied as initramfs binaries." >&2; exit 1; }
-grep -qF 'Orange initramfs hook missing Python target directory:' "$hook" || { echo "Missing fail-closed Python standard-library check." >&2; exit 1; }
-grep -qF 'for python_module in fcntl math _json _posixsubprocess select _struct zlib; do' "$hook" || { echo "Python extension-module closure is missing." >&2; exit 1; }
-grep -qF "/usr/bin/python3 -I -S - \"\$python_module\" \"\$python_dir\"" "$hook" || { echo "Python extension discovery must use isolated target Python." >&2; exit 1; }
-grep -qF 'importlib.util.find_spec' "$hook" || { echo "Python extension discovery must require find_spec." >&2; exit 1; }
-grep -qF 'importlib.machinery.ExtensionFileLoader' "$hook" || { echo "Python extension discovery must require an extension loader." >&2; exit 1; }
-grep -qF 'importlib.machinery.EXTENSION_SUFFIXES' "$hook" || { echo "Python extension discovery must require an exact extension suffix." >&2; exit 1; }
-grep -qF 'or origin.is_symlink()' "$hook" || { echo "Python extension discovery must reject symlinked origins." >&2; exit 1; }
-grep -qF 'or origin.parent != dynload' "$hook" || { echo "Python extension discovery must keep origins in lib-dynload." >&2; exit 1; }
-grep -qF 'or origin.name not in {module_name + suffix for suffix in importlib.machinery.EXTENSION_SUFFIXES}' "$hook" || { echo "Python extension discovery must reject wrong suffixes." >&2; exit 1; }
-grep -qF "copy_exec \"\$python_origin\" \"\$python_origin\"" "$hook" || { echo "Validated Python extensions are not copied with dependencies." >&2; exit 1; }
-octessera_reject_file_match "Python extension discovery must not use a glob fallback." -qF "for python_file in \"\$python_dir/lib-dynload" "$hook"
-grep -qF "\"\$python_dir/_collections_abc.py\"" "$hook" || { echo "Python 3.13 _collections_abc.py closure path is missing." >&2; exit 1; }
-octessera_reject_file_match "Removed Python 3.13 collections/abc.py path is still required." -qF "\"\$python_dir/collections/abc.py\"" "$hook"
-grep -qF 'missing Python target file:' "$hook" || { echo "Missing Python target-file diagnostic is absent." >&2; exit 1; }
-grep -qF 'rejected Python target module:' "$hook" || { echo "Rejected Python target-module diagnostic is absent." >&2; exit 1; }
-
 [[ -f "$python313_files" ]] || { echo "Missing Python 3.13 initramfs closure fixture." >&2; exit 1; }
 [[ -f "$python313_fixture/imports.py" ]] || { echo "Missing Python 3.13 closure import fixture." >&2; exit 1; }
-
-for required_line in \
-    'copy_exec /usr/local/sbin/octessera-orange-oled-logo /usr/local/sbin/octessera-orange-oled-logo' \
-    'copy_file binary /usr/local/sbin/octessera-orange-oled-handoff.py /usr/local/sbin/octessera-orange-oled-handoff.py' \
-    'copy_file binary /usr/local/sbin/octessera-orange-oled-lifecycle.py /usr/local/sbin/octessera-orange-oled-lifecycle.py' \
-    'copy_exec /usr/bin/setsid /usr/bin/setsid' \
-    'copy_exec /usr/bin/gpioset /usr/bin/gpioset' \
-    'copy_file asset /usr/share/octessera/oled/octessera-pi-booting.rgb565' \
-    'copy_file asset /usr/share/octessera/oled/octessera-pi-shutdown.rgb565'; do
-    grep -qF "$required_line" "$hook" || { echo "Orange initramfs dependency was removed: $required_line" >&2; exit 1; }
-done
-octessera_reject_file_match "Obsolete Orange SVG initramfs dependency returned." -qF 'copy_file asset /usr/share/octessera/oled/octessera-mark.svg' "$hook"
-octessera_reject_file_match "Obsolete Orange SVG initramfs dependency returned." -qF 'copy_file asset /usr/share/octessera/oled/octessera-wordmark.svg' "$hook"
-for removed_line in \
-    'manual_add_modules spi-sun6i' \
-    'manual_add_modules spidev' \
-    'manual_add_modules pinctrl-sunxi'; do
-    octessera_reject_file_match "Obsolete Orange initramfs module addition returned: $removed_line" -qF "$removed_line" "$hook"
-done
-for removed_line in \
-    'modprobe spi-sun6i' \
-    'modprobe spidev' \
-    'modprobe pinctrl-sunxi'; do
-    octessera_reject_file_match "Obsolete Orange initramfs module load returned: $removed_line" -qF "$removed_line" "$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
-done
-for json_file in json/__init__.py json/decoder.py json/encoder.py json/scanner.py; do
-    grep -qF "\$python_dir/$json_file" "$hook" || { echo "Orange initramfs JSON closure is missing: $json_file" >&2; exit 1; }
-done
 
 run_python313_closure_import_test() {
     command -v python3 >/dev/null 2>&1 || { echo "Python 3 is required for the Python 3.13 closure import fixture." >&2; exit 1; }

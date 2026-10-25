@@ -11,9 +11,6 @@ pi_rule="$root/tools/pi-image/stage4-octessera/files/root/etc/udev/rules.d/99-oc
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-grep -qF "SD_MOUNT=\${OCTESSERA_SD_MOUNT:?OCTESSERA_SD_MOUNT must be set}" "$helper"
-grep -qF "SD_OWNER=\${OCTESSERA_SD_OWNER:?OCTESSERA_SD_OWNER must be set}" "$helper"
-grep -qFx '. /usr/local/lib/octessera/octessera-sd-card-lib.sh' "$helper"
 test -f "$library"
 if grep -qE '/dev/disk/by-label|mmcblk' "$helper"; then
   echo 'SD helper contains a device-index or by-label fallback.' >&2

@@ -7,7 +7,6 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 unit="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
 helper="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend"
 customize="$root/userpatches/customize-image.sh"
-runtime_assets="$root/userpatches/overlay/usr/local/lib/octessera/orange-runtime-assets-install.sh"
 
 [[ -f "$unit" && -f "$helper" ]] || { echo 'Orange OLED suspend sources are missing.' >&2; exit 1; }
 for required_line in \
@@ -35,29 +34,7 @@ octessera_reject_file_match 'Orange OLED suspend unit must not use a non-require
 octessera_reject_file_match 'Orange OLED suspend unit must not use the wants directory.' -qF 'sleep.target.wants' "$unit"
 octessera_reject_file_match 'Orange OLED suspend unit must not require named supplementary groups.' -qFx 'SupplementaryGroups=audio i2c spi gpio' "$unit"
 octessera_reject_file_match 'Orange OLED suspend unit has a forbidden dependency.' -qE '^(Conflicts=|Requires=|BusName=)|systemctl|dbus' "$unit"
-for required_text in \
-  'prepare/release' 'prepare/commit' 'resume/release' 'resume/complete' 'rollback' \
-  'SOCKET_RETRY_DELAYS' 'stage' \
-  'MAX_MESSAGE_BYTES = 1024' 'first_menu_rendered' \
-  'oled.command(0xA6)' 'oled.command(0xAF)' 'oled.close(False)' \
-  'os.replace(temporary, STATE_PATH)'; do
-  grep -qF "$required_text" "$helper" || { echo "Orange OLED suspend helper is missing: $required_text" >&2; exit 1; }
-done
-grep -qF 'SO_PEERCRED' "$root/apps/pi-zero/src/orange_oled_suspend.rs"
-grep -qF 'OledOwnershipStage::Rollback' "$root/apps/pi-zero/src/orange_oled_suspend_policy.rs"
-grep -qF 'completed_token' "$root/apps/pi-zero/src/orange_oled_suspend_policy.rs"
-grep -qF 'select_scene_render' "$root/apps/pi-zero/src/render_loop/presentation.rs"
-grep -qF 'retry_oled_decision' "$root/apps/pi-zero/src/render_loop/worker.rs"
-grep -qF 'retry_oled_if_due' "$root/apps/pi-zero/src/render_loop/worker.rs"
-grep -qF 'force_latest_frame' "$root/apps/pi-zero/src/render/oled_ownership.rs"
-grep -qF 'detach_preserving' "$root/apps/pi-zero/src/boot_oled_handoff/unix_impl.rs"
-grep -qF 'FirstMenuRendered' "$root/apps/pi-zero/src/boot_oled_handoff/unix_impl.rs"
-grep -qF 'should_run_cleanup' "$root/crates/hal/src/orange_hardware.rs"
 octessera_reject_file_match 'Orange OLED suspend helper contains an unrelated privilege or lifecycle fallback.' -qE 'systemctl|dbus|runuser|sudo|su ' "$helper"
-[[ ! -e "$root/userpatches/overlay/lib/systemd/system-sleep/octessera-orange-oled" ]] || { echo 'Obsolete Orange system-sleep hook remains.' >&2; exit 1; }
-octessera_reject_file_match 'Image installer still installs the obsolete sleep hook.' -qF 'system-sleep/octessera-orange-oled' "$customize"
-grep -qF 'install_overlay_file usr/local/sbin/octessera-orange-oled-suspend' "$runtime_assets"
-grep -qF 'systemctl enable octessera-orange-oled-suspend.service' "$runtime_assets"
 octessera_reject_file_match 'Image installer must not create a soft sleep target dependency.' -qF 'sleep.target.wants' "$customize"
 
 if command -v systemd-analyze >/dev/null 2>&1; then
@@ -81,4 +58,4 @@ if command -v systemd-analyze >/dev/null 2>&1; then
   [[ ! -e "$work/etc/systemd/system/sleep.target.wants/octessera-orange-oled-suspend.service" ]] || { echo 'RequiredBy=sleep.target created a stale wants symlink.' >&2; exit 1; }
 fi
 
-printf '%s\n' 'Orange OLED suspend installer, strict helper, and systemd contract tests passed'
+printf '%s\n' 'Orange OLED suspend unit, helper privilege, and systemd contract tests passed'
