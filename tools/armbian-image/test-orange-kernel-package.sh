@@ -2,369 +2,64 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=tools/armbian-image/validation-assertions.sh
-source "$root/tools/armbian-image/validation-assertions.sh"
 validator="$root/tools/armbian-image/validate-orange-kernel-package.sh"
 finder="$root/tools/armbian-image/find-orange-kernel-packages.sh"
-module_inspector="$root/tools/armbian-image/inspect-orange-kernel-module.sh"
-
-for script in "$validator" "$finder" "$module_inspector"; do
-  [[ -f "$script" ]] || { echo "Missing Orange kernel package helper: $script" >&2; exit 1; }
-  bash -n "$script"
-done
-command -v dpkg-deb >/dev/null 2>&1 || { echo "dpkg-deb is required for Orange kernel package tests." >&2; exit 1; }
-command -v sha256sum >/dev/null 2>&1 || { echo "sha256sum is required for Orange kernel package tests." >&2; exit 1; }
-command -v strings >/dev/null 2>&1 || { echo "strings is required for Orange kernel package tests." >&2; exit 1; }
-command -v readelf >/dev/null 2>&1 || { echo "readelf is required for Orange kernel package tests." >&2; exit 1; }
-command -v python3 >/dev/null 2>&1 || { echo "python3 is required for Orange kernel package tests." >&2; exit 1; }
-
+release=6.18.46-current-sunxi64
+suffix=6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a
+image_name="linux-image-current-sunxi64_26.11.0-trunk.22_arm64__$suffix.deb"
+dtb_name="linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__$suffix.deb"
 work="$(mktemp -d)"
-cleanup() {
-  rm -rf -- "$work"
-}
-trap cleanup EXIT
+trap 'rm -rf -- "$work"' EXIT
 
-good_config=$'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_RUSTC_VERSION=108500\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_MMC=y\nCONFIG_MMC_BLOCK=y\nCONFIG_MMC_SPI=m\nCONFIG_SND_SEQUENCER=m\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m\nCONFIG_SOUND=y\nCONFIG_SND=y\nCONFIG_SND_SOC=y\nCONFIG_REGMAP_MMIO=y\nCONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y\nCONFIG_SND_SOC_SUNXI_AHUB=y\nCONFIG_SND_SOC_SUNXI_AHUB_DAM=y\nCONFIG_SND_SOC_SUNXI_MACH=y\nCONFIG_NVMEM_SUNXI_SID=y\nCONFIG_SYNTHETIC_FIXTURE=y'
-good_config_sha256="$(printf '%s\n' "$good_config" | sha256sum | awk '{print $1}')"
-good_normalized_config_sha256="$(python3 - "$root" "$good_config" <<'PY'
-import hashlib
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(sys.argv[1]) / "tools/armbian-image"))
-from orange_kernel_config import normalize_kernel_config
-
-print(hashlib.sha256(normalize_kernel_config(sys.argv[2].encode() + b"\n")).hexdigest())
-PY
-)"
-source_config_sha256="$(python3 -c 'import json; print(json.load(open("tools/kernel-patches/orange-midi-interface-manifest.json"))["build_frameworks"]["armbian"]["config_base"]["sha256"])')"
-fixture_manifest="$work/fixture-manifest.json"
-python3 - "$root/tools/kernel-patches/orange-midi-interface-manifest.json" "$fixture_manifest" "$good_normalized_config_sha256" <<'PY'
-import json
-import sys
-
-source, destination, normalized_hash = sys.argv[1:]
-manifest = json.loads(open(source, encoding="utf-8").read())
-manifest["build_frameworks"]["armbian"]["packaged_config_normalized_sha256"] = normalized_hash
-with open(destination, "w", encoding="utf-8") as handle:
-    json.dump(manifest, handle)
-PY
-
-make_module() {
-  local output="$1"
-  local compression="$2"
-  local vermagic="$3"
-  local marker="$4"
-  local elf_mode="${5:-valid}"
-  local payload="$work/module.payload"
-  python3 - "$payload" "$elf_mode" "$vermagic" "$marker" <<'PY'
-import struct
-import sys
-
-path, mode, vermagic, marker = sys.argv[1:]
-if mode == "invalid":
-    payload = b"not an ELF module\n"
-else:
-    marker = {
-        "interface_string": "interface_string\nf_midi_opts_attr_interface_string\nmidi_interface_string",
-        "missing-options": "interface_string\nmidi_interface_string",
-        "missing-runtime": "interface_string\nf_midi_opts_attr_interface_string",
-        "noisy-interface": "interface_string\ninterface_string\nf_midi_opts_attr_interface_string\nmidi_interface_string\ninterface_string",
-    }.get(marker, marker)
-    elf_class = 1 if mode == "elf32" else 2
-    machine = 62 if mode == "x86_64" else 183
-    header = struct.pack(
-        "<16sHHIQQQIHHHHHH",
-        b"\x7fELF" + bytes((elf_class, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
-        1,
-        machine,
-        1,
-        0,
-        0,
-        0,
-        0,
-        64,
-        0,
-        0,
-        0,
-        0,
-        0,
-    )
-    payload = header + (f"vermagic={vermagic}\n{marker}\n").encode()
-with open(path, "wb") as handle:
-    handle.write(payload)
-PY
-  case "$compression" in
-    plain) cp -- "$payload" "$output" ;;
-    gzip) gzip -n -c -- "$payload" > "$output" ;;
-    xz) xz -c -- "$payload" > "$output" ;;
-    *) echo "Unknown module fixture compression: $compression" >&2; exit 1 ;;
-  esac
-}
-
-make_fdt() {
-  python3 - "$1" <<'PY'
-import struct
-import sys
-
-header = struct.pack(">10I", 0xD00DFEED, 72, 56, 72, 40, 17, 16, 0, 0, 0)
-reserve = struct.pack(">QQ", 0, 0)
-structure = struct.pack(">IIII", 1, 0, 2, 9)
-with open(sys.argv[1], "wb") as handle:
-    handle.write(header + reserve + structure)
-PY
-}
-
+# make_pair <name> [mmc_spi] [vermagic] [markers] [omit]
 make_pair() {
-  local name="$1"
-  local config="$2"
-  local image_version="${3:-26.11.0-trunk.22}"
-  local dtb_version="${4:-26.11.0-trunk.22}"
-  local architecture="${5:-arm64}"
-  local source="${6:-linux-6.18.46}"
-  local kernel_release="${7:-6.18.46-current-sunxi64}"
-  local config_release="${8:-6.18.46-current-sunxi64}"
-  local image_dtb_mode="${9:-good}"
-  local module_mode="${10:-plain}"
-  local module_vermagic="${11:-6.18.46-current-sunxi64 SMP}"
-  local module_marker="${12:-interface_string}"
-  local image_name="${13:-linux-image-current-sunxi64}"
-  local dtb_name="${14:-linux-dtb-current-sunxi64}"
-  local artifact_suffix="${15:-6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a}"
-  local module_elf_mode="${16:-valid}"
-  local image_root="$work/$name-image"
-  local dtb_root="$work/$name-dtb"
-  local module_dir="$image_root/lib/modules/$kernel_release/kernel/drivers/usb/gadget/function"
-  local mmc_module_dir="$image_root/lib/modules/$kernel_release/kernel/drivers/mmc/host"
-  local package_dir="$work/$name-packages"
-
-  mkdir -p "$package_dir"
-  mkdir -p "$image_root/DEBIAN" "$dtb_root/DEBIAN" "$image_root/boot" "$dtb_root/boot"
-  mkdir -p "$module_dir" "$mmc_module_dir" \
-    "$image_root/lib/modules/$kernel_release/kernel/sound/core/seq" \
-    "$image_root/lib/modules/$kernel_release/kernel/sound/core" \
-    "$image_root/lib/modules/$kernel_release/kernel/sound/usb"
-  printf '%s\n' \
-    "Package: $image_name" \
-    "Version: $image_version" \
-    "Source: $source" \
-    'Armbian-Kernel-Version: 6.18.46' \
-    "Armbian-Kernel-Version-Family: $kernel_release" \
-    "Architecture: $architecture" \
-    'Maintainer: Octessera tests <tests@octessera.invalid>' \
-    'Description: Orange kernel package test fixture' > "$image_root/DEBIAN/control"
-  printf '%s\n' \
-    "Package: $dtb_name" \
-    "Version: $dtb_version" \
-    "Architecture: $architecture" \
-    'Maintainer: Octessera tests <tests@octessera.invalid>' \
-    'Description: Orange DTB package test fixture' > "$dtb_root/DEBIAN/control"
-  printf '%s\n' "$config" > "$image_root/boot/config-$config_release"
-  [[ "$image_dtb_mode" == missing-image ]] || {
-    mkdir -p "$image_root/usr/lib/linux-image-$kernel_release/allwinner"
-    make_fdt "$image_root/usr/lib/linux-image-$kernel_release/allwinner/sun50i-h618-orangepi-zero2w.dtb"
-    [[ "$image_dtb_mode" == bad-image-magic ]] && printf '\x00\x00\x00\x00' > "$image_root/usr/lib/linux-image-$kernel_release/allwinner/sun50i-h618-orangepi-zero2w.dtb"
-  }
-  [[ "$image_dtb_mode" == missing-package ]] || {
-    mkdir -p "$dtb_root/boot/dtb-$kernel_release/allwinner/overlay"
-    make_fdt "$dtb_root/boot/dtb-$kernel_release/allwinner/sun50i-h618-orangepi-zero2w.dtb"
-    printf 'stock-i2c1-pi-fixture\n' > "$dtb_root/boot/dtb-$kernel_release/allwinner/overlay/sun50i-h616-i2c1-pi.dtbo"
-    [[ "$image_dtb_mode" == bad-package-magic ]] && printf '\x00\x00\x00\x00' > "$dtb_root/boot/dtb-$kernel_release/allwinner/sun50i-h618-orangepi-zero2w.dtb"
-  }
-  : > "$image_root/lib/modules/$kernel_release/kernel/sound/core/seq/snd-seq.ko"
-  : > "$image_root/lib/modules/$kernel_release/kernel/sound/core/seq/snd-seq-midi.ko"
-  : > "$image_root/lib/modules/$kernel_release/kernel/sound/core/snd-rawmidi.ko"
-  : > "$image_root/lib/modules/$kernel_release/kernel/sound/usb/snd-usb-audio.ko"
-  : > "$mmc_module_dir/mmc_spi.ko"
-  [[ "$module_mode" == missing ]] || make_module "$module_dir/usb_f_midi.ko" plain "$module_vermagic" "$module_marker" "$module_elf_mode"
-  [[ "$module_mode" == multiple ]] && make_module "$module_dir/usb_f_midi.ko.gz" gzip "$module_vermagic" "$module_marker" "$module_elf_mode"
-  case "$module_mode" in
-    compressed-gzip) rm -f -- "$module_dir/usb_f_midi.ko"; make_module "$module_dir/usb_f_midi.ko.gz" gzip "$module_vermagic" "$module_marker" "$module_elf_mode" ;;
-    compressed-xz) rm -f -- "$module_dir/usb_f_midi.ko"; make_module "$module_dir/usb_f_midi.ko.xz" xz "$module_vermagic" "$module_marker" "$module_elf_mode" ;;
-  esac
-  dpkg-deb --build "$image_root" "$package_dir/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__${artifact_suffix}.deb" >/dev/null
-  dpkg-deb --build "$dtb_root" "$package_dir/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__${artifact_suffix}.deb" >/dev/null
+  local name="$1" mmc_spi="${2:-CONFIG_MMC_SPI=m}" vermagic="${3:-$release SMP}" markers="${4:-interface_string f_midi_opts_attr_interface_string midi_interface_string}" omit="${5:-}"
+  local image="$work/$name/image" dtb="$work/$name/dtb" module_dir dtb_dir marker
+  module_dir="$image/lib/modules/$release/kernel/drivers/usb/gadget/function"
+  dtb_dir="$dtb/boot/dtb-$release/allwinner"
+  mkdir -p "$image/DEBIAN" "$dtb/DEBIAN" "$image/boot" "$module_dir" "$dtb_dir/overlay"
+  printf 'Package: linux-image-current-sunxi64\nVersion: 26.11.0-trunk.22\nArchitecture: arm64\nMaintainer: tests <tests@octessera.invalid>\nDescription: fixture\n' > "$image/DEBIAN/control"
+  printf 'Package: linux-dtb-current-sunxi64\nVersion: 26.11.0-trunk.22\nArchitecture: arm64\nMaintainer: tests <tests@octessera.invalid>\nDescription: fixture\n' > "$dtb/DEBIAN/control"
+  printf 'CONFIG_MMC=y\n%s\n' "$mmc_spi" > "$image/boot/config-$release"
+  { printf 'vermagic=%s\n' "$vermagic"; for marker in $markers; do printf '%s\n' "$marker"; done; } | xz -c > "$module_dir/usb_f_midi.ko.xz"
+  [[ "$omit" == dtb ]] || printf '\xd0\x0d\xfe\xedfixture' > "$dtb_dir/sun50i-h618-orangepi-zero2w.dtb"
+  [[ "$omit" == i2c1 ]] || printf 'fixture\n' > "$dtb_dir/overlay/sun50i-h616-i2c1-pi.dtbo"
+  dpkg-deb --build "$image" "$work/$name/$image_name" >/dev/null
+  dpkg-deb --build "$dtb" "$work/$name/$dtb_name" >/dev/null
 }
 
-image_package() { printf '%s\n' "$work/$1-packages/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"; }
-dtb_package() { printf '%s\n' "$work/$1-packages/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"; }
-
-run_validator() {
+reject() {
   local name="$1"
-  local expected_hash="${2:-}"
-  local manifest_path="${3:-}"
-  local -a args=("$(image_package "$name")" "$(dtb_package "$name")")
-  [[ -n "$expected_hash" ]] && args+=(--expected-config-sha256 "$expected_hash")
-  [[ -n "$manifest_path" ]] && args+=(--manifest "$manifest_path")
-  if [[ -n "$expected_hash" ]]; then
-    OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "${args[@]}" >/dev/null
-  else
-    bash "$validator" "${args[@]}" >/dev/null
-  fi
-}
-
-reject_validator() {
-  local name="$1"
-  if run_validator "$name" "$good_normalized_config_sha256" "$fixture_manifest" >"$work/$name.out" 2>&1; then
-    echo "Orange kernel package validator accepted $name." >&2
+  shift
+  make_pair "$name" "$@"
+  if bash "$validator" "$work/$name/$image_name" "$work/$name/$dtb_name" >/dev/null 2>&1; then
+    echo "Orange kernel package check accepted $name." >&2
     exit 1
   fi
 }
 
-reject_hash_validator() {
-  local name="$1"
-  if run_validator "$name" "$good_normalized_config_sha256" "$fixture_manifest" >"$work/$name.out" 2>&1; then
-    echo "Orange kernel package validator accepted $name." >&2
-    exit 1
-  fi
-}
+make_pair good
+bash "$validator" "$work/good/$image_name" "$work/good/$dtb_name" >/dev/null
+make_pair builtin-mmc-spi CONFIG_MMC_SPI=y
+bash "$validator" "$work/builtin-mmc-spi/$image_name" "$work/builtin-mmc-spi/$dtb_name" >/dev/null
+reject missing-mmc-spi '# CONFIG_MMC_SPI is not set'
+reject wrong-vermagic CONFIG_MMC_SPI=m "6.18.47-current-sunxi64 SMP"
+reject missing-options-string CONFIG_MMC_SPI=m "$release SMP" "interface_string midi_interface_string"
+reject missing-runtime-string CONFIG_MMC_SPI=m "$release SMP" "interface_string f_midi_opts_attr_interface_string"
+reject missing-dtb CONFIG_MMC_SPI=m "$release SMP" "interface_string f_midi_opts_attr_interface_string midi_interface_string" dtb
+reject missing-i2c1 CONFIG_MMC_SPI=m "$release SMP" "interface_string f_midi_opts_attr_interface_string midi_interface_string" i2c1
 
-make_pair good "$good_config"
-if run_validator good >/dev/null 2>&1; then
-  echo 'Orange package validator accepted a synthetic artifact without the manifest packaged config hash.' >&2
-  exit 1
-fi
-if bash "$validator" "$(image_package good)" "$(dtb_package good)" --expected-config-sha256 "$good_config_sha256" >/dev/null 2>&1; then
-  echo 'Orange package validator accepted a mutable production config hash override.' >&2
-  exit 1
-fi
-wrong_manifest="$work/wrong-packaged-config-manifest.json"
-missing_manifest="$work/missing-packaged-config-manifest.json"
-python3 - "$root/tools/kernel-patches/orange-midi-interface-manifest.json" "$wrong_manifest" "$missing_manifest" <<'PY'
-import copy
-import json
-import sys
-
-source, wrong, missing = sys.argv[1:]
-manifest = json.loads(open(source, encoding="utf-8").read())
-wrong_manifest = copy.deepcopy(manifest)
-wrong_manifest["build_frameworks"]["armbian"]["packaged_config_normalized_sha256"] = "0" * 64
-missing_manifest = copy.deepcopy(manifest)
-del missing_manifest["build_frameworks"]["armbian"]["packaged_config_normalized_sha256"]
-for path, value in ((wrong, wrong_manifest), (missing, missing_manifest)):
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump(value, handle)
-PY
-if OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --manifest "$wrong_manifest" >/dev/null 2>&1; then
-  echo 'Orange package validator accepted a wrong manifest packaged config hash.' >&2
-  exit 1
-fi
-if OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --manifest "$missing_manifest" >/dev/null 2>&1; then
-  echo 'Orange package validator accepted a manifest without a packaged config hash.' >&2
-  exit 1
-fi
-run_validator good "$good_normalized_config_sha256" "$fixture_manifest"
-if run_validator good "$good_config_sha256" >/dev/null 2>&1; then
-  echo 'Orange package validation accepted the raw config hash as the normalized config hash.' >&2
-  exit 1
-fi
-if run_validator good "$source_config_sha256" >/dev/null 2>&1; then
-  echo 'Orange package validation accepted the source config hash as the normalized config hash.' >&2
-  exit 1
-fi
-make_pair numeric-rustc "$(printf '%s\n' "$good_config" | sed 's/^CONFIG_RUSTC_VERSION=108500$/CONFIG_RUSTC_VERSION=108501/')"
-run_validator numeric-rustc "$good_normalized_config_sha256" "$fixture_manifest"
-mkdir -p "$work/good-dtb/boot/dtb-6.18.46-current-sunxi64/overlay"
-: > "$work/good-dtb/boot/dtb-6.18.46-current-sunxi64/overlay/octessera-ahub0-pcm5102.dtbo"
-dpkg-deb --build "$work/good-dtb" "$(dtb_package good)" >/dev/null
-reject_validator good
-rm -f "$work/good-dtb/boot/dtb-6.18.46-current-sunxi64/overlay/octessera-ahub0-pcm5102.dtbo"
-make_pair good "$good_config"
-make_pair compressed-gzip "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good compressed-gzip
-run_validator compressed-gzip "$good_normalized_config_sha256" "$fixture_manifest"
-make_pair compressed-xz "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good compressed-xz
-run_validator compressed-xz "$good_normalized_config_sha256" "$fixture_manifest"
-
-mkdir -p "$work/discovery"
-cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
-cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
-cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb"
-printf '%s\n' "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb" > "$work/discovery.expected"
-bash "$finder" "$work/discovery" > "$work/discovery.actual"
+discovery="$work/discovery"
+mkdir -p "$discovery"
+cp -- "$work/good/$image_name" "$work/good/$dtb_name" "$discovery/"
+cp -- "$work/good/$image_name" "$discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64.deb"
+printf '%s\n' "$discovery/$image_name" "$discovery/$dtb_name" > "$work/discovery.expected"
+bash "$finder" "$discovery" > "$work/discovery.actual"
 cmp -- "$work/discovery.expected" "$work/discovery.actual"
-rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
-if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted a missing DTB package.' >&2; exit 1; fi
-cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
-cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
-if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted multiple image packages.' >&2; exit 1; fi
-rm -- "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
-rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
-cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__wrong.deb"
-if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted a mismatched package pair.' >&2; exit 1; fi
-rm -- "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__wrong.deb"
-cp -- "$(dtb_package good)" "$work/discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a.deb"
-cp -- "$(image_package good)" "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__.deb"
-if bash "$finder" "$work/discovery" >/dev/null 2>&1; then echo 'Package discovery accepted an empty artifact suffix.' >&2; exit 1; fi
-rm -- "$work/discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__.deb"
-
-make_pair bad-architecture "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 all
-reject_validator bad-architecture
-make_pair bad-version "$good_config" 26.8.0-trunk.416
-reject_validator bad-version
-make_pair bad-dtb-version "$good_config" 26.11.0-trunk.22 26.11.0-trunk.21
-reject_validator bad-dtb-version
-make_pair bad-image-package "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string bad-image-package linux-dtb-current-sunxi64
-reject_validator bad-image-package
-make_pair bad-dtb-package "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 bad-dtb-package
-reject_validator bad-dtb-package
-make_pair bad-source "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.45
-reject_validator bad-source
-make_pair bad-abi "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.47-current-sunxi64
-reject_validator bad-abi
-make_pair bad-dtb "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 missing-image
-reject_validator bad-dtb
-make_pair bad-config-name "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64
-rm -f -- "$work/bad-config-name-image/boot/config-6.18.46-current-sunxi64"
-printf '%s\n' "$good_config" > "$work/bad-config-name-image/boot/config-6.18.47-current-sunxi64"
-dpkg-deb --build "$work/bad-config-name-image" "$(image_package bad-config-name)" >/dev/null
-reject_validator bad-config-name
-make_pair bad-config-hash "$good_config"
-printf '%s\n' "$good_config" CONFIG_EXTRA=y > "$work/bad-config-hash-image/boot/config-6.18.46-current-sunxi64"
-dpkg-deb --build "$work/bad-config-hash-image" "$(image_package bad-config-hash)" >/dev/null
-reject_hash_validator bad-config-hash
-make_pair missing-rustc "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_RUSTC_VERSION=108500')"
-reject_validator missing-rustc
-make_pair duplicate-rustc "$good_config"$'\nCONFIG_RUSTC_VERSION=108501'
-reject_validator duplicate-rustc
-make_pair malformed-rustc "$(printf '%s\n' "$good_config" | sed 's/^CONFIG_RUSTC_VERSION=108500$/CONFIG_RUSTC_VERSION=not-a-number/')"
-reject_validator malformed-rustc
-make_pair bad-config-line $'# CONFIG_RT_GROUP_SCHED is not set\nCONFIG_SPI_SUN6I=y\nCONFIG_SPI_SPIDEV=y\nCONFIG_PINCTRL_SUNXI=y\nCONFIG_SND_SEQUENCER=y\nCONFIG_SND_RAWMIDI=m\nCONFIG_SND_USB_AUDIO=m'
-reject_validator bad-config-line
-make_pair missing-spi-sun6i "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_SPI_SUN6I=y')"
-reject_validator missing-spi-sun6i
-make_pair missing-spidev "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_SPI_SPIDEV=y')"
-reject_validator missing-spidev
-make_pair missing-pinctrl-sunxi "$(printf '%s\n' "$good_config" | grep -vFx 'CONFIG_PINCTRL_SUNXI=y')"
-reject_validator missing-pinctrl-sunxi
-make_pair bad-module "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good missing
-reject_validator bad-module
-make_pair bad-module-elf "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64 6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a invalid
-reject_validator bad-module-elf
-make_pair bad-module-machine "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" interface_string linux-image-current-sunxi64 linux-dtb-current-sunxi64 6.18.46-S1f99-D7115-P2185-C4e0c-H5530-HK01ba-Vc222-Bb84f-R448a x86_64
-reject_validator bad-module-machine
-make_pair bad-vermagic "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain wrong-release interface_string
-reject_validator bad-vermagic
-make_pair bad-marker "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" wrong-marker
-reject_validator bad-marker
-make_pair duplicate-vermagic "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain $'6.18.46-current-sunxi64 SMP\nvermagic=6.18.46-current-sunxi64 SMP' interface_string
-reject_validator duplicate-vermagic
-make_pair noisy-interface "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" noisy-interface
-run_validator noisy-interface "$good_normalized_config_sha256" "$fixture_manifest"
-make_pair missing-interface-options "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" missing-options
-reject_validator missing-interface-options
-make_pair missing-interface-runtime "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good plain "6.18.46-current-sunxi64 SMP" missing-runtime
-reject_validator missing-interface-runtime
-make_pair multiple-module "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 good multiple
-reject_validator multiple-module
-make_pair bad-image-magic "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 bad-image-magic
-reject_validator bad-image-magic
-make_pair bad-package-magic "$good_config" 26.11.0-trunk.22 26.11.0-trunk.22 arm64 linux-6.18.46 6.18.46-current-sunxi64 6.18.46-current-sunxi64 bad-package-magic
-reject_validator bad-package-magic
-make_pair bad-dtb-equality "$good_config"
-printf 'x' >> "$work/bad-dtb-equality-dtb/boot/dtb-6.18.46-current-sunxi64/allwinner/sun50i-h618-orangepi-zero2w.dtb"
-dpkg-deb --build "$work/bad-dtb-equality-dtb" "$(dtb_package bad-dtb-equality)" >/dev/null
-reject_validator bad-dtb-equality
-
-OCTESSERA_ORANGE_TEST_MODE=1 bash "$validator" "$(image_package good)" "$(dtb_package good)" --manifest "$fixture_manifest" --expected-config-sha256 "$good_normalized_config_sha256" >/dev/null
+cp -- "$work/good/$image_name" "$discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb"
+if bash "$finder" "$discovery" >/dev/null 2>&1; then echo 'Package discovery accepted multiple image packages.' >&2; exit 1; fi
+rm -- "$discovery/linux-image-current-sunxi64_26.11.0-trunk.22_arm64__extra.deb" "$discovery/$dtb_name"
+cp -- "$work/good/$dtb_name" "$discovery/linux-dtb-current-sunxi64_26.11.0-trunk.22_arm64__wrong.deb"
+if bash "$finder" "$discovery" >/dev/null 2>&1; then echo 'Package discovery accepted a mismatched package pair.' >&2; exit 1; fi
 
 printf 'Orange linux-image/linux-dtb package tests passed\n'

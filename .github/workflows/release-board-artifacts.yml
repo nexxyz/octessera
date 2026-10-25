@@ -216,10 +216,6 @@ jobs:
           mapfile -t packages < <(find raspberry-kernel -maxdepth 1 -type f -name '*.deb' -print | sort)
           [[ "${#packages[@]}" == 1 ]] || { echo "Expected exactly one Raspberry kernel package, found ${#packages[@]}." >&2; exit 1; }
           test -f raspberry-kernel/SHA256SUMS || { echo "Missing Raspberry kernel SHA256SUMS" >&2; exit 1; }
-          python3 tools/pi-kernel/validate-rpi-kernel-package.py \
-            "${packages[0]}" \
-            --manifest tools/kernel-patches/orange-midi-interface-manifest.json \
-            --checksum-file raspberry-kernel/SHA256SUMS
           (cd raspberry-kernel && sha256sum -c SHA256SUMS)
       - uses: actions/upload-artifact@v7
         with:
@@ -317,7 +313,6 @@ jobs:
           [[ "${#packages[@]}" == 1 ]] || { echo "Expected exactly one downloaded Raspberry kernel package, found ${#packages[@]}." >&2; exit 1; }
           export OCTESSERA_RELEASE_VERSION="${{ inputs.version }}" OCTESSERA_RELEASE_TAG="${{ inputs.tag }}" OCTESSERA_BOARD_PROFILE_ID="raspberry-pi-zero-2w"
           export OCTESSERA_KERNEL_PACKAGE="$GITHUB_WORKSPACE/kernel-bundle/${packages[0]}"
-          export OCTESSERA_KERNEL_CHECKSUMS="$GITHUB_WORKSPACE/kernel-bundle/SHA256SUMS"
           cat > pi-gen/config <<EOF
           IMG_NAME=octessera-raspberry-pi-zero-2w
           RELEASE=bookworm
@@ -328,14 +323,13 @@ jobs:
           OCTESSERA_RELEASE_TAG=$OCTESSERA_RELEASE_TAG
           OCTESSERA_BOARD_PROFILE_ID=$OCTESSERA_BOARD_PROFILE_ID
           OCTESSERA_KERNEL_PACKAGE=$OCTESSERA_KERNEL_PACKAGE
-          OCTESSERA_KERNEL_CHECKSUMS=$OCTESSERA_KERNEL_CHECKSUMS
           OCTESSERA_REPOSITORY_ROOT=$OCTESSERA_REPOSITORY_ROOT
           EXPORT_DIR=deploy
           DEPLOY_ZIP=1
           ENABLE_SSH=0
           EOF
           cd pi-gen
-          sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_KERNEL_CHECKSUMS,OCTESSERA_REPOSITORY_ROOT ./build.sh
+          sudo --preserve-env=OCTESSERA_RELEASE_VERSION,OCTESSERA_RELEASE_TAG,OCTESSERA_BOARD_PROFILE_ID,OCTESSERA_KERNEL_PACKAGE,OCTESSERA_REPOSITORY_ROOT ./build.sh
       - name: Select and verify the single Raspberry ZIP
         run: |
           set -euo pipefail

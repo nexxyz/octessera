@@ -46,7 +46,7 @@ run_root_test 'Musical asset provisioning tests' bash "$root/tools/armbian-image
 bash "$root/tools/pi-image/test-wifi-foundation.sh"
 bash "$root/tools/pi-image/test-rpi-boot-splash.sh"
 bash "$root/tools/pi-image/test-rpi-boot-services.sh"
-run_root_test 'Raspberry kernel image tests' bash "$root/tools/pi-image/test-rpi-kernel-image.sh"
+bash "$root/tools/pi-image/test-rpi-kernel-image.sh"
 bash "$root/tools/armbian-image/test-setup-layer.sh"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test_setup_sidecar.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-request.py"

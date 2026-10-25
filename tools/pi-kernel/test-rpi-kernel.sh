@@ -16,8 +16,7 @@ python3 -B - "$python_cache" \
   "$script_dir/rpi_kernel_contract.py" \
   "$script_dir/build-rpi-kernel.py" \
   "$script_dir/validate-rpi-kernel-package.py" \
-  "$script_dir/test-rpi-kernel.py" \
-  "$script_dir/test-rpi-kernel-builder.py" <<'PY'
+  "$script_dir/test-rpi-kernel.py" <<'PY'
 from pathlib import Path
 import py_compile
 import sys

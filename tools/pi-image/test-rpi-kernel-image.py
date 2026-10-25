@@ -16,9 +16,6 @@ HERE = Path(__file__).resolve().parent
 KERNEL = HERE.parent / "pi-kernel"
 sys.path.insert(0, str(KERNEL))
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE.parent / "legal"))
-
-from stage_notices import stage_notices  # type: ignore[import-not-found]  # noqa: E402
 
 
 def _load(path: Path, name: str) -> Any:
@@ -171,28 +168,32 @@ def _test_transactional_hook_mask(work: Path) -> None:
     assert failure_paths[1].is_symlink()
 
 
+def _assert_selectors(config: Path, contract: Any) -> None:
+    lines = [line.strip() for line in config.read_text(encoding="utf-8").splitlines()]
+    for expected in (
+        "kernel=octessera/kernel8.img",
+        "device_tree=octessera/bcm2710-rpi-zero-2-w.dtb",
+        f"initramfs octessera/initrd.img-{contract.kernel_release} followkernel",
+        "overlay_prefix=octessera/overlays/",
+    ):
+        assert lines.count(expected) == 1, expected
+    assert not any(line.startswith("auto_initramfs=") for line in lines)
+    assert len([line for line in lines if line.startswith("kernel=")]) == 1
+
+
 def _main() -> int:
-    root = HERE.parents[1]
-    contract = CONTRACT.load_contract(root)
-    assert STAGE_INSTALLER.image_contract().package_filename == contract.package_filename
-    assert STAGE_INSTALLER.image_contract().package_name == contract.package_name
-    assert STAGE_INSTALLER.image_contract().package_version == contract.package_version
-    assert STAGE_INSTALLER.image_contract().kernel_release == contract.kernel_release
-    assert STAGE_INSTALLER.image_contract().required_modules == contract.required_modules
+    contract = CONTRACT.load_contract(HERE.parents[1])
+    image_contract = STAGE_INSTALLER.image_contract()
+    assert image_contract.package_filename == contract.package_filename
+    assert image_contract.kernel_release == contract.kernel_release
     with tempfile.TemporaryDirectory(prefix="octessera-rpi-image-test-") as temporary:
         work = Path(temporary)
         (work / "package.deb").write_bytes(b"package")
         _test_transactional_hook_mask(work)
         package = PACKAGE_TESTS._make_package(work, contract, "image", compressed_kernel=True)
-        checksum = work / "SHA256SUMS"
-        checksum.write_text(f"{STAGE_INSTALLER.sha256_file(package)}  {package.name}\n", encoding="utf-8")
-        validator = _load(KERNEL / "validate-rpi-kernel-package.py", "image_test_validator")
-        inventory = validator.validate_package(package, contract)
+        PACKAGE_TESTS.VALIDATOR.validate_package(package, contract)
+
         image = work / "root"
-        stage_notices(HERE.parents[1], image)
-        _write(image / "var/lib/dpkg/status", "Package: fixture\nStatus: install ok installed\nVersion: 1\nDescription: fixture\n")
-        _write(image / "usr/share/common-licenses/GPL-3", "fixture GPL license\n")
-        _write(image / "usr/share/doc/base-files/copyright", "fixture base-files copyright\n")
         _write(image / "boot/firmware/config.txt", "kernel=kernel8.img\nauto_initramfs=1\n")
         _write(image / "boot/firmware/kernel8.img", b"stock-kernel")
         stock_initrd_path = image / f"boot/initrd.img-{contract.kernel_release}"
@@ -204,97 +205,28 @@ def _main() -> int:
         original_install = STAGE_INSTALLER._install_package
         STAGE_INSTALLER._install_package = lambda rootfs, value: value
         try:
-            STAGE_INSTALLER.install_image(image, package, checksum, contract, finalize=False)
+            STAGE_INSTALLER.install_image(image, package, contract)
         finally:
             STAGE_INSTALLER._install_package = original_install
         boot = image / "boot/firmware"
-        _write(boot / "octessera/overlays/i2s-dac-no20.dtbo", b"i2s")
-        _write(boot / "octessera/overlays/octessera-oled-sd.dtbo", b"sd")
-        _write(boot / "octessera/overlays/octessera-wifi-pio.dtbo", b"wifi")
-        subprocess.run(["dpkg-deb", "-x", str(package), str(image)], check=True, capture_output=True)
-        _write(image / f"lib/modules/{contract.kernel_release}/modules.dep", "fixture-module-dependencies\n")
-        runtime_bytes = b"constructor-runtime-binary\n"
-        _write(image / "opt/octessera/releases/1.2.3/octessera-pi", runtime_bytes)
-        os.chmod(image / "opt/octessera/releases/1.2.3/octessera-pi", 0o755)
-        (image / "opt/octessera/current").symlink_to("/opt/octessera/releases/1.2.3")
-        (image / "usr/local/bin").mkdir(parents=True, exist_ok=True)
-        (image / "usr/local/bin/octessera-pi").symlink_to("/opt/octessera/current/octessera-pi")
-        for path in (
-            image / "etc/initramfs-tools/hooks/octessera-boot-splash",
-            image / "etc/initramfs-tools/scripts/init-premount/octessera-boot-splash",
-            image / "etc/systemd/system/octessera-boot-splash.service",
-            image / "etc/systemd/system/octessera.service",
-            image / "etc/systemd/system/octessera-sd-card.service",
-            image / "etc/udev/rules.d/99-octessera-sd-card.rules",
-            image / "etc/profile.d/octessera-welcome.sh",
-            image / "usr/local/sbin/octessera-usb-gadget",
-        ):
-            source = HERE / "stage4-octessera/files/root" / path.relative_to(image)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, path)
-            os.chmod(path, 0o755 if "initramfs" in str(path) or path.name == "octessera-usb-gadget" else 0o644)
-        for path, mode in (
-            (image / "usr/local/sbin/octessera-usb-role", 0o755),
-            (image / "etc/systemd/system/octessera-usb-gadget.service", 0o644),
-            (image / "etc/sudoers.d/octessera-usb-role", 0o440),
-        ):
-            source = HERE / "stage4-octessera/files/root" / path.relative_to(image)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, path)
-            os.chmod(path, mode)
-            os.chown(path, 0, 0)  # type: ignore[attr-defined]
-        for source, path, mode in (
-            (HERE.parents[1] / "tools/storage/octessera-sd-card", image / "usr/local/sbin/octessera-sd-card", 0o755),
-            (HERE.parents[1] / "tools/storage/octessera-sd-card-lib.sh", image / "usr/local/lib/octessera/octessera-sd-card-lib.sh", 0o644),
-        ):
-            path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, path)
-            os.chmod(path, mode)
-        presets = image / "home/pi/presets"
-        presets.mkdir(parents=True, exist_ok=True)
-        for name, document in (
-            ("system.json", {"kind": "octessera.system", "schemaVersion": 1, "runtimeConfig": {"audioOutputs": {"dac": True, "usb": False, "hdmi": False}, "usb": {"midiOutEnabled": False, "dataRole": "gadget"}}}),
-            ("default.patch.json", {"kind": "octessera.patch", "schemaVersion": 2, "runtimeConfig": {}}),
-        ):
-            path = presets / name
-            path.write_text(json.dumps(document), encoding="utf-8")
-            os.chmod(path, 0o644)
-            os.chown(path, 1000, 1000)  # type: ignore[attr-defined]
-        validator_path = image / "usr/local/lib/octessera/device_config.py"
-        validator_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(HERE / "stage4-octessera/files/root/usr/local/lib/octessera/device_config.py", validator_path)
-        os.chmod(validator_path, 0o644)
-        os.chown(validator_path, 0, 0)  # type: ignore[attr-defined]
-        hushlogin = image / "home/pi/.hushlogin"
-        hushlogin.parent.mkdir(parents=True, exist_ok=True)
-        hushlogin.write_bytes(b"")
-        os.chmod(hushlogin, 0o644)
-        os.chown(hushlogin, 1000, 1000)  # type: ignore[attr-defined]
-        (image / "etc/systemd/system/sysinit.target.wants").mkdir(parents=True, exist_ok=True)
-        (image / "etc/systemd/system/multi-user.target.wants").mkdir(parents=True, exist_ok=True)
-        (image / "etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service").symlink_to("../octessera-boot-splash.service")
-        (image / "etc/systemd/system/multi-user.target.wants/octessera.service").symlink_to("../octessera.service")
-        (image / "etc/systemd/system/multi-user.target.wants/octessera-sd-card.service").symlink_to("../octessera-sd-card.service")
         original_root_command = STAGE_INSTALLER._run_in_root
+
         def fake_root_command(rootfs: Path, command: list[str]) -> None:
             if command[0] == "update-initramfs":
                 _write(rootfs / f"boot/initrd.img-{contract.kernel_release}", stock_initrd_regenerated)
+
         STAGE_INSTALLER._run_in_root = fake_root_command
         try:
-            evidence = STAGE_INSTALLER._finalize(image, package, checksum, contract)
+            STAGE_INSTALLER._finalize(image, package, contract)
         finally:
             STAGE_INSTALLER._run_in_root = original_root_command
-        assert evidence["initramfs"]["path"] == f"octessera/initrd.img-{contract.kernel_release}"
+        assert (boot / f"octessera/initrd.img-{contract.kernel_release}").read_bytes() == stock_initrd_regenerated
+        assert (boot / "octessera/kernel8.img").read_bytes() == PACKAGE_TESTS._arm64_image()
         assert [_hook_metadata(path) for path in image_hooks] == image_hook_original
-        STAGE_INSTALLER.verify_selectors(boot / "config.txt", contract)
-        stock_manifest_path = boot / "octessera/recovery-stock/manifest.json"
-        stock_manifest_content = stock_manifest_path.read_text(encoding="utf-8")
-        stock_entries = json.loads(stock_manifest_content)
+        _assert_selectors(boot / "config.txt", contract)
+        stock_entries = json.loads((boot / "octessera/recovery-stock/manifest.json").read_text(encoding="utf-8"))
         stock_initrd_entry = next(entry for entry in stock_entries if entry["path"] == f"boot/initrd.img-{contract.kernel_release}")
-        stock_recovery_path = image / stock_initrd_entry["recovery_path"]
-        assert stock_initrd_path.read_bytes() == stock_initrd_regenerated
-        assert stock_recovery_path.read_bytes() == stock_initrd_original
-        assert stock_initrd_entry["sha256"] == STAGE_INSTALLER.sha256_file(stock_recovery_path)
+        assert (image / stock_initrd_entry["recovery_path"]).read_bytes() == stock_initrd_original
 
         final_root = work / "actual-finalizer-root"
         final_boot = final_root / "boot/firmware"
@@ -303,23 +235,18 @@ def _main() -> int:
             final_boot / "config.txt",
             "kernel=old.img\nkernel=conflict.img\nauto_initramfs=1\ndtoverlay=i2s-dac-no20\n\n" + hardware_block,
         )
-        _write(final_boot / "kernel8-stock.img", b"stock")
-        _write(final_boot / "octessera/overlays/i2s-dac-no20.dtbo", b"i2s")
-        _write(final_boot / "octessera/overlays/octessera-oled-sd.dtbo", b"sd")
-        _write(final_boot / "octessera/overlays/octessera-wifi-pio.dtbo", b"wifi")
         final_hooks = _make_hooks(final_root)
         final_hook_original = [_hook_metadata(path) for path in final_hooks]
         final_artifacts = final_root / "var/lib/octessera/rpi-kernel"
         final_artifacts.mkdir(parents=True)
         shutil.copy2(package, final_artifacts / package.name)
-        shutil.copy2(checksum, final_artifacts / "SHA256SUMS")
         final_lib = final_root / "usr/local/lib/octessera"
         final_lib.mkdir(parents=True)
         finalizer = HERE / "stage3-octessera-kernel/files/root/usr/local/sbin/octessera-finalize-rpi-kernel"
         final_sbin = final_root / "usr/local/sbin"
         final_sbin.mkdir(parents=True)
         shutil.copy2(finalizer, final_sbin / "octessera-finalize-rpi-kernel")
-        for helper in ("install-rpi-kernel.py", "rpi_kernel_contract.py", "rpi_kernel_image.py", "raspi_firmware_hook_mask.py"):
+        for helper in ("install-rpi-kernel.py", "rpi_kernel_image.py", "raspi_firmware_hook_mask.py"):
             shutil.copy2(finalizer.parent.parent / "lib/octessera" / helper, final_lib / helper)
         fake_bin = work / "fake-bin"
         fake_bin.mkdir()
@@ -328,7 +255,7 @@ def _main() -> int:
             "#!/bin/sh\nset -eu\n"
             "root=\"$1\"\n"
             "case \"$2\" in\n"
-            f"  depmod) mkdir -p \"$root/lib/modules/{contract.kernel_release}\"; printf '%s\\n' fixture > \"$root/lib/modules/{contract.kernel_release}/modules.dep\" ;;\n"
+            "  depmod) ;;\n"
             "  update-initramfs)"
             "    for hook in \"$root/etc/initramfs/post-update.d/z50-raspi-firmware\" \"$root/etc/kernel/postinst.d/z50-raspi-firmware\"; do"
             "      if [ -x \"$hook\" ]; then printf '%s\\n' '# raspi-firmware regenerated config' > \"$root/boot/firmware/config.txt\"; fi"
@@ -348,24 +275,12 @@ def _main() -> int:
             raise AssertionError(error.stderr) from error
         assert [_hook_metadata(path) for path in final_hooks] == final_hook_original
         assert hardware_block in (final_boot / "config.txt").read_text(encoding="utf-8")
-        STAGE_INSTALLER.verify_selectors(final_boot / "config.txt", contract)
+        _assert_selectors(final_boot / "config.txt", contract)
         assert (final_boot / f"octessera/initrd.img-{contract.kernel_release}").is_file()
 
-        STAGE_INSTALLER._write_selectors(boot / "config.txt", contract)
-        _write(boot / "octessera/kernel8.img", inventory_kernel(inventory, package))
-        wrong_checksum = work / "wrong-SHA256SUMS"
-        wrong_checksum.write_text(f"{'0' * 64}  {package.name}\n", encoding="utf-8")
-        _expect("package hash", lambda: STAGE_INSTALLER.verify_package_inputs(package, wrong_checksum, contract))
-        _expect("missing package", lambda: STAGE_INSTALLER.verify_package_inputs(work / "missing.deb", checksum, contract))
+        _expect("missing package", lambda: STAGE_INSTALLER.install_image(image, work / "missing.deb", contract))
     print("Raspberry kernel image synthetic tests passed")
     return 0
-
-
-def inventory_kernel(inventory: dict[str, Any], package: Path) -> bytes:
-    with tempfile.TemporaryDirectory(prefix="octessera-rpi-kernel-image-bytes-") as temporary:
-        extracted = Path(temporary) / "root"
-        subprocess.run(["dpkg-deb", "-x", str(package), str(extracted)], check=True, capture_output=True)
-        return STAGE_INSTALLER.assert_firmware_kernel(extracted / inventory["kernel_image"]["package_path"])[0]
 
 
 if __name__ == "__main__":

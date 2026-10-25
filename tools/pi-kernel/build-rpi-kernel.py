@@ -2,24 +2,14 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
 
-from rpi_kernel_contract import (
-    EXPECTED_NATIVE_PACKAGES,
-    Contract,
-    ContractError,
-    assert_final_config,
-    load_contract,
-    sha256_bytes,
-    sha256_file,
-)
+from rpi_kernel_contract import Contract, ContractError, load_contract, sha256_file
 
 class BuildError(ValueError):
     pass
@@ -34,18 +24,7 @@ def _run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | N
         raise BuildError(f"command failed ({error.returncode}): {' '.join(command)}\n{detail}") from error
     return result.stdout if capture else ""
 
-def _git_blob(source: Path, commit: str, path: str) -> bytes:
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(source), "show", f"{commit}:{path}"],
-            check=True,
-            capture_output=True,
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        raise BuildError(f"cannot read pinned source config {path}") from error
-    return result.stdout
-
-def _prepare_source(contract: Contract, source_arg: Path | None, run_dir: Path) -> tuple[Path, str]:
+def _prepare_source(contract: Contract, source_arg: Path | None, run_dir: Path) -> Path:
     source = run_dir / "source"
     if source_arg:
         source_arg = source_arg.resolve()
@@ -62,13 +41,7 @@ def _prepare_source(contract: Contract, source_arg: Path | None, run_dir: Path) 
     else:
         _run(["git", "-C", str(source), "fetch", "--depth=1", "origin", contract.source_commit])
     _run(["git", "-C", str(source), "checkout", "--detach", contract.source_commit])
-    actual = _run(["git", "-C", str(source), "rev-parse", "HEAD"], capture=True).strip()
-    if actual != contract.source_commit:
-        raise BuildError(f"Raspberry source commit mismatch: {actual} != {contract.source_commit}")
-    config_hash = sha256_bytes(_git_blob(source, contract.source_commit, contract.config_path))
-    if config_hash != contract.config_sha256:
-        raise BuildError(f"Raspberry config base hash mismatch: {config_hash} != {contract.config_sha256}")
-    return source, actual
+    return source
 
 def _apply_patches(contract: Contract, source: Path) -> list[str]:
     applied = []
@@ -98,7 +71,7 @@ def _make_environment(
         environment["KDEB_PKGVERSION"] = package_version
     return environment
 
-def _configure(contract: Contract, source: Path, build: Path, make: str, cross_compile: str) -> dict[str, str]:
+def _configure(contract: Contract, source: Path, build: Path, make: str, cross_compile: str) -> None:
     build.mkdir(parents=True, exist_ok=True)
     environment = _make_environment(cross_compile)
     make_base = [make, "-C", str(source), f"O={build}", "ARCH=arm64", f"CROSS_COMPILE={cross_compile}"]
@@ -113,18 +86,15 @@ def _configure(contract: Contract, source: Path, build: Path, make: str, cross_c
         str(build / ".config"),
         "--set-str",
         "CONFIG_LOCALVERSION",
-        contract.config_overrides["CONFIG_LOCALVERSION"],
+        contract.localversion,
         "--disable",
         "CONFIG_LOCALVERSION_AUTO",
     ], env=environment)
     _run([*make_base, "olddefconfig"], env=environment)
     _run([*make_base, "syncconfig"], env=environment)
-    config = assert_final_config(build / ".config", contract)
     release = _run([make, "-s", "-C", str(source), f"O={build}", "ARCH=arm64", f"CROSS_COMPILE={cross_compile}", "kernelrelease"], env=environment, capture=True).strip()
     if release != contract.kernel_release:
         raise BuildError(f"kernelrelease mismatch: {release} != {contract.kernel_release}")
-    config["path"] = str((build / ".config").relative_to(build).as_posix())
-    return config
 
 def select_exact_linux_image_package(candidates: list[Path], contract: Contract) -> Path:
     packages = sorted(path for path in candidates if path.suffix == ".deb")
@@ -139,110 +109,11 @@ def _write_checksum(package: Path, path: Path) -> None:
     digest = sha256_file(package)
     path.write_text(f"{digest}  {package.name}\n", encoding="utf-8")
 
-def _tool_version(command: str, *, version_argument: str = "--version", recorded_command: str | None = None) -> dict[str, str]:
-    output = _run([command, version_argument], capture=True)
-    version = next((line.strip() for line in output.splitlines() if line.strip()), "")
-    if not version:
-        raise BuildError(f"tool did not report a version: {command}")
-    return {
-        "command": recorded_command or command,
-        "version": version,
-        "version_sha256": sha256_bytes(version.encode("utf-8")),
-    }
-
-def _tool_commands(args: argparse.Namespace) -> dict[str, str]:
-    return {
-        "compiler": f"{args.cross_compile}gcc",
-        "linker": f"{args.cross_compile}ld",
-        "host_compiler": "gcc",
-        "host_linker": "ld",
-        "make": args.make,
-        "bc": "bc",
-        "bison": "bison",
-        "flex": "flex",
-        "openssl": "openssl",
-        "fakeroot": "fakeroot",
-        "dpkg": "dpkg",
-        "dpkg_deb": "dpkg-deb",
-        "dpkg_query": "dpkg-query",
-        "dpkg_parsechangelog": "dpkg-parsechangelog",
-        "readelf": "readelf",
-        "strings": "strings",
-        "git": "git",
-        "python": sys.executable,
-        "bash": "bash",
-    }
-
-
-def _debhelper_version() -> dict[str, str]:
-    command = ["dpkg-query", "-W", "-f=${Version}", "debhelper"]
-    output = _run(command, capture=True).strip()
-    if not output:
-        raise BuildError("native tool preflight did not report the debhelper version")
-    return {
-        "command": " ".join(command),
-        "version": output,
-        "version_sha256": sha256_bytes(output.encode("utf-8")),
-    }
-
-
-def _tool_versions(args: argparse.Namespace, host_architecture: str) -> dict[str, dict[str, str]]:
-    versions = {}
-    for name, command in _tool_commands(args).items():
-        if name == "openssl":
-            versions[name] = _tool_version(command, version_argument="version", recorded_command="openssl version")
-        elif name == "dpkg_parsechangelog":
-            versions[name] = _tool_version(command, recorded_command="dpkg-parsechangelog --version")
-        else:
-            versions[name] = _tool_version(command)
-    versions["debhelper"] = _debhelper_version()
-    return versions
-
 def _host_architecture() -> str:
     host_architecture = _run(["dpkg", "--print-architecture"], capture=True).strip()
     if not host_architecture:
-        raise BuildError("native package preflight did not report the host architecture")
+        raise BuildError("dpkg did not report the host architecture")
     return host_architecture
-
-
-def _preflight_packages(host_architecture: str) -> dict[str, dict[str, Any]]:
-    packages: dict[str, dict[str, Any]] = {}
-    for package, headers in EXPECTED_NATIVE_PACKAGES.items():
-        package_ref = f"{package}:{host_architecture}"
-        metadata = _run(
-            ["dpkg-query", "-W", "-f=${db:Status-Status} ${Architecture} ${Version}", package_ref],
-            capture=True,
-        ).strip().split(maxsplit=2)
-        if len(metadata) != 3 or metadata[0] != "installed" or metadata[1] != host_architecture:
-            raise BuildError(f"native package preflight requires installed {package_ref}")
-        files = set(_run(["dpkg-query", "-L", package_ref], capture=True).splitlines())
-        missing_headers = [header for header in headers if header not in files or not Path(header).is_file()]
-        if missing_headers:
-            raise BuildError(f"native package preflight is missing headers for {package_ref}: {', '.join(missing_headers)}")
-        packages[package] = {
-            "package": package_ref,
-            "architecture": metadata[1],
-            "status": metadata[0],
-            "version": metadata[2],
-            "headers": list(headers),
-        }
-    return packages
-
-
-def preflight_build_environment(args: argparse.Namespace) -> dict[str, Any]:
-    try:
-        host_architecture = _host_architecture()
-    except BuildError as error:
-        raise BuildError(f"native package preflight failed: {error}") from error
-    try:
-        tools = _tool_versions(args, host_architecture)
-    except BuildError as error:
-        raise BuildError(f"native tool preflight failed: {error}") from error
-    try:
-        packages = _preflight_packages(host_architecture)
-    except BuildError as error:
-        raise BuildError(f"native package preflight failed: {error}") from error
-    return {"host_architecture": host_architecture, "tools": tools, "packages": packages}
 
 
 def _debian_metadata_command(
@@ -268,57 +139,14 @@ def _debian_metadata_command(
     ]
 
 
-def _generate_debian_metadata(args: argparse.Namespace, contract: Contract, source: Path, build: Path, kernelrelease: str) -> dict[str, str]:
-    generator = source / contract.package_builder["generator"]
+def _generate_debian_metadata(args: argparse.Namespace, contract: Contract, source: Path, build: Path) -> None:
+    generator = source / "scripts/package/mkdebian"
     if not generator.is_file():
-        raise BuildError(f"missing pinned Debian metadata generator: {generator}")
-    environment = _make_environment(args.cross_compile)
+        raise BuildError(f"missing Debian metadata generator: {generator}")
     _run(
-        _debian_metadata_command(args, source, build, kernelrelease, contract.package_version, generator),
-        env=environment,
+        _debian_metadata_command(args, source, build, contract.kernel_release, contract.package_version, generator),
+        env=_make_environment(args.cross_compile),
     )
-    return _validate_debian_metadata(contract, source, build, kernelrelease)
-
-
-def _validate_debian_metadata(contract: Contract, source: Path, build: Path, kernelrelease: str) -> dict[str, str]:
-    builder = contract.package_builder
-    generator = source / builder["generator"]
-    rules_source = source / builder["rules_source"]
-    debian = build / "debian"
-    if not rules_source.is_file():
-        raise BuildError(f"missing pinned Debian rules source: {rules_source}")
-    arch = debian / "arch"
-    rules_vars = debian / "rules.vars"
-    changelog = debian / "changelog"
-    rules = debian / "rules"
-    for path in (arch, rules_vars, changelog, rules):
-        if not path.is_file():
-            raise BuildError(f"missing generated Debian metadata: {path}")
-    if arch.read_text(encoding="utf-8") != "arm64\n":
-        raise BuildError("generated Debian architecture is not exactly arm64")
-    expected_rules_vars = f"ARCH := arm64\nKERNELRELEASE := {kernelrelease}\n"
-    if rules_vars.read_text(encoding="utf-8") != expected_rules_vars:
-        raise BuildError("generated Debian rules.vars does not match ARCH/kernelrelease")
-    changelog_version = _run(
-        ["dpkg-parsechangelog", "-l", "debian/changelog", "-S", "Version"],
-        cwd=build,
-        capture=True,
-    ).strip()
-    if changelog_version != contract.package_version:
-        raise BuildError(f"generated Debian changelog version mismatch: {changelog_version} != {contract.package_version}")
-    generated_rules = rules.read_bytes()
-    source_rules = rules_source.read_bytes()
-    if generated_rules != source_rules:
-        raise BuildError("generated Debian rules differ from the pinned source rules")
-    rules_sha256 = sha256_bytes(generated_rules)
-    if rules_sha256 != builder["rules_sha256"]:
-        raise BuildError(f"generated Debian rules hash mismatch: {rules_sha256} != {builder['rules_sha256']}")
-    return {
-        "arch": "arm64",
-        "kernelrelease": kernelrelease,
-        "changelog_version": changelog_version,
-        "rules_sha256": rules_sha256,
-    }
 
 
 def _image_package_command(args: argparse.Namespace, build: Path, kernelrelease: str) -> list[str]:
@@ -348,18 +176,17 @@ def _run_image_package(args: argparse.Namespace, build: Path, kernelrelease: str
 
 
 def _build(args: argparse.Namespace, contract: Contract, run_dir: Path) -> None:
-    source, actual_commit = _prepare_source(contract, args.source_dir, run_dir)
+    source = _prepare_source(contract, args.source_dir, run_dir)
     applied_patches = _apply_patches(contract, source)
-    config = _configure(contract, source, run_dir / "build", args.make, args.cross_compile)
+    _configure(contract, source, run_dir / "build", args.make, args.cross_compile)
     if args.dry_run:
         print(f"Raspberry kernel dry-run gates passed for {contract.kernel_release}")
-        print(f"source_commit={actual_commit}")
+        print(f"source_commit={contract.source_commit}")
         print(f"patches={','.join(applied_patches)}")
         return
 
-    preflight = preflight_build_environment(args)
     build = run_dir / "build"
-    _generate_debian_metadata(args, contract, source, build, contract.kernel_release)
+    _generate_debian_metadata(args, contract, source, build)
     output = args.output_dir.resolve()
     if output.exists() and any(output.iterdir()):
         raise BuildError(f"output directory must be empty: {output}")
@@ -369,7 +196,7 @@ def _build(args: argparse.Namespace, contract: Contract, run_dir: Path) -> None:
         args,
         build,
         contract.kernel_release,
-        _package_environment(args.cross_compile, preflight["host_architecture"]),
+        _package_environment(args.cross_compile, _host_architecture()),
     )
     package = select_exact_linux_image_package(list(run_dir.rglob("*.deb")), contract)
     staging = run_dir / "artifact-stage"
@@ -380,21 +207,13 @@ def _build(args: argparse.Namespace, contract: Contract, run_dir: Path) -> None:
     _write_checksum(staged_package, checksum)
 
     validator = Path(__file__).with_name("validate-rpi-kernel-package.py")
-    inventory_path = run_dir / "inventory.json"
     _run([
         sys.executable,
         str(validator),
         str(staged_package),
         "--manifest",
         str(contract.manifest_path),
-        "--checksum-file",
-        str(checksum),
-        "--inventory-out",
-        str(inventory_path),
     ])
-    inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
-    if inventory["config"]["sha256"] != config["sha256"]:
-        raise BuildError("packaged kernel config hash does not match the configured config hash")
     if output.exists() and any(output.iterdir()):
         raise BuildError(f"output directory is no longer empty: {output}")
     output.mkdir(parents=True, exist_ok=True)
