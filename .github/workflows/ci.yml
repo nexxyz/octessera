@@ -474,7 +474,6 @@ jobs:
             echo 'updater internals must not be exposed through sudoers' >&2
             exit 1
           fi
-          grep -q 'update-transaction.json' tools/pi/deploy-rpi-fast.ps1
           bash tools/pi-image/test-wifi-foundation.sh
       - name: Validate Linux sudoers and systemd layout
         run: |

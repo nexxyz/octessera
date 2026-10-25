@@ -23,13 +23,16 @@ Then the fast path, cross-building on the PC:
 $PiTarget = "pi@<PI_HOST>"
 ./tools/pi/build-rpi-opi-cross.ps1
 ./tools/pi/deploy-rpi-fast.ps1 -Target $PiTarget -LocalBinary target/pi-cross/octessera-pi -NoTail
+# When finished, return to the installed release:
+./tools/pi/deploy-rpi-fast.ps1 -Target $PiTarget -Restore
 ```
 
-The deploy checks the adjacent `target/pi-cross/octessera-pi.metadata.json`,
-uploads the binary, restarts the service, and tails logs unless you pass
-`-NoTail`. It never changes OS or boot configuration and never rebuilds the
-initramfs, so provision first when the OS, boot configuration, splash binary,
-or splash assets changed.
+The deploy uploads the binary, runs it as a development build (see
+[below](#how-a-development-deploy-works-both-boards)), and tails the logs
+unless you pass `-NoTail`. Redeploying replaces the running development build.
+It never changes OS or boot configuration and never rebuilds the initramfs, so
+provision first when the OS, boot configuration, splash binary, or splash
+assets changed.
 
 The cross-builder accepts exactly `raspberry-pi-zero-2w` (default) and
 `orange-pi-zero-2w`, selecting the matching Cargo feature and metadata sidecar.
@@ -45,35 +48,43 @@ CARGO_BUILD_JOBS=1 cargo build --profile pi-dev -p octessera-pi --features hardw
 ```
 
 If you need a source sync instead of a binary, `deploy-rpi-fast.ps1 -SyncOnly`
-keeps the remote Cargo cache. `-CleanRemote` throws that cache away, which you
-will regret on a Pi Zero.
+copies the tree to `/home/pi/octessera-dev` and keeps the remote Cargo cache.
+Adding `-CleanRemote` throws that cache away, which you will regret on a Pi
+Zero. Binary deploys and `-Restore` need passwordless sudo for `pi`, the same
+as provisioning.
 
 ## Orange development deployment (not a release update)
 
 This keeps a development build running on an Orange board after the terminal
-closes. Build with the Orange builder, release profile, from a clean tree:
+closes:
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
 ./tools/orange-pi/build-opi-cross.ps1 -Binary octessera-pi -Profile release
-# If a development build is already active, return to the installed release first:
-./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -Restore
 ./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -LocalBinary target/orange-pi-cross/octessera-pi
-# When finished:
+# When finished, return to the installed release:
 ./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -Restore
 ```
 
-The deploy only accepts the unmodified `build-opi-cross.ps1` release-profile
-sidecar built from the current `HEAD`. Output from the shared
-`build-rpi-opi-cross.ps1 -BoardProfile orange-pi-zero-2w` is fine for the
-timing smoke but is rejected here. The deploy also refuses to run while any
-service drop-in exists, which is why an active development build needs
-`-Restore` first. It needs passwordless sudo for the `octessera` account.
+Redeploying simply replaces the running development build. The deploy needs
+passwordless sudo for the `octessera` account.
 
-What it changes, what it leaves alone, and how rollback works are described in
-[Orange Pi tools](../../tools/orange-pi/README.md#persistent-orange-development-runtime-explicit-opt-in).
-A running process and a quiet journal do not prove glitch-free audio; listen
-and exercise the controls before calling a build good.
+## How a development deploy works (both boards)
+
+Both deploy tools share `tools/board-dev/dev-runtime.sh`. It checks the board
+model and that `octessera.service` expects this board's profile, installs the
+uploaded binary as `/opt/octessera/dev/octessera-pi` after comparing its
+SHA-256 with the local file, and points the service at it with one drop-in,
+`/etc/systemd/system/octessera.service.d/90-octessera-dev.conf`, which only
+replaces `ExecStart`. It then restarts the service and waits for the new
+process to stay up.
+
+`-Restore` removes the drop-in, restarts the installed release, and deletes
+`/opt/octessera/dev`. Neither action touches `current`, releases, updater
+state, boot files, or the image. If the development build does not come up,
+read the journal and run `-Restore`. A running process and a quiet journal do
+not prove glitch-free audio; listen and exercise the controls before calling a
+build good.
 
 ## Orange input-routing deployment
 

@@ -55,8 +55,6 @@ foreach ($value in @(
   }
 }
 
-$deployScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "deploy-rpi-fast.ps1"))
-$remoteDeployScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "deploy-pi-fast-remote.sh"))
 $crossBuildScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "build-rpi-opi-cross.ps1"))
 $wslCrossBuildScript = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "build-pi-cross-wsl.sh"))
 if ($crossBuildScript -notmatch "--no-default-features --features") {
@@ -96,18 +94,6 @@ $statusCheckIndex = $crossBuildScript.IndexOf("status --porcelain --untracked-fi
 $backendSwitchIndex = $crossBuildScript.IndexOf('switch ($selectedBackend)', [StringComparison]::Ordinal)
 if ($statusCheckIndex -lt 0 -or $backendSwitchIndex -lt 0 -or $statusCheckIndex -gt $backendSwitchIndex -or $crossBuildScript.IndexOf("Authoritative Pi builds require a clean repository", [StringComparison]::Ordinal) -lt 0) {
   throw "Pi cross-builder must reject dirty source before starting an authoritative build."
-}
-$candidateCheckIndex = $remoteDeployScript.IndexOf('"$STAGING_RELEASE/octessera-pi" --print-build-metadata', [StringComparison]::Ordinal)
-$activationIndex = $remoteDeployScript.LastIndexOf('ACTIVATED=1', [StringComparison]::Ordinal)
-$serviceIndex = $remoteDeployScript.LastIndexOf('systemctl restart "$SERVICE"', [StringComparison]::Ordinal)
-if ($candidateCheckIndex -lt 0) {
-  throw "Fast deployment does not validate candidate build metadata"
-}
-if ($candidateCheckIndex -lt 0 -or $activationIndex -lt 0 -or $candidateCheckIndex -ge $activationIndex -or $activationIndex -ge $serviceIndex) {
-  throw "Fast deployment metadata validation must precede activation and service restart"
-}
-if ($deployScript.IndexOf("ConvertTo-PosixShellSingleQuoted", [StringComparison]::Ordinal) -lt 0 -or $deployScript.IndexOf("deploy-pi-fast-lock.py", [StringComparison]::Ordinal) -lt 0 -or $deployScript.IndexOf("sudo python3", [StringComparison]::Ordinal) -lt 0) {
-  throw "Fast deployment is missing POSIX path quoting"
 }
 
 $metadataPath = Join-Path ([IO.Path]::GetTempPath()) "octessera-board-profile-test.json"
