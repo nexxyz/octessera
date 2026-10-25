@@ -14,6 +14,7 @@ from tools.release.assemble_release_assets import (
     _verify_device_zip,
     _write_checksums,
 )
+from package_device_bundle import package_bundle  # type: ignore[import-not-found]
 
 
 class ReleaseAssetAssemblyTests(unittest.TestCase):
@@ -59,36 +60,16 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
             }
             (bundle / "octessera-runtime.json").write_text(json.dumps(metadata), encoding="utf-8")
             (bundle / "SHA256SUMS").write_text(f"{binary_sha}  octessera-pi\n", encoding="utf-8")
-            archive_path = root / "device.zip"
-            self._write_orange_zip(archive_path, bundle, root, mode=0o644)
-            _verify_device_zip(root, bundle, archive_path, "1.2.3", "orange-pi-zero-2w")
+            archive_path = package_bundle(bundle, root / "out", root, "orange-pi-zero-2w", "v1.2.3", "1.2.3")
+            _verify_device_zip(root, bundle, archive_path, "orange-pi-zero-2w")
             tampered = root / "tampered-mode.zip"
-            self._write_orange_zip(tampered, bundle, root, mode=0o755)
+            with zipfile.ZipFile(archive_path) as source, zipfile.ZipFile(tampered, "w") as target:
+                for info in source.infolist():
+                    if info.filename == "NOTICE":
+                        info.external_attr = (0o100000 | 0o755) << 16
+                    target.writestr(info, source.read(info))
             with self.assertRaises(ReleaseArtifactError):
-                _verify_device_zip(root, bundle, tampered, "1.2.3", "orange-pi-zero-2w")
-
-    @staticmethod
-    def _write_orange_zip(path: Path, bundle: Path, root: Path, mode: int) -> None:
-        manifest = {
-            "updater_supported": False,
-            "candidate_health_protocol": 1,
-            "distribution": "standalone-manual",
-        }
-        names = ["octessera-pi", "octessera-runtime.json", "SHA256SUMS", "octessera-device-release.json", "LICENSE", "NOTICE"]
-        payloads = {
-            "octessera-pi": (bundle / "octessera-pi").read_bytes(),
-            "octessera-runtime.json": (bundle / "octessera-runtime.json").read_bytes(),
-            "SHA256SUMS": (bundle / "SHA256SUMS").read_bytes(),
-            "octessera-device-release.json": json.dumps(manifest).encode("utf-8"),
-            "LICENSE": (root / "LICENSE").read_bytes(),
-            "NOTICE": (root / "NOTICE").read_bytes(),
-        }
-        with zipfile.ZipFile(path, "w") as archive:
-            for name in names:
-                info = zipfile.ZipInfo(name)
-                entry_mode = 0o755 if name == "octessera-pi" else mode
-                info.external_attr = (0o100000 | entry_mode) << 16
-                archive.writestr(info, payloads[name])
+                _verify_device_zip(root, bundle, tampered, "orange-pi-zero-2w")
 
 
 if __name__ == "__main__":

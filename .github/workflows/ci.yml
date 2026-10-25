@@ -453,49 +453,25 @@ jobs:
         uses: actions/checkout@v6
       - name: Install shell checks
         run: sudo apt-get update && sudo apt-get install -y shellcheck
-      - name: Check updater Python transitions
+      - name: Check updater
+        run: timeout 300 python3 -m unittest discover -s tools/device-update -p 'test_*.py'
+      - name: Check image shell scripts
         run: |
-          python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_contract.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/updater_profiles.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
-          python3 -m unittest discover -s tools/device-update -p 'test_*.py'
-      - name: Check updater shells and canonical copies
-        run: |
-          bash -n tools/device-update/octessera-update tools/device-update/octessera-update-guard tools/device-update/octessera-update-recovery tools/device-update/smoke-test.sh
           bash -n tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh
           bash -n tools/pi/provision/provision.sh tools/pi/deploy-pi.sh userpatches/customize-image.sh tools/armbian-image/validate.sh tools/armbian-image/smoke-built-image.sh
-          shellcheck tools/device-update/*.sh
           shellcheck tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh userpatches/overlay/usr/local/sbin/octessera-wifi-foundation
-          cmp tools/device-update/octessera-update tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update
-          cmp tools/device-update/octessera-update userpatches/overlay/usr/local/sbin/octessera-update
-          cmp tools/device-update/octessera-update-guard tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard
-          cmp tools/device-update/octessera-update-guard userpatches/overlay/usr/local/sbin/octessera-update-guard
-          cmp tools/device-update/octessera-update-recovery tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery
-          cmp tools/device-update/octessera-update-recovery userpatches/overlay/usr/local/sbin/octessera-update-recovery
-          if grep -Eq 'octessera-update-(guard|recovery)' tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update userpatches/overlay/etc/sudoers.d/octessera-update; then
-            echo 'updater internals must not be exposed through sudoers' >&2
-            exit 1
-          fi
           bash tools/pi-image/test-wifi-foundation.sh
       - name: Validate Linux sudoers and systemd layout
         run: |
           sudo visudo -cf tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update
           sudo visudo -cf userpatches/overlay/etc/sudoers.d/octessera-update
+          cmp tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-switch@.service userpatches/overlay/etc/systemd/system/octessera-update-switch@.service
           root="$(mktemp -d)"
           mkdir -p "$root/etc/systemd/system"
           printf '%s\n' '[Unit]' 'Description=CI validation sysinit target' > "$root/etc/systemd/system/sysinit.target"
-          printf '%s\n' '[Unit]' 'Description=CI validation local filesystem target' > "$root/etc/systemd/system/local-fs.target"
-          install -D -m 0755 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-guard "$root/usr/local/sbin/octessera-update-guard"
-          install -D -m 0755 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-update-recovery "$root/usr/local/sbin/octessera-update-recovery"
-          install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-guard.service "$root/etc/systemd/system/octessera-update-guard.service"
-          install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service "$root/etc/systemd/system/octessera-update-recovery.service"
-          if grep -q '^ConditionPathExists=' tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-recovery.service; then
-            echo 'stage4 recovery service must not be conditional' >&2
-            exit 1
-          fi
-          if grep -q '^ConditionPathExists=' userpatches/overlay/etc/systemd/system/octessera-update-recovery.service; then
-            echo 'overlay recovery service must not be conditional' >&2
-            exit 1
-          fi
-          systemd-analyze --root="$root" verify octessera-update-guard.service octessera-update-recovery.service
+          install -D -m 0755 tools/device-update/octessera-update "$root/usr/local/sbin/octessera-update"
+          install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-switch@.service "$root/etc/systemd/system/octessera-update-switch@.service"
+          systemd-analyze --root="$root" verify octessera-update-switch@1.2.3.service
           rm -rf "$root"
 
   desktop_build_smoke:
