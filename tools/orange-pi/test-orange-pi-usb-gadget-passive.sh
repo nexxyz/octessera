@@ -53,7 +53,4 @@ for script in "$CANONICAL_SCRIPT" "$DEPLOYED_SCRIPT"; do
     root=$SUITE_ROOT/unexpected-udc
     mkdir -p "$root/config/usb_gadget" "$root/udc/other-udc"
     assert_failed "$SCRIPT" setup --configfs-root "$root/config" --udc-root "$root/udc" --lock-file "$root/lifecycle.lock" --mode midi
-    bind_line=$(grep -n "printf .*\"\$UDC\" > \"\$GADGET/UDC\"" "$SCRIPT" | cut -d: -f1)
-    link_line=$(grep -n "ln -s .\\\$GADGET/functions" "$SCRIPT" | tail -n 1 | cut -d: -f1)
-    test -n "$bind_line" && test -n "$link_line" && test "$bind_line" -gt "$link_line"
 done

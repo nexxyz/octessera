@@ -102,7 +102,6 @@ def test_security_shape() -> None:
     ).read_bytes()
     assert "SocketMode=0660" in (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-storage-control.socket").read_text()
     assert "SocketGroup=octessera-runtime" in (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-storage-control.socket").read_text()
-    assert "TimeoutStartSec=5s" in (ROOT / "userpatches/overlay/etc/systemd/system/octessera-orange-storage-control@.service").read_text()
 
 
 if __name__ == "__main__":

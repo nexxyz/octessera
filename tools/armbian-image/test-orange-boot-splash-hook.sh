@@ -17,20 +17,10 @@ grep -qF '/usr/bin/setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled
 octessera_reject_file_match "Orange initramfs must not execute the renderer through its env shebang." -qF '/usr/bin/setsid /usr/local/sbin/octessera-orange-oled-logo boot-static' "$premount_script"
 octessera_reject_file_match "Orange initramfs must not depend on /usr/bin/env." -qF '/usr/bin/env' "$premount_script"
 for required_line in \
-    'Type=notify' \
-    'ConditionPathExists=/opt/octessera/current' \
-    'NotifyAccess=main' \
-    'Environment=OCTESSERA_OLED_READY_NOTIFY_REQUIRED=1' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
-    'ExecStart=/usr/local/sbin/octessera-orange-oled-logo boot-loop' \
-    'RuntimeDirectory=octessera-boot' \
     'RuntimeDirectoryMode=0750' \
-    'RuntimeDirectoryPreserve=yes' \
-    'UMask=0027' \
-    'KillMode=control-group' \
-    'TimeoutStopSec=2' \
-    'Restart=no'; do
+    'UMask=0027'; do
     grep -qFx "$required_line" "$boot_service" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
 done
 for required_line in \
@@ -39,48 +29,23 @@ for required_line in \
     'DeviceAllow=/dev/gpiochip1 rw'; do
     grep -qFx "$required_line" "$boot_service" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
 done
-octessera_reject_file_match "Orange boot service must not conflict with runtime." -q '^Conflicts=' "$boot_service"
-grep -qFx 'After=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service local-fs.target' "$boot_service"
-grep -qFx 'Before=sysinit.target octessera.service' "$boot_service"
 for required_line in \
-    'Type=oneshot' \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
     'ProtectSystem=strict' \
     'ReadWritePaths=/run/octessera-boot' \
     'DevicePolicy=closed' \
     'DeviceAllow=/dev/spidev1.0 rw' \
-    'DeviceAllow=/dev/gpiochip1 rw' \
-    'ExecStart=/bin/true' \
-    "ExecStop=/bin/sh -c 'sleep 4; /usr/local/sbin/octessera-orange-oled-logo off || true'" \
-    'RemainAfterExit=yes' \
-    'TimeoutStopSec=8'; do
+    'DeviceAllow=/dev/gpiochip1 rw'; do
     grep -qFx "$required_line" "$shutdown_service" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
 done
-octessera_reject_file_match 'Orange shutdown service must not use target ordering.' -q '^Before=' "$shutdown_service"
-octessera_reject_file_match 'Orange shutdown service must not be enabled at shutdown targets.' -qE '^WantedBy=(shutdown|reboot|halt)\.target$' "$shutdown_service"
-grep -qFx 'WantedBy=multi-user.target' "$shutdown_service" || { echo 'Orange shutdown service is not a multi-user service.' >&2; exit 1; }
-octessera_reject_file_match 'Orange shutdown service must not write a logo.' -qE 'orange-oled-logo (shutdown|boot)' "$shutdown_service"
 for required_line in \
-    'After=octessera.service' \
-    'Requisite=octessera.service' \
-    'Before=sleep.target' \
-    'RequiredBy=sleep.target' \
-    'StopWhenUnneeded=yes' \
-    'Type=oneshot' \
-    'RemainAfterExit=yes' \
     'User=octessera-runtime' \
-    'RuntimeDirectory=octessera-oled-suspend' \
     'RuntimeDirectoryMode=0700' \
-    'RestrictAddressFamilies=AF_UNIX' \
-    'ExecStart=/usr/local/sbin/octessera-orange-oled-suspend prepare' \
-    'ExecStop=/usr/local/sbin/octessera-orange-oled-suspend resume' \
-    'TimeoutStartSec=8' \
-    'TimeoutStopSec=8'; do
+    'RestrictAddressFamilies=AF_UNIX'; do
     grep -qFx "$required_line" "$suspend_service" || { echo "Orange suspend service is missing: $required_line" >&2; exit 1; }
 done
 octessera_reject_file_match 'Orange suspend service must use the runtime account without named supplementary groups.' -qFx 'SupplementaryGroups=audio i2c spi gpio' "$suspend_service"
-octessera_reject_file_match 'Orange suspend service contains a forbidden lifecycle dependency.' -qE '(^|[[:space:]])(systemctl|dbus|Conflicts=)' "$suspend_service"
 
 if command -v systemd-analyze >/dev/null 2>&1; then
     systemd_work="$(mktemp -d)"

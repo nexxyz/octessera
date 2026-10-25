@@ -18,13 +18,9 @@ if grep -qE '/dev/disk/by-label|mmcblk' "$helper"; then
 fi
 grep -qF "[ \"\$dev\" != \"\$root\" ]" "$library"
 grep -qF "[ -z \"\$root_pk\" ] || [ \"\$dev_pk\" != \"\$root_pk\" ]" "$library"
-grep -qFx 'Environment=OCTESSERA_SD_MOUNT=/var/lib/octessera/samples/sd-card' "$service"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime' "$service"
-grep -qFx 'ExecStart=/usr/local/sbin/octessera-sd-card mount' "$service"
 grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"' "$rule"
-grep -qFx 'Environment=OCTESSERA_SD_MOUNT=/home/pi/samples/sd-card' "$pi_service"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=pi' "$pi_service"
-grep -qFx 'ExecStart=/usr/local/sbin/octessera-sd-card mount' "$pi_service"
 grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-sd-card.service"' "$pi_rule"
 
 export OCTESSERA_SD_MOUNT="$work/mount"

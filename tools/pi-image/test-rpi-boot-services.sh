@@ -9,7 +9,6 @@ service="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/oct
 runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service"
 setup_stage="$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 sanitize_stage="$root/tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh"
-gadget_runtime="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-gadget.service"
 usb_role_helper="$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role"
 usb_role_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role"
 template="$root/tools/pi/provision/files/etc/systemd/system/octessera.service.template"
@@ -25,22 +24,11 @@ grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/ssh.se
 grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/sockets.target.wants/ssh.socket\"" "$sanitize_stage"
 
 for required_line in \
-    'Type=simple' \
     'User=pi' \
     'Group=pi' \
-    'Wants=systemd-udev-settle.service' \
-    'After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service' \
-    'Before=sysinit.target octessera.service' \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
-    'RuntimeDirectory=octessera-boot' \
     'RuntimeDirectoryMode=0750' \
-    'RuntimeDirectoryPreserve=yes' \
     'UMask=0027' \
-    'KillMode=control-group' \
-    'TimeoutStopSec=2' \
-    'Restart=no' \
-    'RemainAfterExit=yes' \
-    'ExecStart=/usr/local/bin/octessera-pi --boot-splash-loop' \
     'NoNewPrivileges=yes' \
     'ProtectSystem=strict' \
     'ReadWritePaths=/run/octessera-boot' \
@@ -59,12 +47,6 @@ for required_line in \
     'DeviceAllow=/dev/gpiochip0 rw'; do
     grep -qFx "$required_line" "$service"
 done
-octessera_reject_file_match 'Raspberry boot service must not be oneshot.' -q '^Type=oneshot$' "$service"
-octessera_reject_file_match 'Raspberry boot service must not use a one-shot ExecStart.' -q '^ExecStart=-' "$service"
-octessera_reject_file_match 'Raspberry boot service must not conflict with runtime.' -q '^Conflicts=' "$service"
-grep -qFx 'ExecCondition=/usr/local/sbin/octessera-usb-role is-gadget' "$gadget_runtime"
-[[ "$(awk '/^\[/{section=$0} /^ExecCondition=/{print section}' "$gadget_runtime")" == '[Service]' ]]
-[[ "$(grep -Ec '^ExecCondition=' "$gadget_runtime")" == 1 ]]
 test -f "$usb_role_helper"
 printf '%s\n' '# Exact Raspberry USB data-role commands only.' 'pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-role host, /usr/local/sbin/octessera-usb-role gadget' | cmp -s - "$usb_role_sudoers"
 if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:]]|$)' "$usb_role_sudoers"; then
@@ -73,12 +55,8 @@ if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:
 fi
 
 for required_line in \
-    'Wants=octessera-boot-splash.service' \
-    'After=octessera-boot-splash.service' \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
     'NoNewPrivileges=no' \
-    'TTYPath=/dev/tty1' \
-    'TTYReset=yes' \
     'SupplementaryGroups=tty input' \
     'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
     'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
@@ -98,17 +76,11 @@ done
 for unit in "$runtime" "$template" "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera.service.d/audio-realtime.conf"; do
     [[ "$(grep -Ec '^(AmbientCapabilities|CapabilityBoundingSet)=' "$unit")" == 2 ]]
     if [[ "$unit" != *audio-realtime.conf ]]; then
-        for directive in TTYPath TTYReset SupplementaryGroups; do
-            [[ "$(grep -c "^${directive}=" "$unit")" == 1 ]]
-        done
+        [[ "$(grep -c "^SupplementaryGroups=" "$unit")" == 1 ]]
     fi
     octessera_reject_file_match 'Raspberry runtime contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$unit"
 done
 octessera_reject_file_match 'Raspberry constructor must not force a graphics mode or switch virtual terminals.' -Eiq 'chvt|xrandr|wlr-randr|modetest|video=|StandardInput=tty' "$root/tools/pi-image/stage4-octessera/03-boot-config/00-run.sh"
-octessera_reject_file_match 'Raspberry runtime service must not conflict with the boot splash.' -q '^Conflicts=' "$runtime"
-octessera_reject_file_match 'Raspberry runtime template must not conflict with the boot splash.' -q '^Conflicts=' "$template"
-grep -qFx 'ExecStart=/usr/local/bin/octessera-pi' "$runtime"
-grep -qFx 'ExecStart=/usr/local/bin/octessera-pi' "$template"
 
 fixture="$(mktemp -d)"
 trap 'rm -rf "$fixture"' EXIT

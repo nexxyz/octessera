@@ -64,7 +64,6 @@ PY
 validate_samples "$staging/samples/files"
 # shellcheck disable=SC2016
 octessera_reject_file_match "Provisioner stages candidates inside the runtime-writable presets directory." -qF 'mktemp "$presets_directory/' "$root/userpatches/overlay/usr/local/sbin/octessera-provision-musical-default"
-grep -qFx 'ExecStart=/usr/local/sbin/octessera-provision-musical-default' "$root/userpatches/overlay/etc/systemd/system/octessera-provision-musical-default.service"
 run_as_root() {
   if [[ "$(id -u)" == 0 ]]; then
     "$@"

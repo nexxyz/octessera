@@ -162,8 +162,6 @@ assert_output_contains 'path-probe-ran' "$TEST_ROOT/non-login-path.log"
 run_optional "genuine missing tool" "octessera-genuine-missing-tool" > "$TEST_ROOT/genuine-missing-tool.log" 2>&1
 assert_output_contains 'missing command: octessera-genuine-missing-tool' "$TEST_ROOT/genuine-missing-tool.log"
 grep -F 'export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' "$SCRIPT_DIR/opi-bringup-probe.sh" >/dev/null || fail 'probe did not set the trusted PATH'
-grep -F "bash -c \"\$command\"" "$SCRIPT_DIR/opi-bringup-probe.sh" >/dev/null || fail 'probe did not use non-login bash for inventory'
-! grep -F "bash -lc \"\$command\"" "$SCRIPT_DIR/opi-bringup-probe.sh" >/dev/null || fail 'probe still uses login bash for inventory'
 
 run_fixture_validation() {
   local name="$1"

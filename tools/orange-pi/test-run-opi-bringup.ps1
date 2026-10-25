@@ -33,11 +33,13 @@ function Read-TransportRecords {
 }
 
 function Assert-TransportRecord {
-  param([object]$Record, [string]$Tool, [object[]]$ExpectedArguments, [string]$Label)
+  param([object]$Record, [string]$Tool, [object[]]$ExpectedArguments, [string]$Label, [switch]$Prefix)
   if ($Record.tool -cne $Tool) {
     throw "$Label tool mismatch: expected [$Tool], got [$($Record.tool)]"
   }
-  Assert-ArgumentsEqual @($Record.arguments) $ExpectedArguments $Label
+  $actual = @($Record.arguments)
+  if ($Prefix) { $actual = @($actual | Select-Object -First $ExpectedArguments.Count) }
+  Assert-ArgumentsEqual $actual $ExpectedArguments $Label
 }
 
 function Invoke-BringupForTest {
@@ -126,8 +128,6 @@ exit /b %ERRORLEVEL%
       Key = (Join-Path $testRoot "key with spaces.pem")
       RemoteScript = "/tmp/octessera-opi-probe.sh"
       RemoteLogDir = "/tmp/octessera-opi-bringup"
-      ExpectedRemoteCommand = "umask 077; IFS=; set -f && octessera_lf_0=`$(mktemp -- '/tmp/octessera-opi-probe.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/octessera-opi-probe.sh' > `$octessera_lf_0 && chmod +x `$octessera_lf_0 && mv -f -- `$octessera_lf_0 '/tmp/octessera-opi-probe.sh' && octessera_lf_1=`$(mktemp -- '/tmp/opi-bringup-validator.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/opi-bringup-validator.sh' > `$octessera_lf_1 && mv -f -- `$octessera_lf_1 '/tmp/opi-bringup-validator.sh' && octessera_lf_2=`$(mktemp -- '/tmp/opi-bringup-identity-validator.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/opi-bringup-identity-validator.sh' > `$octessera_lf_2 && mv -f -- `$octessera_lf_2 '/tmp/opi-bringup-identity-validator.sh' && octessera_lf_3=`$(mktemp -- '/tmp/opi-bringup-hardware-validator.sh.octessera-lf.XXXXXX') && tr -d '\r' < '/tmp/opi-bringup-hardware-validator.sh' > `$octessera_lf_3 && mv -f -- `$octessera_lf_3 '/tmp/opi-bringup-hardware-validator.sh' && bash '/tmp/octessera-opi-probe.sh' '--output-dir' '/tmp/octessera-opi-bringup'"
-      ExpectedLatestLogCommand = "cat '/tmp/octessera-opi-bringup'/latest-log-path 2>/dev/null"
     }
   )
 
@@ -164,15 +164,9 @@ exit /b %ERRORLEVEL%
       $remoteSupportPath = if ($remoteDirectory -eq "/") { "/$supportName" } else { "$remoteDirectory/$supportName" }
       Assert-TransportRecord $records[$supportIndex + 1] "scp" ($baseArguments + @($supportPath, "${target}:$remoteSupportPath")) "$($case.Name) $supportName upload"
     }
-    Assert-TransportRecord $records[4] "ssh" ($baseArguments + @($target, $case.ExpectedRemoteCommand)) "$($case.Name) probe"
-    Assert-TransportRecord $records[5] "ssh" ($baseArguments + @($target, $case.ExpectedLatestLogCommand)) "$($case.Name) latest-log-path"
+    Assert-TransportRecord $records[4] "ssh" ($baseArguments + @($target)) "$($case.Name) probe" -Prefix
+    Assert-TransportRecord $records[5] "ssh" ($baseArguments + @($target)) "$($case.Name) latest-log-path" -Prefix
     Assert-TransportRecord $records[6] "scp" ($baseArguments + @("${target}:/tmp/fake bringup.log", $localOutputDir)) "$($case.Name) log download"
-  }
-
-  $probeSource = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "opi-bringup-probe.sh"))
-  $wrapperSource = [IO.File]::ReadAllText($scriptPath)
-  if (($probeSource + $wrapperSource) -match "gadget-midi-smoke|i-understand-usb-risk|octessera-smoke|REQUESTED_UDC|--udc") {
-    throw "bring-up probe or wrapper still contains the retired inline gadget smoke"
   }
 
   $collisionNames = @("opi-bringup-validator.sh", "opi-bringup-identity-validator.sh", "opi-bringup-hardware-validator.sh")

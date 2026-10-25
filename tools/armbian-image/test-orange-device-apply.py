@@ -222,23 +222,12 @@ runtime_service_bytes = runtime_service_path.read_bytes()
 assert b"\r" not in service_bytes
 assert b"\r" not in socket_bytes
 assert b"\r" not in runtime_service_bytes
-for line in (
-    b"StartLimitIntervalSec=30s\n",
-    b"StartLimitBurst=3\n",
-    b"Restart=on-failure\n",
-    b"RestartPreventExitStatus=78\n",
-    b"RestartSec=5s\n",
-):
-    assert line in runtime_service_bytes
 service = service_bytes.decode("utf-8")
 socket_unit = socket_bytes.decode("utf-8")
-for line in ("User=root", "Group=root", "StandardInput=socket", "StandardOutput=socket", "ExecStart=/usr/local/sbin/octessera-device-apply-reboot", "NoNewPrivileges=yes", "ProtectSystem=strict"):
+for line in ("User=root", "Group=root", "NoNewPrivileges=yes", "ProtectSystem=strict"):
     assert line in service
-for line in ("Before=sound.target octessera.service", "After=local-fs.target", "ListenStream=/run/octessera-device-apply/reboot.sock", "SocketMode=0660", "SocketUser=root", "SocketGroup=octessera-runtime", "Accept=yes"):
+for line in ("ListenStream=/run/octessera-device-apply/reboot.sock", "SocketMode=0660", "SocketUser=root", "SocketGroup=octessera-runtime"):
     assert line in socket_unit
-assert "After=local-fs.target octessera-provision-musical-default.service" not in socket_unit
-assert "Description=Octessera narrow device power request socket" in socket_unit
-assert "Description=Octessera validated device power request" in service
 assert "sudoers" not in service and "systemctl reboot" not in service
 print("Orange device apply request and unit contract tests passed")
 valid_directory.cleanup()

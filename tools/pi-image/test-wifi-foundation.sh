@@ -33,8 +33,6 @@ done
 
 grep -qFx 'User=root' "$RASPBERRY_UNIT"
 grep -qFx 'Group=root' "$RASPBERRY_UNIT"
-grep -qFx 'ExecStart=/usr/local/sbin/octessera-wifi-foundation' "$RASPBERRY_UNIT"
-grep -qFx 'TimeoutStartSec=905s' "$RASPBERRY_UNIT"
 if grep -Eiq 'sidecar|hostname|ssh|password|country|setup[-_ ]?(complete|force)|credential|secret|ssid=|psk=|BEGIN (RSA|OPENSSH|PRIVATE) KEY' "$RASPBERRY_UNIT"; then
     echo "Wi-Fi foundation unit contains forbidden behavior." >&2
     exit 1

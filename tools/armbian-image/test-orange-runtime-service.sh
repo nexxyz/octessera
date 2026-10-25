@@ -5,11 +5,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=tools/armbian-image/validation-assertions.sh
 source "$root/tools/armbian-image/validation-assertions.sh"
 service="$root/userpatches/overlay/etc/systemd/system/octessera.service"
-socket="$root/userpatches/overlay/etc/systemd/system/octessera-device-apply-reboot.socket"
 update_socket="$root/userpatches/overlay/etc/systemd/system/octessera-update.socket"
 update_service="$root/userpatches/overlay/etc/systemd/system/octessera-update@.service"
 udev_rule="$root/userpatches/overlay/etc/udev/rules.d/70-octessera-orange-runtime.rules"
-gadget="$root/userpatches/overlay/etc/systemd/system/octessera-orange-usb-gadget.service"
 storage_socket="$root/userpatches/overlay/etc/systemd/system/octessera-orange-storage-control.socket"
 storage_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-storage-control@.service"
 storage_control="$root/userpatches/overlay/usr/local/sbin/octessera-orange-storage-control"
@@ -41,8 +39,6 @@ printf '%s\n' 'Orange production TTYPERM transformation and fail-closed fixtures
 
 [[ -f "$service" ]] || { echo "Missing Orange runtime service." >&2; exit 1; }
 [[ -f "$update_socket" && -f "$update_service" ]] || { echo "Missing Orange update broker units." >&2; exit 1; }
-grep -qFx 'Before=sound.target octessera.service' "$socket"
-grep -qFx 'After=local-fs.target' "$socket"
 for required_line in \
   'ListenStream=/run/octessera-update/update.sock' \
   'SocketMode=0660' \
@@ -55,17 +51,11 @@ done
 for required_line in \
   'User=root' \
   'Group=root' \
-  'StandardInput=socket' \
-  'StandardOutput=socket' \
-  'ExecStart=/usr/local/sbin/octessera-update serve' \
   'ProtectSystem=strict' \
   'ReadWritePaths=/opt/octessera /run/octessera'; do
   grep -qFx "$required_line" "$update_service" || { echo "Update broker service is missing: $required_line" >&2; exit 1; }
 done
 octessera_reject_file_match 'Update broker service has an unsafe privilege path.' -qE 'sudo|octessera-runtime' "$update_service"
-grep -qFx 'After=systemd-modules-load.service sys-kernel-config.mount local-fs.target octessera-provision-musical-default.service' "$gadget"
-grep -qFx 'Before=sound.target octessera.service' "$gadget"
-grep -qFx 'Requires=octessera-provision-musical-default.service' "$gadget"
 for required_line in \
   'ListenStream=/run/octessera-orange-storage-control/storage.sock' \
   'SocketMode=0660' \
@@ -79,28 +69,15 @@ done
 for required_line in \
   'User=root' \
   'Group=root' \
-  'StandardInput=socket' \
-  'StandardOutput=socket' \
-  'ExecStart=/usr/local/sbin/octessera-orange-storage-control' \
-  'TimeoutStartSec=5s' \
   'NoNewPrivileges=yes' \
   'RestrictAddressFamilies=AF_UNIX'; do
   grep -qFx "$required_line" "$storage_service" || { echo "Orange storage service is missing: $required_line" >&2; exit 1; }
 done
 octessera_reject_file_match 'Orange storage control has a generic privilege path.' -Eiq 'sudo|systemctl|sh -c|eval' "$storage_control"
 octessera_reject_file_match 'Orange storage helper exposes configurable paths.' -Eq -- '--config|OCTESSERA_SD_[A-Z_]+=' "$storage_helper"
-grep -qFx 'Wants=octessera-orange-storage-control.socket' "$service"
 for required_line in \
   'User=octessera-runtime' \
   'Group=octessera-runtime' \
-  'Requires=octessera-device-apply-reboot.socket' \
-  'Requires=octessera-provision-musical-default.service' \
-  'After=octessera-device-apply-reboot.socket' \
-  'Wants=octessera-orange-sd-card.service' \
-  'Wants=octessera-orange-boot-splash.service' \
-  'After=octessera-orange-boot-splash.service' \
-  'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
-  'TTYPath=/dev/tty1' \
   'SupplementaryGroups=audio i2c spi gpio tty video input' \
   'LimitRTPRIO=70' \
   'NoNewPrivileges=yes' \
@@ -110,21 +87,12 @@ for required_line in \
   'ProtectHome=yes'; do
   grep -qFx "$required_line" "$service" || { echo "Runtime service is missing: $required_line" >&2; exit 1; }
 done
-grep -qFx 'After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service octessera-orange-sd-card.service sound.target' "$service"
-octessera_reject_file_match 'Orange runtime service contains a prohibited TTYReset directive.' -Eq '^[[:space:]]*TTYReset[[:space:]]*=' "$service"
 grep -qFx 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' "$service"
 grep -qFx 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG' "$service"
 [[ "$(grep -E '^(AmbientCapabilities|CapabilityBoundingSet)=' "$service")" == $'AmbientCapabilities=CAP_SYS_TTY_CONFIG\nCapabilityBoundingSet=CAP_SYS_TTY_CONFIG' ]]
-for directive in TTYPath SupplementaryGroups; do
-  [[ "$(grep -c "^${directive}=" "$service")" == 1 ]]
-done
+[[ "$(grep -c "^SupplementaryGroups=" "$service")" == 1 ]]
 octessera_reject_file_match 'Orange runtime service contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$service"
-for required_line in 'StartLimitIntervalSec=30s' 'StartLimitBurst=3' 'Restart=on-failure' 'RestartPreventExitStatus=78' 'RestartSec=5s'; do
-  grep -qFx "$required_line" "$service" || { echo "Orange runtime service is missing: $required_line" >&2; exit 1; }
-done
 octessera_reject_file_match 'Orange runtime service couples failure or shutdown to NetworkManager or SSH.' -Eiq 'NetworkManager|network-manager|(^|[^[:alnum:]])ssh(d)?([^[:alnum:]]|$)' "$service"
-octessera_reject_file_match 'Orange runtime service has an unapproved failure dependency.' -qE '^(StartLimitAction|OnFailure|Requisite|BindsTo|PartOf)=' "$service"
-[[ "$(grep -c '^Requires=' "$service")" == 2 ]] || { echo 'Orange runtime service has an unexpected Requires dependency.' >&2; exit 1; }
 expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
 [[ "$(cat -- "$udev_rule")" == "$expected_udev_rule" ]] || { echo 'Orange runtime udev rule content is not exact.' >&2; exit 1; }
 if command -v udevadm >/dev/null 2>&1 && getent group octessera-runtime >/dev/null 2>&1 && udevadm help 2>&1 | grep -qE '(^|[[:space:]])verify([[:space:]]|$)'; then

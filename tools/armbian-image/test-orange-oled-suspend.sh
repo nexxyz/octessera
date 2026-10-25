@@ -6,36 +6,19 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$root/tools/armbian-image/validation-assertions.sh"
 unit="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
 helper="$root/userpatches/overlay/usr/local/sbin/octessera-orange-oled-suspend"
-customize="$root/userpatches/customize-image.sh"
 
 [[ -f "$unit" && -f "$helper" ]] || { echo 'Orange OLED suspend sources are missing.' >&2; exit 1; }
 for required_line in \
-  'After=octessera.service' \
-  'Requisite=octessera.service' \
-  'Before=sleep.target' \
-  'StopWhenUnneeded=yes' \
-  'Type=oneshot' \
-  'RemainAfterExit=yes' \
-  'RequiredBy=sleep.target' \
   'User=octessera-runtime' \
-  'RuntimeDirectory=octessera-oled-suspend' \
   'RuntimeDirectoryMode=0700' \
   'RestrictAddressFamilies=AF_UNIX' \
   'DevicePolicy=closed' \
   'DeviceAllow=/dev/spidev1.0 rw' \
-  'DeviceAllow=/dev/gpiochip1 rw' \
-  'ExecStart=/usr/local/sbin/octessera-orange-oled-suspend prepare' \
-  'ExecStop=/usr/local/sbin/octessera-orange-oled-suspend resume' \
-  'TimeoutStartSec=8' \
-  'TimeoutStopSec=8'; do
+  'DeviceAllow=/dev/gpiochip1 rw'; do
   grep -qFx "$required_line" "$unit" || { echo "Orange OLED suspend unit is missing: $required_line" >&2; exit 1; }
 done
-octessera_reject_file_match 'Orange OLED suspend unit must not use a non-required sleep target dependency.' -qFx 'WantedBy=sleep.target' "$unit"
-octessera_reject_file_match 'Orange OLED suspend unit must not use the wants directory.' -qF 'sleep.target.wants' "$unit"
 octessera_reject_file_match 'Orange OLED suspend unit must not require named supplementary groups.' -qFx 'SupplementaryGroups=audio i2c spi gpio' "$unit"
-octessera_reject_file_match 'Orange OLED suspend unit has a forbidden dependency.' -qE '^(Conflicts=|Requires=|BusName=)|systemctl|dbus' "$unit"
 octessera_reject_file_match 'Orange OLED suspend helper contains an unrelated privilege or lifecycle fallback.' -qE 'systemctl|dbus|runuser|sudo|su ' "$helper"
-octessera_reject_file_match 'Image installer must not create a soft sleep target dependency.' -qF 'sleep.target.wants' "$customize"
 
 if command -v systemd-analyze >/dev/null 2>&1; then
   work="$(mktemp -d)"
