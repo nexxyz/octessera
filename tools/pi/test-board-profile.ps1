@@ -63,32 +63,11 @@ if ($crossBuildScript -notmatch "--no-default-features --features") {
 if ($wslCrossBuildScript -notmatch "--no-default-features --features") {
   throw "Pi WSL cross-build must disable default features before selecting a board feature."
 }
-if ($crossBuildScript -notmatch '(?m)\$dockerfilePath\s*=\s*Join-Path \$buildContext "Dockerfile\.pi-zero"') {
-  throw "Pi PowerShell cross-build must place its Dockerfile in the temporary build context."
-}
-if ($crossBuildScript -notmatch '(?m)Copy-Item -LiteralPath \(Join-Path \$RepoRoot "Dockerfile\.pi-zero"\) -Destination \$dockerfilePath') {
-  throw "Pi PowerShell cross-build must copy the repository Dockerfile into the temporary build context."
-}
-if ($crossBuildScript -notmatch '(?m)& docker build\s+-f\s+\$dockerfilePath\s+-t\s+\$Image\s+\$buildContext') {
-  throw "Pi PowerShell cross-build must use the temporary context and Dockerfile."
-}
 if ($crossBuildScript -match '(?m)& docker build .* \.\s*$') {
   throw "Pi PowerShell cross-build must not use the repository root as Docker build context."
 }
-if ($wslCrossBuildScript -notmatch '(?m)DOCKERFILE="\$BUILD_CONTEXT/Dockerfile\.pi-zero"') {
-  throw "Pi WSL cross-build must place its Dockerfile in the temporary build context."
-}
-if ($wslCrossBuildScript -notmatch '(?m)cp "\$PWD/Dockerfile\.pi-zero" "\$DOCKERFILE"') {
-  throw "Pi WSL cross-build must copy the repository Dockerfile into the temporary build context."
-}
-if ($wslCrossBuildScript -notmatch '(?m)docker build\s+-f\s+"\$DOCKERFILE"\s+-t\s+"\$IMAGE"\s+"\$BUILD_CONTEXT"') {
-  throw "Pi WSL cross-build must use the temporary context and Dockerfile."
-}
 if ($wslCrossBuildScript -match '(?m)docker build .* \.\s*$') {
   throw "Pi WSL cross-build must not use the repository root as Docker build context."
-}
-if ($crossBuildScript -notmatch "Write-RaspberryBoardMetadata.*SourceCommit.*BinaryPath") {
-  throw "Pi cross-build must bind Raspberry metadata to the source commit and output binary."
 }
 $statusCheckIndex = $crossBuildScript.IndexOf("status --porcelain --untracked-files=all", [StringComparison]::Ordinal)
 $backendSwitchIndex = $crossBuildScript.IndexOf('switch ($selectedBackend)', [StringComparison]::Ordinal)

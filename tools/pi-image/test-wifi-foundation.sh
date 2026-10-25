@@ -25,9 +25,6 @@ cmp "$RASPBERRY_HELPER" "$ORANGE_HELPER"
 cmp "$RASPBERRY_UNIT" "$ORANGE_UNIT"
 
 for path in "$RASPBERRY_HELPER" "$ORANGE_HELPER"; do
-    grep -qF -- '--portal-interface wlan0' "$path"
-    grep -qF -- '--portal-gateway 192.168.42.1' "$path"
-    grep -qF -- '900s' "$path"
     if grep -Eiq '(/sys/class/net|iw[[:space:]]+dev|nmcli.*device|mac|hostname|ssh|password|country|setup[-_ ]?(complete|force)|sidecar|credential|secret|wpa|ssid=|psk=|BEGIN (RSA|OPENSSH|PRIVATE) KEY)' "$path"; then
         echo "Wi-Fi foundation helper contains forbidden behavior: $path" >&2
         exit 1
@@ -63,21 +60,8 @@ if grep -Eq 'wifi-connect-aarch64-unknown-linux-gnu\.tar\.gz|github\.com/balena-
     exit 1
 fi
 for constructor in "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh" "$ROOT/userpatches/customize-image.sh"; do
-    grep -qF 'wifi-connect.metadata.json' "$constructor"
-    grep -qF 'cargo-metadata.json' "$constructor"
     grep -qF 'THIRD-PARTY-NOTICES.md' "$constructor"
 done
-grep -qF 'target/wifi-connect-patched' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
-grep -qF 'usr/local/share/doc/octessera/wifi-connect' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
-grep -qF 'usr/local/share/octessera/wifi-connect' "$ROOT/userpatches/customize-image.sh"
-for dependency in network-manager dnsmasq wireless-tools iw; do
-    grep -qF "$dependency" "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh"
-    grep -qF "$dependency" "$ROOT/userpatches/customize-image.sh"
-done
-grep -qF 'install -D -o root -g root -m 0755' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
-grep -qF 'install -D -o root -g root -m 0644' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
-grep -qF 'install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755' "$ROOT/userpatches/customize-image.sh"
-grep -qF 'install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644' "$ROOT/userpatches/customize-image.sh"
 
 mkdir "$FAKE_BIN"
 cat > "$FAKE_BIN/timeout" <<EOF

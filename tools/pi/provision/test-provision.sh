@@ -408,6 +408,7 @@ assert_log_contains "sc5" "systemctl.log" "enable --now octessera-network-health
 assert_log_contains "sc5" "systemctl.log" "enable octessera-oled-shutdown.service"
 assert_log_contains "sc5" "systemctl.log" "enable octessera-performance-governor.service"
 assert_log_contains "sc5" "systemctl.log" "enable octessera.service"
+assert_log_contains "sc5" "systemctl.log" "enable octessera-boot-splash.service"
 assert_log_contains "sc5" "systemctl.log" "daemon-reload"
 assert_mode "sc5" "$FIXTURE/home/pi/octessera-dev" 755
 pass "idempotent second run exits 0"

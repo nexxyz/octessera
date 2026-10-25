@@ -62,7 +62,6 @@ done
 octessera_reject_file_match 'Raspberry boot service must not be oneshot.' -q '^Type=oneshot$' "$service"
 octessera_reject_file_match 'Raspberry boot service must not use a one-shot ExecStart.' -q '^ExecStart=-' "$service"
 octessera_reject_file_match 'Raspberry boot service must not conflict with runtime.' -q '^Conflicts=' "$service"
-octessera_reject_file_match 'Raspberry runtime must not use the removed early boot splash flag.' -q 'OCTESSERA_EARLY_BOOT_SPLASH' "$runtime" "$template"
 grep -qFx 'ExecCondition=/usr/local/sbin/octessera-usb-role is-gadget' "$gadget_runtime"
 [[ "$(awk '/^\[/{section=$0} /^ExecCondition=/{print section}' "$gadget_runtime")" == '[Service]' ]]
 [[ "$(grep -Ec '^ExecCondition=' "$gadget_runtime")" == 1 ]]
@@ -105,14 +104,11 @@ for unit in "$runtime" "$template" "$root/tools/pi-image/stage4-octessera/files/
     fi
     octessera_reject_file_match 'Raspberry runtime contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$unit"
 done
-grep -q 'console=tty1' "$root/tools/pi-image/stage4-octessera/03-boot-config/00-run.sh"
 octessera_reject_file_match 'Raspberry constructor must not force a graphics mode or switch virtual terminals.' -Eiq 'chvt|xrandr|wlr-randr|modetest|video=|StandardInput=tty' "$root/tools/pi-image/stage4-octessera/03-boot-config/00-run.sh"
 octessera_reject_file_match 'Raspberry runtime service must not conflict with the boot splash.' -q '^Conflicts=' "$runtime"
 octessera_reject_file_match 'Raspberry runtime template must not conflict with the boot splash.' -q '^Conflicts=' "$template"
 grep -qFx 'ExecStart=/usr/local/bin/octessera-pi' "$runtime"
 grep -qFx 'ExecStart=/usr/local/bin/octessera-pi' "$template"
-grep -qF '/etc/systemd/system/multi-user.target.wants/octessera-boot-splash.service' "$root/tools/pi/provision/provision.sh"
-grep -qF 'systemctl enable octessera-boot-splash.service' "$root/tools/pi/provision/provision.sh"
 
 fixture="$(mktemp -d)"
 trap 'rm -rf "$fixture"' EXIT

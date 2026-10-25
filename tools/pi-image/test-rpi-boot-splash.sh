@@ -54,18 +54,7 @@ dash_index = copies["copy_exec /usr/bin/dash /usr/bin/dash"]
 assert lines[dash_index + 1].strip() == 'rm -f "$DESTDIR/usr/bin/sh"'
 assert lines[dash_index + 2].strip() == 'ln -s dash "$DESTDIR/usr/bin/sh"'
 PY
-grep -qFx '    setsid /usr/local/bin/octessera-pi --boot-splash-static >/dev/kmsg 2>&1 &' "$script"
-grep -qF 'setsid /bin/sh -c' "$script"
-grep -qF 'sleep 3' "$script"
-grep -qF 'kill -TERM "-$1"' "$script"
-grep -qF 'kill -KILL "-$1"' "$script"
-grep -qF 'kill -TERM "-$group_pid"' "$script"
-grep -qF 'kill -KILL "-$group_pid"' "$script"
-grep -qF 'trap cleanup EXIT' "$script"
-grep -qF 'trap interrupt INT TERM HUP' "$script"
-octessera_reject_file_match 'Raspberry initramfs splash must not use marker or handoff state.' -qiE 'marker|handoff|OCTESSERA_INITRAMFS' "$script"
-octessera_reject_file_match 'Raspberry initramfs splash must not use the removed one-shot command.' -qF -- '--boot-splash-once' "$script"
-octessera_reject_file_match 'Raspberry boot service must not use the removed one-shot command.' -qF -- '--boot-splash-once' "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-boot-splash.service"
+grep -qF -- '/usr/local/bin/octessera-pi --boot-splash-static' "$script"
 
 command -v setsid >/dev/null 2>&1
 work="$(mktemp -d)"

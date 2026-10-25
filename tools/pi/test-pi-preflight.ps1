@@ -1,8 +1,10 @@
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$source = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "pi-preflight.ps1"))
-if ($source.IndexOf('[Parameter(Mandatory = $true)]', [StringComparison]::Ordinal) -lt 0 -or $source.IndexOf('[string]$Target', [StringComparison]::Ordinal) -lt 0 -or $source.IndexOf('Assert-DeploymentTarget $Target | Out-Null', [StringComparison]::Ordinal) -lt 0) {
+$scriptPath = Join-Path $PSScriptRoot "pi-preflight.ps1"
+$source = [IO.File]::ReadAllText($scriptPath)
+$targetMandatory = (Get-Command $scriptPath).Parameters["Target"].Attributes | Where-Object { $_ -is [Parameter] -and $_.Mandatory }
+if (-not $targetMandatory -or $source -notmatch 'Assert-DeploymentTarget\s+\$Target') {
   throw "Raspberry preflight must require and validate an explicit target."
 }
 foreach ($forbidden in @("systemctl\s+status", "journalctl", "--lines")) {

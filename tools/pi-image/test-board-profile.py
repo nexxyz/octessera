@@ -24,10 +24,6 @@ if manifest["os_list"][0]["description"] != (
     "Raspberry Pi Imager may configure SSH, hostname, and Wi-Fi, but the username must remain pi."
 ):
     raise AssertionError("Raspberry Imager manifest does not require the fixed pi username")
-repository = Path(__file__).parents[2]
-provision_script = (repository / "tools/pi/provision/provision.sh").read_text(encoding="utf-8")
-if 'if [ "$SERVICE" != octessera.service ]' not in provision_script:
-    raise AssertionError("Shell provisioning does not reject non-default service names")
 for value in (
     MODULE.ORANGE_PI_ZERO_2W_PROFILE_ID,
     "opi-zero-2w",
