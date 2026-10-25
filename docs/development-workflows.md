@@ -63,10 +63,8 @@ cargo test -p playback-runtime
 - [`runtime-boundaries.md`](runtime-boundaries.md) owns native/runtime/adapter
   responsibility boundaries.
 - [`menu-and-controls-spec.md`](menu-and-controls-spec.md) owns parity-sensitive
-  controls and menu behavior.
-- [`save-format-split-backlog.md`](workflows/save-format-split-backlog.md)
-  records which settings belong to the System file and which to the musical
-  patch, including the menu-location exceptions.
+  controls and menu behavior, including which settings belong to the System
+  file and which to the musical patch.
 - Contributor-only branding guidance lives in
   [`hardware/docs/branding-assets.md`](../hardware/docs/branding-assets.md).
 

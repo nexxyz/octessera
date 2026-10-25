@@ -709,6 +709,36 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Patch-persistent state and transient state per section are listed in
   [build.md](menu-tree/build.md#layer-runtime-behavior) and [play.md](menu-tree/play.md#persistence).
 
+### Save files and ownership
+
+| File | Owner | Raspberry | Orange |
+| --- | --- | --- | --- |
+| `system.json` | System settings | `/home/pi/presets/system.json` | `/var/lib/octessera/presets/system.json` |
+| `default.patch.json` | Default musical patch | `/home/pi/presets/` | `/var/lib/octessera/presets/` |
+
+- Desktop seeds both files at first launch and refuses an old single-file `default.json` or an
+  incomplete split store rather than guessing.
+- `crates/playback-runtime` owns classification, validation, and save/load intent; the desktop and
+  Pi adapters own paths and atomic writes. The two writes are independent, not a two-file
+  transaction.
+- Shipped defaults come from `config/defaults/`; Orange's staged
+  `usr/share/octessera/defaults/pi-default.json` is image-build metadata, not an active default.
+
+Some ownership decisions do not follow the menu headings:
+
+| Control or data | Owner | Note |
+| --- | --- | --- |
+| Build worlds, saved grids and Looper events; Link mappings, scale, probability, tempo and swing; Shape instruments, mixer and FX; persistent Play FX and XY | Musical patch | Held notes, transport phase and live gestures are never saved. |
+| System output route, global MIDI ports and sync, USB roles, audio buffer/optimization, master volume, display/HDMI, Auto Save/Backups policy, recording limits | System settings | Device paths and ports stay local. A MIDI instrument's channel and note settings still travel with the patch. |
+| System → Notes (note length, velocity scale/curve) | Musical patch | Menu-location exception. |
+| System → Audio → Polyphony (`voiceStealingMode`) | Musical patch | Menu-location exception; moving it would change musical behavior. |
+| Link → Paused Events | System settings | Menu-location exception. |
+| Link → Aux Mappings, including Shift | Split by target | Musical bindings travel with the patch; hardware/System bindings stay local. Two documents claiming the same bank, control and Turn/Click side are rejected, not resolved by load order. |
+| Shape sample-browser favourites | System settings | Bookmarks are local; assigned sample IDs are musical. |
+| Active layer, behavior and Play-page selection | Musical patch | The saved initial focus, not live transport state. |
+
+Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
+
 ## Config Persistence (ConfigPayload)
 
 - Native `ConfigPayload` is produced and consumed by `crates/playback-runtime/src/native_runner.rs`.
