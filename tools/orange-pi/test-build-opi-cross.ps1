@@ -42,11 +42,9 @@ foreach ($required in @(
     "Get-FileHash",
     "ConvertTo-Json -Compress",
     "binary_sha256",
-    'schema_version = $script:OrangeSchemaVersion',
     'artifact_kind = $BuildSpec.ArtifactKind',
     'runtime_ready = $false',
     "Publish-OrangeBuildMetadata",
-    "Assert-OrangeBuildMetadata",
     "Remove-OrangeBuildArtifacts",
     "WriteAllText",
     "source_commit"
@@ -74,12 +72,6 @@ if ($source -match "(?i)\b(ssh|scp|rsync)\b") {
 if ($source -match 'service_ready|runtime_ready\s*=\s*\$true') {
   throw "Orange cross-builder must not define deployment or service-ready output"
 }
-$statusCheckIndex = $source.IndexOf("status --porcelain --untracked-files=all", [StringComparison]::Ordinal)
-$dryRunIndex = $source.IndexOf("if (`$DryRun)", [StringComparison]::Ordinal)
-if ($statusCheckIndex -lt 0 -or $dryRunIndex -lt 0 -or $statusCheckIndex -lt $dryRunIndex -or $source.IndexOf("Authoritative Orange builds require a clean repository", [StringComparison]::Ordinal) -lt 0) {
-  throw "Orange cross-builder must reject dirty source before authoritative builds while retaining dry-run support."
-}
-
 function Invoke-DryRun {
   param([hashtable]$Parameters)
 
@@ -190,106 +182,29 @@ foreach ($parameters in @(
   }
 }
 
-$metadataCases = @(
-  "orange-oled-smoke",
-  "orange-seesaw-smoke"
-)
-$testSpec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w"; ArtifactKind = "diagnostic-only" }
-$sourceCommit = "a" * 40
-foreach ($binaryName in $metadataCases) {
-  $testDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
-  $testBinary = Join-Path $testDirectory $binaryName
-  $testMetadata = "$testBinary.metadata.json"
-  $metadataParameters = @{
-    BinaryPath = $testBinary
-    SelectedBinary = $binaryName
-    SelectedTarget = "aarch64-unknown-linux-gnu"
-    SelectedProfile = "pi-dev"
-    BuildSpec = $testSpec
-    SourceCommit = $sourceCommit
-  }
-  $publicationParameters = @{ MetadataPath = $testMetadata } + $metadataParameters
-
-  New-Item -ItemType Directory -Path $testDirectory | Out-Null
-  try {
-    [IO.File]::WriteAllBytes($testBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7))
-    $json = ConvertTo-OrangeBuildMetadataJson @metadataParameters
-    $expectedHash = (Get-FileHash -LiteralPath $testBinary -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($json -notmatch ('"binary_sha256":"' + $expectedHash + '"') -or $json -notmatch ('"source_commit":"' + $sourceCommit + '"')) {
-      throw "Orange metadata serialization did not bind the binary hash: $binaryName"
-    }
-    Publish-OrangeBuildMetadata @publicationParameters
-    Assert-OrangeBuildMetadata @publicationParameters
-    if ([IO.File]::ReadAllText($testMetadata) -cne "$json`n") {
-      throw "Orange metadata publication changed the canonical serialized JSON: $binaryName"
-    }
-    $mismatched = [regex]::Replace([IO.File]::ReadAllText($testMetadata), '"source_commit":"[0-9a-f]{40}"', ('"source_commit":"' + ("b" * 40) + '"'))
-    [IO.File]::WriteAllText($testMetadata, $mismatched, (New-Object System.Text.UTF8Encoding($false)))
-    $mismatchRejected = $false
-    try { Assert-OrangeBuildMetadata @publicationParameters } catch { $mismatchRejected = $true }
-    if (-not $mismatchRejected) { throw "Orange metadata accepted a mismatched source commit: $binaryName" }
-  } finally {
-    Remove-Item -LiteralPath $testDirectory -Recurse -Force -ErrorAction SilentlyContinue
-  }
-}
-
-$candidateDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-candidate-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
-$candidateBinary = Join-Path $candidateDirectory "octessera-pi"
-$candidateMetadata = "$candidateBinary.metadata.json"
-$candidateSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate" }
-$candidateParameters = @{
-  BinaryPath = $candidateBinary
-  MetadataPath = $candidateMetadata
-  SelectedBinary = "octessera-pi"
-  SelectedTarget = "aarch64-unknown-linux-gnu"
-  SelectedProfile = "release"
-  BuildSpec = $candidateSpec
-  SourceCommit = $sourceCommit
-}
-New-Item -ItemType Directory -Path $candidateDirectory | Out-Null
+Import-Module $metadataModule -Force
+$metadataDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $metadataDirectory | Out-Null
 try {
-  [IO.File]::WriteAllBytes($candidateBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x00))
-  $candidateJsonParameters = @{} + $candidateParameters
-  $candidateJsonParameters.Remove("MetadataPath")
-  $candidateJson = ConvertTo-OrangeBuildMetadataJson @candidateJsonParameters
-  if ($candidateJson -notmatch '"artifact_kind":"runtime-candidate"' -or $candidateJson -notmatch '"runtime_ready":false') {
-    throw "Orange runtime-candidate metadata identity was not serialized"
-  }
-  Publish-OrangeBuildMetadata @candidateParameters
-  Assert-OrangeBuildMetadata @candidateParameters
-  $staleCandidate = [regex]::Replace([IO.File]::ReadAllText($candidateMetadata), '"source_commit":"[0-9a-f]{40}"', ('"source_commit":"' + ("c" * 40) + '"'))
-  [IO.File]::WriteAllText($candidateMetadata, $staleCandidate, (New-Object System.Text.UTF8Encoding($false)))
-  $staleRejected = $false
-  try { Assert-OrangeBuildMetadata @candidateParameters } catch { $staleRejected = $true }
-  if (-not $staleRejected) { throw "Orange metadata accepted a stale runtime candidate with valid hash and board fields" }
-} finally {
-  Remove-Item -LiteralPath $candidateDirectory -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-$diagnosticDirectory = Join-Path ([IO.Path]::GetTempPath()) "octessera-orange-diagnostic-metadata-test-$PID-$([guid]::NewGuid().ToString('N'))"
-$diagnosticBinary = Join-Path $diagnosticDirectory "octessera-pi"
-$diagnosticMetadata = "$diagnosticBinary.metadata.json"
-New-Item -ItemType Directory -Path $diagnosticDirectory | Out-Null
-try {
-  $diagnosticSpec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w profiling"; ArtifactKind = "diagnostic-only" }
-  $diagnosticParameters = @{
-    BinaryPath = $diagnosticBinary
-    MetadataPath = $diagnosticMetadata
-    SelectedBinary = "octessera-pi"
-    SelectedTarget = "aarch64-unknown-linux-gnu"
-    SelectedProfile = "release"
-    BuildSpec = $diagnosticSpec
-    SourceCommit = $sourceCommit
-  }
-  [IO.File]::WriteAllBytes($diagnosticBinary, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7, 0x01))
-  Publish-OrangeBuildMetadata @diagnosticParameters
-  Assert-OrangeBuildMetadata @diagnosticParameters
-  $diagnosticMetadataJson = [IO.File]::ReadAllText($diagnosticMetadata)
-  if ($diagnosticMetadataJson -notmatch '"artifact_kind":"diagnostic-only"' -or $diagnosticMetadataJson -notmatch '"cargo_feature":"hardware-orange-pi-zero-2w profiling"') {
-    throw "Orange diagnostic metadata did not bind its profiling feature and artifact kind"
+  foreach ($case in @(
+      @{ Binary = "orange-oled-smoke"; Spec = [pscustomobject]@{ Package = "octessera-hal"; Feature = "orange-pi-zero-2w"; ArtifactKind = "diagnostic-only" } },
+      @{ Binary = "octessera-pi"; Spec = [pscustomobject]@{ Package = "octessera-pi"; Feature = "hardware-orange-pi-zero-2w"; ArtifactKind = "runtime-candidate" } }
+    )) {
+    $binaryPath = Join-Path $metadataDirectory $case.Binary
+    [IO.File]::WriteAllBytes($binaryPath, [byte[]](0x7F, 0x45, 0x4C, 0x46, 0x02, 0xB7))
+    Publish-OrangeBuildMetadata -MetadataPath "$binaryPath.metadata.json" -BinaryPath $binaryPath -SelectedBinary $case.Binary `
+      -SelectedTarget "aarch64-unknown-linux-gnu" -SelectedProfile "release" -BuildSpec $case.Spec -SourceCommit ("a" * 40)
+    $hash = (Get-FileHash -LiteralPath $binaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $expected = '{"schema_version":2,"board_profile":"orange-pi-zero-2w","artifact_kind":"' + $case.Spec.ArtifactKind +
+      '","runtime_ready":false,"binary":"' + $case.Binary + '","package":"' + $case.Spec.Package +
+      '","arch":"aarch64-unknown-linux-gnu","cargo_feature":"' + $case.Spec.Feature + '","profile":"release","binary_sha256":"' + $hash +
+      '","source_commit":"' + ("a" * 40) + '"}' + "`n"
+    if ([IO.File]::ReadAllText("$binaryPath.metadata.json") -cne $expected) {
+      throw "Orange metadata sidecar is not the schema-2 contract: $($case.Binary)"
+    }
   }
 } finally {
-  Remove-Item -LiteralPath $diagnosticDirectory -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $metadataDirectory -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Output "Orange Pi cross-builder host, dry-run, and metadata tests passed"

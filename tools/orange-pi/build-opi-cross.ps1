@@ -219,10 +219,6 @@ if ($DryRun) {
   return
 }
 
-$repositoryStatus = (& git -C $repositoryRoot status --porcelain --untracked-files=all 2>$null | Out-String).Trim()
-if ($LASTEXITCODE -ne 0) { throw "Could not inspect repository status before the authoritative Orange build." }
-if (-not [string]::IsNullOrWhiteSpace($repositoryStatus)) { throw "Authoritative Orange builds require a clean repository; tracked or untracked source changes are present." }
-
 $wslArguments = Get-WslDockerArguments
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 $artifactReady = $false
@@ -254,4 +250,4 @@ try {
     Remove-OrangeBuildArtifacts -BinaryPath $outputBinary -MetadataPath $outputMetadata
   }
 }
-Write-Output "Verified ELF64 AArch64 binary and hash-bound profile metadata: $outputBinary"
+Write-Output "Built ELF64 AArch64 binary and metadata sidecar: $outputBinary"

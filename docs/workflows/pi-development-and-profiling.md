@@ -22,15 +22,14 @@ Hardware HAL target check when the Rust target is installed:
 cargo check --target aarch64-unknown-linux-gnu -p octessera-hal --features raspberry-pi-zero-2w
 ```
 
-There are two cross-builders, and they are not interchangeable:
+There are two cross-builders:
 
 - `tools/pi/build-rpi-opi-cross.ps1` builds `octessera-pi` for either board
   (`-BoardProfile`, default Raspberry) into `target/pi-cross/` or `-OutDir`.
-  Raspberry deploys use it; for Orange its output is good for the timing smoke
-  but not for deployment.
-- `tools/orange-pi/build-opi-cross.ps1` is WSL Docker-only and writes checked
-  Orange artifacts under `target/orange-pi-cross/`. Orange deploys need its
-  `-Profile release` output.
+  Raspberry deploys use it.
+- `tools/orange-pi/build-opi-cross.ps1` is WSL Docker-only and writes Orange
+  artifacts with their metadata sidecars under `target/orange-pi-cross/`.
+  Orange deploys use its `-Profile release` output.
 
 ```powershell
 ./tools/orange-pi/build-opi-cross.ps1 -Binary orange-oled-smoke -Profile release

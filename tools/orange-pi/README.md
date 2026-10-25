@@ -156,9 +156,8 @@ under `target/orange-pi-cross/`:
 ./tools/orange-pi/test-build-opi-cross.ps1
 ```
 
-Use `-DryRun` to print the Docker command. The builder refuses a dirty
-repository, and its default profile is `pi-dev`, so pass `-Profile release`
-for anything you plan to deploy. The canonical outputs are
+Use `-DryRun` to print the Docker command. The default profile is `pi-dev`,
+so pass `-Profile release` for anything you plan to deploy. The canonical outputs are
 `orange-oled-smoke`, `orange-seesaw-smoke`, and `octessera-pi`, each with its
 adjacent `.metadata.json` file. The production image and runtime bundle use the
 contracts in the [Orange production reference](../../hardware/docs/orange-pi-production-reference.md).
@@ -180,44 +179,23 @@ $OrangeTarget = "octessera@<ORANGE_HOST>"
 
 ### Persistent Orange development runtime (explicit opt-in)
 
-This is **not** the release updater. After reviewing the target, artifact,
-and service interruption, deploy the `build-opi-cross.ps1 -Profile release`
-output with its unchanged adjacent metadata sidecar:
+This is **not** the release updater. Deploy an Orange `octessera-pi` build
+and return to the installed release with:
 
 ```powershell
 $OrangeTarget = "octessera@<ORANGE_HOST>"
 ./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -LocalBinary target/orange-pi-cross/octessera-pi
 # Later, to return to the installed release:
 ./tools/orange-pi/deploy-opi-fast.ps1 -Target $OrangeTarget -Restore
-# Command-generation tests for the wrapper:
 ./tools/orange-pi/test-deploy-opi-fast.ps1
 ```
 
-The binary must match the current repository `HEAD` and be an ELF64 AArch64
-`runtime-candidate` for `orange-pi-zero-2w`, with schema-2 release-profile
-metadata and a matching SHA-256. The shared `build-rpi-opi-cross.ps1` output
-does not pass this check. The `octessera` account needs passwordless sudo
-(`bootstrap-armbian-ssh.sh --allow-deploy-sudo`).
-
-On the board, the tool:
-
-- stages a root-owned copy at `/opt/octessera/dev/<source-commit>/octessera-pi`
-  and refuses an existing directory there rather than overwriting it;
-- overrides only `ExecStart`, through
-  `/etc/systemd/system/octessera.service.d/90-octessera-dev.conf`;
-- refuses to start if any drop-in already exists (including its own from an
-  earlier deploy, so run `-Restore` first) or the service or executable looks
-  unexpected;
-- checks the restarted process and its readiness marker, and tries to restore
-  the installed service if activation fails.
-
-`-Restore` removes only the recognized development override and leaves the
-staged directory for you to review or clean up. Neither action touches
-`current`, releases, the installed executable symlink, updater metadata, boot
-files, or the image, and nothing is promoted to `runtime_ready`. If rollback
-cannot be verified, inspect the service by hand before doing anything else.
-Journal errors and underruns are reported as warnings; an active service is
-not proof of clean audio, so keep listening and control checks in the loop.
+Redeploying replaces the running development build. The `octessera` account
+needs passwordless sudo (`bootstrap-armbian-ssh.sh --allow-deploy-sudo`). What
+the deploy changes on the board is described in the
+[deployment workflow](../../docs/workflows/deployment.md#how-a-development-deploy-works-both-boards).
+An active service is not proof of clean audio, so keep listening and control
+checks in the loop.
 
 ## Performance tools
 
