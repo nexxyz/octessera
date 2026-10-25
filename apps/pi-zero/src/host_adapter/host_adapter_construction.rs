@@ -77,6 +77,7 @@ impl PiHostAdapter {
             usb_data_role,
             power_request: None,
             timing_evidence: None,
+            #[cfg(feature = "profiling")]
             note_sent_probe: None,
             bluetooth_audio: None,
         }

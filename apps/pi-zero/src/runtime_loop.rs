@@ -11,6 +11,7 @@ use crate::runtime_dispatch::{
     handle_deferred_host_work, process_runtime_output, report_runtime_failure,
 };
 use crate::timing_input::{fail_study, TimingInput};
+#[cfg(feature = "profiling")]
 use crate::timing_load::TimingLoad;
 use crate::ui_profile::UiProfiler;
 use octessera_hal::encoder_gpio::HardwareEvent;
@@ -52,6 +53,7 @@ pub(crate) struct LoopState {
     pub(crate) ui_profiler: UiProfiler,
     pub(crate) native_scenes: NativeScenePump,
     pub(crate) timing: Option<TimingInput>,
+    #[cfg(feature = "profiling")]
     load: Option<TimingLoad>,
 }
 
@@ -63,15 +65,15 @@ impl LoopState {
         if let Some(timing) = &timing {
             native_scenes.set_timing_cutoff_targets(timing.plateau_values());
         }
-        let load = TimingLoad::from_env(Instant::now())
-            .unwrap_or_else(|error| fail_study::<PiHostAdapter>(error));
         Self {
             scheduler,
             pending_encoder_turns: PendingEncoderTurns::default(),
             ui_profiler,
             native_scenes,
             timing,
-            load,
+            #[cfg(feature = "profiling")]
+            load: TimingLoad::from_env(Instant::now())
+                .unwrap_or_else(|error| fail_study::<PiHostAdapter>(error)),
         }
     }
 }
@@ -135,6 +137,7 @@ pub(crate) fn run_runtime_loop(
         ) {
             fail_study::<PiHostAdapter>(error);
         }
+        #[cfg(feature = "profiling")]
         if let Some(load) = state.load.as_mut() {
             match load.tick(Instant::now(), playback, runner, adapter) {
                 Ok(true) => state.load = None,
@@ -153,10 +156,12 @@ pub(crate) fn run_runtime_loop(
             return Ok(());
         }
         let now = Instant::now();
-        let mut sleep = state.scheduler.sleep_duration(now, playback, runner);
-        if let Some(load) = state.load.as_ref() {
-            sleep = sleep.min(load.until_next_probe(now));
-        }
+        let sleep = state.scheduler.sleep_duration(now, playback, runner);
+        #[cfg(feature = "profiling")]
+        let sleep = state
+            .load
+            .as_ref()
+            .map_or(sleep, |load| sleep.min(load.until_next_probe(now)));
         wait_for_input(inputs.input_rx, sleep, playback, runner, adapter);
     }
 }

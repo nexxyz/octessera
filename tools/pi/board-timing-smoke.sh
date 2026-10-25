@@ -7,7 +7,8 @@
 #   tools/pi/board-timing-smoke.sh opi octessera@<ORANGE_HOST> target/orange-pi-cross/octessera-pi
 # Extra OCTESSERA_TIMING_*=value arguments after the seconds reach the candidate, e.g. the Aux
 # study (OCTESSERA_TIMING_AUTOAUX=1 OCTESSERA_TIMING_KEEP_AWAKE=1) or the load ramp
-# (OCTESSERA_TIMING_LOAD=start,step,max,seconds).
+# (OCTESSERA_TIMING_LOAD=start,step,max,seconds), which needs a -Profiling candidate binary;
+# production binaries refuse it.
 set -euo pipefail
 board=${1:?board: rpi or opi} target=${2:?target: user@host} binary=${3:?candidate binary}
 seconds=${4:-600}
@@ -43,5 +44,5 @@ journal="$out/journal.log"
 echo "underruns=$(grep -c 'underrun occurred' "$journal" || true)"
 grep 'runtime-timing playing' "$journal" | tail -n 1 | grep -o 'dispatches=[0-9]* pulses=[0-9]* max_pulses=[0-9]*\|dispatch=\[[^]]*\]' || true
 grep 'pi-ui-profile' "$journal" | tail -n 1 | grep -o 'runtime_late=[^ ]* [^ ]* [^ ]*' || true
-grep -E -- '-autoaux |timing-load step=' "$journal" | tail -n 3 || true
+grep -E -- '-autoaux |timing-load step=|need the profiling build' "$journal" | tail -n 3 || true
 tail -n 1 "$out/host.log"

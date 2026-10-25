@@ -1,5 +1,5 @@
-//! Diagnostic run modes: the DSP profile and timing probes exist only in the instrumented
-//! `profiling` build. Production builds refuse their flags instead of starting up.
+//! Diagnostic run modes: the DSP profile, timing probes, and timing load ramp exist only in the
+//! instrumented `profiling` build. Production builds refuse their flags instead of starting up.
 
 #[cfg(all(feature = "profiling", feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn run_requested() {
@@ -33,7 +33,8 @@ pub(crate) fn run_requested() {
             )
         });
     let timing_probe = std::env::var("OCTESSERA_PI_TIMING_PROBE").as_deref() == Ok("1");
-    if flagged || dsp_profile || timing_probe {
+    let timing_load = std::env::var_os("OCTESSERA_TIMING_LOAD").is_some();
+    if flagged || dsp_profile || timing_probe || timing_load {
         eprintln!("profiling modes need the profiling build (cargo feature `profiling`)");
         std::process::exit(2);
     }

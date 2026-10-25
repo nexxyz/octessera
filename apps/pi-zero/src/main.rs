@@ -115,6 +115,7 @@ mod show_hold;
 #[cfg(test)]
 mod test_temp_dir;
 mod timing_input;
+#[cfg(feature = "profiling")]
 mod timing_load;
 #[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
 mod timing_probe;

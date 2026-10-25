@@ -70,7 +70,8 @@ out and refuse those flags. Build one with
 its path with `-Binary`. On the Orange, run the DSP profile by hand with the
 service stopped: `sudo systemctl stop octessera.service`, then
 `<binary> --profile-dsp`, then start the service again. The 10-minute
-`board-timing-smoke.sh` runs the production binary.
+`board-timing-smoke.sh` runs the production binary; only its load ramp needs the
+profiling build.
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"
@@ -135,8 +136,8 @@ script runs the two opt-in studies on either board:
 ```bash
 # Aux timing: scripted Cutoff turns through the real menu, then an automatic save.
 tools/pi/board-timing-smoke.sh rpi "$PiTarget" target/pi-cross/octessera-pi 60   OCTESSERA_TIMING_AUTOAUX=1 OCTESSERA_TIMING_KEEP_AWAKE=1
-# Load ramp: held notes from 8 to 64 in steps of 8, 20 seconds each.
-tools/pi/board-timing-smoke.sh opi "$OrangeTarget" target/orange-pi-cross/octessera-pi 600   OCTESSERA_TIMING_LOAD=8,8,64,20
+# Load ramp (profiling build only): held notes from 8 to 64 in steps of 8, 20 seconds each.
+tools/pi/board-timing-smoke.sh opi "$OrangeTarget" target/orange-pi-cross-diagnostics/profiling/octessera-pi 600   OCTESSERA_TIMING_LOAD=8,8,64,20
 ```
 
 Raspberry and Orange share one Aux timing driver and one report format; only
@@ -145,7 +146,8 @@ Auto Save on in the clone through the Saves menu, so the final edit has a due
 save, and the report line carries that save's revision and timing. The smoke
 prints the report line at the end, and the original presets stay untouched.
 
-`OCTESSERA_TIMING_LOAD=start,step,max,seconds` ramps held 2-second
+`OCTESSERA_TIMING_LOAD=start,step,max,seconds` needs a `-Profiling` candidate;
+a production binary refuses to start with it. It ramps held 2-second
 notes across Synth, Pluck, and FM through the host musical-event path on top of
 the loaded patch, logging one `timing-load step=...` line per step. Every ~0.7 s
 it also presses grid cell (0,0) through the real input dispatch and reports
