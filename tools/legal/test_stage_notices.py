@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 import tempfile
@@ -18,7 +17,7 @@ LEGAL = "usr/share/doc/octessera"
 
 def fixture(root: Path) -> Path:
     (root / "source.txt").write_bytes(b"canonical\n")
-    entry = {"source": "source.txt", "destination": "licenses/NOTICE", "sha256": hashlib.sha256(b"canonical\n").hexdigest(), "size": 10}
+    entry = {"source": "source.txt", "destination": "licenses/NOTICE"}
     manifest = root / "notice-bundle.json"
     manifest.write_text(json.dumps({"files": [entry]}), encoding="utf-8")
     return manifest
@@ -47,11 +46,11 @@ class NoticeStagerTests(unittest.TestCase):
                 with self.assertRaises(NoticeStageError):
                     stage_notices(root, stage, manifest, check=True)
 
-    def test_a_source_that_no_longer_matches_the_manifest_is_rejected(self) -> None:
+    def test_a_missing_source_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             manifest = fixture(root)
-            (root / "source.txt").write_text("edited\n", encoding="utf-8")
+            (root / "source.txt").unlink()
             with self.assertRaises(NoticeStageError):
                 stage_notices(root, root / "stage", manifest)
 

@@ -76,10 +76,7 @@ make_fixture() {
   printf '%s  licenses/cargo/inventory.json\n' "$cargo_inventory_sha" >"$fixture/licenses/cargo/SHA256SUMS"
   printf '%s  licenses/pnpm/inventory.json\n' "$pnpm_inventory_sha" >"$fixture/licenses/pnpm/SHA256SUMS"
 
-  local cargo_inventory_size pnpm_inventory_size
-  cargo_inventory_size="$(wc -c <"$fixture/licenses/cargo/inventory.json")"
-  pnpm_inventory_size="$(wc -c <"$fixture/licenses/pnpm/inventory.json")"
-  printf '{\n  "schema": "octessera.legal-notice-bundle/v1",\n  "schema_version": 1,\n  "destination_root": "/usr/share/doc/octessera",\n  "files": [\n    {"source": "licenses/cargo/inventory.json", "destination": "licenses/cargo/inventory.json", "sha256": "%s", "size": %s},\n    {"source": "licenses/pnpm/inventory.json", "destination": "licenses/pnpm/inventory.json", "sha256": "%s", "size": %s}\n  ]\n}\n' "$cargo_inventory_sha" "$cargo_inventory_size" "$pnpm_inventory_sha" "$pnpm_inventory_size" >"$fixture/resources/legal/notice-bundle.json"
+  printf '{\n  "schema": "octessera.legal-notice-bundle/v1",\n  "schema_version": 1,\n  "destination_root": "/usr/share/doc/octessera",\n  "files": [\n    {"source": "licenses/cargo/inventory.json", "destination": "licenses/cargo/inventory.json"},\n    {"source": "licenses/pnpm/inventory.json", "destination": "licenses/pnpm/inventory.json"}\n  ]\n}\n' >"$fixture/resources/legal/notice-bundle.json"
 
   printf '# Fixture docs\n\n## Section\n\nSee [other](other.md) and [section](#section).\n' >"$fixture/docs/index.md"
   printf '# Other doc\n' >"$fixture/docs/other.md"

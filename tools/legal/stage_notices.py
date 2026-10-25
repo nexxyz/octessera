@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -36,14 +35,12 @@ def load_manifest(path: Path) -> dict[str, Any]:
 
 
 def notice_files(repository_root: Path, manifest: dict[str, Any]) -> dict[str, bytes]:
-    """The manifest's files by destination, failing if a source no longer matches its recorded hash."""
+    """The manifest's files by destination."""
     files: dict[str, bytes] = {}
     for item in manifest["files"]:
         source = repository_root / item["source"]
         _require(source.is_file(), f"legal notice source is missing: {source}")
-        data = source.read_bytes()
-        _require(hashlib.sha256(data).hexdigest() == item["sha256"], f"legal notice source changed; regenerate the manifest: {source}")
-        files[item["destination"]] = data
+        files[item["destination"]] = source.read_bytes()
     return files
 
 

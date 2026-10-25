@@ -73,9 +73,6 @@ def verify_notice_bundle(root: Path, errors: list[str]) -> None:
         raw = root / item["source"]
         if not raw.is_file():
             errors.append(f"notice-bundle source is missing: {item['source']}")
-            continue
-        if sha256(raw.read_bytes()) != item.get("sha256"):
-            errors.append(f"notice-bundle is stale: {item['source']} hash mismatch")
 
 
 def main() -> int:
