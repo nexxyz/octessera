@@ -347,8 +347,6 @@ dirty edits. Stale or failed acknowledgements never reboot or advance the persis
   show, while snapshots keep their black/inactive HDMI grid.
 - `Bars per cycle` (`hdmi.cycleMeasures`) appears only in `cycle-behaviors` and sets how many bars
   each behavior stays on screen before Cycle Behaviors advances.
-- Hardware HDMI timing can be sampled on Raspberry and Orange without framebuffer writes using
-  `cargo run -p octessera-pi --bin octessera-pi-hdmi-bench --release`.
 
 ## Live Show Mode
 

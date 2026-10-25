@@ -8,10 +8,6 @@ license-file.workspace = true
 name = "octessera-pi"
 path = "src/main.rs"
 
-[[bin]]
-name = "octessera-pi-hdmi-bench"
-path = "src/bin/hdmi_bench.rs"
-
 [dependencies]
 media-recording = { path = "../../crates/media-recording" }
 octessera-hal = { path = "../../crates/hal" }
