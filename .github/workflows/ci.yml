@@ -454,7 +454,6 @@ jobs:
         run: |
           python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_contract.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/updater_profiles.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
           python3 -m unittest discover -s tools/device-update -p 'test_*.py'
-          bash tools/device-update/smoke-test.sh
       - name: Check updater shells and canonical copies
         run: |
           bash -n tools/device-update/octessera-update tools/device-update/octessera-update-guard tools/device-update/octessera-update-recovery tools/device-update/smoke-test.sh

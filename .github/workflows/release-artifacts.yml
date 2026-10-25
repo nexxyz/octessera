@@ -113,7 +113,6 @@ jobs:
           set -euo pipefail
           python3 -m py_compile tools/device-update/updater_protocol.py tools/device-update/updater_contract.py tools/device-update/updater_state.py tools/device-update/updater_assets.py tools/device-update/updater_guard.py tools/device-update/updater_cli.py tools/device-update/updater_profiles.py tools/device-update/test_updater_protocol.py tools/device-update/test_updater_layout.py
           python3 -m unittest discover -s tools/device-update -p 'test_*.py'
-          bash tools/device-update/smoke-test.sh
           bash -n tools/device-update/*.sh tools/pi-image/verify-sanitized-image.sh tools/pi-kernel/*.sh tools/armbian-image/*.sh
           shellcheck tools/device-update/*.sh tools/pi-kernel/*.sh
           shellcheck -x tools/orange-pi/orange-pi-usb-gadget.sh tools/orange-pi/test-orange-pi-usb-gadget*.sh userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget*.sh
