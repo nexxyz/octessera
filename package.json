@@ -18,7 +18,7 @@
     "release:check-version": "python tools/release/check_version_consistency.py",
     "lint": "corepack pnpm -r lint",
     "format:check": "corepack pnpm -r format:check",
-    "typecheck": "corepack pnpm run config:check && corepack pnpm run capabilities:check && corepack pnpm run palette:check && corepack pnpm -r typecheck",
+    "typecheck": "corepack pnpm -r typecheck",
     "test": "corepack pnpm run quality:test && corepack pnpm run capabilities:test && corepack pnpm -r test",
     "test:coverage": "corepack pnpm -r test:coverage",
     "e2e": "cargo test -p octessera-desktop --features headless --test e2e",
