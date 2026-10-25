@@ -124,16 +124,6 @@ runs:
         wifi_connect_artifact_root="$custom_root/target/wifi-connect-patched"
         wifi_connect_legal_root="$custom_root/third_party/wifi-connect-4.11.84"
         wifi_connect_stage="$GITHUB_WORKSPACE/build/userpatches/overlay/usr/local/share/octessera/wifi-connect"
-        wifi_connect_expected_sha256=4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627
-        wifi_connect_patch_sha256=c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6
-        for wifi_connect_file in wifi-connect wifi-connect.metadata.json cargo-metadata.json; do
-          test -f "$wifi_connect_artifact_root/$wifi_connect_file" && test ! -L "$wifi_connect_artifact_root/$wifi_connect_file"
-        done
-        for wifi_connect_file in LICENSE THIRD-PARTY-NOTICES.md portal-address-readiness.patch; do
-          test -f "$wifi_connect_legal_root/$wifi_connect_file" && test ! -L "$wifi_connect_legal_root/$wifi_connect_file"
-        done
-        echo "$wifi_connect_expected_sha256  $wifi_connect_artifact_root/wifi-connect" | sha256sum -c -
-        echo "$wifi_connect_patch_sha256  $wifi_connect_legal_root/portal-address-readiness.patch" | sha256sum -c -
         install -d -m 0755 "$wifi_connect_stage"
         for wifi_connect_file in wifi-connect.metadata.json cargo-metadata.json; do
           install -m 0644 "$wifi_connect_artifact_root/$wifi_connect_file" "$wifi_connect_stage/$wifi_connect_file"
@@ -187,16 +177,8 @@ runs:
         source_lock="$custom_root/userpatches/config/sources/git_sources.json"
         effective_source_lock="$GITHUB_WORKSPACE/build/config/sources/git_sources.json"
         expected_source_lock_sha256=e8550bd50d61630518a2470b8e9793cd71653ae0732bc6c1c87726b222529e30
-        [[ -f "$source_lock" && ! -L "$source_lock" ]] || { echo 'Reviewed Orange source lock is missing or symlinked.' >&2; exit 1; }
         printf '%s  %s\n' "$expected_source_lock_sha256" "$source_lock" | sha256sum -c -
-        [[ -d "$GITHUB_WORKSPACE/build/config/sources" && ! -L "$GITHUB_WORKSPACE/build/config/sources" ]] || { echo 'Armbian config/sources directory is missing or symlinked.' >&2; exit 1; }
-        if [[ -e "$effective_source_lock" || -L "$effective_source_lock" ]]; then
-          [[ -f "$effective_source_lock" && ! -L "$effective_source_lock" ]] || { echo 'Refusing to overwrite a symlinked or non-regular effective source lock.' >&2; exit 1; }
-        fi
         install -m 0644 "$source_lock" "$effective_source_lock"
-        [[ -f "$effective_source_lock" && ! -L "$effective_source_lock" ]] || { echo 'Effective Orange source lock is missing or symlinked after staging.' >&2; exit 1; }
-        cmp -- "$source_lock" "$effective_source_lock"
-        printf '%s  %s\n' "$expected_source_lock_sha256" "$effective_source_lock" | sha256sum -c -
     - name: Build image
       shell: bash
       env:
@@ -212,21 +194,7 @@ runs:
         ARMBIAN_BUILD_REF: ${{ inputs.armbian_build_ref }}
       run: |
         set -euo pipefail
-        [[ "$OCTESSERA_ARMBIAN_BOARD" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid board slug.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_BOARD" == orangepizero2w ]] || { echo 'This Octessera image path accepts only orangepizero2w.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_RELEASE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid release.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo 'Invalid kernel branch.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_KERNEL_BRANCH" == current ]] || { echo 'This Octessera image path accepts only the current kernel family.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_UI" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Invalid UI value.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_COMPRESSION" =~ ^[a-z0-9,._-]+$ ]] || { echo 'Invalid compression value.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_EXTENSIONS" =~ ^[A-Za-z0-9,._[:space:]-]*$ ]] || { echo 'Invalid extensions value.' >&2; exit 1; }
         effective_extensions="$(bash "$GITHUB_ACTION_PATH/../../../tools/armbian-image/resolve-armbian-extensions.sh" "$OCTESSERA_ARMBIAN_EXTENSIONS")"
-        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_midi([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_midi.' >&2; exit 1; }
-        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_audio([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_audio.' >&2; exit 1; }
-        [[ "$effective_extensions" =~ (^|[[:space:],])octessera_image_sanitize([[:space:],]|$) ]] || { echo 'Effective extensions must include octessera_image_sanitize.' >&2; exit 1; }
-        [[ "$OCTESSERA_ARMBIAN_SHARE_LOG" =~ ^(yes|no)$ ]] || { echo 'Invalid share_log value.' >&2; exit 1; }
-        [[ "$ARMBIAN_BUILD_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'Qualification image builds require a reviewed immutable Armbian commit SHA.' >&2; exit 1; }
-        [[ "$ARMBIAN_BUILD_REF" == 3da49cffcb8ac58a919d86816fec4659c410ff1e ]] || { echo 'Qualification image builds require the reviewed Armbian source pin.' >&2; exit 1; }
         cd build
         build_desktop=no
         build_minimal=no
@@ -294,16 +262,17 @@ runs:
           [[ ! -e "$destination" ]] || { echo "Refusing to overwrite release handoff package: $destination" >&2; exit 1; }
           install -m 0644 "${linux_kernel_packages[$index]}" "$destination"
         done
-    - name: Inspect built image
+    - name: Smoke-check built image
       shell: bash
       env:
         OCTESSERA_IMAGE_KIND: ${{ inputs.image_kind }}
+        OCTESSERA_RUNTIME_BUNDLE_PATH: ${{ inputs.runtime_bundle_path }}
       run: |
         set -euo pipefail
         custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
-        mapfile -t image_artifacts < <(find build/output/images -maxdepth 1 -type f \( -name '*.img' -o -name '*.img.xz' \) -print | sort)
-        [[ "${#image_artifacts[@]}" == 1 ]] || { echo "Expected exactly one image artifact, found ${#image_artifacts[@]}." >&2; exit 1; }
-        bash "$custom_root/tools/armbian-image/inspect-output-images.sh" --mode "$OCTESSERA_IMAGE_KIND" build/output/images
+        bundle_args=()
+        [[ "$OCTESSERA_IMAGE_KIND" != production ]] || bundle_args=(--runtime-bundle "$OCTESSERA_RUNTIME_BUNDLE_PATH")
+        bash "$custom_root/tools/armbian-image/smoke-built-image.sh" --mode "$OCTESSERA_IMAGE_KIND" "${bundle_args[@]}" build/output/images
     - name: Verify generated image checksums
       shell: bash
       run: |

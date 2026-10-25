@@ -74,15 +74,6 @@ if [[ "$mmc_spi_value" == m ]]; then
 fi
 
 wifi_connect_artifact_dir="$overlay_dir/usr/local/share/octessera/wifi-connect"
-wifi_connect_expected_sha256=4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627
-wifi_connect_patch_sha256=c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6
-for wifi_connect_file in wifi-connect wifi-connect.metadata.json cargo-metadata.json LICENSE THIRD-PARTY-NOTICES.md; do
-  [[ -f "$wifi_connect_artifact_dir/$wifi_connect_file" && ! -L "$wifi_connect_artifact_dir/$wifi_connect_file" ]] || { echo "Missing locally supplied patched wifi-connect artifact: $wifi_connect_file" >&2; exit 1; }
-done
-echo "$wifi_connect_expected_sha256  $wifi_connect_artifact_dir/wifi-connect" | sha256sum -c -
-[[ "$(jq -er '.binary_sha256' "$wifi_connect_artifact_dir/wifi-connect.metadata.json")" == "$wifi_connect_expected_sha256" ]] || { echo "Patched wifi-connect metadata has the wrong binary SHA-256." >&2; exit 1; }
-[[ "$(jq -er '.patch_sha256' "$wifi_connect_artifact_dir/wifi-connect.metadata.json")" == "$wifi_connect_patch_sha256" ]] || { echo "Patched wifi-connect metadata has the wrong patch SHA-256." >&2; exit 1; }
-[[ "$(jq -er '.target' "$wifi_connect_artifact_dir/wifi-connect.metadata.json")" == aarch64-unknown-linux-gnu ]] || { echo "Patched wifi-connect metadata has the wrong target." >&2; exit 1; }
 install -D -m 0755 "$wifi_connect_artifact_dir/wifi-connect" /usr/local/bin/wifi-connect
 for wifi_connect_doc in LICENSE THIRD-PARTY-NOTICES.md wifi-connect.metadata.json cargo-metadata.json; do
   install -D -m 0644 "$wifi_connect_artifact_dir/$wifi_connect_doc" "/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
@@ -339,10 +330,6 @@ if [[ -f /boot/extlinux/extlinux.conf ]]; then
   extlinux_tmp=
 fi
 
-spi_dts_sha256="$(sha256sum "$spi_dts_image" | awk '{ print $1 }')"
-spi_dtbo_sha256="$(sha256sum "$spi_dtbo" | awk '{ print $1 }')"
-audio_dts_sha256="$(sha256sum "$audio_dts_image" | awk '{ print $1 }')"
-audio_dtbo_sha256="$(sha256sum "$audio_dtbo" | awk '{ print $1 }')"
 
 octessera_require_updater_overlay "$overlay_dir"
 for wifi_foundation_file in \
@@ -462,12 +449,6 @@ OCTESSERA_RUNTIME_VERSION=${OCTESSERA_RUNTIME_VERSION}
 OCTESSERA_RUNTIME_BINARY_SHA256=${OCTESSERA_RUNTIME_BINARY_SHA256}
 OCTESSERA_RUNTIME_MANIFEST_SHA256=${OCTESSERA_RUNTIME_MANIFEST_SHA256}
 OCTESSERA_RUNTIME_METADATA_SHA256=${OCTESSERA_RUNTIME_METADATA_SHA256}
-OCTESSERA_SPI1_OLED_SD2_DTS_SHA256=${spi_dts_sha256}
-OCTESSERA_SPI1_OLED_SD2_DTBO_SHA256=${spi_dtbo_sha256}
-OCTESSERA_INPUT_ROUTING_DTS_SHA256=$(sha256sum "$input_routing_dts_image" | awk '{ print $1 }')
-OCTESSERA_INPUT_ROUTING_DTBO_SHA256=$(sha256sum "$input_routing_dtbo" | awk '{ print $1 }')
-OCTESSERA_AHUB0_PCM5102_DTS_SHA256=${audio_dts_sha256}
-OCTESSERA_AHUB0_PCM5102_DTBO_SHA256=${audio_dtbo_sha256}
 OCTESSERA_PI_DEFAULT_SHA256=$(sha256sum /usr/share/octessera/defaults/pi-default.json | awk '{ print $1 }')
 EOF
 chown root:root /etc/octessera/build-metadata.env

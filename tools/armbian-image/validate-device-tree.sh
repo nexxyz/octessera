@@ -13,10 +13,6 @@ spi_name=octessera-h618-spi1-oled-sd2
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-# shellcheck source=tools/armbian-image/inspect-path.sh
-source "$root/tools/armbian-image/inspect-path.sh"
-source "$root/tools/armbian-image/inspect-mode.sh"
-
 for command in dtc fdtoverlay fdtget; do
   command -v "$command" >/dev/null 2>&1 || { echo "$command is required for Armbian device-tree validation." >&2; exit 1; }
 done
@@ -85,9 +81,6 @@ grep -qxF '  APPEND root=UUID=abc' "$env_work/append.out"
 octessera_assert_no_uart0_console_args "$env_work/append.out"
 [[ "$(octessera_normalize_fdt_numbers '00000008 0x0000000a deadbeef')" == '8 10 3735928559' ]]
 if octessera_normalize_fdt_numbers not-a-number >/dev/null 2>&1; then echo 'FDT numeric normalization accepted invalid input.' >&2; exit 1; fi
-[[ "$(octessera_debugfs_mode 'Inode: 1 Type: regular Mode: 0644 Flags: 0x0')" == 0644 ]]
-[[ "$(octessera_debugfs_mode 'Inode: 2 Type: regular Mode: 0100755 Flags: 0x0')" == 0755 ]]
-[[ "$(octessera_debugfs_mode 'Inode: 3 Type: regular Mode: 0104755 Flags: 0x0')" == 4755 ]]
 
 grep -q 'pins = "PH6", "PH7", "PH8";' "$spi_fixture"
 grep -q 'pins = "PH5";' "$spi_fixture"

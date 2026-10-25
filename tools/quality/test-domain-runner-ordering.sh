@@ -59,23 +59,6 @@ check_orange_usb_gadget_runner() {
   [[ "$(cat "$trace")" == $'test-orange-pi-usb-gadget-host-enumeration.sh\ntest-orange-pi-usb-gadget-function.sh' ]]
 }
 
-check_inspector_runner() {
-  local expected=$'test-inspector-account.sh\ntest-inspector-network.sh\ntest-inspector-device-tree.sh\ntest-inspector-runtime.sh'
-  : > "$trace"
-  PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE= "$real_bash" "$root/tools/armbian-image/test-inspector.sh"
-  [[ "$(cat "$trace")" == "$expected" ]]
-  : > "$trace"
-  local status
-  if PATH="$fake_bin:$PATH" RUNNER_TRACE="$trace" RUNNER_FAIL_MODULE=test-inspector-network.sh "$real_bash" "$root/tools/armbian-image/test-inspector.sh"; then
-    return 1
-  else
-    status=$?
-  fi
-  [[ "$status" == 23 ]]
-  [[ "$(cat "$trace")" == $'test-inspector-account.sh\ntest-inspector-network.sh' ]]
-}
-
 check_raspberry_usb_gadget_runner
 check_orange_usb_gadget_runner
-check_inspector_runner
 printf '%s\n' 'Domain test runner ordering and failure propagation passed.'

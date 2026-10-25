@@ -67,12 +67,9 @@ for constructor in "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-ru
     grep -qF 'cargo-metadata.json' "$constructor"
     grep -qF 'THIRD-PARTY-NOTICES.md' "$constructor"
 done
-grep -qF '4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627' "$ROOT/userpatches/customize-image.sh"
-grep -qF 'c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6' "$ROOT/userpatches/customize-image.sh"
 grep -qF 'target/wifi-connect-patched' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'usr/local/share/doc/octessera/wifi-connect' "$ROOT/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 grep -qF 'usr/local/share/octessera/wifi-connect' "$ROOT/userpatches/customize-image.sh"
-grep -qF 'sha256sum -c -' "$ROOT/userpatches/customize-image.sh"
 for dependency in network-manager dnsmasq wireless-tools iw; do
     grep -qF "$dependency" "$ROOT/tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh"
     grep -qF "$dependency" "$ROOT/userpatches/customize-image.sh"

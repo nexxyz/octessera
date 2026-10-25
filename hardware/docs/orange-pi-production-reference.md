@@ -140,9 +140,7 @@ present), set through the binding's legacy `gpios` property. Without it the
 kernel polls the empty slot over SPI1 many times a second, which floods the
 journal on the debug-enabled Armbian kernel. It does not add GPIO chip select,
 broken-card-detect, or non-removable properties. Image customization resolves the
-boot-selected DTB and records non-secret DTS/DTBO hashes in
-`/etc/octessera/build-metadata.env`; DTBO and boot-environment writes are
-atomic. Before any OLED transfer, verify the live SPI1 node and pinmux and keep
+boot-selected DTB; DTBO and boot-environment writes are atomic. Before any OLED transfer, verify the live SPI1 node and pinmux and keep
 a recovery path for `/boot/armbianEnv.txt`.
 
 On the fixed PCB, SD2 chip select is header pin 26. H618 PH9 is the local

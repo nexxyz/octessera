@@ -38,8 +38,8 @@ The patch therefore changes only `src/network.rs`, `src/errors.rs`, and
 `c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6`, and the
 stripped AArch64 binary produced by the pinned builder has SHA256
 `4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627`. Those
-exact source-scope, patch, and binary locks are required by the builder, image
-stagers, inspectors, and tests.
+exact source-scope, patch, and binary locks are required by the builder and its
+tests.
 
 ## Reproduce and verify
 

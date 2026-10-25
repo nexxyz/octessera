@@ -70,21 +70,23 @@ node --check userpatches/overlay/usr/local/share/octessera-setup-ui/js/app.js
 git diff --check
 ```
 
-To inspect an extracted root filesystem or ext4 root partition image:
-
-```bash
-tools/armbian-image/inspect-built-image.sh <rootfs-dir-or-ext4-image>
-```
-
 ## Constructor procedure
 
 1. Cross-build the matching native binary first.
 2. Run the Raspberry pi-gen and Orange Armbian constructors (see
    [Board image dispatch](#board-image-dispatch)).
-3. Inspect the result with `tools/armbian-image/inspect-built-image.sh` (Orange)
-   or `tools/pi-image/verify-sanitized-image.sh` (Raspberry), then use the
-   [deployment workflow](deployment.md) and the board bring-up procedure for
-   hardware testing.
+3. Smoke-check the result with `tools/armbian-image/smoke-built-image.sh`
+   (Orange) or `tools/pi-image/verify-sanitized-image.sh` (Raspberry), then use
+   the [deployment workflow](deployment.md) and the board bring-up procedure
+   for hardware testing.
+
+The Orange check runs inside the shared Armbian build action on every image. It
+reads the root partition with `debugfs` and checks that the three Octessera
+`.dtbo` overlays are installed and listed in `user_overlays`, that a production
+image has `octessera.service` enabled and the release binary matches the runtime
+bundle (a diagnostic image must have neither), that no SSH keys or
+NetworkManager profiles are baked in, and that the legal notice tree is
+canonical.
 
 The Raspberry check is a small smoke test that `release-board-artifacts.yml`
 runs on the finished ZIP. It mounts the image and checks that
@@ -180,8 +182,7 @@ The image path compiles and merges the separate
 `octessera-h618-input-routing` overlay against the exact boot-selected H618 DTB.
 It clears `console=ttyS0`, masks `serial-getty@ttyS0.service`, clears UART0
 stdout, and releases PH0/PH1 without changing SSH. It refuses any board other
-than `orangepizero2w`, resolves the boot-selected DTB, and records non-secret
-SPI/input overlay hashes in `/etc/octessera/build-metadata.env`. The parser
+than `orangepizero2w` and resolves the boot-selected DTB. The parser
 rejects duplicate assignments/tokens, commented assignments, and malformed
 lists. Do not enable an overlay on another board or kernel without a matching
 contract update.
