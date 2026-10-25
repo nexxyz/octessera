@@ -51,7 +51,6 @@ impl SynthEngine {
             cumulative_voice_admission_drops: 0,
             momentary_fx: Vec::with_capacity(MAX_MOMENTARY_FX),
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
-            render_profile: RenderProfileState::default(),
             block_slot_scratch: BlockSlotScratch::new(),
             #[cfg(test)]
             routing_tree_scratch: RoutingTreeBlockScratch::new(),

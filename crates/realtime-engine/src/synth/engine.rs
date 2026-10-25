@@ -44,7 +44,6 @@ mod render;
 mod render_block_tests;
 mod render_momentary_fx;
 mod render_plan;
-mod render_profile;
 mod render_routing;
 mod render_samples;
 mod render_synth;
@@ -217,7 +216,6 @@ use momentary_fx_state::{
     parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState,
 };
 use render_plan::RenderPlan;
-use render_profile::RenderProfileState;
 use render_routing::FxBusOutputSpreadState;
 #[cfg(feature = "routing-tree-executor")]
 use routing_tree_executor::RoutingTreeAssignment;
@@ -278,7 +276,6 @@ pub struct SynthEngine {
     cumulative_voice_admission_drops: u64,
     momentary_fx: Vec<MomentaryFxState>,
     fx_activity_hold_frames: u32,
-    render_profile: RenderProfileState,
     block_slot_scratch: BlockSlotScratch,
     #[cfg(test)]
     routing_tree_scratch: RoutingTreeBlockScratch,

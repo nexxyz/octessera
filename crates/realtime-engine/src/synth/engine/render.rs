@@ -1,9 +1,7 @@
 use super::inline_source_executor::SourceRenderOutput;
-use super::render_profile;
 use super::source_lane_renderer::{SampleSourceContext, SynthSourceContext};
 use super::*;
 use crate::simd::interleave_stereo;
-use std::time::Instant;
 
 impl SynthEngine {
     pub fn next_sample(&mut self) -> f32 {
@@ -12,9 +10,6 @@ impl SynthEngine {
     }
 
     pub fn next_stereo_sample(&mut self) -> (f32, f32) {
-        if self.render_profile.enabled {
-            return self.profiled_serial_frame_graph();
-        }
         self.serial_frame_graph()
     }
 
@@ -199,80 +194,6 @@ impl SynthEngine {
         }
     }
 
-    fn profiled_serial_frame_graph(&mut self) -> (f32, f32) {
-        if !self.voice_pools_home() {
-            return (0.0, 0.0);
-        }
-        let frame_start = Instant::now();
-        let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
-
-        let start = Instant::now();
-        let sample_active = self.render_sample_voices(&mut slot_out);
-        self.render_profile.stage_ns[render_profile::PROFILE_SAMPLE_VOICES] =
-            start.elapsed().as_nanos() as u64;
-
-        let start = Instant::now();
-        let (preview, preview_active) = self.render_preview_sample_voices();
-        self.render_profile.stage_ns[render_profile::PROFILE_PREVIEW_SAMPLE_VOICES] =
-            start.elapsed().as_nanos() as u64;
-
-        let start = Instant::now();
-        let synth_active = self.render_synth_voices(&mut slot_out);
-        self.render_profile.stage_ns[render_profile::PROFILE_SYNTH_VOICES] =
-            start.elapsed().as_nanos() as u64;
-
-        let start = Instant::now();
-        let process_buses = self.should_process_fx_buses();
-        if process_buses {
-            self.prepare_bus_buffers();
-        }
-        let (mut left, mut right) = self.mix_instrument_slots(&slot_out);
-        self.render_profile.stage_ns[render_profile::PROFILE_PREPARE_MIX_SLOTS] =
-            start.elapsed().as_nanos() as u64;
-
-        let start = Instant::now();
-        if process_buses {
-            (left, right) = self.mix_fx_buses(&slot_out, left, right);
-        }
-        left += preview;
-        right += preview;
-        self.render_profile.stage_ns[render_profile::PROFILE_FX_BUSES] =
-            start.elapsed().as_nanos() as u64;
-
-        let start = Instant::now();
-        let master_signal = self.signal_present(left, right)
-            || synth_active
-            || sample_active
-            || preview_active
-            || !self.momentary_fx.is_empty()
-            || self.active_bus_activity_count > 0;
-        let master_active = master_signal || self.master_activity_frames > 0;
-        if master_active {
-            (left, right) = self.apply_master_fx_slots(left, right);
-            (left, right) =
-                self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
-            self.master_activity_frames = if master_signal || self.signal_present(left, right) {
-                self.fx_activity_hold_frames
-            } else {
-                self.master_activity_frames.saturating_sub(1)
-            };
-        }
-        self.render_profile.stage_ns[render_profile::PROFILE_MASTER_GLOBAL_FX] =
-            start.elapsed().as_nanos() as u64;
-
-        let start = Instant::now();
-        self.sample_clock = self.sample_clock.saturating_add(1);
-        let out = (
-            (left * self.master_volume).clamp(-1.0, 1.0),
-            (right * self.master_volume).clamp(-1.0, 1.0),
-        );
-        self.render_profile.stage_ns[render_profile::PROFILE_CLOCK_VOLUME_CLAMP] =
-            start.elapsed().as_nanos() as u64;
-        self.render_profile.frames_observed = self.render_profile.frames_observed.saturating_add(1);
-        self.render_profile.last_frame_total_ns = frame_start.elapsed().as_nanos() as u64;
-        out
-    }
-
     pub fn render_interleaved_block(
         &mut self,
         frames: usize,
@@ -283,27 +204,16 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
-        if !self.render_profile.enabled && self.block_slot_scratch.prepare_output(frames) {
+        if self.block_slot_scratch.prepare_output(frames) {
             self.block_slot_frame_graph(frames, left, right);
             interleave_stereo(left, right, out);
             return;
         }
-        let block_start = self.render_profile.enabled.then(Instant::now);
         for frame in 0..frames {
             let (l, r) = self.next_stereo_sample();
             left[frame] = l;
             right[frame] = r;
         }
-        let interleave_start = self.render_profile.enabled.then(Instant::now);
         interleave_stereo(left, right, out);
-        if let Some(start) = interleave_start {
-            self.render_profile.interleave_ns = start.elapsed().as_nanos() as u64;
-            self.render_profile.blocks_observed =
-                self.render_profile.blocks_observed.saturating_add(1);
-            self.render_profile.last_block_frames = frames;
-            self.render_profile.last_block_total_ns = block_start
-                .map(|block_start| block_start.elapsed().as_nanos() as u64)
-                .unwrap_or(self.render_profile.interleave_ns);
-        }
     }
 }

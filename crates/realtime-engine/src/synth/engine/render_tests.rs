@@ -75,58 +75,6 @@ fn note_on_keeps_synth_voice_instrument_slot_aligned_with_pool() {
     }
 }
 
-#[test]
-fn render_profile_disabled_remains_inert_after_rendering() {
-    let mut engine = SynthEngine::new(44_100);
-    let mut left = Vec::new();
-    let mut right = Vec::new();
-    let mut out = Vec::new();
-    engine.note_on(0, 60, 96, 1_000);
-
-    let _ = engine.next_stereo_sample();
-    engine.render_interleaved_block(16, &mut left, &mut right, &mut out);
-
-    assert_eq!(
-        engine.render_profile_snapshot(),
-        RenderProfileSnapshot::default()
-    );
-}
-
-#[test]
-fn render_profile_enabled_records_block_observations() {
-    let mut engine = SynthEngine::new(44_100);
-    let mut left = Vec::new();
-    let mut right = Vec::new();
-    let mut out = Vec::new();
-    engine.set_render_profile_enabled(true);
-    engine.note_on(0, 60, 96, 1_000);
-
-    engine.render_interleaved_block(32, &mut left, &mut right, &mut out);
-
-    let snapshot = engine.render_profile_snapshot();
-    assert!(snapshot.enabled);
-    assert_eq!(snapshot.frames_observed, 32);
-    assert_eq!(snapshot.blocks_observed, 1);
-    assert_eq!(snapshot.last_block_frames, 32);
-    assert!(snapshot.last_frame_total_ns > 0);
-    assert!(snapshot.last_block_total_ns > 0);
-    assert_eq!(snapshot.stage_ns.len(), RENDER_PROFILE_STAGE_COUNT);
-}
-
-#[test]
-fn profiled_block_render_matches_unprofiled_fx_reference() {
-    let config = delay_bus_config();
-    let mut profiled = SynthEngine::new(44_100);
-    let mut reference = SynthEngine::new(44_100);
-    profiled.set_instruments(config.clone());
-    reference.set_instruments(config);
-    profiled.set_render_profile_enabled(true);
-    profiled.note_on(0, 60, 96, 1_000);
-    reference.note_on(0, 60, 96, 1_000);
-
-    assert_block_matches_reference(profiled, reference, 256);
-}
-
 fn assert_block_matches_reference(
     mut block: SynthEngine,
     mut reference: SynthEngine,

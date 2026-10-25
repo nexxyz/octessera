@@ -335,7 +335,7 @@ pub(super) fn engine_state_signature(engine: &SynthEngine) -> String {
     let bus_chains = bus_chain_state(engine);
     let momentary = momentary_state(engine);
     format!(
-        "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
+        "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
         engine.sample_clock,
         synth_voices,
         sample_voices,
@@ -356,7 +356,6 @@ pub(super) fn engine_state_signature(engine: &SynthEngine) -> String {
         engine.cumulative_voice_steals,
         engine.cumulative_voice_admission_drops,
         engine.voice_steal_since_status,
-        engine.render_profile.snapshot(),
         engine.pending_render_retired.is_empty(),
         engine.pending_render_retired.sample_voice_count(),
     )

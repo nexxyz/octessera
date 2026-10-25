@@ -64,14 +64,14 @@ pub use types::{
     default_synth_config, AudioLoadStatus, BlockPeak, DrumAssignment, DrumConfig, DrumSound,
     DrumVoiceConfig, EnvConfig, FilterConfig, FilterType, FmConfig, FmRatio, FxBusConfig,
     FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, MomentaryFxTarget, OscConfig, PluckConfig, RenderProfileSnapshot,
-    SampleBankConfig, SampleBuffer, SampleShapeConfig, SampleSlotConfig, SynthConfig,
-    SynthProfileSnapshot, VoiceStealingMode, BUS_COUNT, BUS_SLOTS_PER_BUS, CELL_PITCH_CENTS_LIMIT,
+    MasterFxConfig, MixerConfig, MomentaryFxTarget, OscConfig, PluckConfig, SampleBankConfig,
+    SampleBuffer, SampleShapeConfig, SampleSlotConfig, SynthConfig, SynthProfileSnapshot,
+    VoiceStealingMode, BUS_COUNT, BUS_SLOTS_PER_BUS, CELL_PITCH_CENTS_LIMIT,
     DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT, MAX_CONTROL_EVENTS_PER_CALLBACK,
     MAX_SAMPLE_VOICES, MAX_SAMPLE_VOICES_PER_SLOT, MAX_SYNTH_VOICES, MAX_SYNTH_VOICES_PER_SLOT,
-    RENDER_PROFILE_STAGE_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT, SAMPLE_VOICE_LANE_CAPACITY,
-    SAMPLE_VOICE_RETIREMENT_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
+    SAMPLE_SLOTS_PER_INSTRUMENT, SAMPLE_VOICE_LANE_CAPACITY, SAMPLE_VOICE_RETIREMENT_CAPACITY,
+    SYNTH_VOICE_LANE_CAPACITY,
 };
 
 #[cfg(test)]
