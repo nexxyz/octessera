@@ -271,19 +271,9 @@ what was seen. The steps are specified in
 ## Interactive Hardware Test Command
 
 This is the Raspberry-only interactive hardware command. It actuates LEDs, scans
-physical inputs, and plays a test tone under operator control. For the passive
-diagnostic command, run:
-
-```bash
-/usr/local/bin/octessera-pi --fat-diagnostic \
-  --board-profile raspberry-pi-zero-2w
-```
-
-For the Orange exact-source application FAT procedure, keep
-`octessera.service` running and follow [the Orange bring-up
-command](orange-pi-armbian-bringup.md#exact-source-application-fat-not-image-fat).
-It validates the application candidate only; use the separate image FAT and
-construction checks for the installed image.
+physical inputs, and plays a test tone under operator control. The passive
+board check runs from the workstation instead and installs nothing on the board;
+see [the deployment workflow](../../docs/workflows/deployment.md#how-a-development-deploy-works-both-boards).
 
 Run the no-OLED interactive hardware-test mode directly over SSH:
 
@@ -297,9 +287,8 @@ The mode initializes NeoTrellis, NeoKey, DAC, and encoders without requiring an
 OLED. It runs the LED checks, logs grid/key/encoder events to stdout, launches
 the ALSA test tone, and prints a final `SUMMARY`.
 
-Do not combine `--hardware-test` or `--hardware-noise-test` with
-`--fat-diagnostic --board-profile raspberry-pi-zero-2w`. The command exits
-before hardware access when modes are combined.
+Do not combine `--hardware-test` and `--hardware-noise-test`. The command exits
+before hardware access when both are given.
 
 For unattended launch, set `OCTESSERA_PI_HARDWARE_TEST=1` instead of passing `--hardware-test`.
 

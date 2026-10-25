@@ -79,6 +79,14 @@ SHA-256 with the local file, and points the service at it with one drop-in,
 replaces `ExecStart`. It then restarts the service and waits for the new
 process to stay up.
 
+After activation the deploy pipes `tools/board-dev/board-check.sh` over SSH;
+nothing is installed. It prints one `PASS`/`FAIL` line each for platform,
+board identity, service, readiness marker, store paths, setup status, OLED
+handoff, audio route, and USB gadget state, and the deploy fails with
+"Board check failed; run -Restore" if any check fails.
+`tools/pi/board-timing-smoke.sh` runs the same check before it starts
+measuring.
+
 `-Restore` removes the drop-in, restarts the installed release, and deletes
 `/opt/octessera/dev`. Neither action touches `current`, releases, updater
 state, boot files, or the image. If the development build does not come up,
