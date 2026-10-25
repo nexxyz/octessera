@@ -74,9 +74,9 @@ run_pre_push_checks() {
   run_check "pnpm lint" corepack pnpm run lint
   run_check "pnpm typecheck" corepack pnpm run typecheck
   run_check "pnpm format:check" corepack pnpm run format:check
-  run_check "pnpm test" corepack pnpm run test
+  run_check "pnpm quality:test" corepack pnpm run quality:test
+  run_check "pnpm capabilities:test" corepack pnpm run capabilities:test
   run_check "pnpm test:coverage" corepack pnpm run test:coverage
-  run_check "pnpm quality:audit" corepack pnpm run quality:audit
   run_check "cargo fmt" cargo fmt --all --check
   run_check "file length" check_file_length
   run_check "repository integrity fixtures" bash ./tools/quality/test-repository-integrity.sh
@@ -84,16 +84,14 @@ run_pre_push_checks() {
   run_check "legal packaging tests" python3 -m unittest discover -s tools/legal -p 'test_*.py'
   run_check "cargo test" \
     cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source \
+    --exclude platform-core --exclude playback-runtime --exclude realtime-engine \
     --features octessera-pi/profiling
   run_check "cargo test pi routing-tree executor" \
     cargo test -p realtime-engine -p rodio-engine-source --features rodio-engine-source/routing-tree-executor
-  run_check "enum help coverage" \
-    cargo test -p playback-runtime native_menu::tests::help_enum_tests
   run_check "factory patch UI scenario" \
     cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
   run_check "cargo llvm-cov" bash ./tools/quality/check-rust-coverage.sh
   run_check "tauri build smoke" corepack pnpm run tauri:build:ci
-  run_check "cargo check desktop" cargo check -p octessera-desktop
   run_check "cargo test desktop" cargo test -p octessera-desktop
   run_check "cargo test pi production" cargo test -p octessera-pi
   run_check "cargo clippy production cognitive" \

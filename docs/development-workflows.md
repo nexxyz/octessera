@@ -166,13 +166,14 @@ the strict checks.
 
 `.githooks/pre-push` delegates to `tools/quality/pre-push.sh`; the check list
 lives in `tools/quality/pre-push-checks.sh`. The full profile runs lint,
-typecheck, format checks, JS tests and coverage, the quality audit, `cargo fmt`,
-the file-length limit, the repository integrity fixtures and gate, the
-`tools/legal` packaging tests, workspace
-and routing-tree-executor Rust tests, enum help coverage, the
-[factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage, the
-Tauri build smoke, desktop tests, the Pi crate's tests in both the production
-and the `profiling` shape, and both Clippy passes. It takes a
+typecheck, format checks, the JS tests under coverage, `cargo fmt`, the
+file-length limit, the repository integrity fixtures and gate (generated-output
+freshness, legal inventories, links, and the quality audit), the `tools/legal`
+packaging tests, the remaining workspace and routing-tree-executor Rust tests,
+the [factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage
+(which runs the `platform-core`, `playback-runtime`, and `realtime-engine`
+tests), the Tauri build smoke, desktop tests, the Pi crate's tests in both the
+production and the `profiling` shape, and both Clippy passes. It takes a
 while. Give `git push` a long timeout rather than skipping the hook.
 
 If git does not already run hooks from `.githooks/`, point it there:
