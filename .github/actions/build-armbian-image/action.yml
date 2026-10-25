@@ -103,7 +103,7 @@ runs:
         bash "$custom_root/tools/armbian-image/stage-canonical-welcome.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         python3 "$custom_root/tools/armbian-image/stage-device-config.py" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         bash "$custom_root/tools/armbian-image/stage-musical-assets.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay/usr/share/octessera"
-        bash "$custom_root/tools/wifi-connect/build-patched-ci.sh"
+        bash "$custom_root/tools/wifi-connect/build-patched.sh"
         sudo python3 "$custom_root/tools/legal/stage_notices.py" \
           --repository-root "$custom_root" \
           --destination-root "$GITHUB_WORKSPACE/build/userpatches/overlay"

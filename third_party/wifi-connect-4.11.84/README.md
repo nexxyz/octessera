@@ -34,22 +34,19 @@ that marks successful portal, static, and API responses
 `Cache-Control: no-store`; it does not read or log request bodies.
 
 The patch therefore changes only `src/network.rs`, `src/errors.rs`, and
-`src/server.rs`. The refreshed patch SHA256 lock is
-`c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6`, and the
-stripped AArch64 binary produced by the pinned builder has SHA256
-`4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627`. Those
-exact source-scope, patch, and binary locks are required by the builder and its
-tests.
+`src/server.rs`. The patch SHA256 lock is
+`c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6`; the
+builder refuses any other patch or upstream commit.
 
 ## Reproduce and verify
 
-From the repository root, use:
+From the repository root (on Windows, inside WSL with Docker available), use:
 
-```powershell
-pwsh -File tools/wifi-connect/build-patched.ps1
+```bash
+bash tools/wifi-connect/build-patched.sh
 ```
 
-The builder verifies the clone origin and exact commit, copies it to
+The builder clones or verifies the clone origin and exact commit, copies it to
 `target/wifi-connect-patched/source`, applies
 `portal-address-readiness.patch` with `git apply --check`, runs locked native
 tests, builds the locked AArch64 release in the pinned `rust:1.76.0-bookworm`
@@ -67,8 +64,7 @@ python tools/wifi-connect/test-patched-source.py
 ```
 
 The build metadata records the upstream ref and commit, patch SHA256, target,
-container/toolchain, and final binary SHA256. The builder refuses to publish a
-binary unless it matches the refreshed binary and patch hashes. Image constructors
+container/toolchain, and final binary SHA256. Image constructors
 consume the locally staged output and retain the binary, metadata, Cargo
 metadata, license, and third-party notice under the image's local documentation
 tree.

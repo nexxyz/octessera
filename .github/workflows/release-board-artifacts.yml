@@ -253,7 +253,7 @@ jobs:
           name: octessera-raspberry-kernel-release-assets
           path: kernel-bundle
       - name: Build pinned patched wifi-connect
-        run: bash tools/wifi-connect/build-patched-ci.sh
+        run: bash tools/wifi-connect/build-patched.sh
       - name: Stage the matching runtime into stage4
         run: |
           set -euo pipefail

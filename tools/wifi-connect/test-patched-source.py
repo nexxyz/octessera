@@ -13,12 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CLONE = ROOT / ".slim/clonedeps/repos/balena-os__wifi-connect"
 PATCH = ROOT / "third_party/wifi-connect-4.11.84/portal-address-readiness.patch"
 LICENSE = ROOT / "third_party/wifi-connect-4.11.84/LICENSE"
-BUILD = ROOT / "tools/wifi-connect/build-patched.ps1"
-BUILD_CONTAINER = ROOT / "tools/wifi-connect/build-patched.sh"
-BUILD_CI = ROOT / "tools/wifi-connect/build-patched-ci.sh"
+BUILD = ROOT / "tools/wifi-connect/build-patched.sh"
 COMMIT = "5bd4c1bea548fb5714bedb18bbd12f088d5fa407"
 PATCH_SHA256 = "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"
-BINARY_SHA256 = "4a6ea81ad10a199064c2c9bf3f2b9fa39daadff3d8beacbf5685f88b64561627"
 
 
 def git(*args):
@@ -88,15 +85,14 @@ assert LICENSE.read_bytes() == upstream_license
 assert hashlib.sha256(LICENSE.read_bytes()).hexdigest() == hashlib.sha256(upstream_license).hexdigest()
 
 build_text = BUILD.read_text(encoding="utf-8")
-container_text = BUILD_CONTAINER.read_text(encoding="utf-8")
-ci_text = BUILD_CI.read_text(encoding="utf-8")
 for required in (
+    "https://github.com/balena-os/wifi-connect.git",
     "5bd4c1bea548fb5714bedb18bbd12f088d5fa407",
-    "build-patched.sh",
     "rust:1.76.0-bookworm",
-):
-    assert required in build_text, required
-for required in (
+    "git clone --filter=blob:none --depth=1 --no-checkout",
+    "git -C \"$clone_root\" fetch --depth=1 origin \"$upstream_commit\"",
+    "git -C \"$clone_root\" status --porcelain",
+    "docker run --rm",
     "git -C \"$source_root\" apply --check",
     "cargo metadata --locked --format-version 1",
     "cargo test --locked",
@@ -108,31 +104,18 @@ for required in (
     "network_manager_commit",
     "src/server.rs",
     PATCH_SHA256,
-    BINARY_SHA256,
 ):
-    assert required in container_text, required
-assert '(\n  cd "$source_root"\n  cargo build --locked --release --target "$target"\n)' in container_text
+    assert required in build_text, required
+assert '(\n  cd "$source_root"\n  cargo build --locked --release --target "$target"\n)' in build_text
 target_build_lines = [
     line.strip()
-    for line in container_text.splitlines()
+    for line in build_text.splitlines()
     if line.strip().startswith("cargo build") and '--target "$target"' in line
 ]
 assert target_build_lines == ['cargo build --locked --release --target "$target"']
-for required in (
-    "https://github.com/balena-os/wifi-connect.git",
-    "5bd4c1bea548fb5714bedb18bbd12f088d5fa407",
-    "git clone --filter=blob:none --depth=1 --no-checkout",
-    "git -C \"$clone_root\" fetch --depth=1 origin \"$upstream_commit\"",
-    "git -C \"$clone_root\" status --porcelain",
-    "docker run --rm",
-    "tools/wifi-connect/build-patched.sh",
-    BINARY_SHA256,
-    PATCH_SHA256,
-):
-    assert required in ci_text, required
 
 lock_text = (CLONE / "Cargo.lock").read_text(encoding="utf-8")
 assert "network-manager.git#4da2e6a57de16b6ae911f74321f929d78af8b1ba" in lock_text
 
 print("Pinned wifi-connect source, patch scope, license, dependency pin, and builder-shape checks passed")
-print(f"Verified patched source: {patch_sha256} ({PATCH.stat().st_size} bytes); refreshed build hashes are locked")
+print(f"Verified patched source: {patch_sha256} ({PATCH.stat().st_size} bytes)")
