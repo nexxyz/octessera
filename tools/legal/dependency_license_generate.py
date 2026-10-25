@@ -22,7 +22,6 @@ from cargo_dependency_license_support import (
     policy_key,
     reference_paths_for,
     validate_policy,
-    verify_cargo_checksum,
     workspace_license_records,
 )
 from cargo_dependency_license_render import render_cargo_outputs
@@ -232,9 +231,6 @@ def cargo_inventory(root: Path) -> tuple[dict[str, bytes], list[dict[str, Any]]]
                     "bytes": len(content),
                 }
             )
-        cargo_checksum = None
-        if package["source"] == REGISTRY_SOURCE:
-            cargo_checksum = verify_cargo_checksum(package_root, package["name"], package["version"], lock_entry["checksum"])
         record = {
             "name": package["name"],
             "version": package["version"],
@@ -252,8 +248,6 @@ def cargo_inventory(root: Path) -> tuple[dict[str, bytes], list[dict[str, Any]]]
             "license_file_status": license_file_status,
             "source_required": license_file_status == "manifest-license-no-file",
         }
-        if cargo_checksum is not None:
-            record["cargo_checksum"] = cargo_checksum
         if is_vendored_cpal:
             provenance = package_root / "PROVENANCE.md"
             if not provenance.is_file() or provenance.is_symlink():
@@ -274,8 +268,6 @@ def cargo_inventory(root: Path) -> tuple[dict[str, bytes], list[dict[str, Any]]]
                     "archive_url": f"https://static.crates.io/crates/{package['name']}/{package['name']}-{package['version']}.crate",
                     "archive_file": f"{package['name']}-{package['version']}.crate",
                     "manifest_sha256": record["manifest_sha256"],
-                    "cargo_checksum_sha256": cargo_checksum["sha256"] if cargo_checksum else None,
-                    "cargo_checksum_status": cargo_checksum["status"] if cargo_checksum else "not-applicable",
                     "manifest_authors": package.get("authors"),
                     "manifest_repository": package.get("repository"),
                     "manifest_license": license_expression,

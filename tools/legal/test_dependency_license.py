@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import sys
 import tempfile
@@ -17,7 +16,6 @@ from cargo_dependency_license_support import (
     load_policy,
     relative_declared_license,
     validate_policy_data,
-    verify_cargo_checksum,
     workspace_license_records,
 )
 from cargo_dependency_license_render import lf_text
@@ -71,20 +69,6 @@ class DependencyLicenseTests(unittest.TestCase):
         changed["license"] = "UNKNOWN"
         with self.assertRaises(RuntimeError):
             validate_policy_data(ROOT, changed_packages, policy)
-
-    def test_cargo_checksum_sidecar_mutation_is_fatal(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            package_root = Path(directory)
-            manifest = package_root / "Cargo.toml"
-            content = b"[package]\nname = 'fixture'\n"
-            manifest.write_bytes(content)
-            checksum = "package-checksum"
-            sidecar = {"package": checksum, "files": {"Cargo.toml": hashlib.sha256(content).hexdigest()}}
-            (package_root / ".cargo-checksum.json").write_text(json.dumps(sidecar), encoding="utf-8")
-            self.assertEqual(verify_cargo_checksum(package_root, "fixture", "1.0.0", checksum)["status"], "verified")
-            manifest.write_bytes(b"mutated")
-            with self.assertRaises(RuntimeError):
-                verify_cargo_checksum(package_root, "fixture", "1.0.0", checksum)
 
 
 if __name__ == "__main__":

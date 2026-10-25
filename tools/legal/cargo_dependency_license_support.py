@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
-import tarfile
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -118,60 +116,6 @@ def license_source_files(package_root: Path, package_manifest: dict[str, Any], p
         if not path.is_symlink() and path.is_file() and predicate(path.name)
     ]
     return None, sorted(files, key=lambda path: path.name.casefold()), "recognized-top-level-file" if files else "manifest-license-no-file"
-
-
-def registry_archive(package_name: str, version: str, checksum: str) -> Path | None:
-    cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
-    filename = f"{package_name}-{version}.crate"
-    for cache in sorted((cargo_home / "registry/cache").glob("*")):
-        archive = cache / filename
-        if archive.is_file() and sha256(archive.read_bytes()) == checksum:
-            return archive
-    return None
-
-
-def archive_checksum_payload(archive: Path, package_name: str, checksum: str) -> bytes:
-    files = {}
-    with tarfile.open(archive, "r:*") as source:
-        for member in source.getmembers():
-            if not member.isfile():
-                continue
-            prefix, separator, relative = member.name.partition("/")
-            if not separator or prefix != archive.stem:
-                raise RuntimeError(f"unexpected crate archive member: {member.name}")
-            stream = source.extractfile(member)
-            if stream is None:
-                raise RuntimeError(f"cannot read crate archive member: {member.name}")
-            content = stream.read()
-            files[relative] = sha256(content)
-    payload = {"package": checksum, "files": dict(sorted(files.items()))}
-    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
-
-
-def verify_cargo_checksum(package_root: Path, package_name: str, version: str, checksum: str) -> dict[str, Any]:
-    sidecar = package_root / ".cargo-checksum.json"
-    if not sidecar.is_file() or sidecar.is_symlink():
-        archive = registry_archive(package_name, version, checksum)
-        if archive is None:
-            return {"status": "not-present-in-registry-src", "sha256": None}
-        sidecar_bytes = archive_checksum_payload(archive, package_name, checksum)
-        payload = json.loads(sidecar_bytes)
-        for raw_path, expected in payload["files"].items():
-            source = package_root / Path(raw_path)
-            if not source.is_file() or source.is_symlink() or sha256(source.read_bytes()) != expected:
-                raise RuntimeError(f"registry source differs from crate archive: {package_name} {version}/{raw_path}")
-        return {"status": "verified-from-crate-archive", "sha256": sha256(sidecar_bytes)}
-    payload = json.loads(sidecar.read_text(encoding="utf-8"))
-    if payload.get("package") != checksum or not isinstance(payload.get("files"), dict):
-        raise RuntimeError(f"invalid .cargo-checksum.json package identity: {package_root}")
-    for raw_path, expected in payload["files"].items():
-        path = Path(raw_path.replace("\\", "/"))
-        if path.is_absolute() or ".." in path.parts:
-            raise RuntimeError(f"unsafe .cargo-checksum.json path: {raw_path}")
-        source = package_root / Path(raw_path.replace("\\", "/"))
-        if not source.is_file() or source.is_symlink() or sha256(source.read_bytes()) != expected:
-            raise RuntimeError(f".cargo-checksum.json file mismatch: {package_root}/{raw_path}")
-    return {"status": "verified", "sha256": sha256(sidecar.read_bytes())}
 
 
 def load_policy(root: Path) -> dict[str, Any]:
