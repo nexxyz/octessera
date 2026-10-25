@@ -94,8 +94,8 @@ jobs:
           cache: pnpm
       - name: Install deps
         run: pnpm install --frozen-lockfile
-      - name: Run TS unit tests
-        run: pnpm run test
+      - name: Run tooling tests
+        run: pnpm run quality:test && pnpm run capabilities:test
       - name: Run TS tests with coverage
         run: pnpm run test:coverage
 
