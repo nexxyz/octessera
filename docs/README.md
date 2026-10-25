@@ -57,7 +57,7 @@ the code. For playing or building the instrument, start with the
   development deployment and Orange input routing.
 - [Orange Pi tools](../tools/orange-pi/README.md): Orange SSH bootstrap,
   cross-builds, and study tools.
-- [Image construction](workflows/image-construction-and-proof.md) and
+- [Image construction](workflows/image-construction.md) and
   [release assembly](workflows/release-assembly.md): building board images
   and release assets.
 

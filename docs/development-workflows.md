@@ -13,7 +13,7 @@ Use the focused page for the responsibility you are changing:
 - [Pi development and profiling](workflows/pi-development-and-profiling.md):
   host builds, Orange cross-build tools, the shared-path timing smoke, Pi
   profiling, and audio probes.
-- [Image construction](workflows/image-construction-and-proof.md):
+- [Image construction](workflows/image-construction.md):
   pi-gen/Armbian construction, boot layers, and validators.
 - [Release assembly](workflows/release-assembly.md): artifact formats, staging,
   update boundaries, and attribution companions.

@@ -3,7 +3,7 @@
 This is the technical reference for the Orange Pi Zero 2W production Armbian
 image, service, storage, audio, and updater contracts. Use the ordered
 [Orange bring-up procedure](orange-pi-armbian-bringup.md) for a board session;
-use [`docs/workflows/image-construction-and-proof.md`](../../docs/workflows/image-construction-and-proof.md)
+use [`docs/workflows/image-construction.md`](../../docs/workflows/image-construction.md)
 for image construction commands.
 
 ## Artifact contract

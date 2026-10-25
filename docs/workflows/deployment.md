@@ -117,8 +117,8 @@ separate contract is
 Connected-hardware loops need explicit operator authorization immediately
 before every package or boot change, service change, reboot, deployment,
 GPIO/I2C/SPI activity, audio playback, or USB gadget bind/unbind. Image builds
-and their gates are in
-[`image-construction-and-proof.md`](image-construction-and-proof.md).
+and their checks are in
+[`image-construction.md`](image-construction.md).
 
 ## Hardware runtime debug loop
 

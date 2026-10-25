@@ -5,7 +5,7 @@ the established Armbian production path. Use it at the workbench. The detailed
 production image, service, storage, audio, USB, and updater contracts live in
 the [Orange production reference](orange-pi-production-reference.md); image
 construction commands live in
-[`docs/workflows/image-construction-and-proof.md`](../../docs/workflows/image-construction-and-proof.md).
+[`docs/workflows/image-construction.md`](../../docs/workflows/image-construction.md).
 
 This is a hardware gate. Do not copy Raspberry Pi constants, overlays, or
 `rppal` GPIO assumptions into Orange Pi support until these checks pass on the
