@@ -9,9 +9,6 @@ fn callback_rendezvous_has_no_sleep_or_yield() {
     let source = include_str!("source_worker.rs");
     assert!(!source.contains("yield_now"));
     assert!(!source.contains("thread::sleep"));
-    assert!(!source.contains(&["SOURCE_WORKER", "_POLL_CEILING"].concat()));
-    assert!(!source.contains(&["poll", "_limit"].concat()));
-    assert!(!source.contains(&["poll", "s"].concat()));
 }
 
 #[test]

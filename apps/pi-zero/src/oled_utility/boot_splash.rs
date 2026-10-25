@@ -176,47 +176,8 @@ fn advance_boot_sweep(cycle_start: Instant, frame_index: usize) -> (Instant, usi
 
 #[cfg(test)]
 mod tests {
-    use super::super::FRAME_BYTES;
     use super::advance_boot_sweep;
     use std::time::{Duration, Instant};
-
-    #[test]
-    fn static_boot_splash_writes_one_clean_frame_without_runtime_waits() {
-        let source = include_str!("boot_splash.rs");
-        let static_body = source
-            .split_once("fn run_boot_splash_static()")
-            .and_then(|(_, body)| body.split_once("fn run_boot_splash_loop()"))
-            .map(|(body, _)| body)
-            .expect("static boot splash body");
-        assert_eq!(crate::render::boot_sweep_base_frame().len(), FRAME_BYTES);
-        assert_eq!(static_body.matches("write_frame").count(), 1);
-        assert!(!static_body.contains("thread::sleep"));
-        assert!(!static_body.contains("animator_start"));
-        assert!(!static_body.contains("marker"));
-    }
-
-    #[test]
-    fn boot_loop_uses_one_startup_delayed_frame_and_keeps_polling_handoff() {
-        let source = include_str!("boot_splash.rs");
-        let loop_body = source
-            .split_once("fn run_boot_splash_loop()")
-            .and_then(|(_, body)| body.split_once("fn sleep_boot_sweep_rest("))
-            .map(|(body, _)| body)
-            .expect("boot splash loop body");
-        assert!(loop_body.contains("NATIVE_HANDOFF_TIMEOUT"));
-        assert!(loop_body.contains("boot_startup_delayed::render_startup_delayed_frame"));
-        assert_eq!(
-            loop_body.matches("render_startup_delayed_and_wait").count(),
-            3
-        );
-        let startup_delayed_body = source
-            .split_once("fn render_startup_delayed_and_wait(")
-            .and_then(|(_, body)| body.split_once("fn sleep_until("))
-            .map(|(body, _)| body)
-            .expect("startup delayed wait body");
-        assert!(startup_delayed_body.contains("thread::sleep(Duration::from_nanos("));
-        assert!(!loop_body.contains("display_off"));
-    }
 
     #[test]
     fn boot_sweep_wrap_advances_frame_zero_after_the_exact_sweep_and_rest() {

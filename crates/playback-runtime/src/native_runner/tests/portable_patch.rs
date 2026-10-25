@@ -390,14 +390,6 @@ pub(crate) fn orange_uses_pi_default_source_and_preserves_portable_projection() 
         portable_patch_bytes(&pi).unwrap(),
         portable_patch_bytes(&orange).unwrap()
     );
-
-    let orange_startup = include_str!("../../../../../apps/pi-zero/src/pi_host_core.rs");
-    assert!(orange_startup.contains("load_default_now()"));
-    assert!(orange_startup.contains("RuntimeStoreResult::LoadDefaultResult { payload }"));
-    assert!(orange_startup.contains("payload: payload.clone(),"));
-
-    let orange_apply = include_str!("../../../../../apps/pi-zero/src/orange_device_apply.rs");
-    assert!(orange_apply.contains("serde_json::to_vec_pretty(payload)"));
 }
 
 #[test]

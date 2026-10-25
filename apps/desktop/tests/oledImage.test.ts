@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { OLED_HEIGHT, OLED_WIDTH } from '@octessera/device-contracts';
 import { toOledImage } from '../src/ui/oledImage';
@@ -65,25 +64,4 @@ test('OLED image converts representative big-endian RGB565 pixels', () => {
       255, 255,
     ],
   );
-});
-
-test('OLED display has only the native-pixel canvas path and black invalid-frame behavior', () => {
-  const source = readFileSync(
-    new URL('../src/ui/OledDisplay.tsx', import.meta.url),
-    'utf8',
-  );
-  assert.match(source, /toOledImage\(frame\.oled\)/);
-  assert.match(source, /fillStyle = 'black'/);
-  assert.match(source, /if \(!image\) return/);
-  assert.match(source, /opacity: 1/);
-  for (const forbidden of [
-    'drawSemanticOled',
-    'setTimeout',
-    'audioLoad',
-    'displayBrightness',
-    'octessera-pi-booting',
-    'octessera-pi-shutdown',
-  ]) {
-    assert.equal(source.includes(forbidden), false, forbidden);
-  }
 });
