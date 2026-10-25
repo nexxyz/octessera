@@ -8,9 +8,7 @@ Wants=octessera-orange-storage-control.socket
 After=octessera-orange-storage-control.socket
 Requires=octessera-device-apply-reboot.socket
 Requires=octessera-provision-musical-default.service
-Requires=octessera-update-recovery.service
 After=octessera-device-apply-reboot.socket
-After=octessera-update-recovery.service
 Wants=octessera-orange-boot-splash.service
 After=octessera-orange-boot-splash.service
 

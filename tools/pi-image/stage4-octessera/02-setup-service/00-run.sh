@@ -5,19 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 STAGE_FILES="$(cd "$SCRIPT_DIR/.." && pwd)/files"
 LEGAL_REPOSITORY_ROOT="${OCTESSERA_REPOSITORY_ROOT:?OCTESSERA_REPOSITORY_ROOT must point to the canonical source checkout}"
 
-for updater_file in \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_protocol.py" \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_contract.py" \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_state.py" \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_assets.py" \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_guard.py" \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_cli.py" \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_profiles.py"; do
-    if [ ! -f "$updater_file" ]; then
-        echo "Pi image setup requires the canonical updater runtime artifacts; run the release staging copy first." >&2
-        exit 2
-    fi
-done
+if [ ! -f "$STAGE_FILES/root/usr/local/sbin/octessera-update" ]; then
+    echo "Pi image setup requires the staged updater; run the release staging copy first." >&2
+    exit 2
+fi
 for wifi_foundation_file in \
     "$STAGE_FILES/root/usr/local/sbin/octessera-wifi-foundation" \
     "$STAGE_FILES/root/etc/systemd/system/octessera-wifi-foundation.service"; do
@@ -154,39 +145,9 @@ install -D -o root -g root -m 0644 \
 install -D -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-update" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-update"
-install -D -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-update-guard" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-update-guard"
-install -D -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-update-recovery" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-update-recovery"
 install -D -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_protocol.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/updater_protocol.py"
-install -D -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_contract.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/updater_contract.py"
-install -D -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_state.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/updater_state.py"
-install -D -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_assets.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/updater_assets.py"
-install -D -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_guard.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/updater_guard.py"
-install -D -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_cli.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/updater_cli.py"
-install -D -m 0644 \
-    "$STAGE_FILES/root/usr/local/lib/octessera/updater_profiles.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/updater_profiles.py"
-install -D -m 0644 \
-    "$STAGE_FILES/root/etc/systemd/system/octessera-update-guard.service" \
-    "$ROOTFS_DIR/etc/systemd/system/octessera-update-guard.service"
-install -D -m 0644 \
-    "$STAGE_FILES/root/etc/systemd/system/octessera-update-recovery.service" \
-    "$ROOTFS_DIR/etc/systemd/system/octessera-update-recovery.service"
+    "$STAGE_FILES/root/etc/systemd/system/octessera-update-switch@.service" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-update-switch@.service"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-performance-governor.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-performance-governor.service"
@@ -249,8 +210,6 @@ install -d "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants"
 install -d "$ROOTFS_DIR/etc/systemd/system/timers.target.wants"
 ln -sf ../octessera.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera.service"
-ln -sf ../octessera-update-recovery.service \
-    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-update-recovery.service"
 ln -sf ../octessera-usb-gadget.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-usb-gadget.service"
 ln -sf ../octessera-performance-governor.service \

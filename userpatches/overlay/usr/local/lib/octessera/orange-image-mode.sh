@@ -94,18 +94,7 @@ octessera_require_updater_overlay() {
   local updater_file
   for updater_file in \
     usr/local/sbin/octessera-update \
-    usr/local/sbin/octessera-update-broker \
-    usr/local/sbin/octessera-update-guard \
-    usr/local/sbin/octessera-update-recovery \
-    usr/local/lib/octessera/updater_protocol.py \
-    usr/local/lib/octessera/updater_contract.py \
-    usr/local/lib/octessera/updater_state.py \
-    usr/local/lib/octessera/updater_assets.py \
-    usr/local/lib/octessera/updater_guard.py \
-    usr/local/lib/octessera/updater_cli.py \
-    usr/local/lib/octessera/updater_profiles.py \
-    etc/systemd/system/octessera-update-guard.service \
-    etc/systemd/system/octessera-update-recovery.service \
+    etc/systemd/system/octessera-update-switch@.service \
     etc/systemd/system/octessera-update.socket \
     etc/systemd/system/octessera-update@.service; do
     [[ -f "$overlay_root/$updater_file" && ! -L "$overlay_root/$updater_file" ]] || {
@@ -265,7 +254,6 @@ octessera_install_production_runtime() {
   local release_dir="$release_root/$OCTESSERA_RUNTIME_VERSION"
   local temporary
   local path
-  local manifest
 
   for path in /opt/octessera /opt/octessera/releases /usr/local/bin; do
     [[ ! -L "$path" ]] || {
@@ -293,42 +281,10 @@ octessera_install_production_runtime() {
     rm -rf -- "$temporary"
     return 1
   fi
-  manifest="$temporary/update-manifest.json"
-  cat > "$manifest" <<EOF
-{
-  "schema_version": 2,
-  "updater_protocol": 2,
-  "candidate_health_protocol": 1,
-  "updater_supported": true,
-  "distribution": "runtime-updater",
-  "tag": "v$OCTESSERA_RUNTIME_VERSION",
-  "version": "$OCTESSERA_RUNTIME_VERSION",
-  "board_profile": "orange-pi-zero-2w",
-  "arch": "aarch64-unknown-linux-gnu",
-  "binary": "octessera-pi",
-  "platforms": ["orange-pi-zero-2w", "linux-aarch64-device"]
-}
-EOF
-  chown root:root "$temporary/update-manifest.json"
-  chmod 0444 "$temporary/update-manifest.json"
   if ! chmod 0555 "$temporary" || ! mv -f -- "$temporary" "$release_dir"; then
     rm -rf -- "$temporary"
     return 1
   fi
-  manifest="$release_dir/update-manifest.json"
-  cat > /opt/octessera/update-state.json <<EOF
-{
-  "schema_version": 2,
-  "phase": "committed",
-  "current": "$OCTESSERA_RUNTIME_VERSION",
-  "previous": null,
-  "updated_at": "1970-01-01T00:00:00Z",
-  "release": $(cat "$manifest"),
-  "asset": null
-}
-EOF
-  chown root:root /opt/octessera/update-state.json
-  chmod 0644 /opt/octessera/update-state.json
   octessera_atomic_symlink "$release_dir" /opt/octessera/current || return 1
   octessera_atomic_symlink /opt/octessera/current/octessera-pi /usr/local/bin/octessera-pi || return 1
 }

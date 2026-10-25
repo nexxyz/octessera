@@ -1,0 +1,8 @@
+[Unit]
+Description=Octessera release switch to %i
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/octessera-update switch %i
+TimeoutStartSec=150s

@@ -29,8 +29,6 @@ python3 "$root/tools/armbian-image/test_orange_oled_readiness.py"
 python3 "$root/tools/armbian-image/test_orange_oled_handoff.py"
 python3 "$root/tools/armbian-image/test_orange_oled_lifecycle.py"
 python3 "$root/tools/armbian-image/test-orange-runtime-identity.py"
-python3 -B "$root/tools/device-update/test_updater_layout.py"
-python3 "$root/tools/armbian-image/test-orange-update-broker.py"
 python3 "$root/tools/armbian-image/test-device-config.py"
 python3 "$root/tools/armbian-image/test-orange-device-apply.py"
 bash "$root/tools/armbian-image/test-orange-boot-splash-hook.sh"
@@ -63,12 +61,6 @@ bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun 
 bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'preset-firstrun,octessera_midi' | grep -qxF 'preset-firstrun,octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'
 bash "$root/tools/armbian-image/resolve-armbian-extensions.sh" 'other-extension preset-firstrun' | grep -qxF 'other-extension preset-firstrun octessera_midi octessera_audio octessera_sd2 octessera_image_sanitize'
 
-cmp "$root/tools/device-update/octessera-update" "$root/userpatches/overlay/usr/local/sbin/octessera-update"
-cmp "$root/tools/device-update/octessera-update-broker" "$root/userpatches/overlay/usr/local/sbin/octessera-update-broker"
-cmp "$root/tools/device-update/octessera-update-guard" "$root/userpatches/overlay/usr/local/sbin/octessera-update-guard"
-cmp "$root/tools/device-update/octessera-update-recovery" "$root/userpatches/overlay/usr/local/sbin/octessera-update-recovery"
-octessera_reject_file_match 'Updater guard internals must not be present in sudoers.' -Eq 'octessera-update-(guard|recovery)' "$root/userpatches/overlay/etc/sudoers.d/octessera-update"
-octessera_reject_file_match 'Updater recovery must run once per boot, not only when a transaction file exists.' -q '^ConditionPathExists=' "$root/userpatches/overlay/etc/systemd/system/octessera-update-recovery.service"
 if [[ "${OCTESSERA_IMAGE_MODE:-diagnostic}" == diagnostic ]]; then
   diagnostic_runtime_paths="$(find "$root/userpatches/overlay" -type f -name octessera-pi -print)" || {
     echo 'Unable to inspect diagnostic Orange image runtime paths.' >&2

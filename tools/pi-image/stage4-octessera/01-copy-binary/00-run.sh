@@ -32,43 +32,9 @@ if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$tag" == "v$version" ]]; then
     install -D -m 0755 \
         "$STAGE_FILES/root/usr/local/bin/octessera-pi" \
         "$ROOTFS_DIR$release_dir/octessera-pi"
-    cat > "$ROOTFS_DIR$release_dir/update-manifest.json" <<EOF
-{
-  "schema_version": 2,
-  "updater_protocol": 2,
-  "candidate_health_protocol": 1,
-  "tag": "$tag",
-  "version": "$version",
-  "board_profile": "$board_profile",
-  "arch": "aarch64-unknown-linux-gnu",
-  "binary": "octessera-pi",
-  "platforms": ["raspberry-pi-zero-2w", "linux-aarch64-device"]
-}
-EOF
     install -d -m 0755 "$ROOTFS_DIR/opt/octessera" "$ROOTFS_DIR/usr/local/bin"
     ln -sfn "$release_dir" "$ROOTFS_DIR/opt/octessera/current"
     ln -sfn /opt/octessera/current/octessera-pi "$ROOTFS_DIR/usr/local/bin/octessera-pi"
-    cat > "$ROOTFS_DIR/opt/octessera/update-state.json" <<EOF
-{
-  "schema_version": 2,
-  "phase": "committed",
-  "current": "$version",
-  "previous": null,
-  "updated_at": "1970-01-01T00:00:00Z",
-  "release": {
-    "schema_version": 2,
-    "updater_protocol": 2,
-    "candidate_health_protocol": 1,
-    "tag": "$tag",
-    "version": "$version",
-    "board_profile": "$board_profile",
-    "arch": "aarch64-unknown-linux-gnu",
-    "binary": "octessera-pi",
-    "platforms": ["raspberry-pi-zero-2w", "linux-aarch64-device"]
-  },
-  "asset": null
-}
-EOF
 else
     echo "Raspberry Pi image setup requires a semver release version and matching tag." >&2
     exit 2

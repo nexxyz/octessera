@@ -4,8 +4,6 @@ Wants=octessera-usb-gadget.service
 Wants=octessera-boot-splash.service
 After=octessera-usb-gadget.service sound.target
 After=octessera-boot-splash.service
-Requires=octessera-update-recovery.service
-After=octessera-update-recovery.service
 
 [Service]
 Type=simple

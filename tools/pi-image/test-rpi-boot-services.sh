@@ -133,7 +133,6 @@ if command -v systemd-analyze >/dev/null 2>&1; then
         systemd-udev-trigger.service \
         systemd-udev-settle.service \
         octessera-usb-gadget.service \
-        octessera-update-recovery.service \
         sound.target; do
         if [[ "$unit" == *.service ]]; then
             printf '%s\n' '[Unit]' "Description=$unit" '[Service]' 'Type=oneshot' 'ExecStart=/bin/true' > "$systemd_root/etc/systemd/system/$unit"

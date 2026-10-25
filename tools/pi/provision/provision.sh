@@ -323,17 +323,8 @@ sudo rm -f \
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-gadget" /usr/local/sbin/octessera-usb-gadget
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-role" /usr/local/sbin/octessera-usb-role
 install_file 0644 "$IMAGE_ROOT/usr/local/lib/octessera/device_config.py" /usr/local/lib/octessera/device_config.py
-install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update" /usr/local/sbin/octessera-update
-install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update-guard" /usr/local/sbin/octessera-update-guard
-install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-update-recovery" /usr/local/sbin/octessera-update-recovery
-install_file 0644 "$DEVICE_UPDATE_ROOT/updater_protocol.py" /usr/local/lib/octessera/updater_protocol.py
-install_file 0644 "$DEVICE_UPDATE_ROOT/updater_contract.py" /usr/local/lib/octessera/updater_contract.py
-install_file 0644 "$DEVICE_UPDATE_ROOT/updater_state.py" /usr/local/lib/octessera/updater_state.py
-install_file 0644 "$DEVICE_UPDATE_ROOT/updater_assets.py" /usr/local/lib/octessera/updater_assets.py
-install_file 0644 "$DEVICE_UPDATE_ROOT/updater_guard.py" /usr/local/lib/octessera/updater_guard.py
-install_file 0644 "$DEVICE_UPDATE_ROOT/updater_cli.py" /usr/local/lib/octessera/updater_cli.py
-install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-update-guard.service" /etc/systemd/system/octessera-update-guard.service
-install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-update-recovery.service" /etc/systemd/system/octessera-update-recovery.service
+install_file 0755 "$DEVICE_UPDATE_ROOT/octessera-update" /usr/local/sbin/octessera-update
+install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-update-switch@.service" /etc/systemd/system/octessera-update-switch@.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-usb-gadget.service" /etc/systemd/system/octessera-usb-gadget.service
 install_file 0644 "$IMAGE_ROOT/etc/modules-load.d/octessera-usb-gadget.conf" /etc/modules-load.d/octessera-usb-gadget.conf
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-usb-storage" /etc/sudoers.d/octessera-usb-storage
@@ -360,12 +351,9 @@ printf 'OCTESSERA_BOARD_PROFILE_ID=%s\n' "$BOARD_PROFILE" | sudo tee "$(target_p
 sudo sed -i 's/\r$//' \
     "$(target_path /usr/local/sbin/octessera-usb-gadget)" \
     "$(target_path /usr/local/sbin/octessera-update)" \
-    "$(target_path /usr/local/sbin/octessera-update-guard)" \
-    "$(target_path /usr/local/sbin/octessera-update-recovery)" \
     "$(target_path /usr/local/bin/octessera-network-health)" \
     "$(target_path /etc/systemd/system/octessera-usb-gadget.service)" \
-    "$(target_path /etc/systemd/system/octessera-update-guard.service)" \
-    "$(target_path /etc/systemd/system/octessera-update-recovery.service)" \
+    "$(target_path /etc/systemd/system/octessera-update-switch@.service)" \
     "$(target_path /etc/systemd/system/octessera-boot-splash.service)" \
     "$(target_path /etc/systemd/system/octessera-oled-shutdown.service)" \
     "$(target_path /etc/systemd/system/octessera-performance-governor.service)" \
@@ -474,7 +462,6 @@ if ! command -v pinctrl >/dev/null 2>&1 || \
     exit 75
 fi
 sudo systemctl enable octessera-usb-gadget.service >/dev/null
-sudo systemctl enable --now octessera-update-recovery.service >/dev/null
 sudo systemctl enable --now octessera-network-health.timer >/dev/null
 sudo systemctl enable --now octessera-show-hold.path octessera-show-hold.service >/dev/null
 sudo systemctl enable octessera-oled-shutdown.service >/dev/null

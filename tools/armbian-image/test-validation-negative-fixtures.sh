@@ -21,7 +21,7 @@ assert_rejected() {
 }
 
 assert_rejected security 'BEGIN (OPENSSH |RSA )?PRIVATE KEY' 'BEGIN OPENSSH PRIVATE KEY'
-assert_rejected policy 'systemctl enable --now' 'systemctl enable --now octessera-update-recovery.service'
+assert_rejected policy 'systemctl enable --now' 'systemctl enable --now octessera-update.socket'
 assert_rejected device-tree 'spidev1_0' 'compatible = "spidev1_0";'
 assert_rejected runtime 'AmbientCapabilities=' 'AmbientCapabilities=CAP_SYS_NICE'
 assert_rejected oled 'octessera-(mark|wordmark)\.svg' 'copy_file asset /usr/share/octessera/oled/octessera-mark.svg'

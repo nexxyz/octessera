@@ -346,12 +346,6 @@ install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-imag
 install_overlay_file etc/octessera/image-contract.json /etc/octessera/image-contract.json 0644
 install_overlay_file usr/local/sbin/octessera-armbian-diagnostics /usr/local/sbin/octessera-armbian-diagnostics 0755
 install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
-install_overlay_file usr/local/sbin/octessera-update-broker /usr/local/sbin/octessera-update-broker 0755
-install_overlay_file usr/local/sbin/octessera-update-guard /usr/local/sbin/octessera-update-guard 0755
-install_overlay_file usr/local/sbin/octessera-update-recovery /usr/local/sbin/octessera-update-recovery 0755
-for updater_module in protocol contract state assets guard cli profiles; do
-  install_overlay_file "usr/local/lib/octessera/updater_$updater_module.py" "/usr/local/lib/octessera/updater_$updater_module.py" 0644
-done
 install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
 octessera_install_orange_runtime_assets "$overlay_dir"
 install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
@@ -373,8 +367,7 @@ install_overlay_file etc/systemd/system/octessera-setup.service /etc/systemd/sys
 install_overlay_file etc/systemd/system/octessera-show-hold.path /etc/systemd/system/octessera-show-hold.path 0644
 install_overlay_file etc/systemd/system/octessera-show-hold.service /etc/systemd/system/octessera-show-hold.service 0644
 install_overlay_file usr/local/sbin/octessera-show-hold-apply /usr/local/sbin/octessera-show-hold-apply 0755
-install_overlay_file etc/systemd/system/octessera-update-guard.service /etc/systemd/system/octessera-update-guard.service 0644
-install_overlay_file etc/systemd/system/octessera-update-recovery.service /etc/systemd/system/octessera-update-recovery.service 0644
+install_overlay_file etc/systemd/system/octessera-update-switch@.service /etc/systemd/system/octessera-update-switch@.service 0644
 install_overlay_file etc/systemd/system/octessera-update.socket /etc/systemd/system/octessera-update.socket 0644
 install_overlay_file etc/systemd/system/octessera-update@.service /etc/systemd/system/octessera-update@.service 0644
 install_overlay_file etc/sudoers.d/octessera-update /etc/sudoers.d/octessera-update 0440
@@ -433,7 +426,6 @@ rm -f "$setup_request_link"
 ln -s ../octessera-setup-request.path "$setup_request_link"
 [[ "$(readlink "$setup_request_link")" == "../octessera-setup-request.path" ]] || { echo "Setup request path symlink target is not canonical." >&2; exit 1; }
 octessera_enable_orange_runtime_services
-systemctl enable octessera-update-recovery.service >/dev/null
 systemctl enable octessera-update.socket >/dev/null
 [[ "$OCTESSERA_IMAGE_MODE" != production ]] || systemctl enable octessera.service >/dev/null
 update-initramfs -u
