@@ -12,6 +12,12 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// The Raspberry scans when the shared Seesaw INT line says a board has events; this slow poll
+/// only catches a missed edge. Fewer transactions means fewer chances for the BCM2835's
+/// clock-stretching bug to hang a Seesaw. The Orange has no INT line wired in software and polls.
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(100);
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
 const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(4);
 /// After a failed Seesaw transaction, leave the bus alone for a while instead of retrying into a
 /// device that is still busy or stretching the clock.
@@ -270,6 +276,7 @@ pub(crate) fn spawn(
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
         let mut next_input_service_at = Instant::now();
+        let mut scan_failed = false;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut startup_scan_succeeded = false;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -284,10 +291,10 @@ pub(crate) fn spawn(
         loop {
             let now = Instant::now();
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            let interrupt_pending = interrupt.pending();
+            let interrupt_pending = interrupt.pending() || interrupt.asserted();
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             let interrupt_pending = false;
-            let backing_off = next_input_service_at > now + INPUT_SERVICE_INTERVAL;
+            let backing_off = scan_failed && now < next_input_service_at;
             if now >= next_input_service_at || (interrupt_pending && !backing_off) {
                 #[cfg(feature = "hardware-orange-pi-zero-2w")]
                 let scanned = match scan_inputs(
@@ -314,6 +321,7 @@ pub(crate) fn spawn(
                     &worker_input_tx,
                     &worker_scan_generation,
                 );
+                scan_failed = !scanned;
                 next_input_service_at = Instant::now()
                     + if scanned {
                         INPUT_SERVICE_INTERVAL
