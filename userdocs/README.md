@@ -20,7 +20,9 @@ cheapest way to find out whether you like this sort of thing.
 ## 2. Build the device
 
 Pick a Raspberry Pi Zero 2 W or an Orange Pi Zero 2W, then use the matching
-board image and enclosure top.
+board image and enclosure top. Both work; if you're buying a board, the
+[manual explains](hardware/assembly-manual.md#1-safety-and-board-choice) why
+I'd go for the Orange.
 
 - [Build and assembly manual](hardware/assembly-manual.md)
 - [Safety and power](hardware/safety-and-power.md)

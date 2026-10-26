@@ -26,6 +26,14 @@ Choose one compute board before ordering parts:
 - Raspberry Pi Zero 2 W
 - Orange Pi Zero 2W
 
+**Which one?** If you already have a Raspberry Pi Zero 2 W lying around, use
+it. If you're buying one, I'd get the Orange Pi Zero 2W. Both are fully
+supported, but the Orange is easier to find and, at the time of writing,
+cheaper. The Raspberry also has a few silicon bugs and known quirks, such as
+how its I2C controller handles the button and LED boards. Octessera works
+around most of them, but not every last one. So if I had to pick one board to
+recommend, it's the Orange.
+
 Everything else is shared, except two things: each board needs **its own
 image** (see [flash and first boot](flash-and-first-boot.md)) and **its own
 matching enclosure top** (see [enclosure](enclosure.md)).
@@ -45,7 +53,7 @@ own micro-USB power connector.
 | 4 | NeoTrellis 4x4 driver PCB | [Adafruit `3954`](https://www.adafruit.com/product/3954), Mouser `485-3954` | Four of them make the 8x8 grid. |
 | 4 | Silicone 4x4 keypad | [Adafruit `1611`](https://www.adafruit.com/product/1611), Mouser `485-1611` | One per NeoTrellis board. |
 | 1 | NeoKey 1x4 QT | [Adafruit `4980`](https://www.adafruit.com/product/4980), Mouser `485-4980` | Holds the four Cherry MX keys. |
-| 1 | Compute board | [Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) or Orange Pi Zero 2W | Choose one. |
+| 1 | Compute board | [Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) or Orange Pi Zero 2W | Choose one; buying new, I'd [pick the Orange](#1-safety-and-board-choice). |
 | 1 | Wi-Fi antenna (Orange Pi only, optional) | Orange Pi Zero 2W-compatible antenna | Connect it before final assembly. Fix it with non-conductive tape on a free PCB area where it cannot cover pads, touch exposed contacts, get pinched or strain its connector. |
 | 1 | SSD1351 OLED breakout with microSD holder | [Adafruit `1431`](https://www.adafruit.com/product/1431), Mouser `485-1431` | SPI display. Its microSD slot is the optional second card (SD2). |
 | 1 | PCM5102 I2S DAC | [Adafruit `6250`](https://www.adafruit.com/product/6250), Mouser `485-6250` | The 3.5mm line/headphone output. |
