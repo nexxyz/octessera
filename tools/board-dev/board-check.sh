@@ -17,7 +17,9 @@ case "${BOARD_PROFILE:-}" in
 esac
 failed=0
 check() { if [[ $2 == ok ]]; then echo "PASS $1"; else echo "FAIL $1: $2"; failed=1; fi; }
-read_root() { sudo -n cat -- "$1" 2>/dev/null; }
+# The service account owns most of these files; sudo is only a fallback, since production images
+# give the login account no passwordless sudo.
+read_root() { cat -- "$1" 2>/dev/null || sudo -n cat -- "$1" 2>/dev/null; }
 json_value() { grep -o "\"$2\": *\"\?[^\",}]*" <<<"$1" | head -n 1 | sed 's/^[^:]*: *"\?//'; }
 property() { systemctl show "$service" --property="$1" --value 2>/dev/null; }
 
@@ -72,7 +74,7 @@ if [[ $BOARD_PROFILE == raspberry-pi-zero-2w ]]; then
   phase=$(json_value "$handoff" phase)
   if [[ "$(json_value "$handoff" schema)" != 1 || ! ( $phase == native_owned || $phase == first_menu_rendered ) ]]; then
     reason="OLED handoff is not in native ownership (phase=${phase:-none})"
-  elif ! sudo -n test -e /run/octessera-boot/oled.lock; then reason='OLED handoff lock is missing'; fi
+  elif ! test -e /run/octessera-boot/oled.lock && ! sudo -n test -e /run/octessera-boot/oled.lock; then reason='OLED handoff lock is missing'; fi
 elif [[ $readiness != ok ]]; then reason='Orange handoff is covered by readiness, which failed'; fi
 check oled-handoff "$reason"
 
