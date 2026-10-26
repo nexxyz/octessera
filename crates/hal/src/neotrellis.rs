@@ -201,11 +201,17 @@ impl NeoTrellis {
                 &[],
                 "Trellis LED show failed",
             )?;
-            self.delay.sleep(Duration::from_micros(300));
+            self.delay.sleep(TRELLIS_SHOW_SETTLE);
         }
         Ok(())
     }
 }
+
+/// A Seesaw refreshing its 16 NeoPixels (about 30 µs each plus the latch gap) answers I2C late and
+/// stretches the clock; the Raspberry's I2C controller mishandles stretching and can corrupt the
+/// transfer and hang the chip until power-off. Stay off the bus until the refresh is done.
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+const TRELLIS_SHOW_SETTLE: std::time::Duration = std::time::Duration::from_millis(1);
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w"))]
 fn open_linux_transports(

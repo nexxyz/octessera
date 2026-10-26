@@ -157,7 +157,7 @@ fn failed_outputs_remain_desired_and_retry_at_bounded_cadence() {
         &command_rx,
         &mut outputs,
         &mut writer,
-        start + OUTPUT_RETRY_INTERVAL - Duration::from_millis(1),
+        start + I2C_ERROR_BACKOFF - Duration::from_millis(1),
     );
     assert_eq!(writer.grid_attempts, 1);
     assert_eq!(writer.key_attempts, vec![0, 1, 2, 3]);
@@ -166,7 +166,7 @@ fn failed_outputs_remain_desired_and_retry_at_bounded_cadence() {
         &command_rx,
         &mut outputs,
         &mut writer,
-        start + OUTPUT_RETRY_INTERVAL,
+        start + I2C_ERROR_BACKOFF,
     );
     assert_eq!(outputs.applied_grid, Some(latest));
     assert_eq!(writer.grid_attempts, 2);
@@ -199,7 +199,7 @@ fn shutdown_black_outputs_are_retryable() {
         &command_rx,
         &mut outputs,
         &mut writer,
-        start + OUTPUT_RETRY_INTERVAL,
+        start + I2C_ERROR_BACKOFF,
     );
     assert_eq!(outputs.applied_grid, Some(black_grid));
     assert_eq!(outputs.applied_key_valid, [true; 4]);

@@ -13,15 +13,15 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(4);
-const OUTPUT_RETRY_INTERVAL: Duration = Duration::from_millis(10);
+/// After a failed Seesaw transaction, leave the bus alone for a while instead of retrying into a
+/// device that is still busy or stretching the clock.
+const I2C_ERROR_BACKOFF: Duration = Duration::from_millis(50);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 const SEESAW_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(750);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 const SEESAW_STARTUP_TIMEOUT: Duration = Duration::from_millis(750);
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 const SEESAW_HEALTH_CHECK_INTERVAL: Duration = Duration::from_secs(1);
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const SEESAW_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(30);
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 const SEESAW_STALL_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -155,8 +155,9 @@ impl DesiredLedOutputs {
                 self.applied_grid = Some(frame);
                 self.next_grid_attempt_at = None;
             }
-            Err(_) => {
-                self.next_grid_attempt_at = Some(now + OUTPUT_RETRY_INTERVAL);
+            Err(error) => {
+                eprintln!("{error}");
+                self.next_grid_attempt_at = Some(now + I2C_ERROR_BACKOFF);
             }
         }
     }
@@ -178,10 +179,13 @@ impl DesiredLedOutputs {
                     self.applied_keys[index] = color;
                     self.applied_key_valid[index] = true;
                 }
-                Err(_) => failed = true,
+                Err(error) => {
+                    eprintln!("{error}");
+                    failed = true;
+                }
             }
         }
-        self.next_key_attempt_at = failed.then_some(now + OUTPUT_RETRY_INTERVAL);
+        self.next_key_attempt_at = failed.then_some(now + I2C_ERROR_BACKOFF);
     }
 }
 
@@ -236,18 +240,15 @@ fn scan_raspberry_inputs(
     previous_neokey: &mut [bool; 4],
     input_tx: &Sender<HostMessage>,
     scan_generation: &AtomicU64,
-    next_error_log_at: &mut Option<Instant>,
-) {
+) -> bool {
     match scan_inputs(trellis, neokey, previous_neokey, input_tx) {
         Ok(()) => {
             scan_generation.fetch_add(1, Ordering::Relaxed);
+            true
         }
         Err(error) => {
-            let now = Instant::now();
-            if next_error_log_at.is_none_or(|deadline| now >= deadline) {
-                eprintln!("{error}");
-                *next_error_log_at = Some(now + SEESAW_ERROR_LOG_INTERVAL);
-            }
+            eprintln!("{error}");
+            false
         }
     }
 }
@@ -268,9 +269,7 @@ pub(crate) fn spawn(
     let worker = thread::spawn(move || {
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
-        let mut last_input_service = Instant::now() - INPUT_SERVICE_INTERVAL;
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        let mut next_scan_error_log_at = None;
+        let mut next_input_service_at = Instant::now();
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut startup_scan_succeeded = false;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -283,32 +282,44 @@ pub(crate) fn spawn(
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut shutdown_ack = None;
         loop {
-            let service_due = last_input_service.elapsed() >= INPUT_SERVICE_INTERVAL;
+            let now = Instant::now();
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             let interrupt_pending = interrupt.pending();
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             let interrupt_pending = false;
-            if service_due || interrupt_pending {
+            let backing_off = next_input_service_at > now + INPUT_SERVICE_INTERVAL;
+            if now >= next_input_service_at || (interrupt_pending && !backing_off) {
+                #[cfg(feature = "hardware-orange-pi-zero-2w")]
+                let scanned = match scan_inputs(
+                    &mut trellis,
+                    &mut neokey,
+                    &mut previous_neokey,
+                    &worker_input_tx,
+                ) {
+                    Ok(()) => true,
+                    Err(error) => {
+                        eprintln!("{error}");
+                        false
+                    }
+                };
                 #[cfg(feature = "hardware-orange-pi-zero-2w")]
                 {
-                    startup_scan_succeeded = scan_inputs(
-                        &mut trellis,
-                        &mut neokey,
-                        &mut previous_neokey,
-                        &worker_input_tx,
-                    )
-                    .is_ok();
+                    startup_scan_succeeded = scanned;
                 }
                 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                scan_raspberry_inputs(
+                let scanned = scan_raspberry_inputs(
                     &mut trellis,
                     &mut neokey,
                     &mut previous_neokey,
                     &worker_input_tx,
                     &worker_scan_generation,
-                    &mut next_scan_error_log_at,
                 );
-                last_input_service = Instant::now();
+                next_input_service_at = Instant::now()
+                    + if scanned {
+                        INPUT_SERVICE_INTERVAL
+                    } else {
+                        I2C_ERROR_BACKOFF
+                    };
             }
 
             let mut output = HardwareLedOutput {
