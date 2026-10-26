@@ -71,6 +71,19 @@ passwordless sudo for the `octessera` account.
 
 ## How a development deploy works (both boards)
 
+A freshly flashed board gives its login account no passwordless sudo; the
+image removes the vendor grant on purpose. The dev deploy, the timing smoke and
+the Aux study need it, so on a dev board run this once after flashing and the
+setup portal, in a real terminal (sudo asks for the device password once):
+
+```powershell
+./tools/board-dev/enable-dev-sudo.ps1 -Board rpi -Target $PiTarget
+./tools/board-dev/enable-dev-sudo.ps1 -Board opi -Target $OrangeTarget
+```
+
+It writes `/etc/sudoers.d/octessera-dev` and does nothing if passwordless sudo
+already works. The board check itself needs no sudo.
+
 Both deploy tools share `tools/board-dev/dev-runtime.sh`. It checks the board
 model and that `octessera.service` expects this board's profile, installs the
 uploaded binary as `/opt/octessera/dev/octessera-pi` after comparing its
