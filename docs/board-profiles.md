@@ -167,7 +167,7 @@ board A/B direction at the Orange event boundary.
 
 The HAL descriptors record `/dev/i2c-2` at `5002400.i2c`, `/dev/spidev1.0` at
 `5011000.spi`, and encoder offsets on `300b000.pinctrl`. The OLED runs at
-16 MHz by default; `crates/hal` keeps the 1/2/4/8/12/16 MHz override ladder.
+16 MHz.
 
 Runtime readiness means healthy required audio, initialized control-surface
 devices, and the first rendered snapshot.
