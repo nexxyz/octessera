@@ -12,15 +12,12 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// The Raspberry scans when the shared Seesaw INT line says a board has events; this slow poll
-/// only catches a missed edge. Fewer transactions means fewer chances for the BCM2835's
-/// clock-stretching bug to hang a Seesaw. The Orange has no INT line wired in software and polls.
+/// Raspberry scans on the Seesaw INT line; this slow poll only catches a missed edge.
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(100);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(4);
-/// After a failed Seesaw transaction, leave the bus alone for a while instead of retrying into a
-/// device that is still busy or stretching the clock.
+/// After a failed Seesaw transaction, leave the bus alone instead of retrying into a busy device.
 const I2C_ERROR_BACKOFF: Duration = Duration::from_millis(50);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 const SEESAW_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(750);
