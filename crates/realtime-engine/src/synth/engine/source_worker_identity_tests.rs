@@ -17,7 +17,7 @@ fn sample_bank(seed: f32) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
     bank.slots[0] = SampleSlotConfig {
         buffer: Some(SampleBuffer {
-            samples: vec![seed; 1024].into(),
+            samples: vec![seed; 16_384].into(),
             channels: 1,
             sample_rate: 48_000,
         }),
@@ -77,9 +77,12 @@ fn repeated_relocated_synth_steals_match_canonical_identity_for_each_stealing_mo
             } else {
                 [1, 100]
             }));
+            let before = relocated.active_synth_lane_indices_for_slot(0);
             let note = 90 + admission as u8;
             canonical.note_on(0, note, 100, 5_000);
             relocated.note_on(0, note, 100, 5_000);
+            canonical.render_through_steal_fades();
+            relocated.render_through_steal_fades();
             assert_eq!(
                 relocated.active_synth_canonical_lane_indices_for_slot(0),
                 canonical.active_synth_canonical_lane_indices_for_slot(0)
@@ -89,14 +92,11 @@ fn repeated_relocated_synth_steals_match_canonical_identity_for_each_stealing_mo
             canonical_notes.sort_unstable();
             relocated_notes.sort_unstable();
             assert_eq!(relocated_notes, canonical_notes);
-            assert_eq!(
-                relocated.active_synth_lane_indices_for_slot(0),
-                if admission % 2 == 0 {
-                    vec![1, 2, 3, 4, 5, 6, 7, 9]
-                } else {
-                    (0..MAX_SYNTH_VOICES_PER_SLOT).collect()
-                }
-            );
+            let lanes = relocated.active_synth_lane_indices_for_slot(0);
+            let added: Vec<_> = lanes.iter().filter(|lane| !before.contains(lane)).collect();
+            assert_eq!(lanes.len(), MAX_SYNTH_VOICES_PER_SLOT);
+            assert_eq!(added.len(), 1);
+            assert_eq!(*added[0] % 2, if admission % 2 == 0 { 1 } else { 0 });
         }
     }
 }
@@ -124,20 +124,20 @@ fn repeated_relocated_sample_steals_match_canonical_identity_for_each_stealing_m
             } else {
                 [1, 100]
             }));
+            let before = relocated.active_sample_lane_indices_for_slot(0);
             canonical.note_on(0, 36, 100, 5_000);
             relocated.note_on(0, 36, 100, 5_000);
+            canonical.render_through_steal_fades();
+            relocated.render_through_steal_fades();
             assert_eq!(
                 relocated.active_sample_canonical_lane_indices_for_slot(0),
                 canonical.active_sample_canonical_lane_indices_for_slot(0)
             );
-            assert_eq!(
-                relocated.active_sample_lane_indices_for_slot(0),
-                if admission % 2 == 0 {
-                    vec![1, 2, 3, 4, 5, 6, 7, 9]
-                } else {
-                    (0..SAMPLE_VOICE_LANE_CAPACITY).take(8).collect()
-                }
-            );
+            let lanes = relocated.active_sample_lane_indices_for_slot(0);
+            let added: Vec<_> = lanes.iter().filter(|lane| !before.contains(lane)).collect();
+            assert_eq!(lanes.len(), MAX_SAMPLE_VOICES_PER_SLOT);
+            assert_eq!(added.len(), 1);
+            assert_eq!(*added[0] % 2, if admission % 2 == 0 { 1 } else { 0 });
         }
     }
 }

@@ -163,6 +163,8 @@ mod source_worker_tests;
 mod source_worker_transfer;
 #[cfg(test)]
 mod source_worker_two_wave_tests;
+#[cfg(test)]
+mod steal_fade_tests;
 mod support;
 #[cfg(test)]
 mod test_support;

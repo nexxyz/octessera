@@ -143,8 +143,11 @@ fn sample_lane_reuse_moves_previous_handle_to_pending_retirement() {
     for _ in 0..9 {
         engine.note_on(0, 36, 100, 2_000);
     }
-
+    engine.render_through_steal_fades();
     assert_eq!(engine.profile_snapshot().active_sample_voices, 8);
+    assert!(engine.pending_render_retired.sample_voices.is_empty());
+
+    engine.note_on(0, 36, 100, 2_000);
     assert_eq!(engine.pending_render_retired.sample_voices.len(), 1);
 }
 

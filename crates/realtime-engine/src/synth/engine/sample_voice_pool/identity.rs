@@ -1,4 +1,5 @@
 use super::super::super::types::{LogicalLaneId, SAMPLE_VOICE_LANE_CAPACITY};
+use super::super::support::SampleVoice;
 use super::SampleVoicePool;
 
 impl SampleVoicePool {
@@ -39,4 +40,27 @@ impl SampleVoicePool {
         voice.canonical_lane = None;
         true
     }
+
+    /// Starts a steal fade: the voice keeps its lane until it is silent, then frees it.
+    pub(in crate::synth::engine) fn fade_out_lane(&mut self, lane: usize) -> bool {
+        let Some(voice) = self.lane_mut(lane).filter(|voice| voice.active) else {
+            return false;
+        };
+        voice.declick.begin_fade();
+        true
+    }
+
+    /// Active voices a steal has not started fading out.
+    pub(in crate::synth::engine) fn sounding_count_for_slot(&self, slot: usize) -> usize {
+        self.slot_lanes(slot).map_or(0, |lanes| {
+            lanes
+                .iter()
+                .filter(|lane| self.lane(**lane).is_some_and(is_sounding))
+                .count()
+        })
+    }
+}
+
+fn is_sounding(voice: &SampleVoice) -> bool {
+    voice.active && !voice.declick.is_fading()
 }

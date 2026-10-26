@@ -49,6 +49,7 @@ fn profile_snapshot_reports_active_counts_and_steals() {
     for note in 0..(MAX_SYNTH_VOICES_PER_SLOT + 1) {
         engine.note_on(0, (60 + note) as u8, 100, 2_000);
     }
+    engine.render_through_steal_fades();
 
     engine.set_sample_banks(vec![sample_bank(vec![1.0; 16_384]); INSTRUMENT_SLOT_COUNT]);
     engine.note_on(1, 36, 100, 1_000);

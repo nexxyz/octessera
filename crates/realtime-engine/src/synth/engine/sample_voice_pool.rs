@@ -172,7 +172,7 @@ impl SampleVoicePool {
             .find(|lane| self.lane(*lane).is_some_and(|voice| !voice.active))
     }
 
-    pub(super) fn first_active_lane_for_slot(&self, slot: usize) -> Option<usize> {
+    pub(super) fn first_stealable_lane_for_slot(&self, slot: usize) -> Option<usize> {
         if !self.partitions_home() {
             return None;
         }
@@ -180,19 +180,22 @@ impl SampleVoicePool {
         lanes[..self.slot_lane_counts[slot]]
             .iter()
             .copied()
-            .filter(|lane| self.lane(*lane).is_some_and(|voice| voice.active))
+            .filter(|lane| {
+                self.lane(*lane)
+                    .is_some_and(|voice| voice.active && !voice.declick.is_fading())
+            })
             .min_by_key(|lane| {
                 self.canonical_lane(*lane)
                     .expect("active sample voice canonical lane")
             })
     }
 
-    pub(super) fn first_active_lane_global(&self) -> Option<(usize, usize)> {
+    pub(super) fn first_stealable_lane_global(&self) -> Option<(usize, usize)> {
         if !self.partitions_home() {
             return None;
         }
         for slot in 0..INSTRUMENT_SLOT_COUNT {
-            if let Some(lane) = self.first_active_lane_for_slot(slot) {
+            if let Some(lane) = self.first_stealable_lane_for_slot(slot) {
                 return Some((slot, lane));
             }
         }
@@ -356,7 +359,9 @@ impl SampleVoicePool {
         {
             return false;
         }
-        if canonical_lane as usize >= SAMPLE_VOICE_LANE_CAPACITY {
+        if canonical_lane as usize >= SAMPLE_VOICE_LANE_CAPACITY
+            || victim_lane.is_some_and(|victim| victim != lane)
+        {
             return false;
         }
         if victim_lane == Some(lane) {
@@ -366,13 +371,8 @@ impl SampleVoicePool {
         } else if self.lane(lane).is_some_and(|current| current.active) {
             return false;
         }
-        if let Some(victim_lane) = victim_lane {
-            if victim_lane >= SAMPLE_VOICE_LANE_CAPACITY
-                || !self.lane(victim_lane).is_some_and(|current| current.active)
-                || self.lane_slots[victim_lane].is_none()
-            {
-                return false;
-            }
+        if victim_lane.is_some_and(|victim| self.lane_slots[victim].is_none()) {
+            return false;
         }
         let canonical_owner = (0..SAMPLE_VOICE_LANE_CAPACITY).find(|candidate| {
             self.lane(*candidate).is_some_and(|current| {
@@ -382,37 +382,16 @@ impl SampleVoicePool {
         if canonical_owner != victim_lane {
             return false;
         }
-        let target_slot = self.lane_slots[lane];
-        let victim_slot = victim_lane.and_then(|victim| self.lane_slots[victim]);
-        let mut target_slot_count = self.slot_lane_counts[slot];
-        if victim_lane != Some(lane) && victim_slot == Some(slot) && target_slot != Some(slot) {
-            target_slot_count = target_slot_count.saturating_sub(1);
-        }
-        if target_slot != Some(slot) && target_slot_count >= SAMPLE_VOICE_LANE_CAPACITY {
+        if self.lane_slots[lane] != Some(slot)
+            && self.slot_lane_counts[slot] >= SAMPLE_VOICE_LANE_CAPACITY
+        {
             return false;
         }
         let target_has_buffer = self
             .lane(lane)
             .is_some_and(|current| current.buffer.is_some());
-        let victim_has_buffer = victim_lane
-            .filter(|victim| *victim != lane)
-            .and_then(|victim| self.lane(victim))
-            .is_some_and(|current| current.buffer.is_some());
-        let retired_additions = usize::from(target_has_buffer) + usize::from(victim_has_buffer);
-        if !retired.can_push_count(retired_additions) {
+        if !retired.can_push_count(usize::from(target_has_buffer)) {
             return false;
-        }
-
-        if let Some(victim_lane) = victim_lane.filter(|victim| *victim != lane) {
-            let victim_slot = self.lane_slots[victim_lane].expect("validated victim ownership");
-            self.remove_lane(victim_slot, victim_lane);
-            let victim = self.lane_mut(victim_lane).expect("validated victim lane");
-            let mut previous = std::mem::replace(victim, SampleVoice::off());
-            let retired_victim = retired.push(&mut previous);
-            debug_assert!(retired_victim || previous.buffer.is_none());
-            if !retired_victim && previous.buffer.is_some() {
-                return false;
-            }
         }
         let assigned = self.assign_lane_with_canonical(lane, slot, canonical_lane);
         debug_assert!(assigned);

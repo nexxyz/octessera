@@ -25,6 +25,14 @@ impl SynthEngine {
             .unwrap_or(0)
     }
 
+    /// Renders long enough for every voice a steal is fading out to finish and free its lane.
+    #[cfg(test)]
+    pub(in crate::synth) fn render_through_steal_fades(&mut self) {
+        for _ in 0..crate::synth::steal_declick::STEAL_FADE_FRAMES {
+            self.next_stereo_sample();
+        }
+    }
+
     #[cfg(test)]
     pub(in crate::synth) fn assert_voice_pool_invariants(&self) {
         self.synth_voice_pool.assert_invariants();

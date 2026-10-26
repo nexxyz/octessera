@@ -25,11 +25,14 @@ pub(in crate::synth::engine) fn render_synth_voice_frame(
     context: SynthVoiceFrameContext,
 ) -> Option<f32> {
     let value = render_source_frame(voice, ring, slot_idx, frame_sample_clock, context)?;
-    Some(
-        voice
-            .declick
-            .finish_frame(&mut voice.last_output, value, context.sample_rate),
-    )
+    let value = voice
+        .declick
+        .finish_frame(&mut voice.last_output, value, context.sample_rate);
+    if value.is_none() {
+        voice.active = false;
+        voice.canonical_lane = None;
+    }
+    value
 }
 
 fn render_source_frame(
@@ -105,12 +108,16 @@ pub(in crate::synth::engine) fn render_synth_voice_block(
         context,
         samples,
     );
-    voice.declick.finish_block(
+    let Some(faded) = voice.declick.finish_block(
         &mut voice.last_output,
         &mut samples[..rendered],
         context.sample_rate,
-    );
-    rendered
+    ) else {
+        return rendered;
+    };
+    voice.active = false;
+    voice.canonical_lane = None;
+    faded
 }
 
 fn render_source_block(

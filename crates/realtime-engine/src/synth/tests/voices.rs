@@ -82,6 +82,7 @@ fn voice_steal_is_scoped_to_instrument_slot() {
         engine.note_on(1, (72 + i) as u8, 100, 2_000);
     }
     engine.note_on(0, 90, 100, 2_000);
+    engine.render_through_steal_fades();
 
     assert_eq!(
         engine.active_voice_count_for_slot(0),
@@ -203,6 +204,7 @@ fn auto_hard_global_voice_budget_reduces_polyphony_under_load() {
             engine.note_on(slot as u8, 36 + note as u8, 100, 5_000);
         }
     }
+    engine.render_through_steal_fades();
 
     let active: usize = (0..INSTRUMENT_SLOT_COUNT)
         .map(|slot| engine.active_voice_count_for_slot(slot))
@@ -300,6 +302,7 @@ fn fair_global_voice_stealing_balances_two_hot_slots() {
         engine.note_on(0, (60 + note) as u8, 100, 5_000);
         engine.note_on(1, (72 + note) as u8, 100, 5_000);
     }
+    engine.render_through_steal_fades();
 
     assert_eq!(engine.active_voice_count_for_slot(0), 6);
     assert_eq!(engine.active_voice_count_for_slot(1), 6);
@@ -319,6 +322,7 @@ fn overload_across_many_slots_preserves_one_voice_per_slot() {
             engine.note_on(slot as u8, (48 + note) as u8, 100, 5_000);
         }
     }
+    engine.render_through_steal_fades();
 
     let active_per_slot: Vec<_> = (0..8)
         .map(|slot| engine.active_voice_count_for_slot(slot))
@@ -352,6 +356,7 @@ fn sample_voice_cap_limits_per_slot_to_configured_cap() {
     for _ in 0..(MAX_SAMPLE_VOICES_PER_SLOT + 1) {
         engine.note_on(0, 36, 100, 2_000);
     }
+    engine.render_through_steal_fades();
 
     assert_eq!(
         engine.profile_snapshot().active_sample_voices,

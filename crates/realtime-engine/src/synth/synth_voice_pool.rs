@@ -116,23 +116,6 @@ impl SynthVoicePool {
             .map(|partition| partition.active_count())
     }
 
-    pub(super) fn active_counts_by_slot(&self) -> Option<[usize; INSTRUMENT_SLOT_COUNT]> {
-        if !self.partitions_home() {
-            return None;
-        }
-        let mut counts = [0; INSTRUMENT_SLOT_COUNT];
-        for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
-            let Some(voice) = self.lane(lane).filter(|voice| voice.active) else {
-                continue;
-            };
-            let slot = voice.instrument_slot as usize;
-            if slot < INSTRUMENT_SLOT_COUNT {
-                counts[slot] += 1;
-            }
-        }
-        Some(counts)
-    }
-
     pub(super) fn first_inactive_lane(&self) -> Option<usize> {
         if !self.partitions_home() {
             return None;
@@ -235,7 +218,9 @@ impl SynthVoicePool {
         {
             return false;
         }
-        if canonical_lane as usize >= SYNTH_VOICE_LANE_CAPACITY {
+        if canonical_lane as usize >= SYNTH_VOICE_LANE_CAPACITY
+            || victim_lane.is_some_and(|victim| victim != lane)
+        {
             return false;
         }
         if victim_lane == Some(lane) {
@@ -245,13 +230,8 @@ impl SynthVoicePool {
         } else if self.lane(lane).is_some_and(|current| current.active) {
             return false;
         }
-        if let Some(victim_lane) = victim_lane {
-            if victim_lane >= SYNTH_VOICE_LANE_CAPACITY
-                || !self.lane(victim_lane).is_some_and(|current| current.active)
-                || self.lane_slots[victim_lane].is_none()
-            {
-                return false;
-            }
+        if victim_lane.is_some_and(|victim| self.lane_slots[victim].is_none()) {
+            return false;
         }
         let canonical_owner = (0..SYNTH_VOICE_LANE_CAPACITY).find(|candidate| {
             self.lane(*candidate).is_some_and(|current| {
@@ -261,22 +241,10 @@ impl SynthVoicePool {
         if canonical_owner != victim_lane {
             return false;
         }
-        let target_slot = self.lane_slots[lane];
-        let victim_slot = victim_lane.and_then(|victim| self.lane_slots[victim]);
-        let mut target_slot_count = self.slot_lane_counts[slot];
-        if victim_lane != Some(lane) && victim_slot == Some(slot) && target_slot != Some(slot) {
-            target_slot_count = target_slot_count.saturating_sub(1);
-        }
-        if target_slot != Some(slot) && target_slot_count >= SYNTH_VOICE_LANE_CAPACITY {
+        if self.lane_slots[lane] != Some(slot)
+            && self.slot_lane_counts[slot] >= SYNTH_VOICE_LANE_CAPACITY
+        {
             return false;
-        }
-
-        if let Some(victim_lane) = victim_lane.filter(|victim| *victim != lane) {
-            let deactivated = self.deactivate_lane(victim_lane);
-            debug_assert!(deactivated);
-            if !deactivated {
-                return false;
-            }
         }
         let assigned = self.assign_lane_with_canonical(lane, slot, canonical_lane);
         debug_assert!(assigned);

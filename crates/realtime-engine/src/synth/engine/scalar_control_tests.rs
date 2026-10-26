@@ -98,7 +98,7 @@ fn sample_filter_updates_only_changed_active_voice_parameters() {
     engine.note_on(0, 36, 127, 1_000);
     let lane = engine
         .sample_voice_pool
-        .first_active_lane_for_slot(0)
+        .first_stealable_lane_for_slot(0)
         .expect("active sample voice");
 
     assert_eq!(

@@ -1,5 +1,6 @@
 use super::source_lane_renderer::render_sample_voice_frame;
 use super::source_worker_placement;
+use super::voice_budget::split_steal;
 use super::*;
 
 impl SynthEngine {
@@ -92,10 +93,7 @@ impl SynthEngine {
         let pitch = 2.0_f32.powf(pitch_semis / 12.0);
         let step = pitch * sample_rate as f32 / self.sample_rate as f32;
         self.sample_voice_pool.compact_slot_lanes(slot);
-        let active = self
-            .sample_voice_pool
-            .active_count_for_slot(slot)
-            .unwrap_or(0);
+        let active = self.sample_voice_pool.sounding_count_for_slot(slot);
         let first_inactive_lane = self.sample_voice_pool.first_inactive_lane();
         if self.voice_stealing_mode == VoiceStealingMode::None && first_inactive_lane.is_none() {
             self.record_voice_admission_drop();
@@ -105,21 +103,22 @@ impl SynthEngine {
             None
         } else if active >= MAX_SAMPLE_VOICES_PER_SLOT {
             self.sample_voice_pool
-                .first_active_lane_for_slot(slot)
+                .first_stealable_lane_for_slot(slot)
                 .or_else(|| {
                     first_inactive_lane.is_none().then(|| {
                         self.sample_voice_pool
-                            .first_active_lane_global()
+                            .first_stealable_lane_global()
                             .map(|(_, lane)| lane)
                     })?
                 })
         } else if first_inactive_lane.is_none() {
             self.sample_voice_pool
-                .first_active_lane_global()
+                .first_stealable_lane_global()
                 .map(|(_, lane)| lane)
         } else {
             None
         };
+        let (victim_lane, faded_victim) = split_steal(victim_lane, first_inactive_lane);
         let legacy_lane = victim_lane.or(first_inactive_lane).unwrap_or(0);
         let Some(canonical_lane) = victim_lane
             .and_then(|lane| self.sample_voice_pool.canonical_lane(lane))
@@ -215,7 +214,10 @@ impl SynthEngine {
                 .expect("sample bank buffer must remain available")
                 .clone(),
         );
-        if victim_lane.is_some() {
+        if let Some(victim) = faded_victim {
+            self.sample_voice_pool.fade_out_lane(victim);
+        }
+        if victim_lane.is_some() || faded_victim.is_some() {
             self.record_voice_steal();
         }
         self.active_sample_slots[slot] = true;
@@ -256,11 +258,19 @@ impl SynthEngine {
                 return SlotFrameOutput::default();
             };
             debug_assert_eq!(voice.instrument_slot as usize, slot);
-            if let Some(sample) = render_sample_voice_frame(voice, self.sample_rate) {
-                out += voice
+            let Some(sample) = render_sample_voice_frame(voice, self.sample_rate) else {
+                continue;
+            };
+            if let Some(sample) =
+                voice
                     .declick
-                    .finish_frame(&mut voice.last_output, sample, self.sample_rate);
+                    .finish_frame(&mut voice.last_output, sample, self.sample_rate)
+            {
+                out += sample;
                 slot_active = true;
+            } else {
+                voice.active = false;
+                voice.canonical_lane = None;
             }
         }
         self.sample_voice_pool.compact_slot_lanes(slot);

@@ -2,6 +2,7 @@ use super::retired_state::{
     store_retired_preview, store_retired_preview_buffer, PREVIEW_AUDITION_SLOTS,
 };
 use super::source_worker_placement;
+use super::voice_budget::split_steal;
 use super::*;
 
 impl SynthEngine {
@@ -198,10 +199,7 @@ impl SynthEngine {
         let note_off_sample = event_sample_clock.saturating_add(duration_samples);
         let freq = midi_note_to_hz(midi_note);
         self.synth_voice_pool.compact_slot_lanes(slot);
-        let active = self
-            .synth_voice_pool
-            .active_count_for_slot(slot)
-            .unwrap_or(0);
+        let active = self.synth_voice_pool.sounding_count_for_slot(slot);
         let first_inactive_lane = self.synth_voice_pool.first_inactive_lane();
         if self.voice_stealing_mode == VoiceStealingMode::None && first_inactive_lane.is_none() {
             self.record_voice_admission_drop();
@@ -217,6 +215,7 @@ impl SynthEngine {
         } else {
             None
         };
+        let (victim_lane, faded_victim) = split_steal(victim_lane, first_inactive_lane);
         let legacy_lane = victim_lane.or(first_inactive_lane).unwrap_or(0);
         let Some(canonical_lane) = victim_lane
             .and_then(|lane| self.synth_voice_pool.canonical_lane(lane))
@@ -354,7 +353,10 @@ impl SynthEngine {
             self.record_voice_admission_drop();
             return;
         }
-        if victim_lane.is_some() {
+        if let Some(victim) = faded_victim {
+            self.synth_voice_pool.fade_out_lane(victim);
+        }
+        if victim_lane.is_some() || faded_victim.is_some() {
             self.record_voice_steal();
         }
         self.active_synth_slots[slot] = true;

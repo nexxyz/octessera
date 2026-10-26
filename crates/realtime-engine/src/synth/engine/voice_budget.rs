@@ -8,7 +8,7 @@ impl SynthEngine {
         let lanes = self.synth_voice_pool.slot_lanes(slot)?;
         for &lane in lanes {
             let voice = self.synth_voice_pool.lane(lane)?;
-            if !voice.active {
+            if !voice.active || voice.declick.is_fading() {
                 continue;
             }
             let score = voice.amp_env.level;
@@ -26,24 +26,26 @@ impl SynthEngine {
         best_lane
     }
 
-    pub(in crate::synth::engine) fn active_synth_voice_total(&self) -> usize {
-        self.synth_voice_pool.active_total().unwrap_or(0)
+    /// Voices count against the budgets until a steal starts fading them out; the fading voice
+    /// keeps its lane, and the worker cost, until it is silent.
+    fn sounding_synth_voice_total(&self) -> usize {
+        (0..INSTRUMENT_SLOT_COUNT)
+            .map(|slot| self.sounding_synth_voice_count(slot))
+            .sum()
     }
 
-    pub(in crate::synth::engine) fn active_sample_voice_total(&self) -> usize {
-        self.sample_voice_pool.active_total().unwrap_or(0)
+    fn sounding_sample_voice_total(&self) -> usize {
+        (0..INSTRUMENT_SLOT_COUNT)
+            .map(|slot| self.sounding_sample_voice_count(slot))
+            .sum()
     }
 
-    pub(in crate::synth::engine) fn active_synth_voice_count(&self, slot: usize) -> usize {
-        self.synth_voice_pool
-            .active_count_for_slot(slot)
-            .unwrap_or(0)
+    fn sounding_synth_voice_count(&self, slot: usize) -> usize {
+        self.synth_voice_pool.sounding_count_for_slot(slot)
     }
 
-    pub(in crate::synth::engine) fn active_sample_voice_count(&self, slot: usize) -> usize {
-        self.sample_voice_pool
-            .active_count_for_slot(slot)
-            .unwrap_or(0)
+    fn sounding_sample_voice_count(&self, slot: usize) -> usize {
+        self.sample_voice_pool.sounding_count_for_slot(slot)
     }
 
     pub(super) fn source_worker_active_cost_units(&self) -> [u16; 2] {
@@ -94,20 +96,20 @@ impl SynthEngine {
 
     fn enforce_slot_voice_budgets(&mut self) {
         for slot in 0..INSTRUMENT_SLOT_COUNT {
-            while self.active_synth_voice_count(slot) > MAX_SYNTH_VOICES_PER_SLOT {
+            while self.sounding_synth_voice_count(slot) > MAX_SYNTH_VOICES_PER_SLOT {
                 let Some(lane) = self.steal_active_voice_index(slot) else {
                     break;
                 };
-                if !self.synth_voice_pool.deactivate_lane(lane) {
+                if !self.synth_voice_pool.fade_out_lane(lane) {
                     break;
                 }
                 self.record_voice_steal();
             }
-            while self.active_sample_voice_count(slot) > MAX_SAMPLE_VOICES_PER_SLOT {
-                let Some(lane) = self.sample_voice_pool.first_active_lane_for_slot(slot) else {
+            while self.sounding_sample_voice_count(slot) > MAX_SAMPLE_VOICES_PER_SLOT {
+                let Some(lane) = self.sample_voice_pool.first_stealable_lane_for_slot(slot) else {
                     break;
                 };
-                if !self.sample_voice_pool.deactivate_lane(lane) {
+                if !self.sample_voice_pool.fade_out_lane(lane) {
                     break;
                 }
                 self.record_voice_steal();
@@ -117,7 +119,7 @@ impl SynthEngine {
 
     pub(super) fn enforce_global_voice_budget(&mut self) {
         let budget = self.global_voice_budget();
-        while self.active_synth_voice_total() > budget {
+        while self.sounding_synth_voice_total() > budget {
             let active_slot_count = self.active_synth_slot_count();
             let fair_share =
                 (budget + active_slot_count.saturating_sub(1)) / active_slot_count.max(1);
@@ -128,7 +130,7 @@ impl SynthEngine {
             let Some((_slot, idx)) = candidate else {
                 break;
             };
-            if !self.synth_voice_pool.deactivate_lane(idx) {
+            if !self.synth_voice_pool.fade_out_lane(idx) {
                 break;
             }
             self.record_voice_steal();
@@ -136,11 +138,11 @@ impl SynthEngine {
     }
 
     fn enforce_global_sample_budget(&mut self) {
-        while self.active_sample_voice_total() > MAX_SAMPLE_VOICES {
-            let Some((_slot, lane)) = self.sample_voice_pool.first_active_lane_global() else {
+        while self.sounding_sample_voice_total() > MAX_SAMPLE_VOICES {
+            let Some((_slot, lane)) = self.sample_voice_pool.first_stealable_lane_global() else {
                 break;
             };
-            if !self.sample_voice_pool.deactivate_lane(lane) {
+            if !self.sample_voice_pool.fade_out_lane(lane) {
                 break;
             }
             self.record_voice_steal();
@@ -153,14 +155,14 @@ impl SynthEngine {
     ) -> Option<(usize, usize)> {
         let mut best: Option<(usize, usize, f32)> = None;
         for slot_idx in 0..INSTRUMENT_SLOT_COUNT {
-            let active_count = self.active_synth_voice_count(slot_idx);
+            let active_count = self.sounding_synth_voice_count(slot_idx);
             if preserve_final_voice && active_count <= 1 {
                 continue;
             }
             let lanes = self.synth_voice_pool.slot_lanes(slot_idx)?;
             for &voice_idx in lanes {
                 let voice = self.synth_voice_pool.lane(voice_idx)?;
-                if !voice.active {
+                if !voice.active || voice.declick.is_fading() {
                     continue;
                 }
                 let age_samples = self.sample_clock.saturating_sub(voice.started_sample);
@@ -197,7 +199,7 @@ impl SynthEngine {
     ) -> Option<(usize, usize)> {
         let mut best_slot: Option<(usize, usize)> = None;
         for slot_idx in 0..INSTRUMENT_SLOT_COUNT {
-            let active_count = self.active_synth_voice_count(slot_idx);
+            let active_count = self.sounding_synth_voice_count(slot_idx);
             if active_count <= fair_share || (preserve_final_voice && active_count <= 1) {
                 continue;
             }
@@ -215,7 +217,7 @@ impl SynthEngine {
         let lanes = self.synth_voice_pool.slot_lanes(slot_idx)?;
         for &voice_idx in lanes {
             let voice = self.synth_voice_pool.lane(voice_idx)?;
-            if !voice.active {
+            if !voice.active || voice.declick.is_fading() {
                 continue;
             }
             let age_samples = self.sample_clock.saturating_sub(voice.started_sample);
@@ -245,11 +247,20 @@ impl SynthEngine {
     }
 
     fn active_synth_slot_count(&self) -> usize {
-        self.synth_voice_pool
-            .active_counts_by_slot()
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|count| *count > 0)
+        (0..INSTRUMENT_SLOT_COUNT)
+            .filter(|slot| self.sounding_synth_voice_count(*slot) > 0)
             .count()
+    }
+}
+
+/// With a free lane, a steal fades its victim out in place and the new note takes the free lane;
+/// only a full pool hands the victim's lane straight to the new note.
+pub(super) fn split_steal(
+    victim_lane: Option<usize>,
+    free_lane: Option<usize>,
+) -> (Option<usize>, Option<usize>) {
+    match (victim_lane, free_lane) {
+        (Some(victim), Some(_)) => (None, Some(victim)),
+        _ => (victim_lane, None),
     }
 }

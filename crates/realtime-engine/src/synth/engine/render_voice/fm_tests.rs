@@ -265,6 +265,7 @@ fn fm_uses_synth_admission_and_retires_voices_on_type_switch() {
     for note in 60..(60 + MAX_SYNTH_VOICES_PER_SLOT as u8 + 1) {
         engine.note_on(0, note, 127, 10_000);
     }
+    engine.render_through_steal_fades();
     assert_eq!(
         engine.profile_snapshot().active_synth_voices,
         MAX_SYNTH_VOICES_PER_SLOT
