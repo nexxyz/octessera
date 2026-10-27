@@ -127,7 +127,7 @@ scenario checks in a few seconds and its timing is sample-exact.
 - The tests live in `apps/desktop/src-tauri/tests/e2e/`. A failing scenario
   keeps its audio as a WAV under the system temp folder
   (`octessera-e2e/`) so you can listen to it.
-- `record_teaser_v52_take` is ignored by default: it renders the teaser score
+- `record_teaser_v53_take` is ignored by default: it renders the teaser score
   in real time with the device's Audio+Video recorder running.
 
 They are not part of the pre-push hook; run them after changes to playback,
