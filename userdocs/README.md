@@ -111,6 +111,9 @@ Voice counts are totals across all eight instrument slots. Behaviors, samples
 and effects all eat into the headroom, and **System > Audio > Polyphony** can
 steal older voices as load rises. The menu will happily let you fill all
 twelve bus FX slots on either board; this table is the polite suggestion.
+In the 0.8.11 load test, both boards took 96 notes held at once in either
+Perf. Mode without a single dropout, with Polyphony stealing the oldest voices
+along the way. The table itself is still an estimate, not a measured ceiling.
 
 How quick does it feel? `System > Audio > Perf. Mode` set to Latency gets a
 grid press to your ears in about 6 ms on the Orange and 8 ms on the Raspberry.
