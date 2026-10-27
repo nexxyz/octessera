@@ -47,12 +47,12 @@ fn preset_directory_creation_failure_is_reported() {
 }
 
 #[test]
-fn legacy_mixed_default_is_refused_and_preserved() {
+fn unknown_store_file_is_refused_and_preserved() {
     let root = unique_temp_dir("octessera-malformed-default");
     let original = b"{ malformed";
     fs::write(root.join("default.json"), original).expect("malformed default");
 
-    let error = ensure_store_dir_at(root.clone()).expect_err("legacy file needs conversion");
+    let error = ensure_store_dir_at(root.clone()).expect_err("unknown files block seeding");
     assert!(error.to_string().contains("start again"));
 
     assert_eq!(
@@ -138,7 +138,7 @@ fn complete_invalid_pair_is_refused_without_changing_bytes() {
 }
 
 #[test]
-fn existing_legacy_default_is_refused_without_overwriting() {
+fn unknown_store_document_is_refused_without_overwriting() {
     let root = unique_temp_dir("octessera-existing-custom-default");
     let custom = serde_json::json!({ "kept": true });
     fs::write(
@@ -147,7 +147,7 @@ fn existing_legacy_default_is_refused_without_overwriting() {
     )
     .expect("write custom default");
 
-    let error = ensure_store_dir_at(root.clone()).expect_err("legacy file needs conversion");
+    let error = ensure_store_dir_at(root.clone()).expect_err("unknown files block seeding");
     assert!(error.to_string().contains("start again"));
     assert_eq!(
         fs::read(root.join("default.json")).unwrap(),

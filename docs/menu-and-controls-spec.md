@@ -716,8 +716,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 | `system.json` | System settings | `/home/pi/presets/system.json` | `/var/lib/octessera/presets/system.json` |
 | `default.patch.json` | Default musical patch | `/home/pi/presets/` | `/var/lib/octessera/presets/` |
 
-- Desktop seeds both files at first launch and refuses an old single-file `default.json` or an
-  incomplete split store rather than guessing.
+- Desktop seeds both files into an empty store folder at first launch and refuses any other
+  incomplete or unrecognised store rather than guessing.
 - `crates/playback-runtime` owns classification, validation, and save/load intent; the desktop and
   Pi adapters own paths and atomic writes. The two writes are independent, not a two-file
   transaction.

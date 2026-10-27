@@ -108,15 +108,6 @@ fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStart
 
     let system_path = dir.join("system.json");
     let patch_path = dir.join("default.patch.json");
-    let legacy_path = dir.join("default.json");
-    if legacy_path.exists() {
-        return Err(DesktopStoreStartupError::InvalidStore {
-            detail: format!(
-                "an old single-file default.json is in the store folder ({}); move it out of that folder and start again, and the simulator creates a fresh default",
-                legacy_path.display()
-            ),
-        });
-    }
     match (system_path.is_file(), patch_path.is_file()) {
         (true, true) => {
             let system = read_document(&system_path)?;
