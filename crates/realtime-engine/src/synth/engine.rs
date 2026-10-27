@@ -121,8 +121,6 @@ mod source_worker_carrier_transfer_tests;
 #[cfg(test)]
 mod source_worker_failure_tests;
 mod source_worker_health;
-#[cfg(test)]
-mod source_worker_identity_tests;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 mod source_worker_lease;
 #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]

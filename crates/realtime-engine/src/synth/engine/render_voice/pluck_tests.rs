@@ -104,7 +104,6 @@ fn pluck_held_live_coefficients_and_next_pick_do_not_restart_ring() {
     assert_eq!(before.pluck.write, held.pluck.write);
     assert_eq!(before.pluck.emitted, held.pluck.emitted);
     assert_eq!(before.pluck.pick_offset, held.pluck.pick_offset);
-    assert_eq!(before.canonical_lane, held.canonical_lane);
     engine.next_sample();
     let after = engine.synth_voice_pool.lane(0).unwrap();
     assert_eq!(
@@ -274,7 +273,6 @@ fn pluck_prepared_and_live_controls_match_with_held_ring_continuity() {
             assert_eq!(held.pluck.write, before.pluck.write);
             assert_eq!(held.pluck.emitted, before.pluck.emitted);
             assert_eq!(held.pluck.pick_offset, before.pluck.pick_offset);
-            assert_eq!(held.canonical_lane, before.canonical_lane);
         }
         for _ in 0..512 {
             assert_eq!(

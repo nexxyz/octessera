@@ -55,7 +55,6 @@ fn synth_oscillator_scalar_edits_keep_held_voice_and_change_audio() {
             ScalarMutation::Changed
         );
         let held = changed.synth_voice_pool.lane(0).unwrap();
-        assert_eq!(held.canonical_lane, before.canonical_lane);
         assert_eq!(held.started_sample, before.started_sample);
         assert_eq!(
             (held.phase1.to_bits(), held.phase2.to_bits()),

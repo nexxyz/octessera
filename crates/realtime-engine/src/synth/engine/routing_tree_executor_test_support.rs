@@ -387,42 +387,22 @@ pub(super) fn active_synth_voice_state(engine: &SynthEngine) -> Vec<String> {
     let mut voices = (0..SYNTH_VOICE_LANE_CAPACITY)
         .filter_map(|lane| {
             let voice = engine.synth_voice_pool.lane(lane)?;
-            voice.active.then(|| {
-                (
-                    voice
-                        .canonical_lane
-                        .expect("active synth voice canonical lane"),
-                    format!("{:?}", voice),
-                )
-            })
+            voice.active.then(|| format!("{:?}", voice))
         })
         .collect::<Vec<_>>();
-    voices.sort_unstable_by_key(|(canonical_lane, _)| *canonical_lane);
+    voices.sort_unstable();
     voices
-        .into_iter()
-        .map(|(canonical_lane, state)| format!("{canonical_lane}:{state}"))
-        .collect()
 }
 
 pub(super) fn active_sample_voice_state(engine: &SynthEngine) -> Vec<String> {
     let mut voices = (0..SAMPLE_VOICE_LANE_CAPACITY)
         .filter_map(|lane| {
             let voice = engine.sample_voice_pool.lane(lane)?;
-            voice.active.then(|| {
-                (
-                    voice
-                        .canonical_lane
-                        .expect("active sample voice canonical lane"),
-                    format!("{:?}", voice),
-                )
-            })
+            voice.active.then(|| format!("{:?}", voice))
         })
         .collect::<Vec<_>>();
-    voices.sort_unstable_by_key(|(canonical_lane, _)| *canonical_lane);
+    voices.sort_unstable();
     voices
-        .into_iter()
-        .map(|(canonical_lane, state)| format!("{canonical_lane}:{state}"))
-        .collect()
 }
 
 pub(super) fn assert_duck_env(state: &FxBusState, source: f32, attack_ms: f32, label: &str) {

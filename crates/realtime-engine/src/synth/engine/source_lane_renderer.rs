@@ -168,13 +168,11 @@ pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u3
     }
     let Some(buffer) = voice.buffer.as_ref() else {
         voice.active = false;
-        voice.canonical_lane = None;
         return None;
     };
     let frames = buffer.samples.len() / buffer.channels as usize;
     if frames == 0 || voice.pos >= frames as f32 {
         voice.active = false;
-        voice.canonical_lane = None;
         return None;
     }
     let frame = voice.pos.floor() as usize;
@@ -198,7 +196,6 @@ pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u3
         amp
     } else {
         voice.active = false;
-        voice.canonical_lane = None;
         return None;
     };
     let filtered = voice.filt.process_prepared(sample).clamp(-8.0, 8.0);
@@ -221,7 +218,6 @@ pub(super) fn render_sample_voice_block(
         return rendered;
     };
     voice.active = false;
-    voice.canonical_lane = None;
     faded
 }
 
@@ -236,7 +232,6 @@ fn render_sample_source_block(
     }
     let Some(buffer) = voice.buffer.as_ref() else {
         voice.active = false;
-        voice.canonical_lane = None;
         return 0;
     };
     let buffer_view = SampleBufferView::from_buffer(buffer);
@@ -244,7 +239,6 @@ fn render_sample_source_block(
     let end_position = buffer_view.end_position();
     if buffer_frames == 0 || voice.pos >= end_position {
         voice.active = false;
-        voice.canonical_lane = None;
         return 0;
     }
     if !voice.shape.is_static() {
@@ -274,7 +268,6 @@ fn render_sample_source_block(
     };
     if ended {
         voice.active = false;
-        voice.canonical_lane = None;
     }
     rendered_frames
 }

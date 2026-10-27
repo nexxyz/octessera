@@ -58,7 +58,6 @@ fn finished_voices_leave_the_render_lists_and_survivors_render_the_next_block() 
     let mut engine = prefix_engine();
     engine.note_on(0, 60, 96, 1);
     let mut synth_survivor = *engine.synth_voice_pool.lane(0).expect("synth lane");
-    synth_survivor.canonical_lane = Some(2);
     synth_survivor.note_off_sample = u64::MAX;
     assert!(engine.synth_voice_pool.assign_lane(2, 0));
     *engine.synth_voice_pool.lane_mut(2).expect("synth lane") = synth_survivor;
@@ -69,7 +68,6 @@ fn finished_voices_leave_the_render_lists_and_survivors_render_the_next_block() 
         .lane(0)
         .expect("sample lane")
         .clone();
-    sample_survivor.canonical_lane = Some(2);
     sample_survivor.pos = 0.0;
     sample_survivor.step = 0.0;
     assert!(engine.sample_voice_pool.assign_lane(2, 1));

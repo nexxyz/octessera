@@ -302,7 +302,6 @@ fn cross_worker_sample_steal_retires_the_parked_arc_and_fades_the_victim_without
         [0, 1, 2, 3, 4, 5, 6, 7, 9]
     );
     assert_eq!(engine.pending_render_retired.sample_voices.len(), 1);
-    assert_eq!(engine.sample_voice_pool.canonical_lane(9), Some(8));
     assert!(Arc::ptr_eq(
         engine
             .pending_render_retired

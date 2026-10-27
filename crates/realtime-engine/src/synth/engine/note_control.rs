@@ -217,13 +217,6 @@ impl SynthEngine {
         };
         let (victim_lane, faded_victim) = split_steal(victim_lane, first_inactive_lane);
         let legacy_lane = victim_lane.or(first_inactive_lane).unwrap_or(0);
-        let Some(canonical_lane) = victim_lane
-            .and_then(|lane| self.synth_voice_pool.canonical_lane(lane))
-            .or_else(|| self.synth_voice_pool.first_free_canonical_lane())
-        else {
-            self.record_voice_admission_drop();
-            return;
-        };
         #[cfg(feature = "routing-tree-executor")]
         let routing_control = self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_some();
@@ -286,7 +279,6 @@ impl SynthEngine {
             });
         let mut voice = Voice {
             active: true,
-            canonical_lane: None,
             instrument_slot: slot as u8,
             midi_note,
             velocity: v,
@@ -343,13 +335,10 @@ impl SynthEngine {
             self.sample_rate,
             self.synth_render_revisions[slot],
         );
-        if !self.synth_voice_pool.replace_lane_for_admission(
-            lane,
-            slot,
-            victim_lane,
-            canonical_lane,
-            voice,
-        ) {
+        if !self
+            .synth_voice_pool
+            .replace_lane_for_admission(lane, slot, victim_lane, voice)
+        {
             self.record_voice_admission_drop();
             return;
         }

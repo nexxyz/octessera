@@ -81,7 +81,6 @@ fn held_fm_index_scalar_matches_prepared_patch_depth_and_audio() {
         for engine in [&prepared, &live] {
             let held = engine.synth_voice_pool.lane(0).unwrap();
             assert!(held.active && held.fm);
-            assert_eq!(held.canonical_lane, before.canonical_lane);
             assert_eq!(held.started_sample, before.started_sample);
             assert_eq!(
                 (held.phase1.to_bits(), held.phase2.to_bits()),

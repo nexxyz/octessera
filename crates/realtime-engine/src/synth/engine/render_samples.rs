@@ -120,13 +120,6 @@ impl SynthEngine {
         };
         let (victim_lane, faded_victim) = split_steal(victim_lane, first_inactive_lane);
         let legacy_lane = victim_lane.or(first_inactive_lane).unwrap_or(0);
-        let Some(canonical_lane) = victim_lane
-            .and_then(|lane| self.sample_voice_pool.canonical_lane(lane))
-            .or_else(|| self.sample_voice_pool.first_free_canonical_lane())
-        else {
-            self.record_voice_admission_drop();
-            return;
-        };
         #[cfg(feature = "routing-tree-executor")]
         let routing_control = self.routing_tree_assignment.is_some()
             && self.routing_tree_source_event_sample_clock.is_some();
@@ -173,7 +166,6 @@ impl SynthEngine {
             });
         let voice = SampleVoice {
             active: true,
-            canonical_lane: None,
             instrument_slot: slot as u8,
             sample_slot,
             cell,
@@ -196,7 +188,6 @@ impl SynthEngine {
             lane,
             slot,
             victim_lane,
-            canonical_lane,
             voice,
             &mut self.pending_render_retired.sample_voices,
         ) {
@@ -270,7 +261,6 @@ impl SynthEngine {
                 slot_active = true;
             } else {
                 voice.active = false;
-                voice.canonical_lane = None;
             }
         }
         self.sample_voice_pool.compact_slot_lanes(slot);

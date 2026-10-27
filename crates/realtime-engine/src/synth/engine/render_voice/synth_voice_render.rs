@@ -30,7 +30,6 @@ pub(in crate::synth::engine) fn render_synth_voice_frame(
         .finish_frame(&mut voice.last_output, value, context.sample_rate);
     if value.is_none() {
         voice.active = false;
-        voice.canonical_lane = None;
     }
     value
 }
@@ -47,7 +46,6 @@ fn render_source_frame(
     }
     if !voice_source_matches(voice, &context.render_config) {
         voice.active = false;
-        voice.canonical_lane = None;
         return None;
     }
     debug_assert_eq!(voice.instrument_slot as usize, slot_idx);
@@ -68,7 +66,6 @@ fn render_source_frame(
     let filt_env = voice.filt_env.next();
     if voice.amp_env.is_off() {
         voice.active = false;
-        voice.canonical_lane = None;
         return None;
     }
     if voice.render_revision != context.revision {
@@ -116,7 +113,6 @@ pub(in crate::synth::engine) fn render_synth_voice_block(
         return rendered;
     };
     voice.active = false;
-    voice.canonical_lane = None;
     faded
 }
 
@@ -134,7 +130,6 @@ fn render_source_block(
     }
     if !voice_source_matches(voice, &context.render_config) {
         voice.active = false;
-        voice.canonical_lane = None;
         return 0;
     }
     debug_assert_eq!(voice.instrument_slot as usize, slot_idx);
@@ -257,7 +252,6 @@ impl SourceFrames<'_> {
             let filt_env = voice.filt_env.next();
             if voice.amp_env.is_off() {
                 voice.active = false;
-                voice.canonical_lane = None;
                 break;
             }
             let dry = source(voice, ring);

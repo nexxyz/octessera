@@ -1,8 +1,8 @@
 #[cfg(test)]
 use super::super::types::SampleBuffer;
 use super::super::types::{
-    LogicalLaneId, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
-    SAMPLE_VOICE_PARTITION_LANE_CAPACITY, SAMPLE_VOICE_RETIREMENT_CAPACITY, VOICE_PARTITION_COUNT,
+    INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, SAMPLE_VOICE_PARTITION_LANE_CAPACITY,
+    SAMPLE_VOICE_RETIREMENT_CAPACITY, VOICE_PARTITION_COUNT,
 };
 use super::retired_state::RetiredSampleVoices;
 use super::support::SampleVoice;
@@ -184,10 +184,7 @@ impl SampleVoicePool {
                 self.lane(*lane)
                     .is_some_and(|voice| voice.active && !voice.declick.is_fading())
             })
-            .min_by_key(|lane| {
-                self.canonical_lane(*lane)
-                    .expect("active sample voice canonical lane")
-            })
+            .min()
     }
 
     pub(super) fn first_stealable_lane_global(&self) -> Option<(usize, usize)> {
@@ -222,9 +219,6 @@ impl SampleVoicePool {
                 write += 1;
             } else {
                 self.lane_slots[lane] = None;
-                self.lane_mut(lane)
-                    .expect("home partition lane")
-                    .canonical_lane = None;
             }
         }
         self.slot_lane_counts[slot] = write;
@@ -302,21 +296,10 @@ impl SampleVoicePool {
         Some(retired)
     }
 
-    #[cfg(test)]
     pub(super) fn assign_lane(&mut self, lane: usize, slot: usize) -> bool {
-        self.assign_lane_with_canonical(lane, slot, lane as LogicalLaneId)
-    }
-
-    fn assign_lane_with_canonical(
-        &mut self,
-        lane: usize,
-        slot: usize,
-        canonical_lane: LogicalLaneId,
-    ) -> bool {
         if !self.partitions_home()
             || partition_lane(lane).is_none()
             || slot >= INSTRUMENT_SLOT_COUNT
-            || canonical_lane as usize >= SAMPLE_VOICE_LANE_CAPACITY
         {
             return false;
         }
@@ -338,9 +321,6 @@ impl SampleVoicePool {
         self.slot_lanes[slot][insert] = lane;
         self.slot_lane_counts[slot] = count + 1;
         self.lane_slots[lane] = Some(slot);
-        self.lane_mut(lane)
-            .expect("home partition lane")
-            .canonical_lane = Some(canonical_lane);
         true
     }
 
@@ -349,7 +329,6 @@ impl SampleVoicePool {
         lane: usize,
         slot: usize,
         victim_lane: Option<usize>,
-        canonical_lane: LogicalLaneId,
         voice: SampleVoice,
         retired: &mut RetiredSampleVoices,
     ) -> bool {
@@ -359,9 +338,7 @@ impl SampleVoicePool {
         {
             return false;
         }
-        if canonical_lane as usize >= SAMPLE_VOICE_LANE_CAPACITY
-            || victim_lane.is_some_and(|victim| victim != lane)
-        {
+        if victim_lane.is_some_and(|victim| victim != lane) {
             return false;
         }
         if victim_lane == Some(lane) {
@@ -372,14 +349,6 @@ impl SampleVoicePool {
             return false;
         }
         if victim_lane.is_some_and(|victim| self.lane_slots[victim].is_none()) {
-            return false;
-        }
-        let canonical_owner = (0..SAMPLE_VOICE_LANE_CAPACITY).find(|candidate| {
-            self.lane(*candidate).is_some_and(|current| {
-                current.active && current.canonical_lane == Some(canonical_lane)
-            })
-        });
-        if canonical_owner != victim_lane {
             return false;
         }
         if self.lane_slots[lane] != Some(slot)
@@ -393,13 +362,11 @@ impl SampleVoicePool {
         if !retired.can_push_count(usize::from(target_has_buffer)) {
             return false;
         }
-        let assigned = self.assign_lane_with_canonical(lane, slot, canonical_lane);
+        let assigned = self.assign_lane(lane, slot);
         debug_assert!(assigned);
         if !assigned {
             return false;
         }
-        let mut voice = voice;
-        voice.canonical_lane = Some(canonical_lane);
         let target = self.lane_mut(lane).expect("validated target lane");
         let mut previous = std::mem::replace(target, voice);
         let retired_target = retired.push(&mut previous);

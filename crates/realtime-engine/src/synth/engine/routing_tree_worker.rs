@@ -280,9 +280,7 @@ fn valid_source_residency(
         .filter(|voice| voice.active)
         .all(|voice| {
             let slot = voice.instrument_slot as usize;
-            slot < INSTRUMENT_SLOT_COUNT
-                && voice.canonical_lane.is_some()
-                && context.slot_worker[slot] == owner.parity as u8
+            slot < INSTRUMENT_SLOT_COUNT && context.slot_worker[slot] == owner.parity as u8
         })
         && source
             .sample
@@ -290,8 +288,6 @@ fn valid_source_residency(
             .filter(|voice| voice.active)
             .all(|voice| {
                 let slot = voice.instrument_slot as usize;
-                slot < INSTRUMENT_SLOT_COUNT
-                    && voice.canonical_lane.is_some()
-                    && context.slot_worker[slot] == owner.parity as u8
+                slot < INSTRUMENT_SLOT_COUNT && context.slot_worker[slot] == owner.parity as u8
             })
 }

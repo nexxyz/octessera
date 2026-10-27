@@ -1,7 +1,7 @@
 use super::super::pluck_string::PluckRings;
 use super::super::runtime_state::Voice;
 use super::super::types::{
-    LogicalLaneId, INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY, VOICE_PARTITION_COUNT,
+    INSTRUMENT_SLOT_COUNT, SYNTH_VOICE_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
 use super::{SynthVoicePartition, SynthVoicePool};
 
@@ -31,7 +31,6 @@ impl SynthVoicePool {
             self.partitions[0] = Some(first);
             return false;
         };
-        bank.fill(Voice::off());
         for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
             let partition = if lane % VOICE_PARTITION_COUNT == 0 {
                 &mut first
@@ -39,31 +38,9 @@ impl SynthVoicePool {
                 &mut second
             };
             let local = lane / VOICE_PARTITION_COUNT;
-            let source = &mut partition.lanes[local];
-            if source.active {
-                let canonical = source.canonical_lane.expect("validated canonical lane") as usize;
-                bank[canonical] = std::mem::replace(source, Voice::off());
-                rings[canonical] = partition.rings[local].take();
-            }
-        }
-        for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
-            let partition = if lane % VOICE_PARTITION_COUNT == 0 {
-                &mut first
-            } else {
-                &mut second
-            };
-            let local = lane / VOICE_PARTITION_COUNT;
-            if let Some(ring) = partition.rings[local].take() {
-                let destination = if rings[lane].is_none() {
-                    lane
-                } else {
-                    rings
-                        .iter()
-                        .position(Option::is_none)
-                        .expect("free ring lane")
-                };
-                rings[destination] = Some(ring);
-            }
+            let source = std::mem::replace(&mut partition.lanes[local], Voice::off());
+            bank[lane] = if source.active { source } else { Voice::off() };
+            rings[lane] = partition.rings[local].take();
         }
         for mut partition in [first, second] {
             let parity = partition.parity;
@@ -110,13 +87,7 @@ impl SynthVoicePool {
             let Some(voice) = self.lane(lane) else {
                 return false;
             };
-            if voice.active
-                && !self.assign_lane_with_canonical(
-                    lane,
-                    voice.instrument_slot as usize,
-                    lane as LogicalLaneId,
-                )
-            {
+            if voice.active && !self.assign_lane(lane, voice.instrument_slot as usize) {
                 return false;
             }
         }
@@ -137,41 +108,15 @@ impl SynthVoicePool {
     }
 
     fn routing_bank_metadata_valid(&self) -> bool {
-        let mut canonical = [false; SYNTH_VOICE_LANE_CAPACITY];
-        for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
+        (0..SYNTH_VOICE_LANE_CAPACITY).all(|lane| {
             let voice = self.lane(lane).expect("home partition lane");
-            if !voice.active {
-                continue;
-            }
-            if voice.instrument_slot as usize >= INSTRUMENT_SLOT_COUNT {
-                return false;
-            }
-            let Some(canonical_lane) = voice.canonical_lane.map(usize::from) else {
-                return false;
-            };
-            if canonical_lane >= SYNTH_VOICE_LANE_CAPACITY || canonical[canonical_lane] {
-                return false;
-            }
-            canonical[canonical_lane] = true;
-        }
-        true
+            !voice.active || (voice.instrument_slot as usize) < INSTRUMENT_SLOT_COUNT
+        })
     }
 }
 
 #[cfg(feature = "routing-tree-executor")]
 fn routing_bank_is_valid(bank: &[Voice; SYNTH_VOICE_LANE_CAPACITY]) -> bool {
-    let mut canonical = [false; SYNTH_VOICE_LANE_CAPACITY];
-    bank.iter().enumerate().all(|(lane, voice)| {
-        if !voice.active {
-            return true;
-        }
-        if voice.canonical_lane != Some(lane as LogicalLaneId)
-            || (voice.instrument_slot as usize) >= INSTRUMENT_SLOT_COUNT
-            || canonical[lane]
-        {
-            return false;
-        }
-        canonical[lane] = true;
-        true
-    })
+    bank.iter()
+        .all(|voice| !voice.active || (voice.instrument_slot as usize) < INSTRUMENT_SLOT_COUNT)
 }

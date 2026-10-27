@@ -126,7 +126,6 @@ fn drum_next_hit_scalars_preserve_active_hit_and_other_kit_voices() {
         );
     }
     let held = engine.synth_voice_pool.lane(0).unwrap();
-    assert_eq!(held.canonical_lane, old.canonical_lane);
     assert_eq!(held.drum.elapsed, old.drum.elapsed);
     assert_eq!(
         held.drum.decay_step.to_bits(),
@@ -266,7 +265,6 @@ fn drum_prepared_and_scalar_next_hit_controls_match_without_morphing_first_hit()
         assert_eq!(first.drum.elapsed, previous.drum.elapsed);
         assert_eq!(first.drum.inc1.to_bits(), previous.drum.inc1.to_bits());
         assert_eq!(first.drum.phase1.to_bits(), previous.drum.phase1.to_bits());
-        assert_eq!(first.canonical_lane, previous.canonical_lane);
     }
     for engine in [&mut prepared, &mut live] {
         engine.cell_hit(0, 2, 0, 500, 100);

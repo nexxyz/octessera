@@ -41,7 +41,6 @@ pub(super) fn render_routing_tree_sources(
         }
         if voice.instrument_slot as usize >= INSTRUMENT_SLOT_COUNT {
             voice.active = false;
-            voice.canonical_lane = None;
             continue;
         }
         sum_synth_voice(

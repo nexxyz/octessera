@@ -72,7 +72,6 @@ pub(super) enum InstrumentKind {
 #[derive(Clone, Debug)]
 pub(super) struct SampleVoice {
     pub(super) active: bool,
-    pub(super) canonical_lane: Option<super::super::types::LogicalLaneId>,
     pub(super) instrument_slot: u8,
     pub(super) sample_slot: usize,
     pub(super) cell: Option<u8>,
@@ -92,7 +91,6 @@ impl SampleVoice {
     pub(super) fn off() -> Self {
         Self {
             active: false,
-            canonical_lane: None,
             instrument_slot: 0,
             sample_slot: 0,
             cell: None,

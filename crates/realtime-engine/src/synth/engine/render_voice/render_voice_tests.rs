@@ -143,7 +143,6 @@ fn held_synth_and_fm_tracking_edits_refresh_before_static_block_filter() {
         }
         let after = block.synth_voice_pool.lane(0).unwrap();
         assert_eq!(after.filter_key_scale, 2.0);
-        assert_eq!(after.canonical_lane, before.canonical_lane);
         assert_eq!(after.started_sample, before.started_sample);
     }
 }

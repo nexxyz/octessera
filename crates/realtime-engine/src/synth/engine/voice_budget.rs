@@ -12,12 +12,8 @@ impl SynthEngine {
                 continue;
             }
             let score = voice.amp_env.level;
-            let canonical_lane = voice.canonical_lane.expect("active canonical lane");
-            let best_canonical_lane =
-                best_lane.and_then(|best| self.synth_voice_pool.canonical_lane(best));
             if score < best_score
-                || (score == best_score
-                    && best_canonical_lane.is_none_or(|best| canonical_lane < best))
+                || (score == best_score && best_lane.is_none_or(|best| lane < best))
             {
                 best_score = score;
                 best_lane = Some(lane);
@@ -175,16 +171,10 @@ impl SynthEngine {
                 if age_ms < 30.0 {
                     score += 1.0;
                 }
-                let canonical_lane = voice.canonical_lane.expect("active canonical lane");
                 match best {
                     Some((_, best_lane, best_score))
                         if score > best_score
-                            || (score == best_score
-                                && canonical_lane
-                                    >= self
-                                        .synth_voice_pool
-                                        .canonical_lane(best_lane)
-                                        .expect("active canonical lane")) => {}
+                            || (score == best_score && voice_idx >= best_lane) => {}
                     _ => best = Some((slot_idx, voice_idx, score)),
                 }
             }
@@ -230,16 +220,9 @@ impl SynthEngine {
             if age_ms < 30.0 {
                 score += 1.0;
             }
-            let canonical_lane = voice.canonical_lane.expect("active canonical lane");
             match best {
                 Some((best_lane, best_score))
-                    if score > best_score
-                        || (score == best_score
-                            && canonical_lane
-                                >= self
-                                    .synth_voice_pool
-                                    .canonical_lane(best_lane)
-                                    .expect("active canonical lane")) => {}
+                    if score > best_score || (score == best_score && voice_idx >= best_lane) => {}
                 _ => best = Some((voice_idx, score)),
             }
         }

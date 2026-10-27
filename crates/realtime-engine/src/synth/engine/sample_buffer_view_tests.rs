@@ -170,7 +170,6 @@ fn sample_voice(
 ) -> SampleVoice {
     SampleVoice {
         active: true,
-        canonical_lane: None,
         instrument_slot: 0,
         sample_slot: 0,
         cell: None,

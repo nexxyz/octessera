@@ -1,5 +1,5 @@
 use super::super::super::types::{
-    LogicalLaneId, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, VOICE_PARTITION_COUNT,
+    INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
 use super::super::support::SampleVoice;
 use super::{SampleVoicePartition, SampleVoicePool};
@@ -31,8 +31,7 @@ impl SampleVoicePool {
                 &mut second.lanes[lane / VOICE_PARTITION_COUNT]
             };
             if source.active {
-                let canonical = source.canonical_lane.expect("validated canonical lane") as usize;
-                bank[canonical] = std::mem::replace(source, SampleVoice::off());
+                bank[lane] = std::mem::replace(source, SampleVoice::off());
             }
         }
         for mut partition in [first, second] {
@@ -66,13 +65,7 @@ impl SampleVoicePool {
             let Some(voice) = self.lane(lane) else {
                 return false;
             };
-            if voice.active
-                && !self.assign_lane_with_canonical(
-                    lane,
-                    voice.instrument_slot as usize,
-                    lane as LogicalLaneId,
-                )
-            {
+            if voice.active && !self.assign_lane(lane, voice.instrument_slot as usize) {
                 return false;
             }
         }
@@ -93,41 +86,15 @@ impl SampleVoicePool {
     }
 
     fn routing_bank_metadata_valid(&self) -> bool {
-        let mut canonical = [false; SAMPLE_VOICE_LANE_CAPACITY];
-        for lane in 0..SAMPLE_VOICE_LANE_CAPACITY {
+        (0..SAMPLE_VOICE_LANE_CAPACITY).all(|lane| {
             let voice = self.lane(lane).expect("home partition lane");
-            if !voice.active {
-                continue;
-            }
-            if voice.instrument_slot as usize >= INSTRUMENT_SLOT_COUNT {
-                return false;
-            }
-            let Some(canonical_lane) = voice.canonical_lane.map(usize::from) else {
-                return false;
-            };
-            if canonical_lane >= SAMPLE_VOICE_LANE_CAPACITY || canonical[canonical_lane] {
-                return false;
-            }
-            canonical[canonical_lane] = true;
-        }
-        true
+            !voice.active || (voice.instrument_slot as usize) < INSTRUMENT_SLOT_COUNT
+        })
     }
 }
 
 #[cfg(feature = "routing-tree-executor")]
 fn routing_bank_is_valid(bank: &[SampleVoice; SAMPLE_VOICE_LANE_CAPACITY]) -> bool {
-    let mut canonical = [false; SAMPLE_VOICE_LANE_CAPACITY];
-    bank.iter().enumerate().all(|(lane, voice)| {
-        if !voice.active {
-            return true;
-        }
-        if voice.canonical_lane != Some(lane as LogicalLaneId)
-            || (voice.instrument_slot as usize) >= INSTRUMENT_SLOT_COUNT
-            || canonical[lane]
-        {
-            return false;
-        }
-        canonical[lane] = true;
-        true
-    })
+    bank.iter()
+        .all(|voice| !voice.active || (voice.instrument_slot as usize) < INSTRUMENT_SLOT_COUNT)
 }

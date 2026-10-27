@@ -75,7 +75,6 @@ impl SynthEngine {
                 for lane in indices.into_iter().take(count) {
                     if let Some(voice) = self.synth_voice_pool.lane_mut(lane) {
                         voice.active = false;
-                        voice.canonical_lane = None;
                     }
                 }
                 self.synth_voice_pool.compact_slot_lanes(idx);
