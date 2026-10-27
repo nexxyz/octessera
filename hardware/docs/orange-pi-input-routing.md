@@ -33,4 +33,6 @@ $OrangeTarget = "octessera@<ORANGE_HOST>"
 After either apply or rollback, reboot only through the separately reviewed
 operator procedure, then rerun preflight. Until the apply reboot completes,
 AUX2 A/B can be requested but its click line remains unavailable to the running
-kernel; after the overlay boots, all four Orange encoder switches are enabled.
+kernel, and so does the Seesaw INT line on PH1 (physical pin 10), so the
+runtime refuses to start its controls. After the overlay boots, all four Orange
+encoder switches and the Seesaw INT line are available.

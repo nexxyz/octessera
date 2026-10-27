@@ -165,6 +165,12 @@ be requested with UART0 active, while its switch (224) is requested only after
 the overlay disables UART0. All four Orange encoder descriptors reverse literal
 board A/B direction at the Orange event boundary.
 
+The shared Seesaw INT net is physical pin 10, H618 PH1 (UART0 RX), line 225.
+Like the Raspberry, the Orange scans the NeoTrellis and NeoKey when INT falls or
+stays low, plus a 100 ms safety poll. The line is only free once the overlay
+has released UART0; if it cannot be requested, startup fails with a controls
+error instead of falling back to polling.
+
 The HAL descriptors record `/dev/i2c-2` at `5002400.i2c`, `/dev/spidev1.0` at
 `5011000.spi`, and encoder offsets on `300b000.pinctrl`. The OLED runs at
 16 MHz.

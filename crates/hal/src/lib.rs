@@ -21,7 +21,6 @@ pub mod orange_metadata;
 pub mod orange_timing;
 #[cfg(not(feature = "orange-pi-zero-2w"))]
 pub mod pinmap;
-#[cfg(not(feature = "orange-pi-zero-2w"))]
 pub mod seesaw_interrupt;
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 pub(crate) mod seesaw_transport;
@@ -44,7 +43,6 @@ pub use neotrellis::NeoTrellis;
 pub use oled_ssd1351::OledSsd1351;
 #[cfg(feature = "orange-pi-zero-2w")]
 pub use orange_encoder_gpio::OrangeEncoderGpio;
-#[cfg(not(feature = "orange-pi-zero-2w"))]
 pub use seesaw_interrupt::SeesawInterrupt;
 
 #[cfg(all(feature = "orange-pi-zero-2w", feature = "raspberry-pi-zero-2w"))]

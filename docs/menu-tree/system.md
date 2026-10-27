@@ -445,10 +445,12 @@ hostname, and the explicit board profile. The desktop UI only renders the result
   shared 44.1 kHz runtime rate. Readiness depends on Jack; an absent, waiting, or faulted optional
   mirror is route-local and never blocks or replaces Jack.
 - MIDI uses the native host adapter, including USB MIDI when the configured gadget port is present.
-- The service polls NeoTrellis/NeoKey over `/dev/i2c-2` at about 10 ms and uses the native gpiocdev
-  v2 encoder path for all four encoders. Orange HAL descriptors reverse each literal board A/B net at
+- The service scans NeoTrellis/NeoKey over `/dev/i2c-2` when the shared Seesaw INT line (header
+  pin 10, H618 PH1, line 225) falls or stays low, with a 100 ms safety poll, and uses the native
+  gpiocdev v2 encoder path for all four encoders. Orange HAL descriptors reverse each literal board A/B net at
   the event boundary so every encoder turns in the canonical direction without changing the shared
   quadrature decoding.
 - AUX2 A/B offsets 227/269 are always requested. Switch offset 224 is omitted only while UART0 is
   active and is requested once the dedicated UART0-disabled input-routing overlay is applied.
+  The Seesaw INT line needs the same overlay; without it, startup fails instead of polling.
   Lower-left grid and GRB output semantics are unchanged.

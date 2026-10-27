@@ -1,5 +1,5 @@
 #[cfg(target_os = "linux")]
-use crate::board_profiles::{OrangeEncoderPins, OrangeGpioDescriptor, ORANGE_PI_ZERO_2W_DEVICES};
+use crate::board_profiles::{OrangeEncoderPins, ORANGE_PI_ZERO_2W_DEVICES};
 #[cfg(target_os = "linux")]
 use crate::encoder_gpio::{HardwareEvent, QuadratureState, SWITCH_DEBOUNCE_MS};
 #[cfg(target_os = "linux")]
@@ -41,7 +41,12 @@ impl OrangeEncoderGpio {
         uart0_active: bool,
         tx: Sender<HardwareEvent>,
     ) -> Result<Self, String> {
-        let chip_path = find_gpio_chip(ORANGE_PI_ZERO_2W_DEVICES.gpio, pins, uart0_active)?;
+        let offsets: Vec<u32> = pins
+            .requested_gpio_offsets(uart0_active)
+            .into_iter()
+            .flatten()
+            .collect();
+        let chip_path = find_gpio_chip(ORANGE_PI_ZERO_2W_DEVICES.gpio.chip_label, &offsets)?;
         let quadrature = request_quadrature(&chip_path, pins)?;
         let switch = pins
             .switch_available(uart0_active)
@@ -223,12 +228,7 @@ fn value_bit(value: Value) -> u8 {
 }
 
 #[cfg(target_os = "linux")]
-fn find_gpio_chip(
-    plan: OrangeGpioDescriptor,
-    pins: &OrangeEncoderPins,
-    uart0_active: bool,
-) -> Result<PathBuf, String> {
-    let required = pins.requested_gpio_offsets(uart0_active);
+pub(crate) fn find_gpio_chip(chip_label: &str, offsets: &[u32]) -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
     for entry in fs::read_dir("/dev").map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
@@ -241,15 +241,11 @@ fn find_gpio_chip(
         let info = chip
             .info()
             .map_err(|error| format!("cannot read GPIO chip {}: {error}", path.display()))?;
-        if info.label == plan.chip_label {
-            if required
-                .iter()
-                .flatten()
-                .any(|offset| *offset >= info.num_lines)
-            {
+        if info.label == chip_label {
+            if offsets.iter().any(|offset| *offset >= info.num_lines) {
                 return Err(format!(
-                    "GPIO chip {} has only {} lines for encoder offsets {:?}",
-                    plan.chip_label, info.num_lines, required
+                    "GPIO chip {chip_label} has only {} lines for offsets {offsets:?}",
+                    info.num_lines
                 ));
             }
             return Ok(path);
@@ -257,8 +253,7 @@ fn find_gpio_chip(
         candidates.push(format!("{}={}", path.display(), info.label));
     }
     Err(format!(
-        "no GPIO chip label {}; candidates: {}",
-        plan.chip_label,
+        "no GPIO chip label {chip_label}; candidates: {}",
         candidates.join(", ")
     ))
 }

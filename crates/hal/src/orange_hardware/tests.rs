@@ -1,7 +1,6 @@
 use super::{
     fallback_cleanup_steps, frame_chunk_ranges, CleanupStep, ORANGE_AUDIO_UNAVAILABLE_ERROR,
-    ORANGE_INPUTS_UNSUPPORTED_ERROR, POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS,
-    RESET_LOW_MS, RESET_SETTLE_MS,
+    POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS, RESET_LOW_MS, RESET_SETTLE_MS,
 };
 use crate::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
 
@@ -14,9 +13,7 @@ fn orange_descriptors_keep_exact_bus_identity() {
 }
 
 #[test]
-fn initialization_errors_remain_explicit_for_unqualified_hardware() {
-    assert!(ORANGE_INPUTS_UNSUPPORTED_ERROR.contains("encoder"));
-    assert!(ORANGE_INPUTS_UNSUPPORTED_ERROR.contains("Seesaw"));
+fn audio_initialization_error_remains_explicit() {
     assert!(ORANGE_AUDIO_UNAVAILABLE_ERROR.contains("audio/I2S"));
 }
 

@@ -116,6 +116,7 @@ pub struct OrangePiDevices {
     pub neokey_addr: u16,
     pub spi: DeviceDescriptor,
     pub gpio: OrangeGpioDescriptor,
+    pub seesaw_int: u32,
     pub encoders: [OrangeEncoderPins; 1 + platform_core::AUX_ENCODER_COUNT],
 }
 
@@ -209,6 +210,7 @@ pub const ORANGE_PI_ZERO_2W: OrangeBoardProfile = OrangeBoardProfile {
             reset_offset: 76,
             reset_active_low: true,
         },
+        seesaw_int: 225,
         encoders: [
             OrangeEncoderPins::qualified(29, 31, 32, 256, 271, 267),
             OrangeEncoderPins::qualified(33, 22, 11, 268, 262, 226),

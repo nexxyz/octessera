@@ -41,6 +41,16 @@ fn orange_encoder_header_mapping_matches_h618_offsets() {
 }
 
 #[test]
+fn orange_seesaw_int_is_header_pin_10_on_h618_ph1() {
+    let h_bank = u32::from(b'H' - b'A');
+    assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.seesaw_int, h_bank * 32 + 1);
+    assert_eq!(
+        ORANGE_PI_ZERO_2W_DEVICES.seesaw_int,
+        ORANGE_PI_ZERO_2W_DEVICES.encoders[2].sw + 1
+    );
+}
+
+#[test]
 fn orange_uart_switch_is_optional_but_aux2_quadrature_is_always_requested() {
     let encoders = ORANGE_PI_ZERO_2W_DEVICES.encoders;
     assert_eq!(

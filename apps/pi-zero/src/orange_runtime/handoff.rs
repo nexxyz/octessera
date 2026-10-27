@@ -32,7 +32,7 @@ pub(crate) fn run(
     let trellis = match NeoTrellis::new_with_mode(
         devices.i2c.path,
         devices.trellis_addrs,
-        SeesawInputMode::Polling,
+        SeesawInputMode::Interrupt,
     ) {
         Ok(trellis) => trellis,
         Err(error) => {
@@ -46,7 +46,7 @@ pub(crate) fn run(
     let neokey = match NeoKey::new_with_mode(
         devices.i2c.path,
         devices.neokey_addr,
-        SeesawInputMode::Polling,
+        SeesawInputMode::Interrupt,
     ) {
         Ok(neokey) => neokey,
         Err(error) => {
@@ -64,7 +64,14 @@ pub(crate) fn run(
             format!("Orange encoder startup failed: {error}"),
         )
     })?;
-    let seesaw = seesaw_io::spawn_polling(trellis, neokey).map_err(|error| {
+    let interrupt = SeesawInterrupt::new().map_err(|error| {
+        startup_failure(
+            crate::boot_oled_handoff::HandoffMode::V1,
+            startup_fatal_code(OrangeStartupOperation::Controls),
+            format!("Orange Seesaw INT startup failed: {error}"),
+        )
+    })?;
+    let seesaw = seesaw_io::spawn_interrupt(trellis, neokey, interrupt).map_err(|error| {
         startup_failure(
             crate::boot_oled_handoff::HandoffMode::V1,
             startup_fatal_code(OrangeStartupOperation::Controls),

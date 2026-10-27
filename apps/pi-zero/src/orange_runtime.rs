@@ -14,7 +14,7 @@ use crate::seesaw_io::{self, SeesawIo};
 use crate::usb_config::read_boot_runtime_config;
 use octessera_hal::board_profiles::{SeesawInputMode, ORANGE_PI_ZERO_2W_DEVICES};
 use octessera_hal::encoder_gpio::HardwareEvent;
-use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351, OrangeEncoderGpio};
+use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351, OrangeEncoderGpio, SeesawInterrupt};
 use playback_runtime::{HostAdapter, NativeRunner, PlaybackRuntime};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
@@ -110,15 +110,15 @@ pub fn run() -> Result<(), OrangeRunError> {
     let trellis = NeoTrellis::new_with_mode(
         devices.i2c.path,
         devices.trellis_addrs,
-        SeesawInputMode::Polling,
+        SeesawInputMode::Interrupt,
     )?;
     let neokey = NeoKey::new_with_mode(
         devices.i2c.path,
         devices.neokey_addr,
-        SeesawInputMode::Polling,
+        SeesawInputMode::Interrupt,
     )?;
     let (encoder_rx, _encoders) = init_encoders()?;
-    let seesaw = seesaw_io::spawn_polling(trellis, neokey)?;
+    let seesaw = seesaw_io::spawn_interrupt(trellis, neokey, SeesawInterrupt::new()?)?;
     let keyboard = crate::keyboard_capture::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
     let render = RenderWorker::spawn(HardwareRenderTargets {
         oled,

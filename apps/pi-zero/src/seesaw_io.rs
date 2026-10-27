@@ -1,8 +1,7 @@
 use crate::input::{grid_message, neokey_message};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use octessera_hal::SeesawInterrupt;
-use octessera_hal::{NeoKey, NeoTrellis};
+use octessera_hal::{NeoKey, NeoTrellis, SeesawInterrupt};
 use playback_runtime::HostMessage;
+use scan_schedule::ScanSchedule;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -12,11 +11,6 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// Raspberry scans on the Seesaw INT line; this slow poll only catches a missed edge.
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(100);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-const INPUT_SERVICE_INTERVAL: Duration = Duration::from_millis(4);
 /// After a failed Seesaw transaction, leave the bus alone instead of retrying into a busy device.
 const I2C_ERROR_BACKOFF: Duration = Duration::from_millis(50);
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -259,7 +253,7 @@ fn scan_raspberry_inputs(
 pub(crate) fn spawn(
     mut trellis: NeoTrellis,
     mut neokey: NeoKey,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))] interrupt: SeesawInterrupt,
+    interrupt: SeesawInterrupt,
     #[cfg(feature = "hardware-orange-pi-zero-2w")] startup_tx: Sender<Result<(), String>>,
 ) -> SeesawIo {
     let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
@@ -272,8 +266,7 @@ pub(crate) fn spawn(
     let worker = thread::spawn(move || {
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
-        let mut next_input_service_at = Instant::now();
-        let mut scan_failed = false;
+        let mut schedule = ScanSchedule::new(Instant::now());
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut startup_scan_succeeded = false;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -286,13 +279,8 @@ pub(crate) fn spawn(
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut shutdown_ack = None;
         loop {
-            let now = Instant::now();
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             let interrupt_pending = interrupt.pending() || interrupt.asserted();
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            let interrupt_pending = false;
-            let backing_off = scan_failed && now < next_input_service_at;
-            if now >= next_input_service_at || (interrupt_pending && !backing_off) {
+            if schedule.scan_due(Instant::now(), interrupt_pending) {
                 #[cfg(feature = "hardware-orange-pi-zero-2w")]
                 let scanned = match scan_inputs(
                     &mut trellis,
@@ -318,13 +306,7 @@ pub(crate) fn spawn(
                     &worker_input_tx,
                     &worker_scan_generation,
                 );
-                scan_failed = !scanned;
-                next_input_service_at = Instant::now()
-                    + if scanned {
-                        INPUT_SERVICE_INTERVAL
-                    } else {
-                        I2C_ERROR_BACKOFF
-                    };
+                schedule.record_scan(scanned, Instant::now());
             }
 
             let mut output = HardwareLedOutput {
@@ -380,9 +362,13 @@ pub(crate) fn spawn(
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-pub(crate) fn spawn_polling(trellis: NeoTrellis, neokey: NeoKey) -> Result<SeesawIo, String> {
+pub(crate) fn spawn_interrupt(
+    trellis: NeoTrellis,
+    neokey: NeoKey,
+    interrupt: SeesawInterrupt,
+) -> Result<SeesawIo, String> {
     let (startup_tx, startup_rx) = mpsc::channel();
-    let seesaw = spawn(trellis, neokey, startup_tx);
+    let seesaw = spawn(trellis, neokey, interrupt, startup_tx);
     match startup_rx.recv_timeout(SEESAW_STARTUP_TIMEOUT) {
         Ok(result) => result.map(|_| seesaw),
         Err(error) => {
@@ -475,11 +461,9 @@ fn scan_inputs(
         }
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let keys = neokey.scan_interrupts();
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    let keys = neokey.scan();
-    let keys = keys.map_err(|error| format!("NeoKey input scan failed: {error}"))?;
+    let keys = neokey
+        .scan_interrupts()
+        .map_err(|error| format!("NeoKey input scan failed: {error}"))?;
     {
         for (key, pressed) in keys {
             let index = usize::from(key.min(3));
@@ -495,5 +479,6 @@ fn scan_inputs(
     Ok(())
 }
 
+mod scan_schedule;
 #[cfg(test)]
 mod tests;

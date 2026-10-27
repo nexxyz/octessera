@@ -155,7 +155,6 @@ impl NeoKey {
             .collect())
     }
 
-    #[cfg(feature = "raspberry-pi-zero-2w")]
     pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {
         self.clear_interrupt_flags()?;
         self.scan()
@@ -173,7 +172,6 @@ impl NeoKey {
         Ok(u32::from_be_bytes(buffer))
     }
 
-    #[cfg(feature = "raspberry-pi-zero-2w")]
     fn clear_interrupt_flags(&mut self) -> Result<(), String> {
         let mut buffer = [0_u8; 4];
         read_register(

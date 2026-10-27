@@ -111,8 +111,9 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
   `octessera-runtime` account; the separate `octessera` account is for
   interactive setup and administration.
 - The adapter owns OLED, NeoTrellis, NeoKey, four-encoder, store, sample, and
-  MIDI device I/O. Seesaw uses polling; encoder GPIO uses the HAL's gpiocdev v2
-  edge backend.
+  MIDI device I/O. Seesaw scans on the shared INT line (PH1) with a 100 ms
+  safety poll; Seesaw INT and encoder GPIO use the HAL's gpiocdev v2 edge
+  backend.
 - Internal Synth, FM, Plucked, Drum, and Sampler audio routes through
   `AudioService` and the realtime engine at 44.1 kHz; MIDI leaves through the
   native host adapter.
