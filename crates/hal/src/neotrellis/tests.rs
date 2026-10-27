@@ -404,3 +404,55 @@ fn propagates_a_persistent_read_failure_after_retries() {
     assert!(error.contains("Trellis HW ID read failed: fake read failure"));
     assert_eq!(lock_state(&states[1]).read_calls, 3);
 }
+
+struct OrderedTransport {
+    device: usize,
+    log: Arc<Mutex<Vec<(usize, u8)>>>,
+}
+
+impl SeesawTransport for OrderedTransport {
+    fn write(&mut self, base: u8, function: u8, _data: &[u8]) -> Result<(), String> {
+        if base == SEESAW_NEOPIXEL_BASE {
+            self.log.lock().unwrap().push((self.device, function));
+        }
+        Ok(())
+    }
+
+    fn read(&mut self, base: u8, function: u8, buffer: &mut [u8]) -> Result<(), String> {
+        buffer.fill(0);
+        if (base, function) == (SEESAW_STATUS_BASE, SEESAW_HW_ID) {
+            buffer[0] = 0x84;
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn every_quadrant_buffer_is_written_before_any_board_latches() {
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let transports = std::array::from_fn(|device| {
+        Box::new(OrderedTransport {
+            device,
+            log: Arc::clone(&log),
+        }) as Box<dyn SeesawTransport>
+    });
+    let mut trellis = NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports).unwrap();
+    log.lock().unwrap().clear();
+
+    trellis.write_led_frame(&[[1, 2, 3]; 64]).unwrap();
+
+    let log = log.lock().unwrap();
+    let first_show = log
+        .iter()
+        .position(|(_, function)| *function == SEESAW_NEOPIXEL_SHOW)
+        .unwrap();
+    assert!(log[..first_show]
+        .iter()
+        .all(|(_, function)| *function == SEESAW_NEOPIXEL_BUF));
+    assert_eq!(
+        log[first_show..].to_vec(),
+        (0..4)
+            .map(|device| (device, SEESAW_NEOPIXEL_SHOW))
+            .collect::<Vec<_>>()
+    );
+}

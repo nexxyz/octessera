@@ -174,9 +174,9 @@ impl NeoTrellis {
         Ok(result)
     }
 
-    /// Write an 8x8 RGB frame to the four NeoPixel buffers.
+    /// Write an 8x8 RGB frame to the four NeoPixel buffers, then latch all four.
     pub fn write_led_frame(&mut self, frame: &[[u8; 3]; 64]) -> Result<(), String> {
-        for (dev_idx, _) in self.devices.iter().enumerate() {
+        for dev_idx in 0..self.devices.len() {
             let base_x = (dev_idx % 2) * 4;
             let base_y = (dev_idx / 2) * 4;
             let mut data = Vec::with_capacity(TRELLIS_PIXEL_BYTES_PER_DEVICE);
@@ -186,22 +186,25 @@ impl NeoTrellis {
                 }
             }
             write_led_buffer_chunks(&mut *self.transports[dev_idx], &data)?;
+        }
+        for transport in &mut self.transports {
             write_register(
-                &mut *self.transports[dev_idx],
+                &mut **transport,
                 SEESAW_NEOPIXEL_BASE,
                 SEESAW_NEOPIXEL_SHOW,
                 &[],
                 "Trellis LED show failed",
             )?;
-            self.delay.sleep(TRELLIS_SHOW_SETTLE);
         }
+        self.delay.sleep(TRELLIS_SHOW_SETTLE);
         Ok(())
     }
 }
 
 /// A Seesaw refreshing its 16 NeoPixels (about 30 µs each plus the latch gap) answers I2C late and
 /// stretches the clock; the Raspberry's I2C controller mishandles stretching and can corrupt the
-/// transfer and hang the chip until power-off. Stay off the bus until the refresh is done.
+/// transfer and hang the chip until power-off. Only the addressed chip stretches, so the other
+/// boards' SHOWs may follow at once; the bus then stays idle until every refresh is done.
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const TRELLIS_SHOW_SETTLE: std::time::Duration = std::time::Duration::from_millis(1);
 
