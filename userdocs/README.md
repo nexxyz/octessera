@@ -115,10 +115,11 @@ In the 0.8.11 load test, both boards took 96 notes held at once in either
 Perf. Mode without a single dropout, with Polyphony stealing the oldest voices
 along the way. The table itself is still an estimate, not a measured ceiling.
 
-How quick does it feel? `System > Audio > Perf. Mode` set to Latency gets a
-grid press to your ears in about 6 ms on the Orange and 8 ms on the Raspberry.
-Capacity renders a little ahead so it can share the work across two cores,
-which lands at about 13 to 15 ms. That's fine for most playing, though you may
+How quick does it feel? With `System > Audio > Perf. Mode` set to Latency, the
+audio buffering adds about 4 ms on the Orange and 9 ms on the Raspberry, plus a
+couple of milliseconds to read the pad. Capacity renders ahead so it can share
+the work across two cores, which brings the buffering to about 12 ms on the
+Orange and 17 ms on the Raspberry. That's fine for most playing, though you may
 feel it on fast finger drumming. The mode change applies after a restart.
 
 ### Playing in front of people
