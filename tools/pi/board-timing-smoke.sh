@@ -8,7 +8,8 @@
 # Extra OCTESSERA_TIMING_*=value arguments after the seconds reach the candidate, e.g. the Aux
 # study (OCTESSERA_TIMING_AUTOAUX=1 OCTESSERA_TIMING_KEEP_AWAKE=1) or the load ramp
 # (OCTESSERA_TIMING_LOAD=start,step,max,seconds), which needs a -Profiling candidate binary;
-# production binaries refuse it.
+# production binaries refuse it. OCTESSERA_TIMING_SOAK=1 keeps the store's own dim and screen-sleep
+# settings, so long soaks let the OLED sleep.
 set -euo pipefail
 board=${1:?board: rpi or opi} target=${2:?target: user@host} binary=${3:?candidate binary}
 seconds=${4:-600}

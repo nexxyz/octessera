@@ -49,13 +49,16 @@ trap cleanup EXIT
 sudo -n install -d -o root -g root -m 0755 /var/lib/octessera/study-stores
 sudo -n install -d -o "$runtime_user" -g "$runtime_user" -m 0750 "$store_dir"
 sudo -n cp -a -- "$live_store/." "$store_dir/"
-sudo -n python3 - "$store_dir/system.json" <<'PY'
+soak=0
+for setting in "$@"; do [ "$setting" = OCTESSERA_TIMING_SOAK=1 ] && soak=1; done
+sudo -n python3 - "$store_dir/system.json" "$soak" <<'PY'
 import json, sys
 path = sys.argv[1]
 system = json.load(open(path))
 config = system["runtimeConfig"]
-config["dimTimerSeconds"] = 0
-config["screenSleepSeconds"] = 0
+if sys.argv[2] != "1":
+    config["dimTimerSeconds"] = 0
+    config["screenSleepSeconds"] = 0
 config["autoSaveDefault"] = False
 json.dump(system, open(path, "w"), separators=(",", ":"))
 PY
