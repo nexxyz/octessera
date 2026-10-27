@@ -7,6 +7,7 @@ pub(super) fn run() {
 
     device.configure_external_clock();
     device.start();
+    device.external_clock(1);
     device.set_external_clock_position(95);
     device.arm_external_resync();
     assert!(device.pending_resync());

@@ -173,6 +173,11 @@ Aux mappings modal:
   keeps the transport-owned interpretation cursor, fractional accumulator, and page/section phase.
 - Sequencer alone has origin-immediate static-grid semantics: page 1 step 1 sits on the transport
   origin, empty leading cells are timed rests, and later pages continue without restarting.
+- The downbeat is PPQN 0. Play from stop (button, or an accepted MIDI Start/Continue-from-stop) on
+  the internal clock plays the scanning Sequencer origin step at once. With external sync, the first
+  MIDI Clock after the start is the downbeat: it plays the origin step without advancing, and the
+  next clock reports PPQN 1. MIDI Clock Out sends one Clock together with Start so receivers start
+  on the same downbeat; Continue from Pause sends no extra Clock.
 - Armed external resync: clocks strictly before the next 96-PPQN boundary process normally. The
   boundary clock is consumed by the reset; scanning Sequencer layers process their origin tick at
   reported PPQN 0, and non-Sequencer layers get no zero-elapsed tick. The next clock reports PPQN 1

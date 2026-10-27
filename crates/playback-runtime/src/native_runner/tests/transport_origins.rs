@@ -110,7 +110,10 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
         })
         .unwrap();
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
-    assert_eq!(runner.transport.tick, 0);
+    assert_eq!(
+        runner.transport.tick, 1,
+        "Play from stop sounds step 0 at once"
+    );
 }
 
 #[test]
@@ -164,7 +167,10 @@ pub(crate) fn external_clock_advances_only_while_enabled_and_playing() {
     runner
         .send(HostMessage::MidiRealtimeClock { pulses: 3 })
         .unwrap();
-    assert_eq!(runner.transport.current_ppqn_pulse, 3);
+    assert_eq!(
+        runner.transport.current_ppqn_pulse, 2,
+        "the first clock after Start is the downbeat, pulse 0"
+    );
 
     runner
         .send(HostMessage::DeviceInput {
@@ -175,21 +181,21 @@ pub(crate) fn external_clock_advances_only_while_enabled_and_playing() {
     runner
         .send(HostMessage::MidiRealtimeClock { pulses: 3 })
         .unwrap();
-    assert_eq!(runner.transport.current_ppqn_pulse, 3);
+    assert_eq!(runner.transport.current_ppqn_pulse, 2);
 
     runner.send(HostMessage::MidiRealtimeContinue).unwrap();
     runner.midi_clock_in_enabled = false;
     runner
         .send(HostMessage::MidiRealtimeClock { pulses: 3 })
         .unwrap();
-    assert_eq!(runner.transport.current_ppqn_pulse, 3);
+    assert_eq!(runner.transport.current_ppqn_pulse, 2);
 
     runner.midi_clock_in_enabled = true;
     runner.transport.sync_source = SyncSource::Internal;
     runner
         .send(HostMessage::MidiRealtimeClock { pulses: 3 })
         .unwrap();
-    assert_eq!(runner.transport.current_ppqn_pulse, 3);
+    assert_eq!(runner.transport.current_ppqn_pulse, 2);
 }
 
 #[test]

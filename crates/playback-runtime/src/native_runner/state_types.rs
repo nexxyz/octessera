@@ -143,6 +143,9 @@ pub(super) struct NativeTransportState {
     pub(super) transport: RuntimeTransportState,
     pub(super) sync_source: SyncSource,
     pub(super) pending_resync: bool,
+    /// After an external MIDI Start, the first clock is the downbeat: it plays the origin steps
+    /// without advancing the pulse count.
+    pub(super) awaiting_external_downbeat: bool,
     pub(super) bpm: f64,
     pub(super) swing_pct: u8,
     pub(super) current_ppqn_pulse: u64,
@@ -166,6 +169,7 @@ impl NativeTransportState {
             transport: RuntimeTransportState::Stopped,
             sync_source,
             pending_resync: false,
+            awaiting_external_downbeat: false,
             bpm,
             swing_pct,
             current_ppqn_pulse: 0,

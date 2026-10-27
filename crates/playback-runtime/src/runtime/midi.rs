@@ -167,15 +167,15 @@ impl PlaybackRuntime {
             if previous.transport != RuntimeTransportState::Playing
                 && status.transport == RuntimeTransportState::Playing
             {
+                let resuming = previous.transport == RuntimeTransportState::Paused;
                 self.send_midi_message(
-                    &[if previous.transport == RuntimeTransportState::Paused {
-                        0xFB
-                    } else {
-                        0xFA
-                    }],
+                    &[if resuming { 0xFB } else { 0xFA }],
                     RuntimeOperation::MidiMessage,
                     host,
                 )?;
+                if !resuming {
+                    self.send_downbeat_clock(status, host)?;
+                }
             } else if previous.transport == RuntimeTransportState::Playing
                 && status.transport != RuntimeTransportState::Playing
             {
@@ -184,7 +184,21 @@ impl PlaybackRuntime {
             self.send_clock_midi(previous.current_ppqn_pulse, status, host)?;
         } else if status.transport == RuntimeTransportState::Playing {
             self.send_midi_message(&[0xFA], RuntimeOperation::MidiMessage, host)?;
+            self.send_downbeat_clock(status, host)?;
             self.send_clock_midi(0, status, host)?;
+        }
+        Ok(())
+    }
+
+    /// Receivers start on the first clock after Start, so it goes out with Start at pulse 0.
+    fn send_downbeat_clock<H: HostAdapter>(
+        &mut self,
+        status: &RuntimeStatus,
+        host: &mut H,
+    ) -> Result<(), RuntimeAdapterError> {
+        if self.config.midi_clock_out_enabled && status.transport == RuntimeTransportState::Playing
+        {
+            self.send_midi_message(&[0xF8], RuntimeOperation::MidiMessage, host)?;
         }
         Ok(())
     }

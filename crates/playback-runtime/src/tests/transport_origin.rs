@@ -354,3 +354,31 @@ fn six_second_native_runner_matrix_has_equal_pulses_and_event_sequences() {
     assert!(results.iter().all(|(pulses, _)| *pulses == 288));
     assert!(results.iter().all(|(_, events)| events == expected_events));
 }
+
+#[test]
+fn midi_start_goes_out_with_the_downbeat_clock_but_continue_does_not() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+        bpm: 120.0,
+        sync_source: SyncSource::Internal,
+        midi_clock_out_enabled: true,
+        midi_out_enabled: true,
+    });
+    let mut host = FakeHost::default();
+    let mut ingest = |runtime: &mut PlaybackRuntime, transport| {
+        runtime
+            .ingest_runner_messages(vec![status(transport, 0, SyncSource::Internal)], &mut host)
+            .unwrap();
+        std::mem::take(&mut host.midi_messages)
+    };
+    ingest(&mut runtime, RuntimeTransportState::Stopped);
+
+    assert_eq!(
+        ingest(&mut runtime, RuntimeTransportState::Playing),
+        vec![vec![0xFA], vec![0xF8]]
+    );
+    ingest(&mut runtime, RuntimeTransportState::Paused);
+    assert_eq!(
+        ingest(&mut runtime, RuntimeTransportState::Playing),
+        vec![vec![0xFB]]
+    );
+}

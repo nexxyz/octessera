@@ -362,7 +362,8 @@ impl NativeRunner {
             } else if self.display.ui.shift_held {
                 return self.reset_stop();
             } else {
-                if self.transport.transport == RuntimeTransportState::Stopped {
+                let starting = self.transport.transport == RuntimeTransportState::Stopped;
+                if starting {
                     self.reset_transport_position();
                     self.prime_sequencer_layer_origins();
                 }
@@ -376,6 +377,9 @@ impl NativeRunner {
                 if was_playing && self.transport.transport == RuntimeTransportState::Paused {
                     self.drain_all_layer_engine_notes();
                     self.drain_all_play_transpose_notes();
+                }
+                if starting {
+                    return self.start_on_the_downbeat();
                 }
             }
         }

@@ -1,6 +1,6 @@
 use crate::protocol::RunnerMessage;
 
-use super::{NativeRunner, RuntimeTransportState, SyncSource, TransportFlash};
+use super::{NativeRunner, RoutedMusicalEvents, RuntimeTransportState, SyncSource, TransportFlash};
 
 const EXTERNAL_RESYNC_PPQN: u64 = 96;
 
@@ -17,21 +17,7 @@ impl NativeRunner {
         let mut out = Vec::new();
         let events = self.advance_algorithm(pulses)?;
         self.append_music_first_audio_commands(&mut out);
-        if !events.is_empty() {
-            if !events.audio.is_empty() {
-                out.push(RunnerMessage::MusicalEvents {
-                    events: events.audio,
-                });
-            }
-            if !events.midi.is_empty() {
-                out.push(RunnerMessage::MidiEvents {
-                    events: events.midi,
-                });
-            }
-            if !events.cells.is_empty() {
-                out.push(RunnerMessage::CellHits { hits: events.cells });
-            }
-        }
+        push_routed_events(&mut out, events);
         if self.outbox.has_platform_effects() {
             out.push(RunnerMessage::PlatformEffects {
                 effects: self.outbox.drain_platform_effects(),
@@ -57,7 +43,7 @@ impl NativeRunner {
         self.display
             .transients
             .trigger_transport_flash(TransportFlash::Measure, now);
-        self.messages_with_snapshot()
+        self.start_on_the_downbeat()
     }
 
     pub(super) fn send_midi_realtime_continue(&mut self) -> Result<Vec<RunnerMessage>, String> {
@@ -68,8 +54,29 @@ impl NativeRunner {
         self.transport.transport = RuntimeTransportState::Playing;
         if was_stopped {
             self.prime_sequencer_layer_origins();
+            return self.start_on_the_downbeat();
         }
         self.messages_with_snapshot()
+    }
+
+    /// The downbeat is pulse 0: on the internal clock it is now; on an external clock it is the
+    /// first clock after Start.
+    pub(super) fn start_on_the_downbeat(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        if self.transport.sync_source == SyncSource::External {
+            self.transport.awaiting_external_downbeat = true;
+            return self.messages_with_snapshot();
+        }
+        self.play_origin_steps_now()
+    }
+
+    /// Play from stop is pulse 0: the primed sequencer steps sound now, not on the first tick.
+    fn play_origin_steps_now(&mut self) -> Result<Vec<RunnerMessage>, String> {
+        let events = self.advance_due_layer_ticks()?;
+        let mut out = Vec::new();
+        self.append_music_first_audio_commands(&mut out);
+        push_routed_events(&mut out, events);
+        out.extend(self.messages_with_snapshot()?);
+        Ok(out)
     }
 
     pub(super) fn send_midi_realtime_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
@@ -107,6 +114,14 @@ impl NativeRunner {
         }
         let mut remaining = pulses;
         let mut out = Vec::new();
+        if self.transport.awaiting_external_downbeat {
+            self.transport.awaiting_external_downbeat = false;
+            remaining -= 1;
+            let events = self.advance_due_layer_ticks()?;
+            self.append_music_first_audio_commands(&mut out);
+            push_routed_events(&mut out, events);
+            out.extend(self.clock_status_messages()?);
+        }
         while remaining > 0 {
             if self.transport.pending_resync {
                 let until_boundary = EXTERNAL_RESYNC_PPQN
@@ -122,21 +137,7 @@ impl NativeRunner {
                         .saturating_add(u64::from(before_boundary));
                     let events = self.advance_algorithm(before_boundary)?;
                     self.append_music_first_audio_commands(&mut out);
-                    if !events.is_empty() {
-                        if !events.audio.is_empty() {
-                            out.push(RunnerMessage::MusicalEvents {
-                                events: events.audio,
-                            });
-                        }
-                        if !events.midi.is_empty() {
-                            out.push(RunnerMessage::MidiEvents {
-                                events: events.midi,
-                            });
-                        }
-                        if !events.cells.is_empty() {
-                            out.push(RunnerMessage::CellHits { hits: events.cells });
-                        }
-                    }
+                    push_routed_events(&mut out, events);
                     out.extend(self.clock_status_messages()?);
                     remaining -= before_boundary;
                     continue;
@@ -148,21 +149,7 @@ impl NativeRunner {
                 self.append_pending_transpose_note_offs(&mut out);
                 let events = self.advance_due_layer_ticks()?;
                 self.append_music_first_audio_commands(&mut out);
-                if !events.is_empty() {
-                    if !events.audio.is_empty() {
-                        out.push(RunnerMessage::MusicalEvents {
-                            events: events.audio,
-                        });
-                    }
-                    if !events.midi.is_empty() {
-                        out.push(RunnerMessage::MidiEvents {
-                            events: events.midi,
-                        });
-                    }
-                    if !events.cells.is_empty() {
-                        out.push(RunnerMessage::CellHits { hits: events.cells });
-                    }
-                }
+                push_routed_events(&mut out, events);
                 out.extend(self.clock_status_messages()?);
                 continue;
             }
@@ -174,21 +161,7 @@ impl NativeRunner {
                 .saturating_add(u64::from(chunk));
             let events = self.advance_algorithm(chunk)?;
             self.append_music_first_audio_commands(&mut out);
-            if !events.is_empty() {
-                if !events.audio.is_empty() {
-                    out.push(RunnerMessage::MusicalEvents {
-                        events: events.audio,
-                    });
-                }
-                if !events.midi.is_empty() {
-                    out.push(RunnerMessage::MidiEvents {
-                        events: events.midi,
-                    });
-                }
-                if !events.cells.is_empty() {
-                    out.push(RunnerMessage::CellHits { hits: events.cells });
-                }
-            }
+            push_routed_events(&mut out, events);
             out.extend(self.clock_status_messages()?);
             remaining -= chunk;
         }
@@ -221,5 +194,21 @@ impl NativeRunner {
         !self.midi_enabled
             || (self.transport.sync_source == SyncSource::External
                 && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop))
+    }
+}
+
+pub(super) fn push_routed_events(out: &mut Vec<RunnerMessage>, events: RoutedMusicalEvents) {
+    if !events.audio.is_empty() {
+        out.push(RunnerMessage::MusicalEvents {
+            events: events.audio,
+        });
+    }
+    if !events.midi.is_empty() {
+        out.push(RunnerMessage::MidiEvents {
+            events: events.midi,
+        });
+    }
+    if !events.cells.is_empty() {
+        out.push(RunnerMessage::CellHits { hits: events.cells });
     }
 }

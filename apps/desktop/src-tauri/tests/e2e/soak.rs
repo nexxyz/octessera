@@ -46,9 +46,12 @@ fn default_patch_soaks_for_ten_virtual_minutes() {
         .map(|event| event.pulse)
         .collect();
     steps.dedup();
-    // The first step after Play fires on the first pulse tick, a pulse late; this checks the
-    // steady state after it.
-    for pair in steps.windows(2).skip(1) {
+    assert_eq!(
+        steps.first().copied(),
+        Some(timeline.played.start_pulse),
+        "the first L2 step should sound on the Play downbeat"
+    );
+    for pair in steps.windows(2) {
         assert_eq!(
             pair[1] - pair[0],
             L2_STEP_PULSES,

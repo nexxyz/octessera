@@ -145,18 +145,22 @@ fn origin_prime_uses_each_scanning_layer_rate() {
     runner.select_active_layer(0).unwrap();
 
     start(&mut runner);
-    assert_eq!(runner.transport.layer_pulse_accumulators[0], 6);
-    assert_eq!(runner.transport.layer_pulse_accumulators[1], 12);
-    pulse(&mut runner, 1);
     assert_eq!(runner.transport.layer_ticks[0], 1);
     assert_eq!(runner.transport.layer_ticks[1], 1);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
+    assert_eq!(runner.transport.layer_pulse_accumulators[1], 0);
     pulse(&mut runner, 5);
+    assert_eq!(runner.transport.layer_ticks[0], 1);
+    pulse(&mut runner, 1);
     assert_eq!(runner.transport.layer_ticks[0], 2);
     assert_eq!(runner.transport.layer_ticks[1], 1);
+    pulse(&mut runner, 6);
+    assert_eq!(runner.transport.layer_ticks[0], 3);
+    assert_eq!(runner.transport.layer_ticks[1], 2);
 }
 
 #[test]
-fn transport_origin_primes_only_scanning_sequencers_and_first_pulse_scans_tick_zero() {
+fn transport_origin_primes_only_scanning_sequencers_and_play_scans_tick_zero() {
     let mut runner = scanning_runner(1, "1/16");
     runner.midi_enabled = true;
     add_cell(&mut runner, 0, 0);
@@ -166,19 +170,19 @@ fn transport_origin_primes_only_scanning_sequencers_and_first_pulse_scans_tick_z
             request_snapshot: None,
         })
         .unwrap();
-    assert!(musical_note_ons(&start_messages).is_empty());
-    assert_eq!(runner.transport.layer_pulse_accumulators[0], 6);
-    assert_eq!(musical_note_ons(&pulse(&mut runner, 1)).len(), 1);
+    assert_eq!(musical_note_ons(&start_messages).len(), 1);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
+    assert!(musical_note_ons(&pulse(&mut runner, 1)).is_empty());
 
-    let duplicate_start = start(&mut runner);
-    assert!(musical_note_ons(&duplicate_start).is_empty());
-    assert_eq!(runner.transport.layer_pulse_accumulators[0], 6);
-    assert_eq!(musical_note_ons(&pulse(&mut runner, 1)).len(), 1);
+    let restart = start(&mut runner);
+    assert_eq!(musical_note_ons(&restart).len(), 1);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
+    assert!(musical_note_ons(&pulse(&mut runner, 1)).is_empty());
 
     runner.send(HostMessage::MidiRealtimeStop).unwrap();
-    runner.send(HostMessage::MidiRealtimeContinue).unwrap();
-    assert_eq!(runner.transport.layer_pulse_accumulators[0], 6);
-    assert_eq!(musical_note_ons(&pulse(&mut runner, 1)).len(), 1);
+    let continued = runner.send(HostMessage::MidiRealtimeContinue).unwrap();
+    assert_eq!(musical_note_ons(&continued).len(), 1);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
     runner.transport.transport = RuntimeTransportState::Paused;
     runner.transport.layer_pulse_accumulators[0] = 1;
     runner.send(HostMessage::MidiRealtimeContinue).unwrap();
@@ -240,8 +244,8 @@ fn pause_resume_and_combined_trigger_gate_preserve_sequencer_phase() {
     add_cell(&mut runner, 0, 1);
     add_cell(&mut runner, 0, 2);
     add_cell(&mut runner, 0, 3);
-    start(&mut runner);
-    assert_eq!(musical_note_ons(&pulse(&mut runner, 1)).len(), 1);
+    assert_eq!(musical_note_ons(&start(&mut runner)).len(), 1);
+    assert!(musical_note_ons(&pulse(&mut runner, 1)).is_empty());
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
@@ -319,4 +323,29 @@ fn external_resync_boundary_emits_origin_tick_at_zero_without_following_duplicat
     assert!(musical_note_ons(&following).is_empty());
     assert_eq!(runner.transport.current_ppqn_pulse, 1);
     assert_eq!(runner.transport.layer_ticks[0], 1);
+}
+
+#[test]
+fn external_start_sounds_step_zero_on_the_first_clock_and_step_one_six_clocks_later() {
+    let mut runner = scanning_runner(1, "1/16");
+    add_cell(&mut runner, 0, 0);
+    add_cell(&mut runner, 0, 1);
+    runner.transport.sync_source = SyncSource::External;
+    runner.midi_clock_in_enabled = true;
+    runner.midi_respond_to_start_stop = true;
+    let clock = |runner: &mut NativeRunner| {
+        musical_note_ons(
+            &runner
+                .send(HostMessage::MidiRealtimeClock { pulses: 1 })
+                .unwrap(),
+        )
+        .len()
+    };
+
+    assert_eq!(musical_note_ons(&start(&mut runner)).len(), 0);
+    assert_eq!(clock(&mut runner), 1, "the first clock is the downbeat");
+    for _ in 0..5 {
+        assert_eq!(clock(&mut runner), 0);
+    }
+    assert_eq!(clock(&mut runner), 1, "step 1 lands on the seventh clock");
 }
