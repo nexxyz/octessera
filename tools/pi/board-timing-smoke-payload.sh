@@ -87,4 +87,5 @@ sudo -n systemd-run --unit="$unit" --property=Restart=no --property=RuntimeMaxSe
   --setenv="OCTESSERA_PI_SAMPLES_DIR=$samples_dir" --setenv="OCTESSERA_CANDIDATE_HEALTH_PATH=$health" \
   "${extra_env[@]}" "$root/octessera-pi"
 for _ in $(seq 1 30); do sudo -n test -f "$health" && break; systemctl is-active --quiet "$unit" || break; sleep 1; done
-for _ in $(seq 1 "$live_seconds"); do systemctl is-active --quiet "$unit" || { echo 'candidate exited early'; break; }; sleep 1; done
+deadline=$((SECONDS + live_seconds))
+while ((SECONDS < deadline)); do systemctl is-active --quiet "$unit" || { echo 'candidate exited early'; break; }; sleep 1; done
