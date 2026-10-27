@@ -171,6 +171,16 @@ stays low, plus a 100 ms safety poll. The line is only free once the overlay
 has released UART0; if it cannot be requested, startup fails with a controls
 error instead of falling back to polling.
 
+On the Raspberry the Seesaw bus is the hardware I2C controller at 400 kHz. Its
+clock-stretching defect can hang a Seesaw so that SDA and SCL stay low until a
+power cycle (seen three times on 0.8.10 under 4 ms polling; a soft reboot does
+not clear it). Interrupt-driven scanning cut idle traffic about tenfold
+(1,100 to 110 transactions/s), and each NeoTrellis gets 1 ms after SHOW. The
+bit-banged `i2c-gpio` overlay was measured as the alternative and rejected: the
+Seesaw worker went from 1.2% to 16% of a core at idle, and a 10-minute timing
+smoke rose from 137 to 190 µs average runtime lateness (worst case 1.4 to
+2.6 ms).
+
 The HAL descriptors record `/dev/i2c-2` at `5002400.i2c`, `/dev/spidev1.0` at
 `5011000.spi`, and encoder offsets on `300b000.pinctrl`. The OLED runs at
 16 MHz.
