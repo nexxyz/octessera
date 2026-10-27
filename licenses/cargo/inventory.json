@@ -10,7 +10,7 @@
     "machine_output_checked": false,
     "limitation": "cargo-about 0.9.1 is advisory here: custom first-party license-file metadata and policy review are not represented by its accepted identifiers, so the checked inventory is rendered from Cargo.lock, manifests, and the exact reviewed policy instead."
   },
-  "cargo_lock_sha256": "cc99903d6532ed4445285e801f1809ef0b909b1831700ff20817a2bd0c972d33",
+  "cargo_lock_sha256": "b3b6b867d657ff5610e01bc66a40829ffbe9a345d0875d0f461b198a756e2cef",
   "package_count": 569,
   "license_classes": {
     "permissive": 557,
@@ -17509,63 +17509,63 @@
   "workspace_license": [
     {
       "name": "media-recording",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "octessera-desktop",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "octessera-hal",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "octessera-pi",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "platform-capabilities-build",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "platform-core",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "playback-runtime",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "realtime-engine",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
     },
     {
       "name": "rodio-engine-source",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",
       "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
