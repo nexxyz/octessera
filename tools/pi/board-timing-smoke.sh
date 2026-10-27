@@ -48,3 +48,7 @@ grep 'runtime-timing playing' "$journal" | tail -n 1 | grep -o 'dispatches=[0-9]
 grep 'pi-ui-profile' "$journal" | tail -n 1 | grep -o 'runtime_late=[^ ]* [^ ]* [^ ]*' || true
 grep -E -- '-autoaux |timing-load step=|need the profiling build' "$journal" | tail -n 3 || true
 tail -n 1 "$out/host.log"
+if grep -q "candidate exited early" "$out/host.log"; then
+  echo "FAILED: the candidate exited early; see $journal" >&2
+  exit 1
+fi

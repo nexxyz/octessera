@@ -57,7 +57,7 @@ for setting in "$@"; do
     OCTESSERA_TIMING_STEALING=*) stealing=${setting#*=} ;;
   esac
 done
-sudo -n python3 - "$store_dir/system.json" "$soak" "$optimize_for" "$stealing" <<'PY'
+sudo -n python3 - "$store_dir/system.json" "$soak" "$optimize_for" "$stealing" "$store_dir/default.patch.json" <<'PY'
 import json, sys
 path = sys.argv[1]
 system = json.load(open(path))
@@ -68,7 +68,9 @@ if sys.argv[2] != "1":
 if sys.argv[3]:
     config["sound"]["optimizeFor"] = sys.argv[3]
 if sys.argv[4]:
-    config["sound"]["voiceStealingMode"] = sys.argv[4]
+    patch = json.load(open(sys.argv[5]))
+    patch["runtimeConfig"]["sound"]["voiceStealingMode"] = sys.argv[4]
+    json.dump(patch, open(sys.argv[5], "w"), separators=(",", ":"))
 config["autoSaveDefault"] = False
 json.dump(system, open(path, "w"), separators=(",", ":"))
 PY
