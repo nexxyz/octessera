@@ -20,6 +20,7 @@ const INCLUDE_EXT = new Set([
 ]);
 const JAVASCRIPT_EXT = new Set([".js", ".mjs", ".ts", ".tsx"]);
 const IGNORE_DIRS = new Set([
+  ".claude",
   ".git",
   ".mypy_cache",
   ".opencode",

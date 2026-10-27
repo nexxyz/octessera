@@ -39,7 +39,7 @@ check_file_length() {
     fi
   done < <(find "$root" \
     \( -type d \( \
-      -name '.git' -o -name '.mypy_cache' -o -name '.opencode' -o \
+      -name '.claude' -o -name '.git' -o -name '.mypy_cache' -o -name '.opencode' -o \
       -name '.pnpm-store' -o \
       -name '.pytest_cache' -o -name '.ruff_cache' -o -name '.turbo' -o \
       -name '.slim' -o -name '.venv' -o -name '__pycache__' -o \
