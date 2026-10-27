@@ -1,4 +1,4 @@
-//! The teaser score (picture-locked timing V40): typed intro on the Play Drums page with an
+//! The teaser score (picture-locked timing V51): typed intro on the Play Drums page with an
 //! echo chain, a plucked glitter dissolve, then the layer build-up and a held freeze.
 use crate::support::builder;
 use playback_runtime::scenario::{button, grid, press_main, Scenario, ScenarioBuilder};
@@ -9,24 +9,48 @@ pub fn bar(n: u32) -> f64 {
     BUILD_START + 2.0 * f64::from(n - 5)
 }
 
-/// Typed lines: (start, letters with spaces, letter spacing, stamp row).
-const LINES: [(f64, &str, f64, usize); 4] = [
-    (0.0, "Eight rows", 0.1, 7),
-    (2.0, "eight columns", 0.077, 6),
-    (4.0, "eight layers", 0.083, 5),
-    (6.0, "one device", 0.07, 4),
+/// Typed lines: (keystrokes, their times after B1, stamp row). Commas sound on `COMMA_ROW`.
+const LINES: [(&str, &[f64], usize); 5] = [
+    (
+        "64cells,",
+        &[0.000, 0.081, 0.210, 0.273, 0.350, 0.414, 0.491, 0.566],
+        7,
+    ),
+    (
+        "8layers,",
+        &[2.000, 2.150, 2.227, 2.288, 2.364, 2.432, 2.514, 2.577],
+        6,
+    ),
+    (
+        "40+algorithms,",
+        &[
+            4.000, 4.081, 4.153, 4.301, 4.364, 4.424, 4.484, 4.551, 4.611, 4.673, 4.742, 4.809,
+            4.880, 4.947,
+        ],
+        5,
+    ),
+    (
+        "endlesspossibilities",
+        &[
+            6.000, 6.073, 6.152, 6.211, 6.287, 6.354, 6.418, 6.549, 6.624, 6.706, 6.772, 6.853,
+            6.924, 7.003, 7.064, 7.123, 7.191, 7.250, 7.315, 7.374,
+        ],
+        4,
+    ),
+    (
+        "onedevice",
+        &[
+            9.000, 9.060, 9.131, 9.282, 9.347, 9.426, 9.502, 9.563, 9.631,
+        ],
+        7,
+    ),
 ];
-/// The "..." after the first three lines, then the final "." of "one device.".
-const DOTS: [f64; 9] = [
-    1.100, 1.167, 1.233, 3.083, 3.150, 3.200, 5.067, 5.083, 5.133,
-];
-const PERIOD: f64 = 6.767;
-const DOT_ROW: usize = 3;
-const PERIOD_ROW: usize = 2;
-pub const ECHO_KILL: f64 = 6.85;
-pub const GLITTER: f64 = 8.5;
+const COMMA_ROW: usize = 3;
+/// The echo is cut after "endless possibilities", so the break and "one device" stay dry.
+pub const ECHO_KILL: f64 = 7.45;
+pub const GLITTER: f64 = 11.5;
 /// The glitter layer is muted here and its notes, delay and reverb ring out.
-pub const GLITTER_END: f64 = 9.5;
+pub const GLITTER_END: f64 = 12.5;
 const RING_OUT: f64 = 1.5;
 pub const BUILD_START: f64 = GLITTER_END + RING_OUT;
 pub const FREEZE: f64 = BUILD_START + 20.0;
@@ -37,17 +61,14 @@ const FREEZE_CELL: (usize, usize) = (2, 6);
 const KICKS: [(usize, usize); 4] = [(0, 0), (2, 0), (4, 0), (6, 0)];
 const CLAP_HATS: [(usize, usize); 6] = [(2, 1), (6, 1), (1, 2), (3, 2), (5, 2), (7, 2)];
 
-/// Letter times for one typed line: steady with a small, repeatable unevenness; no hit on
-/// spaces.
-pub fn letter_times() -> Vec<(f64, usize, usize)> {
+/// Every keystroke of the intro: (time after B1, column, row).
+pub fn keystrokes() -> Vec<(f64, usize, usize)> {
     let mut hits = Vec::new();
-    for (start, text, spacing, row) in LINES {
-        for (index, letter) in text.chars().enumerate() {
-            if letter == ' ' {
-                continue;
-            }
-            let jitter = [0.0, 0.012, -0.008, 0.018, -0.004, 0.009][index % 6];
-            hits.push((start + index as f64 * spacing + jitter, index % 8, row));
+    for (keys, times, row) in LINES {
+        assert_eq!(keys.chars().count(), times.len(), "{keys}");
+        for (index, (key, time)) in keys.chars().zip(times).enumerate() {
+            let row = if key == ',' { COMMA_ROW } else { row };
+            hits.push((*time, index % 8, row));
         }
     }
     hits
@@ -60,7 +81,7 @@ fn typing_kit(take: &mut ScenarioBuilder) {
     take.open(&["Shape", "Instruments", "I5:"]);
     take.set_value("Type", "instruments.4.type", "drum");
     take.checkpoint("i5 drum");
-    let voices: [TablaVoice; 3] = [
+    let voices: [TablaVoice; 2] = [
         (
             "V6",
             5,
@@ -83,17 +104,6 @@ fn typing_kit(take: &mut ScenarioBuilder) {
                 ("Noise %", "noiseMixPct", 20),
             ],
         ),
-        (
-            "V5",
-            4,
-            [
-                ("Tone", "tonePct", 60),
-                ("Decay", "decayMs", 350),
-                ("Sweep st", "sweepSemis", 7),
-                ("Sweep ms", "sweepMs", 80),
-                ("Noise %", "noiseMixPct", 8),
-            ],
-        ),
     ];
     for (voice, index, edits) in voices {
         take.open(&["Shape", "Instruments", "I5:", "Drum"]);
@@ -107,13 +117,12 @@ fn typing_kit(take: &mut ScenarioBuilder) {
             );
         }
     }
-    let rows: [(&str, usize, i32); 6] = [
+    let rows: [(&str, usize, i32); 5] = [
         ("V6", 7, 0),
         ("V6", 6, 2),
         ("V6", 5, 5),
         ("V6", 4, 7),
-        ("V8", DOT_ROW, 12),
-        ("V5", PERIOD_ROW, 0),
+        ("V8", COMMA_ROW, 12),
     ];
     take.open(&["Shape", "Instruments", "I5:", "Drum"]);
     for (voice, row, tune) in rows {
@@ -256,7 +265,7 @@ fn glitter_layer(take: &mut ScenarioBuilder) {
     take.checkpoint("glitter");
 }
 
-pub fn teaser_v40(record: bool) -> Scenario {
+pub fn teaser_v51(record: bool) -> Scenario {
     let mut take = builder();
     typing_kit(&mut take);
     echo_bus(&mut take);
@@ -276,16 +285,10 @@ pub fn teaser_v40(record: bool) -> Scenario {
     take.checkpoint("drums page");
     take.without_play_at_b1();
 
-    for (time, x, row) in letter_times() {
+    for (time, x, row) in keystrokes() {
         take.at_seconds(time, grid(x, row, true));
         take.at_seconds(time + 0.04, grid(x, row, false));
     }
-    for (index, time) in DOTS.iter().enumerate() {
-        take.at_seconds(*time, grid(index % 3, DOT_ROW, true));
-        take.at_seconds(time + 0.03, grid(index % 3, DOT_ROW, false));
-    }
-    take.at_seconds(PERIOD, grid(0, PERIOD_ROW, true));
-    take.at_seconds(PERIOD + 0.04, grid(0, PERIOD_ROW, false));
     take.at_seconds(ECHO_KILL, aux_turn("aux2", -40));
     // Twinkle's first star is born on the step after Play, so Play goes one 1/32 step early.
     take.at_seconds(GLITTER - 0.0625, button("button_s", true));
