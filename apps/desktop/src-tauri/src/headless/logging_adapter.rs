@@ -10,6 +10,7 @@ pub(super) struct HeardEvent {
     pub(super) note: u8,
     pub(super) voice: Option<u8>,
     pub(super) velocity: u8,
+    pub(super) pitch_cents: i16,
 }
 
 /// The desktop host adapter, unchanged, plus a record of what it was asked to play.
@@ -32,6 +33,7 @@ impl HostAdapter for LoggingAdapter {
                 note: *note,
                 voice: None,
                 velocity: *velocity,
+                pitch_cents: 0,
             });
         }
         self.inner.handle_musical_event(event)
@@ -44,6 +46,7 @@ impl HostAdapter for LoggingAdapter {
                 note: hit.cell,
                 voice: Some(hit.voice),
                 velocity: hit.velocity,
+                pitch_cents: hit.pitch_cents,
             });
         }
         self.inner.handle_cell_hit(hit)

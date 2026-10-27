@@ -2,6 +2,7 @@
 //! preparation and engine, rendered headlessly in virtual time (no window, no sound card).
 //! Run with `corepack pnpm run e2e`.
 mod default_patch;
+mod follow_transpose;
 mod gestures;
 mod instruments;
 mod link_mapping;

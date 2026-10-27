@@ -48,6 +48,8 @@ pub struct PlayedEvent {
     pub note: u8,
     pub voice: Option<u8>,
     pub velocity: u8,
+    /// The pitch offset a Sampler/Drum hit asks for; 0 for notes.
+    pub pitch_cents: i16,
 }
 
 pub struct HeadlessSession {
@@ -352,6 +354,7 @@ impl HeadlessSession {
                 note: heard.note,
                 voice: heard.voice,
                 velocity: heard.velocity,
+                pitch_cents: heard.pitch_cents,
             });
         }
     }
