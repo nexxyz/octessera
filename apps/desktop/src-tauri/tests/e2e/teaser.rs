@@ -1,4 +1,4 @@
-//! The teaser score (picture-locked timing V51): typed intro on the Play Drums page with an
+//! The teaser score (picture-locked timing V52): typed intro on the Play Drums page with an
 //! echo chain, a plucked glitter dissolve, then the layer build-up and a held freeze.
 use crate::support::builder;
 use playback_runtime::scenario::{button, grid, press_main, Scenario, ScenarioBuilder};
@@ -9,45 +9,55 @@ pub fn bar(n: u32) -> f64 {
     BUILD_START + 2.0 * f64::from(n - 5)
 }
 
-/// Typed lines: (keystrokes, their times after B1, stamp row). Commas sound on `COMMA_ROW`.
-const LINES: [(&str, &[f64], usize); 5] = [
+/// Typed lines: (keystrokes, their times after B1, letter row, dot row).
+const LINES: [(&str, &[f64], usize, usize); 5] = [
     (
-        "64cells,",
-        &[0.000, 0.081, 0.210, 0.273, 0.350, 0.414, 0.491, 0.566],
-        7,
-    ),
-    (
-        "8layers,",
-        &[2.000, 2.150, 2.227, 2.288, 2.364, 2.432, 2.514, 2.577],
-        6,
-    ),
-    (
-        "40+algorithms,",
+        "64cells...",
         &[
-            4.000, 4.081, 4.153, 4.301, 4.364, 4.424, 4.484, 4.551, 4.611, 4.673, 4.742, 4.809,
-            4.880, 4.947,
+            0.000, 0.081, 0.210, 0.273, 0.350, 0.414, 0.491, 0.635, 0.704, 0.784,
+        ],
+        7,
+        DOT_ROW,
+    ),
+    (
+        "8layers...",
+        &[
+            2.000, 2.138, 2.205, 2.287, 2.350, 2.418, 2.499, 2.646, 2.719, 2.782,
+        ],
+        6,
+        DOT_ROW,
+    ),
+    (
+        "40+algorithms...",
+        &[
+            4.000, 4.060, 4.127, 4.249, 4.319, 4.385, 4.457, 4.523, 4.594, 4.668, 4.746, 4.805,
+            4.881, 5.012, 5.073, 5.144,
         ],
         5,
+        DOT_ROW,
     ),
     (
-        "endlesspossibilities",
+        "endlesspossibilities...",
         &[
-            6.000, 6.073, 6.152, 6.211, 6.287, 6.354, 6.418, 6.549, 6.624, 6.706, 6.772, 6.853,
-            6.924, 7.003, 7.064, 7.123, 7.191, 7.250, 7.315, 7.374,
+            6.000, 6.082, 6.147, 6.229, 6.300, 6.379, 6.439, 6.567, 6.626, 6.691, 6.750, 6.827,
+            6.887, 6.959, 7.040, 7.109, 7.175, 7.253, 7.329, 7.390, 7.525, 7.602, 7.672,
         ],
         4,
+        DOT_ROW,
     ),
     (
-        "onedevice",
+        "onedevice.",
         &[
-            9.000, 9.060, 9.131, 9.282, 9.347, 9.426, 9.502, 9.563, 9.631,
+            9.000, 9.068, 9.143, 9.298, 9.366, 9.439, 9.521, 9.601, 9.661, 9.725,
         ],
         7,
+        PERIOD_ROW,
     ),
 ];
-const COMMA_ROW: usize = 3;
-/// The echo is cut after "endless possibilities", so the break and "one device" stay dry.
-pub const ECHO_KILL: f64 = 7.45;
+const DOT_ROW: usize = 3;
+const PERIOD_ROW: usize = 2;
+/// The echo is cut after "endless possibilities ...", so the break and "one device." stay dry.
+pub const ECHO_KILL: f64 = 7.75;
 pub const GLITTER: f64 = 11.5;
 /// The glitter layer is muted here and its notes, delay and reverb ring out.
 pub const GLITTER_END: f64 = 12.5;
@@ -64,10 +74,10 @@ const CLAP_HATS: [(usize, usize); 6] = [(2, 1), (6, 1), (1, 2), (3, 2), (5, 2), 
 /// Every keystroke of the intro: (time after B1, column, row).
 pub fn keystrokes() -> Vec<(f64, usize, usize)> {
     let mut hits = Vec::new();
-    for (keys, times, row) in LINES {
+    for (keys, times, letter_row, dot_row) in LINES {
         assert_eq!(keys.chars().count(), times.len(), "{keys}");
         for (index, (key, time)) in keys.chars().zip(times).enumerate() {
-            let row = if key == ',' { COMMA_ROW } else { row };
+            let row = if key == '.' { dot_row } else { letter_row };
             hits.push((*time, index % 8, row));
         }
     }
@@ -81,7 +91,7 @@ fn typing_kit(take: &mut ScenarioBuilder) {
     take.open(&["Shape", "Instruments", "I5:"]);
     take.set_value("Type", "instruments.4.type", "drum");
     take.checkpoint("i5 drum");
-    let voices: [TablaVoice; 2] = [
+    let voices: [TablaVoice; 3] = [
         (
             "V6",
             5,
@@ -104,6 +114,17 @@ fn typing_kit(take: &mut ScenarioBuilder) {
                 ("Noise %", "noiseMixPct", 20),
             ],
         ),
+        (
+            "V5",
+            4,
+            [
+                ("Tone", "tonePct", 60),
+                ("Decay", "decayMs", 350),
+                ("Sweep st", "sweepSemis", 7),
+                ("Sweep ms", "sweepMs", 80),
+                ("Noise %", "noiseMixPct", 8),
+            ],
+        ),
     ];
     for (voice, index, edits) in voices {
         take.open(&["Shape", "Instruments", "I5:", "Drum"]);
@@ -117,12 +138,13 @@ fn typing_kit(take: &mut ScenarioBuilder) {
             );
         }
     }
-    let rows: [(&str, usize, i32); 5] = [
+    let rows: [(&str, usize, i32); 6] = [
         ("V6", 7, 0),
         ("V6", 6, 2),
         ("V6", 5, 5),
         ("V6", 4, 7),
-        ("V8", COMMA_ROW, 12),
+        ("V8", DOT_ROW, 12),
+        ("V5", PERIOD_ROW, 0),
     ];
     take.open(&["Shape", "Instruments", "I5:", "Drum"]);
     for (voice, row, tune) in rows {
@@ -265,7 +287,7 @@ fn glitter_layer(take: &mut ScenarioBuilder) {
     take.checkpoint("glitter");
 }
 
-pub fn teaser_v51(record: bool) -> Scenario {
+pub fn teaser_v52(record: bool) -> Scenario {
     let mut take = builder();
     typing_kit(&mut take);
     echo_bus(&mut take);

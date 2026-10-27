@@ -1,6 +1,6 @@
 use crate::support::{assert_clean_audio, keep_audio, session, Timeline};
 use crate::teaser::{
-    bar, teaser_v51, BUILD_START, END, FREEZE, GLITTER, GLITTER_END, PAUSE, RELEASE,
+    bar, teaser_v52, BUILD_START, END, FREEZE, GLITTER, GLITTER_END, PAUSE, RELEASE,
 };
 use octessera_desktop_lib::headless::{HeadlessSession, Pace, PlayedEvent, PlayedScenario};
 
@@ -34,15 +34,15 @@ fn rms_db(timeline: &Timeline, from: f64, to: f64) -> f64 {
 fn play(pace: Pace, record: bool, name: &str) -> (HeadlessSession, PlayedScenario) {
     let mut session = session(name, pace);
     let played = session
-        .play_scenario(&teaser_v51(record), PREROLL, END + 1.0)
+        .play_scenario(&teaser_v52(record), PREROLL, END + 1.0)
         .unwrap_or_else(|error| panic!("{name}: {error}"));
     (session, played)
 }
 
 #[test]
-fn teaser_score_follows_the_v51_picture_timing() {
-    let (session, played) = play(Pace::Fast, false, "teaser-v51");
-    let wav = keep_audio(&session, "teaser-v51");
+fn teaser_score_follows_the_v52_picture_timing() {
+    let (session, played) = play(Pace::Fast, false, "teaser-v52");
+    let wav = keep_audio(&session, "teaser-v52");
     let timeline = Timeline {
         played,
         session: &session,
@@ -50,18 +50,18 @@ fn teaser_score_follows_the_v51_picture_timing() {
     assert_clean_audio(&session, "teaser");
 
     for (from, to, count) in [
-        (0.0, 1.0, 8),
-        (2.0, 3.0, 8),
-        (4.0, 5.5, 14),
-        (6.0, 7.45, 20),
-        (9.0, 9.7, 9),
+        (0.0, 1.0, 10),
+        (2.0, 3.0, 10),
+        (4.0, 5.5, 16),
+        (6.0, 7.75, 23),
+        (9.0, 9.8, 10),
     ] {
         let typed = events_between(&timeline, TYPING, from, to).len();
         assert_eq!(typed, count, "keystrokes in {from}-{to}, audio in {wav:?}");
     }
-    assert!(events_between(&timeline, TYPING, 7.45, 9.0).is_empty());
-    assert!(events_between(&timeline, TYPING, 9.7, END).is_empty());
-    for (from, to) in [(7.65, 8.95), (9.95, 11.4)] {
+    assert!(events_between(&timeline, TYPING, 7.75, 9.0).is_empty());
+    assert!(events_between(&timeline, TYPING, 9.8, END).is_empty());
+    for (from, to) in [(7.95, 8.95), (10.3, 11.4)] {
         assert!(
             rms_db(&timeline, from, to) < -60.0,
             "not silent {from}-{to}, audio in {wav:?}"
@@ -135,9 +135,9 @@ fn teaser_score_follows_the_v51_picture_timing() {
 /// in the session's media folder, which is printed.
 #[test]
 #[ignore = "records a take; run explicitly"]
-fn record_teaser_v51_take() {
-    let (session, played) = play(Pace::Realtime, true, "teaser-v51-take");
-    let wav = keep_audio(&session, "teaser-v51-take");
+fn record_teaser_v52_take() {
+    let (session, played) = play(Pace::Realtime, true, "teaser-v52-take");
+    let wav = keep_audio(&session, "teaser-v52-take");
     let recording_start = session
         .recording_started_frame()
         .expect("recorder never started");
