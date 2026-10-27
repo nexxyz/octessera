@@ -18,14 +18,8 @@ pub(super) fn stage_components(
     routing.output.bus_active[..frames].fill(false);
     for frame in 0..frames {
         let mut raw_slots = [0.0_f32; INSTRUMENT_SLOT_COUNT];
-        let source_active = routing.scratch.preview_active[frame]
-            || routing
-                .scratch
-                .source
-                .sample_rendered_frames
-                .iter()
-                .chain(routing.scratch.source.synth_rendered_frames.iter())
-                .any(|prefix| *prefix > frame);
+        let source_active =
+            routing.scratch.preview_active[frame] || frame < routing.scratch.source.rendered_prefix;
         let mut local_active = routing.scratch.momentary_active[frame];
         for (slot, raw) in raw_slots.iter_mut().enumerate() {
             *raw = routing.scratch.slot_out[slot][frame];

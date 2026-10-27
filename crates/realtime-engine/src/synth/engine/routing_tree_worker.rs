@@ -237,6 +237,7 @@ pub(super) fn render_owner(
             &context.synth_context,
             context.sample_rate,
             &mut routing.scratch.source,
+            &mut routing.scratch.slot_out,
         );
         if !valid_source_residency(owner, &routing, &context) {
             Err(())
@@ -253,7 +254,6 @@ pub(super) fn render_owner(
                     voice,
                 );
             }
-            reduce_sources(&mut routing, stamp.frames);
             super::routing_tree_component_renderer::stage_components(
                 owner,
                 &mut routing,
@@ -294,32 +294,4 @@ fn valid_source_residency(
                     && voice.canonical_lane.is_some()
                     && context.slot_worker[slot] == owner.parity as u8
             })
-}
-
-fn reduce_sources(routing: &mut RoutingTreeOwnerData, frames: usize) {
-    let Some(source) = routing.source_bank.as_ref() else {
-        return;
-    };
-    for lane in 0..source.sample.len() {
-        let slot = source.sample[lane].instrument_slot as usize;
-        if slot >= INSTRUMENT_SLOT_COUNT {
-            continue;
-        }
-        let rendered_frames = routing.scratch.source.sample_rendered_frames[lane].min(frames);
-        for frame in 0..rendered_frames {
-            routing.scratch.slot_out[slot][frame] +=
-                routing.scratch.source.sample_samples[lane][frame];
-        }
-    }
-    for lane in 0..source.synth.len() {
-        let slot = source.synth[lane].instrument_slot as usize;
-        if slot >= INSTRUMENT_SLOT_COUNT {
-            continue;
-        }
-        let rendered_frames = routing.scratch.source.synth_rendered_frames[lane].min(frames);
-        for frame in 0..rendered_frames {
-            routing.scratch.slot_out[slot][frame] +=
-                routing.scratch.source.synth_samples[lane][frame];
-        }
-    }
 }

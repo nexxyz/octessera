@@ -1,3 +1,4 @@
+use super::voice_block_sum::{sum_sample_partition, sum_synth_partition, SlotBlockSum};
 use super::*;
 
 #[test]
@@ -34,7 +35,7 @@ fn rendered_prefixes_match_synth_and_sample_completion_and_serial_output() {
 
 #[test]
 fn prefix_metadata_and_activity_application_are_not_per_frame_operations() {
-    super::source_lane_renderer::reset_rendered_prefix_writes_for_test();
+    super::voice_block_sum::reset_rendered_voices_for_test();
     super::inline_source_executor::reset_prefix_activity_applies_for_test();
     let mut engine = prefix_engine();
     engine.note_on(0, 60, 96, 10_000);
@@ -45,10 +46,7 @@ fn prefix_metadata_and_activity_application_are_not_per_frame_operations() {
     let mut output = Vec::new();
     engine.render_interleaved_block(2048, &mut left, &mut right, &mut output);
 
-    assert_eq!(
-        super::source_lane_renderer::rendered_prefix_writes_for_test(),
-        [1, 1]
-    );
+    assert_eq!(super::voice_block_sum::rendered_voices_for_test(), [1, 1]);
     assert_eq!(
         super::inline_source_executor::prefix_activity_applies_for_test(),
         [INSTRUMENT_SLOT_COUNT, INSTRUMENT_SLOT_COUNT]
@@ -56,7 +54,7 @@ fn prefix_metadata_and_activity_application_are_not_per_frame_operations() {
 }
 
 #[test]
-fn sparse_completion_lists_and_scratch_are_exact_across_two_blocks() {
+fn finished_voices_leave_the_render_lists_and_survivors_render_the_next_block() {
     let mut engine = prefix_engine();
     engine.note_on(0, 60, 96, 1);
     let mut synth_survivor = *engine.synth_voice_pool.lane(0).expect("synth lane");
@@ -87,85 +85,41 @@ fn sparse_completion_lists_and_scratch_are_exact_across_two_blocks() {
         .expect("sample partition");
     assert_eq!(&synth_partition.render_lanes[..2], &[0, 1]);
     assert_eq!(&sample_partition.render_lanes[..2], &[0, 1]);
-    let mut synth_scratch = super::source_lane_renderer::SourceLaneBlockScratch::new();
-    let mut sample_scratch = super::source_lane_renderer::SourceLaneBlockScratch::new();
     let synth_context = engine.synth_source_context();
+    let mut voice_block = vec![0.0; 128];
 
-    assert!(synth_scratch.prepare(128));
-    assert!(sample_scratch.prepare(128));
-    super::source_lane_renderer::reset_rendered_prefix_writes_for_test();
-    super::source_lane_renderer::render_synth_partition(
-        &mut synth_partition,
-        128,
-        0,
-        &synth_context,
-        &mut synth_scratch,
-    );
-    super::source_lane_renderer::render_sample_partition(
-        &mut sample_partition,
-        128,
-        super::source_lane_renderer::SampleSourceContext {
-            sample_rate: 48_000,
-        },
-        &mut sample_scratch,
-    );
-    assert_eq!(&synth_scratch.rendered_frames[..2], &[48, 128]);
-    assert_eq!(&sample_scratch.rendered_frames[..2], &[3, 128]);
-    assert_eq!(
-        super::source_lane_renderer::rendered_prefix_writes_for_test(),
-        [2, 2]
-    );
-    assert_eq!(
-        &synth_partition.render_lanes[..synth_partition.render_lane_count],
-        &[1]
-    );
-    assert_eq!(
-        &sample_partition.render_lanes[..sample_partition.render_lane_count],
-        &[1]
-    );
-
-    assert!(synth_scratch.prepare(64));
-    assert!(sample_scratch.prepare(64));
-    super::source_lane_renderer::reset_rendered_prefix_writes_for_test();
-    super::source_lane_renderer::render_synth_partition(
-        &mut synth_partition,
-        64,
-        128,
-        &synth_context,
-        &mut synth_scratch,
-    );
-    super::source_lane_renderer::render_sample_partition(
-        &mut sample_partition,
-        64,
-        super::source_lane_renderer::SampleSourceContext {
-            sample_rate: 48_000,
-        },
-        &mut sample_scratch,
-    );
-    assert_eq!(
-        super::source_lane_renderer::rendered_prefix_writes_for_test(),
-        [1, 1]
-    );
-    assert_eq!(synth_scratch.rendered_frames[0], 0);
-    assert_eq!(sample_scratch.rendered_frames[0], 0);
-    assert_eq!(
-        synth_scratch.slots[0],
-        super::source_lane_renderer::INVALID_INSTRUMENT_SLOT
-    );
-    assert_eq!(
-        sample_scratch.slots[0],
-        super::source_lane_renderer::INVALID_INSTRUMENT_SLOT
-    );
-    assert_eq!(&synth_scratch.rendered_frames[..2], &[0, 64]);
-    assert_eq!(&sample_scratch.rendered_frames[..2], &[0, 64]);
-    assert_eq!(
-        &synth_partition.render_lanes[..synth_partition.render_lane_count],
-        &[1]
-    );
-    assert_eq!(
-        &sample_partition.render_lanes[..sample_partition.render_lane_count],
-        &[1]
-    );
+    for (frames, clock, rendered, prefix) in [(128, 0, [2, 2], 128), (64, 128, [1, 1], 64)] {
+        let mut slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT] =
+            std::array::from_fn(|_| vec![0.0; frames]);
+        let mut sum = SlotBlockSum::new(&mut slot_out);
+        super::voice_block_sum::reset_rendered_voices_for_test();
+        sum_synth_partition(
+            &mut synth_partition,
+            frames,
+            clock,
+            &synth_context,
+            &mut voice_block,
+            &mut sum,
+        );
+        sum_sample_partition(
+            &mut sample_partition,
+            frames,
+            48_000,
+            &mut voice_block,
+            &mut sum,
+        );
+        assert_eq!(super::voice_block_sum::rendered_voices_for_test(), rendered);
+        assert_eq!(sum.rendered_prefixes[0], prefix);
+        assert_eq!(sum.rendered_prefixes[1], prefix);
+        assert_eq!(
+            &synth_partition.render_lanes[..synth_partition.render_lane_count],
+            &[1]
+        );
+        assert_eq!(
+            &sample_partition.render_lanes[..sample_partition.render_lane_count],
+            &[1]
+        );
+    }
 }
 
 #[test]
@@ -177,14 +131,11 @@ fn completed_prefix_reduction_does_not_leak_into_the_next_block() {
     let mut right = Vec::new();
     let mut output = Vec::new();
 
-    super::source_lane_renderer::reset_rendered_prefix_writes_for_test();
+    super::voice_block_sum::reset_rendered_voices_for_test();
     engine.render_interleaved_block(128, &mut left, &mut right, &mut output);
     assert_prefix(&engine.block_slot_scratch.synth_active[0], 48, 128);
     assert_prefix(&engine.block_slot_scratch.sample_active[1], 3, 128);
-    assert_eq!(
-        super::source_lane_renderer::rendered_prefix_writes_for_test(),
-        [1, 1]
-    );
+    assert_eq!(super::voice_block_sum::rendered_voices_for_test(), [1, 1]);
 
     let synth_partition = engine
         .synth_voice_pool
@@ -208,15 +159,12 @@ fn completed_prefix_reduction_does_not_leak_into_the_next_block() {
     let mut second_left = Vec::new();
     let mut second_right = Vec::new();
     let mut second_output = Vec::new();
-    super::source_lane_renderer::reset_rendered_prefix_writes_for_test();
+    super::voice_block_sum::reset_rendered_voices_for_test();
     engine.render_interleaved_block(64, &mut second_left, &mut second_right, &mut second_output);
     assert!(second_output.iter().all(|sample| sample.to_bits() == 0));
     assert_prefix(&engine.block_slot_scratch.synth_active[0], 0, 64);
     assert_prefix(&engine.block_slot_scratch.sample_active[1], 0, 64);
-    assert_eq!(
-        super::source_lane_renderer::rendered_prefix_writes_for_test(),
-        [0, 0]
-    );
+    assert_eq!(super::voice_block_sum::rendered_voices_for_test(), [0, 0]);
 }
 
 fn prefix_engine() -> SynthEngine {

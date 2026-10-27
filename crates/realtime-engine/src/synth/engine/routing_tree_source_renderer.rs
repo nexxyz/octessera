@@ -1,38 +1,30 @@
-use super::render_voice::synth_voice_render::{render_synth_voice_block, SynthVoiceFrameContext};
 use super::routing_tree_source_bank::RoutingTreeSourceBank;
-use super::source_lane_renderer::{render_sample_voice_block, SynthSourceContext};
+use super::source_lane_renderer::SynthSourceContext;
+use super::voice_block_sum::{sum_sample_voice, sum_synth_voice, SlotBlockSum};
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
-use crate::synth::types::{
-    INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
-};
+use crate::synth::types::INSTRUMENT_SLOT_COUNT;
 
 pub(super) struct RoutingTreeSourceBlockScratch {
-    pub(super) synth_samples: [Vec<f32>; SYNTH_VOICE_LANE_CAPACITY],
-    pub(super) sample_samples: [Vec<f32>; SAMPLE_VOICE_LANE_CAPACITY],
-    pub(super) synth_rendered_frames: [usize; SYNTH_VOICE_LANE_CAPACITY],
-    pub(super) sample_rendered_frames: [usize; SAMPLE_VOICE_LANE_CAPACITY],
+    voice_block: Vec<f32>,
+    /// The longest prefix any voice rendered this block: the frames where a source sounded.
+    pub(super) rendered_prefix: usize,
 }
 
 impl RoutingTreeSourceBlockScratch {
     pub(super) fn new() -> Self {
         Self {
-            synth_samples: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
-            sample_samples: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
-            synth_rendered_frames: [0; SYNTH_VOICE_LANE_CAPACITY],
-            sample_rendered_frames: [0; SAMPLE_VOICE_LANE_CAPACITY],
+            voice_block: vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES],
+            rendered_prefix: 0,
         }
     }
 
     pub(super) fn prepare(&mut self, frames: usize) -> bool {
-        if frames > BLOCK_SLOT_SCRATCH_FRAMES {
-            return false;
-        }
-        self.synth_rendered_frames.fill(0);
-        self.sample_rendered_frames.fill(0);
-        true
+        self.rendered_prefix = 0;
+        frames <= BLOCK_SLOT_SCRATCH_FRAMES
     }
 }
 
+/// Renders the bank's voices, adding each straight into its instrument's `slot_out`.
 pub(super) fn render_routing_tree_sources(
     bank: &mut RoutingTreeSourceBank,
     frames: usize,
@@ -40,44 +32,38 @@ pub(super) fn render_routing_tree_sources(
     synth_context: &SynthSourceContext,
     sample_rate: u32,
     scratch: &mut RoutingTreeSourceBlockScratch,
+    slot_out: &mut [Vec<f32>; INSTRUMENT_SLOT_COUNT],
 ) {
-    for lane in 0..SYNTH_VOICE_LANE_CAPACITY {
-        let voice = &mut bank.synth[lane];
+    let mut sum = SlotBlockSum::new(slot_out);
+    for (voice, ring) in bank.synth.iter_mut().zip(bank.rings.iter_mut()) {
         if !voice.active {
             continue;
         }
-        let slot = voice.instrument_slot as usize;
-        if slot >= INSTRUMENT_SLOT_COUNT {
+        if voice.instrument_slot as usize >= INSTRUMENT_SLOT_COUNT {
             voice.active = false;
             voice.canonical_lane = None;
             continue;
         }
-        scratch.synth_rendered_frames[lane] = render_synth_voice_block(
+        sum_synth_voice(
             voice,
-            bank.rings[lane].as_deref_mut().expect("routing voice ring"),
-            slot,
+            ring.as_deref_mut().expect("routing voice ring"),
             frames,
             base_sample_clock,
-            SynthVoiceFrameContext {
-                sample_rate: synth_context.sample_rate,
-                config: synth_context.configs[slot],
-                render_config: synth_context.render_configs[slot],
-                revision: synth_context.revisions[slot],
-                mods: synth_context.mods[slot],
-            },
-            &mut scratch.synth_samples[lane],
+            synth_context,
+            &mut scratch.voice_block,
+            &mut sum,
         );
     }
-    for lane in 0..SAMPLE_VOICE_LANE_CAPACITY {
-        let voice = &mut bank.sample[lane];
-        if !voice.active {
-            continue;
-        }
-        scratch.sample_rendered_frames[lane] = render_sample_voice_block(
+    let mut sample_prefix = 0;
+    for voice in bank.sample.iter_mut().filter(|voice| voice.active) {
+        let rendered = sum_sample_voice(
             voice,
             frames,
             sample_rate,
-            &mut scratch.sample_samples[lane],
+            &mut scratch.voice_block,
+            &mut sum,
         );
+        sample_prefix = sample_prefix.max(rendered);
     }
+    scratch.rendered_prefix = sum.longest_prefix().max(sample_prefix).min(frames);
 }

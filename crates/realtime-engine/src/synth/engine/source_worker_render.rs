@@ -11,10 +11,11 @@ impl SynthEngine {
         [super::source_lane_renderer::SourceLaneBlockScratch; 2],
         [super::source_lane_renderer::SourceLaneBlockScratch; 2],
     )> {
-        self.block_slot_scratch
-            .inline_source_executor
-            .take()
-            .map(super::inline_source_executor::InlineSourceExecutor::into_partition_scratch)
+        self.block_slot_scratch.inline_source_executor.take()?;
+        Some((
+            std::array::from_fn(|_| super::source_lane_renderer::SourceLaneBlockScratch::new()),
+            std::array::from_fn(|_| super::source_lane_renderer::SourceLaneBlockScratch::new()),
+        ))
     }
 
     pub(super) fn synth_source_context(&self) -> SynthSourceContext {

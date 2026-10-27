@@ -168,6 +168,7 @@ mod steal_fade_tests;
 mod support;
 #[cfg(test)]
 mod test_support;
+mod voice_block_sum;
 mod voice_budget;
 
 pub use prepared_control_prepare::{

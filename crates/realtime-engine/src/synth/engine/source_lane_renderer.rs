@@ -1,41 +1,19 @@
 use super::super::runtime_state::InstrumentMod;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 use super::super::synth_voice_pool::SynthVoicePartition;
 use super::super::types::{
     SynthConfig, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
     SAMPLE_VOICE_PARTITION_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
     SYNTH_VOICE_PARTITION_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 use super::render_voice::synth_voice_render::{render_synth_voice_block, SynthVoiceFrameContext};
 use super::render_voice::SynthVoiceRenderConfig;
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 use super::sample_voice_pool::SampleVoicePartition;
 use super::support::{mono_frame, SampleBufferView, SampleVoice};
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
-#[cfg(test)]
-use std::cell::Cell;
-
-#[cfg(test)]
-thread_local! {
-    static RENDERED_PREFIX_WRITES: Cell<[usize; 2]> = const { Cell::new([0; 2]) };
-}
-
-#[cfg(test)]
-fn record_rendered_prefix_write(index: usize) {
-    RENDERED_PREFIX_WRITES.with(|writes| {
-        let mut value = writes.get();
-        value[index] += 1;
-        writes.set(value);
-    });
-}
-
-#[cfg(test)]
-pub(super) fn reset_rendered_prefix_writes_for_test() {
-    RENDERED_PREFIX_WRITES.with(|writes| writes.set([0; 2]));
-}
-
-#[cfg(test)]
-pub(super) fn rendered_prefix_writes_for_test() -> [usize; 2] {
-    RENDERED_PREFIX_WRITES.with(Cell::get)
-}
 
 const _: () = assert!(
     VOICE_PARTITION_COUNT * SYNTH_VOICE_PARTITION_LANE_CAPACITY == SYNTH_VOICE_LANE_CAPACITY
@@ -45,14 +23,17 @@ const _: () = assert!(
 );
 const _: () = assert!(SYNTH_VOICE_PARTITION_LANE_CAPACITY == SAMPLE_VOICE_PARTITION_LANE_CAPACITY);
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(super) struct SourceLaneBlockScratch {
     pub(super) samples: [Vec<f32>; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
     pub(super) rendered_frames: [usize; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
     pub(super) slots: [u8; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
 }
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(super) const INVALID_INSTRUMENT_SLOT: u8 = INSTRUMENT_SLOT_COUNT as u8;
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 impl SourceLaneBlockScratch {
     pub(super) fn new() -> Self {
         Self {
@@ -86,6 +67,7 @@ pub(super) struct SampleSourceContext {
     pub(super) sample_rate: u32,
 }
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(super) fn render_synth_partition(
     partition: &mut SynthVoicePartition,
     frames: usize,
@@ -125,8 +107,6 @@ pub(super) fn render_synth_partition(
                         frame_context,
                         &mut scratch.samples[lane],
                     );
-                    #[cfg(test)]
-                    record_rendered_prefix_write(0);
                     scratch.rendered_frames[lane] = rendered_frames;
                     voice.active
                 }
@@ -140,6 +120,7 @@ pub(super) fn render_synth_partition(
     partition.render_lane_count = survivor_count;
 }
 
+#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
 pub(super) fn render_sample_partition(
     partition: &mut SampleVoicePartition,
     frames: usize,
@@ -168,8 +149,6 @@ pub(super) fn render_sample_partition(
                         context.sample_rate,
                         &mut scratch.samples[lane],
                     );
-                    #[cfg(test)]
-                    record_rendered_prefix_write(1);
                     scratch.rendered_frames[lane] = rendered_frames;
                     voice.active
                 }
@@ -365,7 +344,6 @@ fn sample_filter_q(resonance: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::inline_source_executor::InlineSourceExecutor;
     use super::*;
     use std::mem::size_of;
 
@@ -398,10 +376,6 @@ mod tests {
         assert!(GLOBAL_SYNTH_SCRATCH_METADATA_BYTES < LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES);
     const _: () =
         assert!(GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES < LEGACY_GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES);
-    const _: () = assert!(
-        size_of::<InlineSourceExecutor>()
-            == GLOBAL_SYNTH_SCRATCH_METADATA_BYTES + GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
-    );
 
     #[test]
     fn partition_scratch_matches_global_lane_shape() {
@@ -422,10 +396,6 @@ mod tests {
         assert_eq!(
             size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>(),
             GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
-        );
-        assert_eq!(
-            size_of::<InlineSourceExecutor>(),
-            GLOBAL_SYNTH_SCRATCH_METADATA_BYTES + GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
         );
         assert_eq!(
             LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES - GLOBAL_SYNTH_SCRATCH_METADATA_BYTES,
