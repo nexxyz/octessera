@@ -4,20 +4,17 @@ use super::source_worker_health::{
     SourceWorkerHealth, SourceWorkerHealthSnapshot, SourceWorkerHealthState,
 };
 use super::source_worker_lease::OwnerLease;
-#[cfg(test)]
-use super::source_worker_lifecycle::SourceWorkerLifecycle;
-use super::source_worker_lifecycle::{CompletedEnvelope, OwnerEnvelope, SourceWorkerScratch};
+use super::source_worker_lifecycle::{CompletedEnvelope, OwnerEnvelope};
 use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
-use super::source_worker_protocol::{SourceWorkerMode, WorkStamp, WorkerCommand, WorkerPhase};
+use super::source_worker_protocol::{RoutingTreeWork, SourceWorkerMode, WorkStamp, WorkerPhase};
 use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
 use super::SynthEngine;
-use super::BLOCK_SLOT_SCRATCH_FRAMES;
 use crossbeam_channel::{Receiver, Sender};
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 use std::time::Duration;
 use std::time::Instant;
 
@@ -25,7 +22,7 @@ pub(super) const SOURCE_WORKER_COUNT: usize = 2;
 
 pub struct SourceWorkerRuntime {
     mode: SourceWorkerMode,
-    work_txs: Option<[Sender<WorkerCommand>; SOURCE_WORKER_COUNT]>,
+    work_txs: Option<[Sender<RoutingTreeWork>; SOURCE_WORKER_COUNT]>,
     #[cfg(test)]
     done_txs: Option<[Sender<CompletedEnvelope>; SOURCE_WORKER_COUNT]>,
     done_rxs: Option<[Receiver<CompletedEnvelope>; SOURCE_WORKER_COUNT]>,
@@ -33,13 +30,13 @@ pub struct SourceWorkerRuntime {
     home_rxs: Option<[Receiver<OwnerEnvelope>; SOURCE_WORKER_COUNT]>,
     fault_txs: Option<[Sender<OwnerEnvelope>; SOURCE_WORKER_COUNT]>,
     worker_exited: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     jobs_started: Option<[Arc<AtomicU64>; SOURCE_WORKER_COUNT]>,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     render_attempts: AtomicU64,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     worker_pause_entries: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
     runtime_close: Option<Arc<SourceWorkerCloseState>>,
     health: Arc<SourceWorkerHealthState>,
@@ -71,12 +68,8 @@ pub struct SourceWorkerRuntime {
     bus_dispatch_residency: [u8; super::super::types::BUS_COUNT],
     bus_dispatch_residency_valid: bool,
     force_fault_mask: u8,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     deadline_override: Option<Duration>,
-    #[cfg(test)]
-    before_bus_dispatch: Option<fn(&mut SourceWorkerRuntime, &mut Instant)>,
-    #[cfg(test)]
-    after_bus_dispatch: Option<fn(&mut SourceWorkerRuntime)>,
 }
 
 impl SourceWorkerRuntime {
@@ -123,71 +116,6 @@ impl SourceWorkerRuntime {
         })
     }
 
-    pub(super) fn render_source_block(&mut self, engine: &mut SynthEngine, frames: usize) -> bool {
-        self.render_source_block_with(engine, frames, |_| ())
-            .is_some()
-    }
-
-    pub(super) fn render_source_block_with<R>(
-        &mut self,
-        engine: &mut SynthEngine,
-        frames: usize,
-        render: impl FnOnce(&mut SynthEngine) -> R,
-    ) -> Option<R> {
-        #[cfg(any(test, feature = "test-support"))]
-        self.render_attempts.fetch_add(1, Ordering::Relaxed);
-        if self.mode == SourceWorkerMode::Inline {
-            return None;
-        }
-        if self.health.status() != SourceWorkerHealth::Healthy {
-            self.reclaim_available(engine);
-            return None;
-        }
-        if frames > BLOCK_SLOT_SCRATCH_FRAMES {
-            self.latch_invalid_block();
-            return None;
-        }
-        if self.in_flight_mask != 0 || !self.home_is_ready() {
-            self.latch_dispatch_failure(0b11);
-            return None;
-        }
-        self.expected_stamp = Some(WorkStamp {
-            runtime_generation: self.runtime_generation,
-            render_plan_generation: engine.render_plan.generation,
-            quantum_sequence: self.next_sequence,
-            frames,
-            base_sample_clock: engine.sample_clock,
-        });
-        if !self.dispatch(engine) {
-            self.reclaim_available(engine);
-            return None;
-        }
-        self.collect_with(engine, true, render)
-    }
-
-    #[cfg(test)]
-    fn collect(&mut self, engine: &mut SynthEngine, wait: bool) -> bool {
-        self.collect_with(engine, wait, |_| ()).is_some()
-    }
-
-    fn collect_with<R>(
-        &mut self,
-        engine: &mut SynthEngine,
-        wait: bool,
-        render: impl FnOnce(&mut SynthEngine) -> R,
-    ) -> Option<R> {
-        let start = Instant::now();
-        let expected_frames = self.expected_stamp.map_or(0, |stamp| stamp.frames);
-        let deadline = start + self.rendezvous_deadline(expected_frames);
-        self.collect_wave_with_deadline(
-            engine,
-            wait,
-            super::source_worker_protocol::WorkerPhase::Sources,
-            deadline,
-        )?;
-        self.finish_completed(engine, render)
-    }
-
     fn home_is_empty(&self, parity: usize) -> bool {
         self.home_txs
             .as_ref()
@@ -214,10 +142,6 @@ mod deadlines;
 
 mod quantum;
 
-mod dispatch;
-
-mod completion;
-
 mod controls;
 
 #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
@@ -226,8 +150,6 @@ mod pipeline_probe;
 pub use pipeline_probe::RoutingTreePipelineProbe;
 
 mod recovery;
-
-mod reduction;
 
 #[cfg(test)]
 pub(super) mod test_support;
@@ -244,7 +166,7 @@ mod collection_test_support;
 #[cfg(test)]
 mod residency_test_support;
 
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 mod feature_support;
 
 #[cfg(feature = "routing-tree-executor")]

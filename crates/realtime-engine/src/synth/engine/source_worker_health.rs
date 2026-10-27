@@ -1,4 +1,4 @@
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,7 +64,7 @@ pub struct SourceWorkerHealthSnapshot {
     pub invalid_blocks: u64,
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) struct SourceWorkerHealthState {
     status: AtomicU8,
     failed_mask: AtomicU8,
@@ -77,7 +77,7 @@ pub(super) struct SourceWorkerHealthState {
     invalid_blocks: AtomicU64,
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 impl SourceWorkerHealthState {
     pub(super) fn new(status: SourceWorkerHealth) -> Self {
         Self {
@@ -181,7 +181,7 @@ impl SourceWorkerHealthState {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod tests {
     use super::*;
 

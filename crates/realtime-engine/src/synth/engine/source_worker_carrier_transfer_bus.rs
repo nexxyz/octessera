@@ -1,6 +1,6 @@
 use super::bus_chain_owner::BusChainCarrier;
 use super::source_worker_lifecycle::OwnerEnvelope;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use super::SynthEngine;
 
 pub(super) fn valid_bus_completion_owner(
@@ -37,7 +37,7 @@ pub(super) fn combine_bus_carriers(
     })
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) fn take_bus_carriers(
     engine: &mut SynthEngine,
 ) -> [Option<BusChainCarrier>; super::super::types::BUS_COUNT] {
@@ -48,14 +48,14 @@ pub(super) fn take_bus_carriers(
         let logical_bus_id = owner.logical_bus_id;
         carriers[logical_bus_id]
             .as_mut()
-            .expect("validated persistent bus identity")
+            .expect("validated bus identity")
             .owner = Some(owner);
     }
     engine.bus_chains = owners;
     carriers
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) fn restore_bus_carriers_to_engine(
     engine: &mut SynthEngine,
     carriers: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
@@ -65,17 +65,4 @@ pub(super) fn restore_bus_carriers_to_engine(
             engine.bus_chains.push(owner);
         }
     }
-}
-
-#[cfg(any(test, feature = "test-support"))]
-pub(super) fn split_bus_carriers(
-    carriers: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
-) -> [[Option<BusChainCarrier>; super::super::types::BUS_COUNT];
-       super::super::types::VOICE_PARTITION_COUNT] {
-    let mut homes = std::array::from_fn(|_| std::array::from_fn(|_| None));
-    for (logical_bus_id, carrier) in carriers.into_iter().enumerate() {
-        homes[logical_bus_id % super::super::types::VOICE_PARTITION_COUNT][logical_bus_id] =
-            carrier;
-    }
-    homes
 }

@@ -1,20 +1,14 @@
 mod owner_routing;
 mod startup;
-#[cfg(test)]
-use super::source_lane_renderer::SampleSourceContext;
 use super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
 pub(super) use super::source_worker_owner::{
-    CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerScratch, WorkerExit,
+    CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, WorkerExit,
 };
 use super::source_worker_protocol::SourceWorkerRetirementError;
-#[cfg(test)]
-use super::source_worker_protocol::WorkerCommand;
 use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
-#[cfg(test)]
-use crossbeam_channel::bounded;
 use crossbeam_channel::{Receiver, Sender};
 use owner_routing::{route_completion, route_owner, worker_mask};
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -31,7 +25,7 @@ pub(super) const SOURCE_WORKER_MAILBOX_CAPACITY: usize = 1;
 
 static NEXT_SOURCE_WORKER_GENERATION: AtomicU64 = AtomicU64::new(1);
 
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 pub use super::source_worker_observer::SourceWorkerOwnerIdentity;
 
 pub struct SourceWorkerLifecycle {
@@ -44,7 +38,7 @@ pub struct SourceWorkerLifecycle {
     pub(super) completion_rxs: [Receiver<CompletedEnvelope>; SOURCE_WORKER_COUNT],
     pub(super) runtime_close: Arc<SourceWorkerCloseState>,
     pub(super) health: Arc<SourceWorkerHealthState>,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub(super) destroyed_owner_identities: [Option<SourceWorkerOwnerIdentity>; SOURCE_WORKER_COUNT],
     #[cfg(test)]
     reverse_completion: Arc<ReverseCompletionState>,
@@ -139,12 +133,12 @@ impl SourceWorkerLifecycle {
         let shutdown = super::source_worker_protocol::SourceWorkerShutdown {
             joined_workers,
             retirement_error,
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             destroyed_owner_count: self.destroyed_owner_identities.iter().flatten().count(),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             destroyed_owner_identities: self.destroyed_owner_identities,
         };
-        #[cfg(any(test, feature = "test-support"))]
+        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
         super::source_worker_observer::notify_shutdown_probe(&shutdown);
         shutdown
     }
@@ -235,9 +229,9 @@ impl SourceWorkerLifecycle {
     }
 
     fn finish_owner(&mut self, owner: OwnerEnvelope) {
-        #[cfg(any(test, feature = "test-support"))]
+        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
         let identity = super::source_worker_observer::owner_identity(&owner);
-        #[cfg(any(test, feature = "test-support"))]
+        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
         if let Some(slot) = self
             .destroyed_owner_identities
             .iter_mut()
@@ -248,40 +242,21 @@ impl SourceWorkerLifecycle {
         drop(owner);
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_pause_for_test(&self, paused: bool) {
-        for worker in &self.workers {
-            worker.pause.store(paused, Ordering::Release);
-        }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn fault_owner_identities_for_test(&self) -> [Option<SourceWorkerOwnerIdentity>; 2] {
-        std::array::from_fn(|parity| {
-            let owner = self.fault_rxs[parity].try_recv().ok()?;
-            let identity = super::source_worker_observer::owner_identity(&owner);
-            self.fault_txs[parity]
-                .try_send(owner)
-                .expect("fault escrow");
-            Some(identity)
-        })
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub fn set_exit_on_job_for_test(&self, parity: usize) {
         self.workers[parity]
             .exit_on_job
             .store(true, Ordering::Release);
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub fn set_hold_before_receive_for_test(&self, held: bool) {
         for worker in &self.workers {
             worker.hold_before_receive.store(held, Ordering::Release);
         }
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub fn hold_control_for_test(
         &self,
     ) -> super::source_worker_retirement::SourceWorkerHoldControl {
@@ -292,89 +267,11 @@ impl SourceWorkerLifecycle {
         )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub fn set_panic_on_job_for_test(&self, parity: usize) {
         self.workers[parity]
             .panic_on_job
             .store(true, Ordering::Release);
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn set_panic_on_bus_for_test(&self, parity: usize) {
-        self.workers[parity]
-            .panic_on_bus
-            .store(true, Ordering::Release);
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn set_exit_on_bus_for_test(&self, parity: usize) {
-        self.workers[parity]
-            .exit_on_bus
-            .store(true, Ordering::Release);
-    }
-
-    #[cfg(test)]
-    pub(crate) fn disconnect_completion_for_test(&mut self, parity: usize) {
-        let (done_tx, done_rx) = bounded(0);
-        drop(done_tx);
-        self.workers[parity].done_rx = done_rx;
-    }
-
-    #[cfg(test)]
-    pub(crate) fn disconnect_work_for_test(&mut self, parity: usize) {
-        self.workers[parity].work_tx.take();
-    }
-
-    #[cfg(test)]
-    pub(crate) fn fill_work_channel_for_test(&self, parity: usize) -> bool {
-        let mut engine = super::SynthEngine::new(48_000);
-        let owner = OwnerEnvelope {
-            runtime_generation: self.runtime_generation(),
-            parity,
-            partitions: SourceLanePartitionBundle {
-                synth: engine
-                    .synth_voice_pool
-                    .take_partition(parity)
-                    .expect("test synth partition"),
-                sample: engine
-                    .sample_voice_pool
-                    .take_partition(parity)
-                    .expect("test sample partition"),
-            },
-            scratch: SourceWorkerScratch::new(),
-            bus_carriers: std::array::from_fn(|_| None),
-            #[cfg(feature = "routing-tree-executor")]
-            routing_tree: None,
-        };
-        let work = WorkerCommand::Sources {
-            owner,
-            stamp: super::source_worker_protocol::WorkStamp {
-                runtime_generation: self.runtime_generation(),
-                render_plan_generation: engine.render_plan.generation,
-                quantum_sequence: u64::MAX,
-                frames: 0,
-                base_sample_clock: engine.sample_clock,
-            },
-            synth_context: engine.synth_source_context(),
-            sample_context: SampleSourceContext {
-                sample_rate: engine.sample_rate,
-            },
-        };
-        self.workers[parity]
-            .work_tx
-            .as_ref()
-            .expect("source worker lifecycle is active")
-            .try_send(work)
-            .is_ok()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn work_channel_is_full_for_test(&self, parity: usize) -> bool {
-        self.workers[parity]
-            .work_tx
-            .as_ref()
-            .expect("source worker lifecycle is active")
-            .is_full()
     }
 
     #[cfg(test)]
@@ -403,42 +300,20 @@ impl SourceWorkerLifecycle {
         )
     }
 
-    #[cfg(test)]
-    pub(crate) fn jobs_started_for_test(&self) -> [u64; SOURCE_WORKER_COUNT] {
-        self.workers
-            .each_ref()
-            .map(|worker| worker.jobs_started.load(Ordering::Relaxed))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn join_handles_present_for_test(&self) -> [bool; SOURCE_WORKER_COUNT] {
-        self.workers.each_ref().map(|worker| worker.join.is_some())
-    }
-
-    #[cfg(test)]
-    pub(crate) fn set_pause_for_parity_for_test(&self, parity: usize, paused: bool) {
-        self.workers[parity].pause.store(paused, Ordering::Release);
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub(super) fn worker_pause_controls_for_test(&self) -> [Arc<AtomicBool>; SOURCE_WORKER_COUNT] {
         self.workers
             .each_ref()
             .map(|worker| Arc::clone(&worker.pause))
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub(super) fn worker_pause_entry_controls_for_test(
         &self,
     ) -> [Arc<AtomicBool>; SOURCE_WORKER_COUNT] {
         self.workers
             .each_ref()
             .map(|worker| Arc::clone(&worker.pause_entered))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn retirement_after_runtime_drop_for_test(&self) -> SourceWorkerRetirement {
-        super::source_worker_retirement::SourceWorkerRetirement::new(&self.runtime_close)
     }
 }
 
@@ -467,7 +342,6 @@ pub(super) fn owner_for_test(parity: usize) -> OwnerEnvelope {
                 .take_partition(parity)
                 .expect("sample partition"),
         },
-        scratch: SourceWorkerScratch::new(),
         bus_carriers: std::array::from_fn(|_| None),
         #[cfg(feature = "routing-tree-executor")]
         routing_tree: None,

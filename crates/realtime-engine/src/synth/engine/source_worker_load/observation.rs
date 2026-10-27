@@ -32,6 +32,7 @@ impl SourceWorkerLoad {
         }
     }
 
+    #[cfg(test)]
     pub(in crate::synth::engine) fn observe_pair(
         &mut self,
         observations: [SourceWorkerLoadObservation; super::SOURCE_WORKER_COUNT],

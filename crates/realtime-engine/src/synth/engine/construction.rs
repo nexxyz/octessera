@@ -67,8 +67,6 @@ impl SynthEngine {
             dsp_config: DspRuntimeConfig::default(),
             worker_utilization_ppm: None,
             worker_load_warning: WorkerLoadWarningState::default(),
-            #[cfg(any(test, feature = "test-support"))]
-            persistent_bus_limit: None,
         }
     }
 }

@@ -1,6 +1,5 @@
 use super::*;
 use std::sync::Arc;
-use std::thread;
 
 fn load(ns_per_unit_ewma: [u64; 2]) -> SourceWorkerLoadSnapshot {
     SourceWorkerLoadSnapshot {
@@ -54,35 +53,6 @@ fn active_synth_notes(engine: &SynthEngine, slot: usize) -> Vec<u8> {
         .filter(|voice| voice.active)
         .map(|voice| voice.midi_note)
         .collect()
-}
-
-fn lanes_after_completion_order(reverse: bool) -> Vec<usize> {
-    let mut engine = super::source_worker_test_fixtures::dynamic_engine();
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, 128).expect("runtime");
-    lifecycle.set_reverse_completion_for_test(reverse);
-    assert!(runtime.dispatch_only_for_test(&mut engine, 128));
-    for parity in 0..2 {
-        for _ in 0..10_000 {
-            if runtime.completion_ready_for_test(parity) {
-                break;
-            }
-            thread::yield_now();
-        }
-        assert!(runtime.rewrite_completion_measurement_for_test(parity, 1_000_000, 0));
-    }
-    assert!(runtime.collect_wait_for_test(&mut engine));
-    assert!(runtime
-        .with_controls_ready(&mut engine, |engine| {
-            assert!(engine.source_worker_load.is_some());
-            engine.note_on(1, 60, 100, 5_000);
-            engine.note_on(1, 61, 100, 5_000);
-        })
-        .is_some());
-    let lanes = engine.active_synth_lane_indices_for_slot(1);
-    let retirement = runtime.retire();
-    assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
-    lanes
 }
 
 #[test]
@@ -381,31 +351,4 @@ fn sample_cross_worker_steal_preflights_its_retirement_addition() {
         1
     );
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 0);
-}
-
-#[test]
-fn persistent_runtime_publishes_load_only_during_atomic_control_ownership() {
-    let mut engine = SynthEngine::new(48_000);
-    let (lifecycle, mut runtime) =
-        SourceWorkerLifecycle::start_prewarmed_with_frames(&mut engine, 128).expect("runtime");
-    assert!(engine.source_worker_load.is_none());
-    let published = runtime
-        .with_controls_ready(&mut engine, |engine| {
-            assert!(engine.voice_pools_home());
-            assert!(engine.source_worker_load.is_some());
-            engine.source_worker_load
-        })
-        .expect("control ownership");
-    assert!(published.is_some());
-    assert!(engine.source_worker_load.is_none());
-    let retirement = runtime.retire();
-    assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
-}
-
-#[test]
-fn reversed_completion_history_produces_the_same_new_voice_placement() {
-    assert_eq!(
-        lanes_after_completion_order(false),
-        lanes_after_completion_order(true)
-    );
 }

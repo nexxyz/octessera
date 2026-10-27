@@ -1,5 +1,7 @@
 use super::render_momentary_fx::process_momentary_fx_states;
-use super::{MomentaryFxKind, MomentaryFxState, SynthEngine, PITCH_FILL_FRAMES};
+#[cfg(feature = "routing-tree-executor")]
+use super::SynthEngine;
+use super::{MomentaryFxKind, MomentaryFxState, PITCH_FILL_FRAMES};
 use crate::synth::MomentaryFxTarget;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -231,6 +233,7 @@ fn momentary_pitch_filter_activation_is_order_independent_for_shared_targets() {
     }
 }
 
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn momentary_pitch_filter_global_activation_matches_host_render_order() {
     let input = controlled_input();
@@ -288,6 +291,7 @@ fn render_combined_fx(
         .collect()
 }
 
+#[cfg(feature = "routing-tree-executor")]
 fn start_filter_and_pitch(engine: &mut SynthEngine, pitch_first: bool, target: MomentaryFxTarget) {
     let filter_params = filter_params();
     let pitch_params = pitch_params();

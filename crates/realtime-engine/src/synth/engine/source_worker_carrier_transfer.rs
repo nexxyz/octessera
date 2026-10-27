@@ -1,9 +1,7 @@
 use super::bus_chain_owner::BusChainCarrier;
 use super::source_worker_carrier_transfer_bus::combine_bus_carriers;
 use super::source_worker_lease::OwnerLease;
-use super::source_worker_lifecycle::{
-    OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerScratch,
-};
+use super::source_worker_lifecycle::{OwnerEnvelope, SourceLanePartitionBundle};
 use super::source_worker_transfer::{
     can_install_source_partition_bundle, install_source_partition_bundle_after_check,
     source_partitions_vacant, take_source_partition_bundles,
@@ -11,10 +9,8 @@ use super::source_worker_transfer::{
 use super::SynthEngine;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
-#[cfg(any(test, feature = "test-support"))]
-pub(super) use super::source_worker_carrier_transfer_bus::split_bus_carriers;
 pub(super) use super::source_worker_carrier_transfer_bus::valid_bus_completion_owner;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub(super) use super::source_worker_carrier_transfer_bus::{
     restore_bus_carriers_to_engine, take_bus_carriers,
 };
@@ -22,7 +18,6 @@ pub(super) use super::source_worker_carrier_transfer_bus::{
 struct OwnerReturnData {
     generation: u64,
     parity: usize,
-    scratch: SourceWorkerScratch,
     partitions: SourceLanePartitionBundle,
     #[cfg(feature = "routing-tree-executor")]
     routing_tree: Option<super::routing_tree_worker::RoutingTreeOwnerData>,
@@ -34,7 +29,6 @@ pub(super) fn with_both_source_owners<R>(
     second: &mut OwnerLease,
     operation: impl FnOnce(
         &mut SynthEngine,
-        [&SourceWorkerScratch; 2],
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
@@ -48,7 +42,6 @@ pub(super) fn with_both_source_owners_preserving_carriers<R>(
     expected_residency: &[u8; super::super::types::BUS_COUNT],
     operation: impl FnOnce(
         &mut SynthEngine,
-        [&SourceWorkerScratch; 2],
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
@@ -70,7 +63,6 @@ pub(super) fn with_both_source_owners_for_routing_tree_controls<R>(
     second: &mut OwnerLease,
     operation: impl FnOnce(
         &mut SynthEngine,
-        [&SourceWorkerScratch; 2],
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> Result<R, ()>,
 ) -> Result<R, ()> {
@@ -81,13 +73,13 @@ pub(super) fn with_both_source_owners_for_routing_tree_controls<R>(
         true,
         None,
         true,
-        |engine, scratch, carriers| {
+        |engine, carriers| {
             if !super::routing_tree_state::sync_routing_tree_spread_states_to_engine(
                 engine, carriers,
             ) {
                 return Err(());
             }
-            let result = operation(engine, scratch, carriers);
+            let result = operation(engine, carriers);
             if !super::routing_tree_state::sync_routing_tree_spread_states_to_carriers(
                 engine, carriers,
             ) {
@@ -107,7 +99,6 @@ fn with_both_source_owners_inner<R>(
     routing_tree_controls: bool,
     operation: impl FnOnce(
         &mut SynthEngine,
-        [&SourceWorkerScratch; 2],
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
@@ -163,7 +154,6 @@ fn with_both_source_owners_inner<R>(
         parity: first_parity,
         runtime_generation: first_generation,
         partitions: first_partitions,
-        scratch: first_scratch,
         bus_carriers: first_carriers,
         #[cfg(feature = "routing-tree-executor")]
             routing_tree: mut first_routing_tree,
@@ -172,7 +162,6 @@ fn with_both_source_owners_inner<R>(
         parity: second_parity,
         runtime_generation: second_generation,
         partitions: second_partitions,
-        scratch: second_scratch,
         bus_carriers: second_carriers,
         #[cfg(feature = "routing-tree-executor")]
             routing_tree: mut second_routing_tree,
@@ -200,7 +189,7 @@ fn with_both_source_owners_inner<R>(
                 panic!("routing-tree owner state transfer failed");
             }
         }
-        let result = operation(engine, [&first_scratch, &second_scratch], &mut bus_carriers);
+        let result = operation(engine, &mut bus_carriers);
         #[cfg(feature = "routing-tree-executor")]
         if routing_tree_controls {
             let Some(assignment) = engine.routing_tree_assignment() else {
@@ -233,7 +222,6 @@ fn with_both_source_owners_inner<R>(
                 OwnerReturnData {
                     generation: first_generation,
                     parity: first_parity,
-                    scratch: first_scratch,
                     partitions: first_partitions,
                     #[cfg(feature = "routing-tree-executor")]
                     routing_tree: first_routing_tree,
@@ -241,7 +229,6 @@ fn with_both_source_owners_inner<R>(
                 OwnerReturnData {
                     generation: second_generation,
                     parity: second_parity,
-                    scratch: second_scratch,
                     partitions: second_partitions,
                     #[cfg(feature = "routing-tree-executor")]
                     routing_tree: second_routing_tree,
@@ -258,7 +245,6 @@ fn with_both_source_owners_inner<R>(
                 OwnerReturnData {
                     generation: first_generation,
                     parity: first_parity,
-                    scratch: first_scratch,
                     partitions: first_partitions,
                     #[cfg(feature = "routing-tree-executor")]
                     routing_tree: first_routing_tree,
@@ -266,7 +252,6 @@ fn with_both_source_owners_inner<R>(
                 OwnerReturnData {
                     generation: second_generation,
                     parity: second_parity,
-                    scratch: second_scratch,
                     partitions: second_partitions,
                     #[cfg(feature = "routing-tree-executor")]
                     routing_tree: second_routing_tree,
@@ -286,7 +271,6 @@ fn with_both_source_owners_inner<R>(
                     OwnerReturnData {
                         generation: first_generation,
                         parity: first_parity,
-                        scratch: first_scratch,
                         partitions: first_partitions,
                         #[cfg(feature = "routing-tree-executor")]
                         routing_tree: first_routing_tree,
@@ -294,7 +278,6 @@ fn with_both_source_owners_inner<R>(
                     OwnerReturnData {
                         generation: second_generation,
                         parity: second_parity,
-                        scratch: second_scratch,
                         partitions: second_partitions,
                         #[cfg(feature = "routing-tree-executor")]
                         routing_tree: second_routing_tree,
@@ -413,7 +396,7 @@ fn take_bus_chain_owners(
         let logical_bus_id = owner.logical_bus_id;
         let carrier = carriers[logical_bus_id]
             .as_mut()
-            .expect("validated persistent bus carrier");
+            .expect("validated bus carrier");
         debug_assert!(carrier.owner.is_none());
         carrier.owner = Some(owner);
     }
@@ -449,7 +432,6 @@ fn restore_owner_pair(
         runtime_generation: first_data.generation,
         parity: first_data.parity,
         partitions: first_data.partitions,
-        scratch: first_data.scratch,
         bus_carriers: first_carriers,
         #[cfg(feature = "routing-tree-executor")]
         routing_tree: first_data.routing_tree,
@@ -458,7 +440,6 @@ fn restore_owner_pair(
         runtime_generation: second_data.generation,
         parity: second_data.parity,
         partitions: second_data.partitions,
-        scratch: second_data.scratch,
         bus_carriers: second_carriers,
         #[cfg(feature = "routing-tree-executor")]
         routing_tree: second_data.routing_tree,

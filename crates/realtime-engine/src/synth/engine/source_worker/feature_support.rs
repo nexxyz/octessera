@@ -43,10 +43,6 @@ impl SourceWorkerRuntime {
         self.deadline_override = Some(deadline);
     }
 
-    pub fn deadline_for_test(&self, frames: usize) -> Duration {
-        self.rendezvous_deadline(frames)
-    }
-
     #[cfg(feature = "routing-tree-executor")]
     pub fn routing_tree_deadline_for_test(&self, frames: usize) -> Duration {
         self.routing_tree_deadline_duration(frames)

@@ -4,6 +4,17 @@ use super::*;
 use crate::simd::interleave_stereo;
 
 impl SynthEngine {
+    #[cfg(any(test, feature = "routing-tree-executor"))]
+    pub(super) fn synth_source_context(&self) -> SynthSourceContext {
+        SynthSourceContext {
+            sample_rate: self.sample_rate,
+            configs: self.instruments,
+            render_configs: self.synth_render_configs,
+            revisions: self.synth_render_revisions,
+            mods: self.mods,
+        }
+    }
+
     pub fn next_sample(&mut self) -> f32 {
         let (l, r) = self.next_stereo_sample();
         (l + r) * 0.5
@@ -159,7 +170,7 @@ impl SynthEngine {
         }
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn finish_persistent_block(
         &mut self,
         frames: usize,

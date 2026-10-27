@@ -4,7 +4,7 @@ use super::routing_tree_state;
 use super::routing_tree_worker::RoutingTreeOwnerData;
 use super::source_worker_carrier_transfer;
 use super::source_worker_lifecycle::{
-    OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerLifecycle, SourceWorkerScratch,
+    OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerLifecycle,
 };
 use super::source_worker_protocol::{SourceWorkerSetupError, SourceWorkerStartHook};
 use super::source_worker_transfer;
@@ -58,24 +58,19 @@ fn start_prewarmed_with_hold(
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::PartitionsUnavailable);
     };
-    let Some((synth_scratch, sample_scratch)) = engine.take_inline_source_scratch() else {
+    if engine
+        .block_slot_scratch
+        .inline_source_executor
+        .take()
+        .is_none()
+    {
         let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
         let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::InlineSourceExecutorUnavailable);
-    };
-    let Some([first_scratch, second_scratch]) =
-        SourceWorkerScratch::from_inline_scratch(synth_scratch, sample_scratch)
-    else {
-        let mut source_bank = source_bank;
-        restore_partitions(engine, home_partitions);
-        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
-        source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
-        lifecycle.mark_runtime_closed();
-        return Err(SourceWorkerSetupError::InlineSourceExecutorUnavailable);
-    };
+    }
     let mut bus_carriers = bus_carriers;
     for carrier in bus_carriers.iter_mut().flatten() {
         carrier.routing_tree_spread_state = Some(
@@ -107,7 +102,6 @@ fn start_prewarmed_with_hold(
         runtime_generation: lifecycle.runtime_generation(),
         parity: 0,
         partitions: home_partitions.0,
-        scratch: first_scratch,
         bus_carriers: first_carriers,
         routing_tree: Some(RoutingTreeOwnerData::new(first_bank)),
     };
@@ -115,7 +109,6 @@ fn start_prewarmed_with_hold(
         runtime_generation: lifecycle.runtime_generation(),
         parity: 1,
         partitions: home_partitions.1,
-        scratch: second_scratch,
         bus_carriers: second_carriers,
         routing_tree: Some(RoutingTreeOwnerData::new(second_bank)),
     };
@@ -171,7 +164,7 @@ impl SourceWorkerLifecycle {
     }
 
     /// Workers wait on the hold control before receiving work, so tests can stall a quantum.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub fn start_routing_tree_prewarmed_held_for_test(
         engine: &mut SynthEngine,
         active_frames: usize,

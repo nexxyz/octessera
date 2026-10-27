@@ -13,7 +13,7 @@ pub(super) struct SynthVoicePool {
 mod identity;
 #[cfg(feature = "routing-tree-executor")]
 mod routing;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod worker;
 
 impl SynthVoicePool {

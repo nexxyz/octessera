@@ -263,12 +263,10 @@ fn master(slots: Vec<&str>) -> MasterFxConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use realtime_engine::synth::{
-        SourceWorkerLifecycle, SynthEngine, BUS_COUNT, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
-    };
+    use realtime_engine::synth::{SynthEngine, BUS_COUNT};
 
     #[test]
-    fn bus_heavy_fixture_matches_persistent_bus_contract() {
+    fn bus_heavy_fixture_fills_the_bus_and_master_slots() {
         let instruments = bus_heavy_instruments();
         let mixer = instruments.mixer.as_ref().expect("bus-heavy mixer");
         assert_eq!(mixer.buses.len(), BUS_COUNT);
@@ -309,13 +307,6 @@ mod tests {
         assert_eq!(snapshot.active_momentary_fx, 0);
         assert_eq!(snapshot.active_bus_fx_slots, 6);
         assert_eq!(snapshot.active_global_fx_slots, 2);
-
-        let (lifecycle, runtime) = SourceWorkerLifecycle::start_prewarmed_with_frames(
-            &mut engine,
-            DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
-        )
-        .expect("persistent bus-heavy fixture");
-        assert_eq!(lifecycle.shutdown(runtime.retire()).joined_workers, 2);
     }
 
     #[test]

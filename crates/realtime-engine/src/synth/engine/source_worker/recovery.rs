@@ -170,7 +170,7 @@ impl SourceWorkerRuntime {
             engine,
             &mut first,
             &mut second,
-            |engine, _, _| {
+            |engine, _| {
                 source_worker_transfer::compact_source_pools(engine);
                 refresh_active_slots(engine);
                 Ok(())
@@ -200,7 +200,7 @@ impl SourceWorkerRuntime {
             &mut first,
             &mut second,
             &expected_residency,
-            |_, _, carriers| {
+            |_, carriers| {
                 for carrier in carriers.iter_mut().flatten() {
                     if !carrier.prepare(frames) {
                         return Err(());

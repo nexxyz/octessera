@@ -205,54 +205,6 @@ fn pluck_body_is_post_ring_and_next_pluck_controls_do_not_mutate_held_state() {
 }
 
 #[test]
-fn pluck_dispersion_and_body_match_scalar_block_and_worker_rendering() {
-    let config = PluckConfig {
-        dispersion_pct: 80,
-        body_amount_pct: 55,
-        body_frequency_hz: 720,
-        pick_depth_pct: 35,
-        ..PluckConfig::default()
-    };
-    let mut scalar = configured_pluck(config, 48_000);
-    let mut block = configured_pluck(config, 48_000);
-    let mut worker = configured_pluck(config, 48_000);
-    for engine in [&mut scalar, &mut block, &mut worker] {
-        engine.note_on(0, 64, 112, 10_000);
-    }
-    let (lifecycle, mut runtime) = SourceWorkerLifecycle::start_prewarmed(&mut worker).unwrap();
-    runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
-    let mut left = Vec::with_capacity(128);
-    let mut right = Vec::with_capacity(128);
-    let mut output = Vec::with_capacity(256);
-    block.render_interleaved_block(128, &mut left, &mut right, &mut output);
-    let expected = (0..128)
-        .flat_map(|_| {
-            let (left, right) = scalar.next_stereo_sample();
-            [left, right]
-        })
-        .collect::<Vec<_>>();
-    for (actual, expected) in output.iter().zip(&expected) {
-        assert_eq!(actual.to_bits(), expected.to_bits());
-    }
-    worker.render_interleaved_block_with_source_runtime(
-        &mut runtime,
-        128,
-        &mut left,
-        &mut right,
-        &mut output,
-    );
-    assert_eq!(
-        runtime.health_snapshot().status,
-        SourceWorkerHealth::Healthy
-    );
-    for (actual, expected) in output.iter().zip(&expected) {
-        assert_eq!(actual.to_bits(), expected.to_bits());
-    }
-    let retirement = runtime.retire();
-    assert_eq!(lifecycle.shutdown(retirement).joined_workers, 2);
-}
-
-#[test]
 fn pluck_parameter_ids_are_closed_and_new_values_are_bounded() {
     let expected = [
         (PluckParamId::DecayMs, "pluck.decayMs"),

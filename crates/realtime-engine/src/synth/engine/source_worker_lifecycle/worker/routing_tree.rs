@@ -7,16 +7,13 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 pub(super) fn process(
-    command: super::super::super::source_worker_owner::WorkerCommand,
+    mut work: super::super::super::source_worker_owner::RoutingTreeWork,
     parity: usize,
     done_tx: &Sender<CompletedEnvelope>,
     state: &SourceWorkerThreadState,
 ) -> Option<WorkerExit> {
-    let Some(mut work) = command.into_routing_tree_work() else {
-        unreachable!("routing-tree worker received a non-routing command");
-    };
     state.jobs_started.fetch_add(1, Ordering::Relaxed);
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     if state.exit_on_job.swap(false, Ordering::AcqRel) {
         return Some(finish_worker(
             state,
@@ -26,15 +23,15 @@ pub(super) fn process(
             ),
         ));
     }
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     state.pause_entered.store(true, Ordering::Release);
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     while state.pause.load(Ordering::Acquire) {
         std::hint::spin_loop();
     }
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     state.pause_entered.store(false, Ordering::Release);
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
     #[cfg(not(any(test, feature = "test-support")))]
     let should_panic = false;

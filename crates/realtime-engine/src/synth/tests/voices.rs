@@ -228,6 +228,7 @@ fn audio_load_status_has_no_worker_warning_without_persistent_evidence() {
     assert!(!status.missed_quantum_flash);
 }
 
+#[cfg(feature = "routing-tree-executor")]
 #[test]
 fn audio_load_status_reports_native_worker_warning_fields() {
     let mut engine = SynthEngine::new(48_000);

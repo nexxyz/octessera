@@ -1,13 +1,13 @@
 #[cfg(feature = "routing-tree-executor")]
 use super::super::routing_tree_worker::RoutingTreeOutputBlock;
 use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use super::super::source_worker_lifecycle::SourceWorkerLifecycle;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use super::super::source_worker_load::SourceWorkerLoad;
 use super::super::source_worker_protocol::SourceWorkerMode;
 use super::SourceWorkerRuntime;
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
@@ -23,13 +23,13 @@ impl SourceWorkerRuntime {
             home_rxs: None,
             fault_txs: None,
             worker_exited: None,
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             jobs_started: None,
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             render_attempts: AtomicU64::new(0),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             worker_pauses: None,
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             worker_pause_entries: None,
             runtime_close: None,
             health: Arc::new(SourceWorkerHealthState::new(SourceWorkerHealth::Disabled)),
@@ -59,28 +59,9 @@ impl SourceWorkerRuntime {
             bus_dispatch_residency: [0; super::super::super::types::BUS_COUNT],
             bus_dispatch_residency_valid: false,
             force_fault_mask: 0,
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             deadline_override: None,
-            #[cfg(test)]
-            before_bus_dispatch: None,
-            #[cfg(test)]
-            after_bus_dispatch: None,
         }
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    pub(in super::super) fn new(
-        lifecycle: &SourceWorkerLifecycle,
-        sample_rate: u32,
-        active_frames: usize,
-    ) -> Option<Self> {
-        Self::new_with_mode(
-            lifecycle,
-            sample_rate,
-            active_frames,
-            SourceWorkerMode::Persistent,
-            0,
-        )
     }
 
     #[cfg(feature = "routing-tree-executor")]
@@ -98,7 +79,7 @@ impl SourceWorkerRuntime {
         )
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     fn new_with_mode(
         lifecycle: &SourceWorkerLifecycle,
         sample_rate: u32,
@@ -129,16 +110,16 @@ impl SourceWorkerRuntime {
                 Arc::clone(&workers[0].exited),
                 Arc::clone(&workers[1].exited),
             ]),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             jobs_started: Some([
                 Arc::clone(&workers[0].jobs_started),
                 Arc::clone(&workers[1].jobs_started),
             ]),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             render_attempts: AtomicU64::new(0),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             worker_pauses: Some(lifecycle.worker_pause_controls_for_test()),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             worker_pause_entries: Some(lifecycle.worker_pause_entry_controls_for_test()),
             runtime_close: Some(Arc::clone(&lifecycle.runtime_close)),
             health: Arc::clone(&lifecycle.health),
@@ -169,12 +150,8 @@ impl SourceWorkerRuntime {
             bus_dispatch_residency: [0; super::super::super::types::BUS_COUNT],
             bus_dispatch_residency_valid: false,
             force_fault_mask: 0,
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
             deadline_override: None,
-            #[cfg(test)]
-            before_bus_dispatch: None,
-            #[cfg(test)]
-            after_bus_dispatch: None,
         })
     }
 }

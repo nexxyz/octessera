@@ -1,6 +1,5 @@
 #[cfg(all(test, feature = "routing-tree-executor"))]
 use super::super::source_worker_carrier_transfer;
-use super::super::source_worker_health::SourceWorkerHealth;
 use super::super::source_worker_transfer;
 use super::super::SynthEngine;
 use super::{SourceWorkerMode, SourceWorkerRuntime};
@@ -17,40 +16,7 @@ impl SourceWorkerRuntime {
                 Ok(apply(engine))
             });
         }
-        if self.mode == SourceWorkerMode::Inline {
-            return Some(apply(engine));
-        }
-        self.reclaim_available(engine);
-        if self.health.status() != SourceWorkerHealth::Healthy
-            || self.in_flight_mask != 0
-            || self.completed_mask != 0
-            || !self.home_is_ready()
-        {
-            return None;
-        }
-        let mut first = self.lease_home(0)?;
-        let Some(mut second) = self.lease_home(1) else {
-            first.return_fault();
-            self.latch_completion_failure(0b11);
-            return None;
-        };
-        let load = self.load_snapshot();
-        match source_worker_transfer::with_both_source_partitions(
-            engine,
-            &mut first,
-            &mut second,
-            |engine, _| engine.with_source_worker_load(load, apply),
-        ) {
-            Ok(result) => {
-                first.return_home();
-                second.return_home();
-                Some(result)
-            }
-            Err(()) => {
-                self.latch_completion_failure(0b11);
-                None
-            }
-        }
+        Some(apply(engine))
     }
 
     pub fn with_recovered_owners<R>(
@@ -111,7 +77,7 @@ impl SourceWorkerRuntime {
                 engine,
                 &mut first,
                 &mut second,
-                |engine, _, _| Ok(inspect(engine)),
+                |engine, _| Ok(inspect(engine)),
             );
         match result {
             Ok(result) => {

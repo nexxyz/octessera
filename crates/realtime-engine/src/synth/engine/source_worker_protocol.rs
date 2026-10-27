@@ -31,8 +31,8 @@ pub struct WorkStamp {
     pub base_sample_clock: u64,
 }
 
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-pub(super) use super::source_worker_owner::WorkerCommand;
+#[cfg(feature = "routing-tree-executor")]
+pub(super) use super::source_worker_owner::RoutingTreeWork;
 
 pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
 
@@ -49,9 +49,9 @@ pub enum SourceWorkerMode {
 pub struct SourceWorkerShutdown {
     pub joined_workers: usize,
     pub retirement_error: Option<SourceWorkerRetirementError>,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub destroyed_owner_count: usize,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub destroyed_owner_identities:
         [Option<super::source_worker_lifecycle::SourceWorkerOwnerIdentity>; 2],
 }
@@ -65,7 +65,7 @@ pub enum SourceWorkerRetirementError {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub enum SourceWorkerSetupError {
     WorkerSchedulingUnavailable {
         parity: usize,

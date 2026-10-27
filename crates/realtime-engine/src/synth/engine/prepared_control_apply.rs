@@ -60,13 +60,6 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return retired_rejected_instruments(prepared, None);
         }
-        #[cfg(any(test, feature = "test-support"))]
-        if self
-            .persistent_bus_limit
-            .is_some_and(|limit| prepared.bus_chains.len() > limit)
-        {
-            return retired;
-        }
         let mut next_render_plan = prepared.render_plan;
         self.pan_positions = prepared.pan_positions;
         self.master_volume = prepared.master_volume;

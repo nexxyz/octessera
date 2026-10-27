@@ -4,7 +4,7 @@ use crossbeam_channel::Sender;
 use std::cell::RefCell;
 use std::thread;
 
-pub type SourceWorkerOwnerIdentity = (usize, usize, usize, usize, usize, Option<usize>);
+pub type SourceWorkerOwnerIdentity = (usize, usize, usize, Option<usize>);
 
 thread_local! {
     static SHUTDOWN_PROBE: RefCell<Option<Sender<(SourceWorkerShutdown, thread::ThreadId)>>> =
@@ -39,8 +39,6 @@ pub(super) fn owner_identity(owner: &OwnerEnvelope) -> SourceWorkerOwnerIdentity
         owner.parity,
         (&*owner.partitions.synth) as *const _ as usize,
         (&*owner.partitions.sample) as *const _ as usize,
-        owner.scratch.synth.samples[0].as_ptr() as usize,
-        owner.scratch.sample.samples[0].as_ptr() as usize,
         owner
             .partitions
             .sample

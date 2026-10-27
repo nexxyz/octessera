@@ -13,7 +13,7 @@ mod identity;
 mod invariants;
 #[cfg(feature = "routing-tree-executor")]
 mod routing;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod worker;
 
 pub(super) struct SampleVoicePartition {
@@ -52,7 +52,7 @@ impl SampleVoicePartition {
         self.render_lane_count = count;
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub(super) fn active_sample_buffer_address_for_test(&self) -> Option<usize> {
         self.lanes.iter().find_map(|voice| {
             voice

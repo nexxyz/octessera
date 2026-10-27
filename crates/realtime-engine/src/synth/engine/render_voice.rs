@@ -425,7 +425,7 @@ mod pluck_modal_tests;
 #[cfg(test)]
 mod pluck_pitch_calibration_tests;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod pluck_worker_tests;
 
 #[cfg(test)]
@@ -434,5 +434,5 @@ mod live_param_parity_tests;
 #[cfg(test)]
 mod drum_tests;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod drum_worker_tests;

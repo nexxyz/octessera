@@ -104,63 +104,35 @@ mod sample_voice_shape;
 #[cfg(test)]
 mod source_lane_prefix_tests;
 mod source_lane_renderer;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker;
-#[cfg(any(test, feature = "test-support"))]
-mod source_worker_bus;
-#[cfg(test)]
-mod source_worker_bus_tests;
-#[cfg(test)]
-mod source_worker_carrier_tests;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker_carrier_transfer;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker_carrier_transfer_bus;
-#[cfg(test)]
-mod source_worker_carrier_transfer_tests;
-#[cfg(test)]
-mod source_worker_failure_tests;
 mod source_worker_health;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker_lease;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker_lifecycle;
 mod source_worker_load;
-#[cfg(test)]
-mod source_worker_load_integration_tests;
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 mod source_worker_observer;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker_owner;
-#[cfg(test)]
-mod source_worker_parity_tests;
 mod source_worker_placement;
 #[cfg(test)]
 mod source_worker_placement_tests;
 mod source_worker_protocol;
-#[cfg(test)]
-mod source_worker_recovery_tests;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker_render;
-#[cfg(test)]
-mod source_worker_residency_tests;
 mod source_worker_retirement;
-#[cfg(test)]
-mod source_worker_retirement_tests;
 #[cfg(all(test, feature = "routing-tree-executor"))]
 mod source_worker_routing_deadline_tests;
-#[cfg(test)]
-mod source_worker_staging_tests;
-#[cfg(test)]
-mod source_worker_start_hook_tests;
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod source_worker_test_fixtures;
-#[cfg(test)]
-mod source_worker_tests;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 mod source_worker_transfer;
-#[cfg(test)]
-mod source_worker_two_wave_tests;
 #[cfg(test)]
 mod steal_fade_tests;
 mod support;
@@ -180,21 +152,21 @@ pub use retired_state::RetiredAudioState;
 use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
 #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
 pub use source_worker::RoutingTreePipelineProbe;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub use source_worker::SourceWorkerRuntime;
 pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub use source_worker_lifecycle::SourceWorkerLifecycle;
 pub use source_worker_load::{
     SourceWorkerLoadSnapshot, SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS,
     SOURCE_WORKER_SYNTH_COST_UNITS,
 };
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 pub use source_worker_observer::{
     install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
     SourceWorkerShutdownProbeGuard,
 };
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub use source_worker_protocol::SourceWorkerSetupError;
 #[cfg(feature = "routing-tree-executor")]
 pub use source_worker_protocol::SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT;
@@ -204,7 +176,7 @@ pub use source_worker_protocol::{
     SOURCE_WORKER_MODE_PERSISTENT,
 };
 pub use source_worker_protocol::{ROUTING_TREE_WORKER_THREAD_NAMES, SOURCE_WORKER_THREAD_NAMES};
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 pub use source_worker_retirement::SourceWorkerHoldControl;
 pub use source_worker_retirement::SourceWorkerRetirement;
 
@@ -293,8 +265,6 @@ pub struct SynthEngine {
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
     worker_load_warning: WorkerLoadWarningState,
-    #[cfg(any(test, feature = "test-support"))]
-    persistent_bus_limit: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -388,11 +358,6 @@ impl SynthEngine {
         std::mem::take(&mut self.pending_render_retired)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
-    pub(super) fn set_persistent_bus_limit(&mut self, limit: Option<usize>) {
-        self.persistent_bus_limit = limit;
-    }
-
     pub fn pending_render_retired_is_empty(&self) -> bool {
         self.pending_render_retired
             .preview_sample_voices
@@ -411,7 +376,7 @@ impl SynthEngine {
         self.dsp_config
     }
 
-    #[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn observe_worker_utilization(
         &mut self,
         utilization_ppm: u32,

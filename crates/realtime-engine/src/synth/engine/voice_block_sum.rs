@@ -192,4 +192,57 @@ mod tests {
         assert_eq!(slot_out[2], vec![1.5, 1.5, 1.0, 1.0]);
         assert!(slot_out[5].iter().all(|sample| *sample == 0.0));
     }
+
+    #[test]
+    fn voices_with_an_invalid_instrument_stay_listed_but_add_nothing() {
+        let invalid = INSTRUMENT_SLOT_COUNT as u8;
+        let mut engine = super::super::SynthEngine::new(48_000);
+        assert!(engine.synth_voice_pool.assign_lane(4, 0));
+        let synth = engine.synth_voice_pool.lane_mut(4).expect("synth lane");
+        synth.instrument_slot = invalid;
+        synth.active = true;
+        assert!(engine.sample_voice_pool.assign_lane(4, 0));
+        let sample = engine.sample_voice_pool.lane_mut(4).expect("sample lane");
+        sample.instrument_slot = invalid;
+        sample.active = true;
+        let mut synth_partition = engine
+            .synth_voice_pool
+            .take_partition(0)
+            .expect("synth home");
+        let mut sample_partition = engine
+            .sample_voice_pool
+            .take_partition(0)
+            .expect("sample home");
+        let context = engine.synth_source_context();
+        let mut slot_out: [Vec<f32>; INSTRUMENT_SLOT_COUNT] =
+            std::array::from_fn(|_| vec![0.0; 32]);
+        let mut voice_block = vec![0.0; 32];
+        let mut sum = SlotBlockSum::new(&mut slot_out);
+
+        sum_synth_partition(
+            &mut synth_partition,
+            32,
+            0,
+            &context,
+            &mut voice_block,
+            &mut sum,
+        );
+        sum_sample_partition(
+            &mut sample_partition,
+            32,
+            48_000,
+            &mut voice_block,
+            &mut sum,
+        );
+
+        assert_eq!(sum.rendered_prefixes, [0; INSTRUMENT_SLOT_COUNT]);
+        assert_eq!(
+            &synth_partition.render_lanes[..synth_partition.render_lane_count],
+            &[2]
+        );
+        assert_eq!(
+            &sample_partition.render_lanes[..sample_partition.render_lane_count],
+            &[2]
+        );
+    }
 }

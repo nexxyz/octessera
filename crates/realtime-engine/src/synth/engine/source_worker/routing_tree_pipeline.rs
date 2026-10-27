@@ -1,7 +1,7 @@
 use super::super::routing_tree_worker::RoutingTreeWorkerContext;
 use super::super::source_worker_health::SourceWorkerHealth;
 use super::super::source_worker_protocol::{
-    SourceWorkerRenderDisposition, WorkerCommand, WorkerPhase,
+    RoutingTreeWork, SourceWorkerRenderDisposition, WorkerPhase,
 };
 use super::super::{SynthEngine, BLOCK_SLOT_SCRATCH_FRAMES};
 use super::{OwnerLease, SourceWorkerRuntime, SOURCE_WORKER_COUNT};
@@ -116,7 +116,7 @@ impl SourceWorkerRuntime {
                 outputs[0].bus_active[frame] || outputs[1].bus_active[frame];
         }
         engine.set_routing_tree_profile([&outputs[0], &outputs[1]]);
-        #[cfg(any(test, feature = "test-support"))]
+        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
         if let Some(probe) = self.routing_tree_probe.as_ref() {
             probe.record_coordinator(
                 _output_stamp.quantum_sequence,
@@ -184,7 +184,7 @@ impl SourceWorkerRuntime {
         }
         let first_sent = self.send_routing_tree_work(&mut first, stamp, context);
         let second_sent = self.send_routing_tree_work(&mut { second }, stamp, context);
-        #[cfg(any(test, feature = "test-support"))]
+        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
         if first_sent && second_sent {
             if let Some(probe) = self.routing_tree_probe.as_ref() {
                 probe.record_dispatch(sequence, stamp.base_sample_clock);
@@ -209,34 +209,30 @@ impl SourceWorkerRuntime {
             self.latch_dispatch_failure(1 << lease.parity);
             return false;
         };
-        let command = WorkerCommand::RoutingTree {
+        let work = RoutingTreeWork {
             stamp,
             owner,
             context,
         };
         let parity = lease.parity;
         let Some(work_tx) = self.work_txs.as_ref().map(|txs| &txs[parity]) else {
-            let WorkerCommand::RoutingTree { owner, .. } = command else {
-                unreachable!("routing-tree dispatch only creates routing commands");
-            };
-            lease.restore_owner(owner);
+            lease.restore_owner(work.owner);
             lease.return_fault();
             self.latch_dispatch_failure(1 << parity);
             return false;
         };
-        match work_tx.try_send(command) {
+        match work_tx.try_send(work) {
             Ok(()) => {
                 self.in_flight_mask |= 1 << parity;
                 true
             }
-            Err(TrySendError::Full(WorkerCommand::RoutingTree { owner, .. }))
-            | Err(TrySendError::Disconnected(WorkerCommand::RoutingTree { owner, .. })) => {
+            Err(TrySendError::Full(RoutingTreeWork { owner, .. }))
+            | Err(TrySendError::Disconnected(RoutingTreeWork { owner, .. })) => {
                 lease.restore_owner(owner);
                 lease.return_fault();
                 self.latch_dispatch_failure(1 << parity);
                 false
             }
-            Err(_) => unreachable!("routing-tree dispatch only creates routing commands"),
         }
     }
 
@@ -322,7 +318,7 @@ impl SourceWorkerRuntime {
         }
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub fn set_routing_tree_probe_for_test(
         &mut self,
         probe: std::sync::Arc<super::super::source_worker::RoutingTreePipelineProbe>,

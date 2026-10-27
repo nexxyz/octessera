@@ -1,33 +1,8 @@
-use super::source_lane_renderer::SynthSourceContext;
-use super::source_worker_health::SourceWorkerHealth;
 use super::source_worker_protocol::{SourceWorkerMode, SourceWorkerRenderDisposition};
 use super::SynthEngine;
 use super::{SourceWorkerRuntime, BLOCK_SLOT_SCRATCH_FRAMES};
 
 impl SynthEngine {
-    pub(super) fn take_inline_source_scratch(
-        &mut self,
-    ) -> Option<(
-        [super::source_lane_renderer::SourceLaneBlockScratch; 2],
-        [super::source_lane_renderer::SourceLaneBlockScratch; 2],
-    )> {
-        self.block_slot_scratch.inline_source_executor.take()?;
-        Some((
-            std::array::from_fn(|_| super::source_lane_renderer::SourceLaneBlockScratch::new()),
-            std::array::from_fn(|_| super::source_lane_renderer::SourceLaneBlockScratch::new()),
-        ))
-    }
-
-    pub(super) fn synth_source_context(&self) -> SynthSourceContext {
-        SynthSourceContext {
-            sample_rate: self.sample_rate,
-            configs: self.instruments,
-            render_configs: self.synth_render_configs,
-            revisions: self.synth_render_revisions,
-            mods: self.mods,
-        }
-    }
-
     pub fn render_interleaved_block_with_source_runtime(
         &mut self,
         runtime: &mut SourceWorkerRuntime,
@@ -39,13 +14,6 @@ impl SynthEngine {
         if runtime.mode() == SourceWorkerMode::Inline {
             self.render_interleaved_block(frames, left, right, out);
             return SourceWorkerRenderDisposition::Fresh;
-        }
-        #[cfg(feature = "routing-tree-executor")]
-        if runtime.mode() == SourceWorkerMode::RoutingTreePersistent {
-            let _ = runtime.refresh_recovery_disposition(self);
-            return self.render_interleaved_block_with_source_runtime_ready(
-                runtime, frames, left, right, out,
-            );
         }
         let _ = runtime.refresh_recovery_disposition(self);
         self.render_interleaved_block_with_source_runtime_ready(runtime, frames, left, right, out)
@@ -101,16 +69,11 @@ impl SynthEngine {
     where
         F: FnOnce(&mut SynthEngine) -> Result<(), ()>,
     {
-        #[cfg(not(feature = "routing-tree-executor"))]
-        let _ = &apply_controls;
         if runtime.mode() == SourceWorkerMode::Inline {
             self.render_interleaved_block(frames, left, right, out);
             return SourceWorkerRenderDisposition::Fresh;
         }
         if frames > BLOCK_SLOT_SCRATCH_FRAMES {
-            if runtime.health_snapshot().status == SourceWorkerHealth::Healthy {
-                let _ = runtime.render_source_block(self, frames);
-            }
             left.fill(0.0);
             right.fill(0.0);
             out.fill(0.0);
@@ -119,57 +82,18 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
-        #[cfg(feature = "routing-tree-executor")]
-        if runtime.mode() == SourceWorkerMode::RoutingTreePersistent {
-            let disposition = runtime.render_routing_tree_persistent_block(
-                self,
-                frames,
-                &mut left[..frames],
-                &mut right[..frames],
-                apply_controls,
-            );
-            if disposition != SourceWorkerRenderDisposition::Fresh {
-                left.fill(0.0);
-                right.fill(0.0);
-            }
-            crate::simd::interleave_stereo(left, right, out);
-            return disposition;
-        }
-        #[cfg(any(test, feature = "test-support"))]
-        {
-            let health = runtime.health_snapshot().status;
-            if health != SourceWorkerHealth::Healthy {
-                if !health.is_recovering() {
-                    let _ = runtime.render_source_block(self, frames);
-                }
-                left.fill(0.0);
-                right.fill(0.0);
-                out.fill(0.0);
-                return if health.is_recovering() {
-                    SourceWorkerRenderDisposition::Recovering
-                } else {
-                    SourceWorkerRenderDisposition::Fatal
-                };
-            }
-            let disposition = runtime.render_persistent_block(
-                self,
-                frames,
-                &mut left[..frames],
-                &mut right[..frames],
-            );
-            if disposition != SourceWorkerRenderDisposition::Fresh {
-                left.fill(0.0);
-                right.fill(0.0);
-            }
-            crate::simd::interleave_stereo(left, right, out);
-            disposition
-        }
-        #[cfg(not(any(test, feature = "test-support")))]
-        {
+        let disposition = runtime.render_routing_tree_persistent_block(
+            self,
+            frames,
+            &mut left[..frames],
+            &mut right[..frames],
+            apply_controls,
+        );
+        if disposition != SourceWorkerRenderDisposition::Fresh {
             left.fill(0.0);
             right.fill(0.0);
-            out.fill(0.0);
-            SourceWorkerRenderDisposition::Fatal
         }
+        crate::simd::interleave_stereo(left, right, out);
+        disposition
     }
 }

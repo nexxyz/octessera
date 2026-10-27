@@ -1,19 +1,11 @@
 use super::super::runtime_state::InstrumentMod;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-use super::super::synth_voice_pool::SynthVoicePartition;
 use super::super::types::{
     SynthConfig, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
     SAMPLE_VOICE_PARTITION_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
     SYNTH_VOICE_PARTITION_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-use super::render_voice::synth_voice_render::{render_synth_voice_block, SynthVoiceFrameContext};
 use super::render_voice::SynthVoiceRenderConfig;
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-use super::sample_voice_pool::SampleVoicePartition;
 use super::support::{mono_frame, SampleBufferView, SampleVoice};
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-use super::BLOCK_SLOT_SCRATCH_FRAMES;
 
 const _: () = assert!(
     VOICE_PARTITION_COUNT * SYNTH_VOICE_PARTITION_LANE_CAPACITY == SYNTH_VOICE_LANE_CAPACITY
@@ -22,36 +14,6 @@ const _: () = assert!(
     VOICE_PARTITION_COUNT * SAMPLE_VOICE_PARTITION_LANE_CAPACITY == SAMPLE_VOICE_LANE_CAPACITY
 );
 const _: () = assert!(SYNTH_VOICE_PARTITION_LANE_CAPACITY == SAMPLE_VOICE_PARTITION_LANE_CAPACITY);
-
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-pub(super) struct SourceLaneBlockScratch {
-    pub(super) samples: [Vec<f32>; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-    pub(super) rendered_frames: [usize; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-    pub(super) slots: [u8; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-}
-
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-pub(super) const INVALID_INSTRUMENT_SLOT: u8 = INSTRUMENT_SLOT_COUNT as u8;
-
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-impl SourceLaneBlockScratch {
-    pub(super) fn new() -> Self {
-        Self {
-            samples: std::array::from_fn(|_| vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES]),
-            rendered_frames: [0; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-            slots: [INVALID_INSTRUMENT_SLOT; SYNTH_VOICE_PARTITION_LANE_CAPACITY],
-        }
-    }
-
-    pub(super) fn prepare(&mut self, frames: usize) -> bool {
-        if frames > BLOCK_SLOT_SCRATCH_FRAMES {
-            return false;
-        }
-        self.rendered_frames.fill(0);
-        self.slots.fill(INVALID_INSTRUMENT_SLOT);
-        true
-    }
-}
 
 #[derive(Clone, Copy)]
 pub(super) struct SynthSourceContext {
@@ -65,101 +27,6 @@ pub(super) struct SynthSourceContext {
 #[derive(Clone, Copy)]
 pub(super) struct SampleSourceContext {
     pub(super) sample_rate: u32,
-}
-
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-pub(super) fn render_synth_partition(
-    partition: &mut SynthVoicePartition,
-    frames: usize,
-    base_sample_clock: u64,
-    context: &SynthSourceContext,
-    scratch: &mut SourceLaneBlockScratch,
-) {
-    let render_lane_count = partition.render_lane_count;
-    let mut survivor_count = 0;
-    for read in 0..render_lane_count {
-        let lane = partition.render_lanes[read];
-        let remains_active = {
-            let (voice, ring) = partition.lane_and_ring_mut(lane).expect("source lane ring");
-            if !voice.active {
-                scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-                false
-            } else {
-                let slot = voice.instrument_slot as usize;
-                if slot >= INSTRUMENT_SLOT_COUNT {
-                    scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-                    true
-                } else {
-                    scratch.slots[lane] = slot as u8;
-                    let frame_context = SynthVoiceFrameContext {
-                        sample_rate: context.sample_rate,
-                        config: context.configs[slot],
-                        render_config: context.render_configs[slot],
-                        revision: context.revisions[slot],
-                        mods: context.mods[slot],
-                    };
-                    let rendered_frames = render_synth_voice_block(
-                        voice,
-                        ring,
-                        slot,
-                        frames,
-                        base_sample_clock,
-                        frame_context,
-                        &mut scratch.samples[lane],
-                    );
-                    scratch.rendered_frames[lane] = rendered_frames;
-                    voice.active
-                }
-            }
-        };
-        if remains_active {
-            partition.render_lanes[survivor_count] = lane;
-            survivor_count += 1;
-        }
-    }
-    partition.render_lane_count = survivor_count;
-}
-
-#[cfg(any(test, feature = "test-support", feature = "routing-tree-executor"))]
-pub(super) fn render_sample_partition(
-    partition: &mut SampleVoicePartition,
-    frames: usize,
-    context: SampleSourceContext,
-    scratch: &mut SourceLaneBlockScratch,
-) {
-    let render_lane_count = partition.render_lane_count;
-    let mut survivor_count = 0;
-    for read in 0..render_lane_count {
-        let lane = partition.render_lanes[read];
-        let remains_active = {
-            let voice = &mut partition.lanes_mut()[lane];
-            if !voice.active {
-                scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-                false
-            } else {
-                let slot = voice.instrument_slot as usize;
-                if slot >= INSTRUMENT_SLOT_COUNT {
-                    scratch.slots[lane] = INVALID_INSTRUMENT_SLOT;
-                    true
-                } else {
-                    scratch.slots[lane] = slot as u8;
-                    let rendered_frames = render_sample_voice_block(
-                        voice,
-                        frames,
-                        context.sample_rate,
-                        &mut scratch.samples[lane],
-                    );
-                    scratch.rendered_frames[lane] = rendered_frames;
-                    voice.active
-                }
-            }
-        };
-        if remains_active {
-            partition.render_lanes[survivor_count] = lane;
-            survivor_count += 1;
-        }
-    }
-    partition.render_lane_count = survivor_count;
 }
 
 pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u32) -> Option<f32> {
@@ -334,89 +201,3 @@ fn render_shaped_sample_voice_block(
 fn sample_filter_q(resonance: f32) -> f32 {
     0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::mem::size_of;
-
-    const GLOBAL_SYNTH_SCRATCH_METADATA_BYTES: usize =
-        size_of::<[Vec<f32>; SYNTH_VOICE_LANE_CAPACITY]>()
-            + size_of::<[usize; SYNTH_VOICE_LANE_CAPACITY]>()
-            + size_of::<[u8; SYNTH_VOICE_LANE_CAPACITY]>();
-    const GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES: usize =
-        size_of::<[Vec<f32>; SAMPLE_VOICE_LANE_CAPACITY]>()
-            + size_of::<[usize; SAMPLE_VOICE_LANE_CAPACITY]>()
-            + size_of::<[u8; SAMPLE_VOICE_LANE_CAPACITY]>();
-    const LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES: usize =
-        size_of::<[Vec<f32>; SYNTH_VOICE_LANE_CAPACITY]>()
-            + size_of::<[Vec<bool>; SYNTH_VOICE_LANE_CAPACITY]>()
-            + size_of::<[u8; SYNTH_VOICE_LANE_CAPACITY]>();
-    const LEGACY_GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES: usize =
-        size_of::<[Vec<f32>; SAMPLE_VOICE_LANE_CAPACITY]>()
-            + size_of::<[Vec<bool>; SAMPLE_VOICE_LANE_CAPACITY]>()
-            + size_of::<[u8; SAMPLE_VOICE_LANE_CAPACITY]>();
-
-    const _: () = assert!(
-        size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>()
-            == GLOBAL_SYNTH_SCRATCH_METADATA_BYTES
-    );
-    const _: () = assert!(
-        size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>()
-            == GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
-    );
-    const _: () =
-        assert!(GLOBAL_SYNTH_SCRATCH_METADATA_BYTES < LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES);
-    const _: () =
-        assert!(GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES < LEGACY_GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES);
-
-    #[test]
-    fn partition_scratch_matches_global_lane_shape() {
-        let scratch: [SourceLaneBlockScratch; VOICE_PARTITION_COUNT] =
-            std::array::from_fn(|_| SourceLaneBlockScratch::new());
-        assert_eq!(
-            scratch.len() * SYNTH_VOICE_PARTITION_LANE_CAPACITY,
-            SYNTH_VOICE_LANE_CAPACITY
-        );
-        assert_eq!(
-            scratch.len() * SYNTH_VOICE_PARTITION_LANE_CAPACITY,
-            SAMPLE_VOICE_LANE_CAPACITY
-        );
-        assert_eq!(
-            size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>(),
-            GLOBAL_SYNTH_SCRATCH_METADATA_BYTES
-        );
-        assert_eq!(
-            size_of::<[SourceLaneBlockScratch; VOICE_PARTITION_COUNT]>(),
-            GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES
-        );
-        assert_eq!(
-            LEGACY_GLOBAL_SYNTH_SCRATCH_METADATA_BYTES - GLOBAL_SYNTH_SCRATCH_METADATA_BYTES,
-            size_of::<[Vec<bool>; SYNTH_VOICE_LANE_CAPACITY]>()
-                - size_of::<[usize; SYNTH_VOICE_LANE_CAPACITY]>()
-        );
-        assert_eq!(
-            LEGACY_GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES - GLOBAL_SAMPLE_SCRATCH_METADATA_BYTES,
-            size_of::<[Vec<bool>; SAMPLE_VOICE_LANE_CAPACITY]>()
-                - size_of::<[usize; SAMPLE_VOICE_LANE_CAPACITY]>()
-        );
-    }
-
-    #[test]
-    fn scratch_prepare_invalidates_metadata_but_preserves_samples() {
-        let mut scratch = SourceLaneBlockScratch::new();
-        scratch.slots.fill(0);
-        scratch.samples[0][0] = 1.0;
-        scratch.rendered_frames.fill(BLOCK_SLOT_SCRATCH_FRAMES);
-        assert!(scratch.prepare(64));
-        assert!(scratch
-            .slots
-            .iter()
-            .all(|slot| *slot == INVALID_INSTRUMENT_SLOT));
-        assert_eq!(scratch.samples[0][0].to_bits(), 1.0_f32.to_bits());
-        assert!(scratch.rendered_frames.iter().all(|frames| *frames == 0));
-    }
-}
-
-#[cfg(test)]
-mod render_tests;

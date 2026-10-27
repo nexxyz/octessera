@@ -46,7 +46,7 @@ impl SourceWorkerRuntime {
                 engine,
                 &mut first,
                 &mut second,
-                |engine, _, _| {
+                |engine, _| {
                     engine.with_source_worker_load(load, |engine| {
                         engine.with_routing_tree_source_event_sample_clock(
                             effective_sample_clock,

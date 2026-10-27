@@ -181,16 +181,6 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return;
         }
-        #[cfg(any(test, feature = "test-support"))]
-        if self.persistent_bus_limit.is_some_and(|limit| {
-            cfg.mixer
-                .as_ref()
-                .is_some_and(|mixer| mixer.buses.len() > limit)
-        }) {
-            #[cfg(feature = "routing-tree-executor")]
-            self.reject_routing_tree_mutation_for_control();
-            return;
-        }
         let mut next_render_plan = RenderPlan::from_config(&cfg);
         for (index, slot) in cfg
             .instruments
