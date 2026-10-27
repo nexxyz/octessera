@@ -10,7 +10,7 @@
 # (OCTESSERA_TIMING_LOAD=start,step,max,seconds), which needs a -Profiling candidate binary;
 # production binaries refuse it. OCTESSERA_TIMING_SOAK=1 keeps the store's own dim and screen-sleep
 # settings, so long soaks let the OLED sleep. OCTESSERA_TIMING_OPTIMIZE_FOR=latency|capacity sets
-# Perf. Mode in the cloned store for that run.
+# Perf. Mode in the cloned store for that run, and OCTESSERA_TIMING_STEALING=<mode> its Polyphony.
 set -euo pipefail
 board=${1:?board: rpi or opi} target=${2:?target: user@host} binary=${3:?candidate binary}
 seconds=${4:-600}
