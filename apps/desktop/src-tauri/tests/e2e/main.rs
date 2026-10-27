@@ -10,6 +10,7 @@ mod play_fx;
 mod recording;
 mod save_reload;
 mod sequencer_pages;
+mod soak;
 mod support;
 mod teaser;
 mod teaser_take;
