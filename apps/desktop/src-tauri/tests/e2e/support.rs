@@ -5,11 +5,16 @@ use std::path::PathBuf;
 pub const DEFAULT_PATCH: &str =
     include_str!("../../../../../config/generated/desktop/default.json");
 
+/// The folder holding one test run's store and its `media` (recordings) folder.
+pub fn session_root(name: &str) -> PathBuf {
+    std::env::temp_dir()
+        .join("octessera-e2e")
+        .join(format!("{name}-{}", std::process::id()))
+}
+
 /// A fresh store and recordings folder for one test run.
 pub fn session(name: &str, pace: Pace) -> HeadlessSession {
-    let root = std::env::temp_dir()
-        .join("octessera-e2e")
-        .join(format!("{name}-{}", std::process::id()));
+    let root = session_root(name);
     let _ = std::fs::remove_dir_all(&root);
     HeadlessSession::start(root.join("store"), root.join("media"), pace)
         .unwrap_or_else(|error| panic!("{name}: session failed to start: {error}"))

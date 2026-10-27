@@ -7,6 +7,7 @@ mod gestures;
 mod instruments;
 mod link_mapping;
 mod play_fx;
+mod recording;
 mod save_reload;
 mod sequencer_pages;
 mod support;
