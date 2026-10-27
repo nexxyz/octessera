@@ -9,8 +9,8 @@ pub fn bar(n: u32) -> f64 {
     BUILD_START + 2.0 * f64::from(n - 5)
 }
 
-/// Typed lines: (keystrokes, their times after B1, letter row). Dots sound on `DOT_ROW`, the
-/// final period on `PERIOD_ROW`.
+/// Typed lines: (keystrokes, their times after B1, letter row). The " ..." endings sound on
+/// `DOT_ROW`; the last line types its leading dots on its own letter row and ends on `PERIOD_ROW`.
 const LINES: [(&str, &[f64], usize); 5] = [
     (
         "64cells...",
@@ -75,10 +75,10 @@ pub fn keystrokes() -> Vec<(f64, usize, usize)> {
     for (line, (keys, times, letter_row)) in LINES.into_iter().enumerate() {
         assert_eq!(keys.chars().count(), times.len(), "{keys}");
         for (index, (key, time)) in keys.chars().zip(times).enumerate() {
-            let last = line == LINES.len() - 1 && index == times.len() - 1;
+            let last_line = line == LINES.len() - 1;
             let row = match key {
-                '.' if last => PERIOD_ROW,
-                '.' => DOT_ROW,
+                '.' if last_line && index == times.len() - 1 => PERIOD_ROW,
+                '.' if !last_line => DOT_ROW,
                 _ => letter_row,
             };
             hits.push((*time, index % 8, row));
