@@ -56,8 +56,9 @@ const LINES: [(&str, &[f64], usize, usize); 5] = [
 ];
 const DOT_ROW: usize = 3;
 const PERIOD_ROW: usize = 2;
-/// The echo is cut after "endless possibilities ...", so the break and "one device." stay dry.
-pub const ECHO_KILL: f64 = 7.75;
+/// The echo of "endless possibilities ..." rings out into the break; it is cut once silent, just
+/// before "one device." so that line types dry.
+pub const ECHO_KILL: f64 = 8.9;
 pub const GLITTER: f64 = 11.5;
 /// The glitter layer is muted here and its notes, delay and reverb ring out.
 pub const GLITTER_END: f64 = 12.5;
