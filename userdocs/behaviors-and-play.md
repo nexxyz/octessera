@@ -125,7 +125,7 @@ it, so the patch keeps its saved mode.
 ## Play FX
 
 Set up momentary effects under `Play > FX`: choose an **FX Type** (`stutter`,
-`freeze`, `filter_sweep` or `pitch_shift`), a **Target**, and its settings,
+`freeze`, `sweep` or `pitch`), a **Target**, and its settings,
 then use **Map to Grid** and press a cell. That cell remembers the whole lot.
 Mapping `none` clears a cell.
 

@@ -47,7 +47,7 @@ pub(super) fn link_binding_group(
                         target,
                     ),
                     binding_action(
-                        "Scan Direction",
+                        "Scan Dir",
                         &format!("{prefix}.scanDirection"),
                         "enum",
                         None,
@@ -152,7 +152,7 @@ pub(super) fn link_binding_group(
                         target,
                     ),
                     binding_action(
-                        "Start Note",
+                        "1st Note",
                         &format!("{prefix}.pitch.startingNote"),
                         "number",
                         Some(0),

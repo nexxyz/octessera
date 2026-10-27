@@ -17,6 +17,7 @@ mod numeric_curves;
 mod play;
 mod pluck;
 mod root;
+mod row_width;
 mod sampler_bindings;
 mod timing;
 mod voice;

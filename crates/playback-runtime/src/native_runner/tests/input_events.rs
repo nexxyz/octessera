@@ -454,7 +454,7 @@ pub(crate) fn link_scan_menu_exposes_none_and_scanned_empty_targets() {
         .collect::<Vec<_>>();
 
     assert!(labels.contains(&"Empty Inst"));
-    assert!(labels.contains(&"Empty Trig"));
+    assert!(labels.contains(&"Empty Act"));
     assert!(runner
         .menu
         .value_for_key("layers.0.link.mapping.scanned_empty.slot")

@@ -163,7 +163,7 @@ impl NativeRunner {
         } else {
             *slot_type = next_type;
             *slot_params = fx_default_params(slot_type);
-            let next_label = fx_slot_group_label(slot_index + 1, slot_type);
+            let next_label = crate::native_menu::slot_group_label(slot_index + 1, slot_type);
             self.menu.replace_group_label_containing_direct_key(
                 &format!("mixer.buses.{bus_index}.slot{}.type", slot_index + 1),
                 &next_label,
@@ -282,7 +282,7 @@ impl NativeRunner {
             return false;
         };
         *params = fx_default_params(slot);
-        let next_label = fx_slot_group_label(slot_index + 1, slot);
+        let next_label = crate::native_menu::slot_group_label(slot_index + 1, slot);
         self.menu.replace_group_label_containing_direct_key(
             &format!("mixer.master.slots.{slot_index}.type"),
             &next_label,
@@ -392,34 +392,6 @@ pub(super) fn audio_params_for_fx(fx_type: &str, params: &Value) -> BTreeMap<Str
         strip_delay_timing_metadata(params).into_iter().collect()
     } else {
         value_object_to_map(params)
-    }
-}
-
-fn fx_slot_group_label(slot_number: usize, slot_type: &str) -> String {
-    format!("Slot {slot_number}: {}", fx_type_label(slot_type))
-}
-
-fn fx_type_label(slot_type: &str) -> String {
-    match slot_type {
-        "none" => "None".into(),
-        "delay" => "Delay".into(),
-        "duck" => "Duck".into(),
-        "reverb" => "Reverb".into(),
-        "tremolo" => "Tremolo".into(),
-        "saturator" => "Saturator".into(),
-        "distortion" => "Distortion".into(),
-        "bitcrusher" => "Bitcrusher".into(),
-        "vibrato" => "Vibrato".into(),
-        "chorus" => "Chorus".into(),
-        "flanger" => "Flanger".into(),
-        "filter_lfo" => "Filter LFO".into(),
-        "wah" => "Wah".into(),
-        "auto_pan" => "Auto Pan".into(),
-        "glitch" => "Glitch".into(),
-        "compressor" => "Compressor".into(),
-        "eq" => "EQ".into(),
-        "vinyl" => "Vinyl".into(),
-        _ => slot_type.into(),
     }
 }
 

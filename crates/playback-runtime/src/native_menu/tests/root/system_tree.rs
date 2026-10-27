@@ -63,7 +63,7 @@ fn desktop_system_tree_has_exact_order() {
         vec![
             "Ghost Cells",
             "Auto Map",
-            "Number Style",
+            "Num Style",
             "Dim Timer",
             "OLED Sleep",
             "OLED Bright",

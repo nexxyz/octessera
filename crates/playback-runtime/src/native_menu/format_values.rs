@@ -41,6 +41,32 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
             _ => raw,
         };
     }
+    if key == "play.fx.type" {
+        return match raw.as_str() {
+            "filter_sweep" => "sweep".into(),
+            "pitch_shift" => "pitch".into(),
+            _ => raw,
+        };
+    }
+    if key == "play.fx.target" {
+        if let Some(slot) = raw.strip_prefix("instrument_") {
+            return format!("I{slot}");
+        }
+        return raw;
+    }
+    if key == "play.xy.release" {
+        return match raw.as_str() {
+            "sample-hold" => "hold".into(),
+            "reset-center" => "center".into(),
+            _ => raw,
+        };
+    }
+    if key == "numericDisplayMode" && raw == "bar+numbers" {
+        return "bar+num".into();
+    }
+    if key.ends_with(".arp.source") && raw == "simultaneous" {
+        return "together".into();
+    }
     if key == "sound.optimizeFor" {
         return match raw.as_str() {
             "latency" => "Lat".into(),

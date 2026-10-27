@@ -31,14 +31,14 @@ Link
 │   │   ├── Scan Mode: [none | scanning]
 │   │   ├── Scan Axis: [rows | columns]           ← the rows below show only while scanning
 │   │   ├── Scan Unit: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]
-│   │   ├── Scan Direction: [forward | reverse]
+│   │   ├── Scan Dir: [forward | reverse]
 │   │   ├── Sections: [1 | 2 | 4 | 8]
 │   │   ├── Instrument: [none | I1: <name> .. I8: <name>]
 │   │   ├── Action: [none | note_on | note_off]
 │   │   ├── Scan Delay: [0..16]
 │   │   ├── Scan Retrig: [0..8]
 │   │   ├── Empty Inst: [none | I1: <name> .. I8: <name>]
-│   │   ├── Empty Trig: [none | note_on | note_off]
+│   │   ├── Empty Act: [none | note_on | note_off]
 │   │   ├── Empty Delay: [0..16]
 │   │   └── Empty Retrig: [0..8]
 │   ├── Events (group)
@@ -56,7 +56,7 @@ Link
 │   ├── Note Mapping (group)
 │   │   ├── Low Note: [0..127] step 1             default 24; shown as note name + MIDI number, e.g. C1 (24)
 │   │   ├── High Note: [0..127] step 1            default 84
-│   │   ├── Start Note: [0..127] step 1           default 60
+│   │   ├── 1st Note: [0..127] step 1             default 60
 │   │   ├── Set: <compact> > (bindable enum)      default chromatic; Main opens the foldered selector
 │   │   │   ├── Scales (group)                    ← `..` first, then: Chromatic | Major | Natural Minor | Harmonic Minor | Dorian | Mixolydian
 │   │   │   ├── Chord Tones (group)               ← `..` first, then: Major Triad | Minor Triad | Diminished Triad | Sus 2 | Sus 4 | Major 7 | Dominant 7 | Minor 7 | Major 9 | Dominant 9
@@ -72,7 +72,7 @@ Link
 │   │   ├── Pitch Steps (group)
 │   │   │   ├── Enabled: [on | off]               default on
 │   │   │   ├── Steps: [-16..16] step 1           ← while enabled; default 1 (X), 3 (Y)
-│   │   │   └── Restart Section: [on | off]       ← while enabled
+│   │   │   └── Restart Sect: [on | off]          ← while enabled
 │   │   ├── Velocity (group)                      ← default From 1, To 127
 │   │   ├── Filter Cutoff (group)                 ← default From 20, To 127
 │   │   └── Filter Res (group)                    ← default From 10, To 90
@@ -130,7 +130,7 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - A set constrains the concrete notes in `Low Note..High Note` that match the set and `Root`. Sets
   do not emit simultaneous chords or choose inversions. Hirajoshi-like, In Sen-like, and Iwato-like
   are common Western 12-TET approximations of scales with varying forms.
-- Mapping picks the set note nearest `Start Note` (lower note wins ties) and applies X/Y pitch steps
+- Mapping picks the set note nearest `1st Note` (lower note wins ties) and applies X/Y pitch steps
   before clamp/wrap. `wrap` wraps within that concrete note list, so wrapped notes stay in the set.
   Play Transpose applies downstream.
 

@@ -163,7 +163,7 @@ pub(super) fn scanning_group(
                 crate::timing_units::note_unit_selection_index(&sense.scan_unit),
             ),
             enum_item(
-                "Scan Direction",
+                "Scan Dir",
                 format!("{prefix}.scanDirection"),
                 vec!["forward", "reverse"],
                 selected_index(&["forward", "reverse"], &sense.scan_direction),
@@ -205,7 +205,7 @@ pub(super) fn scanning_group(
                 slot_option_selected(sense.scanned_empty_slot, instrument_options.len()),
             ),
             enum_item(
-                "Empty Trig",
+                "Empty Act",
                 format!("{prefix}.mapping.scanned_empty.action"),
                 vec!["none", "note_on", "note_off"],
                 selected_index(

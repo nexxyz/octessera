@@ -223,7 +223,7 @@ pub(crate) fn pitch_fx_page_exposes_independent_slide_rows() {
 }
 
 #[test]
-pub(crate) fn play_aux_map_rows_show_mapped_paths() {
+pub(crate) fn play_aux_map_rows_show_the_mapped_controls() {
     let mut config = config();
     config.play_mode = "fx".into();
     config.play_fx_type = "stutter".into();
@@ -238,9 +238,9 @@ pub(crate) fn play_aux_map_rows_show_mapped_paths() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert!(labels.contains(&"Rate Hz: play.fx.params.rateHz"));
-    assert!(labels.contains(&"Depth: play.fx.params.depthPct"));
-    assert!(labels.contains(&"Map to Grid: play.fx.map"));
+    assert!(labels.contains(&"Rate Hz"));
+    assert!(labels.contains(&"Depth"));
+    assert!(labels.contains(&"Map to Grid"));
 }
 
 #[test]

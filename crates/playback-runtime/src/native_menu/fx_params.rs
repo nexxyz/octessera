@@ -229,7 +229,7 @@ fn compressor_param_items(prefix: &str, params: &serde_json::Value) -> Vec<Nativ
 fn eq_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuItem> {
     vec![
         fx_number_item(
-            "Low Gain dB",
+            "Low Gain",
             prefix,
             params,
             "lowGainDb",
@@ -240,7 +240,7 @@ fn eq_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuIte
             0.0,
         ),
         fx_number_item(
-            "Mid Gain dB",
+            "Mid Gain",
             prefix,
             params,
             "midGainDb",
@@ -251,7 +251,7 @@ fn eq_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuIte
             0.0,
         ),
         fx_number_item(
-            "High Gain dB",
+            "High Gain",
             prefix,
             params,
             "highGainDb",

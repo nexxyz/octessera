@@ -317,7 +317,7 @@ fn instrument_overview_label(
     let route = compact_route_postfix(route);
     match kind {
         "fm" => format!("{prefix} FM {route}"),
-        "pluck" => format!("{prefix} Plucked {route}"),
+        "pluck" => format!("{prefix} Pluck {route}"),
         "drum" => format!("{prefix} Drum {route}"),
         "sampler" => format!("{prefix} samp {route}"),
         "midi" => format!("{prefix} midi ch{midi_channel}"),

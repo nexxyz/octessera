@@ -187,7 +187,7 @@ layer_name	*	key:layers.*.name	text	Layer Label	Sets the user-visible label for 
 scan_mode	*	key:layers.*.link.scanMode	enum	Scan Mode	none interprets the whole grid without a cursor; scanning advances one cursor through the selected axis.	scanning emits filled and empty scan triggers; none uses the normal event/state interpretation.
 scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	rows scans across row lanes; columns scans down column lanes.	The selected axis defines which coordinate the cursor advances.
 scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	T values are triplets; the number is the exact 24-PPQN pulse count between scan moves.
-scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Direction	forward advances from the first lane toward the last; reverse advances from the last toward the first.	Direction is a one-way choice; it does not automatically bounce.
+scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward advances from the first lane toward the last; reverse advances from the last toward the first.	Direction is a one-way choice; it does not automatically bounce.
 scan_sections	*	key:layers.*.link.scanSections	enum	Sections	1 scans one full grid; 2, 4, or 8 divides it into that many lane sections.	More sections make smaller scan regions play in sequence.
 event_enabled	*	key:layers.*.link.eventEnabled	bool	Event Triggers	Enables transition triggers such as activate, deactivate, and stable for this layer.	Turn it Off to suppress event-based note generation while keeping other Link settings intact.
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Maps each trigger kind to an action and destination instrument slot.	Use note_off actions for release-style lifecycle behavior.
@@ -199,7 +199,7 @@ map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Tri
 map_deactivate_slot	*	key:layers.*.link.mapping.deactivate.slot	enum	Off Inst	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 receive deactivation triggers.	The displayed I# label also shows the slot's current instrument name/type.
 map_scanned_action	*	key:layers.*.link.mapping.scanned.action	enum	Scanned Action	none ignores a filled scan hit; note_on starts or retriggers; note_off releases a matching held note.	The action runs when scanning reaches a filled cell.
 map_scanned_slot	*	key:layers.*.link.mapping.scanned.slot	enum	Scanned Instrument	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 receive filled scan hits.	The displayed I# label also shows the slot's current instrument name/type.
-map_scanned_empty_action	*	key:layers.*.link.mapping.scanned_empty.action	enum	Empty Trig	none ignores an empty scan hit; note_on starts a note; note_off releases a matching held note.	The action runs when scanning reaches an empty cell.
+map_scanned_empty_action	*	key:layers.*.link.mapping.scanned_empty.action	enum	Empty Act	none ignores an empty scan hit; note_on starts a note; note_off releases a matching held note.	The action runs when scanning reaches an empty cell.
 map_scanned_empty_slot	*	key:layers.*.link.mapping.scanned_empty.slot	enum	Empty Inst	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 receive empty scan hits.	The displayed I# label also shows the slot's current instrument name/type.
 voices_section	Menu > Shape		group	Shape	Defines pitch mapping and instrument slot sound engines.	This layer controls how sensed events become audible voices.
 note_mapping_group	Menu > Shape > Note Mapping		group	Note Mapping	Sets pitch quantization, range, and root/scale behavior.	Applied before per-instrument synth shaping.
@@ -381,7 +381,7 @@ screen_sleep	*	key:screenSleepSeconds	number	OLED Sleep	Sets idle timeout before
 display_bright	*	key:displayBrightness	number	OLED Bright	Sets OLED brightness level.	Higher values improve visibility at cost of brightness.
 grid_bright	*	key:gridBrightness	number	Grid Bright	Sets grid LED brightness scaling.	Lower values are useful for dark environments.
 button_bright	*	key:buttonBrightness	number	Button Bright	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
-numeric_display	*	key:numericDisplayMode	enum	Number Style	bar shows only the value bar; numbers shows the numeric value; bar+numbers shows both.	This changes numeric menu display, not the stored parameter.
+numeric_display	*	key:numericDisplayMode	enum	Num Style	bar shows only the value bar; numbers shows the numeric value; bar+numbers (shown as bar+num) shows both.	This changes numeric menu display, not the stored parameter.
 aux_auto_map	*	key:auxAutoMapEnabled	bool	Auto Map	Enables context-sensitive aux mappings for the active menu row.	When off, only custom aux bindings are used and auto-map prefixes disappear.
 link_x_axis_group	Menu > Link > L*: * > X Axis		group	X Axis Modulation	Maps X position into pitch/velocity/filter modulation lanes.	Use offsets and ranges to reshape horizontal influence.
 link_x_pitch_group	Menu > Link > L*: * > X Axis > Pitch Steps		group	X Pitch Steps	Controls pitch stepping derived from X position.	Disable to remove X-axis pitch influence.
@@ -395,13 +395,13 @@ link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Y Cutoff
 link_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Y Resonance Lane	Maps Y position to CC71 resonance modulation range.	Lower ranges are usually easier to control musically.
 axis_pitch_enabled_x_part	*	key:layers.*.link.x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence for this layer.
 axis_pitch_steps_x_part	*	key:layers.*.link.x.pitch.steps	number	X Pitch Steps	Sets semitone-step influence per X grid step.	Larger values create wider horizontal intervals.
-axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Section	When On with row scan sections, X pitch counts from the left edge of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
+axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Sect	When On with row scan sections, X pitch counts from the left edge of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_x_part	*	key:layers.*.link.x.velocity.enabled	bool	X Velocity Enabled	Enables velocity modulation from X position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_x_part	*	key:layers.*.link.x.filterCutoff.enabled	bool	X Cutoff Enabled	Enables cutoff CC modulation from X position.	Outputs CC74 when this lane is active.
 axis_res_enabled_x_part	*	key:layers.*.link.x.filterResonance.enabled	bool	X Resonance Enabled	Enables resonance CC modulation from X position.	Outputs CC71 when this lane is active.
 axis_pitch_enabled_y_part	*	key:layers.*.link.y.pitch.enabled	bool	Y Pitch Enabled	Enables pitch stepping derived from Y position.	Disable to remove vertical pitch influence for this layer.
 axis_pitch_steps_y_part	*	key:layers.*.link.y.pitch.steps	number	Y Pitch Steps	Sets semitone-step influence per Y grid step.	Larger values create wider vertical intervals.
-axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Section	When On with column scan sections, Y pitch counts from the bottom of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
+axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Sect	When On with column scan sections, Y pitch counts from the bottom of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_y_part	*	key:layers.*.link.y.velocity.enabled	bool	Y Velocity Enabled	Enables velocity modulation from Y position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_y_part	*	key:layers.*.link.y.filterCutoff.enabled	bool	Y Cutoff Enabled	Enables cutoff CC modulation from Y position.	Outputs CC74 when this lane is active.
 axis_res_enabled_y_part	*	key:layers.*.link.y.filterResonance.enabled	bool	Y Resonance Enabled	Enables resonance CC modulation from Y position.	Outputs CC71 when this lane is active.
@@ -788,9 +788,9 @@ native_fx_chance	*	key:mixer.buses.*.slot*.params.chancePct	number	Chance	Sets g
 native_fx_slice	*	key:mixer.buses.*.slot*.params.sliceMs	number	Slice ms	Sets glitch slice length.	Shorter slices sound tighter and more fragmented.
 native_fx_ratio	*	key:mixer.*.slots.*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
 native_fx_makeup	*	key:mixer.*.slots.*.params.makeupDb	number	Makeup dB	Adds gain after compression.	Use it to recover level after gain reduction.
-native_fx_low_gain	*	key:mixer.*.slots.*.params.lowGainDb	number	Low Gain dB	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
-native_fx_mid_gain	*	key:mixer.*.slots.*.params.midGainDb	number	Mid Gain dB	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
-native_fx_high_gain	*	key:mixer.*.slots.*.params.highGainDb	number	High Gain dB	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
+native_fx_low_gain	*	key:mixer.*.slots.*.params.lowGainDb	number	Low Gain	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
+native_fx_mid_gain	*	key:mixer.*.slots.*.params.midGainDb	number	Mid Gain	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
+native_fx_high_gain	*	key:mixer.*.slots.*.params.highGainDb	number	High Gain	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
 native_fx_mid_freq	*	key:mixer.*.slots.*.params.midFreqHz	number	Mid Frequency	Sets the EQ mid-band center frequency.	Move it to target different tonal ranges.
 native_fx_mid_q	*	key:mixer.*.slots.*.params.midQ	number	Mid Q	Sets the EQ mid-band width.	Higher values make a narrower band.
 native_fx_saturation	*	key:mixer.master.slots.*.params.saturationPct	number	Saturation	Sets vinyl saturation amount.	Higher values add more warmth and compression.
@@ -802,9 +802,9 @@ native_fx_bus_warp	*	key:mixer.buses.*.slot*.params.warpDepthPct	number	Warp Dep
 native_fx_bus_threshold_db	*	key:mixer.*.slot*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_bus_ratio	*	key:mixer.*.slot*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
 native_fx_bus_makeup	*	key:mixer.*.slot*.params.makeupDb	number	Makeup dB	Adds gain after compression.	Use it to recover level after gain reduction.
-native_fx_bus_low_gain	*	key:mixer.*.slot*.params.lowGainDb	number	Low Gain dB	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
-native_fx_bus_mid_gain	*	key:mixer.*.slot*.params.midGainDb	number	Mid Gain dB	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
-native_fx_bus_high_gain	*	key:mixer.*.slot*.params.highGainDb	number	High Gain dB	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
+native_fx_bus_low_gain	*	key:mixer.*.slot*.params.lowGainDb	number	Low Gain	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
+native_fx_bus_mid_gain	*	key:mixer.*.slot*.params.midGainDb	number	Mid Gain	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
+native_fx_bus_high_gain	*	key:mixer.*.slot*.params.highGainDb	number	High Gain	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
 native_fx_bus_mid_freq	*	key:mixer.*.slot*.params.midFreqHz	number	Mid Frequency	Sets the EQ mid-band center frequency.	Move it to target different tonal ranges.
 native_fx_bus_mid_q	*	key:mixer.*.slot*.params.midQ	number	Mid Q	Sets the EQ mid-band width.	Higher values make a narrower band.
 native_fx_bus_clip	*	key:mixer.*.slot*.params.clip	number	Clip	Sets distortion clipping threshold.	Lower values clip harder.

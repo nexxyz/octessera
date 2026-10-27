@@ -77,7 +77,7 @@ System
 ├── Display (group)
 │   ├── Ghost Cells: [on | off]
 │   ├── Auto Map: [on | off]
-│   ├── Number Style: [bar | numbers | bar+numbers]
+│   ├── Num Style: [bar | numbers | bar+num]   ← bar+num is stored as bar+numbers
 │   ├── Dim Timer: [0..600] step 10 s
 │   ├── OLED Sleep: [0..600] step 10 s
 │   ├── OLED Bright: [10..100] step 5

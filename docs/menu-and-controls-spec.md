@@ -343,7 +343,7 @@ palette unless a behavior deliberately owns its own.
   Desktop draws a 1-2 px scrollbar inside the OLED body only when rendered rows exceed visible
   rows. It uses no text columns and is omitted for splash/help/confirm overlays unless menu metadata
   is present.
-- When `Number Style` is `bar` or `bar+numbers`, bounded number rows keep the value on the selected
+- When `Num Style` is `bar` or `bar+num`, bounded number rows keep the value on the selected
   text row and draw a compact bar on the next body row, so the value is not shortened. Bars use the
   row/menu color, keep a visible bounding box when empty, partial, or full, draw marker-style
   values as a tick inside the box, and keep contrast on highlighted rows.
@@ -538,7 +538,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
     bottom to top through lane 1, then lane 2. Total steps: `gridHeight * sections`.
   - `reverse` runs the same step sequence backwards.
 - Stop and emergency reset return the scan index to origin.
-- `Restart Section` on Pitch Steps makes pitch stepping local to each lane on the axis the lanes
+- `Restart Sect` on Pitch Steps makes pitch stepping local to each lane on the axis the lanes
   split: Y Restart applies to `columns` sections (Y counts from the bottom row of each lane), X
   Restart applies to `rows` sections (X counts from the left column of each lane). It changes the
   pitch of every trigger on that layer, scanned or not. With `Sections=1`, the other scan axis, or
@@ -633,7 +633,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Turn examples:
   - FX param missing for the current slot type: `Trn-1: B1 Time ms not active`
   - Instrument type changed away from the bound subtree: `Trn-1: I1 Filter cutoff not active`
-  - Layer scan field while `scanMode` is not `scanning`: `Trn-1: L1 Scan Direction not active`
+  - Layer scan field while `scanMode` is not `scanning`: `Trn-1: L1 Scan Dir not active`
   - Behavior config param missing from the current behavior's `configMenu()`:
     `Trn-1: L1 Spawn Count not active`
 - Press bindings store the behavior action key. A press fires only if the active layer's behavior

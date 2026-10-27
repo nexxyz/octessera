@@ -42,10 +42,10 @@ state on every transport tick.
 ### Scanning: a playhead over the grid
 
 Under **Scanning**, set **Scan Mode** to `scanning` and the layer gets a
-cursor that sweeps rows or columns (**Scan Axis**, **Scan Direction**) at the
+cursor that sweeps rows or columns (**Scan Axis**, **Scan Dir**) at the
 **Scan Unit** rate, from `1/32T` up to `1/1`. When the cursor finds a lit cell
 it plays **Instrument** with **Action**; crossing a dark cell can fire the
-separate **Empty Inst** / **Empty Trig** pair, handy for release notes or a
+separate **Empty Inst** / **Empty Act** pair, handy for release notes or a
 ghostly counter-rhythm. **Sections** (1, 2, 4 or 8) splits the sweep into
 shorter lanes, so one grid becomes several short loops.
 
@@ -61,7 +61,7 @@ shape becomes a sequence instead of a trickle of birth events.
   ninths), Pentatonic (including Hirajoshi-, In Sen- and Iwato-like sets) and
   Symmetric (Whole Tone, two Octatonics).
 - **Root** sets the key.
-- **Start Note** is where pitch counting begins.
+- **1st Note** is where pitch counting begins.
 - **Low Note** and **High Note** fence the range, and **Out of Range** decides
   what happens at the fence: `clamp` stops at the edge, `wrap` folds back
   round.
@@ -75,7 +75,7 @@ one chord, so even chaos sounds like it meant it.
 has its own **Enabled** switch.
 
 - **Pitch Steps** moves the pitch by **Steps** (-16 to 16) per cell along that
-  axis. **Restart Section** turns scan sections into little grids of their own:
+  axis. **Restart Sect** turns scan sections into little grids of their own:
   each lane counts from its own edge, so they all play in the same register.
   It works on the axis the lanes split (Y for column sections, X for row
   sections).

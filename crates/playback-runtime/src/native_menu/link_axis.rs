@@ -29,7 +29,7 @@ pub(super) fn axis_group(prefix: &str, label: &str, config: AxisMenuConfig<'_>) 
                 1,
             ),
             bool_item(
-                "Restart Section",
+                "Restart Sect",
                 format!("{prefix}.pitch.restartEachSection"),
                 config.restart_each_section,
             ),

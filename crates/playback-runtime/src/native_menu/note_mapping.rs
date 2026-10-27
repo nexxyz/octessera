@@ -26,7 +26,7 @@ pub(super) fn note_mapping_group(
                 1,
             ),
             number_item(
-                "Start Note",
+                "1st Note",
                 format!("{prefix}.pitch.startingNote"),
                 i32::from(sense.starting_note),
                 0,

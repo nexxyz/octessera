@@ -11,11 +11,11 @@ Play
 ├── Mix                                  ← page-select row
 ├── Pan                                  ← page-select row
 ├── FX (group)
-│   ├── FX Type: [none | stutter | freeze | filter_sweep | pitch_shift]
+│   ├── FX Type: [none | stutter | freeze | sweep | pitch]   ← stored as filter_sweep, pitch_shift
 │   ├── Target: [master | fx buses | instruments]
 │   ├── ... params of the FX Type (see Play FX)
 │   ├── Map to Grid (action)
-│   └── Aux Map (group)                  ← the Play FX params/actions that auto-map to aux, labelled `<label>: <key>`
+│   └── Aux Map (group)                  ← the Play FX params/actions that auto-map to aux, with their aux markers
 ├── Trigger Gate                         ← page-select row
 ├── Transpose                            ← page-select row
 ├── XY (group)
@@ -24,7 +24,7 @@ Play
 │   ├── Smoothing: [0..500] step 10 ms       ← default 80; 0 shows Off
 │   ├── Invert X: [on | off]
 │   ├── Invert Y: [on | off]
-│   └── Release: [sample-hold | reset-center]
+│   └── Release: [hold | center]             ← stored as sample-hold, reset-center
 └── Drums (group)                        ← labelled `No Drum slot`, with no rows, when no Drum slot exists
     └── Slot: [I<n>: Drum ...]           ← existing Drum slots; session-local
 ```

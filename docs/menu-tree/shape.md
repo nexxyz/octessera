@@ -9,7 +9,7 @@ global FX on the main mix.
 ```
 Shape
 ├── Instruments (group)
-│   ├── <overview label> (group)                 ← one per slot, e.g. `I1: synth direct`, `I2: FM fxb1`, `I3: Plucked direct`, `I4: Drum direct`, `I5: samp fxb1`, `I6: midi ch1`, `I7: none`
+│   ├── <overview label> (group)                 ← one per slot, e.g. `I1: synth direct`, `I2: FM fxb1`, `I3: Pluck direct`, `I4: Drum direct`, `I5: samp fxb1`, `I6: midi ch1`, `I7: none`
 │   │   ├── Type: [none | synth | sampler | midi | fm | pluck | drum]   ← fm shows as FM, pluck as Plucked, drum as Drum
 │   │   ├── Note Mode: [oneshot | hold]          ← default oneshot; hidden for none and Drum (Drum is always one-shot)
 │   │   ├── Synth (group)                        ← type synth
@@ -103,8 +103,8 @@ Shape
 - Type `none` keeps Type, Auto Label, and Name and hides everything else without deleting stored
   config.
 - Slot group labels name the loaded effect: `None`, `Delay`, `Duck`, `Reverb`, `Tremolo`,
-  `Saturator`, `Distortion`, `Bitcrusher`, `Vibrato`, `Chorus`, `Flanger`, `Filter LFO`, `Wah`,
-  `Auto Pan`, `Glitch`, `Compressor`, `EQ`, `Vinyl`.
+  `Saturate`, `Distort`, `Crusher`, `Vibrato`, `Chorus`, `Flanger`, `Filt LFO`, `Wah`,
+  `Auto Pan`, `Glitch`, `Comp`, `EQ`, `Vinyl`.
 - Bus naming: with Auto Label on, the name is built from the slot display names (`Delay+Reverb`,
   or `None` when every slot is empty); manual names are kept exactly. Legacy raw auto names are
   normalized only when Auto Label is on and the stored name is missing or equals the old raw
@@ -297,7 +297,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
 | `filter_lfo`, `wah` | Rate Hz, Center, Depth %, Q |
 | `auto_pan` | Rate Hz, Depth % |
 | `vinyl` | Saturation %, Crackle %, Warp Depth %, Mix % |
-| `eq` | Low Gain dB, Mid Gain dB, High Gain dB, Mid Freq Hz, Mid Q, Mix % |
+| `eq` | Low Gain, Mid Gain, High Gain (dB), Mid Freq Hz, Mid Q, Mix % |
 | `compressor` | Thresh dB, Ratio, Attack, Release, Makeup dB, Mix % |
 | `duck` | Source, Source Tap, Threshold, Amount %, Attack, Release |
 | `saturator` | Drive, Mix % |

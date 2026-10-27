@@ -20,7 +20,7 @@ fn plucked_type_and_six_rows_use_standard_oled_navigation() {
         .iter()
         .any(|line| line == "> Type Plucked"));
     let slot = &menu.root.children[2].children[0].children[0];
-    assert_eq!(slot.label, "I1: Plucked direct");
+    assert_eq!(slot.label, "I1: Pluck direct");
     assert_eq!(
         slot.children
             .iter()

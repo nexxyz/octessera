@@ -140,7 +140,7 @@ pub(crate) fn global_fx_slot_children_for_key(
     fx_slot_children(prefix, slot_type, params, GLOBAL_FX_SLOT_OPTIONS, None, bpm)
 }
 
-fn slot_group_label(slot_number: usize, slot_type: &str) -> String {
+pub(crate) fn slot_group_label(slot_number: usize, slot_type: &str) -> String {
     format!("Slot {slot_number}: {}", fx_type_label(slot_type))
 }
 
@@ -151,17 +151,17 @@ fn fx_type_label(slot_type: &str) -> String {
         "duck" => "Duck".into(),
         "reverb" => "Reverb".into(),
         "tremolo" => "Tremolo".into(),
-        "saturator" => "Saturator".into(),
-        "distortion" => "Distortion".into(),
-        "bitcrusher" => "Bitcrusher".into(),
+        "saturator" => "Saturate".into(),
+        "distortion" => "Distort".into(),
+        "bitcrusher" => "Crusher".into(),
         "vibrato" => "Vibrato".into(),
         "chorus" => "Chorus".into(),
         "flanger" => "Flanger".into(),
-        "filter_lfo" => "Filter LFO".into(),
+        "filter_lfo" => "Filt LFO".into(),
         "wah" => "Wah".into(),
         "auto_pan" => "Auto Pan".into(),
         "glitch" => "Glitch".into(),
-        "compressor" => "Compressor".into(),
+        "compressor" => "Comp".into(),
         "eq" => "EQ".into(),
         "vinyl" => "Vinyl".into(),
         _ => slot_type.into(),

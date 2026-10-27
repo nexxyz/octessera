@@ -43,13 +43,13 @@ The pre-push hook runs it too. The recipe lives in
 1. `Link`: check `BPM 120`.
 2. `L1 > Events`: check `On Trig note_on` and `On Inst I1`.
 3. `L1 > Note Mapping > Set > Pentatonic > Major Pentatonic`; check
-   `Set Maj Pent` and `Root D`; turn `Start Note` up by 2.
+   `Set Maj Pent` and `Root D`; turn `1st Note` up by 2.
 4. `L2 > Scanning`: `Scan Mode scanning`, `Scan Axis rows`, `Sections 1`,
    `Scan Unit 1/8`.
 5. `L2 > Events`: `Event Triggers On`; check `On Inst I2`.
 6. `L3 > Events`: `Event Triggers On`; check `On Inst I3`, `On Trig note_on`,
    and `Off Inst I3`; set the deactivation trigger to `note_off`.
-7. `L3 > Note Mapping`: same scale, root, and `Start Note` steps as L1.
+7. `L3 > Note Mapping`: same scale, root, and `1st Note` steps as L1.
 
 ### 4. Shape and samples
 

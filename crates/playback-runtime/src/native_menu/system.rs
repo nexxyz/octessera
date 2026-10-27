@@ -108,7 +108,7 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
         bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
         bool_item("Auto Map", "auxAutoMapEnabled", config.aux_auto_map_enabled),
         enum_item(
-            "Number Style",
+            "Num Style",
             "numericDisplayMode",
             vec!["bar", "numbers", "bar+numbers"],
             selected_index(

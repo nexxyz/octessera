@@ -98,7 +98,7 @@ pub(crate) fn duck_range_help_does_not_resolve_for_compressor_slots() {
         );
 
         let compressor_target =
-            fx_bus_parameter_help_target("compressor", "Compressor", parameter, label);
+            fx_bus_parameter_help_target("compressor", "Comp", parameter, label);
         let compressor_entry = crate::native_help::resolve_native_help_entry(&compressor_target)
             .expect("Compressor help entry");
         let compressor_copy = format!("{} {}", compressor_entry.line1, compressor_entry.line2);

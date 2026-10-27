@@ -63,7 +63,9 @@ pub(crate) use numeric_edit::numeric_edit_value;
 mod voice_config_read;
 mod voice_env_groups;
 
-pub(crate) use fx::{fx_bus_slot_children_for_key, global_fx_slot_children_for_key};
+pub(crate) use fx::{
+    fx_bus_slot_children_for_key, global_fx_slot_children_for_key, slot_group_label,
+};
 pub(in crate::native_menu) use item_builders::*;
 pub use model_input::NativeMenuPressResult;
 pub(crate) use options::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};

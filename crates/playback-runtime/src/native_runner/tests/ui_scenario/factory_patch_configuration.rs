@@ -86,7 +86,7 @@ pub(super) fn configure_link_from_visible_ui(device: &mut DeviceDriver) {
     menu.activate_action("Major Pentatonic");
     menu.expect_visible_value("Set", "Maj Pent");
     menu.expect_visible_value("Root", "D");
-    menu.edit_number_by("Start Note", 2);
+    menu.edit_number_by("1st Note", 2);
     menu.back();
     menu.back();
 
@@ -120,7 +120,7 @@ pub(super) fn configure_link_from_visible_ui(device: &mut DeviceDriver) {
     menu.activate_action("Major Pentatonic");
     menu.expect_visible_value("Set", "Maj Pent");
     menu.expect_visible_value("Root", "D");
-    menu.edit_number_by("Start Note", 2);
+    menu.edit_number_by("1st Note", 2);
     menu.back_to_root();
 }
 
