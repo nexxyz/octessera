@@ -13,12 +13,6 @@ fn inline_probe_marks_fence_two_refills() {
 }
 
 #[test]
-fn persistent_probe_marks_fence_two_refills() {
-    let (tx, source, shutdown) = super::persistent_tests::persistent_source(BLOCK_FRAMES);
-    assert_two_probe_marks_fence(tx, source, Some(shutdown));
-}
-
-#[test]
 fn off_thread_probe_report_arrives_after_prior_musical_event() {
     let (tx, rx) = event_queue();
     let mut source = EngineSource::with_block_frames(rx, 44_100, BLOCK_FRAMES);

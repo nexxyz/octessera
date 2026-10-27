@@ -188,7 +188,7 @@ fn persistent_status_attempt_advances_cadence_when_queue_is_full() {
         assert!(load_tx.try_send(empty_status()));
     }
     let (mut source, shutdown) =
-        EngineSource::with_persistent_workers_exact_frames(rx, RATE, 128, Some(load_tx))
+        EngineSource::with_routing_tree_persistent_workers(rx, RATE, 128, Some(load_tx))
             .expect("persistent runtime");
     let expired = expired_report();
     source.last_load_report = expired;
@@ -207,7 +207,7 @@ fn persistent_status_attempt_advances_cadence_when_queue_is_disconnected() {
     let (load_tx, load_rx) = audio_load_status_channel();
     drop(load_rx);
     let (mut source, shutdown) =
-        EngineSource::with_persistent_workers_exact_frames(rx, RATE, 128, Some(load_tx))
+        EngineSource::with_routing_tree_persistent_workers(rx, RATE, 128, Some(load_tx))
             .expect("persistent runtime");
     let expired = expired_report();
     source.last_load_report = expired;

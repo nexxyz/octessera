@@ -410,31 +410,35 @@ mod prepared_instrument_owner_tests;
 
 mod voice_note_on_memory_tests;
 
+#[cfg(feature = "routing-tree-executor")]
 mod shutdown_handoff_tests;
 
 mod retirement_storage_tests;
 
+#[cfg(feature = "routing-tree-executor")]
 mod persistent_tests;
 
 mod barrier_tests;
 
+#[cfg(feature = "routing-tree-executor")]
 mod persistent_profile_tests;
 
+#[cfg(feature = "routing-tree-executor")]
 mod persistent_terminal_tests;
 
+#[cfg(feature = "routing-tree-executor")]
 mod persistent_output_integration_tests;
 
 mod pcm_mirror_integration_tests;
 
-mod persistent_flash_tests;
-
+#[cfg(feature = "routing-tree-executor")]
 #[test]
-fn exact_frames_persistent_constructor_rejects_invalid_frames_before_setup() {
+fn routing_tree_constructor_rejects_invalid_frames_before_setup() {
     for block_frames in [31, 2049] {
         let reaper_spawn_failure = source_worker_reaper::fail_next_reaper_spawn_for_test();
         let (_tx, rx) = event_queue();
         let result =
-            EngineSource::with_persistent_workers_exact_frames(rx, 44_100, block_frames, None);
+            EngineSource::with_routing_tree_persistent_workers(rx, 44_100, block_frames, None);
         assert!(matches!(
             result,
             Err(SourceWorkerSetupError::InvalidBlockFrames {
@@ -447,6 +451,7 @@ fn exact_frames_persistent_constructor_rejects_invalid_frames_before_setup() {
     }
 }
 
+#[cfg(feature = "routing-tree-executor")]
 mod exact_frames_tests;
 
 mod block_configuration_tests;

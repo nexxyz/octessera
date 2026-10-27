@@ -23,11 +23,22 @@ pub(super) fn start_prewarmed_with_hook(
     active_frames: usize,
     start_hook: Option<SourceWorkerStartHook>,
 ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
+    start_prewarmed_with_hold(engine, active_frames, start_hook, false)
+}
+
+fn start_prewarmed_with_hold(
+    engine: &mut SynthEngine,
+    active_frames: usize,
+    start_hook: Option<SourceWorkerStartHook>,
+    hold_before_receive: bool,
+) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
     if !engine.enable_routing_tree() {
         return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
     }
-    let mut lifecycle =
-        SourceWorkerLifecycle::start_routing_tree_with_hold_and_hook(false, start_hook)?;
+    let mut lifecycle = SourceWorkerLifecycle::start_routing_tree_with_hold_and_hook(
+        hold_before_receive,
+        start_hook,
+    )?;
     if let Err(error) = lifecycle.prewarm() {
         lifecycle.mark_runtime_closed();
         let _ = lifecycle.shutdown_after_runtime_drop();
@@ -157,6 +168,15 @@ impl SourceWorkerLifecycle {
         start_hook: SourceWorkerStartHook,
     ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
         start_prewarmed_with_hook(engine, active_frames, Some(start_hook))
+    }
+
+    /// Workers wait on the hold control before receiving work, so tests can stall a quantum.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn start_routing_tree_prewarmed_held_for_test(
+        engine: &mut SynthEngine,
+        active_frames: usize,
+    ) -> Result<(SourceWorkerLifecycle, SourceWorkerRuntime), SourceWorkerSetupError> {
+        start_prewarmed_with_hold(engine, active_frames, None, true)
     }
 }
 

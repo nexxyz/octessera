@@ -5,7 +5,7 @@ use crate::{
 };
 use crossbeam_channel::{Sender, TrySendError};
 use realtime_engine::synth::RetiredAudioState;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use realtime_engine::synth::{SourceWorkerRetirement, SourceWorkerRuntime};
 
 pub(crate) struct SourceOwned<T>(Option<T>);
@@ -71,7 +71,7 @@ pub(crate) struct SourceOwnedDropState {
     pub(crate) retired_backlog: Option<RetiredAudioBacklog>,
     pub(crate) emergency_retirement: Option<RetiredAudioItem>,
     pub(crate) mirror_producers: PcmMirrorProducers,
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(crate) worker_runtime: Option<SourceWorkerRuntime>,
     #[cfg(test)]
     pub(crate) drop_probe: Option<SourceOwnedDropProbe>,
@@ -90,7 +90,7 @@ impl Drop for SourceOwnedDropState {
             &self.retired_backlog,
             &self.emergency_retirement,
             &self.mirror_producers,
-            #[cfg(any(test, feature = "routing-tree-executor"))]
+            #[cfg(feature = "routing-tree-executor")]
             &self.worker_runtime,
             #[cfg(test)]
             &self.drop_probe,
@@ -103,7 +103,7 @@ impl SourceOwnedDropState {
         self.retired_tx.take();
     }
 
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn retire_worker_runtime(&mut self) -> Option<SourceWorkerRetirement> {
         self.worker_runtime.take().map(SourceWorkerRuntime::retire)
     }

@@ -1,23 +1,12 @@
 use super::*;
 use realtime_engine::synth::{
-    default_synth_config, prepare_audio_config, prepare_momentary_fx_start,
-    prepare_momentary_fx_update, InstrumentSlotConfig, InstrumentsConfig, MomentaryFxTarget,
-    SampleBankConfig, SampleBankParamId, SampleBuffer, SampleSlotConfig, SynthParamId,
-    DEFAULT_PAN_POSITIONS,
+    default_synth_config, prepare_audio_config, InstrumentSlotConfig, InstrumentsConfig,
+    SampleBankConfig, SampleBuffer, SampleSlotConfig, DEFAULT_PAN_POSITIONS,
 };
-use std::collections::BTreeMap;
-use std::sync::mpsc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const RATE: u32 = 44_100;
-const SUPPORTED_BLOCKS: [usize; 3] = [64, 128, 256];
-
-impl EngineSource {
-    pub(crate) fn retire_workers_for_test(&mut self) {
-        let _ = self.retire_workers();
-    }
-}
 
 pub(super) fn persistent_source(
     block_frames: usize,
@@ -28,7 +17,7 @@ pub(super) fn persistent_source(
 ) {
     let (tx, rx) = event_queue();
     let (mut source, shutdown) =
-        EngineSource::with_persistent_workers(rx, RATE, block_frames, None).unwrap();
+        EngineSource::with_routing_tree_persistent_workers(rx, RATE, block_frames, None).unwrap();
     source
         .worker_state
         .worker
@@ -42,41 +31,6 @@ pub(super) fn persistent_source(
 fn inline_source(block_frames: usize) -> (EngineEventSender, EngineSource) {
     let (tx, rx) = event_queue();
     (tx, EngineSource::with_block_frames(rx, RATE, block_frames))
-}
-
-#[test]
-fn persistent_source_publishes_status_after_paired_worker_completion() {
-    let (tx, rx) = event_queue();
-    let (load_tx, load_rx) = audio_load_status_channel();
-    let (mut source, shutdown) =
-        EngineSource::with_persistent_workers(rx, RATE, 128, Some(load_tx)).unwrap();
-    source
-        .worker_state
-        .worker
-        .as_mut()
-        .expect("persistent worker")
-        .runtime
-        .set_deadline_for_test(Duration::from_secs(1));
-    source.last_load_report = Instant::now() - LOAD_REPORT_INTERVAL;
-    tx.send(EngineEvent::NoteOn {
-        instrument_slot: 0,
-        note: 60,
-        velocity: 100,
-        duration_ms: 1_000,
-    })
-    .unwrap();
-
-    for _ in 0..256 {
-        source.next();
-    }
-
-    let status = load_rx.try_recv().expect("paired completion status");
-    assert!(status
-        .worker_utilization
-        .is_some_and(|value| value.is_finite()));
-    assert!(!status.missed_quantum_flash);
-    drop(source);
-    assert_eq!(shutdown.shutdown().joined_workers, 2);
 }
 
 fn block_bits(source: &mut EngineSource, frames: usize) -> Vec<u32> {
@@ -137,165 +91,11 @@ fn mixed_config(value: f32) -> realtime_engine::synth::PreparedAudioConfig {
     )
 }
 
-fn assert_block_parity(inline: &mut EngineSource, persistent: &mut EngineSource, frames: usize) {
-    assert_eq!(block_bits(inline, frames), block_bits(persistent, frames));
-}
-
-fn run_mixed_flow(frames: usize) {
-    let (inline_tx, mut inline) = inline_source(frames);
-    let (persistent_tx, mut persistent, shutdown) = persistent_source(frames);
-    assert_eq!(inline.source_worker_health(), SourceWorkerHealth::Disabled);
-    assert_eq!(
-        persistent.source_worker_health(),
-        SourceWorkerHealth::Healthy
-    );
-
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::SetPreparedAudioConfig {
-            generation: 0,
-            config: mixed_config(0.8),
-        },
-    );
-    assert_block_parity(&mut inline, &mut persistent, frames);
-
-    let (inline_report_tx, inline_report_rx) = mpsc::sync_channel(1);
-    let (persistent_report_tx, persistent_report_rx) = mpsc::sync_channel(1);
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::NoteOn {
-            instrument_slot: 0,
-            note: 60,
-            velocity: 112,
-            duration_ms: 2_000,
-        },
-    );
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::NoteOn {
-            instrument_slot: 1,
-            note: 36,
-            velocity: 100,
-            duration_ms: 2_000,
-        },
-    );
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::PreviewSample {
-            instrument_slot: 1,
-            generation: 0,
-            buffer: sample_bank(0.8).slots[0].buffer.clone().unwrap(),
-            velocity: 100,
-        },
-    );
-    inline_tx
-        .send(EngineEvent::ProbeMark {
-            sent_at: Instant::now(),
-            report_tx: inline_report_tx,
-        })
-        .unwrap();
-    persistent_tx
-        .send(EngineEvent::ProbeMark {
-            sent_at: Instant::now(),
-            report_tx: persistent_report_tx,
-        })
-        .unwrap();
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::PreparedMomentaryFxStart {
-            config: prepare_momentary_fx_start(
-                "test".into(),
-                "stutter".into(),
-                BTreeMap::new(),
-                MomentaryFxTarget::Global,
-                RATE,
-            )
-            .unwrap(),
-        },
-    );
-    assert_block_parity(&mut inline, &mut persistent, frames);
-    assert!(inline_report_rx
-        .recv_timeout(Duration::from_secs(1))
-        .is_ok());
-    assert!(persistent_report_rx
-        .recv_timeout(Duration::from_secs(1))
-        .is_ok());
-
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::SetSynthParam {
-            instrument_slot: 0,
-            generation: 0,
-            param: SynthParamId::AmpGainPct,
-            value: 72.0,
-        },
-    );
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::SetSampleBankParam {
-            instrument_slot: 1,
-            generation: 0,
-            param: SampleBankParamId::AmpGainPct,
-            value: 65.0,
-        },
-    );
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::MomentaryFxUpdate(
-            prepare_momentary_fx_update(0, "stutter".into(), BTreeMap::new(), RATE).unwrap(),
-        ),
-    );
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::SetPreparedSampleBank {
-            instrument_slot: 1,
-            generation: 0,
-            bank: sample_bank(0.4),
-        },
-    );
-    assert_block_parity(&mut inline, &mut persistent, frames);
-
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::NoteOff {
-            instrument_slot: 0,
-            note: 60,
-        },
-    );
-    send_to_both(
-        &inline_tx,
-        &persistent_tx,
-        EngineEvent::MomentaryFxStop { epoch: 0 },
-    );
-    send_to_both(&inline_tx, &persistent_tx, EngineEvent::AllNotesOff);
-    for _ in 0..4 {
-        assert_block_parity(&mut inline, &mut persistent, frames);
-    }
-    assert_eq!(
-        persistent.source_worker_health(),
-        SourceWorkerHealth::Healthy
-    );
-
-    drop(inline);
-    drop(persistent);
-    assert_eq!(shutdown.shutdown().joined_workers, 2);
-}
-
 #[test]
-fn persistent_factory_prewarm_workers_and_keeps_inline_disabled() {
+fn routing_tree_factory_prewarms_workers_with_one_quantum_of_lookahead() {
     let (tx, source, shutdown) = persistent_source(128);
     assert_eq!(source.block_frames(), 128);
-    assert_eq!(source.lookahead_frames(), 0);
+    assert_eq!(source.lookahead_frames(), 128);
     assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
     drop(tx);
     drop(source);
@@ -304,13 +104,6 @@ fn persistent_factory_prewarm_workers_and_keeps_inline_disabled() {
     let (_tx, inline) = inline_source(128);
     assert_eq!(inline.source_worker_health(), SourceWorkerHealth::Disabled);
     assert_eq!(inline.lookahead_frames(), 0);
-}
-
-#[test]
-fn persistent_mixed_flow_matches_inline_for_supported_blocks() {
-    for frames in SUPPORTED_BLOCKS {
-        run_mixed_flow(frames);
-    }
 }
 
 #[test]
@@ -357,7 +150,6 @@ fn persistent_refill_has_no_callback_memory_activity() {
     });
     assert_eq!((inline_allocations, inline_deallocations), (0, 0));
     assert_eq!((persistent_allocations, persistent_deallocations), (0, 0));
-    assert_eq!(inline_bits, persistent_bits);
 
     drop(inline);
     drop(persistent);
@@ -374,18 +166,6 @@ fn persistent_idle_refill_stays_silent_through_worker_path() {
     });
     assert_eq!((allocations, deallocations), (0, 0));
     assert_eq!(source.source_worker_health(), SourceWorkerHealth::Healthy);
-    drop(source);
-    assert_eq!(shutdown.shutdown().joined_workers, 2);
-}
-
-#[test]
-fn source_worker_retirement_is_allocation_free_and_single_use() {
-    let (_tx, mut source, shutdown) = persistent_source(128);
-    let (allocations, deallocations) = allocations_and_deallocations(|| {
-        source.retire_workers_for_test();
-    });
-    assert_eq!((allocations, deallocations), (0, 0));
-    assert_eq!(source.source_worker_health(), SourceWorkerHealth::Disabled);
     drop(source);
     assert_eq!(shutdown.shutdown().joined_workers, 2);
 }

@@ -23,7 +23,7 @@ fn exact_frames_persistent_constructor_uses_exact_requested_frames_without_env_o
     for block_frames in [64, 128, 256, 512, 1024, 2048] {
         let (_tx, rx) = event_queue();
         let (source, shutdown) =
-            EngineSource::with_persistent_workers_exact_frames(rx, 44_100, block_frames, None)
+            EngineSource::with_routing_tree_persistent_workers(rx, 44_100, block_frames, None)
                 .unwrap();
         assert_eq!(source.block_frames(), block_frames);
         drop(source);

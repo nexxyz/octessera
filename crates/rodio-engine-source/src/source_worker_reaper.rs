@@ -1,16 +1,16 @@
 use crate::retired_audio_backlog::RetiredAudioBacklog;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use crate::source_worker::EngineSourceWorkerShutdownOwner;
 use crate::{drop_retired_item, RetiredAudioItem, SourceOwnedDropState};
 use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError, TrySendError};
 use realtime_engine::synth::SourceWorkerRetirement;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use realtime_engine::synth::{SourceWorkerLifecycle, SourceWorkerSetupError, SourceWorkerShutdown};
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 use std::cell::RefCell;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use std::io;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use std::panic::{catch_unwind, AssertUnwindSafe};
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use std::sync::Arc;
@@ -18,19 +18,21 @@ use std::thread;
 
 #[cfg(any(test, feature = "routing-tree-executor"))]
 use std::sync::atomic::AtomicBool;
+#[cfg(all(test, feature = "routing-tree-executor"))]
+use std::sync::atomic::AtomicUsize;
 #[cfg(test)]
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
 
 const RETIRED_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 #[derive(Clone)]
 pub(crate) struct ReaperLifecycleProbe {
     starts: Arc<AtomicUsize>,
     exits: Arc<AtomicUsize>,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 impl ReaperLifecycleProbe {
     fn new() -> Self {
         Self {
@@ -48,10 +50,10 @@ impl ReaperLifecycleProbe {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 struct ReaperLifecycleExitGuard(ReaperLifecycleProbe);
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 impl Drop for ReaperLifecycleExitGuard {
     fn drop(&mut self) {
         self.0.exits.fetch_add(1, Ordering::AcqRel);
@@ -66,7 +68,7 @@ pub(crate) struct SourceShutdownEnvelope {
 
 pub const SOURCE_REAPER_THREAD_NAME: &str = "oct-src-reaper";
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub(crate) struct PersistentReaperSpawnFailure {
     pub(crate) lifecycle: SourceWorkerLifecycle,
     pub(crate) error: SourceWorkerSetupError,
@@ -82,7 +84,7 @@ pub(crate) fn spawn_inline_reaper() -> (Sender<RetiredAudioItem>, Sender<SourceS
     (retired_tx, shutdown_tx)
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 pub(crate) fn spawn_persistent_reaper(
     lifecycle: SourceWorkerLifecycle,
     retired_rx: Receiver<RetiredAudioItem>,
@@ -97,7 +99,7 @@ pub(crate) fn spawn_persistent_reaper(
     spawn_persistent_reaper_with_options(lifecycle, retired_rx, panic_before_envelope, None)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 pub(crate) fn spawn_persistent_reaper_for_test(
     lifecycle: SourceWorkerLifecycle,
     retired_rx: Receiver<RetiredAudioItem>,
@@ -120,7 +122,7 @@ pub(crate) fn spawn_persistent_reaper_for_test(
     Ok((shutdown_tx, owner, hold_retired))
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 fn spawn_persistent_reaper_with_options(
     lifecycle: SourceWorkerLifecycle,
     retired_rx: Receiver<RetiredAudioItem>,
@@ -191,7 +193,7 @@ fn spawn_persistent_reaper_with_options(
     }
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 fn spawn_persistent_reaper_thread<F>(run: F) -> io::Result<thread::JoinHandle<()>>
 where
     F: FnOnce() + Send + 'static,
@@ -206,32 +208,32 @@ where
         .spawn(run)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 thread_local! {
     static FAIL_NEXT_REAPER_SPAWN: RefCell<Option<Arc<AtomicUsize>>> =
         const { RefCell::new(None) };
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 pub(crate) struct ReaperSpawnFailureGuard {
     attempts: Arc<AtomicUsize>,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 pub(crate) fn fail_next_reaper_spawn_for_test() -> ReaperSpawnFailureGuard {
     let attempts = Arc::new(AtomicUsize::new(0));
     FAIL_NEXT_REAPER_SPAWN.with(|failure| failure.replace(Some(Arc::clone(&attempts))));
     ReaperSpawnFailureGuard { attempts }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 impl Drop for ReaperSpawnFailureGuard {
     fn drop(&mut self) {
         FAIL_NEXT_REAPER_SPAWN.with(|failure| failure.replace(None));
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 impl ReaperSpawnFailureGuard {
     pub(crate) fn attempts_for_test(&self) -> usize {
         self.attempts.load(Ordering::Acquire)
@@ -244,7 +246,7 @@ pub(crate) fn abort_failed_shutdown_handoff(error: TrySendError<SourceShutdownEn
     }
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 struct PersistentReaper {
     lifecycle: SourceWorkerLifecycle,
     shutdown_rx: Receiver<SourceShutdownEnvelope>,
@@ -256,7 +258,7 @@ struct PersistentReaper {
     hold_retired: Option<Arc<AtomicBool>>,
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 fn run_persistent_reaper(mut state: PersistentReaper) {
     let envelope = match catch_unwind(AssertUnwindSafe(|| state.wait_for_envelope())) {
         Ok(envelope) => envelope,
@@ -300,7 +302,7 @@ fn run_persistent_reaper(mut state: PersistentReaper) {
     let _ = completion_tx.send(shutdown);
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 impl PersistentReaper {
     fn wait_for_envelope(&mut self) -> Option<SourceShutdownEnvelope> {
         #[cfg(test)]
@@ -409,13 +411,13 @@ fn drain_retired_audio(retired_rx: Receiver<RetiredAudioItem>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        spawn_inline_reaper_for_test, spawn_persistent_reaper_thread, SourceShutdownEnvelope,
-        SOURCE_REAPER_THREAD_NAME,
-    };
+    #[cfg(feature = "routing-tree-executor")]
+    use super::spawn_persistent_reaper_thread;
+    use super::{spawn_inline_reaper_for_test, SourceShutdownEnvelope, SOURCE_REAPER_THREAD_NAME};
     use crate::retired_audio_backlog::RetiredAudioBacklog;
     use std::sync::atomic::Ordering;
 
+    #[cfg(feature = "routing-tree-executor")]
     #[test]
     fn reaper_thread_name_is_linux_visible_and_bounded() {
         assert!(SOURCE_REAPER_THREAD_NAME.len() <= 15);

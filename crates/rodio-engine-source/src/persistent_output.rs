@@ -1,16 +1,16 @@
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use super::control_drain;
 use super::telemetry::DrainedControlEvents;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use super::EngineSource;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use super::{MAX_BLOCK_FRAMES, MIN_BLOCK_FRAMES, OUTPUT_CHANNELS};
 use realtime_engine::synth::AudioLoadStatus;
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 use realtime_engine::synth::{SourceWorkerRenderDisposition, BLOCK_SLOT_SCRATCH_FRAMES};
 use serde::{Deserialize, Serialize};
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 const _: () = assert!(BLOCK_SLOT_SCRATCH_FRAMES == super::MAX_BLOCK_FRAMES);
 
 /// Cumulative output quantum counters from the persistent source cache.
@@ -24,7 +24,7 @@ pub struct PersistentOutputCounters {
     pub deadline_recoveries: u64,
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PersistentOutputKind {
     Fresh,
@@ -34,13 +34,13 @@ pub(crate) enum PersistentOutputKind {
 }
 
 pub(super) struct PreviousMasterQuantum {
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) samples: [f32; BLOCK_SLOT_SCRATCH_FRAMES * OUTPUT_CHANNELS],
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) cached_frames: usize,
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) valid: bool,
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) repeat_used_for_current_recovery: bool,
     pub(super) rendered_quantums: u64,
     pub(super) repeated_quantums: u64,
@@ -53,13 +53,13 @@ pub(super) struct PreviousMasterQuantum {
 impl PreviousMasterQuantum {
     pub(super) fn new() -> Self {
         Self {
-            #[cfg(any(test, feature = "routing-tree-executor"))]
+            #[cfg(feature = "routing-tree-executor")]
             samples: [0.0; BLOCK_SLOT_SCRATCH_FRAMES * OUTPUT_CHANNELS],
-            #[cfg(any(test, feature = "routing-tree-executor"))]
+            #[cfg(feature = "routing-tree-executor")]
             cached_frames: 0,
-            #[cfg(any(test, feature = "routing-tree-executor"))]
+            #[cfg(feature = "routing-tree-executor")]
             valid: false,
-            #[cfg(any(test, feature = "routing-tree-executor"))]
+            #[cfg(feature = "routing-tree-executor")]
             repeat_used_for_current_recovery: false,
             rendered_quantums: 0,
             repeated_quantums: 0,
@@ -70,7 +70,7 @@ impl PreviousMasterQuantum {
         }
     }
 
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn fresh(&mut self, frames: usize, output: &[f32]) -> PersistentOutputKind {
         let samples = frames.saturating_mul(OUTPUT_CHANNELS);
         if frames > BLOCK_SLOT_SCRATCH_FRAMES || output.len() < samples {
@@ -85,7 +85,7 @@ impl PreviousMasterQuantum {
         PersistentOutputKind::Fresh
     }
 
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn deadline_miss(
         &mut self,
         sample_rate: u32,
@@ -114,20 +114,20 @@ impl PreviousMasterQuantum {
         }
     }
 
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn recovery_silence(&mut self, output: &mut [f32]) -> PersistentOutputKind {
         output.fill(0.0);
         self.dropped_quantums = self.dropped_quantums.saturating_add(1);
         PersistentOutputKind::DroppedSilence
     }
 
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn fatal_silence(&mut self, output: &mut [f32]) -> PersistentOutputKind {
         output.fill(0.0);
         PersistentOutputKind::FatalSilence
     }
 
-    #[cfg(any(test, feature = "routing-tree-executor"))]
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn deadline_recovery(&mut self) {
         self.deadline_recoveries = self.deadline_recoveries.saturating_add(1);
         self.repeat_used_for_current_recovery = false;
@@ -174,7 +174,7 @@ pub(super) struct RefillResult {
     pub(super) defer_status: bool,
 }
 
-#[cfg(any(test, feature = "routing-tree-executor"))]
+#[cfg(feature = "routing-tree-executor")]
 impl EngineSource {
     #[cfg(feature = "routing-tree-executor")]
     pub(super) fn refill_routing_tree_persistent(&mut self) -> RefillResult {
@@ -318,125 +318,7 @@ impl EngineSource {
             defer_status,
         }
     }
-
-    #[cfg(test)]
-    pub(super) fn refill_persistent(&mut self) -> RefillResult {
-        let Self {
-            engine,
-            worker_state,
-            control_rx,
-            retired_tx,
-            retired_backlog,
-            emergency_retirement,
-            retirement_disconnected,
-            owner_generations,
-            #[cfg(test)]
-            retired_drop_probe,
-            sample_rate,
-            block_frames,
-            cached_profile_snapshot,
-            buf,
-            left_buf,
-            right_buf,
-            persistent_output,
-            ..
-        } = self;
-        let Some(worker) = worker_state.worker.as_mut() else {
-            buf.resize(*block_frames * OUTPUT_CHANNELS, 0.0);
-            persistent_output.fatal_silence(buf);
-            return RefillResult {
-                drained: DrainedControlEvents::default(),
-                force_status: false,
-                fresh: false,
-                defer_status: false,
-            };
-        };
-        let runtime = &mut worker.runtime;
-        let recovery = runtime.refresh_recovery_disposition(engine);
-        debug_assert!((MIN_BLOCK_FRAMES..=MAX_BLOCK_FRAMES).contains(block_frames));
-        buf.resize(*block_frames * OUTPUT_CHANNELS, 0.0);
-        left_buf.resize(*block_frames, 0.0);
-        right_buf.resize(*block_frames, 0.0);
-        match recovery {
-            SourceWorkerRenderDisposition::Recovering => {
-                persistent_output.recovery_silence(buf);
-                return RefillResult {
-                    drained: DrainedControlEvents::default(),
-                    force_status: false,
-                    fresh: false,
-                    defer_status: false,
-                };
-            }
-            SourceWorkerRenderDisposition::Fatal => {
-                let _ = engine.render_interleaved_block_with_source_runtime_ready(
-                    runtime,
-                    *block_frames,
-                    left_buf,
-                    right_buf,
-                    buf,
-                );
-                persistent_output.fatal_silence(buf);
-                return RefillResult {
-                    drained: DrainedControlEvents::default(),
-                    force_status: false,
-                    fresh: false,
-                    defer_status: false,
-                };
-            }
-            SourceWorkerRenderDisposition::Fresh
-            | SourceWorkerRenderDisposition::RecoveredReady => {}
-            SourceWorkerRenderDisposition::NewlyMissed => unreachable!("recovery refresh miss"),
-        }
-        let recovered = recovery == SourceWorkerRenderDisposition::RecoveredReady;
-        if recovered {
-            persistent_output.deadline_recovery();
-        }
-        let mut controls = control_drain::ControlDrain::new(
-            control_rx,
-            retired_tx,
-            retired_backlog.as_mut().expect("retired backlog"),
-            retirement_disconnected,
-            owner_generations,
-            emergency_retirement,
-            #[cfg(test)]
-            retired_drop_probe.clone(),
-        );
-        let cached = *cached_profile_snapshot;
-        let (drained, profile_snapshot) = match runtime.with_controls_ready(engine, |engine| {
-            let drained = controls.drain(engine);
-            (drained, engine.profile_snapshot())
-        }) {
-            Some(result) => result,
-            None => (DrainedControlEvents::default(), cached),
-        };
-        *cached_profile_snapshot = profile_snapshot;
-        let disposition = engine.render_interleaved_block_with_source_runtime_ready(
-            runtime,
-            *block_frames,
-            left_buf,
-            right_buf,
-            buf,
-        );
-        match disposition {
-            SourceWorkerRenderDisposition::Fresh => persistent_output.fresh(*block_frames, buf),
-            SourceWorkerRenderDisposition::NewlyMissed => {
-                persistent_output.deadline_miss(*sample_rate, *block_frames, buf)
-            }
-            SourceWorkerRenderDisposition::Recovering => persistent_output.recovery_silence(buf),
-            SourceWorkerRenderDisposition::RecoveredReady => {
-                unreachable!("recovery must precede rendering")
-            }
-            SourceWorkerRenderDisposition::Fatal => persistent_output.fatal_silence(buf),
-        };
-        RefillResult {
-            drained,
-            force_status: disposition == SourceWorkerRenderDisposition::NewlyMissed
-                || (recovered && disposition == SourceWorkerRenderDisposition::Fresh),
-            fresh: disposition == SourceWorkerRenderDisposition::Fresh,
-            defer_status: false,
-        }
-    }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "routing-tree-executor"))]
 mod tests;

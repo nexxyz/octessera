@@ -134,9 +134,9 @@ fn held_persistent_source(
     let mut engine = Box::new(SynthEngine::new(TEST_SAMPLE_RATE));
     prime_engine_pending_render_retirement(&mut engine);
     let (lifecycle, mut runtime) = if terminal {
-        SourceWorkerLifecycle::start_prewarmed_held_for_test(&mut engine).unwrap()
+        SourceWorkerLifecycle::start_routing_tree_prewarmed_held_for_test(&mut engine, 128).unwrap()
     } else {
-        SourceWorkerLifecycle::start_prewarmed(&mut engine).unwrap()
+        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128).unwrap()
     };
     runtime.set_deadline_for_test(if terminal {
         Duration::ZERO
@@ -160,7 +160,7 @@ fn held_persistent_source(
         128,
         None,
         engine,
-        EngineSourceWorkerState::persistent(runtime),
+        EngineSourceWorkerState::routing_tree_persistent(runtime),
         SourceRetirementChannels {
             retired_tx,
             shutdown_tx,
@@ -197,74 +197,6 @@ fn assert_reaper_drops(
 }
 
 #[test]
-fn persistent_factory_reaper_spawn_failure_cleans_workers_on_construction_thread() {
-    let (result_tx, result_rx) = mpsc::sync_channel(1);
-    let construction = std::thread::spawn(move || {
-        let (probe_tx, probe_rx) = bounded(1);
-        let _probe_guard = install_source_worker_shutdown_probe_for_test(probe_tx);
-        let _spawn_failure = crate::source_worker_reaper::fail_next_reaper_spawn_for_test();
-        let (engine, shared_samples) = shared_sample_engine();
-        let sample_identity = Arc::as_ptr(&shared_samples) as *const f32 as usize;
-        let before = Arc::strong_count(&shared_samples);
-        let (_control_tx, control_rx) = event_queue();
-        let factory = EngineSource::with_persistent_workers_with_engine(
-            control_rx,
-            TEST_SAMPLE_RATE,
-            128,
-            None,
-            Box::new(engine),
-        );
-        let after = Arc::strong_count(&shared_samples);
-        let error = match factory {
-            Ok((_source, _shutdown)) => panic!("reaper spawn failure was not injected"),
-            Err(error) => error,
-        };
-        let shutdown = probe_rx
-            .recv_timeout(Duration::from_secs(1))
-            .expect("factory cleanup report");
-        result_tx
-            .send((
-                std::thread::current().id(),
-                error,
-                shutdown,
-                sample_identity,
-                before,
-                after,
-                _spawn_failure.attempts_for_test(),
-            ))
-            .unwrap();
-    });
-    let (
-        construction_thread,
-        error,
-        (shutdown, shutdown_thread),
-        sample_identity,
-        before,
-        after,
-        reaper_spawn_attempts,
-    ) = result_rx
-        .recv_timeout(Duration::from_secs(1))
-        .expect("persistent factory reaper failure must return");
-    construction.join().unwrap();
-
-    assert_eq!(
-        error,
-        realtime_engine::synth::SourceWorkerSetupError::RetirementReaperUnavailable
-    );
-    assert_eq!(shutdown_thread, construction_thread);
-    assert_eq!(shutdown.joined_workers, 2);
-    assert_eq!(shutdown.retirement_error, None);
-    assert_eq!(shutdown.destroyed_owner_count, 2);
-    assert!(shutdown
-        .destroyed_owner_identities
-        .iter()
-        .flatten()
-        .any(|identity| identity.5 == Some(sample_identity)));
-    assert!(after < before);
-    assert_eq!(reaper_spawn_attempts, 1);
-}
-
-#[test]
 fn persistent_factory_worker_schedule_failure_joins_workers_without_reaper_or_owner_leak() {
     for (expected_parity, start_hook) in [
         (0, fail_schedule_parity_zero as SourceWorkerStartHook),
@@ -282,13 +214,13 @@ fn persistent_factory_worker_schedule_failure_joins_workers_without_reaper_or_ow
                 assert_eq!(engine.profile_snapshot().active_sample_voices, 1);
                 let sample_weak = Arc::downgrade(&shared_samples);
                 let (_control_tx, control_rx) = event_queue();
-                let factory = EngineSource::with_persistent_workers_with_engine_and_hook(
+                let factory = EngineSource::with_routing_tree_workers_on_engine(
                     control_rx,
                     TEST_SAMPLE_RATE,
                     128,
                     None,
                     Box::new(engine),
-                    start_hook,
+                    Some(start_hook),
                 );
                 let error = match factory {
                     Ok((_source, _shutdown)) => {
@@ -380,29 +312,6 @@ fn persistent_healthy_backlog_handoff_destroys_all_callback_payloads_on_reaper()
 }
 
 #[test]
-fn persistent_terminal_backlog_handoff_destroys_all_callback_payloads_on_reaper() {
-    let (tx, mut source, shutdown, hold_retired, drop_rx, worker_hold) =
-        held_persistent_source(true, false);
-    fill_retirement_storage_for_reaper(&tx, &mut source);
-    let _ = source.next();
-    assert_eq!(
-        source.source_worker_health(),
-        SourceWorkerHealth::DeadlineMiss
-    );
-    let source_thread = std::thread::current().id();
-    let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
-        source.handoff_shutdown_for_test();
-    });
-    assert_eq!((allocation_count, deallocation_count), (0, 0));
-    drop(source);
-    worker_hold.expect("terminal worker hold").release();
-    hold_retired.store(false, std::sync::atomic::Ordering::Release);
-    let result = shutdown.shutdown();
-    assert_eq!(result.joined_workers, 2);
-    assert_reaper_drops(drop_rx, source_thread, RETIREMENT_STORED_ITEM_COUNT);
-}
-
-#[test]
 fn inline_source_owned_state_drops_on_reaper() {
     let (tx, mut source, hold_retired, reaper, _drop_rx) = held_inline_source();
     let (source_drop_tx, source_drop_rx) = mpsc::channel();
@@ -442,22 +351,4 @@ fn routing_tree_source_drop_has_no_source_thread_deallocation() {
     let (allocation_count, deallocation_count) = allocations_and_deallocations(|| drop(source));
     assert_eq!((allocation_count, deallocation_count), (0, 0));
     assert_eq!(shutdown.shutdown().joined_workers, 2);
-}
-
-#[test]
-fn persistent_reaper_panic_fallback_drains_handed_off_backlog() {
-    let (tx, mut source, shutdown, hold_retired, drop_rx, worker_hold) =
-        held_persistent_source(true, true);
-    fill_retirement_storage_for_reaper(&tx, &mut source);
-    let source_thread = std::thread::current().id();
-    let (allocation_count, deallocation_count) = allocations_and_deallocations(|| {
-        source.handoff_shutdown_for_test();
-    });
-    assert_eq!((allocation_count, deallocation_count), (0, 0));
-    drop(source);
-    worker_hold.expect("terminal worker hold").release();
-    hold_retired.store(false, std::sync::atomic::Ordering::Release);
-    let result = shutdown.shutdown();
-    assert_eq!(result.joined_workers, 2);
-    assert_reaper_drops(drop_rx, source_thread, RETIREMENT_STORED_ITEM_COUNT);
 }

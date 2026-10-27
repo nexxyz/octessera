@@ -40,13 +40,6 @@ impl EngineSource {
         }
     }
 
-    #[cfg(test)]
-    pub(super) fn retire_workers(
-        &mut self,
-    ) -> Option<realtime_engine::synth::SourceWorkerRetirement> {
-        self.worker_state.retire()
-    }
-
     fn source_owned_drop_state(&mut self) -> crate::SourceOwnedDropState {
         crate::SourceOwnedDropState {
             engine: self.engine.take(),
@@ -59,7 +52,7 @@ impl EngineSource {
             retired_backlog: self.retired_backlog.take(),
             emergency_retirement: self.emergency_retirement.take(),
             mirror_producers: std::mem::take(&mut self.mirror_producers),
-            #[cfg(any(test, feature = "routing-tree-executor"))]
+            #[cfg(feature = "routing-tree-executor")]
             worker_runtime: self.worker_state.take_runtime(),
             #[cfg(test)]
             drop_probe: self.source_owned_drop_probe.take(),

@@ -15,6 +15,7 @@ impl EngineSource {
         self.retired_backlog.as_ref().expect("retired backlog").len
     }
 
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn retired_backlog_items(&self) -> impl Iterator<Item = &RetiredAudioItem> {
         self.retired_backlog
             .as_ref()
@@ -31,6 +32,7 @@ impl EngineSource {
         self.retired_drop_probe = Some(drop_tx);
     }
 
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn set_source_owned_drop_probe(
         &mut self,
         drop_tx: std::sync::mpsc::Sender<std::thread::ThreadId>,
@@ -38,6 +40,7 @@ impl EngineSource {
         self.source_owned_drop_probe = Some(SourceOwnedDropProbe { drop_tx });
     }
 
+    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn handoff_shutdown_for_test(&mut self) {
         self.handoff_shutdown();
     }
