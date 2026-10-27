@@ -104,23 +104,6 @@ function Assert-Rejected {
 }
 
 try {
-  foreach ($profileCase in @(
-      [pscustomobject]@{
-        Profile = "raspberry-pi-zero-2w"
-        Json = '{"schema_version":1,"board_profile":"raspberry-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-raspberry-pi-zero-2w"}'
-      },
-      [pscustomobject]@{
-        Profile = "orange-pi-zero-2w"
-        Json = '{"schema_version":1,"board_profile":"orange-pi-zero-2w","binary":"octessera-pi","arch":"aarch64-unknown-linux-gnu","cargo_feature":"hardware-orange-pi-zero-2w"}'
-      }
-    )) {
-    Write-PiBoardMetadata -Path $metadataPath -BoardProfile $profileCase.Profile
-    $json = $utf8NoBom.GetString([IO.File]::ReadAllBytes($metadataPath))
-    if ($json -cne $profileCase.Json) {
-      throw "Pi metadata JSON is not canonical for $($profileCase.Profile)"
-    }
-  }
-
   Write-RaspberryBoardMetadata $metadataPath
   $bytes = [IO.File]::ReadAllBytes($metadataPath)
   if ($bytes.Length -lt 3 -or $bytes[0] -eq 0xEF -or $bytes[1] -eq 0xBB -or $bytes[2] -eq 0xBF) {

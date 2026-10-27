@@ -37,7 +37,7 @@ the Raspberry does not expose the optional AES and SHA2 extensions.
 ## Build metadata and cross-builds
 
 The shared `tools/pi/build-rpi-opi-cross.ps1` accepts exactly the two IDs. It
-selects the matching app feature and writes the same profile into
+selects the matching app feature and, for Raspberry builds, writes
 `octessera-pi.metadata.json`; the default is Raspberry. The Raspberry deploy,
 provision, preflight, pi-gen, and Raspberry Pi Imager tools accept only
 `raspberry-pi-zero-2w` and reject Orange rather than guessing at pins, GPIO

@@ -229,8 +229,6 @@ try {
   }
   if ($BoardProfile -ceq $RaspberryPiZero2WProfileId) {
     Write-RaspberryBoardMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -SourceCommit $sourceCommit -BinaryPath $outputBinary
-  } else {
-    Write-PiBoardMetadata -Path (Join-Path $outputDir "octessera-pi.metadata.json") -BoardProfile $BoardProfile
   }
   Write-Output $outputBinary
 }

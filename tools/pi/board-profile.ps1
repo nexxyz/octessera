@@ -76,43 +76,6 @@ function Assert-PiBoardProfile {
   Get-PiBoardProfileSpec $BoardProfile | Out-Null
 }
 
-function New-PiBoardMetadata {
-  param(
-    [string]$BoardProfile,
-    [string]$Binary = $PiBinary
-  )
-
-  $spec = Get-PiBoardProfileSpec $BoardProfile
-  if ($Binary -cne $spec.Binary) {
-    throw "Pi board metadata binary must be $($spec.Binary); got '$Binary'."
-  }
-  [pscustomobject][ordered]@{
-    schema_version = 1
-    board_profile = $spec.ProfileId
-    binary = $spec.Binary
-    arch = $spec.Architecture
-    cargo_feature = $spec.CargoFeature
-  }
-}
-
-function Get-PiBoardMetadataJson {
-  param([string]$BoardProfile)
-
-  $metadata = New-PiBoardMetadata $BoardProfile
-  '{"schema_version":1,"board_profile":"' + $metadata.board_profile + '","binary":"' + $metadata.binary + '","arch":"' + $metadata.arch + '","cargo_feature":"' + $metadata.cargo_feature + '"}'
-}
-
-function Write-PiBoardMetadata {
-  param(
-    [string]$Path,
-    [string]$BoardProfile
-  )
-
-  $json = Get-PiBoardMetadataJson $BoardProfile
-  $encoding = New-Object System.Text.UTF8Encoding($false)
-  [IO.File]::WriteAllText($Path, $json, $encoding)
-}
-
 function Assert-RaspberryBoardProfile {
   param([string]$BoardProfile)
 
