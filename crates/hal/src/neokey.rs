@@ -145,6 +145,10 @@ impl NeoKey {
             .collect())
     }
 
+    pub fn settling(&self) -> bool {
+        self.debouncer.settling()
+    }
+
     pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {
         self.clear_interrupt_flags()?;
         self.scan()
@@ -330,6 +334,10 @@ impl NeoKey {
 
     pub fn scan(&mut self) -> Result<Vec<(u8, bool)>, String> {
         Ok(Vec::new())
+    }
+
+    pub fn settling(&self) -> bool {
+        false
     }
 
     pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {

@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-pub(super) const NEOKEY_DEBOUNCE: Duration = Duration::from_millis(24);
+pub(super) const NEOKEY_DEBOUNCE: Duration = Duration::from_millis(10);
 
 #[derive(Clone, Default)]
 pub(super) struct NeoKeyDebouncer {
@@ -32,5 +32,9 @@ impl NeoKeyDebouncer {
             }
         }
         self.stable
+    }
+
+    pub(super) fn settling(&self) -> bool {
+        self.candidate_since.iter().any(Option::is_some)
     }
 }

@@ -167,7 +167,9 @@ board A/B direction at the Orange event boundary.
 
 The shared Seesaw INT net is physical pin 10, H618 PH1 (UART0 RX), line 225.
 Like the Raspberry, the Orange scans the NeoTrellis and NeoKey when INT falls or
-stays low, plus a 100 ms safety poll. The line is only free once the overlay
+stays low, plus a 100 ms safety poll. The NeoKey only reports key levels, so
+while one of its keys is inside the 10 ms debounce the scan repeats every 4 ms
+until it settles. The line is only free once the overlay
 has released UART0; if it cannot be requested, startup fails with a controls
 error instead of falling back to polling.
 

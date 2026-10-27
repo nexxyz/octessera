@@ -72,30 +72,36 @@ fn debounces_release_too() {
 fn chatter_resets_debounce_window() {
     let mut debouncer = NeoKeyDebouncer::default();
     let start = Instant::now();
+    let pressed = [true, false, false, false];
 
-    debouncer.update([true, false, false, false], start);
-    debouncer.update([false; 4], start + Duration::from_millis(10));
+    debouncer.update(pressed, start);
+    debouncer.update([false; 4], start + Duration::from_millis(2));
+    let restarted = start + Duration::from_millis(4);
+    assert_eq!(debouncer.update(pressed, restarted), [false; 4]);
     assert_eq!(
         debouncer.update(
-            [true, false, false, false],
-            start + Duration::from_millis(20)
+            pressed,
+            restarted + NEOKEY_DEBOUNCE - Duration::from_millis(1)
         ),
         [false; 4]
     );
     assert_eq!(
-        debouncer.update(
-            [true, false, false, false],
-            start + Duration::from_millis(43)
-        ),
-        [false; 4]
+        debouncer.update(pressed, restarted + NEOKEY_DEBOUNCE),
+        pressed
     );
-    assert_eq!(
-        debouncer.update(
-            [true, false, false, false],
-            start + Duration::from_millis(44)
-        ),
-        [true, false, false, false]
-    );
+}
+
+#[test]
+fn settles_only_while_a_change_awaits_confirmation() {
+    let mut debouncer = NeoKeyDebouncer::default();
+    let start = Instant::now();
+    let pressed = [false, false, true, false];
+
+    assert!(!debouncer.settling());
+    debouncer.update(pressed, start);
+    assert!(debouncer.settling());
+    debouncer.update(pressed, start + NEOKEY_DEBOUNCE);
+    assert!(!debouncer.settling());
 }
 
 #[test]

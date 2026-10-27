@@ -306,7 +306,7 @@ pub(crate) fn spawn(
                     &worker_input_tx,
                     &worker_scan_generation,
                 );
-                schedule.record_scan(scanned, Instant::now());
+                schedule.record_scan(scanned, neokey.settling(), Instant::now());
             }
 
             let mut output = HardwareLedOutput {
