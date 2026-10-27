@@ -16,7 +16,7 @@ thread_local! {
 fn record_prefix_activity_apply(index: usize) {
     PREFIX_ACTIVITY_APPLIES.with(|applies| {
         let mut value = applies.get();
-        value[index] += INSTRUMENT_SLOT_COUNT;
+        value[index] += 1;
         applies.set(value);
     });
 }
@@ -73,12 +73,7 @@ impl InlineSourceExecutor {
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             pool.compact_slot_lanes(slot);
         }
-        apply_rendered_prefixes(
-            sum.rendered_prefixes,
-            frames,
-            output.slot_active,
-            output.active_slots,
-        );
+        apply_rendered_prefixes(sum.rendered_prefixes, frames, output.slot_active);
         #[cfg(test)]
         record_prefix_activity_apply(0);
         for (slot, active) in output.active_slots.iter_mut().enumerate() {
@@ -110,12 +105,7 @@ impl InlineSourceExecutor {
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             pool.compact_slot_lanes(slot);
         }
-        apply_rendered_prefixes(
-            sum.rendered_prefixes,
-            frames,
-            output.slot_active,
-            output.active_slots,
-        );
+        apply_rendered_prefixes(sum.rendered_prefixes, frames, output.slot_active);
         #[cfg(test)]
         record_prefix_activity_apply(1);
         for (slot, active) in output.active_slots.iter_mut().enumerate() {
@@ -128,13 +118,11 @@ fn apply_rendered_prefixes(
     rendered_prefixes: [usize; INSTRUMENT_SLOT_COUNT],
     frames: usize,
     slot_active: &mut [Vec<bool>; INSTRUMENT_SLOT_COUNT],
-    active_slots: &mut [bool; INSTRUMENT_SLOT_COUNT],
 ) {
     for slot in 0..INSTRUMENT_SLOT_COUNT {
         let rendered_prefix = rendered_prefixes[slot].min(frames);
         slot_active[slot][..rendered_prefix].fill(true);
         slot_active[slot][rendered_prefix..frames].fill(false);
-        active_slots[slot] = rendered_prefix > 0;
     }
 }
 

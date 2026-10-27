@@ -49,7 +49,7 @@ fn prefix_metadata_and_activity_application_are_not_per_frame_operations() {
     assert_eq!(super::voice_block_sum::rendered_voices_for_test(), [1, 1]);
     assert_eq!(
         super::inline_source_executor::prefix_activity_applies_for_test(),
-        [INSTRUMENT_SLOT_COUNT, INSTRUMENT_SLOT_COUNT]
+        [1, 1]
     );
 }
 
