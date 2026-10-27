@@ -1,7 +1,5 @@
 //! NeoTrellis 8x8 LED matrix driver (4x4 devices x4 chain).
 
-#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
-use crate::board_profiles::SeesawInputMode;
 #[cfg(feature = "raspberry-pi-zero-2w")]
 use crate::pinmap::TRELLIS_ADDRS;
 #[cfg(test)]
@@ -68,15 +66,11 @@ const KEYPAD_EDGE_RISING: u8 = 3;
 impl NeoTrellis {
     #[cfg(feature = "raspberry-pi-zero-2w")]
     pub fn new(i2c_path: &str) -> Result<Self, String> {
-        Self::new_with_mode(i2c_path, TRELLIS_ADDRS, SeesawInputMode::Interrupt)
+        Self::new_at(i2c_path, TRELLIS_ADDRS)
     }
 
     #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w"))]
-    pub fn new_with_mode(
-        i2c_path: &str,
-        addresses: [u16; 4],
-        mode: SeesawInputMode,
-    ) -> Result<Self, String> {
+    pub fn new_at(i2c_path: &str, addresses: [u16; 4]) -> Result<Self, String> {
         let mut delay: Box<dyn SeesawDelay> = Box::new(ThreadSeesawDelay);
         let mut last_error = None;
         for attempt in 1..=TRELLIS_INIT_ATTEMPTS {
@@ -90,7 +84,7 @@ impl NeoTrellis {
                     continue;
                 }
             };
-            match initialize_once(addresses, &mut transports, mode, &mut *delay) {
+            match initialize_once(addresses, &mut transports, &mut *delay) {
                 Ok(()) => {
                     return Ok(Self {
                         devices: addresses.map(|address| (address, [0; 16])),
@@ -113,21 +107,19 @@ impl NeoTrellis {
     pub(crate) fn from_transport(
         addresses: [u16; 4],
         transports: [Box<dyn SeesawTransport>; 4],
-        mode: SeesawInputMode,
     ) -> Result<Self, String> {
-        Self::initialize_with_retries(addresses, transports, mode, Box::new(NoopSeesawDelay))
+        Self::initialize_with_retries(addresses, transports, Box::new(NoopSeesawDelay))
     }
 
     #[cfg(test)]
     fn initialize_with_retries(
         addresses: [u16; 4],
         mut transports: [Box<dyn SeesawTransport>; 4],
-        mode: SeesawInputMode,
         mut delay: Box<dyn SeesawDelay>,
     ) -> Result<Self, String> {
         let mut last_error = None;
         for attempt in 1..=TRELLIS_INIT_ATTEMPTS {
-            match initialize_once(addresses, &mut transports, mode, &mut *delay) {
+            match initialize_once(addresses, &mut transports, &mut *delay) {
                 Ok(()) => {
                     return Ok(Self {
                         devices: addresses.map(|address| (address, [0; 16])),
@@ -246,7 +238,6 @@ fn open_linux_transports(
 fn initialize_once(
     addresses: [u16; 4],
     transports: &mut [Box<dyn SeesawTransport>; 4],
-    mode: SeesawInputMode,
     delay: &mut dyn SeesawDelay,
 ) -> Result<(), String> {
     for transport in transports.iter_mut() {
@@ -275,15 +266,13 @@ fn initialize_once(
                 hw_id[0]
             ));
         }
-        if mode == SeesawInputMode::Interrupt {
-            write_register(
-                &mut **transport,
-                SEESAW_KEYPAD_BASE,
-                SEESAW_KEYPAD_INTENSET,
-                &[0x01],
-                "Trellis keypad interrupt init failed",
-            )?;
-        }
+        write_register(
+            &mut **transport,
+            SEESAW_KEYPAD_BASE,
+            SEESAW_KEYPAD_INTENSET,
+            &[0x01],
+            "Trellis keypad interrupt init failed",
+        )?;
         for key in 0..TRELLIS_PIXELS_PER_DEVICE as u8 {
             let seesaw_key = trellis_key_to_seesaw_key(key);
             for edge in [KEYPAD_EDGE_FALLING, KEYPAD_EDGE_RISING] {

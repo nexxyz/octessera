@@ -210,7 +210,7 @@ fn fake_state() -> (FakeTransport, Arc<Mutex<FakeState>>) {
     )
 }
 
-fn expected_init(mode: SeesawInputMode) -> Vec<Transaction> {
+fn expected_init() -> Vec<Transaction> {
     let mask = NEOKEY_BUTTON_MASK.to_be_bytes().to_vec();
     let mut transactions = vec![
         Transaction::Write {
@@ -239,21 +239,17 @@ fn expected_init(mode: SeesawInputMode) -> Vec<Transaction> {
             data: mask.clone(),
         },
     ];
-    if mode == SeesawInputMode::Interrupt {
-        transactions.extend([
-            Transaction::Write {
-                base: SEESAW_GPIO_BASE,
-                function: SEESAW_GPIO_INTENSET,
-                data: mask,
-            },
-            Transaction::Read {
-                base: SEESAW_GPIO_BASE,
-                function: SEESAW_GPIO_INTFLAG,
-                length: 4,
-            },
-        ]);
-    }
     transactions.extend([
+        Transaction::Write {
+            base: SEESAW_GPIO_BASE,
+            function: SEESAW_GPIO_INTENSET,
+            data: mask,
+        },
+        Transaction::Read {
+            base: SEESAW_GPIO_BASE,
+            function: SEESAW_GPIO_INTFLAG,
+            length: 4,
+        },
         Transaction::Write {
             base: SEESAW_NEOPIXEL_BASE,
             function: SEESAW_NEOPIXEL_PIN,
@@ -269,30 +265,17 @@ fn expected_init(mode: SeesawInputMode) -> Vec<Transaction> {
 }
 
 #[test]
-fn initializes_in_exact_polling_order() {
+fn initializes_in_exact_order_with_interrupts_enabled() {
     let (transport, state) = fake_state();
-    NeoKey::from_transport(Box::new(transport), SeesawInputMode::Polling).unwrap();
-    assert_eq!(
-        lock_state(&state).transactions,
-        expected_init(SeesawInputMode::Polling)
-    );
-}
-
-#[test]
-fn interrupt_initialization_adds_enable_and_clear_transactions() {
-    let (transport, state) = fake_state();
-    NeoKey::from_transport(Box::new(transport), SeesawInputMode::Interrupt).unwrap();
-    assert_eq!(
-        lock_state(&state).transactions,
-        expected_init(SeesawInputMode::Interrupt)
-    );
+    NeoKey::from_transport(Box::new(transport)).unwrap();
+    assert_eq!(lock_state(&state).transactions, expected_init());
 }
 
 #[test]
 fn validates_hw_id() {
     let (transport, state) = fake_state();
     lock_state(&state).hw_id = 0x12;
-    let error = NeoKey::from_transport(Box::new(transport), SeesawInputMode::Polling)
+    let error = NeoKey::from_transport(Box::new(transport))
         .err()
         .expect("invalid HW ID should fail");
     assert!(error.contains("NeoKey HW ID invalid: 0x12"));
@@ -309,7 +292,7 @@ fn maps_active_low_button_bits() {
 #[test]
 fn retains_injected_transport_for_scan_and_led_transactions() {
     let (transport, state) = fake_state();
-    let mut neokey = NeoKey::from_transport(Box::new(transport), SeesawInputMode::Polling).unwrap();
+    let mut neokey = NeoKey::from_transport(Box::new(transport)).unwrap();
     lock_state(&state).transactions.clear();
 
     assert_eq!(neokey.raw_button_state().unwrap(), 0);
@@ -342,7 +325,7 @@ fn retries_a_transient_write_failure_without_sleeping() {
     let (transport, state) = fake_state();
     lock_state(&state).fail_write_at = Some(1);
 
-    NeoKey::from_transport(Box::new(transport), SeesawInputMode::Polling).unwrap();
+    NeoKey::from_transport(Box::new(transport)).unwrap();
 
     let state = lock_state(&state);
     let transactions = &state.transactions;
@@ -367,16 +350,30 @@ fn retries_a_transient_read_failure_without_sleeping() {
     let (transport, state) = fake_state();
     lock_state(&state).fail_read_at = Some(1);
 
-    NeoKey::from_transport(Box::new(transport), SeesawInputMode::Polling).unwrap();
+    NeoKey::from_transport(Box::new(transport)).unwrap();
 
-    assert_eq!(lock_state(&state).read_calls, 2);
+    let hw_id_reads = lock_state(&state)
+        .transactions
+        .iter()
+        .filter(|transaction| {
+            matches!(
+                transaction,
+                Transaction::Read {
+                    base: SEESAW_STATUS_BASE,
+                    function: SEESAW_HW_ID,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(hw_id_reads, 2);
 }
 
 #[test]
 fn propagates_a_persistent_read_failure_after_retries() {
     let (transport, state) = fake_state();
     lock_state(&state).fail_reads = true;
-    let error = NeoKey::from_transport(Box::new(transport), SeesawInputMode::Polling)
+    let error = NeoKey::from_transport(Box::new(transport))
         .err()
         .expect("read failure should fail initialization");
 

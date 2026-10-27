@@ -1,5 +1,3 @@
-#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
-use crate::board_profiles::SeesawInputMode;
 #[cfg(feature = "raspberry-pi-zero-2w")]
 use crate::pinmap::NEOKEY_ADDR;
 #[cfg(test)]
@@ -70,15 +68,11 @@ use debounce::NEOKEY_DEBOUNCE;
 impl NeoKey {
     #[cfg(feature = "raspberry-pi-zero-2w")]
     pub fn new(i2c_path: &str) -> Result<Self, String> {
-        Self::new_with_mode(i2c_path, NEOKEY_ADDR, SeesawInputMode::Interrupt)
+        Self::new_at(i2c_path, NEOKEY_ADDR)
     }
 
     #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w"))]
-    pub fn new_with_mode(
-        i2c_path: &str,
-        address: u16,
-        mode: SeesawInputMode,
-    ) -> Result<Self, String> {
+    pub fn new_at(i2c_path: &str, address: u16) -> Result<Self, String> {
         let mut delay: Box<dyn SeesawDelay> = Box::new(ThreadSeesawDelay);
         let mut last_error = None;
         for attempt in 1..=NEOKEY_INIT_ATTEMPTS {
@@ -93,7 +87,7 @@ impl NeoKey {
                         continue;
                     }
                 };
-            match initialize_once(&mut *transport, mode, &mut *delay) {
+            match initialize_once(&mut *transport, &mut *delay) {
                 Ok(()) => {
                     return Ok(Self {
                         transport,
@@ -113,22 +107,18 @@ impl NeoKey {
     }
 
     #[cfg(test)]
-    pub(crate) fn from_transport(
-        transport: Box<dyn SeesawTransport>,
-        mode: SeesawInputMode,
-    ) -> Result<Self, String> {
-        Self::initialize_with_retries(transport, mode, Box::new(NoopSeesawDelay))
+    pub(crate) fn from_transport(transport: Box<dyn SeesawTransport>) -> Result<Self, String> {
+        Self::initialize_with_retries(transport, Box::new(NoopSeesawDelay))
     }
 
     #[cfg(test)]
     fn initialize_with_retries(
         mut transport: Box<dyn SeesawTransport>,
-        mode: SeesawInputMode,
         mut delay: Box<dyn SeesawDelay>,
     ) -> Result<Self, String> {
         let mut last_error = None;
         for attempt in 1..=NEOKEY_INIT_ATTEMPTS {
-            match initialize_once(&mut *transport, mode, &mut *delay) {
+            match initialize_once(&mut *transport, &mut *delay) {
                 Ok(()) => {
                     return Ok(Self {
                         transport,
@@ -213,7 +203,6 @@ impl NeoKey {
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 fn initialize_once(
     transport: &mut dyn SeesawTransport,
-    mode: SeesawInputMode,
     delay: &mut dyn SeesawDelay,
 ) -> Result<(), String> {
     let mask = NEOKEY_BUTTON_MASK.to_be_bytes();
@@ -260,23 +249,21 @@ fn initialize_once(
         &mask,
         "NeoKey GPIO pullup set failed",
     )?;
-    if mode == SeesawInputMode::Interrupt {
-        write_register(
-            transport,
-            SEESAW_GPIO_BASE,
-            SEESAW_GPIO_INTENSET,
-            &mask,
-            "NeoKey GPIO interrupt init failed",
-        )?;
-        let mut flags = [0_u8; 4];
-        read_register(
-            transport,
-            SEESAW_GPIO_BASE,
-            SEESAW_GPIO_INTFLAG,
-            &mut flags,
-            "NeoKey GPIO interrupt clear failed",
-        )?;
-    }
+    write_register(
+        transport,
+        SEESAW_GPIO_BASE,
+        SEESAW_GPIO_INTENSET,
+        &mask,
+        "NeoKey GPIO interrupt init failed",
+    )?;
+    let mut flags = [0_u8; 4];
+    read_register(
+        transport,
+        SEESAW_GPIO_BASE,
+        SEESAW_GPIO_INTFLAG,
+        &mut flags,
+        "NeoKey GPIO interrupt clear failed",
+    )?;
     write_register(
         transport,
         SEESAW_NEOPIXEL_BASE,

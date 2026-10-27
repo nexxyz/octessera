@@ -173,7 +173,7 @@ fn fake_transports() -> (FakeTransports, FakeStates) {
     (transports, states)
 }
 
-fn expected_device_init(mode: SeesawInputMode) -> Vec<Transaction> {
+fn expected_device_init() -> Vec<Transaction> {
     let mut transactions = vec![
         Transaction::Write {
             base: SEESAW_STATUS_BASE,
@@ -185,14 +185,12 @@ fn expected_device_init(mode: SeesawInputMode) -> Vec<Transaction> {
             function: SEESAW_HW_ID,
             length: 1,
         },
-    ];
-    if mode == SeesawInputMode::Interrupt {
-        transactions.push(Transaction::Write {
+        Transaction::Write {
             base: SEESAW_KEYPAD_BASE,
             function: SEESAW_KEYPAD_INTENSET,
             data: vec![0x01],
-        });
-    }
+        },
+    ];
     for key in 0..16_u8 {
         let seesaw_key = trellis_key_to_seesaw_key(key);
         for edge in [KEYPAD_EDGE_FALLING, KEYPAD_EDGE_RISING] {
@@ -219,38 +217,12 @@ fn expected_device_init(mode: SeesawInputMode) -> Vec<Transaction> {
 }
 
 #[test]
-fn initializes_each_device_in_exact_polling_order() {
+fn initializes_each_device_in_exact_order_with_keypad_interrupts() {
     let (transports, states) = fake_transports();
-    NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Polling,
-    )
-    .unwrap();
+    NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports).unwrap();
 
     for state in states {
-        assert_eq!(
-            lock_state(&state).transactions,
-            expected_device_init(SeesawInputMode::Polling)
-        );
-    }
-}
-
-#[test]
-fn interrupt_initialization_adds_keypad_interrupt_setup() {
-    let (transports, states) = fake_transports();
-    NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Interrupt,
-    )
-    .unwrap();
-
-    for state in states {
-        assert_eq!(
-            lock_state(&state).transactions,
-            expected_device_init(SeesawInputMode::Interrupt)
-        );
+        assert_eq!(lock_state(&state).transactions, expected_device_init());
     }
 }
 
@@ -258,13 +230,9 @@ fn interrupt_initialization_adds_keypad_interrupt_setup() {
 fn validates_each_device_hw_id() {
     let (transports, states) = fake_transports();
     lock_state(&states[2]).hw_id = 0x12;
-    let error = NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Polling,
-    )
-    .err()
-    .expect("invalid HW ID should fail");
+    let error = NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports)
+        .err()
+        .expect("invalid HW ID should fail");
 
     assert!(error.contains("Trellis HW ID invalid at 0x30: 0x12"));
 }
@@ -282,12 +250,7 @@ fn reads_fifo_edges_and_maps_coordinates() {
             (32 << 2) | KEYPAD_EDGE_RISING,
         ];
     }
-    let mut trellis = NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Polling,
-    )
-    .unwrap();
+    let mut trellis = NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports).unwrap();
     for state in &states {
         lock_state(state).transactions.clear();
     }
@@ -316,12 +279,7 @@ fn reads_fifo_edges_and_maps_coordinates() {
 #[test]
 fn writes_24_byte_grb_chunks_for_each_quadrant_then_shows() {
     let (transports, states) = fake_transports();
-    let mut trellis = NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Polling,
-    )
-    .unwrap();
+    let mut trellis = NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports).unwrap();
     for state in &states {
         lock_state(state).transactions.clear();
     }
@@ -364,12 +322,7 @@ fn writes_24_byte_grb_chunks_for_each_quadrant_then_shows() {
 #[test]
 fn projects_unique_sentinel_leds_using_fixture_device_keys() {
     let (transports, states) = fake_transports();
-    let mut trellis = NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Polling,
-    )
-    .unwrap();
+    let mut trellis = NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports).unwrap();
     for state in &states {
         lock_state(state).transactions.clear();
     }
@@ -421,12 +374,7 @@ fn projects_unique_sentinel_leds_using_fixture_device_keys() {
 fn retries_a_transient_write_failure_without_sleeping() {
     let (transports, states) = fake_transports();
     lock_state(&states[0]).fail_write_at = Some(1);
-    NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Polling,
-    )
-    .unwrap();
+    NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports).unwrap();
 
     let reset_count = lock_state(&states[0])
         .transactions
@@ -449,13 +397,9 @@ fn retries_a_transient_write_failure_without_sleeping() {
 fn propagates_a_persistent_read_failure_after_retries() {
     let (transports, states) = fake_transports();
     lock_state(&states[1]).fail_reads = true;
-    let error = NeoTrellis::from_transport(
-        [0x2E, 0x2F, 0x30, 0x31],
-        transports,
-        SeesawInputMode::Polling,
-    )
-    .err()
-    .expect("read failure should fail initialization");
+    let error = NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports)
+        .err()
+        .expect("read failure should fail initialization");
 
     assert!(error.contains("Trellis HW ID read failed: fake read failure"));
     assert_eq!(lock_state(&states[1]).read_calls, 3);

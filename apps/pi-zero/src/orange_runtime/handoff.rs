@@ -29,11 +29,7 @@ pub(crate) fn run(
     hdmi: crate::render::hdmi::HdmiFramebuffer,
 ) -> Result<(), OrangeRunError> {
     let devices = ORANGE_PI_ZERO_2W_DEVICES;
-    let trellis = match NeoTrellis::new_with_mode(
-        devices.i2c.path,
-        devices.trellis_addrs,
-        SeesawInputMode::Interrupt,
-    ) {
+    let trellis = match NeoTrellis::new_at(devices.i2c.path, devices.trellis_addrs) {
         Ok(trellis) => trellis,
         Err(error) => {
             return Err(startup_failure(
@@ -43,11 +39,7 @@ pub(crate) fn run(
             ))
         }
     };
-    let neokey = match NeoKey::new_with_mode(
-        devices.i2c.path,
-        devices.neokey_addr,
-        SeesawInputMode::Interrupt,
-    ) {
+    let neokey = match NeoKey::new_at(devices.i2c.path, devices.neokey_addr) {
         Ok(neokey) => neokey,
         Err(error) => {
             return Err(startup_failure(

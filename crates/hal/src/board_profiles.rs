@@ -120,12 +120,6 @@ pub struct OrangePiDevices {
     pub encoders: [OrangeEncoderPins; 1 + platform_core::AUX_ENCODER_COUNT],
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SeesawInputMode {
-    Interrupt,
-    Polling,
-}
-
 pub const RASPBERRY_PI_ZERO_2W_ID: &str = "raspberry-pi-zero-2w";
 pub const ORANGE_PI_ZERO_2W_ID: &str = "orange-pi-zero-2w";
 
