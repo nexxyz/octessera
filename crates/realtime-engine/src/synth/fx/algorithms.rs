@@ -5,6 +5,9 @@ mod eq;
 mod filter_lfo;
 mod vinyl;
 
+#[cfg(test)]
+mod bitcrusher_tests;
+
 pub(super) use delay::{
     process_delay, process_mod_delay, DelayCache, ModDelayCache, ModDelayParams,
 };
@@ -130,9 +133,8 @@ pub(super) fn process_bitcrusher(
         *last = input;
     }
     *count = (*count + 1) % (*hold).max(1);
-    let levels = (1_u32 << bits.min(16)).max(2) as f32;
-    let q = ((*last + 1.0) * 0.5 * (levels - 1.0)).round();
-    let crushed = (q / (levels - 1.0)) * 2.0 - 1.0;
+    let half_levels = (1_u32 << bits.clamp(1, 16)) as f32 * 0.5;
+    let crushed = ((*last * half_levels).round() / half_levels).clamp(-1.0, 1.0);
     input * (1.0 - mix) + crushed * mix
 }
 
