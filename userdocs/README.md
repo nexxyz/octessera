@@ -102,18 +102,21 @@ These are planning targets for dense patches, not hard limits:
 
 | Board and Perf. Mode | Synth voices | Sample voices | Bus FX | Global FX |
 |---|---:|---:|---:|---:|
-| Raspberry, Latency | 16 | 16 | 8 | 2 |
-| Raspberry, Capacity | 32 | 32 | 8 | 2 |
-| Orange, Latency | 24 | 24 | 8 | 2 |
-| Orange, Capacity | 64 | 32 | 12 | 2 |
+| Raspberry, Latency | 32 | 16 | 8 | 2 |
+| Raspberry, Capacity | 48 | 32 | 8 | 2 |
+| Orange, Latency | 48 | 24 | 8 | 2 |
+| Orange, Capacity | 48 | 32 | 12 | 2 |
 
 Voice counts are totals across all eight instrument slots. Behaviors, samples
 and effects all eat into the headroom, and **System > Audio > Polyphony** can
 steal older voices as load rises. The menu will happily let you fill all
 twelve bus FX slots on either board; this table is the polite suggestion.
-In the 0.8.11 load test, both boards took 96 notes held at once in either
-Perf. Mode without a single dropout, with Polyphony stealing the oldest voices
-along the way. The table itself is still an estimate, not a measured ceiling.
+The synth column comes from a load test with Polyphony off and the factory
+patch playing underneath: the Raspberry held 40 synth, FM and Plucked notes
+cleanly in Latency mode and started dropping out at 48; in Capacity mode, and on
+the Orange in both modes, it reached 64, the engine's synth voice limit, without
+a dropout. The table keeps about a quarter of that as headroom. The sample
+column is still an estimate.
 
 How quick does it feel? With `System > Audio > Perf. Mode` set to Latency, the
 audio buffering adds about 4 ms on the Orange and 9 ms on the Raspberry, plus a
