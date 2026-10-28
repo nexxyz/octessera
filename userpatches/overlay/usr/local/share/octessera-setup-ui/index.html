@@ -33,6 +33,11 @@
             <small id="countryHint" class="muted">Use the two-letter country code for the Wi-Fi radio.</small>
           </label>
 
+          <label class="field">
+            <span>Manual SSID</span>
+            <input id="manualSsid" type="text" autocomplete="off" spellcheck="false" placeholder="Network name" />
+          </label>
+
           <div class="field network-field">
             <div class="field-header">
               <span id="networkLabel">Available networks</span>
@@ -41,11 +46,6 @@
             <div id="networkState" class="network-state muted" role="status" aria-live="polite" aria-busy="false"></div>
             <div id="networkList" class="network-list" role="radiogroup" aria-labelledby="networkLabel" aria-busy="false"></div>
           </div>
-
-          <label class="field">
-            <span>Manual SSID</span>
-            <input id="manualSsid" type="text" autocomplete="off" spellcheck="false" placeholder="Network name" />
-          </label>
 
           <div class="wifi-access">
             <label class="field">

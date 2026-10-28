@@ -26,7 +26,7 @@ steps.
 
 | Setting | Details |
 |---|---|
-| Wi-Fi | Country code, then a scanned or typed network name and its password (or open network). |
+| Wi-Fi | Country code, then a typed (Manual SSID) or scanned network name and its password (or open network). |
 | Local device password | For `pi` on the Raspberry Pi or `octessera` on the Orange Pi. At least 8 characters. Required even with SSH off. |
 | SSH | **Key** (recommended; password login stays off), **password** (uses the local device password), or **none** (SSH stays off). Root login is never allowed. |
 | Hostname | Optional: letters, digits and hyphens, up to 63 characters, not starting or ending with a hyphen. Leave blank to keep the current name; a fresh card uses `octessera-rpi` or `octessera-opi`. |
