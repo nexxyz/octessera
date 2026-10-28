@@ -182,6 +182,8 @@ fn main() {
     pin_normal_startup_thread();
     #[cfg(target_os = "linux")]
     audio_priority::lock_process_memory();
+    #[cfg(target_os = "linux")]
+    audio_priority::tighten_timer_slack();
     if let Err(error) = runtime_thread::run_on_runtime_thread(orange_runtime::run) {
         eprintln!("Orange foreground candidate failed: {error}");
         std::process::exit(error.exit_code());
@@ -217,6 +219,8 @@ fn main() {
     pin_normal_startup_thread();
     #[cfg(all(target_os = "linux", feature = "hardware-raspberry-pi-zero-2w"))]
     audio_priority::lock_process_memory();
+    #[cfg(all(target_os = "linux", feature = "hardware-raspberry-pi-zero-2w"))]
+    audio_priority::tighten_timer_slack();
     let _ = simple_logger::init();
 
     let handoff_mode = match boot_oled_handoff::mode_from_env() {

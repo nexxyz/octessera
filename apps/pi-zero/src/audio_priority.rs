@@ -11,6 +11,14 @@ use std::time::Duration;
 ))]
 mod memory_lock;
 mod syscalls;
+#[cfg(all(
+    target_os = "linux",
+    any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    )
+))]
+mod timer_slack;
 
 #[cfg(all(
     target_os = "linux",
@@ -20,6 +28,14 @@ mod syscalls;
     )
 ))]
 pub(crate) use memory_lock::lock_process_memory;
+#[cfg(all(
+    target_os = "linux",
+    any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    )
+))]
+pub(crate) use timer_slack::tighten_timer_slack;
 
 #[cfg(test)]
 use syscalls::SCHED_FIFO_POLICY;
