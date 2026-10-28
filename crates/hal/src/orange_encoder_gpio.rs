@@ -9,6 +9,8 @@ use gpiocdev::{Chip, Request};
 #[cfg(target_os = "linux")]
 use std::fs;
 #[cfg(target_os = "linux")]
+use std::os::fd::AsRawFd;
+#[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 #[cfg(target_os = "linux")]
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,6 +20,9 @@ use std::sync::{mpsc::Sender, Arc};
 use std::thread::{self, JoinHandle};
 #[cfg(target_os = "linux")]
 use std::time::Duration;
+
+#[cfg(target_os = "linux")]
+const STOP_CHECK_MS: libc::c_int = 20;
 
 #[cfg(target_os = "linux")]
 pub struct OrangeEncoderGpio {
@@ -182,9 +187,23 @@ fn run_worker(
             }
         }
         if !handled {
-            thread::sleep(Duration::from_millis(1));
+            wait_for_edges(&quadrature, switch.as_ref());
         }
     }
+}
+
+/// Sleeps until either request has an edge queued, waking every `STOP_CHECK_MS` so a dropped
+/// encoder's worker notices the stop flag.
+#[cfg(target_os = "linux")]
+fn wait_for_edges(quadrature: &Request, switch: Option<&Request>) {
+    let poll_fd = |request: &Request| libc::pollfd {
+        fd: request.as_raw_fd(),
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    let mut fds = [poll_fd(quadrature), poll_fd(switch.unwrap_or(quadrature))];
+    let count = if switch.is_some() { 2 } else { 1 };
+    unsafe { libc::poll(fds.as_mut_ptr(), count, STOP_CHECK_MS) };
 }
 
 #[cfg(target_os = "linux")]
