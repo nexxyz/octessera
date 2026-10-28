@@ -15,7 +15,8 @@ health="/run/octessera/smoke-ready-$run_id.json"
 if [ "$board" = rpi ]; then
   runtime_user=pi live_store=/home/pi/presets samples_dir=/home/pi/samples
   working_directory="$(systemctl show "$service" -p WorkingDirectory --value)"
-  props=(--property=User=pi --property=Group=pi --property=LimitMEMLOCK=infinity
+  props=(--property=User=pi --property=Group=pi --property=Nice=-10 --property=LimitRTPRIO=80
+    --property=LimitMEMLOCK=infinity
     --property=WorkingDirectory="$working_directory" "--property=SupplementaryGroups=tty input"
     "--property=AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG"
     "--property=CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG"
