@@ -1,4 +1,3 @@
-#[cfg(feature = "routing-tree-executor")]
 use super::routing_tree_worker::RoutingTreeOutputBlock;
 use super::source_worker_health::{
     SourceWorkerHealth, SourceWorkerHealthSnapshot, SourceWorkerHealthState,
@@ -6,15 +5,15 @@ use super::source_worker_health::{
 use super::source_worker_lease::OwnerLease;
 use super::source_worker_lifecycle::{CompletedEnvelope, OwnerEnvelope};
 use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
-use super::source_worker_protocol::{RoutingTreeWork, SourceWorkerMode, WorkStamp, WorkerPhase};
+use super::source_worker_protocol::{RoutingTreeWork, SourceWorkerMode, WorkStamp};
 use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
 use super::SynthEngine;
 use crossbeam_channel::{Receiver, Sender};
-#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+#[cfg(any(test, feature = "test-support"))]
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+#[cfg(any(test, feature = "test-support"))]
 use std::time::Duration;
 use std::time::Instant;
 
@@ -30,45 +29,32 @@ pub struct SourceWorkerRuntime {
     home_rxs: Option<[Receiver<OwnerEnvelope>; SOURCE_WORKER_COUNT]>,
     fault_txs: Option<[Sender<OwnerEnvelope>; SOURCE_WORKER_COUNT]>,
     worker_exited: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     jobs_started: Option<[Arc<AtomicU64>; SOURCE_WORKER_COUNT]>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    render_attempts: AtomicU64,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     worker_pauses: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     worker_pause_entries: Option<[Arc<AtomicBool>; SOURCE_WORKER_COUNT]>,
     runtime_close: Option<Arc<SourceWorkerCloseState>>,
     health: Arc<SourceWorkerHealthState>,
     runtime_generation: u64,
     next_sequence: u64,
     expected_stamp: Option<WorkStamp>,
-    expected_phase: Option<WorkerPhase>,
     in_flight_mask: u8,
     completed_mask: u8,
     sample_rate: u32,
     lookahead_frames: usize,
-    #[cfg(feature = "routing-tree-executor")]
     routing_output_spares: Option<[RoutingTreeOutputBlock; SOURCE_WORKER_COUNT]>,
-    #[cfg(feature = "routing-tree-executor")]
     routing_output_stamp: Option<WorkStamp>,
-    #[cfg(feature = "routing-tree-executor")]
     routing_output_ready: bool,
-    #[cfg(feature = "routing-tree-executor")]
     routing_tree_reprime_pending: bool,
-    #[cfg(feature = "routing-tree-executor")]
     routing_absolute_deadline: Option<Instant>,
-    #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
+    #[cfg(any(test, feature = "test-support"))]
     routing_tree_probe: Option<Arc<RoutingTreePipelineProbe>>,
     load: Option<SourceWorkerLoad>,
     source_load_observations:
         [Option<super::source_worker_load::SourceWorkerLoadObservation>; SOURCE_WORKER_COUNT],
-    bus_load_observations:
-        [Option<super::source_worker_load::SourceWorkerLoadObservation>; SOURCE_WORKER_COUNT],
-    bus_dispatch_residency: [u8; super::super::types::BUS_COUNT],
-    bus_dispatch_residency_valid: bool,
-    force_fault_mask: u8,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     deadline_override: Option<Duration>,
 }
 
@@ -82,7 +68,6 @@ impl SourceWorkerRuntime {
     }
 
     pub fn retire(mut self) -> SourceWorkerRetirement {
-        #[cfg(feature = "routing-tree-executor")]
         self.clear_routing_absolute_deadline();
         let Some(close) = self.runtime_close.take() else {
             return SourceWorkerRetirement::inline();
@@ -144,9 +129,9 @@ mod quantum;
 
 mod controls;
 
-#[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
+#[cfg(any(test, feature = "test-support"))]
 mod pipeline_probe;
-#[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
+#[cfg(any(test, feature = "test-support"))]
 pub use pipeline_probe::RoutingTreePipelineProbe;
 
 mod recovery;
@@ -155,23 +140,12 @@ mod recovery;
 pub(super) mod test_support;
 
 #[cfg(test)]
-mod sample_test_support;
-
-#[cfg(test)]
-mod recovery_test_support;
-
-#[cfg(test)]
 mod collection_test_support;
 
-#[cfg(test)]
-mod residency_test_support;
-
-#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+#[cfg(any(test, feature = "test-support"))]
 mod feature_support;
 
-#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_control_gate;
-#[cfg(feature = "routing-tree-executor")]
 mod routing_tree_pipeline;
 
 mod runtime_helpers;

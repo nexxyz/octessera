@@ -1,25 +1,16 @@
-#[cfg(feature = "routing-tree-executor")]
 use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
-#[cfg(feature = "routing-tree-executor")]
 use super::super::source_worker_protocol::ROUTING_TREE_WORKER_THREAD_NAMES;
-#[cfg(feature = "routing-tree-executor")]
 use super::super::source_worker_protocol::{SourceWorkerSetupError, SourceWorkerStartHook};
-#[cfg(feature = "routing-tree-executor")]
 use super::worker::spawn_worker_named;
 #[cfg(test)]
 use super::worker::ReverseCompletionState;
 use super::SourceWorkerLifecycle;
-#[cfg(feature = "routing-tree-executor")]
 use super::{SourceWorkerCloseState, SOURCE_WORKER_MAILBOX_CAPACITY};
-#[cfg(feature = "routing-tree-executor")]
 use crossbeam_channel::bounded;
-#[cfg(feature = "routing-tree-executor")]
 use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg(feature = "routing-tree-executor")]
 use std::sync::Arc;
 
 impl SourceWorkerLifecycle {
-    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn start_routing_tree_with_hold_and_hook(
         hold_before_receive: bool,
         start_hook: Option<SourceWorkerStartHook>,
@@ -31,7 +22,6 @@ impl SourceWorkerLifecycle {
         )
     }
 
-    #[cfg(feature = "routing-tree-executor")]
     fn start_with_worker_names(
         hold_before_receive: bool,
         start_hook: Option<SourceWorkerStartHook>,
@@ -94,14 +84,13 @@ impl SourceWorkerLifecycle {
             completion_rxs,
             runtime_close,
             health,
-            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+            #[cfg(any(test, feature = "test-support"))]
             destroyed_owner_identities: std::array::from_fn(|_| None),
             #[cfg(test)]
             reverse_completion,
         })
     }
 
-    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn prewarm(&mut self) -> Result<(), SourceWorkerSetupError> {
         if self.prewarmed {
             return Ok(());

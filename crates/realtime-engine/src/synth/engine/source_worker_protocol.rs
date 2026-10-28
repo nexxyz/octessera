@@ -1,9 +1,4 @@
-pub const SOURCE_WORKER_MODE_INLINE: u8 = 0;
-pub const SOURCE_WORKER_MODE_PERSISTENT: u8 = 2;
-pub const SOURCE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-src-0", "oct-dsp-src-1"];
 pub const ROUTING_TREE_WORKER_THREAD_NAMES: [&str; 2] = ["oct-dsp-tree-0", "oct-dsp-tree-1"];
-#[cfg(feature = "routing-tree-executor")]
-pub const SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceWorkerRenderDisposition {
@@ -12,14 +7,6 @@ pub enum SourceWorkerRenderDisposition {
     Recovering,
     RecoveredReady,
     Fatal,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WorkerPhase {
-    Sources,
-    Buses,
-    #[cfg(feature = "routing-tree-executor")]
-    RoutingTree,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,12 +24,10 @@ pub(super) use super::source_worker_owner::RoutingTreeWork;
 pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
 pub enum SourceWorkerMode {
-    Inline = SOURCE_WORKER_MODE_INLINE,
-    Persistent = SOURCE_WORKER_MODE_PERSISTENT,
+    Inline,
     #[cfg(feature = "routing-tree-executor")]
-    RoutingTreePersistent = SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT,
+    RoutingTree,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,10 +66,6 @@ pub enum SourceWorkerSetupError {
     WorkerChannelsUnavailable,
     WorkerThreadUnavailable,
     RetirementReaperUnavailable,
-    UnsupportedPersistentBusCount {
-        requested: usize,
-        max: usize,
-    },
     #[cfg(feature = "routing-tree-executor")]
     RoutingTreeAdmissionUnavailable,
 }

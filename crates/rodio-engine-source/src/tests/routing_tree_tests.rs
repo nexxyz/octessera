@@ -14,7 +14,7 @@ fn constructor_runs_persistent_quantums() {
             .expect("routing-tree runtime");
     assert!(matches!(
         source.worker_state.mode,
-        EngineSourceMode::RoutingTreePersistent
+        EngineSourceMode::RoutingTree
     ));
     assert_eq!(source.lookahead_frames(), 128);
     for _ in 0..(128 * 2 * 3) {

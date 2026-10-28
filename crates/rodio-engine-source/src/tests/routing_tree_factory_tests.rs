@@ -25,7 +25,7 @@ fn product_routing_constructor_uses_one_quantum_of_lookahead() {
 
     assert!(matches!(
         source.worker_state.mode,
-        EngineSourceMode::RoutingTreePersistent
+        EngineSourceMode::RoutingTree
     ));
     assert_eq!(source.lookahead_frames(), 128);
     for _ in 0..256 {

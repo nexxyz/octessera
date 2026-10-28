@@ -1,8 +1,6 @@
 use super::super::routing_tree_worker::RoutingTreeWorkerContext;
 use super::super::source_worker_health::SourceWorkerHealth;
-use super::super::source_worker_protocol::{
-    RoutingTreeWork, SourceWorkerRenderDisposition, WorkerPhase,
-};
+use super::super::source_worker_protocol::{RoutingTreeWork, SourceWorkerRenderDisposition};
 use super::super::{SynthEngine, BLOCK_SLOT_SCRATCH_FRAMES};
 use super::{OwnerLease, SourceWorkerRuntime, SOURCE_WORKER_COUNT};
 use crossbeam_channel::TrySendError;
@@ -13,8 +11,7 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         frames: usize,
     ) -> bool {
-        if self.mode
-            != super::super::source_worker_protocol::SourceWorkerMode::RoutingTreePersistent
+        if self.mode != super::super::source_worker_protocol::SourceWorkerMode::RoutingTree
             || !self.dispatch_routing_tree(engine, frames, engine.sample_clock)
         {
             return false;
@@ -41,9 +38,7 @@ impl SourceWorkerRuntime {
     where
         F: FnOnce(&mut SynthEngine) -> Result<(), ()>,
     {
-        if self.mode
-            != super::super::source_worker_protocol::SourceWorkerMode::RoutingTreePersistent
-        {
+        if self.mode != super::super::source_worker_protocol::SourceWorkerMode::RoutingTree {
             return SourceWorkerRenderDisposition::Fatal;
         }
         if frames == 0
@@ -116,7 +111,7 @@ impl SourceWorkerRuntime {
                 outputs[0].bus_active[frame] || outputs[1].bus_active[frame];
         }
         engine.set_routing_tree_profile([&outputs[0], &outputs[1]]);
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         if let Some(probe) = self.routing_tree_probe.as_ref() {
             probe.record_coordinator(
                 _output_stamp.quantum_sequence,
@@ -163,9 +158,7 @@ impl SourceWorkerRuntime {
             base_sample_clock,
         };
         self.expected_stamp = Some(stamp);
-        self.expected_phase = Some(WorkerPhase::RoutingTree);
         self.source_load_observations = [None; SOURCE_WORKER_COUNT];
-        self.force_fault_mask = 0;
         let Some(mut first) = self.lease_home(0) else {
             self.latch_dispatch_failure(0b11);
             return false;
@@ -184,7 +177,7 @@ impl SourceWorkerRuntime {
         }
         let first_sent = self.send_routing_tree_work(&mut first, stamp, context);
         let second_sent = self.send_routing_tree_work(&mut { second }, stamp, context);
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         if first_sent && second_sent {
             if let Some(probe) = self.routing_tree_probe.as_ref() {
                 probe.record_dispatch(sequence, stamp.base_sample_clock);
@@ -256,7 +249,7 @@ impl SourceWorkerRuntime {
     ) -> Option<()> {
         self.clear_routing_absolute_deadline();
         let stamp = self.expected_stamp?;
-        self.collect_wave_with_deadline(engine, wait, WorkerPhase::RoutingTree, deadline)?;
+        self.collect_wave_with_deadline(engine, wait, deadline)?;
         if self.completed_mask != 0b11 || !self.home_is_ready() {
             self.latch_completion_failure(0b11);
             return None;
@@ -318,7 +311,7 @@ impl SourceWorkerRuntime {
         }
     }
 
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn set_routing_tree_probe_for_test(
         &mut self,
         probe: std::sync::Arc<super::super::source_worker::RoutingTreePipelineProbe>,

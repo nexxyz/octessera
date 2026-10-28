@@ -9,8 +9,6 @@ use super::source_worker_transfer::{
 use super::SynthEngine;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
-pub(super) use super::source_worker_carrier_transfer_bus::valid_bus_completion_owner;
-#[cfg(feature = "routing-tree-executor")]
 pub(super) use super::source_worker_carrier_transfer_bus::{
     restore_bus_carriers_to_engine, take_bus_carriers,
 };
@@ -19,7 +17,6 @@ struct OwnerReturnData {
     generation: u64,
     parity: usize,
     partitions: SourceLanePartitionBundle,
-    #[cfg(feature = "routing-tree-executor")]
     routing_tree: Option<super::routing_tree_worker::RoutingTreeOwnerData>,
 }
 
@@ -32,31 +29,9 @@ pub(super) fn with_both_source_owners<R>(
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
-    with_both_source_owners_inner(engine, first, second, true, None, false, operation)
+    with_both_source_owners_inner(engine, first, second, false, operation)
 }
 
-pub(super) fn with_both_source_owners_preserving_carriers<R>(
-    engine: &mut SynthEngine,
-    first: &mut OwnerLease,
-    second: &mut OwnerLease,
-    expected_residency: &[u8; super::super::types::BUS_COUNT],
-    operation: impl FnOnce(
-        &mut SynthEngine,
-        &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
-    ) -> R,
-) -> Result<R, ()> {
-    with_both_source_owners_inner(
-        engine,
-        first,
-        second,
-        false,
-        Some(expected_residency),
-        false,
-        operation,
-    )
-}
-
-#[cfg(feature = "routing-tree-executor")]
 pub(super) fn with_both_source_owners_for_routing_tree_controls<R>(
     engine: &mut SynthEngine,
     first: &mut OwnerLease,
@@ -66,44 +41,29 @@ pub(super) fn with_both_source_owners_for_routing_tree_controls<R>(
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> Result<R, ()>,
 ) -> Result<R, ()> {
-    with_both_source_owners_inner(
-        engine,
-        first,
-        second,
-        true,
-        None,
-        true,
-        |engine, carriers| {
-            if !super::routing_tree_state::sync_routing_tree_spread_states_to_engine(
-                engine, carriers,
-            ) {
-                return Err(());
-            }
-            let result = operation(engine, carriers);
-            if !super::routing_tree_state::sync_routing_tree_spread_states_to_carriers(
-                engine, carriers,
-            ) {
-                return Err(());
-            }
-            result
-        },
-    )?
+    with_both_source_owners_inner(engine, first, second, true, |engine, carriers| {
+        if !super::routing_tree_state::sync_routing_tree_spread_states_to_engine(engine, carriers) {
+            return Err(());
+        }
+        let result = operation(engine, carriers);
+        if !super::routing_tree_state::sync_routing_tree_spread_states_to_carriers(engine, carriers)
+        {
+            return Err(());
+        }
+        result
+    })?
 }
 
 fn with_both_source_owners_inner<R>(
     engine: &mut SynthEngine,
     first: &mut OwnerLease,
     second: &mut OwnerLease,
-    install_bus_owners: bool,
-    expected_residency: Option<&[u8; super::super::types::BUS_COUNT]>,
     routing_tree_controls: bool,
     operation: impl FnOnce(
         &mut SynthEngine,
         &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
-    #[cfg(not(feature = "routing-tree-executor"))]
-    let _ = routing_tree_controls;
     let Some(first_owner) = first.take_owner() else {
         return Err(());
     };
@@ -116,13 +76,11 @@ fn with_both_source_owners_inner<R>(
         &first_owner,
         &second_owner,
         first_owner.runtime_generation,
-        expected_residency,
     ) {
         first.restore_owner(first_owner);
         second.restore_owner(second_owner);
         return Err(());
     }
-    #[cfg(feature = "routing-tree-executor")]
     if routing_tree_controls {
         let Some(assignment) = engine.routing_tree_assignment() else {
             first.restore_owner(first_owner);
@@ -155,25 +113,20 @@ fn with_both_source_owners_inner<R>(
         runtime_generation: first_generation,
         partitions: first_partitions,
         bus_carriers: first_carriers,
-        #[cfg(feature = "routing-tree-executor")]
-            routing_tree: mut first_routing_tree,
+        routing_tree: mut first_routing_tree,
     } = first_owner;
     let OwnerEnvelope {
         parity: second_parity,
         runtime_generation: second_generation,
         partitions: second_partitions,
         bus_carriers: second_carriers,
-        #[cfg(feature = "routing-tree-executor")]
-            routing_tree: mut second_routing_tree,
+        routing_tree: mut second_routing_tree,
     } = second_owner;
     let mut bus_carriers = combine_bus_carriers(first_carriers, second_carriers);
     let operation_result = catch_unwind(AssertUnwindSafe(|| {
         install_source_partition_bundle_after_check(engine, first_parity, first_partitions);
         install_source_partition_bundle_after_check(engine, second_parity, second_partitions);
-        if install_bus_owners {
-            install_bus_chain_owners_after_check(engine, &mut bus_carriers);
-        }
-        #[cfg(feature = "routing-tree-executor")]
+        install_bus_chain_owners_after_check(engine, &mut bus_carriers);
         if routing_tree_controls {
             let Some(first_routing_tree) = first_routing_tree.as_mut() else {
                 panic!("routing-tree owner state missing");
@@ -190,7 +143,6 @@ fn with_both_source_owners_inner<R>(
             }
         }
         let result = operation(engine, &mut bus_carriers);
-        #[cfg(feature = "routing-tree-executor")]
         if routing_tree_controls {
             let Some(assignment) = engine.routing_tree_assignment() else {
                 panic!("routing-tree assignment missing after control");
@@ -223,14 +175,12 @@ fn with_both_source_owners_inner<R>(
                     generation: first_generation,
                     parity: first_parity,
                     partitions: first_partitions,
-                    #[cfg(feature = "routing-tree-executor")]
                     routing_tree: first_routing_tree,
                 },
                 OwnerReturnData {
                     generation: second_generation,
                     parity: second_parity,
                     partitions: second_partitions,
-                    #[cfg(feature = "routing-tree-executor")]
                     routing_tree: second_routing_tree,
                 },
                 bus_carriers,
@@ -246,14 +196,12 @@ fn with_both_source_owners_inner<R>(
                     generation: first_generation,
                     parity: first_parity,
                     partitions: first_partitions,
-                    #[cfg(feature = "routing-tree-executor")]
                     routing_tree: first_routing_tree,
                 },
                 OwnerReturnData {
                     generation: second_generation,
                     parity: second_parity,
                     partitions: second_partitions,
-                    #[cfg(feature = "routing-tree-executor")]
                     routing_tree: second_routing_tree,
                 },
                 bus_carriers,
@@ -272,14 +220,12 @@ fn with_both_source_owners_inner<R>(
                         generation: first_generation,
                         parity: first_parity,
                         partitions: first_partitions,
-                        #[cfg(feature = "routing-tree-executor")]
                         routing_tree: first_routing_tree,
                     },
                     OwnerReturnData {
                         generation: second_generation,
                         parity: second_parity,
                         partitions: second_partitions,
-                        #[cfg(feature = "routing-tree-executor")]
                         routing_tree: second_routing_tree,
                     },
                     bus_carriers,
@@ -295,7 +241,6 @@ fn valid_owner_pair(
     first: &OwnerEnvelope,
     second: &OwnerEnvelope,
     runtime_generation: u64,
-    expected_residency: Option<&[u8; super::super::types::BUS_COUNT]>,
 ) -> bool {
     first.parity == 0
         && second.parity == 1
@@ -310,15 +255,10 @@ fn valid_owner_pair(
         && source_partitions_vacant(engine)
         && engine.bus_chains.is_empty()
         && engine.bus_pan_pos.len() <= super::super::types::BUS_COUNT
-        && valid_bus_carrier_pair(first, second, engine.bus_pan_pos.len(), expected_residency)
+        && valid_bus_carrier_pair(first, second, engine.bus_pan_pos.len())
 }
 
-fn valid_bus_carrier_pair(
-    first: &OwnerEnvelope,
-    second: &OwnerEnvelope,
-    bus_count: usize,
-    expected_residency: Option<&[u8; super::super::types::BUS_COUNT]>,
-) -> bool {
+fn valid_bus_carrier_pair(first: &OwnerEnvelope, second: &OwnerEnvelope, bus_count: usize) -> bool {
     (0..super::super::types::BUS_COUNT).all(|logical_bus_id| {
         if usize::from(first.bus_carriers[logical_bus_id].is_some())
             + usize::from(second.bus_carriers[logical_bus_id].is_some())
@@ -340,18 +280,13 @@ fn valid_bus_carrier_pair(
         } else {
             second.parity
         };
-        let expected_parity = expected_residency.map_or_else(
-            || {
-                carrier
-                    .owner
-                    .as_ref()
-                    .and_then(|owner| owner.assigned_worker)
-                    .unwrap_or(logical_bus_id % 2) as u8
-            },
-            |residency| residency[logical_bus_id],
-        );
+        let expected_parity = carrier
+            .owner
+            .as_ref()
+            .and_then(|owner| owner.assigned_worker)
+            .unwrap_or(logical_bus_id % 2);
         carrier.owner.is_some() == (logical_bus_id < bus_count)
-            && actual_parity == usize::from(expected_parity)
+            && actual_parity == expected_parity
             && carrier
                 .owner
                 .as_ref()
@@ -433,7 +368,6 @@ fn restore_owner_pair(
         parity: first_data.parity,
         partitions: first_data.partitions,
         bus_carriers: first_carriers,
-        #[cfg(feature = "routing-tree-executor")]
         routing_tree: first_data.routing_tree,
     });
     second.restore_owner(OwnerEnvelope {
@@ -441,7 +375,6 @@ fn restore_owner_pair(
         parity: second_data.parity,
         partitions: second_data.partitions,
         bus_carriers: second_carriers,
-        #[cfg(feature = "routing-tree-executor")]
         routing_tree: second_data.routing_tree,
     });
 }

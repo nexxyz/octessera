@@ -1,15 +1,12 @@
 use super::SourceWorkerRuntime;
 use std::time::Duration;
-#[cfg(feature = "routing-tree-executor")]
 use std::time::Instant;
 
-#[cfg(feature = "routing-tree-executor")]
 const ROUTING_TREE_DEADLINE_FRACTION: f64 = 0.85;
 
 impl SourceWorkerRuntime {
-    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn routing_tree_deadline_duration(&self, frames: usize) -> Duration {
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         if let Some(deadline) = self.deadline_override {
             return deadline;
         }
@@ -21,7 +18,6 @@ impl SourceWorkerRuntime {
         Duration::from_secs_f64(quantum_seconds * ROUTING_TREE_DEADLINE_FRACTION)
     }
 
-    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn set_routing_absolute_deadline(
         &mut self,
         dispatch_started_at: Instant,
@@ -34,7 +30,6 @@ impl SourceWorkerRuntime {
         );
     }
 
-    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn clear_routing_absolute_deadline(&mut self) {
         self.routing_absolute_deadline = None;
     }

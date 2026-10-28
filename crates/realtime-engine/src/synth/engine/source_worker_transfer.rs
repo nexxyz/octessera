@@ -1,4 +1,3 @@
-use super::super::types::INSTRUMENT_SLOT_COUNT;
 use super::source_worker_lease::OwnerLease;
 use super::source_worker_lifecycle::SourceLanePartitionBundle;
 use super::SynthEngine;
@@ -87,13 +86,4 @@ pub(super) fn restore_source_partition_bundle(
     engine
         .synth_voice_pool
         .install_partition_after_vacancy_check(parity, synth);
-}
-
-pub(super) fn compact_source_pools(engine: &mut SynthEngine) {
-    for slot in 0..INSTRUMENT_SLOT_COUNT {
-        engine.synth_voice_pool.compact_slot_lanes(slot);
-        engine.sample_voice_pool.compact_slot_lanes(slot);
-        engine.active_synth_slots[slot] = false;
-        engine.active_sample_slots[slot] = false;
-    }
 }

@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 
-#[cfg(feature = "routing-tree-executor")]
 mod routing_tree;
 
 pub(crate) struct SourceWorkerSlot {
@@ -17,17 +16,15 @@ pub(crate) struct SourceWorkerSlot {
     pub(crate) ready_rx:
         Receiver<Result<(), super::super::source_worker_protocol::SourceWorkerSetupError>>,
     pub(crate) exited: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) jobs_started: Arc<AtomicU64>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) pause: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) pause_entered: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    pub(super) exit_on_job: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) hold_before_receive: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) panic_on_job: Arc<AtomicBool>,
     pub(super) join: Option<JoinHandle<WorkerExit>>,
 }
@@ -60,15 +57,13 @@ impl ReverseCompletionState {
 struct SourceWorkerThreadState {
     exited: Arc<AtomicBool>,
     jobs_started: Arc<AtomicU64>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pause: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pause_entered: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    exit_on_job: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     hold_before_receive: Arc<AtomicBool>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     panic_on_job: Arc<AtomicBool>,
     #[cfg(test)]
     reverse_completion: Arc<ReverseCompletionState>,
@@ -86,29 +81,25 @@ pub(super) fn spawn_worker_named(
     let (ready_tx, ready_rx) = bounded(1);
     let exited = Arc::new(AtomicBool::new(false));
     let jobs_started = Arc::new(AtomicU64::new(0));
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let pause = Arc::new(AtomicBool::new(false));
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let pause_entered = Arc::new(AtomicBool::new(false));
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    let exit_on_job = Arc::new(AtomicBool::new(false));
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let hold_before_receive = Arc::new(AtomicBool::new(hold_before_receive));
     #[cfg(not(any(test, feature = "test-support")))]
     let _ = hold_before_receive;
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let panic_on_job = Arc::new(AtomicBool::new(false));
     let worker_exited = Arc::clone(&exited);
     let worker_jobs = Arc::clone(&jobs_started);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_pause = Arc::clone(&pause);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_pause_entered = Arc::clone(&pause_entered);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    let worker_exit_on_job = Arc::clone(&exit_on_job);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_hold_before_receive = Arc::clone(&hold_before_receive);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let worker_panic_on_job = Arc::clone(&panic_on_job);
     let worker_done_tx = done_tx.clone();
     let lifecycle_done_tx = done_tx.clone();
@@ -134,15 +125,13 @@ pub(super) fn spawn_worker_named(
             SourceWorkerThreadState {
                 exited: worker_exited,
                 jobs_started: worker_jobs,
-                #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+                #[cfg(any(test, feature = "test-support"))]
                 pause: worker_pause,
-                #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+                #[cfg(any(test, feature = "test-support"))]
                 pause_entered: worker_pause_entered,
-                #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-                exit_on_job: worker_exit_on_job,
-                #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+                #[cfg(any(test, feature = "test-support"))]
                 hold_before_receive: worker_hold_before_receive,
-                #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+                #[cfg(any(test, feature = "test-support"))]
                 panic_on_job: worker_panic_on_job,
                 #[cfg(test)]
                 reverse_completion,
@@ -158,17 +147,15 @@ pub(super) fn spawn_worker_named(
         done_tx: Some(lifecycle_done_tx),
         ready_rx,
         exited,
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         jobs_started,
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         pause,
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         pause_entered,
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-        exit_on_job,
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         hold_before_receive,
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         panic_on_job,
         join: Some(join),
     })
@@ -200,7 +187,7 @@ fn worker_loop(
     done_tx: Sender<CompletedEnvelope>,
     state: SourceWorkerThreadState,
 ) -> WorkerExit {
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     while state.hold_before_receive.load(Ordering::Acquire) {
         std::hint::spin_loop();
     }

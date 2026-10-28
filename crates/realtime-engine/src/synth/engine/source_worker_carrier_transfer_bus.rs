@@ -1,30 +1,5 @@
 use super::bus_chain_owner::BusChainCarrier;
-use super::source_worker_lifecycle::OwnerEnvelope;
-#[cfg(feature = "routing-tree-executor")]
 use super::SynthEngine;
-
-pub(super) fn valid_bus_completion_owner(
-    owner: &OwnerEnvelope,
-    expected_residency: &[u8; super::super::types::BUS_COUNT],
-) -> bool {
-    owner
-        .bus_carriers
-        .iter()
-        .enumerate()
-        .all(|(logical_bus_id, carrier)| {
-            let Some(carrier) = carrier.as_ref() else {
-                return true;
-            };
-            carrier.logical_bus_id == logical_bus_id
-                && carrier.within_worker_capacity()
-                && expected_residency[logical_bus_id] == owner.parity as u8
-                && carrier
-                    .owner
-                    .as_ref()
-                    .and_then(|owner| owner.assigned_worker)
-                    .is_none_or(|assigned_worker| assigned_worker == owner.parity)
-        })
-}
 
 pub(super) fn combine_bus_carriers(
     mut first: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
@@ -37,7 +12,6 @@ pub(super) fn combine_bus_carriers(
     })
 }
 
-#[cfg(feature = "routing-tree-executor")]
 pub(super) fn take_bus_carriers(
     engine: &mut SynthEngine,
 ) -> [Option<BusChainCarrier>; super::super::types::BUS_COUNT] {
@@ -55,7 +29,6 @@ pub(super) fn take_bus_carriers(
     carriers
 }
 
-#[cfg(feature = "routing-tree-executor")]
 pub(super) fn restore_bus_carriers_to_engine(
     engine: &mut SynthEngine,
     carriers: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],

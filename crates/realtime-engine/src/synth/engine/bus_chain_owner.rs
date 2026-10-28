@@ -110,10 +110,6 @@ impl BusChainCarrier {
         self.owner.as_ref().map_or(0, BusChainOwner::cost_units)
     }
 
-    pub(super) fn prepare(&mut self, frames: usize) -> bool {
-        self.scratch.prepare(frames)
-    }
-
     pub(super) fn within_worker_capacity(&self) -> bool {
         self.cost_units() <= SOURCE_WORKER_MAX_COST_UNITS
     }

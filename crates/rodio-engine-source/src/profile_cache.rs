@@ -15,7 +15,7 @@ impl EngineSource {
             return;
         };
         #[cfg(feature = "routing-tree-executor")]
-        if matches!(worker_state.mode, EngineSourceMode::RoutingTreePersistent) {
+        if matches!(worker_state.mode, EngineSourceMode::RoutingTree) {
             return;
         }
         if let Some(snapshot) = worker

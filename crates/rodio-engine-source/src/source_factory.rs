@@ -83,7 +83,7 @@ impl EngineSource {
             load_tx,
             engine,
             lifecycle,
-            EngineSourceWorkerState::routing_tree_persistent(runtime),
+            EngineSourceWorkerState::routing_tree(runtime),
         )
     }
 

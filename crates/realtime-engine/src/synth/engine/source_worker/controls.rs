@@ -1,4 +1,4 @@
-#[cfg(all(test, feature = "routing-tree-executor"))]
+#[cfg(test)]
 use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_transfer;
 use super::super::SynthEngine;
@@ -10,8 +10,7 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         apply: impl FnOnce(&mut SynthEngine) -> R,
     ) -> Option<R> {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.mode == SourceWorkerMode::RoutingTreePersistent {
+        if self.mode == SourceWorkerMode::RoutingTree {
             return self.with_routing_tree_controls_ready(engine, engine.sample_clock, |engine| {
                 Ok(apply(engine))
             });
@@ -24,8 +23,7 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         inspect: impl FnOnce(&SynthEngine) -> R,
     ) -> Option<R> {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.mode == SourceWorkerMode::RoutingTreePersistent {
+        if self.mode == SourceWorkerMode::RoutingTree {
             return self.with_routing_tree_controls_ready(engine, engine.sample_clock, |engine| {
                 Ok(inspect(engine))
             });
@@ -57,7 +55,7 @@ impl SourceWorkerRuntime {
         }
     }
 
-    #[cfg(all(test, feature = "routing-tree-executor"))]
+    #[cfg(test)]
     pub(crate) fn with_recovered_routing_tree_owners<R>(
         &mut self,
         engine: &mut SynthEngine,

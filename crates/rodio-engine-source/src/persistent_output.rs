@@ -177,7 +177,7 @@ pub(super) struct RefillResult {
 #[cfg(feature = "routing-tree-executor")]
 impl EngineSource {
     #[cfg(feature = "routing-tree-executor")]
-    pub(super) fn refill_routing_tree_persistent(&mut self) -> RefillResult {
+    pub(super) fn refill_routing_tree(&mut self) -> RefillResult {
         let Self {
             engine,
             worker_state,

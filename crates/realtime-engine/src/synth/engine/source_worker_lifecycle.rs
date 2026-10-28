@@ -8,7 +8,7 @@ use super::source_worker_protocol::SourceWorkerRetirementError;
 use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
 use crossbeam_channel::{Receiver, Sender};
 use owner_routing::{route_completion, route_owner, worker_mask};
-#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+#[cfg(any(test, feature = "test-support"))]
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -25,7 +25,7 @@ pub(super) const SOURCE_WORKER_MAILBOX_CAPACITY: usize = 1;
 
 static NEXT_SOURCE_WORKER_GENERATION: AtomicU64 = AtomicU64::new(1);
 
-#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+#[cfg(any(test, feature = "test-support"))]
 pub use super::source_worker_observer::SourceWorkerOwnerIdentity;
 
 pub struct SourceWorkerLifecycle {
@@ -38,7 +38,7 @@ pub struct SourceWorkerLifecycle {
     pub(super) completion_rxs: [Receiver<CompletedEnvelope>; SOURCE_WORKER_COUNT],
     pub(super) runtime_close: Arc<SourceWorkerCloseState>,
     pub(super) health: Arc<SourceWorkerHealthState>,
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) destroyed_owner_identities: [Option<SourceWorkerOwnerIdentity>; SOURCE_WORKER_COUNT],
     #[cfg(test)]
     reverse_completion: Arc<ReverseCompletionState>,
@@ -133,12 +133,12 @@ impl SourceWorkerLifecycle {
         let shutdown = super::source_worker_protocol::SourceWorkerShutdown {
             joined_workers,
             retirement_error,
-            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+            #[cfg(any(test, feature = "test-support"))]
             destroyed_owner_count: self.destroyed_owner_identities.iter().flatten().count(),
-            #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+            #[cfg(any(test, feature = "test-support"))]
             destroyed_owner_identities: self.destroyed_owner_identities,
         };
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         super::source_worker_observer::notify_shutdown_probe(&shutdown);
         shutdown
     }
@@ -229,9 +229,9 @@ impl SourceWorkerLifecycle {
     }
 
     fn finish_owner(&mut self, owner: OwnerEnvelope) {
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         let identity = super::source_worker_observer::owner_identity(&owner);
-        #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+        #[cfg(any(test, feature = "test-support"))]
         if let Some(slot) = self
             .destroyed_owner_identities
             .iter_mut()
@@ -242,21 +242,7 @@ impl SourceWorkerLifecycle {
         drop(owner);
     }
 
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    pub fn set_exit_on_job_for_test(&self, parity: usize) {
-        self.workers[parity]
-            .exit_on_job
-            .store(true, Ordering::Release);
-    }
-
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    pub fn set_hold_before_receive_for_test(&self, held: bool) {
-        for worker in &self.workers {
-            worker.hold_before_receive.store(held, Ordering::Release);
-        }
-    }
-
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn hold_control_for_test(
         &self,
     ) -> super::source_worker_retirement::SourceWorkerHoldControl {
@@ -267,7 +253,7 @@ impl SourceWorkerLifecycle {
         )
     }
 
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn set_panic_on_job_for_test(&self, parity: usize) {
         self.workers[parity]
             .panic_on_job
@@ -289,7 +275,7 @@ impl SourceWorkerLifecycle {
             .store(enabled, Ordering::Release);
     }
 
-    #[cfg(all(test, feature = "routing-tree-executor"))]
+    #[cfg(test)]
     pub(crate) fn take_reverse_completion_order_for_test(&self) -> Vec<usize> {
         std::mem::take(
             &mut *self
@@ -300,14 +286,14 @@ impl SourceWorkerLifecycle {
         )
     }
 
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) fn worker_pause_controls_for_test(&self) -> [Arc<AtomicBool>; SOURCE_WORKER_COUNT] {
         self.workers
             .each_ref()
             .map(|worker| Arc::clone(&worker.pause))
     }
 
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) fn worker_pause_entry_controls_for_test(
         &self,
     ) -> [Arc<AtomicBool>; SOURCE_WORKER_COUNT] {
@@ -343,7 +329,6 @@ pub(super) fn owner_for_test(parity: usize) -> OwnerEnvelope {
                 .expect("sample partition"),
         },
         bus_carriers: std::array::from_fn(|_| None),
-        #[cfg(feature = "routing-tree-executor")]
         routing_tree: None,
     }
 }

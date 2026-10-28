@@ -13,25 +13,15 @@ pub(super) fn process(
     state: &SourceWorkerThreadState,
 ) -> Option<WorkerExit> {
     state.jobs_started.fetch_add(1, Ordering::Relaxed);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-    if state.exit_on_job.swap(false, Ordering::AcqRel) {
-        return Some(finish_worker(
-            state,
-            send_completion(
-                done_tx,
-                CompletedEnvelope::from_routing_tree_work(work, true, false, 0, 0),
-            ),
-        ));
-    }
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     state.pause_entered.store(true, Ordering::Release);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     while state.pause.load(Ordering::Acquire) {
         std::hint::spin_loop();
     }
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     state.pause_entered.store(false, Ordering::Release);
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     let should_panic = state.panic_on_job.swap(false, Ordering::AcqRel);
     #[cfg(not(any(test, feature = "test-support")))]
     let should_panic = false;

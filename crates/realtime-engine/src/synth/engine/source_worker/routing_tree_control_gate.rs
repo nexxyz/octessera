@@ -12,7 +12,7 @@ impl SourceWorkerRuntime {
         effective_sample_clock: u64,
         apply: impl FnOnce(&mut SynthEngine) -> Result<R, ()>,
     ) -> Option<R> {
-        if self.mode != SourceWorkerMode::RoutingTreePersistent
+        if self.mode != SourceWorkerMode::RoutingTree
             || self.in_flight_mask != 0
             || self.completed_mask != 0
             || !self.home_is_ready()

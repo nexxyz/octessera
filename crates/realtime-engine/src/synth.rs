@@ -30,8 +30,6 @@ pub use engine::RoutingTreePipelineProbe;
 #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 pub use engine::SourceWorkerHoldControl;
 pub use engine::ROUTING_TREE_WORKER_THREAD_NAMES;
-#[cfg(feature = "routing-tree-executor")]
-pub use engine::SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT;
 #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 pub use engine::{
     install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
@@ -45,10 +43,9 @@ pub use engine::{
     PreparedMomentaryFxStart, PreparedMomentaryFxUpdate, RetiredAudioState, SourceWorkerHealth,
     SourceWorkerHealthSnapshot, SourceWorkerLoadSnapshot, SourceWorkerMode,
     SourceWorkerRenderDisposition, SourceWorkerRetirement, SourceWorkerRetirementError,
-    SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine, WorkStamp, WorkerPhase,
-    BLOCK_SLOT_SCRATCH_FRAMES, BUS_CHAIN_SLOT_COST_UNITS, SOURCE_WORKER_MAX_COST_UNITS,
-    SOURCE_WORKER_MODE_INLINE, SOURCE_WORKER_MODE_PERSISTENT, SOURCE_WORKER_SAMPLE_COST_UNITS,
-    SOURCE_WORKER_SYNTH_COST_UNITS, SOURCE_WORKER_THREAD_NAMES,
+    SourceWorkerShutdown, SourceWorkerStartHook, SynthEngine, WorkStamp, BLOCK_SLOT_SCRATCH_FRAMES,
+    BUS_CHAIN_SLOT_COST_UNITS, SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS,
+    SOURCE_WORKER_SYNTH_COST_UNITS,
 };
 #[cfg(feature = "routing-tree-executor")]
 pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};

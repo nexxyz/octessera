@@ -164,7 +164,7 @@ impl SourceWorkerLifecycle {
     }
 
     /// Workers wait on the hold control before receiving work, so tests can stall a quantum.
-    #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn start_routing_tree_prewarmed_held_for_test(
         engine: &mut SynthEngine,
         active_frames: usize,

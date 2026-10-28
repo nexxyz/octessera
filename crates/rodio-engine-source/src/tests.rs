@@ -86,7 +86,7 @@ impl EngineSource {
                 block_frames,
                 None,
                 engine,
-                EngineSourceWorkerState::routing_tree_persistent(runtime),
+                EngineSourceWorkerState::routing_tree(runtime),
                 SourceRetirementChannels {
                     retired_tx,
                     shutdown_tx,

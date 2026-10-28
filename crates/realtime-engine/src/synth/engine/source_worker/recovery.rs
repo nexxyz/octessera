@@ -1,8 +1,5 @@
-use super::super::super::types::BUS_COUNT;
-use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_health::SourceWorkerHealth;
-use super::super::source_worker_protocol::{SourceWorkerRenderDisposition, WorkerPhase};
-use super::super::source_worker_transfer;
+use super::super::source_worker_protocol::SourceWorkerRenderDisposition;
 use super::super::SynthEngine;
 use super::{SourceWorkerRuntime, SOURCE_WORKER_COUNT};
 use crossbeam_channel::TryRecvError;
@@ -65,29 +62,16 @@ impl SourceWorkerRuntime {
             self.latch_completion_failure(0b11);
             return SourceWorkerRenderDisposition::Fatal;
         }
-        let Some(phase) = self.expected_phase else {
-            self.latch_completion_failure(0b11);
-            return SourceWorkerRenderDisposition::Fatal;
-        };
         let Some(stamp) = self.expected_stamp else {
             self.latch_completion_failure(0b11);
             return SourceWorkerRenderDisposition::Fatal;
         };
-        let recovered = match phase {
-            WorkerPhase::Sources => self.recover_source_wave(engine),
-            WorkerPhase::Buses => self.recover_bus_wave(engine, stamp.frames),
-            #[cfg(feature = "routing-tree-executor")]
-            WorkerPhase::RoutingTree => self.recover_routing_tree_wave(),
-        };
-        if !recovered {
+        if !self.recover_routing_tree_wave() {
             self.latch_completion_failure(0b11);
             return SourceWorkerRenderDisposition::Fatal;
         }
         engine.sample_clock = engine.sample_clock.saturating_add(stamp.frames as u64);
-        #[cfg(feature = "routing-tree-executor")]
-        if self.mode
-            == super::super::source_worker_protocol::SourceWorkerMode::RoutingTreePersistent
-        {
+        if self.mode == super::super::source_worker_protocol::SourceWorkerMode::RoutingTree {
             self.routing_tree_reprime_pending = true;
         }
         self.clear_recovery_state();
@@ -158,68 +142,6 @@ impl SourceWorkerRuntime {
         self.health.latch(health, 1 << parity);
     }
 
-    fn recover_source_wave(&mut self, engine: &mut SynthEngine) -> bool {
-        let Some(mut first) = self.lease_home(0) else {
-            return false;
-        };
-        let Some(mut second) = self.lease_home(1) else {
-            first.return_fault();
-            return false;
-        };
-        let result = source_worker_carrier_transfer::with_both_source_owners(
-            engine,
-            &mut first,
-            &mut second,
-            |engine, _| {
-                source_worker_transfer::compact_source_pools(engine);
-                refresh_active_slots(engine);
-                Ok(())
-            },
-        );
-        match result {
-            Ok(Ok(())) => {
-                first.return_home();
-                second.return_home();
-                true
-            }
-            Ok(Err(())) | Err(()) => false,
-        }
-    }
-
-    fn recover_bus_wave(&mut self, engine: &mut SynthEngine, frames: usize) -> bool {
-        let Some(mut first) = self.lease_home(0) else {
-            return false;
-        };
-        let Some(mut second) = self.lease_home(1) else {
-            first.return_fault();
-            return false;
-        };
-        let expected_residency = self.bus_dispatch_residency;
-        let result = source_worker_carrier_transfer::with_both_source_owners_preserving_carriers(
-            engine,
-            &mut first,
-            &mut second,
-            &expected_residency,
-            |_, carriers| {
-                for carrier in carriers.iter_mut().flatten() {
-                    if !carrier.prepare(frames) {
-                        return Err(());
-                    }
-                }
-                Ok(())
-            },
-        );
-        match result {
-            Ok(Ok(())) => {
-                first.return_home();
-                second.return_home();
-                true
-            }
-            Ok(Err(())) | Err(()) => false,
-        }
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
     fn recover_routing_tree_wave(&mut self) -> bool {
         let Some(mut first) = self.lease_home(0) else {
             return false;
@@ -248,30 +170,9 @@ impl SourceWorkerRuntime {
 
     fn clear_recovery_state(&mut self) {
         self.expected_stamp = None;
-        self.expected_phase = None;
         self.in_flight_mask = 0;
         self.completed_mask = 0;
         self.source_load_observations = [None; SOURCE_WORKER_COUNT];
-        self.bus_load_observations = [None; SOURCE_WORKER_COUNT];
-        self.bus_dispatch_residency = [0; BUS_COUNT];
-        self.bus_dispatch_residency_valid = false;
-        self.force_fault_mask = 0;
-        #[cfg(feature = "routing-tree-executor")]
         self.clear_routing_absolute_deadline();
-    }
-}
-
-fn refresh_active_slots(engine: &mut SynthEngine) {
-    for slot in 0..super::super::super::types::INSTRUMENT_SLOT_COUNT {
-        engine.active_synth_slots[slot] = engine
-            .synth_voice_pool
-            .active_count_for_slot(slot)
-            .unwrap_or(0)
-            > 0;
-        engine.active_sample_slots[slot] = engine
-            .sample_voice_pool
-            .active_count_for_slot(slot)
-            .unwrap_or(0)
-            > 0;
     }
 }

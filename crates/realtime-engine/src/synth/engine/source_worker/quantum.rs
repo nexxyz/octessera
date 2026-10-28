@@ -1,5 +1,4 @@
 use super::super::source_worker_health::SourceWorkerHealth;
-use super::super::source_worker_protocol::WorkerPhase;
 use super::super::SynthEngine;
 use super::{SourceWorkerRuntime, SOURCE_WORKER_COUNT};
 use crossbeam_channel::TryRecvError;
@@ -10,10 +9,9 @@ impl SourceWorkerRuntime {
         &mut self,
         engine: &mut SynthEngine,
         wait: bool,
-        phase: WorkerPhase,
         deadline: Instant,
     ) -> Option<()> {
-        if self.expected_phase != Some(phase) {
+        if self.expected_stamp.is_none() {
             self.latch_completion_failure(0b11);
             return None;
         }

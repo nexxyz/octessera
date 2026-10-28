@@ -1,5 +1,4 @@
 use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
-use super::super::source_worker_protocol::WorkerPhase;
 use super::{CompletedEnvelope, OwnerEnvelope, SOURCE_WORKER_COUNT};
 use crossbeam_channel::Sender;
 
@@ -49,10 +48,7 @@ pub(super) fn route_completion(
     health: &SourceWorkerHealthState,
     fallback_parity: usize,
 ) -> Option<OwnerEnvelope> {
-    let home = completion.phase != WorkerPhase::Buses
-        && completion.render_ok
-        && !completion.worker_exited
-        && !completion.transport_failed;
+    let home = completion.render_ok && !completion.worker_exited && !completion.transport_failed;
     route_owner(
         completion.owner,
         home_txs,

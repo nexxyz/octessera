@@ -1,4 +1,3 @@
-use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_lease::OwnerLease;
 use super::super::source_worker_load::SourceWorkerLoadObservation;
 use super::CompletedEnvelope;
@@ -18,7 +17,6 @@ impl SourceWorkerRuntime {
         if parity >= SOURCE_WORKER_COUNT
             || completion.worker_exited
             || completion.transport_failed
-            || self.force_fault_mask & worker_mask != 0
             || !expected
         {
             self.health.latch(
@@ -31,8 +29,6 @@ impl SourceWorkerRuntime {
             );
             self.in_flight_mask &= !worker_mask;
             self.source_load_observations = std::array::from_fn(|_| None);
-            self.bus_load_observations = std::array::from_fn(|_| None);
-            self.force_fault_mask &= !worker_mask;
             self.return_owner(completion.owner, false, channel_parity);
             return;
         }
@@ -41,15 +37,10 @@ impl SourceWorkerRuntime {
         self.in_flight_mask &= !worker_mask;
         self.completed_mask |= worker_mask;
         if self.health.status() == SourceWorkerHealth::Healthy {
-            let observation = Some(SourceWorkerLoadObservation {
+            self.source_load_observations[parity] = Some(SourceWorkerLoadObservation {
                 dsp_duration_ns: completion.dsp_duration_ns,
                 active_cost_units: completion.active_cost_units,
             });
-            if completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses {
-                self.source_load_observations[parity] = observation;
-            } else {
-                self.bus_load_observations[parity] = observation;
-            }
         }
         self.return_owner(completion.owner, true, parity);
     }
@@ -61,28 +52,14 @@ impl SourceWorkerRuntime {
     ) -> bool {
         let parity = completion.owner.parity;
         let worker_mask = worker_mask(parity);
-        #[cfg(feature = "routing-tree-executor")]
-        let max_cost_units = if completion.phase == WorkerPhase::RoutingTree {
-            super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS
-        } else {
-            super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS
-        };
-        #[cfg(not(feature = "routing-tree-executor"))]
-        let max_cost_units = super::super::source_worker_load::SOURCE_WORKER_MAX_COST_UNITS;
         parity < SOURCE_WORKER_COUNT
             && channel_parity == parity
             && self.in_flight_mask & worker_mask != 0
             && completion.owner.runtime_generation == self.runtime_generation
-            && self.expected_phase == Some(completion.phase)
             && self.expected_stamp == Some(completion.stamp)
             && completion.render_ok
-            && (completion.phase != super::super::source_worker_protocol::WorkerPhase::Buses
-                || (self.bus_dispatch_residency_valid
-                    && source_worker_carrier_transfer::valid_bus_completion_owner(
-                        &completion.owner,
-                        &self.bus_dispatch_residency,
-                    )))
-            && completion.active_cost_units <= max_cost_units
+            && completion.active_cost_units
+                <= super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS
     }
 
     pub(super) fn reclaim_available(&mut self, _engine: &mut SynthEngine) {

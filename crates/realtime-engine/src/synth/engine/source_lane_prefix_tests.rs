@@ -121,7 +121,7 @@ fn finished_voices_leave_the_render_lists_and_survivors_render_the_next_block() 
 }
 
 #[test]
-fn completed_prefix_reduction_does_not_leak_into_the_next_block() {
+fn completed_prefix_does_not_leak_into_the_next_block() {
     let mut engine = prefix_engine();
     engine.note_on(0, 60, 96, 1);
     engine.note_on(1, 36, 96, 10_000);

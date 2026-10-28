@@ -1,8 +1,6 @@
-use super::super::source_worker_protocol::WorkerPhase;
 use super::*;
 
 impl SourceWorkerRuntime {
-    #[cfg(feature = "routing-tree-executor")]
     pub(crate) fn routing_tree_worker_outputs_for_test(
         &self,
         frame: usize,
@@ -32,8 +30,7 @@ impl SourceWorkerRuntime {
         engine: &mut SynthEngine,
         wait: bool,
     ) -> Option<bool> {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.expected_phase == Some(WorkerPhase::RoutingTree) {
+        if self.expected_stamp.is_some() {
             return Some(self.collect_routing_tree_output(engine, wait).is_some());
         }
         let _ = (engine, wait);

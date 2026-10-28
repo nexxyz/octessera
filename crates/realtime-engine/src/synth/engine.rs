@@ -168,14 +168,11 @@ pub use source_worker_observer::{
 };
 #[cfg(feature = "routing-tree-executor")]
 pub use source_worker_protocol::SourceWorkerSetupError;
-#[cfg(feature = "routing-tree-executor")]
-pub use source_worker_protocol::SOURCE_WORKER_MODE_ROUTING_TREE_PERSISTENT;
+pub use source_worker_protocol::ROUTING_TREE_WORKER_THREAD_NAMES;
 pub use source_worker_protocol::{
     SourceWorkerMode, SourceWorkerRenderDisposition, SourceWorkerRetirementError,
-    SourceWorkerShutdown, SourceWorkerStartHook, WorkStamp, WorkerPhase, SOURCE_WORKER_MODE_INLINE,
-    SOURCE_WORKER_MODE_PERSISTENT,
+    SourceWorkerShutdown, SourceWorkerStartHook, WorkStamp,
 };
-pub use source_worker_protocol::{ROUTING_TREE_WORKER_THREAD_NAMES, SOURCE_WORKER_THREAD_NAMES};
 #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
 pub use source_worker_retirement::SourceWorkerHoldControl;
 pub use source_worker_retirement::SourceWorkerRetirement;

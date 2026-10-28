@@ -147,7 +147,7 @@ impl EngineSource {
         match self.worker_state.mode {
             EngineSourceMode::Inline => self.engine.profile_snapshot(),
             #[cfg(feature = "routing-tree-executor")]
-            EngineSourceMode::RoutingTreePersistent => self.cached_profile_snapshot,
+            EngineSourceMode::RoutingTree => self.cached_profile_snapshot,
         }
     }
 
@@ -270,7 +270,7 @@ impl EngineSource {
                 }
             }
             #[cfg(feature = "routing-tree-executor")]
-            EngineSourceMode::RoutingTreePersistent => self.refill_routing_tree_persistent(),
+            EngineSourceMode::RoutingTree => self.refill_routing_tree(),
         };
         self.publish_mirrors();
         if !self.engine.pending_render_retired_is_empty()
@@ -280,7 +280,7 @@ impl EngineSource {
             self.retire_state(retired);
         }
         #[cfg(feature = "routing-tree-executor")]
-        if self.worker_state.is_persistent() {
+        if self.worker_state.is_routing_tree() {
             self.refresh_persistent_profile_cache();
         }
         let deferred_status_pending = had_pending || result.defer_status;

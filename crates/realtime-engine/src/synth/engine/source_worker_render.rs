@@ -37,7 +37,6 @@ impl SynthEngine {
         )
     }
 
-    #[cfg(feature = "routing-tree-executor")]
     pub fn render_interleaved_block_with_source_runtime_ready_with_controls(
         &mut self,
         runtime: &mut SourceWorkerRuntime,

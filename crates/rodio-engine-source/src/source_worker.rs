@@ -8,18 +8,18 @@ use realtime_engine::synth::SourceWorkerRuntime;
 pub(super) enum EngineSourceMode {
     Inline,
     #[cfg(feature = "routing-tree-executor")]
-    RoutingTreePersistent,
+    RoutingTree,
 }
 
 #[cfg(feature = "routing-tree-executor")]
-pub(super) struct PersistentSourceWorker {
+pub(super) struct RoutingTreeSourceWorker {
     pub(super) runtime: SourceWorkerRuntime,
 }
 
 pub(super) struct EngineSourceWorkerState {
     pub(super) mode: EngineSourceMode,
     #[cfg(feature = "routing-tree-executor")]
-    pub(super) worker: Option<PersistentSourceWorker>,
+    pub(super) worker: Option<RoutingTreeSourceWorker>,
 }
 
 impl EngineSourceWorkerState {
@@ -32,10 +32,10 @@ impl EngineSourceWorkerState {
     }
 
     #[cfg(feature = "routing-tree-executor")]
-    pub(super) fn routing_tree_persistent(runtime: SourceWorkerRuntime) -> Self {
+    pub(super) fn routing_tree(runtime: SourceWorkerRuntime) -> Self {
         Self {
-            mode: EngineSourceMode::RoutingTreePersistent,
-            worker: Some(PersistentSourceWorker::new(runtime)),
+            mode: EngineSourceMode::RoutingTree,
+            worker: Some(RoutingTreeSourceWorker::new(runtime)),
         }
     }
 
@@ -43,7 +43,7 @@ impl EngineSourceWorkerState {
         match self.mode {
             EngineSourceMode::Inline => SourceWorkerHealth::Disabled,
             #[cfg(feature = "routing-tree-executor")]
-            EngineSourceMode::RoutingTreePersistent => self
+            EngineSourceMode::RoutingTree => self
                 .worker
                 .as_ref()
                 .map_or(SourceWorkerHealth::CompletionFailed, |worker| {
@@ -53,9 +53,9 @@ impl EngineSourceWorkerState {
     }
 
     #[cfg(feature = "routing-tree-executor")]
-    pub(super) fn is_persistent(&self) -> bool {
+    pub(super) fn is_routing_tree(&self) -> bool {
         match self.mode {
-            EngineSourceMode::RoutingTreePersistent => true,
+            EngineSourceMode::RoutingTree => true,
             EngineSourceMode::Inline => false,
         }
     }
@@ -73,7 +73,7 @@ impl EngineSourceWorkerState {
     #[cfg(feature = "routing-tree-executor")]
     pub(super) fn retire(&mut self) -> Option<SourceWorkerRetirement> {
         self.mode = EngineSourceMode::Inline;
-        self.worker.take().map(PersistentSourceWorker::retire)
+        self.worker.take().map(RoutingTreeSourceWorker::retire)
     }
 
     #[cfg(feature = "routing-tree-executor")]
@@ -84,7 +84,7 @@ impl EngineSourceWorkerState {
 }
 
 #[cfg(feature = "routing-tree-executor")]
-impl PersistentSourceWorker {
+impl RoutingTreeSourceWorker {
     pub(super) fn new(runtime: SourceWorkerRuntime) -> Self {
         Self { runtime }
     }

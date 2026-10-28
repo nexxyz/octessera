@@ -1,8 +1,7 @@
 use super::super::synth_voice_pool::SynthVoicePartition;
-#[cfg(feature = "routing-tree-executor")]
 use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use super::sample_voice_pool::SampleVoicePartition;
-use super::source_worker_protocol::{WorkStamp, WorkerPhase};
+use super::source_worker_protocol::WorkStamp;
 
 pub(super) struct SourceLanePartitionBundle {
     pub(super) synth: Box<SynthVoicePartition>,
@@ -15,18 +14,15 @@ pub(super) struct OwnerEnvelope {
     pub(super) partitions: SourceLanePartitionBundle,
     pub(super) bus_carriers:
         [Option<super::bus_chain_owner::BusChainCarrier>; super::super::types::BUS_COUNT],
-    #[cfg(feature = "routing-tree-executor")]
     pub(super) routing_tree: Option<RoutingTreeOwnerData>,
 }
 
-#[cfg(feature = "routing-tree-executor")]
 pub(super) struct RoutingTreeWork {
     pub(super) owner: OwnerEnvelope,
     pub(super) stamp: WorkStamp,
     pub(super) context: RoutingTreeWorkerContext,
 }
 
-#[cfg(feature = "routing-tree-executor")]
 impl RoutingTreeWork {
     pub(super) fn render(&mut self) -> Result<u16, ()> {
         super::routing_tree_worker::render_owner(&mut self.owner, self.context, self.stamp)
@@ -63,7 +59,6 @@ impl RoutingTreeWork {
 
 pub(super) struct CompletedEnvelope {
     pub(super) owner: OwnerEnvelope,
-    pub(super) phase: WorkerPhase,
     pub(super) stamp: WorkStamp,
     pub(super) render_ok: bool,
     pub(super) worker_exited: bool,
@@ -77,7 +72,6 @@ pub(super) struct WorkerExit {
 }
 
 impl CompletedEnvelope {
-    #[cfg(feature = "routing-tree-executor")]
     pub(super) fn from_routing_tree_work(
         work: RoutingTreeWork,
         worker_exited: bool,
@@ -87,7 +81,6 @@ impl CompletedEnvelope {
     ) -> Self {
         Self {
             owner: work.owner,
-            phase: WorkerPhase::RoutingTree,
             stamp: work.stamp,
             render_ok,
             worker_exited,

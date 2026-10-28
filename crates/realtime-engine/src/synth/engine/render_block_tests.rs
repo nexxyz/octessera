@@ -190,7 +190,7 @@ fn inline_quantum_matches_serial_after_note_off_within_sequence() {
 }
 
 #[test]
-fn inline_reduction_is_independent_of_physical_allocation_history() {
+fn inline_output_is_independent_of_physical_allocation_history() {
     let mut direct_synth = SynthEngine::new(44_100);
     let mut displaced_synth = SynthEngine::new(44_100);
     displaced_synth.slot_volume[1] = 0.0;
