@@ -58,3 +58,18 @@ fn external_midi_playing_keeps_typed_display_deadline_without_clock_pulses() {
             .continuous
     );
 }
+
+#[test]
+fn external_clock_bounds_the_wait_so_incoming_midi_is_picked_up_promptly() {
+    let now = Instant::now();
+    let scheduler = HardwareRuntimeScheduler::new(now, 0);
+    let runner = NativeRunner::new(playback_runtime::NativeRunnerConfig::default()).unwrap();
+    let internal = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
+    let external = PlaybackRuntime::new(playback_runtime::RuntimeConfig {
+        sync_source: SyncSource::External,
+        ..playback_runtime::RuntimeConfig::default()
+    });
+
+    assert!(scheduler.sleep_duration(now, &internal, &runner) > Duration::from_millis(1));
+    assert!(scheduler.sleep_duration(now, &external, &runner) <= Duration::from_millis(1));
+}

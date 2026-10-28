@@ -39,7 +39,7 @@ const DESKTOP_SEQUENCED_OUTPUT_DELAY: Duration = Duration::from_millis(30);
 
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
-    NativeMidiRealtime(Vec<u8>),
+    NativeMidiRealtime(Vec<u8>, Instant),
     PresentationMetrics(RuntimePresentationMetrics),
 }
 
@@ -240,9 +240,11 @@ impl RuntimeWorker {
     fn handle_midi_realtime(
         &mut self,
         bytes: Vec<u8>,
+        received_at: Instant,
     ) -> Result<playback_runtime::RuntimeIngest, String> {
         self.playback.handle_midi_realtime_bytes_with_output(
             &bytes,
+            Some(received_at),
             &mut self.runner,
             &mut self.adapter,
         )

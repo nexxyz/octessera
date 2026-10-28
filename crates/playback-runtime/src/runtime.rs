@@ -14,6 +14,7 @@ mod default_load_tests;
 mod dispatch;
 mod dispatch_profile;
 mod midi;
+mod midi_realtime_input;
 mod music_first;
 mod oled;
 mod presentation;

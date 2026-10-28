@@ -7,6 +7,10 @@ pub(crate) const PLAYBACK_TICK: Duration = Duration::from_millis(8);
 pub(crate) const SNAPSHOT_TICK: Duration = Duration::from_millis(33);
 pub(crate) const MAINTENANCE_TICK: Duration = Duration::from_millis(50);
 pub(crate) const SLEEP_MAX: Duration = Duration::from_millis(8);
+/// The loop blocks only on the input channel, so under an external clock it checks the MIDI
+/// channel at least this often; clock-driven output is stamped from each byte's arrival, and this
+/// bound keeps pickup well inside the sequenced output delay.
+const EXTERNAL_CLOCK_SLEEP_MAX: Duration = Duration::from_millis(1);
 const SNAPSHOT_RETRY_DELAY: Duration = Duration::from_millis(4);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -202,7 +206,11 @@ impl HardwareRuntimeScheduler {
             };
             next_due = next_due.min(display_wake);
         }
-        let max_sleep = SLEEP_MAX;
+        let max_sleep = if playback.config().sync_source == SyncSource::External {
+            EXTERNAL_CLOCK_SLEEP_MAX
+        } else {
+            SLEEP_MAX
+        };
         next_due
             .checked_duration_since(now)
             .unwrap_or(Duration::ZERO)

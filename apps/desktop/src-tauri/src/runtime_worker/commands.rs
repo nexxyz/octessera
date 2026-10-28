@@ -72,8 +72,8 @@ impl RuntimeWorker {
                 }
                 let _ = reply.send(result);
             }
-            WorkerCommand::NativeMidiRealtime(bytes) => {
-                let output = self.handle_midi_realtime(bytes)?;
+            WorkerCommand::NativeMidiRealtime(bytes, received_at) => {
+                let output = self.handle_midi_realtime(bytes, received_at)?;
                 self.emit_runtime_output(output)?;
             }
             WorkerCommand::PresentationMetrics(metrics) => {

@@ -1,10 +1,15 @@
 use platform_core::AUX_ENCODER_COUNT;
 use playback_runtime::HostMessage;
 use serde_json::json;
+#[cfg(feature = "native-audio")]
+use std::time::Instant;
 
 #[cfg(feature = "native-audio")]
 pub enum MidiMessage {
-    Realtime { bytes: Vec<u8> },
+    Realtime {
+        bytes: Vec<u8>,
+        received_at: Instant,
+    },
 }
 
 pub fn encoder_input_id(index: usize) -> &'static str {
@@ -86,6 +91,7 @@ pub fn midi_realtime_message(bytes: &[u8]) -> Option<MidiMessage> {
     {
         return Some(MidiMessage::Realtime {
             bytes: bytes.to_vec(),
+            received_at: Instant::now(),
         });
     }
     None

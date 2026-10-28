@@ -70,14 +70,14 @@ fn worker_command_priority_separates_midi_realtime_from_normal_work() {
         &mut normal,
     );
     queue_by_priority(
-        WorkerCommand::NativeMidiRealtime(vec![0xF8]),
+        WorkerCommand::NativeMidiRealtime(vec![0xF8], Instant::now()),
         &mut realtime,
         &mut normal,
     );
 
     assert_eq!(realtime.len(), 1);
     assert_eq!(normal.len(), 1);
-    assert!(matches!(realtime[0], WorkerCommand::NativeMidiRealtime(_)));
+    assert!(matches!(realtime[0], WorkerCommand::NativeMidiRealtime(..)));
     assert!(matches!(normal[0], WorkerCommand::Dispatch(_, _)));
 }
 

@@ -10,7 +10,7 @@ pub(super) fn queue_by_priority(
     realtime: &mut Vec<WorkerCommand>,
     normal: &mut VecDeque<WorkerCommand>,
 ) {
-    if matches!(command, WorkerCommand::NativeMidiRealtime(_)) {
+    if matches!(command, WorkerCommand::NativeMidiRealtime(..)) {
         realtime.push(command);
     } else {
         normal.push_back(command);

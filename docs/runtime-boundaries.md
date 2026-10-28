@@ -21,8 +21,8 @@ are in [`board-profiles.md`](board-profiles.md).
 - Both boards run one runtime loop (`apps/pi-zero/src/runtime_loop.rs`) on an
   `octessera-runtime` thread with one `PiHostAdapter`. Between scheduled ticks
   the loop blocks on the grid/NeoKey/keyboard input channel, so live presses
-  dispatch on arrival instead of at the next tick. Encoders and MIDI still use
-  the tick.
+  dispatch on arrival instead of at the next tick. Encoders still use the tick;
+  under an external clock the loop checks incoming MIDI at least every 1 ms.
 - At startup both board binaries `mlockall` with `MCL_ONFAULT` and lock their
   own and their libraries' read-only mappings up front, so memory pressure or
   first use cannot page audio-path code in from the SD card. The services grant
@@ -62,7 +62,7 @@ are in [`board-profiles.md`](board-profiles.md).
   - owns the portable Data Backup/Restore bundle contract: canonical patch migration and validation, the allowlisted preference delta, manifest/hash metadata, and typed transfer status; it does not perform transfer or filesystem I/O
   - delegates its display-ordered grid index API to the pure fixed-grid projection helpers in `platform-core`; it does not own a second projection table or geometry rule
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
-  - owns musical time in the host `Instant` domain: starting internal playback anchors the runtime clock at `HostAdapter::now`, every pulse gets its exact instant on the 24 PPQN grid, and each pulse reaches the runner as its own step (a catch-up of more than four pulses is one step). Sequenced output (pattern notes, cell hits, CC, MIDI clock, and Start/Continue with the downbeat clock) is stamped pulse instant + the sequenced output delay: 8 ms in Latency, 11 ms in Capacity (`AudioOptimization::sequenced_output_delay`), 30 ms on the desktop, whose 1 ms worker wait lasts a Windows timer tick. Live input, previews, Stop, panic, and all-notes-off stay untimed. Stop and pause flush the MIDI sender: pending note-offs go out at once and future output is dropped
+  - owns musical time in the host `Instant` domain: starting internal playback anchors the runtime clock at `HostAdapter::now`, every pulse gets its exact instant on the 24 PPQN grid, and each pulse reaches the runner as its own step (a catch-up of more than four pulses is one step). Sequenced output (pattern notes, cell hits, CC, MIDI clock, and Start/Continue with the downbeat clock) is stamped pulse instant + the sequenced output delay: 8 ms in Latency, 11 ms in Capacity (`AudioOptimization::sequenced_output_delay`), 30 ms on the desktop, whose 1 ms worker wait lasts a Windows timer tick. Under an external clock, clock-driven output is stamped from each realtime byte's arrival instant (taken in the MIDI input callback) plus the same delay. Live input, previews, Stop, panic, and all-notes-off stay untimed. Stop and pause flush the MIDI sender: pending note-offs go out at once and future output is dropped
   - `TimedMidiSender` sends each MIDI output from its own thread, holding timestamped messages until due; on the boards it runs SCHED_FIFO 50 on CPU0, below the CPU0 mirror callback and away from the audio callback (CPU1) and the DSP workers (CPU2/3)
 
 - Core logic layer (`crates/platform-core`)

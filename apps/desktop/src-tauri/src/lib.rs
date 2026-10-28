@@ -28,6 +28,7 @@ use runtime_worker::{RuntimeWorker, WorkerCommand};
 use sample_decode_cache::SampleDecodeCache;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tauri::Manager;
 
 pub(crate) struct AppState {
@@ -95,7 +96,7 @@ pub fn run() {
                     generations: generations.clone(),
                 },
             );
-            let (native_midi_tx, native_midi_rx) = mpsc::channel::<Vec<u8>>();
+            let (native_midi_tx, native_midi_rx) = mpsc::channel::<(Vec<u8>, Instant)>();
             let worker_tx = RuntimeWorker::spawn(
                 app_handle.clone(),
                 runtime_outbox.clone(),
@@ -109,7 +110,7 @@ pub fn run() {
                     },
                     midi_in.clone(),
                     Arc::new(move |bytes| {
-                        let _ = native_midi_tx.send(bytes);
+                        let _ = native_midi_tx.send((bytes, Instant::now()));
                     }),
                     store_dir.clone(),
                     platform_service.request_tx,
@@ -118,9 +119,9 @@ pub fn run() {
             );
             let midi_worker_tx = worker_tx.clone();
             std::thread::spawn(move || {
-                while let Ok(bytes) = native_midi_rx.recv() {
+                while let Ok((bytes, received_at)) = native_midi_rx.recv() {
                     if midi_worker_tx
-                        .send(WorkerCommand::NativeMidiRealtime(bytes))
+                        .send(WorkerCommand::NativeMidiRealtime(bytes, received_at))
                         .is_err()
                     {
                         break;

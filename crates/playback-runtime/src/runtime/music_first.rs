@@ -91,10 +91,16 @@ impl PlaybackRuntime {
     pub fn handle_midi_realtime_bytes_music_first_with_output<H: HostAdapter>(
         &mut self,
         bytes: &[u8],
+        received_at: Option<std::time::Instant>,
         runner: &mut NativeRunner,
         host: &mut H,
     ) -> Result<RuntimeIngest, String> {
-        self.handle_midi_realtime_bytes_with_output(bytes, &mut MusicFirstRunner(runner), host)
+        self.handle_midi_realtime_bytes_with_output(
+            bytes,
+            received_at,
+            &mut MusicFirstRunner(runner),
+            host,
+        )
     }
 }
 

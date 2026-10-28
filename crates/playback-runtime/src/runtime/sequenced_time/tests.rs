@@ -20,14 +20,16 @@ struct PulseRunner {
 
 impl CoreRunner for PulseRunner {
     fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-        let HostMessage::TransportPulseStep { pulses, .. } = message else {
-            return Ok(Vec::new());
+        let (pulses, source) = match message {
+            HostMessage::TransportPulseStep { pulses, .. } => (pulses, SyncSource::Internal),
+            HostMessage::MidiRealtimeClock { pulses } => (pulses, SyncSource::External),
+            _ => return Ok(Vec::new()),
         };
         self.pulse += u64::from(pulses);
         let events = if pulses > 0 { vec![NOTE] } else { Vec::new() };
         Ok(vec![
             RunnerMessage::MusicalEvents { events },
-            status(RuntimeTransportState::Playing, self.pulse),
+            status_from(RuntimeTransportState::Playing, self.pulse, source),
         ])
     }
 
@@ -40,13 +42,21 @@ impl CoreRunner for PulseRunner {
 }
 
 fn status(transport: RuntimeTransportState, pulse: u64) -> RunnerMessage {
+    status_from(transport, pulse, SyncSource::Internal)
+}
+
+fn status_from(
+    transport: RuntimeTransportState,
+    pulse: u64,
+    sync_source: SyncSource,
+) -> RunnerMessage {
     RunnerMessage::RuntimeStatus {
         status: RuntimeStatus {
             state: RuntimeStatusState::Running,
             transport,
             current_ppqn_pulse: pulse,
             pending_resync: false,
-            sync_source: SyncSource::Internal,
+            sync_source,
             message: None,
             error: None,
         },
@@ -192,4 +202,27 @@ fn time_until_next_pulse_follows_the_phase_while_playing() {
         .ingest_runner_messages(vec![status(RuntimeTransportState::Stopped, 0)], &mut host)
         .unwrap();
     assert_eq!(runtime.time_until_next_pulse(), None);
+}
+
+#[test]
+fn external_clock_output_is_stamped_from_each_clock_arrival() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+        sync_source: SyncSource::External,
+        ..RuntimeConfig::default()
+    });
+    let mut runner = PulseRunner::default();
+    let mut host = FakeHost::default();
+    let first = Instant::now();
+    let second = first + Duration::from_micros(20_833);
+
+    for received_at in [Some(first), Some(second), None] {
+        runtime
+            .handle_midi_realtime_bytes_with_output(&[0xF8], received_at, &mut runner, &mut host)
+            .unwrap();
+    }
+
+    assert_eq!(
+        host.musical_event_at,
+        vec![Some(first + D), Some(second + D), None]
+    );
 }

@@ -255,95 +255,6 @@ impl PlaybackRuntime {
         Ok(output)
     }
 
-    pub fn handle_midi_realtime_bytes<R: CoreRunner, H: HostAdapter>(
-        &mut self,
-        bytes: &[u8],
-        runner: &mut R,
-        host: &mut H,
-    ) -> Result<(), String> {
-        let output = self.handle_midi_realtime_bytes_with_output(bytes, runner, host)?;
-        self.requeue_discarded_output(&output);
-        Ok(())
-    }
-
-    pub fn handle_midi_realtime_bytes_with_output<R: CoreRunner, H: HostAdapter>(
-        &mut self,
-        bytes: &[u8],
-        runner: &mut R,
-        host: &mut H,
-    ) -> Result<RuntimeIngest, String> {
-        let mut output = RuntimeIngest::default();
-        let mut clock_pulses = 0_u32;
-        for byte in bytes {
-            match *byte {
-                0xF8 => clock_pulses = clock_pulses.saturating_add(1),
-                0xFA => {
-                    if clock_pulses > 0 {
-                        output.merge(self.dispatch(
-                            RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
-                                pulses: clock_pulses,
-                            }),
-                            runner,
-                            host,
-                        )?);
-                        clock_pulses = 0;
-                    }
-                    output.merge(self.dispatch(
-                        RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeStart),
-                        runner,
-                        host,
-                    )?);
-                }
-                0xFB => {
-                    if clock_pulses > 0 {
-                        output.merge(self.dispatch(
-                            RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
-                                pulses: clock_pulses,
-                            }),
-                            runner,
-                            host,
-                        )?);
-                        clock_pulses = 0;
-                    }
-                    output.merge(self.dispatch(
-                        RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeContinue),
-                        runner,
-                        host,
-                    )?);
-                }
-                0xFC => {
-                    if clock_pulses > 0 {
-                        output.merge(self.dispatch(
-                            RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
-                                pulses: clock_pulses,
-                            }),
-                            runner,
-                            host,
-                        )?);
-                        clock_pulses = 0;
-                    }
-                    output.merge(self.dispatch(
-                        RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeStop),
-                        runner,
-                        host,
-                    )?);
-                }
-                _ => {}
-            }
-        }
-
-        if clock_pulses > 0 {
-            output.merge(self.dispatch(
-                RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
-                    pulses: clock_pulses,
-                }),
-                runner,
-                host,
-            )?);
-        }
-        Ok(output)
-    }
-
     pub fn panic<H: HostAdapter>(&mut self, host: &mut H) -> Result<(), String> {
         self.scheduled_note_offs.clear();
         self.scheduled_note_offs_dirty = false;
@@ -384,7 +295,7 @@ impl PlaybackRuntime {
         Ok(output)
     }
 
-    fn requeue_discarded_output(&mut self, output: &RuntimeIngest) {
+    pub(super) fn requeue_discarded_output(&mut self, output: &RuntimeIngest) {
         self.oled.requeue_if_current_frame_was_published(output);
     }
 }
