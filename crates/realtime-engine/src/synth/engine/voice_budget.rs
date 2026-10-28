@@ -65,7 +65,7 @@ impl SynthEngine {
         let (target_load, min_budget_pct) = match self.voice_stealing_mode {
             VoiceStealingMode::None => return max_voices,
             VoiceStealingMode::Fixed12 => return 12,
-            VoiceStealingMode::Fixed16 => return MAX_SYNTH_VOICES,
+            VoiceStealingMode::Fixed16 => return 16,
             VoiceStealingMode::AutoSoft => (0.88_f32, 0.75_f32),
             VoiceStealingMode::AutoBalanced => (0.78_f32, 0.60_f32),
             VoiceStealingMode::AutoHard => (0.68_f32, 0.45_f32),

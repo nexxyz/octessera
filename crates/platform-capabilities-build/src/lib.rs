@@ -45,9 +45,12 @@ pub fn positive_u8(value: &Value, key: &str) -> u8 {
 pub fn validate_voice_lane_capacities(value: &Value) {
     let synth_lane_capacity = positive_usize(value, "synthVoiceLaneCapacity");
     let sample_lane_capacity = positive_usize(value, "sampleVoiceLaneCapacity");
-    for key in ["maxSynthVoices", "maxSynthVoicesPerSlot"] {
-        validate_voice_policy(value, key, "synthVoiceLaneCapacity", synth_lane_capacity);
-    }
+    validate_voice_policy(
+        value,
+        "maxSynthVoicesPerSlot",
+        "synthVoiceLaneCapacity",
+        synth_lane_capacity,
+    );
     for key in ["maxSampleVoices", "maxSampleVoicesPerSlot"] {
         validate_voice_policy(value, key, "sampleVoiceLaneCapacity", sample_lane_capacity);
     }
@@ -205,7 +208,6 @@ mod tests {
         let value = json!({
             "synthVoiceLaneCapacity": 64,
             "sampleVoiceLaneCapacity": 64,
-            "maxSynthVoices": 16,
             "maxSynthVoicesPerSlot": 8,
             "maxSampleVoices": 64,
             "maxSampleVoicesPerSlot": 8
@@ -218,7 +220,6 @@ mod tests {
         let value = json!({
             "synthVoiceLaneCapacity": 0,
             "sampleVoiceLaneCapacity": 64,
-            "maxSynthVoices": 16,
             "maxSynthVoicesPerSlot": 8,
             "maxSampleVoices": 64,
             "maxSampleVoicesPerSlot": 8
@@ -232,7 +233,6 @@ mod tests {
     #[test]
     fn rejects_voice_policy_above_its_physical_lane_capacity() {
         for (policy_key, lane_key) in [
-            ("maxSynthVoices", "synthVoiceLaneCapacity"),
             ("maxSynthVoicesPerSlot", "synthVoiceLaneCapacity"),
             ("maxSampleVoices", "sampleVoiceLaneCapacity"),
             ("maxSampleVoicesPerSlot", "sampleVoiceLaneCapacity"),
@@ -240,8 +240,7 @@ mod tests {
             let mut value = json!({
                 "synthVoiceLaneCapacity": 64,
                 "sampleVoiceLaneCapacity": 64,
-                "maxSynthVoices": 16,
-                "maxSynthVoicesPerSlot": 8,
+                    "maxSynthVoicesPerSlot": 8,
                 "maxSampleVoices": 16,
                 "maxSampleVoicesPerSlot": 8
             });

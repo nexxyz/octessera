@@ -11,7 +11,6 @@ export const PLATFORM_CAPS = {
   "audioRenderQuantumFrames": 128,
   "synthVoiceLaneCapacity": 64,
   "sampleVoiceLaneCapacity": 64,
-  "maxSynthVoices": 16,
   "maxSampleVoices": 64,
   "maxSynthVoicesPerSlot": 8,
   "maxSampleVoicesPerSlot": 8,

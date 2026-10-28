@@ -21,9 +21,9 @@ test("generates physical voice-lane capacities in the TypeScript contract", () =
 });
 
 test("rejects a global voice policy above its physical lane capacity", () => {
-  const result = runGenerator({ synthVoiceLaneCapacity: 8, maxSynthVoices: 9 });
+  const result = runGenerator({ synthVoiceLaneCapacity: 8, maxSynthVoicesPerSlot: 9 });
   equal(result.status, 1);
-  match(result.stderr, /maxSynthVoices.*physical lane capacity 'synthVoiceLaneCapacity'/);
+  match(result.stderr, /maxSynthVoicesPerSlot.*physical lane capacity 'synthVoiceLaneCapacity'/);
 });
 
 test("rejects a per-slot voice policy above its physical lane capacity", () => {

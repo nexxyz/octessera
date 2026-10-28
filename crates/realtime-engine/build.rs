@@ -19,7 +19,6 @@ fn main() {
          pub const DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES: usize = {};\n\
          pub const SYNTH_VOICE_LANE_CAPACITY: usize = {};\n\
          pub const SAMPLE_VOICE_LANE_CAPACITY: usize = {};\n\
-         pub const MAX_SYNTH_VOICES: usize = {};\n\
          pub const MAX_SAMPLE_VOICES: usize = {};\n\
          pub const MAX_SYNTH_VOICES_PER_SLOT: usize = {};\n\
          pub const MAX_SAMPLE_VOICES_PER_SLOT: usize = {};\n\
@@ -32,7 +31,6 @@ fn main() {
         positive_usize(&value, "audioRenderQuantumFrames"),
         positive_usize(&value, "synthVoiceLaneCapacity"),
         positive_usize(&value, "sampleVoiceLaneCapacity"),
-        positive_usize(&value, "maxSynthVoices"),
         positive_usize(&value, "maxSampleVoices"),
         positive_usize(&value, "maxSynthVoicesPerSlot"),
         positive_usize(&value, "maxSampleVoicesPerSlot"),

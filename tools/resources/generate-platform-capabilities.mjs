@@ -39,7 +39,6 @@ function capabilitiesFrom(source) {
     audioRenderQuantumFrames: positiveInteger(source, "audioRenderQuantumFrames"),
     synthVoiceLaneCapacity: positiveInteger(source, "synthVoiceLaneCapacity"),
     sampleVoiceLaneCapacity: positiveInteger(source, "sampleVoiceLaneCapacity"),
-    maxSynthVoices: positiveInteger(source, "maxSynthVoices"),
     maxSampleVoices: positiveInteger(source, "maxSampleVoices"),
     maxSynthVoicesPerSlot: positiveInteger(source, "maxSynthVoicesPerSlot"),
     maxSampleVoicesPerSlot: positiveInteger(source, "maxSampleVoicesPerSlot"),
@@ -58,7 +57,7 @@ function capabilitiesFrom(source) {
 
 function validateVoiceLaneCapacities(capabilities) {
   for (const [laneKey, policyKeys] of [
-    ["synthVoiceLaneCapacity", ["maxSynthVoices", "maxSynthVoicesPerSlot"]],
+    ["synthVoiceLaneCapacity", ["maxSynthVoicesPerSlot"]],
     ["sampleVoiceLaneCapacity", ["maxSampleVoices", "maxSampleVoicesPerSlot"]]
   ]) {
     for (const policyKey of policyKeys) {
