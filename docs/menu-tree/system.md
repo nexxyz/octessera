@@ -309,6 +309,11 @@ dirty edits. Stale or failed acknowledgements never reboot or advance the persis
   and requests system info, so the new address is on screen; closing the popup leaves the cursor
   on `Sys. Info`. A repeated success status does not reopen it. Timeout cards auto-hide, a failure
   stays until dismissed, and a new `Open Portal` retries.
+- On Orange the coordinator reads the kernel log before launching the hotspot and once a second
+  while the portal runs. The Wi-Fi chip's firmware crash (`WCN Assert` / `WCN: marlin power off`)
+  can only be cleared by a restart (a driver reload oopses the kernel), so it ends setup as
+  `failed` with `radio_restart_required`, shown as `Wi-Fi chip stopped` / `Restart the device`.
+  The radio is down at that point, so the browser cannot show it.
 - The portal can change Wi-Fi, hostname, SSH, and the board's admin login (`pi` on Raspberry,
   `octessera` on Orange) without a reboot. It does not start or advertise Backup / Restore.
 

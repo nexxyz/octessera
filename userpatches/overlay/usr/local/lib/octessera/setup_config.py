@@ -46,7 +46,7 @@ KEY_LINE = re.compile(r"^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) (
 HOSTNAME_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 RASPBERRY_PROFILE = "r" "aspberry-pi-zero-2w"
 PROFILES = {
-    "orange-pi-zero-2w": {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "octessera-runtime", "ssh_units": ("ssh.service", "ssh.socket", "sshd.service", "sshd.socket")},
+    "orange-pi-zero-2w": {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "octessera-runtime", "ssh_units": ("ssh.service", "ssh.socket", "sshd.service", "sshd.socket"), "radio_crash_markers": ("WCN Assert", "WCN: marlin power off")},
     RASPBERRY_PROFILE: {"user": "pi", "request_owner": "pi", "status_group": "pi", "ssh_units": ("ssh.service", "ssh.socket")},
 }
 

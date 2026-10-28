@@ -6,6 +6,7 @@ use super::super::{
 };
 use super::{DisplayScrollMetadata, DisplaySnapshot};
 use crate::oled_frame::OledDisplayLayout;
+use crate::RuntimeSetupPortalErrorCode;
 
 pub(super) fn user_data_restore_display(state: &NativeUserDataRestoreState) -> DisplaySnapshot {
     let (title, lines, selected_row) = match state.status.phase {
@@ -96,6 +97,16 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
             ],
             "Close",
         ),
+        RuntimeSetupPortalPhase::Failed
+            if state.status.error_code
+                == Some(RuntimeSetupPortalErrorCode::RadioRestartRequired) =>
+        {
+            (
+                "Wi-Fi Setup".to_string(),
+                vec!["Wi-Fi chip stopped".into(), "Restart the device".into()],
+                "Close",
+            )
+        }
         RuntimeSetupPortalPhase::Failed => (
             "Wi-Fi Setup".to_string(),
             vec!["Setup failed".into(), "Check the device status".into()],

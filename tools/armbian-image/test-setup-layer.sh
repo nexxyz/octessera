@@ -29,7 +29,7 @@ check_common() {
   grep -qFx 'ProtectSystem=yes' "$setup_unit"
   if grep -q '^ReadWritePaths=' "$setup_unit"; then exit 1; fi
   grep -qF '/run/octessera-setup-request/inbox' "$tree/etc/systemd/system/octessera.service"
-  octessera_reject_file_match 'Setup coordinator must not restart NetworkManager or log secrets.' -Eiq 'systemctl.*restart|print\(|logger|journal|wpa_passphrase|psk=' "$coordinator" "$config" "$http"
+  octessera_reject_file_match 'Setup coordinator must not restart NetworkManager or log secrets.' -Eiq 'systemctl.*restart|print\(|logger|systemd\.journal|systemd-cat|wpa_passphrase|psk=' "$coordinator" "$config" "$http"
   cmp "$orange/usr/local/sbin/octessera-setup" "$raspberry/usr/local/sbin/octessera-setup"
   cmp "$orange/usr/local/lib/octessera/setup_config.py" "$raspberry/usr/local/lib/octessera/setup_config.py"
   cmp "$orange/usr/local/lib/octessera/setup_http.py" "$raspberry/usr/local/lib/octessera/setup_http.py"

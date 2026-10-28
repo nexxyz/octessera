@@ -28,6 +28,7 @@ INTERFACE = "wlan0"
 WIFI_OFF_FILE = "/var/lib/octessera/show-hold/wifi-off"
 PORTAL_WINDOW_SECONDS = 600
 INTERNAL_APPLY_SECONDS = 60
+RADIO_CHECK_SECONDS = 1.0
 
 
 class SetupFailure(Exception):
@@ -84,7 +85,7 @@ def _status(phase, disposition=None, portal_suffix=None, error_code=None):
         if disposition is not None or portal_suffix is not None or error_code is not None:
             raise ValueError("invalid terminal status")
     elif phase == "failed":
-        if disposition is not None or portal_suffix is not None or error_code != "operation_failed":
+        if disposition is not None or portal_suffix is not None or error_code not in ("operation_failed", "radio_restart_required"):
             raise ValueError("invalid failure status")
     elif phase == "timed_out":
         if disposition is not None or portal_suffix is not None or error_code != "unavailable":
@@ -184,6 +185,7 @@ class Coordinator:
         self.portal_suffix = None
         self.stop_requested = False
         self.terminal_published = False
+        self.radio_checked_at = None
 
     def stage(self, value):
         if self.staged is not None:
@@ -209,6 +211,21 @@ class Coordinator:
         if not re.fullmatch(r"(?:[0-9a-f]{2}:){5}[0-9a-f]{2}", address):
             raise SetupFailure("operation_failed")
         return address.replace(":", "")[-4:]
+
+    def radio_crashed(self):
+        markers = self.profile.get("radio_crash_markers", ())
+        if not markers:
+            return False
+        result = self.command(["journalctl", "-k", "-b", "-q", "--no-pager", "-o", "cat"])
+        return result.returncode == 0 and any(marker in result.stdout for marker in markers)
+
+    def check_radio(self):
+        now = self.clock()
+        if self.radio_checked_at is not None and now - self.radio_checked_at < RADIO_CHECK_SECONDS:
+            return
+        self.radio_checked_at = now
+        if self.radio_crashed():
+            raise SetupFailure("radio_restart_required")
 
     def portal_ipv4_ready(self):
         result = self.command(["ip", "-j", "-4", "addr", "show", "dev", INTERFACE])
@@ -283,6 +300,7 @@ class Coordinator:
 
     def wait_for_portal_readiness(self, outer_deadline):
         while not self.portal_ready():
+            self.check_radio()
             if self.stop_requested:
                 raise SetupFailure("operation_failed")
             if self.clock() >= outer_deadline:
@@ -302,6 +320,7 @@ class Coordinator:
     def wait_for_apply(self, outer_deadline):
         apply_deadline = min(self.staged_at + INTERNAL_APPLY_SECONDS, outer_deadline)
         while True:
+            self.check_radio()
             if self.stop_requested:
                 raise SetupFailure("operation_failed")
             now = self.clock()
@@ -326,6 +345,7 @@ class Coordinator:
 
     def wait_for_stage(self, portal_deadline):
         while self.staged is None:
+            self.check_radio()
             now = self.clock()
             if now >= portal_deadline:
                 self.stop_process_group(portal_deadline)
@@ -402,6 +422,7 @@ class Coordinator:
             self.server = setup_http.SetupHTTPServer(("0.0.0.0", 8080), self)
             self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.server_thread.start()
+            self.check_radio()
             self.launch()
             self.wait_for_portal_readiness(outer_deadline)
             portal_ready_at = self.clock()
@@ -418,6 +439,8 @@ class Coordinator:
             outcome = ("failed", "operation_failed")
         finally:
             try:
+                if outcome[0] == "failed" and outcome[1] != "radio_restart_required" and self.radio_crashed():
+                    outcome = ("failed", "radio_restart_required")
                 if not self.terminal_published:
                     self.publish(outcome[0], error_code=outcome[1], terminal=True)
             finally:

@@ -35,10 +35,13 @@ steps.
 
 - The browser may disconnect while the settings apply. Leave the instrument
   powered and wait for the result on the OLED.
-- On success, the board has a Wi-Fi address. Find it under
-  `System > Maintenance > Sys. Info`; no reboot is needed.
+- On success, the OLED jumps to `System > Maintenance > Sys. Info` and shows
+  the board's new Wi-Fi address; no reboot is needed.
 - If the OLED reports a failure or a timeout, close the message and open the
   portal again.
+- If it says **Wi-Fi chip stopped**, restart the instrument before trying again.
+  The Orange Pi's Wi-Fi chip sometimes gives up when the hotspot is started a
+  second time without a restart in between, and only a restart wakes it.
 
 For power and cable precautions, see [safety and power](safety-and-power.md).
 For USB data connections, see [USB roles](usb-roles.md).

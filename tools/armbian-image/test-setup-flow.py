@@ -265,4 +265,57 @@ for index, path in enumerate(COORDINATORS):
     assert ("nmcli", "connection", "delete", "uuid", "infra") not in calls
     assert all("restart" not in call for call in calls)
 
-print("Setup one-launch, readiness, portal timeout, apply, failure, and exact cleanup tests passed")
+    crash_log = "WCN: mdbg_assert_read:WCN Assert in rf_marlin.c line 1016\nWCN: marlin power off!\n"
+    orange = dict(profile, radio_crash_markers=("WCN Assert", "WCN: marlin power off"))
+
+    def kernel_log(text):
+        def command(args, timeout=None):
+            if args[0] == "journalctl":
+                return SimpleNamespace(returncode=0, stdout=text)
+            return SimpleNamespace(returncode=0, stdout="")
+        return command
+
+    dead_status = []
+    dead_launches = []
+    coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+    try:
+        dead = coordinator.Coordinator(orange, command=kernel_log(crash_log), process_factory=lambda args, **kwargs: dead_launches.append(args), clock=lambda: 0.0)
+        dead.interface_suffix = lambda: "abcd"
+        dead.publish = lambda phase, **kwargs: dead_status.append((phase, kwargs))
+        dead.cleanup = lambda _deadline: None
+        assert dead.run(0.0) == 0
+    finally:
+        coordinator.setup_http.SetupHTTPServer = original_setup_server
+    assert dead_launches == []
+    assert dead_status[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
+
+    waiting = coordinator.Coordinator(orange, command=kernel_log(crash_log), clock=lambda: 5.0, sleeper=lambda _seconds: None)
+    waiting.process = Process()
+    try:
+        waiting.wait_for_stage(600.0)
+    except coordinator.SetupFailure as failure:
+        assert failure.error_code == "radio_restart_required"
+    else:
+        raise AssertionError("a crashed Wi-Fi chip kept the portal waiting")
+
+    healthy = coordinator.Coordinator(orange, command=kernel_log("WCN: the first power on start\n"))
+    assert not healthy.radio_crashed()
+    unchecked = []
+    raspberry = coordinator.Coordinator(profile, command=lambda args, timeout=None: unchecked.append(tuple(args)) or SimpleNamespace(returncode=0, stdout=crash_log))
+    assert not raspberry.radio_crashed() and unchecked == []
+
+    reported = []
+    coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+    try:
+        failing = coordinator.Coordinator(orange, command=kernel_log(""), process_factory=lambda args, **kwargs: Process(1), clock=lambda: 0.0, sleeper=lambda _seconds: None)
+        failing.interface_suffix = lambda: "abcd"
+        failing.portal_ready = lambda: False
+        failing.publish = lambda phase, **kwargs: reported.append((phase, kwargs))
+        failing.cleanup = lambda _deadline: None
+        failing.radio_crashed = lambda: failing.process is not None
+        assert failing.run(0.0) == 0
+    finally:
+        coordinator.setup_http.SetupHTTPServer = original_setup_server
+    assert reported[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
+
+print("Setup one-launch, readiness, portal timeout, apply, failure, radio crash, and exact cleanup tests passed")

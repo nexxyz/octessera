@@ -32,6 +32,7 @@ pub enum RuntimeSetupPortalErrorCode {
     Unavailable,
     InvalidPayload,
     Unsupported,
+    RadioRestartRequired,
 }
 
 impl From<RuntimeSetupPortalErrorCode> for RuntimeErrorCode {
@@ -41,6 +42,7 @@ impl From<RuntimeSetupPortalErrorCode> for RuntimeErrorCode {
             RuntimeSetupPortalErrorCode::Unavailable => Self::Unavailable,
             RuntimeSetupPortalErrorCode::InvalidPayload => Self::InvalidPayload,
             RuntimeSetupPortalErrorCode::Unsupported => Self::Unsupported,
+            RuntimeSetupPortalErrorCode::RadioRestartRequired => Self::OperationFailed,
         }
     }
 }
@@ -52,6 +54,7 @@ impl Display for RuntimeSetupPortalErrorCode {
             Self::Unavailable => "unavailable",
             Self::InvalidPayload => "invalid_payload",
             Self::Unsupported => "unsupported",
+            Self::RadioRestartRequired => "radio_restart_required",
         })
     }
 }
@@ -122,6 +125,7 @@ impl RuntimeSetupPortalStatus {
                     Some(RuntimeSetupPortalErrorCode::OperationFailed)
                         | Some(RuntimeSetupPortalErrorCode::Unavailable)
                         | Some(RuntimeSetupPortalErrorCode::InvalidPayload)
+                        | Some(RuntimeSetupPortalErrorCode::RadioRestartRequired)
                 ) {
                     return Err("failed setup portal status requires a permitted errorCode".into());
                 }

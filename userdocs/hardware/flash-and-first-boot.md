@@ -115,7 +115,9 @@ the hotspot goes away. That is expected. Leave the instrument powered and trust
 the OLED, not the browser. On success, the OLED jumps to
 `System > Maintenance > Sys. Info` by itself and shows the board's address; no
 reboot is needed. If the OLED reports a failure or a timeout, close the message
-and open the portal again.
+and open the portal again. If it says **Wi-Fi chip stopped**, restart the
+instrument first: the Orange Pi's Wi-Fi chip can give up on a second hotspot
+start, and only a restart brings it back.
 
 To change the network, password, SSH or name later, see [setup
 portal](setup-portal.md).

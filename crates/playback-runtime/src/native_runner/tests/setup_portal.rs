@@ -443,3 +443,27 @@ pub(crate) fn setup_modal_has_priority_over_other_presentations() {
         .iter()
         .any(|line| line == "USB"));
 }
+
+#[test]
+pub(crate) fn stopped_wifi_chip_failure_asks_for_a_restart() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.stop_for_setup_portal();
+    let messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SetupPortalStatus {
+                status: RuntimeSetupPortalStatus {
+                    phase: RuntimeSetupPortalPhase::Failed,
+                    disposition: None,
+                    portal_suffix: None,
+                    reboot_required: false,
+                    error_code: Some(RuntimeSetupPortalErrorCode::RadioRestartRequired),
+                },
+            }
+            .with_identity("setup-1".into(), Some(1)),
+        })
+        .unwrap();
+    assert_eq!(
+        display_lines(&messages),
+        vec!["Wi-Fi chip stopped", "Restart the device", "> Close"]
+    );
+}

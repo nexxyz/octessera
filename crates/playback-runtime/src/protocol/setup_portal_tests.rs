@@ -102,6 +102,13 @@ fn setup_portal_status_serializes_and_round_trips_every_phase() {
             Some(RuntimeSetupPortalErrorCode::Unavailable),
         ),
         setup_status(
+            RuntimeSetupPortalPhase::Failed,
+            None,
+            None,
+            false,
+            Some(RuntimeSetupPortalErrorCode::RadioRestartRequired),
+        ),
+        setup_status(
             RuntimeSetupPortalPhase::TimedOut,
             None,
             None,
@@ -161,6 +168,12 @@ fn setup_portal_status_serializes_and_round_trips_every_phase() {
             "type": "setup_portal_status",
             "phase": "failed",
             "errorCode": "unavailable",
+            "rebootRequired": false
+        }),
+        json!({
+            "type": "setup_portal_status",
+            "phase": "failed",
+            "errorCode": "radio_restart_required",
             "rebootRequired": false
         }),
         json!({
