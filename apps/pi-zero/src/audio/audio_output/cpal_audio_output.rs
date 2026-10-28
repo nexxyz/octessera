@@ -108,6 +108,9 @@ pub(super) fn build_engine_source(
         }
     }?;
     source.0.set_pcm_mirror_producers(mirror_producers);
+    source
+        .0
+        .set_late_timed_events_counter(crate::audio::late_timed_events_counter());
     Ok(source)
 }
 

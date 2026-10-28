@@ -12,6 +12,7 @@ mod audio_defaults;
 mod audio_error;
 mod audio_output;
 mod audio_recording_service;
+mod late_timed_events;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::audio_queue_error;
 #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
@@ -20,7 +21,8 @@ pub(crate) use audio_output::drain_audio_load_status;
 pub(crate) use audio_output::MixTaps;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use audio_output::OrangeAudioProfile;
-pub(crate) use audio_output::{AudioManager, AudioSink, MixTapState};
+pub(crate) use audio_output::{sequenced_output_delay, AudioManager, AudioSink, MixTapState};
+pub(crate) use late_timed_events::{late_timed_events_counter, LateTimedEventLog};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use playback_runtime::AudioOptimization;
 use playback_runtime::AudioOutputSet;

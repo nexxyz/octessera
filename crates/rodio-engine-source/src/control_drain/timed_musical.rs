@@ -15,7 +15,7 @@ impl ControlDrain<'_> {
             let offset = match timed.window.place_frame(i128::from(frame)) {
                 Placement::Now(offset) => offset,
                 Placement::Late | Placement::Park(_) => {
-                    timed.late_events = timed.late_events.saturating_add(1);
+                    timed.count_late();
                     0
                 }
             };
@@ -53,7 +53,7 @@ impl ControlDrain<'_> {
                 return;
             }
             Placement::Late => {
-                timed.late_events = timed.late_events.saturating_add(1);
+                timed.count_late();
                 0
             }
         };

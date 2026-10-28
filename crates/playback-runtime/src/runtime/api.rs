@@ -17,7 +17,7 @@ impl PlaybackRuntime {
             now: Duration::ZERO,
             clock_anchor: None,
             sequenced_at: None,
-            sequenced_delay: crate::AudioOptimization::Latency.sequenced_output_delay(),
+            sequenced_delay: super::sequenced_time::DEFAULT_SEQUENCED_OUTPUT_DELAY,
             last_good_status: None,
             presented_status: None,
             last_good_snapshot: None,

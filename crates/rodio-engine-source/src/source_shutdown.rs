@@ -52,6 +52,7 @@ impl EngineSource {
             retired_backlog: self.retired_backlog.take(),
             emergency_retirement: self.emergency_retirement.take(),
             mirror_producers: std::mem::take(&mut self.mirror_producers),
+            late_timed_events: self.timed.late_events.take(),
             #[cfg(feature = "routing-tree-executor")]
             worker_runtime: self.worker_state.take_runtime(),
             #[cfg(test)]

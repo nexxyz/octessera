@@ -167,7 +167,6 @@ impl SynthEngine {
             dropped_quantums: 0,
             deadline_misses: 0,
             deadline_recoveries: 0,
-            late_timed_events: 0,
             peak: BlockPeak::default(),
         };
         self.voice_steal_since_status = false;

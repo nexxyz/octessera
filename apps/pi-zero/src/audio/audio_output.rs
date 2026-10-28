@@ -36,6 +36,7 @@ use audio_output_open::open_orange_audio_sink;
 use audio_output_open::recordings_dir;
 use audio_output_open::screen_recordings_dir;
 use audio_output_open::{AudioConstructionConfig, AudioSinkOpener};
+pub(crate) use audio_profile::sequenced_output_delay;
 #[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
 pub(crate) use audio_profile::AudioProfileGeometry;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]

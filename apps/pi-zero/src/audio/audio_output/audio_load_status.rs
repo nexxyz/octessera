@@ -4,9 +4,6 @@ use playback_runtime::{
     PlaybackRuntime, RuntimeIngest, RuntimePresentationMetrics, RuntimeTransportState,
 };
 use rodio_engine_source::AudioLoadStatusReceiver;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-static LOGGED_LATE_TIMED_EVENTS: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 impl AudioManager {
@@ -37,7 +34,6 @@ pub(crate) fn drain_audio_load_status(
         let mut newest = None;
         while let Ok(status) = load_rx.try_recv() {
             log_block_overrun(&status);
-            log_late_timed_events(&status);
             newest = Some(status);
         }
         if let Some(status) = newest {
@@ -62,7 +58,6 @@ pub(crate) fn drain_audio_load_status(
     let mut newest = None;
     while let Ok(status) = load_rx.try_recv() {
         log_block_overrun(&status);
-        log_late_timed_events(&status);
         newest = Some(status);
     }
     if let Some(status) = newest {
@@ -87,18 +82,6 @@ fn log_block_overrun(status: &realtime_engine::synth::AudioLoadStatus) {
         eprintln!(
             "audio block overran: {:.2}x its time, control_events={} config_events={} synth_voices={} sample_voices={}",
             peak.ratio, peak.control_events, peak.config_events, peak.synth_voices, peak.sample_voices
-        );
-    }
-}
-
-/// Timestamped events that reached the engine after their block had started; they played at once.
-fn log_late_timed_events(status: &realtime_engine::synth::AudioLoadStatus) {
-    let previous = LOGGED_LATE_TIMED_EVENTS.swap(status.late_timed_events, Ordering::Relaxed);
-    if status.late_timed_events > previous {
-        eprintln!(
-            "late timed events: {} (total {})",
-            status.late_timed_events - previous,
-            status.late_timed_events
         );
     }
 }

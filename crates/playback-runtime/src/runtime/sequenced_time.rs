@@ -9,6 +9,9 @@ use std::time::{Duration, Instant};
 /// A longer catch-up is late anyway and reaches the runner as one step stamped like its last pulse.
 const SEPARATELY_STAMPED_PULSES: u32 = 4;
 
+/// The delay until the host sets the one its audio output needs.
+pub(super) const DEFAULT_SEQUENCED_OUTPUT_DELAY: Duration = Duration::from_millis(8);
+
 impl PlaybackRuntime {
     pub fn set_sequenced_output_delay(&mut self, delay: Duration) {
         self.sequenced_delay = delay;

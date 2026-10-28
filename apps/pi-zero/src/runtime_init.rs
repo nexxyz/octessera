@@ -25,7 +25,7 @@ pub(crate) fn new_runtime(
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
     });
-    playback.set_sequenced_output_delay(audio_optimization.sequenced_output_delay());
+    playback.set_sequenced_output_delay(crate::audio::sequenced_output_delay(audio_optimization));
     let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),

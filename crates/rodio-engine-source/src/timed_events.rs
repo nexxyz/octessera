@@ -3,6 +3,9 @@
 //! events inside the rendered window at their frame offset, and parks later ones until their block.
 
 use super::EngineEvent;
+use crate::source_state::SourceOwned;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 pub(crate) const EVENT_PARK_CAPACITY: usize = 64;
@@ -289,7 +292,7 @@ pub(crate) struct TimedEvents {
     pub(crate) clock: OutputClock,
     pub(crate) window: EventWindow,
     pub(crate) park: EventPark,
-    pub(crate) late_events: u64,
+    pub(crate) late_events: SourceOwned<Arc<AtomicU64>>,
 }
 
 impl TimedEvents {
@@ -300,8 +303,12 @@ impl TimedEvents {
             clock,
             window,
             park: EventPark::new(),
-            late_events: 0,
+            late_events: SourceOwned::new(Arc::default()),
         }
+    }
+
+    pub(crate) fn count_late(&self) {
+        self.late_events.fetch_add(1, Ordering::Relaxed);
     }
 
     pub(crate) fn open_window(&mut self, lead_frames: usize, frames: usize) {

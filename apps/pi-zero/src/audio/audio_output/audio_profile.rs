@@ -1,4 +1,20 @@
 use playback_runtime::AudioOptimization;
+use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
+use std::time::Duration;
+
+const SEQUENCED_WAKE_MARGIN: Duration = Duration::from_millis(3);
+
+/// Lead time between a pulse and its sequenced output on this board's audio profile: an event must
+/// be queued a lookahead, one block and one refill before its frame, plus the runtime wake margin.
+pub(crate) fn sequenced_output_delay(optimization: AudioOptimization) -> Duration {
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    let profile = RaspberryAudioProfile::from_optimization(optimization);
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    let profile = OrangeAudioProfile::from_optimization(optimization);
+    let frames = (2 * profile.internal_block_frames + profile.lookahead_frames) as u64;
+    SEQUENCED_WAKE_MARGIN
+        + Duration::from_nanos(frames * 1_000_000_000 / u64::from(DEFAULT_AUDIO_SAMPLE_RATE))
+}
 
 #[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

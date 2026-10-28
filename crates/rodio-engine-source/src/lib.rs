@@ -52,6 +52,8 @@ use source_worker::{EngineSourceMode, EngineSourceWorkerState};
 pub use source_worker::{EngineSourceWorkerShutdownError, EngineSourceWorkerShutdownOwner};
 use source_worker_reaper::SourceShutdownEnvelope;
 pub use source_worker_reaper::SOURCE_REAPER_THREAD_NAME;
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
@@ -349,6 +351,11 @@ impl EngineSource {
         self.mirror_producers = producers;
     }
 
+    /// Shares the count of timestamped events that arrived after their frame had been rendered.
+    pub fn set_late_timed_events_counter(&mut self, counter: Arc<AtomicU64>) {
+        self.timed.late_events = SourceOwned::new(counter);
+    }
+
     fn publish_mirrors(&self) {
         for producer in self.mirror_producers.iter().flatten() {
             producer.publish(&self.buf, self.block_frames);
@@ -365,7 +372,6 @@ impl EngineSource {
         let mut status = self.engine.audio_load_status();
         self.telemetry.apply_to_status(&mut status);
         self.persistent_output.apply_to_status(&mut status);
-        status.late_timed_events = self.timed.late_events;
         let status_queued = load_tx.try_send(status);
         if status_queued {
             self.telemetry.reset_peak();

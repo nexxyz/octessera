@@ -1,6 +1,7 @@
 //! The runtime loop both boards run on the octessera-runtime thread. Board
 //! differences are limited to audio upkeep and what a power request does.
 
+use crate::audio::LateTimedEventLog;
 use crate::encoder_queue::PendingEncoderTurns;
 use crate::hardware_runtime_scheduler::{is_playing, DisplaySnapshotDue, HardwareRuntimeScheduler};
 use crate::host_adapter::PiHostAdapter;
@@ -53,6 +54,7 @@ pub(crate) struct LoopState {
     pub(crate) ui_profiler: UiProfiler,
     pub(crate) native_scenes: NativeScenePump,
     pub(crate) timing: Option<TimingInput>,
+    late_timed_events: LateTimedEventLog,
     #[cfg(feature = "profiling")]
     load: Option<TimingLoad>,
 }
@@ -71,6 +73,7 @@ impl LoopState {
             ui_profiler,
             native_scenes,
             timing,
+            late_timed_events: LateTimedEventLog::new(Instant::now()),
             #[cfg(feature = "profiling")]
             load: TimingLoad::from_env(Instant::now())
                 .unwrap_or_else(|error| fail_study::<PiHostAdapter>(error)),
@@ -112,6 +115,7 @@ pub(crate) fn run_runtime_loop(
             }
             return Err(error);
         }
+        state.late_timed_events.log_increase(Instant::now());
         crate::midi_host::drain_midi_messages(inputs.midi_rx, playback, runner, adapter);
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(inputs.input_rx, playback, runner, adapter);
