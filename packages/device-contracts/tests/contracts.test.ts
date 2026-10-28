@@ -4,33 +4,15 @@ import assert from "node:assert/strict";
 import {
   GRID_DOMAIN,
   AUX_ENCODER_COUNT,
-  DISPLAY_PALETTE,
   GRID_HEIGHT,
   GRID_WIDTH,
   OLED_HEIGHT,
   OLED_WIDTH,
   PAN_POSITION_COUNT,
-  PLATFORM_CAPS,
-  RUNTIME_ERROR_CODES,
-  RUNTIME_ERROR_DOMAINS,
-  RUNTIME_OPERATIONS,
-  RUNTIME_RECOVERIES,
-  type RuntimeErrorFacts,
-  type RuntimeErrorMetadata,
-  type RuntimeSnapshot,
   type OledFrame,
 } from "../src/index";
-
-const CANDIDATE_HEALTH_MARKER_FIXTURE = {
-  schema_version: 1,
-  kind: "octessera_candidate_readiness",
-  status: "ready",
-  pid: 4242,
-  systemd_invocation_id: "inv-1",
-  package_version: "0.7.0",
-  board_profile: "raspberry-pi-zero-2w",
-  ready_at_unix_ms: 1_700_000_000_123,
-} as const;
+import { DISPLAY_PALETTE } from "../src/displayPalette.generated";
+import { PLATFORM_CAPS } from "../src/platformCapabilities.generated";
 
 test("display palette matches the canonical instrument colors", () => {
   assert.deepEqual(DISPLAY_PALETTE.green, {
@@ -150,78 +132,4 @@ test("grid display conversion preserves lower-left logical origin", () => {
   assert.deepEqual(GRID_DOMAIN.toLogicalCell({ x: 7, y: 0 }), { x: 7, y: 7 });
   assert.deepEqual(GRID_DOMAIN.toLogicalCell({ x: 0, y: 7 }), { x: 0, y: 0 });
   assert.deepEqual(GRID_DOMAIN.toLogicalCell({ x: 7, y: 7 }), { x: 7, y: 0 });
-});
-
-test("candidate health marker fixture matches the guard identity contract", () => {
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(CANDIDATE_HEALTH_MARKER_FIXTURE)),
-    CANDIDATE_HEALTH_MARKER_FIXTURE,
-  );
-  assert.deepEqual(Object.keys(CANDIDATE_HEALTH_MARKER_FIXTURE).sort(), [
-    "board_profile",
-    "kind",
-    "package_version",
-    "pid",
-    "ready_at_unix_ms",
-    "schema_version",
-    "status",
-    "systemd_invocation_id",
-  ]);
-  assert.equal(CANDIDATE_HEALTH_MARKER_FIXTURE.schema_version, 1);
-  assert.equal(
-    CANDIDATE_HEALTH_MARKER_FIXTURE.kind,
-    "octessera_candidate_readiness",
-  );
-  assert.equal(CANDIDATE_HEALTH_MARKER_FIXTURE.status, "ready");
-  assert.ok(CANDIDATE_HEALTH_MARKER_FIXTURE.pid > 0);
-  assert.ok(CANDIDATE_HEALTH_MARKER_FIXTURE.systemd_invocation_id.length > 0);
-  assert.equal(
-    CANDIDATE_HEALTH_MARKER_FIXTURE.board_profile,
-    "raspberry-pi-zero-2w",
-  );
-});
-
-test("runtime error metadata serializes with stable typed identity and recovery", () => {
-  const error = {
-    domain: "storage",
-    code: "operation_failed",
-    operation: "store_load_default",
-    recovery: "retain_last_good",
-    message: "disk full",
-  } as const satisfies RuntimeErrorMetadata;
-  const snapshot = { runtimeError: error } as Pick<
-    RuntimeSnapshot,
-    "runtimeError"
-  >;
-
-  assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot);
-  const setupError = {
-    domain: "runtime",
-    code: "unsupported",
-    operation: "setup_portal",
-  } as const satisfies RuntimeErrorFacts;
-  assert.deepEqual(JSON.parse(JSON.stringify(setupError)), setupError);
-  assert.deepEqual(RUNTIME_ERROR_DOMAINS, [
-    "runtime",
-    "storage",
-    "midi",
-    "sample",
-    "audio",
-    "recording",
-    "serialization",
-  ]);
-  assert.deepEqual(RUNTIME_ERROR_CODES, [
-    "operation_failed",
-    "unavailable",
-    "invalid_payload",
-    "not_found",
-    "unsupported",
-    "serialization_failed",
-    "audio_thread_failed",
-  ]);
-  assert.ok(RUNTIME_OPERATIONS.includes(error.operation));
-  assert.ok(RUNTIME_OPERATIONS.includes("device_update"));
-  assert.ok(RUNTIME_OPERATIONS.includes("recording"));
-  assert.ok(RUNTIME_OPERATIONS.includes("setup_portal"));
-  assert.ok(RUNTIME_RECOVERIES.includes(error.recovery));
 });

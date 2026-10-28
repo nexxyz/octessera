@@ -1,39 +1,75 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  SHARED_RUNTIME_CONTRACT_FIXTURES,
+  createOledFrameRevision,
   type RuntimeRunnerMessage,
 } from '@octessera/device-contracts';
 import { createSimulatorRuntime } from '../src/runtime/simulatorRuntime';
 import type { AudioLoadStatus } from '../src/audio/audioLoadEvents';
 import type { RuntimeScheduler } from '../src/runtime/runtimeScheduler';
 
-type RuntimeContractFixture = (typeof SHARED_RUNTIME_CONTRACT_FIXTURES)[number];
-
-function getFixture(id: string): RuntimeContractFixture {
-  const fixture = SHARED_RUNTIME_CONTRACT_FIXTURES.find(
-    (candidate) => candidate.id === id,
-  );
-  assert.ok(fixture, `Missing runtime contract fixture: ${id}`);
-  return fixture;
-}
+const CONTRACT_RUNNER_MESSAGES: RuntimeRunnerMessage[] = [
+  {
+    type: 'oled_frame',
+    revision: createOledFrameRevision(1),
+    width: 128,
+    height: 128,
+    format: 'rgb565be',
+    pixelsBase64: 'A'.repeat(43691) + '=',
+  },
+  {
+    type: 'snapshot',
+    snapshot: {
+      display: {
+        page: 'life',
+        bodyLayout: 'rows',
+        title: 'Build',
+        lines: ['grid press'],
+        editing: false,
+      },
+      leds: {
+        width: 8,
+        height: 8,
+        rgb: Array.from({ length: 64 * 3 }, () => 0),
+        active: Array.from({ length: 64 }, () => false),
+      },
+      transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
+      activeBehavior: 'life',
+      gridInteraction: 'paint',
+      neoKeyLeds: {
+        back: [221, 130, 205],
+        space: [221, 130, 205],
+        shift: [67, 68, 71],
+        fn: [67, 68, 71],
+      },
+      eventDotOn: false,
+      transportIcon: 'stop',
+      transportFlash: 'none',
+      oledFrameRevision: createOledFrameRevision(1),
+    },
+  },
+  {
+    type: 'runtime_status',
+    status: {
+      state: 'idle',
+      transport: 'stopped',
+      currentPpqnPulse: 0,
+      pendingResync: false,
+      syncSource: 'internal',
+    },
+  },
+];
 
 function getRunnerMessage<T extends RuntimeRunnerMessage['type']>(
-  fixture: RuntimeContractFixture,
   type: T,
 ): Extract<RuntimeRunnerMessage, { type: T }> {
-  const message = fixture.runnerMessages.find(
+  const message = CONTRACT_RUNNER_MESSAGES.find(
     (candidate): candidate is Extract<RuntimeRunnerMessage, { type: T }> =>
       candidate.type === type,
   );
-  assert.ok(
-    message,
-    `Fixture ${fixture.id} is missing runner message type: ${type}`,
-  );
+  assert.ok(message, `Missing runner message type: ${type}`);
   return message;
 }
-
-const CONTRACT_FIXTURE = getFixture('device-grid-press-refreshes-snapshot');
 
 class RecordingScheduler implements RuntimeScheduler {
   starts = 0;
@@ -62,7 +98,7 @@ test('simulator preserves native message ordering in one published response', as
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
     runtimeDispatch: async (message) => {
       seen.push({ type: message.type });
-      return CONTRACT_FIXTURE.runnerMessages;
+      return CONTRACT_RUNNER_MESSAGES;
     },
   });
   runtime.subscribe((snapshot) => {
@@ -88,8 +124,8 @@ test('simulator routes native OLED and status updates without desktop interpreta
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
     runtimeDispatch: async () =>
       [
-        getRunnerMessage(CONTRACT_FIXTURE, 'oled_frame'),
-        getRunnerMessage(CONTRACT_FIXTURE, 'snapshot'),
+        getRunnerMessage('oled_frame'),
+        getRunnerMessage('snapshot'),
         {
           type: 'runtime_status',
           status: {
@@ -120,11 +156,13 @@ test('simulator routes native OLED and status updates without desktop interpreta
 });
 
 test('simulator does not create a desktop fallback for native output messages', async () => {
-  const fixture = getFixture('internal-pulse-step-emits-events');
-  const statusMessage = getRunnerMessage(fixture, 'runtime_status');
-  const outputMessages = fixture.runnerMessages.filter(
-    (message) => message.type !== statusMessage.type,
-  );
+  const outputMessages = [
+    {
+      type: 'musical_events',
+      events: [{ type: 'note_on', channel: 0, note: 60, velocity: 96 }],
+    },
+    { type: 'audio_commands', commands: [] },
+  ] as unknown as RuntimeRunnerMessage[];
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
     runtimeDispatch: async () => outputMessages,
   });
@@ -166,7 +204,7 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   await waitTurn();
   runtime.stop();
   const afterStop = runtime.getSnapshot();
-  emitAsync(1, [getRunnerMessage(CONTRACT_FIXTURE, 'runtime_status')]);
+  emitAsync(1, [getRunnerMessage('runtime_status')]);
   emitAudioLoad({
     ratio: 1,
     voiceSteal: true,

@@ -1,34 +1,18 @@
 export { GRID_DOMAIN } from "./coreTypes";
 export type {
   DeviceInput,
-  DisplayFrame,
-  OledDisplayLayout,
-  GridInteraction,
-  LedMatrixFrame,
-  MusicalEvent,
+  LocalBootstrapSnapshot,
   NativeRuntimeSnapshot,
   NeoKeyLeds,
   OledFrame,
-  OledFrameRevision,
-  PageId,
   RuntimeSnapshot,
-  RuntimeSnapshotFields,
-  RuntimeSnapshotSettings,
-  TransportFrame,
-  LocalBootstrapSnapshot,
 } from "./coreTypes";
-export type { GridCell, GridDomain } from "./gridDomain";
 export {
   BLACK_COLOR,
-  DISPLAY_PALETTE,
+  GREEN_COLOR,
   MAGENTA_COLOR,
   YELLOW_COLOR,
-  GRAY_COLOR,
-  BLUE_COLOR,
-  WHITE_COLOR,
-  GREEN_COLOR,
 } from "./displayPalette.generated";
-export type { DisplayPaletteRgb } from "./displayPalette.generated";
 export {
   AUX_ENCODER_COUNT,
   GRID_HEIGHT,
@@ -36,80 +20,15 @@ export {
   OLED_HEIGHT,
   OLED_WIDTH,
   PAN_POSITION_COUNT,
-  PLATFORM_CAPS,
 } from "./platformCapabilities.generated";
-export {
-  RUNTIME_ERROR_CODES,
-  RUNTIME_ERROR_DOMAINS,
-  RUNTIME_OPERATIONS,
-  RUNTIME_RECOVERIES,
-} from "./runtimeErrors";
+export type { RuntimeErrorMetadata } from "./runtimeErrors";
 export type {
-  RuntimeErrorCode,
-  RuntimeErrorDomain,
-  RuntimeErrorFacts,
-  RuntimeErrorMetadata,
-  RuntimeOperation,
-  RuntimeRecovery,
-} from "./runtimeErrors";
-export {
-  MIDI_REALTIME_MESSAGE_TYPES,
-  RUNTIME_FX_PARAM_IDS,
-  RUNTIME_MOMENTARY_FX_TYPES,
-  RUNTIME_SETUP_PORTAL_DISPOSITIONS,
-  RUNTIME_SETUP_PORTAL_ERROR_CODES,
-  RUNTIME_SETUP_PORTAL_PHASES,
-  SETUP_PORTAL_SUFFIX_MAX_CHARS,
-  RUNTIME_USER_DATA_TRANSFER_PHASES,
-  USER_DATA_TRANSFER_CODE_LENGTH,
-  USER_DATA_TRANSFER_CODE_PATTERN,
-  RUNTIME_STATUS_STATES,
-  RUNTIME_TRANSPORT_STATES,
-} from "./runtimeProtocol";
-export { SHARED_RUNTIME_CONTRACT_FIXTURES } from "./runtimeProtocolFixtures";
-export type {
-  MidiRealtimeMessageType,
-  RuntimeAudioCommand,
-  RuntimeAudioCommandOutbound,
-  RuntimeAudioCommandsMessage,
-  RuntimeContractFixture,
-  RuntimeDeviceInputMessage,
   RuntimeHostMessage,
-  RuntimeMidiRealtimeLogicalMessage,
-  RuntimeMidiRealtimeWireMessage,
-  RuntimeMomentaryFxTarget,
-  RuntimeMomentaryFxType,
-  RuntimeFxParamId,
-  RuntimeMusicalEventsMessage,
-  RuntimePlatformEffect,
-  RuntimePlatformEffectsMessage,
-  RuntimeResultMessage,
   RuntimeOledFrameMessage,
   RuntimeRunnerMessage,
-  RuntimeSnapshotMessage,
-  RuntimeStoreResult,
-  RuntimeSystemInfo,
-  RuntimeSystemInfoError,
-  RuntimeSetupPortalDisposition,
-  RuntimeSetupPortalErrorCode,
-  RuntimeSetupPortalFailureErrorCode,
-  RuntimeSetupPortalPhase,
-  RuntimeSetupPortalSuffix,
-  RuntimeSetupPortalStatus,
-  RuntimeUserDataTransferPhase,
-  RuntimeUserDataTransferStatus,
   RuntimeStatus,
-  RuntimeStatusMessage,
-  RuntimeStatusState,
-  RuntimeTransportPulseStepMessage,
-  RuntimeTransportStopMessage,
-  RuntimeTransportState,
 } from "./runtimeProtocol";
 export {
   createOledFrameRevision,
   isPositiveOledFrameRevision,
-  isRuntimeSetupPortalStatus,
-  isRuntimeSetupPortalSuffix,
-  isRuntimeUserDataTransferStatus,
-  isRuntimeSnapshotMessage,
 } from "./runtimeProtocol";
