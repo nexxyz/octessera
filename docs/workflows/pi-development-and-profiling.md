@@ -147,6 +147,10 @@ Auto Save on in the clone through the Saves menu, so the final edit has a due
 save, and the report line carries that save's revision and timing. The smoke
 prints the report line at the end, and the original presets stay untouched.
 
+`OCTESSERA_TIMING_SEQUENCED_DELAY_US=<microseconds>` (also `-Profiling` only)
+replaces the sequenced-output delay the board derives from its audio profile, to
+find the smallest delay that still logs no `late timed events`.
+
 `OCTESSERA_TIMING_LOAD=start,step,max,seconds` needs a `-Profiling` candidate;
 a production binary refuses to start with it. It ramps held 2-second
 notes across Synth, Pluck, and FM through the host musical-event path on top of

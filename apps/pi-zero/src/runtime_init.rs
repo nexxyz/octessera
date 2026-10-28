@@ -25,7 +25,13 @@ pub(crate) fn new_runtime(
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
     });
-    playback.set_sequenced_output_delay(crate::audio::sequenced_output_delay(audio_optimization));
+    let delay = crate::audio::sequenced_output_delay(audio_optimization);
+    #[cfg(feature = "profiling")]
+    let delay = std::env::var("OCTESSERA_TIMING_SEQUENCED_DELAY_US")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .map_or(delay, std::time::Duration::from_micros);
+    playback.set_sequenced_output_delay(delay);
     let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),
