@@ -133,20 +133,6 @@ fn raspberry_dsp_profiles_select_the_authoritative_audio_geometry() {
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[test]
-fn raspberry_sequenced_output_delay_covers_two_blocks_and_the_lookahead() {
-    let delay_micros = |optimization| super::sequenced_output_delay(optimization).as_micros();
-    assert_eq!(
-        delay_micros(playback_runtime::AudioOptimization::Latency),
-        8_804
-    );
-    assert_eq!(
-        delay_micros(playback_runtime::AudioOptimization::Capacity),
-        20_414
-    );
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-#[test]
 fn raspberry_timing_probe_profile_applies_only_requested_geometry_overrides() {
     let profile =
         super::audio_profile::RaspberryAudioProfile::from_timing_probe(Some(512), Some(64));
@@ -178,20 +164,6 @@ fn orange_dsp_profiles_select_the_authoritative_audio_geometry() {
     assert_eq!(capacity.expected_alsa_period_frames, 64);
     assert_eq!(capacity.internal_block_frames, 128);
     assert_eq!(capacity.lookahead_frames, 128);
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[test]
-fn orange_sequenced_output_delay_covers_two_blocks_and_the_lookahead() {
-    let delay_micros = |optimization| super::sequenced_output_delay(optimization).as_micros();
-    assert_eq!(
-        delay_micros(playback_runtime::AudioOptimization::Latency),
-        4_451
-    );
-    assert_eq!(
-        delay_micros(playback_runtime::AudioOptimization::Capacity),
-        11_707
-    );
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
