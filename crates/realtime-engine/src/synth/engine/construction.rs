@@ -64,6 +64,7 @@ impl SynthEngine {
             routing_tree_source_event_sample_clock: None,
             #[cfg(feature = "routing-tree-executor")]
             routing_tree_rejection: false,
+            event_frame_offset: 0,
             dsp_config: DspRuntimeConfig::default(),
             worker_utilization_ppm: None,
             worker_load_warning: WorkerLoadWarningState::default(),

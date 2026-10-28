@@ -52,7 +52,16 @@ pub(super) fn render_sample_voice_block(
     sample_rate: u32,
     samples: &mut [f32],
 ) -> usize {
-    let rendered = render_sample_source_block(voice, frames, sample_rate, samples);
+    let lead = if voice.start_delay > 0 && voice.active {
+        let lead = (voice.start_delay as usize).min(frames);
+        voice.start_delay -= lead as u32;
+        samples[..lead].fill(0.0);
+        lead
+    } else {
+        0
+    };
+    let rendered =
+        lead + render_sample_source_block(voice, frames - lead, sample_rate, &mut samples[lead..]);
     let Some(faded) = voice.declick.finish_block(
         &mut voice.last_output,
         &mut samples[..rendered],

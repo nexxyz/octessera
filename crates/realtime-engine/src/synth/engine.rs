@@ -25,6 +25,8 @@ mod duck_source;
 mod dynamic_control;
 #[cfg(test)]
 mod dynamic_control_tests;
+#[cfg(test)]
+mod event_offset_tests;
 mod fm_render;
 mod inline_source_executor;
 #[cfg(test)]
@@ -259,6 +261,7 @@ pub struct SynthEngine {
     routing_tree_source_event_sample_clock: Option<u64>,
     #[cfg(feature = "routing-tree-executor")]
     routing_tree_rejection: bool,
+    event_frame_offset: u32,
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
     worker_load_warning: WorkerLoadWarningState,

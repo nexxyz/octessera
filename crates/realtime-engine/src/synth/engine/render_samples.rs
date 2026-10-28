@@ -183,6 +183,7 @@ impl SynthEngine {
             ),
             last_output: 0.0,
             declick,
+            start_delay: self.event_frame_offset,
         };
         if !self.sample_voice_pool.replace_lane_for_admission(
             lane,
@@ -249,7 +250,12 @@ impl SynthEngine {
                 return SlotFrameOutput::default();
             };
             debug_assert_eq!(voice.instrument_slot as usize, slot);
-            let Some(sample) = render_sample_voice_frame(voice, self.sample_rate) else {
+            let sample = if voice.start_delay > 0 {
+                voice.start_delay -= 1;
+                0.0
+            } else if let Some(sample) = render_sample_voice_frame(voice, self.sample_rate) {
+                sample
+            } else {
                 continue;
             };
             if let Some(sample) =

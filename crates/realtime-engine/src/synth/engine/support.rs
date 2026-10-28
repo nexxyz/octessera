@@ -85,6 +85,8 @@ pub(super) struct SampleVoice {
     pub(super) shape: super::sample_voice_shape::SampleVoiceShape,
     pub(super) last_output: f32,
     pub(super) declick: StealDeclick,
+    /// Silent frames left before the voice starts, for an event placed inside a block.
+    pub(super) start_delay: u32,
 }
 
 impl SampleVoice {
@@ -104,6 +106,7 @@ impl SampleVoice {
             shape: super::sample_voice_shape::SampleVoiceShape::off(),
             last_output: 0.0,
             declick: StealDeclick::default(),
+            start_delay: 0,
         }
     }
 }

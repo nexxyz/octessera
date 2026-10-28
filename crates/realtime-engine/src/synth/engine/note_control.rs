@@ -6,6 +6,27 @@ use super::voice_budget::split_steal;
 use super::*;
 
 impl SynthEngine {
+    /// Applies the musical events in `apply` `offset` frames into the next rendered block.
+    pub fn with_event_frame_offset<R>(
+        &mut self,
+        offset: u32,
+        apply: impl FnOnce(&mut SynthEngine) -> R,
+    ) -> R {
+        let previous = std::mem::replace(&mut self.event_frame_offset, offset);
+        let result = apply(self);
+        self.event_frame_offset = previous;
+        result
+    }
+
+    fn event_block_sample_clock(&self) -> u64 {
+        #[cfg(feature = "routing-tree-executor")]
+        return self
+            .routing_tree_source_event_sample_clock
+            .unwrap_or(self.sample_clock);
+        #[cfg(not(feature = "routing-tree-executor"))]
+        self.sample_clock
+    }
+
     pub fn set_sample_banks(&mut self, banks: Vec<SampleBankConfig>) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         #[cfg(feature = "routing-tree-executor")]
@@ -169,12 +190,8 @@ impl SynthEngine {
             return;
         }
         let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
-        #[cfg(feature = "routing-tree-executor")]
-        let event_sample_clock = self
-            .routing_tree_source_event_sample_clock
-            .unwrap_or(self.sample_clock);
-        #[cfg(not(feature = "routing-tree-executor"))]
-        let event_sample_clock = self.sample_clock;
+        let event_sample_clock =
+            self.event_block_sample_clock() + u64::from(self.event_frame_offset);
         if self.slot_kind[slot] == InstrumentKind::Sample && drum.is_none() {
             self.sample_note_on(slot, midi_note, velocity);
             return;
@@ -373,12 +390,8 @@ impl SynthEngine {
         if self.slot_kind[slot] == InstrumentKind::Drum {
             return;
         }
-        #[cfg(feature = "routing-tree-executor")]
-        let event_sample_clock = self
-            .routing_tree_source_event_sample_clock
-            .unwrap_or(self.sample_clock);
-        #[cfg(not(feature = "routing-tree-executor"))]
-        let event_sample_clock = self.sample_clock;
+        let offset = self.event_frame_offset;
+        let event_sample_clock = self.event_block_sample_clock() + u64::from(offset);
         let cfg = self.instruments[slot];
         if self.synth_voice_pool.compact_slot_lanes(slot) {
             let mut lane_indices = [0; SYNTH_VOICE_LANE_CAPACITY];
@@ -392,6 +405,10 @@ impl SynthEngine {
                     return;
                 };
                 if !voice.active || voice.midi_note != midi_note {
+                    continue;
+                }
+                if offset > 0 {
+                    voice.note_off_sample = voice.note_off_sample.min(event_sample_clock);
                     continue;
                 }
                 voice.amp_env.begin_release(cfg.amp_env, self.sample_rate);
@@ -413,12 +430,7 @@ impl SynthEngine {
 
     pub fn all_notes_off(&mut self) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        let event_sample_clock = self
-            .routing_tree_source_event_sample_clock
-            .unwrap_or(self.sample_clock);
-        #[cfg(not(feature = "routing-tree-executor"))]
-        let event_sample_clock = self.sample_clock;
+        let event_sample_clock = self.event_block_sample_clock();
         if !self.voice_pools_home() {
             return retired;
         }

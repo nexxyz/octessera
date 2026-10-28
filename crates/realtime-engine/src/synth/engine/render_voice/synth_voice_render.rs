@@ -58,6 +58,9 @@ fn render_source_frame(
         return None;
     }
     debug_assert_eq!(voice.instrument_slot as usize, slot_idx);
+    if frame_sample_clock < voice.started_sample {
+        return Some(0.0);
+    }
     if frame_sample_clock >= voice.note_off_sample {
         voice
             .amp_env
@@ -142,6 +145,34 @@ fn render_source_block(
         return 0;
     }
     debug_assert_eq!(voice.instrument_slot as usize, slot_idx);
+    let lead = voice.started_sample.saturating_sub(base_sample_clock);
+    if lead > 0 {
+        let lead = lead.min(frames as u64) as usize;
+        samples[..lead].fill(0.0);
+        return lead
+            + render_started_source_block(
+                voice,
+                ring,
+                frames - lead,
+                base_sample_clock + lead as u64,
+                context,
+                &mut samples[lead..],
+            );
+    }
+    render_started_source_block(voice, ring, frames, base_sample_clock, context, samples)
+}
+
+fn render_started_source_block(
+    voice: &mut Voice,
+    ring: &mut PluckRing,
+    frames: usize,
+    base_sample_clock: u64,
+    context: SynthVoiceFrameContext,
+    samples: &mut [f32],
+) -> usize {
+    if frames == 0 {
+        return 0;
+    }
     if voice.render_revision != context.revision {
         refresh_synth_voice_render_cache(
             voice,
