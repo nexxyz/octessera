@@ -199,6 +199,16 @@ kernel worker (SD-card writeback) holding CPU 1 for about 2 ms with preemption
 off, so the Orange image also sets the workqueue mask to `d`
 (`/etc/tmpfiles.d/octessera-audio.conf`).
 
+Runtime lateness (the `runtime_late` profile figure) is sub-millisecond and not
+audible, but a CPU 0 trace (scheduler, IRQ and hrtimer events) explained it on
+both boards in 2026-10. About 50 µs of every wakeup was the kernel's default
+timer slack for normal threads, so the app sets its slack to 1 ns at startup.
+The Raspberry's worst waits (up to about 0.7 ms) were `avahi-daemon` and
+`polkitd` running on CPU 0, so the image keeps both on cores 2 and 3 at
+`Nice=10`, low enough for the DSP workers there to preempt them. The Orange's
+worst waits were the app's own CPU 0 threads; interrupts took at most about
+45 µs on either board.
+
 The Raspberry's Wi-Fi was the last outside cause. Its SDIO controller
 (`mmcnr`, mmc-bcm2835) sometimes hangs mid DMA transfer
 (raspberrypi/linux#5770). The kernel logs `Controller never released inhibit

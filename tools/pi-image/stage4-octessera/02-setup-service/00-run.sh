@@ -258,6 +258,12 @@ for unit in dbus cron; do
     install -d "$ROOTFS_DIR/etc/systemd/system/$unit.service.d"
     printf '[Service]\nAllowedCPUs=2-3\n' > "$ROOTFS_DIR/etc/systemd/system/$unit.service.d/10-octessera-background.conf"
 done
+# avahi (mDNS) and polkit otherwise run on CPU 0 and hold the runtime thread back for up to a
+# millisecond; on cores 2 and 3 their low priority lets the DSP workers there preempt them.
+for unit in avahi-daemon polkit; do
+    install -d "$ROOTFS_DIR/etc/systemd/system/$unit.service.d"
+    printf '[Service]\nNice=10\nAllowedCPUs=2-3\n' > "$ROOTFS_DIR/etc/systemd/system/$unit.service.d/10-octessera-background.conf"
+done
 install -d "$ROOTFS_DIR/etc/sysctl.d"
 printf '# Locked audio memory must not be moved by compaction: the callback would stall on it.\nvm.compact_unevictable_allowed = 0\n' > "$ROOTFS_DIR/etc/sysctl.d/60-octessera-audio.conf"
 # The daily apt and man-db jobs install nothing here, but their cache and index

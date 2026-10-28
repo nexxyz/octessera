@@ -161,6 +161,10 @@ ensure_raspberry_uart_inactive() {
         sudo install -d "$(target_path "/etc/systemd/system/$unit.service.d")"
         printf '[Service]\nAllowedCPUs=2-3\n' | sudo tee "$(target_path "/etc/systemd/system/$unit.service.d")"/10-octessera-background.conf >/dev/null
     done
+    for unit in avahi-daemon polkit; do
+        sudo install -d "$(target_path "/etc/systemd/system/$unit.service.d")"
+        printf '[Service]\nNice=10\nAllowedCPUs=2-3\n' | sudo tee "$(target_path "/etc/systemd/system/$unit.service.d")"/10-octessera-background.conf >/dev/null
+    done
     sudo install -d "$(target_path /etc/sysctl.d)"
     printf '# Locked audio memory must not be moved by compaction: the callback would stall on it.\nvm.compact_unevictable_allowed = 0\n' | sudo tee "$(target_path /etc/sysctl.d/60-octessera-audio.conf)" >/dev/null
     sudo rm -f "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"
