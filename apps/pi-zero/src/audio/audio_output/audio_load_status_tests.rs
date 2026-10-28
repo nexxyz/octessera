@@ -45,6 +45,7 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
             note: 60,
             velocity: 100,
             duration_ms: 1_000,
+            at: None,
         })
         .unwrap();
     let status_deadline = Instant::now() + Duration::from_secs(1);
@@ -149,6 +150,7 @@ fn status(
         dropped_quantums: 0,
         deadline_misses: 0,
         deadline_recoveries: 0,
+        late_timed_events: 0,
         peak: realtime_engine::synth::BlockPeak::default(),
     }
 }

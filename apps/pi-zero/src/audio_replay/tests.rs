@@ -12,6 +12,7 @@ fn replay_events_skip_transient_realtime_messages() {
         note: 60,
         velocity: 100,
         duration_ms: 100,
+        at: None,
     }));
     assert!(is_replay_event(&EngineEvent::SetMasterVolume {
         generation: 1,

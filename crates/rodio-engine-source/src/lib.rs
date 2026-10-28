@@ -18,6 +18,7 @@ mod source_state;
 mod source_worker;
 mod source_worker_reaper;
 mod telemetry;
+mod timed_events;
 
 use audio_quantum::audio_render_quantum_frames;
 #[cfg(test)]
@@ -54,6 +55,7 @@ pub use source_worker_reaper::SOURCE_REAPER_THREAD_NAME;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
+use timed_events::TimedEvents;
 
 const MIN_BLOCK_FRAMES: usize = 32;
 const MAX_BLOCK_FRAMES: usize = 2048;
@@ -101,6 +103,7 @@ pub struct EngineSource {
     #[cfg(all(test, feature = "routing-tree-executor"))]
     routing_tree_control_gate_calls: usize,
     persistent_output: PreviousMasterQuantum,
+    timed: TimedEvents,
     mirror_producers: PcmMirrorProducers,
 }
 
@@ -247,19 +250,26 @@ impl EngineSource {
             #[cfg(all(test, feature = "routing-tree-executor"))]
             routing_tree_control_gate_calls: 0,
             persistent_output: PreviousMasterQuantum::new(),
+            timed: TimedEvents::new(sample_rate),
             mirror_producers: [None, None],
         }
     }
 
     fn refill(&mut self) {
+        self.refill_at(Instant::now());
+    }
+
+    fn refill_at(&mut self, refill_time: Instant) {
         #[cfg(test)]
         {
             self.refill_generation = self.refill_generation.saturating_add(1);
         }
         let t0 = Instant::now();
+        self.timed.clock.observe(refill_time);
         let had_pending = self.pending_load_status_after_fresh;
         let result = match self.worker_state.mode {
             EngineSourceMode::Inline => {
+                self.timed.open_window(0, self.block_frames);
                 let drained = self.drain_control_events();
                 self.refill_inline();
                 RefillResult {
@@ -273,6 +283,7 @@ impl EngineSource {
             EngineSourceMode::RoutingTree => self.refill_routing_tree(),
         };
         self.publish_mirrors();
+        self.timed.clock.advance(self.block_frames);
         if !self.engine.pending_render_retired_is_empty()
             && self.retirement_storage_can_accept_item()
         {
@@ -354,6 +365,7 @@ impl EngineSource {
         let mut status = self.engine.audio_load_status();
         self.telemetry.apply_to_status(&mut status);
         self.persistent_output.apply_to_status(&mut status);
+        status.late_timed_events = self.timed.late_events;
         let status_queued = load_tx.try_send(status);
         if status_queued {
             self.telemetry.reset_peak();
@@ -375,7 +387,7 @@ impl EngineSource {
             #[cfg(test)]
             self.retired_drop_probe.clone(),
         );
-        controls.drain(&mut self.engine)
+        controls.drain(&mut self.engine, &mut self.timed)
     }
 
     #[cfg(test)]

@@ -67,6 +67,7 @@ fn retirement_saturation_blocks_owner_work_but_not_musical_work() {
         note: 60,
         velocity: 100,
         duration_ms: 100,
+        at: None,
     })
     .unwrap();
     assert_eq!(source.drain_control_events().control_events, 1);
@@ -100,6 +101,7 @@ fn retirement_disconnect_fails_closed_for_structural_work() {
         note: 60,
         velocity: 100,
         duration_ms: 100,
+        at: None,
     })
     .unwrap();
     assert_eq!(source.drain_control_events().control_events, 1);

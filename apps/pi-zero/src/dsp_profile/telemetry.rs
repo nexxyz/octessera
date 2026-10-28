@@ -201,6 +201,7 @@ pub(crate) fn apply_events(
                 note,
                 velocity,
                 duration_ms,
+                ..
             } => engine.note_on(*instrument_slot, *note, *velocity, *duration_ms),
             EngineEvent::CellHit {
                 instrument_slot,
@@ -208,15 +209,18 @@ pub(crate) fn apply_events(
                 cell,
                 pitch_cents,
                 velocity,
+                ..
             } => engine.cell_hit(*instrument_slot, *voice, *cell, *pitch_cents, *velocity),
             EngineEvent::NoteOff {
                 instrument_slot,
                 note,
+                ..
             } => engine.note_off(*instrument_slot, *note),
             EngineEvent::Cc {
                 instrument_slot,
                 controller,
                 value,
+                ..
             } => engine.cc(*instrument_slot, *controller, *value),
             EngineEvent::PreparedMomentaryFxStart { config } => {
                 retired.push(engine.apply_prepared_momentary_fx_start(config.clone()))

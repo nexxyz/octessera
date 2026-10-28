@@ -97,6 +97,7 @@ fn persistent_profile_cache_reports_short_sample_completion_after_refill() {
         note: 36,
         velocity: 100,
         duration_ms: 50_000,
+        at: None,
     })
     .unwrap();
     let _ = block_bits(&mut source);
@@ -122,6 +123,7 @@ fn persistent_profile_cache_reports_synth_release_completion_after_refill() {
         note: 60,
         velocity: 100,
         duration_ms: 0,
+        at: None,
     })
     .unwrap();
     let _ = block_bits(&mut source);

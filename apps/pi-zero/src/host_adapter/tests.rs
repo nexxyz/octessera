@@ -45,6 +45,7 @@ fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
             cell: 0,
             pitch_cents: -2400,
             velocity: 100,
+            ..
         })
     ));
     for invalid in [

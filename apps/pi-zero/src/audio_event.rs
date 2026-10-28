@@ -17,10 +17,12 @@ pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent
             note: (*note).min(127),
             velocity: (*velocity).clamp(1, 127),
             duration_ms: duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
+            at: None,
         },
         MusicalEvent::NoteOff { channel, note } => EngineEvent::NoteOff {
             instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
             note: (*note).min(127),
+            at: None,
         },
         MusicalEvent::Cc {
             channel,
@@ -30,6 +32,7 @@ pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent
             instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
             controller: (*controller).min(127),
             value: (*value).min(127),
+            at: None,
         },
     }
 }
@@ -53,6 +56,7 @@ pub(crate) fn cell_hit_to_engine_event(hit: &CellHit) -> Result<EngineEvent, Run
         cell: hit.cell,
         pitch_cents: hit.pitch_cents,
         velocity: hit.velocity,
+        at: None,
     })
 }
 
@@ -96,7 +100,8 @@ mod tests {
                 voice: 7,
                 cell: 12,
                 pitch_cents: -2450,
-                velocity: 120
+                velocity: 120,
+                ..
             }
         ));
         assert!(matches!(

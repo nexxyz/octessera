@@ -55,6 +55,7 @@ impl DesktopPlaybackHostAdapter {
                 cell: hit.cell,
                 pitch_cents: hit.pitch_cents,
                 velocity: hit.velocity,
+                at: None,
             },
             RuntimeOperation::MusicalEvent,
         )

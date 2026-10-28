@@ -38,6 +38,7 @@ impl DesktopPlaybackHostAdapter {
                     note: *note,
                     velocity: *velocity,
                     duration_ms,
+                    at: None,
                 }
             }
             MusicalEvent::NoteOff { channel, note } => {
@@ -46,6 +47,7 @@ impl DesktopPlaybackHostAdapter {
                 EngineEvent::NoteOff {
                     instrument_slot: *channel,
                     note: *note,
+                    at: None,
                 }
             }
             MusicalEvent::Cc {
@@ -60,6 +62,7 @@ impl DesktopPlaybackHostAdapter {
                     instrument_slot: *channel,
                     controller: *controller,
                     value: *value,
+                    at: None,
                 }
             }
         };

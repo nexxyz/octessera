@@ -203,6 +203,7 @@ fn note_on_after_idle_renders_audio() {
         note: 60,
         velocity: 100,
         duration_ms: 1_000,
+        at: None,
     })
     .unwrap();
 
@@ -248,6 +249,7 @@ fn control_drain_has_a_fixed_per_block_budget() {
             note: (note % 128) as u8,
             velocity: 96,
             duration_ms: 100,
+            at: None,
         })
         .unwrap();
     }
@@ -353,6 +355,7 @@ fn mixed_lifecycle_callback_path_does_not_allocate_or_drop_heap_state() {
         note: 60,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::PreviewSample {
@@ -455,6 +458,8 @@ fn routing_tree_constructor_rejects_invalid_frames_before_setup() {
 mod exact_frames_tests;
 
 mod block_configuration_tests;
+
+mod timed_event_tests;
 
 #[cfg(feature = "routing-tree-executor")]
 mod routing_tree_tests;

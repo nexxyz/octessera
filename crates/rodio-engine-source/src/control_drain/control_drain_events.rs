@@ -9,44 +9,9 @@ impl<'a> ControlDrain<'a> {
         &mut self,
         engine: &mut SynthEngine,
         event: EngineEvent,
-        source_event_sample_clock: Option<u64>,
         drained: &mut DrainedControlEvents,
     ) -> bool {
         match event {
-            EngineEvent::NoteOn {
-                instrument_slot,
-                note,
-                velocity,
-                duration_ms,
-            } => {
-                Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                    engine.note_on(instrument_slot, note, velocity, duration_ms)
-                });
-            }
-            EngineEvent::CellHit {
-                instrument_slot,
-                voice,
-                cell,
-                pitch_cents,
-                velocity,
-            } => {
-                Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                    engine.cell_hit(instrument_slot, voice, cell, pitch_cents, velocity)
-                });
-            }
-            EngineEvent::NoteOff {
-                instrument_slot,
-                note,
-            } => {
-                Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                    engine.note_off(instrument_slot, note)
-                });
-            }
-            EngineEvent::Cc {
-                instrument_slot,
-                controller,
-                value,
-            } => engine.cc(instrument_slot, controller, value),
             EngineEvent::SetPreparedInstruments { generation, config } => {
                 if generation < self.generations.full {
                     self.retire_event(EngineEvent::SetPreparedInstruments { generation, config });
@@ -218,6 +183,10 @@ impl<'a> ControlDrain<'a> {
             | EngineEvent::SetFxBusParam { .. }
             | EngineEvent::SetGlobalFxParam { .. }
             | EngineEvent::MomentaryFxUpdate(_)
+            | EngineEvent::NoteOn { .. }
+            | EngineEvent::CellHit { .. }
+            | EngineEvent::NoteOff { .. }
+            | EngineEvent::Cc { .. }
             | EngineEvent::AllNotesOff => {}
         }
         false
@@ -252,52 +221,6 @@ impl<'a> ControlDrain<'a> {
             engine.preview_sample(buffer)
         });
         self.retire_state(retired);
-    }
-
-    pub(super) fn apply_musical_event(
-        &mut self,
-        engine: &mut SynthEngine,
-        event: EngineEvent,
-        source_event_sample_clock: Option<u64>,
-        allow_note_on: bool,
-    ) {
-        match event {
-            EngineEvent::NoteOn {
-                instrument_slot,
-                note,
-                velocity,
-                duration_ms,
-            } if allow_note_on => {
-                Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                    engine.note_on(instrument_slot, note, velocity, duration_ms)
-                })
-            }
-            EngineEvent::NoteOn { .. } => {}
-            EngineEvent::CellHit {
-                instrument_slot,
-                voice,
-                cell,
-                pitch_cents,
-                velocity,
-            } if allow_note_on || velocity == 0 => {
-                Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                    engine.cell_hit(instrument_slot, voice, cell, pitch_cents, velocity)
-                })
-            }
-            EngineEvent::CellHit { .. } => {}
-            EngineEvent::NoteOff {
-                instrument_slot,
-                note,
-            } => Self::apply_source_event(engine, source_event_sample_clock, |engine| {
-                engine.note_off(instrument_slot, note)
-            }),
-            EngineEvent::Cc {
-                instrument_slot,
-                controller,
-                value,
-            } => engine.cc(instrument_slot, controller, value),
-            _ => {}
-        }
     }
 
     pub(super) fn latest_owner_generation(&self, key: LatestKey) -> Option<u64> {

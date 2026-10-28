@@ -126,6 +126,7 @@ fn prepared_config_note_and_dynamic_control_cross_source_blocks() {
         note: 60,
         velocity: 120,
         duration_ms: 1_000,
+        at: None,
     })
     .unwrap();
     let before = block(&mut source);
@@ -156,6 +157,7 @@ fn ordered_note_off_after_synth_to_sample_to_none_has_no_old_voice() {
         note: 36,
         velocity: 100,
         duration_ms: 50_000,
+        at: None,
     })
     .unwrap();
     let _ = block(&mut source);
@@ -171,6 +173,7 @@ fn ordered_note_off_after_synth_to_sample_to_none_has_no_old_voice() {
         note: 36,
         velocity: 100,
         duration_ms: 50_000,
+        at: None,
     })
     .unwrap();
     let _ = block(&mut source);
@@ -183,6 +186,7 @@ fn ordered_note_off_after_synth_to_sample_to_none_has_no_old_voice() {
     tx.send(EngineEvent::NoteOff {
         instrument_slot: 0,
         note: 36,
+        at: None,
     })
     .unwrap();
     let _ = block(&mut source);
@@ -205,6 +209,7 @@ fn ordered_note_off_after_sample_to_synth_to_none_has_no_old_voice() {
         note: 36,
         velocity: 100,
         duration_ms: 50_000,
+        at: None,
     })
     .unwrap();
     let _ = block(&mut source);
@@ -220,6 +225,7 @@ fn ordered_note_off_after_sample_to_synth_to_none_has_no_old_voice() {
         note: 36,
         velocity: 100,
         duration_ms: 50_000,
+        at: None,
     })
     .unwrap();
     let _ = block(&mut source);
@@ -232,6 +238,7 @@ fn ordered_note_off_after_sample_to_synth_to_none_has_no_old_voice() {
     tx.send(EngineEvent::NoteOff {
         instrument_slot: 0,
         note: 36,
+        at: None,
     })
     .unwrap();
     let _ = block(&mut source);
@@ -319,6 +326,7 @@ fn momentary_fx_start_and_stop_follow_block_lifecycle() {
         note: 60,
         velocity: 100,
         duration_ms: 1_000,
+        at: None,
     })
     .unwrap();
     let _ = block(&mut source);
@@ -374,6 +382,7 @@ fn superseding_coalesced_controls_are_applied_before_rendering() {
         note: 60,
         velocity: 100,
         duration_ms: 1_000,
+        at: None,
     })
     .unwrap();
     for value in 0..=10_000 {
@@ -395,6 +404,7 @@ fn emergency_all_notes_off_clears_voices_after_a_populated_queue() {
             note: 60,
             velocity: 100,
             duration_ms: 1_000,
+            at: None,
         })
         .unwrap();
     }
@@ -422,6 +432,7 @@ fn probe_mark_fence_spills_controls_into_following_source_blocks() {
         note: 72,
         velocity: 100,
         duration_ms: 1_000,
+        at: None,
     })
     .unwrap();
     let first = block(&mut source);
@@ -442,6 +453,7 @@ fn send_sample_hit(tx: &EngineEventSender) {
         note: 36,
         velocity: 127,
         duration_ms: 1_000,
+        at: None,
     })
     .unwrap();
 }

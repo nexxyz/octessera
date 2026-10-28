@@ -47,6 +47,7 @@ fn synth_pluck_and_fm_note_ons_up_to_a_crowded_pool_do_not_touch_the_heap() {
                 note: 36 + note,
                 velocity: 100,
                 duration_ms: 5_000,
+                at: None,
             })
             .unwrap();
             for _ in 0..512 {

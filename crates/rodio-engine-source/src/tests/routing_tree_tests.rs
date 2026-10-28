@@ -88,6 +88,7 @@ fn applies_controls_before_dispatching_next_quantum() {
         note: 60,
         velocity: 100,
         duration_ms: 500,
+        at: None,
     })
     .unwrap();
     let (mut source, shutdown) =
@@ -133,6 +134,7 @@ fn routing_tree_note_events_start_at_next_quantum() {
         note: 60,
         velocity: 100,
         duration_ms: 500,
+        at: None,
     })
     .unwrap();
     let (mut source, shutdown) =
@@ -229,6 +231,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
         note: 48,
         velocity: 100,
         duration_ms: 500,
+        at: None,
     })
     .unwrap();
     let (mut source, shutdown) =
@@ -252,6 +255,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     tx.send(EngineEvent::NoteOff {
         instrument_slot: 0,
         note: 48,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
@@ -259,6 +263,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
         note: 72,
         velocity: 100,
         duration_ms: 500,
+        at: None,
     })
     .unwrap();
 
@@ -321,6 +326,7 @@ fn routing_tree_profile_matches_inline_after_a_completed_quantum() {
         note: 60,
         velocity: 100,
         duration_ms: 500,
+        at: None,
     })
     .unwrap();
     let (mut source, shutdown) =
@@ -390,6 +396,7 @@ fn processes_bus_owned_by_worker() {
         note: 60,
         velocity: 100,
         duration_ms: 500,
+        at: None,
     })
     .unwrap();
     let (mut source, shutdown) =

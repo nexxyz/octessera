@@ -53,6 +53,7 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
             note: if slot.is_multiple_of(2) { 60 } else { 36 },
             velocity: 100,
             duration_ms: 10_000,
+            at: None,
         })
         .unwrap();
     }
@@ -118,6 +119,7 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
         note: 36,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::SetPreparedInstrumentSlot {
@@ -171,6 +173,7 @@ fn routing_tree_full_bank_controls_previews_and_momentary_fx_run_through_rodio()
         note: 72,
         velocity: 110,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
     let mut migrated_output = Vec::with_capacity(BLOCK_FRAMES * 2 * 3);

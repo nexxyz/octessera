@@ -11,6 +11,7 @@ fn main() {
         note: 60,
         velocity: 100,
         duration_ms: (SECONDS as u32 + 1) * 1000,
+        at: None,
     })
     .expect("send note on");
 

@@ -45,6 +45,7 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
         note: 60,
         velocity: 100,
         duration_ms: 5_000,
+        at: None,
     })
     .unwrap();
     let (mut source, shutdown) =
@@ -59,6 +60,7 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
     tx.send(EngineEvent::NoteOff {
         instrument_slot: 0,
         note: 60,
+        at: None,
     })
     .unwrap();
     for _ in 0..(128 * 2 * 180) {
@@ -70,6 +72,7 @@ fn reactivates_bus_after_more_than_250ms_of_quiet_output() {
         note: 67,
         velocity: 100,
         duration_ms: 5_000,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::SetPreparedGlobalFxSlot {
@@ -163,6 +166,7 @@ fn recovers_routing_tree_with_current_global_controls_and_next_quantum_notes() {
         note: 60,
         velocity: 100,
         duration_ms: 5_000,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::SetPreparedGlobalFxSlot {

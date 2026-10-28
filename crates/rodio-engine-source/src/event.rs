@@ -15,6 +15,7 @@ pub enum EngineEvent {
         note: u8,
         velocity: u8,
         duration_ms: u32,
+        at: Option<Instant>,
     },
     CellHit {
         instrument_slot: u8,
@@ -22,15 +23,18 @@ pub enum EngineEvent {
         cell: u8,
         pitch_cents: i16,
         velocity: u8,
+        at: Option<Instant>,
     },
     NoteOff {
         instrument_slot: u8,
         note: u8,
+        at: Option<Instant>,
     },
     Cc {
         instrument_slot: u8,
         controller: u8,
         value: u8,
+        at: Option<Instant>,
     },
     SetPreparedInstruments {
         generation: u64,

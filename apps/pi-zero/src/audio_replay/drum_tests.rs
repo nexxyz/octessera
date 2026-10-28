@@ -22,6 +22,7 @@ fn drum_hits_are_transient_and_kit_scalars_replay_per_voice_and_param() {
         cell: 0,
         pitch_cents: -2400,
         velocity: 100,
+        at: None,
     });
     for (voice, param, value) in [
         (2, DrumParamId::DecayMs, 120.0),

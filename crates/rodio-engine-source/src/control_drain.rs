@@ -6,6 +6,7 @@ use super::{
 };
 use crate::latest_controls::{LatestCandidate, LatestKey};
 use crate::queue_types::QueueEventClass;
+use crate::timed_events::TimedEvents;
 use realtime_engine::synth::{
     ScalarMutation, BUS_COUNT, BUS_SLOTS_PER_BUS, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
     MAX_CONTROL_EVENTS_PER_CALLBACK,
@@ -14,6 +15,7 @@ use realtime_engine::synth::{
 const LATEST_CONTROL_BUDGET: usize = 32;
 
 mod control_drain_events;
+mod timed_musical;
 
 pub(super) struct OwnerGenerations {
     pub(super) full: u64,
@@ -70,8 +72,12 @@ impl<'a> ControlDrain<'a> {
         }
     }
 
-    pub(super) fn drain(&mut self, engine: &mut SynthEngine) -> DrainedControlEvents {
-        self.drain_with_source_event_clock(engine, None)
+    pub(super) fn drain(
+        &mut self,
+        engine: &mut SynthEngine,
+        timed: &mut TimedEvents,
+    ) -> DrainedControlEvents {
+        self.drain_with_source_event_clock(engine, None, timed)
     }
 
     #[cfg(feature = "routing-tree-executor")]
@@ -79,14 +85,16 @@ impl<'a> ControlDrain<'a> {
         &mut self,
         engine: &mut SynthEngine,
         source_event_sample_clock: u64,
+        timed: &mut TimedEvents,
     ) -> DrainedControlEvents {
-        self.drain_with_source_event_clock(engine, Some(source_event_sample_clock))
+        self.drain_with_source_event_clock(engine, Some(source_event_sample_clock), timed)
     }
 
     fn drain_with_source_event_clock(
         &mut self,
         engine: &mut SynthEngine,
         source_event_sample_clock: Option<u64>,
+        timed: &mut TimedEvents,
     ) -> DrainedControlEvents {
         #[cfg(not(feature = "routing-tree-executor"))]
         let _ = source_event_sample_clock;
@@ -98,6 +106,7 @@ impl<'a> ControlDrain<'a> {
         let emergency_redundant = self.emergency_retirement_is_blocked();
         if let Some(EngineEvent::AllNotesOff) = self.control_rx.try_take_emergency() {
             panic_processed = true;
+            timed.park.clear();
             work_units += 1;
             if !emergency_redundant {
                 let retired =
@@ -108,6 +117,9 @@ impl<'a> ControlDrain<'a> {
             }
             drained.control_events += 1;
         }
+
+        drained.control_events +=
+            self.apply_due_parked_events(engine, source_event_sample_clock, timed);
 
         let mut first_deferred = None;
         while work_units < LATEST_CONTROL_BUDGET {
@@ -146,10 +158,12 @@ impl<'a> ControlDrain<'a> {
             let allow_emergency = !panic_processed;
             let allow_structural_barrier =
                 retirement_ready && !owner_mutation_applied && !*self.retirement_disconnected;
+            let allow_musical = !timed.park.is_full();
             let dequeue = self.control_rx.try_take_next_allowed(
                 allow_emergency,
                 allow_structural_owner,
                 allow_structural_barrier,
+                allow_musical,
             );
             let dequeue = match dequeue {
                 Ok(dequeue) => dequeue,
@@ -161,13 +175,18 @@ impl<'a> ControlDrain<'a> {
                 None => {
                     if class == QueueEventClass::Emergency {
                         if self.control_rx.try_take_emergency().is_some() {
+                            timed.park.clear();
                             work_units += 1;
                             drained.control_events += 1;
                         }
                         panic_processed = true;
                         continue;
                     }
-                    if class == QueueEventClass::StructuralBarrier || allow_structural_owner {
+                    if class == QueueEventClass::StructuralBarrier
+                        || class == QueueEventClass::Musical
+                        || allow_structural_owner
+                        || !allow_musical
+                    {
                         break;
                     }
                     let Some(event) = self.control_rx.try_take_musical() else {
@@ -175,18 +194,13 @@ impl<'a> ControlDrain<'a> {
                     };
                     work_units += 1;
                     drained.control_events += 1;
-                    let allow_note_on = !self.emergency_retirement_is_blocked();
-                    self.apply_musical_event(
-                        engine,
-                        event,
-                        source_event_sample_clock,
-                        allow_note_on,
-                    );
+                    self.apply_musical_event(engine, event, source_event_sample_clock, timed);
                     continue;
                 }
             };
             if class == QueueEventClass::Emergency {
                 panic_processed = true;
+                timed.park.clear();
                 if !self.emergency_retirement_is_blocked() {
                     let retired =
                         Self::apply_source_event(engine, source_event_sample_clock, |engine| {
@@ -219,19 +233,13 @@ impl<'a> ControlDrain<'a> {
             }
             let stop_after = match class {
                 QueueEventClass::Musical => {
-                    let allow_note_on = !self.emergency_retirement_is_blocked();
-                    self.apply_musical_event(
-                        engine,
-                        event,
-                        source_event_sample_clock,
-                        allow_note_on,
-                    );
+                    self.apply_musical_event(engine, event, source_event_sample_clock, timed);
                     false
                 }
                 QueueEventClass::StructuralBarrier
                 | QueueEventClass::StructuralNonRetiring
                 | QueueEventClass::StructuralRetiring => {
-                    self.apply_event(engine, event, source_event_sample_clock, &mut drained)
+                    self.apply_event(engine, event, &mut drained)
                 }
                 QueueEventClass::Emergency => false,
             };

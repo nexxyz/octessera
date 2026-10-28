@@ -146,6 +146,7 @@ fn musical_note_preserves_exact_native_values() {
             note: 127,
             velocity: 127,
             duration_ms: 10,
+            ..
         }
     ));
 }
@@ -199,6 +200,7 @@ fn chunked_ten_thousand_musical_events_preserve_order_without_scalar_loss() {
                     note,
                     velocity,
                     duration_ms,
+                    at: None,
                 }) => {
                     let index = chunk_start + received;
                     assert_eq!(instrument_slot, (index % 8) as u8);
@@ -449,6 +451,7 @@ fn musical_and_structural_overload_are_typed_and_panic_without_teardown() {
                 note: 60,
                 velocity: 100,
                 duration_ms: 1_000,
+                at: None,
             })
             .unwrap();
     }

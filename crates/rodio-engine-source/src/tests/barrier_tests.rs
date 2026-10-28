@@ -23,6 +23,7 @@ fn off_thread_probe_report_arrives_after_prior_musical_event() {
             note: 60,
             velocity: 100,
             duration_ms: 1_000,
+            at: None,
         })
         .unwrap();
         tx.send(probe(report_tx)).unwrap();

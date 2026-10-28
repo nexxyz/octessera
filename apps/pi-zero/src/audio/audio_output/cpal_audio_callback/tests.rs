@@ -144,6 +144,7 @@ fn strict_callback_qualifies_before_consuming_the_first_sample_and_only_once() {
             note: 60,
             velocity: 100,
             duration_ms: 1_000,
+            at: None,
         })
         .unwrap();
     let (mut callback_source, _retirement_waiter) = CallbackSource::new(
@@ -217,6 +218,7 @@ fn strict_callback_failure_silences_without_source_access_or_retry() {
             note: 60,
             velocity: 100,
             duration_ms: 1_000,
+            at: None,
         })
         .unwrap();
     let (mut callback_source, _retirement_waiter) = CallbackSource::new(
@@ -406,6 +408,7 @@ fn strict_timeout_wins_during_setup_without_source_advance_or_retry() {
             note: 60,
             velocity: 100,
             duration_ms: 1_000,
+            at: None,
         })
         .unwrap();
     let (callback_source, _retirement_waiter) = CallbackSource::new(

@@ -17,6 +17,7 @@ fn final_engine_samples_are_tapped_once_as_stereo_i16() {
             note: 60,
             velocity: 100,
             duration_ms: 1_000,
+            at: None,
         })
         .unwrap();
     let source = EngineSource::with_block_frames(controls, 44_100, 32);

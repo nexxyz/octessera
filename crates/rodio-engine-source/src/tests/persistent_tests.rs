@@ -126,6 +126,7 @@ fn persistent_refill_has_no_callback_memory_activity() {
             note: 60,
             velocity: 100,
             duration_ms: 10_000,
+            at: None,
         },
     );
     let _ = block_bits(&mut inline, 128);

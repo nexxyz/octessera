@@ -185,6 +185,7 @@ pub(super) fn full_sample_source() -> (
                 note: 36,
                 velocity: 100,
                 duration_ms: 10_000,
+                at: None,
             })
             .unwrap();
         }
@@ -209,6 +210,7 @@ fn full_sample_lane_reuse_has_no_callback_memory_activity() {
         note: 36,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
 
@@ -324,6 +326,7 @@ fn blocked_emergency_coalesces_panic_and_suppresses_note_on() {
         note: 36,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::AllNotesOff).unwrap();
@@ -380,6 +383,7 @@ fn panic_storm_stays_within_callback_budget_and_carries_forward() {
         note: 36,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
 

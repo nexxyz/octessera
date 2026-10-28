@@ -65,6 +65,7 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
             cell: 0,
             pitch_cents: 0,
             velocity: 100,
+            at: None,
         })
         .unwrap();
     let events = audio.engine.replay_events();

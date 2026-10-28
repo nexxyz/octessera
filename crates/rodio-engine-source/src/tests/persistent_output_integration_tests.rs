@@ -31,6 +31,7 @@ fn miss_and_recovery_silence_paths_have_no_callback_memory_activity() {
         note: 60,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
     let mut output = Vec::with_capacity(BLOCK_FRAMES * 2);

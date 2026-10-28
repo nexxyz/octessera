@@ -229,6 +229,7 @@ fn push_note(events: &mut Vec<EngineEvent>, slot: usize, note: u8) {
         note,
         velocity: 100,
         duration_ms: PROFILE_NOTE_DURATION_MS,
+        at: None,
     });
 }
 

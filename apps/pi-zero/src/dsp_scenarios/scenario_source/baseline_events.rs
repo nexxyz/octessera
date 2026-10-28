@@ -358,6 +358,7 @@ fn push_distributed_notes_in_slots(
                 note: if sample { 36 } else { note + index as u8 },
                 velocity: 100,
                 duration_ms: BASELINE_NOTE_DURATION_MS,
+                at: None,
             });
         }
     }

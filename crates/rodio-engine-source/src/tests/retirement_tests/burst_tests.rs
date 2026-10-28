@@ -37,6 +37,7 @@ fn full_sample_burst_replacements_preserve_fifo_and_retirement_ownership() {
             note: 36,
             velocity: 100,
             duration_ms: 10_000,
+            at: None,
         })
         .unwrap();
     }

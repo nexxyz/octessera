@@ -162,6 +162,7 @@ impl EngineEventReceiver {
         allow_emergency: bool,
         allow_structural_owner: bool,
         allow_structural_barrier: bool,
+        allow_musical: bool,
     ) -> Result<QueueDequeueResult, crossbeam_channel::TryRecvError> {
         self.fill_heads();
         self.fill_pending_emergency();
@@ -179,7 +180,7 @@ impl EngineEventReceiver {
             QueueEventClass::StructuralRetiring | QueueEventClass::StructuralNonRetiring => {
                 allow_structural_owner
             }
-            QueueEventClass::Musical => true,
+            QueueEventClass::Musical => allow_musical,
             QueueEventClass::StructuralBarrier => allow_structural_barrier,
         };
         if !allowed {

@@ -100,6 +100,7 @@ fn queue_active_state(tx: &EngineEventSender, samples: Arc<[f32]>) {
         note: 36,
         velocity: 100,
         duration_ms: 50_000,
+        at: None,
     })
     .unwrap();
     for note in 0..=realtime_engine::synth::SYNTH_VOICE_LANE_CAPACITY {
@@ -108,6 +109,7 @@ fn queue_active_state(tx: &EngineEventSender, samples: Arc<[f32]>) {
             note: note as u8,
             velocity: 100,
             duration_ms: 50_000,
+            at: None,
         })
         .unwrap();
     }

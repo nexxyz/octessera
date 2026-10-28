@@ -24,6 +24,7 @@ fn threaded_routing_tree_matches_inline_for_duck_spread_tail_and_profile() {
                 note,
                 velocity: 100,
                 duration_ms: 5_000,
+                at: None,
             })
             .unwrap();
         }
@@ -49,6 +50,7 @@ fn threaded_routing_tree_matches_inline_for_duck_spread_tail_and_profile() {
         tx.send(EngineEvent::NoteOff {
             instrument_slot: 0,
             note: 36,
+            at: None,
         })
         .unwrap();
     }

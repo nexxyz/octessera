@@ -30,6 +30,7 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
         note: 60,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::NoteOn {
@@ -37,6 +38,7 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
         note: 36,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     })
     .unwrap();
     tx.send(EngineEvent::PreparedMomentaryFxStart {
@@ -336,6 +338,7 @@ fn note_on(note: u8) -> EngineEvent {
         note,
         velocity: 100,
         duration_ms: 10_000,
+        at: None,
     }
 }
 
@@ -434,6 +437,7 @@ fn empty_status() -> AudioLoadStatus {
         dropped_quantums: 0,
         deadline_misses: 0,
         deadline_recoveries: 0,
+        late_timed_events: 0,
         peak: realtime_engine::synth::BlockPeak::default(),
     }
 }

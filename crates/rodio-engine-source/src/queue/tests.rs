@@ -49,13 +49,14 @@ fn distinct_drum_hits_stay_ordered_in_musical_fifo_and_not_latest_cells() {
                 cell: voice,
                 pitch_cents,
                 velocity: 100,
+                at: None,
             })
             .unwrap();
     }
     for (voice, pitch_cents) in [(0, -2400), (2, 1250)] {
         assert!(matches!(receiver.try_recv().unwrap(),
             EngineEvent::CellHit { instrument_slot: 3, voice: actual_voice, cell: actual_cell,
-                pitch_cents: actual_pitch, velocity: 100 }
+                pitch_cents: actual_pitch, velocity: 100, .. }
             if actual_voice == voice && actual_cell == voice && actual_pitch == pitch_cents));
     }
     assert!(receiver.take_latest_candidate().is_none());
@@ -71,6 +72,7 @@ fn musical_fifo_is_exact_under_latest_flood() {
                 note: (note % 128) as u8,
                 velocity: 100,
                 duration_ms: 100,
+                at: None,
             })
             .unwrap();
         sender
@@ -122,6 +124,7 @@ fn panic_is_prioritized_and_cancels_older_musical_events() {
                 note: note as u8,
                 velocity: 100,
                 duration_ms: 100,
+                at: None,
             })
             .unwrap();
     }
@@ -150,6 +153,7 @@ fn structural_and_musical_events_share_sequence_order() {
             note: 60,
             velocity: 100,
             duration_ms: 100,
+            at: None,
         })
         .unwrap();
     assert!(matches!(

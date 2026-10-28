@@ -96,6 +96,7 @@ pub struct AudioLoadStatus {
     pub dropped_quantums: u64,
     pub deadline_misses: u64,
     pub deadline_recoveries: u64,
+    pub late_timed_events: u64,
     pub peak: BlockPeak,
 }
 

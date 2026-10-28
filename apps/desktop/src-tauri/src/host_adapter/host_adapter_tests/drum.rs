@@ -21,6 +21,7 @@ fn desktop_cell_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields()
             cell: 9,
             pitch_cents: -2450,
             velocity: 100,
+            ..
         }
     ));
     adapter

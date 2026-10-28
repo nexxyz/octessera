@@ -8,6 +8,7 @@ fn inline_source_publishes_the_exact_final_jack_block_once() {
         note: 60,
         velocity: 100,
         duration_ms: 1_000,
+        at: None,
     })
     .unwrap();
     let pair = new_pcm_mirror();

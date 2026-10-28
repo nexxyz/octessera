@@ -196,6 +196,7 @@ impl EngineSource {
             left_buf,
             right_buf,
             persistent_output,
+            timed,
             ..
         } = self;
         let Some(worker) = worker_state.worker.as_mut() else {
@@ -247,14 +248,16 @@ impl EngineSource {
         let recovered = recovery == SourceWorkerRenderDisposition::RecoveredReady;
         if recovered {
             persistent_output.deadline_recovery();
+            timed.clock.restart_anchor();
         }
+        timed.open_window(if recovered { 0 } else { *block_frames }, *block_frames);
         let effective_sample_clock = if recovered {
             engine.sample_clock()
         } else {
             engine.sample_clock().saturating_add(*block_frames as u64)
         };
         let mut drained = DrainedControlEvents::default();
-        let disposition = if control_rx.has_pending() {
+        let disposition = if control_rx.has_pending() || timed.has_due() {
             #[cfg(all(test, feature = "routing-tree-executor"))]
             {
                 self.routing_tree_control_gate_calls += 1;
@@ -276,7 +279,7 @@ impl EngineSource {
                 right_buf,
                 buf,
                 |engine| {
-                    drained = controls.drain_routing_tree(engine, effective_sample_clock);
+                    drained = controls.drain_routing_tree(engine, effective_sample_clock, timed);
                     if engine.take_routing_tree_rejection() {
                         Err(())
                     } else {

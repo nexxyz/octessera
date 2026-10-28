@@ -23,6 +23,7 @@ pub fn bus_heavy_events() -> Vec<EngineEvent> {
                 note,
                 velocity: 100,
                 duration_ms: PROFILE_NOTE_DURATION_MS,
+                at: None,
             });
         }
     }
@@ -43,6 +44,7 @@ pub fn fx_limit_events(bus_slots: usize, momentary: usize, sample_rate: u32) -> 
                 note,
                 velocity: 100,
                 duration_ms: PROFILE_NOTE_DURATION_MS,
+                at: None,
             });
         }
     }

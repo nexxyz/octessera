@@ -23,6 +23,7 @@ fn default_and_explicit_block_apis_use_inline_source_path() {
         note: 60,
         velocity: 100,
         duration_ms: 1_000,
+        at: None,
     };
     default_tx.send(note_on.clone()).unwrap();
     explicit_tx.send(note_on).unwrap();
