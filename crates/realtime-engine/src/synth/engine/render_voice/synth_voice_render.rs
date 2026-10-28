@@ -1,5 +1,5 @@
 use super::super::super::runtime_state::{InstrumentMod, Voice};
-use super::super::super::types::{EnvConfig, SynthConfig};
+use super::super::super::types::{EnvConfig, SynthConfig, INSTRUMENT_SLOT_COUNT};
 use super::{
     fm_source_sample, pluck_source_sample, prepare_synth_voice_block,
     refresh_synth_voice_render_cache, render_synth_voice_sample_precomputed,
@@ -7,6 +7,15 @@ use super::{
     SynthVoiceRenderConfig, VoiceSource,
 };
 use crate::synth::pluck_string::PluckRing;
+
+#[derive(Clone, Copy)]
+pub(in crate::synth::engine) struct SynthSourceContext {
+    pub(in crate::synth::engine) sample_rate: u32,
+    pub(in crate::synth::engine) configs: [SynthConfig; INSTRUMENT_SLOT_COUNT],
+    pub(in crate::synth::engine) render_configs: [SynthVoiceRenderConfig; INSTRUMENT_SLOT_COUNT],
+    pub(in crate::synth::engine) revisions: [u32; INSTRUMENT_SLOT_COUNT],
+    pub(in crate::synth::engine) mods: [InstrumentMod; INSTRUMENT_SLOT_COUNT],
+}
 
 #[derive(Clone, Copy)]
 pub(in crate::synth::engine) struct SynthVoiceFrameContext {

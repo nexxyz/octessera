@@ -1,28 +1,4 @@
-use super::super::runtime_state::InstrumentMod;
-use super::super::types::{
-    SynthConfig, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
-    SAMPLE_VOICE_PARTITION_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
-    SYNTH_VOICE_PARTITION_LANE_CAPACITY, VOICE_PARTITION_COUNT,
-};
-use super::render_voice::SynthVoiceRenderConfig;
 use super::support::{mono_frame, SampleBufferView, SampleVoice};
-
-const _: () = assert!(
-    VOICE_PARTITION_COUNT * SYNTH_VOICE_PARTITION_LANE_CAPACITY == SYNTH_VOICE_LANE_CAPACITY
-);
-const _: () = assert!(
-    VOICE_PARTITION_COUNT * SAMPLE_VOICE_PARTITION_LANE_CAPACITY == SAMPLE_VOICE_LANE_CAPACITY
-);
-const _: () = assert!(SYNTH_VOICE_PARTITION_LANE_CAPACITY == SAMPLE_VOICE_PARTITION_LANE_CAPACITY);
-
-#[derive(Clone, Copy)]
-pub(super) struct SynthSourceContext {
-    pub(super) sample_rate: u32,
-    pub(super) configs: [SynthConfig; INSTRUMENT_SLOT_COUNT],
-    pub(super) render_configs: [SynthVoiceRenderConfig; INSTRUMENT_SLOT_COUNT],
-    pub(super) revisions: [u32; INSTRUMENT_SLOT_COUNT],
-    pub(super) mods: [InstrumentMod; INSTRUMENT_SLOT_COUNT],
-}
 
 #[derive(Clone, Copy)]
 pub(super) struct SampleSourceContext {

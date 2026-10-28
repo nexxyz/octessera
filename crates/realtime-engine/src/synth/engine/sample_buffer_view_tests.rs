@@ -1,6 +1,6 @@
 use super::super::runtime_state::BiquadState;
 use super::super::types::SampleBuffer;
-use super::source_lane_renderer::{render_sample_voice_block, render_sample_voice_frame};
+use super::sample_voice_renderer::{render_sample_voice_block, render_sample_voice_frame};
 use super::support::{
     mono_frame, reset_sample_buffer_view_resolves_for_test, sample_buffer_view_resolves_for_test,
     SampleBufferView, SampleVoice,

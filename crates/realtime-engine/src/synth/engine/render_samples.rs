@@ -1,4 +1,4 @@
-use super::source_lane_renderer::render_sample_voice_frame;
+use super::sample_voice_renderer::render_sample_voice_frame;
 use super::source_worker_placement;
 use super::voice_budget::split_steal;
 use super::*;

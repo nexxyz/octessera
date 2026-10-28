@@ -1,5 +1,6 @@
 use super::momentary_fx_state::MomentaryFxState;
 use super::render_samples::render_preview_sample_voices_block_into;
+use super::render_voice::synth_voice_render::SynthSourceContext;
 use super::retired_state::PREVIEW_AUDITION_SLOTS;
 use super::routing_tree_executor::RoutingTreeAssignment;
 use super::routing_tree_plan::RoutingTreePlan;
@@ -7,7 +8,6 @@ use super::routing_tree_source_bank::RoutingTreeSourceBank;
 use super::routing_tree_source_renderer::{
     render_routing_tree_sources, RoutingTreeSourceBlockScratch,
 };
-use super::source_lane_renderer::SynthSourceContext;
 use super::source_worker_lifecycle::OwnerEnvelope;
 use super::source_worker_protocol::WorkStamp;
 use super::support::PreviewSampleVoice;

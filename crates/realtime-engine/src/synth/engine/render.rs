@@ -1,5 +1,6 @@
 use super::inline_source_executor::SourceRenderOutput;
-use super::source_lane_renderer::{SampleSourceContext, SynthSourceContext};
+use super::render_voice::synth_voice_render::SynthSourceContext;
+use super::sample_voice_renderer::SampleSourceContext;
 use super::*;
 use crate::simd::interleave_stereo;
 

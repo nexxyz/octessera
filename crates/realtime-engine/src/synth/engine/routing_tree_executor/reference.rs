@@ -3,9 +3,10 @@ use super::super::bus_chain_owner::BusChainOwner;
 use super::super::duck_source::resolve_duck_source;
 use super::super::inline_source_executor::SourceRenderOutput;
 use super::super::render_plan::RenderPlanRoute;
+use super::super::render_voice::synth_voice_render::SynthSourceContext;
 use super::super::routing_tree_plan::RoutingTreePlan;
 use super::super::routing_tree_validation::valid_render_plan;
-use super::super::source_lane_renderer::{SampleSourceContext, SynthSourceContext};
+use super::super::sample_voice_renderer::SampleSourceContext;
 use super::super::{SynthEngine, BLOCK_SLOT_SCRATCH_FRAMES};
 
 impl SynthEngine {

@@ -100,10 +100,10 @@ mod sample_filter_block_tests;
 #[cfg(test)]
 mod sample_shape_tests;
 mod sample_voice_pool;
+mod sample_voice_renderer;
 mod sample_voice_shape;
 #[cfg(test)]
 mod source_lane_prefix_tests;
-mod source_lane_renderer;
 #[cfg(feature = "routing-tree-executor")]
 mod source_worker;
 #[cfg(feature = "routing-tree-executor")]

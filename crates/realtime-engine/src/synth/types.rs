@@ -41,6 +41,7 @@ pub(super) const SAMPLE_VOICE_PARTITION_LANE_CAPACITY: usize =
     SAMPLE_VOICE_LANE_CAPACITY / VOICE_PARTITION_COUNT;
 const _: () = assert!(SYNTH_VOICE_LANE_CAPACITY.is_multiple_of(VOICE_PARTITION_COUNT));
 const _: () = assert!(SAMPLE_VOICE_LANE_CAPACITY.is_multiple_of(VOICE_PARTITION_COUNT));
+const _: () = assert!(SYNTH_VOICE_PARTITION_LANE_CAPACITY == SAMPLE_VOICE_PARTITION_LANE_CAPACITY);
 const _: () = assert!(SYNTH_VOICE_LANE_CAPACITY <= (u8::MAX as usize) + 1);
 const _: () = assert!(SAMPLE_VOICE_LANE_CAPACITY <= (u8::MAX as usize) + 1);
 

@@ -1,7 +1,8 @@
 use super::super::synth_voice_pool::SynthVoicePool;
 use super::super::types::{INSTRUMENT_SLOT_COUNT, VOICE_PARTITION_COUNT};
+use super::render_voice::synth_voice_render::SynthSourceContext;
 use super::sample_voice_pool::SampleVoicePool;
-use super::source_lane_renderer::{SampleSourceContext, SynthSourceContext};
+use super::sample_voice_renderer::SampleSourceContext;
 use super::voice_block_sum::{sum_sample_partition, sum_synth_partition, SlotBlockSum};
 use super::BLOCK_SLOT_SCRATCH_FRAMES;
 #[cfg(test)]
