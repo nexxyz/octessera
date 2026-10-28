@@ -193,7 +193,8 @@ runs:
           "SHARE_LOG=$OCTESSERA_ARMBIAN_SHARE_LOG"
           EXPERT=yes
         )
-        ./compile.sh "${build_args[@]}"
+        ./compile.sh "${build_args[@]}" 2>&1 \
+          | grep -v '^::warning :: Not-installing software-properties-common '
     - name: Validate built Orange kernel package
       shell: bash
       run: |
