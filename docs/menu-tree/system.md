@@ -305,8 +305,10 @@ dirty edits. Stale or failed acknowledgements never reboot or advance the persis
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.
-- Success and timeout cards auto-hide, a failure stays until dismissed, and a new `Open Portal`
-  retries.
+- Success hides the card, moves the menu to `Maintenance > Sys. Info`, opens the Sys. Info popup
+  and requests system info, so the new address is on screen; closing the popup leaves the cursor
+  on `Sys. Info`. A repeated success status does not reopen it. Timeout cards auto-hide, a failure
+  stays until dismissed, and a new `Open Portal` retries.
 - The portal can change Wi-Fi, hostname, SSH, and the board's admin login (`pi` on Raspberry,
   `octessera` on Orange) without a reboot. It does not start or advertise Backup / Restore.
 

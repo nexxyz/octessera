@@ -1,5 +1,6 @@
 use crate::protocol::{
-    RunnerMessage, RuntimeSetupPortalDisposition, RuntimeSetupPortalPhase, RuntimeSetupPortalStatus,
+    RunnerMessage, RuntimePlatformEffect, RuntimeSetupPortalDisposition, RuntimeSetupPortalPhase,
+    RuntimeSetupPortalStatus,
 };
 
 use super::{DeviceInput, NativeRunner, NativeSetupPortalState, RuntimeTransportState};
@@ -45,6 +46,11 @@ impl NativeRunner {
                 return;
             }
         }
+        let newly_succeeded =
+            status.phase == RuntimeSetupPortalPhase::Succeeded
+                && self.display.setup_portal.as_ref().is_none_or(|current| {
+                    current.status.phase != RuntimeSetupPortalPhase::Succeeded
+                });
         let visible = if matches!(
             status.phase,
             RuntimeSetupPortalPhase::Succeeded | RuntimeSetupPortalPhase::TimedOut
@@ -62,6 +68,16 @@ impl NativeRunner {
             revision,
             visible,
         });
+        if newly_succeeded {
+            self.show_system_info_after_setup();
+        }
+    }
+
+    fn show_system_info_after_setup(&mut self) {
+        self.menu.focus_item_key("system.info");
+        self.open_system_info();
+        self.outbox
+            .push_platform_effect(RuntimePlatformEffect::SystemInfoRequest);
     }
 
     pub(super) fn stop_for_setup_portal(&mut self) {

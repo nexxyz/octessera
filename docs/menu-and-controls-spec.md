@@ -362,7 +362,8 @@ palette unless a behavior deliberately owns its own.
    `MIDI INPUTS` / `MIDI unavailable` menu frame and toast.
 3. Splash.
 4. Confirmation dialogs.
-5. The setup portal modal, then the Backup / Restore card.
+5. The setup portal modal, then the Backup / Restore card. A successful setup closes its card and
+   opens Sys. Info with the menu on `System > Maintenance > Sys. Info`, so the new address shows.
 6. System info and help.
 7. The menu with its footer. Context toasts never change LED overlay priority.
 

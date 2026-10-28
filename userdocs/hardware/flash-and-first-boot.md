@@ -94,8 +94,9 @@ On a phone or computer:
 
 1. Join the Wi-Fi network `Octessera Setup <suffix>` shown on the OLED.
 2. Browse to `http://192.168.42.1`.
-3. Enter your two-letter country code, then pick a scanned network or type its
-   name, and enter its password (or tick the open-network box).
+3. Enter your two-letter country code, then type the network name under
+   **Manual SSID** or pick it from the scanned list below, and enter its
+   password (or tick the open-network box).
 4. Set the local device password, at least 8 characters. The page tells you
    which account it is for: `pi` on the Raspberry Pi, `octessera` on the Orange
    Pi. You need it even if you switch SSH off.
@@ -111,9 +112,10 @@ On a phone or computer:
 
 The browser will probably lose its connection while the settings apply, because
 the hotspot goes away. That is expected. Leave the instrument powered and trust
-the OLED, not the browser. On success, the board's address appears under
-`System > Maintenance > Sys. Info`; no reboot is needed. If the OLED reports a
-failure or a timeout, close the message and open the portal again.
+the OLED, not the browser. On success, the OLED jumps to
+`System > Maintenance > Sys. Info` by itself and shows the board's address; no
+reboot is needed. If the OLED reports a failure or a timeout, close the message
+and open the portal again.
 
 To change the network, password, SSH or name later, see [setup
 portal](setup-portal.md).

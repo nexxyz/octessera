@@ -171,10 +171,12 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             .unwrap();
         let snapshot = snapshot_from(&messages);
         let lines = display_lines(&messages);
-        if matches!(
-            phase,
-            RuntimeSetupPortalPhase::Succeeded | RuntimeSetupPortalPhase::TimedOut
-        ) {
+        if phase == RuntimeSetupPortalPhase::Succeeded {
+            assert_eq!(snapshot["display"]["title"], "Sys. Info");
+            assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
+            continue;
+        }
+        if phase == RuntimeSetupPortalPhase::TimedOut {
             assert_eq!(snapshot["display"]["title"], "MENU");
             assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
             continue;
@@ -253,15 +255,24 @@ pub(crate) fn portal_hide_suppresses_current_phase_but_reopens_for_completion() 
             result: identified(RuntimeSetupPortalPhase::Succeeded, 1),
         })
         .unwrap();
-    assert_eq!(snapshot_from(&succeeded)["display"]["title"], "MENU");
+    assert_eq!(snapshot_from(&succeeded)["display"]["title"], "Sys. Info");
     assert_eq!(
         runner.display.setup_portal.as_ref().unwrap().status.phase,
         RuntimeSetupPortalPhase::Succeeded
     );
     assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
     let _ = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
+    assert!(runner.display.system_info_modal.is_none());
     assert!(runner.display.setup_portal.is_some());
     assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
+
+    let repeated = runner
+        .send(HostMessage::RuntimeResult {
+            result: identified(RuntimeSetupPortalPhase::Succeeded, 1),
+        })
+        .unwrap();
+    assert_ne!(snapshot_from(&repeated)["display"]["title"], "Sys. Info");
+    assert!(runner.display.system_info_modal.is_none());
 }
 
 #[test]

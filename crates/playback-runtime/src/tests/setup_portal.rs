@@ -80,8 +80,10 @@ fn identity_layers(result: &RuntimeStoreResult) -> usize {
     }
 }
 
-#[test]
-fn identified_setup_portal_failure_uses_the_native_failed_modal() {
+fn confirm_setup_portal_with_result(
+    phase: RuntimeSetupPortalPhase,
+    error_code: Option<RuntimeSetupPortalErrorCode>,
+) -> (PlaybackRuntime, NativeRunner, FakeHost) {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
@@ -91,11 +93,11 @@ fn identified_setup_portal_failure_uses_the_native_failed_modal() {
     let mut host = FakeHost {
         setup_portal_result: Some(RuntimeStoreResult::SetupPortalStatus {
             status: RuntimeSetupPortalStatus {
-                phase: RuntimeSetupPortalPhase::Failed,
+                phase,
                 disposition: None,
                 portal_suffix: None,
                 reboot_required: false,
-                error_code: Some(RuntimeSetupPortalErrorCode::OperationFailed),
+                error_code,
             },
         }),
         ..FakeHost::default()
@@ -124,6 +126,15 @@ fn identified_setup_portal_failure_uses_the_native_failed_modal() {
         &mut host,
         json!({ "type": "encoder_press", "id": "main" }),
     );
+    (runtime, runner, host)
+}
+
+#[test]
+fn identified_setup_portal_failure_uses_the_native_failed_modal() {
+    let (runtime, _runner, host) = confirm_setup_portal_with_result(
+        RuntimeSetupPortalPhase::Failed,
+        Some(RuntimeSetupPortalErrorCode::OperationFailed),
+    );
 
     let result = host
         .setup_portal_results_sent
@@ -139,4 +150,30 @@ fn identified_setup_portal_failure_uses_the_native_failed_modal() {
     assert_eq!(snapshot["display"]["lines"][0], "Setup failed");
     assert!(snapshot.get("runtimeError").is_none());
     assert!(runtime.latched_errors().is_empty());
+}
+
+#[test]
+fn setup_portal_success_opens_sys_info_at_its_maintenance_entry() {
+    let (mut runtime, mut runner, mut host) =
+        confirm_setup_portal_with_result(RuntimeSetupPortalPhase::Succeeded, None);
+
+    assert!(host
+        .effects
+        .iter()
+        .any(|effect| matches!(effect, crate::RuntimePlatformEffect::SystemInfoRequest)));
+    let snapshot = runtime.last_snapshot().expect("presented snapshot");
+    assert_eq!(snapshot["display"]["title"], "Sys. Info");
+
+    send_input(
+        &mut runtime,
+        &mut runner,
+        &mut host,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert_eq!(
+        runner.test_current_menu_label().as_deref(),
+        Some("Sys. Info")
+    );
+    let snapshot = runtime.last_snapshot().expect("presented snapshot");
+    assert_eq!(snapshot["display"]["title"], "/SYS/Maintenance");
 }
