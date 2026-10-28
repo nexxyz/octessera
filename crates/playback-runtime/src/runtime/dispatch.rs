@@ -211,6 +211,21 @@ impl PlaybackRuntime {
     pub(super) fn ingest_core_messages_with_runner<H: HostAdapter>(
         &mut self,
         messages: Vec<RunnerMessage>,
+        runner: Option<&mut dyn CoreRunner>,
+        host: &mut H,
+    ) -> Result<RuntimeIngest, String> {
+        let Some(start_stamp) = self.transport_start_stamp(&messages, host) else {
+            return self.ingest_message_list(messages, runner, host);
+        };
+        let previous = self.sequenced_at.replace(start_stamp);
+        let result = self.ingest_message_list(messages, runner, host);
+        self.sequenced_at = previous;
+        result
+    }
+
+    fn ingest_message_list<H: HostAdapter>(
+        &mut self,
+        messages: Vec<RunnerMessage>,
         mut runner: Option<&mut dyn CoreRunner>,
         host: &mut H,
     ) -> Result<RuntimeIngest, String> {
@@ -378,7 +393,7 @@ impl PlaybackRuntime {
                 }
                 RunnerMessage::CellHits { hits } => {
                     for hit in hits {
-                        if let Err(error) = host.handle_cell_hit(&hit) {
+                        if let Err(error) = host.handle_cell_hit(&hit, self.sequenced_at) {
                             let error = self.adapter_error_metadata(
                                 error,
                                 RuntimeErrorDomain::Audio,
@@ -411,7 +426,9 @@ impl PlaybackRuntime {
                 RunnerMessage::RuntimeConfigChanged { config } => {
                     let disable_error =
                         if self.config().midi_out_enabled && !config.midi_out_enabled {
-                            self.flush_scheduled_midi_now(host).err()
+                            host.flush_external_midi()
+                                .err()
+                                .or_else(|| self.flush_scheduled_midi_now(host).err())
                         } else {
                             None
                         };

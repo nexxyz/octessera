@@ -23,6 +23,7 @@ use playback_runtime::{
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 
 /// The one host adapter for both boards; board differences live in the
 /// device-apply handoff and the board's own construction.
@@ -78,8 +79,9 @@ impl PiHostAdapter {
     pub(crate) fn handle_runtime_cell_hit(
         &mut self,
         hit: &CellHit,
+        at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
-        let event = cell_hit_to_engine_event(hit)?;
+        let event = cell_hit_to_engine_event(hit, at)?;
         if self.shutdown_pending() {
             return Ok(());
         }
@@ -261,6 +263,7 @@ impl HostAdapter for PiHostAdapter {
     fn handle_musical_event(
         &mut self,
         event: &RuntimeMusicalEvent,
+        at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         if self.shutdown_pending() {
             return Ok(());
@@ -268,7 +271,7 @@ impl HostAdapter for PiHostAdapter {
         let Some(audio) = &self.audio else {
             return Ok(());
         };
-        audio.send_realtime(musical_event_to_engine_event(event))?;
+        audio.send_realtime(musical_event_to_engine_event(event, at))?;
         #[cfg(feature = "profiling")]
         if let Some(probe) = self.note_sent_probe.as_mut() {
             probe.observe(event);
@@ -276,8 +279,12 @@ impl HostAdapter for PiHostAdapter {
         Ok(())
     }
 
-    fn handle_cell_hit(&mut self, hit: &CellHit) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_cell_hit(hit)
+    fn handle_cell_hit(
+        &mut self,
+        hit: &CellHit,
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.handle_runtime_cell_hit(hit, at)
     }
 
     fn handle_platform_effect(
@@ -359,11 +366,19 @@ impl HostAdapter for PiHostAdapter {
         }
         Ok(())
     }
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         if self.shutdown_pending() {
             return Ok(());
         }
-        self.core.send_midi(bytes)
+        self.core.send_midi(bytes, at)
+    }
+
+    fn flush_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
+        self.core.flush_midi()
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {

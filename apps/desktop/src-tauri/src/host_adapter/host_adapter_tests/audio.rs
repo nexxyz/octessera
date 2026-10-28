@@ -78,7 +78,7 @@ fn musical_event_rejects_out_of_range_controls() {
     ];
     for event in cases {
         let (mut adapter, mut rx) = test_adapter();
-        let error = adapter.handle_musical_event(&event).unwrap_err();
+        let error = adapter.handle_musical_event(&event, None).unwrap_err();
         assert_eq!(error.facts.code, RuntimeErrorCode::InvalidPayload);
         assert!(rx.try_recv().is_err());
     }
@@ -131,14 +131,14 @@ fn latest_full_is_typed_without_emergency_and_disconnect_is_typed() {
 #[test]
 fn musical_note_preserves_exact_native_values() {
     let (mut adapter, mut rx) = test_adapter();
-    adapter
-        .handle_musical_event(&MusicalEvent::NoteOn {
-            channel: 7,
-            note: 127,
-            velocity: 127,
-            duration_ms: Some(10),
-        })
-        .unwrap();
+    let note = MusicalEvent::NoteOn {
+        channel: 7,
+        note: 127,
+        velocity: 127,
+        duration_ms: Some(10),
+    };
+    let at = std::time::Instant::now();
+    adapter.handle_musical_event(&note, Some(at)).unwrap();
     assert!(matches!(
         next_event(&mut rx),
         EngineEvent::NoteOn {
@@ -146,8 +146,8 @@ fn musical_note_preserves_exact_native_values() {
             note: 127,
             velocity: 127,
             duration_ms: 10,
-            ..
-        }
+            at: Some(stamped),
+        } if stamped == at
     ));
 }
 
@@ -173,14 +173,13 @@ fn chunked_ten_thousand_musical_events_preserve_order_without_scalar_loss() {
     let (mut adapter, mut rx) = test_adapter();
     for chunk_start in (0..EVENT_COUNT).step_by(CHUNK_SIZE) {
         for index in chunk_start..chunk_start + CHUNK_SIZE {
-            adapter
-                .handle_musical_event(&MusicalEvent::NoteOn {
-                    channel: (index % 8) as u8,
-                    note: (index % 128) as u8,
-                    velocity: 1 + (index % 127) as u8,
-                    duration_ms: Some(10 + index as u32),
-                })
-                .unwrap();
+            let note = MusicalEvent::NoteOn {
+                channel: (index % 8) as u8,
+                note: (index % 128) as u8,
+                velocity: 1 + (index % 127) as u8,
+                duration_ms: Some(10 + index as u32),
+            };
+            adapter.handle_musical_event(&note, None).unwrap();
         }
         adapter
             .handle_platform_effect(&platform_request(audio(
@@ -455,14 +454,13 @@ fn musical_and_structural_overload_are_typed_and_panic_without_teardown() {
             })
             .unwrap();
     }
-    let musical_error = adapter
-        .handle_musical_event(&MusicalEvent::NoteOn {
-            channel: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: None,
-        })
-        .unwrap_err();
+    let note = MusicalEvent::NoteOn {
+        channel: 0,
+        note: 60,
+        velocity: 100,
+        duration_ms: None,
+    };
+    let musical_error = adapter.handle_musical_event(&note, None).unwrap_err();
     assert_eq!(musical_error.facts.domain, RuntimeErrorDomain::Audio);
     assert_eq!(
         musical_error.facts.operation,

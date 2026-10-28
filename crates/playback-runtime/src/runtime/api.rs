@@ -15,6 +15,9 @@ impl PlaybackRuntime {
             config,
             pulse_phase: super::pulse_phase::PulsePhase::default(),
             now: Duration::ZERO,
+            clock_anchor: None,
+            sequenced_at: None,
+            sequenced_delay: crate::AudioOptimization::Latency.sequenced_output_delay(),
             last_good_status: None,
             presented_status: None,
             last_good_snapshot: None,
@@ -225,19 +228,31 @@ impl PlaybackRuntime {
         } else {
             None
         };
-        self.dispatch(
-            RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
-                pulses,
-                source: SyncSource::Internal,
-                at_ppqn_pulse: self
-                    .last_good_status
-                    .as_ref()
-                    .map(|status| status.current_ppqn_pulse),
-                request_snapshot,
-            }),
-            runner,
-            host,
-        )
+        let step_pulses = super::sequenced_time::pulses_per_step(pulses);
+        for step in 0..pulses / step_pulses {
+            let last_index = (step + 1) * step_pulses - 1;
+            self.sequenced_at = self.pulse_stamp(last_index, pulses);
+            let step = self.dispatch(
+                RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
+                    pulses: step_pulses,
+                    source: SyncSource::Internal,
+                    at_ppqn_pulse: self
+                        .last_good_status
+                        .as_ref()
+                        .map(|status| status.current_ppqn_pulse),
+                    request_snapshot: request_snapshot.filter(|_| last_index + 1 == pulses),
+                }),
+                runner,
+                host,
+            );
+            self.sequenced_at = None;
+            let step = step?;
+            if step.messages.iter().any(is_status) {
+                output.messages.retain(|message| !is_status(message));
+            }
+            output.merge(step);
+        }
+        Ok(output)
     }
 
     pub fn handle_midi_realtime_bytes<R: CoreRunner, H: HostAdapter>(
@@ -372,6 +387,10 @@ impl PlaybackRuntime {
     fn requeue_discarded_output(&mut self, output: &RuntimeIngest) {
         self.oled.requeue_if_current_frame_was_published(output);
     }
+}
+
+fn is_status(message: &RunnerMessage) -> bool {
+    matches!(message, RunnerMessage::RuntimeStatus { .. })
 }
 
 fn same_error_identity(left: &RuntimeErrorMetadata, right: &RuntimeErrorMetadata) -> bool {

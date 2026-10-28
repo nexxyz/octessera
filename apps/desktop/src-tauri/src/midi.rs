@@ -1,5 +1,6 @@
 use midir::MidiInputConnection;
 use midir::{Ignore, MidiInput, MidiOutput};
+use playback_runtime::TimedMidiSender;
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, serde::Serialize)]
@@ -43,12 +44,9 @@ pub(crate) fn list_inputs() -> Result<Vec<MidiPortInfo>, String> {
 
 pub(crate) fn select_output(
     id: Option<String>,
-    midi_out: &Arc<Mutex<Option<midir::MidiOutputConnection>>>,
+    midi_out: &mut TimedMidiSender,
 ) -> Result<(), String> {
-    let mut guard = midi_out
-        .lock()
-        .map_err(|_| "midi mutex poisoned".to_string())?;
-    *guard = None;
+    midi_out.set_sink(None)?;
     let Some(id) = id else {
         return Ok(());
     };
@@ -60,11 +58,12 @@ pub(crate) fn select_output(
     let port = ports
         .get(idx)
         .ok_or_else(|| "midi output id out of range".to_string())?;
-    let conn = out
+    let mut conn = out
         .connect(port, "octessera-midi-out-conn")
         .map_err(|e| e.to_string())?;
-    *guard = Some(conn);
-    Ok(())
+    midi_out.set_sink(Some(Box::new(move |bytes| {
+        conn.send(bytes).map_err(|e| e.to_string())
+    })))
 }
 
 pub(crate) fn select_input_with_handler<F>(

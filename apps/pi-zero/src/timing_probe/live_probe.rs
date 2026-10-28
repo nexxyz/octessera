@@ -165,13 +165,14 @@ impl HostAdapter for LiveProbeHost {
     fn handle_musical_event(
         &mut self,
         event: &MusicalEvent,
+        at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.events.push(LiveEventRecord {
             at_us: self.event_started_at.elapsed().as_micros(),
             key: event_key(event),
         });
         let started = Instant::now();
-        let result = self.inner.handle_musical_event(event);
+        let result = self.inner.handle_musical_event(event, at);
         self.audio_send_us
             .push(started.elapsed().as_micros() as f64);
         result
@@ -180,13 +181,14 @@ impl HostAdapter for LiveProbeHost {
     fn handle_cell_hit(
         &mut self,
         hit: &playback_runtime::CellHit,
+        at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.events.push(LiveEventRecord {
             at_us: self.event_started_at.elapsed().as_micros(),
             key: format!("drum:{}:{}", hit.instrument_slot, hit.voice),
         });
         let started = Instant::now();
-        let result = self.inner.handle_cell_hit(hit);
+        let result = self.inner.handle_cell_hit(hit, at);
         self.audio_send_us
             .push(started.elapsed().as_micros() as f64);
         result
@@ -211,9 +213,10 @@ impl HostAdapter for LiveProbeHost {
     fn handle_midi_message(
         &mut self,
         bytes: &[u8],
+        at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.midi_messages = self.midi_messages.saturating_add(1);
-        self.inner.handle_midi_message(bytes)
+        self.inner.handle_midi_message(bytes, at)
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), playback_runtime::RuntimeAdapterError> {

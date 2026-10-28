@@ -4,8 +4,12 @@ use playback_runtime::{
 };
 use realtime_engine::synth::{CELL_PITCH_CENTS_LIMIT, INSTRUMENT_SLOT_COUNT};
 use rodio_engine_source::EngineEvent;
+use std::time::Instant;
 
-pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent {
+pub(crate) fn musical_event_to_engine_event(
+    event: &MusicalEvent,
+    at: Option<Instant>,
+) -> EngineEvent {
     match event {
         MusicalEvent::NoteOn {
             channel,
@@ -17,12 +21,12 @@ pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent
             note: (*note).min(127),
             velocity: (*velocity).clamp(1, 127),
             duration_ms: duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
-            at: None,
+            at,
         },
         MusicalEvent::NoteOff { channel, note } => EngineEvent::NoteOff {
             instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
             note: (*note).min(127),
-            at: None,
+            at,
         },
         MusicalEvent::Cc {
             channel,
@@ -32,12 +36,15 @@ pub(crate) fn musical_event_to_engine_event(event: &MusicalEvent) -> EngineEvent
             instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
             controller: (*controller).min(127),
             value: (*value).min(127),
-            at: None,
+            at,
         },
     }
 }
 
-pub(crate) fn cell_hit_to_engine_event(hit: &CellHit) -> Result<EngineEvent, RuntimeAdapterError> {
+pub(crate) fn cell_hit_to_engine_event(
+    hit: &CellHit,
+    at: Option<Instant>,
+) -> Result<EngineEvent, RuntimeAdapterError> {
     if usize::from(hit.instrument_slot) >= INSTRUMENT_SLOT_COUNT
         || hit.voice >= 8
         || !(-CELL_PITCH_CENTS_LIMIT..=CELL_PITCH_CENTS_LIMIT).contains(&hit.pitch_cents)
@@ -56,7 +63,7 @@ pub(crate) fn cell_hit_to_engine_event(hit: &CellHit) -> Result<EngineEvent, Run
         cell: hit.cell,
         pitch_cents: hit.pitch_cents,
         velocity: hit.velocity,
-        at: None,
+        at,
     })
 }
 
@@ -69,12 +76,15 @@ mod tests {
     #[test]
     fn shared_musical_event_mapping_clamps_engine_values() {
         assert!(matches!(
-            musical_event_to_engine_event(&MusicalEvent::NoteOn {
-                channel: u8::MAX,
-                note: u8::MAX,
-                velocity: 0,
-                duration_ms: None,
-            }),
+            musical_event_to_engine_event(
+                &MusicalEvent::NoteOn {
+                    channel: u8::MAX,
+                    note: u8::MAX,
+                    velocity: 0,
+                    duration_ms: None,
+                },
+                None
+            ),
             EngineEvent::NoteOn {
                 note: 127,
                 velocity: 1,
@@ -94,7 +104,7 @@ mod tests {
             velocity: 120,
         };
         assert!(matches!(
-            cell_hit_to_engine_event(&hit).unwrap(),
+            cell_hit_to_engine_event(&hit, None).unwrap(),
             EngineEvent::CellHit {
                 instrument_slot: 2,
                 voice: 7,
@@ -105,10 +115,13 @@ mod tests {
             }
         ));
         assert!(matches!(
-            cell_hit_to_engine_event(&CellHit {
-                velocity: 0,
-                ..hit.clone()
-            }),
+            cell_hit_to_engine_event(
+                &CellHit {
+                    velocity: 0,
+                    ..hit.clone()
+                },
+                None
+            ),
             Ok(EngineEvent::CellHit { velocity: 0, .. })
         ));
         for invalid in [
@@ -129,7 +142,7 @@ mod tests {
                 ..hit
             },
         ] {
-            assert!(cell_hit_to_engine_event(&invalid).is_err());
+            assert!(cell_hit_to_engine_event(&invalid, None).is_err());
         }
     }
 }

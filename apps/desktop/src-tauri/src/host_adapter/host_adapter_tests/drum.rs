@@ -12,7 +12,7 @@ fn desktop_cell_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields()
         pitch_cents: -2450,
         velocity: 100,
     };
-    adapter.handle_runtime_cell_hit(&hit).unwrap();
+    adapter.handle_runtime_cell_hit(&hit, None).unwrap();
     assert!(matches!(
         next_event(&mut rx),
         EngineEvent::CellHit {
@@ -25,10 +25,13 @@ fn desktop_cell_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields()
         }
     ));
     adapter
-        .handle_runtime_cell_hit(&CellHit {
-            velocity: 0,
-            ..hit.clone()
-        })
+        .handle_runtime_cell_hit(
+            &CellHit {
+                velocity: 0,
+                ..hit.clone()
+            },
+            None,
+        )
         .unwrap();
     assert!(matches!(
         next_event(&mut rx),
@@ -54,7 +57,7 @@ fn desktop_cell_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields()
     ] {
         assert_eq!(
             adapter
-                .handle_runtime_cell_hit(&invalid)
+                .handle_runtime_cell_hit(&invalid, None)
                 .unwrap_err()
                 .facts
                 .code,

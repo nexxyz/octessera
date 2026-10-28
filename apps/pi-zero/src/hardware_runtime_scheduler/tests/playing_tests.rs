@@ -132,3 +132,42 @@ fn accepted_external_snapshot_rebases_playing_and_continuous_cadence() {
             .continuous
     );
 }
+
+#[test]
+fn playing_runtime_wakes_exactly_when_the_next_pulse_is_due() {
+    let now = Instant::now();
+    let (mut playback, mut runner, mut host) = playing_playback();
+    let mut scheduler = HardwareRuntimeScheduler::new(now, playback.last_snapshot_revision());
+    assert!(scheduler
+        .next_runtime_advance(now, &playback, None)
+        .is_none());
+    for tick in 1..=2 {
+        let advance = scheduler
+            .next_runtime_advance(now + PLAYBACK_TICK * tick, &playback, None)
+            .expect("playing tick should be due");
+        playback
+            .advance_duration(advance.elapsed, &mut runner, &mut host)
+            .unwrap();
+    }
+    let pulse_before = playback.last_status().unwrap().current_ppqn_pulse;
+    let pulse_due = now + Duration::from_nanos(20_833_334);
+
+    assert!(
+        scheduler.sleep_duration(now + PLAYBACK_TICK * 2, &playback, &runner)
+            <= pulse_due - (now + PLAYBACK_TICK * 2)
+    );
+    assert!(scheduler
+        .next_runtime_advance(pulse_due - Duration::from_nanos(1), &playback, None)
+        .is_none());
+    let advance = scheduler
+        .next_runtime_advance(pulse_due, &playback, None)
+        .expect("the pulse should wake the runtime before the next tick");
+    assert_eq!(advance.lateness, Duration::ZERO);
+    playback
+        .advance_duration(advance.elapsed, &mut runner, &mut host)
+        .unwrap();
+    assert_eq!(
+        playback.last_status().unwrap().current_ppqn_pulse,
+        pulse_before + 1
+    );
+}

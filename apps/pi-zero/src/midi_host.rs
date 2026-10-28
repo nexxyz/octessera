@@ -1,10 +1,11 @@
-use midir::{MidiInputConnection, MidiOutputConnection};
-use playback_runtime::{HostAdapter, MidiPort, NativeRunner, PlaybackRuntime};
+use midir::MidiInputConnection;
+use playback_runtime::{HostAdapter, MidiPort, NativeRunner, PlaybackRuntime, TimedMidiSender};
 use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::VecDeque;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::input::MidiMessage;
 
@@ -48,7 +49,7 @@ pub(crate) fn drain_midi_messages<A: HostAdapter + RuntimeOutputSink>(
 }
 
 pub(crate) struct MidiHost {
-    midi_out: Option<MidiOutputConnection>,
+    midi_out: TimedMidiSender,
     midi_in: Option<MidiInputConnection<()>>,
     midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     host_midi_output_id: Option<String>,
@@ -70,7 +71,7 @@ impl MidiHost {
         usb_midi_out_enabled: bool,
     ) -> Self {
         Self {
-            midi_out: None,
+            midi_out: TimedMidiSender::new("octessera-midi-out", midi_sender_start_hook),
             midi_in: None,
             midi_in_handler,
             host_midi_output_id: None,
@@ -133,7 +134,7 @@ impl MidiHost {
     }
 
     pub(crate) fn select_output(&mut self, requested: Option<String>) -> Result<(), String> {
-        self.midi_out = None;
+        self.midi_out.set_sink(None)?;
         self.host_midi_output_id = requested.clone();
         self.midi_output_error = None;
         self.midi_output_attempted = true;
@@ -170,24 +171,16 @@ impl MidiHost {
         result
     }
 
-    pub(crate) fn send(&mut self, bytes: &[u8]) -> Result<(), String> {
-        let Some(connection) = self.midi_out.as_mut() else {
-            return Ok(());
-        };
-        connection.send(bytes).map_err(|error| error.to_string())
+    pub(crate) fn send(&mut self, at: Option<Instant>, bytes: &[u8]) -> Result<(), String> {
+        self.midi_out.send(at, bytes)
+    }
+
+    pub(crate) fn flush(&mut self) -> Result<(), String> {
+        self.midi_out.flush()
     }
 
     pub(crate) fn panic(&mut self) -> Result<(), String> {
-        let mut first_error = None;
-        for bytes in std::iter::once(vec![0xFC]).chain(
-            (0..16_u8)
-                .flat_map(|channel| [vec![0xB0 | channel, 120, 0], vec![0xB0 | channel, 123, 0]]),
-        ) {
-            if let Err(error) = self.send(&bytes) {
-                first_error.get_or_insert(error);
-            }
-        }
-        first_error.map_or(Ok(()), Err)
+        self.midi_out.panic()
     }
 
     pub(crate) fn selected_output_id(&self) -> Option<String> {
@@ -242,11 +235,12 @@ impl MidiHost {
         let port = ports
             .get(index)
             .ok_or_else(|| "MIDI output disappeared".to_string())?;
-        self.midi_out = Some(
-            out.connect(port, "octessera-pi-out")
-                .map_err(|error| error.to_string())?,
-        );
-        Ok(())
+        let mut connection = out
+            .connect(port, "octessera-pi-out")
+            .map_err(|error| error.to_string())?;
+        self.midi_out.set_sink(Some(Box::new(move |bytes| {
+            connection.send(bytes).map_err(|error| error.to_string())
+        })))
     }
 
     fn select_input_native(&mut self, requested: Option<&str>) -> Result<(), String> {
@@ -319,6 +313,14 @@ impl MidiHost {
             None
         }
     }
+}
+
+fn midi_sender_start_hook() {
+    #[cfg(any(
+        feature = "hardware-raspberry-pi-zero-2w",
+        feature = "hardware-orange-pi-zero-2w"
+    ))]
+    crate::audio_priority::pin_midi_sender_thread();
 }
 
 fn resolve_port_id(requested: &str, ids: &[String]) -> Result<String, String> {

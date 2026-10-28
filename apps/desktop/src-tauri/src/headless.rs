@@ -100,7 +100,6 @@ impl HeadlessSession {
                 recording,
             },
             Arc::new(Mutex::new(None)),
-            Arc::new(Mutex::new(None)),
             Arc::new(|_| {}),
             store_dir,
             platform_service.request_tx,

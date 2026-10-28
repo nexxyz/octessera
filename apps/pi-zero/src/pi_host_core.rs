@@ -162,9 +162,19 @@ impl PiHostCore {
             .unwrap_or_else(|| Err(RECOVERY_SAVE_MISSING.into()))
     }
 
-    pub(crate) fn send_midi(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    pub(crate) fn send_midi(
+        &mut self,
+        bytes: &[u8],
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         self.midi
-            .send(bytes)
+            .send(at, bytes)
+            .map_err(RuntimeAdapterError::operation_failed)
+    }
+
+    pub(crate) fn flush_midi(&mut self) -> Result<(), RuntimeAdapterError> {
+        self.midi
+            .flush()
             .map_err(RuntimeAdapterError::operation_failed)
     }
 

@@ -16,7 +16,7 @@ use midir::MidiInputConnection;
 use playback_runtime::{
     DeferredDefaultSave, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
     RuntimeAdapterError, RuntimeAudioCommand, RuntimeOperation, RuntimePlatformRequest,
-    RuntimeStoreResult,
+    RuntimeStoreResult, TimedMidiSender,
 };
 use rodio_engine_source::{EngineEvent, EngineEventSender, QueueKind, QueueSendError};
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ use std::time::{Duration, Instant};
 
 pub(crate) struct DesktopPlaybackHostAdapter {
     pub(crate) audio: DesktopHostAudioState,
-    pub(crate) midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
+    pub(crate) midi_out: TimedMidiSender,
     pub(crate) midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
     pub(crate) midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(crate) store_dir: PathBuf,
@@ -49,7 +49,6 @@ pub(crate) struct DesktopHostAudioState {
 impl DesktopPlaybackHostAdapter {
     pub(crate) fn new(
         audio: DesktopHostAudioState,
-        midi_out: Arc<Mutex<Option<midir::MidiOutputConnection>>>,
         midi_in: Arc<Mutex<Option<MidiInputConnection<()>>>>,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         store_dir: PathBuf,
@@ -57,7 +56,7 @@ impl DesktopPlaybackHostAdapter {
     ) -> Self {
         Self {
             audio,
-            midi_out,
+            midi_out: TimedMidiSender::new("octessera-midi-out", || {}),
             midi_in,
             midi_in_handler,
             store_dir,
@@ -139,15 +138,17 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
     fn handle_musical_event(
         &mut self,
         event: &RuntimeMusicalEvent,
+        at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_musical_event(event)
+        self.handle_runtime_musical_event(event, at)
     }
 
     fn handle_cell_hit(
         &mut self,
         hit: &playback_runtime::CellHit,
+        at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_cell_hit(hit)
+        self.handle_runtime_cell_hit(hit, at)
     }
 
     fn handle_platform_effect(
@@ -164,15 +165,16 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
         self.handle_runtime_audio_command(command)
     }
 
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
-        let mut guard = self
-            .midi_out
-            .lock()
-            .map_err(|_| "midi mutex poisoned".to_string())?;
-        let Some(conn) = guard.as_mut() else {
-            return Ok(());
-        };
-        Ok(conn.send(_bytes).map_err(|e| e.to_string())?)
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
+        Ok(self.midi_out.send(at, bytes)?)
+    }
+
+    fn flush_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
+        Ok(self.midi_out.flush()?)
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {
@@ -180,16 +182,7 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
     }
 
     fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
-        let mut first_error = None;
-        for bytes in std::iter::once(vec![0xFC]).chain(
-            (0..16_u8)
-                .flat_map(|channel| [vec![0xB0 | channel, 120, 0], vec![0xB0 | channel, 123, 0]]),
-        ) {
-            if let Err(error) = self.handle_midi_message(&bytes) {
-                first_error.get_or_insert(error);
-            }
-        }
-        first_error.map_or(Ok(()), Err)
+        Ok(self.midi_out.panic()?)
     }
 }
 

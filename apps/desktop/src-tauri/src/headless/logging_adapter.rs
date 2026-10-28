@@ -14,13 +14,18 @@ pub(super) struct HeardEvent {
 }
 
 /// The desktop host adapter, unchanged, plus a record of what it was asked to play.
+/// The session's clock is the rendered audio, so wall-clock event stamps are dropped.
 pub(super) struct LoggingAdapter {
     pub(super) inner: DesktopPlaybackHostAdapter,
     pub(super) heard: Vec<HeardEvent>,
 }
 
 impl HostAdapter for LoggingAdapter {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+    fn handle_musical_event(
+        &mut self,
+        event: &MusicalEvent,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         if let MusicalEvent::NoteOn {
             channel,
             note,
@@ -36,10 +41,14 @@ impl HostAdapter for LoggingAdapter {
                 pitch_cents: 0,
             });
         }
-        self.inner.handle_musical_event(event)
+        self.inner.handle_musical_event(event, None)
     }
 
-    fn handle_cell_hit(&mut self, hit: &CellHit) -> Result<(), RuntimeAdapterError> {
+    fn handle_cell_hit(
+        &mut self,
+        hit: &CellHit,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         if hit.velocity > 0 {
             self.heard.push(HeardEvent {
                 slot: hit.instrument_slot,
@@ -49,7 +58,7 @@ impl HostAdapter for LoggingAdapter {
                 pitch_cents: hit.pitch_cents,
             });
         }
-        self.inner.handle_cell_hit(hit)
+        self.inner.handle_cell_hit(hit, None)
     }
 
     fn handle_platform_effect(
@@ -70,8 +79,12 @@ impl HostAdapter for LoggingAdapter {
         self.inner.handle_audio_command(command)
     }
 
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
-        self.inner.handle_midi_message(bytes)
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.inner.handle_midi_message(bytes, None)
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {

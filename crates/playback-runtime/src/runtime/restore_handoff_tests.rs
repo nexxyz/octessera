@@ -18,8 +18,12 @@ pub(super) struct RestoreHost {
 }
 
 impl HostAdapter for RestoreHost {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
-        self.inner.handle_musical_event(event)
+    fn handle_musical_event(
+        &mut self,
+        event: &MusicalEvent,
+        at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.inner.handle_musical_event(event, at)
     }
 
     fn handle_platform_effect(
@@ -65,8 +69,12 @@ impl HostAdapter for RestoreHost {
         self.inner.handle_audio_command(command)
     }
 
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
-        self.inner.handle_midi_message(bytes)
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.inner.handle_midi_message(bytes, at)
     }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {

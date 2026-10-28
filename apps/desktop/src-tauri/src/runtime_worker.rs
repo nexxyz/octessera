@@ -32,6 +32,10 @@ pub(crate) use requests::request_worker_dispatch;
 
 const PLAYING_SNAPSHOT_INTERVAL_MS: u64 = 50;
 const XY_GLIDE_TICK: Duration = Duration::from_millis(8);
+/// Sequenced output lead on the desktop. The worker's 1 ms wait can last a full Windows timer
+/// tick (about 15.6 ms), and WASAPI renders in 10 ms bursts, so events need more lead than on
+/// the boards to reach the engine before their frame is rendered.
+const DESKTOP_SEQUENCED_OUTPUT_DELAY: Duration = Duration::from_millis(30);
 
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
@@ -73,12 +77,7 @@ impl RuntimeWorker {
             audio_failure_rx,
             audio_prep_result_rx,
             next_runtime_seq: 0,
-            playback: PlaybackRuntime::new(playback_runtime::RuntimeConfig {
-                bpm: 120.0,
-                sync_source: playback_runtime::SyncSource::Internal,
-                midi_clock_out_enabled: false,
-                midi_out_enabled: false,
-            }),
+            playback: desktop_playback_runtime(),
             runner: NativeRunner::new(desktop_native_runner_config())
                 .expect("native runner should initialize"),
             adapter,
@@ -304,6 +303,17 @@ impl RuntimeWorker {
             self.playback.last_snapshot_revision(),
         );
     }
+}
+
+fn desktop_playback_runtime() -> PlaybackRuntime {
+    let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig {
+        bpm: 120.0,
+        sync_source: playback_runtime::SyncSource::Internal,
+        midi_clock_out_enabled: false,
+        midi_out_enabled: false,
+    });
+    playback.set_sequenced_output_delay(DESKTOP_SEQUENCED_OUTPUT_DELAY);
+    playback
 }
 
 fn observe_accepted_snapshot_revision(

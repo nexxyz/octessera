@@ -36,7 +36,7 @@ fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
         pitch_cents: -2400,
         velocity: 100,
     };
-    adapter.handle_runtime_cell_hit(&hit).unwrap();
+    adapter.handle_runtime_cell_hit(&hit, None).unwrap();
     assert!(matches!(
         rx.try_recv(),
         Ok(EngineEvent::CellHit {
@@ -68,7 +68,7 @@ fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
     ] {
         assert_eq!(
             adapter
-                .handle_runtime_cell_hit(&invalid)
+                .handle_runtime_cell_hit(&invalid, None)
                 .unwrap_err()
                 .facts
                 .code,

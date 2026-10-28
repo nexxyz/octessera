@@ -56,10 +56,13 @@ fn logical_event_timestamps_and_intervals_follow_advance_endpoints() {
     let mut host = ProbeHost::default();
     for endpoint_ms in endpoints {
         host.now_ms = endpoint_ms;
-        host.handle_musical_event(&MusicalEvent::NoteOff {
-            channel: 0,
-            note: 60,
-        })
+        host.handle_musical_event(
+            &MusicalEvent::NoteOff {
+                channel: 0,
+                note: 60,
+            },
+            None,
+        )
         .unwrap();
     }
 

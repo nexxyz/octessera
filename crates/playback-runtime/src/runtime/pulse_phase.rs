@@ -3,6 +3,7 @@ use std::time::Duration;
 
 const NANOS_PER_SECOND: u128 = 1_000_000_000;
 const SUBPULSES_PER_PULSE: u128 = 1_000_000_000;
+const PULSE_NUMERATOR: u128 = SUBPULSES_PER_PULSE * NANOS_PER_SECOND;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct PulsePhase {
@@ -29,6 +30,36 @@ impl PulsePhase {
             .subpulses
             .saturating_sub(u128::from(emitted) * SUBPULSES_PER_PULSE);
         emitted
+    }
+
+    pub(super) fn nanos_since_pulse(&self, pulses_back: u32, bpm: f64) -> Option<u128> {
+        let subpulses_per_second = quantized_subpulses_per_second(bpm);
+        if subpulses_per_second == 0 {
+            return None;
+        }
+        let phase = self
+            .phase_numerator()
+            .saturating_add(u128::from(pulses_back).saturating_mul(PULSE_NUMERATOR));
+        Some(phase / subpulses_per_second)
+    }
+
+    pub(super) fn nanos_until_next_pulse(&self, bpm: f64) -> Option<u128> {
+        let subpulses_per_second = quantized_subpulses_per_second(bpm);
+        if subpulses_per_second == 0 {
+            return None;
+        }
+        Some(
+            PULSE_NUMERATOR
+                .saturating_sub(self.phase_numerator())
+                .div_ceil(subpulses_per_second),
+        )
+    }
+
+    /// Time since the last pulse multiplied by the subpulse rate, exact in integer nanoseconds.
+    fn phase_numerator(&self) -> u128 {
+        self.subpulses
+            .saturating_mul(NANOS_PER_SECOND)
+            .saturating_add(self.nanosecond_remainder)
     }
 
     fn integrate(&mut self, elapsed: Duration, subpulses_per_second: u128) {
@@ -194,6 +225,17 @@ mod tests {
             assert_eq!(phase.advance(Duration::from_secs(1), bpm), 0);
             assert_eq!(phase, before);
         }
+    }
+
+    #[test]
+    fn pulse_distances_follow_the_exact_grid() {
+        let mut phase = PulsePhase::default();
+        assert_eq!(phase.advance(Duration::from_micros(51_000), 120.0), 2);
+
+        assert_eq!(phase.nanos_since_pulse(0, 120.0), Some(9_333_333));
+        assert_eq!(phase.nanos_since_pulse(1, 120.0), Some(30_166_666));
+        assert_eq!(phase.nanos_until_next_pulse(120.0), Some(11_500_000));
+        assert_eq!(phase.nanos_until_next_pulse(0.0), None);
     }
 
     #[test]

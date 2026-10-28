@@ -5,11 +5,13 @@ use playback_runtime::{
 };
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEvent;
+use std::time::Instant;
 
 impl DesktopPlaybackHostAdapter {
     pub(super) fn handle_runtime_musical_event(
         &mut self,
         event: &MusicalEvent,
+        at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         let event = match event {
             MusicalEvent::NoteOn {
@@ -38,7 +40,7 @@ impl DesktopPlaybackHostAdapter {
                     note: *note,
                     velocity: *velocity,
                     duration_ms,
-                    at: None,
+                    at,
                 }
             }
             MusicalEvent::NoteOff { channel, note } => {
@@ -47,7 +49,7 @@ impl DesktopPlaybackHostAdapter {
                 EngineEvent::NoteOff {
                     instrument_slot: *channel,
                     note: *note,
-                    at: None,
+                    at,
                 }
             }
             MusicalEvent::Cc {
@@ -62,7 +64,7 @@ impl DesktopPlaybackHostAdapter {
                     instrument_slot: *channel,
                     controller: *controller,
                     value: *value,
-                    at: None,
+                    at,
                 }
             }
         };

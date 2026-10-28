@@ -141,7 +141,7 @@ fn keep_playing_while_save_is_queued(
         },
     )
     .unwrap();
-    HostAdapter::handle_midi_message(host, &[0x90, 60, 100]).unwrap();
+    HostAdapter::handle_midi_message(host, &[0x90, 60, 100], None).unwrap();
     for _ in 0..4 {
         let source = playback.config().sync_source.clone();
         playback

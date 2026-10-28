@@ -12,7 +12,8 @@ are in [`board-profiles.md`](board-profiles.md).
 ## Board runtime loop
 
 - `apps/pi-zero/src/hardware_runtime_scheduler.rs` owns Raspberry and Orange
-  timing policy: 8 ms realtime work, 50 ms stopped maintenance, 33 ms playing
+  timing policy: a wake exactly when the next internal pulse is due, 8 ms
+  realtime work as the ceiling for UI/XY/snapshot work, 50 ms stopped maintenance, 33 ms playing
   snapshot cadence/publication gating, native one-shot and continuous display
   deadlines, bounded wake/input pickup, accepted-revision dedupe/retry,
   configured sync-source requests, and playing input-snapshot suppression. It
@@ -61,6 +62,8 @@ are in [`board-profiles.md`](board-profiles.md).
   - owns the portable Data Backup/Restore bundle contract: canonical patch migration and validation, the allowlisted preference delta, manifest/hash metadata, and typed transfer status; it does not perform transfer or filesystem I/O
   - delegates its display-ordered grid index API to the pure fixed-grid projection helpers in `platform-core`; it does not own a second projection table or geometry rule
   - owns MIDI input/output through host adapters only; Tauri/midir and Pi MIDI device access stay outside canonical runtime crates
+  - owns musical time in the host `Instant` domain: starting internal playback anchors the runtime clock at `HostAdapter::now`, every pulse gets its exact instant on the 24 PPQN grid, and each pulse reaches the runner as its own step (a catch-up of more than four pulses is one step). Sequenced output (pattern notes, cell hits, CC, MIDI clock, and Start/Continue with the downbeat clock) is stamped pulse instant + the sequenced output delay: 8 ms in Latency, 11 ms in Capacity (`AudioOptimization::sequenced_output_delay`), 30 ms on the desktop, whose 1 ms worker wait lasts a Windows timer tick. Live input, previews, Stop, panic, and all-notes-off stay untimed. Stop and pause flush the MIDI sender: pending note-offs go out at once and future output is dropped
+  - `TimedMidiSender` sends each MIDI output from its own thread, holding timestamped messages until due; on the boards it runs SCHED_FIFO 50 on CPU0, below the CPU0 mirror callback and away from the audio callback (CPU1) and the DSP workers (CPU2/3)
 
 - Core logic layer (`crates/platform-core`)
   - deterministic behavior execution, grid state, interpretation, mapping, transforms, and native layer engine logic

@@ -138,14 +138,19 @@ mod tests {
         fn handle_musical_event(
             &mut self,
             event: &MusicalEvent,
+            at: Option<std::time::Instant>,
         ) -> Result<(), RuntimeAdapterError> {
             self.calls.push("note");
-            self.inner.handle_musical_event(event)
+            self.inner.handle_musical_event(event, at)
         }
 
-        fn handle_cell_hit(&mut self, hit: &CellHit) -> Result<(), RuntimeAdapterError> {
+        fn handle_cell_hit(
+            &mut self,
+            hit: &CellHit,
+            at: Option<std::time::Instant>,
+        ) -> Result<(), RuntimeAdapterError> {
             self.calls.push("drum");
-            self.inner.handle_cell_hit(hit)
+            self.inner.handle_cell_hit(hit, at)
         }
 
         fn handle_audio_command(
@@ -169,8 +174,12 @@ mod tests {
             self.inner.handle_platform_effect(request)
         }
 
-        fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
-            self.inner.handle_midi_message(bytes)
+        fn handle_midi_message(
+            &mut self,
+            bytes: &[u8],
+            at: Option<std::time::Instant>,
+        ) -> Result<(), RuntimeAdapterError> {
+            self.inner.handle_midi_message(bytes, at)
         }
 
         fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {

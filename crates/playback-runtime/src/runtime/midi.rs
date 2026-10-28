@@ -4,7 +4,7 @@ use crate::protocol::{
     RuntimeStatusState, RuntimeTransportState, SyncSource,
 };
 use platform_core::MusicalEvent;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 impl PlaybackRuntime {
     pub(super) fn schedule_musical_events<H: HostAdapter>(
@@ -13,7 +13,7 @@ impl PlaybackRuntime {
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
         for event in events {
-            match host.handle_musical_event(&event) {
+            match host.handle_musical_event(&event, self.sequenced_at) {
                 Ok(()) => self.clear_error(RuntimeOperation::MusicalEvent),
                 Err(error) => {
                     return Err(RuntimeAdapterError::from_facts(error.facts.with_context(
@@ -62,12 +62,15 @@ impl PlaybackRuntime {
                         note.min(127),
                         velocity.clamp(1, 127),
                     ],
+                    self.sequenced_at,
                     RuntimeOperation::MidiEvent,
                     host,
                 )?;
                 if let Some(duration_ms) = duration_ms {
+                    let duration = Duration::from_millis(u64::from(duration_ms));
                     self.scheduled_note_offs.push_back(ScheduledMidiMessage {
-                        due_at: self.now + Duration::from_millis(u64::from(duration_ms)),
+                        due_at: self.now + duration,
+                        at: self.sequenced_at.and_then(|at| at.checked_add(duration)),
                         bytes: vec![0x80 | (channel & 0x0F), note.min(127), 0],
                     });
                     self.scheduled_note_offs_dirty = true;
@@ -76,6 +79,7 @@ impl PlaybackRuntime {
             MusicalEvent::NoteOff { channel, note } => {
                 self.send_midi_message(
                     &[0x80 | (channel & 0x0F), note.min(127), 0],
+                    self.sequenced_at,
                     RuntimeOperation::MidiEvent,
                     host,
                 )?;
@@ -87,6 +91,7 @@ impl PlaybackRuntime {
             } => {
                 self.send_midi_message(
                     &[0xB0 | (channel & 0x0F), controller.min(127), value.min(127)],
+                    self.sequenced_at,
                     RuntimeOperation::MidiEvent,
                     host,
                 )?;
@@ -121,6 +126,10 @@ impl PlaybackRuntime {
         let previous = self.last_good_status.replace(status.clone());
         self.refresh_presented_status();
         let needs_note_cleanup = transport_requires_note_cleanup(previous.as_ref(), &status);
+        let flush_error = needs_note_cleanup
+            .then(|| host.flush_external_midi())
+            .transpose()
+            .err();
         let silence_error = needs_note_cleanup
             .then(|| host.silence_internal_audio())
             .transpose()
@@ -151,7 +160,7 @@ impl PlaybackRuntime {
         } else {
             None
         };
-        if let Some(error) = transport_error.or(cleanup_error) {
+        if let Some(error) = flush_error.or(transport_error).or(cleanup_error) {
             return Err(error);
         }
         Ok(())
@@ -170,6 +179,7 @@ impl PlaybackRuntime {
                 let resuming = previous.transport == RuntimeTransportState::Paused;
                 self.send_midi_message(
                     &[if resuming { 0xFB } else { 0xFA }],
+                    self.sequenced_at,
                     RuntimeOperation::MidiMessage,
                     host,
                 )?;
@@ -179,11 +189,21 @@ impl PlaybackRuntime {
             } else if previous.transport == RuntimeTransportState::Playing
                 && status.transport != RuntimeTransportState::Playing
             {
-                self.send_midi_message(&[0xFC], RuntimeOperation::MidiMessage, host)?;
+                self.send_midi_message(
+                    &[0xFC],
+                    self.sequenced_at,
+                    RuntimeOperation::MidiMessage,
+                    host,
+                )?;
             }
             self.send_clock_midi(previous.current_ppqn_pulse, status, host)?;
         } else if status.transport == RuntimeTransportState::Playing {
-            self.send_midi_message(&[0xFA], RuntimeOperation::MidiMessage, host)?;
+            self.send_midi_message(
+                &[0xFA],
+                self.sequenced_at,
+                RuntimeOperation::MidiMessage,
+                host,
+            )?;
             self.send_downbeat_clock(status, host)?;
             self.send_clock_midi(0, status, host)?;
         }
@@ -198,7 +218,12 @@ impl PlaybackRuntime {
     ) -> Result<(), RuntimeAdapterError> {
         if self.config.midi_clock_out_enabled && status.transport == RuntimeTransportState::Playing
         {
-            self.send_midi_message(&[0xF8], RuntimeOperation::MidiMessage, host)?;
+            self.send_midi_message(
+                &[0xF8],
+                self.sequenced_at,
+                RuntimeOperation::MidiMessage,
+                host,
+            )?;
         }
         Ok(())
     }
@@ -206,10 +231,11 @@ impl PlaybackRuntime {
     pub(super) fn send_midi_message<H: HostAdapter>(
         &mut self,
         bytes: &[u8],
+        at: Option<Instant>,
         operation: RuntimeOperation,
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
-        match host.handle_midi_message(bytes) {
+        match host.handle_midi_message(bytes, at) {
             Ok(()) => {
                 self.clear_error(operation);
                 Ok(())
@@ -234,7 +260,12 @@ impl PlaybackRuntime {
             && status.current_ppqn_pulse > from_ppqn_pulse
         {
             for _ in from_ppqn_pulse..status.current_ppqn_pulse {
-                self.send_midi_message(&[0xF8], RuntimeOperation::MidiMessage, host)?;
+                self.send_midi_message(
+                    &[0xF8],
+                    self.sequenced_at,
+                    RuntimeOperation::MidiMessage,
+                    host,
+                )?;
             }
         }
         Ok(())
@@ -259,12 +290,12 @@ impl PlaybackRuntime {
             .front()
             .is_some_and(|message| message.due_at <= self.now)
         {
-            let bytes = self
+            let (bytes, at) = self
                 .scheduled_note_offs
                 .front()
-                .map(|message| message.bytes.clone())
+                .map(|message| (message.bytes.clone(), message.at))
                 .expect("front checked");
-            self.send_midi_message(&bytes, RuntimeOperation::MidiMessage, host)?;
+            self.send_midi_message(&bytes, at, RuntimeOperation::MidiMessage, host)?;
             self.scheduled_note_offs.pop_front();
         }
         Ok(())
@@ -283,7 +314,7 @@ impl PlaybackRuntime {
             .front()
             .map(|message| message.bytes.clone())
         {
-            self.send_midi_message(&bytes, RuntimeOperation::MidiMessage, host)?;
+            self.send_midi_message(&bytes, None, RuntimeOperation::MidiMessage, host)?;
             self.scheduled_note_offs.pop_front();
         }
         self.scheduled_note_offs_dirty = false;

@@ -70,13 +70,14 @@ impl HardwareRuntimeScheduler {
         } else {
             MAINTENANCE_TICK
         };
-        if now.duration_since(self.last_tick_at) < interval {
+        let due = self.with_next_pulse(self.last_tick_at + interval, playback);
+        if now < due {
             return None;
         }
 
         let elapsed = now.duration_since(self.last_tick_at);
         self.last_tick_at = now;
-        let lateness = elapsed.saturating_sub(interval);
+        let lateness = now.duration_since(due);
         let request_snapshot = false;
         Some(RuntimeAdvance {
             elapsed,
@@ -179,12 +180,15 @@ impl HardwareRuntimeScheduler {
         runner: &NativeRunner,
     ) -> Duration {
         let realtime_active = runtime_tick_needed(playback, runner.next_xy_glide_deadline());
-        let next_runtime_due = self.last_tick_at
-            + if realtime_active {
-                PLAYBACK_TICK
-            } else {
-                MAINTENANCE_TICK
-            };
+        let next_runtime_due = self.with_next_pulse(
+            self.last_tick_at
+                + if realtime_active {
+                    PLAYBACK_TICK
+                } else {
+                    MAINTENANCE_TICK
+                },
+            playback,
+        );
         let mut next_due = next_runtime_due;
         if is_internal_playing(playback) {
             next_due =
@@ -203,6 +207,14 @@ impl HardwareRuntimeScheduler {
             .checked_duration_since(now)
             .unwrap_or(Duration::ZERO)
             .min(max_sleep)
+    }
+
+    /// While playing on the internal clock the runtime also wakes exactly when the next pulse is
+    /// due, so the tick only bounds UI work and adds nothing to musical timing.
+    fn with_next_pulse(&self, tick_due: Instant, playback: &PlaybackRuntime) -> Instant {
+        playback
+            .time_until_next_pulse()
+            .map_or(tick_due, |until| tick_due.min(self.last_tick_at + until))
     }
 
     fn display_snapshot_deadline(&self, runner: &NativeRunner) -> Option<Instant> {

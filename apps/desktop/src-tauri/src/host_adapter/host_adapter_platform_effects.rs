@@ -155,7 +155,7 @@ impl DesktopPlaybackHostAdapter {
                 .with_identity(request.request_id.clone(), request.revision),
             }]),
             RuntimePlatformEffect::MidiSelectOutput { id } => {
-                let result = midi::select_output(id.clone(), &self.midi_out);
+                let result = midi::select_output(id.clone(), &mut self.midi_out);
                 if result.is_ok() {
                     self.selected_midi_output_id = id.clone();
                 }

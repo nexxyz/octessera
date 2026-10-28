@@ -11,6 +11,7 @@ mod protocol;
 mod runtime;
 #[cfg(any(test, feature = "test-support"))]
 pub mod scenario;
+mod timed_midi_sender;
 mod timing_units;
 pub mod user_data_bundle;
 
@@ -43,6 +44,7 @@ pub use runtime::{
     CoreRunner, HostAdapter, NativeStoreRequest, PlaybackRuntime, RuntimeConfig,
     RuntimeDispatchInput, RuntimeIngest, RuntimePresentationMetrics,
 };
+pub use timed_midi_sender::{MidiSink, TimedMidiSender};
 pub use user_data_bundle::apply_user_data_patch_and_preferences;
 pub use user_data_bundle::{
     apply_user_preference_delta, decode_user_data_bundle, encode_user_data_bundle,

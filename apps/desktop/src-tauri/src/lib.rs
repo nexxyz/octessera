@@ -48,7 +48,6 @@ pub fn run() {
     let sample_bank_signature = Arc::new(Mutex::new(String::new()));
     let generations = Arc::new(Mutex::new(AudioGenerationState::default()));
     let config_revision = Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let midi_out = Arc::new(Mutex::new(None));
     let midi_in = Arc::new(Mutex::new(None));
     let runtime_outbox = Arc::new(Mutex::new(Vec::new()));
 
@@ -108,7 +107,6 @@ pub fn run() {
                         audio_control,
                         recording: recording.clone(),
                     },
-                    midi_out.clone(),
                     midi_in.clone(),
                     Arc::new(move |bytes| {
                         let _ = native_midi_tx.send(bytes);

@@ -19,11 +19,19 @@ struct RecordingHost {
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 impl HostAdapter for RecordingHost {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+    fn handle_musical_event(
+        &mut self,
+        event: &MusicalEvent,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         self.musical_events.push(event.clone());
         Ok(())
     }
-    fn handle_cell_hit(&mut self, _hit: &CellHit) -> Result<(), RuntimeAdapterError> {
+    fn handle_cell_hit(
+        &mut self,
+        _hit: &CellHit,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
     fn handle_platform_effect(
@@ -39,7 +47,11 @@ impl HostAdapter for RecordingHost {
         self.audio_commands.push(command.clone());
         Ok(())
     }
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    fn handle_midi_message(
+        &mut self,
+        _bytes: &[u8],
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {

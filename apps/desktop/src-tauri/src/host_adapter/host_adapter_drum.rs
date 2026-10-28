@@ -41,6 +41,7 @@ impl DesktopPlaybackHostAdapter {
     pub(super) fn handle_runtime_cell_hit(
         &mut self,
         hit: &CellHit,
+        at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         validate_musical_channel(hit.instrument_slot)?;
         validate_musical_range(hit.voice, 7, "cell voice")?;
@@ -55,7 +56,7 @@ impl DesktopPlaybackHostAdapter {
                 cell: hit.cell,
                 pitch_cents: hit.pitch_cents,
                 velocity: hit.velocity,
-                at: None,
+                at,
             },
             RuntimeOperation::MusicalEvent,
         )

@@ -56,7 +56,7 @@ fn test_adapter_with_recording_dir(
             audio_control,
             recording: DesktopRecording::new(recording_dir),
         },
-        midi_out: Arc::new(Mutex::new(None)),
+        midi_out: playback_runtime::TimedMidiSender::new("midi-test", || {}),
         midi_in: Arc::new(Mutex::new(None)),
         midi_in_handler: Arc::new(|_| {}),
         store_dir: PathBuf::new(),

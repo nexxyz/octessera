@@ -27,7 +27,11 @@ impl CoreRunner for TestRunner {
 }
 
 impl HostAdapter for TestHost {
-    fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+    fn handle_musical_event(
+        &mut self,
+        _event: &MusicalEvent,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
 
@@ -45,7 +49,11 @@ impl HostAdapter for TestHost {
         Ok(())
     }
 
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         self.midi_messages.push(bytes.to_vec());
         Ok(())
     }

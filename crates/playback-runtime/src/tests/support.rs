@@ -5,6 +5,7 @@ use crate::{
     RuntimeStoreResult, RuntimeTransportState, SyncSource,
 };
 use serde_json::{json, Value};
+use std::time::Instant;
 
 pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
     json!({
@@ -152,17 +153,31 @@ pub(crate) struct FakeHost {
     pub fail_recording_transition: bool,
     pub setup_portal_result: Option<RuntimeStoreResult>,
     pub setup_portal_results_sent: Vec<RuntimeStoreResult>,
+    pub clock: Option<Instant>,
+    pub musical_event_at: Vec<Option<Instant>>,
+    pub midi_message_at: Vec<Option<Instant>>,
+    pub midi_flushes: usize,
 }
 
 impl HostAdapter for FakeHost {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+    fn now(&self) -> Instant {
+        self.clock.unwrap_or_else(Instant::now)
+    }
+
+    fn handle_musical_event(
+        &mut self,
+        event: &MusicalEvent,
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         self.musical_events.push(event.clone());
+        self.musical_event_at.push(at);
         Ok(())
     }
 
     fn handle_cell_hit(
         &mut self,
         hit: &crate::protocol::CellHit,
+        _at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         self.cell_hits.push(hit.clone());
         Ok(())
@@ -219,13 +234,23 @@ impl HostAdapter for FakeHost {
         Ok(())
     }
 
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         if self.fail_midi_message {
             return Err(RuntimeAdapterError::operation_failed(
                 "MIDI message send failed".into(),
             ));
         }
         self.midi_messages.push(bytes.to_vec());
+        self.midi_message_at.push(at);
+        Ok(())
+    }
+
+    fn flush_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
+        self.midi_flushes += 1;
         Ok(())
     }
 
@@ -239,10 +264,10 @@ impl HostAdapter for FakeHost {
     }
 
     fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.handle_midi_message(&[0xFC])?;
+        self.handle_midi_message(&[0xFC], None)?;
         for channel in 0..16_u8 {
-            self.handle_midi_message(&[0xB0 | channel, 120, 0])?;
-            self.handle_midi_message(&[0xB0 | channel, 123, 0])?;
+            self.handle_midi_message(&[0xB0 | channel, 120, 0], None)?;
+            self.handle_midi_message(&[0xB0 | channel, 123, 0], None)?;
         }
         Ok(())
     }

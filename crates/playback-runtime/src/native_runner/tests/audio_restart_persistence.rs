@@ -129,7 +129,11 @@ struct ImmediateFailureHost {
 }
 
 impl HostAdapter for ImmediateFailureHost {
-    fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+    fn handle_musical_event(
+        &mut self,
+        _event: &MusicalEvent,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
 
@@ -161,7 +165,11 @@ impl HostAdapter for ImmediateFailureHost {
         Ok(())
     }
 
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    fn handle_midi_message(
+        &mut self,
+        _bytes: &[u8],
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
 

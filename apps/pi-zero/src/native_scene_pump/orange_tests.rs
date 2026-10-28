@@ -76,10 +76,18 @@ fn adapter(root: &std::path::Path) -> PiHostAdapter {
 struct TestHost;
 
 impl HostAdapter for TestHost {
-    fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+    fn handle_musical_event(
+        &mut self,
+        _event: &MusicalEvent,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
-    fn handle_cell_hit(&mut self, _hit: &CellHit) -> Result<(), RuntimeAdapterError> {
+    fn handle_cell_hit(
+        &mut self,
+        _hit: &CellHit,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
     fn handle_platform_effect(
@@ -94,7 +102,11 @@ impl HostAdapter for TestHost {
     ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
-    fn handle_midi_message(&mut self, _bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    fn handle_midi_message(
+        &mut self,
+        _bytes: &[u8],
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError> {

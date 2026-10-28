@@ -6,7 +6,7 @@ use platform_core::MusicalEvent;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::VecDeque;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 mod api;
 #[cfg(test)]
@@ -23,6 +23,7 @@ mod pulse_phase;
 mod request_identity;
 #[cfg(test)]
 mod restore_handoff_tests;
+mod sequenced_time;
 mod status;
 #[cfg(test)]
 mod system_store_aux_tests;
@@ -113,12 +114,22 @@ pub trait CoreRunner {
     }
 }
 
+/// `at` is the host-clock instant a sequenced event should sound; `None` plays it now.
 pub trait HostAdapter {
-    fn handle_musical_event(&mut self, event: &MusicalEvent) -> Result<(), RuntimeAdapterError>;
+    fn now(&self) -> Instant {
+        Instant::now()
+    }
+
+    fn handle_musical_event(
+        &mut self,
+        event: &MusicalEvent,
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError>;
 
     fn handle_cell_hit(
         &mut self,
         _hit: &crate::protocol::CellHit,
+        _at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         Err(RuntimeAdapterError::operation_failed(
             "CellHit host adapter not connected".into(),
@@ -139,7 +150,16 @@ pub trait HostAdapter {
         command: &RuntimeAudioCommand,
     ) -> Result<(), RuntimeAdapterError>;
 
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError>;
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        at: Option<Instant>,
+    ) -> Result<(), RuntimeAdapterError>;
+
+    /// Sends pending note-offs now and drops other future MIDI output.
+    fn flush_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
+        Ok(())
+    }
 
     fn silence_internal_audio(&mut self) -> Result<(), RuntimeAdapterError>;
 
@@ -151,6 +171,9 @@ pub struct PlaybackRuntime {
     config: RuntimeConfig,
     pulse_phase: pulse_phase::PulsePhase,
     now: Duration,
+    clock_anchor: Option<(Instant, Duration)>,
+    sequenced_at: Option<Instant>,
+    sequenced_delay: Duration,
     last_good_status: Option<RuntimeStatus>,
     presented_status: Option<RuntimeStatus>,
     last_good_snapshot: Option<Value>,
@@ -175,5 +198,6 @@ impl PlaybackRuntime {
 #[derive(Clone, Debug, PartialEq)]
 struct ScheduledMidiMessage {
     due_at: Duration,
+    at: Option<Instant>,
     bytes: Vec<u8>,
 }

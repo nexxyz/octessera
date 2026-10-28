@@ -185,7 +185,7 @@ impl TimingLoad {
                 velocity: 100,
                 duration_ms: Some(NOTE_GATE.as_millis() as u32),
             };
-            host.handle_musical_event(&event)
+            host.handle_musical_event(&event, None)
                 .map_err(|error| format!("timing load note failed: {error:?}"))?;
             self.note_counter += 1;
             self.stats.notes += 1;

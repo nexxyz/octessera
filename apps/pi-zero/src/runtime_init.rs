@@ -19,12 +19,13 @@ pub(crate) fn new_runtime(
     boot_applied_usb_midi_out_enabled: bool,
     usb_data_role_available: bool,
 ) -> Result<(PlaybackRuntime, NativeRunner), String> {
-    let playback = PlaybackRuntime::new(RuntimeConfig {
+    let mut playback = PlaybackRuntime::new(RuntimeConfig {
         bpm: 120.0,
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
     });
+    playback.set_sequenced_output_delay(audio_optimization.sequenced_output_delay());
     let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),

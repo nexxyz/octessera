@@ -197,7 +197,11 @@ struct WorkerTestHost {
 }
 
 impl HostAdapter for WorkerTestHost {
-    fn handle_musical_event(&mut self, _event: &MusicalEvent) -> Result<(), RuntimeAdapterError> {
+    fn handle_musical_event(
+        &mut self,
+        _event: &MusicalEvent,
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
 
@@ -215,7 +219,11 @@ impl HostAdapter for WorkerTestHost {
         Ok(())
     }
 
-    fn handle_midi_message(&mut self, bytes: &[u8]) -> Result<(), RuntimeAdapterError> {
+    fn handle_midi_message(
+        &mut self,
+        bytes: &[u8],
+        _at: Option<std::time::Instant>,
+    ) -> Result<(), RuntimeAdapterError> {
         self.midi_messages.push(bytes.to_vec());
         Ok(())
     }
@@ -225,10 +233,10 @@ impl HostAdapter for WorkerTestHost {
     }
 
     fn panic_external_midi(&mut self) -> Result<(), RuntimeAdapterError> {
-        self.handle_midi_message(&[0xFC])?;
+        self.handle_midi_message(&[0xFC], None)?;
         for channel in 0..16_u8 {
-            self.handle_midi_message(&[0xB0 | channel, 120, 0])?;
-            self.handle_midi_message(&[0xB0 | channel, 123, 0])?;
+            self.handle_midi_message(&[0xB0 | channel, 120, 0], None)?;
+            self.handle_midi_message(&[0xB0 | channel, 123, 0], None)?;
         }
         Ok(())
     }

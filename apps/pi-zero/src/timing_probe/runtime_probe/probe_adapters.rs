@@ -89,6 +89,7 @@ impl HostAdapter for ProbeHost {
     fn handle_musical_event(
         &mut self,
         event: &MusicalEvent,
+        _at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.event_times_ms.push(self.now_ms);
         self.events.push(EventRecord {
@@ -101,6 +102,7 @@ impl HostAdapter for ProbeHost {
     fn handle_cell_hit(
         &mut self,
         hit: &playback_runtime::CellHit,
+        _at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         if hit.velocity > 0 {
             self.event_times_ms.push(self.now_ms);
@@ -131,6 +133,7 @@ impl HostAdapter for ProbeHost {
     fn handle_midi_message(
         &mut self,
         _bytes: &[u8],
+        _at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.midi_messages += 1;
         Ok(())
