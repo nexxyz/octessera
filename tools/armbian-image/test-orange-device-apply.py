@@ -87,6 +87,46 @@ assert validation_calls == []
 setattr(helper, "CONFIG_PATH", str(valid_config))
 setattr(helper, "_validate_config", validation_probe)
 
+assert helper.USB_GADGET_REQUEST == b"usb-gadget\n"
+assert helper.STORAGE_STATE == "/run/octessera-usb-storage.state"
+storage_state = Path(valid_directory.name) / "storage.state"
+setattr(helper, "STORAGE_STATE", str(storage_state))
+calls.clear()
+events.clear()
+validation_calls.clear()
+gadget_output = OrderedOutput()
+helper.handle_request(io.BytesIO(helper.USB_GADGET_REQUEST), gadget_output)
+assert gadget_output.getvalue() == helper.ACCEPTED
+assert calls == [([helper.SYSTEMCTL_PATH, "restart", "octessera-orange-usb-gadget.service"], True)]
+assert validation_calls == [str(valid_config)]
+
+calls.clear()
+storage_state.write_text("DEV=/dev/mmcblk1p1\nWAS_MOUNTED=1\n", encoding="utf-8")
+storage_output = io.BytesIO()
+try:
+    helper.handle_request(io.BytesIO(helper.USB_GADGET_REQUEST), storage_output)
+except ValueError:
+    assert storage_output.getvalue() == helper.REJECTED
+    assert calls == []
+else:
+    raise AssertionError("gadget restart accepted during SD2 transfer")
+storage_state.unlink()
+
+def invalid_config(config_path):
+    raise ValueError(config_path)
+
+
+setattr(helper, "_validate_config", invalid_config)
+invalid_output = io.BytesIO()
+try:
+    helper.handle_request(io.BytesIO(helper.USB_GADGET_REQUEST), invalid_output)
+except ValueError:
+    assert invalid_output.getvalue() == helper.REJECTED
+    assert calls == []
+else:
+    raise AssertionError("gadget restart accepted an invalid config")
+setattr(helper, "_validate_config", validation_probe)
+
 def failed_reboot(command, check):
     calls.append((command, check))
     raise helper.subprocess.CalledProcessError(1, command)
@@ -100,6 +140,13 @@ except helper.subprocess.SubprocessError:
     assert rejected_output.getvalue() == helper.REJECTED
 else:
     raise AssertionError("failed reboot accepted")
+gadget_failure_output = io.BytesIO()
+try:
+    helper.handle_request(io.BytesIO(helper.USB_GADGET_REQUEST), gadget_failure_output)
+except helper.subprocess.SubprocessError:
+    assert gadget_failure_output.getvalue() == helper.REJECTED
+else:
+    raise AssertionError("failed gadget restart accepted")
 
 with tempfile.TemporaryDirectory() as directory:
     config = Path(directory) / "default.json"
@@ -147,7 +194,9 @@ for request in (
     b"wrong\n",
     helper.REBOOT_REQUEST + b"extra",
     helper.POWEROFF_REQUEST + b"extra",
-    b"x" * (helper.MAX_REQUEST_BYTES + 1),
+    helper.USB_GADGET_REQUEST + b"extra",
+    b"usb-gadget",
+    b"x" *(helper.MAX_REQUEST_BYTES + 1),
 ):
     calls.clear()
     rejected_output = io.BytesIO()
@@ -195,6 +244,14 @@ if os.name == "posix":
     assert run_fd_request(helper.POWEROFF_REQUEST) == helper.ACCEPTED
     assert calls == [([helper.SYSTEMCTL_PATH, "poweroff"], True)]
     assert validation_calls == []
+
+    calls.clear()
+    events.clear()
+    validation_calls.clear()
+    setattr(helper, "_validate_config", validation_probe)
+    assert run_fd_request(helper.USB_GADGET_REQUEST) == helper.ACCEPTED
+    assert calls == [([helper.SYSTEMCTL_PATH, "restart", "octessera-orange-usb-gadget.service"], True)]
+    assert validation_calls == [str(valid_config)]
 
     for request in (b"unknown\n", helper.REBOOT_REQUEST + b"extra", b""):
         calls.clear()

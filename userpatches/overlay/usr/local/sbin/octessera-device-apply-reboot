@@ -11,6 +11,9 @@ CONFIG_PATH = "/var/lib/octessera/presets/system.json"
 SYSTEMCTL_PATH = "/usr/bin/systemctl"
 REBOOT_REQUEST = b"reboot\n"
 POWEROFF_REQUEST = b"poweroff\n"
+USB_GADGET_REQUEST = b"usb-gadget\n"
+USB_GADGET_SERVICE = "octessera-orange-usb-gadget.service"
+STORAGE_STATE = "/run/octessera-usb-storage.state"
 ACCEPTED = b"accepted\n"
 REJECTED = b"rejected\n"
 MAX_REQUEST_BYTES = 128
@@ -70,7 +73,7 @@ def _read_request(stream):
                 break
         line = bytes(data)
         extra = _extra_bytes(stream)
-    if line not in (REBOOT_REQUEST, POWEROFF_REQUEST) or extra:
+    if line not in (REBOOT_REQUEST, POWEROFF_REQUEST, USB_GADGET_REQUEST) or extra:
         raise ValueError("invalid device apply request")
     return line
 
@@ -80,10 +83,15 @@ def handle_request(input_stream, output_stream):
         request = _read_request(input_stream)
         if request == REBOOT_REQUEST:
             _validate_config(CONFIG_PATH)
-            command = "reboot"
+            command = ["reboot"]
+        elif request == USB_GADGET_REQUEST:
+            _validate_config(CONFIG_PATH)
+            if os.path.lexists(STORAGE_STATE):
+                raise ValueError("USB SD2 transfer is active")
+            command = ["restart", USB_GADGET_SERVICE]
         else:
-            command = "poweroff"
-        subprocess.run([SYSTEMCTL_PATH, command], check=True)
+            command = ["poweroff"]
+        subprocess.run([SYSTEMCTL_PATH, *command], check=True)
     except (OSError, ValueError, subprocess.SubprocessError, KeyError):
         output_stream.write(REJECTED)
         output_stream.flush()

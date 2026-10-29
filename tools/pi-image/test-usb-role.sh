@@ -209,4 +209,95 @@ if OCTESSERA_USB_ROLE_BOOT_ROOT="$root" "$helper" host; then
     exit 1
 fi
 
+rm -f "$root/boot/firmware/config-copy.txt"
+sys_root="$root/sys-root"
+driver="$sys_root/sys/bus/platform/drivers/dwc2"
+udc="$sys_root/sys/class/udc"
+live_log="$root/live.log"
+mkdir -p "$driver" "$udc" "$root/live-bin" "$root/boot/firmware/octessera/overlays"
+ln -s ../../../../devices/platform/soc/3f980000.usb "$driver/3f980000.usb"
+: > "$root/boot/firmware/octessera/overlays/dwc2.dtbo"
+cat > "$root/live-bin/dtoverlay" <<'SH'
+#!/bin/sh
+echo "dtoverlay $*" >> "$FAKE_LIVE_LOG"
+[ "$1" != -r ] || exit 1
+[ -z "${FAKE_DTOVERLAY_FAILURE:-}" ] || exit 1
+case "$4" in
+    dr_mode=peripheral) mkdir -p "$FAKE_UDC/3f980000.usb" ;;
+    dr_mode=host) rmdir "$FAKE_UDC/3f980000.usb" ;;
+esac
+SH
+cat > "$root/live-bin/gadget" <<'SH'
+#!/bin/sh
+echo "gadget $1" >> "$FAKE_LIVE_LOG"
+[ -z "${FAKE_GADGET_FAILURE:-}" ]
+SH
+printf '%s\n' '#!/bin/sh' > "$root/live-bin/logger"
+chmod +x "$root/live-bin/dtoverlay" "$root/live-bin/gadget" "$root/live-bin/logger"
+
+run_live() {
+    : > "$live_log"
+    : > "$driver/unbind"
+    : > "$driver/bind"
+    env OCTESSERA_USB_ROLE_BOOT_ROOT="$root" OCTESSERA_USB_ROLE_SYS_ROOT="$sys_root" \
+        OCTESSERA_USB_GADGET_HELPER="$root/live-bin/gadget" FAKE_LIVE_LOG="$live_log" FAKE_UDC="$udc" \
+        PATH="$root/live-bin:$PATH" "$@"
+}
+
+overlays="$root/boot/firmware/octessera/overlays"
+write_stock_config
+mkdir -p "$udc/3f980000.usb"
+run_live "$helper" host
+[ "$(managed_role)" = 'dtoverlay=dwc2,dr_mode=host' ]
+printf '%s\n' 'gadget teardown' 'dtoverlay -r dwc2' "dtoverlay -d $overlays dwc2 dr_mode=host" | cmp -s - "$live_log"
+[ "$(cat "$driver/unbind")" = 3f980000.usb ]
+[ "$(cat "$driver/bind")" = 3f980000.usb ]
+test ! -e "$udc/3f980000.usb"
+
+run_live "$helper" host
+[ ! -s "$live_log" ]
+
+run_live "$helper" gadget
+[ "$(managed_role)" = 'dtoverlay=dwc2,dr_mode=peripheral' ]
+printf '%s\n' 'dtoverlay -r dwc2' "dtoverlay -d $overlays dwc2 dr_mode=peripheral" 'gadget setup' | cmp -s - "$live_log"
+[ "$(cat "$driver/bind")" = 3f980000.usb ]
+test -d "$udc/3f980000.usb"
+
+run_live "$helper" gadget
+printf '%s\n' 'gadget setup' | cmp -s - "$live_log"
+
+if run_live FAKE_GADGET_FAILURE=1 "$helper" gadget; then
+    printf '%s\n' 'failed gadget setup reported success' >&2
+    exit 1
+fi
+
+if run_live FAKE_DTOVERLAY_FAILURE=1 "$helper" host; then
+    printf '%s\n' 'failed live overlay reported success' >&2
+    exit 1
+fi
+[ "$(managed_role)" = 'dtoverlay=dwc2,dr_mode=host' ]
+[ ! -s "$driver/bind" ]
+
+write_stock_config
+mkdir -p "$udc/3f980000.usb"
+if run_live FAKE_GADGET_FAILURE=1 "$helper" host; then
+    printf '%s\n' 'failed gadget teardown reported success' >&2
+    exit 1
+fi
+[ ! -s "$driver/unbind" ]
+
+ln -s ../../../../devices/platform/soc/3f981000.usb "$driver/3f981000.usb"
+write_stock_config
+if run_live "$helper" host; then
+    printf '%s\n' 'ambiguous dwc2 controller was accepted' >&2
+    exit 1
+fi
+rm "$driver/3f981000.usb" "$driver/3f980000.usb"
+write_stock_config
+if run_live "$helper" host; then
+    printf '%s\n' 'missing dwc2 controller was accepted' >&2
+    exit 1
+fi
+[ ! -s "$live_log" ]
+
 printf '%s\n' 'Raspberry USB role helper tests passed.'

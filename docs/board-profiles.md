@@ -142,7 +142,8 @@ only, not a public product identity. Composer details are in
 `octessera.service` uses `LimitRTPRIO=70`; its only ambient and bounding
 capability is `CAP_SYS_TTY_CONFIG` for native VT leasing, with no
 `CAP_SYS_NICE`. Reboot and power-off go through one narrow root-owned socket
-that accepts only `reboot\n` and `poweroff\n`; see the
+that accepts only `reboot\n` and `poweroff\n`, plus `usb-gadget\n` to rebuild
+the USB gadget from the saved config; see the
 [device apply boundary](runtime-boundaries.md#device-apply-boundary). Check,
 Apply, and Rollback go through the root-owned update socket to
 `octessera-update`, which takes only the Orange device ZIP and checksum; full

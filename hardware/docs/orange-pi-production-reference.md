@@ -87,7 +87,10 @@ sending exactly `reboot\n` or `poweroff\n` to the root-owned
 `/run/octessera-device-apply/reboot.sock`. The root-owned device-apply service
 validates saved config only for reboot, invokes only the matching fixed
 `/usr/bin/systemctl` command, and returns exact `accepted\n` or `rejected\n`
-bytes. There is no sudo fallback or command discovery.
+bytes. The same socket accepts exactly `usb-gadget\n`, which validates saved
+config, refuses an active SD2 transfer, and restarts only
+`octessera-orange-usb-gadget.service`. There is no sudo fallback or command
+discovery.
 
 ## Setup portal and production inputs
 

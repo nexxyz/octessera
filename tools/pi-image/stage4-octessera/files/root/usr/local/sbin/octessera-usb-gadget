@@ -167,6 +167,10 @@ bind_udc_unlocked() {
 
 setup_unlocked() (
   set -eu
+  if [ -e "$STORAGE_STATE" ] || [ -L "$STORAGE_STATE" ]; then
+    log "setup refused because SD2 transfer is active"
+    exit 1
+  fi
   require_gadget_role || exit 1
   modprobe dwc2 >/dev/null 2>&1 || true
   modprobe libcomposite >/dev/null 2>&1 || true

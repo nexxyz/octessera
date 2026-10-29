@@ -2,6 +2,69 @@
 set -eu
 
 BOOT_ROOT=${OCTESSERA_USB_ROLE_BOOT_ROOT:-}
+SYS_ROOT=${OCTESSERA_USB_ROLE_SYS_ROOT:-}
+DWC2_DRIVER=$SYS_ROOT/sys/bus/platform/drivers/dwc2
+UDC_ROOT=$SYS_ROOT/sys/class/udc
+GADGET_HELPER=${OCTESSERA_USB_GADGET_HELPER:-/usr/local/sbin/octessera-usb-gadget}
+LOG=octessera-usb-role
+
+log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
+live_fail() { log "live switch failed: $*; the next boot applies the saved role"; exit 1; }
+
+bound_controller() {
+    controller=
+    for path in "$DWC2_DRIVER"/*.usb; do
+        [ -L "$path" ] || continue
+        [ -z "$controller" ] || live_fail "more than one controller is bound to dwc2"
+        controller=${path##*/}
+    done
+    [ -n "$controller" ] || live_fail "no controller is bound to dwc2"
+    printf '%s\n' "$controller"
+}
+
+overlay_dir() {
+    prefix=$(sed -n 's/^overlay_prefix=//p' "$config_path" | tail -n 1)
+    case "$prefix" in
+        */) ;;
+        *) live_fail "boot config must set a directory overlay_prefix" ;;
+    esac
+    dir="$(dirname "$config_path")/${prefix%/}"
+    [ -f "$dir/dwc2.dtbo" ] || live_fail "missing $dir/dwc2.dtbo"
+    printf '%s\n' "$dir"
+}
+
+wait_for_udc() {
+    i=0
+    while [ "$i" -lt 20 ]; do
+        [ -e "$UDC_ROOT/$1" ] && return 0
+        i=$((i+1))
+        sleep 0.1
+    done
+    return 1
+}
+
+apply_live_role() {
+    controller=$(bound_controller) || exit 1
+    live_role=host
+    [ ! -e "$UDC_ROOT/$controller" ] || live_role=gadget
+    if [ "$live_role" != "$role_action" ]; then
+        overlays=$(overlay_dir) || exit 1
+        dr_mode=host
+        [ "$role_action" = host ] || dr_mode=peripheral
+        if [ "$role_action" = host ]; then
+            "$GADGET_HELPER" teardown || live_fail "USB gadget teardown failed"
+        fi
+        printf '%s\n' "$controller" > "$DWC2_DRIVER/unbind" || live_fail "could not unbind $controller from dwc2"
+        dtoverlay -r dwc2 >/dev/null 2>&1 || true
+        dtoverlay -d "$overlays" dwc2 "dr_mode=$dr_mode" || live_fail "could not load dwc2 dr_mode=$dr_mode from $overlays"
+        printf '%s\n' "$controller" > "$DWC2_DRIVER/bind" || live_fail "could not bind $controller to dwc2"
+        log "switched $controller to dr_mode=$dr_mode"
+    fi
+    if [ "$role_action" = gadget ]; then
+        wait_for_udc "$controller" || live_fail "$controller did not register a USB device controller"
+        "$GADGET_HELPER" setup || live_fail "USB gadget setup failed"
+    fi
+}
 
 config_path() {
     preferred="$BOOT_ROOT/boot/firmware/config.txt"
@@ -27,7 +90,8 @@ case "${1:-}" in
 esac
 
 config_path=$(config_path)
-exec python3 - "$config_path" "$role_action" <<'PY'
+status=0
+python3 - "$config_path" "$role_action" <<'PY' || status=$?
 import os
 import re
 import stat
@@ -195,3 +259,7 @@ if directory is not None:
         except OSError as error:
             print(f"octessera-usb-role: directory sync close after commit failed: {error}", file=sys.stderr)
 PY
+if [ "$status" != 0 ] || [ "$role_action" = is-gadget ] || { [ -n "$BOOT_ROOT" ] && [ -z "$SYS_ROOT" ]; }; then
+    exit "$status"
+fi
+apply_live_role

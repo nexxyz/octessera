@@ -53,6 +53,7 @@ if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:
     echo 'Raspberry USB role sudoers rule is broader than the exact role commands.' >&2
     exit 1
 fi
+printf '%s\n' 'pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-gadget storage-start, /usr/local/sbin/octessera-usb-gadget storage-stop, /usr/local/sbin/octessera-usb-gadget setup' | cmp -s - "$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-storage"
 
 for required_line in \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
