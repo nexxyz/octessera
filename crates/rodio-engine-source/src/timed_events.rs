@@ -9,6 +9,30 @@ use std::sync::Arc;
 use std::time::Instant;
 
 pub(crate) const EVENT_PARK_CAPACITY: usize = 64;
+
+/// Timestamped events that reached the source after their frame had been rendered, and how far
+/// behind the worst of them was; they played at the start of the block instead.
+#[derive(Debug, Default)]
+pub struct LateTimedEvents {
+    count: AtomicU64,
+    worst_frames: AtomicU64,
+}
+
+impl LateTimedEvents {
+    pub fn count(&self) -> u64 {
+        self.count.load(Ordering::Relaxed)
+    }
+
+    /// The largest lateness in frames since the previous call.
+    pub fn take_worst_frames(&self) -> u64 {
+        self.worst_frames.swap(0, Ordering::Relaxed)
+    }
+
+    fn record(&self, frames_late: u64) {
+        self.count.fetch_add(1, Ordering::Relaxed);
+        self.worst_frames.fetch_max(frames_late, Ordering::Relaxed);
+    }
+}
 const NANOS_PER_SECOND: i128 = 1_000_000_000;
 const NO_ANCHOR: i128 = i128::MAX;
 
@@ -170,7 +194,7 @@ impl OutputClock {
 pub(crate) enum Placement {
     Now(u32),
     Park(u64),
-    Late,
+    Late(u64),
 }
 
 /// The output frames the block rendered by this refill will play.
@@ -193,7 +217,7 @@ impl EventWindow {
 
     pub(crate) fn place_frame(&self, frame: i128) -> Placement {
         if frame < i128::from(self.start) {
-            Placement::Late
+            Placement::Late((i128::from(self.start) - frame) as u64)
         } else if frame < i128::from(self.end) {
             Placement::Now((frame - i128::from(self.start)) as u32)
         } else {
@@ -292,7 +316,7 @@ pub(crate) struct TimedEvents {
     pub(crate) clock: OutputClock,
     pub(crate) window: EventWindow,
     pub(crate) park: EventPark,
-    pub(crate) late_events: SourceOwned<Arc<AtomicU64>>,
+    pub(crate) late_events: SourceOwned<Arc<LateTimedEvents>>,
 }
 
 impl TimedEvents {
@@ -307,8 +331,8 @@ impl TimedEvents {
         }
     }
 
-    pub(crate) fn count_late(&self) {
-        self.late_events.fetch_add(1, Ordering::Relaxed);
+    pub(crate) fn count_late(&self, frames_late: u64) {
+        self.late_events.record(frames_late);
     }
 
     pub(crate) fn open_window(&mut self, lead_frames: usize, frames: usize) {

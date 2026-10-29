@@ -71,7 +71,7 @@ pub(crate) struct SourceOwnedDropState {
     pub(crate) retired_backlog: Option<RetiredAudioBacklog>,
     pub(crate) emergency_retirement: Option<RetiredAudioItem>,
     pub(crate) mirror_producers: PcmMirrorProducers,
-    pub(crate) late_timed_events: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    pub(crate) late_timed_events: std::sync::Arc<crate::LateTimedEvents>,
     #[cfg(feature = "routing-tree-executor")]
     pub(crate) worker_runtime: Option<SourceWorkerRuntime>,
     #[cfg(test)]

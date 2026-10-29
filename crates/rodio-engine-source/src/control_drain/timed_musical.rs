@@ -14,8 +14,12 @@ impl ControlDrain<'_> {
         while let Some((frame, event)) = timed.park.pop_due(timed.window.end()) {
             let offset = match timed.window.place_frame(i128::from(frame)) {
                 Placement::Now(offset) => offset,
-                Placement::Late | Placement::Park(_) => {
-                    timed.count_late();
+                Placement::Late(frames_late) => {
+                    timed.count_late(frames_late);
+                    0
+                }
+                Placement::Park(_) => {
+                    timed.count_late(0);
                     0
                 }
             };
@@ -52,8 +56,8 @@ impl ControlDrain<'_> {
                 );
                 return;
             }
-            Placement::Late => {
-                timed.count_late();
+            Placement::Late(frames_late) => {
+                timed.count_late(frames_late);
                 0
             }
         };

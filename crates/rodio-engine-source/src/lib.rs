@@ -52,11 +52,11 @@ use source_worker::{EngineSourceMode, EngineSourceWorkerState};
 pub use source_worker::{EngineSourceWorkerShutdownError, EngineSourceWorkerShutdownOwner};
 use source_worker_reaper::SourceShutdownEnvelope;
 pub use source_worker_reaper::SOURCE_REAPER_THREAD_NAME;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 pub use telemetry::{audio_load_status_channel, AudioLoadStatusReceiver, AudioLoadStatusSender};
 use telemetry::{DrainedControlEvents, EngineTelemetry};
+pub use timed_events::LateTimedEvents;
 use timed_events::TimedEvents;
 
 const MIN_BLOCK_FRAMES: usize = 32;
@@ -352,7 +352,7 @@ impl EngineSource {
     }
 
     /// Shares the count of timestamped events that arrived after their frame had been rendered.
-    pub fn set_late_timed_events_counter(&mut self, counter: Arc<AtomicU64>) {
+    pub fn set_late_timed_events_counter(&mut self, counter: Arc<timed_events::LateTimedEvents>) {
         self.timed.late_events = SourceOwned::new(counter);
     }
 

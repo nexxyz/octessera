@@ -1,5 +1,4 @@
 use super::*;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -76,13 +75,13 @@ fn a_parked_inline_note_starts_on_its_frame_two_blocks_later() {
         rendered[target * 2..],
         expected[2 * BLOCK * 2..rendered.len() - OFFSET * 2]
     );
-    assert_eq!(timed.timed.late_events.load(Ordering::Relaxed), 0);
+    assert_eq!(timed.timed.late_events.count(), 0);
 }
 
 #[test]
 fn an_untimed_or_late_note_plays_at_the_block_start_and_late_ones_are_counted() {
     let (tx, mut late) = inline_source();
-    let late_events = Arc::new(AtomicU64::new(0));
+    let late_events = Arc::new(crate::LateTimedEvents::default());
     late.set_late_timed_events_counter(Arc::clone(&late_events));
     let mut output = SteadyOutput::new();
     let mut rendered = output.render(&mut late, 2);
@@ -96,8 +95,8 @@ fn an_untimed_or_late_note_plays_at_the_block_start_and_late_ones_are_counted() 
     expected.extend(reference.render(&mut untimed, 2));
 
     assert_eq!(rendered, expected);
-    assert_eq!(late_events.load(Ordering::Relaxed), 1);
-    assert_eq!(untimed.timed.late_events.load(Ordering::Relaxed), 0);
+    assert_eq!(late_events.count(), 1);
+    assert_eq!(untimed.timed.late_events.count(), 0);
 }
 
 #[test]
@@ -137,7 +136,7 @@ fn a_full_park_holds_further_musical_events_in_the_queue() {
 
     assert!(!source.timed.park.has_due(u64::MAX));
     assert!(source.control_rx.try_recv_musical().is_err());
-    assert_eq!(source.timed.late_events.load(Ordering::Relaxed), 0);
+    assert_eq!(source.timed.late_events.count(), 0);
 }
 
 #[cfg(feature = "routing-tree-executor")]
@@ -168,5 +167,5 @@ fn a_routing_tree_note_starts_on_its_frame_in_the_block_rendered_ahead() {
         let reference = expected[3 * BLOCK * 2 + index];
         assert!((sample - reference).abs() < 1.0e-6, "sample {index}");
     }
-    assert_eq!(timed.timed.late_events.load(Ordering::Relaxed), 0);
+    assert_eq!(timed.timed.late_events.count(), 0);
 }

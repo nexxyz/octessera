@@ -129,8 +129,11 @@ fn a_window_places_events_now_parked_or_late() {
         inline.place(at(start + BLOCK as u64)),
         Placement::Park(start + BLOCK as u64)
     );
-    assert_eq!(inline.place(at(start - 1)), Placement::Late);
-    assert_eq!(lookahead.place(at(start + 37)), Placement::Late);
+    assert_eq!(inline.place(at(start - 1)), Placement::Late(1));
+    assert_eq!(
+        lookahead.place(at(start + 37)),
+        Placement::Late(BLOCK as u64 - 37)
+    );
     assert_eq!(
         lookahead.place(at(start + BLOCK as u64 + 5)),
         Placement::Now(5)
