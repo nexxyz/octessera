@@ -403,7 +403,7 @@ fn orange_playing_save_as_uses_shared_worker_and_keeps_audio_pulses_live() {
         },
     )
     .unwrap();
-    HostAdapter::handle_midi_message(&mut adapter, &[0x90, 60, 100]).unwrap();
+    HostAdapter::handle_midi_message(&mut adapter, &[0x90, 60, 100], None).unwrap();
     assert_eq!(
         playback.last_status().unwrap().transport,
         RuntimeTransportState::Playing

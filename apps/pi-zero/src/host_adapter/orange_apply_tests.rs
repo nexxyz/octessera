@@ -188,9 +188,10 @@ fn pending_apply_suppresses_later_musical_output() {
             velocity: 100,
             duration_ms: None,
         },
+        None,
     )
     .unwrap();
-    HostAdapter::handle_midi_message(&mut adapter, &[0x90, 60, 100]).unwrap();
+    HostAdapter::handle_midi_message(&mut adapter, &[0x90, 60, 100], None).unwrap();
     assert!(event_rx.try_recv().is_err());
     let _ = std::fs::remove_dir_all(root);
 }
@@ -215,9 +216,10 @@ fn pending_reboot_suppresses_later_musical_output() {
             velocity: 100,
             duration_ms: None,
         },
+        None,
     )
     .unwrap();
-    HostAdapter::handle_midi_message(&mut adapter, &[0x90, 60, 100]).unwrap();
+    HostAdapter::handle_midi_message(&mut adapter, &[0x90, 60, 100], None).unwrap();
     assert!(event_rx.try_recv().is_err());
     let _ = std::fs::remove_dir_all(root);
 }
