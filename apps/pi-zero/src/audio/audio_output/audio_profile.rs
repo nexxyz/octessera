@@ -12,7 +12,7 @@ pub(crate) fn sequenced_output_delay(optimization: AudioOptimization) -> Duratio
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     let micros = match optimization {
         AudioOptimization::Latency => 4_500,
-        AudioOptimization::Capacity => 10_000,
+        AudioOptimization::Capacity => 11_000,
     };
     Duration::from_micros(micros)
 }
