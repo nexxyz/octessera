@@ -33,12 +33,4 @@ impl NativeRunner {
         };
         self.menu.set_enum_value_for_key("sound.optimizeFor", value);
     }
-
-    pub(super) fn menu_jack_audio_disabled(&self) -> bool {
-        self.jack_audio_required
-            && self
-                .menu
-                .value_for_key("audioOutputs.dac")
-                .is_some_and(|value| value == "false")
-    }
 }

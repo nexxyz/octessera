@@ -57,17 +57,6 @@ impl AudioOutputSet {
 }
 
 impl super::NativeRunner {
-    pub(super) fn audio_outputs_from_menu(&self) -> Option<Result<AudioOutputSet, &'static str>> {
-        let dac = if self.jack_audio_required {
-            true
-        } else {
-            self.menu.value_for_key("audioOutputs.dac")? == "true"
-        };
-        let usb = self.menu.value_for_key("audioOutputs.usb")? == "true";
-        let hdmi = self.menu.value_for_key("audioOutputs.hdmi")? == "true";
-        Some(AudioOutputSet::from_flags(dac, usb, hdmi))
-    }
-
     pub(super) fn validate_audio_outputs(&self) -> Result<(), String> {
         if self.jack_audio_required && !self.audio_outputs.dac() {
             return Err(JACK_AUDIO_REQUIRED_MESSAGE.into());

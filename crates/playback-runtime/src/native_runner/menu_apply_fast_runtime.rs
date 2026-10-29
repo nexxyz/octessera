@@ -1,7 +1,7 @@
 use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
-use super::NativeRunner;
+use super::{AudioOutputSet, NativeRunner};
 use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 
 impl NativeRunner {
@@ -21,7 +21,7 @@ impl NativeRunner {
                 bool_changed(&mut runner.midi_respond_to_start_stop, value)
             })),
             "audioOutputs.dac" | "audioOutputs.usb" | "audioOutputs.hdmi" => {
-                Some(self.fast_audio_outputs_menu_key())
+                Some(self.fast_audio_outputs_menu_key(key))
             }
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
             "usb.dataRole" => Some(self.fast_usb_data_role_menu_key()),
@@ -161,33 +161,25 @@ impl NativeRunner {
         true
     }
 
-    fn fast_audio_outputs_menu_key(&mut self) -> bool {
-        let Some(next) = self.audio_outputs_from_menu() else {
+    fn fast_audio_outputs_menu_key(&mut self, key: &str) -> bool {
+        let Some(value) = self.menu.value_for_key(key).map(|value| value == "true") else {
             return false;
         };
-        let Ok(next) = next else {
-            let jack_audio_disabled = self.menu_jack_audio_disabled();
-            self.restore_audio_outputs_menu_values();
-            if jack_audio_disabled {
-                self.show_toast(super::JACK_AUDIO_REQUIRED_MESSAGE);
-            } else {
-                self.show_toast("Keep one audio output on");
-            }
-            return true;
+        let current = self.audio_outputs;
+        let (dac, usb, hdmi) = match key {
+            "audioOutputs.dac" => (
+                value || self.jack_audio_required,
+                current.usb(),
+                current.hdmi(),
+            ),
+            "audioOutputs.usb" => (current.dac(), value, current.hdmi()),
+            _ => (current.dac(), current.usb(), value),
         };
-        if self.jack_audio_required && !next.dac() {
-            self.restore_audio_outputs_menu_values();
-            self.show_toast(super::JACK_AUDIO_REQUIRED_MESSAGE);
-            return true;
-        }
-        if next == self.audio_outputs {
-            return true;
-        }
-        if !next.dac() && !next.usb() && !next.hdmi() {
+        let Ok(next) = AudioOutputSet::from_flags(dac, usb, hdmi) else {
             self.restore_audio_outputs_menu_values();
             self.show_toast("Keep one audio output on");
             return true;
-        }
+        };
         if value_changed(&mut self.audio_outputs, next) {
             self.mark_system_dirty();
         }

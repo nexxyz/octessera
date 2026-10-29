@@ -1,6 +1,7 @@
 use super::*;
 use crate::platform_service::dispatch_midi_effect_messages;
 use playback_runtime::{HostMessage, MidiPort, RuntimePlatformEffect, RuntimeStoreResult};
+use std::time::Duration;
 
 fn test_gadget_port_names() -> (Vec<String>, Vec<String>) {
     (
@@ -97,7 +98,7 @@ fn a_remembered_host_port_connects_when_it_is_plugged_in() {
     assert!(!host.midi_output_connected);
 
     host.set_test_backend(["Keyboard".to_string()], [], [Ok(())]);
-    host.port_watch.assume_known(vec!["midiC9D0".into()]);
+    host.port_watch.assume_known(vec![("midiC9D0".into(), 1)]);
     host.reconnect_if_ports_changed(Instant::now());
 
     assert!(host.midi_output_connected);
@@ -113,12 +114,72 @@ fn the_gadget_port_reconnects_after_a_gadget_rebuild() {
 
     let (output_names, input_names) = test_gadget_port_names();
     host.set_test_backend(output_names, input_names, [Ok(()), Ok(())]);
-    host.port_watch.assume_known(vec!["midiC9D0".into()]);
+    host.port_watch.assume_known(vec![("midiC9D0".into(), 1)]);
     host.reconnect_if_ports_changed(Instant::now());
 
     assert!(host.midi_output_connected);
     assert!(host.midi_input_connected);
     assert_eq!(host.selection_status(Ok(())), Some((true, None)));
+}
+
+#[test]
+fn the_gadget_port_reconnects_when_it_returns_after_a_teardown() {
+    let (output_names, input_names) = test_gadget_port_names();
+    let mut host = MidiHost::new_with_test_backend(
+        Arc::new(|_| {}),
+        true,
+        output_names.clone(),
+        input_names.clone(),
+        [Ok(()), Ok(())],
+    );
+    assert_eq!(host.select_output(None), Ok(()));
+    assert_eq!(host.select_input(None), Ok(()));
+    let start = Instant::now();
+
+    host.set_test_backend(Vec::new(), Vec::new(), []);
+    host.port_watch.assume_known(vec![("midiC1D0".into(), 1)]);
+    host.reconnect_if_ports_changed(start);
+    assert!(!host.midi_output_connected && !host.midi_input_connected);
+
+    host.set_test_backend(output_names, input_names, [Ok(()), Ok(())]);
+    host.port_watch.assume_known(vec![("midiC1D0".into(), 1)]);
+    host.reconnect_if_ports_changed(start + Duration::from_secs(1));
+    assert!(host.midi_output_connected && host.midi_input_connected);
+    assert_eq!(host.selection_status(Ok(())), Some((true, None)));
+}
+
+#[test]
+fn a_gadget_port_listed_after_its_device_node_still_connects() {
+    let mut host =
+        MidiHost::new_with_test_backend(Arc::new(|_| {}), false, Vec::new(), Vec::new(), []);
+    host.set_usb_midi_out_enabled(true);
+    assert!(!host.midi_output_connected);
+    let start = Instant::now();
+    host.port_watch.assume_known(vec![("midiC1D0".into(), 1)]);
+    host.reconnect_if_ports_changed(start);
+    assert!(!host.midi_output_connected);
+
+    let (output_names, input_names) = test_gadget_port_names();
+    host.set_test_backend(output_names, input_names, [Ok(()), Ok(())]);
+    host.reconnect_if_ports_changed(start + Duration::from_secs(1));
+    assert!(host.midi_output_connected && host.midi_input_connected);
+}
+
+#[test]
+fn a_gadget_that_never_appears_stops_being_retried() {
+    let mut host =
+        MidiHost::new_with_test_backend(Arc::new(|_| {}), false, Vec::new(), Vec::new(), []);
+    host.set_usb_midi_out_enabled(true);
+    let start = Instant::now();
+    for second in 1..=u64::from(GADGET_APPEAR_CHECKS) {
+        host.reconnect_if_ports_changed(start + Duration::from_secs(second));
+    }
+    assert_eq!(host.gadget_appear_checks, 0);
+
+    let (output_names, input_names) = test_gadget_port_names();
+    host.set_test_backend(output_names, input_names, [Ok(()), Ok(())]);
+    host.reconnect_if_ports_changed(start + Duration::from_secs(60));
+    assert!(!host.midi_output_connected);
 }
 
 #[test]
