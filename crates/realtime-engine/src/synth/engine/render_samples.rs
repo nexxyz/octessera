@@ -27,9 +27,11 @@ impl SynthEngine {
                 return;
             };
             if voice.active && matches(voice) {
-                voice
-                    .shape
-                    .begin_release(&self.sample_banks[slot].shape, self.sample_rate);
+                voice.shape.release_after(
+                    &self.sample_banks[slot].shape,
+                    self.event_frame_offset,
+                    self.sample_rate,
+                );
             }
         }
         self.sample_voice_pool.compact_slot_lanes(slot);
@@ -250,6 +252,7 @@ impl SynthEngine {
                 return SlotFrameOutput::default();
             };
             debug_assert_eq!(voice.instrument_slot as usize, slot);
+            voice.shape.tick_pending_release(self.sample_rate);
             let sample = if voice.start_delay > 0 {
                 voice.start_delay -= 1;
                 0.0

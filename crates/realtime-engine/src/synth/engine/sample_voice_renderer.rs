@@ -60,8 +60,15 @@ pub(super) fn render_sample_voice_block(
     } else {
         0
     };
-    let rendered =
-        lead + render_sample_source_block(voice, frames - lead, sample_rate, &mut samples[lead..]);
+    let release = voice.shape.release_frame_in_block(frames);
+    let split = release.map_or(frames, |release| release.max(lead));
+    let mut rendered =
+        lead + render_sample_source_block(voice, split - lead, sample_rate, &mut samples[lead..]);
+    if release.is_some() {
+        voice.shape.begin_pending_release(sample_rate);
+        rendered +=
+            render_sample_source_block(voice, frames - split, sample_rate, &mut samples[split..]);
+    }
     let Some(faded) = voice.declick.finish_block(
         &mut voice.last_output,
         &mut samples[..rendered],
