@@ -123,7 +123,8 @@ audio buffering adds about 4 ms on the Orange and 9 ms on the Raspberry, plus a
 couple of milliseconds to read the pad. Capacity renders ahead so it can share
 the work across two cores, which brings the buffering to about 12 ms on the
 Orange and 17 ms on the Raspberry. That's fine for most playing, though you may
-feel it on fast finger drumming. The mode change applies after a restart.
+feel it on fast finger drumming. Changing the mode restarts just the Octessera
+app, not the whole board: a few seconds of silence and you're back.
 
 ### Playing in front of people
 

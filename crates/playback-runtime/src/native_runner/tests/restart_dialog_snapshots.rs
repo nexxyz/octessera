@@ -16,6 +16,7 @@ const HOST_RESTART_LINES: [&str; 5] = [
 ];
 const SAVE_OPTIONS: [&str; 3] = ["Cancel", "Save this one", "Save System"];
 const RESTART_OPTIONS: [&str; 2] = ["Continue", "Reboot now"];
+const APP_RESTART_OPTIONS: [&str; 2] = ["Continue", "Restart now"];
 
 fn host_runner(auto_save_default: bool) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
@@ -179,13 +180,13 @@ fn non_host_save_snapshot_keeps_existing_dialog_at_each_cursor() {
 }
 
 #[test]
-fn non_host_restart_snapshot_keeps_existing_dialog_at_each_cursor() {
+fn perf_mode_restart_snapshot_offers_app_restart_at_each_cursor() {
     let mut runner = non_host_restart_choice();
-    for cursor in 0..RESTART_OPTIONS.len() {
+    for cursor in 0..APP_RESTART_OPTIONS.len() {
         assert_dialog_snapshot(
             &mut runner,
-            &["System saved.", "Reboot to apply?"],
-            &RESTART_OPTIONS,
+            &["System saved.", "Restart the app", "to apply?"],
+            &APP_RESTART_OPTIONS,
             cursor,
         );
     }

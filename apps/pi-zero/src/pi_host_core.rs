@@ -312,6 +312,7 @@ pub(crate) fn shutdown_pending_messages(request: &RuntimePlatformRequest) -> Vec
     match &request.effect {
         RuntimePlatformEffect::Reboot
         | RuntimePlatformEffect::Shutdown
+        | RuntimePlatformEffect::RestartApp
         | RuntimePlatformEffect::StoreSaveDefault { .. }
         | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. } => vec![failure_message(
             request,

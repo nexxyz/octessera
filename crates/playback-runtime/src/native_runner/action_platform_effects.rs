@@ -102,7 +102,7 @@ impl NativeRunner {
                 .strip_prefix("preset.delete:")
                 .map(|name| RuntimePlatformEffect::StoreDeletePreset { name: name.into() }),
             "midi.panic" => Some(RuntimePlatformEffect::MidiPanic),
-            "system.reboot" | "system.shutdown" => {
+            "system.reboot" | "system.shutdown" | "system.restartApp" => {
                 match super::system_persistence::SystemPersistenceState::patch_document(self) {
                     Ok(payload) => Some(RuntimePlatformEffect::StoreSaveRecovery { payload }),
                     Err(error) => {

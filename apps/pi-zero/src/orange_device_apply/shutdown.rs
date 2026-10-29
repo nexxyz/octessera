@@ -23,9 +23,11 @@ where
     F: FnOnce() -> OrangePowerRequestOutcome,
 {
     match request {
-        PowerRequest::Reboot | PowerRequest::Shutdown => Err(OrangeRunError::Ordinary(
-            "ordinary power requests use the shared power lifecycle".into(),
-        )),
+        PowerRequest::Reboot | PowerRequest::Shutdown | PowerRequest::RestartApp => {
+            Err(OrangeRunError::Ordinary(
+                "ordinary power requests use the shared power lifecycle".into(),
+            ))
+        }
         PowerRequest::ApplyDeviceConfig(transaction) => {
             let panic_error = host.panic_external_midi().err();
             let silence_error = host.silence_internal_audio().err();
@@ -62,7 +64,9 @@ pub(crate) fn abort_shutdown_request<H: OrangeApplyHost>(
     host: &mut H,
 ) -> OrangeRunError {
     match request {
-        PowerRequest::Reboot | PowerRequest::Shutdown => OrangeRunError::Ordinary(runtime_error),
+        PowerRequest::Reboot | PowerRequest::Shutdown | PowerRequest::RestartApp => {
+            OrangeRunError::Ordinary(runtime_error)
+        }
         PowerRequest::ApplyDeviceConfig(transaction) => {
             let panic_error = host.panic_external_midi().err();
             let silence_error = host.silence_internal_audio().err();

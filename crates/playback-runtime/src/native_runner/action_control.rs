@@ -349,15 +349,17 @@ impl NativeRunner {
         &mut self,
         action_type: &str,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
-        if matches!(action_type, "system.reboot" | "system.shutdown")
-            && (self.pending.system_persistence.has_pending_save()
-                || self.pending.system_persistence.has_completed_auto_save())
+        if matches!(
+            action_type,
+            "system.reboot" | "system.shutdown" | "system.restartApp"
+        ) && (self.pending.system_persistence.has_pending_save()
+            || self.pending.system_persistence.has_completed_auto_save())
         {
             self.display.confirm_dialog = None;
             self.show_toast("System save pending, try again");
             return Ok(None);
         }
-        if action_type == "system.reboot" {
+        if action_type != "system.shutdown" {
             if let Some(message) = self.reboot_blocked_by_pending_saves() {
                 self.display.confirm_dialog = None;
                 self.show_toast(message);
@@ -370,17 +372,13 @@ impl NativeRunner {
             std::time::Instant::now()
                 + std::time::Duration::from_millis(super::OLED_SHUTDOWN_SPLASH_FAILSAFE_MS),
         );
-        if action_type == "system.reboot" {
-            self.show_toast("Rebooting");
-        } else {
-            self.show_toast("Shutting down");
-        }
-        self.outbox
-            .push_platform_effect(if action_type == "system.reboot" {
-                RuntimePlatformEffect::Reboot
-            } else {
-                RuntimePlatformEffect::Shutdown
-            });
+        let (toast, effect) = match action_type {
+            "system.reboot" => ("Rebooting", RuntimePlatformEffect::Reboot),
+            "system.restartApp" => ("Restarting", RuntimePlatformEffect::RestartApp),
+            _ => ("Shutting down", RuntimePlatformEffect::Shutdown),
+        };
+        self.show_toast(toast);
+        self.outbox.push_platform_effect(effect);
         self.platform_effect_for_action(action_type)
     }
 

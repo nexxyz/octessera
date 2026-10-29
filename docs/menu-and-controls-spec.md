@@ -693,7 +693,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - `System > Saves > System > Save System` is an optional explicit flush; `Load System` loads local
   device settings without stopping music or silently rebooting. Restart-sensitive settings save
   through the confirmed Apply flow ([system.md](menu-tree/system.md#restart-sensitive-settings)),
-  which writes only System settings and keeps unsaved music.
+  which writes only System settings and keeps unsaved music. Its `Restart now` restarts only the
+  app when Perf. Mode is the only changed restart-sensitive value, and reboots otherwise.
 - Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up
   is pending. An allowed Shutdown keeps Patch-only recovery.
 - `Auto Save` and `Backups` under `System > Saves > Default` govern the default patch in

@@ -1,7 +1,28 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PowerAction {
     Reboot,
     Shutdown,
+    RestartApp,
+}
+
+/// Exit status that makes systemd start the app again on both boards: Raspberry
+/// restarts always, Orange restarts on failure except status 78.
+const APP_RESTART_EXIT_STATUS: u8 = 75;
+
+static APP_RESTART_SUBMITTED: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn submit_app_restart() {
+    APP_RESTART_SUBMITTED.store(true, Ordering::SeqCst);
+}
+
+pub(crate) fn process_exit_code() -> std::process::ExitCode {
+    if APP_RESTART_SUBMITTED.load(Ordering::SeqCst) {
+        std::process::ExitCode::from(APP_RESTART_EXIT_STATUS)
+    } else {
+        std::process::ExitCode::SUCCESS
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -190,7 +211,11 @@ mod tests {
 
     #[test]
     fn ordinary_reboot_and_shutdown_have_the_same_order() {
-        for action in [PowerAction::Reboot, PowerAction::Shutdown] {
+        for action in [
+            PowerAction::Reboot,
+            PowerAction::Shutdown,
+            PowerAction::RestartApp,
+        ] {
             let mut callbacks = TraceCallbacks::default();
             let mut lifecycle = PowerLifecycle::default();
             assert_eq!(

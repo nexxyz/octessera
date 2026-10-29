@@ -97,12 +97,14 @@ pub(crate) fn run_prepared_runtime(
             Ok(()),
             Some(
                 request @ (crate::host_adapter::PowerRequest::Reboot
-                | crate::host_adapter::PowerRequest::Shutdown),
+                | crate::host_adapter::PowerRequest::Shutdown
+                | crate::host_adapter::PowerRequest::RestartApp),
             ),
         ) => {
             let action = match request {
                 crate::host_adapter::PowerRequest::Reboot => PowerAction::Reboot,
                 crate::host_adapter::PowerRequest::Shutdown => PowerAction::Shutdown,
+                crate::host_adapter::PowerRequest::RestartApp => PowerAction::RestartApp,
                 crate::host_adapter::PowerRequest::ApplyDeviceConfig(_) => {
                     unreachable!("ordinary power branch excludes device apply")
                 }

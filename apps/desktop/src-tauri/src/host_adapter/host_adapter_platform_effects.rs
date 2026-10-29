@@ -213,6 +213,11 @@ impl DesktopPlaybackHostAdapter {
             RuntimePlatformEffect::UpdateCheck => Ok(vec![HostMessage::RuntimeResult {
                 result: open_releases_page(),
             }]),
+            RuntimePlatformEffect::RestartApp => Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::RuntimeFailure {
+                    error: request.unsupported_facts("App restart is Pi-only".into()),
+                },
+            }]),
             RuntimePlatformEffect::BluetoothScan { .. }
             | RuntimePlatformEffect::BluetoothDevice { .. } => {
                 Ok(vec![HostMessage::RuntimeResult {

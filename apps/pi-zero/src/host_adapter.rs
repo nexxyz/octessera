@@ -56,6 +56,7 @@ pub(crate) type DeviceApplyHandoff = crate::orange_device_apply::OrangeDeviceApp
 pub enum PowerRequest {
     Reboot,
     Shutdown,
+    RestartApp,
     ApplyDeviceConfig(DeviceApplyHandoff),
 }
 
@@ -342,6 +343,9 @@ impl HostAdapter for PiHostAdapter {
             }
             RuntimePlatformEffect::Shutdown => {
                 return self.request_power(request, PowerRequest::Shutdown);
+            }
+            RuntimePlatformEffect::RestartApp => {
+                return self.request_power(request, PowerRequest::RestartApp);
             }
             RuntimePlatformEffect::AudioCommand { command } => {
                 self.handle_audio_command(command)?;

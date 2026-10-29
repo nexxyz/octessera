@@ -1,5 +1,5 @@
-//! Raspberry power requests: the ordinary reboot/shutdown lifecycle and the
-//! device-apply reboot, both ending in a systemctl/reboot command.
+//! Raspberry power requests: the ordinary reboot/shutdown/app-restart lifecycle
+//! and the device-apply reboot; reboot and shutdown end in a systemctl/reboot command.
 
 use crate::host_adapter::{PiHostAdapter, PowerRequest};
 use crate::host_power_lifecycle::{publish_terminal_frame, run_ordinary_power_lifecycle};
@@ -20,10 +20,11 @@ pub(crate) fn shutdown_if_requested(
         return false;
     };
     match request {
-        PowerRequest::Reboot | PowerRequest::Shutdown => {
+        PowerRequest::Reboot | PowerRequest::Shutdown | PowerRequest::RestartApp => {
             let action = match request {
                 PowerRequest::Reboot => PowerAction::Reboot,
                 PowerRequest::Shutdown => PowerAction::Shutdown,
+                PowerRequest::RestartApp => PowerAction::RestartApp,
                 PowerRequest::ApplyDeviceConfig(()) => unreachable!(),
             };
             report_power_lifecycle_result(run_ordinary_power_lifecycle(
@@ -71,10 +72,14 @@ fn finalize_device_apply_power_request(
     true
 }
 
-fn power_pi_system(_request: PowerRequest) -> Result<(), String> {
+fn power_pi_system(request: PowerRequest) -> Result<(), String> {
+    if request == PowerRequest::RestartApp {
+        crate::power_lifecycle::submit_app_restart();
+        return Ok(());
+    }
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     {
-        let attempts = power_command_attempts(_request);
+        let attempts = power_command_attempts(request);
         let mut errors = Vec::new();
         for (command, args) in attempts {
             match std::process::Command::new(command).args(*args).status() {
@@ -87,7 +92,6 @@ fn power_pi_system(_request: PowerRequest) -> Result<(), String> {
     }
     #[cfg(not(feature = "hardware-raspberry-pi-zero-2w"))]
     {
-        let _ = _request;
         Err("power request is unavailable in this profile".into())
     }
 }
@@ -117,6 +121,7 @@ fn power_command_attempts(
             ("/usr/sbin/poweroff", &[]),
             ("/sbin/poweroff", &[]),
         ],
+        PowerRequest::RestartApp => &[],
         PowerRequest::ApplyDeviceConfig(()) => &[
             ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
             ("sudo", &["-n", "/bin/systemctl", "reboot"]),

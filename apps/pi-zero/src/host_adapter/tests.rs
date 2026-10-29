@@ -298,30 +298,35 @@ fn raspberry_power_request_requires_recovery_save_before_acceptance() {
     let full: serde_json::Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     let documents = crate::pi_store_test_support::write_pair(&root.join("store"), &full);
-    let mut adapter = PiHostAdapter::new(
-        None,
-        root.join("store"),
-        root.join("samples"),
-        Arc::new(|_| {}),
-        false,
-        UsbAudioOut::Jack,
-    );
-    let reboot = RuntimePlatformRequest::new(RuntimePlatformEffect::Reboot, "reboot".into(), None);
-    assert!(!adapter.handle_platform_effect(&reboot).unwrap().is_empty());
-    assert!(adapter.take_power_request().is_none());
+    for (effect, power_request) in [
+        (RuntimePlatformEffect::Reboot, PowerRequest::Reboot),
+        (RuntimePlatformEffect::RestartApp, PowerRequest::RestartApp),
+    ] {
+        let mut adapter = PiHostAdapter::new(
+            None,
+            root.join("store"),
+            root.join("samples"),
+            Arc::new(|_| {}),
+            false,
+            UsbAudioOut::Jack,
+        );
+        let power = RuntimePlatformRequest::new(effect, "power".into(), None);
+        assert!(!adapter.handle_platform_effect(&power).unwrap().is_empty());
+        assert!(adapter.take_power_request().is_none());
 
-    let recovery = RuntimePlatformRequest::new(
-        RuntimePlatformEffect::StoreSaveRecovery {
-            payload: documents.patch,
-        },
-        "recovery".into(),
-        None,
-    );
-    assert_eq!(adapter.handle_platform_effect(&recovery).unwrap().len(), 1);
-    assert!(adapter.handle_platform_effect(&reboot).unwrap().is_empty());
-    assert!(!adapter.handle_platform_effect(&reboot).unwrap().is_empty());
-    assert_eq!(adapter.take_power_request(), Some(PowerRequest::Reboot));
-    assert_eq!(adapter.save_recovery_for_power(), Ok(()));
+        let recovery = RuntimePlatformRequest::new(
+            RuntimePlatformEffect::StoreSaveRecovery {
+                payload: documents.patch.clone(),
+            },
+            "recovery".into(),
+            None,
+        );
+        assert_eq!(adapter.handle_platform_effect(&recovery).unwrap().len(), 1);
+        assert!(adapter.handle_platform_effect(&power).unwrap().is_empty());
+        assert!(!adapter.handle_platform_effect(&power).unwrap().is_empty());
+        assert_eq!(adapter.take_power_request(), Some(power_request));
+        assert_eq!(adapter.save_recovery_for_power(), Ok(()));
+    }
     let _ = std::fs::remove_dir_all(root);
 }
 

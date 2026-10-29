@@ -274,6 +274,12 @@ changed edit opens the native confirmed System-only Apply flow:
    `Unplug computer USB`, `before Host reboot.`, and `Audio/MIDI/SD2 off.`. Options: `Continue`
    (default) and `Reboot now`. Back means Continue.
 
+When Perf. Mode is the only restart-sensitive value that differs from what the app started with,
+step 3 instead shows `System saved.` / `Restart the app` / `to apply?` with `Continue` and
+`Restart now`. `Restart now` runs the same terminal lifecycle as Reboot with the toast
+`Restarting`, then only the Octessera app exits and systemd starts it again; the board keeps
+running. Any other restart-sensitive value saved since the app started still reboots.
+
 The save writes only System settings, never discards unsaved musical edits, and keeps unrelated
 dirty edits. Stale or failed acknowledgements never reboot or advance the persisted baseline.
 
@@ -438,8 +444,10 @@ hostname, and the explicit board profile. The desktop UI only renders the result
   shutdown/reboot snapshot and LED/OLED state, then submit the board's fixed power request. Save,
   safety, acknowledgement, and power-submission failures are typed and logged and never resume
   normal follow-ups incorrectly.
-- Toasts stay exactly `Rebooting` and `Shutting down`; the OLED frame is kept while native hardware
-  teardown completes.
+- Toasts stay exactly `Rebooting`, `Restarting` (Perf. Mode app restart), and `Shutting down`; the
+  OLED frame is kept while native hardware teardown completes.
+- An app restart submits no power request: the app exits with status 75 after the terminal frame,
+  and both boards' `octessera.service` start it again five seconds later.
 - Raspberry uses the exact noninteractive power commands allowed by
   `/etc/sudoers.d/octessera-shutdown`, with no broad `NOPASSWD` grant. Orange uses its fixed
   root-owned `/run/octessera-device-apply/reboot.sock` with exact `reboot\n` and `poweroff\n`

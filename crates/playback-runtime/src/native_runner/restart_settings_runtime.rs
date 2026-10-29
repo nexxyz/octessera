@@ -267,7 +267,10 @@ impl NativeRunner {
                 if completion.scope == DefaultSaveScope::RestartSetting {
                     self.reconcile_dirty_with_persisted_default();
                 }
-                self.display.confirm_dialog = Some(restart_choice_dialog(completion.host_role));
+                self.display.confirm_dialog = Some(restart_choice_dialog(
+                    completion.host_role,
+                    self.restart_settings.only_app_restart_pending(),
+                ));
             } else {
                 self.display.confirm_dialog = None;
                 self.display.toast = Some(NativeToast {
@@ -320,9 +323,13 @@ impl NativeRunner {
                 self.start_restart_system_save(payload, DefaultSaveScope::RestartEverything);
                 Ok(None)
             }
-            "restart.reboot" if self.restart_settings.is_restart_choice() => {
+            "restart.reboot" | "restart.app" if self.restart_settings.is_restart_choice() => {
                 self.restart_settings.continue_after_save();
-                self.start_power_action("system.reboot")
+                self.start_power_action(if action == "restart.app" {
+                    "system.restartApp"
+                } else {
+                    "system.reboot"
+                })
             }
             _ => Ok(None),
         }
@@ -415,7 +422,22 @@ fn saving_dialog() -> NativeConfirmDialog {
     }
 }
 
-fn restart_choice_dialog(host_role: bool) -> NativeConfirmDialog {
+fn restart_choice_dialog(host_role: bool, app_restart: bool) -> NativeConfirmDialog {
+    if app_restart {
+        return NativeConfirmDialog {
+            title: "Restart?".into(),
+            lines: vec![
+                "System saved.".into(),
+                "Restart the app".into(),
+                "to apply?".into(),
+            ],
+            options: vec!["Continue".into(), "Restart now".into()],
+            cursor: 0,
+            action: NativeMenuAction::PlatformEffect("restart.app".into()),
+            cancel_toast: None,
+            confirm_before_execute: false,
+        };
+    }
     NativeConfirmDialog {
         title: "Restart?".into(),
         lines: if host_role {

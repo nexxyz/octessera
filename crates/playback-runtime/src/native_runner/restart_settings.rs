@@ -17,6 +17,14 @@ pub(super) enum RestartSetting {
 }
 
 impl RestartSetting {
+    const REBOOT_REQUIRED: [Self; 5] = [
+        Self::AudioOutputDac,
+        Self::AudioOutputUsb,
+        Self::AudioOutputHdmi,
+        Self::UsbMidiOut,
+        Self::UsbDataRole,
+    ];
+
     pub(super) fn from_key(key: &str) -> Option<Self> {
         match key {
             "audioOutputs.dac" => Some(Self::AudioOutputDac),
@@ -79,6 +87,7 @@ enum RestartFlow {
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct RestartSettingsState {
     pub(super) persisted_default: Arc<Value>,
+    boot_default: Arc<Value>,
     pending_write: Option<DefaultWrite>,
     native_payload_missing: bool,
     editing: Option<RestartEdit>,
@@ -89,6 +98,7 @@ impl Default for RestartSettingsState {
     fn default() -> Self {
         Self {
             persisted_default: Arc::new(Value::Null),
+            boot_default: Arc::new(Value::Null),
             pending_write: None,
             native_payload_missing: false,
             editing: None,
@@ -99,10 +109,19 @@ impl Default for RestartSettingsState {
 
 impl RestartSettingsState {
     pub(super) fn new(persisted_default: Value) -> Self {
+        let persisted_default = Arc::new(persisted_default);
         Self {
-            persisted_default: Arc::new(persisted_default),
+            boot_default: Arc::clone(&persisted_default),
+            persisted_default,
             ..Self::default()
         }
+    }
+
+    pub(super) fn only_app_restart_pending(&self) -> bool {
+        RestartSetting::REBOOT_REQUIRED.iter().all(|setting| {
+            setting_value(&self.boot_default, *setting)
+                == setting_value(&self.persisted_default, *setting)
+        })
     }
 
     pub(super) fn update_system_baseline(&mut self, payload: Arc<Value>) {

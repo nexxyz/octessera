@@ -97,7 +97,7 @@ impl NativeRunner {
                 self.require_synchronous_action_presentation();
                 return self.execute_restart_action(action);
             }
-            if action == "restart.reboot" && confirm.cursor == 0 {
+            if matches!(action.as_str(), "restart.reboot" | "restart.app") && confirm.cursor == 0 {
                 self.require_synchronous_action_presentation();
                 self.restart_settings.continue_after_save();
                 return Ok(None);

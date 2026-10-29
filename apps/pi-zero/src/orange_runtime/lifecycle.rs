@@ -6,6 +6,10 @@ pub(crate) fn submit_orange_power(action: PowerAction) -> Result<(), String> {
     let outcome = match action {
         PowerAction::Reboot => crate::orange_reboot::request_reboot(),
         PowerAction::Shutdown => crate::orange_reboot::request_shutdown(),
+        PowerAction::RestartApp => {
+            crate::power_lifecycle::submit_app_restart();
+            return Ok(());
+        }
     };
     match outcome {
         crate::orange_reboot::OrangePowerRequestOutcome::Accepted => Ok(()),

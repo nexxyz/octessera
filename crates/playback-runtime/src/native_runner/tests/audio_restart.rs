@@ -326,7 +326,7 @@ fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_st
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot))
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot | RuntimePlatformEffect::RestartApp))
     )));
 }
 

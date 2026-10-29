@@ -242,7 +242,9 @@ fn restart_sensitive_system_apply_waits_for_patch_save_then_persists_system_only
     );
     assert!(!host.requests.iter().any(|request| matches!(
         request.effect,
-        RuntimePlatformEffect::Reboot | RuntimePlatformEffect::Shutdown
+        RuntimePlatformEffect::Reboot
+            | RuntimePlatformEffect::Shutdown
+            | RuntimePlatformEffect::RestartApp
     )));
 }
 

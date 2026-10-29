@@ -159,7 +159,7 @@ fn pin_normal_startup_thread() {
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-fn main() {
+fn main() -> std::process::ExitCode {
     let utility_mode = match utility_mode::from_process() {
         Ok(mode) => mode,
         Err(error) => {
@@ -188,10 +188,11 @@ fn main() {
         eprintln!("Orange foreground candidate failed: {error}");
         std::process::exit(error.exit_code());
     }
+    power_lifecycle::process_exit_code()
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn main() {
+fn main() -> std::process::ExitCode {
     let utility_mode = match utility_mode::from_process() {
         Ok(mode) => mode,
         Err(error) => {
@@ -201,7 +202,7 @@ fn main() {
     };
     if utility_mode == utility_mode::UtilityMode::Normal && board_profile::metadata_requested() {
         board_profile::print_build_metadata();
-        return;
+        return std::process::ExitCode::SUCCESS;
     }
     match utility_mode {
         utility_mode::UtilityMode::InteractiveHardware => {
@@ -321,6 +322,7 @@ fn main() {
         });
         raspberry_runtime::run(runtime_config, render_worker);
     }
+    power_lifecycle::process_exit_code()
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

@@ -36,52 +36,134 @@ fn failed_save_does_not_reboot_or_advance_baseline() {
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot))
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot | RuntimePlatformEffect::RestartApp))
     )));
 }
 
-#[test]
-fn successful_save_offers_reboot_and_reboot_uses_recovery_lifecycle() {
-    let mut runner = changed_optimization_runner(false);
-    let _ = commit_with_main(&mut runner);
-    let _ = choose_save_everything(&mut runner);
-    let _ = identified_save_result(&mut runner, "save-1", true);
-    assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Restart?");
-    assert_dialog_lines_fit(&runner.snapshot().unwrap());
-
-    turn_confirm(&mut runner, 1);
-    let messages = runner
+fn confirm_restart_now(runner: &mut NativeRunner) -> Vec<RuntimePlatformEffect> {
+    turn_confirm(runner, 1);
+    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_press", "id": "main" }),
             request_snapshot: None,
         })
-        .unwrap();
-    let effects: Vec<&RuntimePlatformEffect> = messages
-        .iter()
+        .unwrap()
+        .into_iter()
         .filter_map(|message| match message {
             RunnerMessage::PlatformEffects { effects } => Some(effects),
             _ => None,
         })
         .flatten()
-        .collect();
+        .collect()
+}
+
+fn restart_dialog_lines(runner: &NativeRunner) -> Vec<String> {
+    let snapshot = runner.snapshot().unwrap();
+    assert_eq!(snapshot["display"]["title"], "Restart?");
+    assert_dialog_lines_fit(&snapshot);
+    snapshot["display"]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|line| line.as_str().unwrap().to_string())
+        .collect()
+}
+
+fn count(effects: &[RuntimePlatformEffect], matches: fn(&RuntimePlatformEffect) -> bool) -> usize {
+    effects.iter().filter(|effect| matches(effect)).count()
+}
+
+#[test]
+fn perf_mode_save_offers_app_restart_through_recovery_lifecycle() {
+    let mut runner = changed_optimization_runner(false);
+    let _ = commit_with_main(&mut runner);
+    let _ = choose_save_everything(&mut runner);
+    let _ = identified_save_result(&mut runner, "save-1", true);
     assert_eq!(
-        effects
-            .iter()
-            .filter(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveRecovery { .. }))
-            .count(),
+        restart_dialog_lines(&runner),
+        [
+            "System saved.",
+            "Restart the app",
+            "to apply?",
+            "> Continue",
+            "  Restart now"
+        ]
+    );
+
+    let effects = confirm_restart_now(&mut runner);
+    assert_eq!(
+        count(&effects, |effect| matches!(
+            effect,
+            RuntimePlatformEffect::StoreSaveRecovery { .. }
+        )),
         1
     );
     assert_eq!(
-        effects
-            .iter()
-            .filter(|effect| matches!(effect, RuntimePlatformEffect::Reboot))
-            .count(),
+        count(&effects, |effect| matches!(
+            effect,
+            RuntimePlatformEffect::RestartApp
+        )),
         1
     );
-    assert!(!effects.iter().any(|effect| matches!(
-        effect,
-        RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
-    )));
+    assert_eq!(
+        count(&effects, |effect| matches!(
+            effect,
+            RuntimePlatformEffect::Reboot | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+        )),
+        0
+    );
+    assert_eq!(runner.snapshot().unwrap()["display"]["toast"], "Restarting");
+}
+
+#[test]
+fn perf_mode_saved_with_another_restart_setting_still_reboots() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        audio_optimization_capacity_available: true,
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.auto_save_default = false;
+    for key in ["audioOutputs.hdmi", "sound.optimizeFor"] {
+        assert!(runner.menu.focus_item_key(key));
+        let _ = commit_with_main(&mut runner);
+        turn_confirm(&mut runner, 1);
+        let _ = commit_with_main(&mut runner);
+        assert_eq!(
+            runner.snapshot().unwrap()["display"]["title"],
+            "Apply System"
+        );
+        if key == "audioOutputs.hdmi" {
+            let _ = commit_with_back(&mut runner);
+        }
+    }
+    let _ = choose_save_everything(&mut runner);
+    let _ = identified_save_result(&mut runner, "save-1", true);
+    assert_eq!(
+        restart_dialog_lines(&runner),
+        [
+            "System saved.",
+            "Reboot to apply?",
+            "> Continue",
+            "  Reboot now"
+        ]
+    );
+
+    let effects = confirm_restart_now(&mut runner);
+    assert_eq!(
+        count(&effects, |effect| matches!(
+            effect,
+            RuntimePlatformEffect::Reboot
+        )),
+        1
+    );
+    assert_eq!(
+        count(&effects, |effect| matches!(
+            effect,
+            RuntimePlatformEffect::RestartApp
+        )),
+        0
+    );
 }
 
 #[test]
@@ -100,6 +182,6 @@ fn continue_after_successful_save_does_not_reboot() {
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot))
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot | RuntimePlatformEffect::RestartApp))
     )));
 }

@@ -127,7 +127,9 @@ fn is_successful_manual_save_result(runner: &NativeRunner, result: &RuntimeStore
 fn order_terminal_presentation(mut messages: Vec<RunnerMessage>) -> Vec<RunnerMessage> {
     let Some(terminal) = messages.iter().position(|message| matches!(message,
         RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect,
-            crate::RuntimePlatformEffect::Shutdown | crate::RuntimePlatformEffect::Reboot))
+            crate::RuntimePlatformEffect::Shutdown
+                | crate::RuntimePlatformEffect::Reboot
+                | crate::RuntimePlatformEffect::RestartApp))
     )) else { return messages; };
     let Some(snapshot) = messages.iter().position(|message| {
         matches!(message,

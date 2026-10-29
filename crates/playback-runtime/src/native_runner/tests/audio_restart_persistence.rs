@@ -306,7 +306,7 @@ fn restart_results_require_the_unique_identified_transaction() {
     assert!(!duplicate.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot | RuntimePlatformEffect::StoreSaveRecovery { .. }))
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot | RuntimePlatformEffect::RestartApp | RuntimePlatformEffect::StoreSaveRecovery { .. }))
     )));
 }
 
@@ -380,7 +380,7 @@ fn back_during_save_and_restart_choice_only_cancels_restart_ui() {
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot))
+            if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::Reboot | RuntimePlatformEffect::RestartApp))
     )));
 }
 
