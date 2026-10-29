@@ -38,69 +38,6 @@ pub(crate) fn atomic_write_json(path: &Path, payload: &serde_json::Value) -> Res
     result
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-pub(crate) fn atomic_write_bytes(path: &Path, content: &[u8], mode: u32) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let tmp = path.with_file_name(format!(
-        ".{}.tmp-{}-{}",
-        path.file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("file"),
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
-            .as_nanos()
-    ));
-    let result = (|| {
-        let mut file = File::create(&tmp).map_err(|e| e.to_string())?;
-        set_mode(&file, mode)?;
-        file.write_all(content).map_err(|e| e.to_string())?;
-        file.sync_all().map_err(|e| e.to_string())?;
-        drop(file);
-        replace_file(&tmp, path)?;
-        let _ = sync_parent(path);
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&tmp);
-    }
-    result
-}
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[cfg(unix)]
-fn sync_parent(path: &Path) -> Result<(), String> {
-    let Some(parent) = path.parent() else {
-        return Err("atomic write path has no parent directory".into());
-    };
-    File::open(parent)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[cfg(not(unix))]
-fn sync_parent(_path: &Path) -> Result<(), String> {
-    Ok(())
-}
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[cfg(unix)]
-fn set_mode(file: &File, mode: u32) -> Result<(), String> {
-    use std::os::unix::fs::PermissionsExt;
-    file.set_permissions(std::fs::Permissions::from_mode(mode))
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-#[cfg(not(unix))]
-fn set_mode(_file: &File, _mode: u32) -> Result<(), String> {
-    Ok(())
-}
-
 #[cfg(not(windows))]
 fn replace_file(tmp: &Path, path: &Path) -> Result<(), String> {
     fs::rename(tmp, path).map_err(|e| e.to_string())

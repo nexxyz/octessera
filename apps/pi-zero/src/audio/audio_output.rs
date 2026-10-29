@@ -14,7 +14,6 @@ mod audio_load_status;
 #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
 pub(crate) use audio_load_status::drain_audio_load_status;
 mod audio_manager_construction;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod audio_optional_recovery;
 mod audio_output_open;
 mod audio_profile;
@@ -50,6 +49,7 @@ use media_recording::RecordingTap;
 use orange_audio_recovery::OrangeRecoveryController;
 use playback_runtime::AudioOutputSet;
 use playback_runtime::HostMessage;
+use rodio_engine_source::new_pcm_mirror;
 #[cfg(any(
     feature = "hardware-orange-pi-zero-2w",
     feature = "hardware-raspberry-pi-zero-2w"
@@ -57,9 +57,6 @@ use playback_runtime::HostMessage;
 use rodio_engine_source::AudioLoadStatusReceiver;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use rodio_engine_source::AudioLoadStatusSender;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use rodio_engine_source::PcmMirrorProducer;
-use rodio_engine_source::{new_pcm_mirror, PcmMirrorConsumer, PcmMirrorProducers};
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc;
 use std::sync::RwLock;
@@ -75,12 +72,6 @@ pub struct AudioManager {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     orange_dac_recovery: Option<OrangeRecoveryController>,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    orange_recovery: Vec<OrangeRecoveryController>,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    orange_profile: OrangeAudioProfile,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    side_producers: [PcmMirrorProducer; 2],
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     load_tx: AudioLoadStatusSender,
     #[cfg(any(
         feature = "hardware-orange-pi-zero-2w",
@@ -91,20 +82,12 @@ pub struct AudioManager {
     load_status_enabled: bool,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     load_status_reset_pending: bool,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     _optional_recovery: [audio_optional_recovery::OptionalRecoveryWorker; 2],
 }
 
 #[derive(Clone, Copy)]
 enum AudioOpenPolicy {
     Outputs(AudioOutputSet),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum StartupOpenAction {
-    Wait,
-    Ignore,
-    Fail,
 }
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -122,11 +105,6 @@ impl std::fmt::Display for OrangeAudioInitError {
     }
 }
 
-fn required_sink(policy: AudioOpenPolicy, sink: AudioSink) -> bool {
-    let _ = policy;
-    sink == AudioSink::Jack
-}
-
 fn require_jack_output(outputs: AudioOutputSet) -> Result<(), String> {
     outputs
         .dac()
@@ -139,23 +117,6 @@ fn mirror_index(sink: AudioSink) -> Option<usize> {
         AudioSink::Jack => None,
         AudioSink::Usb => Some(0),
         AudioSink::Hdmi => Some(1),
-    }
-}
-
-fn startup_open_action(
-    policy: AudioOpenPolicy,
-    sink: AudioSink,
-    allow_partial: bool,
-    error: &crate::audio_route::RouteOpenError,
-) -> StartupOpenAction {
-    if allow_partial && !required_sink(policy, sink) {
-        if error.is_waiting() {
-            StartupOpenAction::Wait
-        } else {
-            StartupOpenAction::Ignore
-        }
-    } else {
-        StartupOpenAction::Fail
     }
 }
 
@@ -207,8 +168,6 @@ impl AudioManager {
         }
         Self::new_with_opener(
             AudioConstructionConfig::raspberry(profile),
-            AudioSink::startup(outputs),
-            true,
             AudioOpenPolicy::Outputs(outputs),
             open_audio_sink,
             route_registry.clone(),
@@ -221,7 +180,6 @@ impl AudioManager {
         outputs: AudioOutputSet,
     ) -> Result<Self, OrangeAudioInitError> {
         require_jack_output(outputs).map_err(OrangeAudioInitError::Open)?;
-        let sinks = AudioSink::startup(outputs);
         let route_registry = new_registry(outputs);
         if let Err(error) = probe_cpal_sink(AudioSink::Jack) {
             set_status(&route_registry, AudioSink::Jack, error.status());
@@ -229,8 +187,6 @@ impl AudioManager {
         }
         Self::new_with_opener(
             AudioConstructionConfig::orange(profile),
-            sinks,
-            true,
             AudioOpenPolicy::Outputs(outputs),
             open_orange_audio_sink,
             route_registry.clone(),
@@ -264,7 +220,5 @@ impl AudioManager {
 mod audio_load_status_tests;
 #[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
 mod raspberry_audio_load_status_tests;
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-mod route_tests;
 #[cfg(test)]
 mod tests;

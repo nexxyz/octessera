@@ -1,10 +1,11 @@
 use super::{AudioOptimization, AudioOutputSet, NativeRunner, UsbDataRole, Value};
 
 impl NativeRunner {
+    /// Returns whether the document changed a setting the board applies live.
     pub(super) fn apply_system_document_preserving_patch(
         &mut self,
         system: &Value,
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
         let current = self.config_payload();
         let documents = super::split_local_system_patch_documents(&current)?;
         let full = super::compose_local_system_patch_documents(system, &documents.patch)?;
@@ -51,6 +52,11 @@ impl NativeRunner {
             return Err("USB host role conflicts with USB audio or MIDI output".into());
         }
 
+        let device_before = (
+            self.audio_outputs,
+            self.usb_midi_out_enabled,
+            self.usb_data_role,
+        );
         let before = self.configuration_aggregate();
         self.apply_system_sound_payload(runtime);
         self.dsp_config = dsp;
@@ -69,6 +75,11 @@ impl NativeRunner {
         self.enqueue_configuration_runtime_plan(plan);
         self.menu.rebuild(self.menu_config());
 
-        Ok(())
+        Ok(device_before
+            != (
+                self.audio_outputs,
+                self.usb_midi_out_enabled,
+                self.usb_data_role,
+            ))
     }
 }

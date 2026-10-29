@@ -79,13 +79,11 @@ impl SelectedOutputs {
         self.changed.notify_all();
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn wake(&self) {
         let _state = self.state.lock().unwrap_or_else(|error| error.into_inner());
         self.changed.notify_all();
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn wait_for_change(
         &self,
         seen: u64,

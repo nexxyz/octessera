@@ -17,14 +17,10 @@ impl OrangeRecoveryController {
             self.profile,
             self.sink,
             self.health.clone(),
-            (self.mode == OrangeRecoveryMode::Required)
-                .then(|| self.mix_taps.clone())
-                .flatten(),
+            self.mix_taps.clone(),
             load_tx,
             self.mirror_producers.clone(),
-            self.mirror_producer
-                .as_ref()
-                .map(rodio_engine_source::PcmMirrorProducer::new_consumer),
+            None,
         ) {
             Ok(opened) => opened,
             Err(error) => {

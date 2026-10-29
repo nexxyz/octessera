@@ -22,6 +22,8 @@ const REJECTED: &[u8] = b"rejected\n";
 #[cfg(unix)]
 const TIMEOUT: Duration = Duration::from_secs(2);
 #[cfg(unix)]
+const USB_GADGET_TIMEOUT: Duration = Duration::from_secs(10);
+#[cfg(unix)]
 const MAX_RESPONSE_BYTES: usize = 32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,9 +75,14 @@ fn request_action_at(path: &Path, request: &[u8]) -> OrangePowerRequestOutcome {
         Ok(stream) => stream,
         Err(_) => return OrangePowerRequestOutcome::NotSubmitted,
     };
+    let timeout = if request == USB_GADGET_REQUEST {
+        USB_GADGET_TIMEOUT
+    } else {
+        TIMEOUT
+    };
     if stream
-        .set_read_timeout(Some(TIMEOUT))
-        .and_then(|_| stream.set_write_timeout(Some(TIMEOUT)))
+        .set_read_timeout(Some(timeout))
+        .and_then(|_| stream.set_write_timeout(Some(timeout)))
         .is_err()
     {
         return OrangePowerRequestOutcome::NotSubmitted;

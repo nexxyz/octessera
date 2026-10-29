@@ -163,9 +163,11 @@ impl AudioStreamHealth {
             return;
         };
         if state.status != AudioStreamStatus::Terminal {
-            state.status = match self.requirement {
-                AudioStreamRequirement::Optional => AudioStreamStatus::Recovering,
-                AudioStreamRequirement::Required => AudioStreamStatus::Terminal,
+            state.status = match (&error, self.requirement) {
+                (StreamError::Unsupported(_), _) | (_, AudioStreamRequirement::Required) => {
+                    AudioStreamStatus::Terminal
+                }
+                (_, AudioStreamRequirement::Optional) => AudioStreamStatus::Recovering,
             };
         }
         self.log_rate_limited(&mut state, Instant::now(), error);
@@ -305,10 +307,9 @@ mod tests {
     }
 
     #[test]
-    fn every_optional_stream_error_is_recoverable_so_a_replugged_device_plays_again() {
+    fn optional_stream_errors_other_than_unsupported_recover_so_a_replugged_device_plays_again() {
         for error in [
             StreamError::DeviceBusy,
-            StreamError::Unsupported("unsupported".into()),
             StreamError::Fault("fault".into()),
             StreamError::BackendSpecific {
                 err: cpal::BackendSpecificError {
@@ -322,6 +323,10 @@ mod tests {
             health.clear_recoverable_fault();
             assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
         }
+        let health = AudioStreamHealth::optional("USB".into());
+        health.log(StreamError::Unsupported("unsupported".into()));
+        health.clear_recoverable_fault();
+        assert_eq!(health.external_status(), AudioStreamStatus::Terminal);
     }
 
     #[test]
@@ -349,7 +354,6 @@ mod tests {
 
             for error in [
                 StreamError::DeviceBusy,
-                StreamError::Unsupported("unsupported".into()),
                 StreamError::Fault("fault".into()),
                 StreamError::BackendSpecific {
                     err: cpal::BackendSpecificError {
@@ -361,6 +365,9 @@ mod tests {
                 optional.log(error);
                 assert_eq!(optional.external_status(), AudioStreamStatus::Recovering);
             }
+            let optional = AudioStreamHealth::optional(label.into());
+            optional.log(StreamError::Unsupported("unsupported".into()));
+            assert_eq!(optional.external_status(), AudioStreamStatus::Terminal);
         }
     }
 }

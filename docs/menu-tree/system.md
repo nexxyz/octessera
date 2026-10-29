@@ -288,9 +288,13 @@ changed edit saves System like any other System preference, shows `Applying...`,
   (Raspberry). This runs off the runtime thread.
 - The result toast is `USB ready`, `Applied` (HDMI Audio only), or
   `USB apply failed, reboot to apply`. A failed live step keeps the saved System, so the next boot
-  applies it.
-- Selecting Host turns USB Audio and USB MIDI off in the same apply. While SD2 transfer is active,
-  Host is refused with `Stop SD2 transfer before selecting Host`.
+  applies it. While an SD2 transfer is active the USB step waits with
+  `Saved, applies when SD2 stops`; stopping the transfer rebuilds the gadget from the saved System.
+- Confirming Host turns USB Audio and USB MIDI off in the same apply; scrolling through Host and
+  back within one edit changes nothing. While SD2 transfer is active, Host is refused with
+  `Stop SD2 transfer before selecting Host`.
+- Load System and a backup restore apply changed device settings the same way; a restore applies
+  them once the restored Patch is back.
 - Plug state is never an error: an unplugged computer or HDMI sink leaves its side output waiting,
   and it plays again when the device comes back.
 - Desktop shows none of these rows.

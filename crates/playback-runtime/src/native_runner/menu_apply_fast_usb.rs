@@ -23,6 +23,9 @@ impl NativeRunner {
         let Some(role) = UsbDataRole::from_menu_value(&value) else {
             return false;
         };
+        if self.menu.state.editing {
+            return true;
+        }
         if self.usb_data_role_available
             && role.is_host()
             && self.display.usb_sd_transfer_modal.is_some()

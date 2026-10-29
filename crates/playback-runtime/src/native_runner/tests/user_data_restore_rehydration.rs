@@ -149,6 +149,66 @@ pub(crate) fn successful_restore_rehydrates_live_runner() {
 }
 
 #[test]
+pub(crate) fn a_restored_device_change_applies_live_once_the_patch_is_back() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    let mut restored = runner.config_payload();
+    restored["runtimeConfig"]["audioOutputs"]["usb"] = json!(true);
+    let documents = split_system_patch_documents(&restored).unwrap();
+    let device_apply = |messages: &[RunnerMessage]| {
+        messages.iter().find_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => {
+                effects.iter().find_map(|effect| match effect {
+                    RuntimePlatformEffect::ApplyDeviceConfig { payload } => Some(payload.clone()),
+                    _ => None,
+                })
+            }
+            _ => None,
+        })
+    };
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: restore_status(RuntimeUserDataRestorePhase::Succeeded),
+        })
+        .unwrap();
+    let system_request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreLoadSystem,
+        "restore-device-system".into(),
+        None,
+    );
+    runner.register_platform_request(&system_request);
+    let system_messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::LoadSystemResult {
+                payload: Some(documents.system),
+            }
+            .with_identity(system_request.request_id, system_request.revision),
+        })
+        .unwrap();
+    assert!(device_apply(&system_messages).is_none());
+
+    let patch_request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::StoreLoadDefault,
+        "restore-device-patch".into(),
+        Some(35),
+    );
+    runner.register_platform_request(&patch_request);
+    let patch_messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::LoadDefaultResult {
+                payload: Some(documents.patch),
+            }
+            .with_identity(patch_request.request_id, patch_request.revision),
+        })
+        .unwrap();
+    let applied = device_apply(&patch_messages).expect("restored device apply");
+    assert_eq!(applied["runtimeConfig"]["audioOutputs"]["usb"], true);
+}
+
+#[test]
 pub(crate) fn failed_restore_rehydration_marks_failure_and_retries_dirty_save() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;

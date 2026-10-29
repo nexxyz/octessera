@@ -5,22 +5,13 @@ use super::{AudioSink, MixTapState, OrangeDacStatus};
 use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_route::RouteOpenError;
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
-use rodio_engine_source::{
-    AudioLoadStatusSender, PcmMirrorConsumer, PcmMirrorProducer, PcmMirrorProducers,
-};
+use rodio_engine_source::{AudioLoadStatusSender, PcmMirrorConsumer, PcmMirrorProducers};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const ORANGE_RECOVERY_RETRY_INTERVAL: Duration = Duration::from_millis(50);
 const ORANGE_RECOVERY_STABLE_GRACE: Duration = Duration::from_millis(250);
-const ORANGE_OPTIONAL_RECOVERY_COOLDOWN: Duration = Duration::from_secs(2);
 pub(super) const ORANGE_RECOVERY_MAX_ATTEMPTS: usize = 3;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum OrangeRecoveryMode {
-    Required,
-    Optional,
-}
 
 pub(super) type OrangeRecoveryOpener = Arc<
     dyn Fn(
@@ -73,14 +64,12 @@ enum OrangeRecoveryPhase {
 
 pub(super) struct OrangeRecoveryController {
     sink: AudioSink,
-    mode: OrangeRecoveryMode,
     health: AudioStreamHealth,
     current: Option<OpenedAudioSink>,
     phase: OrangeRecoveryPhase,
     profile: OrangeAudioProfile,
     engine: AudioEngineOwner,
     mix_taps: Option<MixTapState>,
-    mirror_producer: Option<PcmMirrorProducer>,
     mirror_producers: PcmMirrorProducers,
     opener: OrangeRecoveryOpener,
     clock: OrangeRecoveryClock,
@@ -90,7 +79,6 @@ pub(super) struct OrangeRecoveryDependencies {
     pub(super) profile: OrangeAudioProfile,
     pub(super) engine: AudioEngineOwner,
     pub(super) mix_taps: Option<MixTapState>,
-    pub(super) mirror_producer: Option<PcmMirrorProducer>,
     pub(super) mirror_producers: PcmMirrorProducers,
     pub(super) opener: OrangeRecoveryOpener,
     pub(super) clock: OrangeRecoveryClock,
@@ -107,7 +95,6 @@ impl OrangeRecoveryDependencies {
             profile,
             engine,
             mix_taps,
-            mirror_producer: None,
             mirror_producers,
             opener: production_opener(),
             clock: system_clock(),
@@ -116,9 +103,6 @@ impl OrangeRecoveryDependencies {
 }
 
 impl OrangeRecoveryController {
-    pub(super) fn sink(&self) -> AudioSink {
-        self.sink
-    }
     pub(super) fn new_required(
         initial: OpenedAudioSink,
         profile: OrangeAudioProfile,
@@ -128,7 +112,6 @@ impl OrangeRecoveryController {
     ) -> Result<Self, String> {
         let controller = Self::new_with_dependencies(
             AudioSink::Jack,
-            OrangeRecoveryMode::Required,
             initial.health.clone(),
             Some(initial),
             OrangeRecoveryPhase::Healthy,
@@ -147,83 +130,17 @@ impl OrangeRecoveryController {
         Ok(controller)
     }
 
-    pub(super) fn new_optional_missing(
-        sink: AudioSink,
-        profile: OrangeAudioProfile,
-        engine: AudioEngineOwner,
-        mirror_producer: PcmMirrorProducer,
-    ) -> Self {
-        let clock = system_clock();
-        let now = clock();
-        Self::new_with_dependencies(
-            sink,
-            OrangeRecoveryMode::Optional,
-            AudioStreamHealth::optional(format!("{sink:?}")),
-            None,
-            OrangeRecoveryPhase::Retrying {
-                attempts: 0,
-                next_attempt_at: now,
-            },
-            OrangeRecoveryDependencies {
-                profile,
-                engine,
-                mix_taps: None,
-                mirror_producer: Some(mirror_producer),
-                mirror_producers: [None, None],
-                opener: production_opener(),
-                clock,
-            },
-        )
-    }
-
-    pub(super) fn new_optional_initial(
-        sink: AudioSink,
-        initial: OpenedAudioSink,
-        profile: OrangeAudioProfile,
-        engine: AudioEngineOwner,
-        mirror_producer: PcmMirrorProducer,
-    ) -> Result<Self, String> {
-        let controller = Self::new_with_dependencies(
-            sink,
-            OrangeRecoveryMode::Optional,
-            initial.health.clone(),
-            Some(initial),
-            OrangeRecoveryPhase::Healthy,
-            OrangeRecoveryDependencies {
-                profile,
-                engine,
-                mix_taps: None,
-                mirror_producer: Some(mirror_producer),
-                mirror_producers: [None, None],
-                opener: production_opener(),
-                clock: system_clock(),
-            },
-        );
-        Ok(controller)
-    }
-
     #[cfg(test)]
     pub(super) fn new_initial_with_dependencies(
         sink: AudioSink,
-        required: bool,
         initial: OpenedAudioSink,
         dependencies: OrangeRecoveryDependencies,
     ) -> Result<Self, String> {
-        test_support::new_initial_with_dependencies(
-            sink,
-            if required {
-                OrangeRecoveryMode::Required
-            } else {
-                OrangeRecoveryMode::Optional
-            },
-            initial,
-            dependencies,
-        )
+        test_support::new_initial_with_dependencies(sink, initial, dependencies)
     }
 
     fn new_with_dependencies(
         sink: AudioSink,
-        mode: OrangeRecoveryMode,
         health: AudioStreamHealth,
         current: Option<OpenedAudioSink>,
         phase: OrangeRecoveryPhase,
@@ -233,21 +150,18 @@ impl OrangeRecoveryController {
             profile,
             engine,
             mix_taps,
-            mirror_producer,
             mirror_producers,
             opener,
             clock,
         } = dependencies;
         Self {
             sink,
-            mode,
             health,
             current,
             phase,
             profile,
             engine,
             mix_taps,
-            mirror_producer,
             mirror_producers,
             opener,
             clock,
@@ -255,36 +169,6 @@ impl OrangeRecoveryController {
     }
 
     #[cfg(test)]
-    pub(super) fn new_optional_missing_with_dependencies(
-        sink: AudioSink,
-        profile: OrangeAudioProfile,
-        engine: AudioEngineOwner,
-        opener: OrangeRecoveryOpener,
-        clock: OrangeRecoveryClock,
-        mirror_producer: Option<PcmMirrorProducer>,
-    ) -> Self {
-        let now = clock();
-        Self::new_with_dependencies(
-            sink,
-            OrangeRecoveryMode::Optional,
-            AudioStreamHealth::optional(format!("{sink:?}")),
-            None,
-            OrangeRecoveryPhase::Retrying {
-                attempts: 0,
-                next_attempt_at: now,
-            },
-            OrangeRecoveryDependencies {
-                profile,
-                engine,
-                mix_taps: None,
-                mirror_producer,
-                mirror_producers: [None, None],
-                opener,
-                clock,
-            },
-        )
-    }
-
     pub(super) fn recover_if_due(&mut self) {
         self.recover_if_due_with(|| {}, None);
     }
@@ -383,37 +267,22 @@ impl OrangeRecoveryController {
                 stable_until,
             };
         }
-        if self.mode == OrangeRecoveryMode::Required {
-            let Some(engine_tx) = opened.engine_tx.as_ref() else {
-                self.health.mark_terminal();
-                drop(opened);
-                return OrangeRecoveryPhase::Terminal;
-            };
-            if let Err(error) = self.engine.attach(engine_tx.clone()) {
-                eprintln!("Orange {:?} recovery replay failed: {error}", self.sink);
-                self.health.mark_terminal();
-                drop(opened);
-                return OrangeRecoveryPhase::Terminal;
-            }
+        let Some(engine_tx) = opened.engine_tx.as_ref() else {
+            self.health.mark_terminal();
+            drop(opened);
+            return OrangeRecoveryPhase::Terminal;
+        };
+        if let Err(error) = self.engine.attach(engine_tx.clone()) {
+            eprintln!("Orange {:?} recovery replay failed: {error}", self.sink);
+            self.health.mark_terminal();
+            drop(opened);
+            return OrangeRecoveryPhase::Terminal;
         }
         self.current = Some(opened);
         OrangeRecoveryPhase::Healthy
     }
 
     fn failed_attempt(&self, attempts: usize) -> OrangeRecoveryPhase {
-        if self.mode == OrangeRecoveryMode::Optional {
-            return if attempts >= ORANGE_RECOVERY_MAX_ATTEMPTS {
-                OrangeRecoveryPhase::Retrying {
-                    attempts: 0,
-                    next_attempt_at: (self.clock)() + ORANGE_OPTIONAL_RECOVERY_COOLDOWN,
-                }
-            } else {
-                OrangeRecoveryPhase::Retrying {
-                    attempts,
-                    next_attempt_at: (self.clock)() + ORANGE_RECOVERY_RETRY_INTERVAL,
-                }
-            };
-        }
         if attempts >= ORANGE_RECOVERY_MAX_ATTEMPTS {
             self.health.mark_terminal();
             eprintln!("Orange {:?} recovery reached its terminal state", self.sink);
@@ -427,9 +296,7 @@ impl OrangeRecoveryController {
     }
 
     fn detach_current(&mut self) {
-        if self.mode == OrangeRecoveryMode::Required {
-            self.engine.detach();
-        }
+        self.engine.detach();
         drop(self.current.take());
     }
 }

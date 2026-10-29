@@ -696,8 +696,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   restart-sensitive setting, saves through the confirmed Apply flow
   ([system.md](menu-tree/system.md#restart-sensitive-settings)), which writes only System settings,
   keeps unsaved music, and offers `Restart now` to restart only the app. USB Audio, HDMI Audio, USB
-  MIDI, and USB Role save like other System preferences and apply live
-  ([system.md](menu-tree/system.md#live-device-settings)).
+  MIDI, and USB Role save like other System preferences and apply live, also after Load System or a
+  backup restore ([system.md](menu-tree/system.md#live-device-settings)).
 - Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up
   is pending. An allowed Shutdown keeps Patch-only recovery.
 - `Auto Save` and `Backups` under `System > Saves > Default` govern the default patch in

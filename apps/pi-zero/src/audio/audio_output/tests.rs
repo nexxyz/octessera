@@ -5,69 +5,12 @@ use crate::audio_replay::ReplayCache;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use media_recording::RecorderService;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use rodio_engine_source::{event_queue, EngineEvent, EngineEventReceiver};
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use std::sync::atomic::{AtomicUsize, Ordering};
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use std::sync::{Arc, Mutex};
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use std::time::{Duration, Instant};
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-static ORANGE_TAP_OWNER_COUNT: AtomicUsize = AtomicUsize::new(0);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-static ORANGE_TAP_ABSENT_COUNT: AtomicUsize = AtomicUsize::new(0);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-static ORANGE_LOAD_TX_COUNT: AtomicUsize = AtomicUsize::new(0);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-static ORANGE_LOAD_TX_ABSENT_COUNT: AtomicUsize = AtomicUsize::new(0);
+use rodio_engine_source::event_queue;
 
 #[test]
 fn scheduler_labels_preserve_sink_identity() {
     assert_eq!(super::AudioSink::Jack.scheduler_label(), "Jack");
     assert_eq!(super::AudioSink::Usb.scheduler_label(), "USB");
-}
-
-#[test]
-fn startup_open_classification_is_exhaustive_for_selected_routes() {
-    let outputs = playback_runtime::AudioOutputSet::from_flags(true, true, true).unwrap();
-    let policy = super::AudioOpenPolicy::Outputs(outputs);
-    for error in [
-        crate::audio_route::RouteOpenError::Busy,
-        crate::audio_route::RouteOpenError::Unsupported("format".into()),
-        crate::audio_route::RouteOpenError::Fault("backend".into()),
-    ] {
-        assert_eq!(
-            super::startup_open_action(policy, super::AudioSink::Jack, true, &error),
-            super::StartupOpenAction::Fail
-        );
-        for sink in [super::AudioSink::Usb, super::AudioSink::Hdmi] {
-            assert_eq!(
-                super::startup_open_action(policy, sink, true, &error),
-                super::StartupOpenAction::Ignore
-            );
-        }
-    }
-    assert_eq!(
-        super::startup_open_action(
-            policy,
-            super::AudioSink::Jack,
-            true,
-            &crate::audio_route::RouteOpenError::Disconnected,
-        ),
-        super::StartupOpenAction::Fail
-    );
-    for sink in [super::AudioSink::Usb, super::AudioSink::Hdmi] {
-        assert_eq!(
-            super::startup_open_action(
-                policy,
-                sink,
-                true,
-                &crate::audio_route::RouteOpenError::Disconnected,
-            ),
-            super::StartupOpenAction::Wait
-        );
-    }
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -199,120 +142,6 @@ fn orange_scheduler_labels_identify_dac_and_uac2() {
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
-fn orange_controller_reopens_optional_uac2_once_and_keeps_dac_registered() {
-    let attempts = Arc::new(Mutex::new(Vec::new()));
-    let tap_seen = Arc::new(Mutex::new(Vec::new()));
-    let mirror_seen = Arc::new(Mutex::new(Vec::new()));
-    let replay_receiver = Arc::new(Mutex::new(None::<Arc<Mutex<EngineEventReceiver>>>));
-    let opener: super::orange_audio_recovery::OrangeRecoveryOpener = {
-        let attempts = attempts.clone();
-        let tap_seen = tap_seen.clone();
-        let mirror_seen = mirror_seen.clone();
-        let replay_receiver = replay_receiver.clone();
-        Arc::new(
-            move |_, sink, health, mix_taps, _load_tx, _mirror_producers, mirror_consumer| {
-                attempts.lock().unwrap().push(sink);
-                tap_seen.lock().unwrap().push(mix_taps.is_some());
-                mirror_seen.lock().unwrap().push(mirror_consumer.is_some());
-                if attempts.lock().unwrap().len() < 4 {
-                    return Err(crate::audio_route::RouteOpenError::Disconnected);
-                }
-                let (_tx, rx) = event_queue();
-                let rx = Arc::new(Mutex::new(rx));
-                *replay_receiver.lock().unwrap() = Some(rx.clone());
-                Ok(
-                    crate::audio::audio_output::audio_output_open::OpenedAudioSink {
-                        engine_tx: None,
-                        _stream: None,
-                        health,
-                        _test_engine_rx: Some(rx),
-                    },
-                )
-            },
-        )
-    };
-    let now = Arc::new(Mutex::new(Instant::now()));
-    let clock_now = now.clone();
-    let clock: super::orange_audio_recovery::OrangeRecoveryClock =
-        Arc::new(move || *clock_now.lock().unwrap());
-    let (dac_tx, _dac_rx) = event_queue();
-    let mut replay = ReplayCache::default();
-    replay.remember(&EngineEvent::SetMasterVolume {
-        generation: 0,
-        volume_pct: 72.0,
-    });
-    let engine = AudioEngineOwner::new(replay);
-    engine.attach(dac_tx).unwrap();
-    let mut controller = super::orange_audio_recovery::OrangeRecoveryController::
-        new_optional_missing_with_dependencies(
-            super::AudioSink::Usb,
-            super::audio_profile::OrangeAudioProfile::from_optimization(
-                playback_runtime::AudioOptimization::Latency,
-            ),
-            engine.clone(),
-            opener,
-            clock,
-            Some(rodio_engine_source::new_pcm_mirror().producer),
-        );
-
-    for _ in 0..3 {
-        controller.recover_if_due();
-        *now.lock().unwrap() += Duration::from_millis(50);
-    }
-    *now.lock().unwrap() += Duration::from_secs(2);
-    controller.recover_if_due();
-    *now.lock().unwrap() += Duration::from_millis(250);
-    controller.recover_if_due();
-
-    assert_eq!(
-        attempts.lock().unwrap().as_slice(),
-        &[super::AudioSink::Usb; 4]
-    );
-    assert_eq!(tap_seen.lock().unwrap().as_slice(), &[false; 4]);
-    assert_eq!(mirror_seen.lock().unwrap().as_slice(), &[true; 4]);
-    assert!(engine.is_attached());
-    let receiver = replay_receiver.lock().unwrap().take().unwrap();
-    let mut receiver = receiver.lock().unwrap();
-    assert!(receiver.try_recv().is_err());
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[test]
-fn orange_optional_terminal_open_failure_is_attempted_once() {
-    let attempts = Arc::new(Mutex::new(0));
-    let attempt_counter = attempts.clone();
-    let opener: super::orange_audio_recovery::OrangeRecoveryOpener = Arc::new(
-        move |_, _, _, _recording_tap, _load_tx, _mirror_producers, _mirror_consumer| {
-            *attempt_counter.lock().unwrap() += 1;
-            Err(crate::audio_route::RouteOpenError::Busy)
-        },
-    );
-    let now = Arc::new(Mutex::new(Instant::now()));
-    let clock_now = now.clone();
-    let clock: super::orange_audio_recovery::OrangeRecoveryClock =
-        Arc::new(move || *clock_now.lock().unwrap());
-    let mut controller = super::orange_audio_recovery::OrangeRecoveryController::
-        new_optional_missing_with_dependencies(
-            super::AudioSink::Usb,
-            super::audio_profile::OrangeAudioProfile::from_optimization(
-                playback_runtime::AudioOptimization::Latency,
-            ),
-            AudioEngineOwner::new(ReplayCache::default()),
-            opener,
-            clock,
-            None,
-        );
-
-    controller.recover_if_due();
-    *now.lock().unwrap() += Duration::from_secs(10);
-    controller.recover_if_due();
-
-    assert_eq!(*attempts.lock().unwrap(), 1);
-    assert_eq!(controller.device_status(), super::OrangeDacStatus::Terminal);
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[test]
 fn orange_required_controller_detaches_after_device_loss_without_opening_hardware() {
     let (tx, _rx) = event_queue();
     let engine = AudioEngineOwner::new(ReplayCache::default());
@@ -343,36 +172,6 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 #[test]
-fn orange_multiple_selected_routes_open_one_recording_tap_owner() {
-    ORANGE_TAP_OWNER_COUNT.store(0, Ordering::SeqCst);
-    ORANGE_TAP_ABSENT_COUNT.store(0, Ordering::SeqCst);
-    ORANGE_LOAD_TX_COUNT.store(0, Ordering::SeqCst);
-    ORANGE_LOAD_TX_ABSENT_COUNT.store(0, Ordering::SeqCst);
-
-    let outputs = playback_runtime::AudioOutputSet::from_flags(true, true, true).unwrap();
-    let manager = super::AudioManager::new_with_opener(
-        super::audio_output_open::AudioConstructionConfig::orange(
-            super::audio_profile::OrangeAudioProfile::from_optimization(
-                playback_runtime::AudioOptimization::Capacity,
-            ),
-        ),
-        super::AudioSink::selected(outputs),
-        true,
-        super::AudioOpenPolicy::Outputs(outputs),
-        orange_test_opener,
-        crate::audio_route::new_registry(outputs),
-    )
-    .unwrap();
-
-    assert_eq!(ORANGE_TAP_OWNER_COUNT.load(Ordering::SeqCst), 1);
-    assert_eq!(ORANGE_TAP_ABSENT_COUNT.load(Ordering::SeqCst), 2);
-    assert_eq!(ORANGE_LOAD_TX_COUNT.load(Ordering::SeqCst), 1);
-    assert_eq!(ORANGE_LOAD_TX_ABSENT_COUNT.load(Ordering::SeqCst), 2);
-    drop(manager);
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[test]
 fn orange_multiple_routes_record_samples_once_from_the_selected_owner() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(true, true, true).unwrap();
     let owner = crate::audio_recording::recording_owner(outputs).unwrap();
@@ -399,40 +198,4 @@ fn orange_multiple_routes_record_samples_once_from_the_selected_owner() {
     let bytes = std::fs::read(path).unwrap();
     assert_eq!(u32::from_le_bytes(bytes[40..44].try_into().unwrap()), 8);
     let _ = std::fs::remove_dir_all(directory);
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-fn orange_test_opener(
-    _construction: super::audio_output_open::AudioConstructionConfig,
-    sink: super::AudioSink,
-    mix_taps: Option<super::MixTapState>,
-    load_tx: Option<rodio_engine_source::AudioLoadStatusSender>,
-    mirror_producers: rodio_engine_source::PcmMirrorProducers,
-    mirror_consumer: Option<rodio_engine_source::PcmMirrorConsumer>,
-) -> Result<super::audio_output_open::OpenedAudioSink, crate::audio_route::RouteOpenError> {
-    if sink == super::AudioSink::Jack {
-        assert!(mirror_producers.iter().any(Option::is_some));
-        assert!(mirror_consumer.is_none());
-    } else {
-        assert!(mirror_producers.iter().all(Option::is_none));
-        assert!(mirror_consumer.is_some());
-    }
-    if mix_taps.is_some() {
-        ORANGE_TAP_OWNER_COUNT.fetch_add(1, Ordering::SeqCst);
-    } else {
-        ORANGE_TAP_ABSENT_COUNT.fetch_add(1, Ordering::SeqCst);
-    }
-    if load_tx.is_some() {
-        ORANGE_LOAD_TX_COUNT.fetch_add(1, Ordering::SeqCst);
-    } else {
-        ORANGE_LOAD_TX_ABSENT_COUNT.fetch_add(1, Ordering::SeqCst);
-    }
-    let (engine_tx, engine_rx) = event_queue();
-    Ok(super::audio_output_open::OpenedAudioSink {
-        engine_tx: (sink == super::AudioSink::Jack).then_some(engine_tx),
-        _stream: None,
-        health: crate::audio_stream_health::AudioStreamHealth::optional(format!("{sink:?}")),
-        _test_engine_rx: (sink == super::AudioSink::Jack)
-            .then_some(Arc::new(Mutex::new(engine_rx))),
-    })
 }

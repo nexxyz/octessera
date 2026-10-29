@@ -7,6 +7,8 @@ use playback_runtime::{HostMessage, RuntimePlatformRequest};
 impl PiHostAdapter {
     /// Applies the audio outputs, USB MIDI and USB role at once on the runtime
     /// side, then lets the platform worker save System and run the USB helper.
+    /// Like the runner, the live side keeps the edit when the save or the
+    /// helper fails; the status toast reports the failure.
     pub(super) fn apply_device_config(
         &mut self,
         request: &RuntimePlatformRequest,

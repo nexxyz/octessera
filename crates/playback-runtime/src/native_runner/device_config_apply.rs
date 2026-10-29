@@ -18,4 +18,16 @@ impl NativeRunner {
         self.outbox
             .push_platform_effect(RuntimePlatformEffect::ApplyDeviceConfig { payload: system });
     }
+
+    /// Load System and backup restore apply changed device settings live, like an edit.
+    pub(super) fn apply_loaded_device_config(&mut self) {
+        if !self.jack_audio_required {
+            return;
+        }
+        if let Ok(document) =
+            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)
+        {
+            self.apply_device_config(document);
+        }
+    }
 }

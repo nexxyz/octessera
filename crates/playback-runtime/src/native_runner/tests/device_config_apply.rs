@@ -187,6 +187,32 @@ fn turning_a_device_setting_back_before_confirming_applies_nothing() {
 }
 
 #[test]
+fn load_system_applies_only_changed_device_settings_live() {
+    let mut runner = board_runner(false);
+    let mut system = split_system_patch_documents(&runner.config_payload())
+        .unwrap()
+        .system;
+    for usb_audio in [false, true] {
+        system["runtimeConfig"]["audioOutputs"]["usb"] = json!(usb_audio);
+        let request = RuntimePlatformRequest::new(
+            RuntimePlatformEffect::StoreLoadSystem,
+            format!("load-{usb_audio}"),
+            None,
+        );
+        runner.register_platform_request(&request);
+        let messages = runner
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::LoadSystemResult {
+                    payload: Some(system.clone()),
+                }
+                .with_identity(request.request_id, request.revision),
+            })
+            .unwrap();
+        assert_eq!(applied_payload(&messages).is_some(), usb_audio);
+    }
+}
+
+#[test]
 fn usb_midi_changes_the_live_midi_route_at_once() {
     let mut runner = board_runner(false);
     assert!(!live_midi_out_enabled(&runner));
@@ -221,6 +247,26 @@ fn host_role_turns_gadget_outputs_off_and_applies_them_together() {
     assert_eq!(payload["runtimeConfig"]["usb"]["dataRole"], "host");
     assert_eq!(payload["runtimeConfig"]["usb"]["midiOutEnabled"], false);
     assert_eq!(payload["runtimeConfig"]["audioOutputs"]["usb"], false);
+}
+
+#[test]
+fn scrolling_usb_role_through_host_and_back_keeps_usb_audio_and_midi() {
+    let mut runner = board_runner(true);
+    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    runner.usb_midi_out_enabled = true;
+    runner.menu.rebuild(runner.menu_config());
+
+    enter_edit(&mut runner, "usb.dataRole");
+    turn(&mut runner, 1);
+    turn(&mut runner, -1);
+    let messages = press(&mut runner);
+
+    assert_eq!(runner.usb_data_role, UsbDataRole::Gadget);
+    assert!(runner.audio_outputs.usb());
+    assert!(runner.usb_midi_out_enabled);
+    assert!(applied_payload(&messages).is_none());
+    assert!(saved_payload(&messages).is_none());
+    assert!(runner.pending.system_persistence.dirty_revision.is_none());
 }
 
 #[test]

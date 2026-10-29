@@ -24,7 +24,8 @@ USB-C-to-USB-C cables and USB Power Delivery chargers or ports for this.
 
 ### Switch to Host
 
-1. Unplug the computer's USB cable.
+1. Unplug the computer's USB cable. Left plugged in, the computer and the
+   instrument would both try to run the cable, and nothing on it gets recognised.
 2. Open `System > Connections > USB Role` and select **Host**. USB Audio and
    USB MIDI switch themselves off on the way.
 3. The OLED says `Applying...` and then `USB ready`, usually within a couple of

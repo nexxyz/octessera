@@ -1,5 +1,8 @@
 use super::audio_output_open::AudioConstructionConfig;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use super::cpal_audio_output::build_cpal_mirror_stream;
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use super::cpal_audio_output::build_orange_cpal_mirror_stream;
 use super::AudioSink;
 use crate::audio_route::{
     set_status, AudioRouteRegistry, AudioRouteStatus, RouteOpenError, SelectedOutputs,
@@ -166,14 +169,16 @@ fn open(
     consumer: PcmMirrorConsumer,
 ) -> Result<ManagedStream, RouteOpenError> {
     let health = AudioStreamHealth::optional(format!("{sink:?}"));
-    let built = build_cpal_mirror_stream(
-        match construction {
-            AudioConstructionConfig::Raspberry(profile) => profile.output_buffer_frames,
-        },
-        sink,
-        consumer,
-        health.clone(),
-    )?;
+    let built = match construction {
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        AudioConstructionConfig::Raspberry(profile) => {
+            build_cpal_mirror_stream(profile.output_buffer_frames, sink, consumer, health.clone())
+        }
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        AudioConstructionConfig::Orange(profile) => {
+            build_orange_cpal_mirror_stream(profile, sink, consumer, health.clone())
+        }
+    }?;
     if let Err(error) = built.play() {
         if let Err(status) = built.teardown() {
             return Err(super::cpal_audio_output::map_shutdown_error(status));

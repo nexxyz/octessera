@@ -11,6 +11,7 @@ pub(super) struct NativeUserDataRestoreState {
     pub(super) patch_request_id: Option<String>,
     pub(super) patch_revision: Option<u64>,
     pub(super) patch_result_handled: bool,
+    pub(super) device_apply_pending: bool,
 }
 
 impl NativeRunner {
@@ -73,6 +74,7 @@ impl NativeRunner {
             patch_request_id: None,
             patch_revision: None,
             patch_result_handled: false,
+            device_apply_pending: false,
         });
         if rehydration_pending {
             self.outbox
@@ -161,12 +163,24 @@ impl NativeRunner {
         self.user_data_restore_is_active() || self.restore_rehydration_pending()
     }
 
+    /// The store refuses writes until the restored Patch is acknowledged, so a
+    /// restored device change applies once rehydration finishes.
+    pub(super) fn defer_restored_device_apply(&mut self, device_changed: bool) {
+        if let Some(restore) = self.display.user_data_restore.as_mut() {
+            restore.device_apply_pending = device_changed;
+        }
+    }
+
     pub(super) fn finish_restore_rehydration(&mut self) {
-        {
+        let device_apply_pending = {
             let Some(restore) = self.display.user_data_restore.as_mut() else {
                 return;
             };
             restore.rehydration_pending = false;
+            std::mem::take(&mut restore.device_apply_pending)
+        };
+        if device_apply_pending {
+            self.apply_loaded_device_config();
         }
     }
 

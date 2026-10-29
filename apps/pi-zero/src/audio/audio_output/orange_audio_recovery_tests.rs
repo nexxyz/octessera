@@ -52,7 +52,6 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
     let (jack_opener, jack_calls) = opener_with_calls();
     let mut jack_controller = OrangeRecoveryController::new_initial_with_dependencies(
         AudioSink::Jack,
-        true,
         opened(jack_tx, jack_health.clone()),
         OrangeRecoveryDependencies {
             profile: OrangeAudioProfile::from_optimization(
@@ -60,7 +59,6 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
             ),
             engine: jack_engine.clone(),
             mix_taps: None,
-            mirror_producer: None,
             mirror_producers: [None, None],
             opener: jack_opener,
             clock: clock(),
@@ -88,44 +86,7 @@ fn worker_terminal_stays_separate_from_orange_route_recovery() {
         AudioStreamStatus::Terminal
     );
     assert!(jack_engine.is_attached());
-
-    let usb_health = AudioStreamHealth::optional("USB".into());
-    let (usb_opener, usb_calls) = opener_with_calls();
-    let usb_mirror = rodio_engine_source::new_pcm_mirror();
-    let mut usb_controller = OrangeRecoveryController::new_initial_with_dependencies(
-        AudioSink::Usb,
-        false,
-        OpenedAudioSink {
-            engine_tx: None,
-            _stream: None,
-            health: usb_health.clone(),
-            _test_engine_rx: None,
-        },
-        OrangeRecoveryDependencies {
-            profile: OrangeAudioProfile::from_optimization(
-                playback_runtime::AudioOptimization::Capacity,
-            ),
-            engine: AudioEngineOwner::new(ReplayCache::default()),
-            mix_taps: None,
-            mirror_producer: Some(usb_mirror.producer),
-            mirror_producers: [None, None],
-            opener: usb_opener,
-            clock: clock(),
-        },
-    )
-    .unwrap();
-
-    usb_health.mark_worker_health(SourceWorkerHealth::WorkerExited);
-    usb_controller.recover_if_due();
-
-    assert_eq!(*usb_calls.lock().unwrap(), 0);
-    assert_eq!(usb_controller.device_status(), AudioStreamStatus::Healthy);
-    assert_eq!(usb_controller.runtime_status(), AudioStreamStatus::Terminal);
-    assert_eq!(usb_health.external_status(), AudioStreamStatus::Healthy);
-    assert_eq!(usb_health.runtime_status(), AudioStreamStatus::Terminal);
-    assert_eq!(usb_health.worker_health(), SourceWorkerHealth::WorkerExited);
 }
-
 #[test]
 fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
     let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
@@ -149,7 +110,6 @@ fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
     let clock = clock();
     let mut controller = OrangeRecoveryController::new_initial_with_dependencies(
         AudioSink::Jack,
-        true,
         initial,
         OrangeRecoveryDependencies {
             profile: OrangeAudioProfile::from_optimization(
@@ -157,7 +117,6 @@ fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
             ),
             engine: AudioEngineOwner::new(ReplayCache::default()),
             mix_taps: None,
-            mirror_producer: None,
             mirror_producers: [None, None],
             opener,
             clock,
@@ -170,43 +129,6 @@ fn jack_reopen_drains_stale_load_status_before_passing_fresh_sender() {
 
     assert!(*seen_sender.lock().unwrap());
     assert_eq!(load_rx.try_recv().unwrap().worker_utilization, Some(0.7));
-}
-
-#[test]
-fn optional_initial_mirror_does_not_require_an_event_sink_registration() {
-    let health = AudioStreamHealth::optional("USB".into());
-    let (opener, calls) = opener_with_calls();
-    let pair = rodio_engine_source::new_pcm_mirror();
-    let initial = OpenedAudioSink {
-        engine_tx: None,
-        _stream: None,
-        health: health.clone(),
-        _test_engine_rx: None,
-    };
-    let mut controller = OrangeRecoveryController::new_initial_with_dependencies(
-        AudioSink::Usb,
-        false,
-        initial,
-        OrangeRecoveryDependencies {
-            profile: OrangeAudioProfile::from_optimization(
-                playback_runtime::AudioOptimization::Capacity,
-            ),
-            engine: AudioEngineOwner::new(ReplayCache::default()),
-            mix_taps: None,
-            mirror_producer: Some(pair.producer),
-            mirror_producers: [None, None],
-            opener,
-            clock: clock(),
-        },
-    )
-    .unwrap();
-
-    controller.recover_if_due();
-
-    assert_eq!(controller.device_status(), AudioStreamStatus::Healthy);
-    assert_eq!(controller.runtime_status(), AudioStreamStatus::Healthy);
-    assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
-    assert_eq!(*calls.lock().unwrap(), 0);
 }
 
 #[test]
@@ -261,7 +183,6 @@ fn required_recovery_replays_preserved_sample_bank_before_synth_owner() {
     let initial = opened(initial_tx, health.clone());
     let mut controller = OrangeRecoveryController::new_initial_with_dependencies(
         AudioSink::Jack,
-        true,
         initial,
         OrangeRecoveryDependencies {
             profile: OrangeAudioProfile::from_optimization(
@@ -269,7 +190,6 @@ fn required_recovery_replays_preserved_sample_bank_before_synth_owner() {
             ),
             engine: AudioEngineOwner::new(replay),
             mix_taps: None,
-            mirror_producer: None,
             mirror_producers: [None, None],
             opener,
             clock,

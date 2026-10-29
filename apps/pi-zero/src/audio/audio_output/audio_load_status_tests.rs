@@ -22,8 +22,6 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
         AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
             playback_runtime::AudioOptimization::Capacity,
         )),
-        vec![AudioSink::Jack],
-        true,
         AudioOpenPolicy::Outputs(outputs),
         test_opener,
         new_registry(outputs),
@@ -87,8 +85,6 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
         AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
             playback_runtime::AudioOptimization::Capacity,
         )),
-        vec![AudioSink::Jack],
-        true,
         AudioOpenPolicy::Outputs(outputs),
         test_opener,
         new_registry(outputs),

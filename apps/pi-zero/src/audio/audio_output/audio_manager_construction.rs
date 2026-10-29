@@ -4,8 +4,6 @@ use crate::audio_recording::RecordingServices;
 impl AudioManager {
     pub(super) fn new_with_opener(
         construction: AudioConstructionConfig,
-        sinks: Vec<AudioSink>,
-        allow_partial: bool,
         policy: AudioOpenPolicy,
         open_sink: AudioSinkOpener,
         route_registry: AudioRouteRegistry,
@@ -21,23 +19,8 @@ impl AudioManager {
         let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
         #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
         let load_status_enabled = construction.load_status_enabled();
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        let mut streams = Vec::new();
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let streams = Vec::new();
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let mut orange_jack_opened = None;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let mut orange_optional_opened = Vec::new();
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        let mut required_jack_health = None;
         let selected_outputs = SelectedOutputs::new(outputs);
-        let side_mirrors = [new_pcm_mirror(), new_pcm_mirror()];
-        let side_producers = side_mirrors.each_ref().map(|pair| pair.producer.clone());
-        let mut mirror_producers: Option<PcmMirrorProducers> =
-            Some(side_producers.clone().map(Some));
-        let mut mirror_consumers: [Option<PcmMirrorConsumer>; 2] =
-            side_mirrors.map(|pair| Some(pair.consumer));
+        let side_producers = [new_pcm_mirror().producer, new_pcm_mirror().producer];
         for sink in [AudioSink::Usb, AudioSink::Hdmi] {
             if !AudioSink::selected(outputs).contains(&sink) {
                 side_producers[mirror_index(sink).expect("side mirror index")].invalidate();
@@ -50,88 +33,45 @@ impl AudioManager {
         )));
         let mix_taps = Arc::new(RwLock::new(super::MixTaps::default()));
         let recording_oled = Arc::new(RwLock::new(None));
-        for sink in sinks {
-            let tap = (sink == AudioSink::Jack).then(|| mix_taps.clone());
-            #[cfg(any(
-                feature = "hardware-orange-pi-zero-2w",
-                feature = "hardware-raspberry-pi-zero-2w"
-            ))]
-            let source_load_tx =
-                super::audio_output_open::load_status_sender_for_sink(construction, sink, &load_tx);
-            #[cfg(not(any(
-                feature = "hardware-orange-pi-zero-2w",
-                feature = "hardware-raspberry-pi-zero-2w"
-            )))]
-            let source_load_tx = None;
-            let sink_mirror_producers = if sink == AudioSink::Jack {
-                mirror_producers.take().expect("Jack mirror producers")
-            } else {
-                [None, None]
-            };
-            let mirror_consumer =
-                mirror_index(sink).and_then(|index| mirror_consumers[index].take());
-            match open_sink(
-                construction,
-                sink,
-                tap,
-                source_load_tx,
-                sink_mirror_producers,
-                mirror_consumer,
-            ) {
-                Ok(opened) => {
-                    set_status(
-                        &route_registry,
-                        sink,
-                        crate::audio_route::AudioRouteStatus::Active,
-                    );
-                    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-                    {
-                        if sink == AudioSink::Jack {
-                            orange_jack_opened = Some(opened);
-                        } else {
-                            orange_optional_opened.push((sink, opened));
-                        }
-                    }
-                    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                    {
-                        required_jack_health =
-                            (sink == AudioSink::Jack).then(|| opened.health.clone());
-                        streams.push(
-                            *opened
-                                ._stream
-                                .expect("Raspberry audio stream must be present"),
-                        );
-                        engine.attach(opened.engine_tx.expect("Jack engine event sender"))?;
-                    }
-                }
-                Err(error)
-                    if startup_open_action(policy, sink, allow_partial, &error)
-                        == StartupOpenAction::Wait =>
-                {
-                    set_status(&route_registry, sink, error.status());
-                    eprintln!("{sink:?} audio init failed: {error} (continuing with other sinks)");
-                }
-                Err(error)
-                    if startup_open_action(policy, sink, allow_partial, &error)
-                        == StartupOpenAction::Ignore =>
-                {
-                    set_status(&route_registry, sink, error.status());
-                    eprintln!("{sink:?} audio init failed: {error} (optional route disabled)");
-                }
-                Err(error) => {
-                    set_status(&route_registry, sink, error.status());
-                    return Err(error.to_string());
-                }
-            }
-        }
-        let requires_stream = true;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let no_required_stream = orange_jack_opened.is_none();
+        #[cfg(any(
+            feature = "hardware-orange-pi-zero-2w",
+            feature = "hardware-raspberry-pi-zero-2w"
+        ))]
+        let jack_load_tx = super::audio_output_open::load_status_sender_for_sink(
+            construction,
+            AudioSink::Jack,
+            &load_tx,
+        );
+        #[cfg(not(any(
+            feature = "hardware-orange-pi-zero-2w",
+            feature = "hardware-raspberry-pi-zero-2w"
+        )))]
+        let jack_load_tx = None;
+        let jack = open_sink(
+            construction,
+            AudioSink::Jack,
+            Some(mix_taps.clone()),
+            jack_load_tx,
+            side_producers.clone().map(Some),
+            None,
+        )
+        .inspect_err(|error| set_status(&route_registry, AudioSink::Jack, error.status()))
+        .map_err(|error| error.to_string())?;
+        set_status(
+            &route_registry,
+            AudioSink::Jack,
+            crate::audio_route::AudioRouteStatus::Active,
+        );
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        let no_required_stream = streams.is_empty();
-        if no_required_stream && requires_stream {
-            return Err("no requested audio outputs opened".into());
-        }
+        let required_jack_health = Some(jack.health.clone());
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        let streams = vec![*jack
+            ._stream
+            .expect("Raspberry audio stream must be present")];
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        engine.attach(jack.engine_tx.expect("Jack engine event sender"))?;
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let streams = Vec::new();
         let service = AudioService {
             engine: engine.clone(),
             control_tx,
@@ -159,7 +99,6 @@ impl AudioManager {
             service.clone(),
             prep_result_tx,
         );
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let optional_recovery = [AudioSink::Usb, AudioSink::Hdmi].map(|sink| {
             audio_optional_recovery::spawn(
                 construction,
@@ -172,58 +111,21 @@ impl AudioManager {
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let AudioConstructionConfig::Orange(profile) = construction;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let orange_dac_recovery = orange_jack_opened
-            .map(|opened| {
-                OrangeRecoveryController::new_required(
-                    opened,
-                    profile,
-                    engine.clone(),
-                    Some(mix_taps.clone()),
-                    side_producers.clone().map(Some),
-                )
-            })
-            .transpose()?;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let orange_recovery = [AudioSink::Usb, AudioSink::Hdmi]
-            .into_iter()
-            .filter(|sink| AudioSink::selected(outputs).contains(sink))
-            .map(|sink| {
-                let initial = orange_optional_opened
-                    .iter()
-                    .position(|(opened_sink, _)| *opened_sink == sink)
-                    .map(|index| orange_optional_opened.swap_remove(index).1);
-                match initial {
-                    Some(opened) => OrangeRecoveryController::new_optional_initial(
-                        sink,
-                        opened,
-                        profile,
-                        engine.clone(),
-                        side_producers[mirror_index(sink).expect("side mirror index")].clone(),
-                    ),
-                    None => Ok(OrangeRecoveryController::new_optional_missing(
-                        sink,
-                        profile,
-                        engine.clone(),
-                        side_producers[mirror_index(sink).expect("side mirror index")].clone(),
-                    )),
-                }
-            })
-            .collect::<Result<Vec<_>, String>>()?;
+        let orange_dac_recovery = Some(OrangeRecoveryController::new_required(
+            jack,
+            profile,
+            engine.clone(),
+            Some(mix_taps.clone()),
+            side_producers.clone().map(Some),
+        )?);
         Ok(Self {
             _streams: streams,
             service,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             _optional_recovery: optional_recovery,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             route_registry,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             orange_dac_recovery,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            orange_recovery,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            orange_profile: profile,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            side_producers,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             load_tx,
             #[cfg(any(

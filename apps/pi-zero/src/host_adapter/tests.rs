@@ -390,21 +390,19 @@ fn raspberry_adapter_supports_setup_portal_effect() {
     assert_eq!(status.phase, RuntimeSetupPortalPhase::Starting);
     assert_eq!(fs::read(&paths.request).unwrap(), b"start\n");
     fs::remove_file(&paths.request).unwrap();
-    let payload = serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}});
-    crate::persistence::atomic_write_bytes(
-        &paths.current,
-        &serde_json::to_vec(&payload).unwrap(),
-        0o640,
-    )
-    .unwrap();
+    let publish = |status: serde_json::Value| {
+        let staged = paths.public.join(".current.json.tmp");
+        fs::write(&staged, serde_json::to_vec(&status).unwrap()).unwrap();
+        fs::set_permissions(&staged, permissions(0o640)).unwrap();
+        fs::rename(&staged, &paths.current).unwrap();
+    };
+    publish(
+        serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"starting","disposition":"accepted","rebootRequired":false}}),
+    );
     wait_for_setup_portal_phase(&adapter, RuntimeSetupPortalPhase::Starting, None);
-    let ready = serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}});
-    crate::persistence::atomic_write_bytes(
-        &paths.current,
-        &serde_json::to_vec(&ready).unwrap(),
-        0o640,
-    )
-    .unwrap();
+    publish(
+        serde_json::json!({"schema":1,"status":{"type":"setup_portal_status","phase":"portal_ready","portalSuffix":"abcd","rebootRequired":false}}),
+    );
     wait_for_setup_portal_phase(&adapter, RuntimeSetupPortalPhase::PortalReady, Some("abcd"));
     let _ = fs::remove_dir_all(root);
 }

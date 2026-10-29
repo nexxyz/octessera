@@ -54,23 +54,27 @@ impl NativeRunner {
         let accepted = match result {
             RuntimeStoreResult::LoadSystemResult {
                 payload: Some(system),
-            } => {
-                if let Err(message) = self.apply_system_document_preserving_patch(&system) {
+            } => match self.apply_system_document_preserving_patch(&system) {
+                Err(message) => {
                     self.system_store_failure(operation, message, Some(request_id), revision)?
-                } else {
+                }
+                Ok(device_changed) => {
                     let baseline = self.pending.system_persistence.record_system_load(&system);
                     self.restart_settings.update_system_baseline(baseline);
-                    if self.restore_rehydration_pending() {
-                        self.outbox
-                            .push_platform_effect(RuntimePlatformEffect::StoreLoadDefault);
-                    }
                     self.display.toast = Some(NativeToast {
                         message: "System loaded".into(),
                         offset: 0,
                     });
+                    if self.restore_rehydration_pending() {
+                        self.outbox
+                            .push_platform_effect(RuntimePlatformEffect::StoreLoadDefault);
+                        self.defer_restored_device_apply(device_changed);
+                    } else if device_changed {
+                        self.apply_loaded_device_config();
+                    }
                     system_store_success(operation, request_id, revision)
                 }
-            }
+            },
             RuntimeStoreResult::LoadSystemResult { payload: None } => self.system_store_failure(
                 operation,
                 "System document is unavailable".into(),

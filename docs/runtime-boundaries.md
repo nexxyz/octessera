@@ -127,8 +127,8 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
   canonical Jack mix, and HDMI audio is separate from HDMI video. Readiness
   depends on Jack; an absent, waiting, or faulted mirror stays route-local. Both mirror rings
   exist from startup; an unselected one is inactive, so the Jack mix only checks one flag for it.
-  The side outputs start and stop while the app runs (Raspberry: one worker per output; Orange: a
-  recovery controller per selected output) and never restart the Jack stream.
+  The side outputs start, stop and reopen on one worker per output on both boards, off the runtime
+  thread, and never restart the Jack stream.
 - The image constructs the AHUB0 vendor dummy-codec route and the exact
   `octessera-dac` playback card (`hw:CARD=octesseradac,DEV=0`); no manual or
   experimental audio overlay is used. The optional routes are UAC2
@@ -281,7 +281,7 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
 - Saves are split into two documents: `octessera.patch` schema version 2 (stored locally as `default.patch.json`) carries the musical patch, and `system.json` carries local System settings. Ownership exceptions are listed in [`menu-and-controls-spec.md`](menu-and-controls-spec.md#save-files-and-ownership).
   - Ordinary System preferences save once, when a changed editor exits with Main or Back. Unchanged or reverted edits do not save, parameter turns do not write individually, and these edits never dirty the patch. While a System write is pending, only the latest completed snapshot is kept for a follow-up write; there is no promise of one physical write per overlapping edit.
   - Pi and desktop adapters perform the atomic write on their existing platform workers, off the runtime thread, and return an identified completion that updates the save baseline.
-  - Explicit System Save remains available. Perf. Mode persists only after confirmed Apply. USB Audio, HDMI Audio, USB MIDI, and USB Role save like other System preferences and also emit one `apply_device_config` effect; the board adapter switches side outputs and MIDI at once, and its platform worker writes System and runs the fixed USB gadget or role helper, answering with a `device_config_status` toast. Desktop reports the effect as unsupported. Confirmed System Load changes settings without stopping music or silently rebooting.
+  - Explicit System Save remains available. Perf. Mode persists only after confirmed Apply. USB Audio, HDMI Audio, USB MIDI, and USB Role save like other System preferences and also emit one `apply_device_config` effect; the board adapter switches side outputs and MIDI at once, and its platform worker writes System and runs the fixed USB gadget or role helper, answering with a `device_config_status` toast. Desktop reports the effect as unsupported. Confirmed System Load changes settings without stopping music or silently rebooting; a load or backup restore that changes those device settings emits the same `apply_device_config` effect.
   - Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up is pending; an allowed shutdown keeps Patch-only recovery.
   - Patch autosave, rolling backups, and recovery are patch-only. Local `default.patch.json`, backups, recovery, named presets, and `.oct` musical exports all keep safe relative sample references, including user and SD-card paths. Musical aux bindings travel with the patch; device/System aux bindings stay local.
   - Confirmed Patch/Named Load stops and resets music, sends MIDI panic/note cleanup, and keeps local System settings and ports. A pending patch write or an Auto Save-eligible dirty patch blocks load with `Save pending, try again`; with Auto Save off and no pending write, the normal confirmation can discard dirty patch edits.
