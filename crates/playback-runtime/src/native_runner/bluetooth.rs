@@ -1,5 +1,6 @@
 use super::snapshot_display::DisplaySnapshot;
 use super::{DeviceInput, NativeRunner, OLED_BODY_ROWS};
+use crate::native_menu::NativeBluetoothRows;
 use crate::oled_frame::OledDisplayLayout;
 use crate::protocol::{
     RunnerMessage, RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction,
@@ -126,7 +127,7 @@ impl NativeRunner {
             *setting = value;
             self.mark_system_dirty();
             if key == "bluetooth.enabled" {
-                self.rematerialize_menu_around_key(key);
+                self.show_bluetooth_menu_rows();
             }
         }
         true
@@ -138,10 +139,19 @@ impl NativeRunner {
         };
         let message = status.message.take();
         self.bluetooth.status = Some(status);
-        self.menu.rebuild(self.menu_config());
+        self.show_bluetooth_menu_rows();
         if let Some(message) = message {
             self.show_toast(message);
         }
+    }
+
+    fn show_bluetooth_menu_rows(&mut self) {
+        self.menu.show_bluetooth_rows(NativeBluetoothRows {
+            enabled: self.bluetooth.enabled,
+            audio: self.bluetooth.audio,
+            paired: &self.bluetooth.paired_rows(),
+            found: &self.bluetooth.found_rows(),
+        });
     }
 
     pub(super) fn bluetooth_effect_for_action(

@@ -2,6 +2,7 @@ pub(crate) const BUILD_LABEL: &str = "Build";
 pub(crate) const LINK_LABEL: &str = "Link";
 pub(crate) const SHAPE_LABEL: &str = "Shape";
 pub(crate) const PLAY_LABEL: &str = "Play";
+pub(crate) const SYSTEM_LABEL: &str = "System";
 
 pub(crate) const BUILD_SHORT_LABEL: &str = "B";
 pub(crate) const LINK_SHORT_LABEL: &str = "L";

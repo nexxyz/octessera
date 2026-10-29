@@ -2,7 +2,13 @@ use super::{sorted_event_nodes, KeyboardKey};
 use evdev::{BusType, Device, EventType, KeyCode};
 use std::fs;
 use std::io;
+use std::os::fd::AsRawFd;
 use std::path::PathBuf;
+
+/// `EVIOCGRAB` from linux/input.h. The grab is set here rather than through
+/// evdev, whose drop would retry the ungrab on an unplugged keyboard and log
+/// ENODEV; the kernel drops the grab when the device node closes anyway.
+const EVIOCGRAB: libc::c_ulong = 0x4004_4590;
 
 pub(super) struct EvdevKeyboard {
     device: Device,
@@ -36,7 +42,18 @@ impl EvdevKeyboard {
     }
 
     fn ungrab(&mut self) {
-        let _ = self.device.ungrab();
+        let _ = set_grab(&self.device, false);
+    }
+}
+
+fn set_grab(device: &Device, grab: bool) -> io::Result<()> {
+    // SAFETY: EVIOCGRAB takes an int by value on an open evdev descriptor.
+    let result =
+        unsafe { libc::ioctl(device.as_raw_fd(), EVIOCGRAB as _, libc::c_int::from(grab)) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
     }
 }
 
@@ -62,7 +79,7 @@ pub(super) fn discover_keyboard(
         .map(|entry| entry.path())
         .collect::<Vec<PathBuf>>();
     for path in sorted_event_nodes(paths) {
-        let Ok(mut device) = Device::open(&path) else {
+        let Ok(device) = Device::open(&path) else {
             continue;
         };
         if !is_supported_keyboard(&device, buses) {
@@ -71,7 +88,7 @@ pub(super) fn discover_keyboard(
         if device.set_nonblocking(true).is_err() {
             continue;
         }
-        if device.grab().is_err() {
+        if set_grab(&device, true).is_err() {
             return GrabFailed;
         }
         return Ready(EvdevKeyboard { device });

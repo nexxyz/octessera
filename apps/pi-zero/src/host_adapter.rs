@@ -114,10 +114,6 @@ impl PiHostAdapter {
         power_save_result(recovery, recording)
     }
 
-    pub(crate) fn reconnect_midi_if_ports_changed(&mut self, now: Instant) {
-        self.core.midi.reconnect_if_ports_changed(now);
-    }
-
     pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {
         self.audio
             .as_ref()
@@ -275,7 +271,7 @@ impl HostAdapter for PiHostAdapter {
         if let Some(result) = dispatch_shared_effect(&self.core.platform_service, request) {
             return Ok(result);
         }
-        if let Some(messages) = dispatch_midi_effect_messages(&mut self.core.midi, &request.effect)?
+        if let Some(messages) = dispatch_midi_effect_messages(&mut self.core.midi, &request.effect)
         {
             return Ok(messages);
         }

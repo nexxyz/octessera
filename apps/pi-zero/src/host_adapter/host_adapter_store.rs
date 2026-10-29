@@ -24,7 +24,7 @@ impl PiHostAdapter {
     }
 
     pub(crate) fn drain_platform_results_for_runner(
-        &self,
+        &mut self,
         runner: &mut NativeRunner,
         max_results: usize,
     ) -> Vec<HostMessage> {

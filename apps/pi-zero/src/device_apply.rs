@@ -90,9 +90,10 @@ fn status(ok: bool, message: &str) -> RuntimeStoreResult {
 pub(crate) fn production_usb_applier() -> UsbApplier {
     Arc::new(|change| match change {
         UsbChange::Gadget => run_unit("restart", "octessera-usb-gadget.service"),
-        UsbChange::Role(role) => {
-            run_unit("start", &format!("octessera-usb-role@{}.service", role.as_str()))
-        }
+        UsbChange::Role(role) => run_unit(
+            "start",
+            &format!("octessera-usb-role@{}.service", role.as_str()),
+        ),
     })
 }
 

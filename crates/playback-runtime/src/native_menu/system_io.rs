@@ -4,15 +4,14 @@ use super::{
 };
 use crate::native_runner::UsbDataRole;
 
+pub(super) const MIDI_HOST_LABEL: &str = "MIDI Host";
+pub(super) const USB_DEVICE_LABEL: &str = "USB Device";
+
 pub(super) fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
     let mut children = Vec::new();
     if config.board {
         if !host_role {
-            children.push(bool_item(
-                "USB Audio",
-                "audioOutputs.usb",
-                config.audio_outputs.usb(),
-            ));
+            children.push(usb_audio_item(config.audio_outputs.usb()));
         }
         children.push(bool_item(
             "HDMI Audio",
@@ -96,23 +95,10 @@ pub(super) fn midi_group(
 ) -> NativeMenuItem {
     let mut children = vec![bool_item("MIDI Active", "midiEnabled", config.midi_enabled)];
     if !config.usb_data_role_available || host_role {
-        children.push(group(
-            "MIDI Host",
-            vec![
-                midi_ports_group("MIDI Out", "midi.output", &config.midi_outputs),
-                midi_ports_group("MIDI In", "midi.input", &config.midi_inputs),
-            ],
-        ));
+        children.push(midi_host_group(&config.midi_outputs, &config.midi_inputs));
     }
     if config.board && !host_role {
-        children.push(group(
-            "USB Device",
-            vec![bool_item(
-                "USB MIDI",
-                "usb.midiOutEnabled",
-                config.usb_midi_out_enabled,
-            )],
-        ));
+        children.push(usb_device_group(config.usb_midi_out_enabled));
     }
     children.push(group(
         "Sync / Clock",
@@ -143,7 +129,35 @@ pub(super) fn midi_group(
     group("MIDI", children)
 }
 
-fn midi_ports_group(
+pub(super) fn usb_audio_item(enabled: bool) -> NativeMenuItem {
+    bool_item("USB Audio", "audioOutputs.usb", enabled)
+}
+
+pub(super) fn midi_host_group(
+    outputs: &[(String, String)],
+    inputs: &[(String, String)],
+) -> NativeMenuItem {
+    group(
+        MIDI_HOST_LABEL,
+        vec![
+            midi_ports_group("MIDI Out", "midi.output", outputs),
+            midi_ports_group("MIDI In", "midi.input", inputs),
+        ],
+    )
+}
+
+pub(super) fn usb_device_group(usb_midi_out_enabled: bool) -> NativeMenuItem {
+    group(
+        USB_DEVICE_LABEL,
+        vec![bool_item(
+            "USB MIDI",
+            "usb.midiOutEnabled",
+            usb_midi_out_enabled,
+        )],
+    )
+}
+
+pub(super) fn midi_ports_group(
     label: &str,
     action_prefix: &str,
     ports: &[(String, String)],
@@ -175,11 +189,7 @@ pub(super) fn usb_data_role_item(config: &NativeMenuConfig) -> NativeMenuItem {
 pub(super) fn sd_card_2_group(host_role: bool) -> NativeMenuItem {
     let mut children = Vec::new();
     if !host_role {
-        children.push(action_item(
-            "Start Transfer",
-            "usb.sdTransferStart",
-            NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
-        ));
+        children.push(sd_transfer_start_item());
     }
     children.push(action_item(
         "Stop Transfer",
@@ -187,6 +197,14 @@ pub(super) fn sd_card_2_group(host_role: bool) -> NativeMenuItem {
         NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
     ));
     group("SD Card 2", children)
+}
+
+pub(super) fn sd_transfer_start_item() -> NativeMenuItem {
+    action_item(
+        "Start Transfer",
+        "usb.sdTransferStart",
+        NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
+    )
 }
 
 pub(super) fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {

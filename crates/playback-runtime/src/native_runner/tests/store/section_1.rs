@@ -213,6 +213,34 @@ pub(crate) fn midi_store_results_update_native_snapshot_state() {
 }
 
 #[test]
+pub(crate) fn midi_port_lists_update_their_rows_in_place_to_match_a_full_rebuild() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let rebuilds = runner.menu.rebuild_count;
+    for result in [
+        RuntimeStoreResult::MidiListOutputsResult {
+            outputs: vec![MidiPort {
+                id: "out1".into(),
+                name: "Output 1".into(),
+            }],
+        },
+        RuntimeStoreResult::MidiListInputsResult {
+            inputs: vec![MidiPort {
+                id: "in1".into(),
+                name: "Input 1".into(),
+            }],
+        },
+    ] {
+        let _ = runner.send(HostMessage::RuntimeResult { result }).unwrap();
+    }
+
+    assert_eq!(runner.menu.rebuild_count, rebuilds);
+    assert_eq!(
+        runner.menu.root,
+        crate::native_menu::NativeMenuModel::new(runner.menu_config()).root
+    );
+}
+
+#[test]
 pub(crate) fn midi_output_menu_selects_dynamic_port() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner

@@ -313,3 +313,28 @@ fn pair_new_lists_speakers_as_well_as_keyboards() {
     assert!(runner.menu.focus_item_key("bluetooth.pair:KB"));
     assert!(runner.menu.focus_item_key("bluetooth.pair:SP"));
 }
+
+#[test]
+fn bluetooth_changes_update_their_rows_in_place_to_match_a_full_rebuild() {
+    let mut runner = board_runner();
+    let rebuilds = runner.menu.rebuild_count;
+    turn_bluetooth_on(&mut runner);
+    send_status(
+        &mut runner,
+        RuntimeBluetoothStatus {
+            powered: true,
+            devices: vec![
+                device("AA", "Keys", true, true),
+                device("BB", "Pad", false, false),
+            ],
+            ..RuntimeBluetoothStatus::default()
+        },
+    );
+
+    assert_eq!(runner.menu.rebuild_count, rebuilds);
+    assert_eq!(
+        runner.menu.root,
+        crate::native_menu::NativeMenuModel::new(runner.menu_config()).root
+    );
+    assert!(runner.menu.focus_item_key("bluetooth.pair:BB"));
+}

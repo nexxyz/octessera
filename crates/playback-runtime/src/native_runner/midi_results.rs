@@ -1,4 +1,4 @@
-use crate::protocol::RuntimeStoreResult;
+use crate::protocol::{MidiPort, RuntimeStoreResult};
 
 use super::NativeRunner;
 
@@ -7,12 +7,20 @@ impl NativeRunner {
         match result {
             RuntimeStoreResult::MidiListOutputsResult { outputs } => {
                 self.midi_outputs = outputs;
-                self.menu.rebuild(self.menu_config());
+                self.menu.show_midi_ports(
+                    "MIDI Out",
+                    "midi.output",
+                    &midi_port_rows(&self.midi_outputs),
+                );
             }
             RuntimeStoreResult::MidiListInputsResult { inputs } => {
                 self.midi_inputs = inputs;
                 self.display.runtime_error_presentation = None;
-                self.menu.rebuild(self.menu_config());
+                self.menu.show_midi_ports(
+                    "MIDI In",
+                    "midi.input",
+                    &midi_port_rows(&self.midi_inputs),
+                );
             }
             RuntimeStoreResult::MidiStatus {
                 ok,
@@ -37,4 +45,11 @@ impl NativeRunner {
         }
         Ok(())
     }
+}
+
+pub(super) fn midi_port_rows(ports: &[MidiPort]) -> Vec<(String, String)> {
+    ports
+        .iter()
+        .map(|port| (port.id.clone(), port.name.clone()))
+        .collect()
 }

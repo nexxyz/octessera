@@ -1,11 +1,19 @@
 use super::system_bluetooth::bluetooth_group;
 use super::system_io::{sd_card_2_group, usb_data_role_item};
-use super::{action_item, bool_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem};
+use super::{
+    action_item, bool_item, group, NativeBluetoothRows, NativeMenuAction, NativeMenuConfig,
+    NativeMenuItem,
+};
 
 pub(super) fn connections_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
     let mut children = vec![
         wifi_group(config),
-        bluetooth_group(config),
+        bluetooth_group(NativeBluetoothRows {
+            enabled: config.bluetooth_enabled,
+            audio: config.bluetooth_audio,
+            paired: &config.bluetooth_paired,
+            found: &config.bluetooth_found,
+        }),
         sd_card_2_group(host_role),
     ];
     if config.usb_data_role_available {

@@ -1,3 +1,4 @@
+use super::section_labels::SYSTEM_LABEL;
 use super::system_connections::connections_group;
 use super::system_io::{audio_group, hdmi_video_group, midi_group};
 use super::system_maintenance::{live_show_group, maintenance_group};
@@ -100,7 +101,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
             NativeMenuAction::PlatformEffect("system.shutdown".into()),
         ),
     ]);
-    group("System", children)
+    group(SYSTEM_LABEL, children)
 }
 
 fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {

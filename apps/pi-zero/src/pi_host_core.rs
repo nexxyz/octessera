@@ -105,7 +105,7 @@ impl PiHostCore {
     }
 
     pub(crate) fn finished_platform_results(
-        &self,
+        &mut self,
         runner: &mut NativeRunner,
         max_results: usize,
     ) -> Vec<HostMessage> {
@@ -124,6 +124,7 @@ impl PiHostCore {
                 )
             })
             .chain(bluetooth)
+            .chain(self.midi.drain_results())
             .collect()
     }
 

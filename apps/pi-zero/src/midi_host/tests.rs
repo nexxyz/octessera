@@ -1,8 +1,8 @@
+use super::connections::usb_midi_route_error;
 use super::port_identity::{
     host_midi_port_names, is_usb_gadget_midi_name, resolve_port_id, resolve_selected_port_id,
     stable_port_ids,
 };
-use super::usb_midi_route_error;
 
 #[test]
 fn usb_gadget_midi_names_include_kernel_f_midi_port() {

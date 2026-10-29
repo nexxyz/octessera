@@ -1,9 +1,6 @@
 use crate::midi_host::MidiHost;
 use crate::setup_portal::start_failure_message;
-use playback_runtime::{
-    HostMessage, RuntimeAdapterError, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeStoreResult,
-};
+use playback_runtime::{HostMessage, RuntimePlatformEffect, RuntimePlatformRequest};
 
 use super::{PiPlatformService, PlatformJob, PlatformJobKind};
 
@@ -107,64 +104,12 @@ pub(crate) fn dispatch(
     result
 }
 
-pub(crate) fn dispatch_midi_effect(
-    midi: &mut MidiHost,
-    effect: &RuntimePlatformEffect,
-) -> Result<Option<RuntimeStoreResult>, RuntimeAdapterError> {
-    let result = match effect {
-        RuntimePlatformEffect::MidiListOutputsRequest => {
-            Some(RuntimeStoreResult::MidiListOutputsResult {
-                outputs: midi
-                    .list_outputs()
-                    .map_err(RuntimeAdapterError::operation_failed)?,
-            })
-        }
-        RuntimePlatformEffect::MidiListInputsRequest => {
-            Some(RuntimeStoreResult::MidiListInputsResult {
-                inputs: midi
-                    .list_inputs()
-                    .map_err(RuntimeAdapterError::operation_failed)?,
-            })
-        }
-        RuntimePlatformEffect::MidiSelectOutput { id } => {
-            let result = midi.select_output(id.clone());
-            midi.selection_status(result)
-                .map(|(ok, message)| RuntimeStoreResult::MidiStatus {
-                    ok,
-                    message,
-                    selected_out_id: midi.selected_output_id(),
-                    selected_in_id: midi.selected_input_id(),
-                })
-        }
-        RuntimePlatformEffect::MidiSelectInput { id } => {
-            let result = midi.select_input(id.clone());
-            midi.selection_status(result)
-                .map(|(ok, message)| RuntimeStoreResult::MidiStatus {
-                    ok,
-                    message,
-                    selected_out_id: midi.selected_output_id(),
-                    selected_in_id: midi.selected_input_id(),
-                })
-        }
-        _ => None,
-    };
-    Ok(result)
-}
-
+/// MIDI list and select requests answer later, from the connection worker.
 pub(crate) fn dispatch_midi_effect_messages(
     midi: &mut MidiHost,
     effect: &RuntimePlatformEffect,
-) -> Result<Option<Vec<HostMessage>>, RuntimeAdapterError> {
-    let midi_selection = matches!(
-        effect,
-        RuntimePlatformEffect::MidiSelectOutput { .. }
-            | RuntimePlatformEffect::MidiSelectInput { .. }
-    );
-    match dispatch_midi_effect(midi, effect)? {
-        Some(result) => Ok(Some(vec![HostMessage::RuntimeResult { result }])),
-        None if midi_selection => Ok(Some(Vec::new())),
-        None => Ok(None),
-    }
+) -> Option<Vec<HostMessage>> {
+    midi.request(effect).then(Vec::new)
 }
 
 pub(crate) fn enqueue_job(

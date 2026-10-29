@@ -70,6 +70,9 @@ fn start_with_saved_midi(usb_midi_out_enabled: bool, out_id: Option<&str>) -> St
     )
     .unwrap();
     wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter).unwrap();
+    adapter.core.midi.sync_worker();
+    crate::runtime_dispatch::handle_deferred_host_work(&mut playback, &mut runner, &mut adapter)
+        .unwrap();
     Started {
         root,
         playback,

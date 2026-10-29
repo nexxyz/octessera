@@ -126,6 +126,15 @@ pub struct NativeMenuConfig {
     pub sync_source: SyncSource,
 }
 
+/// The Bluetooth rows of System > Connections.
+#[derive(Clone, Copy, Debug)]
+pub struct NativeBluetoothRows<'a> {
+    pub enabled: bool,
+    pub audio: bool,
+    pub paired: &'a [(String, String)],
+    pub found: &'a [(String, String)],
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NativeSampleAvailability {
     Unknown,

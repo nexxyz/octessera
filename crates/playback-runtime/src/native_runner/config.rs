@@ -165,16 +165,8 @@ impl NativeRunner {
             preset_names: self.preset_names.clone(),
             preset_draft_name: self.preset_draft_name.clone(),
             preset_rename_source: self.preset_rename_source.clone(),
-            midi_outputs: self
-                .midi_outputs
-                .iter()
-                .map(|port| (port.id.clone(), port.name.clone()))
-                .collect(),
-            midi_inputs: self
-                .midi_inputs
-                .iter()
-                .map(|port| (port.id.clone(), port.name.clone()))
-                .collect(),
+            midi_outputs: super::midi_results::midi_port_rows(&self.midi_outputs),
+            midi_inputs: super::midi_results::midi_port_rows(&self.midi_inputs),
             bluetooth_enabled: self.bluetooth.enabled,
             wifi_enabled: self.wifi_enabled,
             bluetooth_audio: self.bluetooth.audio,

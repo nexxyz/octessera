@@ -145,6 +145,7 @@ mod transport_phase_resets;
 mod trigger_gates;
 mod twinkle;
 mod ui_scenario;
+mod usb_role_rows;
 mod user_data_restore;
 mod user_data_restore_rehydration;
 mod user_data_transfer;

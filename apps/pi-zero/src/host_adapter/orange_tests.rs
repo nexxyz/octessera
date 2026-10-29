@@ -187,9 +187,13 @@ fn midi_panic_and_clear_selection_succeed_without_selected_ports() {
         RuntimePlatformEffect::MidiSelectOutput { id: None },
         RuntimePlatformEffect::MidiSelectInput { id: None },
     ] {
-        let responses = adapter
+        let mut responses = adapter
             .handle_platform_effect(&request(effect, "midi"))
             .unwrap();
+        if responses.is_empty() {
+            adapter.core.midi.sync_worker();
+            responses = adapter.core.midi.drain_results();
+        }
         let [HostMessage::RuntimeResult { result }] = responses.as_slice() else {
             panic!("expected MIDI status");
         };

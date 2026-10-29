@@ -117,7 +117,6 @@ pub(crate) fn run_runtime_loop(
         }
         state.late_timed_events.log_increase(Instant::now());
         crate::midi_host::drain_midi_messages(inputs.midi_rx, playback, runner, adapter);
-        adapter.reconnect_midi_if_ports_changed(Instant::now());
         let host_input_started = profile_enabled.then(Instant::now);
         drain_host_messages(inputs.input_rx, playback, runner, adapter);
         if let Some(started) = host_input_started {

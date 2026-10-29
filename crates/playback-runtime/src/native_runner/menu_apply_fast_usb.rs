@@ -1,4 +1,5 @@
 use super::menu_apply_fast::value_changed;
+use super::midi_results::midi_port_rows;
 use super::{AudioOutputSet, NativeRunner, UsbDataRole};
 
 impl NativeRunner {
@@ -49,7 +50,13 @@ impl NativeRunner {
                 .expect("Jack output remains enabled");
                 self.usb_midi_out_enabled = false;
             }
-            self.rematerialize_menu_around_key("usb.dataRole");
+            self.menu.show_usb_role_rows(
+                role.is_host(),
+                self.audio_outputs.usb(),
+                self.usb_midi_out_enabled,
+                &midi_port_rows(&self.midi_outputs),
+                &midi_port_rows(&self.midi_inputs),
+            );
             self.mark_system_dirty();
         }
         true

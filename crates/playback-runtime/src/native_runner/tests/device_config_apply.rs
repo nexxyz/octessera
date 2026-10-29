@@ -31,7 +31,11 @@ fn saved_payload(messages: &[RunnerMessage]) -> Option<Value> {
         })
 }
 
-fn commit_setting(runner: &mut NativeRunner, key: &str, delta: i32) -> Vec<RunnerMessage> {
+pub(super) fn commit_setting(
+    runner: &mut NativeRunner,
+    key: &str,
+    delta: i32,
+) -> Vec<RunnerMessage> {
     enter_edit(runner, key);
     turn(runner, delta);
     press(runner)
@@ -70,7 +74,7 @@ fn live_midi_out_enabled(runner: &NativeRunner) -> bool {
         .midi_out_enabled
 }
 
-fn board_runner(usb_data_role_available: bool) -> NativeRunner {
+pub(super) fn board_runner(usb_data_role_available: bool) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         usb_data_role_available,

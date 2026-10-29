@@ -35,6 +35,10 @@ impl NativeMenuModel {
         self.numeric_display_mode = config.numeric_display_mode.clone();
         self.root = build_root(config);
         self.navigation_memory.clear();
+        self.clamp_cursor_to_siblings();
+    }
+
+    pub(super) fn clamp_cursor_to_siblings(&mut self) {
         let siblings_len = self.current_siblings().len();
         if siblings_len == 0 {
             self.state.cursor = 0;
