@@ -1,5 +1,4 @@
 use super::menu_apply_fast::value_changed;
-use super::restart_settings::RestartSetting;
 use super::{AudioOptimization, NativeRunner};
 
 impl NativeRunner {
@@ -9,7 +8,7 @@ impl NativeRunner {
         };
         let (handled, changed) = self.apply_audio_optimization_menu_value(&value);
         if changed {
-            self.commit_restart_sensitive_setting(RestartSetting::AudioOptimization);
+            self.commit_restart_sensitive_setting();
         }
         handled
     }

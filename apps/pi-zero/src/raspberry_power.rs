@@ -1,8 +1,8 @@
-//! Raspberry power requests: the ordinary reboot/shutdown/app-restart lifecycle
-//! and the device-apply reboot; reboot and shutdown end in a systemctl/reboot command.
+//! Raspberry power requests: the ordinary reboot/shutdown/app-restart lifecycle;
+//! reboot and shutdown end in a systemctl/reboot command.
 
 use crate::host_adapter::{PiHostAdapter, PowerRequest};
-use crate::host_power_lifecycle::{publish_terminal_frame, run_ordinary_power_lifecycle};
+use crate::host_power_lifecycle::run_ordinary_power_lifecycle;
 use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render_loop::RenderWorker;
 use playback_runtime::{NativeRunner, PlaybackRuntime};
@@ -19,27 +19,19 @@ pub(crate) fn shutdown_if_requested(
     let Some(request) = adapter.take_power_request() else {
         return false;
     };
-    match request {
-        PowerRequest::Reboot | PowerRequest::Shutdown | PowerRequest::RestartApp => {
-            let action = match request {
-                PowerRequest::Reboot => PowerAction::Reboot,
-                PowerRequest::Shutdown => PowerAction::Shutdown,
-                PowerRequest::RestartApp => PowerAction::RestartApp,
-                PowerRequest::ApplyDeviceConfig(()) => unreachable!(),
-            };
-            report_power_lifecycle_result(run_ordinary_power_lifecycle(
-                playback,
-                runner,
-                adapter,
-                render_worker,
-                action,
-                |_| power_pi_system(request),
-            ))
-        }
-        PowerRequest::ApplyDeviceConfig(()) => {
-            finalize_device_apply_power_request(playback, runner, render_worker, request)
-        }
-    }
+    let action = match request {
+        PowerRequest::Reboot => PowerAction::Reboot,
+        PowerRequest::Shutdown => PowerAction::Shutdown,
+        PowerRequest::RestartApp => PowerAction::RestartApp,
+    };
+    report_power_lifecycle_result(run_ordinary_power_lifecycle(
+        playback,
+        runner,
+        adapter,
+        render_worker,
+        action,
+        |_| power_pi_system(request),
+    ))
 }
 
 fn report_power_lifecycle_result(result: PowerLifecycleResult) -> bool {
@@ -54,22 +46,6 @@ fn report_power_lifecycle_result(result: PowerLifecycleResult) -> bool {
             true
         }
     }
-}
-
-fn finalize_device_apply_power_request(
-    playback: &PlaybackRuntime,
-    runner: &mut NativeRunner,
-    render_worker: &RenderWorker,
-    request: PowerRequest,
-) -> bool {
-    if let Err(error) = publish_terminal_frame(playback, runner, render_worker) {
-        eprintln!("pi device-apply terminal render failed: {error}");
-        return true;
-    }
-    if let Err(error) = power_pi_system(request) {
-        eprintln!("pi device-apply power request failed: {error}");
-    }
-    true
 }
 
 fn power_pi_system(request: PowerRequest) -> Result<(), String> {
@@ -122,15 +98,5 @@ fn power_command_attempts(
             ("/sbin/poweroff", &[]),
         ],
         PowerRequest::RestartApp => &[],
-        PowerRequest::ApplyDeviceConfig(()) => &[
-            ("sudo", &["-n", "/usr/bin/systemctl", "reboot"]),
-            ("sudo", &["-n", "/bin/systemctl", "reboot"]),
-            ("sudo", &["-n", "/usr/sbin/reboot"]),
-            ("sudo", &["-n", "/sbin/reboot"]),
-            ("/usr/bin/systemctl", &["reboot"]),
-            ("/bin/systemctl", &["reboot"]),
-            ("/usr/sbin/reboot", &[]),
-            ("/sbin/reboot", &[]),
-        ],
     }
 }

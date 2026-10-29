@@ -292,6 +292,21 @@ fn bluetooth_lets_a_board_without_usb_host_capture_keyboards() {
 }
 
 #[test]
+fn usb_host_role_turns_usb_keyboard_capture_on_and_off_live() {
+    let control = KeyboardCaptureControl::new(false);
+    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::LiveGrid);
+    assert!(!control.is_enabled());
+
+    control.observe_usb_host(true);
+    assert!(control.is_enabled());
+    assert!(control.buses().usb);
+
+    control.observe_usb_host(false);
+    assert!(!control.is_enabled());
+    assert_eq!(control.buses(), KeyboardBuses::default());
+}
+
+#[test]
 fn control_transitions_wake_and_update_gate() {
     let control = KeyboardCaptureControl::new(true);
     assert!(!control.is_enabled());

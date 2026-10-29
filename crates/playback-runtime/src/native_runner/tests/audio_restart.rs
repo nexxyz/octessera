@@ -33,7 +33,7 @@ fn changed_optimization_runner(auto_save_default: bool) -> NativeRunner {
     runner
 }
 
-fn dirty_bpm_hdmi_optimization_runner() -> NativeRunner {
+fn dirty_bpm_optimization_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         audio_optimization_capacity_available: true,
         jack_audio_required: true,
@@ -68,26 +68,6 @@ fn dirty_bpm_hdmi_optimization_runner() -> NativeRunner {
         })
         .unwrap();
     let _ = commit_with_main(&mut runner);
-
-    assert!(runner.menu.focus_item_key("audioOutputs.hdmi"));
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let _ = commit_with_main(&mut runner);
-    assert_eq!(
-        runner.snapshot().unwrap()["display"]["title"],
-        "Apply System"
-    );
-    let _ = commit_with_back(&mut runner);
 
     assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     let _ = runner
@@ -286,7 +266,7 @@ fn restart_sensitive_back_commit_opens_save_setting_dialog() {
 
 #[test]
 fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_state() {
-    let mut runner = dirty_bpm_hdmi_optimization_runner();
+    let mut runner = dirty_bpm_optimization_runner();
     let patch_dirty_revision = runner.dirty_revision;
 
     let _ = commit_with_main(&mut runner);
@@ -307,9 +287,7 @@ fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_st
     assert_eq!(payload["kind"], "octessera.system");
     assert_eq!(payload["schemaVersion"], 1);
     assert_eq!(payload["runtimeConfig"]["sound"]["optimizeFor"], "capacity");
-    assert_eq!(payload["runtimeConfig"]["audioOutputs"]["hdmi"], false);
     assert_eq!(runner.transport.bpm, 121.0);
-    assert!(runner.audio_outputs.hdmi());
     assert!(runner.config_dirty);
     assert_eq!(runner.dirty_revision, patch_dirty_revision);
     assert_eq!(snapshot_from(&messages)["display"]["title"], "Saving...");
@@ -318,10 +296,9 @@ fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_st
     assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Restart?");
     assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
     assert_eq!(runner.transport.bpm, 121.0);
-    assert!(runner.audio_outputs.hdmi());
     assert!(runner.config_dirty);
     assert_eq!(runner.dirty_revision, patch_dirty_revision);
-    assert!(runner.pending.system_persistence.dirty_revision.is_some());
+    assert!(runner.pending.system_persistence.dirty_revision.is_none());
     let messages = commit_with_back(&mut runner);
     assert!(!messages.iter().any(|message| matches!(
         message,

@@ -1,5 +1,4 @@
 use super::music_first_tests::{assert_music_only, playing_default};
-use super::restart_settings::RestartSetting;
 use super::*;
 use std::time::{Duration, Instant};
 
@@ -282,10 +281,9 @@ fn restart_and_restore_gates_match_existing_save_eligibility() {
     editing.auto_save_default = true;
     editing.rolling_backups = false;
     dirty_at(&mut editing, due_at);
-    editing.restart_settings.begin_edit(
-        &json!({ "runtimeConfig": { "audioOutputs": { "dac": true } } }),
-        RestartSetting::AudioOutputDac,
-    );
+    editing.restart_settings.begin_edit(&json!({
+        "runtimeConfig": { "sound": { "optimizeFor": "latency" } }
+    }));
     assert!(editing.persistence_intent_at(due_at).is_none());
     editing.rolling_backups = true;
     editing.last_backup_save_at = Some(due_at - Duration::from_secs(300));

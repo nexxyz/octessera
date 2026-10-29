@@ -1,8 +1,6 @@
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod input;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-mod orange_device_apply;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_runtime;
 mod render;
 mod render_loop;
@@ -36,6 +34,7 @@ mod boot_oled_handoff;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod boot_startup_delayed;
 mod candidate_readiness;
+mod device_apply;
 mod device_update;
 #[cfg(feature = "profiling")]
 mod dsp_profile;
@@ -93,8 +92,6 @@ mod profiling_modes;
 mod raspberry_power;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod raspberry_runtime;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-mod rpi_device_apply;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
 mod runtime_dispatch;
@@ -186,7 +183,7 @@ fn main() -> std::process::ExitCode {
     audio_priority::tighten_timer_slack();
     if let Err(error) = runtime_thread::run_on_runtime_thread(orange_runtime::run) {
         eprintln!("Orange foreground candidate failed: {error}");
-        std::process::exit(error.exit_code());
+        std::process::exit(1);
     }
     power_lifecycle::process_exit_code()
 }

@@ -199,7 +199,7 @@ impl HostAdapter for FakeHost {
                 effect,
                 RuntimePlatformEffect::Reboot
                     | RuntimePlatformEffect::Shutdown
-                    | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+                    | RuntimePlatformEffect::ApplyDeviceConfig { .. }
             )
         {
             return Err(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(

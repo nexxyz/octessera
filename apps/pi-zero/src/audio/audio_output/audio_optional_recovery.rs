@@ -1,33 +1,43 @@
 use super::audio_output_open::AudioConstructionConfig;
 use super::cpal_audio_output::build_cpal_mirror_stream;
 use super::AudioSink;
-use crate::audio_route::{set_status, AudioRouteRegistry, AudioRouteStatus, RouteOpenError};
+use crate::audio_route::{
+    set_status, AudioRouteRegistry, AudioRouteStatus, RouteOpenError, SelectedOutputs,
+};
 use crate::audio_stream_health::{AudioStreamHealth, AudioStreamStatus};
-use rodio_engine_source::PcmMirrorProducer;
+use rodio_engine_source::{PcmMirrorConsumer, PcmMirrorProducer};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 const STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
 const RECOVERY_INTERVAL: Duration = Duration::from_secs(2);
-const STOP_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
 struct ManagedStream {
-    _stream: super::cpal_audio_output::BuiltAudioStream,
+    _stream: Box<dyn std::any::Any>,
     health: AudioStreamHealth,
 }
+
+type SideOutputOpener =
+    Box<dyn Fn(PcmMirrorConsumer) -> Result<ManagedStream, RouteOpenError> + Send>;
 
 fn should_retry_open(error: &RouteOpenError) -> bool {
     error.is_waiting()
 }
 
+/// Runs one side output (USB or HDMI) for as long as the app runs: it plays
+/// while System selects it, reopens after the device comes back, and stays
+/// quiet while the output is off.
 pub(super) struct OptionalRecoveryWorker {
-    stop: Arc<std::sync::atomic::AtomicBool>,
+    stop: Arc<AtomicBool>,
+    selected: Arc<SelectedOutputs>,
     join: Option<std::thread::JoinHandle<()>>,
 }
 
 impl Drop for OptionalRecoveryWorker {
     fn drop(&mut self) {
-        self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.stop.store(true, Ordering::Release);
+        self.selected.wake();
         if let Some(join) = self.join.take() {
             let _ = join.join();
         }
@@ -39,66 +49,121 @@ pub(super) fn spawn(
     route_registry: AudioRouteRegistry,
     sink: AudioSink,
     mirror_producer: PcmMirrorProducer,
+    selected: Arc<SelectedOutputs>,
 ) -> OptionalRecoveryWorker {
-    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    spawn_with_opener(
+        route_registry,
+        sink,
+        mirror_producer,
+        selected,
+        Box::new(move |consumer| open(construction, sink, consumer)),
+    )
+}
+
+fn spawn_with_opener(
+    route_registry: AudioRouteRegistry,
+    sink: AudioSink,
+    mirror_producer: PcmMirrorProducer,
+    selected: Arc<SelectedOutputs>,
+    open: SideOutputOpener,
+) -> OptionalRecoveryWorker {
+    let stop = Arc::new(AtomicBool::new(false));
     let worker_stop = stop.clone();
+    let worker_selected = selected.clone();
     let join = std::thread::spawn(move || {
-        let mut managed: Option<ManagedStream> = None;
-        while !worker_stop.load(std::sync::atomic::Ordering::Relaxed) {
-            match managed
-                .as_ref()
-                .map(|stream| stream.health.external_status())
-            {
-                Some(AudioStreamStatus::Healthy) | None => {}
-                Some(AudioStreamStatus::Recovering) => {
-                    managed = None;
-                    set_status(&route_registry, sink, AudioRouteStatus::Waiting);
-                }
-                Some(AudioStreamStatus::Terminal) => {
-                    set_status(&route_registry, sink, AudioRouteStatus::Faulted);
-                    return;
-                }
-            }
-            if managed.is_none() {
-                match open(construction, sink, mirror_producer.new_consumer()) {
-                    Ok(stream) => {
-                        set_status(&route_registry, sink, AudioRouteStatus::Active);
-                        stream.health.clear_recoverable_fault();
-                        managed = Some(stream);
-                        eprintln!("{sink:?} audio stream ready");
-                    }
-                    Err(error) => {
-                        set_status(&route_registry, sink, error.status());
-                        eprintln!("{sink:?} audio unavailable: {error}");
-                        if !should_retry_open(&error) {
-                            return;
-                        }
-                    }
-                }
-            }
-            sleep_until_retry_or_stop(&worker_stop, RECOVERY_INTERVAL);
-        }
+        run(
+            &open,
+            &route_registry,
+            sink,
+            &mirror_producer,
+            &worker_selected,
+            &worker_stop,
+        )
     });
     OptionalRecoveryWorker {
         stop,
+        selected,
         join: Some(join),
     }
 }
 
-fn sleep_until_retry_or_stop(stop: &std::sync::atomic::AtomicBool, duration: Duration) {
-    let deadline = std::time::Instant::now() + duration;
-    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
-        let Some(remaining) = deadline.checked_duration_since(std::time::Instant::now()) else {
-            break;
-        };
-        std::thread::sleep(remaining.min(STOP_POLL_INTERVAL));
+fn run(
+    open: &SideOutputOpener,
+    route_registry: &AudioRouteRegistry,
+    sink: AudioSink,
+    mirror_producer: &PcmMirrorProducer,
+    selected: &SelectedOutputs,
+    stop: &AtomicBool,
+) {
+    let mut managed: Option<ManagedStream> = None;
+    let (mut outputs, mut generation) = selected.get();
+    let mut parked = false;
+    while !stop.load(Ordering::Acquire) {
+        let enabled = AudioSink::selected(outputs).contains(&sink);
+        if !enabled {
+            mirror_producer.invalidate();
+            if managed.take().is_some() {
+                eprintln!("{sink:?} audio stopped");
+            }
+        } else if !parked {
+            parked = service(open, route_registry, sink, mirror_producer, &mut managed);
+        }
+        let timeout = (enabled && !parked).then_some(RECOVERY_INTERVAL);
+        let (next_outputs, next_generation) = selected.wait_for_change(generation, timeout, stop);
+        if next_generation != generation {
+            parked = false;
+        }
+        outputs = next_outputs;
+        generation = next_generation;
+    }
+}
+
+/// Keeps a selected side output playing; returns true when it hit a fault that
+/// only a new selection should retry.
+fn service(
+    open: &SideOutputOpener,
+    route_registry: &AudioRouteRegistry,
+    sink: AudioSink,
+    mirror_producer: &PcmMirrorProducer,
+    managed: &mut Option<ManagedStream>,
+) -> bool {
+    match managed
+        .as_ref()
+        .map(|stream| stream.health.external_status())
+    {
+        Some(AudioStreamStatus::Healthy) => return false,
+        None => {}
+        Some(AudioStreamStatus::Recovering) => {
+            *managed = None;
+            set_status(route_registry, sink, AudioRouteStatus::Waiting);
+        }
+        Some(AudioStreamStatus::Terminal) => {
+            *managed = None;
+            set_status(route_registry, sink, AudioRouteStatus::Faulted);
+            return true;
+        }
+    }
+    mirror_producer.reactivate();
+    match open(mirror_producer.new_consumer()) {
+        Ok(stream) => {
+            set_status(route_registry, sink, AudioRouteStatus::Active);
+            stream.health.clear_recoverable_fault();
+            *managed = Some(stream);
+            eprintln!("{sink:?} audio stream ready");
+            false
+        }
+        Err(error) => {
+            set_status(route_registry, sink, error.status());
+            eprintln!("{sink:?} audio unavailable: {error}");
+            !should_retry_open(&error)
+        }
     }
 }
 
 fn open(
     construction: AudioConstructionConfig,
     sink: AudioSink,
-    consumer: rodio_engine_source::PcmMirrorConsumer,
+    consumer: PcmMirrorConsumer,
 ) -> Result<ManagedStream, RouteOpenError> {
     let health = AudioStreamHealth::optional(format!("{sink:?}"));
     let built = build_cpal_mirror_stream(
@@ -138,35 +203,10 @@ fn open(
         }
     }
     Ok(ManagedStream {
-        _stream: built,
+        _stream: Box::new(built),
         health,
     })
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn only_disconnected_open_failures_retry() {
-        assert!(should_retry_open(&RouteOpenError::Disconnected));
-        assert!(!should_retry_open(&RouteOpenError::Busy));
-        assert!(!should_retry_open(&RouteOpenError::Unsupported(
-            "format".into()
-        )));
-        assert!(!should_retry_open(&RouteOpenError::Fault("backend".into())));
-    }
-
-    #[test]
-    fn terminal_optional_open_failure_is_one_attempt() {
-        let mut attempts = 0;
-        let error = RouteOpenError::Fault("backend".into());
-        loop {
-            attempts += 1;
-            if !should_retry_open(&error) {
-                break;
-            }
-        }
-        assert_eq!(attempts, 1);
-    }
-}
+mod tests;

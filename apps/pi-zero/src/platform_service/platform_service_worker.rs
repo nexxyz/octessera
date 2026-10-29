@@ -5,8 +5,7 @@ use std::thread;
 
 pub(super) struct PlatformWorkerConfig {
     pub(super) update_executor: Arc<dyn device_update::UpdateExecutor>,
-    pub(super) role_applier: super::UsbRoleApplier,
-    pub(super) storage_state: PathBuf,
+    pub(super) device_apply: crate::device_apply::DeviceApply,
 }
 
 pub(super) struct PlatformWorkerContext {
@@ -18,6 +17,7 @@ pub(super) struct PlatformWorkerContext {
     pub(super) store_write_barrier: StoreWriteBarrier,
     pub(super) legacy_patch_writes: Arc<Mutex<super::LegacyPatchWrites>>,
     pub(super) update_executor: Arc<dyn device_update::UpdateExecutor>,
+    pub(super) device_apply: crate::device_apply::DeviceApply,
 }
 
 pub(super) fn spawn(context: PlatformWorkerContext) {
@@ -34,6 +34,7 @@ fn run(context: PlatformWorkerContext) {
         store_write_barrier,
         legacy_patch_writes,
         update_executor,
+        device_apply,
     } = context;
     while let Ok(item) = jobs.recv() {
         let job = match item {
@@ -108,22 +109,25 @@ fn run(context: PlatformWorkerContext) {
             let _ = release.recv();
             continue;
         }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        if let PlatformJobKind::PrepareOrangeDeviceApply { payload, completed } = &job.kind {
-            let result = match store_lock.lock() {
-                Ok(_guard) => {
-                    if superseded_store_write(&job, &store_write_barrier).is_some() {
-                        Err("store write cancelled because restore was confirmed".into())
-                    } else {
-                        crate::orange_device_apply::prepare(&store_dir, payload, store_lock.clone())
-                    }
-                }
-                Err(_) => Err("pi store is unavailable".to_string()),
-            };
-            let _ = completed.send(result);
-            continue;
-        }
-        let result = if job_requires_store_lock(&job.kind) {
+        let result = if let PlatformJobKind::ApplyDeviceConfig {
+            payload,
+            usb_change,
+        } = &job.kind
+        {
+            device_apply
+                .apply(*usb_change, || match store_lock.lock() {
+                    Ok(_guard) => match superseded_store_write(&job, &store_write_barrier) {
+                        Some(_) => {
+                            Err("store write cancelled because restore was confirmed".into())
+                        }
+                        None => super::platform_service_document_store::save_system_document(
+                            &store_dir, payload,
+                        ),
+                    },
+                    Err(_) => Err("pi store is unavailable".into()),
+                })
+                .with_identity(job.request.request_id.clone(), job.request.revision)
+        } else if job_requires_store_lock(&job.kind) {
             match store_lock.lock() {
                 Ok(_guard) => {
                     let write_kind = legacy_patch_write_kind(&job.kind);
@@ -344,18 +348,16 @@ fn save_native_preset(
 }
 
 fn job_requires_store_lock(kind: &PlatformJobKind) -> bool {
-    match kind {
+    matches!(
+        kind,
         PlatformJobKind::ListPresets
-        | PlatformJobKind::SavePreset { .. }
-        | PlatformJobKind::DeletePreset { .. }
-        | PlatformJobKind::SaveDefault { .. }
-        | PlatformJobKind::SaveSystem { .. }
-        | PlatformJobKind::SaveBackup { .. }
-        | PlatformJobKind::ListSamples { .. } => true,
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        PlatformJobKind::PrepareOrangeDeviceApply { .. } => true,
-        _ => false,
-    }
+            | PlatformJobKind::SavePreset { .. }
+            | PlatformJobKind::DeletePreset { .. }
+            | PlatformJobKind::SaveDefault { .. }
+            | PlatformJobKind::SaveSystem { .. }
+            | PlatformJobKind::SaveBackup { .. }
+            | PlatformJobKind::ListSamples { .. }
+    )
 }
 
 fn superseded_store_write(

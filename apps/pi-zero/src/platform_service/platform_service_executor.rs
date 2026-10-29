@@ -70,9 +70,8 @@ pub(super) fn handle_job(
                 Err(message) => store_error(format!("Save system failed: {message}")),
             }
         }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        PlatformJobKind::PrepareOrangeDeviceApply { .. } => {
-            unreachable!("Orange device apply jobs are completed by the platform worker")
+        PlatformJobKind::ApplyDeviceConfig { .. } => {
+            unreachable!("device apply jobs are completed by the platform worker")
         }
         PlatformJobKind::SaveBackup { payload } => {
             match super::platform_service_store::validate_patch_document(store_dir, &payload)

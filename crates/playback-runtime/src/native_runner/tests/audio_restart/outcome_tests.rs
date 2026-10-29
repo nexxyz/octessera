@@ -108,62 +108,11 @@ fn perf_mode_save_offers_app_restart_through_recovery_lifecycle() {
     assert_eq!(
         count(&effects, |effect| matches!(
             effect,
-            RuntimePlatformEffect::Reboot | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+            RuntimePlatformEffect::Reboot
         )),
         0
     );
     assert_eq!(runner.snapshot().unwrap()["display"]["toast"], "Restarting");
-}
-
-#[test]
-fn perf_mode_saved_with_another_restart_setting_still_reboots() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        audio_optimization_capacity_available: true,
-        jack_audio_required: true,
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
-    runner.auto_save_default = false;
-    for key in ["audioOutputs.hdmi", "sound.optimizeFor"] {
-        assert!(runner.menu.focus_item_key(key));
-        let _ = commit_with_main(&mut runner);
-        turn_confirm(&mut runner, 1);
-        let _ = commit_with_main(&mut runner);
-        assert_eq!(
-            runner.snapshot().unwrap()["display"]["title"],
-            "Apply System"
-        );
-        if key == "audioOutputs.hdmi" {
-            let _ = commit_with_back(&mut runner);
-        }
-    }
-    let _ = choose_save_everything(&mut runner);
-    let _ = identified_save_result(&mut runner, "save-1", true);
-    assert_eq!(
-        restart_dialog_lines(&runner),
-        [
-            "System saved.",
-            "Reboot to apply?",
-            "> Continue",
-            "  Reboot now"
-        ]
-    );
-
-    let effects = confirm_restart_now(&mut runner);
-    assert_eq!(
-        count(&effects, |effect| matches!(
-            effect,
-            RuntimePlatformEffect::Reboot
-        )),
-        1
-    );
-    assert_eq!(
-        count(&effects, |effect| matches!(
-            effect,
-            RuntimePlatformEffect::RestartApp
-        )),
-        0
-    );
 }
 
 #[test]

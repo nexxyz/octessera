@@ -19,7 +19,7 @@ impl PlaybackRuntime {
             | RuntimePlatformEffect::StoreSaveDefault { payload, .. }
             | RuntimePlatformEffect::StoreSaveBackup { payload }
             | RuntimePlatformEffect::StoreSaveRecovery { payload }
-            | RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
+            | RuntimePlatformEffect::ApplyDeviceConfig { payload } => {
                 payload.get("revision").and_then(Value::as_u64)
             }
             RuntimePlatformEffect::StoreSaveSystem { .. } => None,

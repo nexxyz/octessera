@@ -4,7 +4,7 @@ use serde_json::json;
 use std::collections::BTreeMap;
 
 #[test]
-fn device_config_reboot_wire_name_deserializes_canonically() {
+fn device_config_wire_name_deserializes_canonically() {
     let payload = json!({
         "runtimeConfig": {
             "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
@@ -12,20 +12,20 @@ fn device_config_reboot_wire_name_deserializes_canonically() {
         }
     });
     let request: RuntimePlatformRequest = serde_json::from_value(json!({
-        "effect": { "type": "apply_device_config_reboot", "payload": payload },
+        "effect": { "type": "apply_device_config", "payload": payload },
         "requestId": "request-1"
     }))
     .unwrap();
     assert!(matches!(
         request.effect,
-        RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+        RuntimePlatformEffect::ApplyDeviceConfig { .. }
     ));
 }
 
 #[test]
-fn device_config_reboot_wire_name_serializes_canonically() {
+fn device_config_wire_name_serializes_canonically() {
     assert_eq!(
-        serde_json::to_value(RuntimePlatformEffect::ApplyDeviceConfigReboot {
+        serde_json::to_value(RuntimePlatformEffect::ApplyDeviceConfig {
             payload: json!({
                 "runtimeConfig": {
                     "audioOutputs": { "dac": true, "usb": false, "hdmi": false },
@@ -35,7 +35,7 @@ fn device_config_reboot_wire_name_serializes_canonically() {
         })
         .unwrap(),
         json!({
-            "type": "apply_device_config_reboot",
+            "type": "apply_device_config",
             "payload": {
                 "runtimeConfig": {
                     "audioOutputs": { "dac": true, "usb": false, "hdmi": false },

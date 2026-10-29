@@ -84,6 +84,7 @@ mod construction_seed;
 mod defaults;
 mod deferred_flush;
 mod delay_fx_timing;
+mod device_config_apply;
 mod device_input;
 mod device_input_buttons;
 mod display_deadlines;
@@ -407,7 +408,6 @@ pub struct NativeRunner {
     midi_respond_to_start_stop: bool,
     audio_outputs: AudioOutputSet,
     usb_data_role: UsbDataRole,
-    boot_applied_usb_midi_out_enabled: bool,
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
     play_mode: String,

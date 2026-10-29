@@ -47,6 +47,12 @@ impl PiHostCore {
         self.keyboard_control = Some(control);
     }
 
+    pub(crate) fn observe_usb_host_role(&self, host: bool) {
+        if let Some(control) = &self.keyboard_control {
+            control.observe_usb_host(host);
+        }
+    }
+
     pub(crate) fn observe_keyboard_capture_snapshot(&self, snapshot: &Value) {
         if let Some(control) = &self.keyboard_control {
             control.observe_snapshot(snapshot);
@@ -314,7 +320,7 @@ pub(crate) fn shutdown_pending_messages(request: &RuntimePlatformRequest) -> Vec
         | RuntimePlatformEffect::Shutdown
         | RuntimePlatformEffect::RestartApp
         | RuntimePlatformEffect::StoreSaveDefault { .. }
-        | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. } => vec![failure_message(
+        | RuntimePlatformEffect::ApplyDeviceConfig { .. } => vec![failure_message(
             request,
             "shutdown request is already pending".into(),
         )],

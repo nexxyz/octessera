@@ -20,7 +20,6 @@ pub(in crate::native_runner) struct DefaultWriteCompletion {
     pub(in crate::native_runner) captured_patch_dirty_revision: Option<u64>,
     pub(in crate::native_runner) restart_flow: bool,
     pub(in crate::native_runner) succeeded: bool,
-    pub(in crate::native_runner) host_role: bool,
     pub(in crate::native_runner) show_saved_feedback: bool,
     pub(in crate::native_runner) saved_patch_payload: Option<Arc<Value>>,
 }
@@ -196,7 +195,6 @@ impl RestartSettingsState {
         let show_saved_feedback =
             succeeded && (!write.native_origin || write.revision == current_revision);
         let restart_flow = write.scope.is_restart() && self.is_saving();
-        let host_role = write.payload.as_deref().is_some_and(super::payload_is_host);
         let saved_patch_payload = (succeeded && write.scope.is_patch())
             .then(|| write.payload.as_ref().map(Arc::clone))
             .flatten();
@@ -219,7 +217,6 @@ impl RestartSettingsState {
             captured_patch_dirty_revision: write.captured_patch_dirty_revision,
             restart_flow,
             succeeded,
-            host_role,
             show_saved_feedback,
             saved_patch_payload,
         })

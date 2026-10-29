@@ -36,7 +36,6 @@ pub(crate) struct KeyboardCaptureControl {
 }
 
 struct KeyboardCaptureShared {
-    board_host_enabled: bool,
     state: Mutex<KeyboardCaptureState>,
     wake: Condvar,
 }
@@ -44,6 +43,7 @@ struct KeyboardCaptureShared {
 #[derive(Default)]
 struct KeyboardCaptureState {
     enabled: bool,
+    board_host: bool,
     hdmi_allows: bool,
     bluetooth: bool,
     shutdown: bool,
@@ -61,8 +61,10 @@ impl KeyboardCaptureControl {
     pub(crate) fn new(board_host_enabled: bool) -> Self {
         Self {
             shared: Arc::new(KeyboardCaptureShared {
-                board_host_enabled,
-                state: Mutex::new(KeyboardCaptureState::default()),
+                state: Mutex::new(KeyboardCaptureState {
+                    board_host: board_host_enabled,
+                    ..KeyboardCaptureState::default()
+                }),
                 wake: Condvar::new(),
             }),
         }
@@ -80,12 +82,14 @@ impl KeyboardCaptureControl {
         self.update(|state| state.bluetooth = enabled);
     }
 
+    pub(crate) fn observe_usb_host(&self, host: bool) {
+        self.update(|state| state.board_host = host);
+    }
+
     fn update(&self, change: impl FnOnce(&mut KeyboardCaptureState)) {
         let mut state = self.shared.state.lock().unwrap();
         change(&mut state);
-        let enabled = !state.shutdown
-            && state.hdmi_allows
-            && (self.shared.board_host_enabled || state.bluetooth);
+        let enabled = !state.shutdown && state.hdmi_allows && (state.board_host || state.bluetooth);
         if state.enabled != enabled {
             state.enabled = enabled;
             self.shared.wake.notify_one();
@@ -93,9 +97,10 @@ impl KeyboardCaptureControl {
     }
 
     pub(crate) fn buses(&self) -> KeyboardBuses {
+        let state = self.shared.state.lock().unwrap();
         KeyboardBuses {
-            usb: self.shared.board_host_enabled,
-            bluetooth: self.shared.state.lock().unwrap().bluetooth,
+            usb: state.board_host,
+            bluetooth: state.bluetooth,
         }
     }
 

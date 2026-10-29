@@ -1,36 +1,8 @@
 use super::*;
 use crate::RuntimePlatformRequest;
 
-const HOST_SAVE_LINES: [&str; 4] = [
-    "Restart required.",
-    "Before Host reboot:",
-    "Unplug computer USB.",
-    "Audio/MIDI/SD2 off.",
-];
-const HOST_RESTART_LINES: [&str; 5] = [
-    "System saved.",
-    "Reboot to apply?",
-    "Unplug computer USB",
-    "before Host reboot.",
-    "Audio/MIDI/SD2 off.",
-];
 const SAVE_OPTIONS: [&str; 3] = ["Cancel", "Save this one", "Save System"];
-const RESTART_OPTIONS: [&str; 2] = ["Continue", "Reboot now"];
 const APP_RESTART_OPTIONS: [&str; 2] = ["Continue", "Restart now"];
-
-fn host_runner(auto_save_default: bool) -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        jack_audio_required: true,
-        usb_data_role_available: true,
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
-    runner.auto_save_default = auto_save_default;
-    runner.menu.rebuild(runner.menu_config());
-    runner.menu.set_enum_value_for_key("usb.dataRole", "Host");
-    assert!(runner.apply_runtime_menu_key_fast("usb.dataRole").unwrap());
-    runner
-}
 
 fn acknowledge_save(runner: &mut NativeRunner, request_id: &str) {
     let payload = runner
@@ -52,33 +24,7 @@ fn acknowledge_save(runner: &mut NativeRunner, request_id: &str) {
         .unwrap();
 }
 
-fn manual_host_restart_choice() -> NativeRunner {
-    let mut runner = host_runner(false);
-    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
-    runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    acknowledge_save(&mut runner, "host-manual-save");
-    runner
-}
-
-fn host_restart_choice_with_auto_save_enabled() -> NativeRunner {
-    let mut runner = host_runner(true);
-    runner.display.confirm_dialog.as_mut().unwrap().cursor = 2;
-    runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_press", "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    acknowledge_save(&mut runner, "host-system-save");
-    runner
-}
-
-fn non_host_save_choice() -> NativeRunner {
+fn perf_mode_save_choice() -> NativeRunner {
     let mut runner = optimization_capable_runner();
     runner.menu.focus_item_key("sound.optimizeFor");
     runner
@@ -102,8 +48,8 @@ fn non_host_save_choice() -> NativeRunner {
     runner
 }
 
-fn non_host_restart_choice() -> NativeRunner {
-    let mut runner = non_host_save_choice();
+fn perf_mode_restart_choice() -> NativeRunner {
+    let mut runner = perf_mode_save_choice();
     runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
     runner
         .send(HostMessage::DeviceInput {
@@ -111,7 +57,7 @@ fn non_host_restart_choice() -> NativeRunner {
             request_snapshot: None,
         })
         .unwrap();
-    acknowledge_save(&mut runner, "non-host-save");
+    acknowledge_save(&mut runner, "perf-mode-save");
     runner
 }
 
@@ -148,32 +94,8 @@ fn assert_dialog_snapshot(
 }
 
 #[test]
-fn host_save_snapshot_renders_all_options_and_markers_at_each_cursor() {
-    let mut runner = host_runner(false);
-    for cursor in 0..SAVE_OPTIONS.len() {
-        assert_dialog_snapshot(&mut runner, &HOST_SAVE_LINES, &SAVE_OPTIONS, cursor);
-    }
-}
-
-#[test]
-fn host_restart_snapshot_renders_all_options_and_markers_at_each_cursor() {
-    let mut runner = manual_host_restart_choice();
-    assert_eq!(runner.usb_data_role, UsbDataRole::Host);
-    for cursor in 0..RESTART_OPTIONS.len() {
-        assert_dialog_snapshot(&mut runner, &HOST_RESTART_LINES, &RESTART_OPTIONS, cursor);
-    }
-}
-
-#[test]
-fn auto_save_host_restart_snapshot_includes_post_save_warning() {
-    let mut runner = host_restart_choice_with_auto_save_enabled();
-    assert_eq!(runner.usb_data_role, UsbDataRole::Host);
-    assert_dialog_snapshot(&mut runner, &HOST_RESTART_LINES, &RESTART_OPTIONS, 0);
-}
-
-#[test]
-fn non_host_save_snapshot_keeps_existing_dialog_at_each_cursor() {
-    let mut runner = non_host_save_choice();
+fn perf_mode_save_snapshot_renders_all_options_at_each_cursor() {
+    let mut runner = perf_mode_save_choice();
     for cursor in 0..SAVE_OPTIONS.len() {
         assert_dialog_snapshot(&mut runner, &["Restart required."], &SAVE_OPTIONS, cursor);
     }
@@ -181,7 +103,7 @@ fn non_host_save_snapshot_keeps_existing_dialog_at_each_cursor() {
 
 #[test]
 fn perf_mode_restart_snapshot_offers_app_restart_at_each_cursor() {
-    let mut runner = non_host_restart_choice();
+    let mut runner = perf_mode_restart_choice();
     for cursor in 0..APP_RESTART_OPTIONS.len() {
         assert_dialog_snapshot(
             &mut runner,

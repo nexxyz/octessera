@@ -66,8 +66,7 @@ pub(crate) fn prepare_runtime(
     skip_startup_splash: bool,
     keyboard_control: Option<crate::keyboard_capture::KeyboardCaptureControl>,
 ) -> Result<PreparedRuntime, String> {
-    let (mut playback, mut runner) =
-        crate::runtime_init::new_runtime(audio_optimization, usb_midi_out_enabled, false)?;
+    let (mut playback, mut runner) = crate::runtime_init::new_runtime(audio_optimization, false)?;
     if skip_startup_splash {
         runner.skip_startup_splash();
     }

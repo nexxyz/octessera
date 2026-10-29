@@ -27,7 +27,7 @@ pub(crate) fn run(
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     mut candidate_readiness: CandidateReadiness,
     hdmi: crate::render::hdmi::HdmiFramebuffer,
-) -> Result<(), OrangeRunError> {
+) -> Result<(), String> {
     let devices = ORANGE_PI_ZERO_2W_DEVICES;
     let trellis = match NeoTrellis::new_at(devices.i2c.path, devices.trellis_addrs) {
         Ok(trellis) => trellis,
@@ -114,7 +114,7 @@ pub(crate) fn run(
                     )
                 }
             };
-            return Err(error.into());
+            return Err(error);
         }
     };
     let render = RenderWorker::spawn(HardwareRenderTargets {
@@ -133,8 +133,7 @@ pub(crate) fn run(
                 "Orange initial OLED render failed: {error}; handoff failure: {handoff_error}"
             ),
             None => format!("Orange initial OLED render failed: {error}"),
-        }
-        .into());
+        });
     }
     if let Err(error) = render.mark_first_menu_rendered() {
         let handoff_error = render.mark_oled_failed().err();
@@ -145,8 +144,7 @@ pub(crate) fn run(
                 "Orange OLED handoff status failed: {error}; handoff failure: {handoff_error}"
             ),
             None => format!("Orange OLED handoff status failed: {error}"),
-        }
-        .into());
+        });
     }
     let suspend =
         match crate::orange_oled_suspend::OrangeOledSuspendCoordinator::spawn(render.clone()) {
@@ -154,7 +152,7 @@ pub(crate) fn run(
             Err(error) => {
                 let _ = render.abort();
                 let _ = seesaw.shutdown();
-                return Err(format!("Orange OLED suspend coordinator failed: {error}").into());
+                return Err(format!("Orange OLED suspend coordinator failed: {error}"));
             }
         };
     let result = run_prepared_runtime(
@@ -172,26 +170,10 @@ pub(crate) fn run(
     let render_result = lifecycle::teardown_render(&result, &render);
     let seesaw_result = seesaw.shutdown();
     let result = result
-        .and_then(|resolution| {
-            suspend_result
-                .map(|_| resolution)
-                .map_err(OrangeRunError::from)
-        })
-        .and_then(|resolution| {
-            render_result
-                .map(|_| resolution)
-                .map_err(OrangeRunError::from)
-        })
-        .and_then(|resolution| {
-            keyboard_result
-                .map(|_| resolution)
-                .map_err(OrangeRunError::from)
-        })
-        .and_then(|resolution| {
-            seesaw_result
-                .map(|_| resolution)
-                .map_err(OrangeRunError::from)
-        });
+        .and(suspend_result)
+        .and(render_result)
+        .and(keyboard_result)
+        .and(seesaw_result);
     drop(audio);
-    result.and_then(crate::orange_device_apply::finish_shutdown_resolution)
+    result
 }

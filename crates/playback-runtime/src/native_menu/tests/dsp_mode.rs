@@ -53,14 +53,10 @@ fn board_device_help_targets_match_desktop_visibility_policy() {
         .expect("Raspberry USB Role help entry");
     assert_eq!(role_entry.path, "System > Connections > USB Role");
     assert_eq!(role_entry.title, "USB Role");
-    assert_eq!(
-        role_entry.line1,
-        "Selects Raspberry USB role. Gadget allows USB Audio, USB MIDI, and SD2 transfer; Host disables all three."
-    );
-    assert_eq!(
-        role_entry.line2,
-        "Unplug computer USB before rebooting to Host."
-    );
+    let role_copy = format!("{} {}", role_entry.line1, role_entry.line2).to_lowercase();
+    for phrase in ["right away", "host disables all three", "stop sd2 transfer"] {
+        assert!(role_copy.contains(phrase), "USB Role help omitted {phrase}");
+    }
 }
 
 #[test]
@@ -95,7 +91,7 @@ fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
     let usb_midi_copy = format!("{} {}", usb_midi_entry.line1, usb_midi_entry.line2).to_lowercase();
     for phrase in [
         "bidirectional usb midi",
-        "after restart",
+        "right away",
         "owns both input and output",
         "routing takes precedence",
         "host selections are retained",

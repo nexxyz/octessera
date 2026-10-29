@@ -3,8 +3,7 @@ use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use serde_json::Value;
 use std::sync::Arc;
 
-use super::restart_settings::{DefaultSaveScope, DefaultWriteCompletion, RestartSetting};
-use super::UsbDataRole;
+use super::restart_settings::{is_restart_setting, DefaultSaveScope, DefaultWriteCompletion};
 use super::{NativeConfirmDialog, NativeManualSaveRequest, NativeRunner, NativeToast};
 
 impl NativeRunner {
@@ -52,21 +51,26 @@ impl NativeRunner {
             .complete_auto_save(document.clone(), dirty_revision)
         {
             self.outbox
-                .push_platform_effect(RuntimePlatformEffect::StoreSaveSystem { payload: document });
+                .push_platform_effect(RuntimePlatformEffect::StoreSaveSystem {
+                    payload: document.clone(),
+                });
+        }
+        if super::device_config_apply::is_device_config_key(key) {
+            self.apply_device_config(document);
         }
     }
 
     pub(super) fn finish_restart_sensitive_edit(&mut self, key: &str) {
-        let Some(setting) = RestartSetting::from_key(key) else {
+        if !is_restart_setting(key) {
             return;
-        };
+        }
         let current = self.config_payload();
-        if self.restart_settings.finish_edit(&current, setting) {
-            self.commit_restart_sensitive_setting(setting);
+        if self.restart_settings.finish_edit(&current) {
+            self.commit_restart_sensitive_setting();
         }
     }
 
-    pub(super) fn commit_restart_sensitive_setting(&mut self, setting: RestartSetting) {
+    pub(super) fn commit_restart_sensitive_setting(&mut self) {
         self.mark_system_dirty();
         if self.menu.state.editing {
             return;
@@ -77,10 +81,9 @@ impl NativeRunner {
             return;
         }
         let setting_payload = (!self.restart_settings.has_pending_write())
-            .then(|| self.setting_payload_for_restart(&current, setting))
+            .then(|| self.setting_payload_for_restart(&current))
             .flatten();
-        self.restart_settings
-            .open_save_choice(setting, setting_payload);
+        self.restart_settings.open_save_choice(setting_payload);
         self.display.confirm_dialog = Some(self.save_choice_dialog());
     }
 
@@ -267,10 +270,7 @@ impl NativeRunner {
                 if completion.scope == DefaultSaveScope::RestartSetting {
                     self.reconcile_dirty_with_persisted_default();
                 }
-                self.display.confirm_dialog = Some(restart_choice_dialog(
-                    completion.host_role,
-                    self.restart_settings.only_app_restart_pending(),
-                ));
+                self.display.confirm_dialog = Some(restart_choice_dialog());
             } else {
                 self.display.confirm_dialog = None;
                 self.display.toast = Some(NativeToast {
@@ -299,12 +299,10 @@ impl NativeRunner {
                     self.display.confirm_dialog = Some(self.save_choice_dialog());
                     return Ok(None);
                 }
-                let Some(setting) = self.restart_settings.save_choice_setting() else {
+                if !self.restart_settings.is_save_choice() {
                     return Ok(None);
-                };
-                let Some(payload) =
-                    self.setting_payload_for_restart(&self.config_payload(), setting)
-                else {
+                }
+                let Some(payload) = self.setting_payload_for_restart(&self.config_payload()) else {
                     return Ok(None);
                 };
                 self.start_restart_system_save(payload, DefaultSaveScope::RestartSetting);
@@ -323,13 +321,9 @@ impl NativeRunner {
                 self.start_restart_system_save(payload, DefaultSaveScope::RestartEverything);
                 Ok(None)
             }
-            "restart.reboot" | "restart.app" if self.restart_settings.is_restart_choice() => {
+            "restart.app" if self.restart_settings.is_restart_choice() => {
                 self.restart_settings.continue_after_save();
-                self.start_power_action(if action == "restart.app" {
-                    "system.restartApp"
-                } else {
-                    "system.reboot"
-                })
+                self.start_power_action("system.restartApp")
             }
             _ => Ok(None),
         }
@@ -347,12 +341,8 @@ impl NativeRunner {
         }
     }
 
-    fn setting_payload_for_restart(
-        &self,
-        current: &Value,
-        setting: RestartSetting,
-    ) -> Option<Value> {
-        let payload = self.restart_settings.setting_payload(current, setting)?;
+    fn setting_payload_for_restart(&self, current: &Value) -> Option<Value> {
+        let payload = self.restart_settings.setting_payload(current)?;
         let patch = super::split_local_system_patch_documents(current)
             .ok()?
             .patch;
@@ -362,13 +352,10 @@ impl NativeRunner {
     }
 
     fn refresh_restart_save_choice(&mut self) {
-        let Some(setting) = self.restart_settings.save_choice_setting() else {
-            return;
-        };
-        if self.restart_settings.has_pending_write() {
+        if !self.restart_settings.is_save_choice() || self.restart_settings.has_pending_write() {
             return;
         }
-        let payload = self.setting_payload_for_restart(&self.config_payload(), setting);
+        let payload = self.setting_payload_for_restart(&self.config_payload());
         self.restart_settings
             .update_save_choice_setting_payload(payload.clone());
         self.display.confirm_dialog = Some(self.save_choice_dialog());
@@ -379,12 +366,11 @@ impl NativeRunner {
             self.restart_settings
                 .save_choice_setting_payload()
                 .is_some(),
-            self.usb_data_role == UsbDataRole::Host,
         )
     }
 }
 
-fn save_choice_dialog(can_save_setting: bool, host_role: bool) -> NativeConfirmDialog {
+fn save_choice_dialog(can_save_setting: bool) -> NativeConfirmDialog {
     let mut options = vec!["Cancel".into()];
     if can_save_setting {
         options.push("Save this one".into());
@@ -392,16 +378,7 @@ fn save_choice_dialog(can_save_setting: bool, host_role: bool) -> NativeConfirmD
     options.push("Save System".into());
     NativeConfirmDialog {
         title: "Apply System".into(),
-        lines: if host_role {
-            vec![
-                "Restart required.".into(),
-                "Before Host reboot:".into(),
-                "Unplug computer USB.".into(),
-                "Audio/MIDI/SD2 off.".into(),
-            ]
-        } else {
-            vec!["Restart required.".into()]
-        },
+        lines: vec!["Restart required.".into()],
         options,
         cursor: 0,
         action: NativeMenuAction::PlatformEffect("restart.saveChoice".into()),
@@ -422,38 +399,17 @@ fn saving_dialog() -> NativeConfirmDialog {
     }
 }
 
-fn restart_choice_dialog(host_role: bool, app_restart: bool) -> NativeConfirmDialog {
-    if app_restart {
-        return NativeConfirmDialog {
-            title: "Restart?".into(),
-            lines: vec![
-                "System saved.".into(),
-                "Restart the app".into(),
-                "to apply?".into(),
-            ],
-            options: vec!["Continue".into(), "Restart now".into()],
-            cursor: 0,
-            action: NativeMenuAction::PlatformEffect("restart.app".into()),
-            cancel_toast: None,
-            confirm_before_execute: false,
-        };
-    }
+fn restart_choice_dialog() -> NativeConfirmDialog {
     NativeConfirmDialog {
         title: "Restart?".into(),
-        lines: if host_role {
-            vec![
-                "System saved.".into(),
-                "Reboot to apply?".into(),
-                "Unplug computer USB".into(),
-                "before Host reboot.".into(),
-                "Audio/MIDI/SD2 off.".into(),
-            ]
-        } else {
-            vec!["System saved.".into(), "Reboot to apply?".into()]
-        },
-        options: vec!["Continue".into(), "Reboot now".into()],
+        lines: vec![
+            "System saved.".into(),
+            "Restart the app".into(),
+            "to apply?".into(),
+        ],
+        options: vec!["Continue".into(), "Restart now".into()],
         cursor: 0,
-        action: NativeMenuAction::PlatformEffect("restart.reboot".into()),
+        action: NativeMenuAction::PlatformEffect("restart.app".into()),
         cancel_toast: None,
         confirm_before_execute: false,
     }

@@ -1,7 +1,6 @@
 use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
-use super::restart_settings::RestartSetting;
 use super::NativeRunner;
 use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 
@@ -190,9 +189,7 @@ impl NativeRunner {
             return true;
         }
         if value_changed(&mut self.audio_outputs, next) {
-            if let Some(setting) = self.menu.current_key().and_then(RestartSetting::from_key) {
-                self.commit_restart_sensitive_setting(setting);
-            }
+            self.mark_system_dirty();
         }
         true
     }

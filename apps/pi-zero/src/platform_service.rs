@@ -1,3 +1,4 @@
+use crate::device_apply::UsbApplier;
 use crate::device_update;
 #[cfg(all(test, any(unix, windows)))]
 use crate::setup_portal::SetupPortalEnvironment;
@@ -27,8 +28,6 @@ mod platform_service_dispatcher;
 mod platform_service_document_store;
 mod platform_service_executor;
 mod platform_service_load_admission;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-mod platform_service_orange_apply;
 mod platform_service_setup_portal;
 mod platform_service_store;
 #[cfg(test)]
@@ -64,25 +63,14 @@ const JOB_QUEUE_CAPACITY: usize = 32;
 const RESULT_QUEUE_CAPACITY: usize = 32;
 pub(crate) const USB_STORAGE_STATE_PATH: &str = "/run/octessera-usb-storage.state";
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-type UsbRoleApplier = crate::rpi_device_apply::UsbRoleApplier;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-type UsbRoleApplier = ();
-
 pub struct PiPlatformService {
     store_dir: PathBuf,
     jobs: SyncSender<PlatformWorkItem>,
     results: Receiver<PlatformResult>,
     preserved_results: Mutex<VecDeque<PlatformResult>>,
-    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-    result_lane: Arc<PlatformResultLane>,
     store_lock: Arc<Mutex<()>>,
     store_write_barrier: StoreWriteBarrier,
     legacy_patch_writes: Arc<Mutex<LegacyPatchWrites>>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    role_applier: UsbRoleApplier,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    storage_state: PathBuf,
     native_default_write: Mutex<Option<NativeStoreRequest>>,
     native_preset_write: Mutex<Option<NativePresetWrite>>,
     setup_portal: SetupPortalService,
@@ -109,33 +97,20 @@ impl PiPlatformService {
         samples_dir: PathBuf,
         update_executor: Arc<dyn device_update::UpdateExecutor>,
     ) -> Self {
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        {
-            Self::new_with_executor_and_role_applier(
-                store_dir,
-                samples_dir,
-                update_executor,
-                production_usb_role_applier(),
-                PathBuf::from(USB_STORAGE_STATE_PATH),
-            )
-        }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        {
-            Self::new_with_executor_and_role_applier(
-                store_dir,
-                samples_dir,
-                update_executor,
-                (),
-                PathBuf::from(USB_STORAGE_STATE_PATH),
-            )
-        }
+        Self::new_with_executor_and_usb_applier(
+            store_dir,
+            samples_dir,
+            update_executor,
+            crate::device_apply::production_usb_applier(),
+            PathBuf::from(USB_STORAGE_STATE_PATH),
+        )
     }
 
-    fn new_with_executor_and_role_applier(
+    fn new_with_executor_and_usb_applier(
         store_dir: PathBuf,
         samples_dir: PathBuf,
         update_executor: Arc<dyn device_update::UpdateExecutor>,
-        role_applier: UsbRoleApplier,
+        usb_applier: UsbApplier,
         storage_state: PathBuf,
     ) -> Self {
         let setup_portal = SetupPortalService::production();
@@ -156,27 +131,29 @@ impl PiPlatformService {
             store_write_barrier,
             platform_service_worker::PlatformWorkerConfig {
                 update_executor,
-                role_applier,
-                storage_state,
+                device_apply: crate::device_apply::DeviceApply {
+                    usb_applier,
+                    storage_state,
+                },
             },
         )
     }
 
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-    pub(crate) fn new_with_role_applier(
+    #[cfg(test)]
+    pub(crate) fn new_with_usb_applier(
         store_dir: PathBuf,
         samples_dir: PathBuf,
-        role_applier: UsbRoleApplier,
+        usb_applier: UsbApplier,
     ) -> Self {
         let storage_state = store_dir
             .parent()
             .unwrap_or(Path::new("."))
             .join("storage.state");
-        Self::new_with_executor_and_role_applier(
+        Self::new_with_executor_and_usb_applier(
             store_dir,
             samples_dir,
             device_update::production_executor(),
-            role_applier,
+            usb_applier,
             storage_state,
         )
     }
@@ -203,11 +180,8 @@ impl PiPlatformService {
         );
         let platform_service_worker::PlatformWorkerConfig {
             update_executor,
-            role_applier,
-            storage_state,
+            device_apply,
         } = worker_config;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let _ = (role_applier, storage_state);
         platform_service_worker::spawn(platform_service_worker::PlatformWorkerContext {
             store_dir: worker_store_dir,
             samples_dir,
@@ -217,21 +191,16 @@ impl PiPlatformService {
             store_write_barrier: store_write_barrier.clone(),
             legacy_patch_writes: legacy_patch_writes.clone(),
             update_executor,
+            device_apply,
         });
         Self {
             store_dir,
             jobs: jobs_tx,
             results: results_rx,
             preserved_results: Mutex::new(VecDeque::new()),
-            #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-            result_lane,
             store_lock,
             store_write_barrier,
             legacy_patch_writes,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            role_applier,
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            storage_state,
             native_default_write: Mutex::new(None),
             native_preset_write: Mutex::new(None),
             setup_portal,
@@ -267,30 +236,11 @@ impl PiPlatformService {
             store_write_barrier,
             platform_service_worker::PlatformWorkerConfig {
                 update_executor: device_update::production_executor(),
-                role_applier: production_usb_role_applier(),
-                storage_state: PathBuf::from(USB_STORAGE_STATE_PATH),
+                device_apply: crate::device_apply::DeviceApply {
+                    usb_applier: crate::device_apply::production_usb_applier(),
+                    storage_state: PathBuf::from(USB_STORAGE_STATE_PATH),
+                },
             },
-        )
-    }
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    pub(crate) fn apply_device_config(&self, payload: &serde_json::Value) -> Result<(), String> {
-        let generation = self.store_write_barrier.current_generation();
-        let _guard = self
-            .store_lock
-            .lock()
-            .map_err(|_| "pi store is unavailable".to_string())?;
-        if self.store_write_barrier.is_blocked() {
-            return Err("restore is awaiting restored-state acknowledgement".into());
-        }
-        if generation != self.store_write_barrier.current_generation() {
-            return Err("store write was superseded by restore".into());
-        }
-        crate::rpi_device_apply::apply_locked(
-            &self.store_dir,
-            payload,
-            &self.storage_state,
-            self.role_applier.as_ref(),
         )
     }
 
@@ -382,14 +332,6 @@ impl PiPlatformService {
         self.store_write_barrier.invalidate();
     }
 }
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn production_usb_role_applier() -> UsbRoleApplier {
-    Arc::new(crate::rpi_device_apply::apply_usb_role)
-}
-
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-fn production_usb_role_applier() -> UsbRoleApplier {}
 
 impl Drop for PiPlatformService {
     fn drop(&mut self) {

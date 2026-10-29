@@ -31,25 +31,16 @@ impl AudioManager {
         let mut orange_optional_opened = Vec::new();
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let mut required_jack_health = None;
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        let mut optional_recovery = Vec::new();
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let mut terminal_optional_sinks = Vec::new();
-        let mut mirror_producers: Option<PcmMirrorProducers> = Some([None, None]);
-        let mut mirror_producers_for_recovery: [Option<PcmMirrorProducer>; 2] = [None, None];
-        let mut mirror_consumers: [Option<PcmMirrorConsumer>; 2] = [None, None];
+        let selected_outputs = SelectedOutputs::new(outputs);
+        let side_mirrors = [new_pcm_mirror(), new_pcm_mirror()];
+        let side_producers = side_mirrors.each_ref().map(|pair| pair.producer.clone());
+        let mut mirror_producers: Option<PcmMirrorProducers> =
+            Some(side_producers.clone().map(Some));
+        let mut mirror_consumers: [Option<PcmMirrorConsumer>; 2] =
+            side_mirrors.map(|pair| Some(pair.consumer));
         for sink in [AudioSink::Usb, AudioSink::Hdmi] {
-            if AudioSink::selected(match policy {
-                AudioOpenPolicy::Outputs(outputs) => outputs,
-            })
-            .contains(&sink)
-            {
-                let pair = new_pcm_mirror();
-                let index = mirror_index(sink).expect("secondary mirror index");
-                mirror_producers.as_mut().expect("mirror producers")[index] =
-                    Some(pair.producer.clone());
-                mirror_producers_for_recovery[index] = Some(pair.producer);
-                mirror_consumers[index] = Some(pair.consumer);
+            if !AudioSink::selected(outputs).contains(&sink) {
+                side_producers[mirror_index(sink).expect("side mirror index")].invalidate();
             }
         }
         let engine = AudioEngineOwner::new(ReplayCache::default());
@@ -125,8 +116,6 @@ impl AudioManager {
                         == StartupOpenAction::Ignore =>
                 {
                     set_status(&route_registry, sink, error.status());
-                    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-                    terminal_optional_sinks.push(sink);
                     eprintln!("{sink:?} audio init failed: {error} (optional route disabled)");
                 }
                 Err(error) => {
@@ -156,9 +145,7 @@ impl AudioManager {
             generations: Arc::new(Mutex::new(crate::audio::AudioGenerationState::default())),
             prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
             route_registry: route_registry.clone(),
-            audio_outputs: match policy {
-                AudioOpenPolicy::Outputs(outputs) => outputs,
-            },
+            selected_outputs: selected_outputs.clone(),
             #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
             required_jack_health: required_jack_health.clone(),
             recorder,
@@ -173,21 +160,15 @@ impl AudioManager {
             prep_result_tx,
         );
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        {
-            let AudioOpenPolicy::Outputs(outputs) = policy;
-            for sink in AudioSink::optional_recovery(outputs) {
-                optional_recovery.push(audio_optional_recovery::spawn(
-                    construction,
-                    route_registry.clone(),
-                    sink,
-                    mirror_producers_for_recovery[mirror_index(sink).expect("optional mirror")]
-                        .clone()
-                        .expect("optional mirror producer"),
-                ));
-            }
-        }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let AudioOpenPolicy::Outputs(outputs) = policy;
+        let optional_recovery = [AudioSink::Usb, AudioSink::Hdmi].map(|sink| {
+            audio_optional_recovery::spawn(
+                construction,
+                route_registry.clone(),
+                sink,
+                side_producers[mirror_index(sink).expect("side mirror index")].clone(),
+                selected_outputs.clone(),
+            )
+        });
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let AudioConstructionConfig::Orange(profile) = construction;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -198,17 +179,14 @@ impl AudioManager {
                     profile,
                     engine.clone(),
                     Some(mix_taps.clone()),
-                    mirror_producers_for_recovery.clone(),
+                    side_producers.clone().map(Some),
                 )
             })
             .transpose()?;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let orange_recovery = [AudioSink::Usb, AudioSink::Hdmi]
             .into_iter()
-            .filter(|sink| {
-                AudioSink::selected(outputs).contains(sink)
-                    && !terminal_optional_sinks.contains(sink)
-            })
+            .filter(|sink| AudioSink::selected(outputs).contains(sink))
             .map(|sink| {
                 let initial = orange_optional_opened
                     .iter()
@@ -220,17 +198,13 @@ impl AudioManager {
                         opened,
                         profile,
                         engine.clone(),
-                        mirror_producers_for_recovery[mirror_index(sink).expect("optional mirror")]
-                            .clone()
-                            .expect("optional mirror producer"),
+                        side_producers[mirror_index(sink).expect("side mirror index")].clone(),
                     ),
                     None => Ok(OrangeRecoveryController::new_optional_missing(
                         sink,
                         profile,
                         engine.clone(),
-                        mirror_producers_for_recovery[mirror_index(sink).expect("optional mirror")]
-                            .clone()
-                            .expect("optional mirror producer"),
+                        side_producers[mirror_index(sink).expect("side mirror index")].clone(),
                     )),
                 }
             })
@@ -245,7 +219,11 @@ impl AudioManager {
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             orange_dac_recovery,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            _orange_recovery: orange_recovery,
+            orange_recovery,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            orange_profile: profile,
+            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            side_producers,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             load_tx,
             #[cfg(any(

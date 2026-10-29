@@ -1,5 +1,4 @@
 use super::menu_apply_fast::value_changed;
-use super::restart_settings::RestartSetting;
 use super::{AudioOutputSet, NativeRunner, UsbDataRole};
 
 impl NativeRunner {
@@ -12,7 +11,7 @@ impl NativeRunner {
             return false;
         };
         if value_changed(&mut self.usb_midi_out_enabled, value) {
-            self.commit_restart_sensitive_setting(RestartSetting::UsbMidiOut);
+            self.mark_system_dirty();
         }
         true
     }
@@ -48,9 +47,7 @@ impl NativeRunner {
                 self.usb_midi_out_enabled = false;
             }
             self.rematerialize_menu_around_key("usb.dataRole");
-            if !self.restart_settings.is_editing() {
-                self.commit_restart_sensitive_setting(RestartSetting::UsbDataRole);
-            }
+            self.mark_system_dirty();
         }
         true
     }

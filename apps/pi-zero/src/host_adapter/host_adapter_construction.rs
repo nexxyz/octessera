@@ -133,7 +133,7 @@ impl PiHostAdapter {
         )
     }
 
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    #[cfg(test)]
     pub(crate) fn set_test_midi_backend(
         &mut self,
         output_names: impl IntoIterator<Item = String>,

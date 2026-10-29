@@ -1,9 +1,7 @@
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-use crate::orange_device_apply::OrangeDeviceApplyTransaction;
 use playback_runtime::RuntimePlatformRequest;
 #[cfg(test)]
 use std::sync::mpsc::Receiver;
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(test)]
 use std::sync::mpsc::SyncSender;
 
 pub struct PlatformJob {
@@ -28,10 +26,9 @@ pub enum PlatformJobKind {
     SaveSystem {
         payload: serde_json::Value,
     },
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    PrepareOrangeDeviceApply {
+    ApplyDeviceConfig {
         payload: serde_json::Value,
-        completed: SyncSender<Result<OrangeDeviceApplyTransaction, String>>,
+        usb_change: Option<crate::device_apply::UsbChange>,
     },
     SaveBackup {
         payload: serde_json::Value,
@@ -71,15 +68,14 @@ impl PlatformJob {
 
 impl PlatformJobKind {
     pub(super) fn is_store_write(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Self::SavePreset { .. }
-            | Self::DeletePreset { .. }
-            | Self::SaveDefault { .. }
-            | Self::SaveSystem { .. }
-            | Self::SaveBackup { .. } => true,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            Self::PrepareOrangeDeviceApply { .. } => true,
-            _ => false,
-        }
+                | Self::DeletePreset { .. }
+                | Self::SaveDefault { .. }
+                | Self::SaveSystem { .. }
+                | Self::SaveBackup { .. }
+                | Self::ApplyDeviceConfig { .. }
+        )
     }
 }

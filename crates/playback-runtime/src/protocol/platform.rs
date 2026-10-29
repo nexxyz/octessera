@@ -37,8 +37,7 @@ pub enum RuntimePlatformEffect {
     StoreSaveRecovery {
         payload: Value,
     },
-    #[serde(rename = "apply_device_config_reboot")]
-    ApplyDeviceConfigReboot {
+    ApplyDeviceConfig {
         payload: Value,
     },
     UsbSdTransferStart,
@@ -119,7 +118,7 @@ impl RuntimePlatformEffect {
             Self::UpdateCheck | Self::UpdateApply | Self::Rollback => {
                 RuntimeOperation::DeviceUpdate
             }
-            Self::ApplyDeviceConfigReboot { .. }
+            Self::ApplyDeviceConfig { .. }
             | Self::UsbSdTransferStart
             | Self::UsbSdTransferStop
             | Self::MaintenanceHold { .. }

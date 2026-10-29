@@ -84,7 +84,7 @@ fn pi_v1_persisted_startup_sleep_remains_due_after_scheduler_creation() {
         false,
         playback_runtime::AudioOutputSet::jack(),
     );
-    let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency, false);
+    let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency);
     runner.skip_startup_splash();
     initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
     let loaded_config = runner.test_config_payload();
@@ -192,7 +192,7 @@ fn prepared_runtime(
         playback_runtime::AudioOutputSet::jack(),
     );
     adapter.set_test_midi_backend([], [], []);
-    let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency, false);
+    let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency);
     runner.skip_startup_splash();
     initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
     crate::runtime_dispatch::dispatch_runtime_message(

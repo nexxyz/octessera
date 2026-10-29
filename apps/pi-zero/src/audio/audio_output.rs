@@ -1,7 +1,7 @@
 use super::{AudioControlRequest, AudioService};
 use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_replay::ReplayCache;
-use crate::audio_route::{new_registry, set_status, AudioRouteRegistry};
+use crate::audio_route::{new_registry, set_status, AudioRouteRegistry, SelectedOutputs};
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 pub(crate) use crate::audio_stream_health::AudioStreamStatus as OrangeDacStatus;
 mod audio_sink;
@@ -57,9 +57,9 @@ use playback_runtime::HostMessage;
 use rodio_engine_source::AudioLoadStatusReceiver;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use rodio_engine_source::AudioLoadStatusSender;
-use rodio_engine_source::{
-    new_pcm_mirror, PcmMirrorConsumer, PcmMirrorProducer, PcmMirrorProducers,
-};
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use rodio_engine_source::PcmMirrorProducer;
+use rodio_engine_source::{new_pcm_mirror, PcmMirrorConsumer, PcmMirrorProducers};
 use std::sync::atomic::AtomicU64;
 use std::sync::mpsc;
 use std::sync::RwLock;
@@ -75,7 +75,11 @@ pub struct AudioManager {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     orange_dac_recovery: Option<OrangeRecoveryController>,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    _orange_recovery: Vec<OrangeRecoveryController>,
+    orange_recovery: Vec<OrangeRecoveryController>,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    orange_profile: OrangeAudioProfile,
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    side_producers: [PcmMirrorProducer; 2],
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     load_tx: AudioLoadStatusSender,
     #[cfg(any(
@@ -88,7 +92,7 @@ pub struct AudioManager {
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     load_status_reset_pending: bool,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    _optional_recovery: Vec<audio_optional_recovery::OptionalRecoveryWorker>,
+    _optional_recovery: [audio_optional_recovery::OptionalRecoveryWorker; 2],
 }
 
 #[derive(Clone, Copy)]

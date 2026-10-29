@@ -188,7 +188,7 @@ fn system_audio_changes_queue_existing_config_commands_without_resetting_live_pa
         .any(|effect| matches!(
             effect,
             RuntimePlatformEffect::MidiPanic
-                | RuntimePlatformEffect::ApplyDeviceConfigReboot { .. }
+                | RuntimePlatformEffect::ApplyDeviceConfig { .. }
                 | RuntimePlatformEffect::Reboot
         )));
 }

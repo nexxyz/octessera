@@ -117,7 +117,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
-        audio_outputs: AudioOutputSet::jack(),
+        selected_outputs: crate::audio_route::SelectedOutputs::new(AudioOutputSet::jack()),
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
@@ -149,7 +149,7 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
-        audio_outputs: AudioOutputSet::jack(),
+        selected_outputs: crate::audio_route::SelectedOutputs::new(AudioOutputSet::jack()),
         required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
         recorder: Arc::new(Mutex::new(RecordingServices::new(
@@ -179,10 +179,10 @@ pub(crate) fn test_service_with_prep_sender() -> (
 
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn test_service_with_outputs(outputs: AudioOutputSet) -> AudioService {
-    let (mut service, _, _, _) = test_service_with_recording_dir(
+    let (service, _, _, _) = test_service_with_recording_dir(
         std::env::temp_dir().join("octessera-orange-gate-recordings"),
     );
-    service.audio_outputs = outputs;
+    service.set_audio_outputs(outputs);
     service
 }
 
@@ -210,7 +210,7 @@ pub(crate) fn test_service_with_recording_dir(
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
-        audio_outputs: AudioOutputSet::jack(),
+        selected_outputs: crate::audio_route::SelectedOutputs::new(AudioOutputSet::jack()),
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
@@ -238,8 +238,8 @@ fn restore_preflight_finalizes_active_recording() {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[test]
 fn raspberry_optional_route_fault_does_not_block_jack_readiness() {
-    let mut service = test_service_for_sample_prep();
-    service.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    let service = test_service_for_sample_prep();
+    service.set_audio_outputs(AudioOutputSet::from_flags(true, true, false).unwrap());
     crate::audio_route::set_status(
         &service.route_registry,
         AudioSink::Jack,

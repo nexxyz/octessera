@@ -42,14 +42,6 @@ impl AudioSink {
         );
         sinks
     }
-
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    pub(crate) fn optional_recovery(outputs: AudioOutputSet) -> Vec<Self> {
-        [Self::Usb, Self::Hdmi]
-            .into_iter()
-            .filter(|sink| Self::selected(outputs).contains(sink))
-            .collect()
-    }
 }
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
@@ -69,16 +61,13 @@ mod tests {
     }
 
     #[test]
-    fn startup_and_recovery_plan_keeps_optional_routes_out_of_startup() {
-        let jack = AudioOutputSet::jack();
-        let usb = AudioOutputSet::from_flags(false, true, false).unwrap();
-        let both = AudioOutputSet::from_flags(true, true, false).unwrap();
-
-        assert_eq!(AudioSink::startup(jack), vec![AudioSink::Jack]);
-        assert!(AudioSink::optional_recovery(jack).is_empty());
-        assert_eq!(AudioSink::startup(usb), vec![AudioSink::Jack]);
-        assert_eq!(AudioSink::optional_recovery(usb), vec![AudioSink::Usb]);
-        assert_eq!(AudioSink::startup(both), vec![AudioSink::Jack]);
-        assert_eq!(AudioSink::optional_recovery(both), vec![AudioSink::Usb]);
+    fn startup_opens_only_jack_and_leaves_side_outputs_to_their_workers() {
+        for outputs in [
+            AudioOutputSet::jack(),
+            AudioOutputSet::from_flags(true, true, false).unwrap(),
+            AudioOutputSet::from_flags(true, true, true).unwrap(),
+        ] {
+            assert_eq!(AudioSink::startup(outputs), vec![AudioSink::Jack]);
+        }
     }
 }

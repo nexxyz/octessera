@@ -1,7 +1,7 @@
 use crate::audio::AudioSink;
 use playback_runtime::AudioOutputSet;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RouteOpenError {
@@ -51,6 +51,65 @@ pub(crate) fn new_registry(outputs: AudioOutputSet) -> AudioRouteRegistry {
         routes.insert(sink, AudioRouteStatus::Waiting);
     }
     Arc::new(Mutex::new(routes))
+}
+
+/// The audio outputs System currently selects. The side outputs follow it
+/// while the app runs; each change bumps a generation so a waiting side output
+/// notices even a quick off/on.
+pub(crate) struct SelectedOutputs {
+    state: Mutex<(AudioOutputSet, u64)>,
+    changed: Condvar,
+}
+
+impl SelectedOutputs {
+    pub(crate) fn new(outputs: AudioOutputSet) -> Arc<Self> {
+        Arc::new(Self {
+            state: Mutex::new((outputs, 0)),
+            changed: Condvar::new(),
+        })
+    }
+
+    pub(crate) fn get(&self) -> (AudioOutputSet, u64) {
+        *self.state.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
+    pub(crate) fn set(&self, outputs: AudioOutputSet) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        *state = (outputs, state.1.wrapping_add(1));
+        self.changed.notify_all();
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    pub(crate) fn wake(&self) {
+        let _state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        self.changed.notify_all();
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    pub(crate) fn wait_for_change(
+        &self,
+        seen: u64,
+        timeout: Option<std::time::Duration>,
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> (AudioOutputSet, u64) {
+        let unchanged = |state: &mut (AudioOutputSet, u64)| {
+            state.1 == seen && !stop.load(std::sync::atomic::Ordering::Acquire)
+        };
+        let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let state = match timeout {
+            Some(timeout) => {
+                self.changed
+                    .wait_timeout_while(state, timeout, unchanged)
+                    .unwrap_or_else(|error| error.into_inner())
+                    .0
+            }
+            None => self
+                .changed
+                .wait_while(state, unchanged)
+                .unwrap_or_else(|error| error.into_inner()),
+        };
+        *state
+    }
 }
 
 pub(crate) fn set_status(registry: &AudioRouteRegistry, sink: AudioSink, status: AudioRouteStatus) {

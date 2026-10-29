@@ -34,7 +34,8 @@ samples.
 
 Most System settings save themselves once when you finish editing the row
 (with *Main* or *Back*), not on every turn, and only if the value actually
-changed. Settings that need a restart save only after you confirm **Apply**.
+changed. Perf. Mode, the one setting that needs an app restart, saves only
+after you confirm **Apply**.
 
 You can also use `System > Saves > System > Save System` and **Load System**.
 Load System asks first, but doesn't stop the music or reboot. While a System

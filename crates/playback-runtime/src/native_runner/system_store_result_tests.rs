@@ -1,4 +1,3 @@
-use super::restart_settings::DefaultSaveScope;
 use super::*;
 use crate::{CoreRunner, RuntimeOperation, RuntimePlatformRequest};
 
@@ -205,48 +204,4 @@ fn system_store_save_results_never_acknowledge_patch_dirty_state() {
             assert!(error.lines.iter().any(|line| line.contains("storage")));
         }
     }
-}
-
-#[test]
-fn apply_system_save_host_role_uses_system_payload_for_restart_follow_up() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.mark_system_dirty();
-    let mut system =
-        super::system_persistence::SystemPersistenceState::system_document(&runner).unwrap();
-    system["runtimeConfig"]["usb"]["dataRole"] = json!("host");
-    system["runtimeConfig"]["audioOutputs"]["usb"] = json!(false);
-    system["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(false);
-    runner.start_restart_system_save(system, DefaultSaveScope::RestartSetting);
-    let messages = runner.messages_with_snapshot().unwrap();
-    let effect = messages
-        .iter()
-        .find_map(|message| match message {
-            RunnerMessage::PlatformEffects { effects } => effects.iter().find_map(|effect| {
-                matches!(effect, RuntimePlatformEffect::StoreSaveSystem { .. })
-                    .then(|| effect.clone())
-            }),
-            _ => None,
-        })
-        .expect("System Apply store effect");
-    let request = RuntimePlatformRequest::new(effect, "system-apply-host".into(), None);
-    runner.register_platform_request(&request);
-    runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveSystemResult { ok: true }
-                .with_identity(request.request_id, request.revision),
-        })
-        .unwrap();
-
-    assert!(
-        runner
-            .display
-            .confirm_dialog
-            .as_ref()
-            .unwrap()
-            .lines
-            .iter()
-            .any(|line| line == "Unplug computer USB"),
-        "{:?}",
-        runner.display.confirm_dialog
-    );
 }

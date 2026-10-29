@@ -107,6 +107,10 @@ pub enum RuntimeStoreResult {
         ok: bool,
         message: String,
     },
+    DeviceConfigStatus {
+        ok: bool,
+        message: String,
+    },
     RecordingStatus {
         #[serde(default)]
         ok: bool,
@@ -195,9 +199,9 @@ impl RuntimeStoreResult {
             Self::SetupPortalStatus { .. } => RuntimeOperation::SetupPortal,
             Self::UserDataRestoreStatus { .. } => RuntimeOperation::Persistence,
             Self::UserDataTransferStatus { .. } => RuntimeOperation::UserDataTransfer,
-            Self::UsbSdTransferStatus { .. } | Self::BluetoothStatus { .. } => {
-                RuntimeOperation::RuntimeDispatch
-            }
+            Self::UsbSdTransferStatus { .. }
+            | Self::BluetoothStatus { .. }
+            | Self::DeviceConfigStatus { .. } => RuntimeOperation::RuntimeDispatch,
         }
     }
 
@@ -231,7 +235,8 @@ impl RuntimeStoreResult {
             ),
             Self::SampleListError { message, .. } => (RuntimeErrorDomain::Sample, message.clone()),
             Self::SamplePreviewError { message } => (RuntimeErrorDomain::Sample, message.clone()),
-            Self::DeviceUpdateStatus { ok: false, message } => {
+            Self::DeviceUpdateStatus { ok: false, message }
+            | Self::DeviceConfigStatus { ok: false, message } => {
                 (RuntimeErrorDomain::Runtime, message.clone())
             }
             Self::RecordingStatus {

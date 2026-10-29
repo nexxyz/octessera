@@ -47,6 +47,9 @@ impl NativeRunner {
                 }
                 self.display.toast = Some(NativeToast { message, offset: 0 });
             }
+            RuntimeStoreResult::DeviceConfigStatus { message, .. } => {
+                self.show_toast(message);
+            }
             RuntimeStoreResult::DeviceUpdateStatus { message, .. } => {
                 self.display.toast = Some(NativeToast { message, offset: 0 });
             }

@@ -16,7 +16,6 @@ const STARTUP_RESULT_BUDGET: usize = 4;
 
 pub(crate) fn new_runtime(
     audio_optimization: AudioOptimization,
-    boot_applied_usb_midi_out_enabled: bool,
     usb_data_role_available: bool,
 ) -> Result<(PlaybackRuntime, NativeRunner), String> {
     let mut playback = PlaybackRuntime::new(RuntimeConfig {
@@ -39,7 +38,6 @@ pub(crate) fn new_runtime(
         audio_optimization_capacity_available: true,
         jack_audio_required: true,
         usb_data_role_available,
-        boot_applied_usb_midi_out_enabled,
         ..NativeRunnerConfig::default()
     })?;
     Ok((playback, runner))

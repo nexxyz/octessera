@@ -16,7 +16,7 @@ pub(crate) fn run_prepared_runtime(
     candidate_readiness: &mut CandidateReadiness,
     midi_rx: Receiver<MidiMessage>,
     initial_rendered: bool,
-) -> Result<crate::orange_device_apply::OrangeShutdownResolution, OrangeRunError> {
+) -> Result<(), String> {
     let PreparedRuntime {
         mut playback,
         mut runner,
@@ -93,21 +93,11 @@ pub(crate) fn run_prepared_runtime(
         Ok::<(), String>(())
     })();
     match (result, host.take_power_request()) {
-        (
-            Ok(()),
-            Some(
-                request @ (crate::host_adapter::PowerRequest::Reboot
-                | crate::host_adapter::PowerRequest::Shutdown
-                | crate::host_adapter::PowerRequest::RestartApp),
-            ),
-        ) => {
+        (Ok(()), Some(request)) => {
             let action = match request {
                 crate::host_adapter::PowerRequest::Reboot => PowerAction::Reboot,
                 crate::host_adapter::PowerRequest::Shutdown => PowerAction::Shutdown,
                 crate::host_adapter::PowerRequest::RestartApp => PowerAction::RestartApp,
-                crate::host_adapter::PowerRequest::ApplyDeviceConfig(_) => {
-                    unreachable!("ordinary power branch excludes device apply")
-                }
             };
             match crate::host_power_lifecycle::run_ordinary_power_lifecycle(
                 &playback,
@@ -117,34 +107,23 @@ pub(crate) fn run_prepared_runtime(
                 action,
                 lifecycle::submit_orange_power,
             ) {
-                PowerLifecycleResult::Submitted => {
-                    Ok(crate::orange_device_apply::OrangeShutdownResolution::Complete)
-                }
+                PowerLifecycleResult::Submitted => Ok(()),
                 PowerLifecycleResult::Failed(failure) => {
                     eprintln!("Orange power lifecycle failed: {failure}");
-                    Err(OrangeRunError::Ordinary(failure.to_string()))
+                    Err(failure.to_string())
                 }
-                PowerLifecycleResult::Duplicate => Err(OrangeRunError::Ordinary(
-                    "Orange power lifecycle rejected a duplicate request".into(),
-                )),
+                PowerLifecycleResult::Duplicate => {
+                    Err("Orange power lifecycle rejected a duplicate request".into())
+                }
             }
-        }
-        (Ok(()), Some(request)) => {
-            crate::orange_device_apply::resolve_shutdown_request(request, &mut host)
         }
         (Ok(()), None) => host
             .silence_internal_audio()
-            .map(|_| crate::orange_device_apply::OrangeShutdownResolution::Complete)
-            .map_err(|error| OrangeRunError::Ordinary(error.to_string())),
-        (Err(error), Some(request @ crate::host_adapter::PowerRequest::ApplyDeviceConfig(_))) => {
-            Err(crate::orange_device_apply::abort_shutdown_request(
-                request, error, &mut host,
-            ))
-        }
-        (Err(error), Some(_ordinary_request)) => Err(OrangeRunError::Ordinary(error)),
+            .map_err(|error| error.to_string()),
+        (Err(error), Some(_ordinary_request)) => Err(error),
         (Err(error), None) => {
             let _ = host.silence_internal_audio();
-            Err(OrangeRunError::Ordinary(error))
+            Err(error)
         }
     }
 }

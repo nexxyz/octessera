@@ -1,4 +1,5 @@
 mod host_adapter_construction;
+mod host_adapter_device_config;
 mod host_adapter_recording;
 mod host_adapter_store;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -41,39 +42,11 @@ pub struct PiHostAdapter {
     bluetooth_audio: Option<crate::bluetooth::BluetoothAudioMonitor>,
 }
 
-/// What a confirmed device/audio apply hands to the power path: Raspberry has
-/// already saved the new boot config; Orange carries its apply transaction.
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) type DeviceApplyHandoff = ();
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-pub(crate) type DeviceApplyHandoff = crate::orange_device_apply::OrangeDeviceApplyTransaction;
-
-#[derive(Debug)]
-#[cfg_attr(
-    not(feature = "hardware-orange-pi-zero-2w"),
-    derive(Clone, Copy, PartialEq, Eq)
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PowerRequest {
     Reboot,
     Shutdown,
     RestartApp,
-    ApplyDeviceConfig(DeviceApplyHandoff),
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn prepare_device_apply(
-    platform_service: &PiPlatformService,
-    payload: &serde_json::Value,
-) -> Result<DeviceApplyHandoff, String> {
-    crate::rpi_device_apply::apply(platform_service, payload)
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-fn prepare_device_apply(
-    platform_service: &PiPlatformService,
-    payload: &serde_json::Value,
-) -> Result<DeviceApplyHandoff, String> {
-    platform_service.prepare_orange_device_apply(payload)
 }
 
 impl PiHostAdapter {
@@ -310,23 +283,8 @@ impl HostAdapter for PiHostAdapter {
             return Ok(messages);
         }
         let result = match &request.effect {
-            RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
-                self.core.pending_default_save.cancel();
-                let recording_result = self.stop_recording_for_transition(request)?;
-                let mut messages = recording_result
-                    .into_iter()
-                    .map(|result| HostMessage::RuntimeResult { result })
-                    .collect::<Vec<_>>();
-                match prepare_device_apply(&self.core.platform_service, payload) {
-                    Ok(handoff) => {
-                        self.power_request = Some(PowerRequest::ApplyDeviceConfig(handoff));
-                    }
-                    Err(message) => messages.push(failure_message(
-                        request,
-                        format!("device/audio apply save failed: {message}"),
-                    )),
-                }
-                return Ok(messages);
+            RuntimePlatformEffect::ApplyDeviceConfig { payload } => {
+                return Ok(self.apply_device_config(request, payload));
             }
             RuntimePlatformEffect::RecordingStartAudio { .. }
             | RuntimePlatformEffect::RecordingStartAudioOled { .. }
@@ -412,8 +370,8 @@ impl RuntimeOutputSink for PiHostAdapter {
     }
 }
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
-mod orange_apply_tests;
+#[cfg(test)]
+mod device_config_tests;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 mod orange_system_store_tests;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
@@ -426,5 +384,3 @@ mod power_tests;
 mod system_store_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod tests;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-mod usb_role_tests;

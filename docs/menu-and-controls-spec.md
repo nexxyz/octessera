@@ -118,8 +118,8 @@ encoder rows:
 - Space is the hardware Space/S button; the letter `S` is the AUX2 click. Modifier combinations
   keep their meaning: Shift+Space is Stop (Resync arm under external sync), Control+Space is Reset
   stop, and Shift+Control+Enter opens context help.
-- Raspberry captures only while the persisted USB role is `Host`; changing the role still uses the
-  save-and-reboot flow. Orange captures on its fixed USB-A host connector, independent of USB0
+- Raspberry captures only while the USB role is `Host`, and follows a live role change at once.
+  Orange captures on its fixed USB-A host connector, independent of USB0
   OTG/gadget behavior.
 - Both boards capture only in the graphical HDMI modes `live-grid`, `plain-grid`,
   `active-behavior`, and `cycle-behaviors`. `Terminal` disables capture. While Bluetooth is On,
@@ -302,7 +302,8 @@ change; only the distance per detent does.
 - MIDI is hot-pluggable. A remembered MIDI Host port that is not plugged in stays selected without
   an error and connects when it appears; the runtime looks for added or removed MIDI devices once a
   second and reconnects the remembered ports. An output that stops taking messages (unplugged, or a
-  computer that is not reading the USB MIDI gadget) is logged, not shown as an error.
+  computer that is not reading the USB MIDI gadget) is logged, not shown as an error. The same
+  watch reconnects the USB MIDI gadget port after a live gadget rebuild.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.
@@ -691,10 +692,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   edit completes, only the latest completed snapshot is kept for the follow-up; overlapping edits do
   not each guarantee a physical write.
 - `System > Saves > System > Save System` is an optional explicit flush; `Load System` loads local
-  device settings without stopping music or silently rebooting. Restart-sensitive settings save
-  through the confirmed Apply flow ([system.md](menu-tree/system.md#restart-sensitive-settings)),
-  which writes only System settings and keeps unsaved music. Its `Restart now` restarts only the
-  app when Perf. Mode is the only changed restart-sensitive value, and reboots otherwise.
+  device settings without stopping music or silently rebooting. Perf. Mode, the one
+  restart-sensitive setting, saves through the confirmed Apply flow
+  ([system.md](menu-tree/system.md#restart-sensitive-settings)), which writes only System settings,
+  keeps unsaved music, and offers `Restart now` to restart only the app. USB Audio, HDMI Audio, USB
+  MIDI, and USB Role save like other System preferences and apply live
+  ([system.md](menu-tree/system.md#live-device-settings)).
 - Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up
   is pending. An allowed Shutdown keeps Patch-only recovery.
 - `Auto Save` and `Backups` under `System > Saves > Default` govern the default patch in

@@ -39,9 +39,6 @@ impl OrangeRecoveryController {
                 return self.failed_attempt(attempt);
             }
         };
-        for producer in self.mirror_producers.iter().flatten() {
-            producer.reactivate();
-        }
         OrangeRecoveryPhase::Stabilizing {
             opened,
             attempts: attempt,

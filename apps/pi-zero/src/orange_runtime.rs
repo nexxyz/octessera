@@ -6,7 +6,6 @@ use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::host_adapter::PiHostAdapter;
 use crate::input::{midi_realtime_message, MidiMessage};
 use crate::main_paths::default_store_dir;
-pub(crate) use crate::orange_device_apply::OrangeRunError;
 use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
@@ -32,18 +31,14 @@ pub(crate) use startup::{
 };
 const ORANGE_UART0_ACTIVE: bool = false;
 
-fn startup_failure(
-    mode: HandoffMode,
-    code: StartupFatalCode,
-    error: impl Into<String>,
-) -> OrangeRunError {
+fn startup_failure(mode: HandoffMode, code: StartupFatalCode, error: impl Into<String>) -> String {
     let error = error.into();
     if mode == HandoffMode::V1 {
         if let Err(signal_error) = crate::boot_oled_handoff::publish_startup_fatal(code) {
             eprintln!("Orange startup fatal signal publish failed: {signal_error}");
         }
     }
-    OrangeRunError::Ordinary(error)
+    error
 }
 
 struct OrangeRuntimeServices {
@@ -51,7 +46,7 @@ struct OrangeRuntimeServices {
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     usb_midi_out_enabled: bool,
 }
-pub fn run() -> Result<(), OrangeRunError> {
+pub fn run() -> Result<(), String> {
     let mut candidate_readiness = CandidateReadiness::from_env();
     crate::board_profile::validate_runtime_profile()?;
     let handoff_mode = crate::boot_oled_handoff::mode_from_env()?;
@@ -63,13 +58,6 @@ pub fn run() -> Result<(), OrangeRunError> {
         )
     })?;
     let store_dir = default_store_dir();
-    crate::orange_device_apply::recover_startup(&store_dir).map_err(|error| {
-        startup_failure(
-            handoff_mode,
-            StartupFatalCode::StartupFailed,
-            format!("Orange startup recovery failed: {error}"),
-        )
-    })?;
     let (usb_config, audio_optimization) =
         read_boot_runtime_config(&store_dir).map_err(|error| {
             startup_failure(
@@ -138,23 +126,11 @@ pub fn run() -> Result<(), OrangeRunError> {
     let render_result = lifecycle::teardown_render(&result, &render);
     let seesaw_result = seesaw.shutdown();
     let result = result
-        .and_then(|resolution| {
-            render_result
-                .map(|_| resolution)
-                .map_err(OrangeRunError::from)
-        })
-        .and_then(|resolution| {
-            keyboard_result
-                .map(|_| resolution)
-                .map_err(OrangeRunError::from)
-        })
-        .and_then(|resolution| {
-            seesaw_result
-                .map(|_| resolution)
-                .map_err(OrangeRunError::from)
-        });
+        .and(render_result)
+        .and(keyboard_result)
+        .and(seesaw_result);
     drop(audio);
-    result.and_then(crate::orange_device_apply::finish_shutdown_resolution)
+    result
 }
 #[allow(clippy::too_many_arguments)]
 fn run_runtime(
@@ -167,7 +143,7 @@ fn run_runtime(
     audio_optimization: playback_runtime::AudioOptimization,
     keyboard_control: crate::keyboard_capture::KeyboardCaptureControl,
     services: OrangeRuntimeServices,
-) -> Result<crate::orange_device_apply::OrangeShutdownResolution, OrangeRunError> {
+) -> Result<(), String> {
     let OrangeRuntimeServices {
         midi_rx,
         midi_handler,

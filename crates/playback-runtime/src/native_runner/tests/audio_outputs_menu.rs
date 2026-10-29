@@ -1,6 +1,6 @@
 use super::*;
 #[test]
-pub(crate) fn usb_menu_edits_payload_with_restart_dialog() {
+pub(crate) fn usb_menu_edits_payload_and_applies_it_live() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         ..NativeRunnerConfig::default()
@@ -32,7 +32,15 @@ pub(crate) fn usb_menu_edits_payload_with_restart_dialog() {
         runner.config_payload()["runtimeConfig"]["audioOutputs"],
         json!({ "dac": true, "usb": true, "hdmi": false })
     );
-    assert_eq!(snapshot_from(&messages)["display"]["title"], "Apply System");
+    assert_eq!(snapshot_from(&messages)["display"]["title"], "/SYS/Audio");
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(
+            effect,
+            RuntimePlatformEffect::ApplyDeviceConfig { payload }
+                if payload["runtimeConfig"]["audioOutputs"]["usb"] == true
+        ))
+    )));
 }
 
 #[test]

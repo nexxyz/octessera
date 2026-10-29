@@ -24,7 +24,7 @@ fn midi_hold_runner() -> NativeRunner {
 pub(crate) fn usb_device_midi_routes_notes_and_internal_clock_without_host_selection() {
     let mut runner = midi_hold_runner();
     runner.selected_midi_output_id = None;
-    runner.boot_applied_usb_midi_out_enabled = true;
+    runner.usb_midi_out_enabled = true;
     runner.midi_clock_out_enabled = true;
     runner.sync_engine_runtime_config();
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());

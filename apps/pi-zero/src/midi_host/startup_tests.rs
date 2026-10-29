@@ -103,3 +103,47 @@ fn a_remembered_host_port_connects_when_it_is_plugged_in() {
     assert!(host.midi_output_connected);
     assert_eq!(host.selected_output_id().as_deref(), Some("name:Keyboard"));
 }
+
+#[test]
+fn the_gadget_port_reconnects_after_a_gadget_rebuild() {
+    let mut host =
+        MidiHost::new_with_test_backend(Arc::new(|_| {}), true, Vec::new(), Vec::new(), []);
+    assert!(host.select_output(None).is_err());
+    assert!(host.select_input(None).is_err());
+
+    let (output_names, input_names) = test_gadget_port_names();
+    host.set_test_backend(output_names, input_names, [Ok(()), Ok(())]);
+    host.port_watch.assume_known(vec!["midiC9D0".into()]);
+    host.reconnect_if_ports_changed(Instant::now());
+
+    assert!(host.midi_output_connected);
+    assert!(host.midi_input_connected);
+    assert_eq!(host.selection_status(Ok(())), Some((true, None)));
+}
+
+#[test]
+fn usb_midi_switches_live_between_the_gadget_and_remembered_host_ports() {
+    let (mut output_names, mut input_names) = test_gadget_port_names();
+    output_names.push("Keyboard".into());
+    input_names.push("Keyboard".into());
+    let mut host = MidiHost::new_with_test_backend(
+        Arc::new(|_| {}),
+        false,
+        output_names.clone(),
+        input_names.clone(),
+        [Ok(()), Ok(())],
+    );
+    assert_eq!(host.select_output(Some("name:Keyboard".into())), Ok(()));
+    assert_eq!(host.select_input(Some("name:Keyboard".into())), Ok(()));
+
+    host.set_test_backend(output_names.clone(), input_names.clone(), [Ok(()), Ok(())]);
+    host.set_usb_midi_out_enabled(true);
+    assert!(host.midi_output_connected && host.midi_input_connected);
+    assert_eq!(host.selection_status(Ok(())), Some((true, None)));
+    assert_eq!(host.selected_output_id().as_deref(), Some("name:Keyboard"));
+
+    host.set_test_backend(output_names, input_names, [Ok(()), Ok(())]);
+    host.set_usb_midi_out_enabled(false);
+    assert!(host.midi_output_connected && host.midi_input_connected);
+    assert_eq!(host.selected_input_id().as_deref(), Some("name:Keyboard"));
+}

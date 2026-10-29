@@ -38,6 +38,7 @@ pub(crate) fn atomic_write_json(path: &Path, payload: &serde_json::Value) -> Res
     result
 }
 
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) fn atomic_write_bytes(path: &Path, content: &[u8], mode: u32) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -69,6 +70,7 @@ pub(crate) fn atomic_write_bytes(path: &Path, content: &[u8], mode: u32) -> Resu
     result
 }
 
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[cfg(unix)]
 fn sync_parent(path: &Path) -> Result<(), String> {
     let Some(parent) = path.parent() else {
@@ -79,11 +81,13 @@ fn sync_parent(path: &Path) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[cfg(not(unix))]
 fn sync_parent(_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[cfg(unix)]
 fn set_mode(file: &File, mode: u32) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
@@ -91,6 +95,7 @@ fn set_mode(file: &File, mode: u32) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 #[cfg(not(unix))]
 fn set_mode(_file: &File, _mode: u32) -> Result<(), String> {
     Ok(())

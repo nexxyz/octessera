@@ -31,10 +31,6 @@ impl DesktopPlaybackHostAdapter {
         }]
     }
 
-    pub(super) fn save_system_payload(&self, payload: &serde_json::Value) -> Result<(), String> {
-        atomic_write_json(&self.store_dir.join("system.json"), payload)
-    }
-
     fn load_system_payload(&self) -> Result<Option<serde_json::Value>, String> {
         let path = self.store_dir.join("system.json");
         if !path.is_file() {

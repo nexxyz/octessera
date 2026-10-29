@@ -14,6 +14,8 @@ const REBOOT_REQUEST: &[u8] = b"reboot\n";
 #[cfg(unix)]
 const POWEROFF_REQUEST: &[u8] = b"poweroff\n";
 #[cfg(unix)]
+const USB_GADGET_REQUEST: &[u8] = b"usb-gadget\n";
+#[cfg(unix)]
 const ACCEPTED: &[u8] = b"accepted\n";
 #[cfg(unix)]
 const REJECTED: &[u8] = b"rejected\n";
@@ -46,6 +48,18 @@ pub(crate) fn request_shutdown() -> OrangePowerRequestOutcome {
     #[cfg(unix)]
     {
         request_action_at(Path::new(REBOOT_SOCKET), POWEROFF_REQUEST)
+    }
+    #[cfg(not(unix))]
+    {
+        OrangePowerRequestOutcome::NotSubmitted
+    }
+}
+
+/// Asks the root helper to rebuild the USB gadget from the saved System file.
+pub(crate) fn request_usb_gadget() -> OrangePowerRequestOutcome {
+    #[cfg(unix)]
+    {
+        request_action_at(Path::new(REBOOT_SOCKET), USB_GADGET_REQUEST)
     }
     #[cfg(not(unix))]
     {
@@ -137,6 +151,18 @@ mod tests {
         let join = serve(&path, POWEROFF_REQUEST, ACCEPTED);
         assert_eq!(
             request_action_at(&path, POWEROFF_REQUEST),
+            OrangePowerRequestOutcome::Accepted
+        );
+        join.join().unwrap();
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn exact_usb_gadget_request_and_ack_are_required() {
+        let path = socket_path("usb-gadget-accepted");
+        let join = serve(&path, USB_GADGET_REQUEST, ACCEPTED);
+        assert_eq!(
+            request_action_at(&path, USB_GADGET_REQUEST),
             OrangePowerRequestOutcome::Accepted
         );
         join.join().unwrap();

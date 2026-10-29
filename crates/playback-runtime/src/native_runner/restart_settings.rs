@@ -1,52 +1,15 @@
 use serde_json::Value;
 use std::sync::Arc;
 
-use super::UsbDataRole;
-
 pub(super) mod write;
 pub(super) use write::{DefaultWrite, DefaultWriteCompletion};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum RestartSetting {
-    AudioOutputDac,
-    AudioOutputUsb,
-    AudioOutputHdmi,
-    UsbMidiOut,
-    UsbDataRole,
-    AudioOptimization,
-}
+/// Perf. Mode is the one System setting that applies only after the app restarts.
+const RESTART_SETTING_KEY: &str = "sound.optimizeFor";
+const RESTART_SETTING_PATH: (&str, &str) = ("sound", "optimizeFor");
 
-impl RestartSetting {
-    const REBOOT_REQUIRED: [Self; 5] = [
-        Self::AudioOutputDac,
-        Self::AudioOutputUsb,
-        Self::AudioOutputHdmi,
-        Self::UsbMidiOut,
-        Self::UsbDataRole,
-    ];
-
-    pub(super) fn from_key(key: &str) -> Option<Self> {
-        match key {
-            "audioOutputs.dac" => Some(Self::AudioOutputDac),
-            "audioOutputs.usb" => Some(Self::AudioOutputUsb),
-            "audioOutputs.hdmi" => Some(Self::AudioOutputHdmi),
-            "usb.midiOutEnabled" => Some(Self::UsbMidiOut),
-            "usb.dataRole" => Some(Self::UsbDataRole),
-            "sound.optimizeFor" => Some(Self::AudioOptimization),
-            _ => None,
-        }
-    }
-
-    fn path(self) -> (&'static str, &'static str) {
-        match self {
-            Self::AudioOutputDac => ("audioOutputs", "dac"),
-            Self::AudioOutputUsb => ("audioOutputs", "usb"),
-            Self::AudioOutputHdmi => ("audioOutputs", "hdmi"),
-            Self::UsbMidiOut => ("usb", "midiOutEnabled"),
-            Self::UsbDataRole => ("usb", "dataRole"),
-            Self::AudioOptimization => ("sound", "optimizeFor"),
-        }
-    }
+pub(super) fn is_restart_setting(key: &str) -> bool {
+    key == RESTART_SETTING_KEY
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,18 +31,9 @@ impl DefaultSaveScope {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct RestartEdit {
-    setting: RestartSetting,
-    initial_value: Value,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 enum RestartFlow {
     Idle,
-    SaveChoice {
-        setting: RestartSetting,
-        setting_payload: Option<Value>,
-    },
+    SaveChoice { setting_payload: Option<Value> },
     Saving,
     RestartChoice,
 }
@@ -87,10 +41,9 @@ enum RestartFlow {
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct RestartSettingsState {
     pub(super) persisted_default: Arc<Value>,
-    boot_default: Arc<Value>,
     pending_write: Option<DefaultWrite>,
     native_payload_missing: bool,
-    editing: Option<RestartEdit>,
+    editing: Option<Value>,
     flow: RestartFlow,
 }
 
@@ -98,7 +51,6 @@ impl Default for RestartSettingsState {
     fn default() -> Self {
         Self {
             persisted_default: Arc::new(Value::Null),
-            boot_default: Arc::new(Value::Null),
             pending_write: None,
             native_payload_missing: false,
             editing: None,
@@ -109,19 +61,10 @@ impl Default for RestartSettingsState {
 
 impl RestartSettingsState {
     pub(super) fn new(persisted_default: Value) -> Self {
-        let persisted_default = Arc::new(persisted_default);
         Self {
-            boot_default: Arc::clone(&persisted_default),
-            persisted_default,
+            persisted_default: Arc::new(persisted_default),
             ..Self::default()
         }
-    }
-
-    pub(super) fn only_app_restart_pending(&self) -> bool {
-        RestartSetting::REBOOT_REQUIRED.iter().all(|setting| {
-            setting_value(&self.boot_default, *setting)
-                == setting_value(&self.persisted_default, *setting)
-        })
     }
 
     pub(super) fn update_system_baseline(&mut self, payload: Arc<Value>) {
@@ -142,20 +85,9 @@ impl RestartSettingsState {
         self.pending_write.is_some()
     }
 
-    pub(super) fn setting_payload(
-        &self,
-        current: &Value,
-        setting: RestartSetting,
-    ) -> Option<Value> {
-        if setting == RestartSetting::UsbDataRole {
-            return self.usb_data_role_setting_payload(current);
-        }
-        let (parent, leaf) = setting.path();
-        let value = current
-            .get("runtimeConfig")
-            .and_then(|runtime| runtime.get(parent))
-            .and_then(|group| group.get(leaf))?
-            .clone();
+    pub(super) fn setting_payload(&self, current: &Value) -> Option<Value> {
+        let (parent, leaf) = RESTART_SETTING_PATH;
+        let value = setting_value(current)?.clone();
         let mut payload = (*self.persisted_default).clone();
         let runtime = payload.get_mut("runtimeConfig")?.as_object_mut()?;
         let group = runtime.get_mut(parent)?.as_object_mut()?;
@@ -163,66 +95,27 @@ impl RestartSettingsState {
         Some(payload)
     }
 
-    fn usb_data_role_setting_payload(&self, current: &Value) -> Option<Value> {
-        let current_runtime = current.get("runtimeConfig")?;
-        let mut payload = (*self.persisted_default).clone();
-        let runtime = payload.get_mut("runtimeConfig")?.as_object_mut()?;
-        for (parent, leaf) in [
-            ("usb", "dataRole"),
-            ("usb", "midiOutEnabled"),
-            ("audioOutputs", "usb"),
-        ] {
-            let value = current_runtime.get(parent)?.get(leaf)?.clone();
-            let group = runtime.get_mut(parent)?.as_object_mut()?;
-            group.insert(leaf.into(), value);
-        }
-        Some(payload)
+    pub(super) fn begin_edit(&mut self, current: &Value) {
+        self.editing = setting_value(current).cloned();
     }
 
-    pub(super) fn begin_edit(&mut self, current: &Value, setting: RestartSetting) {
-        self.editing = setting_value(current, setting)
-            .cloned()
-            .map(|initial_value| RestartEdit {
-                setting,
-                initial_value,
-            });
-    }
-
-    pub(super) fn finish_edit(&mut self, current: &Value, setting: RestartSetting) -> bool {
-        let Some(edit) = self.editing.take() else {
-            return false;
-        };
-        edit.setting == setting
-            && setting_value(current, setting).is_some_and(|value| value != &edit.initial_value)
+    pub(super) fn finish_edit(&mut self, current: &Value) -> bool {
+        self.editing
+            .take()
+            .is_some_and(|initial| setting_value(current).is_some_and(|value| value != &initial))
     }
 
     pub(super) fn is_editing(&self) -> bool {
         self.editing.is_some()
     }
 
-    pub(super) fn open_save_choice(
-        &mut self,
-        setting: RestartSetting,
-        setting_payload: Option<Value>,
-    ) {
-        self.flow = RestartFlow::SaveChoice {
-            setting,
-            setting_payload,
-        };
+    pub(super) fn open_save_choice(&mut self, setting_payload: Option<Value>) {
+        self.flow = RestartFlow::SaveChoice { setting_payload };
     }
 
     pub(super) fn save_choice_setting_payload(&self) -> Option<Value> {
         match &self.flow {
-            RestartFlow::SaveChoice {
-                setting_payload, ..
-            } => setting_payload.clone(),
-            _ => None,
-        }
-    }
-
-    pub(super) fn save_choice_setting(&self) -> Option<RestartSetting> {
-        match self.flow {
-            RestartFlow::SaveChoice { setting, .. } => Some(setting),
+            RestartFlow::SaveChoice { setting_payload } => setting_payload.clone(),
             _ => None,
         }
     }
@@ -230,7 +123,6 @@ impl RestartSettingsState {
     pub(super) fn update_save_choice_setting_payload(&mut self, setting_payload: Option<Value>) {
         if let RestartFlow::SaveChoice {
             setting_payload: current,
-            ..
         } = &mut self.flow
         {
             *current = setting_payload;
@@ -265,19 +157,10 @@ impl RestartSettingsState {
     }
 }
 
-fn setting_value(payload: &Value, setting: RestartSetting) -> Option<&Value> {
-    let (parent, leaf) = setting.path();
+fn setting_value(payload: &Value) -> Option<&Value> {
+    let (parent, leaf) = RESTART_SETTING_PATH;
     payload
         .get("runtimeConfig")
         .and_then(|runtime| runtime.get(parent))
         .and_then(|group| group.get(leaf))
-}
-
-fn payload_is_host(payload: &Value) -> bool {
-    payload
-        .get("runtimeConfig")
-        .and_then(|runtime| runtime.get("usb"))
-        .and_then(|usb| usb.get("dataRole"))
-        .and_then(Value::as_str)
-        .is_some_and(|role| role == UsbDataRole::Host.as_str())
 }

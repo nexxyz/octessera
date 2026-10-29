@@ -11,7 +11,8 @@ a USB device, such as a keyboard, into the instrument.
 
 ## Raspberry Pi
 
-The Raspberry Pi's USB data port can do one of two jobs, chosen at boot:
+The Raspberry Pi's USB data port can do one of two jobs, and you can swap
+between them while the music keeps going:
 
 | Role | What it does | Connect |
 |---|---|---|
@@ -24,23 +25,27 @@ USB-C-to-USB-C cables and USB Power Delivery chargers or ports for this.
 ### Switch to Host
 
 1. Unplug the computer's USB cable.
-2. Turn **USB Audio** and **USB MIDI** off.
-3. Open `System > Connections > USB Role` and select **Host**.
-4. Confirm the save. The OLED reminds you to unplug the computer and offers
-   **Reboot now**; the new role only takes effect after a reboot.
-5. After the reboot, connect your device through the OTG adapter. A powered hub
-   is fine only if it cannot back-feed power into the instrument.
+2. Open `System > Connections > USB Role` and select **Host**. USB Audio and
+   USB MIDI switch themselves off on the way.
+3. The OLED says `Applying...` and then `USB ready`, usually within a couple of
+   seconds.
+4. Connect your device through the OTG adapter. A powered hub is fine only if
+   it cannot back-feed power into the instrument.
 
 In Host mode, USB Audio, USB MIDI and starting new SD2 transfers are
-unavailable.
+unavailable. If an SD2 transfer is still running, stop it first; the instrument
+won't switch to Host in the middle of one.
 
 ### Switch back to Gadget
 
 1. Unplug the USB device.
-2. Select `System > Connections > USB Role > Gadget`, save, and reboot.
+2. Select `System > Connections > USB Role > Gadget` and wait for `USB ready`.
 3. Connect the data port to a computer with the USB-A-to-micro-USB cable.
 4. Turn USB Audio or USB MIDI back on yourself if you want them. Switching back
    to Gadget does not re-enable the features that Host mode switched off.
+
+If the OLED ever says `USB apply failed, reboot to apply`, the new setting is
+saved anyway, and a reboot puts it in place.
 
 ## Orange Pi
 
@@ -61,13 +66,13 @@ the middle of a jam. A MIDI device you picked stays picked while it's
 unplugged and reconnects about a second after it comes back. Notes sent while
 nothing is listening just go nowhere; no error pops up.
 
-## Turning USB MIDI on
+## Turning USB Audio or USB MIDI on and off
 
-The USB connection to the computer is put together once, while the board boots.
-So after you turn **USB MIDI** on, say yes to the reboot. If you skip it and the
-app alone restarts later, it comes up fine but shows a `USB MIDI gadget output
-not found` error. Close it with Back and reboot when you're ready; USB MIDI
-shows up after that.
+Both switch over right away, and so does **HDMI Audio**. For the two USB ones
+the instrument rebuilds its USB connection to the computer, which takes a
+second or so; your computer may notice the instrument leave and come straight
+back. The jack keeps playing the whole time. With no computer plugged in, USB
+Audio simply waits and starts playing once one turns up.
 
 ## USB keyboard control
 

@@ -261,31 +261,21 @@ impl SystemPersistenceState {
 
     pub(super) fn document_for_ordinary_save(runner: &NativeRunner) -> Result<Value, String> {
         let mut document = Self::system_document(runner)?;
-        for (parent, leaf) in [
-            ("audioOutputs", "dac"),
-            ("audioOutputs", "usb"),
-            ("audioOutputs", "hdmi"),
-            ("usb", "midiOutEnabled"),
-            ("usb", "dataRole"),
-            ("sound", "optimizeFor"),
-        ] {
-            let Some(value) = runner
-                .restart_settings
-                .persisted_default
-                .get("runtimeConfig")
-                .and_then(|runtime| runtime.get(parent))
-                .and_then(|group| group.get(leaf))
-                .cloned()
-            else {
-                continue;
-            };
-            if let Some(group) = document
+        let persisted = runner
+            .restart_settings
+            .persisted_default
+            .get("runtimeConfig")
+            .and_then(|runtime| runtime.get("sound"))
+            .and_then(|sound| sound.get("optimizeFor"))
+            .cloned();
+        if let (Some(value), Some(sound)) = (
+            persisted,
+            document
                 .get_mut("runtimeConfig")
-                .and_then(|runtime| runtime.get_mut(parent))
-                .and_then(Value::as_object_mut)
-            {
-                group.insert(leaf.into(), value);
-            }
+                .and_then(|runtime| runtime.get_mut("sound"))
+                .and_then(Value::as_object_mut),
+        ) {
+            sound.insert("optimizeFor".into(), value);
         }
         Ok(document)
     }

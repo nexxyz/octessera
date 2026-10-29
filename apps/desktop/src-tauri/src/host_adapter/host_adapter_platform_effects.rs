@@ -74,16 +74,6 @@ impl DesktopPlaybackHostAdapter {
                     result: RuntimeStoreResult::SaveRecoveryResult { ok: true },
                 }])
             }
-            RuntimePlatformEffect::ApplyDeviceConfigReboot { payload } => {
-                let recording_result =
-                    host_adapter_recording::finalize_for_shutdown(&self.audio.recording, request)?;
-                self.save_system_payload(payload)?;
-                self.shutdown_requested = true;
-                Ok(recording_result
-                    .into_iter()
-                    .map(|result| HostMessage::RuntimeResult { result })
-                    .collect())
-            }
             RuntimePlatformEffect::RecordingStartAudio { .. }
             | RuntimePlatformEffect::RecordingStartAudioOled { .. }
             | RuntimePlatformEffect::RecordingStop => Ok(host_adapter_recording::handle_effect(
@@ -218,6 +208,13 @@ impl DesktopPlaybackHostAdapter {
                     error: request.unsupported_facts("App restart is Pi-only".into()),
                 },
             }]),
+            RuntimePlatformEffect::ApplyDeviceConfig { .. } => {
+                Ok(vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::RuntimeFailure {
+                        error: request.unsupported_facts("USB and HDMI apply is Pi-only".into()),
+                    },
+                }])
+            }
             RuntimePlatformEffect::BluetoothScan { .. }
             | RuntimePlatformEffect::BluetoothDevice { .. } => {
                 Ok(vec![HostMessage::RuntimeResult {

@@ -40,8 +40,8 @@ System
 │   ├── Vel Scale: [0..200] step 5 %  default 100
 │   └── Vel Curve: [linear | soft | hard]
 ├── Audio (group)
-│   ├── USB Audio: [on | off]            ← Raspberry and Orange; hidden in Raspberry Host; restart-sensitive
-│   ├── HDMI Audio: [on | off]           ← Raspberry and Orange; restart-sensitive
+│   ├── USB Audio: [on | off]            ← Raspberry and Orange; hidden in Raspberry Host; applies live
+│   ├── HDMI Audio: [on | off]           ← Raspberry and Orange; applies live
 │   ├── Master Vol: [0..100] step 1
 │   ├── Perf. Mode: [latency | capacity] ← Raspberry and Orange; shown as Lat | Cap; restart-sensitive
 │   ├── Polyphony: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]
@@ -54,7 +54,7 @@ System
 │   │   ├── MIDI Out (group)             ← Disconnect, then one action per detected output port
 │   │   └── MIDI In (group)              ← Disconnect, then one action per detected input port
 │   ├── USB Device (group)               ← Orange and Raspberry Gadget
-│   │   └── USB MIDI: [on | off]         ← owns both Gadget MIDI directions; restart-sensitive
+│   │   └── USB MIDI: [on | off]         ← owns both Gadget MIDI directions; applies live
 │   └── Sync / Clock (group)
 │       ├── Sync: [internal | external]
 │       ├── Clock Out: [on | off]
@@ -73,7 +73,7 @@ System
 │   ├── SD Card 2 (group)                ← Raspberry and Orange
 │   │   ├── Start Transfer: (action)     ← hidden in Raspberry Host
 │   │   └── Stop Transfer: (action)
-│   └── USB Role: [Gadget | Host]        ← Raspberry only; restart-sensitive
+│   └── USB Role: [Gadget | Host]        ← Raspberry only; applies live
 ├── Display (group)
 │   ├── Ghost Cells: [on | off]
 │   ├── Auto Map: [on | off]
@@ -254,34 +254,46 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   per detected port.
 - `USB Device` is the computer-facing gadget interface. While `USB MIDI` is on it owns both Gadget
   MIDI input and output, and Host-selected input/output IDs are ignored. Orange keeps those Host
-  selections for use after USB MIDI is turned off. USB MIDI is restart-sensitive: a pending edit does
-  not change the live route until the next process start. The USB gadget itself is built at boot, so
-  if only the app restarts after USB MIDI was turned on, it starts with a `USB MIDI gadget output not
-  found` MIDI error frame until the board reboots.
+  selections for use after USB MIDI is turned off. USB MIDI applies live: turning it on or off
+  rebuilds the USB gadget, and the gadget MIDI port connects as soon as it appears.
 - General MIDI enable, ports, clock, and sync stay under `System > MIDI`.
 
 ## Restart-sensitive settings
 
-USB Audio, HDMI Audio, Perf. Mode, USB MIDI, and USB Role are restart-sensitive. A
-changed edit opens the native confirmed System-only Apply flow:
+Perf. Mode is the only restart-sensitive setting. A changed edit opens the native confirmed
+System-only Apply flow:
 
-1. `Apply System` with `Restart required.`. In Host role it adds `Before Host reboot:`,
-   `Unplug computer USB.`, and `Audio/MIDI/SD2 off.`. Options: `Cancel` (default), `Save this one`
-   (only when that setting can be saved on its own), and `Save System`. Back means Cancel.
+1. `Apply System` with `Restart required.`. Options: `Cancel` (default), `Save this one` (only when
+   that setting can be saved on its own), and `Save System`. Back means Cancel.
 2. `Saving...` / `Please wait` while the System file is written. A second Apply during this shows
    `System Apply save pending, try again`.
-3. `Restart?` with `System saved.` / `Reboot to apply?`. In Host role it adds
-   `Unplug computer USB`, `before Host reboot.`, and `Audio/MIDI/SD2 off.`. Options: `Continue`
-   (default) and `Reboot now`. Back means Continue.
-
-When Perf. Mode is the only restart-sensitive value that differs from what the app started with,
-step 3 instead shows `System saved.` / `Restart the app` / `to apply?` with `Continue` and
-`Restart now`. `Restart now` runs the same terminal lifecycle as Reboot with the toast
-`Restarting`, then only the Octessera app exits and systemd starts it again; the board keeps
-running. Any other restart-sensitive value saved since the app started still reboots.
+3. `Restart?` with `System saved.` / `Restart the app` / `to apply?`. Options: `Continue` (default)
+   and `Restart now`. Back means Continue. `Restart now` runs the same terminal lifecycle as Reboot
+   with the toast `Restarting`, then only the Octessera app exits and systemd starts it again; the
+   board keeps running.
 
 The save writes only System settings, never discards unsaved musical edits, and keeps unrelated
-dirty edits. Stale or failed acknowledgements never reboot or advance the persisted baseline.
+dirty edits. Stale or failed acknowledgements never restart or advance the persisted baseline.
+
+## Live device settings
+
+USB Audio, HDMI Audio, USB MIDI, and USB Role apply while the board keeps playing. Finishing a
+changed edit saves System like any other System preference, shows `Applying...`, and sends one
+`apply_device_config` effect carrying the whole System document:
+
+- The board adapter switches the USB/HDMI side outputs and the MIDI route at once. The Jack stream
+  never restarts; the side outputs keep a mirror of its mix only while selected.
+- Its platform worker saves the System file the USB gadget helpers read, then rebuilds the USB
+  gadget when USB Audio or USB MIDI changed, or switches the USB role when USB Role changed
+  (Raspberry). This runs off the runtime thread.
+- The result toast is `USB ready`, `Applied` (HDMI Audio only), or
+  `USB apply failed, reboot to apply`. A failed live step keeps the saved System, so the next boot
+  applies it.
+- Selecting Host turns USB Audio and USB MIDI off in the same apply. While SD2 transfer is active,
+  Host is refused with `Stop SD2 transfer before selecting Host`.
+- Plug state is never an error: an unplugged computer or HDMI sink leaves its side output waiting,
+  and it plays again when the device comes back.
+- Desktop shows none of these rows.
 
 ## Connections
 
@@ -451,7 +463,7 @@ hostname, and the explicit board profile. The desktop UI only renders the result
 - Raspberry uses the exact noninteractive power commands allowed by
   `/etc/sudoers.d/octessera-shutdown`, with no broad `NOPASSWD` grant. Orange uses its fixed
   root-owned `/run/octessera-device-apply/reboot.sock` with exact `reboot\n` and `poweroff\n`
-  requests and exact `accepted\n`/`rejected\n` responses. Orange reboot still validates persisted
+  (plus `usb-gadget\n` for the live gadget rebuild) requests and exact `accepted\n`/`rejected\n` responses. Orange reboot still validates persisted
   config in the root helper; poweroff does not depend on that validation.
 - This contract covers the confirmed instrument-menu actions, not administrative
   `systemctl poweroff` or `systemctl reboot`.

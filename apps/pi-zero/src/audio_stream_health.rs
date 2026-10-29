@@ -163,11 +163,9 @@ impl AudioStreamHealth {
             return;
         };
         if state.status != AudioStreamStatus::Terminal {
-            state.status = match (&error, self.requirement) {
-                (StreamError::DeviceNotAvailable, AudioStreamRequirement::Optional) => {
-                    AudioStreamStatus::Recovering
-                }
-                _ => AudioStreamStatus::Terminal,
+            state.status = match self.requirement {
+                AudioStreamRequirement::Optional => AudioStreamStatus::Recovering,
+                AudioStreamRequirement::Required => AudioStreamStatus::Terminal,
             };
         }
         self.log_rate_limited(&mut state, Instant::now(), error);
@@ -307,7 +305,7 @@ mod tests {
     }
 
     #[test]
-    fn terminal_errors_are_sticky_for_optional_streams() {
+    fn every_optional_stream_error_is_recoverable_so_a_replugged_device_plays_again() {
         for error in [
             StreamError::DeviceBusy,
             StreamError::Unsupported("unsupported".into()),
@@ -320,9 +318,9 @@ mod tests {
         ] {
             let health = AudioStreamHealth::optional("USB".into());
             health.log(error);
-            assert_eq!(health.external_status(), AudioStreamStatus::Terminal);
+            assert_eq!(health.external_status(), AudioStreamStatus::Recovering);
             health.clear_recoverable_fault();
-            assert_eq!(health.external_status(), AudioStreamStatus::Terminal);
+            assert_eq!(health.external_status(), AudioStreamStatus::Healthy);
         }
     }
 
@@ -361,7 +359,7 @@ mod tests {
             ] {
                 let optional = AudioStreamHealth::optional(label.into());
                 optional.log(error);
-                assert_eq!(optional.external_status(), AudioStreamStatus::Terminal);
+                assert_eq!(optional.external_status(), AudioStreamStatus::Recovering);
             }
         }
     }

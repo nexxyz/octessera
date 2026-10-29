@@ -211,6 +211,7 @@ impl NativeRunner {
             }
             result @ (RuntimeStoreResult::StoreError { .. }
             | RuntimeStoreResult::DeviceUpdateStatus { .. }
+            | RuntimeStoreResult::DeviceConfigStatus { .. }
             | RuntimeStoreResult::RecordingStatus { .. }
             | RuntimeStoreResult::UsbSdTransferStatus { .. }
             | RuntimeStoreResult::RuntimeFailure { .. }) => {

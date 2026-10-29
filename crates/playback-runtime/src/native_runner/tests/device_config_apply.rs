@@ -2,29 +2,49 @@ use super::audio_restart_persistence::{enter_edit, press, turn};
 use super::*;
 use crate::RuntimePlatformRequest;
 
+fn effects(messages: &[RunnerMessage]) -> Vec<RuntimePlatformEffect> {
+    messages
+        .iter()
+        .filter_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => Some(effects.clone()),
+            _ => None,
+        })
+        .flatten()
+        .collect()
+}
+
+fn applied_payload(messages: &[RunnerMessage]) -> Option<Value> {
+    effects(messages)
+        .into_iter()
+        .find_map(|effect| match effect {
+            RuntimePlatformEffect::ApplyDeviceConfig { payload } => Some(payload),
+            _ => None,
+        })
+}
+
+fn saved_payload(messages: &[RunnerMessage]) -> Option<Value> {
+    effects(messages)
+        .into_iter()
+        .find_map(|effect| match effect {
+            RuntimePlatformEffect::StoreSaveSystem { payload } => Some(payload),
+            _ => None,
+        })
+}
+
+fn commit_setting(runner: &mut NativeRunner, key: &str, delta: i32) -> Vec<RunnerMessage> {
+    enter_edit(runner, key);
+    turn(runner, delta);
+    press(runner)
+}
+
 fn save_setting_payload(
     runner: &mut NativeRunner,
     key: &str,
     delta: i32,
     request_id: &str,
 ) -> Value {
-    enter_edit(runner, key);
-    turn(runner, delta);
-    press(runner);
-    turn(runner, 1);
-    let messages = press(runner);
-    let payload = messages
-        .iter()
-        .find_map(|message| match message {
-            RunnerMessage::PlatformEffects { effects } => effects.iter().find_map(|effect| {
-                let RuntimePlatformEffect::StoreSaveSystem { payload } = effect else {
-                    return None;
-                };
-                Some(payload.clone())
-            }),
-            _ => None,
-        })
-        .expect("System Apply save effect");
+    let messages = commit_setting(runner, key, delta);
+    let payload = saved_payload(&messages).expect("System save effect");
     let request = RuntimePlatformRequest::new(
         RuntimePlatformEffect::StoreSaveSystem {
             payload: payload.clone(),
@@ -50,16 +70,14 @@ fn live_midi_out_enabled(runner: &NativeRunner) -> bool {
         .midi_out_enabled
 }
 
-fn midi_restart_runner(boot_applied: bool, editable: bool) -> NativeRunner {
+fn board_runner(usb_data_role_available: bool) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
-        usb_data_role_available: true,
-        boot_applied_usb_midi_out_enabled: boot_applied,
+        usb_data_role_available,
         ..NativeRunnerConfig::default()
     })
     .unwrap();
     runner.midi_enabled = true;
-    runner.usb_midi_out_enabled = editable;
     runner.menu.rebuild(runner.menu_config());
     runner
         .send(HostMessage::DeviceInput {
@@ -68,6 +86,10 @@ fn midi_restart_runner(boot_applied: bool, editable: bool) -> NativeRunner {
         })
         .unwrap();
     runner
+}
+
+fn toast(runner: &NativeRunner) -> String {
+    runner.display.toast.as_ref().unwrap().message.clone()
 }
 
 fn reload_system_payload(payload: Value) -> NativeRunner {
@@ -94,12 +116,8 @@ fn reload_system_payload(payload: Value) -> NativeRunner {
 }
 
 #[test]
-fn usb_midi_setting_survives_unrelated_restart_setting_save_and_reload() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        jack_audio_required: true,
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
+fn usb_midi_setting_survives_another_device_setting_save_and_reload() {
+    let mut runner = board_runner(false);
     let usb_payload = save_setting_payload(&mut runner, "usb.midiOutEnabled", 1, "usb-save");
     assert_eq!(usb_payload["runtimeConfig"]["usb"]["midiOutEnabled"], true);
 
@@ -118,52 +136,77 @@ fn usb_midi_setting_survives_unrelated_restart_setting_save_and_reload() {
 }
 
 #[test]
-fn pending_usb_midi_enable_does_not_enable_live_route_before_restart() {
-    let mut runner = midi_restart_runner(false, false);
-    assert!(!live_midi_out_enabled(&runner));
+fn each_device_setting_saves_and_applies_live_without_a_dialog() {
+    for (key, path) in [
+        ("audioOutputs.usb", ["audioOutputs", "usb"]),
+        ("audioOutputs.hdmi", ["audioOutputs", "hdmi"]),
+        ("usb.midiOutEnabled", ["usb", "midiOutEnabled"]),
+    ] {
+        let mut runner = board_runner(false);
+        let messages = commit_setting(&mut runner, key, 1);
 
-    let saved = save_setting_payload(&mut runner, "usb.midiOutEnabled", 1, "usb-enable-save");
-
-    assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], true);
-    assert!(runner.usb_midi_out_enabled);
-    assert!(!runner.boot_applied_usb_midi_out_enabled);
-    assert!(!live_midi_out_enabled(&runner));
+        let saved = saved_payload(&messages).expect("System save effect");
+        let applied = applied_payload(&messages).expect("live device apply");
+        assert_eq!(applied, saved, "{key}");
+        assert_eq!(applied["runtimeConfig"][path[0]][path[1]], true, "{key}");
+        assert!(runner.display.confirm_dialog.is_none(), "{key}");
+        assert_eq!(toast(&runner), "Applying...", "{key}");
+    }
 }
 
 #[test]
-fn pending_usb_midi_disable_does_not_disable_live_route_after_candidate_rebuild() {
-    let mut runner = midi_restart_runner(true, true);
+fn apply_results_show_the_host_status_toast() {
+    for (ok, message) in [
+        (true, "USB ready"),
+        (false, "USB apply failed, reboot to apply"),
+    ] {
+        let mut runner = board_runner(false);
+        let _ = commit_setting(&mut runner, "usb.midiOutEnabled", 1);
+        runner
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::DeviceConfigStatus {
+                    ok,
+                    message: message.into(),
+                },
+            })
+            .unwrap();
+        assert_eq!(toast(&runner), message);
+        assert!(runner.display.confirm_dialog.is_none());
+    }
+}
+
+#[test]
+fn turning_a_device_setting_back_before_confirming_applies_nothing() {
+    let mut runner = board_runner(false);
+    enter_edit(&mut runner, "audioOutputs.hdmi");
+    turn(&mut runner, 1);
+    turn(&mut runner, -1);
+    let messages = press(&mut runner);
+    assert!(applied_payload(&messages).is_none());
+    assert!(saved_payload(&messages).is_none());
+}
+
+#[test]
+fn usb_midi_changes_the_live_midi_route_at_once() {
+    let mut runner = board_runner(false);
+    assert!(!live_midi_out_enabled(&runner));
+
+    let _ = save_setting_payload(&mut runner, "usb.midiOutEnabled", 1, "usb-enable-save");
     assert!(live_midi_out_enabled(&runner));
 
     let saved = save_setting_payload(&mut runner, "usb.midiOutEnabled", -1, "usb-disable-save");
-
     assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], false);
-    assert!(!runner.usb_midi_out_enabled);
-    assert!(runner.boot_applied_usb_midi_out_enabled);
-    assert!(live_midi_out_enabled(&runner));
-
-    let mut changed = runner.config_payload();
-    changed["runtimeConfig"]["transport"]["bpm"] = json!(121);
-    runner.apply_config_payload(changed).unwrap();
-    assert!(runner.boot_applied_usb_midi_out_enabled);
-    assert!(live_midi_out_enabled(&runner));
+    assert!(!live_midi_out_enabled(&runner));
 }
 
 #[test]
-fn host_role_stages_gadget_outputs_off_and_saves_the_compound_setting() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        jack_audio_required: true,
-        usb_data_role_available: true,
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
+fn host_role_turns_gadget_outputs_off_and_applies_them_together() {
+    let mut runner = board_runner(true);
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.usb_midi_out_enabled = true;
     runner.menu.rebuild(runner.menu_config());
 
-    enter_edit(&mut runner, "usb.dataRole");
-    turn(&mut runner, 1);
-    let messages = press(&mut runner);
+    let messages = commit_setting(&mut runner, "usb.dataRole", 1);
 
     assert_eq!(runner.usb_data_role, UsbDataRole::Host);
     assert!(!runner.audio_outputs.usb());
@@ -172,35 +215,9 @@ fn host_role_stages_gadget_outputs_off_and_saves_the_compound_setting() {
     assert!(!runner.menu.focus_item_key("usb.midiOutEnabled"));
     assert!(!runner.menu.focus_item_key("usb.sdTransferStart"));
     assert!(runner.menu.focus_item_key("usb.sdTransferStop"));
-    assert_eq!(
-        runner.display.confirm_dialog.as_ref().unwrap().lines,
-        vec![
-            "Restart required.",
-            "Before Host reboot:",
-            "Unplug computer USB.",
-            "Audio/MIDI/SD2 off.",
-        ]
-    );
-    assert_eq!(
-        runner.display.confirm_dialog.as_ref().unwrap().options,
-        vec!["Cancel", "Save this one", "Save System"]
-    );
-    assert_eq!(snapshot_from(&messages)["display"]["title"], "Apply System");
-
-    turn(&mut runner, 1);
-    let messages = press(&mut runner);
-    let payload = messages
-        .iter()
-        .find_map(|message| match message {
-            RunnerMessage::PlatformEffects { effects } => effects.iter().find_map(|effect| {
-                let RuntimePlatformEffect::StoreSaveSystem { payload } = effect else {
-                    return None;
-                };
-                Some(payload)
-            }),
-            _ => None,
-        })
-        .expect("USB Role restart save effect");
+    assert!(runner.menu.focus_item_key("midi.output.none"));
+    assert!(runner.display.confirm_dialog.is_none());
+    let payload = applied_payload(&messages).expect("USB Role live apply");
     assert_eq!(payload["runtimeConfig"]["usb"]["dataRole"], "host");
     assert_eq!(payload["runtimeConfig"]["usb"]["midiOutEnabled"], false);
     assert_eq!(payload["runtimeConfig"]["audioOutputs"]["usb"], false);
@@ -241,7 +258,7 @@ fn host_payload_rejects_usb_audio_without_mutating_runner() {
 }
 
 #[test]
-fn host_role_save_is_blocked_while_sd2_transfer_is_active() {
+fn host_role_is_refused_while_sd2_transfer_is_active() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         usb_data_role_available: true,
@@ -265,11 +282,7 @@ fn host_role_save_is_blocked_while_sd2_transfer_is_active() {
     let before_restart_settings = runner.restart_settings.clone();
     assert!(runner.apply_runtime_menu_key_fast("usb.dataRole").unwrap());
     assert!(runner.display.confirm_dialog.is_none());
-    assert_eq!(
-        runner.display.toast.as_ref().unwrap().message,
-        "Stop SD2 transfer before selecting Host"
-    );
-    assert!(!runner.restart_settings.is_save_choice());
+    assert_eq!(toast(&runner), "Stop SD2 transfer before selecting Host");
     assert_eq!(runner.usb_data_role, before_role);
     assert_eq!(runner.audio_outputs, before_audio_outputs);
     assert_eq!(runner.usb_midi_out_enabled, before_usb_midi);
@@ -295,20 +308,18 @@ fn selecting_gadget_does_not_restore_host_disabled_outputs() {
     runner.usb_midi_out_enabled = true;
     runner.menu.rebuild(runner.menu_config());
 
-    runner.menu.set_enum_value_for_key("usb.dataRole", "Host");
-    assert!(runner.apply_runtime_menu_key_fast("usb.dataRole").unwrap());
-    runner.display.confirm_dialog = None;
-    runner.restart_settings.cancel();
-    runner.menu.set_enum_value_for_key("usb.dataRole", "Gadget");
-    assert!(runner.apply_runtime_menu_key_fast("usb.dataRole").unwrap());
+    let _ = commit_setting(&mut runner, "usb.dataRole", 1);
+    let messages = commit_setting(&mut runner, "usb.dataRole", -1);
 
     assert_eq!(runner.usb_data_role, UsbDataRole::Gadget);
     assert!(!runner.audio_outputs.usb());
     assert!(!runner.usb_midi_out_enabled);
+    let payload = applied_payload(&messages).expect("Gadget live apply");
+    assert_eq!(payload["runtimeConfig"]["usb"]["dataRole"], "gadget");
 }
 
 #[test]
-fn orange_usb_device_disable_and_restart_restores_host_midi_selections() {
+fn orange_usb_device_disable_restores_host_midi_selections() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         audio_optimization_capacity_available: true,

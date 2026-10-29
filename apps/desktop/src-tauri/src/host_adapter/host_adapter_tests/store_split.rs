@@ -99,30 +99,11 @@ fn malformed_system_load_returns_identified_storage_failure() {
 }
 
 #[test]
-fn apply_and_recovery_write_system_and_patch_files_independently() {
+fn backup_and_recovery_write_only_patch_files() {
     let (mut adapter, _) = test_adapter();
     let temp_dir = temp_store_dir("system-apply-recovery");
     adapter.store_dir = temp_dir.clone();
-    let system = serde_json::json!({ "kind": "octessera.system", "schemaVersion": 1 });
     let patch = serde_json::json!({ "kind": "octessera.patch", "schemaVersion": 2 });
-
-    adapter
-        .handle_platform_effect(&platform_request(
-            RuntimePlatformEffect::ApplyDeviceConfigReboot {
-                payload: system.clone(),
-            },
-        ))
-        .unwrap();
-    assert!(adapter.take_shutdown_request());
-    assert_eq!(
-        serde_json::from_slice::<serde_json::Value>(
-            &std::fs::read(temp_dir.join("system.json")).unwrap()
-        )
-        .unwrap(),
-        system
-    );
-    assert!(!temp_dir.join("default.patch.json").exists());
-    assert!(!temp_dir.join("default.json").exists());
 
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveBackup {
@@ -154,27 +135,6 @@ fn apply_and_recovery_write_system_and_patch_files_independently() {
         patch
     );
     assert!(!temp_dir.join("recovery-save.json").exists());
+    assert!(!temp_dir.join("system.json").exists());
     let _ = std::fs::remove_dir_all(temp_dir);
-}
-
-#[test]
-fn failed_apply_system_write_does_not_request_restart() {
-    let (mut adapter, _) = test_adapter();
-    let root = temp_store_dir("apply-system-failed");
-    let system_path = root.join("system.json");
-    std::fs::create_dir(&system_path).unwrap();
-    let old_path = system_path.join("old-bytes");
-    std::fs::write(&old_path, b"keep me").unwrap();
-    adapter.store_dir = root.clone();
-
-    let result = adapter.handle_platform_effect(&platform_request(
-        RuntimePlatformEffect::ApplyDeviceConfigReboot {
-            payload: serde_json::json!({ "new": true }),
-        },
-    ));
-
-    assert!(result.is_err());
-    assert!(!adapter.take_shutdown_request());
-    assert_eq!(std::fs::read(old_path).unwrap(), b"keep me");
-    let _ = std::fs::remove_dir_all(root);
 }

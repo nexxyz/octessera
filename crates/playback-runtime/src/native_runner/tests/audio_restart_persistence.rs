@@ -312,18 +312,14 @@ fn restart_results_require_the_unique_identified_transaction() {
 
 #[test]
 fn invalid_audio_baseline_omits_setting_only_save() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        jack_audio_required: true,
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
+    let mut runner = optimization_capable_runner();
     std::sync::Arc::make_mut(&mut runner.restart_settings.persisted_default)["runtimeConfig"]
         ["audioOutputs"] = json!({
         "dac": "invalid",
         "usb": false,
         "hdmi": false
     });
-    enter_edit(&mut runner, "audioOutputs.usb");
+    enter_edit(&mut runner, "sound.optimizeFor");
     turn(&mut runner, 1);
     let _ = press(&mut runner);
     let snapshot = runner.snapshot().unwrap();

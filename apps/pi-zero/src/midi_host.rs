@@ -188,21 +188,29 @@ impl MidiHost {
         result.map(|_| ())
     }
 
-    /// Reconnects the remembered MIDI Host ports after a device was plugged in or
-    /// unplugged. The USB MIDI gadget port exists for as long as the board runs.
+    /// Reconnects the remembered MIDI Host ports, or the USB MIDI gadget port,
+    /// after the ALSA MIDI devices change: a device was plugged in or unplugged,
+    /// or the gadget was rebuilt.
     pub(crate) fn reconnect_if_ports_changed(&mut self, now: Instant) {
-        if self.usb_midi_out_enabled || !self.port_watch.changed(now) {
-            return;
+        if self.port_watch.changed(now) {
+            self.reconnect();
         }
-        if let Some(id) = self.host_midi_output_id.clone() {
-            if let Err(error) = self.select_output(Some(id)) {
-                eprintln!("MIDI output reconnect failed: {error}");
-            }
+    }
+
+    /// Switches between the USB MIDI gadget port and the remembered MIDI Host ports.
+    pub(crate) fn set_usb_midi_out_enabled(&mut self, enabled: bool) {
+        if self.usb_midi_out_enabled != enabled {
+            self.usb_midi_out_enabled = enabled;
+            self.reconnect();
         }
-        if let Some(id) = self.host_midi_input_id.clone() {
-            if let Err(error) = self.select_input(Some(id)) {
-                eprintln!("MIDI input reconnect failed: {error}");
-            }
+    }
+
+    fn reconnect(&mut self) {
+        if let Err(error) = self.select_output(self.host_midi_output_id.clone()) {
+            eprintln!("MIDI output reconnect failed: {error}");
+        }
+        if let Err(error) = self.select_input(self.host_midi_input_id.clone()) {
+            eprintln!("MIDI input reconnect failed: {error}");
         }
     }
 

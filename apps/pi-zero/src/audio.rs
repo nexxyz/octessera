@@ -4,7 +4,7 @@ use crate::audio_recording::RecordingServices;
 use crate::audio_route::readiness as route_readiness;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 use crate::audio_route::status as route_status;
-use crate::audio_route::AudioRouteRegistry;
+use crate::audio_route::{AudioRouteRegistry, SelectedOutputs};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) use crate::audio_stream_health::AudioStreamHealth;
 use media_recording::OledIngress;
@@ -71,7 +71,7 @@ pub struct AudioService {
     pub(crate) latest_full_sequence: Arc<AtomicU64>,
     pub(crate) generations: Arc<Mutex<AudioGenerationState>>,
     route_registry: AudioRouteRegistry,
-    audio_outputs: AudioOutputSet,
+    selected_outputs: Arc<SelectedOutputs>,
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     required_jack_health: Option<AudioStreamHealth>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
@@ -335,13 +335,17 @@ impl AudioService {
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let result = Ok(());
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-        let result = route_readiness(self.audio_outputs, &self.route_registry);
+        let result = route_readiness(self.audio_outputs(), &self.route_registry);
         result
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
     pub(crate) fn audio_outputs(&self) -> AudioOutputSet {
-        self.audio_outputs
+        self.selected_outputs.get().0
+    }
+
+    /// Starts and stops the USB and HDMI side outputs; the Jack stream keeps running.
+    pub(crate) fn set_audio_outputs(&self, outputs: AudioOutputSet) {
+        self.selected_outputs.set(outputs);
     }
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
