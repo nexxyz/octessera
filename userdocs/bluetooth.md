@@ -30,9 +30,9 @@ The setting lives in the System save, so it survives a reboot.
 
 ## Pair a keyboard
 
-1. Set `System > Display > HDMI Video > Mode` to any mode except `Terminal`.
-   Keyboards only control the instrument in a graphical HDMI mode, and
-   `Terminal` is the shipped default, so this one catches everybody once.
+1. Check that `System > Display > HDMI Video > Mode` is not `Terminal`.
+   Keyboards only control the instrument in a graphical HDMI mode. The shipped
+   default is `live-grid`, so this only bites if you switched to `Terminal`.
 2. Put the keyboard into pairing mode. That's usually a long press on a
    Bluetooth or Fn key combination until a light blinks; the keyboard's manual
    knows the exact trick.

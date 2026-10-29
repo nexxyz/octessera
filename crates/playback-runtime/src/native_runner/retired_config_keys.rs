@@ -82,7 +82,8 @@ mod tests {
 
     #[test]
     fn saves_from_before_the_settings_fold_still_load() {
-        let full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+        let mut full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+        full["runtimeConfig"]["hdmi"]["mode"] = json!("terminal");
         let documents = split_system_patch_documents(&full).unwrap();
         let old_patch = with_old_duplicates(documents.patch.clone());
 

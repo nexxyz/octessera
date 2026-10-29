@@ -119,7 +119,7 @@ encoder rows:
   keep their meaning: Shift+Space is Stop (Resync arm under external sync), Control+Space is Reset
   stop, and Shift+Control+Enter opens context help.
 - Raspberry captures only while the USB role is `Host`, and follows a live role change at once.
-  Orange captures on its fixed USB-A host connector, independent of USB0
+  Orange captures on its separate USB-C host connector, independent of USB0
   OTG/gadget behavior.
 - Both boards capture only in the graphical HDMI modes `live-grid`, `plain-grid`,
   `active-behavior`, and `cycle-behaviors`. `Terminal` disables capture. While Bluetooth is On,

@@ -79,7 +79,7 @@
     "gridBrightness": 25,
     "hdmi": {
       "cycleMeasures": 4,
-      "mode": "terminal",
+      "mode": "live-grid",
       "showGridlines": false
     },
     "inputEventsWhilePaused": true,

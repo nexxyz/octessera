@@ -177,7 +177,7 @@ For USB hardware testing:
 Before connecting a host to an instrument powered from the enclosure USB-C
 input, follow the [safety and power
 guidance](../../userdocs/hardware/safety-and-power.md) for
-the fixed USB-A host path. Ordinary host cables carry VBUS; avoid
+the separate USB-C host path. Ordinary host cables carry VBUS; avoid
 USB-C-to-USB-C/PD and do not treat the connector choice as isolation. This is
 the no-backfeed safety gate.
 
