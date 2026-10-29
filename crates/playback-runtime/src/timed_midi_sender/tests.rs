@@ -105,13 +105,15 @@ fn panic_clears_the_queue_and_sends_panic_messages() {
 }
 
 #[test]
-fn panic_reports_sink_failures() {
+fn an_unplugged_output_is_not_an_error() {
     let mut sender = TimedMidiSender::new("midi-test", || {});
     sender
         .set_sink(Some(Box::new(|_| Err("port gone".into()))))
         .unwrap();
 
-    assert_eq!(sender.panic(), Err("port gone".into()));
+    assert_eq!(sender.send(None, &[0x90, 60, 100]), Ok(()));
+    assert_eq!(sender.send(None, &[0x80, 60, 0]), Ok(()));
+    assert_eq!(sender.panic(), Ok(()));
 }
 
 #[test]

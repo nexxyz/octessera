@@ -55,9 +55,9 @@ pub(crate) fn select_output(
         .map_err(|_| "invalid midi output id".to_string())?;
     let out = MidiOutput::new("octessera-midi-out").map_err(|e| e.to_string())?;
     let ports = out.ports();
-    let port = ports
-        .get(idx)
-        .ok_or_else(|| "midi output id out of range".to_string())?;
+    let Some(port) = ports.get(idx) else {
+        return Ok(());
+    };
     let mut conn = out
         .connect(port, "octessera-midi-out-conn")
         .map_err(|e| e.to_string())?;
@@ -87,9 +87,9 @@ where
     let mut input = MidiInput::new("octessera-midi-in").map_err(|e| e.to_string())?;
     input.ignore(Ignore::None);
     let ports = input.ports();
-    let port = ports
-        .get(idx)
-        .ok_or_else(|| "midi input id out of range".to_string())?;
+    let Some(port) = ports.get(idx) else {
+        return Ok(());
+    };
     let conn = input
         .connect(
             port,

@@ -140,6 +140,10 @@ impl PiHostAdapter {
         power_save_result(recovery, recording)
     }
 
+    pub(crate) fn reconnect_midi_if_ports_changed(&mut self, now: Instant) {
+        self.core.midi.reconnect_if_ports_changed(now);
+    }
+
     pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {
         self.audio
             .as_ref()

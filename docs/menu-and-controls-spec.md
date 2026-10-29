@@ -299,10 +299,13 @@ change; only the distance per detent does.
   changed snapshot revision schedules a scene even when the display generation is unchanged, so
   host-side state such as runtime errors reaches the screen. Boot splash, direct boot fault,
   shutdown splash, suspend, and ownership lifecycle frames remain adapter paths.
-- A MIDI-domain runtime error at startup (a saved MIDI port that is missing, or USB MIDI saved on
-  while the boot-built USB gadget has no MIDI function) does not block the first scene: the board
-  starts on the normal menu with that error frame shown. Any other startup runtime error still
-  aborts startup.
+- MIDI is hot-pluggable. A remembered MIDI Host port that is not plugged in stays selected without
+  an error and connects when it appears; the runtime looks for added or removed MIDI devices once a
+  second and reconnects the remembered ports. An output that stops taking messages (unplugged, or a
+  computer that is not reading the USB MIDI gadget) is logged, not shown as an error.
+- A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
+  MIDI function) does not block the first scene: the board starts on the normal menu with that error
+  frame shown. Any other startup runtime error still aborts startup.
 - Geometry: 5×7 glyphs on a 6 px advance. The top line is the title bar, colored by section. The
   menu body is 19 columns by 7 rows (`x=6`, `y=18`, 13 px rows). The toast line at the bottom is 17
   columns wide.

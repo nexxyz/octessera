@@ -116,11 +116,17 @@ fn saved_usb_midi_without_the_boot_gadget_starts_with_a_midi_error_frame() {
 }
 
 #[test]
-fn unplugged_saved_midi_output_starts_with_a_midi_error_frame() {
-    assert_starts_with_midi_error_frame(
-        start_with_saved_midi(false, Some("name:Keyboard")),
-        "MIDI port not found",
+fn unplugged_saved_midi_output_starts_without_an_error_and_stays_remembered() {
+    let mut started = start_with_saved_midi(false, Some("name:Keyboard"));
+    let snapshot = started.playback.last_snapshot().unwrap();
+    assert!(snapshot["runtimeError"].is_null());
+    assert_eq!(
+        started.adapter.core.midi.selected_output_id().as_deref(),
+        Some("name:Keyboard")
     );
+
+    assert!(publish(&mut started).unwrap() > 0);
+    let _ = std::fs::remove_dir_all(&started.root);
 }
 
 #[test]

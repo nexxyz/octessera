@@ -1,7 +1,6 @@
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
-use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 pub type MidiSink = Box<dyn FnMut(&[u8]) -> Result<(), String> + Send>;
@@ -9,23 +8,19 @@ pub type MidiSink = Box<dyn FnMut(&[u8]) -> Result<(), String> + Send>;
 const SENDER_STOPPED: &str = "MIDI sender stopped";
 
 enum Command {
-    Send {
-        at: Option<Instant>,
-        bytes: Vec<u8>,
-    },
+    Send { at: Option<Instant>, bytes: Vec<u8> },
     Flush,
-    Panic {
-        done: SyncSender<Result<(), String>>,
-    },
+    Panic { done: SyncSender<()> },
     SetSink(Option<MidiSink>),
 }
 
 struct Worker {
     tx: Sender<Command>,
-    error: Arc<Mutex<Option<String>>>,
 }
 
 /// Sends MIDI from one thread per output, holding timestamped messages until they are due.
+/// A failing output (a device unplugged, or a host that stopped reading) is logged, not
+/// reported: plugging and unplugging MIDI is normal use.
 pub struct TimedMidiSender {
     thread_name: &'static str,
     on_start: fn(),
@@ -58,11 +53,7 @@ impl TimedMidiSender {
                 at,
                 bytes: bytes.to_vec(),
             })
-            .map_err(|_| SENDER_STOPPED.to_string())?;
-        match worker.error.lock().map(|mut error| error.take()) {
-            Ok(Some(error)) => Err(error),
-            _ => Ok(()),
-        }
+            .map_err(|_| SENDER_STOPPED.to_string())
     }
 
     pub fn flush(&mut self) -> Result<(), String> {
@@ -78,7 +69,7 @@ impl TimedMidiSender {
         }
         let (done, result) = mpsc::sync_channel(1);
         self.command(Command::Panic { done })?;
-        result.recv().unwrap_or_else(|_| Err(SENDER_STOPPED.into()))
+        result.recv().map_err(|_| SENDER_STOPPED.into())
     }
 
     fn command(&mut self, command: Command) -> Result<(), String> {
@@ -96,17 +87,15 @@ impl TimedMidiSender {
 
     fn spawn(&self) -> Result<Worker, String> {
         let (tx, rx) = mpsc::channel();
-        let error = Arc::new(Mutex::new(None));
-        let thread_error = error.clone();
         let on_start = self.on_start;
         std::thread::Builder::new()
             .name(self.thread_name.into())
             .spawn(move || {
                 on_start();
-                run(&rx, &thread_error);
+                run(&rx);
             })
             .map_err(|error| format!("MIDI sender thread failed to start: {error}"))?;
-        Ok(Worker { tx, error })
+        Ok(Worker { tx })
     }
 }
 
@@ -116,26 +105,36 @@ fn midi_panic_messages() -> impl Iterator<Item = Vec<u8>> {
     )
 }
 
-fn emit(
-    sink: &mut Option<MidiSink>,
-    bytes: &[u8],
-    error: &Mutex<Option<String>>,
-) -> Result<(), String> {
-    let Some(sink) = sink.as_mut() else {
-        return Ok(());
-    };
-    let result = sink(bytes);
-    if let Err(message) = &result {
-        if let Ok(mut slot) = error.lock() {
-            slot.get_or_insert_with(|| message.clone());
-        }
-    }
-    result
+#[derive(Default)]
+struct Output {
+    sink: Option<MidiSink>,
+    failing: bool,
 }
 
-fn run(rx: &Receiver<Command>, error: &Mutex<Option<String>>) {
+impl Output {
+    fn emit(&mut self, bytes: &[u8]) {
+        let Some(sink) = self.sink.as_mut() else {
+            return;
+        };
+        match sink(bytes) {
+            Ok(()) => self.failing = false,
+            Err(error) if !self.failing => {
+                self.failing = true;
+                eprintln!("MIDI output is not taking messages: {error}");
+            }
+            Err(_) => {}
+        }
+    }
+
+    fn replace(&mut self, sink: Option<MidiSink>) {
+        self.sink = sink;
+        self.failing = false;
+    }
+}
+
+fn run(rx: &Receiver<Command>) {
     let mut schedule = MidiSchedule::default();
-    let mut sink: Option<MidiSink> = None;
+    let mut output = Output::default();
     loop {
         let command = match schedule.next_due() {
             None => match rx.recv() {
@@ -145,7 +144,7 @@ fn run(rx: &Receiver<Command>, error: &Mutex<Option<String>>) {
             Some(due) => {
                 let now = Instant::now();
                 if let Some(bytes) = schedule.pop_due(now) {
-                    let _ = emit(&mut sink, &bytes, error);
+                    output.emit(&bytes);
                     continue;
                 }
                 match rx.recv_timeout(due.saturating_duration_since(now)) {
@@ -156,33 +155,28 @@ fn run(rx: &Receiver<Command>, error: &Mutex<Option<String>>) {
             }
         };
         match command {
-            Command::Send { at: None, bytes } => {
-                let _ = emit(&mut sink, &bytes, error);
-            }
+            Command::Send { at: None, bytes } => output.emit(&bytes),
             Command::Send {
                 at: Some(at),
                 bytes,
             } => schedule.push(at, bytes),
             Command::Flush => {
                 for bytes in schedule.take_note_offs() {
-                    let _ = emit(&mut sink, &bytes, error);
+                    output.emit(&bytes);
                 }
             }
             Command::Panic { done } => {
                 schedule.clear();
-                let mut first_error = None;
                 for message in midi_panic_messages() {
-                    if let Err(failure) = emit(&mut sink, &message, error) {
-                        first_error.get_or_insert(failure);
-                    }
+                    output.emit(&message);
                 }
-                let _ = done.send(first_error.map_or(Ok(()), Err));
+                let _ = done.send(());
             }
             Command::SetSink(next) => {
                 for bytes in schedule.take_note_offs() {
-                    let _ = emit(&mut sink, &bytes, error);
+                    output.emit(&bytes);
                 }
-                sink = next;
+                output.replace(next);
             }
         }
     }

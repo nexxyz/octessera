@@ -54,6 +54,13 @@ the active MIDI route. Any MIDI Host output you chose is remembered for when you
 turn USB Device MIDI off; **Disconnect** forgets that remembered choice but does
 not switch USB Device MIDI off.
 
+## Plugging and unplugging
+
+Plug and unplug MIDI gear and computers whenever you like, before boot or in
+the middle of a jam. A MIDI device you picked stays picked while it's
+unplugged and reconnects about a second after it comes back. Notes sent while
+nothing is listening just go nowhere; no error pops up.
+
 ## Turning USB MIDI on
 
 The USB connection to the computer is put together once, while the board boots.

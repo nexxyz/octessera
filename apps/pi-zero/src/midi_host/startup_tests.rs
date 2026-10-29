@@ -88,3 +88,18 @@ fn gadget_output_failure_remains_failed_after_input_success() {
         Some((false, Some("output failed".into())))
     );
 }
+
+#[test]
+fn a_remembered_host_port_connects_when_it_is_plugged_in() {
+    let mut host =
+        MidiHost::new_with_test_backend(Arc::new(|_| {}), false, Vec::new(), Vec::new(), []);
+    assert_eq!(host.select_output(Some("name:Keyboard".into())), Ok(()));
+    assert!(!host.midi_output_connected);
+
+    host.set_test_backend(["Keyboard".to_string()], [], [Ok(())]);
+    host.port_watch.assume_known(vec!["midiC9D0".into()]);
+    host.reconnect_if_ports_changed(Instant::now());
+
+    assert!(host.midi_output_connected);
+    assert_eq!(host.selected_output_id().as_deref(), Some("name:Keyboard"));
+}

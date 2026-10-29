@@ -1,7 +1,8 @@
-use super::{
+use super::port_identity::{
     host_midi_port_names, is_usb_gadget_midi_name, resolve_port_id, resolve_selected_port_id,
-    stable_port_ids, usb_midi_route_error,
+    stable_port_ids,
 };
+use super::usb_midi_route_error;
 
 #[test]
 fn usb_gadget_midi_names_include_kernel_f_midi_port() {
@@ -69,7 +70,7 @@ fn host_selection_requires_an_exact_stable_identity() {
         resolve_port_id("name:MIDI Through", &ids).unwrap(),
         "name:MIDI Through"
     );
-    assert!(resolve_port_id("name:missing", &ids).is_err());
+    assert!(resolve_port_id("name:missing", &ids).is_none());
 }
 
 #[test]

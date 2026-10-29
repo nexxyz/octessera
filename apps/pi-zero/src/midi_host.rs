@@ -1,6 +1,5 @@
 use midir::MidiInputConnection;
 use playback_runtime::{HostAdapter, MidiPort, NativeRunner, PlaybackRuntime, TimedMidiSender};
-use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::VecDeque;
 use std::sync::mpsc::Receiver;
@@ -8,6 +7,11 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::input::MidiMessage;
+use port_identity::{
+    midi_inputs, midi_outputs, midi_ports_from_names, port_names, resolve_selected_port_id,
+    stable_port_ids,
+};
+use port_watch::PortWatch;
 
 const MIDI_REALTIME_BUDGET: usize = 32;
 
@@ -66,6 +70,7 @@ pub(crate) struct MidiHost {
     midi_output_connected: bool,
     midi_input_connected: bool,
     usb_midi_out_enabled: bool,
+    port_watch: PortWatch,
     #[cfg(test)]
     test_backend: Option<TestMidiBackend>,
 }
@@ -88,6 +93,7 @@ impl MidiHost {
             midi_output_connected: false,
             midi_input_connected: false,
             usb_midi_out_enabled,
+            port_watch: PortWatch::default(),
             #[cfg(test)]
             test_backend: None,
         }
@@ -150,11 +156,14 @@ impl MidiHost {
         let result = self
             .take_test_selection_result(requested.as_deref(), "output")
             .unwrap_or_else(|| self.select_output_native(requested.as_deref()));
-        self.midi_output_connected = result.is_ok();
+        self.midi_output_connected = result == Ok(true);
+        if result == Ok(false) {
+            log_unplugged_port("output", requested.as_deref());
+        }
         if let Err(error) = &result {
             self.midi_output_error = Some(error.clone());
         }
-        result
+        result.map(|_| ())
     }
 
     pub(crate) fn select_input(&mut self, requested: Option<String>) -> Result<(), String> {
@@ -169,11 +178,32 @@ impl MidiHost {
         let result = self
             .take_test_selection_result(requested.as_deref(), "input")
             .unwrap_or_else(|| self.select_input_native(requested.as_deref()));
-        self.midi_input_connected = result.is_ok();
+        self.midi_input_connected = result == Ok(true);
+        if result == Ok(false) {
+            log_unplugged_port("input", requested.as_deref());
+        }
         if let Err(error) = &result {
             self.midi_input_error = Some(error.clone());
         }
-        result
+        result.map(|_| ())
+    }
+
+    /// Reconnects the remembered MIDI Host ports after a device was plugged in or
+    /// unplugged. The USB MIDI gadget port exists for as long as the board runs.
+    pub(crate) fn reconnect_if_ports_changed(&mut self, now: Instant) {
+        if self.usb_midi_out_enabled || !self.port_watch.changed(now) {
+            return;
+        }
+        if let Some(id) = self.host_midi_output_id.clone() {
+            if let Err(error) = self.select_output(Some(id)) {
+                eprintln!("MIDI output reconnect failed: {error}");
+            }
+        }
+        if let Some(id) = self.host_midi_input_id.clone() {
+            if let Err(error) = self.select_input(Some(id)) {
+                eprintln!("MIDI input reconnect failed: {error}");
+            }
+        }
     }
 
     pub(crate) fn send(&mut self, at: Option<Instant>, bytes: &[u8]) -> Result<(), String> {
@@ -224,14 +254,14 @@ impl MidiHost {
         Some((message.is_none(), message))
     }
 
-    fn select_output_native(&mut self, requested: Option<&str>) -> Result<(), String> {
+    fn select_output_native(&mut self, requested: Option<&str>) -> Result<bool, String> {
         let (out, ports) = midi_outputs()?;
         let names = port_names(&out, &ports);
         let ids = stable_port_ids(&names);
         let Some(id) =
             resolve_selected_port_id(requested, &names, &ids, self.usb_midi_out_enabled, "output")?
         else {
-            return Ok(());
+            return Ok(false);
         };
         let index = ids
             .iter()
@@ -245,10 +275,11 @@ impl MidiHost {
             .map_err(|error| error.to_string())?;
         self.midi_out.set_sink(Some(Box::new(move |bytes| {
             connection.send(bytes).map_err(|error| error.to_string())
-        })))
+        })))?;
+        Ok(true)
     }
 
-    fn select_input_native(&mut self, requested: Option<&str>) -> Result<(), String> {
+    fn select_input_native(&mut self, requested: Option<&str>) -> Result<bool, String> {
         let (mut input, ports) = midi_inputs()?;
         input.ignore(midir::Ignore::None);
         let names = port_names(&input, &ports);
@@ -256,7 +287,7 @@ impl MidiHost {
         let Some(id) =
             resolve_selected_port_id(requested, &names, &ids, self.usb_midi_out_enabled, "input")?
         else {
-            return Ok(());
+            return Ok(false);
         };
         let index = ids
             .iter()
@@ -276,14 +307,14 @@ impl MidiHost {
                 )
                 .map_err(|error| error.to_string())?,
         );
-        Ok(())
+        Ok(true)
     }
 
     fn take_test_selection_result(
         &mut self,
         requested: Option<&str>,
         direction: &str,
-    ) -> Option<Result<(), String>> {
+    ) -> Option<Result<bool, String>> {
         #[cfg(test)]
         {
             let resolution = {
@@ -303,12 +334,13 @@ impl MidiHost {
                 )
             };
             Some(match resolution {
-                Ok(None) => Ok(()),
+                Ok(None) => Ok(false),
                 Ok(Some(_)) => self
                     .test_backend
                     .as_mut()
                     .and_then(|backend| backend.selection_results.pop_front())
-                    .unwrap_or_else(|| Err("test MIDI connection result missing".into())),
+                    .unwrap_or_else(|| Err("test MIDI connection result missing".into()))
+                    .map(|()| true),
                 Err(error) => Err(error),
             })
         }
@@ -320,131 +352,18 @@ impl MidiHost {
     }
 }
 
+fn log_unplugged_port(direction: &str, requested: Option<&str>) {
+    if let Some(id) = requested {
+        eprintln!("MIDI {direction} {id} is not plugged in; it connects when it appears");
+    }
+}
+
 fn midi_sender_start_hook() {
     #[cfg(any(
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "hardware-orange-pi-zero-2w"
     ))]
     crate::audio_priority::pin_midi_sender_thread();
-}
-
-fn resolve_port_id(requested: &str, ids: &[String]) -> Result<String, String> {
-    if ids.iter().any(|id| id == requested) {
-        return Ok(requested.into());
-    }
-    Err("MIDI port not found".into())
-}
-
-fn resolve_selected_port_id(
-    requested: Option<&str>,
-    names: &[String],
-    ids: &[String],
-    usb_midi_enabled: bool,
-    direction: &str,
-) -> Result<Option<String>, String> {
-    if usb_midi_enabled {
-        let index = names
-            .iter()
-            .position(|name| is_usb_gadget_midi_name(name))
-            .ok_or_else(|| format!("USB MIDI gadget {direction} not found"))?;
-        return ids
-            .get(index)
-            .cloned()
-            .map(Some)
-            .ok_or_else(|| format!("USB MIDI gadget {direction} disappeared"));
-    }
-    requested
-        .map(|requested| resolve_port_id(requested, ids))
-        .transpose()
-}
-
-fn stable_port_ids(names: &[String]) -> Vec<String> {
-    let mut occurrences = HashMap::new();
-    names
-        .iter()
-        .map(|name| {
-            let occurrence = occurrences.entry(name.clone()).or_insert(0_usize);
-            let id = if *occurrence == 0 {
-                format!("name:{name}")
-            } else {
-                format!("name:{name}#{occurrence}")
-            };
-            *occurrence += 1;
-            id
-        })
-        .collect()
-}
-
-fn port_names<T>(host: &T, ports: &[T::Port]) -> Vec<String>
-where
-    T: MidiPortHost,
-{
-    ports
-        .iter()
-        .map(|port| host.port_name(port).unwrap_or_else(|_| "<unknown>".into()))
-        .collect()
-}
-
-trait MidiPortHost {
-    type Port;
-
-    fn port_name(&self, port: &Self::Port) -> Result<String, String>;
-}
-
-impl MidiPortHost for midir::MidiOutput {
-    type Port = midir::MidiOutputPort;
-
-    fn port_name(&self, port: &Self::Port) -> Result<String, String> {
-        self.port_name(port).map_err(|error| error.to_string())
-    }
-}
-
-impl MidiPortHost for midir::MidiInput {
-    type Port = midir::MidiInputPort;
-
-    fn port_name(&self, port: &Self::Port) -> Result<String, String> {
-        self.port_name(port).map_err(|error| error.to_string())
-    }
-}
-
-fn is_usb_gadget_midi_name(name: &str) -> bool {
-    let name = name.trim().to_ascii_lowercase();
-    name == "octessera midi"
-        || name.starts_with("octessera midi:")
-        || name.starts_with("octessera midi ")
-        || name.contains(":octessera midi ")
-        || name == "f_midi"
-        || name.starts_with("f_midi:")
-        || name.starts_with("f_midi ")
-}
-
-fn host_midi_port_names(names: &[String]) -> Vec<String> {
-    names
-        .iter()
-        .filter(|name| !is_usb_gadget_midi_name(name))
-        .cloned()
-        .collect()
-}
-
-fn midi_ports_from_names(names: &[String]) -> Vec<MidiPort> {
-    let names = host_midi_port_names(names);
-    stable_port_ids(&names)
-        .into_iter()
-        .zip(names)
-        .map(|(id, name)| MidiPort { id, name })
-        .collect()
-}
-
-fn midi_outputs() -> Result<(midir::MidiOutput, Vec<midir::MidiOutputPort>), String> {
-    let output = midir::MidiOutput::new("octessera-pi-out").map_err(|error| error.to_string())?;
-    let ports = output.ports();
-    Ok((output, ports))
-}
-
-fn midi_inputs() -> Result<(midir::MidiInput, Vec<midir::MidiInputPort>), String> {
-    let input = midir::MidiInput::new("octessera-pi-in").map_err(|error| error.to_string())?;
-    let ports = input.ports();
-    Ok((input, ports))
 }
 
 fn usb_midi_route_error(
@@ -460,6 +379,8 @@ fn usb_midi_route_error(
         .or_else(|| (!input_connected).then(|| "USB MIDI gadget input not connected".into()))
 }
 
+mod port_identity;
+mod port_watch;
 #[cfg(test)]
 mod startup_tests;
 #[cfg(test)]
