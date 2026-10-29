@@ -4,6 +4,9 @@ use playback_runtime::{
     PlaybackRuntime, RuntimeIngest, RuntimePresentationMetrics, RuntimeTransportState,
 };
 use rodio_engine_source::AudioLoadStatusReceiver;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static MISSED_QUANTUM_SHOWN: AtomicBool = AtomicBool::new(false);
 
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 impl AudioManager {
@@ -34,6 +37,7 @@ pub(crate) fn drain_audio_load_status(
         let mut newest = None;
         while let Ok(status) = load_rx.try_recv() {
             log_block_overrun(&status);
+            log_missed_quantum(&status);
             newest = Some(status);
         }
         if let Some(status) = newest {
@@ -58,6 +62,7 @@ pub(crate) fn drain_audio_load_status(
     let mut newest = None;
     while let Ok(status) = load_rx.try_recv() {
         log_block_overrun(&status);
+        log_missed_quantum(&status);
         newest = Some(status);
     }
     if let Some(status) = newest {
@@ -83,5 +88,13 @@ fn log_block_overrun(status: &realtime_engine::synth::AudioLoadStatus) {
             "audio block overran: {:.2}x its time, control_events={} config_events={} synth_voices={} sample_voices={}",
             peak.ratio, peak.control_events, peak.config_events, peak.synth_voices, peak.sample_voices
         );
+    }
+}
+
+/// A Capacity-mode worker quantum that missed its deadline; the output repeated a block meanwhile.
+fn log_missed_quantum(status: &realtime_engine::synth::AudioLoadStatus) {
+    let shown = MISSED_QUANTUM_SHOWN.swap(status.missed_quantum_flash, Ordering::Relaxed);
+    if status.missed_quantum_flash && !shown {
+        eprintln!("audio quantum missed its deadline");
     }
 }
