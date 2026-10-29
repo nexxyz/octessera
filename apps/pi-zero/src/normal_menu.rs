@@ -1,6 +1,10 @@
 use serde_json::Value;
 
 pub(crate) fn is_normal_menu_snapshot(snapshot: &Value) -> bool {
+    is_normal_menu_display(snapshot) && snapshot.get("runtimeError").is_none_or(Value::is_null)
+}
+
+pub(crate) fn is_normal_menu_display(snapshot: &Value) -> bool {
     let Some(display) = snapshot.get("display") else {
         return false;
     };
@@ -14,7 +18,6 @@ pub(crate) fn is_normal_menu_snapshot(snapshot: &Value) -> bool {
             .get("lines")
             .and_then(Value::as_array)
             .is_some_and(|lines| !lines.is_empty() && lines.iter().all(Value::is_string))
-        && snapshot.get("runtimeError").is_none_or(Value::is_null)
 }
 
 #[cfg(test)]

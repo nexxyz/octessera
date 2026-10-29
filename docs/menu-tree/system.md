@@ -255,7 +255,9 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 - `USB Device` is the computer-facing gadget interface. While `USB MIDI` is on it owns both Gadget
   MIDI input and output, and Host-selected input/output IDs are ignored. Orange keeps those Host
   selections for use after USB MIDI is turned off. USB MIDI is restart-sensitive: a pending edit does
-  not change the live route until the next process start.
+  not change the live route until the next process start. The USB gadget itself is built at boot, so
+  if only the app restarts after USB MIDI was turned on, it starts with a `USB MIDI gadget output not
+  found` MIDI error frame until the board reboots.
 - General MIDI enable, ports, clock, and sync stay under `System > MIDI`.
 
 ## Restart-sensitive settings

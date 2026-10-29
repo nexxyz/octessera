@@ -362,3 +362,5 @@ mod tests {
 
 #[cfg(test)]
 mod prep_tests;
+#[cfg(test)]
+mod usb_midi_tests;

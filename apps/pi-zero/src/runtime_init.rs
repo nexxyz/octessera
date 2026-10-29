@@ -3,13 +3,13 @@
 //! they wait for audio prep and how they report readiness.
 
 use crate::host_adapter::PiHostAdapter;
-use crate::normal_menu::is_normal_menu_snapshot;
+use crate::normal_menu::is_normal_menu_display;
 use crate::render_loop::RenderWorker;
 use crate::runtime_output::{initialize_host_state, process_runtime_output};
 use crate::sample_browser::builtin_favourite_dirs;
 use playback_runtime::{
     AudioOptimization, HostMessage, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
-    RuntimeConfig, SyncSource,
+    RuntimeConfig, RuntimeErrorDomain, SyncSource,
 };
 
 const STARTUP_RESULT_BUDGET: usize = 4;
@@ -76,6 +76,8 @@ pub(crate) fn start_host(
 }
 
 /// Renders the first normal-menu scene and hands its frame to recording.
+/// A MIDI error (an unplugged port, or USB MIDI saved but not yet rebooted
+/// into the gadget) stays visible as a dismissable error frame.
 pub(crate) fn publish_initial_scene(
     playback: &PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -85,8 +87,15 @@ pub(crate) fn publish_initial_scene(
     let snapshot = playback
         .last_snapshot()
         .ok_or_else(|| "initial snapshot is missing".to_string())?;
-    if !is_normal_menu_snapshot(snapshot) {
+    if !is_normal_menu_display(snapshot) {
         return Err("initial snapshot is not a normal menu".into());
+    }
+    if let Some(error) = playback
+        .latched_errors()
+        .iter()
+        .find(|error| error.domain != RuntimeErrorDomain::Midi)
+    {
+        return Err(format!("initial snapshot has a runtime error: {error:?}"));
     }
     if !runner.is_canonical_menu_presentation() {
         return Err("native runner is not presenting the canonical menu".into());

@@ -54,6 +54,14 @@ the active MIDI route. Any MIDI Host output you chose is remembered for when you
 turn USB Device MIDI off; **Disconnect** forgets that remembered choice but does
 not switch USB Device MIDI off.
 
+## Turning USB MIDI on
+
+The USB connection to the computer is put together once, while the board boots.
+So after you turn **USB MIDI** on, say yes to the reboot. If you skip it and the
+app alone restarts later, it comes up fine but shows a `USB MIDI gadget output
+not found` error. Close it with Back and reboot when you're ready; USB MIDI
+shows up after that.
+
 ## USB keyboard control
 
 A USB keyboard can drive the instrument with the same controls as the
