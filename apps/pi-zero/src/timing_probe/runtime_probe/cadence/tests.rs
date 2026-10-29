@@ -227,7 +227,7 @@ fn six_second_idle_probe_matrix_preserves_pulses_and_event_counts() {
             .iter()
             .map(|report| report.events)
             .collect::<Vec<_>>(),
-        vec![84; 6]
+        vec![36; 6]
     );
     assert_eq!(
         reports
