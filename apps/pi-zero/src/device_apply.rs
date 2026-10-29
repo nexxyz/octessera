@@ -89,8 +89,10 @@ fn status(ok: bool, message: &str) -> RuntimeStoreResult {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn production_usb_applier() -> UsbApplier {
     Arc::new(|change| match change {
-        UsbChange::Gadget => run_helper("/usr/local/sbin/octessera-usb-gadget", "setup"),
-        UsbChange::Role(role) => run_helper("/usr/local/sbin/octessera-usb-role", role.as_str()),
+        UsbChange::Gadget => run_unit("restart", "octessera-usb-gadget.service"),
+        UsbChange::Role(role) => {
+            run_unit("start", &format!("octessera-usb-role@{}.service", role.as_str()))
+        }
     })
 }
 
@@ -106,10 +108,12 @@ pub(crate) fn production_usb_applier() -> UsbApplier {
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn run_helper(helper: &str, argument: &str) -> Result<(), String> {
+/// Root work runs as its own systemd unit: sudo from inside the app's service
+/// would inherit its narrow capability bounding set.
+fn run_unit(verb: &str, unit: &str) -> Result<(), String> {
     let mut command = std::process::Command::new("sudo");
-    command.args(["-n", helper, argument]);
-    run_bounded(command, HELPER_TIMEOUT).map_err(|error| format!("{helper}: {error}"))
+    command.args(["-n", "/usr/bin/systemctl", verb, unit]);
+    run_bounded(command, HELPER_TIMEOUT).map_err(|error| format!("{unit}: {error}"))
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

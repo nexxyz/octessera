@@ -1,1 +1,1 @@
-pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-gadget storage-start, /usr/local/sbin/octessera-usb-gadget storage-stop, /usr/local/sbin/octessera-usb-gadget setup
+pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-gadget storage-start, /usr/local/sbin/octessera-usb-gadget storage-stop, /usr/bin/systemctl restart octessera-usb-gadget.service
