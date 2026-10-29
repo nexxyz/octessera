@@ -1,3 +1,4 @@
+use crate::late_timed_events::late_timed_events_counter;
 use crate::recording::{RecordingEngineSource, RecordingTapState};
 use playback_runtime::RunnerMessage;
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
@@ -30,10 +31,10 @@ impl AudioRuntime {
         load_tx: AudioLoadStatusSender,
     ) -> Result<(), String> {
         self.stop();
-        let source = RecordingEngineSource::new(
-            EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx)),
-            self.recording_tap.clone(),
-        );
+        let mut engine =
+            EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx));
+        engine.set_late_timed_events_counter(late_timed_events_counter());
+        let source = RecordingEngineSource::new(engine, self.recording_tap.clone());
         let sink = match Sink::try_new(&self.handle) {
             Ok(sink) => sink,
             Err(error) => {

@@ -6,6 +6,7 @@ mod desktop_platform_service;
 #[cfg(feature = "headless")]
 pub mod headless;
 mod host_adapter;
+mod late_timed_events;
 mod midi;
 mod persistence;
 mod recording;

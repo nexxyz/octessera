@@ -1,4 +1,5 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
+use crate::late_timed_events::LateTimedEventLog;
 use crate::types::{
     encode_runtime_responses, RuntimeMessagesPayload, RUNTIME_MESSAGES_EVENT, RUNTIME_UI_REFRESH_MS,
 };
@@ -58,6 +59,7 @@ pub(crate) struct RuntimeWorker {
     last_ui_refresh_at: Instant,
     last_snapshot_cadence_at: Instant,
     last_observed_snapshot_revision: u64,
+    late_timed_events: LateTimedEventLog,
     #[cfg(debug_assertions)]
     perf: RuntimePerfCounters,
 }
@@ -87,6 +89,7 @@ impl RuntimeWorker {
             last_ui_refresh_at: Instant::now(),
             last_snapshot_cadence_at: Instant::now(),
             last_observed_snapshot_revision: 0,
+            late_timed_events: LateTimedEventLog::new(Instant::now()),
             #[cfg(debug_assertions)]
             perf: RuntimePerfCounters::new(),
         }
@@ -132,6 +135,7 @@ impl RuntimeWorker {
             self.poll_platform_service_results();
             self.poll_audio_prep_results();
             self.poll_audio_failures();
+            self.late_timed_events.log_increase(Instant::now());
             if let Err(err) = self.maybe_refresh_ui() {
                 self.handle_error(err);
             }
