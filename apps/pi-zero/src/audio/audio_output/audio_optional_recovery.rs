@@ -101,15 +101,24 @@ fn run(
     let mut managed: Option<ManagedStream> = None;
     let (mut outputs, mut generation) = selected.get();
     let mut parked = false;
+    let mut reported_error = None;
     while !stop.load(Ordering::Acquire) {
         let enabled = AudioSink::selected(outputs).contains(&sink);
         if !enabled {
             mirror_producer.invalidate();
+            reported_error = None;
             if managed.take().is_some() {
                 eprintln!("{sink:?} audio stopped");
             }
         } else if !parked {
-            parked = service(open, route_registry, sink, mirror_producer, &mut managed);
+            parked = service(
+                open,
+                route_registry,
+                sink,
+                mirror_producer,
+                &mut managed,
+                &mut reported_error,
+            );
         }
         let timeout = (enabled && !parked).then_some(RECOVERY_INTERVAL);
         let (next_outputs, next_generation) = selected.wait_for_change(generation, timeout, stop);
@@ -129,6 +138,7 @@ fn service(
     sink: AudioSink,
     mirror_producer: &PcmMirrorProducer,
     managed: &mut Option<ManagedStream>,
+    reported_error: &mut Option<String>,
 ) -> bool {
     match managed
         .as_ref()
@@ -152,12 +162,17 @@ fn service(
             set_status(route_registry, sink, AudioRouteStatus::Active);
             stream.health.clear_recoverable_fault();
             *managed = Some(stream);
+            *reported_error = None;
             eprintln!("{sink:?} audio stream ready");
             false
         }
         Err(error) => {
             set_status(route_registry, sink, error.status());
-            eprintln!("{sink:?} audio unavailable: {error}");
+            let message = error.to_string();
+            if reported_error.as_deref() != Some(message.as_str()) {
+                eprintln!("{sink:?} audio unavailable: {message}");
+                *reported_error = Some(message);
+            }
             !should_retry_open(&error)
         }
     }
