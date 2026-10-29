@@ -127,6 +127,7 @@ mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
 mod sampler_cells;
+mod scan_note_offs;
 mod scan_replacement;
 mod selected_menu_row;
 mod sequencer_transport_origin;

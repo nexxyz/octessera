@@ -13,6 +13,9 @@ impl PlaybackRuntime {
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
         for event in events {
+            if !self.sounding_notes.admit(true, &event, self.now) {
+                continue;
+            }
             match host.handle_musical_event(&event, self.sequenced_at) {
                 Ok(()) => self.clear_error(RuntimeOperation::MusicalEvent),
                 Err(error) => {
@@ -38,6 +41,9 @@ impl PlaybackRuntime {
     ) -> Result<(), RuntimeAdapterError> {
         if self.config.midi_out_enabled {
             for event in events {
+                if !self.sounding_notes.admit(false, &event, self.now) {
+                    continue;
+                }
                 self.send_musical_event_midi(event, host)?;
             }
         }

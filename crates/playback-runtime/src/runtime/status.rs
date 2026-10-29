@@ -216,6 +216,7 @@ impl PlaybackRuntime {
         output: &mut RuntimeIngest,
         silence_internal_audio: bool,
     ) {
+        self.sounding_notes.clear();
         if silence_internal_audio {
             if let Err(error) = host.silence_internal_audio() {
                 self.latch_error(error.into_metadata(

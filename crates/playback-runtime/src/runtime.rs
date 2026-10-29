@@ -25,6 +25,7 @@ mod request_identity;
 #[cfg(test)]
 mod restore_handoff_tests;
 mod sequenced_time;
+mod sounding_notes;
 mod status;
 #[cfg(test)]
 mod system_store_aux_tests;
@@ -184,6 +185,7 @@ pub struct PlaybackRuntime {
     last_snapshot_revision: u64,
     scheduled_note_offs: VecDeque<ScheduledMidiMessage>,
     scheduled_note_offs_dirty: bool,
+    sounding_notes: sounding_notes::SoundingNotes,
     request_next_snapshot: bool,
     next_request_id: u64,
     oled: oled::RuntimeOled,

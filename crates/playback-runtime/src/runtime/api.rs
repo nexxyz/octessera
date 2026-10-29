@@ -27,6 +27,7 @@ impl PlaybackRuntime {
             last_snapshot_revision: 0,
             scheduled_note_offs: std::collections::VecDeque::new(),
             scheduled_note_offs_dirty: false,
+            sounding_notes: Default::default(),
             request_next_snapshot: false,
             next_request_id: 0,
             oled: super::oled::RuntimeOled::default(),
