@@ -20,9 +20,7 @@ impl NativeRunner {
             "midi.respondToStartStop" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_respond_to_start_stop, value)
             })),
-            "audioOutputs.dac" | "audioOutputs.usb" | "audioOutputs.hdmi" => {
-                Some(self.fast_audio_outputs_menu_key(key))
-            }
+            "audioOutputs.usb" | "audioOutputs.hdmi" => Some(self.fast_audio_outputs_menu_key(key)),
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
             "usb.dataRole" => Some(self.fast_usb_data_role_menu_key()),
             "recording.maxMinutes" => Some(self.fast_recording_max_minutes_menu_key()),
@@ -166,16 +164,11 @@ impl NativeRunner {
             return false;
         };
         let current = self.audio_outputs;
-        let (dac, usb, hdmi) = match key {
-            "audioOutputs.dac" => (
-                value || self.jack_audio_required,
-                current.usb(),
-                current.hdmi(),
-            ),
-            "audioOutputs.usb" => (current.dac(), value, current.hdmi()),
-            _ => (current.dac(), current.usb(), value),
+        let (usb, hdmi) = match key {
+            "audioOutputs.usb" => (value, current.hdmi()),
+            _ => (current.usb(), value),
         };
-        let Ok(next) = AudioOutputSet::from_flags(dac, usb, hdmi) else {
+        let Ok(next) = AudioOutputSet::from_flags(current.dac(), usb, hdmi) else {
             self.restore_audio_outputs_menu_values();
             self.show_toast("Keep one audio output on");
             return true;
@@ -205,8 +198,6 @@ impl NativeRunner {
     }
 
     pub(super) fn restore_audio_outputs_menu_values(&mut self) {
-        self.menu
-            .set_bool_value_for_key("audioOutputs.dac", self.audio_outputs.dac());
         self.menu
             .set_bool_value_for_key("audioOutputs.usb", self.audio_outputs.usb());
         self.menu

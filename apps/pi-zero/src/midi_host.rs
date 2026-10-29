@@ -155,7 +155,7 @@ impl MidiHost {
         results: impl IntoIterator<Item = Result<(), String>>,
     ) {
         self.command(MidiConnectCommand::SetTestBackend(
-            connections::TestMidiBackend {
+            test_backend::TestMidiBackend {
                 output_names: output_names.into_iter().collect(),
                 input_names: input_names.into_iter().collect(),
                 selection_results: results.into_iter().collect(),
@@ -187,5 +187,7 @@ mod port_identity;
 mod port_watch;
 #[cfg(test)]
 mod startup_tests;
+#[cfg(test)]
+mod test_backend;
 #[cfg(test)]
 mod tests;

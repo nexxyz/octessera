@@ -51,8 +51,9 @@ impl DeviceApply {
     }
 }
 
-/// The USB helpers refuse to touch the gadget during an SD2 transfer; stopping
-/// the transfer rebuilds it from the saved System instead.
+/// A gadget restart would tear down the SD2 mass-storage gadget, so the USB
+/// step is skipped while a transfer runs; stopping it rebuilds the gadget from
+/// the saved System.
 fn sd2_active(change: Option<UsbChange>, storage_state: &Path) -> Result<bool, String> {
     if change.is_none() {
         return Ok(false);

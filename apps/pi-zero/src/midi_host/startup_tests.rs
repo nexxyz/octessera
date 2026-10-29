@@ -1,4 +1,5 @@
-use super::connections::{MidiConnections, TestMidiBackend, GADGET_APPEAR_CHECKS};
+use super::connections::{MidiConnections, GADGET_APPEAR_CHECKS};
+use super::test_backend::TestMidiBackend;
 use super::*;
 use playback_runtime::{HostMessage, MidiPort, RuntimePlatformEffect, RuntimeStoreResult};
 use std::time::{Duration, Instant};
@@ -156,6 +157,37 @@ fn a_gadget_port_listed_after_its_device_node_still_connects() {
     host.set_test_backend(backend(output_names, input_names, [Ok(()), Ok(())]));
     host.reconnect_if_ports_changed(start + Duration::from_secs(1));
     assert!(host.midi_output_connected && host.midi_input_connected);
+}
+
+#[test]
+fn gadget_retries_reconnect_only_the_missing_input_and_keep_the_output_sink() {
+    let (events, sent) = mpsc::channel();
+    let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);
+    host.set_usb_midi_out_enabled(true);
+    let start = Instant::now();
+    let (output_names, input_names) = test_gadget_port_names();
+    host.set_test_backend(backend(
+        output_names.clone(),
+        input_names.clone(),
+        [Ok(()), Err("input failed".into())],
+    ));
+    host.reconnect_if_ports_changed(start);
+    assert!(host.midi_output_connected && !host.midi_input_connected);
+    let outputs_sent = sent.try_iter().count();
+
+    host.set_test_backend(backend(
+        output_names.clone(),
+        input_names.clone(),
+        [Err("input failed".into())],
+    ));
+    host.reconnect_if_ports_changed(start + Duration::from_secs(1));
+    host.set_test_backend(backend(output_names, input_names, [Ok(())]));
+    host.reconnect_if_ports_changed(start + Duration::from_secs(2));
+
+    assert!(host.midi_output_connected && host.midi_input_connected);
+    assert!(outputs_sent > 0);
+    assert_eq!(sent.try_iter().count(), 0);
+    assert_eq!(host.selection_status(Ok(())), Some((true, None)));
 }
 
 #[test]

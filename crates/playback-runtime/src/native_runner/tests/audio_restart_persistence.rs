@@ -24,7 +24,7 @@ pub(super) fn turn(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> 
     )
 }
 
-fn back(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+pub(super) fn back(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     input(runner, json!({ "type": "button_a", "pressed": true }))
 }
 

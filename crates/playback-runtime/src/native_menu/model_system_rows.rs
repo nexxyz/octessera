@@ -28,6 +28,7 @@ impl NativeMenuModel {
             if !host_role {
                 audio.children.insert(0, usb_audio_item(usb_audio));
             }
+            self.navigation_memory.remove("Menu > System > Audio");
         }
         if let Some(midi) = self.system_group_containing("midiEnabled") {
             midi.children

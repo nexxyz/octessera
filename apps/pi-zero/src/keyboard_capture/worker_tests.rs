@@ -17,29 +17,29 @@ type FakeEvents = Arc<Mutex<VecDeque<io::Result<Vec<(KeyboardKey, i32)>>>>>;
 struct FakeDevice {
     id: usize,
     events: FakeEvents,
-    ungrabs: Arc<Mutex<Vec<usize>>>,
+    drops: Arc<Mutex<Vec<usize>>>,
 }
 
 impl FakeDevice {
     fn new(
         id: usize,
         events: impl IntoIterator<Item = io::Result<Vec<(KeyboardKey, i32)>>>,
-        ungrabs: Arc<Mutex<Vec<usize>>>,
+        drops: Arc<Mutex<Vec<usize>>>,
     ) -> Self {
         Self {
             id,
             events: Arc::new(Mutex::new(events.into_iter().collect())),
-            ungrabs,
+            drops,
         }
     }
 
-    fn with_event_queue(id: usize, ungrabs: Arc<Mutex<Vec<usize>>>) -> (Self, FakeEvents) {
+    fn with_event_queue(id: usize, drops: Arc<Mutex<Vec<usize>>>) -> (Self, FakeEvents) {
         let events = Arc::new(Mutex::new(VecDeque::new()));
         (
             Self {
                 id,
                 events: events.clone(),
-                ungrabs,
+                drops,
             },
             events,
         )
@@ -55,9 +55,11 @@ impl worker::KeyboardDevice for FakeDevice {
             ))
         })
     }
+}
 
-    fn ungrab(&mut self) {
-        self.ungrabs.lock().unwrap().push(self.id);
+impl Drop for FakeDevice {
+    fn drop(&mut self) {
+        self.drops.lock().unwrap().push(self.id);
     }
 }
 
@@ -80,7 +82,7 @@ impl worker::KeyboardAcquirer for FakeAcquirer {
 struct WorkerHarness {
     control: KeyboardCaptureControl,
     input_rx: Option<Receiver<HostMessage>>,
-    ungrabs: Arc<Mutex<Vec<usize>>>,
+    drops: Arc<Mutex<Vec<usize>>>,
     attempts: Arc<AtomicUsize>,
     finished: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
@@ -117,8 +119,8 @@ impl WorkerHarness {
         }
     }
 
-    fn ungrabbed(&self) -> Vec<usize> {
-        self.ungrabs.lock().unwrap().clone()
+    fn dropped(&self) -> Vec<usize> {
+        self.drops.lock().unwrap().clone()
     }
 }
 
@@ -130,7 +132,7 @@ impl Drop for WorkerHarness {
 
 fn harness(
     outcomes: impl IntoIterator<Item = worker::Acquisition<FakeDevice>>,
-    ungrabs: Arc<Mutex<Vec<usize>>>,
+    drops: Arc<Mutex<Vec<usize>>>,
 ) -> WorkerHarness {
     let (input_tx, input_rx) = mpsc::channel();
     let outcomes = outcomes.into_iter().collect::<VecDeque<_>>();
@@ -154,7 +156,7 @@ fn harness(
     WorkerHarness {
         control,
         input_rx: Some(input_rx),
-        ungrabs,
+        drops,
         attempts,
         finished,
         worker: Some(worker),
@@ -164,9 +166,9 @@ fn harness(
 fn ready_device(
     id: usize,
     events: impl IntoIterator<Item = io::Result<Vec<(KeyboardKey, i32)>>>,
-    ungrabs: &Arc<Mutex<Vec<usize>>>,
+    drops: &Arc<Mutex<Vec<usize>>>,
 ) -> worker::Acquisition<FakeDevice> {
-    worker::Acquisition::Ready(FakeDevice::new(id, events, ungrabs.clone()))
+    worker::Acquisition::Ready(FakeDevice::new(id, events, drops.clone()))
 }
 
 fn wait_until(mut condition: impl FnMut() -> bool) {
@@ -182,7 +184,7 @@ fn wait_until(mut condition: impl FnMut() -> bool) {
 
 #[test]
 fn worker_drives_enable_events_disable_and_ordered_releases() {
-    let ungrabs = Arc::new(Mutex::new(Vec::new()));
+    let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
         [ready_device(
             1,
@@ -193,9 +195,9 @@ fn worker_drives_enable_events_disable_and_ordered_releases() {
                 (KeyboardKey::E, 1),
                 (KeyboardKey::Space, 1),
             ])],
-            &ungrabs,
+            &drops,
         )],
-        ungrabs.clone(),
+        drops.clone(),
     );
     worker.enable();
     assert_eq!(
@@ -227,14 +229,14 @@ fn worker_drives_enable_events_disable_and_ordered_releases() {
         worker.recv_input(),
         json_input(KeyboardInput::ButtonS(false))
     );
-    wait_until(|| worker.ungrabbed() == vec![1]);
+    wait_until(|| worker.dropped() == vec![1]);
     worker.stop();
     assert!(worker.input_rx.as_ref().unwrap().try_recv().is_err());
 }
 
 #[test]
-fn worker_releases_and_ungrabs_after_read_failure() {
-    let ungrabs = Arc::new(Mutex::new(Vec::new()));
+fn worker_releases_and_drops_after_read_failure() {
+    let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
         [ready_device(
             2,
@@ -242,23 +244,23 @@ fn worker_releases_and_ungrabs_after_read_failure() {
                 Ok(vec![(KeyboardKey::W, 1)]),
                 Err(io::Error::new(io::ErrorKind::NotFound, "disconnected")),
             ],
-            &ungrabs,
+            &drops,
         )],
-        ungrabs.clone(),
+        drops.clone(),
     );
     worker.enable();
     assert_eq!(
         worker.recv_input(),
         serde_json::json!({ "type": "encoder_press", "id": "aux1" })
     );
-    wait_until(|| worker.ungrabbed() == vec![2]);
+    wait_until(|| worker.dropped() == vec![2]);
     assert!(worker.input_rx.as_ref().unwrap().try_recv().is_err());
     worker.stop();
 }
 
 #[test]
 fn worker_aux_click_repeat_and_disable_do_not_emit_another_click() {
-    let ungrabs = Arc::new(Mutex::new(Vec::new()));
+    let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
         [ready_device(
             8,
@@ -267,9 +269,9 @@ fn worker_aux_click_repeat_and_disable_do_not_emit_another_click() {
                 (KeyboardKey::W, 2),
                 (KeyboardKey::W, 0),
             ])],
-            &ungrabs,
+            &drops,
         )],
-        ungrabs.clone(),
+        drops.clone(),
     );
     worker.enable();
     assert_eq!(
@@ -278,17 +280,17 @@ fn worker_aux_click_repeat_and_disable_do_not_emit_another_click() {
     );
     thread::sleep(Duration::from_millis(10));
     worker.disable();
-    wait_until(|| worker.ungrabbed() == vec![8]);
+    wait_until(|| worker.dropped() == vec![8]);
     assert!(worker.input_rx.as_ref().unwrap().try_recv().is_err());
     worker.stop();
 }
 
 #[test]
-fn worker_shutdown_clears_held_aux_click_and_ungrabs() {
-    let ungrabs = Arc::new(Mutex::new(Vec::new()));
+fn worker_shutdown_clears_held_aux_click_and_drops() {
+    let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
-        [ready_device(3, [Ok(vec![(KeyboardKey::W, 1)])], &ungrabs)],
-        ungrabs.clone(),
+        [ready_device(3, [Ok(vec![(KeyboardKey::W, 1)])], &drops)],
+        drops.clone(),
     );
     worker.enable();
     assert_eq!(
@@ -297,14 +299,14 @@ fn worker_shutdown_clears_held_aux_click_and_ungrabs() {
     );
     worker.stop();
     assert!(worker.input_rx.as_ref().unwrap().try_recv().is_err());
-    assert_eq!(worker.ungrabbed(), vec![3]);
+    assert_eq!(worker.dropped(), vec![3]);
 }
 
 #[test]
 fn worker_exits_when_receiver_drops() {
-    let ungrabs = Arc::new(Mutex::new(Vec::new()));
-    let (device, events) = FakeDevice::with_event_queue(4, ungrabs.clone());
-    let mut worker = harness([worker::Acquisition::Ready(device)], ungrabs.clone());
+    let drops = Arc::new(Mutex::new(Vec::new()));
+    let (device, events) = FakeDevice::with_event_queue(4, drops.clone());
+    let mut worker = harness([worker::Acquisition::Ready(device)], drops.clone());
     worker.enable();
     wait_until(|| worker.attempts.load(Ordering::SeqCst) == 1);
     worker.input_rx.take();
@@ -314,19 +316,19 @@ fn worker_exits_when_receiver_drops() {
         .push_back(Ok(vec![(KeyboardKey::Backspace, 1)]));
     thread::sleep(Duration::from_millis(10));
     wait_until(|| worker.finished.load(Ordering::SeqCst));
-    assert_eq!(worker.ungrabbed(), vec![4]);
+    assert_eq!(worker.dropped(), vec![4]);
     worker.stop();
 }
 
 #[test]
 fn failed_first_grab_retries_without_selecting_a_second_device() {
-    let ungrabs = Arc::new(Mutex::new(Vec::new()));
+    let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
         [
             worker::Acquisition::GrabFailed,
-            ready_device(5, [Ok(vec![(KeyboardKey::Space, 1)])], &ungrabs),
+            ready_device(5, [Ok(vec![(KeyboardKey::Space, 1)])], &drops),
         ],
-        ungrabs.clone(),
+        drops.clone(),
     );
     worker.enable();
     wait_until(|| worker.attempts.load(Ordering::SeqCst) == 1);
@@ -344,18 +346,18 @@ fn failed_first_grab_retries_without_selecting_a_second_device() {
         json_input(KeyboardInput::ButtonS(false))
     );
     assert_eq!(worker.attempts.load(Ordering::SeqCst), 2);
-    assert_eq!(worker.ungrabbed(), vec![5]);
+    assert_eq!(worker.dropped(), vec![5]);
 }
 
 #[test]
 fn selected_device_stays_owned_until_disconnect() {
-    let ungrabs = Arc::new(Mutex::new(Vec::new()));
+    let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
         [
-            ready_device(6, [Ok(vec![(KeyboardKey::Backspace, 1)])], &ungrabs),
-            ready_device(7, [Ok(vec![(KeyboardKey::Space, 1)])], &ungrabs),
+            ready_device(6, [Ok(vec![(KeyboardKey::Backspace, 1)])], &drops),
+            ready_device(7, [Ok(vec![(KeyboardKey::Space, 1)])], &drops),
         ],
-        ungrabs.clone(),
+        drops.clone(),
     );
     worker.enable();
     assert_eq!(
@@ -370,7 +372,7 @@ fn selected_device_stays_owned_until_disconnect() {
         worker.recv_input(),
         json_input(KeyboardInput::ButtonA(false))
     );
-    wait_until(|| worker.ungrabbed() == vec![6]);
+    wait_until(|| worker.dropped() == vec![6]);
     worker.stop();
 }
 

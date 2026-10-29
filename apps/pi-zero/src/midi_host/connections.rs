@@ -5,8 +5,6 @@
 
 use midir::MidiInputConnection;
 use playback_runtime::{MidiPort, MidiSink, RuntimePlatformEffect, RuntimeStoreResult};
-#[cfg(test)]
-use std::collections::VecDeque;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -16,6 +14,8 @@ use super::port_identity::{
     stable_port_ids,
 };
 use super::port_watch::PortWatch;
+#[cfg(test)]
+use super::test_backend::TestMidiBackend;
 
 /// Port checks (one a second) that a just-enabled or rebuilt USB MIDI gadget
 /// gets to appear before its absence is logged.
@@ -34,13 +34,6 @@ pub(super) enum MidiConnectCommand {
 pub(super) enum MidiConnectEvent {
     Output(Option<MidiSink>),
     Result(RuntimeStoreResult),
-}
-
-#[cfg(test)]
-pub(super) struct TestMidiBackend {
-    pub(super) output_names: Vec<String>,
-    pub(super) input_names: Vec<String>,
-    pub(super) selection_results: VecDeque<Result<(), String>>,
 }
 
 pub(super) struct MidiConnections {
@@ -233,15 +226,22 @@ impl MidiConnections {
 
     /// Reconnects the remembered MIDI Host ports, or the USB MIDI gadget port,
     /// after the ALSA MIDI devices change: a device was plugged in or unplugged,
-    /// or the gadget was rebuilt. A missing gadget port is retried on the next
-    /// checks, because the gadget is torn down before it is rebuilt.
+    /// or the gadget was rebuilt. A missing gadget direction is retried on the
+    /// next checks, because the gadget is torn down before it is rebuilt; a
+    /// retry keeps the connected direction, since replacing the output sink
+    /// flushes its pending note-offs.
     pub(super) fn reconnect_if_ports_changed(&mut self, now: Instant) {
         match self.port_watch.check(now) {
-            Some(true) => self.gadget_appear_checks = GADGET_APPEAR_CHECKS,
-            Some(false) if self.gadget_appear_checks > 0 => self.gadget_appear_checks -= 1,
-            _ => return,
+            Some(true) => {
+                self.gadget_appear_checks = GADGET_APPEAR_CHECKS;
+                self.reconnect(true, true);
+            }
+            Some(false) if self.gadget_appear_checks > 0 => {
+                self.gadget_appear_checks -= 1;
+                self.reconnect(!self.midi_output_connected, !self.midi_input_connected);
+            }
+            _ => {}
         }
-        self.reconnect();
     }
 
     /// Switches between the USB MIDI gadget port and the remembered MIDI Host ports.
@@ -249,13 +249,21 @@ impl MidiConnections {
         if self.usb_midi_out_enabled != enabled {
             self.usb_midi_out_enabled = enabled;
             self.gadget_appear_checks = GADGET_APPEAR_CHECKS;
-            self.reconnect();
+            self.reconnect(true, true);
         }
     }
 
-    fn reconnect(&mut self) {
-        let output = self.select_output(self.host_midi_output_id.clone());
-        let input = self.select_input(self.host_midi_input_id.clone());
+    fn reconnect(&mut self, output: bool, input: bool) {
+        let output = if output {
+            self.select_output(self.host_midi_output_id.clone())
+        } else {
+            Ok(())
+        };
+        let input = if input {
+            self.select_input(self.host_midi_input_id.clone())
+        } else {
+            Ok(())
+        };
         if !self.usb_midi_out_enabled {
             self.gadget_appear_checks = 0;
             if let Err(error) = output {
@@ -309,7 +317,7 @@ impl MidiConnections {
     fn connect_output(&mut self, requested: Option<&str>) -> Result<Option<MidiSink>, String> {
         #[cfg(test)]
         if let Some(result) = self.take_test_selection_result(requested, "output") {
-            return result.map(|connected| connected.then(test_sink));
+            return result.map(|connected| connected.then(super::test_backend::test_sink));
         }
         self.connect_output_native(requested)
     }
@@ -379,31 +387,9 @@ impl MidiConnections {
     ) -> Option<Result<bool, String>> {
         #[cfg(test)]
         {
-            let resolution = {
-                let backend = self.test_backend.as_ref()?;
-                let names = if direction == "output" {
-                    &backend.output_names
-                } else {
-                    &backend.input_names
-                };
-                let ids = stable_port_ids(names);
-                resolve_selected_port_id(
-                    requested,
-                    names,
-                    &ids,
-                    self.usb_midi_out_enabled,
-                    direction,
-                )
-            };
-            Some(match resolution {
-                Ok(None) => Ok(false),
-                Ok(Some(_)) => self
-                    .test_backend
-                    .as_mut()
-                    .and_then(|backend| backend.selection_results.pop_front())
-                    .unwrap_or_else(|| Err("test MIDI connection result missing".into()))
-                    .map(|()| true),
-                Err(error) => Err(error),
+            let usb_midi_out_enabled = self.usb_midi_out_enabled;
+            self.test_backend.as_mut().map(|backend| {
+                backend.take_selection_result(requested, direction, usb_midi_out_enabled)
             })
         }
         #[cfg(not(test))]
@@ -418,11 +404,6 @@ fn list_failure(effect: &RuntimePlatformEffect, error: String) -> RuntimeStoreRe
     RuntimeStoreResult::RuntimeFailure {
         error: effect.failure_facts(error),
     }
-}
-
-#[cfg(test)]
-fn test_sink() -> MidiSink {
-    Box::new(|_| Ok(()))
 }
 
 fn log_unplugged_port(direction: &str, requested: Option<&str>) {

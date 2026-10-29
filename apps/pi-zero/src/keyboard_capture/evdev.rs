@@ -40,16 +40,11 @@ impl EvdevKeyboard {
                 .collect()
         })
     }
-
-    fn ungrab(&mut self) {
-        let _ = set_grab(&self.device, false);
-    }
 }
 
-fn set_grab(device: &Device, grab: bool) -> io::Result<()> {
+fn grab(device: &Device) -> io::Result<()> {
     // SAFETY: EVIOCGRAB takes an int by value on an open evdev descriptor.
-    let result =
-        unsafe { libc::ioctl(device.as_raw_fd(), EVIOCGRAB as _, libc::c_int::from(grab)) };
+    let result = unsafe { libc::ioctl(device.as_raw_fd(), EVIOCGRAB as _, 1) };
     if result == 0 {
         Ok(())
     } else {
@@ -60,10 +55,6 @@ fn set_grab(device: &Device, grab: bool) -> io::Result<()> {
 impl super::worker::KeyboardDevice for EvdevKeyboard {
     fn read_events(&mut self) -> io::Result<Vec<(KeyboardKey, i32)>> {
         self.read_events()
-    }
-
-    fn ungrab(&mut self) {
-        self.ungrab();
     }
 }
 
@@ -88,7 +79,7 @@ pub(super) fn discover_keyboard(
         if device.set_nonblocking(true).is_err() {
             continue;
         }
-        if set_grab(&device, true).is_err() {
+        if grab(&device).is_err() {
             return GrabFailed;
         }
         return Ready(EvdevKeyboard { device });

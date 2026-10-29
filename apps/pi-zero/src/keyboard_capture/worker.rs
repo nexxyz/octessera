@@ -19,7 +19,6 @@ pub(super) trait KeyboardAcquirer {
 
 pub(super) trait KeyboardDevice {
     fn read_events(&mut self) -> io::Result<Vec<(KeyboardKey, i32)>>;
-    fn ungrab(&mut self);
 }
 
 pub(super) fn accepts_keyboard(
@@ -165,16 +164,7 @@ fn finish_capture(
     state: &mut KeyboardState,
     input_tx: &Sender<HostMessage>,
 ) -> bool {
-    if !release_held_inputs(state, input_tx) {
-        drop_device(device);
-        return false;
-    }
-    drop_device(device);
-    true
-}
-
-fn drop_device(device: &mut Option<impl KeyboardDevice>) {
-    if let Some(mut device) = device.take() {
-        device.ungrab();
-    }
+    let released = release_held_inputs(state, input_tx);
+    *device = None;
+    released
 }
