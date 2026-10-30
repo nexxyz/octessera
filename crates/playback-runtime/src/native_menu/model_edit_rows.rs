@@ -1,26 +1,44 @@
 //! Edits that reshape other rows update only those rows in place, including their copies in
 //! the parameter pickers: a full menu rebuild costs hundreds of milliseconds on the boards.
 
-use super::binding_picker::current_binding_rows;
-use super::binding_picker_rows::{update_instrument_bindings, update_play_fx_bindings};
+use super::binding_picker::{axis_binding_label, current_binding_rows};
+use super::binding_picker_rows::{
+    picker_rows, update_instrument_bindings, update_play_fx_bindings, update_shape_bindings,
+};
 use super::link::link_instrument_options;
 use super::link_sections::scanning_group;
 use super::model_root::instrument_item;
-use super::model_search::{find_item_by_key_mut, replace_group_children_containing_direct_key};
-use super::play::play_fx_page_children;
-use super::section_labels::SHAPE_LABEL;
-use super::{NativeLinkLayerConfig, NativeMenuConfig, NativeMenuModel, NativeParamBindingSpec};
+use super::model_search::{
+    find_item_by_key_mut, replace_group_children_containing_direct_key, update_items,
+};
+use super::play::{drums_page, play_fx_page_children};
+use super::section_labels::{LINK_LABEL, SHAPE_LABEL};
+use super::{
+    NativeLinkLayerConfig, NativeMenuConfig, NativeMenuModel, NativeMenuValue,
+    NativeParamBindingSpec,
+};
 
 impl NativeMenuModel {
-    pub fn show_param_binding_rows(&mut self, target: &str, binding: &NativeParamBindingSpec) {
+    /// Shows a parameter picker's binding: its label and its Current and Range rows.
+    pub fn show_param_binding(&mut self, target: &str, binding: Option<&NativeParamBindingSpec>) {
         let Some(picker) = find_item_by_key_mut(&mut self.root, target) else {
             return;
         };
-        for row in current_binding_rows(target, binding) {
-            if let Some(slot) = picker.children.iter_mut().find(|item| item.key == row.key) {
-                *slot = row;
-            }
+        if let Some((prefix, _)) = picker.label.split_once(": ") {
+            picker.label = axis_binding_label(prefix, binding);
         }
+        let rows = binding
+            .map(|binding| current_binding_rows(target, binding))
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|row| picker_rows(row, target))
+            .collect::<Vec<_>>();
+        let row_keys = ["current", "rangeMin", "rangeMax"].map(|row| format!("{target}.{row}"));
+        picker
+            .children
+            .retain(|item| !item.key.as_ref().is_some_and(|key| row_keys.contains(key)));
+        let at = 1.min(picker.children.len());
+        picker.children.splice(at..at, rows);
     }
 
     pub fn show_play_fx_rows(&mut self, config: &NativeMenuConfig) {
@@ -48,6 +66,58 @@ impl NativeMenuModel {
             *item = instrument_item(config, index, label);
         }
         update_instrument_bindings(&mut self.root, config, index);
+        self.clamp_cursor_to_siblings();
+    }
+
+    /// Refreshes the parameter-picker copies of a Shape group (`FX Buses`, `Global FX`) after
+    /// its own rows were updated in place.
+    pub fn show_shape_group_bindings(&mut self, label: &str) {
+        let source = self
+            .root
+            .children
+            .iter()
+            .find(|item| item.label == SHAPE_LABEL)
+            .and_then(|shape| shape.children.iter().find(|item| item.label == label))
+            .cloned();
+        if let Some(source) = source {
+            update_shape_bindings(&mut self.root, &source);
+        }
+    }
+
+    /// An instrument's name and type also show in the Link instrument choices, the Aux
+    /// Sample Assign rows and the Play Drums page.
+    pub fn show_instrument_identity(&mut self, config: &NativeMenuConfig, index: usize) {
+        self.show_instrument_rows(config, index);
+        let options = link_instrument_options(&config.instrument_labels);
+        let sample_assign = format!(".click.sample.{index}");
+        let label = config.instrument_labels.get(index);
+        if let Some(link) = self
+            .root
+            .children
+            .iter_mut()
+            .find(|item| item.label == LINK_LABEL)
+        {
+            update_items(link, &mut |item| {
+                let Some(key) = item.key.as_deref() else {
+                    return;
+                };
+                if key.ends_with(&sample_assign) {
+                    if let Some(label) = label {
+                        item.label.clone_from(label);
+                    }
+                } else if key.starts_with("layers.")
+                    && key.contains(".link.mapping.")
+                    && key.ends_with(".slot")
+                {
+                    if let NativeMenuValue::Enum { options: shown, .. } = &mut item.value {
+                        shown.clone_from(&options);
+                    }
+                }
+            });
+        }
+        if let Some(drums) = find_item_by_key_mut(&mut self.root, "play.page.drums") {
+            *drums = drums_page(config);
+        }
         self.clamp_cursor_to_siblings();
     }
 

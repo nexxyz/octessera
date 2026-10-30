@@ -85,11 +85,19 @@ impl NativeRunner {
         self.apply_instrument_menu_key_fast(key).unwrap_or(false)
     }
 
-    pub(super) fn rematerialize_menu_around_key(&mut self, key: &str) {
-        let was_editing = self.menu.state.editing;
-        self.menu.rebuild(self.menu_config());
-        let _ = self.menu.focus_item_key(key);
-        self.menu.state.editing = was_editing;
+    pub(super) fn show_instrument_identity_rows(&mut self, index: usize) {
+        let config = self.menu_config();
+        self.menu.show_instrument_identity(&config, index);
+    }
+
+    pub(super) fn show_instruments_rows(&mut self, slots: &[usize]) {
+        if slots.is_empty() {
+            return;
+        }
+        let config = self.menu_config();
+        for slot in slots {
+            self.menu.show_instrument_rows(&config, *slot);
+        }
     }
 
     pub(super) fn show_instrument_rows_around_key(&mut self, index: usize, key: &str) {

@@ -4,6 +4,7 @@ use super::binding_picker::{
 };
 use super::binding_picker_voice::instrument_binding_source;
 use super::binding_tree::binding_tree_from_menu_item;
+use super::fx::{FX_BUSES_LABEL, GLOBAL_FX_LABEL};
 use super::play::play_fx_page_items;
 use super::{NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
 
@@ -27,7 +28,7 @@ fn update_parameter_pickers(
     }
 }
 
-fn picker_rows(item: NativeMenuItem, target: &str) -> Option<NativeMenuItem> {
+pub(super) fn picker_rows(item: NativeMenuItem, target: &str) -> Option<NativeMenuItem> {
     if is_lfo_target_picker(target) {
         keep_numeric_binding_item(item, target)
     } else {
@@ -61,33 +62,64 @@ pub(super) fn update_instrument_bindings(
         return;
     };
     let source = instrument_binding_source(config, index, label);
+    let rank = |label: &str| {
+        label
+            .split_once(": ")
+            .and_then(|(slot, _)| slot.strip_prefix('I')?.parse::<usize>().ok())
+    };
     update_parameter_pickers(root, &mut |target, children| {
-        let Some(instruments) = children
-            .iter_mut()
-            .find(|child| child.key.as_deref() == Some("binding.group.shape"))
-            .and_then(|shape| {
-                shape
-                    .children
-                    .iter_mut()
-                    .find(|child| child.key.as_deref() == Some("binding.group.instruments"))
-            })
-        else {
-            return;
-        };
-        let Some(at) = instruments
-            .children
-            .iter()
-            .position(|child| child.label == *label)
-        else {
-            return;
-        };
-        match binding_tree_from_menu_item(&source, target)
-            .and_then(|tree| picker_rows(tree, target))
+        if let Some(instruments) = shape_binding_group(children)
+            .and_then(|shape| child_with_key(&mut shape.children, "binding.group.instruments"))
         {
-            Some(tree) => instruments.children[at] = tree,
-            None => {
-                instruments.children.remove(at);
-            }
+            replace_binding_tree(&mut instruments.children, &source, target, &rank);
         }
     });
+}
+
+/// `source` is a Shape group such as FX Buses or Global FX, already updated in the menu.
+pub(super) fn update_shape_bindings(root: &mut NativeMenuItem, source: &NativeMenuItem) {
+    let rank = |label: &str| {
+        ["Instruments", FX_BUSES_LABEL, GLOBAL_FX_LABEL]
+            .iter()
+            .position(|known| *known == label)
+    };
+    update_parameter_pickers(root, &mut |target, children| {
+        if let Some(shape) = shape_binding_group(children) {
+            replace_binding_tree(&mut shape.children, source, target, &rank);
+        }
+    });
+}
+
+fn shape_binding_group(children: &mut [NativeMenuItem]) -> Option<&mut NativeMenuItem> {
+    child_with_key(children, "binding.group.shape")
+}
+
+fn child_with_key<'a>(
+    children: &'a mut [NativeMenuItem],
+    key: &str,
+) -> Option<&'a mut NativeMenuItem> {
+    children
+        .iter_mut()
+        .find(|child| child.key.as_deref() == Some(key))
+}
+
+/// Picker groups keep their sources' order, so `rank` places the new tree, and the one it
+/// replaces may have had another label.
+fn replace_binding_tree(
+    children: &mut Vec<NativeMenuItem>,
+    source: &NativeMenuItem,
+    target: &str,
+    rank: &dyn Fn(&str) -> Option<usize>,
+) {
+    let own = rank(&source.label);
+    children.retain(|child| rank(&child.label) != own);
+    if let Some(tree) =
+        binding_tree_from_menu_item(source, target).and_then(|tree| picker_rows(tree, target))
+    {
+        let at = children
+            .iter()
+            .take_while(|child| rank(&child.label) < own)
+            .count();
+        children.insert(at, tree);
+    }
 }

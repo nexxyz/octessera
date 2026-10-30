@@ -46,19 +46,8 @@ pub(super) fn aux_binding_configs(
         .map(|binding| NativeAuxBindingConfig {
             turn: binding
                 .as_ref()
-                .and_then(|binding| binding.turn_key.as_ref())
-                .map(|key| NativeParamBindingSpec {
-                    key: key.clone(),
-                    label: None,
-                    kind: "number".into(),
-                    min: None,
-                    max: None,
-                    step: None,
-                    user_min: None,
-                    user_max: None,
-                    options: vec![],
-                    invert: false,
-                }),
+                .and_then(|binding| binding.turn_key.as_deref())
+                .map(aux_turn_binding_spec),
             click: binding
                 .as_ref()
                 .and_then(|binding| binding.press_action.clone()),
@@ -90,6 +79,21 @@ pub(super) fn aux_bindings_payload(bindings: &[Option<NativeAuxBinding>]) -> Val
         object.insert(key, value);
     }
     Value::Object(object)
+}
+
+pub(super) fn aux_turn_binding_spec(key: &str) -> NativeParamBindingSpec {
+    NativeParamBindingSpec {
+        key: key.into(),
+        label: None,
+        kind: "number".into(),
+        min: None,
+        max: None,
+        step: None,
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    }
 }
 
 pub(super) fn param_binding_spec_from_native(

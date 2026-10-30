@@ -146,10 +146,11 @@ impl NativeRunner {
         let previous = std::mem::replace(&mut self.sample_browser, browser)
             .map(|previous| previous.instrument_slot)
             .filter(|previous| *previous != instrument_slot);
-        let config = self.menu_config();
-        for slot in previous.into_iter().chain([instrument_slot]) {
-            self.menu.show_instrument_rows(&config, slot);
-        }
+        let slots = previous
+            .into_iter()
+            .chain([instrument_slot])
+            .collect::<Vec<_>>();
+        self.show_instruments_rows(&slots);
     }
 
     pub(super) fn browser_entries_for_result(

@@ -75,7 +75,7 @@ impl NativeRunner {
             }
             RuntimeStoreResult::RuntimeFailure { error } => {
                 self.display.runtime_error_presentation = None;
-                let sample_changed = self.mark_sample_unavailable_from_error(&error);
+                let changed_instruments = self.mark_sample_unavailable_from_error(&error);
                 if is_midi_input_list_failure(&error.domain, &error.code, &error.operation) {
                     self.display.runtime_error_presentation =
                         Some(NativeRuntimeErrorPresentation {
@@ -90,9 +90,7 @@ impl NativeRunner {
                     self.display.runtime_error_presentation =
                         Some(runtime_error_presentation(&error));
                 }
-                if sample_changed {
-                    self.menu.rebuild(self.menu_config());
-                }
+                self.show_instruments_rows(&changed_instruments);
             }
             _ => {}
         }

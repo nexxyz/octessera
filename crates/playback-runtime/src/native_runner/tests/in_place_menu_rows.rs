@@ -2,7 +2,7 @@ use super::audio_restart_persistence::{enter_edit, press, turn};
 use super::*;
 use crate::native_menu::NativeMenuModel;
 
-fn assert_matches_fresh_build(runner: &NativeRunner, rebuilds: usize) {
+pub(super) fn assert_matches_fresh_build(runner: &NativeRunner, rebuilds: usize) {
     assert_eq!(runner.menu.rebuild_count, rebuilds);
     assert_eq!(
         runner.menu.root,
@@ -23,7 +23,7 @@ fn assert_detents_match_fresh_build(runner: &mut NativeRunner, key: &str, deltas
     assert_matches_fresh_build(runner, rebuilds);
 }
 
-fn runner_with_instrument(kind: &str) -> NativeRunner {
+pub(super) fn runner_with_instrument(kind: &str) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = kind.into();
     runner.menu.rebuild(runner.menu_config());
@@ -196,4 +196,13 @@ fn sample_browser_steps_update_only_the_browser_rows() {
     assert_matches_fresh_build(&runner, rebuilds);
     assert_eq!(runner.menu.current_key(), Some("sample.choose:0:0"));
     assert!(runner.sample_browser.is_none());
+}
+
+#[test]
+fn fx_slot_type_detents_update_their_picker_copies_in_place() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    assert_detents_match_fresh_build(&mut runner, "mixer.buses.1.slot2.type", &[1, 2, -1]);
+    assert_detents_match_fresh_build(&mut runner, "mixer.master.slots.0.type", &[1, 1, -1]);
+    assert_ne!(runner.fx_buses[1].slot2_type, "none");
 }

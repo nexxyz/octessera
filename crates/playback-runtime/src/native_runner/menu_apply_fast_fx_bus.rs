@@ -1,7 +1,9 @@
 use crate::delay_timing::{
     nearest_note_for_ms, normalized_delay_params, note_ms, strip_delay_timing_metadata,
 };
-use crate::native_menu::{fx_bus_slot_children_for_key, global_fx_slot_children_for_key};
+use crate::native_menu::{
+    fx_bus_slot_children_for_key, global_fx_slot_children_for_key, FX_BUSES_LABEL, GLOBAL_FX_LABEL,
+};
 use crate::protocol::RuntimeAudioCommand;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -177,7 +179,6 @@ impl NativeRunner {
             bus.name = derive_bus_name(bus);
         }
         let next_bus_label = format!("B{}: {}", bus_index + 1, bus.name);
-        let next_bus_name = bus.name.clone();
         let (fx_type, params) = match slot_index {
             0 => (
                 bus.slot1_type.clone(),
@@ -210,13 +211,9 @@ impl NativeRunner {
         self.menu
             .replace_group_children_containing_direct_key(&slot_key, &children);
         if previous_bus_label != next_bus_label {
-            self.menu.replace_group_label_containing_direct_key(
-                &format!("mixer.buses.{bus_index}.name"),
-                &next_bus_label,
-            );
-            self.menu
-                .set_text_value_for_key(&format!("mixer.buses.{bus_index}.name"), &next_bus_name);
+            self.show_fx_bus_name(bus_index);
         }
+        self.menu.show_shape_group_bindings(FX_BUSES_LABEL);
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
             self.queue_audio_command(RuntimeAudioCommand::SetFxBusSlot {
@@ -228,6 +225,18 @@ impl NativeRunner {
             });
         }
         true
+    }
+
+    pub(super) fn show_fx_bus_name(&mut self, bus_index: usize) {
+        let Some(bus) = self.fx_buses.get(bus_index) else {
+            return;
+        };
+        let name_key = format!("mixer.buses.{bus_index}.name");
+        self.menu.replace_group_label_containing_direct_key(
+            &name_key,
+            &format!("B{}: {}", bus_index + 1, bus.name),
+        );
+        self.menu.set_text_value_for_key(&name_key, &bus.name);
     }
 
     fn fast_global_fx_param_key(&mut self, slot_index: usize, param_path: &str, key: &str) -> bool {
@@ -299,6 +308,7 @@ impl NativeRunner {
         );
         self.menu
             .replace_group_children_containing_direct_key(&slot_key, &children);
+        self.menu.show_shape_group_bindings(GLOBAL_FX_LABEL);
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
             self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxSlot {

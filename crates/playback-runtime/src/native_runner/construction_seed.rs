@@ -1,6 +1,4 @@
-use super::play_fx_config::{
-    default_play_fx_selected, play_fx_params_map, play_fx_target_key, play_fx_type,
-};
+use super::play_fx_config::default_play_fx_selected;
 use super::*;
 
 pub(super) struct NativeRunnerConstructionSeed {
@@ -51,7 +49,6 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) midi_clock_in_enabled: bool,
     pub(super) midi_respond_to_start_stop: bool,
     pub(super) audio_outputs: AudioOutputSet,
-    pub(super) jack_audio_required: bool,
     pub(super) usb_data_role: UsbDataRole,
     pub(super) usb_data_role_available: bool,
     pub(super) usb_midi_out_enabled: bool,
@@ -120,170 +117,11 @@ impl NativeRunnerConstructionSeed {
             midi_clock_in_enabled: false,
             midi_respond_to_start_stop: true,
             audio_outputs: AudioOutputSet::default(),
-            jack_audio_required: config.jack_audio_required,
             usb_data_role: UsbDataRole::default(),
             usb_data_role_available: config.usb_data_role_available,
             usb_midi_out_enabled: false,
             recording_max_minutes: 10,
             active_layer_index: 0,
-        }
-    }
-
-    pub(super) fn initial_menu_config(&self, preset_draft_name: &str) -> NativeMenuConfig {
-        NativeMenuConfig {
-            behavior_id: self.layer_behavior_ids[self.active_layer_index].clone(),
-            behavior_ids: platform_core::list_native_behavior_ids()
-                .iter()
-                .map(|id| (*id).to_string())
-                .collect(),
-            build_items: vec![],
-            build_items_by_layer: vec![vec![]; LAYER_COUNT],
-            random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
-            behavior_target_items: vec![vec![]; LAYER_COUNT],
-            dsp_config: self.dsp_config,
-            layer_labels: self
-                .layer_names
-                .iter()
-                .enumerate()
-                .map(|(index, name)| format!("L{}: {name}", index + 1))
-                .collect(),
-            layer_names: self.layer_names.clone(),
-            layer_auto_names: self.layer_auto_names.clone(),
-            link_layers: link_layer_configs(&self.link_layers),
-            active_layer_index: self.active_layer_index,
-            link_lfos: self.link_lfos.clone().map(|lfo| NativeLinkLfoConfig {
-                enabled: lfo.enabled,
-                target: lfo.target.as_ref().map(param_binding_spec_from_native),
-                period: lfo.period,
-                depth_pct: lfo.depth_pct,
-            }),
-            param_mods: param_mod_configs(&self.param_mods),
-            xy_x_binding: self
-                .xy_x_binding
-                .as_ref()
-                .map(param_binding_spec_from_native),
-            xy_y_binding: self
-                .xy_y_binding
-                .as_ref()
-                .map(param_binding_spec_from_native),
-            aux_auto_map_enabled: self.aux_auto_map_enabled,
-            aux_bindings: aux_binding_configs(&self.aux_bindings),
-            shift_aux_bindings: aux_binding_configs(&self.shift_aux_bindings),
-            instrument_labels: instrument_labels(&self.instruments),
-            instrument_names: instrument_names(&self.instruments),
-            instrument_types: instrument_types(&self.instruments),
-            instrument_auto_names: instrument_auto_names(&self.instruments),
-            instrument_note_behaviors: instrument_note_behaviors(&self.instruments),
-            instrument_routes: instrument_routes(&self.instruments),
-            instrument_volumes: instrument_volumes(&self.instruments),
-            instrument_pan_positions: instrument_pan_positions(&self.instruments),
-            instrument_sample_slots: instrument_sample_slots(&self.instruments),
-            instrument_sample_paths: instrument_sample_paths(&self.instruments),
-            instrument_sample_availability: self.sample_availability.clone(),
-            instrument_synth_configs: instrument_synth_configs(&self.instruments),
-            instrument_fm_configs: instrument_fm_configs(&self.instruments),
-            instrument_pluck_configs: instrument_pluck_configs(&self.instruments),
-            instrument_drum_configs: super::drum_config::instrument_drum_configs(&self.instruments),
-            instrument_drum_selected_voices: vec![0; INSTRUMENT_COUNT],
-            instrument_synth_osc1_waveforms: instrument_synth_osc1_waveforms(&self.instruments),
-            instrument_synth_osc2_waveforms: instrument_synth_osc2_waveforms(&self.instruments),
-            instrument_synth_filter_types: instrument_synth_filter_types(&self.instruments),
-            instrument_synth_filter_cutoffs: instrument_synth_filter_cutoffs(&self.instruments),
-            instrument_synth_gain_pct: instrument_synth_gain_pct(&self.instruments),
-            instrument_synth_filter_resonance: instrument_synth_filter_resonance(&self.instruments),
-            instrument_sample_tune_semis: instrument_sample_tune_semis(&self.instruments),
-            instrument_sample_gain_pct: instrument_sample_gain_pct(&self.instruments),
-            instrument_sample_base_velocity: instrument_sample_base_velocity(&self.instruments),
-            instrument_sample_amp_velocity_sensitivity_pct:
-                instrument_sample_amp_velocity_sensitivity_pct(&self.instruments),
-            instrument_sample_velocity_levels_enabled: instrument_sample_velocity_levels_enabled(
-                &self.instruments,
-            ),
-            instrument_sample_velocity_high: instrument_sample_velocity_high(&self.instruments),
-            instrument_sample_follow_transpose: instrument_sample_follow_transpose(
-                &self.instruments,
-            ),
-            instrument_sample_follow_pitch: instrument_sample_follow_pitch(&self.instruments),
-            instrument_cell_stamps: vec![Default::default(); INSTRUMENT_COUNT],
-            instrument_sample_velocity_medium: instrument_sample_velocity_medium(&self.instruments),
-            instrument_sample_velocity_low: instrument_sample_velocity_low(&self.instruments),
-            instrument_sample_amp_envs: instrument_sample_amp_envs(&self.instruments),
-            instrument_sample_filters: instrument_sample_filters(&self.instruments),
-            instrument_sample_filter_envs: instrument_sample_filter_envs(&self.instruments),
-            instrument_midi_enabled: instrument_midi_enabled(&self.instruments),
-            instrument_midi_channels: instrument_midi_channels(&self.instruments),
-            instrument_midi_velocity: instrument_midi_velocity(&self.instruments),
-            instrument_midi_duration_ms: instrument_midi_duration_ms(&self.instruments),
-            fx_buses: fx_bus_configs(&self.fx_buses),
-            global_fx_slots: self.global_fx_slots.clone(),
-            global_fx_params: self.global_fx_params.clone(),
-            sample_browser: None,
-            sample_favourite_dirs: self.sample_favourite_dirs.clone(),
-            sample_builtin_favourite_dirs: self.sample_builtin_favourite_dirs.clone(),
-            algorithm_step_pulses: self.algorithm_step_pulses,
-            master_volume: self.ui.master_volume,
-            note_length_ms: self.global_sound.note_length_ms as u16,
-            velocity_scale_pct: self.global_sound.velocity_scale_pct,
-            velocity_curve: velocity_curve_id(self.global_sound.velocity_curve).into(),
-            voice_stealing_mode: self.voice_stealing_mode.clone(),
-            auto_save_default: self.auto_save_default,
-            rolling_backups: self.rolling_backups,
-            ghost_cells: self.ui.ghost_cells,
-            input_events_while_paused: self.input_events_while_paused,
-            numeric_display_mode: self.ui.numeric_display_mode.clone(),
-            screen_sleep_seconds: self.ui.screen_sleep_seconds,
-            dim_timer_seconds: self.ui.dim_timer_seconds,
-            grid_brightness: self.ui.grid_brightness,
-            display_brightness: self.ui.display_brightness,
-            button_brightness: self.ui.button_brightness,
-            midi_enabled: self.midi_enabled,
-            midi_clock_out_enabled: self.midi_clock_out_enabled,
-            midi_clock_in_enabled: self.midi_clock_in_enabled,
-            midi_respond_to_start_stop: self.midi_respond_to_start_stop,
-            audio_outputs: self.audio_outputs,
-            board: self.jack_audio_required,
-            usb_data_role: self.usb_data_role,
-            usb_data_role_available: self.usb_data_role_available,
-            audio_optimization: self.audio_optimization,
-            audio_optimization_capacity_available: self.audio_optimization_capacity_available,
-            usb_midi_out_enabled: self.usb_midi_out_enabled,
-            recording_max_minutes: self.recording_max_minutes,
-            hdmi_mode: self.hdmi.mode.clone(),
-            hdmi_show_gridlines: self.hdmi.show_gridlines,
-            hdmi_cycle_measures: self.hdmi.cycle_measures,
-            preset_names: self.preset_names.clone(),
-            preset_draft_name: preset_draft_name.into(),
-            preset_rename_source: None,
-            midi_outputs: self
-                .midi_outputs
-                .iter()
-                .map(|port| (port.id.clone(), port.name.clone()))
-                .collect(),
-            midi_inputs: self
-                .midi_inputs
-                .iter()
-                .map(|port| (port.id.clone(), port.name.clone()))
-                .collect(),
-            bluetooth_enabled: false,
-            wifi_enabled: true,
-            bluetooth_audio: false,
-            bluetooth_paired: Vec::new(),
-            bluetooth_found: Vec::new(),
-            play_mode: self.play_mode.clone(),
-            play_drum_selected_slot: self
-                .instruments
-                .iter()
-                .position(|instrument| instrument.kind == "drum"),
-            play_fx_type: play_fx_type(&self.play_fx_selected).into(),
-            play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
-            play_fx_params: play_fx_params_map(&self.play_fx_selected),
-            xy_release: self.xy_release.clone(),
-            xy_smoothing_ms: self.xy_smoothing_ms,
-            xy_invert_x: self.xy_invert_x,
-            xy_invert_y: self.xy_invert_y,
-            bpm: crate::delay_timing::visible_bpm_u16(self.bpm),
-            swing_pct: self.swing_pct,
-            sync_source: self.sync_source.clone(),
         }
     }
 }

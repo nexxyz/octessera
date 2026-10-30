@@ -141,6 +141,10 @@ impl NativeRunner {
             });
         }
         self.display.transients.mark_presentation_due();
+        self.show_preset_catalog();
+    }
+
+    pub(super) fn show_preset_catalog(&mut self) {
         self.menu.update_preset_catalog(
             &self.preset_names,
             &self.preset_draft_name,

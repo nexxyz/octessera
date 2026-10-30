@@ -42,6 +42,13 @@ pub(super) fn find_item_by_key_mut<'a>(
     None
 }
 
+pub(super) fn update_items(node: &mut NativeMenuItem, update: &mut dyn FnMut(&mut NativeMenuItem)) {
+    update(node);
+    for child in &mut node.children {
+        update_items(child, update);
+    }
+}
+
 pub(super) fn replace_item_label(node: &mut NativeMenuItem, old: &str, new: &str) -> bool {
     let mut changed = false;
     if node.label == old {

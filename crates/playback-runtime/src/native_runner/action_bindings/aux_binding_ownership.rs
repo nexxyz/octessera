@@ -1,4 +1,6 @@
-use super::super::{NativeAuxBinding, NativeParamBinding, NativeRunner, NativeToast};
+use super::super::{
+    aux_turn_binding_spec, NativeAuxBinding, NativeParamBinding, NativeRunner, NativeToast,
+};
 
 impl NativeRunner {
     pub(super) fn bind_aux_from_current(&mut self, index: usize, shifted: bool) -> bool {
@@ -216,12 +218,13 @@ impl NativeRunner {
                 old_owner == Some(false) || new_owner == Some(false),
             );
         }
-        self.menu.rebuild(self.menu_config());
         let key = if shifted {
             format!("shiftAux:{index}:turn")
         } else {
             format!("aux:{index}:turn")
         };
+        let binding = next_key.as_deref().map(aux_turn_binding_spec);
+        self.menu.show_param_binding(&key, binding.as_ref());
         let _ = self.menu.focus_item_key(&key);
     }
 

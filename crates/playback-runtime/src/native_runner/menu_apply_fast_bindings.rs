@@ -14,10 +14,14 @@ impl NativeRunner {
             return false;
         };
         self.set_param_binding_range_value(target, is_min, value);
-        if let Some(binding) = self.param_binding_target_mut(target) {
-            let binding = param_binding_spec_from_native(binding);
-            self.menu.show_param_binding_rows(target, &binding);
-        }
+        self.show_param_binding_target(target);
         true
+    }
+
+    pub(super) fn show_param_binding_target(&mut self, target: &str) {
+        let binding = self
+            .param_binding_target_mut(target)
+            .map(|binding| param_binding_spec_from_native(binding));
+        self.menu.show_param_binding(target, binding.as_ref());
     }
 }

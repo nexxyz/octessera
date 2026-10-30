@@ -4,6 +4,13 @@ use std::sync::Arc;
 
 impl NativeRunner {
     pub fn new(config: NativeRunnerConfig) -> Result<Self, String> {
+        let mut runner = Self::new_with_unbuilt_menu(config)?;
+        runner.menu.rebuild(runner.menu_config());
+        Ok(runner)
+    }
+
+    /// Configuration transactions build the menu once, when they commit.
+    pub(super) fn new_with_unbuilt_menu(config: NativeRunnerConfig) -> Result<Self, String> {
         if !config
             .audio_optimization
             .is_supported(config.audio_optimization_capacity_available)
@@ -40,7 +47,6 @@ impl NativeRunner {
             )?);
         }
         let preset_draft_name = fresh_preset_name();
-        let menu = NativeMenuModel::new(seed.initial_menu_config(&preset_draft_name));
         let mut runner = Self {
             engine,
             layer_engines,
@@ -155,7 +161,7 @@ impl NativeRunner {
             sample_availability: seed.sample_availability,
             sample_builtin_favourite_dirs: seed.sample_builtin_favourite_dirs,
             sample_favourite_dirs: seed.sample_favourite_dirs,
-            menu,
+            menu: NativeMenuModel::unbuilt(),
             auto_save_default: seed.auto_save_default,
             rolling_backups: seed.rolling_backups,
             config_dirty: false,
@@ -189,7 +195,6 @@ impl NativeRunner {
         runner
             .engine
             .set_interpretation_profile(runner.interpretation_profile.clone());
-        runner.menu.rebuild(runner.menu_config());
         let documents = super::split_system_patch_documents(&runner.config_payload())?;
         runner.restart_settings = RestartSettingsState::new(documents.system.clone());
         runner.pending.system_persistence.saved_baseline = Some(Arc::new(documents.system));

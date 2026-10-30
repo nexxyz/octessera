@@ -172,7 +172,7 @@ impl NativeRunner {
             config,
         });
         self.mark_fast_autosave_dirty();
-        self.menu.rebuild(self.menu_config());
+        self.show_instrument_identity_rows(slot);
         self.show_toast(format!("Loaded I{} {type_name} {id}", slot + 1));
         Ok(())
     }

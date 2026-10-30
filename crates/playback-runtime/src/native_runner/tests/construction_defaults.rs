@@ -25,9 +25,8 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
         NativeUiState::default(),
         Instant::now(),
     );
-    let expected_menu = expected_seed.initial_menu_config(&runner.preset_draft_name);
 
-    assert_eq!(runner.behavior.id(), expected_menu.behavior_id);
+    assert_eq!(runner.behavior.id(), "sequencer");
     assert_eq!(runner.transport.bpm, config.bpm);
     assert_eq!(runner.transport.swing_pct, 75);
     assert_eq!(runner.layer_behavior_ids, expected_seed.layer_behavior_ids);
@@ -37,10 +36,13 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
         runner.sample_builtin_favourite_dirs,
         expected_seed.sample_builtin_favourite_dirs
     );
-    assert_eq!(runner.display.ui.master_volume, expected_menu.master_volume);
+    assert_eq!(
+        runner.display.ui.master_volume,
+        expected_seed.ui.master_volume
+    );
     assert_eq!(
         runner.display.ui.display_brightness,
-        expected_menu.display_brightness
+        expected_seed.ui.display_brightness
     );
 
     let world_labels = runner.menu.root.children[0]
@@ -48,20 +50,25 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
         .iter()
         .map(|item| item.label.clone())
         .collect::<Vec<_>>();
-    let mut expected_world_labels = expected_menu.layer_labels.clone();
+    let mut expected_world_labels = expected_seed
+        .layer_names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| format!("L{}: {name}", index + 1))
+        .collect::<Vec<_>>();
     expected_world_labels.push("Seed".into());
     assert_eq!(world_labels, expected_world_labels);
     assert_eq!(
         runner.menu.item_for_key("behaviorId").unwrap().label,
-        format!("Behavior: {}", expected_menu.behavior_id)
+        "Behavior: sequencer"
     );
     assert_eq!(
         runner.menu.selected_master_volume(),
-        Some(expected_menu.master_volume)
+        Some(expected_seed.ui.master_volume)
     );
     assert_eq!(
         runner.menu.selected_display_brightness(),
-        Some(expected_menu.display_brightness)
+        Some(expected_seed.ui.display_brightness)
     );
     let Some(NativeMenuValue::Text { value, .. }) = runner
         .menu
@@ -90,22 +97,21 @@ fn non_default_transport_and_display_defaults_are_seeded_without_menu_rebuild_co
         NativeUiState::default(),
         Instant::now(),
     );
-    let expected_menu = expected_seed.initial_menu_config(&runner.preset_draft_name);
 
     assert_eq!(runner.behavior.id(), "keys");
     assert_eq!(runner.transport.bpm, 61.0);
     assert_eq!(runner.transport.swing_pct, 12);
-    assert_eq!(runner.active_layer_index, expected_menu.active_layer_index);
+    assert_eq!(runner.active_layer_index, expected_seed.active_layer_index);
     assert_eq!(
         runner.menu.item_for_key("behaviorId").unwrap().label,
         "Behavior: keys"
     );
     assert_eq!(
         runner.menu.selected_sync_source(),
-        Some(expected_menu.sync_source)
+        Some(expected_seed.sync_source)
     );
     assert_eq!(
         runner.menu.selected_button_brightness(),
-        Some(expected_menu.button_brightness)
+        Some(expected_seed.ui.button_brightness)
     );
 }

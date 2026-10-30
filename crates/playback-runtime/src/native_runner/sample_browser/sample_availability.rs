@@ -33,14 +33,14 @@ impl NativeRunner {
     pub(in crate::native_runner) fn mark_sample_unavailable_from_error(
         &mut self,
         error: &crate::protocol::RuntimeErrorFacts,
-    ) -> bool {
+    ) -> Vec<usize> {
         if error.domain != crate::RuntimeErrorDomain::Sample {
-            return false;
+            return Vec::new();
         }
         let Some(message) = error.message.as_deref() else {
-            return false;
+            return Vec::new();
         };
-        let mut changed = false;
+        let mut changed = Vec::new();
         let matching_slots =
             self.instruments
                 .iter()
@@ -63,7 +63,9 @@ impl NativeRunner {
                 == Some(&NativeSampleAvailability::Unavailable);
             if !unavailable {
                 self.mark_sample_unavailable(instrument_slot, sample_slot);
-                changed = true;
+                if !changed.contains(&instrument_slot) {
+                    changed.push(instrument_slot);
+                }
             }
         }
         changed

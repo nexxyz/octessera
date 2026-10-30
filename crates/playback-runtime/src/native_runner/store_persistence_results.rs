@@ -176,7 +176,7 @@ impl NativeRunner {
         match result {
             RuntimeStoreResult::ListPresetsResult { names } => {
                 self.preset_names = names;
-                self.menu.rebuild(self.menu_config());
+                self.show_preset_catalog();
             }
             RuntimeStoreResult::LoadDefaultResult {
                 payload: Some(payload),
@@ -212,7 +212,7 @@ impl NativeRunner {
                 });
                 self.current_preset_name = Some(name);
                 self.acknowledge_config_save(None);
-                self.menu.rebuild(self.menu_config());
+                self.show_preset_catalog();
             }
             RuntimeStoreResult::DeletePresetResult { name, ok } if ok => {
                 if self.current_preset_name.as_deref() == Some(name.as_str()) {

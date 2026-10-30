@@ -68,6 +68,7 @@ mod voice_env_groups;
 
 pub(crate) use fx::{
     fx_bus_slot_children_for_key, global_fx_slot_children_for_key, slot_group_label,
+    FX_BUSES_LABEL, GLOBAL_FX_LABEL,
 };
 pub(in crate::native_menu) use item_builders::*;
 pub use model_input::NativeMenuPressResult;

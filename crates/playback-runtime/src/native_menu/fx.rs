@@ -6,9 +6,12 @@ use super::{
 };
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
 
+pub(crate) const FX_BUSES_LABEL: &str = "FX Buses";
+pub(crate) const GLOBAL_FX_LABEL: &str = "Global FX";
+
 pub(super) fn fx_buses_group(config: &[NativeFxBusConfig], bpm: u16) -> NativeMenuItem {
     group(
-        "FX Buses",
+        FX_BUSES_LABEL,
         (0..FX_BUS_COUNT)
             .map(|bus_index| {
                 let prefix = format!("mixer.buses.{bus_index}");
@@ -77,7 +80,7 @@ pub(super) fn global_fx_group(
     bpm: u16,
 ) -> NativeMenuItem {
     group(
-        "Global FX",
+        GLOBAL_FX_LABEL,
         (0..GLOBAL_FX_SLOT_COUNT)
             .map(|slot_index| {
                 let prefix = format!("mixer.master.slots.{slot_index}");

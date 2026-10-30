@@ -36,8 +36,12 @@ impl NativeRunner {
         let columns = MENU_BODY_RECT.columns();
         let mut lines = wrap_text(MISSING_SAMPLES_INTRO, columns);
         let mut listed = Vec::<&str>::new();
+        let mut changed_instruments = Vec::new();
         for (instrument_slot, sample_slot, path) in &newly_missing {
             self.mark_sample_unavailable(*instrument_slot, *sample_slot);
+            if !changed_instruments.contains(instrument_slot) {
+                changed_instruments.push(*instrument_slot);
+            }
             if !listed.iter().any(|seen| same_sample_path(seen, path)) {
                 listed.push(path);
                 lines.extend(wrap_text(
@@ -51,7 +55,7 @@ impl NativeRunner {
             lines,
             scroll: 0,
         });
-        self.menu.rebuild(self.menu_config());
+        self.show_instruments_rows(&changed_instruments);
     }
 }
 

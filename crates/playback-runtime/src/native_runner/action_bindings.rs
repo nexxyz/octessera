@@ -55,6 +55,10 @@ impl NativeRunner {
                         "y" => param_mods.y[slot] = binding.clone(),
                         _ => {}
                     }
+                    self.menu.set_bool_value_for_key(
+                        &format!("layers.{layer}.paramMods.{}.{slot}.invert", parts[1]),
+                        binding.as_ref().is_some_and(|binding| binding.invert),
+                    );
                 }
             }
         } else if target == "xy:x" {
@@ -70,6 +74,8 @@ impl NativeRunner {
                     lfo.target = binding.clone();
                     if lfo.target.is_none() {
                         lfo.enabled = false;
+                        self.menu
+                            .set_bool_value_for_key(&format!("linkLfos.{index}.enabled"), false);
                     }
                 }
             }
@@ -83,7 +89,7 @@ impl NativeRunner {
             .unwrap_or("none");
         self.show_toast(format!("Mapped {label}"));
         self.mark_config_dirty();
-        self.menu.rebuild(self.menu_config());
+        self.show_param_binding_target(target);
         let _ = self.menu.focus_item_key(target);
         if let Err(error) = self.process_dirty_modulation_step(false) {
             self.show_toast(format!("LFO composition unavailable: {error}"));
@@ -291,7 +297,14 @@ impl NativeRunner {
             offset: 0,
         });
         self.mark_config_dirty();
-        self.menu.rebuild(self.menu_config());
+        let layer = self.active_layer_index;
+        for (axis, slot) in &targets {
+            self.show_param_binding_target(&format!("param:{layer}:{axis}:{slot}"));
+            self.menu.set_bool_value_for_key(
+                &format!("layers.{layer}.paramMods.{axis}.{slot}.invert"),
+                mode == "invert",
+            );
+        }
         if let Some(focus_key) = focus_key {
             let _ = self.menu.focus_item_key(&focus_key);
         }

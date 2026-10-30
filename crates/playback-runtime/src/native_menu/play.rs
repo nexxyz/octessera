@@ -28,7 +28,7 @@ pub(super) fn play_fx_page_children(config: &NativeMenuConfig) -> Vec<NativeMenu
         .collect()
 }
 
-fn drums_page(config: &NativeMenuConfig) -> NativeMenuItem {
+pub(super) fn drums_page(config: &NativeMenuConfig) -> NativeMenuItem {
     let slots = config
         .instrument_types
         .iter()

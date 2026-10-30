@@ -15,12 +15,24 @@ use super::{
 };
 
 impl NativeMenuModel {
+    #[cfg(test)]
     pub fn new(config: NativeMenuConfig) -> Self {
         let numeric_display_mode = config.numeric_display_mode.clone();
         Self {
             root: build_root(config),
             state: NativeMenuState::default(),
             numeric_display_mode,
+            navigation_memory: Default::default(),
+            #[cfg(test)]
+            rebuild_count: 0,
+        }
+    }
+
+    pub(crate) fn unbuilt() -> Self {
+        Self {
+            root: super::group("Menu", vec![]),
+            state: NativeMenuState::default(),
+            numeric_display_mode: String::new(),
             navigation_memory: Default::default(),
             #[cfg(test)]
             rebuild_count: 0,

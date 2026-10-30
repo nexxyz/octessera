@@ -34,7 +34,7 @@ impl NativeRunner {
         prepared: &PreparedConfigPayload,
         apply_device: bool,
     ) -> Result<NativeRunner, String> {
-        let mut candidate = NativeRunner::new(NativeRunnerConfig {
+        let mut candidate = NativeRunner::new_with_unbuilt_menu(NativeRunnerConfig {
             sample_builtin_favourite_dirs: self.sample_builtin_favourite_dirs.clone(),
             ..NativeRunnerConfig::default()
         })?;
@@ -225,7 +225,6 @@ impl NativeRunner {
         self.sync_engine_runtime_config();
         self.restart_random_streams();
         self.menu.state = Default::default();
-        self.menu.rebuild(self.menu_config());
         Ok(())
     }
 
