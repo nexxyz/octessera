@@ -1,5 +1,6 @@
 use super::play_fx_config::{play_fx_target_key, sanitize_play_fx_config};
 use super::{json, NativeRunner};
+use crate::native_menu::FX_BUSES_LABEL;
 
 impl NativeRunner {
     pub(super) fn fast_play_fx_type_key(&mut self, key: &str) -> bool {
@@ -85,8 +86,10 @@ impl NativeRunner {
                 return false;
             };
             let mut changed = false;
+            let mut previous_label = None;
             if let Some(target) = self.layer_names.get_mut(index) {
                 if *target != name {
+                    previous_label = Some(format!("L{}: {target}", index + 1));
                     *target = name;
                     changed = true;
                 }
@@ -98,6 +101,9 @@ impl NativeRunner {
                 }
             }
             if changed {
+                self.update_layer_menu_label(index, previous_label.as_deref());
+                self.menu
+                    .set_bool_value_for_key(&format!("layers.{index}.autoName"), false);
                 self.mark_config_dirty();
             }
             return true;
@@ -119,6 +125,7 @@ impl NativeRunner {
             instrument.name = name;
             instrument.auto_name = false;
             if changed {
+                self.show_instrument_identity_rows(index);
                 self.mark_config_dirty();
             }
             return true;
@@ -140,6 +147,10 @@ impl NativeRunner {
             bus.name = name;
             bus.auto_name = false;
             if changed {
+                self.show_fx_bus_name(index);
+                self.menu
+                    .set_bool_value_for_key(&format!("mixer.buses.{index}.autoName"), false);
+                self.menu.show_shape_group_bindings(FX_BUSES_LABEL);
                 self.mark_config_dirty();
             }
             return true;

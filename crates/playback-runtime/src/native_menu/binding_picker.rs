@@ -14,6 +14,7 @@ use super::{NativeMenuValue, NativeParamBindingSpec};
 
 pub(super) const PLAY_FX_BINDING_GROUP: &str = "binding.group.play_fx";
 pub(super) const SYSTEM_BINDING_GROUP: &str = "binding.group.system";
+pub(super) const INSTRUMENTS_BINDING_GROUP: &str = "binding.group.instruments";
 
 pub(super) fn play_fx_targets() -> Vec<String> {
     let mut targets = vec!["master".to_string()];
@@ -182,7 +183,7 @@ pub(super) fn parameter_tree_groups(
     if !instrument_groups.is_empty() {
         voice_children.push(keyed_group(
             "Instruments",
-            "binding.group.instruments",
+            INSTRUMENTS_BINDING_GROUP,
             instrument_groups,
         ));
     }

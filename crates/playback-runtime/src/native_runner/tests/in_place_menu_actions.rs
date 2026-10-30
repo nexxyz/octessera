@@ -15,12 +15,12 @@ fn input(runner: &mut NativeRunner, input: Value) {
         .unwrap();
 }
 
-fn press_key(runner: &mut NativeRunner, key: &str) {
+pub(super) fn press_key(runner: &mut NativeRunner, key: &str) {
     assert!(runner.menu.focus_item_key(key), "{key}");
     press(runner);
 }
 
-fn confirm_key(runner: &mut NativeRunner, key: &str) -> Vec<RunnerMessage> {
+pub(super) fn confirm_key(runner: &mut NativeRunner, key: &str) -> Vec<RunnerMessage> {
     press_key(runner, key);
     assert!(runner.display.confirm_dialog.is_some(), "{key}");
     turn(runner, 1);

@@ -72,7 +72,11 @@ impl NativeRunner {
         );
     }
 
-    fn update_layer_menu_label(&mut self, layer_index: usize, previous_label: Option<&str>) {
+    pub(super) fn update_layer_menu_label(
+        &mut self,
+        layer_index: usize,
+        previous_label: Option<&str>,
+    ) {
         let Some(name) = self.layer_names.get(layer_index).cloned() else {
             return;
         };

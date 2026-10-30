@@ -1,12 +1,12 @@
 use super::binding_picker::{
-    is_lfo_target_picker, keep_numeric_binding_item, play_fx_binding_group, PLAY_FX_BINDING_GROUP,
-    SYSTEM_BINDING_GROUP,
+    is_lfo_target_picker, keep_numeric_binding_item, play_fx_binding_group,
+    INSTRUMENTS_BINDING_GROUP, PLAY_FX_BINDING_GROUP, SYSTEM_BINDING_GROUP,
 };
 use super::binding_picker_voice::instrument_binding_source;
 use super::binding_tree::binding_tree_from_menu_item;
 use super::fx::{FX_BUSES_LABEL, GLOBAL_FX_LABEL};
 use super::play::play_fx_page_items;
-use super::{NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
+use super::{keyed_group, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
 
 /// Applies `update` to the children of every parameter picker below `node`; the pickers repeat
 /// the bindable menu, so rows that change there change in each picker too.
@@ -67,12 +67,28 @@ pub(super) fn update_instrument_bindings(
             .split_once(": ")
             .and_then(|(slot, _)| slot.strip_prefix('I')?.parse::<usize>().ok())
     };
+    let is_instruments =
+        |child: &NativeMenuItem| child.key.as_deref() == Some(INSTRUMENTS_BINDING_GROUP);
     update_parameter_pickers(root, &mut |target, children| {
-        if let Some(instruments) = shape_binding_group(children)
-            .and_then(|shape| child_with_key(&mut shape.children, "binding.group.instruments"))
+        let Some(shape) = shape_binding_group(children) else {
+            return;
+        };
+        if !shape.children.iter().any(is_instruments) {
+            shape.children.insert(
+                0,
+                keyed_group("Instruments", INSTRUMENTS_BINDING_GROUP, Vec::new()),
+            );
+        }
+        if let Some(instruments) = shape
+            .children
+            .iter_mut()
+            .find(|child| is_instruments(child))
         {
             replace_binding_tree(&mut instruments.children, &source, target, &rank);
         }
+        shape
+            .children
+            .retain(|child| !is_instruments(child) || !child.children.is_empty());
     });
 }
 

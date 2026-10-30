@@ -89,6 +89,7 @@ mod happy_path;
 mod hardware_test;
 mod hdmi;
 mod in_place_menu_actions;
+mod in_place_menu_identity;
 mod in_place_menu_rows;
 mod input_events;
 mod input_events_midi;

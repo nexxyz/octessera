@@ -7,9 +7,10 @@ use super::binding_picker_rows::{
 };
 use super::link::link_instrument_options;
 use super::link_sections::scanning_group;
-use super::model_root::instrument_item;
+use super::model_root::{instrument_item, instrument_item_label};
 use super::model_search::{
-    find_item_by_key_mut, replace_group_children_containing_direct_key, update_items,
+    find_item_by_key, find_item_by_key_mut, replace_group_children_containing_direct_key,
+    replace_group_label_containing_direct_key, update_items,
 };
 use super::play::{drums_page, play_fx_page_children};
 use super::section_labels::{LINK_LABEL, SHAPE_LABEL};
@@ -63,10 +64,31 @@ impl NativeMenuModel {
             })
             .and_then(|instruments| instruments.children.get_mut(index));
         if let (Some(item), Some(label)) = (item, config.instrument_labels.get(index)) {
+            let name_key = format!("instruments.{index}.name");
+            let name_cursor = match find_item_by_key(item, &name_key).map(|name| &name.value) {
+                Some(NativeMenuValue::Text { cursor, .. }) => *cursor,
+                _ => 0,
+            };
             *item = instrument_item(config, index, label);
+            if let Some(NativeMenuValue::Text { value, cursor, .. }) =
+                find_item_by_key_mut(item, &name_key).map(|name| &mut name.value)
+            {
+                *cursor = name_cursor.min(value.len() + 1);
+            }
         }
         update_instrument_bindings(&mut self.root, config, index);
         self.clamp_cursor_to_siblings();
+    }
+
+    /// The overview label shows an instrument's type and route or MIDI channel.
+    pub fn show_instrument_label(&mut self, config: &NativeMenuConfig, index: usize) {
+        if let Some(label) = config.instrument_labels.get(index) {
+            replace_group_label_containing_direct_key(
+                &mut self.root,
+                &format!("instruments.{index}.type"),
+                &instrument_item_label(config, index, label),
+            );
+        }
     }
 
     /// Refreshes the parameter-picker copies of a Shape group (`FX Buses`, `Global FX`) after
@@ -135,6 +157,20 @@ impl NativeMenuModel {
             &scanning.children,
         );
         self.clamp_cursor_to_siblings();
+    }
+
+    /// Rows replaced in place can remove the page that is open; then `key` takes the focus.
+    pub fn keep_focus_on_open_page(&mut self, key: &str) {
+        let mut node = &self.root;
+        for index in &self.state.stack {
+            match node.children.get(*index) {
+                Some(next) if !next.children.is_empty() => node = next,
+                _ => {
+                    self.focus_item_key(key);
+                    return;
+                }
+            }
+        }
     }
 
     pub fn keep_focus_on_key(&mut self, key: &str) {

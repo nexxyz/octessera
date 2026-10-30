@@ -432,6 +432,8 @@ impl NativeRunner {
         }
         self.mark_config_dirty();
         self.show_instrument_identity_rows(index);
+        self.menu
+            .keep_focus_on_open_page(&format!("instruments.{index}.type"));
     }
 
     fn set_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {

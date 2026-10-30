@@ -157,7 +157,7 @@ pub(super) fn instrument_item(
         .unwrap_or(1);
     instrument_group(InstrumentMenuConfig {
         index,
-        label: instrument_overview_label(label, kind, route, midi_channel),
+        label: instrument_item_label(config, index, label),
         name: config
             .instrument_names
             .get(index)
@@ -311,12 +311,26 @@ pub(super) fn instrument_item(
     })
 }
 
-fn instrument_overview_label(
+pub(super) fn instrument_item_label(
+    config: &NativeMenuConfig,
+    index: usize,
     base_label: &str,
-    kind: &str,
-    route: &str,
-    midi_channel: u8,
 ) -> String {
+    let kind = config
+        .instrument_types
+        .get(index)
+        .map(String::as_str)
+        .unwrap_or("synth");
+    let route = config
+        .instrument_routes
+        .get(index)
+        .map(String::as_str)
+        .unwrap_or("direct");
+    let midi_channel = config
+        .instrument_midi_channels
+        .get(index)
+        .copied()
+        .unwrap_or(1);
     let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
     let route = compact_route_postfix(route);
     match kind {

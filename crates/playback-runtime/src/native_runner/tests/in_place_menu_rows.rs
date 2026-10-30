@@ -1,12 +1,51 @@
 use super::audio_restart_persistence::{enter_edit, press, turn};
 use super::*;
-use crate::native_menu::NativeMenuModel;
+use crate::native_menu::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
 
 pub(super) fn assert_matches_fresh_build(runner: &NativeRunner, rebuilds: usize) {
     assert_eq!(runner.menu.rebuild_count, rebuilds);
     assert_eq!(
-        runner.menu.root,
+        without_text_cursors(runner.menu.root.clone()),
         NativeMenuModel::new(runner.menu_config()).root
+    );
+    assert_focus_on_open_page(&runner.menu);
+}
+
+/// A text row's cursor is edit state; a fresh build starts it at 0.
+fn without_text_cursors(mut item: NativeMenuItem) -> NativeMenuItem {
+    if let NativeMenuValue::Text { cursor, .. } = &mut item.value {
+        *cursor = 0;
+    }
+    item.children = item
+        .children
+        .into_iter()
+        .map(without_text_cursors)
+        .collect();
+    item
+}
+
+fn assert_focus_on_open_page(menu: &NativeMenuModel) {
+    let state = &menu.state;
+    let mut page = &menu.root;
+    for index in &state.stack {
+        page = page
+            .children
+            .get(*index)
+            .filter(|next| !next.children.is_empty())
+            .unwrap_or_else(|| panic!("menu stack {:?} leaves the open pages", state.stack));
+    }
+    let focused = page
+        .children
+        .get(state.cursor)
+        .unwrap_or_else(|| panic!("menu cursor {} is past its page", state.cursor));
+    assert!(
+        !state.editing
+            || !matches!(
+                focused.value,
+                NativeMenuValue::Group | NativeMenuValue::Action(_)
+            ),
+        "editing {}",
+        focused.label
     );
 }
 
