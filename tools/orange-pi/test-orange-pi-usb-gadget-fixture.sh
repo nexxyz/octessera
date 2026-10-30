@@ -86,10 +86,10 @@ if [ "$#" -eq 3 ] && [ "$1" = -s ] && [ "$2" = - ] && \
     if [ "${FAKE_MIDI_SHORT_READBACK:-0}" = 1 ]; then
         : > "$3"
     elif [ "${FAKE_MIDI_MODIFIED_READBACK:-0}" = 1 ]; then
-        printf '%s' 'Octessera MIDZ' > "$3"
+        printf '%s' 'Octessera (Orange 1a2Z)' > "$3"
     elif [ "${FAKE_MIDI_POST_BIND_MISMATCH:-0}" = 1 ] && \
         [ -n "$(cat "${FAKE_GADGET:?}/UDC" 2>/dev/null || true)" ]; then
-        printf '%s' 'Octessera MIDZ' > "$3"
+        printf '%s' 'Octessera (Orange 1a2Z)' > "$3"
         if [ "${FAKE_ROLLBACK_UNBIND_FAILURE:-0}" = 1 ]; then
             chmod a-w "${FAKE_UDC_FUNCTION:?}"
         fi
@@ -171,8 +171,8 @@ assert_file_value() {
 }
 assert_midi_interface() {
     file=$1
-    test "$(wc -c < "$file" | tr -d '[:space:]')" -eq 14
-    printf '%s' 'Octessera MIDI' | cmp -s - "$file"
+    test "$(wc -c < "$file" | tr -d '[:space:]')" -eq 23
+    printf '%s' 'Octessera (Orange 1a2f)' | cmp -s - "$file"
 }
 assert_unbound() {
     root=$1
@@ -183,6 +183,8 @@ new_fake_configfs() {
     root=$1
     mkdir -p "$root/config/usb_gadget" "$root/udc/musb-hdrc.4.auto"
     : > "$root/udc/musb-hdrc.4.auto/function"
+    mkdir -p "$root/net/wlan0"
+    printf '%s\n' '02:00:5E:10:1A:2F' > "$root/net/wlan0/address"
 }
 run_setup_command() {
     root=$1
@@ -193,7 +195,8 @@ run_setup_command() {
         FAKE_UDC_FUNCTION="$root/udc/musb-hdrc.4.auto/function" \
         FAKE_MIDI="$root/config/usb_gadget/octessera-orange-pi/functions/midi.usb0" \
         FAKE_UAC2="$root/config/usb_gadget/octessera-orange-pi/functions/uac2.usb0" \
-        FAKE_BIND_ORDER=1 OCTESSERA_DEVICE_CONFIG_VALIDATOR="$SCRIPT_DIR/../pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" PATH="$FAKE_BIN:$PATH" "$@" sh "$SCRIPT" setup \
+        FAKE_BIND_ORDER=1 OCTESSERA_USB_NET_ROOT="$root/net" OCTESSERA_USB_MACHINE_ID="$root/machine-id" \
+        OCTESSERA_DEVICE_CONFIG_VALIDATOR="$SCRIPT_DIR/../pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" PATH="$FAKE_BIN:$PATH" "$@" sh "$SCRIPT" setup \
         --configfs-root "$root/config" --udc-root "$root/udc" \
         --lock-file "$root/lifecycle.lock" --config "$config"
 }
@@ -204,7 +207,8 @@ run_setup_default() {
         FAKE_UDC_FUNCTION="$root/udc/musb-hdrc.4.auto/function" \
         FAKE_MIDI="$root/config/usb_gadget/octessera-orange-pi/functions/midi.usb0" \
         FAKE_UAC2="$root/config/usb_gadget/octessera-orange-pi/functions/uac2.usb0" \
-        FAKE_BIND_ORDER=1 OCTESSERA_DEVICE_CONFIG_VALIDATOR="$SCRIPT_DIR/../pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" PATH="$FAKE_BIN:$PATH" sh "$SCRIPT" setup \
+        FAKE_BIND_ORDER=1 OCTESSERA_USB_NET_ROOT="$root/net" OCTESSERA_USB_MACHINE_ID="$root/machine-id" \
+        OCTESSERA_DEVICE_CONFIG_VALIDATOR="$SCRIPT_DIR/../pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" PATH="$FAKE_BIN:$PATH" sh "$SCRIPT" setup \
         --configfs-root "$root/config" --udc-root "$root/udc" \
         --lock-file "$root/lifecycle.lock" --config "$TEST_ROOT/config-combined.json"
 }

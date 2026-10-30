@@ -223,8 +223,12 @@ gadget until you enable USB Audio or USB MIDI. Setup and teardown share
 `/run/lock/octessera-orange-usb-gadget.lock`. `--lock-file`, `--configfs-root`,
 and `--udc-root` are available for isolated fake-ConfigFS tests.
 
-The product strings are `Octessera MIDI`, `Octessera Line In`, and
-`Octessera Audio + MIDI` for `midi`, `uac2`, and `combined`. MIDI and combined
-require a writable ConfigFS `interface_string`. The MIDI interface descriptor
-and Windows `DEVPKEY_Device_BusReportedDeviceDesc` are `Octessera MIDI`; the
-composer writes and verifies the 14-byte value before binding the UDC.
+In every mode the product, configuration, UAC2 function, MIDI interface
+descriptor, and Windows `DEVPKEY_Device_BusReportedDeviceDesc` are
+`Octessera (Orange <suffix>)`, with the same `wlan0` MAC suffix as the
+`Octessera Setup <suffix>` hotspot (fallback: the last four hex digits of
+`/etc/machine-id`, then `0000`). MIDI and combined require a writable ConfigFS
+`interface_string`; the composer writes and verifies it before binding the UDC.
+The board-local f_midi `id` (ALSA card id) stays `Octessera MIDI`.
+`OCTESSERA_USB_NET_ROOT` and `OCTESSERA_USB_MACHINE_ID` override the suffix
+sources for fake-ConfigFS tests.

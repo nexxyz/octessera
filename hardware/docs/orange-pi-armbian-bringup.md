@@ -152,11 +152,12 @@ Run the fake-configfs contract check first:
 bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
 
-For host checks, inspect `lsusb -v`, the UAC2 endpoint `Octessera Audio`, the
-combined composite product `Octessera Audio + MIDI`, and Windows
+For host checks, inspect `lsusb -v` and Windows
 `DEVPKEY_Device_BusReportedDeviceDesc`. The setup gate is writable ConfigFS
-`interface_string`; the actual MIDI interface descriptor, bus-reported value,
-and MIDI Services endpoints must equal `Octessera MIDI`. Verify high-speed
+`interface_string`; the product, UAC2 function, MIDI interface descriptor,
+bus-reported value, and MIDI Services endpoints must all equal
+`Octessera (Orange <suffix>)`, where `<suffix>` matches the
+`Octessera Setup <suffix>` hotspot. Verify high-speed
 combined UAC2+MIDI, 44.1 kHz stereo capture of a board-generated 1 kHz tone on
 both channels, and exact MIDI traffic in both directions. See the [Orange
 production reference](orange-pi-production-reference.md#usb-identity-boundary)

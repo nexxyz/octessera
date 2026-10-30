@@ -12,11 +12,12 @@ gadget=$root/config/usb_gadget/octessera
 test -L "$gadget/configs/c.1/midi.usb0"
 test ! -e "$gadget/functions/uac2.usb0"
 test -f "$gadget/functions/midi.usb0/interface_string"
-assert_file_value 'Octessera MIDI' "$gadget/strings/0x409/product"
+assert_file_value 'Octessera (Raspberry 1a2f)' "$gadget/strings/0x409/product"
+assert_file_value 'Octessera (Raspberry 1a2f)' "$gadget/configs/c.1/strings/0x409/configuration"
 assert_file_value 'Octessera MIDI' "$gadget/functions/midi.usb0/id"
-assert_file_value 'Octessera MIDI' "$gadget/functions/midi.usb0/function_name"
+assert_file_value 'Octessera (Raspberry 1a2f)' "$gadget/functions/midi.usb0/function_name"
 expected=$root/expected-interface-string
-printf '%s' 'Octessera MIDI' > "$expected"
+printf '%s' 'Octessera (Raspberry 1a2f)' > "$expected"
 cmp -s "$expected" "$gadget/functions/midi.usb0/interface_string"
 assert_file_value fake-udc "$gadget/UDC"
 run_teardown "$root" > "$root/teardown.log"
@@ -28,10 +29,10 @@ observed=$root/underlying-interface-write
 run_setup "$root" "$MIDI_CONFIG" FAKE_READBACK_MODE=lf FAKE_READBACK_OBSERVED="$observed" > "$root/setup.log"
 gadget=$root/config/usb_gadget/octessera
 expected=$root/expected-interface-string-lf
-printf '%s\n' 'Octessera MIDI' > "$expected"
+printf '%s\n' 'Octessera (Raspberry 1a2f)' > "$expected"
 cmp -s "$expected" "$gadget/functions/midi.usb0/interface_string"
 expected=$root/expected-underlying-interface-write
-printf '%s' 'Octessera MIDI' > "$expected"
+printf '%s' 'Octessera (Raspberry 1a2f)' > "$expected"
 cmp -s "$expected" "$observed"
 run_teardown "$root" > "$root/teardown.log"
 test ! -e "$gadget"
@@ -42,10 +43,25 @@ run_setup "$root" "$COMBINED_CONFIG" > "$root/setup.log"
 gadget=$root/config/usb_gadget/octessera
 test -L "$gadget/configs/c.1/midi.usb0"
 test -L "$gadget/configs/c.1/uac2.usb0"
-assert_file_value 'Octessera Audio + MIDI' "$gadget/strings/0x409/product"
+assert_file_value 'Octessera (Raspberry 1a2f)' "$gadget/strings/0x409/product"
+assert_file_value 'Octessera (Raspberry 1a2f)' "$gadget/functions/uac2.usb0/function_name"
 assert_file_value 3 "$gadget/functions/uac2.usb0/p_chmask"
 assert_file_value 2 "$gadget/functions/uac2.usb0/p_ssize"
 assert_file_value 44100 "$gadget/functions/uac2.usb0/p_srate"
+run_teardown "$root" > "$root/teardown.log"
+test ! -e "$gadget"
+
+root=$TEST_ROOT/machine-id-suffix
+new_fake_configfs "$root"
+rm "$root/net/wlan0/address"
+printf '%s\n' 0123456789abcdef0123456789abbeef > "$root/machine-id"
+run_setup "$root" "$MIDI_CONFIG" > "$root/setup.log"
+gadget=$root/config/usb_gadget/octessera
+assert_file_value 'Octessera (Raspberry beef)' "$gadget/strings/0x409/product"
+run_teardown "$root" > "$root/teardown.log"
+rm "$root/machine-id"
+run_setup "$root" "$MIDI_CONFIG" > "$root/setup.log"
+assert_file_value 'Octessera (Raspberry 0000)' "$gadget/strings/0x409/product"
 run_teardown "$root" > "$root/teardown.log"
 test ! -e "$gadget"
 

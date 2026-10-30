@@ -133,14 +133,14 @@ if [ "$#" -eq 3 ] && [ "$1" = -s ] && [ "$2" = - ] && [ "$3" = "$FAKE_MIDI/inter
         cp "$3" "$FAKE_READBACK_OBSERVED"
     fi
     case "${FAKE_READBACK_MODE:-}" in
-        short) printf '%s' 'Octessera MID' > "$3" ;;
-        modified) printf '%s' 'Octessera MIDX' > "$3" ;;
-        lf) printf '%s\n' 'Octessera MIDI' > "$3" ;;
-        crlf) printf '%s\r\n' 'Octessera MIDI' > "$3" ;;
-        internal) printf '%s\n%s' 'Octessera' 'MIDI' > "$3" ;;
-        two-lf) printf '%s\n\n' 'Octessera MIDI' > "$3" ;;
-        spaces) printf '%s ' 'Octessera MIDI' > "$3" ;;
-        long) printf '%sX' 'Octessera MIDI' > "$3" ;;
+        short) printf '%s' 'Octessera (Raspberry 1a2' > "$3" ;;
+        modified) printf '%s' 'Octessera (Raspberry 1a2X)' > "$3" ;;
+        lf) printf '%s\n' 'Octessera (Raspberry 1a2f)' > "$3" ;;
+        crlf) printf '%s\r\n' 'Octessera (Raspberry 1a2f)' > "$3" ;;
+        internal) printf '%s\n%s' 'Octessera' '(Raspberry 1a2f)' > "$3" ;;
+        two-lf) printf '%s\n\n' 'Octessera (Raspberry 1a2f)' > "$3" ;;
+        spaces) printf '%s ' 'Octessera (Raspberry 1a2f)' > "$3" ;;
+        long) printf '%sX' 'Octessera (Raspberry 1a2f)' > "$3" ;;
         fail) exit 1 ;;
     esac
 fi
@@ -265,6 +265,8 @@ assert_file_value() {
 new_fake_configfs() {
     root=$1
     mkdir -p "$root/config/usb_gadget" "$root/udc" "$root/udc-target"; ln -s ../udc-target "$root/udc/fake-udc"
+    mkdir -p "$root/net/wlan0"
+    printf '%s\n' 'DC:A6:32:12:1A:2F' > "$root/net/wlan0/address"
 }
 
 run_action() {
@@ -293,6 +295,8 @@ run_action() {
         "OCTESSERA_USB_SD_MOUNT=$root/sd-card" \
         "OCTESSERA_USB_STORAGE_STATE=$root/storage.state" \
         "OCTESSERA_USB_LIFECYCLE_LOCK=$root/lifecycle.lock" \
+        "OCTESSERA_USB_NET_ROOT=$root/net" \
+        "OCTESSERA_USB_MACHINE_ID=$root/machine-id" \
         "PATH=$FAKE_BIN:$PATH" \
         sh "$SCRIPT" "$action"
 }

@@ -9,6 +9,8 @@ REQUIRED_UDC=musb-hdrc.4.auto
 LOCK_FILE=/run/lock/octessera-orange-usb-gadget.lock
 CONFIG=/var/lib/octessera/presets/system.json
 DEVICE_CONFIG_VALIDATOR=${OCTESSERA_DEVICE_CONFIG_VALIDATOR:-/usr/local/lib/octessera/device_config.py}
+NET_ROOT=${OCTESSERA_USB_NET_ROOT:-/sys/class/net}
+MACHINE_ID=${OCTESSERA_USB_MACHINE_ID:-/etc/machine-id}
 ACTION=
 MODE=
 UDC=$REQUIRED_UDC
@@ -184,8 +186,8 @@ write_optional_attribute() {
 verify_midi_interface_string() {
     path=$1
     size=$(wc -c < "$path" | tr -d '[:space:]')
-    [ "$size" = 14 ] || die "MIDI interface_string size mismatch: $path"
-    if ! printf '%s' 'Octessera MIDI' | cmp -s - "$path"; then
+    [ "$size" = "${#DEVICE_NAME}" ] || die "MIDI interface_string size mismatch: $path"
+    if ! printf '%s' "$DEVICE_NAME" | cmp -s - "$path"; then
         die "MIDI interface_string readback mismatch: $path"
     fi
 }
@@ -193,34 +195,23 @@ verify_midi_interface_string() {
 write_midi_interface_string() {
     path=$1
     [ -e "$path" ] || die "required MIDI interface_string attribute is missing: $path"
-    if ! printf '%s' 'Octessera MIDI' > "$path"; then
+    if ! printf '%s' "$DEVICE_NAME" > "$path"; then
         die "could not write MIDI interface_string: $path"
     fi
     verify_midi_interface_string "$path"
 }
 
-product_name() {
-    case "$MODE" in
-        combined)
-            printf 'Octessera Audio + MIDI\n'
-            ;;
-        midi)
-            printf 'Octessera MIDI\n'
-            ;;
-        uac2)
-            printf 'Octessera Line In\n'
-            ;;
-        *)
-            die "unsupported mode: $MODE"
-            ;;
-    esac
-}
-
-configuration_name() {
-    case "$MODE" in
-        none) printf 'Octessera USB disabled\n' ;;
-        *) printf 'Octessera Orange Pi %s\n' "$MODE" ;;
-    esac
+board_suffix() {
+    address=
+    [ ! -r "$NET_ROOT/wlan0/address" ] || address=$(tr 'A-F' 'a-f' < "$NET_ROOT/wlan0/address")
+    if printf '%s\n' "$address" | grep -Eqx '([0-9a-f]{2}:){5}[0-9a-f]{2}'; then
+        hex=$(printf '%s' "$address" | tr -d ':')
+    else
+        hex=
+        [ ! -r "$MACHINE_ID" ] || hex=$(tr -d '\n' < "$MACHINE_ID")
+        printf '%s\n' "$hex" | grep -Eqx '[0-9a-f]{32}' || hex=0000
+    fi
+    printf '%s\n' "${hex#"${hex%????}"}"
 }
 
 with_lifecycle_lock() {
@@ -308,14 +299,14 @@ rollback_setup() {
 create_midi_function() {
     mkdir "$GADGET/functions/midi.usb0"
     write_optional_attribute "$GADGET/functions/midi.usb0/id" "Octessera MIDI"
-    write_optional_attribute "$GADGET/functions/midi.usb0/function_name" "Octessera MIDI"
+    write_optional_attribute "$GADGET/functions/midi.usb0/function_name" "$DEVICE_NAME"
     write_midi_interface_string "$GADGET/functions/midi.usb0/interface_string"
     ln -s "$GADGET/functions/midi.usb0" "$GADGET/configs/c.1/midi.usb0"
 }
 
 create_uac2_function() {
     mkdir "$GADGET/functions/uac2.usb0"
-    write_optional_attribute "$GADGET/functions/uac2.usb0/function_name" "Octessera Audio"
+    write_optional_attribute "$GADGET/functions/uac2.usb0/function_name" "$DEVICE_NAME"
     write_attribute "$GADGET/functions/uac2.usb0/p_chmask" 3
     write_attribute "$GADGET/functions/uac2.usb0/p_ssize" 2
     write_attribute "$GADGET/functions/uac2.usb0/p_srate" 44100
@@ -341,6 +332,7 @@ setup_gadget_unlocked() {
     require_udc
     refuse_existing_gadgets
     refuse_prebound_udc
+    DEVICE_NAME="Octessera (Orange $(board_suffix))"
 
     mkdir "$GADGET"
     trap 'rollback_setup "$?"' EXIT
@@ -352,10 +344,10 @@ setup_gadget_unlocked() {
     write_attribute "$GADGET/bcdUSB" 0x0200
     write_attribute "$GADGET/bcdDevice" 0x0100
     write_attribute "$GADGET/strings/0x409/manufacturer" Octessera
-    product_name > "$GADGET/strings/0x409/product"
+    write_attribute "$GADGET/strings/0x409/product" "$DEVICE_NAME"
     write_attribute "$GADGET/strings/0x409/serialnumber" octessera-orange-pi
     write_attribute "$GADGET/configs/c.1/MaxPower" 250
-    configuration_name > "$GADGET/configs/c.1/strings/0x409/configuration"
+    write_attribute "$GADGET/configs/c.1/strings/0x409/configuration" "$DEVICE_NAME"
 
     case "$MODE" in
         midi)

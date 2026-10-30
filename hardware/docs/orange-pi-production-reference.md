@@ -252,8 +252,14 @@ cat /sys/class/udc/musb-hdrc.4.auto/function
 ls /sys/kernel/config/usb_gadget/octessera-orange-pi/functions
 ```
 
-Its product strings are `Octessera Audio + MIDI` for `combined`,
-`Octessera MIDI` for `midi`, and `Octessera Line In` for `uac2`. Setup and
+Every host-visible name is `Octessera (Orange <suffix>)` in all three modes:
+the product string, configuration string, UAC2 `function_name`, and MIDI
+`interface_string`. `<suffix>` is the same last four lowercase hex digits of
+the `wlan0` MAC that the `Octessera Setup <suffix>` hotspot uses, so the
+computer and the OLED name the same board. Without a valid `wlan0` MAC the
+suffix falls back to the last four hex digits of `/etc/machine-id`, then to
+`0000`. The board-local f_midi `id`, which becomes the ALSA card id, stays
+`Octessera MIDI`, and the serial number stays `octessera-orange-pi`. Setup and
 teardown share one exclusive lifecycle lock; a concurrent operation fails before
 changing the gadget.
 
@@ -264,8 +270,7 @@ bash ./tools/orange-pi/test-orange-pi-usb-gadget.sh
 ```
 
 MIDI and combined modes require the patched production kernel's writable
-`interface_string`. The composer writes exactly 14 bytes of `Octessera MIDI`
-without a trailing LF, verifies byte-for-byte readback, and only then creates
+`interface_string`. The composer writes the board name without a trailing LF, verifies byte-for-byte readback, and only then creates
 the MIDI link and binds the UDC. Missing, write, readback, and bind failures
 roll back the partial gadget. The Linux Foundation VID/PID values are
 local-validation values and defaults remain disabled. The legacy Windows MEDIA

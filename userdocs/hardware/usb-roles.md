@@ -76,6 +76,19 @@ the active MIDI route. Any MIDI Host output you chose is remembered for when you
 turn USB Device MIDI off; **Disconnect** forgets that remembered choice but does
 not switch USB Device MIDI off.
 
+## What your computer calls it
+
+Each instrument introduces itself by name, so two of them on one computer don't
+blur into one: `Octessera (Raspberry 1a2f)` or `Octessera (Orange 1a2f)`. That
+name is used for the USB device, its audio, and its MIDI port in your DAW. The
+four characters at the end are the same ones the
+[setup hotspot](setup-portal.md) shows as `Octessera Setup 1a2f`, so you
+can check the OLED and know which box you're talking to. (On a board with no
+working Wi-Fi chip they come from the system ID instead, and still stay put.)
+
+If your computer met the instrument under an older name, it may keep showing
+that one until you remove the old device entry and plug it back in.
+
 ## Plugging and unplugging
 
 Plug and unplug MIDI gear and computers whenever you like, before boot or in
