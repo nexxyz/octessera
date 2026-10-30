@@ -144,16 +144,15 @@ fn draw_transport_shape(
 ) {
     match icon {
         OledTransportIcon::Play => {
-            fill_rect(frame, x, y, 2, 9, color);
-            fill_rect(frame, x + 2, y + 1, 2, 7, color);
-            fill_rect(frame, x + 4, y + 2, 2, 5, color);
-            fill_rect(frame, x + 6, y + 3, 2, 3, color);
-            fill_rect(frame, x + 8, y + 4, 1, 1, color);
+            fill_rect(frame, x, y, 2, 7, color);
+            fill_rect(frame, x + 2, y + 1, 1, 5, color);
+            fill_rect(frame, x + 3, y + 2, 1, 3, color);
+            fill_rect(frame, x + 4, y + 3, 1, 1, color);
         }
         OledTransportIcon::Pause => {
-            fill_rect(frame, x, y, 3, 8, color);
-            fill_rect(frame, x + 6, y, 3, 8, color);
+            fill_rect(frame, x, y, 3, 7, color);
+            fill_rect(frame, x + 4, y, 3, 7, color);
         }
-        _ => fill_rect(frame, x, y, 8, 8, color),
+        _ => fill_rect(frame, x, y, 7, 7, color),
     }
 }
