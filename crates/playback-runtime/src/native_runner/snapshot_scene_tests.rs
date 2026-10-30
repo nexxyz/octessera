@@ -111,7 +111,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     assert_eq!(
         initial["display"]["lines"],
         json!([
-            "> Build >",
+            "  Build >",
             "  Link >",
             "  Shape >",
             "  Play >",
@@ -172,7 +172,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
         .unwrap();
     let build = converted_scene(&runner, false);
     assert_eq!(build["display"]["title"], "/Build");
-    assert_eq!(build["display"]["lines"][0], "> L1: life >");
+    assert_eq!(build["display"]["lines"][0], "  L1: life >");
     assert_eq!(build["selectedRow"], 0);
 
     assert!(runner.menu.focus_item_key("system.controlsHelp"));

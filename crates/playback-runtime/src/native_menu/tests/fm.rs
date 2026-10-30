@@ -19,7 +19,7 @@ fn fm_type_and_seven_group_rows_use_standard_navigation() {
         matches!(&menu.current_item().value, NativeMenuValue::Enum { options, selected }
         if options == &["none", "synth", "sampler", "midi", "fm", "pluck", "drum"] && options[*selected] == "fm")
     );
-    assert!(menu.snapshot().lines.iter().any(|line| line == "> Type FM"));
+    assert!(menu.snapshot().lines.iter().any(|line| line == "  Type FM"));
     let slot = &menu.root.children[2].children[0].children[0];
     assert_eq!(slot.label, "I1: FM direct");
     assert_eq!(
@@ -81,7 +81,7 @@ fn fm_type_and_seven_group_rows_use_standard_navigation() {
         .snapshot()
         .lines
         .iter()
-        .any(|line| line == "> Ratio 2:1"));
+        .any(|line| line == "  Ratio 2:1"));
     let _ = menu.press();
     menu.turn(1);
     assert_eq!(
@@ -119,7 +119,7 @@ fn fm_picker_exposes_only_selected_continuous_controls() {
         .snapshot()
         .lines
         .iter()
-        .any(|line| line == ">!FM Index"));
+        .any(|line| line == " !FM Index"));
     let picker = menu.item_for_key("aux:0:turn").expect("Aux binding picker");
     let shape = picker
         .children
@@ -202,31 +202,31 @@ fn fm_fine_cents_display_signed_values_and_back_returns_to_tone_row() {
     let key = "instruments.0.fm.ratioFineCents";
     assert!(menu.focus_item_key(key));
     let selected_row = menu.snapshot().selected_row.unwrap();
-    assert_eq!(menu.snapshot().lines[selected_row], "> Fine cents +0c");
+    assert_eq!(menu.snapshot().lines[selected_row], "  Fine cents +0c");
 
     let _ = menu.press();
     menu.turn(25);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "> Fine cents:");
+    assert_eq!(snapshot.lines[selected_row], "  Fine cents:");
     assert_eq!(snapshot.lines[selected_row + 1], "    * +25c");
 
     menu.turn(-50);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "> Fine cents:");
+    assert_eq!(snapshot.lines[selected_row], "  Fine cents:");
     assert_eq!(snapshot.lines[selected_row + 1], "    * -25c");
 
     menu.turn(25);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "> Fine cents:");
+    assert_eq!(snapshot.lines[selected_row], "  Fine cents:");
     assert_eq!(snapshot.lines[selected_row + 1], "    * +0c");
 
     menu.back();
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "> Fine cents +0c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine cents +0c");
 
     menu.back();
     assert_eq!(menu.current_label(), Some("Tone"));

@@ -130,7 +130,11 @@ fn source_delete_failure_keeps_both_presets_and_reports_partial_cleanup() {
         .as_str()
         .unwrap()
         .to_string();
-    assert!(toast.contains("Target") && toast.contains("clean"));
+    let shown = toast.strip_suffix("..").unwrap_or(&toast);
+    assert!(
+        shown.contains("Target") && "Saved Target; cleanup failed".contains(shown),
+        "{toast}"
+    );
     assert_eq!(
         crate::platform_service::load_json(
             &crate::platform_service::preset_patch_path(&store, "Target").unwrap()

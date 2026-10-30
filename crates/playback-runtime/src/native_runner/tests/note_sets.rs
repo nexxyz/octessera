@@ -70,7 +70,7 @@ pub(crate) fn host_device_input_navigates_and_selects_every_note_set() {
             .filter_map(Value::as_str)
             .find(|line| line.contains(note_set.label))
             .unwrap();
-        assert!(leaf_row.starts_with(">!"));
+        assert!(leaf_row.starts_with(" !"));
         assert!(leaf_row.chars().count() <= 19);
         assert!(!leaf_row.contains("..."));
         for line in leaf_snapshot["display"]["lines"].as_array().unwrap() {
@@ -98,7 +98,7 @@ pub(crate) fn host_device_input_navigates_and_selects_every_note_set() {
             .filter_map(Value::as_str)
             .find(|line| line.contains("Set:"))
             .unwrap();
-        assert_eq!(parent, &format!("> Set: {} >", note_set.compact_label));
+        assert_eq!(parent, &format!("  Set: {} >", note_set.compact_label));
         assert!(parent.chars().count() <= 19);
         assert!(!parent.contains("..."));
     }
@@ -161,9 +161,9 @@ pub(crate) fn note_set_parent_selected_and_unselected_rows_are_exact() {
     let selected = runner.menu.snapshot().lines;
     let selected = selected
         .iter()
-        .find(|line| line.starts_with("> Set:"))
+        .find(|line| line.starts_with("  Set:"))
         .unwrap();
-    assert_eq!(selected, "> Set: Maj Pent >");
+    assert_eq!(selected, "  Set: Maj Pent >");
     assert!(selected.chars().count() <= 19);
     assert!(!selected.contains("..."));
 

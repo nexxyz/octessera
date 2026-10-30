@@ -109,10 +109,11 @@ impl Replay {
 
     fn select(&mut self, label: &str) {
         for _ in 0..64 {
-            if self
-                .lines()
-                .iter()
-                .any(|line| line.starts_with('>') && line.contains(label))
+            let snapshot = self.playback.last_snapshot().unwrap();
+            if snapshot["selectedRow"]
+                .as_u64()
+                .and_then(|row| snapshot["display"]["lines"][row as usize].as_str())
+                .is_some_and(|line| line.contains(label))
             {
                 return;
             }

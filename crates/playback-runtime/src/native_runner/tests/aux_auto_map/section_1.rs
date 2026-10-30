@@ -81,7 +81,7 @@ pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().unwrap_or("").starts_with("> 1-Cutoff")));
+        .any(|line| line.as_str().unwrap_or("").starts_with("1-Cutoff")));
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()
@@ -119,7 +119,7 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> 1!Assign"));
+        .any(|line| line.as_str().unwrap_or("") == "1!Assign"));
 
     let _ = runner
         .send(HostMessage::DeviceInput {

@@ -6,6 +6,7 @@ pub(in crate::native_menu) fn group(
 ) -> NativeMenuItem {
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: None,
         value: NativeMenuValue::Group,
         children,
@@ -19,6 +20,7 @@ pub(in crate::native_menu) fn keyed_group(
 ) -> NativeMenuItem {
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: Some(key.into()),
         value: NativeMenuValue::Group,
         children,
@@ -33,6 +35,7 @@ pub(in crate::native_menu) fn enum_item(
 ) -> NativeMenuItem {
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: Some(key.into()),
         value: NativeMenuValue::Enum {
             options: options.into_iter().map(String::from).collect(),
@@ -53,6 +56,7 @@ pub(in crate::native_menu) fn number_item(
     let key = key.into();
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: Some(key.clone()),
         value: NativeMenuValue::Number {
             value,
@@ -72,6 +76,7 @@ pub(in crate::native_menu) fn bool_item(
 ) -> NativeMenuItem {
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: Some(key.into()),
         value: NativeMenuValue::Bool { value },
         children: vec![],
@@ -86,6 +91,7 @@ pub(in crate::native_menu) fn text_item(
 ) -> NativeMenuItem {
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: Some(key.into()),
         value: NativeMenuValue::Text {
             value: value.into(),
@@ -103,6 +109,7 @@ pub(in crate::native_menu) fn action_item(
 ) -> NativeMenuItem {
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: Some(key.into()),
         value: NativeMenuValue::Action(action),
         children: vec![],
@@ -132,6 +139,7 @@ pub(in crate::native_menu) fn enum_item_from_strings(
 ) -> NativeMenuItem {
     NativeMenuItem {
         label: label.into(),
+        breadcrumb: None,
         key: Some(key.into()),
         value: NativeMenuValue::Enum { options, selected },
         children: vec![],

@@ -73,9 +73,8 @@ impl<'a> VisibleMenuDriver<'a> {
     pub(super) fn expect_visible_value(&mut self, label: &str, value: &str) {
         self.select_visible(label);
         if !self
-            .lines()
-            .iter()
-            .any(|line| line.starts_with('>') && contains_label(line, value))
+            .selected_line()
+            .is_some_and(|line| contains_label(&line, value))
         {
             self.device
                 .fail(&format!("expected `{label}` row to show `{value}`"));
@@ -193,21 +192,20 @@ impl<'a> VisibleMenuDriver<'a> {
 
     fn selected_line_contains(&self, label: &str) -> bool {
         let lines = self.lines();
-        lines.iter().enumerate().any(|(index, line)| {
-            line.starts_with('>')
-                && (contains_label(&clean_line(line), label)
-                    || (is_link_instrument_detail(line)
-                        && index > 0
-                        && lines[index - 1]
-                            .trim()
-                            .eq_ignore_ascii_case(&format!("{label}:"))))
+        self.selected_index().is_some_and(|index| {
+            let line = &lines[index];
+            contains_label(&clean_line(line), label)
+                || (is_link_instrument_detail(line)
+                    && index > 0
+                    && lines[index - 1]
+                        .trim()
+                        .eq_ignore_ascii_case(&format!("{label}:")))
         })
     }
 
     fn selected_line_matches_exact(&self, label: &str) -> bool {
-        self.lines()
-            .iter()
-            .any(|line| line.starts_with('>') && row_label(line) == label)
+        self.selected_line()
+            .is_some_and(|line| row_label(&line) == label)
     }
 
     fn any_line_contains(&self, label: &str) -> bool {
@@ -218,7 +216,7 @@ impl<'a> VisibleMenuDriver<'a> {
 
     fn direction_toward(&self, label: &str) -> Option<i32> {
         let lines = self.lines();
-        let selected = lines.iter().position(|line| line.starts_with('>'));
+        let selected = self.selected_index();
         let target = lines
             .iter()
             .position(|line| contains_label(&clean_line(line), label));
@@ -231,13 +229,23 @@ impl<'a> VisibleMenuDriver<'a> {
 
     fn direction_toward_exact(&self, label: &str) -> Option<i32> {
         let lines = self.lines();
-        let selected = lines.iter().position(|line| line.starts_with('>'));
+        let selected = self.selected_index();
         let target = lines.iter().position(|line| row_label(line) == label);
         match (selected, target) {
             (Some(selected), Some(target)) if target < selected => Some(-1),
             (Some(_), Some(_)) => Some(1),
             _ => None,
         }
+    }
+
+    fn selected_index(&self) -> Option<usize> {
+        let index = self.device.snapshot()["selectedRow"].as_u64()? as usize;
+        (index < self.lines().len()).then_some(index)
+    }
+
+    fn selected_line(&self) -> Option<String> {
+        self.selected_index()
+            .map(|index| self.lines()[index].clone())
     }
 
     fn lines(&self) -> Vec<String> {
@@ -251,7 +259,7 @@ impl<'a> VisibleMenuDriver<'a> {
 }
 
 fn clean_line(line: &str) -> String {
-    line.trim_start_matches(['>', ' ', '!']).trim().to_string()
+    line.trim_start_matches([' ', '!']).trim().to_string()
 }
 
 fn row_label(line: &str) -> String {
@@ -265,9 +273,7 @@ fn contains_label(line: &str, label: &str) -> bool {
 }
 
 fn is_link_instrument_detail(line: &str) -> bool {
-    let Some(detail) = line.strip_prefix('>').map(str::trim) else {
-        return false;
-    };
+    let detail = line.trim();
     detail.eq_ignore_ascii_case("none")
         || detail
             .strip_prefix('I')

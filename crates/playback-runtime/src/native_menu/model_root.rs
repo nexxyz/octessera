@@ -16,6 +16,7 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
     };
     NativeMenuItem {
         label: "Menu".into(),
+        breadcrumb: None,
         key: None,
         value: NativeMenuValue::Group,
         children: vec![
@@ -25,6 +26,7 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
             play_group(&config),
             NativeMenuItem {
                 label: "".into(),
+                breadcrumb: None,
                 key: None,
                 value: NativeMenuValue::Group,
                 children: vec![],
@@ -37,6 +39,7 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
 fn build_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
         label: BUILD_LABEL.into(),
+        breadcrumb: None,
         key: None,
         value: NativeMenuValue::Group,
         children: config
@@ -45,6 +48,7 @@ fn build_group(config: &NativeMenuConfig) -> NativeMenuItem {
             .enumerate()
             .map(|(index, label)| NativeMenuItem {
                 label: label.clone(),
+                breadcrumb: None,
                 key: None,
                 value: NativeMenuValue::Group,
                 children: config
@@ -69,6 +73,7 @@ fn link_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let instrument_options = config.instrument_labels.to_vec();
     NativeMenuItem {
         label: LINK_LABEL.into(),
+        breadcrumb: None,
         key: None,
         value: NativeMenuValue::Group,
         children: [
@@ -106,11 +111,13 @@ fn link_group(config: &NativeMenuConfig) -> NativeMenuItem {
 fn shape_group(config: &NativeMenuConfig) -> NativeMenuItem {
     NativeMenuItem {
         label: SHAPE_LABEL.into(),
+        breadcrumb: None,
         key: None,
         value: NativeMenuValue::Group,
         children: vec![
             NativeMenuItem {
                 label: "Instruments".into(),
+                breadcrumb: None,
                 key: None,
                 value: NativeMenuValue::Group,
                 children: config
@@ -155,7 +162,7 @@ pub(super) fn instrument_item(
         .get(index)
         .copied()
         .unwrap_or(1);
-    instrument_group(InstrumentMenuConfig {
+    let mut item = instrument_group(InstrumentMenuConfig {
         index,
         label: instrument_item_label(config, index, label),
         name: config
@@ -308,7 +315,9 @@ pub(super) fn instrument_item(
             .copied()
             .unwrap_or(120),
         sample_browser: config.sample_browser.as_ref(),
-    })
+    });
+    item.breadcrumb = Some(instrument_breadcrumb_label(config, index, label));
+    item
 }
 
 pub(super) fn instrument_item_label(
@@ -316,32 +325,52 @@ pub(super) fn instrument_item_label(
     index: usize,
     base_label: &str,
 ) -> String {
-    let kind = config
+    let short = instrument_breadcrumb_label(config, index, base_label);
+    let suffix = match instrument_kind(config, index) {
+        "midi" => format!(
+            "ch{}",
+            config
+                .instrument_midi_channels
+                .get(index)
+                .copied()
+                .unwrap_or(1)
+        ),
+        "none" => return short,
+        _ => compact_route_postfix(
+            config
+                .instrument_routes
+                .get(index)
+                .map(String::as_str)
+                .unwrap_or("direct"),
+        ),
+    };
+    format!("{short} {suffix}")
+}
+
+fn instrument_breadcrumb_label(
+    config: &NativeMenuConfig,
+    index: usize,
+    base_label: &str,
+) -> String {
+    let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
+    let kind = match instrument_kind(config, index) {
+        "fm" => "FM",
+        "pluck" => "Pluck",
+        "drum" => "Drum",
+        "sampler" => "samp",
+        "midi" => "midi",
+        "none" => "none",
+        _ => "synth",
+    };
+    format!("{prefix} {kind}")
+}
+
+fn instrument_kind(config: &NativeMenuConfig, index: usize) -> &str {
+    config
         .instrument_types
         .get(index)
         .map(String::as_str)
-        .unwrap_or("synth");
-    let route = config
-        .instrument_routes
-        .get(index)
-        .map(String::as_str)
-        .unwrap_or("direct");
-    let midi_channel = config
-        .instrument_midi_channels
-        .get(index)
-        .copied()
-        .unwrap_or(1);
-    let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
-    let route = compact_route_postfix(route);
-    match kind {
-        "fm" => format!("{prefix} FM {route}"),
-        "pluck" => format!("{prefix} Pluck {route}"),
-        "drum" => format!("{prefix} Drum {route}"),
-        "sampler" => format!("{prefix} samp {route}"),
-        "midi" => format!("{prefix} midi ch{midi_channel}"),
-        "none" => format!("{prefix} none"),
-        _ => format!("{prefix} synth {route}"),
-    }
+        .unwrap_or("synth")
 }
 
 fn compact_route_postfix(route: &str) -> String {

@@ -54,6 +54,7 @@ pub(super) fn sample_browser_group(
                 }
                 children.push(NativeMenuItem {
                     label: String::new(),
+                    breadcrumb: None,
                     key: None,
                     value: NativeMenuValue::Group,
                     children: vec![],
@@ -71,6 +72,7 @@ pub(super) fn sample_browser_group(
             }
             children.push(NativeMenuItem {
                 label: String::new(),
+                breadcrumb: None,
                 key: None,
                 value: NativeMenuValue::Group,
                 children: vec![],
@@ -81,6 +83,7 @@ pub(super) fn sample_browser_group(
             if is_builtin_favourite {
                 children.push(NativeMenuItem {
                     label: "Built-in fav".into(),
+                    breadcrumb: None,
                     key: None,
                     value: NativeMenuValue::Group,
                     children: vec![],
@@ -125,6 +128,7 @@ pub(super) fn sample_browser_group(
     }
     NativeMenuItem {
         label: format!("S{} Browse", sample_slot + 1),
+        breadcrumb: None,
         key: Some(format!("sample.choose:{instrument_slot}:{sample_slot}")),
         value: NativeMenuValue::Group,
         children,

@@ -149,7 +149,7 @@ pub(crate) fn edit_marker_uses_compact_star_prefix() {
     let snapshot = snapshot_from(&edit);
     let lines = snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines.windows(2).any(|pair| {
-        pair[0].as_str().unwrap_or("") == "> Master Vol:"
+        pair[0].as_str().unwrap_or("") == "  Master Vol:"
             && pair[1].as_str().unwrap_or("").starts_with("    * ")
     }));
 }

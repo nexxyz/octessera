@@ -204,6 +204,7 @@ fn representative_behavior_help_configs() -> Vec<NativeMenuConfig> {
 fn step_rate_item() -> NativeMenuItem {
     NativeMenuItem {
         label: "Step Rate".into(),
+        breadcrumb: None,
         key: Some("layers.0.algorithmStep".into()),
         value: NativeMenuValue::Enum {
             options: crate::timing_units::NOTE_UNIT_OPTIONS
@@ -225,6 +226,7 @@ fn behavior_enum_item(item: platform_core::BehaviorConfigItem) -> Option<NativeM
     }
     Some(NativeMenuItem {
         label: item.label,
+        breadcrumb: None,
         key: Some(format!("layers.0.build.behaviorConfig.{}", item.key)),
         value: NativeMenuValue::Enum {
             options: item.options.unwrap_or_default(),

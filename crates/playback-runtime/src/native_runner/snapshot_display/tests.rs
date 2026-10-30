@@ -27,18 +27,15 @@ fn runner_at(now: Instant) -> NativeRunner {
 
 #[test]
 fn auto_mapped_action_rows_keep_equal_prefix_alignment() {
-    assert_eq!(
-        prefix_line(">!Do It".into(), Some("1!".into())),
-        "> 1!Do It"
-    );
+    assert_eq!(prefix_line(" !Do It".into(), Some("1!".into())), "1!Do It");
     assert_eq!(prefix_line(" !Do It".into(), Some("1!".into())), "1!Do It");
 }
 
 #[test]
 fn auto_mapped_value_rows_keep_turn_prefix_alignment() {
     assert_eq!(
-        prefix_line("> Cutoff".into(), Some("1-".into())),
-        "> 1-Cutoff"
+        prefix_line("  Cutoff".into(), Some("1-".into())),
+        "1-Cutoff"
     );
     assert_eq!(
         prefix_line("  Cutoff".into(), Some("1-".into())),
@@ -89,11 +86,11 @@ fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
     assert_eq!(menu.lines[detail_row - 1], "  On Inst:");
     assert_eq!(
         menu.lines[detail_row],
-        ">* I1: This Long Instrument Name Scrolls Across the OLED Display"
+        "* I1: This Long Instrument Name Scrolls Across the OLED Display"
     );
     assert_eq!(
         menu.full_lines[detail_row].as_deref(),
-        Some(">* I1: This Long Instrument Name Scrolls Across the OLED Display")
+        Some("* I1: This Long Instrument Name Scrolls Across the OLED Display")
     );
     assert_eq!(
         runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
@@ -103,7 +100,7 @@ fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
     let first = runner.display_snapshot(menu);
     assert_eq!(
         first.full_lines[detail_row].as_deref(),
-        Some(">* I1: This Long Instrument Name Scrolls Across the OLED Display")
+        Some("* I1: This Long Instrument Name Scrolls Across the OLED Display")
     );
     assert!(first.lines.len() <= 7);
     runner.display.menu_scroll_offset = 8;

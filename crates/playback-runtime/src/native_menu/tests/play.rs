@@ -145,7 +145,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
             .flatten()
             .find(|line| line.contains("Smoothing"))
             .map(String::as_str),
-        Some("> Smoothing Off")
+        Some("  Smoothing Off")
     );
     menu.set_number_value_for_key("play.xy.smoothingMs", 120);
     assert_eq!(
@@ -155,7 +155,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
             .flatten()
             .find(|line| line.contains("Smoothing"))
             .map(String::as_str),
-        Some("> Smoothing 120 ms")
+        Some("  Smoothing 120 ms")
     );
 }
 

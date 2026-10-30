@@ -219,3 +219,24 @@ pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
         .unwrap();
     assert_eq!(snapshot_from(&exit)["display"]["editing"], false);
 }
+
+#[test]
+pub(crate) fn selecting_a_row_keeps_its_text_in_place_with_and_without_aux_prefix() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    let first = runner.snapshot().unwrap();
+    let lines = first["display"]["lines"].clone();
+    assert_eq!(first["selectedRow"], 0);
+    assert_eq!(lines[0], "  Behavior: life >");
+    assert_eq!(lines[3], "1-Step Rate 1/8");
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
+            request_snapshot: Some(true),
+        })
+        .unwrap();
+    let prefixed = snapshot_from(&messages);
+    assert_eq!(prefixed["selectedRow"], 3);
+    assert_eq!(prefixed["display"]["lines"], lines);
+}

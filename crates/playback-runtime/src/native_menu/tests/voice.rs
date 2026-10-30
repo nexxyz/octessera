@@ -9,10 +9,10 @@ pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
     let _ = menu.press();
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, ".../I1: synth direct");
-    assert!(snapshot.lines.iter().any(|line| line == "> Type synth"));
+    assert_eq!(snapshot.path, "../I1: synth");
+    assert!(snapshot.lines.iter().any(|line| line == "  Type synth"));
     assert!(snapshot.lines.iter().any(|line| line == "  Synth >"));
-    assert!(!snapshot.lines.iter().any(|line| line == "> Sampler >"));
+    assert!(!snapshot.lines.iter().any(|line| line == "  Sampler >"));
     assert!(menu
         .current_siblings()
         .iter()
@@ -40,14 +40,14 @@ pub(crate) fn voice_menu_exposes_fx_bus_and_global_fx_groups() {
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Shape");
-    assert!(snapshot.lines.iter().any(|line| line == "> Instruments >"));
+    assert!(snapshot.lines.iter().any(|line| line == "  Instruments >"));
     assert!(snapshot.lines.iter().any(|line| line == "  FX Buses >"));
     assert!(snapshot.lines.iter().any(|line| line == "  Global FX >"));
     menu.turn(1);
     let _ = menu.press();
     let buses = menu.snapshot();
     assert_eq!(buses.path, "/S/FX Buses");
-    assert!(buses.lines.iter().any(|line| line == "> B1: Delay+Duck >"));
+    assert!(buses.lines.iter().any(|line| line == "  B1: Delay+Duck >"));
     let _ = menu.press();
     let _bus = menu.snapshot();
     assert!(menu
@@ -193,7 +193,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
     menu.select_label("Pan Pos");
     let pan = menu.snapshot();
-    assert!(pan.lines.iter().any(|line| line == "> Pan Pos C"));
+    assert!(pan.lines.iter().any(|line| line == "  Pan Pos C"));
     assert!(pan.lines.iter().any(|line| line == "  Volume 100"));
     let pan_value_row = pan.selected_row.unwrap();
     assert!(
@@ -204,7 +204,7 @@ pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     menu.open_labels(&["System", "Audio"]);
     menu.select_label("Master Vol");
     let volume = menu.snapshot();
-    assert!(volume.lines.iter().any(|line| line == "> Master Vol 100"));
+    assert!(volume.lines.iter().any(|line| line == "  Master Vol 100"));
     assert!(matches!(
         volume.bar_values.get(volume.selected_row.unwrap() + 1),
         Some(Some(NativeMenuBarValue {
@@ -238,7 +238,7 @@ pub(crate) fn mixer_menu_uses_current_volume_and_pan_values() {
     assert_eq!(value, 70);
     menu.select_label("Pan Pos");
     let pan = menu.snapshot();
-    assert!(pan.lines.iter().any(|line| line == "> Pan Pos L6"));
+    assert!(pan.lines.iter().any(|line| line == "  Pan Pos L6"));
 }
 
 #[test]
@@ -252,7 +252,7 @@ pub(crate) fn mixer_pan_is_non_editable_when_routed_to_fx_bus() {
     assert!(snapshot
         .lines
         .iter()
-        .any(|line| line == "> Pan Pos -- (bus)"));
+        .any(|line| line == "  Pan Pos -- (bus)"));
     assert_eq!(menu.current_siblings()[2].key, None);
     assert!(matches!(
         menu.current_siblings()[2].value,
@@ -352,6 +352,6 @@ pub(crate) fn duck_source_param_displays_source_text() {
     menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck", "Slot 1: Duck"]);
     menu.select_label("Source");
     let snapshot = menu.snapshot();
-    assert!(snapshot.lines.iter().any(|line| line == "> Source B2"));
+    assert!(snapshot.lines.iter().any(|line| line == "  Source B2"));
     assert!(!snapshot.lines.iter().any(|line| line.contains("Source 0")));
 }

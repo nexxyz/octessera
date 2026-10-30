@@ -108,9 +108,9 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
         "Drums/kick.wav"
     );
     assert!(runner.sample_browser.is_none());
-    assert_eq!(snapshot["display"]["title"], ".../I1: samp direct/Sampler");
+    assert_eq!(snapshot["display"]["title"], "../Sampler");
     let selected_row = snapshot["selectedRow"].as_u64().expect("selected row") as usize;
-    assert_eq!(snapshot["display"]["lines"][selected_row], "> S1 Browse >");
+    assert_eq!(snapshot["display"]["lines"][selected_row], "  S1 Browse >");
     runner.make_deferred_menu_apply_due_for_test();
     let autosave = runner.flush_deferred_menu_apply().unwrap();
     assert!(autosave.iter().any(|message| matches!(
@@ -152,7 +152,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     let snapshot = runner.menu.snapshot();
     assert_eq!(
         snapshot.lines,
-        vec![" !..", " !kick.wav", "", ">!Set favourite"]
+        vec![" !..", " !kick.wav", "", " !Set favourite"]
     );
 
     let _ = runner
@@ -169,7 +169,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
 
     let snapshot = runner.menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], ">!Remove fav");
+    assert_eq!(snapshot.lines[selected_row], " !Remove fav");
 
     let payload = runner.config_payload();
     assert_eq!(
@@ -192,7 +192,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     loaded.menu.select_label("Remove fav");
     let snapshot = loaded.menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], ">!Remove fav");
+    assert_eq!(snapshot.lines[selected_row], " !Remove fav");
 
     let _ = loaded
         .send(HostMessage::DeviceInput {

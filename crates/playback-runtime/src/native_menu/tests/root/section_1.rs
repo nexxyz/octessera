@@ -8,7 +8,7 @@ pub(crate) fn root_snapshot_includes_play_separator_and_system() {
     assert_eq!(
         snapshot.lines,
         vec![
-            "> Build >",
+            "  Build >",
             "  Link >",
             "  Shape >",
             "  Play >",
@@ -57,6 +57,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
     cfg.build_items = vec![
         NativeMenuItem {
             label: "Other Play".into(),
+            breadcrumb: None,
             key: Some("playMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["none".into(), "fx".into()],
@@ -66,6 +67,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
         },
         NativeMenuItem {
             label: "Play".into(),
+            breadcrumb: None,
             key: Some("playMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["none".into(), "fx".into()],
@@ -75,6 +77,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
         },
         NativeMenuItem {
             label: "Other Sync".into(),
+            breadcrumb: None,
             key: Some("midiSyncMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["internal".into(), "external".into()],
@@ -84,6 +87,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
         },
         NativeMenuItem {
             label: "Sync".into(),
+            breadcrumb: None,
             key: Some("midiSyncMode".into()),
             value: NativeMenuValue::Enum {
                 options: vec!["internal".into(), "external".into()],
@@ -112,7 +116,7 @@ pub(crate) fn navigation_skips_separator_rows_when_turning() {
     menu.turn(1);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], "> System >");
+    assert_eq!(snapshot.lines[selected_row], "  System >");
 }
 
 #[test]
@@ -208,7 +212,7 @@ pub(crate) fn system_controls_row_is_help_action() {
 
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/System");
-    assert!(snapshot.lines.iter().any(|line| line == ">!Basic Help"));
+    assert!(snapshot.lines.iter().any(|line| line == " !Basic Help"));
     assert!(matches!(
         snapshot.selected_action,
         Some(NativeMenuAction::PlatformEffect(ref action)) if action == "system.controlsHelp"
@@ -221,13 +225,13 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
 
     assert!(menu.focus_item_key("system.clearAll"));
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "/SYS/Maintenance/Reset");
-    assert!(snapshot.lines.iter().any(|line| line == ">!Load Empty"));
+    assert_eq!(snapshot.path, "../Reset");
+    assert!(snapshot.lines.iter().any(|line| line == " !Load Empty"));
 
     assert!(menu.focus_item_key("system.reboot"));
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/System");
-    assert!(snapshot.lines.iter().any(|line| line == ">!Reboot"));
+    assert!(snapshot.lines.iter().any(|line| line == " !Reboot"));
     let reboot_row = snapshot
         .lines
         .iter()
@@ -244,7 +248,7 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
     let snapshot = menu.snapshot();
     assert_eq!(
         snapshot.lines.last().map(String::as_str),
-        Some(">!Shutdown")
+        Some(" !Shutdown")
     );
 }
 
@@ -256,7 +260,7 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
     let _ = menu.press();
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], "> Note Length 150ms");
+    assert_eq!(snapshot.lines[selected_row], "  Note Length 150ms");
 
     menu.turn(1);
     assert_eq!(menu.current_label(), Some("Vel Scale"));

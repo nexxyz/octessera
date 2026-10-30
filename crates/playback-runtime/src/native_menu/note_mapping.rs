@@ -58,6 +58,7 @@ fn note_set_item(layer_index: usize, prefix: &str, selected_id: &str) -> NativeM
         .collect();
     NativeMenuItem {
         label: "Set".into(),
+        breadcrumb: None,
         key: Some(format!("{prefix}.pitch.scale")),
         value: NativeMenuValue::Enum {
             options: ids.iter().map(|id| (*id).into()).collect(),
@@ -73,6 +74,7 @@ fn note_set_category_item(
 ) -> NativeMenuItem {
     let children = std::iter::once(NativeMenuItem {
         label: "..".into(),
+        breadcrumb: None,
         key: None,
         value: NativeMenuValue::Action(NativeMenuAction::NavigateBack),
         children: vec![],
@@ -83,6 +85,7 @@ fn note_set_category_item(
             .filter(move |note_set| note_set.category == category)
             .map(|note_set| NativeMenuItem {
                 label: note_set.label.into(),
+                breadcrumb: None,
                 key: None,
                 value: NativeMenuValue::Action(NativeMenuAction::SelectNoteSet {
                     layer_index,
@@ -94,6 +97,7 @@ fn note_set_category_item(
     .collect();
     NativeMenuItem {
         label: category.label().into(),
+        breadcrumb: None,
         key: Some(format!("note_set.category.{}", category.id())),
         value: NativeMenuValue::Group,
         children,

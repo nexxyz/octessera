@@ -111,6 +111,7 @@ impl NativeRunner {
         };
         let mut items = vec![crate::native_menu::NativeMenuItem {
             label: "Step Rate".into(),
+            breadcrumb: None,
             key: Some(format!("layers.{layer_index}.algorithmStep")),
             value: crate::native_menu::NativeMenuValue::Enum {
                 options: crate::timing_units::NOTE_UNIT_OPTIONS
@@ -195,6 +196,7 @@ fn behavior_target_menu_item(
     match item.item_type {
         BehaviorConfigItemType::Number => Some(crate::native_menu::NativeMenuItem {
             label: item.label,
+            breadcrumb: None,
             key: Some(key),
             value: crate::native_menu::NativeMenuValue::Number {
                 value: config
@@ -217,6 +219,7 @@ fn behavior_target_menu_item(
         }),
         BehaviorConfigItemType::Action => Some(crate::native_menu::NativeMenuItem {
             label: item.label,
+            breadcrumb: None,
             key: Some(key),
             value: crate::native_menu::NativeMenuValue::Action(NativeMenuAction::BehaviorAction(
                 item.key,
@@ -225,6 +228,7 @@ fn behavior_target_menu_item(
         }),
         BehaviorConfigItemType::Bool => Some(crate::native_menu::NativeMenuItem {
             label: item.label,
+            breadcrumb: None,
             key: Some(key),
             value: crate::native_menu::NativeMenuValue::Bool {
                 value: config
@@ -268,6 +272,7 @@ fn enum_target_menu_item(
         .unwrap_or(0);
     Some(crate::native_menu::NativeMenuItem {
         label: item.label,
+        breadcrumb: None,
         key: Some(key),
         value: crate::native_menu::NativeMenuValue::Enum { options, selected },
         children: vec![],

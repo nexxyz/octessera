@@ -182,7 +182,8 @@ impl UpdateMenuFixture {
             handle_deferred_host_work(&mut self.playback, &mut self.runner, &mut self.adapter)
                 .unwrap();
             if self.toast().is_some_and(|toast| {
-                !toast.is_empty() && (toast == message || message.contains(toast))
+                let shown = toast.strip_suffix("..").unwrap_or(toast);
+                !shown.is_empty() && (toast == message || message.contains(shown))
             }) {
                 return;
             }

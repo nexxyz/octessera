@@ -154,28 +154,28 @@ pub(crate) fn selected_short_menu_row_stays_stable_while_highlighted() {
 
     runner.display.menu_scroll_offset = 0;
     let initial = runner.snapshot().unwrap();
-    assert_eq!(initial["display"]["lines"][3], "> Paused Events On");
+    assert_eq!(initial["display"]["lines"][3], "  Paused Events On");
 
     runner.display.menu_scroll_offset = 3;
     let still_waiting = runner.snapshot().unwrap();
-    assert_eq!(still_waiting["display"]["lines"][3], "> Paused Events On");
+    assert_eq!(still_waiting["display"]["lines"][3], "  Paused Events On");
 
     runner.display.menu_scroll_offset = 4;
     let scrolled = runner.snapshot().unwrap();
-    assert_eq!(scrolled["display"]["lines"][3], "> Paused Events On");
+    assert_eq!(scrolled["display"]["lines"][3], "  Paused Events On");
 
     runner.display.menu_scroll_offset = 27;
     let end_hold = runner.snapshot().unwrap();
-    assert_eq!(end_hold["display"]["lines"][3], "> Paused Events On");
+    assert_eq!(end_hold["display"]["lines"][3], "  Paused Events On");
 
     runner.display.menu_scroll_offset = 99;
     let later = runner.snapshot().unwrap();
-    assert_eq!(later["display"]["lines"][3], "> Paused Events On");
+    assert_eq!(later["display"]["lines"][3], "  Paused Events On");
 
     runner.display.menu_scroll_offset = 4;
     runner.menu.state.editing = true;
     let editing = runner.snapshot().unwrap();
-    assert_eq!(editing["display"]["lines"][3], "> Paused Events:");
+    assert_eq!(editing["display"]["lines"][3], "  Paused Events:");
 }
 
 #[test]

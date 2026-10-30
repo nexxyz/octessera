@@ -45,10 +45,10 @@ fn collect_clipped(
             let full = format_item_lines(&shown, true, false, "bar+numbers");
             let row = format_item_lines(&shown, false, false, "bar+numbers");
             if (row[0].contains("...") && !item.label.contains("..."))
-                || full[0].trim_start_matches("> ").chars().count() > 18
+                || full[0].trim_start().chars().count() > 18
             {
                 clipped
-                    .entry(full[0].trim_start_matches("> ").to_string())
+                    .entry(full[0].trim_start().to_string())
                     .or_insert_with(|| {
                         format!("{:?} {}", item.label, item.key.as_deref().unwrap_or("-"))
                     });

@@ -28,23 +28,20 @@ pub(super) fn format_item_lines(
             } else {
                 format!("{} >", item.label)
             };
-            vec![format_menu_line(&label, selected)]
+            vec![format_menu_line(&label)]
         }
-        NativeMenuValue::Action(_) => vec![format_action_menu_line(&item.label, selected)],
+        NativeMenuValue::Action(_) => vec![format_action_menu_line(&item.label)],
         NativeMenuValue::Enum {
             options,
             selected: current,
-        } if !item.children.is_empty() => vec![format_menu_line(
-            &format!(
-                "{}: {} >",
-                item.label,
-                format_display_value(
-                    item.key.as_deref(),
-                    options.get(*current).cloned().unwrap_or_default(),
-                )
-            ),
-            selected,
-        )],
+        } if !item.children.is_empty() => vec![format_menu_line(&format!(
+            "{}: {} >",
+            item.label,
+            format_display_value(
+                item.key.as_deref(),
+                options.get(*current).cloned().unwrap_or_default(),
+            )
+        ))],
         NativeMenuValue::Enum {
             options,
             selected: current,
@@ -116,8 +113,8 @@ fn format_link_instrument_lines(
         return format_param_lines(label, compact_value, false, false);
     }
     vec![
-        format_menu_line(&format!("{label}:"), false),
-        format!("{}{}", if editing { ">* " } else { "> " }, full_value),
+        format_menu_line(&format!("{label}:")),
+        format!("{}{}", if editing { "* " } else { "  " }, full_value),
     ]
 }
 
@@ -133,25 +130,22 @@ pub(super) fn format_item_full_selected_line(
             } else {
                 format!("{} >", item.label)
             };
-            Some(format_menu_line(&label, true))
+            Some(format_menu_line(&label))
         }
         NativeMenuValue::Enum { options, selected } if !item.children.is_empty() => {
-            Some(format_menu_line(
-                &format!(
-                    "{}: {} >",
-                    item.label,
-                    format_display_value(
-                        item.key.as_deref(),
-                        options.get(*selected).cloned().unwrap_or_default(),
-                    )
-                ),
-                true,
-            ))
+            Some(format_menu_line(&format!(
+                "{}: {} >",
+                item.label,
+                format_display_value(
+                    item.key.as_deref(),
+                    options.get(*selected).cloned().unwrap_or_default(),
+                )
+            )))
         }
         NativeMenuValue::Enum { options, selected } if is_link_instrument_target(item) => {
             Some(format!(
                 "{}{}",
-                if editing { ">* " } else { "> " },
+                if editing { "* " } else { "  " },
                 format_display_value(
                     item.key.as_deref(),
                     options.get(*selected).cloned().unwrap_or_default(),
@@ -173,14 +167,11 @@ pub(super) fn format_item_full_selected_line(
             &item.label,
             if *value { "On" } else { "Off" },
         )),
-        NativeMenuValue::Text { value, .. } => Some(format_menu_line(
-            &format!(
-                "{} {}",
-                item.label,
-                if value.is_empty() { "(empty)" } else { value }
-            ),
-            true,
-        )),
+        NativeMenuValue::Text { value, .. } => Some(format_menu_line(&format!(
+            "{} {}",
+            item.label,
+            if value.is_empty() { "(empty)" } else { value }
+        ))),
         NativeMenuValue::Action(_) => item
             .key
             .as_deref()
@@ -192,9 +183,9 @@ pub(super) fn format_item_full_selected_line(
                 } else {
                     path
                 };
-                format_action_menu_line(display, true)
+                format_action_menu_line(display)
             })
-            .or_else(|| Some(format_action_menu_line(&item.label, true))),
+            .or_else(|| Some(format_action_menu_line(&item.label))),
     }
 }
 
@@ -374,6 +365,7 @@ mod tests {
     fn action_item(label: &str) -> NativeMenuItem {
         NativeMenuItem {
             label: label.into(),
+            breadcrumb: None,
             key: None,
             value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect("test".into())),
             children: Vec::new(),
@@ -385,7 +377,7 @@ mod tests {
         let item = action_item("Do It");
         assert_eq!(
             format_item_lines(&item, true, false, "bar"),
-            vec![">!Do It"]
+            vec![" !Do It"]
         );
         assert_eq!(
             format_item_lines(&item, false, false, "bar"),

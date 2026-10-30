@@ -18,7 +18,7 @@ fn plucked_type_and_six_rows_use_standard_oled_navigation() {
         .snapshot()
         .lines
         .iter()
-        .any(|line| line == "> Type Plucked"));
+        .any(|line| line == "  Type Plucked"));
     let slot = &menu.root.children[2].children[0].children[0];
     assert_eq!(slot.label, "I1: Pluck direct");
     assert_eq!(
@@ -73,7 +73,7 @@ fn plucked_type_and_six_rows_use_standard_oled_navigation() {
     assert!(menu.focus_item_key("instruments.0.pluck.decayMs"));
     let snapshot = menu.snapshot();
     assert!(
-        snapshot.lines.iter().any(|line| line == "> Decay 1.5s"),
+        snapshot.lines.iter().any(|line| line == "  Decay 1.5s"),
         "{:?}",
         snapshot.lines
     );
@@ -95,7 +95,7 @@ fn plucked_type_and_six_rows_use_standard_oled_navigation() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.lines.len(), 7);
     let selected_row = snapshot.selected_row.unwrap();
-    assert!(snapshot.lines[selected_row].starts_with("> Body Hz"));
+    assert!(snapshot.lines[selected_row].starts_with("  Body Hz"));
     menu.back();
     assert_eq!(menu.current_label(), Some("String"));
 }

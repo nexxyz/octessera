@@ -49,6 +49,7 @@ pub(super) fn parameter_picker_group(
     children.extend(parameter_tree_groups(&target, config));
     NativeMenuItem {
         label,
+        breadcrumb: None,
         key: Some(target),
         value: NativeMenuValue::Group,
         children,

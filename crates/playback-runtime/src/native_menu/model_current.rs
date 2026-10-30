@@ -12,7 +12,14 @@ impl NativeMenuModel {
     }
 
     pub(super) fn path_label(&self) -> String {
-        let labels = self.stack_labels();
+        let mut node = &self.root;
+        let mut labels = Vec::with_capacity(self.state.stack.len());
+        for idx in &self.state.stack {
+            if let Some(next) = node.children.get(*idx) {
+                labels.push(next.breadcrumb.as_deref().unwrap_or(&next.label));
+                node = next;
+            }
+        }
         if labels.is_empty() {
             "MENU".into()
         } else {

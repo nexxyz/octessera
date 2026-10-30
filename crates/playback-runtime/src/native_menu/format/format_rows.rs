@@ -5,57 +5,33 @@ pub(in crate::native_menu) fn format_param_lines(
     editing: bool,
 ) -> Vec<String> {
     let value = value.into();
-    if selected {
-        if !editing {
-            return vec![format_selected_param_line(label, &value)];
-        }
-        let marker = if editing { "* " } else { "" };
-        vec![
-            format_menu_line(&format!("{label}:"), true),
-            format!("    {marker}{value}"),
-        ]
-    } else {
-        vec![format_unselected_param_line(label, &value)]
+    if selected && editing {
+        return vec![
+            format_menu_line(&format!("{label}:")),
+            format!("    * {value}"),
+        ];
     }
+    vec![format_param_line(label, &value)]
 }
 
 pub(in crate::native_menu) fn format_full_param_line(label: &str, value: &str) -> String {
     if value.is_empty() {
-        return format_menu_line(label, true);
+        return format_menu_line(label);
     }
-    format_menu_line(&format!("{label} {value}"), true)
+    format_menu_line(&format!("{label} {value}"))
 }
 
-fn format_unselected_param_line(label: &str, value: &str) -> String {
+fn format_param_line(label: &str, value: &str) -> String {
     if value.is_empty() {
-        return format_menu_line(label, false);
+        return format_menu_line(label);
     }
     let width = 18;
     let value_len = value.chars().count();
     if value_len + 1 >= width {
-        return format_menu_line(&clip_menu_value(value, width), false);
+        return format_menu_line(&clip_menu_value(value, width));
     }
     let label_width = width - value_len - 1;
-    format_menu_line(
-        &format!("{} {value}", clip_menu_value(label, label_width)),
-        false,
-    )
-}
-
-fn format_selected_param_line(label: &str, value: &str) -> String {
-    if value.is_empty() {
-        return format_menu_line(label, true);
-    }
-    let width = 18;
-    let value_len = value.chars().count();
-    if value_len + 1 >= width {
-        return format_menu_line(&clip_menu_value(value, width), true);
-    }
-    let label_width = width - value_len - 1;
-    format_menu_line(
-        &format!("{} {value}", clip_menu_value(label, label_width)),
-        true,
-    )
+    format_menu_line(&format!("{} {value}", clip_menu_value(label, label_width)))
 }
 
 pub(in crate::native_menu) fn format_text_lines(
@@ -65,41 +41,22 @@ pub(in crate::native_menu) fn format_text_lines(
     selected: bool,
     editing: bool,
 ) -> Vec<String> {
-    let display = if value.is_empty() { "(empty)" } else { value };
-    if selected {
-        if !editing {
-            return vec![format_menu_line(
-                &format!("{label} {}", clip_menu_value(display, 22)),
-                true,
-            )];
-        }
-        let marker = if editing { "* " } else { "" };
-        vec![
-            format_menu_line(&format!("{label}:"), true),
-            format!("    {marker}{}", clip_menu_value(display, 22)),
-        ]
-    } else {
-        vec![format_menu_line(
-            &format!("{label} {}", clip_menu_value(display, 22)),
-            false,
-        )]
+    let display = clip_menu_value(if value.is_empty() { "(empty)" } else { value }, 22);
+    if selected && editing {
+        return vec![
+            format_menu_line(&format!("{label}:")),
+            format!("    * {display}"),
+        ];
     }
+    vec![format_menu_line(&format!("{label} {display}"))]
 }
 
-pub(in crate::native_menu) fn format_menu_line(text: &str, selected: bool) -> String {
-    if selected {
-        format!("> {text}")
-    } else {
-        format!("  {text}")
-    }
+pub(in crate::native_menu) fn format_menu_line(text: &str) -> String {
+    format!("  {text}")
 }
 
-pub(in crate::native_menu) fn format_action_menu_line(text: &str, selected: bool) -> String {
-    if selected {
-        format!(">!{text}")
-    } else {
-        format!(" !{text}")
-    }
+pub(in crate::native_menu) fn format_action_menu_line(text: &str) -> String {
+    format!(" !{text}")
 }
 
 pub(in crate::native_menu) fn clip_menu_value(value: &str, width: usize) -> String {

@@ -40,19 +40,14 @@ fn reentering_audio_after_a_usb_role_flip_starts_at_its_first_row() {
         back(&mut runner);
     }
     let selected = |runner: &NativeRunner| {
-        runner
-            .menu
-            .snapshot()
-            .lines
-            .into_iter()
-            .find(|line| line.starts_with('>'))
+        let snapshot = runner.menu.snapshot();
+        snapshot
+            .selected_row
+            .and_then(|row| snapshot.lines.get(row).cloned())
             .unwrap_or_default()
     };
     for _ in 0..16 {
-        if selected(&runner)
-            .trim_start_matches(['>', ' '])
-            .starts_with("Audio")
-        {
+        if selected(&runner).trim_start().starts_with("Audio") {
             break;
         }
         turn(&mut runner, -1);

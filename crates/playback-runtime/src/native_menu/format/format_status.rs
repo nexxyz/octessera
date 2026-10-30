@@ -3,19 +3,17 @@ use crate::native_menu::section_labels::{
     SHAPE_LABEL, SHAPE_SHORT_LABEL,
 };
 
+const BREADCRUMB_COLUMNS: usize = 15;
+
 pub(in crate::native_menu) fn abbreviate_path(path: &str) -> String {
     let segments = path.split('/').collect::<Vec<_>>();
-    if segments.is_empty() {
-        return "MENU".into();
-    }
     let last_index = segments.len().saturating_sub(1);
-    let out = segments
+    let labels = segments
         .iter()
         .enumerate()
         .map(|(index, segment)| path_segment_label(segment, index < last_index))
-        .collect::<Vec<_>>()
-        .join("/");
-    front_ellipsize(&format!("/{out}"), 28)
+        .collect::<Vec<_>>();
+    fit_breadcrumb(&labels)
 }
 
 fn path_segment_label(segment: &str, short: bool) -> String {
@@ -42,59 +40,18 @@ fn short_path_segment_label(segment: &str) -> String {
     }
 }
 
-fn front_ellipsize(value: &str, width: usize) -> String {
-    if value.chars().count() <= width {
-        return value.into();
+fn fit_breadcrumb(labels: &[String]) -> String {
+    let full = format!("/{}", labels.join("/"));
+    if full.chars().count() <= BREADCRUMB_COLUMNS {
+        return full;
     }
-    if width <= 3 {
-        return value
-            .chars()
-            .rev()
-            .take(width)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect();
-    }
-    if let Some(tail) = slash_boundary_tail(value, width) {
-        return tail;
-    }
-    let tail = value
-        .chars()
-        .rev()
-        .take(width - 3)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect::<String>();
-    format!("...{tail}")
-}
-
-fn slash_boundary_tail(value: &str, width: usize) -> Option<String> {
-    let segments = value
-        .split('/')
-        .filter(|segment| !segment.is_empty())
-        .collect::<Vec<_>>();
-    let mut kept = Vec::new();
-    for segment in segments.into_iter().rev() {
-        let candidate_len = 3
-            + kept
-                .iter()
-                .map(|part: &&str| part.chars().count() + 1)
-                .sum::<usize>()
-            + segment.chars().count()
-            + 1;
-        if candidate_len > width && !kept.is_empty() {
-            break;
+    for start in 1..labels.len() {
+        let tail = format!("../{}", labels[start..].join("/"));
+        if tail.chars().count() <= BREADCRUMB_COLUMNS {
+            return tail;
         }
-        kept.push(segment);
     }
-    kept.reverse();
-    if kept.is_empty() {
-        None
-    } else {
-        Some(format!(".../{}", kept.join("/")))
-    }
+    labels.last().cloned().unwrap_or_default()
 }
 
 pub(in crate::native_menu) fn section_color_from_path(path: &str) -> u16 {
@@ -138,17 +95,33 @@ mod tests {
     }
 
     #[test]
-    fn breadcrumbs_front_ellipsize() {
+    fn breadcrumbs_drop_parents_from_the_left_and_keep_the_page() {
         assert_eq!(
-            abbreviate_path("Shape/FX/Bus 1/Slot 1/Very Long Name"),
-            ".../B1/Slot 1/Very Long Name"
+            abbreviate_path("Shape/Instruments/I1: synth/Synth/Filter"),
+            "../Synth/Filter"
+        );
+        assert_eq!(
+            abbreviate_path("Shape/Instruments/I1: synth/Synth/Filter Env"),
+            "../Filter Env"
         );
     }
 
     #[test]
-    fn ellipsized_breadcrumb_uses_canonical_section_color() {
+    fn breadcrumbs_show_only_the_page_when_dots_do_not_fit() {
+        assert_eq!(
+            abbreviate_path("Build/Layer 1/Behavior: life"),
+            "Behavior: life"
+        );
+        assert_eq!(
+            abbreviate_path("System/A Page Name Beyond Fifteen"),
+            "A Page Name Beyond Fifteen"
+        );
+    }
+
+    #[test]
+    fn shortened_breadcrumb_uses_canonical_section_color() {
         let path = "Shape/FX/Bus 1/Slot 1/Very Long Name";
-        assert!(abbreviate_path(path).starts_with(".../"));
+        assert_eq!(abbreviate_path(path), "Very Long Name");
         assert_eq!(
             section_color_from_path(path),
             platform_core::palette::BLUE_RGB565

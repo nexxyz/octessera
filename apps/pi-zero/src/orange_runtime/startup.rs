@@ -162,7 +162,7 @@ mod tests {
         assert_eq!(prepared.runner.test_menu_build_count(), 1);
         let snapshot = prepared.playback.last_snapshot().unwrap();
         assert!(crate::normal_menu::is_normal_menu_display(snapshot));
-        assert_eq!(snapshot["display"]["lines"][0], "> Build >");
+        assert_eq!(snapshot["display"]["lines"][0], "  Build >");
     }
 
     #[test]

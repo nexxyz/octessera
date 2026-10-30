@@ -26,6 +26,7 @@ impl NativeRunner {
             self.behavior_selector_menu_item_for_layer(layer_index),
             crate::native_menu::NativeMenuItem {
                 label: "Auto Label".into(),
+                breadcrumb: None,
                 key: Some(format!("layers.{layer_index}.autoName")),
                 value: crate::native_menu::NativeMenuValue::Bool {
                     value: self
@@ -38,6 +39,7 @@ impl NativeRunner {
             },
             crate::native_menu::NativeMenuItem {
                 label: "Layer Label".into(),
+                breadcrumb: None,
                 key: Some(format!("layers.{layer_index}.name")),
                 value: crate::native_menu::NativeMenuValue::Text {
                     value: self
@@ -67,6 +69,7 @@ impl NativeRunner {
     fn seeded_menu_item(&self, layer_index: usize) -> crate::native_menu::NativeMenuItem {
         crate::native_menu::NativeMenuItem {
             label: "Seeded".into(),
+            breadcrumb: None,
             key: Some(format!("layers.{layer_index}.build.seeded")),
             value: crate::native_menu::NativeMenuValue::Bool {
                 value: self.layer_seeded.get(layer_index).copied().unwrap_or(false),
@@ -80,6 +83,7 @@ impl NativeRunner {
             self.behavior_selector_menu_item(),
             crate::native_menu::NativeMenuItem {
                 label: "Auto Label".into(),
+                breadcrumb: None,
                 key: Some(format!("layers.{}.autoName", self.active_layer_index)),
                 value: crate::native_menu::NativeMenuValue::Bool {
                     value: self
@@ -92,6 +96,7 @@ impl NativeRunner {
             },
             crate::native_menu::NativeMenuItem {
                 label: "Layer Label".into(),
+                breadcrumb: None,
                 key: Some(format!("layers.{}.name", self.active_layer_index)),
                 value: crate::native_menu::NativeMenuValue::Text {
                     value: self
@@ -112,6 +117,7 @@ impl NativeRunner {
 
         items.push(crate::native_menu::NativeMenuItem {
             label: "Step Rate".into(),
+            breadcrumb: None,
             key: Some("algorithmStep".into()),
             value: crate::native_menu::NativeMenuValue::Enum {
                 options: crate::timing_units::NOTE_UNIT_OPTIONS
@@ -139,6 +145,7 @@ impl NativeRunner {
         items.push(self.seeded_menu_item(self.active_layer_index));
         items.push(crate::native_menu::NativeMenuItem {
             label: "Reset".into(),
+            breadcrumb: None,
             key: Some("behavior.reset".into()),
             value: crate::native_menu::NativeMenuValue::Action(NativeMenuAction::ResetBehavior),
             children: vec![],
@@ -164,10 +171,12 @@ impl NativeRunner {
             .iter()
             .map(|category| crate::native_menu::NativeMenuItem {
                 label: format!("[{}]", category.label),
+                breadcrumb: None,
                 key: Some(format!("behavior.category.{}", category.id)),
                 value: crate::native_menu::NativeMenuValue::Group,
                 children: std::iter::once(crate::native_menu::NativeMenuItem {
                     label: "..".into(),
+                    breadcrumb: None,
                     key: None,
                     value: crate::native_menu::NativeMenuValue::Action(
                         NativeMenuAction::NavigateBack,
@@ -180,6 +189,7 @@ impl NativeRunner {
                         .find(|entry| entry.id == *behavior_id)
                         .map(|entry| crate::native_menu::NativeMenuItem {
                             label: entry.label.into(),
+                            breadcrumb: None,
                             key: None,
                             value: crate::native_menu::NativeMenuValue::Action(
                                 if layer_index == self.active_layer_index {
@@ -199,6 +209,7 @@ impl NativeRunner {
             .collect();
         crate::native_menu::NativeMenuItem {
             label: format!("Behavior: {behavior_id}"),
+            breadcrumb: None,
             key: Some(if layer_index == self.active_layer_index {
                 "behaviorId".into()
             } else {
@@ -242,6 +253,7 @@ impl NativeRunner {
         match item.item_type {
             BehaviorConfigItemType::Number => Some(crate::native_menu::NativeMenuItem {
                 label: item.label,
+                breadcrumb: None,
                 key: Some(key.clone()),
                 value: crate::native_menu::NativeMenuValue::Number {
                     value: self
@@ -264,6 +276,7 @@ impl NativeRunner {
             }),
             BehaviorConfigItemType::Action => Some(crate::native_menu::NativeMenuItem {
                 label: item.label,
+                breadcrumb: None,
                 key: Some(key),
                 value: crate::native_menu::NativeMenuValue::Action(
                     NativeMenuAction::BehaviorAction(item.key),
@@ -272,6 +285,7 @@ impl NativeRunner {
             }),
             BehaviorConfigItemType::Bool => Some(crate::native_menu::NativeMenuItem {
                 label: item.label,
+                breadcrumb: None,
                 key: Some(key),
                 value: crate::native_menu::NativeMenuValue::Bool {
                     value: self
@@ -309,6 +323,7 @@ impl NativeRunner {
                     .unwrap_or(0);
                 Some(crate::native_menu::NativeMenuItem {
                     label: item.label,
+                    breadcrumb: None,
                     key: Some(key),
                     value: crate::native_menu::NativeMenuValue::Enum { options, selected },
                     children: vec![],

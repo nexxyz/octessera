@@ -212,8 +212,8 @@ mod timing_evidence_tests {
     fn cutoff_rows_hidden_by_overlays_or_wrong_focus_are_not_evidence() {
         let mut presentation = OledPresentationInput {
             display: OledDisplayInput {
-                title: "/Shape/Instruments/I1: synth/Synth/Filter".into(),
-                lines: vec!["> 1-Cutoff 140".into()],
+                title: "../Synth/Filter".into(),
+                lines: vec!["1-Cutoff 140".into()],
                 ..OledDisplayInput::default()
             },
             selected_row: Some(0),

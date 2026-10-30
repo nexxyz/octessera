@@ -342,7 +342,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     let _ = turn_main(&mut runner, -1);
     assert!(runner.menu.focus_item_key("instruments.0.mixer.panPos"));
     let snapshot = runner.menu.snapshot();
-    assert!(snapshot.lines.iter().any(|line| line == "> Pan Pos C"));
+    assert!(snapshot.lines.iter().any(|line| line == "  Pan Pos C"));
     assert_eq!(runner.instruments[0].route, "direct");
     assert_eq!(runner.audio_config_revision, 2);
     runner.make_deferred_menu_apply_due_for_test();

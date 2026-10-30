@@ -230,18 +230,8 @@ fn prefix_line(line: String, prefix: Option<String>) -> String {
     let indent = line.chars().take_while(|ch| *ch == ' ').count();
     let body = &line[indent..];
     if prefix.ends_with('!') {
-        if let Some(stripped) = body.strip_prefix(">!") {
-            return format!("> {prefix}{stripped}");
-        }
-        if let Some(stripped) = body.strip_prefix("> ") {
-            let stripped = stripped.strip_prefix('!').unwrap_or(stripped);
-            return format!("> {prefix}{stripped}");
-        }
         let stripped = body.strip_prefix('!').unwrap_or(body);
         return format!("{prefix}{stripped}");
-    }
-    if let Some(stripped) = body.strip_prefix("> ") {
-        return format!("> {prefix}{stripped}");
     }
     format!("{prefix}{body}")
 }

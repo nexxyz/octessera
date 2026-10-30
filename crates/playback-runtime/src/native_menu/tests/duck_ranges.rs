@@ -70,5 +70,5 @@ pub(crate) fn duck_menu_places_source_tap_after_source_and_displays_labels() {
         .snapshot()
         .lines
         .iter()
-        .any(|line| line == "> Source Tap Post"));
+        .any(|line| line == "  Source Tap Post"));
 }

@@ -219,6 +219,7 @@ fn loaded_sample_item(
     let browse_dir = sample_parent_dir(path);
     NativeMenuItem {
         label,
+        breadcrumb: None,
         key: Some(format!(
             "sample.loaded:{instrument_slot}:{sample_slot}:{path}"
         )),

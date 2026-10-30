@@ -96,6 +96,7 @@ pub enum NativeMenuValue {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeMenuItem {
     pub label: String,
+    pub breadcrumb: Option<String>,
     pub key: Option<String>,
     pub value: NativeMenuValue,
     pub children: Vec<NativeMenuItem>,

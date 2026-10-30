@@ -85,5 +85,5 @@ pub(crate) fn behavior_change_updates_active_layer_auto_name_label() {
     let lines = snapshot["display"]["lines"].as_array().unwrap();
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "> L1: keys >"));
+        .any(|line| line.as_str().unwrap_or("") == "  L1: keys >"));
 }

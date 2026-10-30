@@ -18,7 +18,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
         .snapshot()
         .lines
         .iter()
-        .any(|line| line == "> Type Drum"));
+        .any(|line| line == "  Type Drum"));
     let slot = &menu.root.children[2].children[0].children[0];
     assert_eq!(slot.label, "I1: Drum direct");
     assert_eq!(
@@ -91,7 +91,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.lines.len(), 7);
     let selected_row = snapshot.selected_row.unwrap();
-    assert!(snapshot.lines[selected_row].starts_with("> Level %"));
+    assert!(snapshot.lines[selected_row].starts_with("  Level %"));
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
         .snapshot()
         .lines
         .iter()
-        .any(|line| line == "> Sound Snare"));
+        .any(|line| line == "  Sound Snare"));
     let label = menu.item_for_key("instruments.0.drum.voice").unwrap();
     assert!(
         matches!(&label.value, NativeMenuValue::Enum { options, .. } if options[0] == "V1: Snare")
@@ -174,7 +174,7 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
         .snapshot()
         .lines
         .iter()
-        .any(|line| line == "> Sound Clap"));
+        .any(|line| line == "  Sound Clap"));
     let label = menu.item_for_key("instruments.0.drum.voice").unwrap();
     assert!(
         matches!(&label.value, NativeMenuValue::Enum { options, .. } if options[0] == "V1: Clap")

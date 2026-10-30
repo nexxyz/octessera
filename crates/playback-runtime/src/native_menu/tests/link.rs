@@ -192,19 +192,19 @@ pub(crate) fn pitch_note_params_use_canonical_note_name_display() {
     assert!(lowest
         .lines
         .iter()
-        .any(|line| line.starts_with("> ") && line.contains("C1 (24)")));
+        .any(|line| line.starts_with("  ") && line.contains("C1 (24)")));
     assert!(menu.focus_item_key("layers.0.link.pitch.highestNote"));
     let highest = menu.snapshot();
     assert!(highest
         .lines
         .iter()
-        .any(|line| line.starts_with("> ") && line.contains("C6 (84)")));
+        .any(|line| line.starts_with("  ") && line.contains("C6 (84)")));
     assert!(menu.focus_item_key("layers.0.link.pitch.startingNote"));
     let starting = menu.snapshot();
     assert!(starting
         .lines
         .iter()
-        .any(|line| line.starts_with("> ") && line.contains("C4 (60)")));
+        .any(|line| line.starts_with("  ") && line.contains("C4 (60)")));
 }
 
 #[test]
@@ -222,11 +222,11 @@ pub(crate) fn link_instrument_targets_use_two_row_selected_presentation() {
     assert_eq!(selected.lines[detail_row - 1], "  Instrument:");
     assert_eq!(
         selected.lines[detail_row],
-        "> I1: An Instrument Name Longer Than One OLED Line"
+        "  I1: An Instrument Name Longer Than One OLED Line"
     );
     assert_eq!(
         selected.full_lines[detail_row].as_deref(),
-        Some("> I1: An Instrument Name Longer Than One OLED Line")
+        Some("  I1: An Instrument Name Longer Than One OLED Line")
     );
     assert!(selected.lines.len() <= 7);
     let scroll = selected.scroll.expect("menu scroll metadata");
@@ -240,11 +240,11 @@ pub(crate) fn link_instrument_targets_use_two_row_selected_presentation() {
     assert_eq!(editing.lines[detail_row - 1], "  Instrument:");
     assert_eq!(
         editing.lines[detail_row],
-        ">* I1: An Instrument Name Longer Than One OLED Line"
+        "* I1: An Instrument Name Longer Than One OLED Line"
     );
     assert_eq!(
         editing.full_lines[detail_row].as_deref(),
-        Some(">* I1: An Instrument Name Longer Than One OLED Line")
+        Some("* I1: An Instrument Name Longer Than One OLED Line")
     );
 
     let item = menu.current_item();
@@ -276,17 +276,17 @@ pub(crate) fn link_event_instrument_targets_keep_item_specific_headings() {
         (
             "layers.0.link.mapping.activate.slot",
             "On Inst",
-            "> I1: synth",
+            "  I1: synth",
         ),
         (
             "layers.0.link.mapping.stable.slot",
             "Hold Inst",
-            "> I1: synth",
+            "  I1: synth",
         ),
         (
             "layers.0.link.mapping.deactivate.slot",
             "Off Inst",
-            "> I1: synth",
+            "  I1: synth",
         ),
     ] {
         assert!(menu.focus_item_key(key));
@@ -306,7 +306,7 @@ pub(crate) fn scanned_empty_instrument_target_keeps_its_heading() {
     let snapshot = menu.snapshot();
     let detail_row = snapshot.selected_row.expect("selected detail row");
     assert_eq!(snapshot.lines[detail_row - 1], "  Empty Inst:");
-    assert_eq!(snapshot.lines[detail_row], "> none");
+    assert_eq!(snapshot.lines[detail_row], "  none");
 }
 
 #[test]
@@ -352,5 +352,5 @@ pub(crate) fn event_section_rows_and_boundary_selection_use_exact_budget() {
     assert_eq!(scroll.visible_rows, 7);
     assert!((3..=4).contains(&detail_row));
     assert_eq!(selected.lines[detail_row - 1], "  Off Inst:");
-    assert_eq!(selected.lines[detail_row], "> I1: synth");
+    assert_eq!(selected.lines[detail_row], "  I1: synth");
 }

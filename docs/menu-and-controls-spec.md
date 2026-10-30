@@ -214,17 +214,20 @@ Aux mappings modal:
   `System > Audio > Engine`, and `System > Display`. It is native and ephemeral, is cleared on menu
   rebuild, and does not apply to any other menu, dynamic list, sample browser, preset list, MIDI port
   list, parameter picker, help, confirm dialog, or assignment overlay.
-- Breadcrumbs show the current submenu label in full and its ancestors short, front-ellipsized to
-  28 characters with `...` so the current location stays visible. Short forms: `Build`/`B`,
-  `Link`/`L`, `Shape`/`S`, `Play`/`P`, `System`/`SYS`; ancestor labels starting `Layer N` or
-  `Bus N` shorten to `LN`/`BN`. Real paths look like `/B/L1: life`, `/S/FX Buses`, and
-  `/SYS/Maintenance/Reset`. Section color follows the canonical section path, not the truncated
-  text.
+- Breadcrumbs show the current page label in full and its ancestors short, fitted to the 15
+  OLED title columns. Short forms: `Build`/`B`, `Link`/`L`, `Shape`/`S`, `Play`/`P`,
+  `System`/`SYS`; ancestor labels starting `Layer N` or `Bus N` shorten to `LN`/`BN`. Instrument
+  pages use the short instrument name without its route (`I1: synth`, `I1: midi`), while the
+  Instruments list rows keep the route (`I1: synth direct`). When the path does not fit, ancestors
+  drop from the left behind `../` (`../Synth/Filter`, `../Filter Env`); if even `../` plus the page
+  does not fit, only the page shows, and a page label longer than 15 characters is clipped at its
+  end. Real paths look like `/B/L1: life`, `/S/FX Buses`, and `../Reset`. Section color follows
+  the canonical section path, not the shortened text.
 - Named target selectors (instrument slot, layer index, mixer route) display computed names, for
   example `I1: synth`, `L3: rain`, `fxb2`, never raw IDs.
 - The instrument selectors under `Link > Lx > Scanning` and `Link > Lx > Events` keep options as
   `none` plus `I#: name`. Unselected rows show only `I#`. The selected row uses exactly two body
-  rows: its plain heading, then `> I#: name` (`>* I#: name` while editing). Long selected details
+  rows: its plain heading, then `  I#: name` (`* I#: name` while editing). Long selected details
   scroll horizontally while browsing and editing.
 
 ### Parameter target pickers
@@ -352,9 +355,11 @@ palette unless a behavior deliberately owns its own.
 
 ### Body rows
 
-- Menu rows use a `> ` marker with an inverted highlight on the selected row, and `* ` while
-  editing. While browsing, a selected value row stays compact on one line (for example
-  `> Cutoff 127`); edit mode shows a separate value-focused row.
+- The inverted highlight bar alone marks the selected menu row; there is no text marker, so a
+  row's text sits at the same position selected or not, with or without an auto-map prefix. Edit
+  mode marks the value with `* `. While browsing, a selected value row stays compact on one line
+  (for example `  Cutoff 127`); edit mode shows a separate value-focused row. Group rows keep their
+  trailing ` >`.
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
   with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
   the same width; shifted rows use `S1-`/`S1!`.
@@ -450,7 +455,9 @@ palette unless a behavior deliberately owns its own.
 
 ### Toasts
 
-- Toasts render on the single bottom line with a 17-column visible window. Longer messages scroll
+- Toasts render on the single bottom line with a 17-column visible window that ends at `x=104`,
+  2 px clear of the transport icon. While more of a longer message follows the window, its last
+  two columns show `..`; they clear once the message end is in view. Longer messages scroll
   horizontally by one native offset per display snapshot attempt; the host supplies the 33 ms
   attempt cadence while scrolling. Short messages schedule no scrolling.
 - Selected long menu rows use the same attempt pacing, advancing one character every four attempts
@@ -603,8 +610,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   banks for the focused menu context; custom bindings keep precedence.
 - Each layout lists up to six entries in order of how often they are played: the first three go
   to Aux 1-3, the rest to Shift + Aux 1-3.
-- Focused rows show indicators such as `1-Cutoff`, `1!Assign` and `S1-Key`, keeping selection
-  markers (`> 1!Assign`).
+- Focused rows show indicators such as `1-Cutoff`, `1!Assign` and `S1-Key` in place of the row
+  indent, selected or not.
 - Behavior rows map Step Rate to Aux 1 and a behavior-specific set after it (for example Life:
   Count, then Interval with a Spawn press, then Glider with a Glider press on Shift + Aux 1).
   Sequencer maps Step Rate, Page X, Page Y, then Advance on Shift + Aux 1. Behaviors without

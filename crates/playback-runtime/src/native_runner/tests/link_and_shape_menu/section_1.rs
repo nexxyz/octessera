@@ -78,10 +78,7 @@ pub(crate) fn link_exposes_aux_mappings_and_enterable_layer_rows() {
 
     assert!(runner.menu.focus_item_key("layers.0.link.scanMode"));
     let snapshot = runner.snapshot().unwrap();
-    assert!(snapshot["display"]["title"]
-        .as_str()
-        .unwrap_or_default()
-        .contains("L1: life"));
+    assert_eq!(snapshot["display"]["title"], "../Scanning");
     let layer_lines = snapshot["display"]["lines"].as_array().unwrap().clone();
     assert!(layer_lines
         .iter()

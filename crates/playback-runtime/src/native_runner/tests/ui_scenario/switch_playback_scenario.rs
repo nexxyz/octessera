@@ -195,14 +195,11 @@ fn turn_visible_enum_once(device: &mut DeviceDriver, groups: &[&str], row_label:
 }
 
 fn selected_row_value(snapshot: &Value, label: &str) -> String {
-    snapshot["display"]["lines"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .find_map(|line| {
-            let selected = line.strip_prefix('>')?.trim();
-            let value = selected.strip_prefix(label)?;
+    snapshot["selectedRow"]
+        .as_u64()
+        .and_then(|row| snapshot["display"]["lines"][row as usize].as_str())
+        .and_then(|line| {
+            let value = line.trim().strip_prefix(label)?;
             Some(value.trim_start_matches(':').trim().to_string())
         })
         .unwrap_or_else(|| {

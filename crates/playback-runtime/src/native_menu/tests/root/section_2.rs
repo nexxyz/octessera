@@ -109,7 +109,7 @@ pub(crate) fn entering_build_selects_active_layer_row() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Build");
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], "> L3: life >");
+    assert_eq!(snapshot.lines[selected_row], "  L3: life >");
     assert_eq!(snapshot.colors[0], platform_core::palette::GREEN_RGB565);
 }
 
@@ -141,7 +141,7 @@ pub(crate) fn link_starts_with_global_rows_and_layer_rows_are_enterable() {
     let _ = menu.press();
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Link");
-    assert_eq!(snapshot.lines[0], "> BPM 120");
+    assert_eq!(snapshot.lines[0], "  BPM 120");
     assert_eq!(snapshot.lines[1], "");
     assert!(snapshot.bar_values[1].is_some());
     assert_eq!(snapshot.lines[2], "  Swing 0%");
@@ -159,7 +159,7 @@ pub(crate) fn link_starts_with_global_rows_and_layer_rows_are_enterable() {
     assert!(layer_snapshot
         .lines
         .iter()
-        .any(|line| line == "> Scanning >"));
+        .any(|line| line == "  Scanning >"));
     assert!(layer_snapshot.lines.iter().any(|line| line == "  Events >"));
     assert!(layer_snapshot
         .lines
@@ -257,7 +257,7 @@ pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
         snapshot.scroll.as_ref().map(|scroll| scroll.visible_rows),
         Some(7)
     );
-    assert_eq!(snapshot.lines[5], "> L8: life >");
+    assert_eq!(snapshot.lines[5], "  L8: life >");
     assert!(!snapshot.lines.iter().any(|line| line == "  L1: life"));
 }
 

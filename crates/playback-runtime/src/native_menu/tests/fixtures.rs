@@ -9,6 +9,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         build_items: vec![
             NativeMenuItem {
                 label: "Behavior".into(),
+                breadcrumb: None,
                 key: Some("behaviorId".into()),
                 value: NativeMenuValue::Enum {
                     options: vec!["life".into(), "brain".into(), "none".into()],
@@ -18,6 +19,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             },
             NativeMenuItem {
                 label: "Step Rate".into(),
+                breadcrumb: None,
                 key: Some("algorithmStep".into()),
                 value: NativeMenuValue::Enum {
                     options: crate::timing_units::NOTE_UNIT_OPTIONS
@@ -33,6 +35,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             },
             NativeMenuItem {
                 label: "Spawn Count".into(),
+                breadcrumb: None,
                 key: Some("behavior.randomCellsPerTick".into()),
                 value: NativeMenuValue::Number {
                     value: 12,
@@ -45,6 +48,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             },
             NativeMenuItem {
                 label: "Spawn Interval".into(),
+                breadcrumb: None,
                 key: Some("behavior.randomTickInterval".into()),
                 value: NativeMenuValue::Number {
                     value: 1,
@@ -57,6 +61,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             },
             NativeMenuItem {
                 label: "Spawn".into(),
+                breadcrumb: None,
                 key: Some("behavior.spawn".into()),
                 value: NativeMenuValue::Action(NativeMenuAction::BehaviorAction(
                     "spawnRandom".into(),
@@ -65,6 +70,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             },
             NativeMenuItem {
                 label: "Reset".into(),
+                breadcrumb: None,
                 key: Some("behavior.reset".into()),
                 value: NativeMenuValue::Action(NativeMenuAction::ResetBehavior),
                 children: vec![],
@@ -201,6 +207,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
             vec![
                 NativeMenuItem {
                     label: "Step Rate".into(),
+                    breadcrumb: None,
                     key: Some(format!("layers.{layer_index}.algorithmStep")),
                     value: NativeMenuValue::Enum {
                         options: crate::timing_units::NOTE_UNIT_OPTIONS
@@ -216,6 +223,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                 },
                 NativeMenuItem {
                     label: "Spawn Count".into(),
+                    breadcrumb: None,
                     key: Some(format!(
                         "layers.{layer_index}.build.behaviorConfig.randomCellsPerTick"
                     )),
@@ -230,6 +238,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                 },
                 NativeMenuItem {
                     label: "Spawn Interval".into(),
+                    breadcrumb: None,
                     key: Some(format!(
                         "layers.{layer_index}.build.behaviorConfig.randomTickInterval"
                     )),
