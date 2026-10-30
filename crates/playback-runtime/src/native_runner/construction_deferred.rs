@@ -96,6 +96,26 @@ impl NativeRunner {
         self.messages_without_presentation()
     }
 
+    /// Ending an edit applies its deferred change now, so the next edit always lands after it.
+    pub(super) fn apply_menu_key_at_edit_end(&mut self, key: &str) -> Result<(), String> {
+        self.apply_or_schedule_menu_key(key)?;
+        if self
+            .pending
+            .pending_menu_apply
+            .as_ref()
+            .is_none_or(|pending| pending.key != key)
+        {
+            return Ok(());
+        }
+        self.pending.pending_menu_apply = None;
+        if !self.apply_deferred_menu_key_fast(key) {
+            return Err(format!(
+                "unhandled deferred menu edit key `{key}`; add an explicit deferred handler"
+            ));
+        }
+        Ok(())
+    }
+
     pub(super) fn apply_due_menu_key(&mut self, now: Instant) -> Result<bool, String> {
         let Some(pending) = self.pending.pending_menu_apply.as_ref() else {
             return Ok(false);

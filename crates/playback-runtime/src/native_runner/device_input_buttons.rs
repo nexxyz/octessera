@@ -124,7 +124,7 @@ impl NativeRunner {
             }
             if should_apply {
                 if let Some(key) = selected_group_key.as_deref() {
-                    self.apply_or_schedule_menu_key(key)?;
+                    self.apply_menu_key_at_edit_end(key)?;
                     self.finish_restart_sensitive_edit(key);
                     if !super::restart_settings::is_restart_setting(key) {
                         self.finish_system_parameter_edit(key);
@@ -231,7 +231,7 @@ impl NativeRunner {
             self.reset_menu_scroll();
             self.menu.back();
             if let Some(key) = editing_key {
-                self.apply_or_schedule_menu_key(&key)?;
+                self.apply_menu_key_at_edit_end(&key)?;
                 self.finish_restart_sensitive_edit(&key);
                 if !super::restart_settings::is_restart_setting(&key) {
                     self.finish_system_parameter_edit(&key);

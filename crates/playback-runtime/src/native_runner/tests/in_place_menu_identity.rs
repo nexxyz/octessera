@@ -90,3 +90,20 @@ fn midi_channel_detents_update_the_instrument_label() {
     assert_eq!(runner.instruments[0].midi_channel, 3);
     assert_matches_fresh_build(&runner, rebuilds);
 }
+
+#[test]
+fn an_edit_to_another_key_lands_after_a_pending_layer_rename() {
+    let mut runner = runner_with_instrument("sampler");
+    enter_edit(&mut runner, "layers.0.name");
+    turn(&mut runner, 2);
+    back(&mut runner);
+
+    enter_edit(&mut runner, "layers.0.autoName");
+    turn(&mut runner, 1);
+    press(&mut runner);
+    runner.make_deferred_menu_apply_due_for_test();
+    runner.flush_deferred_menu_apply().unwrap();
+
+    assert!(runner.layer_auto_names[0]);
+    assert!(!runner.layer_names[0].ends_with('B'));
+}
