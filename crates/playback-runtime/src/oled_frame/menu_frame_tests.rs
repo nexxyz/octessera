@@ -22,7 +22,7 @@ fn with_bar(fraction: f32, style: OledBarStyle, selected_row: usize) -> Vec<u8> 
 }
 
 fn row_has_color(frame: &[u8], row: usize, color: u16) -> bool {
-    let top = 18 + row * 13;
+    let top = 22 + row * 13;
     (top..top + 7).any(|y| (4..120).any(|x| pixel(frame, x, y) == color))
 }
 
@@ -54,10 +54,10 @@ fn header_rule_spans_the_width_in_the_area_colour_between_title_and_body() {
             let frame = render_oled_frame(&input);
             let expected = rgb565(scale(rgb565_to_rgb(color), f32::from(brightness) / 100.0));
             assert!(
-                (0..128).all(|x| pixel(&frame, x, 14) == expected),
+                (0..128).all(|x| pixel(&frame, x, 16) == expected),
                 "{title}"
             );
-            for y in [12, 13, 15, 16] {
+            for y in [12, 13, 14, 15, 17, 18, 19, 20] {
                 assert!((0..128).all(|x| pixel(&frame, x, y) == 0), "{title} y={y}");
             }
             assert!(
@@ -65,7 +65,7 @@ fn header_rule_spans_the_width_in_the_area_colour_between_title_and_body() {
                 "{title} glyphs"
             );
             if layout == OledDisplayLayout::Rows {
-                assert_ne!(pixel(&frame, 4, 17), 0, "{title} selection");
+                assert_ne!(pixel(&frame, 4, 21), 0, "{title} selection");
             }
         }
     }
@@ -75,11 +75,11 @@ fn header_rule_spans_the_width_in_the_area_colour_between_title_and_body() {
 fn menu_frame_draws_title_selection_bar_scrollbar_transport_and_event_dot() {
     let frame = render_oled_frame(&base());
     assert_ne!(pixel(&frame, 5, 5), 0);
-    assert_eq!(pixel(&frame, 4, 30), palette::GREEN_RGB565);
-    assert_eq!(pixel(&frame, 87, 30), palette::BLACK_RGB565);
-    assert_eq!(pixel(&frame, 88, 31), palette::GREEN_RGB565);
-    assert_ne!(pixel(&frame, 125, 18), 0);
-    assert_ne!(pixel(&frame, 102, 118), 0);
+    assert_eq!(pixel(&frame, 4, 34), palette::GREEN_RGB565);
+    assert_eq!(pixel(&frame, 87, 34), palette::BLACK_RGB565);
+    assert_eq!(pixel(&frame, 88, 35), palette::GREEN_RGB565);
+    assert_ne!(pixel(&frame, 125, 22), 0);
+    assert_ne!(pixel(&frame, 108, 118), 0);
     assert_ne!(pixel(&frame, 119, 119), 0);
 
     let mut unselected = base();
@@ -91,30 +91,30 @@ fn menu_frame_draws_title_selection_bar_scrollbar_transport_and_event_dot() {
 #[test]
 fn bars_render_empty_partial_full_marker_and_selected_contrast() {
     let empty = with_bar(0.0, OledBarStyle::Fill, 0);
-    assert_eq!(pixel(&empty, 87, 30), palette::GREEN_RGB565);
-    assert_eq!(pixel(&empty, 88, 31), green_track());
+    assert_eq!(pixel(&empty, 87, 34), palette::GREEN_RGB565);
+    assert_eq!(pixel(&empty, 88, 35), green_track());
 
     let partial = with_bar(0.5, OledBarStyle::Fill, 0);
-    assert_eq!(pixel(&partial, 88, 31), palette::GREEN_RGB565);
-    assert_eq!(pixel(&partial, 105, 31), green_track());
+    assert_eq!(pixel(&partial, 88, 35), palette::GREEN_RGB565);
+    assert_eq!(pixel(&partial, 105, 35), green_track());
 
     let full = with_bar(1.0, OledBarStyle::Fill, 0);
-    assert_eq!(pixel(&full, 121, 31), palette::GREEN_RGB565);
+    assert_eq!(pixel(&full, 121, 35), palette::GREEN_RGB565);
 
     let marker = with_bar(0.5, OledBarStyle::Marker, 0);
-    assert_eq!(pixel(&marker, 105, 32), palette::GREEN_RGB565);
-    assert_eq!(pixel(&marker, 104, 32), green_track());
+    assert_eq!(pixel(&marker, 105, 36), palette::GREEN_RGB565);
+    assert_eq!(pixel(&marker, 104, 36), green_track());
 
     let selected = with_bar(1.0, OledBarStyle::Fill, 1);
-    assert_eq!(pixel(&selected, 87, 30), palette::BLACK_RGB565);
-    assert_eq!(pixel(&selected, 121, 31), palette::GREEN_RGB565);
+    assert_eq!(pixel(&selected, 87, 34), palette::BLACK_RGB565);
+    assert_eq!(pixel(&selected, 121, 35), palette::GREEN_RGB565);
 }
 
 #[test]
 fn scrollbar_thumb_tracks_offset_and_hides_without_overflow() {
     let thumb = palette::WHITE_RGB565;
     let track = rgb565(dim(palette::GRAY, 4));
-    for (offset, total, thumb_rows) in [(0, 12, 18..69), (2, 12, 32..83), (5, 12, 55..106)] {
+    for (offset, total, thumb_rows) in [(0, 12, 22..73), (2, 12, 36..87), (5, 12, 59..110)] {
         let mut input = base();
         input.display.scroll = Some(OledScrollInput {
             offset,
@@ -122,7 +122,7 @@ fn scrollbar_thumb_tracks_offset_and_hides_without_overflow() {
             visible_rows: 7,
         });
         let frame = render_oled_frame(&input);
-        for y in 18..106 {
+        for y in 22..110 {
             let expected = if thumb_rows.contains(&y) {
                 thumb
             } else {
@@ -143,7 +143,7 @@ fn scrollbar_thumb_tracks_offset_and_hides_without_overflow() {
         let mut input = base();
         input.display.scroll = scroll;
         let frame = render_oled_frame(&input);
-        assert!((18..106).all(|y| pixel(&frame, 125, y) == 0));
+        assert!((22..110).all(|y| pixel(&frame, 125, y) == 0));
     }
 }
 
@@ -174,82 +174,8 @@ fn rows_use_their_colours_scaled_by_brightness_and_default_to_white() {
     dimmed.display_brightness = 50;
     let frame = render_oled_frame(&dimmed);
     assert_eq!(
-        pixel(&frame, 4, 30),
+        pixel(&frame, 4, 34),
         rgb565(scale(rgb565_to_rgb(palette::GREEN_RGB565), 0.5))
-    );
-}
-
-#[test]
-fn transport_icon_and_event_dot_colours_follow_state() {
-    for (icon, flash, color) in [
-        (
-            OledTransportIcon::Stop,
-            OledTransportFlash::Beat,
-            palette::MAGENTA_RGB565,
-        ),
-        (
-            OledTransportIcon::Pause,
-            OledTransportFlash::Measure,
-            palette::BLUE_RGB565,
-        ),
-        (
-            OledTransportIcon::Play,
-            OledTransportFlash::Beat,
-            palette::YELLOW_RGB565,
-        ),
-        (
-            OledTransportIcon::Play,
-            OledTransportFlash::Measure,
-            palette::GREEN_RGB565,
-        ),
-        (
-            OledTransportIcon::Play,
-            OledTransportFlash::None,
-            palette::WHITE_RGB565,
-        ),
-    ] {
-        let mut input = base();
-        input.transport = OledTransportInput { icon, flash };
-        let frame = render_oled_frame(&input);
-        assert_eq!(pixel(&frame, 101, 118), color);
-    }
-    let mut input = base();
-    assert_eq!(
-        pixel(&render_oled_frame(&input), 119, 119),
-        palette::WHITE_RGB565
-    );
-    input.metrics.voice_steal = true;
-    assert_eq!(
-        pixel(&render_oled_frame(&input), 119, 119),
-        palette::MAGENTA_RGB565
-    );
-    input.event_dot_on = false;
-    assert_eq!(pixel(&render_oled_frame(&input), 119, 119), 0);
-}
-
-#[test]
-fn toast_replaces_footer_and_long_toasts_stay_inside_their_rect() {
-    let mut input = base();
-    input.display.toast = "A deliberately long toast message for the OLED".into();
-    input.save_flash = OledSaveFlash::Flash;
-    let frame = render_oled_frame(&input);
-    assert!((118..125).any(|y| (5..11).any(|x| pixel(&frame, x, y) != 0)));
-    assert_eq!(pixel(&frame, 101, 118), 0);
-    assert_eq!(pixel(&frame, 119, 119), 0);
-    assert!((107..128).all(|x| (114..128).all(|y| pixel(&frame, x, y) == 0)));
-    assert_eq!(pixel(&frame, 107, 5), palette::YELLOW_RGB565);
-}
-
-#[test]
-fn status_icons_stay_hidden_until_high_cpu_or_save_flash() {
-    let frame = render_oled_frame(&base());
-    assert_eq!(pixel(&frame, 118, 6), 0);
-    assert_eq!(pixel(&frame, 107, 5), 0);
-    let mut saving = base();
-    saving.save_flash = OledSaveFlash::Flash;
-    assert_eq!(
-        pixel(&render_oled_frame(&saving), 107, 5),
-        palette::YELLOW_RGB565
     );
 }
 
@@ -269,7 +195,7 @@ fn off_beats_errors_and_splash_while_errors_beat_splash() {
     assert_eq!(pixel(&frame, 0, 0), rgb565(dim(palette::MAGENTA, 6)));
     assert_eq!(pixel(&frame, 10, 10), palette::MAGENTA_RGB565);
     assert_eq!(pixel(&frame, 119, 119), palette::BLACK_RGB565);
-    assert!((0..128).all(|x| pixel(&frame, x, 14) != palette::BLUE_RGB565));
+    assert!((0..128).all(|x| pixel(&frame, x, 16) != palette::BLUE_RGB565));
 
     input.display.off = true;
     assert!(render_oled_frame(&input).iter().all(|byte| *byte == 0));
@@ -292,8 +218,8 @@ fn concise_midi_error_keeps_the_menu_frame_over_splash() {
     let frame = render_oled_frame(&input);
     assert_eq!(pixel(&frame, 0, 0), 0);
     assert_ne!(pixel(&frame, 5, 5), 0);
-    assert_ne!(pixel(&frame, 6, 18), 0);
-    assert_eq!(pixel(&frame, 0, 14), palette::BLUE_RGB565);
+    assert_ne!(pixel(&frame, 6, 22), 0);
+    assert_eq!(pixel(&frame, 0, 16), palette::BLUE_RGB565);
 }
 
 #[test]
@@ -364,7 +290,7 @@ fn sparse_menus_render_without_metadata() {
     input.display.bars.clear();
     input.display.colors.clear();
     input.display.scroll = None;
-    assert_ne!(pixel(&render_oled_frame(&input), 4, 30), 0);
+    assert_ne!(pixel(&render_oled_frame(&input), 4, 34), 0);
 
     input.display.lines.clear();
     input.selected_row = None;
@@ -389,9 +315,9 @@ fn modal_rows_and_setup_cards_highlight_their_final_action() {
         &["Version 0.7.5", "CPU 12%", "> Back"],
     ] {
         let frame = render_oled_frame(&modal(lines, OledDisplayLayout::Rows));
-        let y = 18 + (lines.len() - 1) * 13;
+        let y = 22 + (lines.len() - 1) * 13;
         assert_eq!(pixel(&frame, 3, y - 1), palette::WHITE_RGB565, "{lines:?}");
-        assert!((18..106).all(|y| pixel(&frame, 125, y) == 0));
+        assert!((22..110).all(|y| pixel(&frame, 125, y) == 0));
     }
     for lines in [
         &["Starting hotspot...", "> Hide"][..],

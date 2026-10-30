@@ -148,9 +148,9 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     assert_eq!(beat["transport"]["playing"], true);
     assert_eq!(beat["transport"]["ppqnPulse"], 24);
     assert_eq!(beat["transportFlash"], "beat");
-    assert_eq!(beat["eventDotOn"], true);
+    assert_eq!(beat["eventDotLevel"], 4);
     assert!(beat["settings"].get("instruments").is_none());
-    runner.test_set_display_time(start + Duration::from_millis(300));
+    runner.test_set_display_time(start + Duration::from_millis(500));
     runner
         .send(HostMessage::TransportPulseStep {
             pulses: 0,
@@ -162,7 +162,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     let expired = converted_scene(&runner, true);
     assert_typed_oled_matches_legacy(&runner);
     assert_eq!(expired["transportFlash"], "none");
-    assert_eq!(expired["eventDotOn"], false);
+    assert_eq!(expired["eventDotLevel"], 0);
     assert_eq!(expired["display"]["title"], "MENU");
     runner
         .send(HostMessage::DeviceInput {

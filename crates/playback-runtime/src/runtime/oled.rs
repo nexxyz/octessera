@@ -9,9 +9,13 @@ use crate::protocol::{
 };
 use serde_json::Value;
 
+const CPU_LOAD_PEAK_REPORTS: usize = 10;
+
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct RuntimeOled {
     pub(super) normalized_metrics: OledPresentationMetrics,
+    cpu_load_reports: [u8; CPU_LOAD_PEAK_REPORTS],
+    next_cpu_load_report: usize,
     current: Vec<u8>,
     scratch: Vec<u8>,
     revision: u64,
@@ -35,6 +39,8 @@ impl Default for RuntimeOled {
     fn default() -> Self {
         Self {
             normalized_metrics: OledPresentationMetrics::default(),
+            cpu_load_reports: [0; CPU_LOAD_PEAK_REPORTS],
+            next_cpu_load_report: 0,
             current: vec![0; OLED_FRAME_BYTES],
             scratch: vec![0; OLED_FRAME_BYTES],
             revision: 0,
@@ -55,6 +61,29 @@ impl RuntimeOled {
 
     pub(super) fn has_positive_revision(&self) -> bool {
         self.revision > 0
+    }
+
+    fn normalize_metrics(
+        &mut self,
+        metrics: RuntimePresentationMetrics,
+    ) -> OledPresentationMetrics {
+        let load = metrics
+            .worker_utilization
+            .unwrap_or(metrics.audio_load_ratio);
+        self.cpu_load_reports[self.next_cpu_load_report] =
+            ((load.clamp(0.0, 2.0) * 100.0).round() as u8) / 5 * 5;
+        self.next_cpu_load_report = (self.next_cpu_load_report + 1) % CPU_LOAD_PEAK_REPORTS;
+        let mut normalized = OledPresentationMetrics::from_status(
+            metrics.worker_utilization,
+            metrics.high_cpu_steady,
+            metrics.missed_quantum_flash,
+            metrics.voice_steal,
+        );
+        normalized.cpu_load_peak_percent = self.cpu_load_reports.iter().copied().max().unwrap_or(0);
+        normalized.voice_steal_level = normalized
+            .voice_steal_level
+            .max(self.normalized_metrics.voice_steal_level.saturating_sub(1));
+        normalized
     }
 
     pub(super) fn requeue_if_current_frame_was_published(&mut self, output: &RuntimeIngest) {
@@ -187,12 +216,7 @@ impl PlaybackRuntime {
         &mut self,
         metrics: RuntimePresentationMetrics,
     ) -> RuntimeIngest {
-        let normalized = OledPresentationMetrics::from_status(
-            metrics.worker_utilization,
-            metrics.high_cpu_steady,
-            metrics.missed_quantum_flash,
-            metrics.voice_steal,
-        );
+        let normalized = self.oled.normalize_metrics(metrics);
         if normalized == self.oled.normalized_metrics {
             return RuntimeIngest::default();
         }
@@ -208,12 +232,7 @@ impl PlaybackRuntime {
         &mut self,
         metrics: RuntimePresentationMetrics,
     ) -> bool {
-        let normalized = OledPresentationMetrics::from_status(
-            metrics.worker_utilization,
-            metrics.high_cpu_steady,
-            metrics.missed_quantum_flash,
-            metrics.voice_steal,
-        );
+        let normalized = self.oled.normalize_metrics(metrics);
         if normalized == self.oled.normalized_metrics {
             return false;
         }

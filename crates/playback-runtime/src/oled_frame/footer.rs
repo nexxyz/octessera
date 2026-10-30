@@ -1,7 +1,7 @@
 use platform_core::palette;
 
-use super::model::{OledSaveFlash, OledTransportFlash, OledTransportIcon};
-use super::pixels::{fill_rect, rgb565, scale};
+use super::model::{OledSaveFlash, OledTransportFlash, OledTransportIcon, INDICATOR_FADE_LEVELS};
+use super::pixels::{dim, fill_rect, rgb565, scale};
 use super::text::draw_text_clipped;
 use super::text_layout::fit_line_ellipsis;
 use super::OledPresentationInput;
@@ -11,21 +11,56 @@ pub(super) fn draw_status_indicators(
     input: &OledPresentationInput,
     brightness: f32,
 ) {
+    draw_cpu_meter(frame, input, brightness);
     if input.metrics.missed_quantum_flash {
-        draw_missed_quantum_icon(frame, 117, 5, brightness);
+        draw_missed_quantum_icon(frame, 107, 5, brightness);
     } else if input.metrics.high_cpu_steady {
-        draw_cpu_icon(frame, 117, 5, rgb565(scale(palette::MAGENTA, brightness)));
+        draw_cpu_icon(frame, 107, 5, rgb565(scale(palette::MAGENTA, brightness)));
     }
     if input.save_flash == OledSaveFlash::Flash {
-        draw_save_icon(frame, 107, 5, rgb565(scale(palette::YELLOW, brightness)));
+        draw_save_icon(frame, 97, 4, rgb565(scale(palette::YELLOW, brightness)));
+    }
+}
+
+pub(super) fn cpu_meter_bars(peak_percent: u8, warn_percent: u8) -> usize {
+    let moderate_percent = u16::from(warn_percent) * 2 / 3 / 5 * 5;
+    if peak_percent >= warn_percent {
+        3
+    } else if u16::from(peak_percent) >= moderate_percent {
+        2
+    } else {
+        1
+    }
+}
+
+fn draw_cpu_meter(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
+    let lit = cpu_meter_bars(input.metrics.cpu_load_peak_percent, input.cpu_warn_percent);
+    let lit_rgb = match lit {
+        3 => palette::BEHAVIOR_PRIMARY_RED,
+        2 => palette::YELLOW,
+        _ => palette::GREEN,
+    };
+    for bar in 0..3 {
+        let height = 3 + bar * 2;
+        let rgb = if bar < lit {
+            lit_rgb
+        } else {
+            dim(palette::GRAY, 4)
+        };
+        fill_rect(
+            frame,
+            116 + bar * 3,
+            12 - height,
+            2,
+            height,
+            rgb565(scale(rgb, brightness)),
+        );
     }
 }
 
 pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
     let text = rgb565(scale(palette::WHITE, brightness));
     if !input.display.toast.is_empty() {
-        let background = rgb565(scale(palette::BLACK, brightness));
-        fill_rect(frame, 0, 114, 128, 14, background);
         let toast = fit_line_ellipsis(&input.display.toast, super::TOAST_RECT.columns());
         draw_text_clipped(
             frame,
@@ -35,16 +70,28 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
             super::TOAST_RECT.columns(),
             text,
         );
-        return;
     }
     draw_transport_icon(frame, input, brightness);
-    if input.event_dot_on {
-        let color = if input.metrics.voice_steal {
+    let voice_steal = input.metrics.voice_steal_level;
+    let level = input
+        .event_dot_level
+        .max(voice_steal)
+        .min(INDICATOR_FADE_LEVELS);
+    if level > 0 {
+        let color = if voice_steal > 0 {
             palette::MAGENTA
         } else {
             palette::WHITE
         };
-        fill_rect(frame, 119, 119, 5, 5, rgb565(scale(color, brightness)));
+        let fade = 1.0 / f32::from(1_u8 << (INDICATOR_FADE_LEVELS - level));
+        fill_rect(
+            frame,
+            119,
+            119,
+            5,
+            5,
+            rgb565(scale(color, brightness * fade)),
+        );
     }
 }
 
@@ -59,7 +106,7 @@ fn draw_transport_icon(frame: &mut [u8], input: &OledPresentationInput, brightne
     draw_transport_shape(
         frame,
         &input.transport.icon,
-        101,
+        107,
         118,
         rgb565(scale(rgb, brightness)),
     );

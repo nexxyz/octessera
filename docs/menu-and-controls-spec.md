@@ -312,18 +312,21 @@ change; only the distance per detent does.
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.
 - Geometry: 5×7 glyphs on a 6 px advance. The top line is the title bar: the white breadcrumb at
-  `y=5` over a full-width 1 px rule at `y=14` in the current area's color (`display.titleColor`:
+  `y=5` over a full-width 1 px rule at `y=16` in the current area's color (`display.titleColor`:
   Build green, Link magenta, Shape blue, Play yellow, System and the root menu gray). Help,
   confirmation, setup and other screens drawn over a menu keep that menu's rule; splash, full
-  runtime-error frames and the off state have none. The
-  menu body is 19 columns by 7 rows (`x=6`, `y=18`, 13 px rows). The toast line at the bottom is 17
-  columns wide.
+  runtime-error frames and the off state have none. Header content (breadcrumb glyphs, icons, CPU
+  meter) stays in rows `4..=11`, so four clear rows (12 to 15) sit above the rule and four (17 to 20)
+  below it, before the first row's selection fill at `y=21`. The breadcrumb is clipped to 15
+  characters (`x=5..93`). The
+  menu body is 19 columns by 7 rows (`x=6`, `y=22`, 13 px rows; the last row's highlight ends at `y=109`, clear of the toast line). The toast line at the bottom is 17
+  columns wide (`x=4..104`, `y=118`), left of the transport icon and event dot.
 - Every snapshot `display` object carries the required `bodyLayout`:
   - `rows` keeps the menu/help/sample/restore/confirmation/System Info/concise-MIDI row
     semantics, including the 28-character/7-row normalization, bars, selected-line scrolling, and
     scrollbars.
   - `card` is used for the setup portal and Backup / Restore status and keeps every complete
-    semantic source string in `display.lines`. Cards use `x=4`, `width=120`, `y=18`, `height=91`,
+    semantic source string in `display.lines`. Cards use `x=4`, `width=120`, `y=22`, `height=91`,
     `rowAdvance=13` (20 columns by 7 rows), reserve the final row for the selected action, and
     ignore row bars and scroll metadata. When card prose wraps or later lines do not fit, only the
     final visible prose row gets `...`. Desktop and both boards draw cards and rows with the one
@@ -409,19 +412,33 @@ palette unless a behavior deliberately owns its own.
 
 ### Status icons and transport indicators
 
-- The transport icon (`▶` / `⏸` / `■`) sits bottom-right and hides while a footer toast is shown.
-- Event-dot and transport-flash timing uses native monotonic deadlines: 45 ms for the event dot,
-  90 ms for beat/measure flashes. A visible start, flash-kind change, or expiry forces one snapshot;
-  same-state retriggers only extend the deadline.
-- Recent voice stealing turns the event dot magenta. Aggregate audio-load and voice-steal status
-  stay on the desktop audio-load bridge and do not drive the worker icon.
-- The persistent-worker CPU icon is magenta at `(117,5)` and shows only while valid persistent
+- The transport icon (`▶` / `⏸` / `■`) sits bottom-right at `(107,118)` and the 5×5 event dot at
+  `(119,119)`. Both stay visible while a footer toast is shown; the toast never draws over them.
+- Event-dot and transport-flash timing uses native monotonic deadlines. The event dot fades in four
+  100 ms steps at full, 1/2, 1/4 and 1/8 brightness, then goes dark (400 ms in all); a new event
+  restarts it at full brightness. Beat/measure flashes last 90 ms. A visible start, fade step,
+  flash-kind change, or expiry forces one snapshot; a retrigger while the dot is still at full
+  brightness, or a same-kind flash retrigger, only moves the deadline. The fade adds at most one
+  one-shot snapshot per 100 ms step; while playing, boards already capture on the 33 ms tick, so
+  the fade only changes pixels (one extra OLED write per step, on the render worker).
+- Recent voice stealing turns the event dot magenta and fades it in the same four steps, one step
+  per audio-load report (100 ms); another steal restarts it at full brightness. Aggregate
+  audio-load status does not drive the worker icon.
+- The CPU meter in the header's top right is three bars (`x=116`, `119`, `122`; 3, 5 and 7 px
+  tall, bottoms on `y=11`) and is always shown on menu frames. It reads the highest load reported
+  over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker
+  utilization on the boards, the audio block render ratio on the desktop, which has no persistent
+  workers. With `W` = `System > Audio > Engine > CPU Warn %` (default 85): below
+  `floor(2W/3)` rounded down to a multiple of 5 one green bar; from there up to `W` two yellow bars;
+  at or above `W` three red bars. Unlit bars are dark gray. Yellow starts at 45/50/50/55/60/60 % for
+  `W` = 70/75/80/85/90/95.
+- The persistent-worker CPU icon is magenta at `(107,5)` and shows only while valid persistent
   worker metrics report `high_cpu_steady`; missing or inline metrics hide it. The configured
   threshold (`System > Audio > Engine > CPU Warn %`) applies immediately. Clearing needs
   utilization strictly below `threshold - 5` percentage points for five rendered seconds; equality
   stays in the hold band and resets the clear timer.
 - A missed-quantum flash takes the same CPU slot with the inverted white/black CPU glyph and hides
-  the magenta icon while active. The yellow save icon at `(107,5)` may coexist with either CPU-slot
+  the magenta icon while active. The yellow save icon at `(97,4)` may coexist with either CPU-slot
   state.
 - `DeadlineMiss` is native, nonterminal ownership recovery. A newly missed persistent quantum
   replays the previous final master quantum exactly once when its frame count matches, otherwise it

@@ -93,7 +93,7 @@ fn request_snapshot_false_device_event_has_ordered_snapshot_and_expiry() {
     assert_eq!(snapshot_count(&event), 1);
     assert!(event_index < snapshot_index);
     assert!(snapshot_index < status_index);
-    assert_eq!(snapshot_value(&event)["eventDotOn"], true);
+    assert_eq!(snapshot_value(&event)["eventDotLevel"], 4);
 
     runner.test_set_display_time(start + Duration::from_millis(100));
     let combined = runner
@@ -105,10 +105,10 @@ fn request_snapshot_false_device_event_has_ordered_snapshot_and_expiry() {
         })
         .unwrap();
     assert_eq!(snapshot_count(&combined), 1);
-    assert_eq!(snapshot_value(&combined)["eventDotOn"], true);
+    assert_eq!(snapshot_value(&combined)["eventDotLevel"], 4);
     assert_eq!(snapshot_value(&combined)["transportFlash"], "beat");
 
-    runner.test_set_display_time(start + Duration::from_millis(136));
+    runner.test_set_display_time(start + Duration::from_millis(191));
     let expiry = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 0,
@@ -118,7 +118,7 @@ fn request_snapshot_false_device_event_has_ordered_snapshot_and_expiry() {
         })
         .unwrap();
     assert_eq!(snapshot_count(&expiry), 1);
-    assert_eq!(snapshot_value(&expiry)["eventDotOn"], false);
+    assert_eq!(snapshot_value(&expiry)["eventDotLevel"], 3);
 }
 
 #[test]

@@ -1,12 +1,15 @@
 use super::OledDisplayLayout;
 
+pub const INDICATOR_FADE_LEVELS: u8 = 4;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct OledPresentationInput {
     pub display: OledDisplayInput,
     pub selected_row: Option<usize>,
     pub transport: OledTransportInput,
-    pub event_dot_on: bool,
+    pub event_dot_level: u8,
     pub display_brightness: u8,
+    pub cpu_warn_percent: u8,
     pub save_flash: OledSaveFlash,
     pub save_flash_serial: u64,
     pub metrics: OledPresentationMetrics,
@@ -101,9 +104,10 @@ pub enum OledSplash {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct OledPresentationMetrics {
     pub worker_utilization: Option<f32>,
+    pub cpu_load_peak_percent: u8,
     pub high_cpu_steady: bool,
     pub missed_quantum_flash: bool,
-    pub voice_steal: bool,
+    pub voice_steal_level: u8,
 }
 
 impl OledPresentationMetrics {
@@ -115,9 +119,14 @@ impl OledPresentationMetrics {
     ) -> Self {
         Self {
             worker_utilization,
+            cpu_load_peak_percent: 0,
             high_cpu_steady: worker_utilization.is_some() && high_cpu_steady,
             missed_quantum_flash,
-            voice_steal,
+            voice_steal_level: if voice_steal {
+                INDICATOR_FADE_LEVELS
+            } else {
+                0
+            },
         }
     }
 }

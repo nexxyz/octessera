@@ -42,7 +42,7 @@ const CONTRACT_RUNNER_MESSAGES: RuntimeRunnerMessage[] = [
         shift: [67, 68, 71],
         fn: [67, 68, 71],
       },
-      eventDotOn: false,
+      eventDotLevel: 0,
       transportIcon: 'stop',
       transportFlash: 'none',
       oledFrameRevision: createOledFrameRevision(1),

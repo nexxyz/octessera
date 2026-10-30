@@ -68,7 +68,7 @@ export type RuntimeSnapshotFields = {
   gridInteraction: GridInteraction;
   neoKeyLeds: NeoKeyLeds;
   selectedRow?: number | null;
-  eventDotOn: boolean;
+  eventDotLevel: number;
   voiceSteal?: boolean;
   workerUtilization?: number;
   highCpuSteady?: boolean;

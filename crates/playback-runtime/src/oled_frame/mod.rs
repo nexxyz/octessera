@@ -17,7 +17,7 @@ pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
 pub use model::{
     OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput, OledPresentationMetrics,
     OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
-    OledTransportIcon, OledTransportInput,
+    OledTransportIcon, OledTransportInput, INDICATOR_FADE_LEVELS,
 };
 pub(crate) use presentation_input::presentation_input_from_snapshot;
 pub use render::render_oled_frame;
@@ -31,6 +31,9 @@ pub use text_layout::{
 
 #[cfg(test)]
 mod error_layout_tests;
+
+#[cfg(test)]
+mod indicator_tests;
 
 #[cfg(test)]
 mod menu_frame_tests;

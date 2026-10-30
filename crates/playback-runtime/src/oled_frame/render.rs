@@ -12,7 +12,7 @@ use super::{
     SPLASH_TOAST_RECT,
 };
 
-const HEADER_RULE_Y: usize = 14;
+const HEADER_RULE_Y: usize = 16;
 
 pub fn render_oled_frame(input: &OledPresentationInput) -> Vec<u8> {
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
@@ -177,7 +177,7 @@ fn draw_scrollbar(frame: &mut [u8], input: &OledPresentationInput, track: u16, t
     if scroll.total_rows <= scroll.visible_rows || scroll.visible_rows == 0 {
         return;
     }
-    let body_top = 18;
+    let body_top = 22;
     let body_height = 88;
     let thumb_height = ((scroll.visible_rows * body_height) / scroll.total_rows).max(6);
     let max_offset = scroll.total_rows.saturating_sub(scroll.visible_rows).max(1);

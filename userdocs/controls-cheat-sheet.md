@@ -162,6 +162,18 @@ like `activate`, or directly from your presses in `keys` and `looper`.
 `(empty)` means there's nothing here. *Play* previews the highlighted sample.
 Long names clip or scroll rather than run into other text.
 
+## Status on the OLED
+
+| Where | What it tells you |
+|---|---|
+| Top left | Where you are in the menu. The line under it takes the area's colour. |
+| Top right, three bars | How hard the audio engine worked over the last second. One green bar is relaxed, two yellow bars are getting busy, three red bars mean you've reached *CPU Warn %* (`System > Audio > Engine`). On the desktop it shows the simulator's own audio load. |
+| Left of the bars | A magenta chip while the load stays above *CPU Warn %*, and a yellow disk while a save happens. |
+| Bottom right, icon | Play, pause or stop. It blinks yellow on beats and green on bar starts. |
+| Bottom right, dot | Lights for each event and fades out in just under half a second. Magenta means a voice just got stolen to make room for a new note. |
+
+Toasts at the bottom leave the transport icon and the dot alone.
+
 ## Tiny survival notes
 
 - The OLED is the truth. If the grid does something odd, you're probably on a

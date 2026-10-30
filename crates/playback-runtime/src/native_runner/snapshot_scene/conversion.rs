@@ -73,6 +73,7 @@ impl PresentationScene {
                 "audioConfigRevision": self.audio_config_revision,
                 "autoSaveFlash": if self.auto_save_flash { "flash" } else { "none" },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
+                "cpuWarnPercent": self.cpu_warn_percent,
                 "transport": {"bpm": transport.bpm, "swingPct": transport.swing_pct},
                 "stopLatched": false,
                 "fnHeld": ui.fn_held, "combinedModifierHeld": ui.combined_modifier_held,
@@ -94,7 +95,7 @@ impl PresentationScene {
             "selectedRow": display.selected_row,
             "voiceStealingMode": self.voice_stealing_mode,
             "neoKeyLeds": {"back": back, "space": space, "shift": shift, "fn": function},
-            "eventDotOn": self.transient.event_dot_on,
+            "eventDotLevel": self.transient.event_dot_level,
             "voiceSteal": false,
             "transportIcon": match transport.transport {
                 RuntimeTransportState::Playing => "play",

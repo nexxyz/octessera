@@ -77,7 +77,7 @@ export function snapshot(
       shift: [67, 68, 71] as [number, number, number],
       fn: [67, 68, 71] as [number, number, number],
     },
-    eventDotOn: false,
+    eventDotLevel: 0,
     transportIcon: 'stop' as const,
     transportFlash: 'none' as const,
     settings: {

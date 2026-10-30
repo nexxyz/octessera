@@ -1,6 +1,7 @@
+use crate::oled_frame::INDICATOR_FADE_LEVELS;
 use std::time::{Duration, Instant};
 
-const EVENT_DOT_DURATION: Duration = Duration::from_millis(45);
+const EVENT_DOT_STEP: Duration = Duration::from_millis(100);
 const TRANSPORT_FLASH_DURATION: Duration = Duration::from_millis(90);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -31,13 +32,14 @@ impl TransportFlash {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct DisplayTransientPresentation {
-    pub(super) event_dot_on: bool,
+    pub(super) event_dot_level: u8,
     pub(super) transport_flash: TransportFlash,
 }
 
 #[derive(Clone, Debug)]
 pub(super) struct DisplayTransients {
-    event_dot_until: Option<Instant>,
+    event_dot_started: Option<Instant>,
+    event_dot_level: u8,
     transport_flash: TransportFlash,
     transport_flash_until: Option<Instant>,
     snapshot_pending: bool,
@@ -49,7 +51,8 @@ pub(super) struct DisplayTransients {
 impl DisplayTransients {
     pub(super) fn new(_now: Instant) -> Self {
         Self {
-            event_dot_until: None,
+            event_dot_started: None,
+            event_dot_level: 0,
             transport_flash: TransportFlash::None,
             transport_flash_until: None,
             snapshot_pending: false,
@@ -69,14 +72,11 @@ impl DisplayTransients {
 
     pub(super) fn trigger_event_dot(&mut self, now: Instant) {
         self.advance(now);
-        let deadline = now + EVENT_DOT_DURATION;
-        if self.event_dot_until.is_none() {
+        if self.event_dot_level != INDICATOR_FADE_LEVELS {
             self.mark_presentation_due();
         }
-        self.event_dot_until = Some(
-            self.event_dot_until
-                .map_or(deadline, |current| current.max(deadline)),
-        );
+        self.event_dot_started = Some(now);
+        self.event_dot_level = INDICATOR_FADE_LEVELS;
     }
 
     pub(super) fn trigger_transport_flash(&mut self, flash: TransportFlash, now: Instant) {
@@ -103,8 +103,9 @@ impl DisplayTransients {
 
     pub(super) fn reset(&mut self, now: Instant) {
         self.advance(now);
-        let was_active = self.event_dot_until.is_some() || self.transport_flash_until.is_some();
-        self.event_dot_until = None;
+        let was_active = self.event_dot_started.is_some() || self.transport_flash_until.is_some();
+        self.event_dot_started = None;
+        self.event_dot_level = 0;
         self.transport_flash = TransportFlash::None;
         self.transport_flash_until = None;
         if was_active {
@@ -114,9 +115,13 @@ impl DisplayTransients {
 
     pub(super) fn advance(&mut self, now: Instant) {
         let mut changed = false;
-        if self.event_dot_until.is_some_and(|deadline| now >= deadline) {
-            self.event_dot_until = None;
-            changed = true;
+        if let Some(started) = self.event_dot_started {
+            let level = event_dot_level(started, now);
+            changed = level != self.event_dot_level;
+            self.event_dot_level = level;
+            if level == 0 {
+                self.event_dot_started = None;
+            }
         }
         if self
             .transport_flash_until
@@ -164,7 +169,9 @@ impl DisplayTransients {
 
     pub(super) fn presentation(&self, now: Instant) -> DisplayTransientPresentation {
         DisplayTransientPresentation {
-            event_dot_on: self.event_dot_until.is_some_and(|deadline| now < deadline),
+            event_dot_level: self
+                .event_dot_started
+                .map_or(0, |started| event_dot_level(started, now)),
             transport_flash: if self
                 .transport_flash_until
                 .is_some_and(|deadline| now < deadline)
@@ -177,7 +184,10 @@ impl DisplayTransients {
     }
 
     pub(super) fn next_deadline(&self, last_snapshot_at: Option<Instant>) -> Option<Instant> {
-        [self.event_dot_until, self.transport_flash_until]
+        let event_dot_step = self.event_dot_started.map(|started| {
+            started + EVENT_DOT_STEP * u32::from(INDICATOR_FADE_LEVELS - self.event_dot_level + 1)
+        });
+        [event_dot_step, self.transport_flash_until]
             .into_iter()
             .flatten()
             .filter(|deadline| {
@@ -192,26 +202,56 @@ impl DisplayTransients {
     }
 }
 
+fn event_dot_level(started: Instant, now: Instant) -> u8 {
+    let steps = now.saturating_duration_since(started).as_millis() / EVENT_DOT_STEP.as_millis();
+    INDICATOR_FADE_LEVELS.saturating_sub(u8::try_from(steps).unwrap_or(u8::MAX))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn event_dot_uses_wall_clock_deadline_and_retrigger_extension() {
+    fn event_dot_fades_in_bounded_steps_and_retriggers_at_full_brightness() {
         let start = Instant::now();
         let mut transients = DisplayTransients::new(start);
         transients.trigger_event_dot(start);
-        assert_eq!(transients.event_dot_until, Some(start + EVENT_DOT_DURATION));
         assert!(transients.take_snapshot_pending(start));
+        assert_eq!(transients.presentation(start).event_dot_level, 4);
+        assert_eq!(
+            transients.next_deadline(Some(start)),
+            Some(start + EVENT_DOT_STEP)
+        );
 
         let retrigger = start + Duration::from_millis(20);
         transients.trigger_event_dot(retrigger);
-        assert_eq!(
-            transients.event_dot_until,
-            Some(retrigger + EVENT_DOT_DURATION)
-        );
         assert!(!transients.take_snapshot_pending(retrigger));
-        assert!(transients.take_snapshot_pending(retrigger + EVENT_DOT_DURATION));
+        assert_eq!(
+            transients.next_deadline(Some(retrigger)),
+            Some(retrigger + EVENT_DOT_STEP)
+        );
+
+        let mut levels = Vec::new();
+        for step in 1..=4 {
+            let at = retrigger + EVENT_DOT_STEP * step;
+            assert_eq!(
+                transients.next_deadline(Some(at - Duration::from_millis(1))),
+                Some(at)
+            );
+            assert!(transients.take_snapshot_pending(at));
+            levels.push(transients.presentation(at).event_dot_level);
+            assert!(!transients.take_snapshot_pending(at + Duration::from_millis(50)));
+        }
+        assert_eq!(levels, [3, 2, 1, 0]);
+        assert_eq!(transients.next_deadline(None), None);
+
+        let faded = retrigger + EVENT_DOT_STEP * 2;
+        let mut transients = DisplayTransients::new(start);
+        transients.trigger_event_dot(start);
+        transients.take_snapshot_pending(faded);
+        transients.trigger_event_dot(faded);
+        assert!(transients.take_snapshot_pending(faded));
+        assert_eq!(transients.presentation(faded).event_dot_level, 4);
     }
 
     #[test]
@@ -242,7 +282,7 @@ mod tests {
         assert_eq!(
             transients.presentation(measure + TRANSPORT_FLASH_DURATION),
             DisplayTransientPresentation {
-                event_dot_on: false,
+                event_dot_level: 0,
                 transport_flash: TransportFlash::None,
             }
         );

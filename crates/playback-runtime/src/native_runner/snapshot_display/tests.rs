@@ -149,7 +149,7 @@ fn header_rule_uses_the_current_menu_area_colour() {
             let offset = (y * 128 + x) * 2;
             u16::from_be_bytes([frame[offset], frame[offset + 1]])
         };
-        assert!((0..128).all(|x| pixel(x, 14) == expected), "{key:?}");
-        assert!((0..128).all(|x| pixel(x, 13) != expected), "{key:?}");
+        assert!((0..128).all(|x| pixel(x, 16) == expected), "{key:?}");
+        assert!((0..128).all(|x| pixel(x, 15) != expected), "{key:?}");
     }
 }

@@ -33,7 +33,7 @@ pub(crate) fn transport_and_event_indicators_appear_in_snapshot() {
         .unwrap();
     let tick_snapshot = snapshot_from(&tick);
     assert_eq!(tick_snapshot["transportFlash"], "measure");
-    assert_eq!(tick_snapshot["eventDotOn"], true);
+    assert_eq!(tick_snapshot["eventDotLevel"], 4);
     assert_eq!(tick_snapshot["neoKeyLeds"]["space"], json!([99, 210, 63]));
 
     runner

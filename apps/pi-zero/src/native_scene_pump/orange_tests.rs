@@ -232,7 +232,7 @@ fn queued_scene_does_not_recapture_generation_and_newer_expiry_stays_eligible() 
         .sleep_duration(scheduler_now, &playback, &runner)
         .is_zero());
 
-    std::thread::sleep(Duration::from_millis(55));
+    std::thread::sleep(Duration::from_millis(105));
     let newer_generation = runner.pending_display_scene_generation().unwrap();
     assert!(newer_generation > initial_generation);
     let expiry_due = scheduler.display_snapshot_due(Instant::now(), &runner, &playback);

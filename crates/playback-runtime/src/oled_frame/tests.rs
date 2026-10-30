@@ -4,26 +4,27 @@ use super::pixels::rgb565;
 use super::render::render_oled_frame;
 use super::splash::{SPLASH_BOOT, SPLASH_SLEEP_SHUTDOWN};
 use super::OledDisplayLayout;
+use super::INDICATOR_FADE_LEVELS;
 use super::OLED_FRAME_BYTES;
 use platform_core::palette;
 
-const NORMAL_SELECTED_FNV1A64: u64 = 0x0684_978D_74FD_7339;
-const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x6E46_0DFE_021A_7BFF;
+const NORMAL_SELECTED_FNV1A64: u64 = 0x35AF_AD36_880B_803D;
+const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0xB73E_D804_E336_71D3;
 const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x2E40_726F_83B0_07C9;
-const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x385D_DE07_9273_7719;
+const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0xB5C2_360B_6700_B73D;
 const STARTUP_SPLASH_100_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const STARTUP_SPLASH_50_FNV1A64: u64 = 0x4AB2_E39F_7B90_AA8E;
 const SLEEP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SHUTDOWN_SPLASH_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 const OFF_FNV1A64: u64 = 0x8F69_55BF_94EC_2325;
-const GLYPH_DIGITS_FNV1A64: u64 = 0xE95B_4049_AEA8_A83F;
-const GLYPH_UPPERCASE_FIRST_FNV1A64: u64 = 0xCB27_9094_A88B_2465;
-const GLYPH_UPPERCASE_LAST_FNV1A64: u64 = 0x96A0_43A4_AD12_FDA5;
-const GLYPH_LOWERCASE_FIRST_FNV1A64: u64 = 0x1B24_4ED1_0BAA_6C67;
-const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x5DEC_29CA_8195_FCA5;
-const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0xB16D_D607_2ED5_7985;
-const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0x5FDC_4C10_F285_9371;
-const GLYPH_SYMBOLS_FNV1A64: u64 = 0xDD8F_DCBA_4B0A_95EF;
+const GLYPH_DIGITS_FNV1A64: u64 = 0x19B1_F0A6_F45D_6DF3;
+const GLYPH_UPPERCASE_FIRST_FNV1A64: u64 = 0xE57E_A6F5_A198_E009;
+const GLYPH_UPPERCASE_LAST_FNV1A64: u64 = 0x3C03_E2D7_63CD_9F29;
+const GLYPH_LOWERCASE_FIRST_FNV1A64: u64 = 0x9D6F_E8D1_D08A_79AB;
+const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x82EF_8FB5_ABDA_3AB9;
+const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0x6EFB_28FD_D2B2_8029;
+const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0xFF6D_684C_25B4_1145;
+const GLYPH_SYMBOLS_FNV1A64: u64 = 0x7CE3_F37B_9C8A_7553;
 pub(super) const GLYPH_GOLDEN_TEXTS: [&str; 8] = [
     "0123456789",
     "ABCDEFGHIJKLMNOPQRS",
@@ -136,16 +137,16 @@ fn missed_quantum_flash_inverts_cpu_slot_over_high_cpu_and_preserves_save_icon()
     let mut high_cpu = base();
     high_cpu.metrics = OledPresentationMetrics::from_status(Some(0.9), true, false, false);
     let high_cpu_frame = render_oled_frame(&high_cpu);
-    assert_eq!(pixel(&high_cpu_frame, 118, 6), rgb565(palette::MAGENTA));
+    assert_eq!(pixel(&high_cpu_frame, 108, 6), rgb565(palette::MAGENTA));
 
     let mut missed = high_cpu;
     missed.metrics.missed_quantum_flash = true;
     missed.save_flash = OledSaveFlash::Flash;
     let missed_frame = render_oled_frame(&missed);
 
-    assert_eq!(pixel(&missed_frame, 120, 8), palette::WHITE_RGB565);
-    assert_eq!(pixel(&missed_frame, 118, 6), palette::BLACK_RGB565);
-    assert_eq!(pixel(&missed_frame, 107, 5), palette::YELLOW_RGB565);
+    assert_eq!(pixel(&missed_frame, 110, 8), palette::WHITE_RGB565);
+    assert_eq!(pixel(&missed_frame, 108, 6), palette::BLACK_RGB565);
+    assert_eq!(pixel(&missed_frame, 97, 4), palette::YELLOW_RGB565);
     assert_ne!(missed_frame, high_cpu_frame);
 }
 
@@ -189,7 +190,7 @@ fn normal_selected() -> OledPresentationInput {
 fn toast_active_event_transport() -> OledPresentationInput {
     let mut input = base();
     input.display.toast = "Help=Sh+Fn/Enter".into();
-    input.event_dot_on = true;
+    input.event_dot_level = INDICATOR_FADE_LEVELS;
     input
 }
 
@@ -308,8 +309,9 @@ pub(super) fn base() -> OledPresentationInput {
             icon: OledTransportIcon::Play,
             flash: OledTransportFlash::Beat,
         },
-        event_dot_on: true,
+        event_dot_level: INDICATOR_FADE_LEVELS,
         display_brightness: 100,
+        cpu_warn_percent: 85,
         metrics: OledPresentationMetrics::from_status(None, false, false, false),
         ..Default::default()
     }

@@ -39,7 +39,7 @@ function snapshotMessage(
     masterVolume?: number;
     ledsDimmed?: boolean;
     displayOff?: boolean;
-    eventDotOn?: boolean;
+    eventDotLevel?: number;
     transportFlash?: 'none' | 'beat' | 'measure';
   } = {},
 ) {
@@ -69,7 +69,7 @@ function snapshotMessage(
         shift: [67, 68, 71],
         fn: [67, 68, 71],
       },
-      eventDotOn: options.eventDotOn ?? false,
+      eventDotLevel: options.eventDotLevel ?? 0,
       transportIcon: 'stop' as const,
       transportFlash: options.transportFlash ?? 'none',
       settings: {
@@ -161,7 +161,7 @@ function sparseAudioSnapshotMessage(
         shift: [67, 68, 71],
         fn: [67, 68, 71],
       },
-      eventDotOn: false,
+      eventDotLevel: 0,
       transportIcon: 'stop' as const,
       transportFlash: 'none' as const,
       settings: {
@@ -400,7 +400,7 @@ test('runtime applies native transient presentation fields', async () => {
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
     runtimeDispatch: async (): Promise<RuntimeRunnerMessage[]> => [
       snapshotMessage({
-        eventDotOn: transient,
+        eventDotLevel: transient ? 4 : 0,
         transportFlash: transient ? 'measure' : 'none',
       }),
     ],
@@ -410,13 +410,13 @@ test('runtime applies native transient presentation fields', async () => {
   await waitMicrotask();
 
   const snapshot = runtime.getSnapshot();
-  assert.equal(snapshot.frame.eventDotOn, true);
+  assert.equal(snapshot.frame.eventDotLevel, 4);
   assert.equal(snapshot.frame.transportFlash, 'measure');
 
   transient = false;
   runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });
   await waitMicrotask();
-  assert.equal(runtime.getSnapshot().frame.eventDotOn, false);
+  assert.equal(runtime.getSnapshot().frame.eventDotLevel, 0);
 });
 
 test('runtime applies native ledsDimmed to desktop NeoKey LEDs', async () => {

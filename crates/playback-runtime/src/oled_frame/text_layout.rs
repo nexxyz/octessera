@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 pub const FONT_GLYPH_WIDTH: usize = 5;
 pub const FONT_GLYPH_HEIGHT: usize = 7;
 pub const FONT_ADVANCE_X: usize = 6;
-pub const MENU_BODY_RECT: TextLayoutRect = TextLayoutRect::new(6, 18, 114, 91, 13);
-pub const CARD_BODY_RECT: TextLayoutRect = TextLayoutRect::new(4, 18, 120, 91, 13);
-pub const TOAST_RECT: TextLayoutRect = TextLayoutRect::new(5, 118, 102, 7, 7);
+pub const MENU_BODY_RECT: TextLayoutRect = TextLayoutRect::new(6, 22, 114, 91, 13);
+pub const CARD_BODY_RECT: TextLayoutRect = TextLayoutRect::new(4, 22, 120, 91, 13);
+pub const TOAST_RECT: TextLayoutRect = TextLayoutRect::new(4, 118, 101, 7, 7);
 pub const SPLASH_TOAST_RECT: TextLayoutRect = TextLayoutRect::new(12, 105, 108, 7, 7);
 pub const RUNTIME_ERROR_BODY_RECT: TextLayoutRect = TextLayoutRect::new(10, 34, 108, 80, 12);
 

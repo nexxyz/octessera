@@ -153,7 +153,7 @@ fn default_patch_due_beat_and_event_dot_onset_and_expiry_reach_oled() {
         .unwrap();
     let onset = assert_due_presentation(&beat, &runtime);
     assert_eq!(onset["transportFlash"], "beat");
-    assert_eq!(onset["eventDotOn"], true);
+    assert_eq!(onset["eventDotLevel"], 4);
     assert_eq!(onset["display"]["title"], original_title);
     assert_eq!(onset["leds"]["width"], platform_core::GRID_WIDTH);
     assert_eq!(onset["leds"]["height"], platform_core::GRID_HEIGHT);
@@ -164,7 +164,7 @@ fn default_patch_due_beat_and_event_dot_onset_and_expiry_reach_oled() {
     let onset_revision = runtime.oled_frame_revision();
     let onset_pixels = runtime.last_oled_frame().unwrap().to_vec();
 
-    runner.test_set_display_time(start + Duration::from_millis(300));
+    runner.test_set_display_time(start + Duration::from_millis(491));
     let expired = runtime
         .dispatch_host_message(
             HostMessage::TransportPulseStep {
@@ -180,7 +180,7 @@ fn default_patch_due_beat_and_event_dot_onset_and_expiry_reach_oled() {
         )
         .unwrap();
     let expiry = assert_due_presentation(&expired, &runtime);
-    assert_eq!(expiry["eventDotOn"], false);
+    assert_eq!(expiry["eventDotLevel"], 0);
     assert_eq!(expiry["transportFlash"], "none");
     assert_eq!(expiry["display"]["title"], original_title);
     assert!(runtime.oled_frame_revision() > onset_revision);

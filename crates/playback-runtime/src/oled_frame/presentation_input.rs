@@ -48,6 +48,7 @@ struct OledSettingsDto {
     display_brightness: u8,
     auto_save_flash: String,
     auto_save_flash_serial: u64,
+    cpu_warn_percent: u8,
 }
 
 #[derive(Deserialize)]
@@ -76,7 +77,7 @@ pub(crate) fn presentation_input_from_snapshot(
     let display = required::<DisplayInputDto>(snapshot, "display")?;
     let settings = required::<OledSettingsDto>(snapshot, "settings")?;
     let selected_row = required_nullable_usize(snapshot, "selectedRow")?;
-    let event_dot_on = required_bool(snapshot, "eventDotOn")?;
+    let event_dot_level = required::<u8>(snapshot, "eventDotLevel")?;
     let transport_icon = required_string(snapshot, "transportIcon")?;
     let transport_flash = required_string(snapshot, "transportFlash")?;
     let runtime_error =
@@ -133,8 +134,9 @@ pub(crate) fn presentation_input_from_snapshot(
             icon: transport_icon_from_name(&transport_icon),
             flash: transport_flash_from_name(&transport_flash),
         },
-        event_dot_on,
+        event_dot_level,
         display_brightness: settings.display_brightness,
+        cpu_warn_percent: settings.cpu_warn_percent,
         save_flash: save_flash_from_name(&settings.auto_save_flash),
         save_flash_serial: settings.auto_save_flash_serial,
         metrics,
@@ -163,16 +165,6 @@ fn optional<T: for<'de> Deserialize<'de>>(
     serde_json::from_value(value.clone())
         .map(Some)
         .map_err(|_| missing(field))
-}
-
-fn required_bool(
-    object: &serde_json::Map<String, Value>,
-    field: &str,
-) -> Result<bool, OledPresentationInputError> {
-    object
-        .get(field)
-        .and_then(Value::as_bool)
-        .ok_or_else(|| missing(field))
 }
 
 fn required_string(

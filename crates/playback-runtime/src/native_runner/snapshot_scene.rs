@@ -71,6 +71,7 @@ pub struct PresentationScene {
     audio_config_revision: u64,
     auto_save_flash: bool,
     auto_save_flash_serial: u64,
+    cpu_warn_percent: u8,
     midi_enabled: bool,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
@@ -200,6 +201,7 @@ impl NativeRunner {
             audio_config_revision: self.audio_config_revision,
             auto_save_flash: self.auto_save_flash_active(),
             auto_save_flash_serial: self.display.auto_save_flash_serial,
+            cpu_warn_percent: self.dsp_config.worker_warning_threshold.percent(),
             midi_enabled: self.midi_enabled,
             selected_midi_output_id: self.selected_midi_output_id.clone(),
             selected_midi_input_id: self.selected_midi_input_id.clone(),
@@ -276,8 +278,9 @@ impl PresentationScene {
                     super::TransportFlash::Measure => OledTransportFlash::Measure,
                 },
             },
-            event_dot_on: self.transient.event_dot_on,
+            event_dot_level: self.transient.event_dot_level,
             display_brightness: self.ui.display_brightness,
+            cpu_warn_percent: self.cpu_warn_percent,
             save_flash: if self.auto_save_flash {
                 OledSaveFlash::Flash
             } else {

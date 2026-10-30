@@ -27,10 +27,11 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
         "settings": {
             "displayBrightness": 100,
             "autoSaveFlash": "none",
-            "autoSaveFlashSerial": 0
+            "autoSaveFlashSerial": 0,
+            "cpuWarnPercent": 85
         },
         "selectedRow": null,
-        "eventDotOn": false,
+        "eventDotLevel": 0,
         "transportIcon": "stop",
         "transportFlash": "none"
     })

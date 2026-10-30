@@ -159,7 +159,7 @@ fn independent_transport_and_selection_cues_each_invalidate_oled_input() {
     for (field, value) in [
         ("transportIcon", json!("play")),
         ("transportFlash", json!("beat")),
-        ("eventDotOn", json!(true)),
+        ("eventDotLevel", json!(4)),
         ("selectedRow", json!(0)),
     ] {
         let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
@@ -218,7 +218,7 @@ fn visible_oled_inputs_rebuild_pixels_while_metrics_and_errors_remain_live() {
     next["display"]["lines"] = json!(["Try this"]);
     next["selectedRow"] = json!(0);
     next["transportFlash"] = json!("beat");
-    next["eventDotOn"] = json!(true);
+    next["eventDotLevel"] = json!(4);
     next["settings"]["displayBrightness"] = json!(35);
     let shown = present(&mut runtime, next);
     assert!(matches!(shown.as_slice(), [
