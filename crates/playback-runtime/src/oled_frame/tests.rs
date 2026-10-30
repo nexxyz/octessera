@@ -7,23 +7,33 @@ use super::OledDisplayLayout;
 use super::OLED_FRAME_BYTES;
 use platform_core::palette;
 
-const NORMAL_SELECTED_FNV1A64: u64 = 0xAFAB_0247_A45C_1F39;
-const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x176C_78B8_3179_27FF;
+const NORMAL_SELECTED_FNV1A64: u64 = 0x0684_978D_74FD_7339;
+const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x6E46_0DFE_021A_7BFF;
 const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x2E40_726F_83B0_07C9;
-const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x247E_FFE5_93FC_3319;
+const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x385D_DE07_9273_7719;
 const STARTUP_SPLASH_100_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const STARTUP_SPLASH_50_FNV1A64: u64 = 0x4AB2_E39F_7B90_AA8E;
 const SLEEP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SHUTDOWN_SPLASH_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 const OFF_FNV1A64: u64 = 0x8F69_55BF_94EC_2325;
-const GLYPH_DIGITS_FNV1A64: u64 = 0x9FE1_8ECD_428C_BC3F;
-const GLYPH_UPPERCASE_FIRST_FNV1A64: u64 = 0x81AD_DF18_3C6F_3865;
-const GLYPH_UPPERCASE_LAST_FNV1A64: u64 = 0x4D26_9228_40F7_11A5;
-const GLYPH_LOWERCASE_FIRST_FNV1A64: u64 = 0xD1AA_9D54_9F8E_8067;
-const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x1472_784E_157A_10A5;
-const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0x67F4_248A_C2B9_8D85;
-const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0x1662_9A94_8669_A771;
-const GLYPH_SYMBOLS_FNV1A64: u64 = 0x9416_2B3D_DEEE_A9EF;
+const GLYPH_DIGITS_FNV1A64: u64 = 0xE95B_4049_AEA8_A83F;
+const GLYPH_UPPERCASE_FIRST_FNV1A64: u64 = 0xCB27_9094_A88B_2465;
+const GLYPH_UPPERCASE_LAST_FNV1A64: u64 = 0x96A0_43A4_AD12_FDA5;
+const GLYPH_LOWERCASE_FIRST_FNV1A64: u64 = 0x1B24_4ED1_0BAA_6C67;
+const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x5DEC_29CA_8195_FCA5;
+const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0xB16D_D607_2ED5_7985;
+const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0x5FDC_4C10_F285_9371;
+const GLYPH_SYMBOLS_FNV1A64: u64 = 0xDD8F_DCBA_4B0A_95EF;
+pub(super) const GLYPH_GOLDEN_TEXTS: [&str; 8] = [
+    "0123456789",
+    "ABCDEFGHIJKLMNOPQRS",
+    "TUVWXYZ",
+    "abcdefghijklmnopqrs",
+    "tuvwxyz",
+    ":.-*+/()_#@><[]%!",
+    "?,\'\"=",
+    "▶■●|",
+];
 const BOOT_SPLASH_ASSET_FNV1A64: u64 = STARTUP_SPLASH_100_FNV1A64;
 const SLEEP_SHUTDOWN_SPLASH_ASSET_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 
@@ -42,23 +52,26 @@ fn typed_oled_golden_anchors_are_stable() {
         ("sleep-splash", sleep_splash()),
         ("shutdown-splash", shutdown_splash()),
         ("off", off()),
-        ("glyph-digits", glyph_fixture("0123456789")),
+        ("glyph-digits", glyph_fixture(GLYPH_GOLDEN_TEXTS[0])),
         (
             "glyph-uppercase-first",
-            glyph_fixture("ABCDEFGHIJKLMNOPQRS"),
+            glyph_fixture(GLYPH_GOLDEN_TEXTS[1]),
         ),
-        ("glyph-uppercase-last", glyph_fixture("TUVWXYZ")),
+        ("glyph-uppercase-last", glyph_fixture(GLYPH_GOLDEN_TEXTS[2])),
         (
             "glyph-lowercase-first",
-            glyph_fixture("abcdefghijklmnopqrs"),
+            glyph_fixture(GLYPH_GOLDEN_TEXTS[3]),
         ),
-        ("glyph-lowercase-last", glyph_fixture("tuvwxyz")),
+        ("glyph-lowercase-last", glyph_fixture(GLYPH_GOLDEN_TEXTS[4])),
         (
             "glyph-punctuation-first",
-            glyph_fixture(":.-*+/()_#@><[]%!"),
+            glyph_fixture(GLYPH_GOLDEN_TEXTS[5]),
         ),
-        ("glyph-punctuation-last", glyph_fixture("?,\'\"=")),
-        ("glyph-symbols", glyph_fixture("▶■●|")),
+        (
+            "glyph-punctuation-last",
+            glyph_fixture(GLYPH_GOLDEN_TEXTS[6]),
+        ),
+        ("glyph-symbols", glyph_fixture(GLYPH_GOLDEN_TEXTS[7])),
     ];
     for (name, input) in cases {
         let frame = render_oled_frame(&input);
@@ -244,11 +257,12 @@ fn glyph_fixture(text: &str) -> OledPresentationInput {
     input
 }
 
-fn base() -> OledPresentationInput {
+pub(super) fn base() -> OledPresentationInput {
     OledPresentationInput {
         display: OledDisplayInput {
             body_layout: OledDisplayLayout::Rows,
             title: "Voice FX/Aux".into(),
+            title_color: platform_core::palette::BLUE_RGB565,
             lines: [
                 "  Volume +3",
                 "@@ FX/Aux 1",
@@ -307,7 +321,7 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
     })
 }
 
-fn pixel(frame: &[u8], x: usize, y: usize) -> u16 {
+pub(super) fn pixel(frame: &[u8], x: usize, y: usize) -> u16 {
     let offset = (y * 128 + x) * 2;
     u16::from_be_bytes([frame[offset], frame[offset + 1]])
 }

@@ -1,7 +1,5 @@
 use crate::seesaw_io::SeesawCommand;
 use octessera_hal::OledSsd1351;
-#[cfg(test)]
-use serde_json::Value;
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 
@@ -31,8 +29,6 @@ pub(crate) type OledRenderOutput = OledSsd1351;
 pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 #[cfg(test)]
 use oled::glyph_rows;
-#[cfg(test)]
-use oled::reference::{oled_frame, oled_frame_into};
 pub(crate) use oled_output::retry_oled_if_due;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 use oled_output::OledRenderDevice;
@@ -68,7 +64,7 @@ pub(super) struct OledOutputState {
     pub(super) physical_revision: u64,
 }
 
-#[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
 const SPLASH_SLEEP_SHUTDOWN: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
@@ -259,14 +255,6 @@ pub(crate) fn fault_oled_frame_into(lines: &[String], frame: &mut [u8], lit: boo
     oled::fault_frame_into(lines, frame, lit);
 }
 
-#[cfg(test)]
-fn brightness_scale(value: Option<&Value>) -> f32 {
-    value
-        .and_then(Value::as_u64)
-        .map(|value| value.min(100) as f32 / 100.0)
-        .unwrap_or(1.0)
-}
-
 fn sleep_dim_brightness(brightness: f32) -> f32 {
     if brightness <= 0.0 {
         0.0
@@ -282,13 +270,13 @@ pub(super) fn scale(rgb: [u8; 3], factor: f32) -> [u8; 3] { [
     ((rgb[2] as f32) * factor).round().clamp(0.0, 255.0) as u8,
 ] }
 
-#[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn dim(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
     let divisor = divisor.max(1);
     [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
 }
 
-#[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
     ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)
 }
@@ -296,18 +284,10 @@ pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod boot_sweep_tests;
 #[cfg(test)]
-mod footer_tests;
-#[cfg(test)]
 mod hdmi_cache_tests;
 #[cfg(test)]
 mod native_frame_sleep_wake_tests;
 #[cfg(test)]
 mod oled_error_tests;
-#[cfg(test)]
-mod oled_glyph_tests;
-#[cfg(test)]
-mod oled_parity_tests;
-#[cfg(test)]
-mod oled_test_adapter;
 #[cfg(test)]
 mod tests;

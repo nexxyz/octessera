@@ -12,6 +12,8 @@ use super::{
     SPLASH_TOAST_RECT,
 };
 
+const HEADER_RULE_Y: usize = 14;
+
 pub fn render_oled_frame(input: &OledPresentationInput) -> Vec<u8> {
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
     render_oled_frame_into(input, &mut frame);
@@ -64,6 +66,14 @@ fn render_menu_frame(frame: &mut [u8], input: &OledPresentationInput, brightness
         rgb565(scale(palette::BLACK, brightness)),
     );
     draw_text_clipped(frame, &title, 5, 5, 15, title_color);
+    fill_rect(
+        frame,
+        0,
+        HEADER_RULE_Y,
+        128,
+        1,
+        rgb565(scale(rgb565_to_rgb(input.display.title_color), brightness)),
+    );
     draw_status_indicators(frame, input, brightness);
 
     let body_rect = match input.display.body_layout {

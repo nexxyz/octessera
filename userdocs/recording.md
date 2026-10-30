@@ -21,6 +21,12 @@ are drawn at full colour, so a video still reads fine if you play with Grid
 Bright turned way down. Audio is the master clock, so picture and sound stay
 in step.
 
+Watching a take in VLC? Set `Video > Deinterlace` to **Off**. The video is made
+of whole frames, but VLC's automatic deinterlacing splits each one into two
+half-frames anyway, and the tiny pixel text comes out torn and smeared. With
+deinterlacing off it looks exactly like the screen. Most other players get it
+right on their own.
+
 External MIDI instruments aren't in either recording. Their sound is made by
 the other device, so record that separately.
 

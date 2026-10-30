@@ -31,6 +31,7 @@ impl PresentationScene {
                 "page": self.behavior_id,
                 "bodyLayout": display.body_layout,
                 "title": display.title,
+                "titleColor": self.title_color,
                 "lines": display.lines,
                 "colors": display.colors,
                 "barValues": bar_values,

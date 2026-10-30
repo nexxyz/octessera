@@ -1,107 +1,5 @@
-use super::oled_error_tests::{menu_snapshot, pixel};
 use super::*;
-use platform_core::palette;
-use serde_json::{json, Value};
 use std::time::{Duration, Instant};
-
-fn rgb565_to_rgb(value: u16) -> [u8; 3] {
-    [
-        ((((value >> 11) & 0x1f) * 255) / 31) as u8,
-        ((((value >> 5) & 0x3f) * 255) / 63) as u8,
-        (((value & 0x1f) * 255) / 31) as u8,
-    ]
-}
-
-fn bar_snapshot(frac: f64, style: Option<&str>, selected_row: usize) -> Value {
-    let mut snapshot = menu_snapshot();
-    snapshot["display"]["barValues"][1] = match style {
-        Some(style) => json!({ "frac": frac, "style": style }),
-        None => json!({ "frac": frac }),
-    };
-    snapshot["selectedRow"] = json!(selected_row);
-    snapshot
-}
-
-#[test]
-fn oled_frame_renders_menu_bars_selection_status_and_scrollbar() {
-    let frame = oled_frame(&menu_snapshot());
-    assert_ne!(pixel(&frame, 5, 5), 0);
-    assert_eq!(pixel(&frame, 4, 30), palette::GREEN_RGB565);
-    assert_eq!(pixel(&frame, 87, 30), rgb565(palette::BLACK));
-    assert_eq!(pixel(&frame, 88, 31), palette::GREEN_RGB565);
-    assert_ne!(pixel(&frame, 125, 18), 0);
-    assert_ne!(pixel(&frame, 102, 118), 0);
-    assert_ne!(pixel(&frame, 119, 119), 0);
-}
-
-#[test]
-fn oled_bars_render_empty_partial_full_marker_and_selected_contrast() {
-    let empty = oled_frame(&bar_snapshot(0.0, None, 0));
-    assert_eq!(pixel(&empty, 87, 30), palette::GREEN_RGB565);
-    assert_eq!(pixel(&empty, 88, 31), rgb565(dim(palette::GREEN, 6)));
-
-    let partial = oled_frame(&bar_snapshot(0.5, None, 0));
-    assert_eq!(pixel(&partial, 88, 31), palette::GREEN_RGB565);
-    assert_eq!(pixel(&partial, 105, 31), rgb565(dim(palette::GREEN, 6)));
-
-    let full = oled_frame(&bar_snapshot(1.0, None, 0));
-    assert_eq!(pixel(&full, 87, 30), palette::GREEN_RGB565);
-    assert_eq!(pixel(&full, 121, 31), palette::GREEN_RGB565);
-
-    let marker = oled_frame(&bar_snapshot(0.5, Some("marker"), 0));
-    assert_eq!(pixel(&marker, 105, 32), palette::GREEN_RGB565);
-    assert_eq!(pixel(&marker, 104, 32), rgb565(dim(palette::GREEN, 6)));
-
-    let selected = oled_frame(&bar_snapshot(1.0, None, 1));
-    assert_eq!(pixel(&selected, 87, 30), rgb565(palette::BLACK));
-    assert_eq!(pixel(&selected, 88, 31), palette::GREEN_RGB565);
-    assert_eq!(pixel(&selected, 121, 31), palette::GREEN_RGB565);
-}
-
-#[test]
-fn oled_title_expands_direct_root_short_breadcrumbs() {
-    assert_eq!(oled::reference::title_text_for_oled("B"), "/Build");
-    assert_eq!(oled::reference::title_text_for_oled("/B"), "/Build");
-    assert_eq!(
-        oled::reference::title_text_for_oled("/B/L1: life"),
-        "/B/L1: life"
-    );
-}
-
-#[test]
-fn oled_frame_into_matches_allocating_renderer() {
-    let snapshot = menu_snapshot();
-    let expected = oled_frame(&snapshot);
-    let mut reused = vec![0xa5_u8; OLED_FRAME_BYTES];
-    oled_frame_into(&snapshot, &mut reused);
-    assert_eq!(reused, expected);
-}
-
-#[test]
-fn oled_frame_into_clears_reused_buffer() {
-    let mut snapshot = menu_snapshot();
-    let mut reused = vec![0xff_u8; OLED_FRAME_BYTES];
-    snapshot["display"]["off"] = json!(true);
-    oled_frame_into(&snapshot, &mut reused);
-    assert!(reused.iter().all(|byte| *byte == 0));
-}
-
-#[test]
-fn oled_frame_into_clears_between_splash_menu_and_off() {
-    let mut snapshot = menu_snapshot();
-    let mut reused = vec![0xa5_u8; OLED_FRAME_BYTES];
-    snapshot["display"]["splash"] = json!("sleep");
-    oled_frame_into(&snapshot, &mut reused);
-    assert!(reused.iter().any(|byte| *byte != 0));
-
-    snapshot["display"]["splash"] = json!("");
-    oled_frame_into(&snapshot, &mut reused);
-    assert_eq!(reused, oled_frame(&snapshot));
-
-    snapshot["display"]["off"] = json!(true);
-    oled_frame_into(&snapshot, &mut reused);
-    assert!(reused.iter().all(|byte| *byte == 0));
-}
 
 #[test]
 fn glyphs_cover_common_menu_sample_and_help_text() {
@@ -110,17 +8,6 @@ fn glyphs_cover_common_menu_sample_and_help_text() {
             assert_ne!(glyph_rows(ch), [0; 7], "missing glyph {ch}");
         }
     }
-}
-
-#[test]
-fn oled_display_brightness_scales_menu_line_colors() {
-    let mut snapshot = menu_snapshot();
-    snapshot["settings"]["displayBrightness"] = json!(50);
-    let frame = oled_frame(&snapshot);
-    assert_eq!(
-        pixel(&frame, 4, 30),
-        rgb565(scale(rgb565_to_rgb(palette::GREEN_RGB565), 0.5))
-    );
 }
 
 #[test]
@@ -240,6 +127,7 @@ fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
 mod hardware_render_tests {
     use super::*;
     use crate::render_loop::test_scenes::test_scene;
+    use platform_core::palette;
     use playback_runtime::oled_frame::OledPresentationMetrics;
     use std::sync::mpsc;
 

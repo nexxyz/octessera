@@ -111,6 +111,7 @@ pub struct NativeMenuState {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeMenuSnapshot {
     pub path: String,
+    pub section_color: u16,
     pub lines: Vec<String>,
     pub colors: Vec<u16>,
     pub bar_values: Vec<Option<NativeMenuBarValue>>,
@@ -150,6 +151,6 @@ pub struct NativeMenuModel {
     pub state: NativeMenuState,
     pub numeric_display_mode: String,
     pub navigation_memory: HashMap<String, usize>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) rebuild_count: usize,
 }

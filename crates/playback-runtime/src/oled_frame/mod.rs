@@ -33,6 +33,9 @@ pub use text_layout::{
 mod error_layout_tests;
 
 #[cfg(test)]
+mod menu_frame_tests;
+
+#[cfg(test)]
 mod tests;
 
 #[cfg(test)]

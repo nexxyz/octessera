@@ -82,6 +82,7 @@ impl NativeMenuModel {
         let visible_rows = lines.len();
         NativeMenuSnapshot {
             path,
+            section_color,
             lines,
             colors,
             bar_values,
@@ -102,6 +103,7 @@ impl NativeMenuModel {
 fn empty_snapshot(path: String, section_color: u16) -> NativeMenuSnapshot {
     NativeMenuSnapshot {
         path,
+        section_color,
         lines: vec!["(empty)".into()],
         colors: vec![section_color],
         bar_values: vec![None],

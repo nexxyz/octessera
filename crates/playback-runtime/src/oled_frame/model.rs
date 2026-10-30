@@ -19,6 +19,7 @@ pub struct OledDisplayInput {
     pub splash: OledSplash,
     pub body_layout: OledDisplayLayout,
     pub title: String,
+    pub title_color: u16,
     pub lines: Vec<String>,
     pub colors: Vec<u16>,
     pub bars: Vec<Option<OledBarInput>>,

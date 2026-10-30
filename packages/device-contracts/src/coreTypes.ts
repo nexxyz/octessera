@@ -31,6 +31,7 @@ export type DisplayFrame = {
   page: PageId;
   bodyLayout: OledDisplayLayout;
   title: string;
+  titleColor?: number;
   lines: string[];
   editing: boolean;
   off?: boolean;

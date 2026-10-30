@@ -19,6 +19,7 @@ struct DisplayInputDto {
     #[serde(rename = "bodyLayout")]
     body_layout: OledDisplayLayout,
     title: String,
+    title_color: u16,
     lines: Vec<String>,
     colors: Vec<u16>,
     #[serde(rename = "barValues")]
@@ -119,6 +120,7 @@ pub(crate) fn presentation_input_from_snapshot(
             splash: splash_from_name(&display.splash),
             body_layout: display.body_layout,
             title: display.title,
+            title_color: display.title_color,
             lines: display.lines,
             colors: display.colors,
             bars,

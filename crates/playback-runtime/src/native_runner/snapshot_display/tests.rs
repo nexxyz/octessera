@@ -123,3 +123,33 @@ fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
         None
     );
 }
+
+#[test]
+fn header_rule_uses_the_current_menu_area_colour() {
+    use crate::oled_frame::{render_oled_frame, OledPresentationMetrics};
+    use platform_core::palette;
+
+    let mut runner = runner_at(Instant::now());
+    runner.display.ui.display_brightness = 100;
+    for (key, expected) in [
+        (None, palette::GRAY_RGB565),
+        (Some("behaviorId"), palette::GREEN_RGB565),
+        (Some("play.xy.smoothingMs"), palette::YELLOW_RGB565),
+    ] {
+        if let Some(key) = key {
+            assert!(runner.menu.focus_item_key(key), "{key}");
+        }
+        let input = runner
+            .capture_presentation_scene(false)
+            .unwrap()
+            .oled_presentation_input(OledPresentationMetrics::default(), None);
+        assert_eq!(input.display.title_color, expected, "{key:?}");
+        let frame = render_oled_frame(&input);
+        let pixel = |x: usize, y: usize| {
+            let offset = (y * 128 + x) * 2;
+            u16::from_be_bytes([frame[offset], frame[offset + 1]])
+        };
+        assert!((0..128).all(|x| pixel(x, 14) == expected), "{key:?}");
+        assert!((0..128).all(|x| pixel(x, 13) != expected), "{key:?}");
+    }
+}

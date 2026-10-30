@@ -49,6 +49,7 @@ struct HdmiScene {
 pub struct PresentationScene {
     generation: u64,
     display: DisplaySnapshot,
+    title_color: u16,
     behavior_id: String,
     toast: String,
     off: bool,
@@ -143,7 +144,9 @@ impl NativeRunner {
                 .unwrap_or(HdmiGrid::Black),
             _ => HdmiGrid::Black,
         };
-        let display = self.display_snapshot(self.menu.snapshot());
+        let menu = self.menu.snapshot();
+        let title_color = menu.section_color;
+        let display = self.display_snapshot(menu);
         let audio = include_audio_config.then(|| AudioScene {
             instruments: self.instruments.clone(),
             buses: self.fx_buses.clone(),
@@ -153,6 +156,7 @@ impl NativeRunner {
         Ok(PresentationScene {
             generation: self.display.transients.generation(),
             display,
+            title_color,
             behavior_id: self.behavior.id().to_string(),
             toast: self
                 .display
@@ -234,6 +238,7 @@ impl PresentationScene {
                 },
                 body_layout: display.body_layout,
                 title: display.title.clone(),
+                title_color: self.title_color,
                 lines: display.lines.clone(),
                 colors: display.colors.clone(),
                 bars: display

@@ -299,6 +299,10 @@ change; only the distance per detent does.
   changed snapshot revision schedules a scene even when the display generation is unchanged, so
   host-side state such as runtime errors reaches the screen. Boot splash, direct boot fault,
   shutdown splash, suspend, and ownership lifecycle frames remain adapter paths.
+- At startup the boot logo (the boards' boot splash, the desktop startup splash) stays up while the
+  System document and saved patch load. The menu is built once after both loads finish, so the
+  first menu shown is the saved patch's. A missing saved patch starts on defaults, and a failed
+  load shows its error frame over that menu.
 - MIDI is hot-pluggable. A remembered MIDI Host port that is not plugged in stays selected without
   an error and connects when it appears; the runtime looks for added or removed MIDI devices once a
   second and reconnects the remembered ports. An output that stops taking messages (unplugged, or a
@@ -307,7 +311,11 @@ change; only the distance per detent does.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.
-- Geometry: 5×7 glyphs on a 6 px advance. The top line is the title bar, colored by section. The
+- Geometry: 5×7 glyphs on a 6 px advance. The top line is the title bar: the white breadcrumb at
+  `y=5` over a full-width 1 px rule at `y=14` in the current area's color (`display.titleColor`:
+  Build green, Link magenta, Shape blue, Play yellow, System and the root menu gray). Help,
+  confirmation, setup and other screens drawn over a menu keep that menu's rule; splash, full
+  runtime-error frames and the off state have none. The
   menu body is 19 columns by 7 rows (`x=6`, `y=18`, 13 px rows). The toast line at the bottom is 17
   columns wide.
 - Every snapshot `display` object carries the required `bodyLayout`:
@@ -318,8 +326,8 @@ change; only the distance per detent does.
     semantic source string in `display.lines`. Cards use `x=4`, `width=120`, `y=18`, `height=91`,
     `rowAdvance=13` (20 columns by 7 rows), reserve the final row for the selected action, and
     ignore row bars and scroll metadata. When card prose wraps or later lines do not fit, only the
-    final visible prose row gets `...`. The native and Pi renderers share the fixed-font metrics and
-    wrapping rules.
+    final visible prose row gets `...`. Desktop and both boards draw cards and rows with the one
+    shared native OLED renderer.
 - Splash graphics use the shared static `SPLASH_SLEEP_SHUTDOWN` logo and wordmark for sleep and
   shutdown with the existing toast geometry. The sleep toast is exactly `Going to sleep`. Startup
   and wake keep the regular logo.
