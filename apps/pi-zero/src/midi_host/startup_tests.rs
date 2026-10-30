@@ -163,6 +163,7 @@ fn a_gadget_port_listed_after_its_device_node_still_connects() {
 fn gadget_retries_reconnect_only_the_missing_input_and_keep_the_output_sink() {
     let (events, sent) = mpsc::channel();
     let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);
+    host.set_test_backend(backend(Vec::new(), Vec::new(), []));
     host.set_usb_midi_out_enabled(true);
     let start = Instant::now();
     let (output_names, input_names) = test_gadget_port_names();
