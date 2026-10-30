@@ -92,6 +92,11 @@ impl NativeRunner {
         self.menu.state.editing = was_editing;
     }
 
+    pub(super) fn show_instrument_rows_around_key(&mut self, index: usize, key: &str) {
+        self.menu.show_instrument_rows(&self.menu_config(), index);
+        self.menu.keep_focus_on_key(key);
+    }
+
     fn clear_link_arp_state_for_menu_key(&mut self, key: &str) {
         if key == "algorithmStep" || key == "behaviorId" {
             self.clear_link_arp_state_for_layer(self.active_layer_index);

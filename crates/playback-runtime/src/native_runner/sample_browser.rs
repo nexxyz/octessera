@@ -13,13 +13,15 @@ impl NativeRunner {
         if let Some(rest) = action.strip_prefix("sample.open:") {
             let (instrument_slot, sample_slot, dir) = parse_sample_action(rest)?;
             let dir = dir.unwrap_or_default();
-            self.sample_browser = Some(NativeSampleBrowser {
+            self.show_sample_browser(
+                Some(NativeSampleBrowser {
+                    instrument_slot,
+                    sample_slot,
+                    dir: dir.clone(),
+                    entries: vec![],
+                }),
                 instrument_slot,
-                sample_slot,
-                dir: dir.clone(),
-                entries: vec![],
-            });
-            self.menu.rebuild(self.menu_config());
+            );
             return Ok(Some(RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,
                 sample_slot,
@@ -29,13 +31,15 @@ impl NativeRunner {
         if let Some(rest) = action.strip_prefix("sample.enter:") {
             let (instrument_slot, sample_slot, dir) = parse_sample_action(rest)?;
             let dir = dir.unwrap_or_default();
-            self.sample_browser = Some(NativeSampleBrowser {
+            self.show_sample_browser(
+                Some(NativeSampleBrowser {
+                    instrument_slot,
+                    sample_slot,
+                    dir: dir.clone(),
+                    entries: vec![],
+                }),
                 instrument_slot,
-                sample_slot,
-                dir: dir.clone(),
-                entries: vec![],
-            });
-            self.menu.rebuild(self.menu_config());
+            );
             return Ok(Some(RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,
                 sample_slot,
@@ -49,13 +53,15 @@ impl NativeRunner {
                 .as_ref()
                 .map(|browser| parent_dir(&browser.dir))
                 .unwrap_or_default();
-            self.sample_browser = Some(NativeSampleBrowser {
+            self.show_sample_browser(
+                Some(NativeSampleBrowser {
+                    instrument_slot,
+                    sample_slot,
+                    dir: dir.clone(),
+                    entries: vec![],
+                }),
                 instrument_slot,
-                sample_slot,
-                dir: dir.clone(),
-                entries: vec![],
-            });
-            self.menu.rebuild(self.menu_config());
+            );
             return Ok(Some(RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,
                 sample_slot,
@@ -100,8 +106,7 @@ impl NativeRunner {
                     });
                 }
                 self.mark_fast_autosave_dirty();
-                self.sample_browser = None;
-                self.menu.rebuild(self.menu_config());
+                self.show_sample_browser(None, instrument_slot);
                 let _ = self
                     .menu
                     .focus_item_key(&format!("sample.choose:{instrument_slot}:{sample_slot}"));
@@ -131,6 +136,20 @@ impl NativeRunner {
             return Ok(None);
         }
         Ok(None)
+    }
+
+    pub(super) fn show_sample_browser(
+        &mut self,
+        browser: Option<NativeSampleBrowser>,
+        instrument_slot: usize,
+    ) {
+        let previous = std::mem::replace(&mut self.sample_browser, browser)
+            .map(|previous| previous.instrument_slot)
+            .filter(|previous| *previous != instrument_slot);
+        let config = self.menu_config();
+        for slot in previous.into_iter().chain([instrument_slot]) {
+            self.menu.show_instrument_rows(&config, slot);
+        }
     }
 
     pub(super) fn browser_entries_for_result(
@@ -235,7 +254,8 @@ impl NativeRunner {
         } else {
             return Ok(None);
         }
-        self.menu.rebuild(self.menu_config());
+        let browser = self.sample_browser.take();
+        self.show_sample_browser(browser, instrument_slot);
         Ok(None)
     }
 
@@ -262,13 +282,15 @@ impl NativeRunner {
             })
             .map(|browser| browser.dir.clone())
             .unwrap_or_default();
-        self.sample_browser = Some(NativeSampleBrowser {
+        self.show_sample_browser(
+            Some(NativeSampleBrowser {
+                instrument_slot,
+                sample_slot,
+                dir: dir.clone(),
+                entries: vec![],
+            }),
             instrument_slot,
-            sample_slot,
-            dir: dir.clone(),
-            entries: vec![],
-        });
-        self.menu.rebuild(self.menu_config());
+        );
         Some(RuntimePlatformEffect::SampleListRequest {
             instrument_slot,
             sample_slot,

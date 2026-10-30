@@ -167,7 +167,10 @@ impl NativeRunner {
         changed
     }
 
-    fn param_binding_target_mut(&mut self, target: &str) -> Option<&mut NativeParamBinding> {
+    pub(super) fn param_binding_target_mut(
+        &mut self,
+        target: &str,
+    ) -> Option<&mut NativeParamBinding> {
         if let Some(rest) = target.strip_prefix("param:") {
             let parts = rest.split(':').collect::<Vec<_>>();
             if parts.len() == 3 {

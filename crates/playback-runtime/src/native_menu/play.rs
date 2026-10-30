@@ -12,20 +12,20 @@ pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
         vec![
             keyed_group("Mix", "play.page.mix", vec![]),
             keyed_group("Pan", "play.page.pan", vec![]),
-            keyed_group(
-                "FX",
-                "play.page.fx",
-                play_fx_page_items(config)
-                    .into_iter()
-                    .chain([group("Aux Map", play_aux_map_items(config))])
-                    .collect(),
-            ),
+            keyed_group("FX", "play.page.fx", play_fx_page_children(config)),
             keyed_group("Trigger Gate", "play.page.trigger-gate", vec![]),
             keyed_group("Transpose", "play.page.transpose", vec![]),
             keyed_group("XY", "play.page.xy", xy_pad_items(config)),
             drums_page(config),
         ],
     )
+}
+
+pub(super) fn play_fx_page_children(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
+    play_fx_page_items(config)
+        .into_iter()
+        .chain([group("Aux Map", play_aux_map_items(config))])
+        .collect()
 }
 
 fn drums_page(config: &NativeMenuConfig) -> NativeMenuItem {

@@ -16,13 +16,15 @@ impl NativeRunner {
             } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
                 let entries =
                     self.browser_entries_for_result(instrument_slot, sample_slot, &dir, entries);
-                self.sample_browser = Some(NativeSampleBrowser {
+                self.show_sample_browser(
+                    Some(NativeSampleBrowser {
+                        instrument_slot,
+                        sample_slot,
+                        dir,
+                        entries,
+                    }),
                     instrument_slot,
-                    sample_slot,
-                    dir,
-                    entries,
-                });
-                self.menu.rebuild(self.menu_config());
+                );
             }
             RuntimeStoreResult::SampleListError {
                 instrument_slot,
@@ -31,14 +33,16 @@ impl NativeRunner {
                 message,
             } if self.sample_browser_matches(instrument_slot, sample_slot, &dir) => {
                 let entries = self.unavailable_browser_entries(instrument_slot, sample_slot, &dir);
-                self.sample_browser = Some(NativeSampleBrowser {
+                self.show_sample_browser(
+                    Some(NativeSampleBrowser {
+                        instrument_slot,
+                        sample_slot,
+                        dir,
+                        entries,
+                    }),
                     instrument_slot,
-                    sample_slot,
-                    dir,
-                    entries,
-                });
+                );
                 self.display.toast = Some(NativeToast { message, offset: 0 });
-                self.menu.rebuild(self.menu_config());
             }
             _ => {}
         }

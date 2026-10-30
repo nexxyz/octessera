@@ -1,4 +1,6 @@
-use super::{menu_apply_fast_values::parse_indexed_key, NativeRunner};
+use super::{
+    instrument_labels, link_layer_configs, menu_apply_fast_values::parse_indexed_key, NativeRunner,
+};
 
 impl NativeRunner {
     pub(super) fn apply_link_menu_key_fast(&mut self, key: &str) -> Option<bool> {
@@ -67,7 +69,13 @@ impl NativeRunner {
         };
         if changed {
             if suffix == "link.scanMode" {
-                self.rematerialize_menu_around_key(key);
+                if let Some(sense) = link_layer_configs(std::slice::from_ref(layer)).first() {
+                    self.menu.show_link_scanning_rows(
+                        index,
+                        sense,
+                        &instrument_labels(&self.instruments),
+                    );
+                }
             }
             if suffix.starts_with("link.arp.") {
                 self.clear_link_arp_state_for_layer(index);

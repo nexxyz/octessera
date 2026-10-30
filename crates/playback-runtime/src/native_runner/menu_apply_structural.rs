@@ -124,6 +124,7 @@ impl NativeRunner {
             instrument.name = derive_instrument_name(index, &instrument.kind);
         }
         let next_label = instrument_overview_label(index, instrument);
+        self.drain_play_transpose_instrument_notes(index);
         self.menu.replace_label(&previous_label, &next_label);
         self.rematerialize_menu_around_key(&format!("instruments.{index}.type"));
         if let Some(config) = self.instrument_audio_config(index) {

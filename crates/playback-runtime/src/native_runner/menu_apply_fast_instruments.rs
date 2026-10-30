@@ -261,10 +261,10 @@ impl NativeRunner {
     }
 
     pub(super) fn fast_full_instrument_sample_key(&mut self, index: usize, key: &str) -> bool {
-        let changed = self.apply_instrument_menu_state();
+        let changed = self.apply_sampler_menu_key(index, key);
         if changed {
             if key.ends_with(".selectedSlot") || key.ends_with(".velocityLevelsEnabled") {
-                self.rematerialize_menu_around_key(key);
+                self.show_instrument_rows_around_key(index, key);
             }
             let rebased = self.rebase_and_recompose_modulation_key(key);
             if !rebased {
@@ -286,12 +286,22 @@ impl NativeRunner {
     }
 
     pub(super) fn fast_midi_instrument_key(&mut self, index: usize, _key: &str) -> bool {
-        let changed = {
+        let (changed, route_changed) = {
             let Some(instrument) = self.instruments.get_mut(index) else {
                 return false;
             };
-            super::menu_apply_instrument_midi::apply_midi_menu_fields(&self.menu, index, instrument)
+            let route = (instrument.midi_enabled, instrument.midi_channel);
+            let changed = super::menu_apply_instrument_midi::apply_midi_menu_fields(
+                &self.menu, index, instrument,
+            );
+            (
+                changed,
+                route != (instrument.midi_enabled, instrument.midi_channel),
+            )
         };
+        if route_changed {
+            self.drain_play_transpose_instrument_notes(index);
+        }
         if changed {
             self.rebase_and_recompose_modulation_key(_key);
             self.mark_fast_autosave_dirty();

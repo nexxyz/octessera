@@ -49,7 +49,7 @@ fn apply_selected_drum_voice(runner: &mut NativeRunner, slot: usize, key: &str) 
     let current = runner.drum_selected_voices.get_mut(slot)?;
     if *current != selected {
         *current = selected;
-        runner.rematerialize_menu_around_key(key);
+        runner.show_instrument_rows_around_key(slot, key);
     }
     Some(true)
 }
@@ -78,7 +78,7 @@ fn apply_drum_voice_sound(
                 config,
             });
         }
-        runner.rematerialize_menu_around_key(key);
+        runner.show_instrument_rows_around_key(slot, key);
         runner.mark_fast_autosave_dirty();
     }
     Some(true)

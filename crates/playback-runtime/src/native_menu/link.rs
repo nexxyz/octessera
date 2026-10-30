@@ -86,13 +86,7 @@ pub(super) fn link_layer_group(
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
     let prefix = format!("layers.{index}.link");
-    let instrument_options = if instrument_options.is_empty() {
-        vec!["none".to_string()]
-    } else {
-        let mut options = vec!["none".to_string()];
-        options.extend(instrument_options.iter().cloned());
-        options
-    };
+    let instrument_options = link_instrument_options(instrument_options);
     let default_sense = default_link_layer_config();
     let sense = sense.unwrap_or(&default_sense);
     group(
@@ -138,6 +132,12 @@ pub(super) fn link_layer_group(
             bool_item("Seeded", format!("{prefix}.seeded"), sense.seeded),
         ],
     )
+}
+
+pub(super) fn link_instrument_options(instrument_labels: &[String]) -> Vec<String> {
+    std::iter::once("none".to_string())
+        .chain(instrument_labels.iter().cloned())
+        .collect()
 }
 
 pub(super) fn link_root_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {

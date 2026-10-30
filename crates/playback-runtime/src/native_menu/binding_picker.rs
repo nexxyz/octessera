@@ -12,6 +12,9 @@ use super::{
 };
 use super::{NativeMenuValue, NativeParamBindingSpec};
 
+pub(super) const PLAY_FX_BINDING_GROUP: &str = "binding.group.play_fx";
+pub(super) const SYSTEM_BINDING_GROUP: &str = "binding.group.system";
+
 pub(super) fn play_fx_targets() -> Vec<String> {
     let mut targets = vec!["master".to_string()];
     targets.extend((1..=FX_BUS_COUNT).map(|index| format!("fx_bus_{index}")));
@@ -39,30 +42,10 @@ pub(super) fn parameter_picker_group(
             target: target.clone(),
         },
     )];
-    children.extend(parameter_tree_groups(&target, config));
     if let Some(binding) = current {
-        if binding.kind == "number"
-            && !target.starts_with("aux:")
-            && !target.starts_with("shiftAux:")
-        {
-            children.insert(1, range_item("Range Max", &target, "rangeMax", binding));
-            children.insert(1, range_item("Range Min", &target, "rangeMin", binding));
-        }
-        children.insert(
-            1,
-            action_item(
-                format!(
-                    "Current: {}",
-                    binding.label.as_deref().unwrap_or(&binding.key)
-                ),
-                format!("{target}.current"),
-                NativeMenuAction::SetParamBinding {
-                    target: target.clone(),
-                    binding: binding.clone(),
-                },
-            ),
-        );
+        children.extend(current_binding_rows(&target, binding));
     }
+    children.extend(parameter_tree_groups(&target, config));
     NativeMenuItem {
         label,
         key: Some(target),
@@ -91,7 +74,32 @@ pub(super) fn parameter_picker_group_numeric(
     item
 }
 
-fn keep_numeric_binding_item(mut item: NativeMenuItem, target: &str) -> Option<NativeMenuItem> {
+pub(super) fn current_binding_rows(
+    target: &str,
+    binding: &NativeParamBindingSpec,
+) -> Vec<NativeMenuItem> {
+    let mut rows = vec![action_item(
+        format!(
+            "Current: {}",
+            binding.label.as_deref().unwrap_or(&binding.key)
+        ),
+        format!("{target}.current"),
+        NativeMenuAction::SetParamBinding {
+            target: target.into(),
+            binding: binding.clone(),
+        },
+    )];
+    if binding.kind == "number" && !target.starts_with("aux:") && !target.starts_with("shiftAux:") {
+        rows.push(range_item("Range Min", target, "rangeMin", binding));
+        rows.push(range_item("Range Max", target, "rangeMax", binding));
+    }
+    rows
+}
+
+pub(super) fn keep_numeric_binding_item(
+    mut item: NativeMenuItem,
+    target: &str,
+) -> Option<NativeMenuItem> {
     if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) = &item.value
     {
         let allowed = binding.kind == "number"
@@ -115,7 +123,7 @@ fn is_lfo_config_key(key: &str) -> bool {
     key.starts_with("linkLfos.")
 }
 
-fn is_lfo_target_picker(target: &str) -> bool {
+pub(super) fn is_lfo_target_picker(target: &str) -> bool {
     target.starts_with("linkLfos.") && target.ends_with(".target")
 }
 
@@ -201,13 +209,11 @@ pub(super) fn parameter_tree_groups(
         ));
     }
 
-    if let Some(item) = binding_group_from_items("Play FX", &play_fx_page_items(config), target) {
-        groups.push(keyed_group(PLAY_LABEL, "binding.group.play_fx", vec![item]));
-    }
+    groups.extend(play_fx_binding_group(&play_fx_page_items(config), target));
 
     groups.push(keyed_group(
         "System",
-        "binding.group.system",
+        SYSTEM_BINDING_GROUP,
         vec![keyed_group(
             "Sound",
             "binding.group.sound",
@@ -216,6 +222,14 @@ pub(super) fn parameter_tree_groups(
     ));
 
     groups
+}
+
+pub(super) fn play_fx_binding_group(
+    items: &[NativeMenuItem],
+    target: &str,
+) -> Option<NativeMenuItem> {
+    binding_group_from_items("Play FX", items, target)
+        .map(|item| keyed_group(PLAY_LABEL, PLAY_FX_BINDING_GROUP, vec![item]))
 }
 
 fn sound_binding_items(target: &str) -> Vec<NativeMenuItem> {

@@ -16,7 +16,8 @@ impl NativeRunner {
             &json!({ "fxType": fx_type, "targetKey": target, "params": params }),
         );
         if self.play_fx_selected != before {
-            self.rematerialize_menu_around_key(key);
+            self.menu.show_play_fx_rows(&self.menu_config());
+            self.menu.keep_focus_on_key(key);
             self.mark_fast_autosave_dirty();
         }
         true

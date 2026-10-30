@@ -130,7 +130,11 @@ fn shape_group(config: &NativeMenuConfig) -> NativeMenuItem {
     }
 }
 
-fn instrument_item(config: &NativeMenuConfig, index: usize, label: &str) -> NativeMenuItem {
+pub(super) fn instrument_item(
+    config: &NativeMenuConfig,
+    index: usize,
+    label: &str,
+) -> NativeMenuItem {
     let kind = config
         .instrument_types
         .get(index)
