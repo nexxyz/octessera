@@ -189,11 +189,13 @@ fn stealing_for_an_offset_note_keeps_the_slot_full_and_the_output_continuous() {
         engine.note_on(0, 48 + note as u8, 100, 60_000);
     }
     let before = render_blocks(&mut engine, 4);
+    #[cfg(feature = "profiling")]
     let steals = engine.profile_snapshot().cumulative_voice_steals;
     engine.with_event_frame_offset(OFFSET as u32, |engine| engine.note_on(0, 84, 100, 60_000));
     let after = render_blocks(&mut engine, 2);
 
     let snapshot = engine.profile_snapshot();
+    #[cfg(feature = "profiling")]
     assert_eq!(snapshot.cumulative_voice_steals, steals + 1);
     assert_eq!(snapshot.active_synth_voices, MAX_SYNTH_VOICES_PER_SLOT);
     let last = before[before.len() - 2];

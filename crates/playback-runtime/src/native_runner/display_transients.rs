@@ -1,6 +1,7 @@
 use crate::oled_frame::INDICATOR_FADE_LEVELS;
 use std::time::{Duration, Instant};
 
+const EVENT_DOT_HOLD: Duration = Duration::from_millis(200);
 const EVENT_DOT_STEP: Duration = Duration::from_millis(100);
 const TRANSPORT_FLASH_DURATION: Duration = Duration::from_millis(90);
 
@@ -185,7 +186,9 @@ impl DisplayTransients {
 
     pub(super) fn next_deadline(&self, last_snapshot_at: Option<Instant>) -> Option<Instant> {
         let event_dot_step = self.event_dot_started.map(|started| {
-            started + EVENT_DOT_STEP * u32::from(INDICATOR_FADE_LEVELS - self.event_dot_level + 1)
+            started
+                + EVENT_DOT_HOLD
+                + EVENT_DOT_STEP * u32::from(INDICATOR_FADE_LEVELS - self.event_dot_level)
         });
         [event_dot_step, self.transport_flash_until]
             .into_iter()
@@ -203,7 +206,11 @@ impl DisplayTransients {
 }
 
 fn event_dot_level(started: Instant, now: Instant) -> u8 {
-    let steps = now.saturating_duration_since(started).as_millis() / EVENT_DOT_STEP.as_millis();
+    let elapsed = now.saturating_duration_since(started);
+    if elapsed < EVENT_DOT_HOLD {
+        return INDICATOR_FADE_LEVELS;
+    }
+    let steps = (elapsed - EVENT_DOT_HOLD).as_millis() / EVENT_DOT_STEP.as_millis() + 1;
     INDICATOR_FADE_LEVELS.saturating_sub(u8::try_from(steps).unwrap_or(u8::MAX))
 }
 
@@ -212,7 +219,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn event_dot_fades_in_bounded_steps_and_retriggers_at_full_brightness() {
+    fn event_dot_holds_full_then_fades_in_bounded_steps_and_retriggers_at_full_brightness() {
         let start = Instant::now();
         let mut transients = DisplayTransients::new(start);
         transients.trigger_event_dot(start);
@@ -220,7 +227,7 @@ mod tests {
         assert_eq!(transients.presentation(start).event_dot_level, 4);
         assert_eq!(
             transients.next_deadline(Some(start)),
-            Some(start + EVENT_DOT_STEP)
+            Some(start + EVENT_DOT_HOLD)
         );
 
         let retrigger = start + Duration::from_millis(20);
@@ -228,12 +235,19 @@ mod tests {
         assert!(!transients.take_snapshot_pending(retrigger));
         assert_eq!(
             transients.next_deadline(Some(retrigger)),
-            Some(retrigger + EVENT_DOT_STEP)
+            Some(retrigger + EVENT_DOT_HOLD)
+        );
+        let held = retrigger + EVENT_DOT_STEP;
+        assert!(!transients.take_snapshot_pending(held));
+        assert_eq!(transients.presentation(held).event_dot_level, 4);
+        assert_eq!(
+            transients.next_deadline(Some(held)),
+            Some(retrigger + EVENT_DOT_HOLD)
         );
 
         let mut levels = Vec::new();
-        for step in 1..=4 {
-            let at = retrigger + EVENT_DOT_STEP * step;
+        for step in 0..4 {
+            let at = retrigger + EVENT_DOT_HOLD + EVENT_DOT_STEP * step;
             assert_eq!(
                 transients.next_deadline(Some(at - Duration::from_millis(1))),
                 Some(at)
@@ -245,13 +259,52 @@ mod tests {
         assert_eq!(levels, [3, 2, 1, 0]);
         assert_eq!(transients.next_deadline(None), None);
 
-        let faded = retrigger + EVENT_DOT_STEP * 2;
+        let faded = retrigger + EVENT_DOT_HOLD + EVENT_DOT_STEP;
         let mut transients = DisplayTransients::new(start);
         transients.trigger_event_dot(start);
         transients.take_snapshot_pending(faded);
         transients.trigger_event_dot(faded);
         assert!(transients.take_snapshot_pending(faded));
         assert_eq!(transients.presentation(faded).event_dot_level, 4);
+    }
+
+    #[test]
+    fn event_dot_stays_full_while_events_keep_arriving_and_fades_after_the_last() {
+        let start = Instant::now();
+        let mut transients = DisplayTransients::new(start);
+        transients.trigger_event_dot(start);
+        assert!(transients.take_snapshot_pending(start));
+
+        let interval = Duration::from_millis(150);
+        let mut last = start;
+        for event in 1..=6 {
+            let at = start + interval * event;
+            for probe in [
+                last + Duration::from_millis(75),
+                at - Duration::from_millis(1),
+            ] {
+                assert!(!transients.take_snapshot_pending(probe));
+                assert_eq!(transients.presentation(probe).event_dot_level, 4);
+            }
+            transients.trigger_event_dot(at);
+            assert!(!transients.take_snapshot_pending(at));
+            assert_eq!(
+                transients.next_deadline(Some(at)),
+                Some(at + EVENT_DOT_HOLD)
+            );
+            last = at;
+        }
+
+        let before_fade = last + EVENT_DOT_HOLD - Duration::from_millis(1);
+        assert!(!transients.take_snapshot_pending(before_fade));
+        assert_eq!(transients.presentation(before_fade).event_dot_level, 4);
+        let mut levels = Vec::new();
+        for step in 0..4 {
+            let at = last + EVENT_DOT_HOLD + EVENT_DOT_STEP * step;
+            assert!(transients.take_snapshot_pending(at));
+            levels.push(transients.presentation(at).event_dot_level);
+        }
+        assert_eq!(levels, [3, 2, 1, 0]);
     }
 
     #[test]

@@ -108,7 +108,7 @@ fn request_snapshot_false_device_event_has_ordered_snapshot_and_expiry() {
     assert_eq!(snapshot_value(&combined)["eventDotLevel"], 4);
     assert_eq!(snapshot_value(&combined)["transportFlash"], "beat");
 
-    runner.test_set_display_time(start + Duration::from_millis(191));
+    runner.test_set_display_time(start + Duration::from_millis(291));
     let expiry = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 0,

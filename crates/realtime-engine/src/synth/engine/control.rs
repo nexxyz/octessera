@@ -148,10 +148,9 @@ impl SynthEngine {
         self.smoothed_load_ratio = 0.9 * self.smoothed_load_ratio + 0.1 * r;
     }
 
-    pub fn audio_load_status(&mut self) -> AudioLoadStatus {
-        let status = AudioLoadStatus {
+    pub fn audio_load_status(&self) -> AudioLoadStatus {
+        AudioLoadStatus {
             ratio: self.smoothed_load_ratio,
-            voice_steal: self.voice_steal_since_status,
             worker_utilization: self
                 .worker_utilization_ppm
                 .map(|utilization| utilization as f32 / 1_000_000.0),
@@ -168,9 +167,7 @@ impl SynthEngine {
             deadline_misses: 0,
             deadline_recoveries: 0,
             peak: BlockPeak::default(),
-        };
-        self.voice_steal_since_status = false;
-        status
+        }
     }
 
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {

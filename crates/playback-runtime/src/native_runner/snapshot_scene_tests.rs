@@ -13,7 +13,7 @@ fn assert_typed_oled_matches_legacy(runner: &NativeRunner) {
     use crate::oled_frame::{
         presentation_input_from_snapshot, render_oled_frame, OledPresentationMetrics,
     };
-    let metrics = OledPresentationMetrics::from_status(Some(0.91), true, true, true);
+    let metrics = OledPresentationMetrics::from_status(Some(0.91), true, true);
     let typed = runner
         .capture_presentation_scene(false)
         .unwrap()
@@ -150,7 +150,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     assert_eq!(beat["transportFlash"], "beat");
     assert_eq!(beat["eventDotLevel"], 4);
     assert!(beat["settings"].get("instruments").is_none());
-    runner.test_set_display_time(start + Duration::from_millis(500));
+    runner.test_set_display_time(start + Duration::from_millis(600));
     runner
         .send(HostMessage::TransportPulseStep {
             pulses: 0,

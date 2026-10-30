@@ -336,12 +336,11 @@ test('semantic and audio-load updates preserve native OLED pixels', async () => 
 
   result.emitAudioLoad({
     ratio: 0.9,
-    voiceSteal: true,
     workerUtilization: 0.9,
-    highCpuSteady: false,
+    highCpuSteady: true,
     missedQuantumFlash: false,
   });
-  assert.equal(result.runtime.getSnapshot().audioLoad.voiceSteal, true);
+  assert.equal(result.runtime.getSnapshot().audioLoad.highCpuSteady, true);
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 });
 
@@ -349,7 +348,6 @@ test('worker warning follows explicit native status instead of aggregate load ra
   const result = await acceptedHarness();
   result.emitAudioLoad({
     ratio: 1,
-    voiceSteal: false,
     workerUtilization: 1,
     highCpuSteady: false,
     missedQuantumFlash: false,
@@ -358,7 +356,6 @@ test('worker warning follows explicit native status instead of aggregate load ra
 
   result.emitAudioLoad({
     ratio: 0,
-    voiceSteal: false,
     workerUtilization: 0.9,
     highCpuSteady: true,
     missedQuantumFlash: false,
@@ -370,7 +367,6 @@ test('missed quantum status preserves native true and clear transitions', async 
   const result = await acceptedHarness();
   result.emitAudioLoad({
     ratio: 0,
-    voiceSteal: false,
     workerUtilization: 0.9,
     highCpuSteady: false,
     missedQuantumFlash: true,
@@ -380,7 +376,6 @@ test('missed quantum status preserves native true and clear transitions', async 
 
   result.emitAudioLoad({
     ratio: 0,
-    voiceSteal: false,
     workerUtilization: 0.9,
     highCpuSteady: true,
     missedQuantumFlash: false,

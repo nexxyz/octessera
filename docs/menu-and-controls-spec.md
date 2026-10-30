@@ -419,16 +419,15 @@ palette unless a behavior deliberately owns its own.
 
 - The transport icon (`▶` / `⏸` / `■`) sits bottom-right at `(107,118)` and the 5×5 event dot at
   `(119,119)`. Both stay visible while a footer toast is shown; the toast never draws over them.
-- Event-dot and transport-flash timing uses native monotonic deadlines. The event dot fades in four
-  100 ms steps at full, 1/2, 1/4 and 1/8 brightness, then goes dark (400 ms in all); a new event
-  restarts it at full brightness. Beat/measure flashes last 90 ms. A visible start, fade step,
+- Event-dot and transport-flash timing uses native monotonic deadlines. The event dot holds full
+  brightness for 200 ms, then fades in 100 ms steps at 1/2, 1/4 and 1/8 brightness and goes dark
+  (500 ms in all); every new event restarts the 200 ms hold, so events less than 200 ms apart keep
+  it steadily at full. The dot is always white. Beat/measure flashes last 90 ms. A visible start, fade step,
   flash-kind change, or expiry forces one snapshot; a retrigger while the dot is still at full
   brightness, or a same-kind flash retrigger, only moves the deadline. The fade adds at most one
   one-shot snapshot per 100 ms step; while playing, boards already capture on the 33 ms tick, so
   the fade only changes pixels (one extra OLED write per step, on the render worker).
-- Recent voice stealing turns the event dot magenta and fades it in the same four steps, one step
-  per audio-load report (100 ms); another steal restarts it at full brightness. Aggregate
-  audio-load status does not drive the worker icon.
+- Aggregate audio-load status does not drive the worker icon.
 - The CPU meter in the header's top right is three bars (`x=116`, `119`, `122`; 3, 5 and 7 px
   tall, bottoms on `y=11`) and is always shown on menu frames. It reads the highest load reported
   over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker

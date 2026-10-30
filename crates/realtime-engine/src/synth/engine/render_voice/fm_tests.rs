@@ -269,6 +269,7 @@ fn fm_uses_synth_admission_and_retires_voices_on_type_switch() {
         engine.profile_snapshot().active_synth_voices,
         MAX_SYNTH_VOICES_PER_SLOT
     );
+    #[cfg(feature = "profiling")]
     assert!(engine.profile_snapshot().cumulative_voice_steals >= 1);
     engine.note_off(0, 68);
     assert!(engine.synth_voice_pool.lane(0).is_some());

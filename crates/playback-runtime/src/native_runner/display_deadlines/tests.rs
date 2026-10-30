@@ -58,7 +58,7 @@ fn one_shot_deadlines_cover_native_display_transitions() {
     runner.display.transients.acknowledge_snapshot_pending();
     assert_eq!(
         runner.next_timed_display_snapshot_deadline(),
-        Some(start + Duration::from_millis(100))
+        Some(start + Duration::from_millis(200))
     );
 
     runner.display.transients.reset(start);
@@ -268,7 +268,7 @@ fn failed_one_shot_snapshot_remains_due_until_retry() {
     runner.display.ui.screen_sleep_seconds = 0;
     runner.display.transients.trigger_event_dot(start);
     runner.display.transients.acknowledge_snapshot_pending();
-    let expiry = start + Duration::from_millis(100);
+    let expiry = start + Duration::from_millis(200);
     runner.test_set_display_time(expiry);
     runner.test_fail_next_snapshot();
 
@@ -283,6 +283,6 @@ fn failed_one_shot_snapshot_remains_due_until_retry() {
     assert!(!runner.display.transients.snapshot_pending());
     assert_eq!(
         runner.next_timed_display_snapshot_deadline_after(Some(start)),
-        Some(start + Duration::from_millis(200))
+        Some(start + Duration::from_millis(300))
     );
 }

@@ -43,7 +43,6 @@ pub(crate) fn drain_audio_load_status(
         if let Some(status) = newest {
             changed |= playback.update_native_presentation_metrics(RuntimePresentationMetrics {
                 audio_load_ratio: status.ratio,
-                voice_steal: status.voice_steal,
                 worker_utilization: status.worker_utilization,
                 high_cpu_steady: status.high_cpu_steady,
                 missed_quantum_flash: status.missed_quantum_flash,
@@ -68,7 +67,6 @@ pub(crate) fn drain_audio_load_status(
     if let Some(status) = newest {
         let next = playback.update_presentation_metrics(RuntimePresentationMetrics {
             audio_load_ratio: status.ratio,
-            voice_steal: status.voice_steal,
             worker_utilization: status.worker_utilization,
             high_cpu_steady: status.high_cpu_steady,
             missed_quantum_flash: status.missed_quantum_flash,

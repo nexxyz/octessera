@@ -83,6 +83,7 @@ fn a_stolen_synth_voice_fades_in_its_lane_without_a_step_then_frees_it() {
         assert!(one_voice > 0.005, "block={block}: steady level {before}");
 
         engine.note_on(0, 0, 100, 50_000);
+        #[cfg(feature = "profiling")]
         assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
         assert_eq!(
             engine.active_voice_count_for_slot(0),
@@ -115,6 +116,7 @@ fn a_stolen_sample_voice_fades_while_the_new_note_sounds_on_its_first_frame() {
         assert!(one_voice > 0.005, "block={block}: steady level {before}");
 
         engine.note_on(0, 0, 100, 50_000);
+        #[cfg(feature = "profiling")]
         assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
         assert_eq!(
             engine.active_sample_voice_count_for_slot(0),
@@ -153,12 +155,14 @@ fn a_global_budget_cut_fades_instead_of_cutting_and_counts_until_silent() {
         engine.render_through_steal_fades();
         assert_eq!(engine.active_voice_count_for_slot(0), 8);
         assert_eq!(engine.active_voice_count_for_slot(1), 4);
+        #[cfg(feature = "profiling")]
         let steals = engine.profile_snapshot().cumulative_voice_steals;
         let (before, natural) = warm_up(&mut engine, block);
         let one_voice = before.abs() / 12.0;
         assert!(one_voice > 0.005, "block={block}: steady level {before}");
 
         engine.note_on(1, 0, 100, 50_000);
+        #[cfg(feature = "profiling")]
         assert_eq!(
             engine.profile_snapshot().cumulative_voice_steals,
             steals + 1
@@ -190,6 +194,7 @@ fn a_full_pool_steal_takes_the_lane_and_ramps_from_the_old_output() {
         assert!(one_voice > 0.005, "block={block}: steady level {before}");
 
         engine.note_on(0, 0, 100, 50_000);
+        #[cfg(feature = "profiling")]
         assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
         assert_eq!(
             engine.profile_snapshot().active_synth_voices,

@@ -164,7 +164,7 @@ fn default_patch_due_beat_and_event_dot_onset_and_expiry_reach_oled() {
     let onset_revision = runtime.oled_frame_revision();
     let onset_pixels = runtime.last_oled_frame().unwrap().to_vec();
 
-    runner.test_set_display_time(start + Duration::from_millis(491));
+    runner.test_set_display_time(start + Duration::from_millis(591));
     let expired = runtime
         .dispatch_host_message(
             HostMessage::TransportPulseStep {

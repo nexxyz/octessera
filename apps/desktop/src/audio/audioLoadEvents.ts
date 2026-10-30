@@ -2,7 +2,6 @@ import { listen } from '@tauri-apps/api/event';
 
 export type AudioLoadStatus = {
   ratio: number;
-  voiceSteal: boolean;
   workerUtilization?: number;
   highCpuSteady: boolean;
   missedQuantumFlash: boolean;
@@ -10,7 +9,6 @@ export type AudioLoadStatus = {
 
 export type AudioLoadPayload = {
   ratio?: number;
-  voiceSteal?: boolean;
   workerUtilization?: number;
   highCpuSteady?: boolean;
   missedQuantumFlash?: boolean;
@@ -41,7 +39,6 @@ export function normalizeAudioLoadPayload(
   const ratio = Number(payload?.ratio ?? 0);
   return {
     ratio: Number.isFinite(ratio) ? ratio : 0,
-    voiceSteal: payload?.voiceSteal === true,
     workerUtilization: normalizeWorkerUtilization(payload?.workerUtilization),
     highCpuSteady: payload?.highCpuSteady === true,
     missedQuantumFlash: payload?.missedQuantumFlash === true,

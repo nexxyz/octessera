@@ -72,17 +72,8 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
         );
     }
     draw_transport_icon(frame, input, brightness);
-    let voice_steal = input.metrics.voice_steal_level;
-    let level = input
-        .event_dot_level
-        .max(voice_steal)
-        .min(INDICATOR_FADE_LEVELS);
+    let level = input.event_dot_level.min(INDICATOR_FADE_LEVELS);
     if level > 0 {
-        let color = if voice_steal > 0 {
-            palette::MAGENTA
-        } else {
-            palette::WHITE
-        };
         let fade = 1.0 / f32::from(1_u8 << (INDICATOR_FADE_LEVELS - level));
         fill_rect(
             frame,
@@ -90,7 +81,7 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
             119,
             5,
             5,
-            rgb565(scale(color, brightness * fade)),
+            rgb565(scale(palette::WHITE, brightness * fade)),
         );
     }
 }

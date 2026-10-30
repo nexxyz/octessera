@@ -53,6 +53,7 @@ fn full_sample_burst_replacements_preserve_fifo_and_retirement_ownership() {
     assert!(source.control_rx.try_recv_ordered().is_err());
     let snapshot = source.engine.profile_snapshot();
     assert_eq!(snapshot.active_sample_voices, 0);
+    #[cfg(feature = "profiling")]
     assert_eq!(
         snapshot.cumulative_voice_steals,
         (MAX_CONTROL_EVENTS_PER_CALLBACK - 1) as u64

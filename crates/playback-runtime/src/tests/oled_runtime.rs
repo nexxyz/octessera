@@ -74,14 +74,12 @@ fn normalized_metrics_only_publish_visible_changes() {
     assert!(runtime
         .update_presentation_metrics(RuntimePresentationMetrics {
             audio_load_ratio: 0.02,
-            voice_steal: false,
             ..Default::default()
         })
         .messages
         .is_empty());
     let hot = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         audio_load_ratio: 0.85,
-        voice_steal: false,
         worker_utilization: Some(0.93),
         high_cpu_steady: true,
         ..Default::default()
@@ -161,8 +159,7 @@ fn missed_quantum_flash_preserves_native_transition_independently_of_cpu_warning
 #[test]
 fn aggregate_load_ratio_does_not_set_worker_warning_state() {
     assert!(
-        !crate::oled_frame::OledPresentationMetrics::from_status(None, true, false, false)
-            .high_cpu_steady
+        !crate::oled_frame::OledPresentationMetrics::from_status(None, true, false).high_cpu_steady
     );
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let _ = present(&mut runtime, snapshot("metrics"));
@@ -179,51 +176,6 @@ fn aggregate_load_ratio_does_not_set_worker_warning_state() {
             RunnerMessage::Snapshot { snapshot },
             RunnerMessage::RuntimeStatus { .. }
         ] if snapshot["highCpuSteady"] == false
-    ));
-}
-
-#[test]
-fn normalized_voice_steal_metrics_publish_on_edges_and_clear_below_threshold() {
-    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
-    let mut metric_snapshot = snapshot("metrics");
-    metric_snapshot["eventDotLevel"] = json!(4);
-    let _ = present(&mut runtime, metric_snapshot);
-
-    assert!(runtime
-        .update_presentation_metrics(RuntimePresentationMetrics {
-            audio_load_ratio: 0.02,
-            voice_steal: false,
-            ..Default::default()
-        })
-        .messages
-        .is_empty());
-
-    let voice_steal = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        audio_load_ratio: 0.2,
-        voice_steal: true,
-        ..Default::default()
-    });
-    assert!(matches!(
-        voice_steal.messages.as_slice(),
-        [
-            RunnerMessage::OledFrame { revision: 2, .. },
-            RunnerMessage::Snapshot { snapshot },
-            RunnerMessage::RuntimeStatus { .. }
-        ] if snapshot["oledFrameRevision"] == 2
-    ));
-
-    let cleared = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        audio_load_ratio: 0.84,
-        voice_steal: false,
-        ..Default::default()
-    });
-    assert!(matches!(
-        cleared.messages.as_slice(),
-        [
-            RunnerMessage::OledFrame { revision: 3, .. },
-            RunnerMessage::Snapshot { snapshot },
-            RunnerMessage::RuntimeStatus { .. }
-        ] if snapshot["oledFrameRevision"] == 3
     ));
 }
 
@@ -379,25 +331,6 @@ fn native_transient_transitions_reach_playback_with_matching_oled_revisions() {
     assert_eq!(host.audio_commands.len(), audio_commands);
     assert_ordered_revisioned_presentation_with_flash(&flash.messages, 4, 4, "beat");
 
-    runner.test_set_display_time(start + std::time::Duration::from_millis(191));
-    let event_expiry = runtime
-        .dispatch(
-            RuntimeDispatchInput::RunnerMessages(
-                runner
-                    .send(HostMessage::TransportPulseStep {
-                        pulses: 0,
-                        source: SyncSource::Internal,
-                        at_ppqn_pulse: None,
-                        request_snapshot: Some(false),
-                    })
-                    .unwrap(),
-            ),
-            &mut runner,
-            &mut host,
-        )
-        .unwrap();
-    assert_ordered_revisioned_presentation_with_flash(&event_expiry.messages, 5, 3, "beat");
-
     runner.test_set_display_time(start + std::time::Duration::from_millis(220));
     let flash_expiry = runtime
         .dispatch(
@@ -415,9 +348,28 @@ fn native_transient_transitions_reach_playback_with_matching_oled_revisions() {
             &mut host,
         )
         .unwrap();
-    assert_ordered_revisioned_presentation_with_flash(&flash_expiry.messages, 6, 3, "none");
+    assert_ordered_revisioned_presentation_with_flash(&flash_expiry.messages, 5, 4, "none");
 
-    runner.test_set_display_time(start + std::time::Duration::from_millis(491));
+    runner.test_set_display_time(start + std::time::Duration::from_millis(291));
+    let event_step = runtime
+        .dispatch(
+            RuntimeDispatchInput::RunnerMessages(
+                runner
+                    .send(HostMessage::TransportPulseStep {
+                        pulses: 0,
+                        source: SyncSource::Internal,
+                        at_ppqn_pulse: None,
+                        request_snapshot: Some(false),
+                    })
+                    .unwrap(),
+            ),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    assert_ordered_revisioned_presentation_with_flash(&event_step.messages, 6, 3, "none");
+
+    runner.test_set_display_time(start + std::time::Duration::from_millis(591));
     let event_faded = runtime
         .dispatch(
             RuntimeDispatchInput::RunnerMessages(

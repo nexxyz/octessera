@@ -207,7 +207,6 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   emitAsync(1, [getRunnerMessage('runtime_status')]);
   emitAudioLoad({
     ratio: 1,
-    voiceSteal: true,
     workerUtilization: 1,
     highCpuSteady: true,
     missedQuantumFlash: false,
@@ -220,7 +219,6 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   assert.equal(runtime.getSnapshot().runtimeStatus, afterStop.runtimeStatus);
   assert.deepEqual(runtime.getSnapshot().audioLoad, {
     ratio: 0,
-    voiceSteal: false,
     workerUtilization: undefined,
     highCpuSteady: false,
     missedQuantumFlash: false,
@@ -252,7 +250,7 @@ test('semantic encoder actions use the direct encoder batching route', async () 
   ]);
 });
 
-test('desktop applies an audio load message to aggregate and voice-steal presentation', async () => {
+test('desktop applies an audio load message to aggregate and worker-warning presentation', async () => {
   let emitAudioLoad: (status: AudioLoadStatus) => void = () => {};
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
     runtimeDispatch: async () => [],
@@ -265,24 +263,22 @@ test('desktop applies an audio load message to aggregate and voice-steal present
   });
   const published: boolean[] = [];
   runtime.subscribe((snapshot) => {
-    published.push(snapshot.audioLoad.voiceSteal);
+    published.push(snapshot.audioLoad.highCpuSteady);
   });
   const publishedBeforeLoad = published.length;
 
   emitAudioLoad({
     ratio: 0.72,
-    voiceSteal: true,
-    workerUtilization: undefined,
-    highCpuSteady: false,
+    workerUtilization: 0.9,
+    highCpuSteady: true,
     missedQuantumFlash: false,
   });
   await waitTurn();
 
   assert.deepEqual(runtime.getSnapshot().audioLoad, {
     ratio: 0.72,
-    voiceSteal: true,
-    workerUtilization: undefined,
-    highCpuSteady: false,
+    workerUtilization: 0.9,
+    highCpuSteady: true,
     missedQuantumFlash: false,
   });
   assert.equal(published.length, publishedBeforeLoad + 1);

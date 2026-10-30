@@ -8,7 +8,7 @@ license-file.workspace = true
 path = "src/lib.rs"
 
 [features]
-profiling = []
+profiling = ["realtime-engine/profiling"]
 routing-tree-executor = ["realtime-engine/routing-tree-executor"]
 
 [dependencies]

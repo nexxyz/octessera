@@ -243,7 +243,7 @@ pub struct SynthEngine {
     master_volume: f32,
     voice_stealing_mode: VoiceStealingMode,
     smoothed_load_ratio: f32,
-    voice_steal_since_status: bool,
+    #[cfg(feature = "profiling")]
     cumulative_voice_steals: u64,
     cumulative_voice_admission_drops: u64,
     momentary_fx: Vec<MomentaryFxState>,
@@ -290,8 +290,10 @@ impl SynthEngine {
     }
 
     pub(in crate::synth::engine) fn record_voice_steal(&mut self) {
-        self.voice_steal_since_status = true;
-        self.cumulative_voice_steals = self.cumulative_voice_steals.saturating_add(1);
+        #[cfg(feature = "profiling")]
+        {
+            self.cumulative_voice_steals = self.cumulative_voice_steals.saturating_add(1);
+        }
     }
 
     pub(in crate::synth::engine) fn record_voice_admission_drop(&mut self) {
@@ -324,6 +326,7 @@ impl SynthEngine {
                 .map(|chain| chain.active_slot_count)
                 .sum(),
             active_global_fx_slots: self.master_active_slot_indices.len(),
+            #[cfg(feature = "profiling")]
             cumulative_voice_steals: self.cumulative_voice_steals,
             cumulative_voice_admission_drops: self.cumulative_voice_admission_drops,
         }

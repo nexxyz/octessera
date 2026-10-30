@@ -85,6 +85,7 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
             active_momentary_fx: 1,
             active_bus_fx_slots: 1,
             active_global_fx_slots: 1,
+            #[cfg(feature = "profiling")]
             cumulative_voice_steals: 0,
             cumulative_voice_admission_drops: 0,
         }
@@ -423,7 +424,6 @@ fn recover_routing_source(source: &mut EngineSource) {
 fn empty_status() -> AudioLoadStatus {
     AudioLoadStatus {
         ratio: 0.0,
-        voice_steal: false,
         worker_utilization: None,
         high_cpu_steady: false,
         missed_quantum_flash: false,

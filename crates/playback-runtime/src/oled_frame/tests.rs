@@ -135,7 +135,7 @@ fn runtime_error_fallback_and_path_punctuation_are_visible_in_the_fixed_font() {
 #[test]
 fn missed_quantum_flash_inverts_cpu_slot_over_high_cpu_and_preserves_save_icon() {
     let mut high_cpu = base();
-    high_cpu.metrics = OledPresentationMetrics::from_status(Some(0.9), true, false, false);
+    high_cpu.metrics = OledPresentationMetrics::from_status(Some(0.9), true, false);
     let high_cpu_frame = render_oled_frame(&high_cpu);
     assert_eq!(pixel(&high_cpu_frame, 108, 6), rgb565(palette::MAGENTA));
 
@@ -312,7 +312,7 @@ pub(super) fn base() -> OledPresentationInput {
         event_dot_level: INDICATOR_FADE_LEVELS,
         display_brightness: 100,
         cpu_warn_percent: 85,
-        metrics: OledPresentationMetrics::from_status(None, false, false, false),
+        metrics: OledPresentationMetrics::from_status(None, false, false),
         ..Default::default()
     }
 }

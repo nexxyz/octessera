@@ -82,7 +82,6 @@ pub struct BlockPeak {
 #[derive(Clone, Copy, Debug)]
 pub struct AudioLoadStatus {
     pub ratio: f32,
-    pub voice_steal: bool,
     pub worker_utilization: Option<f32>,
     pub high_cpu_steady: bool,
     pub missed_quantum_flash: bool,
@@ -107,6 +106,7 @@ pub struct SynthProfileSnapshot {
     pub active_momentary_fx: usize,
     pub active_bus_fx_slots: usize,
     pub active_global_fx_slots: usize,
+    #[cfg(feature = "profiling")]
     pub cumulative_voice_steals: u64,
     pub cumulative_voice_admission_drops: u64,
 }

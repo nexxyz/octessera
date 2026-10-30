@@ -125,7 +125,6 @@ mod tests {
     fn status(ratio: f32) -> AudioLoadStatus {
         AudioLoadStatus {
             ratio,
-            voice_steal: false,
             worker_utilization: Some(ratio),
             high_cpu_steady: false,
             missed_quantum_flash: false,

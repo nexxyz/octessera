@@ -79,8 +79,10 @@ fn drum_hits_coexist_note_off_does_not_choke_and_source_resets_on_steal() {
     for _ in 0..64 {
         engine.next_sample();
     }
+    #[cfg(feature = "profiling")]
     let before = engine.profile_snapshot().cumulative_voice_steals;
     engine.cell_hit(0, 7, 0, 0, 120);
+    #[cfg(feature = "profiling")]
     assert_eq!(
         engine.profile_snapshot().cumulative_voice_steals,
         before + 1

@@ -77,12 +77,8 @@ impl RuntimeOled {
             metrics.worker_utilization,
             metrics.high_cpu_steady,
             metrics.missed_quantum_flash,
-            metrics.voice_steal,
         );
         normalized.cpu_load_peak_percent = self.cpu_load_reports.iter().copied().max().unwrap_or(0);
-        normalized.voice_steal_level = normalized
-            .voice_steal_level
-            .max(self.normalized_metrics.voice_steal_level.saturating_sub(1));
         normalized
     }
 

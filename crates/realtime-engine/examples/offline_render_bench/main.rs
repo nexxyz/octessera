@@ -66,6 +66,7 @@ fn print_report(
         "active_preview_sample_voices={}",
         profile.active_preview_sample_voices
     );
+    #[cfg(feature = "profiling")]
     println!(
         "cumulative_voice_steals={}",
         profile.cumulative_voice_steals

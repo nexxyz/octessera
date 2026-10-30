@@ -299,6 +299,7 @@ fn pluck_stolen_ring_does_not_leak_prior_voice_samples() {
             reused.note_on(0, 80, 120, 10_000);
         });
     assert_eq!(allocations, 0);
+    #[cfg(feature = "profiling")]
     assert!(reused.profile_snapshot().cumulative_voice_steals >= 1);
     let victim_lane = reused
         .synth_voice_pool

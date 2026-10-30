@@ -82,7 +82,8 @@ fn every_emitted_snapshot_has_a_positive_revision_across_runtime_paths() {
 
     let metrics = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         audio_load_ratio: 0.9,
-        voice_steal: true,
+        worker_utilization: Some(0.93),
+        high_cpu_steady: true,
         ..Default::default()
     });
     assert_positive_snapshot_revisions(&metrics.messages);

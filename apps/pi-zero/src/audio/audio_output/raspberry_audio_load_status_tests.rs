@@ -76,7 +76,6 @@ fn status(
 ) -> AudioLoadStatus {
     AudioLoadStatus {
         ratio: 0.2,
-        voice_steal: false,
         worker_utilization,
         high_cpu_steady,
         missed_quantum_flash,

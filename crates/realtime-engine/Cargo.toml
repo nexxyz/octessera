@@ -8,6 +8,7 @@ license-file.workspace = true
 path = "src/lib.rs"
 
 [features]
+profiling = []
 test-support = []
 routing-tree-executor = []
 

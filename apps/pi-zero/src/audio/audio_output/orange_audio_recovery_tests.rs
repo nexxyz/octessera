@@ -248,7 +248,6 @@ fn required_recovery_replays_preserved_sample_bank_before_synth_owner() {
 fn load_status(worker_utilization: f32) -> realtime_engine::synth::AudioLoadStatus {
     realtime_engine::synth::AudioLoadStatus {
         ratio: 0.2,
-        voice_steal: false,
         worker_utilization: Some(worker_utilization),
         high_cpu_steady: worker_utilization >= 0.85,
         missed_quantum_flash: false,

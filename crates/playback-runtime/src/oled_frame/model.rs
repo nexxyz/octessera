@@ -107,7 +107,6 @@ pub struct OledPresentationMetrics {
     pub cpu_load_peak_percent: u8,
     pub high_cpu_steady: bool,
     pub missed_quantum_flash: bool,
-    pub voice_steal_level: u8,
 }
 
 impl OledPresentationMetrics {
@@ -115,18 +114,12 @@ impl OledPresentationMetrics {
         worker_utilization: Option<f32>,
         high_cpu_steady: bool,
         missed_quantum_flash: bool,
-        voice_steal: bool,
     ) -> Self {
         Self {
             worker_utilization,
             cpu_load_peak_percent: 0,
             high_cpu_steady: worker_utilization.is_some() && high_cpu_steady,
             missed_quantum_flash,
-            voice_steal_level: if voice_steal {
-                INDICATOR_FADE_LEVELS
-            } else {
-                0
-            },
         }
     }
 }

@@ -190,7 +190,7 @@ mod tests {
         let expired_scene = runner.capture_display_scene().unwrap();
         assert_eq!(expired_scene.generation(), expiry_generation);
         let expired_snapshot = expired_scene.into_snapshot();
-        assert_eq!(expired_snapshot["eventDotLevel"], 2);
+        assert_eq!(expired_snapshot["eventDotLevel"], 3);
         assert_eq!(expired_snapshot["transportFlash"], "none");
         runner.acknowledge_display_scene(expiry_generation);
         assert_eq!(runner.pending_display_scene_generation(), None);

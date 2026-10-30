@@ -12,8 +12,6 @@ use tauri::Emitter;
 #[derive(Clone, Serialize)]
 struct AudioLoadPayload {
     ratio: f32,
-    #[serde(rename = "voiceSteal")]
-    voice_steal: bool,
     #[serde(rename = "workerUtilization")]
     worker_utilization: Option<f32>,
     #[serde(rename = "highCpuSteady")]
@@ -95,7 +93,6 @@ pub(crate) fn spawn_load_listener(
             let _ = worker_tx.send(crate::runtime_worker::WorkerCommand::PresentationMetrics(
                 RuntimePresentationMetrics {
                     audio_load_ratio: status.ratio,
-                    voice_steal: status.voice_steal,
                     worker_utilization: status.worker_utilization,
                     high_cpu_steady: status.high_cpu_steady,
                     missed_quantum_flash: status.missed_quantum_flash,
@@ -105,7 +102,6 @@ pub(crate) fn spawn_load_listener(
                 "audio_load",
                 AudioLoadPayload {
                     ratio: status.ratio,
-                    voice_steal: status.voice_steal,
                     worker_utilization: status.worker_utilization,
                     high_cpu_steady: status.high_cpu_steady,
                     missed_quantum_flash: status.missed_quantum_flash,

@@ -34,14 +34,14 @@ fn request_snapshot_false_emits_visible_transitions_once_and_retrigger_only_exte
     runner
         .display
         .transients
-        .set_test_now(start + Duration::from_millis(119));
+        .set_test_now(start + Duration::from_millis(219));
     let before_expiry = runner.messages_with_snapshot().unwrap();
     assert_eq!(snapshot_count(&before_expiry), 0);
 
     runner
         .display
         .transients
-        .set_test_now(start + Duration::from_millis(120));
+        .set_test_now(start + Duration::from_millis(220));
     let expiry = runner.messages_with_snapshot().unwrap();
     assert_eq!(snapshot_count(&expiry), 1);
 }

@@ -57,7 +57,7 @@ fn transport_icon_colours_follow_state() {
 }
 
 #[test]
-fn event_dot_and_voice_steal_fade_in_halving_brightness_steps() {
+fn event_dot_fades_in_halving_brightness_steps() {
     let mut input = base();
     let mut event_levels = Vec::new();
     for level in (0..=INDICATOR_FADE_LEVELS).rev() {
@@ -75,19 +75,7 @@ fn event_dot_and_voice_steal_fade_in_halving_brightness_steps() {
         ]
     );
 
-    input.event_dot_level = 0;
-    input.metrics.voice_steal_level = 2;
-    assert_eq!(
-        pixel(&render_oled_frame(&input), 119, 119),
-        faded(palette::MAGENTA, 2)
-    );
-    input.event_dot_level = INDICATOR_FADE_LEVELS;
-    assert_eq!(
-        pixel(&render_oled_frame(&input), 119, 119),
-        palette::MAGENTA_RGB565
-    );
     input.display_brightness = 50;
-    input.metrics.voice_steal_level = 0;
     input.event_dot_level = 3;
     assert_eq!(
         pixel(&render_oled_frame(&input), 119, 119),

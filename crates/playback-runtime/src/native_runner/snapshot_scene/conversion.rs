@@ -96,7 +96,6 @@ impl PresentationScene {
             "voiceStealingMode": self.voice_stealing_mode,
             "neoKeyLeds": {"back": back, "space": space, "shift": shift, "fn": function},
             "eventDotLevel": self.transient.event_dot_level,
-            "voiceSteal": false,
             "transportIcon": match transport.transport {
                 RuntimeTransportState::Playing => "play",
                 RuntimeTransportState::Paused => "pause",

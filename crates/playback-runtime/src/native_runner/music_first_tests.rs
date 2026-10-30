@@ -252,7 +252,7 @@ fn music_first_queues_initial_config_before_pulse_notes_and_preserves_display_ed
     assert!(runner.display.transients.snapshot_pending());
     let scene = runner.capture_display_scene().unwrap().into_snapshot();
     assert_eq!(scene["transportFlash"], "none");
-    assert_eq!(scene["eventDotLevel"], 2);
+    assert_eq!(scene["eventDotLevel"], 3);
     let prior_revision = runner.last_snapshot_audio_config_revision;
     runner.audio_config_revision += 1;
     let _ = runner.capture_display_scene().unwrap();

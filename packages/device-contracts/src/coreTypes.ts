@@ -69,7 +69,6 @@ export type RuntimeSnapshotFields = {
   neoKeyLeds: NeoKeyLeds;
   selectedRow?: number | null;
   eventDotLevel: number;
-  voiceSteal?: boolean;
   workerUtilization?: number;
   highCpuSteady?: boolean;
   missedQuantumFlash?: boolean;
