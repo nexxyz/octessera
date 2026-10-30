@@ -264,6 +264,7 @@ mod tests {
     #[test]
     fn pi_startup_uses_canonical_builtin_sample_favourites() {
         let (_, mut runner) = init_runtime(AudioOptimization::Latency);
+        runner.finish_startup_load();
 
         crate::sample_browser::assert_builtin_favourite_menu(&mut runner);
     }
@@ -333,6 +334,7 @@ mod tests {
         runner.skip_startup_splash();
 
         initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
+        runner.finish_startup_load();
         crate::runtime_dispatch::dispatch_runtime_message(
             &mut playback,
             &mut runner,

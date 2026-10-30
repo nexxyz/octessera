@@ -14,6 +14,7 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
             "splash": "",
             "bodyLayout": "rows",
             "title": title,
+            "titleColor": 65535,
             "lines": ["line"],
             "colors": [65535],
             "barValues": [null],

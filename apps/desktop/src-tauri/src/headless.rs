@@ -111,7 +111,9 @@ impl HeadlessSession {
                 midi_clock_out_enabled: false,
                 midi_out_enabled: false,
             }),
-            runner: NativeRunner::new(crate::runtime_worker::desktop_native_runner_config())?,
+            runner: NativeRunner::new_with_unbuilt_menu(
+                crate::runtime_worker::desktop_native_runner_config(),
+            )?,
             adapter: LoggingAdapter {
                 inner: adapter,
                 heard: Vec::new(),
@@ -137,6 +139,7 @@ impl HeadlessSession {
             &mut session.runner,
             &mut session.adapter,
         )?;
+        session.runner.finish_startup_load();
         session.absorb(output)?;
         session.runner.skip_startup_splash();
         session.settle()?;

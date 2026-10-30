@@ -133,7 +133,9 @@ impl NativeRunner {
         self.drain_all_layer_engine_notes();
         candidate.pending_transpose_note_offs = self.pending_transpose_note_offs.clone();
         candidate.preserve_sample_availability_from(self);
-        candidate.menu.rebuild(candidate.menu_config());
+        if self.menu.is_built() {
+            candidate.menu.rebuild(candidate.menu_config());
+        }
         candidate.config_revision = self.config_revision;
         candidate.audio_config_revision = self.audio_config_revision;
         candidate.commit_configuration_runtime_plan(&plan);

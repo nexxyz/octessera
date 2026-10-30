@@ -9,8 +9,15 @@ impl NativeRunner {
         Ok(runner)
     }
 
-    /// Configuration transactions build the menu once, when they commit.
-    pub(super) fn new_with_unbuilt_menu(config: NativeRunnerConfig) -> Result<Self, String> {
+    /// Builds the menu after the startup System and Patch loads have been applied.
+    pub fn finish_startup_load(&mut self) {
+        if !self.menu.is_built() {
+            self.menu.rebuild(self.menu_config());
+        }
+    }
+
+    /// Startup and configuration transactions build the menu once, after loading.
+    pub fn new_with_unbuilt_menu(config: NativeRunnerConfig) -> Result<Self, String> {
         if !config
             .audio_optimization
             .is_supported(config.audio_optimization_capacity_available)

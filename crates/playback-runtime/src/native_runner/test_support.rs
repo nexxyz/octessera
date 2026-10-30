@@ -7,6 +7,10 @@ impl NativeRunner {
         self.config_payload()
     }
 
+    pub fn test_menu_build_count(&self) -> usize {
+        self.menu.rebuild_count
+    }
+
     pub fn test_enable_midi(&mut self) {
         self.midi_enabled = true;
     }

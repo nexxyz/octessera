@@ -147,6 +147,25 @@ mod tests {
     }
 
     #[test]
+    fn orange_startup_builds_the_saved_patch_menu_once() {
+        let (audio, _, _) = crate::audio::test_service();
+        let prepared = prepare_runtime(
+            audio,
+            Arc::new(|_| {}),
+            false,
+            AudioOptimization::Latency,
+            true,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(prepared.runner.test_menu_build_count(), 1);
+        let snapshot = prepared.playback.last_snapshot().unwrap();
+        assert!(crate::normal_menu::is_normal_menu_display(snapshot));
+        assert_eq!(snapshot["display"]["lines"][0], "> Build >");
+    }
+
+    #[test]
     fn orange_startup_uses_canonical_builtin_sample_favourites() {
         let (audio, _, _) = crate::audio::test_service();
         let mut prepared = prepare_runtime(

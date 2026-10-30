@@ -31,7 +31,7 @@ pub(crate) fn new_runtime(
         .and_then(|value| value.parse::<u64>().ok())
         .map_or(delay, std::time::Duration::from_micros);
     playback.set_sequenced_output_delay(delay);
-    let runner = NativeRunner::new(NativeRunnerConfig {
+    let runner = NativeRunner::new_with_unbuilt_menu(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),
         audio_optimization,
@@ -43,7 +43,8 @@ pub(crate) fn new_runtime(
     Ok((playback, runner))
 }
 
-/// Loads the stores into the runner and requests the first snapshot.
+/// Loads the stores into the runner, builds its menu once, and requests the
+/// first snapshot. The boot logo stays up until then.
 pub(crate) fn start_host(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -62,6 +63,7 @@ pub(crate) fn start_host(
     {
         crate::runtime_dispatch::dispatch_runtime_message(playback, runner, adapter, result)?;
     }
+    runner.finish_startup_load();
     let message = HostMessage::TransportPulseStep {
         pulses: 0,
         source: playback.config().sync_source.clone(),
@@ -114,3 +116,6 @@ pub(crate) fn publish_initial_scene(
     }
     Ok(revision)
 }
+
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+mod tests;

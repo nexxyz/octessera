@@ -94,6 +94,7 @@ mod momentary;
 mod platform;
 mod recording;
 mod sampler;
+mod startup_menu;
 mod store;
 mod store_load_admission;
 mod store_split;

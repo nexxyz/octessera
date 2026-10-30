@@ -195,6 +195,7 @@ fn prepared_runtime(
     let (mut playback, mut runner) = init_runtime(AudioOptimization::Latency);
     runner.skip_startup_splash();
     initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
+    runner.finish_startup_load();
     crate::runtime_dispatch::dispatch_runtime_message(
         &mut playback,
         &mut runner,

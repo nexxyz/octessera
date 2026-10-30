@@ -73,7 +73,9 @@ impl NativeRunner {
         let plan = before.resolve_plan(&self.configuration_aggregate(), self.audio_config_revision);
         self.commit_configuration_runtime_plan(&plan);
         self.enqueue_configuration_runtime_plan(plan);
-        self.menu.rebuild(self.menu_config());
+        if self.menu.is_built() {
+            self.menu.rebuild(self.menu_config());
+        }
 
         Ok(device_before
             != (

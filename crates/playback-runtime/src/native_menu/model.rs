@@ -34,13 +34,17 @@ impl NativeMenuModel {
             state: NativeMenuState::default(),
             numeric_display_mode: String::new(),
             navigation_memory: Default::default(),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             rebuild_count: 0,
         }
     }
 
+    pub(crate) fn is_built(&self) -> bool {
+        !self.root.children.is_empty()
+    }
+
     pub fn rebuild(&mut self, config: NativeMenuConfig) {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         {
             self.rebuild_count = self.rebuild_count.saturating_add(1);
         }

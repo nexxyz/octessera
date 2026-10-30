@@ -80,7 +80,7 @@ impl RuntimeWorker {
             audio_prep_result_rx,
             next_runtime_seq: 0,
             playback: desktop_playback_runtime(),
-            runner: NativeRunner::new(desktop_native_runner_config())
+            runner: NativeRunner::new_with_unbuilt_menu(desktop_native_runner_config())
                 .expect("native runner should initialize"),
             adapter,
             platform_service_result_rx,
@@ -255,18 +255,7 @@ impl RuntimeWorker {
     }
 
     fn initialize_host_state(&mut self) -> Result<(), String> {
-        let output = self.playback.dispatch_runner_messages(
-            vec![RunnerMessage::PlatformEffects {
-                effects: vec![
-                    playback_runtime::RuntimePlatformEffect::StoreLoadSystem,
-                    playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
-                    playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
-                    playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
-                ],
-            }],
-            &mut self.runner,
-            &mut self.adapter,
-        )?;
+        let output = load_startup_stores(&mut self.playback, &mut self.runner, &mut self.adapter)?;
         self.emit_runtime_output(output)
     }
 
@@ -309,6 +298,28 @@ impl RuntimeWorker {
             self.playback.last_snapshot_revision(),
         );
     }
+}
+
+/// Loads the stores, then builds the menu once even when a load failed.
+pub(crate) fn load_startup_stores(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut DesktopPlaybackHostAdapter,
+) -> Result<playback_runtime::RuntimeIngest, String> {
+    let output = playback.dispatch_runner_messages(
+        vec![RunnerMessage::PlatformEffects {
+            effects: vec![
+                playback_runtime::RuntimePlatformEffect::StoreLoadSystem,
+                playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
+                playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
+                playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
+            ],
+        }],
+        runner,
+        adapter,
+    );
+    runner.finish_startup_load();
+    output
 }
 
 fn desktop_playback_runtime() -> PlaybackRuntime {
