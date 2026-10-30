@@ -228,14 +228,7 @@ pub(super) fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {
         selected_index(&mode_values, &config.hdmi_mode),
     )];
     if config.hdmi_mode == "cycle-behaviors" {
-        children.push(number_item(
-            "Bars per cycle",
-            "hdmi.cycleMeasures",
-            i32::from(config.hdmi_cycle_measures),
-            1,
-            64,
-            1,
-        ));
+        children.push(hdmi_cycle_measures_item(config.hdmi_cycle_measures));
     }
     children.push(bool_item(
         "Grid Lines",
@@ -243,4 +236,15 @@ pub(super) fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {
         config.hdmi_show_gridlines,
     ));
     group("HDMI Video", children)
+}
+
+pub(super) fn hdmi_cycle_measures_item(measures: u8) -> NativeMenuItem {
+    number_item(
+        "Bars per cycle",
+        "hdmi.cycleMeasures",
+        i32::from(measures),
+        1,
+        64,
+        1,
+    )
 }

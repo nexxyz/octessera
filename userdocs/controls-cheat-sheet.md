@@ -68,7 +68,7 @@ typing machine:
 Two conditions apply. `System > Display > HDMI Video > Mode` has to be a
 graphical mode, not `Terminal` (the shipped default `live-grid` is fine). A
 wired keyboard on the Raspberry also needs `System > Connections > USB Role`
-set to Host; the Orange has a separate USB-C host port for it. Only the first keyboard picked up gets the controls. The
+set to Host; on the Orange, use the one-dot USB-C port. Only the first keyboard picked up gets the controls. The
 [USB roles page](hardware/usb-roles.md) has the wiring side.
 
 ## Context help

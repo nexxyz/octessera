@@ -36,7 +36,10 @@ impl NativeRunner {
                 };
                 let changed = value_changed(&mut runner.display.hdmi.mode, value);
                 if changed {
-                    runner.rematerialize_menu_around_key(key);
+                    let hdmi = &runner.display.hdmi;
+                    let cycle_measures =
+                        (hdmi.mode == "cycle-behaviors").then_some(hdmi.cycle_measures);
+                    runner.menu.show_hdmi_cycle_row(cycle_measures);
                 }
                 changed
             })),

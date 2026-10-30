@@ -1,3 +1,4 @@
+use super::device_config_apply::{board_runner, commit_setting};
 use super::*;
 use crate::native_menu::NativeMenuValue;
 
@@ -249,4 +250,33 @@ fn hdmi_active_behavior_source_follows_loaded_active_layer() {
     let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
     assert_eq!(snapshot["hdmi"]["mode"], "active-behavior");
     assert_eq!(snapshot["hdmi"]["sourceLayerIndex"], 2);
+}
+
+#[test]
+fn hdmi_mode_changes_its_rows_in_place_to_match_a_full_rebuild() {
+    let mut runner = board_runner(true);
+    let rebuilds = runner.menu.rebuild_count;
+
+    for (delta, mode) in [
+        (1, "live-grid"),
+        (3, "cycle-behaviors"),
+        (-3, "live-grid"),
+        (-1, "terminal"),
+        (4, "cycle-behaviors"),
+        (-4, "terminal"),
+    ] {
+        let _ = commit_setting(&mut runner, "hdmi.mode", delta);
+        assert_eq!(runner.display.hdmi.mode, mode);
+        assert_eq!(runner.menu.rebuild_count, rebuilds);
+        assert_eq!(
+            runner.menu.root,
+            crate::native_menu::NativeMenuModel::new(runner.menu_config()).root
+        );
+        assert_eq!(
+            runner.menu.current_group_path(),
+            "Menu > System > Display > HDMI Video"
+        );
+        assert_eq!(runner.menu.state.cursor, 0);
+        assert!(!runner.menu.state.editing);
+    }
 }

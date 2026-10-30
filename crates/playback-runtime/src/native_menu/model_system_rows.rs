@@ -1,12 +1,12 @@
-//! Live connection changes update their System rows in place: a full menu
+//! Live connection and HDMI mode changes update their System rows in place: a full menu
 //! rebuild costs hundreds of milliseconds on the boards, almost all of it in
 //! the Link parameter pickers.
 
 use super::section_labels::SYSTEM_LABEL;
 use super::system_bluetooth::bluetooth_group;
 use super::system_io::{
-    midi_host_group, midi_ports_group, sd_transfer_start_item, usb_audio_item, usb_device_group,
-    MIDI_HOST_LABEL, USB_DEVICE_LABEL,
+    hdmi_cycle_measures_item, midi_host_group, midi_ports_group, sd_transfer_start_item,
+    usb_audio_item, usb_device_group, MIDI_HOST_LABEL, USB_DEVICE_LABEL,
 };
 use super::{NativeBluetoothRows, NativeMenuItem, NativeMenuModel};
 
@@ -60,6 +60,17 @@ impl NativeMenuModel {
     pub fn show_midi_ports(&mut self, label: &str, prefix: &str, ports: &[(String, String)]) {
         if let Some(group) = self.system_group_containing(&format!("{prefix}.none")) {
             *group = midi_ports_group(label, prefix, ports);
+            self.clamp_cursor_to_siblings();
+        }
+    }
+
+    pub fn show_hdmi_cycle_row(&mut self, cycle_measures: Option<u8>) {
+        if let Some(hdmi) = self.system_group_containing("hdmi.mode") {
+            hdmi.children
+                .retain(|item| !has_key(item, "hdmi.cycleMeasures"));
+            if let Some(measures) = cycle_measures {
+                hdmi.children.insert(1, hdmi_cycle_measures_item(measures));
+            }
             self.clamp_cursor_to_siblings();
         }
     }

@@ -46,8 +46,8 @@ PCB and compute board sit at the west end, the grid at the east end.
 | West | USB-C power input | Lightning bolt |
 | West | Compute board boot microSD (SD1) | SD card, one dot |
 | South | Mini-HDMI video and audio | Monitor |
-| South | Compute board USB data port | USB (Orange top: plus one dot) |
-| South | Orange Pi USB host port (Orange top only) | USB, two dots |
+| South | Raspberry: USB data port. Orange: USB1, the host port for keyboards and MIDI gear | USB (Orange top: plus one dot) |
+| South | Orange: USB0, the computer port (Orange top only) | USB, two dots |
 | North | OLED microSD (SD2) | SD card, two dots |
 
 The Raspberry Pi's micro-USB power connector is deliberately covered: power goes

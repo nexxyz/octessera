@@ -50,10 +50,26 @@ saved anyway, and a reboot puts it in place.
 
 ## Orange Pi
 
-The Orange Pi's USB roles are fixed by the image, so there is no
-`System > Connections > USB Role` setting. Its separate USB host port takes a
-keyboard regardless of what the other (OTG/gadget) port is doing. USB data is
-optional for normal use.
+The Orange Pi has two USB-C data ports with fixed jobs, so there is no
+`System > Connections > USB Role` setting. Look for the dots next to the USB
+icons on the south wall of the case:
+
+| Opening | Port | Connect |
+|---|---|---|
+| **USB, two dots** | USB0, the computer port | A computer, with a USB-C-to-USB-C cable. The instrument shows up as USB Audio and USB MIDI. |
+| **USB, one dot** | USB1, the host port | A keyboard or a MIDI controller. |
+
+Never plug a computer into the one-dot port: both ends would try to supply
+power, and the cable can get hot. USB data is optional for normal use.
+
+Two habits that keep the Orange happy:
+
+- **Unplug the computer before you power-cycle the instrument.** USB0 also
+  feeds the board, so a plugged-in computer half-powers it and it hangs on
+  the way up.
+- **If a cable gets warm, or the instrument switches off when you plug it in,
+  unplug it and bin that cable.** We lost a cable that way; it's not worth
+  finding out what else it can do.
 
 On Orange, while **USB MIDI** (the computer-facing USB Device MIDI) is on, it is
 the active MIDI route. Any MIDI Host output you chose is remembered for when you
@@ -82,7 +98,7 @@ hardware. The key map is in the [controls cheat
 sheet](../controls-cheat-sheet.md#usb-host-keyboard).
 
 - **Where to plug it in:** on the Raspberry Pi, the USB role must be **Host**
-  (see above). On the Orange Pi, use its USB host port.
+  (see above). On the Orange Pi, use the one-dot port (USB1).
 - **When it works:** only while `System > Display > HDMI Video > Mode` is one of
   the graphical modes: `live-grid`, `plain-grid`, `active-behavior` or
   `cycle-behaviors`. `Terminal` releases the keyboard; switching back to a
