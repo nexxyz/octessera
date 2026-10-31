@@ -54,7 +54,7 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
     .unwrap();
 
     let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
-    assert!(load_tx.try_send(status(Some(0.9), true, true)));
+    assert!(load_tx.try_send(status(Some(0.9), true)));
     let output = crate::audio::drain_audio_load_status(&load_rx, &mut playback, false);
     crate::runtime_dispatch::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();

@@ -127,6 +127,7 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: true,
             }
         }] if message == "Recording started"
     ));
@@ -146,6 +147,7 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: false,
             }
         }] if message == "Recording saved"
     ));

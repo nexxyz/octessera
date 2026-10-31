@@ -91,8 +91,8 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
     .unwrap();
     let (mut playback, mut runner, mut host, root) = runtime_with_snapshot(manager.service());
 
-    manager.load_tx.try_send(status(Some(0.8), false, true));
-    manager.load_tx.try_send(status(Some(0.9), true, true));
+    manager.load_tx.try_send(status(Some(0.8), true));
+    manager.load_tx.try_send(status(Some(0.9), true));
     let output = manager.drain_audio_load_status(&mut playback);
     crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
@@ -109,7 +109,7 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
         true
     );
 
-    manager.load_tx.try_send(status(None, true, false));
+    manager.load_tx.try_send(status(None, false));
     let output = manager.drain_audio_load_status(&mut playback);
     crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
         .unwrap();
