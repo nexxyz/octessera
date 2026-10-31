@@ -16,6 +16,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
 
+#[cfg(feature = "profiling")]
+mod frame_stats;
 #[cfg(all(
     test,
     not(any(
@@ -24,8 +26,6 @@ use std::time::Duration;
     ))
 ))]
 mod hdmi_render_loop_tests;
-#[cfg(feature = "profiling")]
-mod frame_stats;
 mod ownership;
 mod presentation;
 mod terminal;
