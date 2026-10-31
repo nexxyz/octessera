@@ -44,6 +44,8 @@ pub(super) struct PresentationState {
     pub(super) latest: Option<LatestPresentation>,
     pub(super) ownership: OledOwnershipState,
     pub(super) hdmi_ready: bool,
+    #[cfg(feature = "profiling")]
+    pub(super) frame_stats: super::frame_stats::OledFrameStats,
 }
 
 impl Default for PresentationState {
@@ -53,6 +55,8 @@ impl Default for PresentationState {
             latest: None,
             ownership: OledOwnershipState::default(),
             hdmi_ready: true,
+            #[cfg(feature = "profiling")]
+            frame_stats: Default::default(),
         }
     }
 }
@@ -64,9 +68,13 @@ pub(super) fn present_native_scene(
     scene: Box<NativeSceneCommand>,
     animation_deadline: &mut Option<Instant>,
 ) {
+    #[cfg(feature = "profiling")]
+    let started = Instant::now();
     let Some(mut next) = prepare_native_scene(scene, &presentation.cache) else {
         return;
     };
+    #[cfg(feature = "profiling")]
+    let prepared = started.elapsed();
     if let Some(previous) = presentation.latest.as_mut() {
         previous.complete_native(Err("native scene superseded".into()));
     }
@@ -88,6 +96,8 @@ pub(super) fn present_native_scene(
         _ => next.render_leds(targets, &mut presentation.cache, now),
     });
     let frame_written = presentation.cache.oled_render_count() > before;
+    #[cfg(feature = "profiling")]
+    let written_present = frame_written.then(|| now.elapsed());
     if frame_written {
         submit_presentation_recording_frame(state, &next);
     }
@@ -108,6 +118,13 @@ pub(super) fn present_native_scene(
         *animation_deadline = crate::render::next_deadline(*animation_deadline, hdmi);
     }
     presentation.latest = Some(next);
+    #[cfg(feature = "profiling")]
+    presentation.frame_stats.record(
+        prepared,
+        written_present,
+        started.elapsed(),
+        presentation.cache.oled_render_count(),
+    );
 }
 
 fn complete_initial_scene(

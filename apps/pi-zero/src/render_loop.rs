@@ -24,6 +24,8 @@ use std::time::Duration;
     ))
 ))]
 mod hdmi_render_loop_tests;
+#[cfg(feature = "profiling")]
+mod frame_stats;
 mod ownership;
 mod presentation;
 mod terminal;
