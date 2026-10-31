@@ -2,7 +2,7 @@ use platform_core::palette;
 
 use super::font::TOM_THUMB;
 use super::model::OledSaveFlash;
-use super::pixels::{dim, draw_mask, fill_rect, rgb565};
+use super::pixels::{dim, draw_mask, fill_rect, rgb565, scale, shade};
 use super::text::title_text_for_oled;
 use super::OledPresentationInput;
 
@@ -15,6 +15,8 @@ const SAVE_X: usize = 113;
 const CPU_X: usize = 120;
 const SAVE_CHECK: [u8; 5] = [0b00001, 0b00011, 0b10110, 0b11100, 0b01000];
 const MISSED_QUANTUM: [u8; 5] = [0b11111, 0b10001, 0b10101, 0b10001, 0b11111];
+/// The always-lit rule and resting CPU bar draw at this share of full colour (burn-in care).
+const STATIC_CHROME_LEVEL: f32 = 0.625;
 
 /// Whether a breadcrumb fits the header left of the icons.
 pub(crate) fn breadcrumb_fits(text: &str) -> bool {
@@ -25,7 +27,7 @@ pub(super) fn draw_header(frame: &mut [u8], input: &OledPresentationInput) {
     let area = input.display.title_color;
     let title = title_text_for_oled(&input.display.title);
     TOM_THUMB.draw_fitted(frame, &title, BREADCRUMB_RIGHT + 1, 0, ICON_Y, area);
-    fill_rect(frame, 0, RULE_Y, 128, 1, area);
+    fill_rect(frame, 0, RULE_Y, 128, 1, shade(area, STATIC_CHROME_LEVEL));
     draw_cpu_meter(frame, input);
     if input.save_flash == OledSaveFlash::Flash {
         let green = rgb565(palette::GREEN);
@@ -53,7 +55,7 @@ fn draw_cpu_meter(frame: &mut [u8], input: &OledPresentationInput) {
     let lit_rgb = match lit {
         3 => palette::BEHAVIOR_PRIMARY_RED,
         2 => palette::YELLOW,
-        _ => palette::GREEN,
+        _ => scale(palette::GREEN, STATIC_CHROME_LEVEL),
     };
     for bar in 0..3 {
         let rgb = if bar < lit {

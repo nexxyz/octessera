@@ -321,7 +321,8 @@ change; only the distance per detent does.
   The full runtime-error frame and the splash toast keep the older fixed 5×7 font.
 - Header (`y=0..8`): the breadcrumb at `x=0` with capitals on `y=0..4`, in the current area's
   colour (`display.titleColor`: Build green, Link magenta, Shape blue, Play yellow, System and the
-  root menu gray), ending at or before `x=103`; a full-width 1 px rule at `y=8` in the same colour.
+  root menu gray), ending at or before `x=103`; a full-width 1 px rule at `y=8` in the same colour
+  at 62.5 % intensity, because it is always lit (burn-in care).
   Help, confirmation, setup and other screens drawn over a menu keep that menu's colour; splash,
   full runtime-error frames and the off state have none. Breadcrumbs keep the page name and drop
   ancestors from the left behind `../`, measured in Tom Thumb pixels; when even `../page` does not
@@ -476,7 +477,8 @@ palette unless a behavior deliberately owns its own.
   over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker
   utilization on the boards, the audio block render ratio on the desktop, which has no persistent
   workers. With `W` = `System > Audio > Engine > CPU Warn %` (default 85): below
-  `floor(2W/3)` rounded down to a multiple of 5 one green bar; from there up to `W` two yellow bars;
+  `floor(2W/3)` rounded down to a multiple of 5 one green bar at 62.5 % intensity (it is always
+  lit); from there up to `W` two full yellow bars;
   at or above `W` three red bars. Unlit bars are dark gray. Yellow starts at 45/50/50/55/60/60 % for
   `W` = 70/75/80/85/90/95.
 - There is no separate steady high-CPU icon; the meter covers it, so the engine no longer tracks a

@@ -45,7 +45,8 @@ fn header_crumb_and_rule_use_the_area_colour_above_a_clear_row() {
             input.display.title_color = expected;
             input.display.body_layout = layout;
             let frame = render_oled_frame(&input);
-            assert!((0..128).all(|x| pixel(&frame, x, 8) == expected));
+            let rule = shade(expected, 0.625);
+            assert!((0..128).all(|x| pixel(&frame, x, 8) == rule));
             assert!((0..128).all(|x| pixel(&frame, x, 9) == 0));
             assert!((0..104).any(|x| (0..5).any(|y| pixel(&frame, x, y) == expected)));
             assert!((0..128).all(|x| (6..8).all(|y| pixel(&frame, x, y) == 0)));
@@ -344,7 +345,7 @@ fn concise_midi_error_keeps_the_menu_frame_over_splash() {
         ..Default::default()
     });
     let frame = render_oled_frame(&input);
-    assert_eq!(pixel(&frame, 0, 8), AREA);
+    assert_eq!(pixel(&frame, 0, 8), shade(AREA, 0.625));
     assert!(!lit_columns(&frame, 0..5, 0..40).is_empty());
     assert_eq!(
         lit_columns(&frame, slot(0)..slot(0) + 9, 0..12).first(),

@@ -289,8 +289,9 @@ fn cpu_meter_lights_three_equal_bars_by_peak_load_against_the_cpu_warn_setting()
 
     let unlit = rgb565(dim(palette::GRAY, 4));
     let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
+    let resting = rgb565(scale(palette::GREEN, 0.625));
     for (warn, peak, expected) in [
-        (85, 20, [palette::GREEN_RGB565, unlit, unlit]),
+        (85, 20, [resting, unlit, unlit]),
         (
             85,
             60,

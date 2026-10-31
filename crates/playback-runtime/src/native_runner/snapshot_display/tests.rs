@@ -127,10 +127,10 @@ fn header_rule_uses_the_current_menu_area_colour() {
 
     let mut runner = runner_at(Instant::now());
     runner.display.ui.display_brightness = 100;
-    for (key, expected) in [
-        (None, palette::GRAY_RGB565),
-        (Some("behaviorId"), palette::GREEN_RGB565),
-        (Some("play.xy.smoothingMs"), palette::YELLOW_RGB565),
+    for (key, expected, rule) in [
+        (None, palette::GRAY_RGB565, 0x8410),
+        (Some("behaviorId"), palette::GREEN_RGB565, 0x3C04),
+        (Some("play.xy.smoothingMs"), palette::YELLOW_RGB565, 0x9C25),
     ] {
         if let Some(key) = key {
             assert!(runner.menu.focus_item_key(key), "{key}");
@@ -145,7 +145,7 @@ fn header_rule_uses_the_current_menu_area_colour() {
             let offset = (y * 128 + x) * 2;
             u16::from_be_bytes([frame[offset], frame[offset + 1]])
         };
-        assert!((0..128).all(|x| pixel(x, 8) == expected), "{key:?}");
-        assert!((0..128).all(|x| pixel(x, 9) != expected), "{key:?}");
+        assert!((0..128).all(|x| pixel(x, 8) == rule), "{key:?}");
+        assert!((0..128).all(|x| pixel(x, 9) != rule), "{key:?}");
     }
 }
