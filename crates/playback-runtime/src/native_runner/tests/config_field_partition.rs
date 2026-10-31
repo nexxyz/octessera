@@ -34,6 +34,7 @@ const FULL_FIELDS: &[&str] = &[
     "autoSaveDefault",
     "rollingBackups",
     "auxAutoMapEnabled",
+    "auxPriority",
     "playMode",
     "randomSeed",
     "auxBindings",
@@ -76,6 +77,7 @@ const PREFERENCE_FIELDS: &[&str] = &[
     "autoSaveDefault",
     "rollingBackups",
     "auxAutoMapEnabled",
+    "auxPriority",
     "usb",
     "audioOutputs",
     "recording",
@@ -100,6 +102,7 @@ const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "autoSaveDefault",
     "rollingBackups",
     "auxAutoMapEnabled",
+    "auxPriority",
     "usb",
     "audioOutputs",
     "recording",
@@ -143,6 +146,7 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "autoSaveDefault",
     "rollingBackups",
     "auxAutoMapEnabled",
+    "auxPriority",
     "usb",
     "audioOutputs",
     "recording",
@@ -250,6 +254,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["autoSaveDefault"] = alternate_bool(&canonical_runtime["autoSaveDefault"]);
     source_runtime["rollingBackups"] = alternate_bool(&canonical_runtime["rollingBackups"]);
     source_runtime["auxAutoMapEnabled"] = alternate_bool(&canonical_runtime["auxAutoMapEnabled"]);
+    source_runtime["auxPriority"] =
+        alternate_enum(&canonical_runtime["auxPriority"], "manual", "auto");
     source_runtime["wifi"] = json!({
         "enabled": alternate_bool(&canonical_runtime["wifi"]["enabled"])
     });

@@ -98,7 +98,9 @@ open, so you can't change anything by accident.
 Each Aux encoder has a **turn** binding (changes a value) and a **click**
 binding (runs an action). Auto-map gives any turn or click you haven't bound
 yourself the most useful control of whatever menu area you're in. Your own
-bindings always win. `System > Display > Auto Map` switches it off.
+bindings win, unless you set `System > Display > Aux Prio.` to *Auto*: then
+the page's auto-map wins and your bindings fill in wherever it has nothing.
+`System > Display > Auto Map` switches auto-map off.
 
 - Bind your own: highlight a row and press *Fn* + click that Aux encoder. A
   value becomes its turn binding, an action its click binding.

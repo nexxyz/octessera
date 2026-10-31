@@ -71,6 +71,8 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_auto_map_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) aux_priority: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) play_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_bindings: Option<BTreeMap<String, Option<AuxBindingDto>>>,
@@ -313,6 +315,7 @@ impl RuntimeConfigDto {
             "autoSaveDefault",
             "rollingBackups",
             "auxAutoMapEnabled",
+            "auxPriority",
             "midi",
             "usb",
             "audioOutputs",

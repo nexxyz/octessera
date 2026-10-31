@@ -1,8 +1,9 @@
-//! Live connection and HDMI mode changes update their System rows in place: a full menu
+//! Live connection, HDMI mode and Auto Map changes update their System rows in place: a full menu
 //! rebuild costs hundreds of milliseconds on the boards, almost all of it in
 //! the Link parameter pickers.
 
 use super::section_labels::SYSTEM_LABEL;
+use super::system::aux_priority_item;
 use super::system_bluetooth::bluetooth_group;
 use super::system_io::{
     hdmi_cycle_measures_item, midi_host_group, midi_ports_group, sd_transfer_start_item,
@@ -70,6 +71,24 @@ impl NativeMenuModel {
                 .retain(|item| !has_key(item, "hdmi.cycleMeasures"));
             if let Some(measures) = cycle_measures {
                 hdmi.children.insert(1, hdmi_cycle_measures_item(measures));
+            }
+            self.clamp_cursor_to_siblings();
+        }
+    }
+
+    /// Aux Priority sits right after Auto Map while Auto Map is on.
+    pub fn show_aux_priority_row(&mut self, priority: Option<&str>) {
+        if let Some(display) = self.system_group_containing("auxAutoMapEnabled") {
+            display
+                .children
+                .retain(|item| !has_key(item, "auxPriority"));
+            if let Some(priority) = priority {
+                let index = display
+                    .children
+                    .iter()
+                    .position(|item| has_key(item, "auxAutoMapEnabled"))
+                    .map_or(0, |index| index + 1);
+                display.children.insert(index, aux_priority_item(priority));
             }
             self.clamp_cursor_to_siblings();
         }

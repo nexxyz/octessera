@@ -29,6 +29,7 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
     "autoSaveDefault",
     "rollingBackups",
     "auxAutoMapEnabled",
+    "auxPriority",
     "playMode",
     "auxBindings",
     "shiftAuxBindings",

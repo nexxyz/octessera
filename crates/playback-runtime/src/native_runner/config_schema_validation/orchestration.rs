@@ -27,6 +27,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
         DISPLAY_MODES,
     )?;
     enum_field(runtime, "playMode", "runtimeConfig", PLAY_MODES)?;
+    enum_field(runtime, "auxPriority", "runtimeConfig", AUX_PRIORITIES)?;
     enum_field(runtime, "xyRelease", "runtimeConfig", XY_RELEASES)?;
     validate_dsp(runtime)?;
     instruments::validate_sound(runtime)?;
@@ -130,6 +131,7 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
 }
 
 const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
+const AUX_PRIORITIES: &[&str] = &["manual", "auto"];
 const PLAY_MODES: &[&str] = &[
     "mix",
     "pan",

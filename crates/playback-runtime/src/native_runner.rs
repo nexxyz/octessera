@@ -431,6 +431,7 @@ pub struct NativeRunner {
     xy_x_binding: Option<NativeParamBinding>,
     xy_y_binding: Option<NativeParamBinding>,
     aux_auto_map_enabled: bool,
+    aux_priority: String,
     param_mods: Vec<NativeParamMods>,
     trigger_gate_modes: Vec<String>,
     trigger_gate_restore_modes: Vec<Option<String>>,

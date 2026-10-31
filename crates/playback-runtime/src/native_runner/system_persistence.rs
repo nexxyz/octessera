@@ -226,6 +226,7 @@ impl SystemPersistenceState {
             "autoSaveDefault": runner.auto_save_default,
             "rollingBackups": runner.rolling_backups,
             "auxAutoMapEnabled": runner.aux_auto_map_enabled,
+            "auxPriority": runner.aux_priority,
             "auxBindings": super::aux_bindings_payload(&runner.aux_bindings),
             "shiftAuxBindings": super::aux_bindings_payload(&runner.shift_aux_bindings),
             "midi": {

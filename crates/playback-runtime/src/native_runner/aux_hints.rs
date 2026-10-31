@@ -1,7 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use super::aux_auto_map::{custom_aux_slot, merge_aux_slots, AuxBindingSource, ResolvedAuxSlot};
+use super::aux_auto_map::{custom_aux_slot, AuxBindingSource, AuxManualSlots};
 use super::{NativeAuxBinding, NativeMenuAction, NativeRunner};
 use crate::native_menu::section_labels::{key_home_section_color, section_color, BUILD_LABEL};
 use crate::oled_frame::{OledAuxHint, OledAuxHints, OledHintLabel, OledHintSource};
@@ -17,7 +17,7 @@ pub(super) struct ManualAuxHintSlots {
     bindings: [Vec<Option<NativeAuxBinding>>; 2],
     audio_config_revision: u64,
     target_context: u64,
-    slots: [[Option<ResolvedAuxSlot>; AUX_COUNT]; 2],
+    slots: AuxManualSlots,
 }
 
 impl NativeRunner {
@@ -27,13 +27,9 @@ impl NativeRunner {
         if !ui.aux_auto_hints && !ui.aux_manual_hints {
             return OledAuxHints::default();
         }
-        let auto = self.current_auto_aux_map();
-        let manual = self.manual_aux_hint_slots();
+        let slots = self.effective_aux_map(&self.manual_aux_slots(), self.current_auto_aux_map());
         let hint = |layer: usize, index: usize| {
-            let slot = merge_aux_slots(
-                manual[layer][index].clone(),
-                auto[layer * AUX_COUNT + index].clone(),
-            );
+            let slot = &slots[layer * AUX_COUNT + index];
             OledAuxHint {
                 turn: slot.turn.as_ref().and_then(|turn| {
                     let color = key_home_section_color(&turn.key);
@@ -73,7 +69,8 @@ impl NativeRunner {
         })
     }
 
-    fn manual_aux_hint_slots(&self) -> [[Option<ResolvedAuxSlot>; AUX_COUNT]; 2] {
+    /// The manual Aux slots with their labels, for the footer hints and the row caps.
+    pub(super) fn manual_aux_slots(&self) -> AuxManualSlots {
         let target_context = self.aux_target_context();
         let current = |cached: &ManualAuxHintSlots| {
             cached.bindings[0] == self.aux_bindings

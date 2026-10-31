@@ -18,6 +18,7 @@ const SCALARS: &[&str] = &[
     "autoSaveDefault",
     "rollingBackups",
     "auxAutoMapEnabled",
+    "auxPriority",
 ];
 const OBJECTS: &[(&str, &[&str])] = &[
     ("hdmi", &["mode", "showGridlines", "cycleMeasures"]),

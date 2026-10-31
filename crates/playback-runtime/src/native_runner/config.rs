@@ -57,6 +57,7 @@ impl NativeRunner {
                 .as_ref()
                 .map(param_binding_spec_from_native),
             aux_auto_map_enabled: self.aux_auto_map_enabled,
+            aux_priority: self.aux_priority.clone(),
             aux_bindings: aux_binding_configs(&self.aux_bindings),
             shift_aux_bindings: aux_binding_configs(&self.shift_aux_bindings),
             instrument_labels: instrument_labels(&self.instruments),

@@ -49,6 +49,8 @@ pub struct DeviceRuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_auto_map_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) aux_priority: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_bindings: Option<BTreeMap<String, Option<AuxBindingDto>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) shift_aux_bindings: Option<BTreeMap<String, Option<AuxBindingDto>>>,
@@ -100,6 +102,7 @@ impl DeviceRuntimeConfigDto {
             auto_save_default: runtime.auto_save_default,
             rolling_backups: runtime.rolling_backups,
             aux_auto_map_enabled: runtime.aux_auto_map_enabled,
+            aux_priority: runtime.aux_priority.clone(),
             aux_bindings: runtime.aux_bindings.clone(),
             shift_aux_bindings: runtime.shift_aux_bindings.clone(),
             midi: runtime.midi.clone(),

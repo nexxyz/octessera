@@ -73,6 +73,7 @@ impl PresentationScene {
                 "screenSleepSeconds": ui.screen_sleep_seconds,
                 "ledsDimmed": self.leds_dimmed,
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
+                "auxPriority": self.aux_priority,
                 "audioConfigRevision": self.audio_config_revision,
                 "autoSaveFlash": if self.auto_save_flash { "flash" } else { "none" },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,

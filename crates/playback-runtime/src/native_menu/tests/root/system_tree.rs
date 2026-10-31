@@ -63,6 +63,7 @@ fn desktop_system_tree_has_exact_order() {
         vec![
             "Ghost Cells",
             "Auto Map",
+            "Aux Prio.",
             "Auto Hints",
             "Manual Hints",
             "Num Style",

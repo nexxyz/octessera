@@ -103,7 +103,15 @@ impl NativeRunner {
                 bool_changed(&mut runner.input_events_while_paused, value)
             })),
             "auxAutoMapEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.aux_auto_map_enabled, value)
+                let changed = bool_changed(&mut runner.aux_auto_map_enabled, value);
+                if changed {
+                    let priority = value.then_some(runner.aux_priority.as_str());
+                    runner.menu.show_aux_priority_row(priority);
+                }
+                changed
+            })),
+            "auxPriority" => Some(self.fast_string_menu_key(key, |runner, value| {
+                value_changed(&mut runner.aux_priority, value.to_lowercase())
             })),
             "autoSaveDefault" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.auto_save_default, value)

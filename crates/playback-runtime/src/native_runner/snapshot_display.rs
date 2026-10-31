@@ -215,8 +215,10 @@ fn menu_display(
     let mut lines = Vec::with_capacity(menu.lines.len());
     let mut full_lines = Vec::with_capacity(menu.lines.len());
     let mut rows = Vec::with_capacity(menu.lines.len());
+    let manual = runner.manual_aux_slots();
     for (row, line) in menu.lines.iter().enumerate() {
-        let cap = runner.auto_map_cap_for_line(
+        let cap = runner.aux_cap_for_line(
+            &manual,
             menu.line_keys.get(row).and_then(|key| key.as_deref()),
             menu.line_actions
                 .get(row)
@@ -255,7 +257,8 @@ pub(super) fn selected_menu_presentation_line(
 ) -> Option<String> {
     let row = menu.selected_row?;
     let line = menu.lines.get(row)?.clone();
-    let cap = runner.auto_map_cap_for_line(
+    let cap = runner.aux_cap_for_line(
+        &runner.manual_aux_slots(),
         menu.line_keys.get(row).and_then(|key| key.as_deref()),
         menu.line_actions
             .get(row)

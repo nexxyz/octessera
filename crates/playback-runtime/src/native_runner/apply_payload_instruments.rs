@@ -226,6 +226,11 @@ impl NativeRunner {
         if let Some(value) = runtime.get("auxAutoMapEnabled").and_then(Value::as_bool) {
             self.aux_auto_map_enabled = value;
         }
+        if let Some(value) = runtime.get("auxPriority").and_then(Value::as_str) {
+            if matches!(value, "manual" | "auto") {
+                self.aux_priority = value.into();
+            }
+        }
         if let Some(value) = runtime.get("auxBindings") {
             apply_aux_bindings_payload(&mut self.aux_bindings, value);
         }

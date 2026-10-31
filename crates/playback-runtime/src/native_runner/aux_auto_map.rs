@@ -14,14 +14,15 @@ pub(super) struct ResolvedAuxPress {
     pub(super) label: String,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(super) enum AuxBindingSource {
     Auto,
     Custom,
+    #[default]
     None,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(super) struct ResolvedAuxSlot {
     pub(super) turn: Option<ResolvedAuxTurn>,
     pub(super) press: Option<ResolvedAuxPress>,
@@ -32,6 +33,8 @@ pub(super) struct ResolvedAuxSlot {
 /// Auto-map slots: the plain Aux 1-3 first, then the Shift + Aux 1-3 bank.
 pub(super) const AUX_AUTO_MAP_SLOTS: usize = 2 * platform_core::AUX_ENCODER_COUNT;
 pub(super) type AuxAutoMap = [Option<ResolvedAuxSlot>; AUX_AUTO_MAP_SLOTS];
+/// Manual slots in the same order: the plain Aux 1-3 bindings, then the Shift + Aux 1-3 ones.
+pub(super) type AuxManualSlots = [[Option<ResolvedAuxSlot>; platform_core::AUX_ENCODER_COUNT]; 2];
 
 /// Lays out slots in priority order, leaving the rest of the six empty.
 pub(super) fn aux_auto_map<const N: usize>(slots: [Option<ResolvedAuxSlot>; N]) -> AuxAutoMap {
@@ -48,7 +51,11 @@ impl NativeRunner {
             return self.effective_shift_aux_slot(index);
         }
         let custom = self.resolve_custom_aux_slot(index);
-        merge_aux_slots(custom, self.current_auto_aux_slot(index))
+        merge_aux_slots(
+            custom,
+            self.current_auto_aux_slot(index),
+            self.aux_auto_first(),
+        )
     }
 
     pub(super) fn effective_shift_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
@@ -56,24 +63,47 @@ impl NativeRunner {
         merge_aux_slots(
             custom,
             self.current_auto_aux_slot(index + platform_core::AUX_ENCODER_COUNT),
+            self.aux_auto_first(),
         )
+    }
+
+    /// What all six Aux sides do with `manual` and `auto` merged under Aux Priority, for the
+    /// footer hints and the row caps alike.
+    pub(super) fn effective_aux_map(
+        &self,
+        manual: &AuxManualSlots,
+        auto: AuxAutoMap,
+    ) -> [ResolvedAuxSlot; AUX_AUTO_MAP_SLOTS] {
+        let count = platform_core::AUX_ENCODER_COUNT;
+        let auto_first = self.aux_auto_first();
+        let mut auto = auto.into_iter();
+        std::array::from_fn(|index| {
+            let custom = manual[index / count][index % count].clone();
+            merge_aux_slots(custom, auto.next().flatten(), auto_first)
+        })
+    }
+
+    /// Aux Priority Auto: the page's auto map wins a side it fills; Manual: your bindings win.
+    fn aux_auto_first(&self) -> bool {
+        self.aux_priority == "auto"
     }
 
     fn current_auto_aux_slot(&self, index: usize) -> Option<ResolvedAuxSlot> {
         self.current_auto_aux_map().into_iter().nth(index).flatten()
     }
 
-    /// The Aux cap that auto-maps to a row, resolved in that row's own context, and whether
-    /// its click (rather than its turn) does.
-    pub(super) fn auto_map_cap_for_line(
+    /// The Aux cap whose turn or click runs a row, with the auto map resolved in that row's own
+    /// context, and whether its click (rather than its turn) does.
+    pub(super) fn aux_cap_for_line(
         &self,
+        manual: &AuxManualSlots,
         key: Option<&str>,
         action: Option<&NativeMenuAction>,
     ) -> Option<(OledAuxCap, bool)> {
         let path = self.menu.current_focus_path();
         let auto = self.resolve_aux_auto_map(&path, key, action);
-        auto.iter().enumerate().find_map(|(index, slot)| {
-            let slot = slot.as_ref()?;
+        let slots = self.effective_aux_map(manual, auto);
+        slots.iter().enumerate().find_map(|(index, slot)| {
             let turn = key
                 .is_some_and(|key| slot.turn.as_ref().map(|turn| turn.key.as_str()) == Some(key));
             let press = !turn
@@ -225,36 +255,44 @@ pub(super) fn aux_cap(index: usize) -> OledAuxCap {
     }
 }
 
-pub(super) fn merge_aux_slots(
+/// The one rule for an Aux side with both a manual and an auto target: each turn and each
+/// click goes to the first that has one, manual first unless `auto_first`.
+fn merge_aux_slots(
     custom: Option<ResolvedAuxSlot>,
     auto: Option<ResolvedAuxSlot>,
+    auto_first: bool,
 ) -> ResolvedAuxSlot {
-    let custom = custom.as_ref();
-    let auto = auto.as_ref();
+    let (custom, auto) = (custom.unwrap_or_default(), auto.unwrap_or_default());
+    let (turn, turn_source) = pick_aux_side(
+        (custom.turn, AuxBindingSource::Custom),
+        (auto.turn, AuxBindingSource::Auto),
+        auto_first,
+    );
+    let (press, press_source) = pick_aux_side(
+        (custom.press, AuxBindingSource::Custom),
+        (auto.press, AuxBindingSource::Auto),
+        auto_first,
+    );
     ResolvedAuxSlot {
-        turn: custom
-            .and_then(|slot| slot.turn.clone())
-            .or_else(|| auto.and_then(|slot| slot.turn.clone())),
-        press: custom
-            .and_then(|slot| slot.press.clone())
-            .or_else(|| auto.and_then(|slot| slot.press.clone())),
-        turn_source: resolved_aux_binding_source(
-            custom.and_then(|slot| slot.turn.as_ref()).is_some(),
-            auto.and_then(|slot| slot.turn.as_ref()).is_some(),
-        ),
-        press_source: resolved_aux_binding_source(
-            custom.and_then(|slot| slot.press.as_ref()).is_some(),
-            auto.and_then(|slot| slot.press.as_ref()).is_some(),
-        ),
+        turn,
+        press,
+        turn_source,
+        press_source,
     }
 }
 
-fn resolved_aux_binding_source(has_custom: bool, has_auto: bool) -> AuxBindingSource {
-    if has_custom {
-        AuxBindingSource::Custom
-    } else if has_auto {
-        AuxBindingSource::Auto
+fn pick_aux_side<T>(
+    custom: (Option<T>, AuxBindingSource),
+    auto: (Option<T>, AuxBindingSource),
+    auto_first: bool,
+) -> (Option<T>, AuxBindingSource) {
+    let (first, second) = if auto_first {
+        (auto, custom)
     } else {
-        AuxBindingSource::None
+        (custom, auto)
+    };
+    match (first, second) {
+        ((Some(target), source), _) | (_, (Some(target), source)) => (Some(target), source),
+        _ => (None, AuxBindingSource::None),
     }
 }

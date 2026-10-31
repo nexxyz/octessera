@@ -13,7 +13,7 @@ const RETIRED_RUNTIME_KEYS: [&str; 5] = [
 /// old `sound.audioOutputBufferFrames` setting never reached an audio stream and goes the same way.
 /// The HDMI Terminal mode was stored as `none` before it got its own name, and the retired
 /// `bar+numbers` Num Style loads as `bar`. System settings saved before the footer hint toggles
-/// existed get them at their default, on.
+/// existed get them at their default, on, and those saved before Aux Priority get Manual.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     let mut document = document.clone();
     let Some(runtime) = document
@@ -32,6 +32,11 @@ pub(crate) fn without_retired_keys(document: &Value) -> Value {
         for key in ["auxAutoHints", "auxManualHints"] {
             runtime.entry(key).or_insert(Value::Bool(true));
         }
+    }
+    if runtime.contains_key("auxAutoMapEnabled") {
+        runtime
+            .entry("auxPriority")
+            .or_insert_with(|| Value::from("manual"));
     }
     if let Some(mode) = runtime.get_mut("numericDisplayMode") {
         if mode == "bar+numbers" {
@@ -103,7 +108,7 @@ mod tests {
         old_system["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
         old_system["runtimeConfig"]["hdmi"]["mode"] = json!("none");
         old_system["runtimeConfig"]["numericDisplayMode"] = json!("bar+numbers");
-        for key in ["auxAutoHints", "auxManualHints"] {
+        for key in ["auxAutoHints", "auxManualHints", "auxPriority"] {
             old_system["runtimeConfig"]
                 .as_object_mut()
                 .unwrap()
@@ -119,7 +124,7 @@ mod tests {
         old_full["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
         old_full["runtimeConfig"]["hdmi"]["mode"] = json!("none");
         old_full["runtimeConfig"]["numericDisplayMode"] = json!("bar+numbers");
-        for key in ["auxAutoHints", "auxManualHints"] {
+        for key in ["auxAutoHints", "auxManualHints", "auxPriority"] {
             old_full["runtimeConfig"]
                 .as_object_mut()
                 .unwrap()

@@ -49,6 +49,7 @@
     "activeLayerIndex": 0,
     "autoSaveDefault": false,
     "auxAutoMapEnabled": true,
+    "auxPriority": "manual",
     "auxBindings": {
       "aux1": null,
       "aux2": null,

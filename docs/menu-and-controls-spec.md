@@ -366,7 +366,7 @@ palette unless a behavior deliberately owns its own.
   `*` marker (the snapshot's `editing` flag carries it). Group rows keep their trailing ` >`.
 - Each menu row also carries its parts for the OLED: kind (`value`, `group` with `>`, `action`
   with `!`, or `entry` for a sample-browser entry with no marker), label, value text, the edit cursor position of a text row being edited, and the Aux
-  cap (encoder 1-3, plain or Shift) whose auto map controls it. Scroll metadata counts one row per
+  cap (encoder 1-3, plain or Shift) whose turn or click runs it. Scroll metadata counts one row per
   item.
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
   with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
@@ -375,7 +375,7 @@ palette unless a behavior deliberately owns its own.
   When more than 8 rows exist, a 2 px scrollbar sits at `x=126..127`, `y=10..111`: a track at 1/6
   of the area colour and a thumb in the area colour, `max(6, 8*102/totalRows)` px tall. It is
   omitted for splash/help/confirm overlays unless menu metadata is present.
-- Left gutter: every auto-mapped row shows its Aux cap at `x=0..6`, selected or not and never
+- Left gutter: every row an Aux encoder runs shows its Aux cap at `x=0..6`, selected or not and never
   inverted: a disc at 28 % of the row colour with 1-3 pips in the row colour; a plain cap covers
   `s+1..s+7`, a Shift cap `s..s+6` with a 5 px bar at 55 % on `s+8`. The selection bar starts at
   `x=9` and labels at `x=12`. Sample-browser lists (`entry` rows: `..`, folders, files, `(empty)`)
@@ -682,8 +682,15 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 
 ### Auto-map
 
-- `System > Display > Auto Map` turns it on. Context-sensitive mappings fill unbound slots of both
-  banks for the focused menu context; custom bindings keep precedence.
+- `System > Display > Auto Map` turns it on. Context-sensitive mappings fill both banks for the
+  focused menu context.
+- `System > Display > Aux Prio.` (Aux Priority, `runtimeConfig.auxPriority`, `manual|auto`,
+  default `manual`; shown right after Auto Map only while Auto Map is on, inserted and removed in
+  place) decides an Aux side that has both a manual binding and an auto target. Manual: the manual binding wins.
+  Auto: the auto target wins, so manual bindings act only where the page's layout leaves that turn
+  or click empty, such as pages without a layout. The rule applies per turn and per click, plain
+  and Shift bank alike, and the same resolver feeds Aux input, the row caps, the footer hints and
+  the Fn mapping overlay. Saves from before the setting load as `manual`.
 - Each layout lists up to six entries in order of how often they are played: the first three go
   to Aux 1-3, the rest to Shift + Aux 1-3.
 - Focused rows show indicators such as `1-Cutoff`, `1!Assign` and `S1-Key` in place of the row
@@ -737,8 +744,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 ### Footer hints
 
 - The presentation carries, per Aux 1-3 and for the plain and the Shift layer, the turn and the
-  click hint of the control that encoder runs on the focused page: custom bindings over the
-  auto map, exactly as a turn or click resolves. Each hint has its full label (the binding or
+  click hint of the control that encoder runs on the focused page, merged under Aux Priority
+  exactly as a turn or click resolves. Each hint has its full label (the binding or
   layout label), the colour of the menu section that owns the target (Play
   remote pages own none, so a bus mix hint is Shape blue; clicks: behavior actions Build, platform
   effects by their area), and whether it comes from the auto map or a manual binding. The Shift
@@ -746,7 +753,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - A manual hint names its target: the bound row's label for a turn, the bound action's own row
   label for a click (`Stop` for `System > Recording > Stop`). A manual binding whose target no
   longer exists (its FX slot type, instrument kind or behavior changed) shows no hint on that
-  side, and the auto hint it overrides stays hidden too.
+  side, and an auto hint it overrides under Manual priority stays hidden too.
 - Slots sit at `x=0`, `37` and `74`: a cap at `x..x+6` on `y=118..124` (Shift cap `117..125`
   with its bar) in the hint's colour, labels in Tom Thumb from `x+9`. A slot with nothing mapped
   draws nothing. A single turn or click label is centred on its cap (`y=119..123`); with both,

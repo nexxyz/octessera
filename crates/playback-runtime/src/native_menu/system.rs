@@ -157,8 +157,22 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             5,
         ),
     ];
+    if config.aux_auto_map_enabled {
+        children.insert(2, aux_priority_item(&config.aux_priority));
+    }
     if config.board {
         children.push(hdmi_video_group(config));
     }
     group("Display", children)
+}
+
+/// Shown only while Auto Map is on: which wins when an Aux side has both an auto and a manual
+/// target, stored as `manual` or `auto`.
+pub(super) fn aux_priority_item(priority: &str) -> NativeMenuItem {
+    enum_item(
+        "Aux Prio.",
+        "auxPriority",
+        vec!["Manual", "Auto"],
+        selected_index(&["manual", "auto"], priority),
+    )
 }

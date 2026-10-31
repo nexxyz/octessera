@@ -97,6 +97,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         xy_x_binding: None,
         xy_y_binding: None,
         aux_auto_map_enabled: true,
+        aux_priority: "manual".into(),
         aux_bindings: vec![NativeAuxBindingConfig::default(); AUX_ENCODER_COUNT],
         shift_aux_bindings: vec![NativeAuxBindingConfig::default(); AUX_ENCODER_COUNT],
         instrument_labels: vec!["I1: synth".into()],

@@ -23,6 +23,7 @@ pub struct NativeMenuConfig {
     pub xy_x_binding: Option<NativeParamBindingSpec>,
     pub xy_y_binding: Option<NativeParamBindingSpec>,
     pub aux_auto_map_enabled: bool,
+    pub aux_priority: String,
     pub aux_bindings: Vec<NativeAuxBindingConfig>,
     pub shift_aux_bindings: Vec<NativeAuxBindingConfig>,
     pub instrument_labels: Vec<String>,

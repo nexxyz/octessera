@@ -132,6 +132,7 @@ impl NativeRunner {
             xy_x_binding: seed.xy_x_binding,
             xy_y_binding: seed.xy_y_binding,
             aux_auto_map_enabled: seed.aux_auto_map_enabled,
+            aux_priority: seed.aux_priority,
             param_mods: seed.param_mods,
             trigger_gate_modes: vec!["full".into(); LAYER_COUNT],
             trigger_gate_restore_modes: vec![None; LAYER_COUNT],
