@@ -265,3 +265,48 @@ $PiTarget = "pi@<PI_HOST>"
 
 These probes measure timing and audio-path behavior; they do not replace board
 bring-up or image checks.
+
+## On-device scenario suite
+
+Before an image build or a release, run the scenario suite on both boards. It
+covers what desktop e2e, golden tests, board-check and the timing smoke cannot
+see: a real cold boot, persistence across a service restart, a recording, the
+OLED's sleep and contrast commands on the SPI bus, and a mixed-load soak. It
+tests the installed build, so deploy a candidate first. Both boards may run at
+once:
+
+```bash
+tools/board-dev/board-scenarios.sh rpi "$PiTarget"
+tools/board-dev/board-scenarios.sh opi "$OrangeTarget"
+```
+
+Name scenarios to run a subset: `boot save_restore recording oled soak`.
+
+- `boot` reboots the board and only reads the live service: kernel, splash,
+  service, audio and menu-ready times from the journal and readiness marker, an
+  advancing playback stream, no Octessera errors or failed units, and unchanged
+  live store hashes.
+- The rest run detached (about 17 minutes, no SSH until they end) on the real
+  service through a temporary `95-octessera-scenarios.conf` drop-in and a cloned
+  store. `board-keys.py` types on a uinput keyboard; the Raspberry uses the
+  Bluetooth bus, so Bluetooth must be on there.
+- `save_restore` changes Grid Bright, Button Bright, Num Style and BPM through
+  the menu, restarts, checks the saved files, then turns one more detent to show
+  the restarted runtime loaded them.
+- `recording` records about 20 s of Audio+Video while the default patch plays
+  and checks the AVI with `ffprobe`/`ffmpeg`: frames at 20 fps against the
+  recorded time, matching audio length, moving and non-blank frames, non-silent
+  audio. The board copy is deleted.
+- `oled` sets OLED Sleep to 10 s, wakes the display and turns OLED Bright four
+  detents. An ftrace instance on the OLED's SPI command bytes checks that the
+  contrast is re-sent after the restart, the display goes off on the timer with
+  no frame writes while asleep, comes back on with input, and each detent sends
+  the next contrast step.
+- `soak` plays the default patch for 10 minutes (`OCTESSERA_SCENARIO_SOAK_SECONDS`)
+  with scripted navigation and Aux turns, OLED awake. It needs 0 underruns, 0
+  late timed events, 0 missed Capacity quanta and no steady RSS or fd growth,
+  sampled once a minute from CPU 0.
+
+Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
+`target/board-scenarios/<board>-<stamp>/`. Afterwards the payload restores the
+service, removes the drop-in, clone and recordings, and checks the live store.
