@@ -183,7 +183,7 @@ pub fn fractal_explorer_config_menu() -> Vec<BehaviorConfigItem> {
         number_item("zoomRatePct", "Zoom Rate", 0, 100, 1),
         number_item("driftPct", "Drift", 0, 100, 1),
         number_item("iterationLimit", "Iteration Limit", 8, 64, 1),
-        enum_item("fractalMode", "Fractal Mode", MODES),
+        enum_item("fractalMode", "Fractal", MODES),
         action_item("jumpRegion", "Jump Region"),
         action_item("toggleFractalMode", "Toggle Fractal Mode"),
     ]

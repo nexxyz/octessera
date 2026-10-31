@@ -291,7 +291,7 @@ pub fn predator_prey_render_model(state: &PredatorPreyState) -> BehaviorRenderMo
 pub fn predator_prey_config_menu() -> Vec<BehaviorConfigItem> {
     vec![
         number_item("grassGrowChancePct", "Grass Grow", 0, 100, 1),
-        number_item("herbivoreReproducePct", "Herbivore Repro", 0, 100, 1),
+        number_item("herbivoreReproducePct", "Herbiv. Repro", 0, 100, 1),
         number_item("predatorReproducePct", "Predator Repro", 0, 100, 1),
         number_item("starveTicks", "Starve Ticks", 1, 32, 1),
         action_item("reseedEcosystem", "Reseed Ecosystem"),

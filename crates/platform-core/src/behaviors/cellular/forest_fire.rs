@@ -297,7 +297,7 @@ pub fn forest_fire_config_menu() -> Vec<BehaviorConfigItem> {
         number_item("treeDensityPct", "Tree Density", 0, 100, 1),
         number_item("growChancePct", "Grow Chance", 0, 100, 1),
         number_item("spreadChancePct", "Spread Chance", 0, 100, 1),
-        number_item("reseedThresholdPct", "Reseed Threshold", 0, 100, 1),
+        number_item("reseedThresholdPct", "Reseed Thresh.", 0, 100, 1),
         number_item("lightningChancePerThousand", "Lightning", 0, 20, 1),
         action_item("igniteRandom", "Ignite Random"),
     ]

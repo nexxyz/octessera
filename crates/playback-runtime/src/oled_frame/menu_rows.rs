@@ -150,6 +150,14 @@ pub(crate) fn menu_row_label_overflows(row: &OledMenuRowInput, has_bar: bool) ->
     M5X7.width(&layout.name) > layout.name_room
 }
 
+/// Whether a row clips its label or its value.
+#[cfg(test)]
+pub(crate) fn menu_row_clips(row: &OledMenuRowInput, has_bar: bool) -> bool {
+    let bar = has_bar.then(OledBarInput::default);
+    let layout = row_layout(row, bar.as_ref(), row.kind != OledMenuRowKind::Entry);
+    layout.value_clipped || M5X7.width(&layout.name) > layout.name_room
+}
+
 #[derive(Clone, Copy)]
 struct RowStyle {
     area: u16,

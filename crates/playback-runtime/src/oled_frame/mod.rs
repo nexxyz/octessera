@@ -24,6 +24,8 @@ pub const OLED_FRAME_BYTES: usize = OLED_WIDTH * OLED_HEIGHT * 2;
 pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
 pub(crate) use header::breadcrumb_fits;
 pub use master_contrast::{oled_master_contrast_step, OLED_MASTER_CONTRAST_STEPS};
+#[cfg(test)]
+pub(crate) use menu_rows::menu_row_clips;
 pub(crate) use menu_rows::menu_row_label_overflows;
 pub use model::{
     OledAnimationInput, OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle,

@@ -173,11 +173,11 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 | forest_fire | Tree Density: [0..100] | number, step 1 (default 34) |
 | forest_fire | Grow Chance: [0..100] | number, step 1 (default 5) |
 | forest_fire | Spread Chance: [0..100] | number, step 1 (default 70) |
-| forest_fire | Reseed Threshold: [0..100] | number, step 1 (default 5) |
+| forest_fire | Reseed Thresh.: [0..100] | number, step 1 (default 5) |
 | forest_fire | Lightning: [0..20] | number, step 1 (default 1; per-thousand chance) |
 | forest_fire | !Ignite Random | action |
 | predator_prey | Grass Grow: [0..100] | number, step 1 (default 15) |
-| predator_prey | Herbivore Repro: [0..100] | number, step 1 (default 15) |
+| predator_prey | Herbiv. Repro: [0..100] | number, step 1 (default 15) |
 | predator_prey | Predator Repro: [0..100] | number, step 1 (default 8) |
 | predator_prey | Starve Ticks: [1..32] | number, step 1 (default 8) |
 | predator_prey | !Reseed Ecosystem | action |
@@ -247,7 +247,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 | fractal_explorer | Zoom Rate: [0..100] | number, step 1 (default 8) |
 | fractal_explorer | Drift: [0..100] | number, step 1 (default 20) |
 | fractal_explorer | Iteration Limit: [8..64] | number, step 1 (default 24) |
-| fractal_explorer | Fractal Mode: [mandelbrot, julia] | enum (default mandelbrot) |
+| fractal_explorer | Fractal: [mandelbrot, julia] | enum (default mandelbrot) |
 | fractal_explorer | !Jump Region | action |
 | fractal_explorer | !Toggle Fractal Mode | action |
 | maze_growth | Carve: [0..100] | number, step 1 (default 100) |

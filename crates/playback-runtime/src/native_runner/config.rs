@@ -24,7 +24,7 @@ use crate::native_menu::{NativeMenuConfig, NativeSampleBrowserConfig, NativeSamp
 use serde_json::json;
 
 impl NativeRunner {
-    pub(super) fn menu_config(&self) -> NativeMenuConfig {
+    pub(crate) fn menu_config(&self) -> NativeMenuConfig {
         NativeMenuConfig {
             behavior_id: self.behavior.id().into(),
             behavior_ids: platform_core::list_native_behavior_ids()

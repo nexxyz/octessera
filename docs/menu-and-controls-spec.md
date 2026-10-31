@@ -394,7 +394,9 @@ palette unless a behavior deliberately owns its own.
   before the value's ink and otherwise clips with `..`; on the selected row it scrolls through its
   room instead, one character every four snapshot attempts with a three-space gap. A text value
   longer than the room the whole label leaves clips with `..`, but always keeps at least a mini
-  bar's 30 px.
+  bar's 30 px. Fixed labels are sized so that, with their widest value or mini bar, no row clips;
+  only names (sample files, layer, instrument, bus and preset names, and the behavior on a
+  `Behavior:` selector) may clip or scroll. A native test measures every row in m5x7 pixels.
 - Editing (E2): the label part of the bar stays filled; the value sits in a black box from 2 px
   left of the value to the bar's right end, full bar height, drawn in the row colour. A text row
   being edited shows its cursor character inverted (a row-colour block with a black glyph), with
