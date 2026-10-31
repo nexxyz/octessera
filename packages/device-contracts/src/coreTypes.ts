@@ -99,12 +99,12 @@ export type RuntimeSnapshotFields = {
   selectedRow?: number | null;
   eventDotLevel: number;
   workerUtilization?: number;
-  highCpuSteady?: boolean;
   missedQuantumFlash?: boolean;
   transportIcon: "play" | "pause" | "stop";
   transportFlash: "none" | "beat" | "measure";
   auxHints?: AuxHints;
   auxShiftLayer?: boolean;
+  recordingActive?: boolean;
   cpuLoadRatio?: number;
   settings?: RuntimeSnapshotSettings;
   runtimeError?: RuntimeErrorMetadata;

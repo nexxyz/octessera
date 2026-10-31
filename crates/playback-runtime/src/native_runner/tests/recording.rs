@@ -8,9 +8,46 @@ fn send_recording_status(runner: &mut NativeRunner, message: &str) -> Vec<Runner
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message: message.into(),
+                active: message != "Recording saved",
             },
         })
         .unwrap()
+}
+
+#[test]
+fn recording_statuses_drive_the_presented_recording_state() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    let presented = |runner: &NativeRunner| {
+        runner
+            .capture_presentation_scene(false)
+            .unwrap()
+            .oled_presentation_input(crate::oled_frame::OledPresentationMetrics::default(), None)
+            .recording_active
+    };
+    assert!(!presented(&runner));
+
+    let started = send_recording_status(&mut runner, "Recording started");
+    assert_eq!(snapshot_from(&started)["recordingActive"], true);
+    assert!(presented(&runner));
+
+    send_recording_status(&mut runner, "Recording saved");
+    assert!(!presented(&runner));
+
+    send_recording_status(&mut runner, "Recording started");
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure {
+                error: RuntimeErrorFacts::new(
+                    RuntimeErrorDomain::Recording,
+                    crate::RuntimeErrorCode::OperationFailed,
+                    RuntimeOperation::Recording,
+                    Some("disk full".into()),
+                ),
+            },
+        })
+        .unwrap();
+    assert!(!presented(&runner));
 }
 
 #[test]

@@ -182,6 +182,7 @@ fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: true,
             }
         }] if message == "Recording started"
     ));
@@ -198,6 +199,7 @@ fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: true,
             }
         }] if message == "Recording is already running"
     ));
@@ -214,6 +216,7 @@ fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: false,
             }
         }] if message == "Recording saved"
     ));

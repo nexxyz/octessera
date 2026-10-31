@@ -84,6 +84,7 @@ pub struct PresentationScene {
     neo_key_colors: [[u8; 3]; 4],
     transient: DisplayTransientPresentation,
     aux_hints: OledAuxHints,
+    recording_active: bool,
     audio: Option<AudioScene>,
 }
 
@@ -215,6 +216,7 @@ impl NativeRunner {
             neo_key_colors: self.neo_key_colors(transient),
             transient,
             aux_hints: self.aux_hints(),
+            recording_active: self.display.recording_active,
             audio,
         })
     }
@@ -292,6 +294,7 @@ impl PresentationScene {
             save_flash_serial: self.auto_save_flash_serial,
             aux_hints: self.aux_hints.clone(),
             aux_shift_layer: self.ui.shift_held || self.ui.combined_modifier_held,
+            recording_active: self.recording_active,
             metrics,
             runtime_error,
         }

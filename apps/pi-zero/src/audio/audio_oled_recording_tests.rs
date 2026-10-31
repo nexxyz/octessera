@@ -148,6 +148,7 @@ fn recording_completion_uses_existing_status_toast_result() {
         RuntimeStoreResult::RecordingStatus {
             ok: true,
             message,
+            active: false,
         }
             if message == "Recording saved"
     ));
@@ -161,6 +162,7 @@ fn recording_completion_uses_existing_status_toast_result() {
         RuntimeStoreResult::RecordingStatus {
             ok: false,
             message,
+            active: false,
         }
             if message == "Recording incomplete"
     ));
@@ -169,6 +171,7 @@ fn recording_completion_uses_existing_status_toast_result() {
         RuntimeStoreResult::RecordingStatus {
             ok: true,
             message,
+            active: false,
         } if message == "Max time: saved"
     ));
 }

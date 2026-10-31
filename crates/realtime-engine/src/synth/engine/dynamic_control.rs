@@ -11,8 +11,6 @@ mod pluck_param_control;
 
 impl SynthEngine {
     pub fn set_dsp_config(&mut self, config: DspRuntimeConfig) {
-        self.worker_load_warning
-            .set_threshold(config.worker_warning_threshold);
         if self.dsp_config.bus_idle_threshold != config.bus_idle_threshold {
             for chain in &mut self.bus_chains {
                 chain.reset_quiet();

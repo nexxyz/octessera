@@ -84,6 +84,7 @@ pub(crate) fn presentation_input_from_snapshot(
     let transport_flash = required_string(snapshot, "transportFlash")?;
     let aux_hints = required::<OledAuxHints>(snapshot, "auxHints")?;
     let aux_shift_layer = required::<bool>(snapshot, "auxShiftLayer")?;
+    let recording_active = required::<bool>(snapshot, "recordingActive")?;
     let runtime_error =
         optional::<OledErrorDto>(snapshot, "runtimeError")?.map(|error| OledRuntimeErrorMetadata {
             domain: error.domain,
@@ -146,6 +147,7 @@ pub(crate) fn presentation_input_from_snapshot(
         save_flash_serial: settings.auto_save_flash_serial,
         aux_hints,
         aux_shift_layer,
+        recording_active,
         metrics,
         runtime_error,
     }))

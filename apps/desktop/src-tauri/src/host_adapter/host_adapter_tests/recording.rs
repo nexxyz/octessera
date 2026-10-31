@@ -22,6 +22,7 @@ fn desktop_recording_start_and_stop_finalize_a_valid_wav() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: true,
             }
         }] if message == "Recording started"
     ));
@@ -34,6 +35,7 @@ fn desktop_recording_start_and_stop_finalize_a_valid_wav() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: false,
             }
         }] if message == "Recording saved"
     ));
@@ -73,6 +75,7 @@ fn desktop_audio_oled_effect_uses_screen_recording_mode_and_rejects_audio_start(
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: true,
             }
         }] if message == "Recording started"
     ));
@@ -87,6 +90,7 @@ fn desktop_audio_oled_effect_uses_screen_recording_mode_and_rejects_audio_start(
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: true,
             }
         }] if message == "Recording is already running"
     ));
@@ -122,6 +126,7 @@ fn desktop_recording_reports_already_active_and_filesystem_errors() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message,
+                active: true,
             }
         }] if message == "Recording is already running"
     ));
@@ -200,6 +205,7 @@ fn desktop_recording_completion_uses_existing_status_toast_result() {
         RuntimeStoreResult::RecordingStatus {
             ok: true,
             message,
+            active: false,
         }
             if message == "Recording saved"
     ));
@@ -216,6 +222,7 @@ fn desktop_recording_completion_uses_existing_status_toast_result() {
         RuntimeStoreResult::RecordingStatus {
             ok: false,
             message,
+            active: false,
         }
             if message == "Recording incomplete"
     ));
@@ -228,6 +235,7 @@ fn desktop_recording_completion_uses_existing_status_toast_result() {
         RuntimeStoreResult::RecordingStatus {
             ok: true,
             message,
+            active: false,
         } if message == "Max time: saved"
     ));
 }

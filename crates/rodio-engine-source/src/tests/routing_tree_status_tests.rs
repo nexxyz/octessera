@@ -425,7 +425,6 @@ fn empty_status() -> AudioLoadStatus {
     AudioLoadStatus {
         ratio: 0.0,
         worker_utilization: None,
-        high_cpu_steady: false,
         missed_quantum_flash: false,
         block_ratio_p95: 0.0,
         block_ratio_max: 0.0,

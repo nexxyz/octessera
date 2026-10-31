@@ -75,7 +75,6 @@ impl RuntimeOled {
         self.next_cpu_load_report = (self.next_cpu_load_report + 1) % CPU_LOAD_PEAK_REPORTS;
         let mut normalized = OledPresentationMetrics::from_status(
             metrics.worker_utilization,
-            metrics.high_cpu_steady,
             metrics.missed_quantum_flash,
         );
         normalized.cpu_load_peak_percent = self.cpu_load_reports.iter().copied().max().unwrap_or(0);

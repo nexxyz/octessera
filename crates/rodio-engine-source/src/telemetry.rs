@@ -126,7 +126,6 @@ mod tests {
         AudioLoadStatus {
             ratio,
             worker_utilization: Some(ratio),
-            high_cpu_steady: false,
             missed_quantum_flash: false,
             block_ratio_p95: ratio,
             block_ratio_max: ratio,

@@ -246,7 +246,7 @@ fn hardware_oled_off_and_error_leave_grid_and_hdmi_live() {
     runner.display.oled_mode = NativeOledMode::Off;
     let off = verify_hardware(
         &runner,
-        OledPresentationMetrics::from_status(Some(0.9), true, true),
+        OledPresentationMetrics::from_status(Some(0.9), true),
         Some(metadata.clone()),
     );
     assert!(off.oled.display.off);

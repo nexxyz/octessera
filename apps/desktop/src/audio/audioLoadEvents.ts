@@ -3,14 +3,12 @@ import { listen } from '@tauri-apps/api/event';
 export type AudioLoadStatus = {
   ratio: number;
   workerUtilization?: number;
-  highCpuSteady: boolean;
   missedQuantumFlash: boolean;
 };
 
 export type AudioLoadPayload = {
   ratio?: number;
   workerUtilization?: number;
-  highCpuSteady?: boolean;
   missedQuantumFlash?: boolean;
 };
 
@@ -40,7 +38,6 @@ export function normalizeAudioLoadPayload(
   return {
     ratio: Number.isFinite(ratio) ? ratio : 0,
     workerUtilization: normalizeWorkerUtilization(payload?.workerUtilization),
-    highCpuSteady: payload?.highCpuSteady === true,
     missedQuantumFlash: payload?.missedQuantumFlash === true,
   };
 }

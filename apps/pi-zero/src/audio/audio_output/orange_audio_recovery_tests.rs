@@ -249,7 +249,6 @@ fn load_status(worker_utilization: f32) -> realtime_engine::synth::AudioLoadStat
     realtime_engine::synth::AudioLoadStatus {
         ratio: 0.2,
         worker_utilization: Some(worker_utilization),
-        high_cpu_steady: worker_utilization >= 0.85,
         missed_quantum_flash: false,
         block_ratio_p95: 0.2,
         block_ratio_max: 0.2,

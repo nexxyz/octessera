@@ -170,7 +170,6 @@ fn apply_presentation_metrics(snapshot: &mut Value, metrics: &OledPresentationMe
             snapshot.remove("workerUtilization");
         }
     }
-    snapshot.insert("highCpuSteady".into(), json!(metrics.high_cpu_steady));
     snapshot.insert(
         "missedQuantumFlash".into(),
         json!(metrics.missed_quantum_flash),

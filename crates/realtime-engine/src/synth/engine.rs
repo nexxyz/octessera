@@ -1,4 +1,4 @@
-use super::dsp_config::{DspRuntimeConfig, WorkerLoadWarningState};
+use super::dsp_config::DspRuntimeConfig;
 use super::fx::{
     fx_bus_state_from_params, master_fx_state_from_params, master_fx_state_matches_params,
     process_master_fx_slot, FxBusState, MasterFxState,
@@ -264,7 +264,6 @@ pub struct SynthEngine {
     event_frame_offset: u32,
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
-    worker_load_warning: WorkerLoadWarningState,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -380,14 +379,8 @@ impl SynthEngine {
     }
 
     #[cfg(feature = "routing-tree-executor")]
-    pub(super) fn observe_worker_utilization(
-        &mut self,
-        utilization_ppm: u32,
-        rendered_frames: usize,
-    ) {
+    pub(super) fn observe_worker_utilization(&mut self, utilization_ppm: u32) {
         self.worker_utilization_ppm = Some(utilization_ppm);
-        self.worker_load_warning
-            .observe(utilization_ppm, rendered_frames, self.sample_rate);
     }
 
     pub(in crate::synth::engine) fn retire_render_preview(&mut self, voice: PreviewSampleVoice) {

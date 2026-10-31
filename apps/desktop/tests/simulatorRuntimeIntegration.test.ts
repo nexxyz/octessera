@@ -208,7 +208,6 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   emitAudioLoad({
     ratio: 1,
     workerUtilization: 1,
-    highCpuSteady: true,
     missedQuantumFlash: false,
   });
   await waitTurn();
@@ -220,7 +219,6 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   assert.deepEqual(runtime.getSnapshot().audioLoad, {
     ratio: 0,
     workerUtilization: undefined,
-    highCpuSteady: false,
     missedQuantumFlash: false,
   });
 });
@@ -250,7 +248,7 @@ test('semantic encoder actions use the direct encoder batching route', async () 
   ]);
 });
 
-test('desktop applies an audio load message to aggregate and worker-warning presentation', async () => {
+test('desktop applies an audio load message to aggregate and missed-quantum presentation', async () => {
   let emitAudioLoad: (status: AudioLoadStatus) => void = () => {};
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
     runtimeDispatch: async () => [],
@@ -263,23 +261,21 @@ test('desktop applies an audio load message to aggregate and worker-warning pres
   });
   const published: boolean[] = [];
   runtime.subscribe((snapshot) => {
-    published.push(snapshot.audioLoad.highCpuSteady);
+    published.push(snapshot.audioLoad.missedQuantumFlash);
   });
   const publishedBeforeLoad = published.length;
 
   emitAudioLoad({
     ratio: 0.72,
     workerUtilization: 0.9,
-    highCpuSteady: true,
-    missedQuantumFlash: false,
+    missedQuantumFlash: true,
   });
   await waitTurn();
 
   assert.deepEqual(runtime.getSnapshot().audioLoad, {
     ratio: 0.72,
     workerUtilization: 0.9,
-    highCpuSteady: true,
-    missedQuantumFlash: false,
+    missedQuantumFlash: true,
   });
   assert.equal(published.length, publishedBeforeLoad + 1);
   assert.equal(published.at(-1), true);

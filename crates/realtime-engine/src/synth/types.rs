@@ -83,7 +83,6 @@ pub struct BlockPeak {
 pub struct AudioLoadStatus {
     pub ratio: f32,
     pub worker_utilization: Option<f32>,
-    pub high_cpu_steady: bool,
     pub missed_quantum_flash: bool,
     pub block_ratio_p95: f32,
     pub block_ratio_max: f32,

@@ -1,13 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[cfg(feature = "routing-tree-executor")]
-const PPM_PER_PERCENT: u32 = 10_000;
-#[cfg(feature = "routing-tree-executor")]
-const CLEAR_HYSTERESIS_PERCENT: u32 = 5;
-#[cfg(feature = "routing-tree-executor")]
-const CLEAR_DURATION_SECONDS: u64 = 5;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DspRuntimeConfig {
@@ -145,84 +138,10 @@ impl BusIdleThreshold {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct WorkerLoadWarningState {
-    threshold: WorkerWarningThreshold,
-    high_cpu_steady: bool,
-    clear_frames: u64,
-}
-
-impl Default for WorkerLoadWarningState {
-    fn default() -> Self {
-        Self {
-            threshold: WorkerWarningThreshold::Percent85,
-            high_cpu_steady: false,
-            clear_frames: 0,
-        }
-    }
-}
-
-impl WorkerLoadWarningState {
-    pub(super) fn set_threshold(&mut self, threshold: WorkerWarningThreshold) {
-        if self.threshold != threshold {
-            self.threshold = threshold;
-            self.clear_frames = 0;
-        }
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    pub(super) fn observe(
-        &mut self,
-        utilization_ppm: u32,
-        rendered_frames: usize,
-        sample_rate: u32,
-    ) {
-        let threshold_ppm = u32::from(self.threshold.percent()) * PPM_PER_PERCENT;
-        let clear_threshold_ppm =
-            threshold_ppm.saturating_sub(CLEAR_HYSTERESIS_PERCENT * PPM_PER_PERCENT);
-        if utilization_ppm >= threshold_ppm {
-            self.high_cpu_steady = true;
-            self.clear_frames = 0;
-            return;
-        }
-        if utilization_ppm >= clear_threshold_ppm || !self.high_cpu_steady {
-            self.clear_frames = 0;
-            return;
-        }
-        if sample_rate == 0 {
-            return;
-        }
-        let required_frames = u64::from(sample_rate).saturating_mul(CLEAR_DURATION_SECONDS);
-        let rendered_frames = u64::try_from(rendered_frames).unwrap_or(u64::MAX);
-        self.clear_frames = self
-            .clear_frames
-            .saturating_add(rendered_frames)
-            .min(required_frames);
-        if self.clear_frames >= required_frames {
-            self.high_cpu_steady = false;
-            self.clear_frames = 0;
-        }
-    }
-
-    pub(super) const fn high_cpu_steady(self) -> bool {
-        self.high_cpu_steady
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
-
-    #[cfg(feature = "routing-tree-executor")]
-    const WORKER_THRESHOLDS: [WorkerWarningThreshold; 6] = [
-        WorkerWarningThreshold::Percent70,
-        WorkerWarningThreshold::Percent75,
-        WorkerWarningThreshold::Percent80,
-        WorkerWarningThreshold::Percent85,
-        WorkerWarningThreshold::Percent90,
-        WorkerWarningThreshold::Percent95,
-    ];
 
     #[test]
     fn dsp_runtime_config_round_trips_and_defaults() {
@@ -252,100 +171,5 @@ mod tests {
         assert_eq!(BusIdleThreshold::Db120.amplitude(), 0.000001);
         assert_eq!(BusIdleThreshold::Db100.amplitude(), 0.00001);
         assert_eq!(BusIdleThreshold::Db80.amplitude(), 0.0001);
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    #[test]
-    fn worker_warning_threshold_boundaries_cover_every_option() {
-        for threshold in WORKER_THRESHOLDS {
-            let mut state = WorkerLoadWarningState::default();
-            state.set_threshold(threshold);
-            let threshold_ppm = u32::from(threshold.percent()) * PPM_PER_PERCENT;
-            state.observe(threshold_ppm - 1, 128, 48_000);
-            assert!(!state.high_cpu_steady());
-            state.observe(threshold_ppm, 128, 48_000);
-            assert!(state.high_cpu_steady());
-        }
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    #[test]
-    fn worker_warning_clears_at_frame_count_edges_for_supported_rates_and_quanta() {
-        for sample_rate in [44_100, 48_000] {
-            for quantum in [32, 64, 128, 256, 2_048] {
-                let mut state = WorkerLoadWarningState::default();
-                state.observe(850_000, quantum, sample_rate);
-                let required_frames = u64::from(sample_rate) * CLEAR_DURATION_SECONDS;
-                let full_blocks = required_frames / quantum as u64;
-                for _ in 0..full_blocks.saturating_sub(1) {
-                    state.observe(799_999, quantum, sample_rate);
-                }
-                assert!(state.high_cpu_steady());
-                state.observe(799_999, quantum, sample_rate);
-                if required_frames.is_multiple_of(quantum as u64) {
-                    assert!(!state.high_cpu_steady());
-                } else {
-                    assert!(state.high_cpu_steady());
-                    state.observe(799_999, quantum, sample_rate);
-                    assert!(!state.high_cpu_steady());
-                }
-            }
-        }
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    #[test]
-    fn worker_warning_middle_band_holds_and_resets_clear_accumulation() {
-        let mut state = WorkerLoadWarningState::default();
-        state.observe(850_000, 128, 48_000);
-        for _ in 0..1_000 {
-            state.observe(799_999, 128, 48_000);
-        }
-        state.observe(800_000, 128, 48_000);
-        assert!(state.high_cpu_steady());
-        for _ in 0..1_875 - 1 {
-            state.observe(799_999, 128, 48_000);
-        }
-        assert!(state.high_cpu_steady());
-        state.observe(799_999, 128, 48_000);
-        assert!(!state.high_cpu_steady());
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    #[test]
-    fn worker_warning_clear_boundary_equality_holds_and_resets_accumulation() {
-        let mut state = WorkerLoadWarningState::default();
-        state.observe(850_000, 128, 48_000);
-        state.observe(799_999, 128, 48_000);
-        assert_eq!(state.clear_frames, 128);
-
-        state.observe(800_000, 128, 48_000);
-        assert!(state.high_cpu_steady());
-        assert_eq!(state.clear_frames, 0);
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    #[test]
-    fn worker_warning_threshold_changes_apply_on_the_next_observation() {
-        let mut state = WorkerLoadWarningState::default();
-        state.set_threshold(WorkerWarningThreshold::Percent95);
-        state.observe(900_000, 128, 48_000);
-        assert!(!state.high_cpu_steady());
-        state.set_threshold(WorkerWarningThreshold::Percent85);
-        assert!(!state.high_cpu_steady());
-        state.observe(900_000, 128, 48_000);
-        assert!(state.high_cpu_steady());
-    }
-
-    #[cfg(feature = "routing-tree-executor")]
-    #[test]
-    fn worker_warning_evaluation_does_not_allocate() {
-        let mut state = WorkerLoadWarningState::default();
-        let (_, allocations, deallocations) =
-            crate::synth::test_allocator::count_allocations_and_deallocations(|| {
-                state.observe(850_000, 128, 48_000);
-                state.observe(799_999, 128, 48_000);
-            });
-        assert_eq!((allocations, deallocations), (0, 0));
     }
 }

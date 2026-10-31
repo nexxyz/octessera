@@ -83,6 +83,7 @@ pub(super) struct NativeDisplayState {
     pub(super) held_toast_head: Option<String>,
     pub(super) menu_scroll_offset: usize,
     pub(super) runtime_error_presentation: Option<NativeRuntimeErrorPresentation>,
+    pub(super) recording_active: bool,
     pub(super) manual_aux_hints: std::cell::RefCell<Option<super::aux_hints::ManualAuxHintSlots>>,
 }
 
@@ -115,6 +116,7 @@ impl NativeDisplayState {
             held_toast_head: None,
             menu_scroll_offset: 0,
             runtime_error_presentation: None,
+            recording_active: false,
             manual_aux_hints: std::cell::RefCell::new(None),
         }
     }

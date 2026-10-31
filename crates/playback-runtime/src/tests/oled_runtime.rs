@@ -81,7 +81,6 @@ fn normalized_metrics_only_publish_visible_changes() {
     let hot = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         audio_load_ratio: 0.85,
         worker_utilization: Some(0.93),
-        high_cpu_steady: true,
         ..Default::default()
     });
     assert!(matches!(
@@ -92,13 +91,6 @@ fn normalized_metrics_only_publish_visible_changes() {
             RunnerMessage::RuntimeStatus { .. }
         ]
     ));
-    assert_eq!(
-        hot.messages.iter().find_map(|message| match message {
-            RunnerMessage::Snapshot { snapshot } => snapshot.get("highCpuSteady"),
-            _ => None,
-        }),
-        Some(&json!(true))
-    );
     assert_eq!(
         hot.messages.iter().find_map(|message| match message {
             RunnerMessage::Snapshot { snapshot } => snapshot.get("workerUtilization"),
@@ -115,7 +107,6 @@ fn missed_quantum_flash_preserves_native_transition_independently_of_cpu_warning
 
     let missed = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         worker_utilization: Some(0.9),
-        high_cpu_steady: false,
         missed_quantum_flash: true,
         ..Default::default()
     });
@@ -126,17 +117,9 @@ fn missed_quantum_flash_preserves_native_transition_independently_of_cpu_warning
         }),
         Some(&json!(true))
     );
-    assert_eq!(
-        missed.messages.iter().find_map(|message| match message {
-            RunnerMessage::Snapshot { snapshot } => snapshot.get("highCpuSteady"),
-            _ => None,
-        }),
-        Some(&json!(false))
-    );
 
     let cleared = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         worker_utilization: Some(0.9),
-        high_cpu_steady: true,
         missed_quantum_flash: false,
         ..Default::default()
     });
@@ -147,19 +130,13 @@ fn missed_quantum_flash_preserves_native_transition_independently_of_cpu_warning
         }),
         Some(&json!(false))
     );
-    assert_eq!(
-        cleared.messages.iter().find_map(|message| match message {
-            RunnerMessage::Snapshot { snapshot } => snapshot.get("highCpuSteady"),
-            _ => None,
-        }),
-        Some(&json!(true))
-    );
 }
 
 #[test]
-fn aggregate_load_ratio_does_not_set_worker_warning_state() {
-    assert!(
-        !crate::oled_frame::OledPresentationMetrics::from_status(None, true, false).high_cpu_steady
+fn aggregate_load_ratio_drives_the_cpu_meter_without_worker_metrics() {
+    assert_eq!(
+        crate::oled_frame::OledPresentationMetrics::from_status(None, false).worker_utilization,
+        None
     );
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let _ = present(&mut runtime, snapshot("metrics"));
@@ -175,7 +152,7 @@ fn aggregate_load_ratio_does_not_set_worker_warning_state() {
             RunnerMessage::OledFrame { revision: 2, .. },
             RunnerMessage::Snapshot { snapshot },
             RunnerMessage::RuntimeStatus { .. }
-        ] if snapshot["highCpuSteady"] == false
+        ] if snapshot.get("workerUtilization").is_none()
     ));
 }
 

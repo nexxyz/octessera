@@ -106,6 +106,7 @@ impl PresentationScene {
             "transportFlash": self.transient.transport_flash.as_str(),
             "auxHints": self.aux_hints,
             "auxShiftLayer": ui.shift_held || ui.combined_modifier_held,
+            "recordingActive": self.recording_active,
             "cpuLoadRatio": 0.0
         });
         if let Some(audio) = self.audio {

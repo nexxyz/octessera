@@ -54,10 +54,12 @@ fn status_for_recording_with_message(
         RecordingStatus::Complete => RuntimeStoreResult::RecordingStatus {
             ok: true,
             message: complete_message.into(),
+            active: false,
         },
         RecordingStatus::Incomplete { .. } => RuntimeStoreResult::RecordingStatus {
             ok: false,
             message: "Recording incomplete".into(),
+            active: false,
         },
     }
 }
@@ -66,6 +68,7 @@ fn recording_started_status() -> RuntimeStoreResult {
     RuntimeStoreResult::RecordingStatus {
         ok: true,
         message: "Recording started".into(),
+        active: true,
     }
 }
 
@@ -77,6 +80,7 @@ fn recording_start_result(
         RecordingStartError::AlreadyActive => Ok(Some(RuntimeStoreResult::RecordingStatus {
             ok: true,
             message: "Recording is already running".into(),
+            active: true,
         })),
         RecordingStartError::Io(error) => Err(RuntimeAdapterError::from_facts(
             request.failure_facts(error),

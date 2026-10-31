@@ -37,6 +37,7 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
             "shift": [{ "turn": null, "click": null }, { "turn": null, "click": null }, { "turn": null, "click": null }]
         },
         "auxShiftLayer": false,
+        "recordingActive": false,
         "eventDotLevel": 0,
         "transportIcon": "stop",
         "transportFlash": "none"

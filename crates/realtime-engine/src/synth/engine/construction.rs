@@ -67,7 +67,6 @@ impl SynthEngine {
             event_frame_offset: 0,
             dsp_config: DspRuntimeConfig::default(),
             worker_utilization_ppm: None,
-            worker_load_warning: WorkerLoadWarningState::default(),
         }
     }
 }

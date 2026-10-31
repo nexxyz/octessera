@@ -224,7 +224,6 @@ fn audio_load_status_has_no_worker_warning_without_persistent_evidence() {
     let status = engine.audio_load_status();
 
     assert_eq!(status.worker_utilization, None);
-    assert!(!status.high_cpu_steady);
     assert!(!status.missed_quantum_flash);
 }
 
@@ -232,11 +231,10 @@ fn audio_load_status_has_no_worker_warning_without_persistent_evidence() {
 #[test]
 fn audio_load_status_reports_native_worker_warning_fields() {
     let mut engine = SynthEngine::new(48_000);
-    engine.observe_worker_utilization(900_000, 128);
+    engine.observe_worker_utilization(900_000);
     let status = engine.audio_load_status();
 
     assert_eq!(status.worker_utilization, Some(0.9));
-    assert!(status.high_cpu_steady);
     assert!(!status.missed_quantum_flash);
 }
 

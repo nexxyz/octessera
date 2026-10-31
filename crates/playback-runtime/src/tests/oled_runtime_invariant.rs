@@ -83,7 +83,6 @@ fn every_emitted_snapshot_has_a_positive_revision_across_runtime_paths() {
     let metrics = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         audio_load_ratio: 0.9,
         worker_utilization: Some(0.93),
-        high_cpu_steady: true,
         ..Default::default()
     });
     assert_positive_snapshot_revisions(&metrics.messages);
@@ -230,7 +229,6 @@ fn visible_oled_inputs_rebuild_pixels_while_metrics_and_errors_remain_live() {
 
     let metrics = runtime.update_presentation_metrics(RuntimePresentationMetrics {
         worker_utilization: Some(0.9),
-        high_cpu_steady: true,
         ..Default::default()
     });
     assert_positive_snapshot_revisions(&metrics.messages);

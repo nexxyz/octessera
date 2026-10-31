@@ -16,6 +16,8 @@ pub struct OledPresentationInput {
     pub aux_hints: OledAuxHints,
     /// Shift is held (alone or with Fn), so the footer shows the Shift-layer hints.
     pub aux_shift_layer: bool,
+    /// A System recording is running (the footer's recording disc).
+    pub recording_active: bool,
     pub metrics: OledPresentationMetrics,
     pub runtime_error: Option<OledRuntimeErrorMetadata>,
 }
@@ -170,20 +172,14 @@ pub enum OledSplash {
 pub struct OledPresentationMetrics {
     pub worker_utilization: Option<f32>,
     pub cpu_load_peak_percent: u8,
-    pub high_cpu_steady: bool,
     pub missed_quantum_flash: bool,
 }
 
 impl OledPresentationMetrics {
-    pub fn from_status(
-        worker_utilization: Option<f32>,
-        high_cpu_steady: bool,
-        missed_quantum_flash: bool,
-    ) -> Self {
+    pub fn from_status(worker_utilization: Option<f32>, missed_quantum_flash: bool) -> Self {
         Self {
             worker_utilization,
             cpu_load_peak_percent: 0,
-            high_cpu_steady: worker_utilization.is_some() && high_cpu_steady,
             missed_quantum_flash,
         }
     }

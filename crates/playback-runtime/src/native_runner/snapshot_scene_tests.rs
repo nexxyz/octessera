@@ -13,7 +13,7 @@ fn assert_typed_oled_matches_legacy(runner: &NativeRunner) {
     use crate::oled_frame::{
         presentation_input_from_snapshot, render_oled_frame, OledPresentationMetrics,
     };
-    let metrics = OledPresentationMetrics::from_status(Some(0.91), true, true);
+    let metrics = OledPresentationMetrics::from_status(Some(0.91), true);
     let typed = runner
         .capture_presentation_scene(false)
         .unwrap()

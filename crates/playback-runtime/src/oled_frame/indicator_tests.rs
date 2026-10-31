@@ -171,13 +171,12 @@ fn header_indicators_keep_four_clear_rows_around_the_rule() {
     let mut input = base();
     input.display.title = "/B/L1/Behavior/Options".into();
     input.save_flash = OledSaveFlash::Flash;
-    input.metrics.high_cpu_steady = true;
     input.metrics.cpu_load_peak_percent = 100;
     let frame = render_oled_frame(&input);
     for y in [12, 13, 14, 15, 17, 18, 19, 20] {
         assert!((0..128).all(|x| pixel(&frame, x, y) == 0), "y={y}");
     }
-    for x in [93, 97, 107, 116] {
+    for x in [93, 97, 116] {
         assert!((4..12).any(|y| pixel(&frame, x, y) != 0), "x={x}");
     }
     for x in [94, 95, 96, 105, 106, 114, 115] {

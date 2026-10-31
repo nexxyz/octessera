@@ -154,7 +154,6 @@ impl SynthEngine {
             worker_utilization: self
                 .worker_utilization_ppm
                 .map(|utilization| utilization as f32 / 1_000_000.0),
-            high_cpu_steady: self.worker_load_warning.high_cpu_steady(),
             missed_quantum_flash: false,
             block_ratio_p95: 0.0,
             block_ratio_max: 0.0,

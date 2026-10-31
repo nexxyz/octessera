@@ -64,20 +64,14 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
         snapshot["workerUtilization"].as_f64(),
         Some(f64::from(0.9_f32))
     );
-    assert_eq!(snapshot["highCpuSteady"], true);
     assert_eq!(snapshot["missedQuantumFlash"], true);
     let _ = std::fs::remove_dir_all(root);
 }
 
-fn status(
-    worker_utilization: Option<f32>,
-    high_cpu_steady: bool,
-    missed_quantum_flash: bool,
-) -> AudioLoadStatus {
+fn status(worker_utilization: Option<f32>, missed_quantum_flash: bool) -> AudioLoadStatus {
     AudioLoadStatus {
         ratio: 0.2,
         worker_utilization,
-        high_cpu_steady,
         missed_quantum_flash,
         block_ratio_p95: 0.2,
         block_ratio_max: 0.2,

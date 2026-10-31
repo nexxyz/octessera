@@ -7,7 +7,6 @@ test('audio load normalization preserves missed quantum true and clear flags', (
     normalizeAudioLoadPayload({
       ratio: 0.2,
       workerUtilization: 0.9,
-      highCpuSteady: false,
       missedQuantumFlash: true,
     }).missedQuantumFlash,
     true,
@@ -16,7 +15,6 @@ test('audio load normalization preserves missed quantum true and clear flags', (
     normalizeAudioLoadPayload({
       ratio: 0.2,
       workerUtilization: 0.9,
-      highCpuSteady: true,
       missedQuantumFlash: false,
     }).missedQuantumFlash,
     false,

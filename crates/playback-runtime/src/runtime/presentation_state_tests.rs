@@ -18,7 +18,6 @@ fn native_state_reads_normalized_metrics_without_revising_or_serializing_oled() 
         .unwrap();
     runtime.update_presentation_metrics(RuntimePresentationMetrics {
         worker_utilization: Some(0.93),
-        high_cpu_steady: true,
         missed_quantum_flash: true,
         ..Default::default()
     });
@@ -28,7 +27,6 @@ fn native_state_reads_normalized_metrics_without_revising_or_serializing_oled() 
     for _ in 0..3 {
         let (metrics, error) = runtime.native_presentation_state();
         assert_eq!(metrics.worker_utilization, Some(0.93));
-        assert!(metrics.high_cpu_steady);
         assert!(metrics.missed_quantum_flash);
         assert_eq!(error, None);
     }
@@ -37,12 +35,10 @@ fn native_state_reads_normalized_metrics_without_revising_or_serializing_oled() 
     assert_eq!(runtime.last_snapshot(), snapshot.as_ref());
     runtime.update_presentation_metrics(RuntimePresentationMetrics {
         worker_utilization: None,
-        high_cpu_steady: true,
         ..Default::default()
     });
     let (metrics, _) = runtime.native_presentation_state();
     assert_eq!(metrics.worker_utilization, None);
-    assert!(!metrics.high_cpu_steady);
 }
 
 #[test]
@@ -202,13 +198,11 @@ fn native_metric_updates_change_only_typed_state_and_report_normalized_edges() {
     let first = RuntimePresentationMetrics {
         audio_load_ratio: 0.9,
         worker_utilization: Some(0.91),
-        high_cpu_steady: true,
         missed_quantum_flash: true,
     };
     assert!(runtime.update_native_presentation_metrics(first));
     let (metrics, error) = runtime.native_presentation_state();
     assert_eq!(metrics.worker_utilization, Some(0.91));
-    assert!(metrics.high_cpu_steady);
     assert!(metrics.missed_quantum_flash);
     assert_eq!(error, None);
     let revision = runtime.oled_frame_revision();
@@ -227,14 +221,12 @@ fn native_metric_updates_change_only_typed_state_and_report_normalized_edges() {
     assert!(
         runtime.update_native_presentation_metrics(RuntimePresentationMetrics {
             worker_utilization: None,
-            high_cpu_steady: true,
             missed_quantum_flash: false,
             ..Default::default()
         })
     );
     let (cleared, _) = runtime.native_presentation_state();
     assert_eq!(cleared.worker_utilization, None);
-    assert!(!cleared.high_cpu_steady);
     assert!(!cleared.missed_quantum_flash);
     assert_eq!(runtime.oled_frame_revision(), revision);
     assert_eq!(runtime.last_snapshot_revision(), snapshot_revision);

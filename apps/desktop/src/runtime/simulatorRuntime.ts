@@ -41,25 +41,19 @@ export function createSimulatorRuntime(
   let audioLoad: AudioLoadStatus = {
     ratio: 0,
     workerUtilization: undefined,
-    highCpuSteady: false,
     missedQuantumFlash: false,
   };
 
   const lifecycle = createRuntimeLifecycle({
     getSnapshot: () => reconciliation.getSnapshot(audioLoad),
     onAudioLoad: (status) => {
-      const previousHighCpu = audioLoad.highCpuSteady;
       const previousMissedQuantum = audioLoad.missedQuantumFlash;
       audioLoad = {
         ratio: Math.max(0, Math.min(2, status.ratio)),
         workerUtilization: status.workerUtilization,
-        highCpuSteady: status.highCpuSteady,
         missedQuantumFlash: status.missedQuantumFlash,
       };
-      if (
-        previousHighCpu !== status.highCpuSteady ||
-        previousMissedQuantum !== status.missedQuantumFlash
-      ) {
+      if (previousMissedQuantum !== status.missedQuantumFlash) {
         lifecycle.publish();
       }
     },

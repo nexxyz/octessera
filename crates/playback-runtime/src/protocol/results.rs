@@ -116,6 +116,9 @@ pub enum RuntimeStoreResult {
         ok: bool,
         #[serde(default)]
         message: String,
+        /// Whether a System recording is still running after this status.
+        #[serde(default)]
+        active: bool,
     },
     SystemInfoResult {
         info: RuntimeSystemInfo,

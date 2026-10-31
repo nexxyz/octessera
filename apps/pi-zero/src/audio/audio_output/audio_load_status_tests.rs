@@ -73,7 +73,6 @@ fn orange_jack_status_reaches_the_runtime_snapshot_and_oled() {
 
     let snapshot = playback.last_snapshot().expect("runtime snapshot");
     assert!(snapshot["workerUtilization"].as_f64().unwrap().is_finite());
-    assert_eq!(snapshot["highCpuSteady"], false);
     assert!(playback.last_oled_frame().is_some());
     let _ = std::fs::remove_dir_all(root);
 }
@@ -105,7 +104,6 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
             .abs()
             < 1e-6
     );
-    assert_eq!(playback.last_snapshot().unwrap()["highCpuSteady"], true);
     assert_eq!(
         playback.last_snapshot().unwrap()["missedQuantumFlash"],
         true
@@ -120,20 +118,14 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
         .as_object()
         .unwrap()
         .contains_key("workerUtilization"));
-    assert_eq!(snapshot["highCpuSteady"], false);
     assert_eq!(snapshot["missedQuantumFlash"], false);
     let _ = std::fs::remove_dir_all(root);
 }
 
-fn status(
-    worker_utilization: Option<f32>,
-    high_cpu_steady: bool,
-    missed_quantum_flash: bool,
-) -> AudioLoadStatus {
+fn status(worker_utilization: Option<f32>, missed_quantum_flash: bool) -> AudioLoadStatus {
     AudioLoadStatus {
         ratio: 0.2,
         worker_utilization,
-        high_cpu_steady,
         missed_quantum_flash,
         block_ratio_p95: 0.2,
         block_ratio_max: 0.2,

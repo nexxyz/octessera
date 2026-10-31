@@ -21,6 +21,7 @@ fn failed_manual_recording_stop_replays_typed_failure_to_clear_lifecycle() {
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message: "Recording started".into(),
+                active: true,
             },
         })
         .unwrap();
@@ -88,6 +89,7 @@ fn failed_reboot_recording_finalization_clears_lifecycle_and_keeps_transition_fa
             result: RuntimeStoreResult::RecordingStatus {
                 ok: true,
                 message: "Recording started".into(),
+                active: true,
             },
         })
         .unwrap();

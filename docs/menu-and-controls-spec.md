@@ -434,7 +434,6 @@ palette unless a behavior deliberately owns its own.
   brightness, or a same-kind flash retrigger, only moves the deadline. The fade adds at most one
   one-shot snapshot per 100 ms step; while playing, boards already capture on the 33 ms tick, so
   the fade only changes pixels (one extra OLED write per step, on the render worker).
-- Aggregate audio-load status does not drive the worker icon.
 - The CPU meter in the header's top right is three bars (`x=116`, `119`, `122`; 3, 5 and 7 px
   tall, bottoms on `y=11`) and is always shown on menu frames. It reads the highest load reported
   over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker
@@ -443,14 +442,13 @@ palette unless a behavior deliberately owns its own.
   `floor(2W/3)` rounded down to a multiple of 5 one green bar; from there up to `W` two yellow bars;
   at or above `W` three red bars. Unlit bars are dark gray. Yellow starts at 45/50/50/55/60/60 % for
   `W` = 70/75/80/85/90/95.
-- The persistent-worker CPU icon is magenta at `(107,5)` and shows only while valid persistent
-  worker metrics report `high_cpu_steady`; missing or inline metrics hide it. The configured
-  threshold (`System > Audio > Engine > CPU Warn %`) applies immediately. Clearing needs
-  utilization strictly below `threshold - 5` percentage points for five rendered seconds; equality
-  stays in the hold band and resets the clear timer.
-- A missed-quantum flash takes the same CPU slot with the inverted white/black CPU glyph and hides
-  the magenta icon while active. The yellow save icon at `(97,4)` may coexist with either CPU-slot
-  state.
+- There is no separate steady high-CPU icon; the meter covers it, so the engine no longer tracks a
+  steady-high state.
+- A missed-quantum flash shows the inverted white/black CPU glyph at `(107,5)`. The yellow save
+  icon at `(97,4)` may coexist with it.
+- The presentation also carries whether a System recording is running (`recordingActive`), from
+  the recording status the host reports when a recording starts, finishes, or fails, for the
+  footer's recording disc.
 - `DeadlineMiss` is native, nonterminal ownership recovery. A newly missed persistent quantum
   replays the previous final master quantum exactly once when its frame count matches, otherwise it
   emits silence; later refills during recovery are silent. `missedQuantumFlash` stays set for five

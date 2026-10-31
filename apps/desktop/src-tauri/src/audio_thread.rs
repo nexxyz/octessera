@@ -14,8 +14,6 @@ struct AudioLoadPayload {
     ratio: f32,
     #[serde(rename = "workerUtilization")]
     worker_utilization: Option<f32>,
-    #[serde(rename = "highCpuSteady")]
-    high_cpu_steady: bool,
     #[serde(rename = "missedQuantumFlash")]
     missed_quantum_flash: bool,
     #[serde(rename = "blockRatioP95")]
@@ -94,7 +92,6 @@ pub(crate) fn spawn_load_listener(
                 RuntimePresentationMetrics {
                     audio_load_ratio: status.ratio,
                     worker_utilization: status.worker_utilization,
-                    high_cpu_steady: status.high_cpu_steady,
                     missed_quantum_flash: status.missed_quantum_flash,
                 },
             ));
@@ -103,7 +100,6 @@ pub(crate) fn spawn_load_listener(
                 AudioLoadPayload {
                     ratio: status.ratio,
                     worker_utilization: status.worker_utilization,
-                    high_cpu_steady: status.high_cpu_steady,
                     missed_quantum_flash: status.missed_quantum_flash,
                     block_ratio_p95: status.block_ratio_p95,
                     block_ratio_max: status.block_ratio_max,

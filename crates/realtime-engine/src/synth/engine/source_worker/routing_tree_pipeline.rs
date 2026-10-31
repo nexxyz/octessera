@@ -295,7 +295,7 @@ impl SourceWorkerRuntime {
                 return None;
             }
             if let Some(utilization_ppm) = load.snapshot().utilization_ppm {
-                engine.observe_worker_utilization(utilization_ppm, stamp.frames);
+                engine.observe_worker_utilization(utilization_ppm);
             }
         }
         self.source_load_observations = [None; SOURCE_WORKER_COUNT];
