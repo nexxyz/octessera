@@ -80,7 +80,7 @@ System
 │   ├── Aux Prio.: [Manual | Auto]       ← while Auto Map is on; default Manual
 │   ├── Auto Hints: [on | off]           default on
 │   ├── Manual Hints: [on | off]         default on
-│   ├── Num Style: [bar | numbers]       default bar; old bar+numbers saves load as bar
+│   ├── Num Style: [bar | numbers]       default bar
 │   ├── Dim Timer: [0..600] step 10 s
 │   ├── OLED Sleep: [0..600] step 10 s
 │   ├── OLED Bright: [10..100] step 5
@@ -378,8 +378,7 @@ changed edit saves System like any other System preference, shows `Applying...`,
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority), and the brightness
   rows under [Brightness](../menu-and-controls-spec.md#brightness).
 - `HDMI Video > Mode` persists `runtimeConfig.hdmi.mode`
-  (`terminal|live-grid|plain-grid|active-behavior|cycle-behaviors`, default `live-grid`; older saves
-  stored `none`, which loads as `terminal`). Terminal releases and disables Octessera framebuffer output so the Linux terminal can
+  (`terminal|live-grid|plain-grid|active-behavior|cycle-behaviors`, default `live-grid`). Terminal releases and disables Octessera framebuffer output so the Linux terminal can
   show, while snapshots keep their black/inactive HDMI grid.
 - `Bars per cycle` (`hdmi.cycleMeasures`) appears only in `cycle-behaviors` and sets how many bars
   each behavior stays on screen before Cycle Behaviors advances.

@@ -408,7 +408,7 @@ palette unless a behavior deliberately owns its own.
   inside the editing box.
 - `Num Style` has two modes. `bar` (the default) gives every bar-type number row a mini bar,
   selected or not, in place of the number; `numbers` shows numbers only and no bars.
-  Saves holding the retired `bar+numbers` load as `bar`. Each bar carries its fraction and style:
+  Each bar carries its fraction and style:
   `marker` for pan, semitones, cents, detune and envelope amount, `fill` otherwise.
 - Bar fractions follow encoder-turn space (see [Numeric steps](#numeric-steps)), so a bar moves
   evenly per detent: time rows use the share of coarse detents from the minimum, frequency and Q
@@ -703,7 +703,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   Auto: the auto target wins, so manual bindings act only where the page's layout leaves that turn
   or click empty, such as pages without a layout. The rule applies per turn and per click, plain
   and Shift bank alike, and the same resolver feeds Aux input, the row caps, the footer hints and
-  the Fn mapping overlay. Saves from before the setting load as `manual`.
+  the Fn mapping overlay.
 - Each layout lists up to six entries in order of how often they are played: the first three go
   to Aux 1-3, the rest to Shift + Aux 1-3.
 - Focused rows show indicators such as `1-Cutoff`, `1!Assign` and `S1-Key` in place of the row

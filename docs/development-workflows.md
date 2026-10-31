@@ -135,10 +135,12 @@ menus, Link mapping, instruments or FX.
 
 ## Saved-key changes
 
-The save loaders reject any key the current model does not know, so removing or
-renaming a saved key can stop a board from booting its own store. Before such a
-change lands, compose both boards' real stores with the new code. Copy them to
-`target/board-stores/` (they hold your music, so keep them out of the tree):
+The save loaders reject any key or value the current model does not know, so
+removing, renaming, or re-ranging a saved key can stop a board from booting its
+own store. Until a beta there are no concrete migrations: instead of teaching the
+loader old shapes, normalize the existing stores (both boards and this host's
+desktop store) to the new schema. Copy the board stores to `target/board-stores/`
+(they hold your music, so keep them out of the tree):
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"; $OrangeTarget = "octessera@<ORANGE_HOST>"
@@ -156,9 +158,20 @@ then compose every patch and backup against its board's `system.json`:
 OCTESSERA_STORE_COPY="$PWD/target/board-stores" cargo test -p playback-runtime --test board_store_compose -- --ignored --nocapture
 ```
 
-Old saves that still carry a retired key are cleaned on load in
-`native_runner/retired_config_keys.rs`; add the key there rather than loosening
-the strict checks.
+The desktop store lives in `%APPDATA%/xyz.nex.octessera/` (or
+`OCTESSERA_DESKTOP_STORE_DIR`); copy its `system.json`, `default.patch.json`,
+and `presets/` into a third folder next to the boards to compose it too.
+
+For every document that fails, rewrite only the offending keys or values to the
+current schema with a throwaway script under `target/`, keep a backup of the
+originals, and compose again until all pass. Then write the stores back: stop the
+service (or close the desktop app), keep a copy of the old store on the board,
+replace the files, and start it again. Leave patches, layers, samples, and
+bindings alone.
+
+`native_runner/retired_config_keys.rs` stays as the mechanism for dropping
+retired keys on load once there are saves in other hands; until then it carries
+no entries, so do not add one instead of normalizing the stores.
 
 ## Pre-push hook
 
