@@ -52,7 +52,11 @@ pub(crate) fn native_text_row_edits_layer_name_and_clears_auto_name() {
     let snapshot = runner.menu.snapshot();
     runner.apply_current_menu_edit().unwrap();
 
-    assert!(snapshot.lines.iter().any(|line| line == "    * lifeA"));
+    let row = snapshot.rows[snapshot.selected_row.unwrap()]
+        .as_ref()
+        .unwrap();
+    assert_eq!(row.value, "lifeA");
+    assert!(row.text_cursor.is_some());
     assert!(snapshot.lines.iter().all(|line| !line.contains('@')));
     assert_eq!(runner.layer_names[0], "lifeA");
     assert!(!runner.layer_auto_names[0]);
@@ -87,7 +91,11 @@ pub(crate) fn lowercase_text_edit_and_manual_instrument_name_round_trip() {
     runner.menu.press();
     runner.menu.turn(27);
     let snapshot = runner.menu.snapshot();
-    assert!(snapshot.lines.iter().any(|line| line == "    * lifea"));
+    let row = snapshot.rows[snapshot.selected_row.unwrap()]
+        .as_ref()
+        .unwrap();
+    assert_eq!(row.value, "lifea");
+    assert!(row.text_cursor.is_some());
 }
 
 #[test]

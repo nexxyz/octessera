@@ -86,9 +86,8 @@ impl<'a> VisibleMenuDriver<'a> {
         self.device.press_main();
         for attempt in 0..32 {
             if self
-                .lines()
-                .iter()
-                .any(|line| line.trim_start().starts_with('*') && enum_option_matches(line, value))
+                .selected_value()
+                .is_some_and(|shown| shown.eq_ignore_ascii_case(value))
             {
                 self.device.press_main();
                 self.ensure_not_editing(label);
@@ -112,9 +111,8 @@ impl<'a> VisibleMenuDriver<'a> {
         self.device.press_main();
         for attempt in 0..32 {
             if self
-                .lines()
-                .iter()
-                .any(|line| line.trim_start().starts_with('*') && enum_option_matches(line, value))
+                .selected_value()
+                .is_some_and(|shown| shown.eq_ignore_ascii_case(value))
             {
                 self.device.press_main();
                 self.ensure_not_editing("selected row");
@@ -195,11 +193,6 @@ impl<'a> VisibleMenuDriver<'a> {
         self.selected_index().is_some_and(|index| {
             let line = &lines[index];
             contains_label(&clean_line(line), label)
-                || (is_link_instrument_detail(line)
-                    && index > 0
-                    && lines[index - 1]
-                        .trim()
-                        .eq_ignore_ascii_case(&format!("{label}:")))
         })
     }
 
@@ -243,6 +236,13 @@ impl<'a> VisibleMenuDriver<'a> {
         (index < self.lines().len()).then_some(index)
     }
 
+    fn selected_value(&self) -> Option<String> {
+        let index = self.selected_index()?;
+        self.device.snapshot()["display"]["rows"][index]["value"]
+            .as_str()
+            .map(str::to_string)
+    }
+
     fn selected_line(&self) -> Option<String> {
         self.selected_index()
             .map(|index| self.lines()[index].clone())
@@ -270,24 +270,4 @@ fn row_label(line: &str) -> String {
 fn contains_label(line: &str, label: &str) -> bool {
     line.to_ascii_lowercase()
         .contains(&label.to_ascii_lowercase())
-}
-
-fn is_link_instrument_detail(line: &str) -> bool {
-    let detail = line.trim();
-    detail.eq_ignore_ascii_case("none")
-        || detail
-            .strip_prefix('I')
-            .and_then(|slot| slot.split_once(':'))
-            .is_some_and(|(number, name)| {
-                !number.is_empty()
-                    && number.chars().all(|character| character.is_ascii_digit())
-                    && !name.trim().is_empty()
-            })
-}
-
-fn enum_option_matches(line: &str, value: &str) -> bool {
-    clean_line(line)
-        .trim_start_matches('*')
-        .trim()
-        .eq_ignore_ascii_case(value)
 }

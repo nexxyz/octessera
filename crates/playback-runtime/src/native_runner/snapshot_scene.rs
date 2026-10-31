@@ -257,6 +257,7 @@ impl PresentationScene {
                         })
                     })
                     .collect(),
+                rows: display.rows.clone(),
                 scroll: display.scroll.as_ref().map(|scroll| OledScrollInput {
                     offset: scroll.scroll_offset,
                     total_rows: scroll.total_rows,

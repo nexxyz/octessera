@@ -189,6 +189,7 @@ fn rehydrate_midi_input_display(snapshot: &mut serde_json::Map<String, Value>) {
         json!([platform_core::palette::WHITE_RGB565]),
     );
     display.insert("barValues".into(), json!([null]));
+    display.insert("rows".into(), json!([null]));
     display.insert("scrollOffset".into(), Value::Null);
     display.insert("totalRows".into(), Value::Null);
     display.insert("visibleRows".into(), Value::Null);

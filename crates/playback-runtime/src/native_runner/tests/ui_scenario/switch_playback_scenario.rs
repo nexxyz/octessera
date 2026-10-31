@@ -211,16 +211,12 @@ fn selected_row_value(snapshot: &Value, label: &str) -> String {
 }
 
 fn selected_enum_option(snapshot: &Value) -> String {
-    snapshot["display"]["lines"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .find_map(|line| {
-            let option = line.trim_start().strip_prefix('*')?.trim();
-            (!option.is_empty()).then(|| option.to_string())
-        })
-        .unwrap_or_else(|| panic!("step=enum edit destination=selected row expected=marked option"))
+    snapshot["selectedRow"]
+        .as_u64()
+        .and_then(|row| snapshot["display"]["rows"][row as usize]["value"].as_str())
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| panic!("step=enum edit destination=selected row expected=row value"))
 }
 
 fn assert_transport_unchanged_at_menu_exit(device: &DeviceDriver, expected_pulse: u64, step: &str) {

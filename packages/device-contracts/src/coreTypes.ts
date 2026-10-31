@@ -43,9 +43,23 @@ export type DisplayFrame = {
     numChars: number;
     style?: "marker" | string;
   } | null>;
+  rows?: Array<DisplayMenuRow | null>;
   scrollOffset?: number | null;
   totalRows?: number | null;
   visibleRows?: number | null;
+};
+
+export type AuxCap = {
+  encoder: number;
+  shift: boolean;
+};
+
+export type DisplayMenuRow = {
+  kind: "value" | "group" | "action";
+  label: string;
+  value: string;
+  textCursor: number | null;
+  auxCap: AuxCap | null;
 };
 
 export type OledFrame = {

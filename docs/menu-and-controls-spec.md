@@ -226,9 +226,9 @@ Aux mappings modal:
 - Named target selectors (instrument slot, layer index, mixer route) display computed names, for
   example `I1: synth`, `L3: rain`, `fxb2`, never raw IDs.
 - The instrument selectors under `Link > Lx > Scanning` and `Link > Lx > Events` keep options as
-  `none` plus `I#: name`. Unselected rows show only `I#`. The selected row uses exactly two body
-  rows: its plain heading, then `  I#: name` (`* I#: name` while editing). Long selected details
-  scroll horizontally while browsing and editing.
+  `none` plus `I#: name`. Unselected rows show only `I#`; the selected row shows the full
+  `I#: name` on the same row (`Instr. I1: synth`). Long selected values scroll horizontally while
+  browsing and editing.
 
 ### Parameter target pickers
 
@@ -251,7 +251,7 @@ Modulation slots, Aux Turn bindings, Play XY axes, and LFO targets share one men
   restart flow, Back means Cancel at the `Apply System` choice and Continue at the `Restart?`
   choice.
 - Bool rows behave like a two-option enum, display `On`/`Off`, and change on encoder turn, not on
-  row press. Text rows show a `*` prefix and an in-text cursor while editing.
+  row press. Text rows show an in-text cursor while editing.
 - Structural selector edits apply immediately while the row is in edit mode, through key-specific
   fast paths: instrument type, instrument route, FX bus slot type, and master FX slot type. A
   behavior applies when its selector item is pressed. Dynamic parameter rows also apply while
@@ -356,10 +356,13 @@ palette unless a behavior deliberately owns its own.
 ### Body rows
 
 - The inverted highlight bar alone marks the selected menu row; there is no text marker, so a
-  row's text sits at the same position selected or not, with or without an auto-map prefix. Edit
-  mode marks the value with `* `. While browsing, a selected value row stays compact on one line
-  (for example `  Cutoff 127`); edit mode shows a separate value-focused row. Group rows keep their
-  trailing ` >`.
+  row's text sits at the same position selected or not, with or without an auto-map prefix. Every
+  menu item is exactly one body row: selecting or editing never adds a row, and edit mode has no
+  `*` marker (the snapshot's `editing` flag carries it). Group rows keep their trailing ` >`.
+- Each menu row also carries its parts for the OLED: kind (`value`, `group` with `>`, or `action`
+  with `!`), label, value text, the edit cursor position of a text row being edited, and the Aux
+  cap (encoder 1-3, plain or Shift) whose auto map controls it. Scroll metadata counts one row per
+  item.
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
   with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
   the same width; shifted rows use `S1-`/`S1!`.

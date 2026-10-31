@@ -35,6 +35,7 @@ impl PresentationScene {
                 "lines": display.lines,
                 "colors": display.colors,
                 "barValues": bar_values,
+                "rows": display.rows,
                 "scrollOffset": display.scroll.as_ref().map(|scroll| scroll.scroll_offset),
                 "totalRows": display.scroll.as_ref().map(|scroll| scroll.total_rows),
                 "visibleRows": display.scroll.as_ref().map(|scroll| scroll.visible_rows),

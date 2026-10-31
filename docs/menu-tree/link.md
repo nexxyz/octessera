@@ -33,7 +33,7 @@ Link
 │   │   ├── Scan Unit: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]
 │   │   ├── Scan Dir: [forward | reverse]
 │   │   ├── Sections: [1 | 2 | 4 | 8]
-│   │   ├── Instrument: [none | I1: <name> .. I8: <name>]
+│   │   ├── Instr.: [none | I1: <name> .. I8: <name>]
 │   │   ├── Action: [none | note_on | note_off]
 │   │   ├── Scan Delay: [0..16]
 │   │   ├── Scan Retrig: [0..8]

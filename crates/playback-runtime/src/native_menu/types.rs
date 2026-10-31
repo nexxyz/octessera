@@ -120,8 +120,26 @@ pub struct NativeMenuSnapshot {
     pub line_keys: Vec<Option<String>>,
     pub line_actions: Vec<Option<NativeMenuAction>>,
     pub full_lines: Vec<Option<String>>,
+    pub rows: Vec<Option<NativeMenuRow>>,
     pub selected_row: Option<usize>,
     pub selected_action: Option<NativeMenuAction>,
+}
+
+/// One menu item as one body row, split into the parts the OLED draws.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeMenuRow {
+    pub kind: NativeMenuRowKind,
+    pub label: String,
+    pub value: String,
+    /// Character index of the edit cursor in `value`, only for a text row being edited.
+    pub text_cursor: Option<usize>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NativeMenuRowKind {
+    Value,
+    Group,
+    Action,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

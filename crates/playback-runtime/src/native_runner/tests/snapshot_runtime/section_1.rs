@@ -175,7 +175,7 @@ pub(crate) fn selected_short_menu_row_stays_stable_while_highlighted() {
     runner.display.menu_scroll_offset = 4;
     runner.menu.state.editing = true;
     let editing = runner.snapshot().unwrap();
-    assert_eq!(editing["display"]["lines"][3], "  Paused Events:");
+    assert_eq!(editing["display"]["lines"][3], "  Paused Events On");
 }
 
 #[test]

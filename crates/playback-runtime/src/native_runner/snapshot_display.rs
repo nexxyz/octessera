@@ -1,7 +1,9 @@
 use super::toast_text::clip_display_line;
 use super::{NativeRunner, OLED_BODY_ROWS};
-use crate::native_menu::{NativeMenuBarValue, NativeMenuSnapshot};
-use crate::oled_frame::OledDisplayLayout;
+use crate::native_menu::{
+    NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
+};
+use crate::oled_frame::{OledAuxCap, OledDisplayLayout, OledMenuRowInput, OledMenuRowKind};
 
 mod drum;
 mod modal_screens;
@@ -22,6 +24,7 @@ pub(super) struct DisplaySnapshot {
     pub(super) colors: Vec<u16>,
     pub(super) bar_values: Vec<Option<NativeMenuBarValue>>,
     pub(super) full_lines: Vec<Option<String>>,
+    pub(super) rows: Vec<Option<OledMenuRowInput>>,
     pub(super) scroll: Option<DisplayScrollMetadata>,
     pub(super) selected_row: Option<usize>,
 }
@@ -86,6 +89,7 @@ impl NativeRunner {
                 display.colors = vec![platform_core::palette::WHITE_RGB565; display.lines.len()];
                 display.bar_values = vec![None; display.lines.len()];
                 display.full_lines = vec![None; display.lines.len()];
+                display.rows = vec![None; display.lines.len()];
                 display.scroll = None;
                 display.selected_row = None;
             }
@@ -118,6 +122,7 @@ impl NativeRunner {
         display.colors.truncate(display.lines.len());
         display.bar_values.truncate(display.lines.len());
         display.full_lines.truncate(display.lines.len());
+        display.rows.truncate(display.lines.len());
         display
     }
 }
@@ -157,6 +162,7 @@ fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row: None,
     }
@@ -166,14 +172,26 @@ fn menu_display(
     runner: &NativeRunner,
     menu: crate::native_menu::NativeMenuSnapshot,
 ) -> DisplaySnapshot {
-    let rows = menu
-        .lines
-        .iter()
-        .cloned()
-        .enumerate()
-        .map(|(row, line)| menu_row_presentation(runner, &menu, row, line))
-        .collect::<Vec<_>>();
-    let (lines, full_lines): (Vec<_>, Vec<_>) = rows.into_iter().unzip();
+    let mut lines = Vec::with_capacity(menu.lines.len());
+    let mut full_lines = Vec::with_capacity(menu.lines.len());
+    let mut rows = Vec::with_capacity(menu.lines.len());
+    for (row, line) in menu.lines.iter().enumerate() {
+        let cap = runner.auto_map_cap_for_line(
+            menu.line_keys.get(row).and_then(|key| key.as_deref()),
+            menu.line_actions
+                .get(row)
+                .and_then(|action| action.as_ref()),
+        );
+        let (line, full_line) = menu_row_presentation(&menu, row, line.clone(), cap);
+        lines.push(line);
+        full_lines.push(full_line);
+        rows.push(
+            menu.rows
+                .get(row)
+                .and_then(Option::as_ref)
+                .map(|parts| menu_row_input(parts, cap)),
+        );
+    }
     DisplaySnapshot {
         body_layout: OledDisplayLayout::Rows,
         title: menu.path,
@@ -181,6 +199,7 @@ fn menu_display(
         colors: menu.colors,
         bar_values: menu.bar_values,
         full_lines,
+        rows,
         scroll: menu.scroll.map(|scroll| DisplayScrollMetadata {
             scroll_offset: scroll.scroll_offset,
             total_rows: scroll.total_rows,
@@ -196,28 +215,50 @@ pub(super) fn selected_menu_presentation_line(
 ) -> Option<String> {
     let row = menu.selected_row?;
     let line = menu.lines.get(row)?.clone();
-    let (line, full_line) = menu_row_presentation(runner, menu, row, line);
-    Some(full_line.unwrap_or(line))
-}
-
-fn menu_row_presentation(
-    runner: &NativeRunner,
-    menu: &NativeMenuSnapshot,
-    row: usize,
-    line: String,
-) -> (String, Option<String>) {
-    let prefix = runner.auto_map_prefix_for_line(
+    let cap = runner.auto_map_cap_for_line(
         menu.line_keys.get(row).and_then(|key| key.as_deref()),
         menu.line_actions
             .get(row)
             .and_then(|action| action.as_ref()),
     );
+    let (line, full_line) = menu_row_presentation(menu, row, line, cap);
+    Some(full_line.unwrap_or(line))
+}
+
+fn menu_row_presentation(
+    menu: &NativeMenuSnapshot,
+    row: usize,
+    line: String,
+    cap: Option<(OledAuxCap, bool)>,
+) -> (String, Option<String>) {
+    let prefix = cap.map(|(cap, press)| {
+        format!(
+            "{}{}{}",
+            if cap.shift { "S" } else { "" },
+            cap.encoder,
+            if press { '!' } else { '-' }
+        )
+    });
     let full_line = menu
         .full_lines
         .get(row)
         .and_then(|line| line.clone())
         .map(|full_line| prefix_line(full_line, prefix.clone()));
     (prefix_line(line, prefix), full_line)
+}
+
+fn menu_row_input(row: &NativeMenuRow, cap: Option<(OledAuxCap, bool)>) -> OledMenuRowInput {
+    OledMenuRowInput {
+        kind: match row.kind {
+            NativeMenuRowKind::Value => OledMenuRowKind::Value,
+            NativeMenuRowKind::Group => OledMenuRowKind::Group,
+            NativeMenuRowKind::Action => OledMenuRowKind::Action,
+        },
+        label: row.label.clone(),
+        value: row.value.clone(),
+        text_cursor: row.text_cursor,
+        aux_cap: cap.map(|(cap, _)| cap),
+    }
 }
 
 fn prefix_line(line: String, prefix: Option<String>) -> String {

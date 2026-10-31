@@ -82,15 +82,14 @@ fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
     runner.menu.state.editing = true;
 
     let menu = runner.menu.snapshot();
-    let detail_row = menu.selected_row.expect("selected detail row");
-    assert_eq!(menu.lines[detail_row - 1], "  On Inst:");
+    let detail_row = menu.selected_row.expect("selected row");
     assert_eq!(
-        menu.lines[detail_row],
-        "* I1: This Long Instrument Name Scrolls Across the OLED Display"
+        menu.rows[detail_row].as_ref().map(|row| row.value.as_str()),
+        Some("I1: This Long Instrument Name Scrolls Across the OLED Display")
     );
     assert_eq!(
         menu.full_lines[detail_row].as_deref(),
-        Some("* I1: This Long Instrument Name Scrolls Across the OLED Display")
+        Some("  On Inst I1: This Long Instrument Name Scrolls Across the OLED Display")
     );
     assert_eq!(
         runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
@@ -100,7 +99,7 @@ fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
     let first = runner.display_snapshot(menu);
     assert_eq!(
         first.full_lines[detail_row].as_deref(),
-        Some("* I1: This Long Instrument Name Scrolls Across the OLED Display")
+        Some("  On Inst I1: This Long Instrument Name Scrolls Across the OLED Display")
     );
     assert!(first.lines.len() <= 7);
     runner.display.menu_scroll_offset = 8;

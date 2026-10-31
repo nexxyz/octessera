@@ -43,7 +43,7 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     }
     if key == "play.fx.type" {
         return match raw.as_str() {
-            "filter_sweep" => "sweep".into(),
+            "filter_sweep" => "flt_sweep".into(),
             "pitch_shift" => "pitch".into(),
             _ => raw,
         };

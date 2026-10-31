@@ -219,6 +219,7 @@ pub(super) fn bluetooth_pairing_display(pairing: &RuntimeBluetoothPairing) -> Di
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row: Some(line_count.saturating_sub(1)),
     }

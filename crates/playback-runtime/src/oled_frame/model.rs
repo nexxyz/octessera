@@ -1,4 +1,5 @@
 use super::OledDisplayLayout;
+use serde::{Deserialize, Serialize};
 
 pub const INDICATOR_FADE_LEVELS: u8 = 4;
 
@@ -26,9 +27,37 @@ pub struct OledDisplayInput {
     pub lines: Vec<String>,
     pub colors: Vec<u16>,
     pub bars: Vec<Option<OledBarInput>>,
+    /// Parallel to `lines`: the parts of each menu item row, `None` for plain text lines.
+    pub rows: Vec<Option<OledMenuRowInput>>,
     pub scroll: Option<OledScrollInput>,
     pub editing: bool,
     pub toast: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledMenuRowInput {
+    pub kind: OledMenuRowKind,
+    pub label: String,
+    pub value: String,
+    pub text_cursor: Option<usize>,
+    pub aux_cap: Option<OledAuxCap>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OledMenuRowKind {
+    Value,
+    Group,
+    Action,
+}
+
+/// The Aux encoder (1-3) and layer whose control maps to a row or footer hint.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAuxCap {
+    pub encoder: u8,
+    pub shift: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]

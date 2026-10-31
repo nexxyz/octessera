@@ -142,11 +142,10 @@ pub(crate) fn link_starts_with_global_rows_and_layer_rows_are_enterable() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Link");
     assert_eq!(snapshot.lines[0], "  BPM 120");
-    assert_eq!(snapshot.lines[1], "");
-    assert!(snapshot.bar_values[1].is_some());
-    assert_eq!(snapshot.lines[2], "  Swing 0%");
-    assert_eq!(snapshot.lines[3], "  Aux Mappings >");
-    assert_eq!(snapshot.lines[4], "  LFOs >");
+    assert!(snapshot.bar_values[0].is_some());
+    assert_eq!(snapshot.lines[1], "  Swing 0%");
+    assert_eq!(snapshot.lines[2], "  Aux Mappings >");
+    assert_eq!(snapshot.lines[3], "  LFOs >");
     let layer_index = menu
         .current_siblings()
         .iter()

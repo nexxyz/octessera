@@ -1,7 +1,7 @@
 use super::{
-    OledBarInput, OledBarStyle, OledDisplayInput, OledDisplayLayout, OledPresentationInput,
-    OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash,
-    OledTransportFlash, OledTransportIcon, OledTransportInput,
+    OledBarInput, OledBarStyle, OledDisplayInput, OledDisplayLayout, OledMenuRowInput,
+    OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
+    OledScrollInput, OledSplash, OledTransportFlash, OledTransportIcon, OledTransportInput,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -24,6 +24,7 @@ struct DisplayInputDto {
     colors: Vec<u16>,
     #[serde(rename = "barValues")]
     bars: Vec<Option<BarInputDto>>,
+    rows: Vec<Option<OledMenuRowInput>>,
     #[serde(rename = "scrollOffset")]
     scroll_offset: Option<usize>,
     #[serde(rename = "totalRows")]
@@ -125,6 +126,7 @@ pub(crate) fn presentation_input_from_snapshot(
             lines: display.lines,
             colors: display.colors,
             bars,
+            rows: display.rows,
             scroll,
             editing: display.editing,
             toast: display.toast,

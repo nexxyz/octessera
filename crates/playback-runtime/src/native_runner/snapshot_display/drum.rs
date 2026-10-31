@@ -30,6 +30,7 @@ pub(super) fn play_menu_display(
         display.colors.push(platform_core::palette::WHITE_RGB565);
         display.bar_values.push(None);
         display.full_lines.push(None);
+        display.rows.push(None);
         if let Some(scroll) = &mut display.scroll {
             scroll.total_rows += 1;
             scroll.visible_rows = display.lines.len();

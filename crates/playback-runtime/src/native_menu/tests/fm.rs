@@ -208,20 +208,17 @@ fn fm_fine_cents_display_signed_values_and_back_returns_to_tone_row() {
     menu.turn(25);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "  Fine cents:");
-    assert_eq!(snapshot.lines[selected_row + 1], "    * +25c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine cents +25c");
 
     menu.turn(-50);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "  Fine cents:");
-    assert_eq!(snapshot.lines[selected_row + 1], "    * -25c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine cents -25c");
 
     menu.turn(25);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "  Fine cents:");
-    assert_eq!(snapshot.lines[selected_row + 1], "    * +0c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine cents +0c");
 
     menu.back();
     let snapshot = menu.snapshot();

@@ -1,6 +1,5 @@
 use super::format::{
-    format_item_bar_values, format_item_full_selected_line, format_item_lines,
-    formatted_item_row_count, section_color_for_label,
+    format_item_bar_value, format_item_full_selected_line, format_item_row, section_color_for_label,
 };
 use super::{
     NativeMenuItem, NativeMenuModel, NativeMenuScrollMetadata, NativeMenuSnapshot, NativeMenuValue,
@@ -43,60 +42,35 @@ impl NativeMenuModel {
         let path = self.path_label();
         let section_color = self.path_section_color();
         let root_level = self.state.stack.is_empty();
-        let mut lines = Vec::with_capacity(MENU_BODY_ROWS);
-        let mut colors = Vec::with_capacity(MENU_BODY_ROWS);
-        let mut bar_values = Vec::with_capacity(MENU_BODY_ROWS);
-        let mut line_keys = Vec::with_capacity(MENU_BODY_ROWS);
-        let mut line_actions = Vec::with_capacity(MENU_BODY_ROWS);
-        let mut full_lines = Vec::with_capacity(MENU_BODY_ROWS);
-        let mut selected_row = None;
-
-        for (index, item) in siblings.iter().enumerate().skip(start).take(end - start) {
-            materialize_item_rows(
-                self,
-                item,
-                index,
-                root_level,
-                section_color,
-                &mut lines,
-                &mut colors,
-                &mut bar_values,
-                &mut line_keys,
-                &mut line_actions,
-                &mut full_lines,
-                &mut selected_row,
-            );
-        }
-
-        truncate_snapshot_vectors(
-            &mut lines,
-            &mut colors,
-            &mut bar_values,
-            &mut line_keys,
-            &mut line_actions,
-            &mut full_lines,
-        );
-        if lines.is_empty() {
-            return empty_snapshot(path, section_color);
-        }
-        let visible_rows = lines.len();
-        NativeMenuSnapshot {
+        let rows = end - start;
+        let mut snapshot = NativeMenuSnapshot {
             path,
             section_color,
-            lines,
-            colors,
-            bar_values,
-            scroll: Some(NativeMenuScrollMetadata {
-                scroll_offset: 0,
-                total_rows: visible_rows,
-                visible_rows,
-            }),
-            line_keys,
-            line_actions,
-            full_lines,
-            selected_row,
-            selected_action: selected_action(self.current_item()),
+            lines: Vec::with_capacity(rows),
+            colors: Vec::with_capacity(rows),
+            bar_values: Vec::with_capacity(rows),
+            scroll: None,
+            line_keys: Vec::with_capacity(rows),
+            line_actions: Vec::with_capacity(rows),
+            full_lines: Vec::with_capacity(rows),
+            rows: Vec::with_capacity(rows),
+            selected_row: None,
+            selected_action: None,
+        };
+        for (index, item) in siblings.iter().enumerate().skip(start).take(rows) {
+            push_item_row(self, item, index, root_level, section_color, &mut snapshot);
         }
+        if snapshot.lines.is_empty() {
+            return empty_snapshot(snapshot.path, section_color);
+        }
+        let visible_rows = snapshot.lines.len();
+        snapshot.scroll = Some(NativeMenuScrollMetadata {
+            scroll_offset: 0,
+            total_rows: visible_rows,
+            visible_rows,
+        });
+        snapshot.selected_action = selected_action(self.current_item());
+        snapshot
     }
 }
 
@@ -115,6 +89,7 @@ fn empty_snapshot(path: String, section_color: u16) -> NativeMenuSnapshot {
         line_keys: vec![None],
         line_actions: vec![None],
         full_lines: vec![None],
+        rows: vec![None],
         selected_row: Some(0),
         selected_action: None,
     }
@@ -124,137 +99,43 @@ fn snapshot_window(
     model: &NativeMenuModel,
     siblings: &[NativeMenuItem],
 ) -> (usize, usize, usize, usize) {
-    let cursor = model.state.cursor.min(siblings.len().saturating_sub(1));
-    let mut start = cursor;
-    let mut end = cursor + 1;
-    let mut row_count = item_row_count(
-        &siblings[cursor],
-        true,
-        model.state.editing,
-        &model.numeric_display_mode,
-    );
-    while row_count < MENU_BODY_ROWS && (start > 0 || end < siblings.len()) {
-        let mut grew = false;
-        if start > 0 {
-            let prev_rows = item_row_count(
-                &siblings[start - 1],
-                false,
-                false,
-                &model.numeric_display_mode,
-            );
-            if row_count + prev_rows <= MENU_BODY_ROWS || end >= siblings.len() {
-                start -= 1;
-                row_count += prev_rows;
-                grew = true;
-            }
-        }
-        if row_count >= MENU_BODY_ROWS {
-            break;
-        }
-        if end < siblings.len() {
-            let next_rows =
-                item_row_count(&siblings[end], false, false, &model.numeric_display_mode);
-            if row_count + next_rows <= MENU_BODY_ROWS || start == 0 {
-                end += 1;
-                row_count += next_rows;
-                grew = true;
-            }
-        }
-        if !grew {
-            break;
-        }
-    }
-    let (scroll_offset, total_rows) = scroll_row_counts(model, siblings, start);
-    (start, end, scroll_offset, total_rows)
+    let total_rows = siblings.len();
+    let cursor = model.state.cursor.min(total_rows.saturating_sub(1));
+    let start = cursor.saturating_sub((MENU_BODY_ROWS - 1) / 2);
+    let end = (start + MENU_BODY_ROWS).min(total_rows);
+    let start = end.saturating_sub(MENU_BODY_ROWS);
+    (start, end, start, total_rows)
 }
 
-fn scroll_row_counts(
-    model: &NativeMenuModel,
-    siblings: &[NativeMenuItem],
-    window_start: usize,
-) -> (usize, usize) {
-    let mut scroll_offset = 0;
-    let mut total_rows = 0;
-    for (index, item) in siblings.iter().enumerate() {
-        let rows = item_row_count(
-            item,
-            index == model.state.cursor,
-            index == model.state.cursor && model.state.editing,
-            &model.numeric_display_mode,
-        );
-        if index < window_start {
-            scroll_offset += rows;
-        }
-        total_rows += rows;
-    }
-    (scroll_offset, total_rows)
-}
-
-fn item_row_count(
-    item: &NativeMenuItem,
-    selected: bool,
-    editing: bool,
-    numeric_display_mode: &str,
-) -> usize {
-    formatted_item_row_count(item, selected, editing, numeric_display_mode)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn materialize_item_rows(
+fn push_item_row(
     model: &NativeMenuModel,
     item: &NativeMenuItem,
     index: usize,
     root_level: bool,
     section_color: u16,
-    lines: &mut Vec<String>,
-    colors: &mut Vec<u16>,
-    bar_values: &mut Vec<Option<super::NativeMenuBarValue>>,
-    line_keys: &mut Vec<Option<String>>,
-    line_actions: &mut Vec<Option<super::NativeMenuAction>>,
-    full_lines: &mut Vec<Option<String>>,
-    selected_row: &mut Option<usize>,
+    snapshot: &mut NativeMenuSnapshot,
 ) {
     let selected = index == model.state.cursor;
+    let editing = selected && model.state.editing;
     if selected {
-        *selected_row =
-            Some(lines.len() + usize::from(super::format::is_link_instrument_target(item)));
+        snapshot.selected_row = Some(snapshot.lines.len());
     }
-    let item_lines = format_item_lines(
+    let (line, row) = format_item_row(item, selected, editing);
+    snapshot.lines.push(line);
+    snapshot.rows.push(row);
+    snapshot
+        .colors
+        .push(item_section_color(root_level, section_color, &item.label));
+    snapshot.line_keys.push(item.key.clone());
+    snapshot.line_actions.push(selected_action(item));
+    snapshot.full_lines.push(
+        (selected && (!editing || super::format::is_link_instrument_target(item)))
+            .then(|| format_item_full_selected_line(item))
+            .flatten(),
+    );
+    snapshot.bar_values.push(format_item_bar_value(
         item,
         selected,
-        selected && model.state.editing,
-        &model.numeric_display_mode,
-    );
-    let item_line_count = item_lines.len();
-    let selected_full_line = (selected
-        && (!model.state.editing || super::format::is_link_instrument_target(item)))
-    .then(|| format_item_full_selected_line(item, &model.numeric_display_mode, model.state.editing))
-    .flatten();
-    let item_color = item_section_color(root_level, section_color, &item.label);
-    let line_key = item.key.clone();
-    let line_action = selected_action(item);
-    lines.extend(item_lines);
-    append_item_metadata(
-        item_line_count,
-        item_color,
-        line_key,
-        line_action,
-        selected_full_line,
-        colors,
-        line_keys,
-        line_actions,
-        full_lines,
-    );
-    if selected && super::format::is_link_instrument_target(item) {
-        let detail_row = lines.len() - item_line_count + 1;
-        full_lines.swap(detail_row - 1, detail_row);
-        line_keys.swap(detail_row - 1, detail_row);
-    }
-    bar_values.extend(format_item_bar_values(
-        item,
-        item_line_count,
-        selected,
-        selected && model.state.editing,
         &model.numeric_display_mode,
     ));
 }
@@ -272,47 +153,4 @@ fn selected_action(item: &NativeMenuItem) -> Option<super::NativeMenuAction> {
         NativeMenuValue::Action(action) => Some(action.clone()),
         _ => None,
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn append_item_metadata(
-    item_line_count: usize,
-    item_color: u16,
-    line_key: Option<String>,
-    line_action: Option<super::NativeMenuAction>,
-    full_line: Option<String>,
-    colors: &mut Vec<u16>,
-    line_keys: &mut Vec<Option<String>>,
-    line_actions: &mut Vec<Option<super::NativeMenuAction>>,
-    full_lines: &mut Vec<Option<String>>,
-) {
-    if item_line_count == 0 {
-        return;
-    }
-    colors.push(item_color);
-    line_keys.push(line_key);
-    line_actions.push(line_action);
-    full_lines.push(full_line);
-    for _ in 1..item_line_count {
-        colors.push(item_color);
-        line_keys.push(None);
-        line_actions.push(None);
-        full_lines.push(None);
-    }
-}
-
-fn truncate_snapshot_vectors(
-    lines: &mut Vec<String>,
-    colors: &mut Vec<u16>,
-    bar_values: &mut Vec<Option<super::NativeMenuBarValue>>,
-    line_keys: &mut Vec<Option<String>>,
-    line_actions: &mut Vec<Option<super::NativeMenuAction>>,
-    full_lines: &mut Vec<Option<String>>,
-) {
-    lines.truncate(MENU_BODY_ROWS);
-    colors.truncate(MENU_BODY_ROWS);
-    bar_values.truncate(MENU_BODY_ROWS);
-    line_keys.truncate(MENU_BODY_ROWS);
-    line_actions.truncate(MENU_BODY_ROWS);
-    full_lines.truncate(MENU_BODY_ROWS);
 }

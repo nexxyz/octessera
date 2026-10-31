@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_menu::format::{format_item_lines, is_link_instrument_target};
+use crate::native_menu::format::{format_item_row, is_link_instrument_target};
 
 fn rendered_values(item: &NativeMenuItem) -> Vec<NativeMenuValue> {
     match &item.value {
@@ -42,13 +42,13 @@ fn collect_clipped(
                 value,
                 ..item.clone()
             };
-            let full = format_item_lines(&shown, true, false, "bar+numbers");
-            let row = format_item_lines(&shown, false, false, "bar+numbers");
-            if (row[0].contains("...") && !item.label.contains("..."))
-                || full[0].trim_start().chars().count() > 18
+            let full = format_item_row(&shown, true, false).0;
+            let row = format_item_row(&shown, false, false).0;
+            if (row.contains("...") && !item.label.contains("..."))
+                || full.trim_start().chars().count() > 18
             {
                 clipped
-                    .entry(full[0].trim_start().to_string())
+                    .entry(full.trim_start().to_string())
                     .or_insert_with(|| {
                         format!("{:?} {}", item.label, item.key.as_deref().unwrap_or("-"))
                     });

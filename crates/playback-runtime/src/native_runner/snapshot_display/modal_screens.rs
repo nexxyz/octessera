@@ -32,6 +32,7 @@ pub(super) fn user_data_restore_display(state: &NativeUserDataRestoreState) -> D
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row,
     }
@@ -52,6 +53,7 @@ pub(super) fn confirm_dialog_display(confirm: &NativeConfirmDialog) -> DisplaySn
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row: Some(
             confirm
@@ -132,6 +134,7 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row: Some(line_count - 1),
     }
@@ -177,6 +180,7 @@ pub(super) fn user_data_transfer_display(state: &NativeUserDataTransferState) ->
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row: Some(line_count.saturating_sub(1)),
     }
@@ -208,6 +212,7 @@ pub(super) fn usb_sd_transfer_modal_display(modal: &NativeUsbSdTransferModal) ->
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row: Some(line_count.saturating_sub(1)),
     }
@@ -224,6 +229,7 @@ pub(super) fn system_info_modal_display(modal: &NativeSystemInfoModal) -> Displa
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: Some(DisplayScrollMetadata {
             scroll_offset: modal.scroll,
             total_rows: modal.total_lines() + 1,
@@ -250,6 +256,7 @@ pub(super) fn help_popup_display(help: &NativeHelpPopup) -> DisplaySnapshot {
         colors: vec![platform_core::palette::WHITE_RGB565; line_count],
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
+        rows: vec![None; line_count],
         scroll: None,
         selected_row: Some(
             help.lines

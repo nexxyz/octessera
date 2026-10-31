@@ -1,4 +1,6 @@
-use super::{NativeMenuBarValue, NativeMenuItem, NativeMenuValue};
+use super::{
+    NativeMenuBarValue, NativeMenuItem, NativeMenuRow, NativeMenuRowKind, NativeMenuValue,
+};
 use crate::native_menu::format_values::format_display_value;
 
 mod format_rows;
@@ -6,94 +8,104 @@ mod format_status;
 
 use format_rows::{
     clip_menu_value, format_action_menu_line, format_full_param_line, format_menu_line,
-    format_param_lines, format_text_lines,
+    format_param_line,
 };
 pub(in crate::native_menu) use format_status::{
     abbreviate_path, section_color_for_label, section_color_from_path,
 };
 
-pub(super) fn format_item_lines(
+/// The single body row of an item: its text line and, for labelled items, its parts.
+pub(super) fn format_item_row(
     item: &NativeMenuItem,
     selected: bool,
     editing: bool,
-    numeric_display_mode: &str,
-) -> Vec<String> {
+) -> (String, Option<NativeMenuRow>) {
     if item.label.is_empty() {
-        return vec![String::new()];
+        return (String::new(), None);
     }
-    let lines = match &item.value {
-        NativeMenuValue::Group => {
-            let label = if item.children.is_empty() {
-                item.label.clone()
-            } else {
-                format!("{} >", item.label)
-            };
-            vec![format_menu_line(&label)]
+    let row = item_row_parts(item, selected, editing);
+    let line = match (&row.kind, &item.value) {
+        (NativeMenuRowKind::Action, _) => format_action_menu_line(&row.label),
+        (NativeMenuRowKind::Group, _) if row.value.is_empty() => {
+            format_menu_line(&format!("{} >", row.label))
         }
-        NativeMenuValue::Action(_) => vec![format_action_menu_line(&item.label)],
+        (NativeMenuRowKind::Group, _) => {
+            format_menu_line(&format!("{}: {} >", row.label, row.value))
+        }
+        (_, NativeMenuValue::Group) => format_menu_line(&row.label),
+        (_, NativeMenuValue::Text { .. }) => format_menu_line(&format!(
+            "{} {}",
+            row.label,
+            clip_menu_value(&row.value, 22)
+        )),
+        _ => format_param_line(&row.label, &row.value),
+    };
+    let line = if selected {
+        line
+    } else {
+        clip_menu_value(&line, 20)
+    };
+    (line, Some(row))
+}
+
+fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> NativeMenuRow {
+    let row = |kind, value: String| NativeMenuRow {
+        kind,
+        label: item.label.clone(),
+        value,
+        text_cursor: None,
+    };
+    let option = |options: &[String], current: usize| {
+        format_display_value(
+            item.key.as_deref(),
+            options.get(current).cloned().unwrap_or_default(),
+        )
+    };
+    match &item.value {
+        NativeMenuValue::Group if item.children.is_empty() => {
+            row(NativeMenuRowKind::Value, String::new())
+        }
+        NativeMenuValue::Group => row(NativeMenuRowKind::Group, String::new()),
+        NativeMenuValue::Action(_) => row(NativeMenuRowKind::Action, String::new()),
         NativeMenuValue::Enum {
             options,
             selected: current,
-        } if !item.children.is_empty() => vec![format_menu_line(&format!(
-            "{}: {} >",
-            item.label,
-            format_display_value(
-                item.key.as_deref(),
-                options.get(*current).cloned().unwrap_or_default(),
-            )
-        ))],
+        } if !item.children.is_empty() => row(NativeMenuRowKind::Group, option(options, *current)),
         NativeMenuValue::Enum {
             options,
             selected: current,
         } if is_link_instrument_target(item) => {
             let value = options.get(*current).cloned().unwrap_or_default();
-            let compact = value
-                .split_once(':')
-                .map_or(value.as_str(), |(slot, _)| slot);
-            format_link_instrument_lines(&item.label, &value, compact, selected, editing)
+            let shown = if selected {
+                value.as_str()
+            } else {
+                value
+                    .split_once(':')
+                    .map_or(value.as_str(), |(slot, _)| slot)
+            };
+            row(NativeMenuRowKind::Value, shown.into())
         }
         NativeMenuValue::Enum {
             options,
             selected: current,
-        } => format_param_lines(
-            &item.label,
-            format_display_value(
-                item.key.as_deref(),
-                options.get(*current).cloned().unwrap_or_default(),
-            ),
-            selected,
-            editing,
-        ),
-        NativeMenuValue::Number { value, .. } => format_param_lines(
-            &item.label,
+        } => row(NativeMenuRowKind::Value, option(options, *current)),
+        NativeMenuValue::Number { value, .. } => row(
+            NativeMenuRowKind::Value,
             format_display_value(item.key.as_deref(), *value),
-            selected,
-            editing,
         ),
-        NativeMenuValue::Bool { value } => format_param_lines(
-            &item.label,
-            if *value { "On" } else { "Off" },
-            selected,
-            editing,
+        NativeMenuValue::Bool { value } => row(
+            NativeMenuRowKind::Value,
+            if *value { "On" } else { "Off" }.into(),
         ),
-        NativeMenuValue::Text { value, cursor, .. } => {
-            format_text_lines(&item.label, value, *cursor, selected, editing)
-        }
-    };
-    let mut lines = lines
-        .into_iter()
-        .map(|line| {
-            if selected {
-                line
-            } else {
-                clip_menu_value(&line, 20)
-            }
-        })
-        .collect::<Vec<_>>();
-    if selected && item_shows_bar_row(item, numeric_display_mode) {
-        lines.push(String::new());
+        NativeMenuValue::Text { value, cursor, .. } if selected && editing => NativeMenuRow {
+            text_cursor: Some(*cursor),
+            ..row(NativeMenuRowKind::Value, value.clone())
+        },
+        NativeMenuValue::Text { value, .. } => row(
+            NativeMenuRowKind::Value,
+            if value.is_empty() { "(empty)" } else { value }.into(),
+        ),
     }
-    lines
 }
 
 pub(super) fn is_link_instrument_target(item: &NativeMenuItem) -> bool {
@@ -102,27 +114,7 @@ pub(super) fn is_link_instrument_target(item: &NativeMenuItem) -> bool {
     })
 }
 
-fn format_link_instrument_lines(
-    label: &str,
-    full_value: &str,
-    compact_value: &str,
-    selected: bool,
-    editing: bool,
-) -> Vec<String> {
-    if !selected {
-        return format_param_lines(label, compact_value, false, false);
-    }
-    vec![
-        format_menu_line(&format!("{label}:")),
-        format!("{}{}", if editing { "* " } else { "  " }, full_value),
-    ]
-}
-
-pub(super) fn format_item_full_selected_line(
-    item: &NativeMenuItem,
-    _numeric_display_mode: &str,
-    editing: bool,
-) -> Option<String> {
+pub(super) fn format_item_full_selected_line(item: &NativeMenuItem) -> Option<String> {
     match &item.value {
         NativeMenuValue::Group => {
             let label = if item.children.is_empty() {
@@ -141,16 +133,6 @@ pub(super) fn format_item_full_selected_line(
                     options.get(*selected).cloned().unwrap_or_default(),
                 )
             )))
-        }
-        NativeMenuValue::Enum { options, selected } if is_link_instrument_target(item) => {
-            Some(format!(
-                "{}{}",
-                if editing { "* " } else { "  " },
-                format_display_value(
-                    item.key.as_deref(),
-                    options.get(*selected).cloned().unwrap_or_default(),
-                )
-            ))
         }
         NativeMenuValue::Enum { options, selected } => Some(format_full_param_line(
             &item.label,
@@ -189,59 +171,27 @@ pub(super) fn format_item_full_selected_line(
     }
 }
 
-pub(super) fn formatted_item_row_count(
+pub(super) fn format_item_bar_value(
     item: &NativeMenuItem,
     selected: bool,
-    editing: bool,
     numeric_display_mode: &str,
-) -> usize {
-    if item.label.is_empty() {
-        return 1;
-    }
-    let text_rows = match &item.value {
-        NativeMenuValue::Enum { .. } if !item.children.is_empty() => 1,
-        NativeMenuValue::Enum { .. } if selected && is_link_instrument_target(item) => 2,
-        NativeMenuValue::Enum { .. }
-        | NativeMenuValue::Number { .. }
-        | NativeMenuValue::Bool { .. }
-        | NativeMenuValue::Text { .. }
-            if selected && editing =>
-        {
-            2
-        }
-        _ => 1,
-    };
-    text_rows + usize::from(selected && item_shows_bar_row(item, numeric_display_mode))
-}
-
-pub(super) fn format_item_bar_values(
-    item: &NativeMenuItem,
-    item_line_count: usize,
-    selected: bool,
-    _editing: bool,
-    numeric_display_mode: &str,
-) -> Vec<Option<NativeMenuBarValue>> {
-    if numeric_display_mode == "numbers" {
-        return vec![None; item_line_count];
+) -> Option<NativeMenuBarValue> {
+    if numeric_display_mode == "numbers" || !selected {
+        return None;
     }
     let NativeMenuValue::Number {
         value, min, max, ..
     } = item.value
     else {
-        return vec![None; item_line_count];
+        return None;
     };
-    let Some(key) = item.key.as_deref() else {
-        return vec![None; item_line_count];
-    };
+    let key = item.key.as_deref()?;
     if !should_use_number_bar(key) {
-        return vec![None; item_line_count];
-    }
-    if !selected {
-        return vec![None; item_line_count];
+        return None;
     }
     let range = (max - min).max(1);
     let frac_pct = ((((value - min).clamp(0, range) as f32 / range as f32) * 100.0).round()) as u8;
-    let bar = Some(NativeMenuBarValue {
+    Some(NativeMenuBarValue {
         frac_pct,
         num_chars: if numeric_display_mode == "bar" {
             0
@@ -253,18 +203,7 @@ pub(super) fn format_item_bar_values(
         } else {
             None
         },
-    });
-    let mut values = vec![None; item_line_count.saturating_sub(1)];
-    values.push(bar);
-    values
-}
-
-fn item_shows_bar_row(item: &NativeMenuItem, numeric_display_mode: &str) -> bool {
-    if numeric_display_mode == "numbers" {
-        return false;
-    }
-    matches!(item.value, NativeMenuValue::Number { .. })
-        && item.key.as_deref().is_some_and(should_use_number_bar)
+    })
 }
 
 fn should_use_number_bar(key: &str) -> bool {
@@ -375,13 +314,7 @@ mod tests {
     #[test]
     fn plain_action_rows_reduce_bang_indent() {
         let item = action_item("Do It");
-        assert_eq!(
-            format_item_lines(&item, true, false, "bar"),
-            vec![" !Do It"]
-        );
-        assert_eq!(
-            format_item_lines(&item, false, false, "bar"),
-            vec![" !Do It"]
-        );
+        assert_eq!(format_item_row(&item, true, false).0, " !Do It");
+        assert_eq!(format_item_row(&item, false, false).0, " !Do It");
     }
 }

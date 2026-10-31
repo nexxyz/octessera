@@ -124,7 +124,7 @@ pub(crate) fn fn_aux_binds_selected_action_and_aux_press_executes_it() {
 }
 
 #[test]
-pub(crate) fn edit_marker_uses_compact_star_prefix() {
+pub(crate) fn edit_mode_keeps_the_row_on_one_line() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("masterVolume"));
     let _ = runner.send(HostMessage::DeviceInput {
@@ -147,11 +147,12 @@ pub(crate) fn edit_marker_uses_compact_star_prefix() {
         })
         .unwrap();
     let snapshot = snapshot_from(&edit);
-    let lines = snapshot["display"]["lines"].as_array().unwrap();
-    assert!(lines.windows(2).any(|pair| {
-        pair[0].as_str().unwrap_or("") == "  Master Vol:"
-            && pair[1].as_str().unwrap_or("").starts_with("    * ")
-    }));
+    assert_eq!(snapshot["display"]["editing"], true);
+    let row = snapshot["selectedRow"].as_u64().unwrap() as usize;
+    let line = snapshot["display"]["lines"][row].as_str().unwrap();
+    assert!(line.starts_with("  Master Vol "), "{line}");
+    assert!(!line.contains('*'), "{line}");
+    assert_eq!(snapshot["display"]["rows"][row]["label"], "Master Vol");
 }
 
 #[test]

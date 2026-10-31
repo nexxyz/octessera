@@ -129,16 +129,10 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
         snapshot["display"]["lines"]
             .as_array()
             .unwrap()
-            .contains(&json!("S2-Fine cents:")),
+            .contains(&json!("S2-Fine cents +0c")),
         "{snapshot:?}"
     );
-    assert!(
-        snapshot["display"]["lines"]
-            .as_array()
-            .unwrap()
-            .contains(&json!("    * +0c")),
-        "{snapshot:?}"
-    );
+    assert_eq!(snapshot["display"]["editing"], true);
 
     for (delta, expected, label) in [(25, 25, "+25c"), (-50, -25, "-25c"), (25, 0, "+0c")] {
         let _ = runner
@@ -164,7 +158,7 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
             snapshot["display"]["lines"]
                 .as_array()
                 .unwrap()
-                .contains(&json!(format!("    * {label}"))),
+                .contains(&json!(format!("S2-Fine cents {label}"))),
             "{snapshot:?}"
         );
         assert_eq!(runner.instruments[0].fm_config["ratioFineCents"], expected);

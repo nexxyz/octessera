@@ -1,5 +1,6 @@
 use super::*;
 use crate::native_menu::NativeMenuValue;
+use crate::oled_frame::OledAuxCap;
 
 #[derive(Clone)]
 pub(super) struct ResolvedAuxTurn {
@@ -62,35 +63,27 @@ impl NativeRunner {
         self.current_auto_aux_map().into_iter().nth(index).flatten()
     }
 
-    pub(super) fn auto_map_prefix_for_line(
+    /// The Aux cap that auto-maps to a row, resolved in that row's own context, and whether
+    /// its click (rather than its turn) does.
+    pub(super) fn auto_map_cap_for_line(
         &self,
         key: Option<&str>,
         action: Option<&NativeMenuAction>,
-    ) -> Option<String> {
+    ) -> Option<(OledAuxCap, bool)> {
         let path = self.menu.current_focus_path();
         let auto = self.resolve_aux_auto_map(&path, key, action);
-        for (index, slot) in auto.iter().enumerate() {
-            let Some(slot) = slot else {
-                continue;
-            };
-            let encoder = aux_encoder_label(index);
-            if let Some(key) = key {
-                if slot.turn.as_ref().map(|turn| turn.key.as_str()) == Some(key) {
-                    return Some(format!("{encoder}-"));
-                }
-            }
-            if let Some(action) = action {
-                if slot
-                    .press
-                    .as_ref()
-                    .map(|press| self.aux_actions_match(&press.action, action))
-                    .unwrap_or(false)
-                {
-                    return Some(format!("{encoder}!"));
-                }
-            }
-        }
-        None
+        auto.iter().enumerate().find_map(|(index, slot)| {
+            let slot = slot.as_ref()?;
+            let turn = key
+                .is_some_and(|key| slot.turn.as_ref().map(|turn| turn.key.as_str()) == Some(key));
+            let press = !turn
+                && action.is_some_and(|action| {
+                    slot.press
+                        .as_ref()
+                        .is_some_and(|press| self.aux_actions_match(&press.action, action))
+                });
+            (turn || press).then(|| (aux_cap(index), press))
+        })
     }
 
     fn resolve_custom_aux_slot(&self, index: usize) -> Option<ResolvedAuxSlot> {
@@ -198,12 +191,11 @@ impl NativeRunner {
     }
 }
 
-fn aux_encoder_label(index: usize) -> String {
+pub(super) fn aux_cap(index: usize) -> OledAuxCap {
     let count = platform_core::AUX_ENCODER_COUNT;
-    if index < count {
-        format!("{}", index + 1)
-    } else {
-        format!("S{}", index - count + 1)
+    OledAuxCap {
+        encoder: (index % count + 1) as u8,
+        shift: index >= count,
     }
 }
 

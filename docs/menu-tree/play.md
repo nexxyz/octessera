@@ -11,7 +11,7 @@ Play
 ├── Mix                                  ← page-select row
 ├── Pan                                  ← page-select row
 ├── FX (group)
-│   ├── FX Type: [none | stutter | freeze | sweep | pitch]   ← stored as filter_sweep, pitch_shift
+│   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
 │   ├── Target: [master | fx buses | instruments]
 │   ├── ... params of the FX Type (see Play FX)
 │   ├── Map to Grid (action)

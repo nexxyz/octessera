@@ -175,7 +175,7 @@ pub(super) fn scanning_group(
                 selected_index(&["1", "2", "4", "8"], &sense.scan_sections.to_string()),
             ),
             enum_item_from_strings(
-                "Instrument",
+                "Instr.",
                 format!("{prefix}.mapping.scanned.slot"),
                 instrument_options.to_vec(),
                 slot_option_selected(sense.scanned_slot, instrument_options.len()),
