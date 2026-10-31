@@ -103,3 +103,36 @@ pub(crate) fn input_dispatch_owns_temporary_snapshot_suppression() {
         .any(|message| matches!(message, RunnerMessage::RuntimeStatus { .. })));
     assert!(!runner.pending.suppress_snapshot_response);
 }
+
+#[test]
+pub(crate) fn level_edits_read_the_focused_row_instead_of_searching_the_menu_tree() {
+    for key in [
+        "displayBrightness",
+        "buttonBrightness",
+        "gridBrightness",
+        "masterVolume",
+    ] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        assert!(runner.menu.focus_item_key(key));
+        runner.menu.turn_key(key, -3);
+        let focused = runner.menu.number_for_key(key).unwrap();
+        let mut decoy = runner.menu.item_for_key(key).unwrap();
+        let crate::native_menu::NativeMenuValue::Number { value, .. } = &mut decoy.value else {
+            panic!("{key} is not a number row");
+        };
+        *value = if focused == 50 { 60 } else { 50 };
+        runner.menu.root.children.insert(0, decoy);
+        runner.menu.state.stack[0] += 1;
+
+        runner.apply_or_schedule_menu_key(key).unwrap();
+
+        let ui = &runner.display.ui;
+        let applied = match key {
+            "displayBrightness" => ui.display_brightness,
+            "buttonBrightness" => ui.button_brightness,
+            "gridBrightness" => ui.grid_brightness,
+            _ => ui.master_volume,
+        };
+        assert_eq!(i32::from(applied), focused, "{key}");
+    }
+}

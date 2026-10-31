@@ -1,7 +1,6 @@
 use crate::protocol::SyncSource;
 
 use super::format::note_unit_to_pulses;
-use super::model_search::find_item;
 use super::section_labels::PLAY_PATH_PREFIX;
 use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
 
@@ -12,33 +11,28 @@ impl NativeMenuModel {
 
     pub fn selected_algorithm_step_pulses(&self) -> Option<u32> {
         self.value_for_key("algorithmStep")
-            .or_else(|| self.find_value("Step Rate"))
             .and_then(|value| note_unit_to_pulses(&value))
     }
 
     pub fn selected_sync_source(&self) -> Option<SyncSource> {
-        match self
-            .value_for_key("midiSyncMode")
-            .or_else(|| self.find_value("Sync"))?
-            .as_str()
-        {
+        match self.value_for_key("midiSyncMode")?.as_str() {
             "external" => Some(SyncSource::External),
             _ => Some(SyncSource::Internal),
         }
     }
 
     pub fn selected_master_volume(&self) -> Option<u8> {
-        self.find_number("Master Vol")
+        self.number_for_key("masterVolume")
             .map(|value| value.clamp(0, 100) as u8)
     }
 
     pub fn selected_display_brightness(&self) -> Option<u8> {
-        self.find_key_number("displayBrightness")
+        self.number_for_key("displayBrightness")
             .map(|value| value.clamp(0, 100) as u8)
     }
 
     pub fn selected_button_brightness(&self) -> Option<u8> {
-        self.find_key_number("buttonBrightness")
+        self.number_for_key("buttonBrightness")
             .map(|value| value.clamp(0, 100) as u8)
     }
 
@@ -63,14 +57,6 @@ impl NativeMenuModel {
             return Some("xy".into());
         }
         None
-    }
-
-    fn find_value(&self, label: &str) -> Option<String> {
-        find_item(&self.root, label).and_then(value_from_item)
-    }
-
-    fn find_number(&self, label: &str) -> Option<i32> {
-        find_item(&self.root, label).and_then(number_from_item)
     }
 }
 

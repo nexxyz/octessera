@@ -1,17 +1,5 @@
 use super::{NativeMenuAction, NativeMenuItem, NativeMenuValue};
 
-pub(super) fn find_item<'a>(node: &'a NativeMenuItem, label: &str) -> Option<&'a NativeMenuItem> {
-    if node.label == label {
-        return Some(node);
-    }
-    for child in &node.children {
-        if let Some(found) = find_item(child, label) {
-            return Some(found);
-        }
-    }
-    None
-}
-
 pub(super) fn find_item_by_key<'a>(
     node: &'a NativeMenuItem,
     key: &str,
