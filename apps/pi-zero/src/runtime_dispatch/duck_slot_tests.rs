@@ -129,9 +129,12 @@ impl Replay {
 
     fn edit_until(&mut self, label: &str) {
         for _ in 0..32 {
-            if self.lines().iter().any(|line| {
-                line.trim_start().starts_with('*') && line.to_lowercase().contains(label)
-            }) {
+            let snapshot = self.playback.last_snapshot().unwrap();
+            let editing = snapshot["display"]["editing"] == true;
+            let selected = snapshot["selectedRow"]
+                .as_u64()
+                .and_then(|row| snapshot["display"]["rows"][row as usize]["value"].as_str());
+            if editing && selected.is_some_and(|value| value.to_lowercase().contains(label)) {
                 self.press();
                 return;
             }

@@ -56,9 +56,8 @@ impl<'a> VisibleMenuDriver<'a> {
         self.device.press_main();
         for _ in 0..4 {
             if self
-                .lines()
-                .iter()
-                .any(|line| line.trim_start().starts_with('*') && contains_label(line, value))
+                .selected_value()
+                .is_some_and(|shown| shown.eq_ignore_ascii_case(value))
             {
                 self.device.press_main();
                 self.ensure_not_editing(label);
