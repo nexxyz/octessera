@@ -19,6 +19,20 @@ impl NativeRunner {
         if self.display.transients.snapshot_pending() {
             return Some(last_snapshot_at.unwrap_or_else(Instant::now));
         }
+        let transient = self.display.transients.next_deadline(last_snapshot_at);
+        self.next_display_state_deadline_after(last_snapshot_at)
+            .into_iter()
+            .chain(transient)
+            .min()
+    }
+
+    /// The timed deadlines that change runner state (dim, sleep, splash, toasts, the save
+    /// flash, hints). Indicator, recording-pulse and animation steps only change the
+    /// picture, so a scene capture serves them without a snapshot.
+    pub fn next_display_state_deadline_after(
+        &self,
+        last_snapshot_at: Option<Instant>,
+    ) -> Option<Instant> {
         let mut deadline = None;
         if self.display.ui.dim_timer_seconds != 0 {
             deadline = earliest_deadline(
@@ -48,9 +62,6 @@ impl NativeRunner {
         }
         if let Some(auto_save_flash_until) = self.display.auto_save_flash_until {
             deadline = earliest_deadline(deadline, auto_save_flash_until, last_snapshot_at);
-        }
-        if let Some(transient_deadline) = self.display.transients.next_deadline(last_snapshot_at) {
-            deadline = earliest_deadline(deadline, transient_deadline, last_snapshot_at);
         }
         if let Some(modifier_hint_deadline) = self.modifier_hint_deadline() {
             if modifier_hint_deadline <= self.display.transients.now() {

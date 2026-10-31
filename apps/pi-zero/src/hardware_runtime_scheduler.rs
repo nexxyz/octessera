@@ -103,10 +103,14 @@ impl HardwareRuntimeScheduler {
         {
             return DisplaySnapshotDue::default();
         }
+        let last = Some(self.last_accepted_snapshot_at);
+        let timed = if is_playing(playback) {
+            runner.next_timed_display_snapshot_deadline_after(last)
+        } else {
+            runner.next_display_state_deadline_after(last)
+        };
         DisplaySnapshotDue {
-            one_shot: runner
-                .next_timed_display_snapshot_deadline_after(Some(self.last_accepted_snapshot_at))
-                .is_some_and(|deadline| deadline <= now),
+            one_shot: timed.is_some_and(|deadline| deadline <= now),
             continuous: if is_playing(playback) {
                 now.duration_since(self.last_snapshot_attempt_at) >= SNAPSHOT_TICK
             } else {
@@ -198,11 +202,11 @@ impl HardwareRuntimeScheduler {
             next_due =
                 next_due.min((self.last_snapshot_attempt_at + SNAPSHOT_TICK).max(next_runtime_due));
         }
-        if let Some(display_deadline) = self.display_snapshot_wake_deadline(now, runner) {
-            let display_wake = if is_playing(playback) && display_deadline <= now {
-                now + PLAYBACK_TICK
-            } else {
+        if let Some(display_deadline) = self.display_snapshot_deadline(runner) {
+            let display_wake = if display_deadline > now {
                 display_deadline
+            } else {
+                self.past_due_display_wake(now, is_playing(playback))
             };
             next_due = next_due.min(display_wake);
         }
@@ -252,16 +256,20 @@ impl HardwareRuntimeScheduler {
         self.last_snapshot_attempt_at = now;
     }
 
-    fn display_snapshot_wake_deadline(
-        &self,
-        now: Instant,
-        runner: &NativeRunner,
-    ) -> Option<Instant> {
-        let deadline = self.display_snapshot_deadline(runner)?;
-        if deadline <= now {
-            self.snapshot_retry_at.or(Some(now))
-        } else {
-            Some(deadline)
+    /// A due transient waits for the scene pump, which submits at most once per snapshot tick
+    /// and keeps it pending until the render worker accepts it; waking any earlier would spin.
+    fn past_due_display_wake(&self, now: Instant, playing: bool) -> Instant {
+        match self.snapshot_retry_at {
+            Some(retry_at) if !playing || retry_at > now => retry_at,
+            _ if playing => now + PLAYBACK_TICK,
+            _ => {
+                let next_scene = self.last_accepted_snapshot_at + SNAPSHOT_TICK;
+                if next_scene > now {
+                    next_scene
+                } else {
+                    now + PLAYBACK_TICK
+                }
+            }
         }
     }
 }

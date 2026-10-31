@@ -538,7 +538,10 @@ palette unless a behavior deliberately owns its own.
 - Animations never delay input: device input, menu application, event dispatch and audio run as
   before, and the menu state changes immediately. While an animation runs, each frame boundary is a
   timed display deadline (`next_timed_display_snapshot_deadline_after`), so both boards and the
-  desktop refresh at the 33 ms frame pace and stop when it ends.
+  desktop refresh at the 33 ms frame pace and stop when it ends. The boards serve these steps,
+  like the indicator and recording-pulse steps, with native scene captures only: playing or
+  stopped, a step never builds a runtime snapshot on the runtime thread. A stopped board builds
+  snapshots only for input and the runner-state deadlines (`next_display_state_deadline_after`).
 - The snapshot carries the resolved step as `oledAnimation` (`null` when settled): `body` is
   `select` (`fromRow`, `moved`), `scroll` (`from`, `down`, `moved`), `slide` (`from`, `forward`,
   `moved`) or `edit`; `toast` is `{text, visibleRows}`. `from` is the page being left. The shared

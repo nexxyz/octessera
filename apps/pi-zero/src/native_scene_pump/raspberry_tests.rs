@@ -299,3 +299,5 @@ fn rejected_queue_submission_keeps_the_bounded_capture_retry() {
 
 #[cfg(test)]
 mod recording_tests;
+#[cfg(test)]
+mod stopped_animation_tests;
