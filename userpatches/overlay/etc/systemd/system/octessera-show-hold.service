@@ -1,5 +1,6 @@
 [Unit]
 Description=octessera Live Show Mode and Wi-Fi switch apply
+After=NetworkManager.service
 
 [Service]
 Type=oneshot

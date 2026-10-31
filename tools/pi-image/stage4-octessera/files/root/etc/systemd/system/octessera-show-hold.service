@@ -1,6 +1,6 @@
 [Unit]
 Description=octessera Live Show Mode and Wi-Fi switch apply
-After=octessera-network-health.timer
+After=octessera-network-health.timer NetworkManager.service
 
 [Service]
 Type=oneshot
