@@ -5,6 +5,7 @@ dependency inventory and does not claim legal compliance.
 
 - Original Octessera material: [`LICENSE`](LICENSE).
 - Reviewed known-material notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+- OLED fonts: m5x7 (CC0, [`licenses/fonts/m5x7/LICENSE`](licenses/fonts/m5x7/LICENSE)) and Tom Thumb (BSD-3-Clause, [`licenses/fonts/tom-thumb/LICENSE`](licenses/fonts/tom-thumb/LICENSE)).
 - Bundled samples: the attribution-free [stargate-sample-pack](https://github.com/stargatedaw/stargate-sample-pack); its CC0 text is [`samples/upstream/LICENSE`](samples/upstream/LICENSE).
 - Hardware references and attribution: [`hardware/ATTRIBUTIONS.md`](hardware/ATTRIBUTIONS.md).
 

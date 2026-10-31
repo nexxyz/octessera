@@ -32,6 +32,16 @@ The image-side notice is installed as
 `/usr/local/share/doc/octessera/wifi-connect.NOTICE`; it is not replaced by this
 repository notice.
 
+## Fonts
+
+The OLED renderer compiles two pixel fonts into the firmware as glyph tables:
+[m5x7](https://managore.itch.io/m5x7) by Daniel Linssen, dedicated to the
+public domain under CC0 1.0
+([`licenses/fonts/m5x7/LICENSE`](licenses/fonts/m5x7/LICENSE)), and the Tom
+Thumb 3x5 font from Adafruit GFX by Brian J. Swetland, Vassilii Khachaturov and
+Dan Marks with readability changes by Robey Pointer, under the 3-clause BSD
+licence ([`licenses/fonts/tom-thumb/LICENSE`](licenses/fonts/tom-thumb/LICENSE)).
+
 ## Samples
 
 Octessera's bundled samples come from the attribution-free

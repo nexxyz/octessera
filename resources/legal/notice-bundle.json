@@ -9,6 +9,8 @@
     {"source": "hardware/ATTRIBUTIONS.md", "destination": "hardware/ATTRIBUTIONS.md"},
     {"source": "samples/upstream/LICENSE", "destination": "samples/upstream/LICENSE"},
     {"source": "licenses/README.md", "destination": "licenses/README.md"},
+    {"source": "licenses/fonts/m5x7/LICENSE", "destination": "licenses/fonts/m5x7/LICENSE"},
+    {"source": "licenses/fonts/tom-thumb/LICENSE", "destination": "licenses/fonts/tom-thumb/LICENSE"},
     {"source": "licenses/cargo/REVIEWED_DEPENDENCY_STATUS.txt", "destination": "licenses/cargo/REVIEWED_DEPENDENCY_STATUS.txt"},
     {"source": "licenses/cargo/SHA256SUMS", "destination": "licenses/cargo/SHA256SUMS"},
     {"source": "licenses/cargo/SOURCE_INDEX.json", "destination": "licenses/cargo/SOURCE_INDEX.json"},
