@@ -239,6 +239,16 @@ impl OledSsd1351 {
     pub fn display_off(&mut self) -> Result<(), String> {
         Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_OFF, &[])
     }
+
+    /// Sets the master contrast current step (C7h), 0..=15.
+    pub fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
+        Self::write_command(
+            &mut self.spi,
+            &mut self.dc,
+            CMD_MASTER_CONTRAST,
+            &[step.min(0x0F)],
+        )
+    }
 }
 
 #[cfg(any(
@@ -315,6 +325,13 @@ impl OledSsd1351 {
             .display_off()
     }
 
+    pub fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
+        self.transport
+            .as_mut()
+            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
+            .set_master_contrast(step)
+    }
+
     pub fn detach_preserving(&mut self) -> Result<(), String> {
         let transport = self
             .transport
@@ -366,6 +383,10 @@ impl OledSsd1351 {
     pub fn display_off(&mut self) -> Result<(), String> {
         Err("Orange OLED requires a Linux target".into())
     }
+
+    pub fn set_master_contrast(&mut self, _step: u8) -> Result<(), String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
 }
 
 #[cfg(not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")))]
@@ -400,6 +421,10 @@ impl OledSsd1351 {
     }
 
     pub fn display_off(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn set_master_contrast(&mut self, _step: u8) -> Result<(), String> {
         Ok(())
     }
 }

@@ -149,6 +149,10 @@ impl OrangeOledTransport {
         self.write_frame_until(frame, timing::operation_deadline())
     }
 
+    pub fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
+        self.write_command_until(0xC7, &[step.min(0x0F)], timing::operation_deadline())
+    }
+
     pub fn display_off_until(&mut self, deadline: std::time::Instant) -> Result<(), String> {
         self.write_command_until(0xAE, &[], deadline)
     }
