@@ -76,6 +76,8 @@
       "workerWarningThreshold": "85"
     },
     "ghostCells": false,
+    "auxAutoHints": true,
+    "auxManualHints": true,
     "gridBrightness": 100,
     "hdmi": {
       "cycleMeasures": 4,

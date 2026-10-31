@@ -13,6 +13,9 @@ pub struct OledPresentationInput {
     pub cpu_warn_percent: u8,
     pub save_flash: OledSaveFlash,
     pub save_flash_serial: u64,
+    pub aux_hints: OledAuxHints,
+    /// Shift is held (alone or with Fn), so the footer shows the Shift-layer hints.
+    pub aux_shift_layer: bool,
     pub metrics: OledPresentationMetrics,
     pub runtime_error: Option<OledRuntimeErrorMetadata>,
 }
@@ -58,6 +61,39 @@ pub enum OledMenuRowKind {
 pub struct OledAuxCap {
     pub encoder: u8,
     pub shift: bool,
+}
+
+/// Footer hints for Aux 1-3, plain and Shift layer; empty where nothing is mapped or the
+/// matching System > Display hint toggle is off.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAuxHints {
+    pub normal: [OledAuxHint; 3],
+    pub shift: [OledAuxHint; 3],
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAuxHint {
+    pub turn: Option<OledHintLabel>,
+    pub click: Option<OledHintLabel>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledHintLabel {
+    /// At most 7 characters for Aux 1-2 and 6 for Aux 3.
+    pub text: String,
+    /// RGB565 colour of the menu section that owns the target.
+    pub color: u16,
+    pub source: OledHintSource,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OledHintSource {
+    Auto,
+    Manual,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -32,6 +32,11 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
             "cpuWarnPercent": 85
         },
         "selectedRow": null,
+        "auxHints": {
+            "normal": [{ "turn": null, "click": null }, { "turn": null, "click": null }, { "turn": null, "click": null }],
+            "shift": [{ "turn": null, "click": null }, { "turn": null, "click": null }, { "turn": null, "click": null }]
+        },
+        "auxShiftLayer": false,
         "eventDotLevel": 0,
         "transportIcon": "stop",
         "transportFlash": "none"

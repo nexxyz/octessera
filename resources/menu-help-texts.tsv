@@ -382,6 +382,8 @@ grid_bright	*	key:gridBrightness	number	Grid Bright	Sets grid LED brightness sca
 button_bright	*	key:buttonBrightness	number	Button Bright	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
 numeric_display	*	key:numericDisplayMode	enum	Num Style	bar draws a small value bar on every bounded number row; numbers shows the numeric values instead.	Bars follow the encoder: time and frequency rows move evenly per detent. This changes the display, not the stored value.
 aux_auto_map	*	key:auxAutoMapEnabled	bool	Auto Map	Enables context-sensitive aux mappings for the active menu row.	When off, only custom aux bindings are used and auto-map prefixes disappear.
+aux_auto_hints	*	key:auxAutoHints	bool	Auto Hints	Shows what the auto-mapped Aux encoders turn and click in the footer.	Hold Shift to see the Shift layer. The caps on menu rows stay either way.
+aux_manual_hints	*	key:auxManualHints	bool	Manual Hints	Shows your own Aux bindings in the footer.	Each hint takes the colour of the section that owns its target.
 link_x_axis_group	Menu > Link > L*: * > X Axis		group	X Axis Modulation	Maps X position into pitch/velocity/filter modulation lanes.	Use offsets and ranges to reshape horizontal influence.
 link_x_pitch_group	Menu > Link > L*: * > X Axis > Pitch Steps		group	X Pitch Steps	Controls pitch stepping derived from X position.	Disable to remove X-axis pitch influence.
 link_x_velocity_group	Menu > Link > L*: * > X Axis > Velocity		group	X Velocity Lane	Maps X position to velocity output range.	Use this for left-right dynamic shaping.

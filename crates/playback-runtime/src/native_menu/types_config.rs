@@ -80,6 +80,8 @@ pub struct NativeMenuConfig {
     pub auto_save_default: bool,
     pub rolling_backups: bool,
     pub ghost_cells: bool,
+    pub aux_auto_hints: bool,
+    pub aux_manual_hints: bool,
     pub input_events_while_paused: bool,
     pub numeric_display_mode: String,
     pub screen_sleep_seconds: u16,

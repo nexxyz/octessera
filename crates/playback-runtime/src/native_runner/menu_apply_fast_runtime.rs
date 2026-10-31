@@ -93,6 +93,12 @@ impl NativeRunner {
             "ghostCells" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.display.ui.ghost_cells, value)
             })),
+            "auxAutoHints" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                bool_changed(&mut runner.display.ui.aux_auto_hints, value)
+            })),
+            "auxManualHints" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                bool_changed(&mut runner.display.ui.aux_manual_hints, value)
+            })),
             "inputEventsWhilePaused" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.input_events_while_paused, value)
             })),

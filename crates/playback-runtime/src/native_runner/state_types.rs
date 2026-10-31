@@ -15,6 +15,8 @@ pub(super) struct NativeUiState {
     pub(super) button_brightness: u8,
     pub(super) master_volume: u8,
     pub(super) ghost_cells: bool,
+    pub(super) aux_auto_hints: bool,
+    pub(super) aux_manual_hints: bool,
     pub(super) numeric_display_mode: String,
     pub(super) screen_sleep_seconds: u16,
     pub(super) dim_timer_seconds: u16,
@@ -81,6 +83,7 @@ pub(super) struct NativeDisplayState {
     pub(super) held_toast_head: Option<String>,
     pub(super) menu_scroll_offset: usize,
     pub(super) runtime_error_presentation: Option<NativeRuntimeErrorPresentation>,
+    pub(super) manual_aux_hints: std::cell::RefCell<Option<super::aux_hints::ManualAuxHintSlots>>,
 }
 
 impl NativeDisplayState {
@@ -112,6 +115,7 @@ impl NativeDisplayState {
             held_toast_head: None,
             menu_scroll_offset: 0,
             runtime_error_presentation: None,
+            manual_aux_hints: std::cell::RefCell::new(None),
         }
     }
 }
@@ -297,6 +301,8 @@ impl Default for NativeUiState {
             button_brightness: 35,
             master_volume: 73,
             ghost_cells: false,
+            aux_auto_hints: true,
+            aux_manual_hints: true,
             numeric_display_mode: "bar".into(),
             screen_sleep_seconds: 60,
             dim_timer_seconds: 60,

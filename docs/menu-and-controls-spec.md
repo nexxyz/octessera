@@ -663,6 +663,19 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout
   (also listed in [`Play > FX > Aux Map`](menu-tree/play.md)).
 
+### Footer hints
+
+- The presentation carries, per Aux 1-3 and for the plain and the Shift layer, the turn and the
+  click hint of the control that encoder runs on the focused page: custom bindings over the
+  auto map, exactly as a turn or click resolves. Each hint has a short label (at most 7 characters
+  for Aux 1-2 and 6 for Aux 3: the binding or layout label, with inner vowels dropped from the
+  right and then cut when it is longer), the colour of the menu section that owns the target (Play
+  remote pages own none, so a bus mix hint is Shape blue; clicks: behavior actions Build, platform
+  effects by their area), and whether it comes from the auto map or a manual binding. The Shift
+  layer flag is set while Shift (alone or with Fn) is held.
+- `System > Display > Auto Hints` and `Manual Hints` (both default on) drop the auto-map or the
+  manual hints. They change only the footer; row caps stay.
+
 ### Aux toasts
 
 - Compact labels: `Trn-1`, `Clk-1`, `S+Trn-1`, `S+Clk-1`.
@@ -679,6 +692,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   input is ignored, a scoped `not active` toast is shown, and the binding stays for later.
 - Turn examples:
   - FX param missing for the current slot type: `Trn-1: B1 Time ms not active`
+- A delay in note mode hides `Time ms`, but a binding to it is not stale: its toast shows the
+  note-synced time, which the turn cannot change.
   - Instrument type changed away from the bound subtree: `Trn-1: I1 Filter cutoff not active`
   - Layer scan field while `scanMode` is not `scanning`: `Trn-1: L1 Scan Dir not active`
   - Behavior config param missing from the current behavior's `configMenu()`:

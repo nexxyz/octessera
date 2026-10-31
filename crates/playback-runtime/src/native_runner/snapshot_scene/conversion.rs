@@ -64,6 +64,8 @@ impl PresentationScene {
                     "voiceStealingMode": self.voice_stealing_mode
                 },
                 "ghostCells": ui.ghost_cells,
+                "auxAutoHints": ui.aux_auto_hints,
+                "auxManualHints": ui.aux_manual_hints,
                 "inputEventsWhilePaused": self.input_events_while_paused,
                 "numericDisplayMode": ui.numeric_display_mode,
                 "dimTimerSeconds": ui.dim_timer_seconds,
@@ -102,6 +104,8 @@ impl PresentationScene {
                 RuntimeTransportState::Stopped => "stop",
             },
             "transportFlash": self.transient.transport_flash.as_str(),
+            "auxHints": self.aux_hints,
+            "auxShiftLayer": ui.shift_held || ui.combined_modifier_held,
             "cpuLoadRatio": 0.0
         });
         if let Some(audio) = self.audio {

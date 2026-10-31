@@ -12,7 +12,8 @@ const RETIRED_RUNTIME_KEYS: [&str; 5] = [
 /// (`sound.*`, `transport.bpm`, `midi`) hold the same values, so loading simply drops them. The
 /// old `sound.audioOutputBufferFrames` setting never reached an audio stream and goes the same way.
 /// The HDMI Terminal mode was stored as `none` before it got its own name, and the retired
-/// `bar+numbers` Num Style loads as `bar`.
+/// `bar+numbers` Num Style loads as `bar`. System settings saved before the footer hint toggles
+/// existed get them at their default, on.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     let mut document = document.clone();
     let Some(runtime) = document
@@ -26,6 +27,11 @@ pub(crate) fn without_retired_keys(document: &Value) -> Value {
     }
     if let Some(sound) = runtime.get_mut("sound").and_then(Value::as_object_mut) {
         sound.remove("audioOutputBufferFrames");
+    }
+    if runtime.contains_key("ghostCells") {
+        for key in ["auxAutoHints", "auxManualHints"] {
+            runtime.entry(key).or_insert(Value::Bool(true));
+        }
     }
     if let Some(mode) = runtime.get_mut("numericDisplayMode") {
         if mode == "bar+numbers" {
@@ -97,6 +103,12 @@ mod tests {
         old_system["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
         old_system["runtimeConfig"]["hdmi"]["mode"] = json!("none");
         old_system["runtimeConfig"]["numericDisplayMode"] = json!("bar+numbers");
+        for key in ["auxAutoHints", "auxManualHints"] {
+            old_system["runtimeConfig"]
+                .as_object_mut()
+                .unwrap()
+                .remove(key);
+        }
 
         let composed = compose_local_system_patch_documents(&old_system, &old_patch).unwrap();
         let fresh =
@@ -107,6 +119,12 @@ mod tests {
         old_full["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
         old_full["runtimeConfig"]["hdmi"]["mode"] = json!("none");
         old_full["runtimeConfig"]["numericDisplayMode"] = json!("bar+numbers");
+        for key in ["auxAutoHints", "auxManualHints"] {
+            old_full["runtimeConfig"]
+                .as_object_mut()
+                .unwrap()
+                .remove(key);
+        }
         assert_eq!(split_system_patch_documents(&old_full).unwrap(), documents);
     }
 }

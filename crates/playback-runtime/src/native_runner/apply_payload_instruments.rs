@@ -167,6 +167,12 @@ impl NativeRunner {
         if let Some(value) = runtime.get("ghostCells").and_then(Value::as_bool) {
             self.display.ui.ghost_cells = value;
         }
+        if let Some(value) = runtime.get("auxAutoHints").and_then(Value::as_bool) {
+            self.display.ui.aux_auto_hints = value;
+        }
+        if let Some(value) = runtime.get("auxManualHints").and_then(Value::as_bool) {
+            self.display.ui.aux_manual_hints = value;
+        }
         if let Some(value) = runtime.get("displayBrightness").and_then(Value::as_u64) {
             if let Ok(value) = u8::try_from(value) {
                 self.display.ui.display_brightness = value.min(100);

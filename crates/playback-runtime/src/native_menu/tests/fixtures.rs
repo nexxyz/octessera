@@ -153,6 +153,8 @@ pub(crate) fn config() -> NativeMenuConfig {
         voice_stealing_mode: "auto-balanced".into(),
         auto_save_default: true,
         rolling_backups: true,
+        aux_auto_hints: true,
+        aux_manual_hints: true,
         ghost_cells: false,
         input_events_while_paused: true,
         numeric_display_mode: "bar".into(),

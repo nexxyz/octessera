@@ -140,6 +140,8 @@ impl NativeRunner {
             auto_save_default: self.auto_save_default,
             rolling_backups: self.rolling_backups,
             ghost_cells: self.display.ui.ghost_cells,
+            aux_auto_hints: self.display.ui.aux_auto_hints,
+            aux_manual_hints: self.display.ui.aux_manual_hints,
             input_events_while_paused: self.input_events_while_paused,
             numeric_display_mode: self.display.ui.numeric_display_mode.clone(),
             screen_sleep_seconds: self.display.ui.screen_sleep_seconds,

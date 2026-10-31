@@ -21,6 +21,8 @@ const FULL_FIELDS: &[&str] = &[
     "masterVolume",
     "sound",
     "ghostCells",
+    "auxAutoHints",
+    "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
     "dimTimerSeconds",
@@ -62,6 +64,8 @@ const PREFERENCE_FIELDS: &[&str] = &[
     "bluetooth",
     "masterVolume",
     "ghostCells",
+    "auxAutoHints",
+    "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
     "dimTimerSeconds",
@@ -84,6 +88,8 @@ const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "bluetooth",
     "masterVolume",
     "ghostCells",
+    "auxAutoHints",
+    "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
     "dimTimerSeconds",
@@ -124,6 +130,8 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "wifi",
     "masterVolume",
     "ghostCells",
+    "auxAutoHints",
+    "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
     "dimTimerSeconds",
@@ -224,6 +232,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["masterVolume"] = alternate_unsigned(&canonical_runtime["masterVolume"], 0, 100);
     source_runtime["randomSeed"] = alternate_unsigned(&canonical_runtime["randomSeed"], 1, 9999);
     source_runtime["ghostCells"] = alternate_bool(&canonical_runtime["ghostCells"]);
+    source_runtime["auxAutoHints"] = alternate_bool(&canonical_runtime["auxAutoHints"]);
+    source_runtime["auxManualHints"] = alternate_bool(&canonical_runtime["auxManualHints"]);
     source_runtime["inputEventsWhilePaused"] =
         alternate_bool(&canonical_runtime["inputEventsWhilePaused"]);
     source_runtime["numericDisplayMode"] =

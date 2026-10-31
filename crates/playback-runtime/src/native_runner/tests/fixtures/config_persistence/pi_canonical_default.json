@@ -58,6 +58,8 @@
     "dimTimerSeconds": 60,
     "displayBrightness": 85,
     "ghostCells": false,
+    "auxAutoHints": true,
+    "auxManualHints": true,
     "gridBrightness": 25,
     "inputEventsWhilePaused": true,
     "instruments": [

@@ -213,6 +213,8 @@ impl SystemPersistenceState {
             "bluetooth": { "enabled": runner.bluetooth.enabled, "audio": runner.bluetooth.audio },
             "wifi": { "enabled": runner.wifi_enabled },
             "ghostCells": runner.display.ui.ghost_cells,
+            "auxAutoHints": runner.display.ui.aux_auto_hints,
+            "auxManualHints": runner.display.ui.aux_manual_hints,
             "inputEventsWhilePaused": runner.input_events_while_paused,
             "numericDisplayMode": runner.display.ui.numeric_display_mode,
             "dimTimerSeconds": runner.display.ui.dim_timer_seconds,

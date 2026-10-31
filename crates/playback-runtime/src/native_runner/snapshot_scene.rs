@@ -8,9 +8,9 @@ use super::{
 };
 use crate::native_runner::snapshot_display::DisplaySnapshot;
 use crate::oled_frame::{
-    OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput, OledPresentationMetrics,
-    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
-    OledTransportIcon, OledTransportInput,
+    OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput,
+    OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash,
+    OledTransportFlash, OledTransportIcon, OledTransportInput,
 };
 use crate::protocol::MidiPort;
 use platform_core::{BehaviorRenderModel, GlobalSoundConfig};
@@ -83,6 +83,7 @@ pub struct PresentationScene {
     midi_respond_to_start_stop: bool,
     neo_key_colors: [[u8; 3]; 4],
     transient: DisplayTransientPresentation,
+    aux_hints: OledAuxHints,
     audio: Option<AudioScene>,
 }
 
@@ -213,6 +214,7 @@ impl NativeRunner {
             midi_respond_to_start_stop: self.midi_respond_to_start_stop,
             neo_key_colors: self.neo_key_colors(transient),
             transient,
+            aux_hints: self.aux_hints(),
             audio,
         })
     }
@@ -288,6 +290,8 @@ impl PresentationScene {
                 OledSaveFlash::None
             },
             save_flash_serial: self.auto_save_flash_serial,
+            aux_hints: self.aux_hints.clone(),
+            aux_shift_layer: self.ui.shift_held || self.ui.combined_modifier_held,
             metrics,
             runtime_error,
         }

@@ -17,6 +17,8 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
     "sound",
     "dsp",
     "ghostCells",
+    "auxAutoHints",
+    "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
     "dimTimerSeconds",

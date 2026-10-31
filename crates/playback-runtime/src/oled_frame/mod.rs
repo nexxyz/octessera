@@ -15,10 +15,10 @@ pub const OLED_FRAME_BYTES: usize = OLED_WIDTH * OLED_HEIGHT * 2;
 
 pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
 pub use model::{
-    OledAuxCap, OledBarInput, OledBarStyle, OledDisplayInput, OledMenuRowInput, OledMenuRowKind,
-    OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
-    OledScrollInput, OledSplash, OledTransportFlash, OledTransportIcon, OledTransportInput,
-    INDICATOR_FADE_LEVELS,
+    OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
+    OledHintLabel, OledHintSource, OledMenuRowInput, OledMenuRowKind, OledPresentationInput,
+    OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash,
+    OledTransportFlash, OledTransportIcon, OledTransportInput, INDICATOR_FADE_LEVELS,
 };
 pub(crate) use presentation_input::presentation_input_from_snapshot;
 pub use render::render_oled_frame;

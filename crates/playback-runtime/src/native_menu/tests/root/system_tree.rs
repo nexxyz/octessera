@@ -63,6 +63,8 @@ fn desktop_system_tree_has_exact_order() {
         vec![
             "Ghost Cells",
             "Auto Map",
+            "Auto Hints",
+            "Manual Hints",
             "Num Style",
             "Dim Timer",
             "OLED Sleep",
@@ -296,4 +298,29 @@ fn raspberry_host_system_tree_has_exact_order() {
             selected: 1,
         }
     );
+}
+
+#[test]
+pub(crate) fn every_control_key_names_the_section_that_owns_it() {
+    use crate::native_menu::section_labels::key_home_section;
+    fn walk(item: &NativeMenuItem, section: &str, wrong: &mut Vec<String>) {
+        if let Some(key) = item.key.as_deref() {
+            let picker = key.contains(':') || key.starts_with("binding.") || key.contains(".click");
+            if !picker && key_home_section(key) != section {
+                wrong.push(format!("{section}: {key}"));
+            }
+        }
+        for child in &item.children {
+            walk(child, section, wrong);
+        }
+    }
+    let mut wrong = Vec::new();
+    for config in representative_help_configs() {
+        let menu = NativeMenuModel::new(config);
+        for section in &menu.root.children {
+            walk(section, &section.label, &mut wrong);
+        }
+    }
+    wrong.dedup();
+    assert!(wrong.is_empty(), "{wrong:#?}");
 }

@@ -6,6 +6,8 @@ use std::collections::BTreeMap;
 const SCALARS: &[&str] = &[
     "masterVolume",
     "ghostCells",
+    "auxAutoHints",
+    "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
     "dimTimerSeconds",

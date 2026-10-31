@@ -90,7 +90,7 @@ impl NativeRunner {
         self.resolve_custom_aux_slot_from(&self.aux_bindings, index)
     }
 
-    fn resolve_custom_aux_slot_from(
+    pub(super) fn resolve_custom_aux_slot_from(
         &self,
         bindings: &[Option<NativeAuxBinding>],
         index: usize,
@@ -185,7 +185,7 @@ impl NativeRunner {
             _ => false,
         }
     }
-    fn current_auto_aux_map(&self) -> AuxAutoMap {
+    pub(super) fn current_auto_aux_map(&self) -> AuxAutoMap {
         let (selected_key, selected_action) = self.menu.current_binding_target();
         let path = self.menu.current_focus_path();
         self.resolve_aux_auto_map(&path, selected_key.as_deref(), selected_action.as_ref())
@@ -200,7 +200,7 @@ pub(super) fn aux_cap(index: usize) -> OledAuxCap {
     }
 }
 
-fn merge_aux_slots(
+pub(super) fn merge_aux_slots(
     custom: Option<ResolvedAuxSlot>,
     auto: Option<ResolvedAuxSlot>,
 ) -> ResolvedAuxSlot {

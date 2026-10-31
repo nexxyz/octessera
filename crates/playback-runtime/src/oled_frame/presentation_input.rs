@@ -1,7 +1,8 @@
 use super::{
-    OledBarInput, OledBarStyle, OledDisplayInput, OledDisplayLayout, OledMenuRowInput,
-    OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
-    OledScrollInput, OledSplash, OledTransportFlash, OledTransportIcon, OledTransportInput,
+    OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledDisplayLayout,
+    OledMenuRowInput, OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata,
+    OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash, OledTransportIcon,
+    OledTransportInput,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -81,6 +82,8 @@ pub(crate) fn presentation_input_from_snapshot(
     let event_dot_level = required::<u8>(snapshot, "eventDotLevel")?;
     let transport_icon = required_string(snapshot, "transportIcon")?;
     let transport_flash = required_string(snapshot, "transportFlash")?;
+    let aux_hints = required::<OledAuxHints>(snapshot, "auxHints")?;
+    let aux_shift_layer = required::<bool>(snapshot, "auxShiftLayer")?;
     let runtime_error =
         optional::<OledErrorDto>(snapshot, "runtimeError")?.map(|error| OledRuntimeErrorMetadata {
             domain: error.domain,
@@ -141,6 +144,8 @@ pub(crate) fn presentation_input_from_snapshot(
         cpu_warn_percent: settings.cpu_warn_percent,
         save_flash: save_flash_from_name(&settings.auto_save_flash),
         save_flash_serial: settings.auto_save_flash_serial,
+        aux_hints,
+        aux_shift_layer,
         metrics,
         runtime_error,
     }))

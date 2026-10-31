@@ -53,6 +53,22 @@ export type AuxCap = {
   shift: boolean;
 };
 
+export type AuxHintLabel = {
+  text: string;
+  color: number;
+  source: "auto" | "manual";
+};
+
+export type AuxHint = {
+  turn: AuxHintLabel | null;
+  click: AuxHintLabel | null;
+};
+
+export type AuxHints = {
+  normal: [AuxHint, AuxHint, AuxHint];
+  shift: [AuxHint, AuxHint, AuxHint];
+};
+
 export type DisplayMenuRow = {
   kind: "value" | "group" | "action";
   label: string;
@@ -87,6 +103,8 @@ export type RuntimeSnapshotFields = {
   missedQuantumFlash?: boolean;
   transportIcon: "play" | "pause" | "stop";
   transportFlash: "none" | "beat" | "measure";
+  auxHints?: AuxHints;
+  auxShiftLayer?: boolean;
   cpuLoadRatio?: number;
   settings?: RuntimeSnapshotSettings;
   runtimeError?: RuntimeErrorMetadata;

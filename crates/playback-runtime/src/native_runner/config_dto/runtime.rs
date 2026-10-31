@@ -45,6 +45,10 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) ghost_cells: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) aux_auto_hints: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) aux_manual_hints: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) input_events_while_paused: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) numeric_display_mode: Option<String>,
@@ -296,6 +300,8 @@ impl RuntimeConfigDto {
             "bluetooth",
             "wifi",
             "ghostCells",
+            "auxAutoHints",
+            "auxManualHints",
             "inputEventsWhilePaused",
             "numericDisplayMode",
             "dimTimerSeconds",

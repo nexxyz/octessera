@@ -272,6 +272,8 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
                     | "autoSaveDefault"
                     | "rollingBackups"
                     | "ghostCells"
+                    | "auxAutoHints"
+                    | "auxManualHints"
                     | "inputEventsWhilePaused"
                     | "numericDisplayMode"
                     | "dimTimerSeconds"

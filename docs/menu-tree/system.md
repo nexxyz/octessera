@@ -77,6 +77,8 @@ System
 ├── Display (group)
 │   ├── Ghost Cells: [on | off]
 │   ├── Auto Map: [on | off]
+│   ├── Auto Hints: [on | off]           default on
+│   ├── Manual Hints: [on | off]         default on
 │   ├── Num Style: [bar | numbers]       default bar; old bar+numbers saves load as bar
 │   ├── Dim Timer: [0..600] step 10 s
 │   ├── OLED Sleep: [0..600] step 10 s
@@ -369,7 +371,8 @@ changed edit saves System like any other System preference, shows `Applying...`,
 ## Display
 
 - `Auto Map` is described under
-  [Auto-map](../menu-and-controls-spec.md#auto-map), `Ghost Cells` under
+  [Auto-map](../menu-and-controls-spec.md#auto-map), `Auto Hints` and `Manual Hints` under
+  [Footer hints](../menu-and-controls-spec.md#footer-hints), `Ghost Cells` under
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority), and the brightness
   rows under [Brightness](../menu-and-controls-spec.md#brightness).
 - `HDMI Video > Mode` persists `runtimeConfig.hdmi.mode`
