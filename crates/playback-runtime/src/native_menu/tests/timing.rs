@@ -25,6 +25,7 @@ pub(crate) fn invalid_timing_menu_labels_use_the_canonical_default() {
     config.link_layers[0].scan_unit = "invalid".into();
     config.fx_buses[0].slot1_type = "delay".into();
     config.fx_buses[0].slot1_params = serde_json::json!({
+        "timeMode": "note",
         "timeMs": 250,
         "timeNote": "invalid",
         "feedback": 0.35,

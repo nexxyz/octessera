@@ -25,8 +25,7 @@ pub(super) fn fx_param_items(
             fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 35.0),
             fx_number_item("Spread %", prefix, params, "spreadPct", 0, 100, 1, 1.0, 0.0),
             delay_time_mode_item(prefix, params, bpm),
-            delay_time_note_item(prefix, params, bpm),
-            fx_number_item("Time ms", prefix, params, "timeMs", 1, 2000, 5, 1.0, 250.0),
+            delay_time_row_item(prefix, params, bpm, delay_time_field(params, bpm)),
             fx_number_item(
                 "Feedback", prefix, params, "feedback", 0, 98, 1, 100.0, 0.35,
             ),
@@ -92,6 +91,31 @@ fn delay_time_mode_item(prefix: &str, params: &serde_json::Value, bpm: u16) -> N
         options,
         if mode == "note" { 1 } else { 0 },
     )
+}
+
+/// The delay time row its Time Mode shows: `timeNote` in note mode, `timeMs` otherwise.
+pub(crate) fn delay_time_field(params: &serde_json::Value, bpm: u16) -> &'static str {
+    match normalized_delay_params(params, bpm)
+        .get("timeMode")
+        .and_then(serde_json::Value::as_str)
+    {
+        Some("note") => "timeNote",
+        _ => "timeMs",
+    }
+}
+
+/// One delay time row: `timeNote` for that field, `timeMs` otherwise.
+pub(crate) fn delay_time_row_item(
+    prefix: &str,
+    params: &serde_json::Value,
+    bpm: u16,
+    field: &str,
+) -> NativeMenuItem {
+    if field == "timeNote" {
+        delay_time_note_item(prefix, params, bpm)
+    } else {
+        fx_number_item("Time ms", prefix, params, "timeMs", 1, 2000, 5, 1.0, 250.0)
+    }
 }
 
 fn delay_time_note_item(prefix: &str, params: &serde_json::Value, bpm: u16) -> NativeMenuItem {

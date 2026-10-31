@@ -19,7 +19,8 @@ impl NativeRunner {
             "delay" => aux_auto_map([
                 has("feedback").then(|| self.turn_slot(key_for("feedback"), "FB")),
                 has("mixPct").then(|| self.turn_slot(key_for("mixPct"), "Mix")),
-                has("timeMs").then(|| self.turn_slot(key_for("timeMs"), "Time")),
+                has("timeMs")
+                    .then(|| self.turn_slot(key_for(self.delay_time_field(&base)), "Time")),
                 has("spreadPct").then(|| self.turn_slot(key_for("spreadPct"), "Spread")),
             ]),
             "tremolo" | "auto_pan" => aux_auto_map([
@@ -101,6 +102,25 @@ impl NativeRunner {
                 has("mixPct").then(|| self.turn_slot(key_for("mixPct"), "Mix")),
             ]),
             _ => AuxAutoMap::default(),
+        })
+    }
+
+    /// The delay time row its Time Mode shows, for the bus slot whose params live at `base`.
+    fn delay_time_field(&self, base: &str) -> &'static str {
+        let params = base
+            .strip_prefix("mixer.buses.")
+            .and_then(|rest| rest.split_once(".slot"))
+            .and_then(|(bus, rest)| {
+                let bus = self.fx_buses.get(bus.parse::<usize>().ok()?)?;
+                match rest.strip_suffix(".params")? {
+                    "1" => Some(&bus.slot1_params),
+                    "2" => Some(&bus.slot2_params),
+                    "3" => Some(&bus.slot3_params),
+                    _ => None,
+                }
+            });
+        params.map_or("timeMs", |params| {
+            crate::native_menu::delay_time_field(params, self.current_menu_bpm())
         })
     }
 

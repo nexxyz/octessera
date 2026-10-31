@@ -1,4 +1,5 @@
 use super::NativeRunner;
+use crate::native_menu::{NativeMenuItem, NativeMenuValue};
 
 impl NativeRunner {
     pub(super) fn handle_aux_turn(&mut self, index: usize, delta: i8) -> Result<(), String> {
@@ -34,14 +35,32 @@ impl NativeRunner {
                     value,
                 );
             }
-            Ok(None) => {
-                self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
-            }
+            Ok(None) => match self.hidden_delay_time_item(&turn.key) {
+                Some(hidden) => self.show_or_queue_aux_turn_toast(
+                    format!("{prefix}-{}: {}: ", index + 1, hidden.label),
+                    hidden_row_value(&hidden),
+                ),
+                None => {
+                    self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
+                }
+            },
             Err(error) => {
                 self.show_toast(error.clone());
                 return Err(error);
             }
         }
         Ok(())
+    }
+}
+
+/// A turn on a hidden delay time row reports its stored value: in note mode Time ms follows the
+/// note, so there is nothing for the turn to change.
+fn hidden_row_value(item: &NativeMenuItem) -> String {
+    match &item.value {
+        NativeMenuValue::Number { value, .. } => value.to_string(),
+        NativeMenuValue::Enum { options, selected } => {
+            options.get(*selected).cloned().unwrap_or_default()
+        }
+        _ => String::new(),
     }
 }

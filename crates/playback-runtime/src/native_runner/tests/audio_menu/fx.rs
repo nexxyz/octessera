@@ -1,16 +1,26 @@
 use super::*;
 
-fn set_bus_delay(runner: &mut NativeRunner, time_ms: i32) {
+fn set_bus_delay(runner: &mut NativeRunner, mode: &str, time_ms: i32) {
     runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params = json!({ "timeMs": time_ms, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slot1_params =
+        json!({ "timeMode": mode, "timeMs": time_ms, "feedback": 0.35, "mixPct": 35 });
     runner.menu.rebuild(runner.menu_config());
+}
+
+fn turn_main(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap()
 }
 
 #[test]
 pub(crate) fn delay_time_note_converts_at_current_bpm() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.bpm = 120.0;
-    set_bus_delay(&mut runner, 250);
+    set_bus_delay(&mut runner, "note", 250);
 
     assert_eq!(
         runner
@@ -22,34 +32,111 @@ pub(crate) fn delay_time_note_converts_at_current_bpm() {
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.timeNote"));
     runner.menu.state.editing = true;
-    runner.menu.turn(1);
-    runner.apply_current_menu_edit().unwrap();
+    turn_main(&mut runner, 1);
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
 
-    runner.menu.turn(5);
-    runner.apply_current_menu_edit().unwrap();
+    turn_main(&mut runner, 5);
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 2000);
 }
 
 #[test]
-pub(crate) fn delay_menu_orders_time_note_before_time_ms_and_derives_from_payload() {
+pub(crate) fn delay_menu_shows_only_the_time_row_of_its_time_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.bpm = 120.0;
-    set_bus_delay(&mut runner, 333);
+    set_bus_delay(&mut runner, "ms", 333);
+    let time_ms = "mixer.buses.0.slot1.params.timeMs";
+    let time_note = "mixer.buses.0.slot1.params.timeNote";
 
     assert!(runner
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.timeMode"));
-    assert_eq!(runner.menu.current_label(), Some("Time Mode"));
-    runner.menu.turn(1);
-    assert_eq!(runner.menu.current_label(), Some("Time Note"));
-    runner.menu.turn(1);
-    assert_eq!(runner.menu.current_label(), Some("Time ms"));
-    assert_eq!(
+    let labels = |runner: &NativeRunner| {
         runner
             .menu
-            .value_for_key("mixer.buses.0.slot1.params.timeNote"),
-        Some("1/4T".into())
+            .current_siblings()
+            .iter()
+            .map(|item| item.label.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels(&runner),
+        [
+            "Type",
+            "Mix %",
+            "Spread %",
+            "Time Mode",
+            "Time ms",
+            "Feedback"
+        ]
+    );
+    assert_eq!(runner.menu.value_for_key(time_note), None);
+
+    runner.menu.state.editing = true;
+    turn_main(&mut runner, 1);
+    assert_eq!(runner.menu.current_label(), Some("Time Mode"));
+    assert!(runner.menu.state.editing);
+    assert_eq!(
+        labels(&runner),
+        [
+            "Type",
+            "Mix %",
+            "Spread %",
+            "Time Mode",
+            "Time Note",
+            "Feedback"
+        ]
+    );
+    assert_eq!(runner.menu.value_for_key(time_note), Some("1/4T".into()));
+    assert_eq!(runner.menu.number_for_key(time_ms), None);
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
+
+    turn_main(&mut runner, -1);
+    assert_eq!(runner.menu.number_for_key(time_ms), Some(333));
+    assert_eq!(runner.menu.value_for_key(time_note), None);
+}
+
+#[test]
+pub(crate) fn delay_time_rows_no_longer_switch_time_mode() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.bpm = 120.0;
+    set_bus_delay(&mut runner, "ms", 250);
+    let key = "mixer.buses.0.slot1.params.timeNote";
+    assert!(runner.set_fx_bus_param(0, 0, "timeNote", key, json!("1/4")));
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
+    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/4");
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 250);
+
+    set_bus_delay(&mut runner, "note", 250);
+    let key = "mixer.buses.0.slot1.params.timeMs";
+    assert!(runner.set_fx_bus_param(0, 0, "timeMs", key, json!(400)));
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "note");
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 250);
+}
+
+#[test]
+pub(crate) fn aux_binding_to_the_hidden_time_ms_row_reports_the_synced_time() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.bpm = 120.0;
+    set_bus_delay(&mut runner, "note", 250);
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("mixer.buses.0.slot1.params.timeMs".into()),
+        press_action: None,
+    });
+
+    runner.handle_aux_turn(0, 1).unwrap();
+
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 250);
+    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "note");
+    let toast = runner
+        .display
+        .toast
+        .as_ref()
+        .map(|toast| toast.message.clone());
+    assert!(
+        toast
+            .as_deref()
+            .is_some_and(|toast| toast.contains("Time ms") && toast.contains("250")),
+        "{toast:?}"
     );
 }
 
@@ -82,7 +169,7 @@ pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner.transport.bpm = 120.0;
-    set_bus_delay(&mut runner, 250);
+    set_bus_delay(&mut runner, "note", 250);
     assert!(runner
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.timeNote"));
@@ -98,12 +185,6 @@ pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() 
     assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
     assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "note");
     assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/4T");
-    assert_eq!(
-        runner
-            .menu
-            .number_for_key("mixer.buses.0.slot1.params.timeMs"),
-        Some(333)
-    );
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -127,7 +208,7 @@ pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() 
 pub(crate) fn delay_time_ms_edit_remains_authoritative() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.bpm = 120.0;
-    set_bus_delay(&mut runner, 333);
+    set_bus_delay(&mut runner, "ms", 333);
     assert!(runner
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.timeMs"));
@@ -179,8 +260,8 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
     assert_eq!(
         runner
             .menu
-            .number_for_key("mixer.buses.0.slot1.params.timeMs"),
-        Some(500)
+            .number_for_key("mixer.buses.0.slot2.params.timeMs"),
+        Some(250)
     );
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -197,7 +278,7 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
         runner
             .menu
             .number_for_key("mixer.buses.0.slot3.params.timeMs"),
-        Some(1000)
+        None
     );
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -407,4 +488,18 @@ pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
 
     assert_eq!(runner.fx_buses[0].slot1_type, "none");
     assert_eq!(runner.global_fx_slots[0], "none");
+}
+
+#[test]
+pub(crate) fn delay_auto_map_puts_the_active_time_row_on_aux_three() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.bpm = 120.0;
+    for (mode, field) in [("ms", "timeMs"), ("note", "timeNote")] {
+        set_bus_delay(&mut runner, mode, 250);
+        assert!(runner
+            .menu
+            .focus_item_key("mixer.buses.0.slot1.params.feedback"));
+        let turn = runner.effective_aux_slot(2).turn.expect("Aux 3 turn");
+        assert_eq!(turn.key, format!("mixer.buses.0.slot1.params.{field}"));
+    }
 }

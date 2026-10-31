@@ -127,6 +127,7 @@ impl NativeRunner {
         self.menu
             .binding_spec_for_key(key)
             .and_then(|binding| binding.label)
+            .or_else(|| self.hidden_delay_time_item(key).map(|item| item.label))
             .unwrap_or_else(|| match key {
                 "masterVolume" => "Master Vol".into(),
                 _ => key.rsplit('.').next().unwrap_or(key).into(),

@@ -766,9 +766,9 @@ native_fx_release_duck	Menu > Shape > FX Buses > B*: * > Slot *: Duck > Release	
 native_fx_threshold	*	key:mixer.buses.*.slot*.params.threshold	number	Threshold	Sets the normalized trigger level for this effect from 0 to 1.	Lower values trigger more easily.
 native_fx_threshold_db	*	key:mixer.*.slots.*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_mix	*	key:mixer.*.slots.*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
-native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Delay Time Mode	ms stores a fixed millisecond delay; note follows a musical note unit and current BPM.	Changing Time Note selects note mode; changing Time ms selects millisecond mode.
-native_fx_time_note	*	key:mixer.buses.*.slot*.params.timeNote	enum	Delay Time Note	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	Each note is the tempo-synced Delay time; T values are triplets and the number is its 24-PPQN pulse count.
-native_fx_time	*	key:mixer.buses.*.slot*.params.timeMs	number	Delay Time	Sets delay time in milliseconds.	Longer values create wider echoes.
+native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Delay Time Mode	ms stores a fixed millisecond delay; note follows a musical note unit and current BPM.	This is the only mode switch: ms mode shows Time ms, note mode shows Time Note.
+native_fx_time_note	*	key:mixer.buses.*.slot*.params.timeNote	enum	Delay Time Note	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	Each note is the tempo-synced Delay time; shown in note mode. T values are triplets and the number is its 24-PPQN pulse count.
+native_fx_time	*	key:mixer.buses.*.slot*.params.timeMs	number	Delay Time	Sets delay time in milliseconds; shown in ms mode.	Longer values create wider echoes.
 native_fx_spread	*	key:mixer.buses.*.slot*.params.spreadPct	number	Delay Spread	Widens Delay at the FX bus output.	0% keeps the current mono bus output; Mix 0 produces no spread.
 native_fx_feedback	*	key:mixer.buses.*.slot*.params.feedback	number	Feedback	Sets how much output feeds back into the effect.	Higher values increase repeats or resonance.
 native_fx_rate_hz	*	key:mixer.*.slots.*.params.rateHz	number	Rate Hz	Sets modulation rate in Hertz.	Higher rates move faster.

@@ -141,8 +141,12 @@ pub(crate) fn missing_fx_bus_config_shows_default_slots_and_params() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Time Note"
-            && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "1/8")));
+        .any(|item| item.label == "Time ms"
+            && matches!(item.value, NativeMenuValue::Number { value: 250, .. })));
+    assert!(!menu
+        .current_siblings()
+        .iter()
+        .any(|item| item.label == "Time Note"));
     assert!(menu
         .current_siblings()
         .iter()
@@ -268,8 +272,7 @@ pub(crate) fn mixer_pan_is_non_editable_when_routed_to_fx_bus() {
 pub(crate) fn fx_slot_groups_show_selected_effect_params() {
     let mut config = config();
     config.fx_buses[0].slot1_type = "delay".into();
-    config.fx_buses[0].slot1_params =
-        serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44, "spreadPct": 12 });
+    config.fx_buses[0].slot1_params = serde_json::json!({ "timeMode": "note", "timeMs": 333, "feedback": 0.42, "mixPct": 44, "spreadPct": 12 });
     config.global_fx_slots[0] = "vinyl".into();
     config.global_fx_params[0] =
         serde_json::json!({ "cracklePct": 9, "warpDepthPct": 6, "mixPct": 80 });

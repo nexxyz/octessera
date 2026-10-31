@@ -15,7 +15,10 @@ pub(super) fn edit_visible_params(
     let keys = editable_keys_under(&runner.menu.root, prefix, is_safe);
     assert!(!keys.is_empty(), "no editable keys under {prefix}");
     for key in keys {
-        edit_key_by_turns(runner, &key, 1);
+        // An earlier edit may swap rows (delay Time Mode shows Time ms or Time Note).
+        if runner.menu.item_for_key(&key).is_some() {
+            edit_key_by_turns(runner, &key, 1);
+        }
     }
 }
 

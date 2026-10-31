@@ -291,7 +291,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
 | Type | Rows, in order |
 |---|---|
 | `reverb` | Decay, Damp, Mix % |
-| `delay` | Mix %, Spread %, Time Mode [ms \| note], Time Note, Time ms, Feedback |
+| `delay` | Mix %, Spread %, Time Mode [ms \| note], Time ms (ms mode) or Time Note (note mode), Feedback |
 | `tremolo` | Rate Hz, Depth % |
 | `vibrato`, `chorus`, `flanger` | Mix %, Rate Hz, Depth ms, Base ms, Feedback |
 | `filter_lfo`, `wah` | Rate Hz, Center, Depth %, Q |
@@ -309,10 +309,13 @@ Instrument rows offered as modulation, XY, and Aux targets:
   defaults with missing or invalid params are repaired to those defaults.
 - Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) and displayed as approximate tail
   time in seconds (for example `3.1s`) in menu rows and Aux toasts.
-- Delay: editing `Time Note` switches to note mode and materializes `timeMs` from the current BPM;
-  later BPM edits retime note-mode delays. Editing `Time ms` switches to ms mode, which stays manual.
-  Runtime/audio commands carry `timeMs` only; `timeMode` and `timeNote` persist as patch metadata
-  and are not modulation, Aux, or XY targets. `Spread %` (`0..100`) widens only the final bus
+- Delay: `Time Mode` is the only mode switch, and only the row of the active mode shows: `Time ms`
+  in ms mode, `Time Note` in note mode. Changing `Time Mode` swaps that row in place. In note mode
+  `timeMs` is materialized from `Time Note` and the current BPM, and later BPM edits retime it; ms
+  mode stays manual. Runtime/audio commands carry `timeMs` only; `timeMode` and `timeNote` persist
+  as patch metadata and are not modulation, Aux binding, or XY targets (auto-map Aux 3 still turns
+  `Time Note` in note mode). An Aux binding to `Time ms` keeps working in note mode: its toast
+  shows the note-synced time, which the turn cannot change. `Spread %` (`0..100`) widens only the final bus
   output; with Mix 0 and Spread 100 there is no widening.
 - Duck: `Source` lists `I1..I8`, then the other buses `B<n>` (never the duck's own bus). `Source Tap`
   stores `pre|post` and displays `Pre|Post`; a missing value in a legacy patch behaves as `pre`.

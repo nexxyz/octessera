@@ -93,6 +93,17 @@ impl NativeRunner {
         key: &str,
     ) -> bool {
         let value = self.menu_value_for_audio_param(key);
+        self.set_fx_bus_param(bus_index, slot_index, param_path, key, value)
+    }
+
+    pub(super) fn set_fx_bus_param(
+        &mut self,
+        bus_index: usize,
+        slot_index: usize,
+        param_path: &str,
+        key: &str,
+        value: Value,
+    ) -> bool {
         let bpm = self.current_menu_bpm();
         let Some(bus) = self.fx_buses.get_mut(bus_index) else {
             return false;
@@ -110,11 +121,11 @@ impl NativeRunner {
         if before == *params {
             return true;
         }
-        let sync_time_ms = matches!(param_path, "timeMode" | "timeNote").then(|| params.clone());
+        let time_mode_params = (param_path == "timeMode").then(|| params.clone());
         let fx_type = fx_type.clone();
         let params = audio_params_for_fx(&fx_type, params);
-        if let Some(sync_time_ms) = sync_time_ms {
-            self.sync_delay_time_ms_menu_value(key, &sync_time_ms);
+        if let Some(slot_params) = time_mode_params {
+            self.show_delay_time_row(bus_index, slot_index, &slot_params);
         }
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
@@ -332,21 +343,20 @@ impl NativeRunner {
             .unwrap_or(Value::Null)
     }
 
-    fn sync_delay_time_ms_menu_value(&mut self, key: &str, value: &Value) {
-        let Some(time_ms) = value
-            .get("timeMs")
-            .and_then(serde_json::Value::as_i64)
-            .and_then(|value| i32::try_from(value).ok())
-        else {
-            return;
-        };
-        let time_ms_key = key
-            .strip_suffix("timeNote")
-            .or_else(|| key.strip_suffix("timeMode"))
-            .map(|prefix| format!("{prefix}timeMs"));
-        if let Some(time_ms_key) = time_ms_key {
-            self.menu.set_number_value_for_key(&time_ms_key, time_ms);
-        }
+    /// Time Mode swaps the delay's time row in place: Time ms in ms mode, Time Note in note mode.
+    fn show_delay_time_row(&mut self, bus_index: usize, slot_index: usize, params: &Value) {
+        let slot_prefix = format!("mixer.buses.{bus_index}.slot{}", slot_index + 1);
+        let children = fx_bus_slot_children_for_key(
+            &slot_prefix,
+            "delay",
+            params,
+            bus_index,
+            self.current_menu_bpm(),
+        );
+        self.menu.replace_group_children_containing_direct_key(
+            &format!("{slot_prefix}.type"),
+            &children,
+        );
     }
 
     pub(super) fn current_menu_bpm(&self) -> u16 {
@@ -355,15 +365,13 @@ impl NativeRunner {
 }
 
 fn apply_fx_param_value(params: &mut Value, param_path: &str, value: Value, bpm: u16) -> bool {
-    if param_path == "timeNote" {
-        let Some(note) = value.as_str() else {
+    if param_path == "timeNote" || param_path == "timeMs" {
+        if param_path == "timeNote" && !value.is_string() {
             return false;
-        };
+        }
         let mut next = normalized_delay_params(params, bpm);
-        set_json_leaf(&mut next, "timeMode", Value::from("note"));
-        set_json_leaf(&mut next, "timeNote", Value::from(note));
-        set_json_leaf(&mut next, "timeMs", Value::from(note_ms(note, bpm)));
-        *params = next;
+        set_json_leaf(&mut next, param_path, value);
+        *params = normalized_delay_params(&next, bpm);
         return true;
     }
     if param_path == "timeMode" {
@@ -384,13 +392,6 @@ fn apply_fx_param_value(params: &mut Value, param_path: &str, value: Value, bpm:
         } else {
             set_json_leaf(&mut next, "timeMode", Value::from("ms"));
         }
-        *params = next;
-        return true;
-    }
-    if param_path == "timeMs" {
-        let mut next = normalized_delay_params(params, bpm);
-        set_json_leaf(&mut next, "timeMode", Value::from("ms"));
-        set_json_leaf(&mut next, param_path, value);
         *params = next;
         return true;
     }

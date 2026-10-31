@@ -641,7 +641,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   | FX | Aux 1-3 | Shift + Aux 1-3 |
   |---|---|---|
   | reverb | Mix, Decay, Damp | |
-  | delay | FB, Mix, Time | Spread |
+  | delay | FB, Mix, Time (`Time ms` in ms mode, `Time Note` in note mode) | Spread |
   | tremolo, auto_pan | Rate, Depth | |
   | vibrato | Rate, Depth, Base | Mix, FB |
   | chorus | Mix, Depth, Rate | FB, Base |
