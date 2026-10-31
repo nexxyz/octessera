@@ -109,6 +109,7 @@ impl PresentationScene {
             "auxShiftLayer": ui.shift_held || ui.combined_modifier_held,
             "recordingActive": self.transient.recording_active,
             "recordingPulseDim": recording_pulse_dim,
+            "oledAnimation": (!self.animation.is_empty()).then_some(&self.animation),
             "cpuLoadRatio": 0.0
         });
         if let Some(audio) = self.audio {

@@ -88,11 +88,16 @@ fn active_recording_follows_the_oled_sleep_timer() {
     runner.display.toast_expires_at = None;
     assert_eq!(
         runner.next_timed_display_snapshot_deadline(),
+        Some(start + Duration::from_millis(33)),
+        "the toast slides in first"
+    );
+    assert_eq!(
+        runner.next_timed_display_snapshot_deadline_after(Some(start + Duration::from_millis(99))),
         Some(start + Duration::from_millis(500))
     );
     runner.test_advance_display_time(Duration::from_millis(600));
     assert_eq!(
-        runner.next_timed_display_snapshot_deadline(),
+        runner.next_timed_display_snapshot_deadline_after(Some(start + Duration::from_millis(99))),
         Some(start + Duration::from_secs(1))
     );
     runner.test_advance_display_time(Duration::from_millis(4_400));

@@ -511,6 +511,39 @@ palette unless a behavior deliberately owns its own.
   `Help: Sh+Fn+Enter` too. Existing toasts, help/confirm dialogs, assignment overlays, and consumed
   mappings suppress the hint.
 
+### OLED animations
+
+- Five transitions animate, in 33 ms frames with ease-out steps; the last step is the end state:
+  - Selection move (cursor ±1 row, same page and scroll): the bar slides 13 px in 5/9/13 px steps
+    (~100 ms); the text stays put.
+  - Scroll (scroll offset ±1, same selected slot): the list moves 13 px in 5/9/13 px steps under the
+    fixed bar; rows inside the bar's band draw selected, rows outside unselected; the scrollbar thumb
+    follows.
+  - Enter submenu / back (menu stack one level deeper / shallower): the body rows `y=9..113` slide
+    left / right in 48/88/116/128 px steps (~133 ms). Breadcrumb, area rule and footer switch to
+    the new page at once.
+  - Edit enter / exit: the E2 box grows from / shrinks to the bar's right end over two frames
+    (half, then full or gone; ~67 ms).
+  - Toast show / hide: the black box slides up from / down to the bottom edge in 5/9/12/13 rows
+    (~133 ms). A hiding toast keeps its last text. The footer icons stay visible.
+- Nothing else animates: header and footer status icons only have the recording pulse and the event
+  dot fade. Modals, splash, off and runtime-error screens never animate.
+- Time-based, never frame-counted: the native runner compares each display capture with the one
+  before; a recognised change starts an animation at that capture's instant, and every later capture
+  shows the step for its own instant. A board that delivers fewer frames shows fewer steps but ends
+  on time, and the end state is always the exact static frame.
+- New input mid-animation jumps the running animation to its end state, and the new change animates
+  from there. A change of the same kind within that kind's duration of the previous one (a fast
+  encoder spin) shows its end state at once.
+- Animations never delay input: device input, menu application, event dispatch and audio run as
+  before, and the menu state changes immediately. While an animation runs, each frame boundary is a
+  timed display deadline (`next_timed_display_snapshot_deadline_after`), so both boards and the
+  desktop refresh at the 33 ms frame pace and stop when it ends.
+- The snapshot carries the resolved step as `oledAnimation` (`null` when settled): `body` is
+  `select` (`fromRow`, `moved`), `scroll` (`from`, `down`, `moved`), `slide` (`from`, `forward`,
+  `moved`) or `edit`; `toast` is `{text, visibleRows}`. `from` is the page being left. The shared
+  renderer composes the frame; desktop and both boards draw the same pixels.
+
 ### NeoKey snapshot contract
 
 - The native snapshot owns NeoKey presentation. Back is magenta. Space is magenta when stopped, blue

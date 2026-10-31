@@ -88,6 +88,7 @@ mod delay_fx_timing;
 mod device_config_apply;
 mod device_input;
 mod device_input_buttons;
+mod display_animations;
 mod display_deadlines;
 mod display_transients;
 mod drum_config;

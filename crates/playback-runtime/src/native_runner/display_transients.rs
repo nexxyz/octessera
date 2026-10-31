@@ -1,4 +1,6 @@
-use crate::oled_frame::INDICATOR_FADE_LEVELS;
+use super::display_animations::{AnimationFrame, DisplayAnimations};
+use crate::oled_frame::{OledAnimationInput, INDICATOR_FADE_LEVELS};
+use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 const EVENT_DOT_HOLD: Duration = Duration::from_millis(200);
@@ -48,6 +50,8 @@ pub(super) struct DisplayTransients {
     transport_flash_until: Option<Instant>,
     recording_started: Option<Instant>,
     recording_pulse_dim: bool,
+    /// Captures take `&self`, so the animations compare each capture through a cell.
+    animations: RefCell<DisplayAnimations>,
     snapshot_pending: bool,
     generation: u64,
     #[cfg(any(test, feature = "test-support"))]
@@ -63,6 +67,7 @@ impl DisplayTransients {
             transport_flash_until: None,
             recording_started: None,
             recording_pulse_dim: false,
+            animations: RefCell::default(),
             snapshot_pending: false,
             generation: 0,
             #[cfg(any(test, feature = "test-support"))]
@@ -155,9 +160,19 @@ impl DisplayTransients {
             changed |= dim != self.recording_pulse_dim;
             self.recording_pulse_dim = dim;
         }
+        changed |= self.animations.get_mut().advance(now);
         if changed {
             self.mark_presentation_due();
         }
+    }
+
+    /// Compares a capture with the one before and returns the animation state it shows.
+    pub(super) fn observe_animations(
+        &self,
+        frame: &AnimationFrame,
+        now: Instant,
+    ) -> OledAnimationInput {
+        self.animations.borrow_mut().observe(frame, now)
     }
 
     pub(super) fn mark_presentation_due(&mut self) {
@@ -222,13 +237,19 @@ impl DisplayTransients {
                 / RECORDING_PULSE_HALF.as_millis()) as u32;
             started + RECORDING_PULSE_HALF * (phases + 1)
         });
-        [event_dot_step, self.transport_flash_until, recording_pulse]
-            .into_iter()
-            .flatten()
-            .filter(|deadline| {
-                last_snapshot_at.is_none_or(|last_snapshot_at| *deadline > last_snapshot_at)
-            })
-            .min()
+        let animation_step = self.animations.borrow().next_deadline(last_snapshot_at);
+        [
+            event_dot_step,
+            self.transport_flash_until,
+            recording_pulse,
+            animation_step,
+        ]
+        .into_iter()
+        .flatten()
+        .filter(|deadline| {
+            last_snapshot_at.is_none_or(|last_snapshot_at| *deadline > last_snapshot_at)
+        })
+        .min()
     }
 
     #[cfg(any(test, feature = "test-support"))]

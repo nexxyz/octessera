@@ -6,11 +6,13 @@ use super::{
     NativeInstrumentSlot, NativeOledMode, NativeRunner, NativeTransportState, NativeUiState, Value,
     GRID_HEIGHT, GRID_WIDTH,
 };
-use crate::native_runner::snapshot_display::DisplaySnapshot;
+use crate::native_menu::NativeMenuBarValue;
+use crate::native_runner::display_animations::AnimationFrame;
+use crate::native_runner::snapshot_display::{DisplayScrollMetadata, DisplaySnapshot};
 use crate::oled_frame::{
-    OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledPresentationInput,
-    OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash,
-    OledTransportFlash, OledTransportIcon, OledTransportInput,
+    OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
+    OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
+    OledScrollInput, OledSplash, OledTransportFlash, OledTransportIcon, OledTransportInput,
 };
 use crate::protocol::MidiPort;
 use platform_core::{BehaviorRenderModel, GlobalSoundConfig};
@@ -84,6 +86,7 @@ pub struct PresentationScene {
     neo_key_colors: [[u8; 3]; 4],
     transient: DisplayTransientPresentation,
     aux_hints: OledAuxHints,
+    animation: OledAnimationInput,
     audio: Option<AudioScene>,
 }
 
@@ -96,10 +99,8 @@ impl NativeRunner {
         if self.test_snapshot_failure.replace(false) {
             return Err("test snapshot construction failure".into());
         }
-        let transient = self
-            .display
-            .transients
-            .presentation(self.display.transients.now());
+        let now = self.display.transients.now();
+        let transient = self.display.transients.presentation(now);
         let model = self.engine.model()?;
         let active_cells = display_active_cells(&model.cells);
         let mut leds = base_led_snapshot(&model);
@@ -149,6 +150,34 @@ impl NativeRunner {
         let menu = self.menu.snapshot();
         let title_color = menu.section_color;
         let display = self.display_snapshot(menu);
+        let toast = self
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| scrolled_toast(toast, self.toast_holds_at_end()))
+            .unwrap_or_default();
+        let off = self.display.oled_mode == NativeOledMode::Off;
+        let splash = if self.display.runtime_error_presentation.is_none()
+            && self.display.oled_mode == NativeOledMode::Splash
+        {
+            self.display.oled_splash_text.clone()
+        } else {
+            String::new()
+        };
+        let editing = self.menu.state.editing && self.display.help_popup.is_none();
+        let animation = self.display.transients.observe_animations(
+            &AnimationFrame {
+                display: &display,
+                title_color,
+                editing,
+                toast: &toast,
+                menu_stack: self
+                    .is_canonical_menu_presentation()
+                    .then_some(self.menu.state.stack.as_slice()),
+                menu_frame: !off && splash.is_empty(),
+            },
+            now,
+        );
         let audio = include_audio_config.then(|| AudioScene {
             instruments: self.instruments.clone(),
             buses: self.fx_buses.clone(),
@@ -160,21 +189,10 @@ impl NativeRunner {
             display,
             title_color,
             behavior_id: self.behavior.id().to_string(),
-            toast: self
-                .display
-                .toast
-                .as_ref()
-                .map(|toast| scrolled_toast(toast, self.toast_holds_at_end()))
-                .unwrap_or_default(),
-            off: self.display.oled_mode == NativeOledMode::Off,
-            splash: if self.display.runtime_error_presentation.is_none()
-                && self.display.oled_mode == NativeOledMode::Splash
-            {
-                self.display.oled_splash_text.clone()
-            } else {
-                String::new()
-            },
-            editing: self.menu.state.editing && self.display.help_popup.is_none(),
+            toast,
+            off,
+            splash,
+            editing,
             led_rgb,
             active_cells,
             hdmi: HdmiScene {
@@ -215,6 +233,7 @@ impl NativeRunner {
             neo_key_colors: self.neo_key_colors(transient),
             transient,
             aux_hints: self.aux_hints(),
+            animation,
             audio,
         })
     }
@@ -246,33 +265,8 @@ impl PresentationScene {
                     "shutdown" => OledSplash::Shutdown,
                     _ => OledSplash::Boot,
                 },
-                body_layout: display.body_layout,
-                title: display.title.clone(),
-                title_color: self.title_color,
-                lines: display.lines.clone(),
-                colors: display.colors.clone(),
-                bars: display
-                    .bar_values
-                    .iter()
-                    .map(|bar| {
-                        bar.as_ref().map(|bar| OledBarInput {
-                            fraction: f32::from(bar.frac_pct) / 100.0,
-                            style: if bar.style.as_deref() == Some("marker") {
-                                OledBarStyle::Marker
-                            } else {
-                                OledBarStyle::Fill
-                            },
-                        })
-                    })
-                    .collect(),
-                rows: display.rows.clone(),
-                scroll: display.scroll.as_ref().map(|scroll| OledScrollInput {
-                    offset: scroll.scroll_offset,
-                    total_rows: scroll.total_rows,
-                    visible_rows: scroll.visible_rows,
-                }),
-                editing: self.editing,
                 toast: self.toast.clone(),
+                ..oled_body_input(display, self.title_color, self.editing)
             },
             selected_row: display.selected_row,
             transport: OledTransportInput {
@@ -302,7 +296,50 @@ impl PresentationScene {
             recording_pulse_dim: self.recording_pulse_dim(),
             metrics,
             runtime_error,
-            animation: Default::default(),
+            animation: self.animation.clone(),
         }
+    }
+}
+
+/// The body parts of a display as the OLED renderer takes them.
+pub(super) fn oled_body_input(
+    display: &DisplaySnapshot,
+    title_color: u16,
+    editing: bool,
+) -> OledDisplayInput {
+    OledDisplayInput {
+        body_layout: display.body_layout,
+        title: display.title.clone(),
+        title_color,
+        lines: display.lines.clone(),
+        colors: display.colors.clone(),
+        bars: display
+            .bar_values
+            .iter()
+            .map(|bar| bar.as_ref().map(oled_bar_input))
+            .collect(),
+        rows: display.rows.clone(),
+        scroll: display.scroll.as_ref().map(oled_scroll_input),
+        editing,
+        ..OledDisplayInput::default()
+    }
+}
+
+pub(super) fn oled_bar_input(bar: &NativeMenuBarValue) -> OledBarInput {
+    OledBarInput {
+        fraction: f32::from(bar.frac_pct) / 100.0,
+        style: if bar.style.as_deref() == Some("marker") {
+            OledBarStyle::Marker
+        } else {
+            OledBarStyle::Fill
+        },
+    }
+}
+
+pub(super) fn oled_scroll_input(scroll: &DisplayScrollMetadata) -> OledScrollInput {
+    OledScrollInput {
+        offset: scroll.scroll_offset,
+        total_rows: scroll.total_rows,
+        visible_rows: scroll.visible_rows,
     }
 }
