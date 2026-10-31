@@ -41,22 +41,32 @@ impl NativeRunner {
     }
 
     pub fn capture_next_presentation_scene(&mut self) -> Result<super::PresentationScene, String> {
-        let include_audio_config =
-            self.last_snapshot_audio_config_revision != Some(self.audio_config_revision);
-        let scene = self.capture_presentation_scene(include_audio_config)?;
+        let scene = self.capture_scene_with_changed_audio()?;
         self.queue_audio_config_if_changed();
         Ok(scene)
     }
 
+    /// A scene whose snapshot carries the audio settings only when they changed since the last
+    /// snapshot that carried them.
+    pub(super) fn capture_scene_with_changed_audio(
+        &mut self,
+    ) -> Result<super::PresentationScene, String> {
+        let include_audio_config =
+            self.last_snapshot_audio_config_revision != Some(self.audio_config_revision);
+        let scene = self.capture_presentation_scene(include_audio_config)?;
+        self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
+        Ok(scene)
+    }
+
     pub(super) fn queue_audio_config_if_changed(&mut self) {
-        if self.last_snapshot_audio_config_revision != Some(self.audio_config_revision) {
+        if self.queued_audio_config_revision != Some(self.audio_config_revision) {
             self.invalidate_lfo_audio_cache();
             self.enqueue_configuration_runtime_plan(
                 super::ConfigurationRuntimePlan::FullRevisionedConfiguration {
                     revision: self.audio_config_revision,
                 },
             );
-            self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
+            self.queued_audio_config_revision = Some(self.audio_config_revision);
             if let Err(error) = self.process_modulation_step(true) {
                 self.show_toast(format!("LFO composition unavailable: {error}"));
             }

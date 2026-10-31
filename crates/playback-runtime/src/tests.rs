@@ -7,6 +7,7 @@ mod oled_runtime_invariant;
 mod presented_runtime_error;
 mod recording;
 mod setup_portal;
+mod stopped_snapshot;
 pub(crate) mod support;
 mod timing_regression;
 mod transport;

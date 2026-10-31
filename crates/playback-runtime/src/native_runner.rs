@@ -471,7 +471,10 @@ pub struct NativeRunner {
     dirty_revision: Option<u64>,
     last_backup_save_at: Option<Instant>,
     audio_config_revision: u64,
+    /// The audio revision the last JSON snapshot carried the audio settings of.
     last_snapshot_audio_config_revision: Option<u64>,
+    /// The audio revision last queued to the engine as a full configuration.
+    queued_audio_config_revision: Option<u64>,
     last_published_runtime_config: Option<RuntimeConfig>,
     trigger_probability_rng: u64,
     pending: NativePendingState,

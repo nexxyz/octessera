@@ -549,6 +549,9 @@ palette unless a behavior deliberately owns its own.
   like the indicator and recording-pulse steps, with native scene captures only: playing or
   stopped, a step never builds a runtime snapshot on the runtime thread. A stopped board builds
   snapshots only for input and the runner-state deadlines (`next_display_state_deadline_after`).
+  Like input snapshots, those deadline snapshots carry the audio settings (`settings.instruments`,
+  `mixer`, `panPositions`) only when `audioConfigRevision` moved past the last snapshot that
+  carried them; consumers keep the last ones, as the desktop's snapshot merge does.
 - The snapshot carries the resolved step as `oledAnimation` (`null` when settled): `body` is
   `select` (`fromRow`, `moved`), `scroll` (`from`, `down`, `moved`), `slide` (`from`, `forward`,
   `moved`) or `edit`; `toast` is `{text, visibleRows}`. `from` is the page being left. The shared

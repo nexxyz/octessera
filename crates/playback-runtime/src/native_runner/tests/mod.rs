@@ -142,6 +142,7 @@ mod shutdown;
 mod snapshot_autosave;
 mod snapshot_runtime;
 mod step_rates;
+mod stopped_snapshot_settings;
 mod store;
 mod store_result_contracts;
 mod structural_draft;

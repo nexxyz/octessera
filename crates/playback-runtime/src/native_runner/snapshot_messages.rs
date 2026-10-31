@@ -216,7 +216,7 @@ impl NativeRunner {
         if requested || pending {
             self.advance_oled_sleep_state();
             self.advance_toast_state();
-            let snapshot = self.snapshot()?;
+            let snapshot = self.capture_scene_with_changed_audio()?.into_snapshot();
             self.display.transients.acknowledge_snapshot_pending();
             messages.push(RunnerMessage::Snapshot { snapshot });
         }

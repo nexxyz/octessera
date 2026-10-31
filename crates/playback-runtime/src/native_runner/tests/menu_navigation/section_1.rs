@@ -88,7 +88,7 @@ pub(crate) fn transport_pulse_snapshot_is_explicit() {
     assert!(with_snapshot
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-    assert!(snapshot_from(&with_snapshot)["settings"]["instruments"].is_array());
+    assert!(snapshot_from(&with_snapshot)["settings"]["audioConfigRevision"].is_u64());
 }
 
 #[test]

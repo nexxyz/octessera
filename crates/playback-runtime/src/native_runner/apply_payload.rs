@@ -81,6 +81,7 @@ impl NativeRunner {
         self.sample_browser = source.sample_browser.clone();
         self.last_backup_save_at = source.last_backup_save_at;
         self.last_snapshot_audio_config_revision = source.last_snapshot_audio_config_revision;
+        self.queued_audio_config_revision = source.queued_audio_config_revision;
         self.last_published_runtime_config = source.last_published_runtime_config.clone();
         self.trigger_probability_rng = source.trigger_probability_rng;
         self.seeded_link_streams = source.seeded_link_streams.clone();
@@ -140,6 +141,7 @@ impl NativeRunner {
         candidate.audio_config_revision = self.audio_config_revision;
         candidate.commit_configuration_runtime_plan(&plan);
         candidate.last_snapshot_audio_config_revision = self.last_snapshot_audio_config_revision;
+        candidate.queued_audio_config_revision = self.queued_audio_config_revision;
         *self = candidate;
         self.commit_loaded_revision(source_revision);
         if let Err(error) = self.process_modulation_step(false) {
