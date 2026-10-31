@@ -195,6 +195,18 @@ pub(crate) fn test_service_with_recording_dir(
     EngineEventReceiver,
     Sender<HostMessage>,
 ) {
+    test_service_with_recorder(RecordingServices::new(recording_dir.clone(), recording_dir))
+}
+
+#[cfg(test)]
+pub(crate) fn test_service_with_recorder(
+    recorder: RecordingServices,
+) -> (
+    AudioService,
+    Receiver<AudioControlRequest>,
+    EngineEventReceiver,
+    Sender<HostMessage>,
+) {
     let (event_tx, event_rx) = event_queue();
     let (control_tx, control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
@@ -214,10 +226,7 @@ pub(crate) fn test_service_with_recording_dir(
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
-        recorder: Arc::new(Mutex::new(RecordingServices::new(
-            recording_dir.clone(),
-            recording_dir,
-        ))),
+        recorder: Arc::new(Mutex::new(recorder)),
         mix_taps: Arc::new(RwLock::new(super::audio_output::MixTaps::default())),
         recording_oled: Arc::new(RwLock::new(None)),
         accepted_oled_frame: Arc::new(RwLock::new(None)),

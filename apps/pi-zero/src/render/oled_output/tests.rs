@@ -150,13 +150,25 @@ fn changed_source_revision_with_identical_pixels_does_not_rewrite_frame() {
     assert_eq!(next.revision(), first.revision());
 }
 
+static RECORDING_WRITER_GATE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn wait_for_recording_writer_gate() {
+    drop(RECORDING_WRITER_GATE.lock());
+}
+
 #[test]
 fn colliding_source_revisions_through_terminal_advance_physical_frames() {
     let root = std::env::temp_dir().join(format!(
         "octessera-oled-transition-recording-{}",
         std::process::id()
     ));
-    let (audio, _, _, _) = crate::audio::test_service_with_recording_dir(root.clone());
+    let writer_gate = RECORDING_WRITER_GATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (audio, _, _, _) = crate::audio::test_service_with_recorder(
+        crate::audio_recording::RecordingServices::new(root.clone(), root.clone())
+            .with_writer_start(wait_for_recording_writer_gate),
+    );
     audio.start_recording_audio_oled_with_seed(1, None).unwrap();
     let mut cache = HardwareRenderCache::default();
     let mut oled = FakeOled::new();
@@ -184,6 +196,7 @@ fn colliding_source_revisions_through_terminal_advance_physical_frames() {
         .submit_accepted_oled_frame(terminal.revision(), terminal.pixels())
         .unwrap();
     audio.test_push_recording_samples(&vec![0; 4_410]).unwrap();
+    drop(writer_gate);
     let recording = audio.stop_recording_with_outcome().unwrap().unwrap();
 
     assert!(legacy.revision() < native.revision());

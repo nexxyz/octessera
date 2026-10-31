@@ -35,6 +35,15 @@ impl RecordingServices {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn with_writer_start(self, writer_start: fn()) -> Self {
+        Self {
+            audio: self.audio.with_worker_start(writer_start),
+            audio_oled: self.audio_oled.with_worker_start(writer_start),
+            active: self.active,
+        }
+    }
+
     pub(crate) fn start_audio(
         &mut self,
         max_minutes: u16,

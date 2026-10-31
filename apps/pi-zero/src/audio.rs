@@ -369,7 +369,9 @@ pub(crate) use tests::test_service_with_prep_worker;
 #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) use tests::{test_service, test_service_with_outputs, test_service_with_prep_sender};
 #[cfg(test)]
-pub(crate) use tests::{test_service_for_sample_prep, test_service_with_recording_dir};
+pub(crate) use tests::{
+    test_service_for_sample_prep, test_service_with_recorder, test_service_with_recording_dir,
+};
 
 #[cfg(test)]
 mod audio_oled_recording_tests;
