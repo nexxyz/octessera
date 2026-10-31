@@ -245,11 +245,14 @@ impl NativeRunner {
             worker_warning_threshold,
             bus_idle_threshold,
         };
+        let engine_changed = config.bus_idle_threshold != self.dsp_config.bus_idle_threshold;
         if value_changed(&mut self.dsp_config, config) {
-            self.queue_audio_command(RuntimeAudioCommand::SetDspConfig {
-                generation: 0,
-                config,
-            });
+            if engine_changed {
+                self.queue_audio_command(RuntimeAudioCommand::SetDspConfig {
+                    generation: 0,
+                    config,
+                });
+            }
             self.mark_system_dirty();
         }
         true

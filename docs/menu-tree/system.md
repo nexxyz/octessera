@@ -244,10 +244,11 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   compact values `Lat` and `Cap`. Neither mode changes voice or FX limits. Desktop hides it.
 - `Polyphony` stores `sound.voiceStealingMode`.
 - `Engine > CPU Warn %` persists `runtimeConfig.dsp.workerWarningThreshold` and `Bus Idle` persists
-  `runtimeConfig.dsp.busIdleThreshold`. Both propagate straight to the realtime engine without
-  rebuilding prepared audio or changing structural render-plan revisions. `CPU Warn %` sets where
-  the header CPU meter turns red ([status icons](../menu-and-controls-spec.md#status-icons-and-transport-indicators));
-  bus silence handling is a separate runtime phase.
+  `runtimeConfig.dsp.busIdleThreshold`. `CPU Warn %` only sets where the header CPU meter turns red
+  ([status icons](../menu-and-controls-spec.md#status-icons-and-transport-indicators)) and sends
+  nothing to the engine. `Bus Idle` propagates straight to the realtime engine without rebuilding
+  prepared audio or changing structural render-plan revisions; bus silence handling is a separate
+  runtime phase.
 
 ## MIDI
 

@@ -1,35 +1,64 @@
 use super::*;
 
-#[test]
-pub(crate) fn dsp_menu_uses_direct_audio_command_without_revision_bump() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let _ = runner.messages_with_snapshot().unwrap();
-    let _ = runner.messages_with_snapshot().unwrap();
-    assert!(runner.menu.focus_item_key("dsp.workerWarningThreshold"));
+fn turn_main_on_key(runner: &mut NativeRunner, key: &str) -> Vec<RunnerMessage> {
+    assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
-
-    let messages = runner
+    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
             request_snapshot: None,
         })
-        .unwrap();
+        .unwrap()
+}
+
+fn queued_dsp_config(
+    messages: &[RunnerMessage],
+) -> Option<realtime_engine::synth::DspRuntimeConfig> {
+    messages.iter().find_map(|message| match message {
+        RunnerMessage::AudioCommands { commands } => {
+            commands.iter().find_map(|command| match command {
+                RuntimeAudioCommand::SetDspConfig { config, .. } => Some(*config),
+                _ => None,
+            })
+        }
+        _ => None,
+    })
+}
+
+#[test]
+pub(crate) fn cpu_warn_menu_edit_saves_without_an_engine_command() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+
+    let messages = turn_main_on_key(&mut runner, "dsp.workerWarningThreshold");
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["dsp"]["workerWarningThreshold"],
         "90"
     );
     assert_eq!(runner.audio_config_revision, 0);
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::AudioCommands { commands }
-            if commands.iter().any(|command| matches!(
-                command,
-                RuntimeAudioCommand::SetDspConfig { config, .. }
-                    if config.worker_warning_threshold
-                        == realtime_engine::synth::WorkerWarningThreshold::Percent90
-            ))
-    )));
+    assert_eq!(queued_dsp_config(&messages), None);
+    assert_no_full_audio_config(&messages);
+}
+
+#[test]
+pub(crate) fn bus_idle_menu_edit_uses_direct_audio_command_without_revision_bump() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+
+    let messages = turn_main_on_key(&mut runner, "dsp.busIdleThreshold");
+
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["dsp"]["busIdleThreshold"],
+        "-100"
+    );
+    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(
+        queued_dsp_config(&messages).map(|config| config.bus_idle_threshold),
+        Some(realtime_engine::synth::BusIdleThreshold::Db100)
+    );
     assert_no_full_audio_config(&messages);
 }
 
