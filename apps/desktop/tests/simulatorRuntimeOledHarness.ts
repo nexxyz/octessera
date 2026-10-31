@@ -81,7 +81,7 @@ export function snapshot(
     transportIcon: 'stop' as const,
     transportFlash: 'none' as const,
     settings: {
-      displayBrightness: 75,
+      displayBrightness: 12,
       buttonBrightness: 75,
       masterVolume,
       autoSaveFlash: 'none' as const,

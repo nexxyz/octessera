@@ -162,7 +162,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         screen_sleep_seconds: 60,
         dim_timer_seconds: 60,
         grid_brightness: 25,
-        display_brightness: 75,
+        display_brightness: 12,
         button_brightness: 35,
         midi_enabled: false,
         midi_clock_out_enabled: false,

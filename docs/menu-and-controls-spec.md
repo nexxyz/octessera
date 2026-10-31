@@ -927,14 +927,12 @@ Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
 
 - OLED Bright sets the SSD1351 master contrast current (command `C7h`, 16 steps) instead of
   scaling pixels, so dimming keeps full colour depth and costs a few command bytes, not a frame
-  write. `oled_master_contrast_step` maps the percentage to the step whose share of full current,
-  `(step + 1) / 16`, is nearest: 10 and 15 → 1, 20 → 2, 25 → 3, 30 → 4, 35 and 40 → 5,
-  45 → 6, 50 → 7, 55 → 8, 60 and 65 → 9, 70 → 10, 75 → 11, 80 → 12, 85 and 90 → 13, 95 → 14,
-  100 → 15 (`0Fh`, the panel init value).
+  write. Its values `1..16` (default 12) are the panel's 16 levels, one per detent: value `v`
+  sends step `v - 1`, so 16 sends `0Fh`, the panel init value.
 - OLED frames, recordings included, stay at full intensity. Raspberry and Orange send the step
   from the render worker once the runtime owns the panel, whenever the step changes, and again
   after an ownership restore. The boot logo shows at full panel current until then. The desktop
-  simulator multiplies the displayed image by `(step + 1) / 16` to match.
+  simulator multiplies the displayed image by `v / 16` to match.
 - Grid Bright scales matrix LED RGB intensity; Button Bright scales NeoKey LED intensity.
 - The Dim Timer applies an extra dim, with its visible floor, while the OLED stays on.
 - Once `OLED Sleep` turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz

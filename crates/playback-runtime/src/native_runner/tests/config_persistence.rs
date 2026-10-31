@@ -113,7 +113,7 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
     let musical_before_device = runner.patch_payload().unwrap();
     let mut device = runner.device_config_payload().unwrap();
     device["runtimeConfig"]["masterVolume"] = json!(22);
-    device["runtimeConfig"]["displayBrightness"] = json!(17);
+    device["runtimeConfig"]["displayBrightness"] = json!(3);
     device["runtimeConfig"]["audioOutputs"] = json!({
         "dac": false,
         "usb": true,
@@ -136,7 +136,7 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
     assert_eq!(runner.config_payload()["runtimeConfig"]["masterVolume"], 22);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["displayBrightness"],
-        17
+        3
     );
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["audioOutputs"],

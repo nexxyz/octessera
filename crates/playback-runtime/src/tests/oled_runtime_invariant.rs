@@ -212,11 +212,11 @@ fn brightness_edits_keep_oled_pixels_and_publish_the_setting() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let _ = present(&mut runtime, snapshot("MENU"));
     let mut changed = snapshot("MENU");
-    changed["settings"]["displayBrightness"] = json!(35);
+    changed["settings"]["displayBrightness"] = json!(6);
     let output = present(&mut runtime, changed);
     assert!(matches!(output.as_slice(), [
         RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }
-    ] if snapshot["oledFrameRevision"] == 1 && snapshot["settings"]["displayBrightness"] == 35));
+    ] if snapshot["oledFrameRevision"] == 1 && snapshot["settings"]["displayBrightness"] == 6));
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn visible_oled_inputs_rebuild_pixels_while_metrics_and_errors_remain_live() {
     next["selectedRow"] = json!(0);
     next["transportFlash"] = json!("beat");
     next["eventDotLevel"] = json!(4);
-    next["settings"]["displayBrightness"] = json!(35);
+    next["settings"]["displayBrightness"] = json!(6);
     let shown = present(&mut runtime, next);
     assert!(matches!(shown.as_slice(), [
         RunnerMessage::OledFrame { revision: 2, pixels, .. },

@@ -148,7 +148,7 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
         "hdmi": false
     });
     current["runtimeConfig"]["sound"]["optimizeFor"] = json!("capacity");
-    current["runtimeConfig"]["displayBrightness"] = json!(42);
+    current["runtimeConfig"]["displayBrightness"] = json!(6);
     current["runtimeConfig"]["sampleFavouriteDirs"] = json!(["/private/device/path"]);
     current["runtimeConfig"]["midi"]["outId"] = json!("device-specific-id");
 
@@ -158,14 +158,14 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
         current["runtimeConfig"]["audioOutputs"]
     );
     assert_eq!(delta.values["sound"]["optimizeFor"], "capacity");
-    assert_eq!(delta.values["displayBrightness"], 42);
+    assert_eq!(delta.values["displayBrightness"], 6);
     assert!(!delta.values.contains_key("sampleFavouriteDirs"));
     assert!(!delta.values.contains_key("midi"));
 
     let applied = apply_user_preference_delta(&defaults, &delta).unwrap();
     assert_eq!(applied["runtimeConfig"]["audioOutputs"]["usb"], true);
     assert_eq!(applied["runtimeConfig"]["sound"]["optimizeFor"], "capacity");
-    assert_eq!(applied["runtimeConfig"]["displayBrightness"], 42);
+    assert_eq!(applied["runtimeConfig"]["displayBrightness"], 6);
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn user_data_rehydration_applies_preferences_before_canonical_portable_patch() {
     let mut preferences = UserPreferenceDelta::empty();
     preferences
         .values
-        .insert("displayBrightness".into(), json!(42));
+        .insert("displayBrightness".into(), json!(6));
     let mut patch = patch();
     patch["runtimeConfig"]["masterVolume"] = json!(1);
     patch["runtimeConfig"]["layers"] = json!([{
@@ -189,7 +189,7 @@ fn user_data_rehydration_applies_preferences_before_canonical_portable_patch() {
     });
 
     let restored = apply_user_data_patch_and_preferences(&defaults, &patch, &preferences).unwrap();
-    assert_eq!(restored["runtimeConfig"]["displayBrightness"], 42);
+    assert_eq!(restored["runtimeConfig"]["displayBrightness"], 6);
     assert_eq!(
         restored["runtimeConfig"]["masterVolume"],
         defaults["runtimeConfig"]["masterVolume"]

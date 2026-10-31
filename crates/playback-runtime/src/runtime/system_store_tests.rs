@@ -32,7 +32,7 @@ fn system_document() -> Value {
     let config: Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     let mut system = crate::split_system_patch_documents(&config).unwrap().system;
-    system["runtimeConfig"]["displayBrightness"] = json!(29);
+    system["runtimeConfig"]["displayBrightness"] = json!(4);
     system
 }
 
@@ -247,7 +247,7 @@ fn stale_and_wrong_revision_system_results_are_ignored() {
     );
     assert_eq!(
         runtime.last_snapshot().unwrap()["settings"]["displayBrightness"],
-        29
+        4
     );
     assert_eq!(
         runtime
@@ -283,11 +283,11 @@ fn valid_system_load_applies_once_and_duplicate_cannot_clear_newer_failure() {
     assert!(runtime.last_status().unwrap().error.is_none());
     assert_eq!(
         runtime.last_snapshot().unwrap()["settings"]["displayBrightness"],
-        29
+        4
     );
     let applied = runtime.last_snapshot().unwrap().clone();
     let mut duplicate = system_document();
-    duplicate["runtimeConfig"]["displayBrightness"] = json!(55);
+    duplicate["runtimeConfig"]["displayBrightness"] = json!(9);
     dispatch_result(
         &mut runtime,
         &mut runner,

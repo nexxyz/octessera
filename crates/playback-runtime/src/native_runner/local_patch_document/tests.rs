@@ -10,7 +10,7 @@ fn runner_with_local_samples() -> NativeRunner {
     runner.instruments[1].sample_paths[7] = Some("sd-card/octessera/samples/kick.wav".into());
     runner.instruments[1].sample_paths[6] = Some("sd-card/octessera/samples/missing.wav".into());
     runner.instruments[1].kind = "sampler".into();
-    runner.display.ui.display_brightness = 41;
+    runner.display.ui.display_brightness = 7;
     runner.audio_outputs = crate::AudioOutputSet::from_flags(false, true, false).unwrap();
     runner
 }
@@ -85,7 +85,7 @@ fn local_documents_round_trip_exact_paths_and_complete_inactive_sampler_arrays()
         recomposed["runtimeConfig"]["instruments"][1]["sample"]["slots"][6]["path"],
         "sd-card/octessera/samples/missing.wav"
     );
-    assert_eq!(recomposed["runtimeConfig"]["displayBrightness"], 41);
+    assert_eq!(recomposed["runtimeConfig"]["displayBrightness"], 7);
     assert_eq!(
         recomposed["runtimeConfig"]["audioOutputs"],
         json!({ "dac": false, "usb": true, "hdmi": false })
@@ -153,13 +153,13 @@ fn local_default_autosave_backup_recovery_and_load_preserve_paths_and_system_set
     assert_eq!(recovery_payload, manual_payload);
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    restored.display.ui.display_brightness = 63;
+    restored.display.ui.display_brightness = 10;
     restored.audio_outputs = crate::AudioOutputSet::from_flags(false, false, true).unwrap();
     restored.instruments[1].sample_paths[6] = Some("stale/old.wav".into());
     restored
         .apply_local_patch_payload_preserving_device(manual_payload)
         .unwrap();
-    assert_eq!(restored.display.ui.display_brightness, 63);
+    assert_eq!(restored.display.ui.display_brightness, 10);
     assert_eq!(
         restored.audio_outputs,
         crate::AudioOutputSet::from_flags(false, false, true).unwrap()

@@ -114,7 +114,7 @@ export function snapshotFromCore(
       settings?.buttonBrightness,
       settings?.ledsDimmed ?? false,
     ),
-    displayBrightness: settings?.displayBrightness ?? 75,
+    displayBrightness: settings?.displayBrightness ?? 12,
     buttonBrightness: settings?.buttonBrightness ?? 75,
     masterVolume: cache.masterVolume,
     audioLoad: audio.audioLoad,

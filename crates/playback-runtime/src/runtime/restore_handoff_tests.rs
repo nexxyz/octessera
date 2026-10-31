@@ -143,7 +143,7 @@ fn requests_for(host: &RestoreHost, operation: RuntimeOperation) -> Vec<&Runtime
 fn matching_system_then_patch_restore_acknowledges_once_after_native_apply() {
     let (mut runtime, mut runner, mut host) = runtime_runner();
     let (mut system, mut patch) = documents();
-    system["runtimeConfig"]["displayBrightness"] = json!(27);
+    system["runtimeConfig"]["displayBrightness"] = json!(4);
     patch["runtimeConfig"]["transport"]["bpm"] = json!(133.0);
     patch["runtimeConfig"]["transport"]["bpm"] = json!(133.0);
     patch["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"] =
@@ -171,7 +171,7 @@ fn matching_system_then_patch_restore_acknowledges_once_after_native_apply() {
     assert!(ack_index < panic_index);
     assert_eq!(
         runtime.last_snapshot().unwrap()["settings"]["displayBrightness"],
-        27
+        4
     );
     assert_eq!(runtime.config().bpm, 133.0);
     assert_eq!(

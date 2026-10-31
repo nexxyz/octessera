@@ -49,7 +49,7 @@ fn without_new_fm_fields(payload: &mut Value) {
 fn explicit_orange_default_payload(mut payload: Value) -> Value {
     payload["revision"] = json!(91);
     payload["system"]["playMode"] = json!("pan");
-    payload["runtimeConfig"]["displayBrightness"] = json!(13);
+    payload["runtimeConfig"]["displayBrightness"] = json!(2);
     payload["runtimeConfig"]["gridBrightness"] = json!(17);
     payload["runtimeConfig"]["buttonBrightness"] = json!(19);
     payload["runtimeConfig"]["sound"]["optimizeFor"] = json!("capacity");

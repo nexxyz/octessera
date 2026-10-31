@@ -10,7 +10,7 @@ fn distinct_full_config(source: &str) -> Value {
     let runtime = &mut config["runtimeConfig"];
     runtime["masterVolume"] = json!(37);
     runtime["sampleFavouriteDirs"] = json!(["local/favourites/only"]);
-    runtime["displayBrightness"] = json!(73);
+    runtime["displayBrightness"] = json!(11);
     runtime["inputEventsWhilePaused"] = json!(true);
     runtime["midi"]["outId"] = json!("device-midi-out");
     runtime["midi"]["inId"] = json!("device-midi-in");
@@ -63,7 +63,7 @@ fn assert_round_trip(source: &str) {
     assert_eq!(documents.patch["mappingConfig"], full["mappingConfig"]);
     assert_eq!(documents.patch["runtimeConfig"]["playMode"], "pan");
     assert_eq!(documents.system["runtimeConfig"]["masterVolume"], 37);
-    assert_eq!(documents.system["runtimeConfig"]["displayBrightness"], 73);
+    assert_eq!(documents.system["runtimeConfig"]["displayBrightness"], 11);
     assert_eq!(
         documents.system["runtimeConfig"]["inputEventsWhilePaused"],
         true

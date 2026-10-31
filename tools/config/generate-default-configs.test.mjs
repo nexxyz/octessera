@@ -17,7 +17,7 @@ const baseConfig = {
   runtimeConfig: {
     activeBehavior: "life",
     buttonBrightness: 35,
-    displayBrightness: 75,
+    displayBrightness: 12,
     gridBrightness: 25,
     instruments: [{ type: "synth", sample: { slots: [{ path: null }] } }],
     layers: [{ name: "life", worlds: { behaviorId: "life" } }],
@@ -29,7 +29,7 @@ test("allows declared device-local brightness overrides", () => {
     desktop: {
       runtimeConfig: {
         buttonBrightness: 100,
-        displayBrightness: 100,
+        displayBrightness: 16,
         gridBrightness: 100,
       },
     },
@@ -38,7 +38,7 @@ test("allows declared device-local brightness overrides", () => {
     doesNotThrow(() => generateDefaultConfigs(root));
     const generated = readJson(join(root, "config/generated/desktop/default.json"));
     equal(generated.runtimeConfig.buttonBrightness, 100);
-    equal(generated.runtimeConfig.displayBrightness, 100);
+    equal(generated.runtimeConfig.displayBrightness, 16);
     equal(generated.runtimeConfig.gridBrightness, 100);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -63,23 +63,30 @@ test("rejects malformed platform override paths and values", () => {
   throws(
     () =>
       validatePlatformOverride("desktop", {
-        runtimeConfig: { displayBrightness: { value: 100 } },
+        runtimeConfig: { displayBrightness: { value: 16 } },
       }),
-    /desktop platform override value at runtimeConfig\.displayBrightness must be an integer from 0 through 100/,
+    /desktop platform override value at runtimeConfig\.displayBrightness must be an integer from 1 through 16/,
   );
   throws(
     () =>
       validatePlatformOverride("pi", {
         runtimeConfig: { displayBrightness: "bright" },
       }),
-    /pi platform override value at runtimeConfig\.displayBrightness must be an integer from 0 through 100/,
+    /pi platform override value at runtimeConfig\.displayBrightness must be an integer from 1 through 16/,
+  );
+  throws(
+    () =>
+      validatePlatformOverride("pi", {
+        runtimeConfig: { displayBrightness: 75 },
+      }),
+    /pi platform override value at runtimeConfig\.displayBrightness must be an integer from 1 through 16; received 75/,
   );
 });
 
 test("generated platform configs preserve musical patch parity", () => {
   const root = makeFixture({
-    desktop: { runtimeConfig: { buttonBrightness: 100, displayBrightness: 100, gridBrightness: 100 } },
-    pi: { runtimeConfig: { buttonBrightness: 35, displayBrightness: 75, gridBrightness: 25 } },
+    desktop: { runtimeConfig: { buttonBrightness: 100, displayBrightness: 16, gridBrightness: 100 } },
+    pi: { runtimeConfig: { buttonBrightness: 35, displayBrightness: 12, gridBrightness: 25 } },
   });
   try {
     equal(generateDefaultConfigs(root), false);

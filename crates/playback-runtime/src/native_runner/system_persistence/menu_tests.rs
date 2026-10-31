@@ -107,7 +107,7 @@ fn confirmed_system_load_runs_while_patch_save_is_pending_and_preserves_its_debo
     runner.pending.pending_autosave_payload_due_at = Some(due);
     let patch = runner.patch_payload().unwrap();
     let mut full = runner.config_payload();
-    full["runtimeConfig"]["displayBrightness"] = json!(46);
+    full["runtimeConfig"]["displayBrightness"] = json!(8);
     let system = crate::split_system_patch_documents(&full).unwrap().system;
 
     let messages = confirm(&mut runner, "system.load", "Confirm System");
@@ -130,7 +130,7 @@ fn confirmed_system_load_runs_while_patch_save_is_pending_and_preserves_its_debo
         })
         .unwrap();
 
-    assert_eq!(runner.display.ui.display_brightness, 46);
+    assert_eq!(runner.display.ui.display_brightness, 8);
     assert_eq!(
         runner.pending.system_persistence.saved_baseline.as_deref(),
         Some(&system)

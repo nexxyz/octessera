@@ -371,7 +371,7 @@ fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
         .bundle
         .preferences
         .values
-        .insert("displayBrightness".into(), json!(42));
+        .insert("displayBrightness".into(), json!(6));
     staged.bundle.preferences.values.insert(
         "audioOutputs".into(),
         json!({ "dac": false, "usb": true, "hdmi": false }),
@@ -421,7 +421,7 @@ fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
         &fs::read(crate::platform_service::default_patch_path(&fixture.store)).unwrap(),
     )
     .unwrap();
-    assert_eq!(system["runtimeConfig"]["displayBrightness"], 42);
+    assert_eq!(system["runtimeConfig"]["displayBrightness"], 6);
     assert_eq!(
         system["runtimeConfig"]["audioOutputs"],
         json!({ "dac": false, "usb": true, "hdmi": false })

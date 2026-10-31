@@ -245,12 +245,13 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     for field in [
         "dimTimerSeconds",
         "screenSleepSeconds",
-        "displayBrightness",
         "gridBrightness",
         "buttonBrightness",
     ] {
         source_runtime[field] = alternate_unsigned(&canonical_runtime[field], 0, 600);
     }
+    source_runtime["displayBrightness"] =
+        alternate_unsigned(&canonical_runtime["displayBrightness"], 1, 16);
     source_runtime["autoSaveDefault"] = alternate_bool(&canonical_runtime["autoSaveDefault"]);
     source_runtime["rollingBackups"] = alternate_bool(&canonical_runtime["rollingBackups"]);
     source_runtime["auxAutoMapEnabled"] = alternate_bool(&canonical_runtime["auxAutoMapEnabled"]);

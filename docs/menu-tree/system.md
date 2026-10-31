@@ -83,7 +83,7 @@ System
 │   ├── Num Style: [bar | numbers]       default bar
 │   ├── Dim Timer: [0..600] step 10 s
 │   ├── OLED Sleep: [0..600] step 10 s
-│   ├── OLED Bright: [10..100] step 5
+│   ├── OLED Bright: [1..16] step 1      default 12; one SSD1351 contrast step each
 │   ├── Grid Bright: [10..100] step 5
 │   ├── Button Bright: [10..100] step 5
 │   └── HDMI Video (group)               ← Raspberry and Orange

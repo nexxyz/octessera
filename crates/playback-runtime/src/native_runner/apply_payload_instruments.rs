@@ -175,7 +175,7 @@ impl NativeRunner {
         }
         if let Some(value) = runtime.get("displayBrightness").and_then(Value::as_u64) {
             if let Ok(value) = u8::try_from(value) {
-                self.display.ui.display_brightness = value.min(100);
+                self.display.ui.display_brightness = value.clamp(1, 16);
             }
         }
         if let Some(value) = runtime.get("gridBrightness").and_then(Value::as_u64) {

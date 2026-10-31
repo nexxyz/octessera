@@ -93,16 +93,16 @@ fn system_document_changes_device_state_without_disturbing_live_patch_runtime() 
             runner.pending.pending_autosave_payload_due_at,
         );
         let mut system = system_document(&runner);
-        system["runtimeConfig"]["displayBrightness"] = json!(31);
+        system["runtimeConfig"]["displayBrightness"] = json!(5);
         system["runtimeConfig"]["ghostCells"] = json!(true);
 
         runner
             .apply_system_document_preserving_patch(&system)
             .unwrap();
 
-        assert_eq!(runner.display.ui.display_brightness, 31);
+        assert_eq!(runner.display.ui.display_brightness, 5);
         assert!(runner.display.ui.ghost_cells);
-        assert_eq!(runner.menu.number_for_key("displayBrightness"), Some(31));
+        assert_eq!(runner.menu.number_for_key("displayBrightness"), Some(5));
         assert_eq!(
             runner.menu.value_for_key("ghostCells").as_deref(),
             Some("true")

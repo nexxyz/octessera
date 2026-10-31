@@ -136,9 +136,9 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             "OLED Bright",
             "displayBrightness",
             i32::from(config.display_brightness),
-            10,
-            100,
-            5,
+            1,
+            16,
+            1,
         ),
         number_item(
             "Grid Bright",

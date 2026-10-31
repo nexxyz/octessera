@@ -85,7 +85,7 @@ mod tests {
     fn composed_boot_pair_keeps_system_routes_and_local_sample_ids() {
         let root = store();
         let mut full = full_default();
-        full["runtimeConfig"]["displayBrightness"] = serde_json::json!(41);
+        full["runtimeConfig"]["displayBrightness"] = serde_json::json!(7);
         full["runtimeConfig"]["audioOutputs"]["dac"] = serde_json::json!(true);
         full["runtimeConfig"]["audioOutputs"]["hdmi"] = serde_json::json!(true);
         full["runtimeConfig"]["audioOutputs"]["usb"] = serde_json::json!(false);
@@ -104,7 +104,7 @@ mod tests {
         let prepared = read_composed_runtime_config(&root).unwrap();
         assert_eq!(
             prepared["runtimeConfig"]["displayBrightness"],
-            serde_json::json!(41)
+            serde_json::json!(7)
         );
         assert_eq!(prepared["runtimeConfig"]["audioOutputs"]["dac"], true);
         assert_eq!(prepared["runtimeConfig"]["audioOutputs"]["hdmi"], true);

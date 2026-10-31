@@ -1,7 +1,7 @@
 {
   "runtimeConfig": {
     "buttonBrightness": 100,
-    "displayBrightness": 100,
+    "displayBrightness": 16,
     "gridBrightness": 100
   }
 }

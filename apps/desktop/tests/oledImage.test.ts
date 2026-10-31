@@ -66,32 +66,16 @@ test('OLED image converts representative big-endian RGB565 pixels', () => {
   );
 });
 
-test('OLED Bright maps to the panel current share of the master contrast step', () => {
-  const steps: [number, number][] = [
-    [0, 0],
-    [10, 1],
-    [15, 1],
-    [20, 2],
-    [50, 7],
-    [75, 11],
-    [90, 13],
-    [95, 14],
-    [100, 15],
-    [255, 15],
-  ];
-  for (const [percent, step] of steps) {
-    assert.equal(
-      oledPanelCurrentFactor(percent),
-      (step + 1) / 16,
-      `${percent}%`,
-    );
+test('each OLED Bright level drives its share of the panel current', () => {
+  for (let level = 1; level <= 16; level += 1) {
+    assert.equal(oledPanelCurrentFactor(level), level / 16, `level ${level}`);
   }
 });
 
 test('OLED image dims full-intensity pixels by the panel current', () => {
   const pixels = new Uint8Array(FRAME_BYTES);
   pixels.set([0xff, 0xff, 0xf8, 0x00]);
-  const image = toOledImage(frame(pixels), oledPanelCurrentFactor(75));
+  const image = toOledImage(frame(pixels), oledPanelCurrentFactor(12));
   assert.ok(image);
   assert.deepEqual(
     Array.from(image.data.slice(0, 8)),

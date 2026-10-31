@@ -117,7 +117,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
         ])
     );
     assert_eq!(initial["selectedRow"], 0);
-    assert_eq!(initial["settings"]["displayBrightness"], 75);
+    assert_eq!(initial["settings"]["displayBrightness"], 12);
     assert_eq!(
         initial["settings"]["instruments"].as_array().unwrap().len(),
         8

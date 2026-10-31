@@ -10,6 +10,12 @@ export const PLATFORM_OVERRIDE_ALLOWLIST = Object.freeze([
   "runtimeConfig.gridBrightness",
 ]);
 
+const brightnessRanges = new Map([
+  ["runtimeConfig.buttonBrightness", [0, 100]],
+  ["runtimeConfig.displayBrightness", [1, 16]],
+  ["runtimeConfig.gridBrightness", [0, 100]],
+]);
+
 const platformOverrideValueValidators = new Map(
   PLATFORM_OVERRIDE_ALLOWLIST.map((path) => [path, validateBrightness]),
 );
@@ -90,9 +96,10 @@ function invalidOverridePath(targetName, path) {
 }
 
 function validateBrightness(targetName, path, value) {
-  if (!Number.isInteger(value) || value < 0 || value > 100) {
+  const [min, max] = brightnessRanges.get(path);
+  if (!Number.isInteger(value) || value < min || value > max) {
     throw new Error(
-      `${targetName} platform override value at ${path} must be an integer from 0 through 100; received ${JSON.stringify(value)}.`,
+      `${targetName} platform override value at ${path} must be an integer from ${min} through ${max}; received ${JSON.stringify(value)}.`,
     );
   }
 }

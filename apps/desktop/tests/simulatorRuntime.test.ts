@@ -73,7 +73,7 @@ function snapshotMessage(
       transportIcon: 'stop' as const,
       transportFlash: options.transportFlash ?? 'none',
       settings: {
-        displayBrightness: 75,
+        displayBrightness: 12,
         buttonBrightness: 75,
         masterVolume: options.masterVolume ?? 73,
         instruments: options.instruments ?? [],
@@ -165,7 +165,7 @@ function sparseAudioSnapshotMessage(
       transportIcon: 'stop' as const,
       transportFlash: 'none' as const,
       settings: {
-        displayBrightness: 75,
+        displayBrightness: 12,
         buttonBrightness: 75,
         masterVolume: options.masterVolume ?? 73,
         audioConfigRevision: options.audioConfigRevision,

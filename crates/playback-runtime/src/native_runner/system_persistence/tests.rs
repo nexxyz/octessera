@@ -15,7 +15,7 @@ fn runner() -> NativeRunner {
 fn system_document_matches_the_device_projection_for_mixed_runtime_config() {
     let mut runner = runner();
     runner.display.ui.master_volume = 37;
-    runner.display.ui.display_brightness = 61;
+    runner.display.ui.display_brightness = 9;
     runner.display.ui.numeric_display_mode = "hex".into();
     runner.sample_favourite_dirs = vec!["/samples/favourites".into()];
     runner.auto_save_default = true;
@@ -200,7 +200,7 @@ fn system_save_ack_uses_submitted_payload_and_keeps_a_newer_system_edit_dirty() 
     assert!(!runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_none());
     let submitted =
-        json!({ "kind": "octessera.system", "runtimeConfig": { "displayBrightness": 31 } });
+        json!({ "kind": "octessera.system", "runtimeConfig": { "displayBrightness": 5 } });
     let mut request = register_system_save(&mut runner, "system-save-1", None, submitted.clone());
     if let RuntimePlatformEffect::StoreSaveSystem { payload } = &mut request.effect {
         *payload = json!({ "kind": "mutated-after-submit" });
@@ -270,7 +270,7 @@ fn system_load_resets_only_system_baseline_and_dirty_state() {
     let mut system = split_system_patch_documents(&runner.config_payload())
         .unwrap()
         .system;
-    system["runtimeConfig"]["displayBrightness"] = json!(42);
+    system["runtimeConfig"]["displayBrightness"] = json!(6);
     let request = RuntimePlatformRequest::new(
         RuntimePlatformEffect::StoreLoadSystem,
         "system-load-1".into(),

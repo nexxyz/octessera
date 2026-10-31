@@ -71,7 +71,7 @@
     },
     "buttonBrightness": 100,
     "dimTimerSeconds": 60,
-    "displayBrightness": 100,
+    "displayBrightness": 16,
     "dsp": {
       "busIdleThreshold": "-120",
       "workerWarningThreshold": "85"

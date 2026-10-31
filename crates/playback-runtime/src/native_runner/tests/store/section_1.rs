@@ -53,7 +53,7 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
     full["runtimeConfig"]["layers"][1]["build"]["behaviorId"] = json!("sequencer");
     full["runtimeConfig"]["instruments"][0]["noteBehavior"] = json!("hold");
     full["runtimeConfig"]["masterVolume"] = json!(88);
-    full["runtimeConfig"]["displayBrightness"] = json!(66);
+    full["runtimeConfig"]["displayBrightness"] = json!(11);
     full["runtimeConfig"]["buttonBrightness"] = json!(55);
     full["runtimeConfig"]["playMode"] = json!("pan");
     full["runtimeConfig"]["midi"]["enabled"] = json!(true);
@@ -74,7 +74,7 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
     assert_eq!(runner.note_behaviors[0], NoteBehavior::Hold);
     assert_ne!(runner.display.ui.master_volume, 88);
     assert_eq!(runner.display.ui.master_volume, 73);
-    assert_eq!(runner.display.ui.display_brightness, 75);
+    assert_eq!(runner.display.ui.display_brightness, 12);
     assert_eq!(runner.display.ui.button_brightness, 35);
     assert_eq!(runner.transport.sync_source, SyncSource::Internal);
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
@@ -90,7 +90,7 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
 #[test]
 pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.display.ui.display_brightness = 44;
+    runner.display.ui.display_brightness = 7;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi_enabled = true;
 
@@ -108,13 +108,13 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
         json!({ "dac": true, "usb": true, "hdmi": false })
     );
     assert_eq!(device["runtimeConfig"]["midi"]["enabled"], true);
-    assert_eq!(device["runtimeConfig"]["displayBrightness"], 44);
+    assert_eq!(device["runtimeConfig"]["displayBrightness"], 7);
 }
 
 #[test]
 pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.display.ui.display_brightness = 22;
+    runner.display.ui.display_brightness = 3;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi_enabled = false;
 
@@ -126,7 +126,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
                     "runtimeConfig": {
                         "activeBehavior": "sequencer",
                         "layers": [{ "build": { "behaviorId": "sequencer" } }],
-                        "displayBrightness": 88,
+                        "displayBrightness": 15,
                         "usb": { "midiOutEnabled": true },
                         "midi": { "enabled": true }
                     }
@@ -136,7 +136,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
         .unwrap();
 
     assert_eq!(runner.behavior.id(), "sequencer");
-    assert_eq!(runner.display.ui.display_brightness, 22);
+    assert_eq!(runner.display.ui.display_brightness, 3);
     assert_eq!(
         runner.audio_outputs,
         AudioOutputSet::from_flags(true, true, false).unwrap()
@@ -150,23 +150,23 @@ pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
-                "displayBrightness": 77,
+                "displayBrightness": 13,
                 "midi": { "enabled": true }
             }
         }))
         .unwrap();
-    assert_eq!(runner.display.ui.display_brightness, 77);
+    assert_eq!(runner.display.ui.display_brightness, 13);
     assert!(runner.midi_enabled);
 
     runner
         .apply_device_config_payload_preserving_patch(json!({
             "runtimeConfig": {
-                "displayBrightness": 33,
+                "displayBrightness": 5,
                 "activeBehavior": "sequencer"
             }
         }))
         .unwrap();
-    assert_eq!(runner.display.ui.display_brightness, 33);
+    assert_eq!(runner.display.ui.display_brightness, 5);
     assert_ne!(runner.behavior.id(), "sequencer");
 }
 

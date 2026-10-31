@@ -338,7 +338,7 @@ pub(super) fn base() -> OledPresentationInput {
             flash: OledTransportFlash::Beat,
         },
         event_dot_level: INDICATOR_FADE_LEVELS,
-        display_brightness: 100,
+        display_brightness: 16,
         cpu_warn_percent: 85,
         aux_hints: OledAuxHints {
             normal: [

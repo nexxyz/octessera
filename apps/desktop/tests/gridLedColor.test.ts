@@ -53,7 +53,7 @@ function frame(
 const settings = (
   overrides: Partial<NonNullable<RuntimeSnapshot['settings']>>,
 ): NonNullable<RuntimeSnapshot['settings']> => ({
-  displayBrightness: 75,
+  displayBrightness: 12,
   gridBrightness: 100,
   buttonBrightness: 75,
   masterVolume: 73,

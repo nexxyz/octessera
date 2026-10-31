@@ -237,7 +237,7 @@ pub(crate) fn patch_load_swaps_active_engine_state_to_loaded_behavior() {
 #[test]
 pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.display.ui.display_brightness = 21;
+    runner.display.ui.display_brightness = 2;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
 
     runner
@@ -247,14 +247,14 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
             "runtimeConfig": {
                 "activeBehavior": "sequencer",
                 "layers": [{ "build": { "behaviorId": "sequencer" } }],
-                "displayBrightness": 99,
+                "displayBrightness": 15,
                 "usb": { "midiOutEnabled": true }
             }
         }))
         .unwrap();
 
     assert_eq!(runner.behavior.id(), "sequencer");
-    assert_eq!(runner.display.ui.display_brightness, 21);
+    assert_eq!(runner.display.ui.display_brightness, 2);
     assert_eq!(
         runner.audio_outputs,
         AudioOutputSet::from_flags(true, true, false).unwrap()

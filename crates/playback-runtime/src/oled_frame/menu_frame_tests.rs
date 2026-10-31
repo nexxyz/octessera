@@ -366,7 +366,7 @@ fn splash_overlays_toast_and_brightness_leaves_every_screen_at_full_intensity() 
     let mut toast = base();
     toast.display.toast = "Loading".into();
     for input in [base(), error, splash, toast] {
-        for brightness in [0, 10, 75] {
+        for brightness in [1, 8, 12] {
             let mut dimmed = input.clone();
             dimmed.display_brightness = brightness;
             assert_eq!(render_oled_frame(&dimmed), render_oled_frame(&input));

@@ -26,7 +26,7 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
             "toast": ""
         },
         "settings": {
-            "displayBrightness": 100,
+            "displayBrightness": 16,
             "autoSaveFlash": "none",
             "autoSaveFlashSerial": 0,
             "cpuWarnPercent": 85

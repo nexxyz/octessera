@@ -40,9 +40,10 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
     }
     match key {
         "revision" | "schemaVersion" => unsigned_value(value, path)?,
-        "masterVolume" | "displayBrightness" | "gridBrightness" | "buttonBrightness" => {
+        "masterVolume" | "gridBrightness" | "buttonBrightness" => {
             unsigned_range(value, path, 0, 100)?
         }
+        "displayBrightness" => unsigned_range(value, path, 1, 16)?,
         "velocityScalePct" => unsigned_range(value, path, 0, 200)?,
         "screenSleepSeconds" | "dimTimerSeconds" => unsigned_range(value, path, 0, 600)?,
         "swingPct" => unsigned_range(value, path, 0, 75)?,

@@ -89,7 +89,7 @@ fn export_composes_split_documents_before_portable_patch_and_preferences() {
     let store = root.join("store");
     fs::create_dir_all(&store).unwrap();
     let mut full = canonical_defaults();
-    full["runtimeConfig"]["displayBrightness"] = serde_json::json!(47);
+    full["runtimeConfig"]["displayBrightness"] = serde_json::json!(8);
     full["runtimeConfig"]["midi"]["inId"] = serde_json::json!("local-midi-in");
     full["runtimeConfig"]["midi"]["outId"] = serde_json::json!("local-midi-out");
     full["runtimeConfig"]["usb"]["dataRole"] = serde_json::json!("host");
@@ -136,7 +136,7 @@ fn export_composes_split_documents_before_portable_patch_and_preferences() {
     );
     assert!(archived["runtimeConfig"]["midi"].get("inId").is_none());
     assert!(archived["runtimeConfig"]["midi"].get("outId").is_none());
-    assert_eq!(plan.bundle.preferences.values["displayBrightness"], 47);
+    assert_eq!(plan.bundle.preferences.values["displayBrightness"], 8);
     assert!(!plan.bundle.preferences.values.contains_key("midi"));
     assert!(!plan.bundle.preferences.values.contains_key("usb"));
     assert!(!plan.bundle.preferences.values.contains_key("audioOutputs"));

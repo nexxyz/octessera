@@ -56,10 +56,10 @@ pub(crate) fn generated_platform_defaults_set_platform_brightness() {
     ))
     .unwrap();
 
-    assert_eq!(desktop["runtimeConfig"]["displayBrightness"], 100);
+    assert_eq!(desktop["runtimeConfig"]["displayBrightness"], 16);
     assert_eq!(desktop["runtimeConfig"]["gridBrightness"], 100);
     assert_eq!(desktop["runtimeConfig"]["buttonBrightness"], 100);
-    assert_eq!(pi["runtimeConfig"]["displayBrightness"], 75);
+    assert_eq!(pi["runtimeConfig"]["displayBrightness"], 12);
     assert_eq!(pi["runtimeConfig"]["gridBrightness"], 25);
     assert_eq!(pi["runtimeConfig"]["buttonBrightness"], 35);
 }

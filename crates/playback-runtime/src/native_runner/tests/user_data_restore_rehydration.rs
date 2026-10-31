@@ -31,7 +31,7 @@ pub(crate) fn restore_rehydration_accepts_system_then_patch_before_releasing_wri
     );
     runner.register_platform_request(&request);
     let mut full = runner.config_payload();
-    full["runtimeConfig"]["displayBrightness"] = json!(42);
+    full["runtimeConfig"]["displayBrightness"] = json!(6);
     let documents = split_system_patch_documents(&full).unwrap();
     let loaded = runner
         .send(HostMessage::RuntimeResult {
@@ -42,7 +42,7 @@ pub(crate) fn restore_rehydration_accepts_system_then_patch_before_releasing_wri
         })
         .unwrap();
     assert!(runner.restore_rehydration_pending());
-    assert_eq!(runner.display.ui.display_brightness, 42);
+    assert_eq!(runner.display.ui.display_brightness, 6);
     assert!(has_platform_effect(
         &loaded,
         RuntimePlatformEffect::StoreLoadDefault

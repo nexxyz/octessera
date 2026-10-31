@@ -103,6 +103,6 @@ fn prepared_scene_maps_oled_bright_to_the_master_contrast_step() {
         &HardwareRenderCache::default(),
     )
     .unwrap();
-    assert_eq!(latest.hardware.oled.display_brightness, 75);
+    assert_eq!(latest.hardware.oled.display_brightness, 12);
     assert_eq!(latest.oled.master_contrast(), 11);
 }

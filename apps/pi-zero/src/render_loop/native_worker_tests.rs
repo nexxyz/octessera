@@ -196,11 +196,11 @@ fn native_worker_sends_master_contrast_once_per_brightness_change() {
     publish(&mut runner);
     let mut payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
-    payload["runtimeConfig"]["displayBrightness"] = serde_json::json!(40);
+    payload["runtimeConfig"]["displayBrightness"] = serde_json::json!(7);
     runner.apply_config_payload(payload).unwrap();
     publish(&mut runner);
     publish(&mut runner);
-    assert_eq!(*contrast_writes.lock().unwrap(), vec![11, 5]);
+    assert_eq!(*contrast_writes.lock().unwrap(), vec![11, 6]);
     worker.publish_shutdown().unwrap();
 }
 

@@ -126,7 +126,7 @@ fn header_rule_uses_the_current_menu_area_colour() {
     use platform_core::palette;
 
     let mut runner = runner_at(Instant::now());
-    runner.display.ui.display_brightness = 100;
+    runner.display.ui.display_brightness = 16;
     for (key, expected, rule) in [
         (None, palette::GRAY_RGB565, 0x8410),
         (Some("behaviorId"), palette::GREEN_RGB565, 0x3C04),

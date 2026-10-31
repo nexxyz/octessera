@@ -12,16 +12,14 @@ export function rgb565ToCss(value: number): string {
 
 const OLED_MASTER_CONTRAST_STEPS = 16;
 
-// Mirrors oled_master_contrast_step in playback-runtime: the hardware dims the panel
-// current instead of the pixels, so the simulator dims the displayed image to match.
+// The hardware dims the panel current instead of the pixels, so the simulator dims the
+// displayed image to match: OLED Bright 1..16 drives that share of full current.
 export function oledPanelCurrentFactor(displayBrightness: number): number {
-  const percent = Math.min(Math.max(Math.round(displayBrightness), 0), 100);
-  const nearest = Math.floor((percent * OLED_MASTER_CONTRAST_STEPS + 50) / 100);
-  const step = Math.min(
-    Math.max(nearest - 1, 0),
-    OLED_MASTER_CONTRAST_STEPS - 1,
+  const level = Math.min(
+    Math.max(Math.round(displayBrightness), 1),
+    OLED_MASTER_CONTRAST_STEPS,
   );
-  return (step + 1) / OLED_MASTER_CONTRAST_STEPS;
+  return level / OLED_MASTER_CONTRAST_STEPS;
 }
 
 export function toOledImage(

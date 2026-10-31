@@ -164,7 +164,7 @@ fn partial_oled_presentation_fails_closed_without_losing_non_oled_snapshot_state
     let previous_pixels = runtime.last_oled_frame().unwrap().to_vec();
     let partial = json!({
         "display": { "title": "Partial candidate" },
-        "settings": { "displayBrightness": 100 },
+        "settings": { "displayBrightness": 16 },
         "nonOledState": { "still": "available" }
     });
 

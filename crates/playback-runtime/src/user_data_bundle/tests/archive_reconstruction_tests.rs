@@ -146,11 +146,11 @@ fn reconstruct_user_data_archive_restores_explicit_and_empty_brightness_delta() 
     let destination = destination_documents();
     let (current, default) = archive_patches();
     let mut system = destination.system.clone();
-    system["runtimeConfig"]["displayBrightness"] = json!(12);
+    system["runtimeConfig"]["displayBrightness"] = json!(2);
     let mut preferences = UserPreferenceDelta::empty();
     preferences
         .values
-        .insert("displayBrightness".into(), json!(42));
+        .insert("displayBrightness".into(), json!(6));
     let restored = reconstruct(
         &system,
         &destination.patch,
@@ -159,7 +159,7 @@ fn reconstruct_user_data_archive_restores_explicit_and_empty_brightness_delta() 
         &preferences,
     )
     .unwrap();
-    assert_eq!(restored.system["runtimeConfig"]["displayBrightness"], 42);
+    assert_eq!(restored.system["runtimeConfig"]["displayBrightness"], 6);
 
     let reset = reconstruct(
         &system,
@@ -192,7 +192,7 @@ fn reconstruct_user_data_archive_blocks_host_usb_preferences_but_restores_other_
         .insert("usb".into(), json!({ "midiOutEnabled": true }));
     preferences
         .values
-        .insert("displayBrightness".into(), json!(42));
+        .insert("displayBrightness".into(), json!(6));
 
     let result = reconstruct(
         &destination.system,
@@ -209,7 +209,7 @@ fn reconstruct_user_data_archive_blocks_host_usb_preferences_but_restores_other_
         false
     );
     assert_eq!(result.system["runtimeConfig"]["audioOutputs"]["usb"], false);
-    assert_eq!(result.system["runtimeConfig"]["displayBrightness"], 42);
+    assert_eq!(result.system["runtimeConfig"]["displayBrightness"], 6);
 }
 
 #[test]
