@@ -231,6 +231,38 @@ fn browser_lists_have_no_gutter() {
 }
 
 #[test]
+fn a_sounding_preview_marks_its_file_row_with_a_play_triangle() {
+    use OledMenuRowKind::Entry;
+    let name = "a_long_sample_file_name_that_clips.wav";
+    let render = |preview: bool| {
+        let mut input = unscrolled(base());
+        let mut row = menu_row(Entry, name, "", None);
+        row.as_mut().unwrap().preview = preview;
+        input.display.rows = vec![menu_row(Entry, "..", "", None), row];
+        input.display.lines = vec!["..".into(), name.into()];
+        input.display.bars = vec![None; 2];
+        input.selected_row = Some(1);
+        render_oled_frame(&input)
+    };
+    let top = slot(1);
+    let ink = |frame: &[u8], x: usize| {
+        (top..top + 9)
+            .filter(|y| pixel(frame, x, *y) == 0)
+            .collect::<Vec<_>>()
+    };
+
+    let frame = render(true);
+    assert_eq!(ink(&frame, 121), (top + 2..top + 7).collect::<Vec<_>>());
+    assert_eq!(ink(&frame, 122), (top + 3..top + 6).collect::<Vec<_>>());
+    assert_eq!(ink(&frame, 123), [top + 4]);
+    assert!((118..121).all(|x| ink(&frame, x).is_empty()));
+    assert!((2..118).any(|x| !ink(&frame, x).is_empty()));
+
+    let frame = render(false);
+    assert!((121..124).all(|x| ink(&frame, x) != ink(&render(true), x)));
+}
+
+#[test]
 fn scrollbar_thumb_tracks_offset_and_hides_without_overflow() {
     let track = rgb565(dim(rgb565_to_rgb(AREA), 6));
     for (offset, total, thumb_rows) in [(0, 12, 10..78), (2, 12, 27..95), (4, 12, 44..112)] {

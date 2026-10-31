@@ -4,10 +4,11 @@ use platform_core::palette;
 
 use super::aux_cap::draw_aux_cap;
 use super::font::{CLIP_MARKER, M5X7};
+use super::footer::PLAY;
 use super::model::{
     OledBarInput, OledBarStyle, OledMenuRowInput, OledMenuRowKind, OledScrollInput,
 };
-use super::pixels::{dim, fill_rect, rgb565, rgb565_to_rgb, scale, shade};
+use super::pixels::{dim, draw_mask, fill_rect, rgb565, rgb565_to_rgb, scale, shade};
 use super::{
     layout_card_body, OledDisplayInput, OledDisplayLayout, CARD_BODY_RECT, MENU_BODY_RECT,
 };
@@ -32,6 +33,7 @@ pub(super) const SCROLLBAR_X: usize = 126;
 const SCROLL_TOP: usize = FIRST_SLOT_Y - 1;
 const SCROLL_HEIGHT: usize = (BODY_ROWS - 1) * PITCH + BAR_HEIGHT;
 pub(super) const MINI_WIDTH: usize = 30;
+const PREVIEW_WIDTH: usize = 3;
 const MINI_HEIGHT: usize = 5;
 
 /// The top of body slot `index`; its selection bar spans `top - 1 ..= top + 9` and the
@@ -54,6 +56,7 @@ enum RowValue<'a> {
     Text(&'a str),
     Mini(&'a OledBarInput),
     Marker(char),
+    Preview,
 }
 
 struct RowLayout<'a> {
@@ -81,6 +84,7 @@ fn row_layout<'a>(
             RowValue::Marker('>'),
         ),
         OledMenuRowKind::Action => (Cow::Borrowed(&row.label), RowValue::Marker('!')),
+        OledMenuRowKind::Entry if row.preview => (Cow::Borrowed(&row.label), RowValue::Preview),
         OledMenuRowKind::Entry => (Cow::Borrowed(&row.label), RowValue::Empty),
         OledMenuRowKind::Value => (
             Cow::Borrowed(&row.label),
@@ -94,6 +98,7 @@ fn row_layout<'a>(
     let (value_width, value_end, value_clipped) = match value {
         RowValue::Empty => (0, 0, false),
         RowValue::Mini(_) => (MINI_WIDTH, 0, false),
+        RowValue::Preview => (PREVIEW_WIDTH, 0, false),
         RowValue::Marker(marker) => {
             let (first, last) = M5X7.ink_columns(marker);
             (
@@ -339,6 +344,16 @@ fn draw_menu_row(
                 (shade(style.area, 0.7), 0)
             };
             draw_mini_bar(frame, layout.value_x, top + 2, bar, fg, track);
+        }
+        RowValue::Preview => {
+            draw_mask(
+                frame,
+                &PLAY,
+                PREVIEW_WIDTH,
+                layout.value_x,
+                top + 2,
+                value_color,
+            );
         }
         RowValue::Marker(marker) => {
             let text = if marker == '>' { ">" } else { "!" };

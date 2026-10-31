@@ -64,10 +64,8 @@ fn superseded_preview_failure_is_silent_but_current_failure_reports() {
     gate.release.store(true, Ordering::Release);
     assert!(matches!(
         recv_result(&result_rx),
-        RuntimeStoreResult::OperationSucceeded {
-            operation: RuntimeOperation::SamplePreview,
-            ..
-        }
+        RuntimeStoreResult::SamplePreviewStarted { path, duration_ms }
+            if path == "samples/Drum/kick/Kick2.wav" && duration_ms > 0
     ));
     assert_eq!(
         control.enqueue_sample_preview(0, "../missing.wav".into(), 96),

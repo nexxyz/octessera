@@ -182,15 +182,19 @@ fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize) {
 }
 
 /// Whether the selected menu row's label is too wide for its slot, so it scrolls.
-pub(super) fn selected_menu_label_overflows(menu: &NativeMenuSnapshot) -> bool {
+pub(super) fn selected_menu_label_overflows(
+    runner: &NativeRunner,
+    menu: &NativeMenuSnapshot,
+) -> bool {
     let Some(index) = menu.selected_row else {
         return false;
     };
     let has_bar = menu.bar_values.get(index).is_some_and(Option::is_some);
+    let preview = runner.sounding_preview_row(menu).is_some();
     menu.rows
         .get(index)
         .and_then(Option::as_ref)
-        .is_some_and(|row| menu_row_label_overflows(&menu_row_input(row, None), has_bar))
+        .is_some_and(|row| menu_row_label_overflows(&menu_row_input(row, None, preview), has_bar))
 }
 
 fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
@@ -216,6 +220,7 @@ fn menu_display(
     let mut full_lines = Vec::with_capacity(menu.lines.len());
     let mut rows = Vec::with_capacity(menu.lines.len());
     let manual = runner.manual_aux_slots();
+    let preview_row = runner.sounding_preview_row(&menu);
     for (row, line) in menu.lines.iter().enumerate() {
         let cap = runner.aux_cap_for_line(
             &manual,
@@ -231,7 +236,7 @@ fn menu_display(
             menu.rows
                 .get(row)
                 .and_then(Option::as_ref)
-                .map(|parts| menu_row_input(parts, cap)),
+                .map(|parts| menu_row_input(parts, cap, preview_row == Some(row))),
         );
     }
     DisplaySnapshot {
@@ -290,7 +295,11 @@ fn menu_row_presentation(
     (prefix_line(line, prefix), full_line)
 }
 
-fn menu_row_input(row: &NativeMenuRow, cap: Option<(OledAuxCap, bool)>) -> OledMenuRowInput {
+fn menu_row_input(
+    row: &NativeMenuRow,
+    cap: Option<(OledAuxCap, bool)>,
+    preview: bool,
+) -> OledMenuRowInput {
     OledMenuRowInput {
         kind: match row.kind {
             NativeMenuRowKind::Value => OledMenuRowKind::Value,
@@ -302,6 +311,7 @@ fn menu_row_input(row: &NativeMenuRow, cap: Option<(OledAuxCap, bool)>) -> OledM
         value: row.value.clone(),
         text_cursor: row.text_cursor,
         aux_cap: cap.map(|(cap, _)| cap),
+        preview,
     }
 }
 

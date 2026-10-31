@@ -26,7 +26,8 @@ const TOAST_Y: usize = 115;
 const TOAST_ROWS: usize = 128 - TOAST_Y;
 const TOAST_TEXT_X: usize = 4;
 const TOAST_TEXT_Y: usize = 117;
-const PLAY: [u8; 5] = [0b100, 0b110, 0b111, 0b110, 0b100];
+/// The 3x5 play triangle: the footer's transport icon and a sounding sample preview's row mark.
+pub(super) const PLAY: [u8; 5] = [0b100, 0b110, 0b111, 0b110, 0b100];
 const DISC: [u8; 5] = [0b01110, 0b11111, 0b11111, 0b11111, 0b01110];
 const DIAMOND: [u8; 5] = [0b00100, 0b01110, 0b11111, 0b01110, 0b00100];
 

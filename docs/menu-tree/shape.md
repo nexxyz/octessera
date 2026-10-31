@@ -273,7 +273,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - Before directory entries arrive it shows `(loading...)` instead of `(empty)`. Long highlighted
   names are clipped to the row width and never overlap other display areas.
 - Space previews the highlighted WAV through the selected instrument slot (folders and `..` do
-  nothing). The favourite action toggles the current folder in `runtimeConfig.sampleFavouriteDirs`.
+  nothing). While that preview sounds, its row shows a play triangle in the marker column. The favourite action toggles the current folder in `runtimeConfig.sampleFavouriteDirs`.
   Platform built-in favourites are added dynamically and cannot be removed from that config.
 - Pi built-in favourites are `Samples` (`/home/pi/samples`) and `SD card`
   (`/home/pi/samples/sd-card/octessera/samples`, with `/home/pi/samples/sd-card` expected to be the

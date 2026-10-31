@@ -1,5 +1,6 @@
 use super::display_animations::{AnimationFrame, DisplayAnimations};
 use crate::oled_frame::{OledAnimationInput, INDICATOR_FADE_LEVELS};
+use crate::RuntimeTransportState;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
@@ -42,6 +43,15 @@ pub(super) struct DisplayTransientPresentation {
     pub(super) recording_pulse_dim: bool,
 }
 
+/// A sample preview the engine plays: its file, when it stops sounding and the transport it
+/// started under, since leaving Playing silences it early.
+#[derive(Clone, Debug)]
+struct SoundingPreview {
+    path: String,
+    until: Instant,
+    transport: RuntimeTransportState,
+}
+
 #[derive(Clone, Debug)]
 pub(super) struct DisplayTransients {
     event_dot_started: Option<Instant>,
@@ -50,6 +60,7 @@ pub(super) struct DisplayTransients {
     transport_flash_until: Option<Instant>,
     recording_started: Option<Instant>,
     recording_pulse_dim: bool,
+    sample_preview: Option<SoundingPreview>,
     /// Captures take `&self`, so the animations compare each capture through a cell.
     animations: RefCell<DisplayAnimations>,
     snapshot_pending: bool,
@@ -67,6 +78,7 @@ impl DisplayTransients {
             transport_flash_until: None,
             recording_started: None,
             recording_pulse_dim: false,
+            sample_preview: None,
             animations: RefCell::default(),
             snapshot_pending: false,
             generation: 0,
@@ -126,6 +138,43 @@ impl DisplayTransients {
         self.mark_presentation_due();
     }
 
+    /// Shows the preview indicator for `path` for as long as the preview sounds.
+    pub(super) fn start_sample_preview(
+        &mut self,
+        path: String,
+        duration: Duration,
+        transport: RuntimeTransportState,
+        now: Instant,
+    ) {
+        self.sample_preview = Some(SoundingPreview {
+            path,
+            until: now + duration,
+            transport,
+        });
+        self.mark_presentation_due();
+    }
+
+    /// Ends the preview indicator when a transport change silences the engine's previews.
+    pub(super) fn observe_transport(&mut self, transport: &RuntimeTransportState) {
+        let Some(preview) = self.sample_preview.as_mut() else {
+            return;
+        };
+        if preview.transport.change_silences_audio(transport) {
+            self.sample_preview = None;
+            self.mark_presentation_due();
+        } else if preview.transport != *transport {
+            preview.transport = transport.clone();
+        }
+    }
+
+    /// The file whose preview still sounds at `now`.
+    pub(super) fn sounding_sample_preview(&self, now: Instant) -> Option<&str> {
+        self.sample_preview
+            .as_ref()
+            .filter(|preview| now < preview.until)
+            .map(|preview| preview.path.as_str())
+    }
+
     pub(super) fn reset(&mut self, now: Instant) {
         self.advance(now);
         let was_active = self.event_dot_started.is_some() || self.transport_flash_until.is_some();
@@ -154,6 +203,14 @@ impl DisplayTransients {
         {
             self.transport_flash_until = None;
             self.transport_flash = TransportFlash::None;
+            changed = true;
+        }
+        if self
+            .sample_preview
+            .as_ref()
+            .is_some_and(|preview| now >= preview.until)
+        {
+            self.sample_preview = None;
             changed = true;
         }
         let animations = self.animations.get_mut();
@@ -244,11 +301,13 @@ impl DisplayTransients {
                 started + RECORDING_PULSE_HALF * (phases + 1)
             });
         let animation_step = animations.next_deadline(last_snapshot_at);
+        let preview_end = self.sample_preview.as_ref().map(|preview| preview.until);
         [
             event_dot_step,
             self.transport_flash_until,
             recording_pulse,
             animation_step,
+            preview_end,
         ]
         .into_iter()
         .flatten()

@@ -5,7 +5,7 @@ use realtime_engine::synth::{
     SampleBuffer, SynthParamId, VoiceStealingMode,
 };
 use std::sync::mpsc::SyncSender;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 #[derive(Clone)]
 pub enum EngineEvent {
@@ -156,4 +156,14 @@ pub enum EngineEvent {
         sent_at: Instant,
         report_tx: SyncSender<u128>,
     },
+}
+
+impl EngineEvent {
+    /// How long a sample preview sounds; `None` for every other event.
+    pub fn preview_duration(&self) -> Option<Duration> {
+        match self {
+            Self::PreviewSample { buffer, .. } => Some(buffer.duration()),
+            _ => None,
+        }
+    }
 }

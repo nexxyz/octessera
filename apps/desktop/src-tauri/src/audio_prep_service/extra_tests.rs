@@ -337,10 +337,7 @@ fn preview_latest_is_processed_after_full_owner_queue_without_new_input() {
     });
     assert!(matches!(
         recv_result(&result_rx),
-        RuntimeStoreResult::OperationSucceeded {
-            operation: RuntimeOperation::SamplePreview,
-            ..
-        }
+        RuntimeStoreResult::SamplePreviewStarted { path, .. } if path == "samples/Drum/kick/Kick2.wav"
     ));
 }
 

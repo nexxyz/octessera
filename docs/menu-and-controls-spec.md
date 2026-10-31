@@ -379,7 +379,12 @@ palette unless a behavior deliberately owns its own.
   inverted: a disc at 28 % of the row colour with 1-3 pips in the row colour; a plain cap covers
   `s+1..s+7`, a Shift cap `s..s+6` with a 5 px bar at 55 % on `s+8`. The selection bar starts at
   `x=9` and labels at `x=12`. Sample-browser lists (`entry` rows: `..`, folders, files, `(empty)`)
-  have no gutter: the bar starts at `x=0` and labels at `x=2`.
+  have no gutter: the bar starts at `x=0` and labels at `x=2`. While the highlighted file's
+  preview is sounding, its row carries `preview` and shows a 3x5 play triangle at `x=121..123`,
+  `y=s+2..s+6`, in the row's value colour; its label stops 4 px before it. The host reports the
+  preview's start and length once the decoded file reaches the engine (`sample_preview_started`
+  with `durationMs`); the mark ends with that length, or earlier when leaving Playing (or stopping
+  from Paused) silences previews. Its end is a scene-only display step, not a snapshot deadline.
 - Right column: values, `>`, `!` and mini bars end at `x=123` whether or not the page scrolls. `>`
   covers `x=120..122` and `!` sits on `x=121`, the centre of the last digit cell. Unselected values
   draw at 70 % of the row colour, values on the selection bar in black. The selection bar ends at

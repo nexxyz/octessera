@@ -4,6 +4,9 @@ use super::{display_index, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 impl NativeRunner {
     pub fn capture_display_scene(&mut self) -> Result<super::PresentationScene, String> {
         let now = self.display.transients.now();
+        self.display
+            .transients
+            .observe_transport(&self.transport.transport);
         self.display.transients.advance(now);
         self.advance_oled_sleep_state();
         self.advance_toast_state();

@@ -337,12 +337,7 @@ pub(super) fn transport_requires_note_cleanup(
     previous: Option<&RuntimeStatus>,
     status: &RuntimeStatus,
 ) -> bool {
-    previous.is_some_and(|previous| {
-        (previous.transport == RuntimeTransportState::Playing
-            && status.transport != RuntimeTransportState::Playing)
-            || (previous.transport == RuntimeTransportState::Paused
-                && status.transport == RuntimeTransportState::Stopped)
-    })
+    previous.is_some_and(|previous| previous.transport.change_silences_audio(&status.transport))
 }
 
 fn transport_status_resets_origin(

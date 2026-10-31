@@ -130,6 +130,7 @@ mod restart_dialog_snapshots;
 mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
+mod sample_preview_indicator;
 mod sampler_cells;
 mod scan_note_offs;
 mod scan_replacement;

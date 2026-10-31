@@ -31,6 +31,9 @@ impl NativeRunner {
 
     pub fn messages_with_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
         let now = self.display.transients.now();
+        self.display
+            .transients
+            .observe_transport(&self.transport.transport);
         self.display.transients.advance(now);
         if self.pending.presentation_deferred
             && self.transport.transport == super::RuntimeTransportState::Playing
@@ -50,6 +53,9 @@ impl NativeRunner {
         if self.pending.presentation_deferred
             && self.transport.transport == super::RuntimeTransportState::Playing
         {
+            self.display
+                .transients
+                .observe_transport(&self.transport.transport);
             self.display
                 .transients
                 .advance(self.display.transients.now());
@@ -74,6 +80,9 @@ impl NativeRunner {
             return self.messages_without_presentation();
         }
         let now = self.display.transients.now();
+        self.display
+            .transients
+            .observe_transport(&self.transport.transport);
         self.display.transients.advance(now);
         self.advance_oled_sleep_state();
         if self.display.oled_mode == NativeOledMode::Splash

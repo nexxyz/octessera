@@ -75,6 +75,7 @@ export type DisplayMenuRow = {
   value: string;
   textCursor: number | null;
   auxCap: AuxCap | null;
+  preview?: boolean;
 };
 
 export type OledFrame = {

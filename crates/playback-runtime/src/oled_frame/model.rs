@@ -108,6 +108,9 @@ pub struct OledMenuRowInput {
     pub value: String,
     pub text_cursor: Option<usize>,
     pub aux_cap: Option<OledAuxCap>,
+    /// A browser file row whose sample preview is sounding: a play triangle in its marker column.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub preview: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

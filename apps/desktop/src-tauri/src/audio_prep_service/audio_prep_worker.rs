@@ -12,7 +12,7 @@ use super::{
     AudioControlRequest, DesktopAudioControl, DesktopAudioPrepState, PreviewRequest,
     AUDIO_PREP_QUEUE_CAPACITY,
 };
-use playback_runtime::{HostMessage, RuntimeOperation, RuntimeStoreResult};
+use playback_runtime::{HostMessage, RuntimeStoreResult};
 use rodio_engine_source::{EngineEvent, EngineEventSender, QueueKind, QueueSendError};
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
@@ -347,13 +347,13 @@ fn process_preview(
     if latest.token != control.next_preview_token.load(Ordering::Acquire) {
         return;
     }
+    let duration = event.preview_duration().unwrap_or_default();
     match send_prepared_event(engine_tx, event) {
         Ok(()) => send_audio_prep_result(
             result_tx,
-            RuntimeStoreResult::OperationSucceeded {
-                operation: RuntimeOperation::SamplePreview,
-                request_id: None,
-                revision: None,
+            RuntimeStoreResult::SamplePreviewStarted {
+                path: latest.path,
+                duration_ms: duration.as_millis() as u64,
             },
         ),
         Err(error) => send_audio_prep_result(result_tx, sample_preview_queue_failure(error)),

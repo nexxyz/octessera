@@ -100,6 +100,12 @@ pub enum RuntimeStoreResult {
     SamplePreviewError {
         message: String,
     },
+    /// The host handed a preview of `path` to the engine; it sounds for `duration_ms`.
+    SamplePreviewStarted {
+        path: String,
+        #[serde(rename = "durationMs")]
+        duration_ms: u64,
+    },
     SamplesMissing {
         paths: Vec<String>,
     },
@@ -192,7 +198,9 @@ impl RuntimeStoreResult {
             Self::SampleListResult { .. } | Self::SampleListError { .. } => {
                 RuntimeOperation::SampleList
             }
-            Self::SamplePreviewError { .. } => RuntimeOperation::SamplePreview,
+            Self::SamplePreviewError { .. } | Self::SamplePreviewStarted { .. } => {
+                RuntimeOperation::SamplePreview
+            }
             Self::SamplesMissing { .. } => RuntimeOperation::AudioCommand,
             Self::DeviceUpdateStatus { .. } => RuntimeOperation::DeviceUpdate,
             Self::RecordingStatus { .. } => RuntimeOperation::Recording,

@@ -191,7 +191,8 @@ impl NativeRunner {
             | RuntimeStoreResult::MidiListInputsResult { .. }
             | RuntimeStoreResult::MidiStatus { .. }) => self.apply_midi_result(result),
             result @ (RuntimeStoreResult::SampleListResult { .. }
-            | RuntimeStoreResult::SampleListError { .. }) => {
+            | RuntimeStoreResult::SampleListError { .. }
+            | RuntimeStoreResult::SamplePreviewStarted { .. }) => {
                 self.apply_sample_browser_result(result)
             }
             result @ (RuntimeStoreResult::SystemInfoResult { .. }

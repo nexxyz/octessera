@@ -16,6 +16,15 @@ pub enum RuntimeTransportState {
     Paused,
 }
 
+impl RuntimeTransportState {
+    /// Whether going from `self` to `next` releases held notes and silences internal audio:
+    /// leaving Playing, or stopping from Paused.
+    pub(crate) fn change_silences_audio(&self, next: &Self) -> bool {
+        (*self == Self::Playing && *next != Self::Playing)
+            || (*self == Self::Paused && *next == Self::Stopped)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeStatusState {

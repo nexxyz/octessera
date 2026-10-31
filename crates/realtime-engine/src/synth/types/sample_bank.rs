@@ -10,6 +10,14 @@ pub struct SampleBuffer {
     pub sample_rate: u32,
 }
 
+impl SampleBuffer {
+    /// How long the buffer sounds when played at its own rate, as a preview plays it.
+    pub fn duration(&self) -> std::time::Duration {
+        let frames = self.samples.len() / usize::from(self.channels.max(1));
+        std::time::Duration::from_secs_f64(frames as f64 / f64::from(self.sample_rate.max(1)))
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct SampleSlotConfig {
     pub buffer: Option<SampleBuffer>,

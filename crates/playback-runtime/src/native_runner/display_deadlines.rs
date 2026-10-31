@@ -160,7 +160,7 @@ impl NativeRunner {
         }
         selected_menu_presentation_line(self, &menu)
             .is_some_and(|line| line.chars().count() > DISPLAY_LINE_WIDTH)
-            || selected_menu_label_overflows(&menu)
+            || selected_menu_label_overflows(self, &menu)
     }
 }
 

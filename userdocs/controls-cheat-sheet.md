@@ -161,7 +161,10 @@ like `activate`, or directly from your presses in `keys` and `looper`.
 ## Sample browser
 
 `..` goes up a folder, `[folder]` opens one, the other rows are samples, and
-`(empty)` means there's nothing here. *Play* previews the highlighted sample.
+`(empty)` means there's nothing here. *Play* previews the highlighted sample,
+and a little play triangle sits on its row for as long as the preview is
+actually sounding. Handy for whisper-quiet files or ones with a slow fade-in,
+where your ears alone might swear nothing happened.
 Long names clip or scroll rather than run into other text.
 
 ## Status on the OLED

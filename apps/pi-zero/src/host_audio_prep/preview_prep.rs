@@ -50,14 +50,14 @@ pub(crate) fn process_request(
         sample_generation,
     ) {
         Ok(event) => {
+            let duration = event.preview_duration().unwrap_or_default();
             match preview_is_current(audio, instrument_slot, preview_token, sample_generation) {
                 Ok(true) => match audio.broadcast(event) {
                     Ok(()) => send_result(
                         result_tx,
-                        RuntimeStoreResult::OperationSucceeded {
-                            operation: RuntimeOperation::SamplePreview,
-                            request_id: None,
-                            revision: None,
+                        RuntimeStoreResult::SamplePreviewStarted {
+                            path: path.into(),
+                            duration_ms: duration.as_millis() as u64,
                         },
                     ),
                     Err(error) => send_result(

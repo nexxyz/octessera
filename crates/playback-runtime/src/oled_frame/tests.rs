@@ -282,6 +282,7 @@ pub(super) fn menu_row(
         value: value.into(),
         text_cursor: None,
         aux_cap: cap.map(|(encoder, shift)| OledAuxCap { encoder, shift }),
+        preview: false,
     })
 }
 
