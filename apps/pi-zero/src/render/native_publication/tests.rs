@@ -29,6 +29,10 @@ impl OledRenderDevice for OffRetryOled {
             Ok(())
         }
     }
+
+    fn set_master_contrast(&mut self, _step: u8) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 #[test]
@@ -83,4 +87,22 @@ fn state_only_display_off_retry_completes_generation_once_without_rewriting_pixe
     assert!(completion.frame_revision.is_some());
     assert!(received.try_recv().is_err());
     assert_eq!(oled.writes.len(), 1);
+}
+
+#[test]
+fn prepared_scene_maps_oled_bright_to_the_master_contrast_step() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let (completion, _received) = mpsc::channel();
+    let latest = prepare_native_scene(
+        Box::new(NativeSceneCommand {
+            scene: runner.capture_display_scene().unwrap(),
+            metrics: playback_runtime::oled_frame::OledPresentationMetrics::default(),
+            error: None,
+            completion,
+        }),
+        &HardwareRenderCache::default(),
+    )
+    .unwrap();
+    assert_eq!(latest.hardware.oled.display_brightness, 75);
+    assert_eq!(latest.oled.master_contrast(), 11);
 }

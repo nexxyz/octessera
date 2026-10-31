@@ -1,5 +1,6 @@
 use super::oled_output::OledRenderDevice;
 use octessera_hal::OledSsd1351;
+use std::sync::{Arc, Mutex};
 
 pub(crate) enum TestOledOutput {
     Fake(FakeOledOutput),
@@ -7,13 +8,23 @@ pub(crate) enum TestOledOutput {
 }
 
 pub(crate) fn fake_oled_output() -> TestOledOutput {
-    TestOledOutput::Fake(FakeOledOutput { failed_writes: 0 })
+    fake_oled_output_failing_writes(0)
 }
 
 pub(crate) fn fake_oled_output_failing_writes(count: usize) -> TestOledOutput {
     TestOledOutput::Fake(FakeOledOutput {
         failed_writes: count,
+        master_contrast_writes: Arc::default(),
     })
+}
+
+pub(crate) fn fake_oled_output_recording_contrast() -> (TestOledOutput, Arc<Mutex<Vec<u8>>>) {
+    let writes = Arc::<Mutex<Vec<u8>>>::default();
+    let output = TestOledOutput::Fake(FakeOledOutput {
+        failed_writes: 0,
+        master_contrast_writes: Arc::clone(&writes),
+    });
+    (output, writes)
 }
 
 pub(crate) fn real_oled_output(oled: OledSsd1351) -> TestOledOutput {
@@ -73,8 +84,22 @@ impl OledRenderDevice for TestOledOutput {
             Self::Real(oled) => oled.display_off(),
         }
     }
+
+    fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
+        match self {
+            Self::Fake(fake) => {
+                fake.master_contrast_writes
+                    .lock()
+                    .map_err(|_| "test OLED contrast log poisoned".to_string())?
+                    .push(step);
+                Ok(())
+            }
+            Self::Real(oled) => oled.set_master_contrast(step),
+        }
+    }
 }
 
 pub(crate) struct FakeOledOutput {
     failed_writes: usize,
+    master_contrast_writes: Arc<Mutex<Vec<u8>>>,
 }

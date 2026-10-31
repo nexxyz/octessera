@@ -12,8 +12,7 @@ const NORMAL_SELECTED_FNV1A64: u64 = 0x648C_8E6E_E26C_E6D7;
 const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x82BC_890A_3481_E5EC;
 const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x2E40_726F_83B0_07C9;
 const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x6F99_C1ED_A3B3_827C;
-const STARTUP_SPLASH_100_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
-const STARTUP_SPLASH_50_FNV1A64: u64 = 0x4AB2_E39F_7B90_AA8E;
+const STARTUP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SLEEP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SHUTDOWN_SPLASH_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 const OFF_FNV1A64: u64 = 0x8F69_55BF_94EC_2325;
@@ -35,7 +34,7 @@ pub(super) const GLYPH_GOLDEN_TEXTS: [&str; 8] = [
     ":;<=>?@[\\]^_`{|}~",
     "★ Samples",
 ];
-const BOOT_SPLASH_ASSET_FNV1A64: u64 = STARTUP_SPLASH_100_FNV1A64;
+const BOOT_SPLASH_ASSET_FNV1A64: u64 = STARTUP_SPLASH_FNV1A64;
 const SLEEP_SHUTDOWN_SPLASH_ASSET_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 
 #[test]
@@ -48,8 +47,7 @@ fn typed_oled_golden_anchors_are_stable() {
         ),
         ("full-runtime-error", full_runtime_error()),
         ("concise-midi-error", concise_midi_error()),
-        ("startup-splash-brightness-100", startup_splash(100)),
-        ("startup-splash-brightness-50", startup_splash(50)),
+        ("startup-splash", startup_splash()),
         ("sleep-splash", sleep_splash()),
         ("shutdown-splash", shutdown_splash()),
         ("off", off()),
@@ -83,8 +81,7 @@ fn typed_oled_golden_anchors_are_stable() {
             "toast-active-event-transport" => TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64,
             "full-runtime-error" => FULL_RUNTIME_ERROR_FNV1A64,
             "concise-midi-error" => CONCISE_MIDI_ERROR_FNV1A64,
-            "startup-splash-brightness-100" => STARTUP_SPLASH_100_FNV1A64,
-            "startup-splash-brightness-50" => STARTUP_SPLASH_50_FNV1A64,
+            "startup-splash" => STARTUP_SPLASH_FNV1A64,
             "sleep-splash" => SLEEP_SPLASH_FNV1A64,
             "shutdown-splash" => SHUTDOWN_SPLASH_FNV1A64,
             "off" => OFF_FNV1A64,
@@ -231,10 +228,9 @@ fn concise_midi_error() -> OledPresentationInput {
     input
 }
 
-fn startup_splash(brightness: u8) -> OledPresentationInput {
+fn startup_splash() -> OledPresentationInput {
     let mut input = base();
     input.display.splash = OledSplash::Boot;
-    input.display_brightness = brightness;
     input
 }
 

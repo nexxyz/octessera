@@ -1,6 +1,6 @@
 use super::font::M5X7;
 use super::model::*;
-use super::pixels::{dim, rgb565, rgb565_to_rgb, scale, shade};
+use super::pixels::{dim, rgb565, rgb565_to_rgb, shade};
 use super::render::{render_oled_frame, render_oled_frame_into};
 use super::tests::{base, menu_row, pixel, AREA, GLYPH_GOLDEN_TEXTS};
 use super::text::title_text_for_oled;
@@ -39,14 +39,12 @@ fn modal(lines: &[&str], layout: OledDisplayLayout) -> OledPresentationInput {
 
 #[test]
 fn header_crumb_and_rule_use_the_area_colour_above_a_clear_row() {
-    for (color, brightness) in [(palette::YELLOW_RGB565, 100), (palette::GREEN_RGB565, 50)] {
+    for expected in [palette::YELLOW_RGB565, palette::GREEN_RGB565] {
         for layout in [OledDisplayLayout::Rows, OledDisplayLayout::Card] {
             let mut input = base();
-            input.display.title_color = color;
+            input.display.title_color = expected;
             input.display.body_layout = layout;
-            input.display_brightness = brightness;
             let frame = render_oled_frame(&input);
-            let expected = shade(color, f32::from(brightness) / 100.0);
             assert!((0..128).all(|x| pixel(&frame, x, 8) == expected));
             assert!((0..128).all(|x| pixel(&frame, x, 9) == 0));
             assert!((0..104).any(|x| (0..5).any(|y| pixel(&frame, x, y) == expected)));
@@ -299,7 +297,7 @@ fn scrollbar_thumb_tracks_offset_and_hides_without_overflow() {
 }
 
 #[test]
-fn rows_use_their_colours_scaled_by_brightness_and_default_to_white() {
+fn rows_use_their_colours_and_default_to_white() {
     let mut input = base();
     input.selected_row = None;
     input.display.colors = vec![palette::MAGENTA_RGB565, palette::GREEN_RGB565];
@@ -310,14 +308,6 @@ fn rows_use_their_colours_scaled_by_brightness_and_default_to_white() {
     assert!(has(0, palette::MAGENTA_RGB565));
     assert!(has(1, palette::GREEN_RGB565));
     assert!(has(2, palette::WHITE_RGB565));
-
-    let mut dimmed = base();
-    dimmed.display_brightness = 50;
-    let frame = render_oled_frame(&dimmed);
-    assert_eq!(
-        pixel(&frame, 9, slot(1)),
-        rgb565(scale(rgb565_to_rgb(AREA), 0.5))
-    );
 }
 
 #[test]
@@ -363,7 +353,7 @@ fn concise_midi_error_keeps_the_menu_frame_over_splash() {
 }
 
 #[test]
-fn splash_overlays_toast_and_zero_brightness_blanks_every_screen() {
+fn splash_overlays_toast_and_brightness_leaves_every_screen_at_full_intensity() {
     let mut splash = base();
     splash.display.splash = OledSplash::Boot;
     splash.display.toast = "Loading".into();
@@ -374,9 +364,12 @@ fn splash_overlays_toast_and_zero_brightness_blanks_every_screen() {
     error.runtime_error = Some(OledRuntimeErrorMetadata::default());
     let mut toast = base();
     toast.display.toast = "Loading".into();
-    for mut input in [base(), error, splash, toast] {
-        input.display_brightness = 0;
-        assert!(render_oled_frame(&input).iter().all(|byte| *byte == 0));
+    for input in [base(), error, splash, toast] {
+        for brightness in [0, 10, 75] {
+            let mut dimmed = input.clone();
+            dimmed.display_brightness = brightness;
+            assert_eq!(render_oled_frame(&dimmed), render_oled_frame(&input));
+        }
     }
 }
 

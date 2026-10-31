@@ -288,7 +288,8 @@ change; only the distance per detent does.
 
 - Native presentation publishes a positive-revision `oled_frame` (`128x128`, `rgb565be`) only when
   the bytes change, immediately before the semantic snapshot that references `oledFrameRevision`.
-  PlaybackRuntime owns OLED brightness conversion and never emits a snapshot with revision `0`,
+  Frame bytes are always full intensity; OLED Bright dims the panel itself (see Brightness).
+  PlaybackRuntime never emits a snapshot with revision `0`,
   including when presentation input is absent or malformed. Before the first valid frame an invalid
   snapshot is suppressed and a typed fault/status is emitted; after a valid frame, non-OLED
   snapshot state continues with the prior positive revision and a typed retain-last-good
@@ -920,7 +921,16 @@ Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
 
 ## Brightness
 
-- OLED Bright is applied by PlaybackRuntime while producing native OLED frame bytes.
+- OLED Bright sets the SSD1351 master contrast current (command `C7h`, 16 steps) instead of
+  scaling pixels, so dimming keeps full colour depth and costs a few command bytes, not a frame
+  write. `oled_master_contrast_step` maps the percentage to the step whose share of full current,
+  `(step + 1) / 16`, is nearest: 10 and 15 → 1, 20 → 2, 25 → 3, 30 → 4, 35 and 40 → 5,
+  45 → 6, 50 → 7, 55 → 8, 60 and 65 → 9, 70 → 10, 75 → 11, 80 → 12, 85 and 90 → 13, 95 → 14,
+  100 → 15 (`0Fh`, the panel init value).
+- OLED frames, recordings included, stay at full intensity. Raspberry and Orange send the step
+  from the render worker once the runtime owns the panel, whenever the step changes, and again
+  after an ownership restore. The boot logo shows at full panel current until then. The desktop
+  simulator multiplies the displayed image by `(step + 1) / 16` to match.
 - Grid Bright scales matrix LED RGB intensity; Button Bright scales NeoKey LED intensity.
 - The Dim Timer applies an extra dim, with its visible floor, while the OLED stays on.
 - Once `OLED Sleep` turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz

@@ -57,4 +57,8 @@ impl OledRenderDevice for StartupOled {
         self.operations.push("display_off");
         Ok(())
     }
+
+    fn set_master_contrast(&mut self, _step: u8) -> Result<(), String> {
+        Ok(())
+    }
 }

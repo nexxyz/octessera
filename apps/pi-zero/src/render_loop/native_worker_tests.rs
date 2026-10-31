@@ -169,6 +169,43 @@ fn native_worker_returns_physically_accepted_typed_frame() {
 
 #[test]
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn native_worker_sends_master_contrast_once_per_brightness_change() {
+    let (seesaw_tx, _seesaw_rx) = mpsc::channel();
+    let (oled, contrast_writes) =
+        crate::render::test_oled_output::fake_oled_output_recording_contrast();
+    let worker = RenderWorker::spawn(HardwareRenderTargets {
+        oled,
+        seesaw_tx,
+        oled_handoff: None,
+        hdmi: crate::render::hdmi::HdmiFramebuffer::new(),
+    });
+    worker.state.0.lock().unwrap().initial_scene_rendered = true;
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let publish = |runner: &mut NativeRunner| {
+        let scene = runner.capture_display_scene().unwrap();
+        let ack = worker
+            .publish_native_scene(scene, OledPresentationMetrics::default(), None)
+            .unwrap();
+        assert!(ack
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap()
+            .result
+            .is_ok());
+    };
+    publish(&mut runner);
+    publish(&mut runner);
+    let mut payload: serde_json::Value =
+        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    payload["runtimeConfig"]["displayBrightness"] = serde_json::json!(40);
+    runner.apply_config_payload(payload).unwrap();
+    publish(&mut runner);
+    publish(&mut runner);
+    assert_eq!(*contrast_writes.lock().unwrap(), vec![11, 5]);
+    worker.publish_shutdown().unwrap();
+}
+
+#[test]
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn unchanged_scene_generation_is_acknowledged_without_a_new_frame_revision() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {

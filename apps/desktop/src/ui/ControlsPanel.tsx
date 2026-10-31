@@ -89,7 +89,10 @@ export function ControlsPanel({
         <small>Menu Control</small>
       </article>
 
-      <OledDisplay frame={frame} />
+      <OledDisplay
+        frame={frame}
+        displayBrightness={snapshot.displayBrightness}
+      />
 
       <section className="aux-triangle" aria-label="Aux encoders">
         {AUX_ENCODERS.map((encoder) => (

@@ -5,7 +5,7 @@ use super::menu_rows::{
     BAR_HEIGHT, PITCH, SCROLLBAR_X,
 };
 use super::model::{OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledPresentationInput};
-use super::pixels::{fill_rect, shade};
+use super::pixels::fill_rect;
 use super::{OLED_FRAME_BYTES, OLED_WIDTH};
 
 /// Body animations only touch the rows between the area rule and the footer.
@@ -18,28 +18,20 @@ pub(super) fn draw_body_animation(
     frame: &mut [u8],
     input: &OledPresentationInput,
     animation: &OledBodyAnimation,
-    brightness: f32,
 ) {
     let mut scratch = [0_u8; OLED_FRAME_BYTES];
     let display = &input.display;
     match (animation, input.selected_row) {
         (OledBodyAnimation::Select { from_row, moved }, Some(to_row)) => {
-            draw_body(&mut scratch, display, Some(*from_row), false, brightness);
-            compose_select(
-                frame,
-                &scratch,
-                display,
-                [*from_row, to_row],
-                *moved,
-                brightness,
-            );
+            draw_body(&mut scratch, display, Some(*from_row), false);
+            compose_select(frame, &scratch, display, [*from_row, to_row], *moved);
         }
         (OledBodyAnimation::Scroll { from, down, moved }, Some(slot)) => {
             let shift = Shift {
                 down: *down,
                 moved: *moved,
             };
-            compose_scroll(frame, &mut scratch, display, from, slot, shift, brightness);
+            compose_scroll(frame, &mut scratch, display, from, slot, shift);
         }
         (
             OledBodyAnimation::Slide {
@@ -54,7 +46,6 @@ pub(super) fn draw_body_animation(
                 &from.display,
                 from.selected_row,
                 from.display.editing,
-                brightness,
             );
             compose_slide(frame, &scratch, *forward, *moved);
         }
@@ -62,13 +53,7 @@ pub(super) fn draw_body_animation(
             let Some(box_x) = edit_box_x(display, row) else {
                 return;
             };
-            draw_body(
-                &mut scratch,
-                display,
-                Some(row),
-                !display.editing,
-                brightness,
-            );
+            draw_body(&mut scratch, display, Some(row), !display.editing);
             let cut = OLED_WIDTH - (OLED_WIDTH - box_x) / 2;
             let other = if display.editing {
                 0..cut
@@ -91,7 +76,6 @@ fn compose_select(
     display: &OledDisplayInput,
     rows: [usize; 2],
     moved: usize,
-    brightness: f32,
 ) {
     let (bar_x, bar_right) = selection_bar_span(display);
     let [from_top, to_top] = rows.map(|row| slot_top(row) - 1);
@@ -100,7 +84,7 @@ fn compose_select(
     } else {
         from_top - moved
     };
-    let area = row_area(display, rows[1], brightness);
+    let area = row_area(display, rows[1]);
     let bar = bar_top..bar_top + BAR_HEIGHT;
     for y in from_top.min(to_top)..from_top.max(to_top) + BAR_HEIGHT {
         let inside = bar.contains(&y);
@@ -156,7 +140,6 @@ fn compose_scroll(
     from: &OledBodyFrom,
     slot: usize,
     shift: Shift,
-    brightness: f32,
 ) {
     let (bar_x, _) = selection_bar_span(display);
     let band_top = slot_top(slot) - 1;
@@ -172,7 +155,7 @@ fn compose_scroll(
     };
     for (old, body) in [(false, display), (true, &from.display)] {
         scratch.fill(0);
-        draw_body(scratch, body, None, false, brightness);
+        draw_body(scratch, body, None, false);
         for y in BODY_TOP..=BODY_BOTTOM {
             let (from_old, src) = shift.source(y);
             if from_old == old {
@@ -181,8 +164,8 @@ fn compose_scroll(
         }
     }
     scratch.fill(0);
-    draw_body(scratch, &from.display, Some(slot), false, brightness);
-    let area = row_area(display, slot, brightness);
+    draw_body(scratch, &from.display, Some(slot), false);
+    let area = row_area(display, slot);
     for y in band.clone() {
         let lens = bar_x..SCROLLBAR_X;
         if let Some(src) = shift.behind(y, 0).filter(|src| band.contains(src)) {
@@ -208,12 +191,7 @@ fn compose_scroll(
         } else {
             start.saturating_sub(shift.moved)
         };
-        draw_scrollbar(
-            frame,
-            scroll,
-            position,
-            shade(display.title_color, brightness),
-        );
+        draw_scrollbar(frame, scroll, position, display.title_color);
     }
 }
 

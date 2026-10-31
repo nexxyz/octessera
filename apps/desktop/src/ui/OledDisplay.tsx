@@ -4,14 +4,24 @@ import {
   OLED_WIDTH,
   type RuntimeSnapshot,
 } from '@octessera/device-contracts';
-import { toOledImage } from './oledImage';
+import { oledPanelCurrentFactor, toOledImage } from './oledImage';
 
 const OLED_DISPLAY_SCALE = 2;
 const OLED_DISPLAY_WIDTH = OLED_WIDTH * OLED_DISPLAY_SCALE;
 const OLED_DISPLAY_HEIGHT = OLED_HEIGHT * OLED_DISPLAY_SCALE;
 
-export function OledDisplay({ frame }: { frame: RuntimeSnapshot }) {
-  const oledImage = useMemo(() => toOledImage(frame.oled), [frame.oled]);
+export function OledDisplay({
+  frame,
+  displayBrightness,
+}: {
+  frame: RuntimeSnapshot;
+  displayBrightness: number;
+}) {
+  const panelCurrent = oledPanelCurrentFactor(displayBrightness);
+  const oledImage = useMemo(
+    () => toOledImage(frame.oled, panelCurrent),
+    [frame.oled, panelCurrent],
+  );
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   useOledCanvas(canvasRef, oledImage);
 

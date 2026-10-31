@@ -10,8 +10,23 @@ export function rgb565ToCss(value: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+const OLED_MASTER_CONTRAST_STEPS = 16;
+
+// Mirrors oled_master_contrast_step in playback-runtime: the hardware dims the panel
+// current instead of the pixels, so the simulator dims the displayed image to match.
+export function oledPanelCurrentFactor(displayBrightness: number): number {
+  const percent = Math.min(Math.max(Math.round(displayBrightness), 0), 100);
+  const nearest = Math.floor((percent * OLED_MASTER_CONTRAST_STEPS + 50) / 100);
+  const step = Math.min(
+    Math.max(nearest - 1, 0),
+    OLED_MASTER_CONTRAST_STEPS - 1,
+  );
+  return (step + 1) / OLED_MASTER_CONTRAST_STEPS;
+}
+
 export function toOledImage(
   oledFrame: OledFrame | undefined,
+  panelCurrent = 1,
 ): ImageData | null {
   if (
     !oledFrame ||
@@ -30,9 +45,9 @@ export function toOledImage(
     const r5 = (v >> 11) & 0x1f;
     const g6 = (v >> 5) & 0x3f;
     const b5 = v & 0x1f;
-    data[j] = (r5 << 3) | (r5 >> 2);
-    data[j + 1] = (g6 << 2) | (g6 >> 4);
-    data[j + 2] = (b5 << 3) | (b5 >> 2);
+    data[j] = Math.round(((r5 << 3) | (r5 >> 2)) * panelCurrent);
+    data[j + 1] = Math.round(((g6 << 2) | (g6 >> 4)) * panelCurrent);
+    data[j + 2] = Math.round(((b5 << 3) | (b5 >> 2)) * panelCurrent);
     data[j + 3] = 255;
   }
   return new ImageData(data, w, h);

@@ -42,7 +42,7 @@ pub(super) fn dim(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
     [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
 }
 
-/// An RGB565 colour scaled by `factor` (brightness and fades).
+/// An RGB565 colour scaled by `factor` (fades and dimmed shades).
 pub(super) fn shade(color: u16, factor: f32) -> u16 {
     rgb565(scale(rgb565_to_rgb(color), factor))
 }

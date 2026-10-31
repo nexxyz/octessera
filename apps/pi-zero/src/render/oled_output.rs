@@ -11,6 +11,7 @@ pub(super) trait OledRenderDevice {
     fn display_on(&mut self) -> Result<(), String>;
     fn write_frame(&mut self, frame: &[u8]) -> Result<(), String>;
     fn display_off(&mut self) -> Result<(), String>;
+    fn set_master_contrast(&mut self, step: u8) -> Result<(), String>;
 }
 
 impl OledRenderDevice for OledSsd1351 {
@@ -25,16 +26,26 @@ impl OledRenderDevice for OledSsd1351 {
     fn display_off(&mut self) -> Result<(), String> {
         OledSsd1351::display_off(self)
     }
+
+    fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
+        OledSsd1351::set_master_contrast(self, step)
+    }
 }
 
 fn render_native_oled<O: OledRenderDevice>(
     oled: &mut O,
     off: bool,
-    frame: &[u8],
-    frame_key: u64,
+    publication: &OledFramePublication,
     force_frame: bool,
     state: &mut OledOutputState,
 ) -> Result<bool, String> {
+    let frame = publication.pixels();
+    let frame_key = publication.revision();
+    let master_contrast = publication.master_contrast();
+    if state.master_contrast != Some(master_contrast) {
+        oled.set_master_contrast(master_contrast)?;
+        state.master_contrast = Some(master_contrast);
+    }
     let display_changed = state.display_off != Some(off);
     if !off && display_changed {
         oled.display_on()?;
@@ -61,7 +72,7 @@ pub(super) fn render_oled_if_changed_off<O: OledRenderDevice>(
     cache: &mut HardwareRenderCache,
     now: Instant,
 ) -> Option<Instant> {
-    let key = OledOutputKey::new(publication.revision(), off);
+    let key = OledOutputKey::new(publication, off);
     if cache.oled_rendered_key == Some(key) {
         cache.clear_oled_retry();
         return None;
@@ -87,7 +98,7 @@ pub(crate) fn physical_oled_publication(
 ) -> Result<OledFramePublication, String> {
     let pixels = publication.pixels();
     let revision = physical_oled_revision(pixels, cache)?;
-    OledFramePublication::native_pixels(revision, pixels.to_vec())
+    OledFramePublication::native_pixels(revision, pixels.to_vec(), publication.master_contrast())
 }
 
 pub(super) fn physical_oled_revision(
@@ -111,11 +122,12 @@ pub(crate) fn oled_publication_is_accepted(
     off: bool,
     cache: &HardwareRenderCache,
 ) -> bool {
-    let key = OledOutputKey::new(publication.revision(), off);
+    let key = OledOutputKey::new(publication, off);
     let frame = publication.pixels();
     cache.oled_rendered_key == Some(key)
         && cache.oled_output_state.frame == Some(publication.revision())
         && cache.oled_output_state.display_off == Some(off)
+        && cache.oled_output_state.master_contrast == Some(publication.master_contrast())
         && cache.oled_output_state.pixels.as_deref() == Some(frame)
 }
 
@@ -161,13 +173,11 @@ pub(super) fn force_oled_render_off<O: OledRenderDevice>(
     cache: &mut HardwareRenderCache,
 ) -> Result<(), String> {
     cache.oled_output_state.display_off = None;
-    let result = write_publication(oled, off, publication, true, &mut cache.oled_output_state);
+    cache.oled_output_state.master_contrast = None;
+    let result = render_native_oled(oled, off, publication, true, &mut cache.oled_output_state);
     cache.clear_oled_retry();
     result.map(|frame_written| {
-        cache.mark_oled_rendered(
-            OledOutputKey::new(publication.revision(), off),
-            frame_written,
-        );
+        cache.mark_oled_rendered(OledOutputKey::new(publication, off), frame_written);
     })
 }
 
@@ -188,7 +198,7 @@ fn attempt_oled_write<O: OledRenderDevice>(
     cache: &mut HardwareRenderCache,
     now: Instant,
 ) -> Option<Instant> {
-    match write_publication(oled, off, publication, false, &mut cache.oled_output_state) {
+    match render_native_oled(oled, off, publication, false, &mut cache.oled_output_state) {
         Ok(frame_written) => {
             cache.mark_oled_rendered(key, frame_written);
             cache.clear_oled_retry();
@@ -208,23 +218,6 @@ fn attempt_oled_write<O: OledRenderDevice>(
             cache.oled_retry_at
         }
     }
-}
-
-fn write_publication<O: OledRenderDevice>(
-    oled: &mut O,
-    off: bool,
-    publication: &OledFramePublication,
-    force_frame: bool,
-    state: &mut OledOutputState,
-) -> Result<bool, String> {
-    render_native_oled(
-        oled,
-        off,
-        publication.pixels(),
-        publication.revision(),
-        force_frame,
-        state,
-    )
 }
 
 impl HardwareRenderCache {

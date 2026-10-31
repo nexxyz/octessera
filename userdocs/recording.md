@@ -17,8 +17,8 @@ The video is lossless (every frame is a PNG, so every pixel is exactly what
 the instrument showed). The OLED sits on the left, the four NeoKeys make a
 little column in the middle (Back at the top, Fn at the bottom, each wearing a
 tiny keycap glyph), and the 8 x 8 grid fills the right as chunky blocks. LEDs
-are drawn at full colour, so a video still reads fine if you play with Grid
-Bright turned way down. Audio is the master clock, so picture and sound stay
+and the OLED are drawn at full colour, so a video still reads fine if you play
+with Grid Bright or OLED Bright turned way down. Audio is the master clock, so picture and sound stay
 in step.
 
 Watching a take in VLC? Set `Video > Deinterlace` to **Off**. The video is made

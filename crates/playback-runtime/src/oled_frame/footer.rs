@@ -6,7 +6,7 @@ use super::model::{
     OledAuxCap, OledAuxHint, OledHintLabel, OledTransportFlash, OledTransportIcon,
     INDICATOR_FADE_LEVELS,
 };
-use super::pixels::{draw_mask, fill_rect, rgb565, scale, shade};
+use super::pixels::{draw_mask, fill_rect, rgb565, scale};
 use super::OledPresentationInput;
 
 const ICON_Y: usize = 119;
@@ -31,12 +31,12 @@ pub(super) const PLAY: [u8; 5] = [0b100, 0b110, 0b111, 0b110, 0b100];
 const DISC: [u8; 5] = [0b01110, 0b11111, 0b11111, 0b11111, 0b01110];
 const DIAMOND: [u8; 5] = [0b00100, 0b01110, 0b11111, 0b01110, 0b00100];
 
-pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
-    draw_transport_icon(frame, input, brightness);
+pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput) {
+    draw_transport_icon(frame, input);
     let level = input.event_dot_level.min(INDICATOR_FADE_LEVELS);
     if level > 0 {
         let fade = 1.0 / f32::from(1_u8 << (INDICATOR_FADE_LEVELS - level));
-        let color = rgb565(scale(palette::WHITE, brightness * fade));
+        let color = rgb565(scale(palette::WHITE, fade));
         draw_mask(frame, &DIAMOND, 5, EVENT_DOT_X, ICON_Y, color);
     }
     let hints = if input.aux_shift_layer {
@@ -44,10 +44,10 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
     } else {
         &input.aux_hints.normal
     };
-    draw_hints(frame, hints, input.aux_shift_layer, brightness);
+    draw_hints(frame, hints, input.aux_shift_layer);
     if input.recording_active {
         let level = if input.recording_pulse_dim { 0.5 } else { 1.0 };
-        let red = rgb565(scale(palette::BEHAVIOR_PRIMARY_RED, brightness * level));
+        let red = rgb565(scale(palette::BEHAVIOR_PRIMARY_RED, level));
         draw_mask(frame, &DISC, 5, RECORDING_X, ICON_Y, red);
     }
     let (toast, rows) = match &input.animation.toast {
@@ -57,7 +57,7 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
     if !toast.is_empty() && rows > 0 {
         let drop = TOAST_ROWS - rows;
         fill_rect(frame, 0, TOAST_Y + drop, HINT_RIGHT + 1, rows, 0);
-        let white = rgb565(scale(palette::WHITE, brightness));
+        let white = rgb565(palette::WHITE);
         M5X7.draw_fitted(
             frame,
             toast,
@@ -69,7 +69,7 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
     }
 }
 
-fn draw_transport_icon(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
+fn draw_transport_icon(frame: &mut [u8], input: &OledPresentationInput) {
     let rgb = match (&input.transport.icon, &input.transport.flash) {
         (OledTransportIcon::Play, OledTransportFlash::Measure) => palette::GREEN,
         (OledTransportIcon::Play, OledTransportFlash::Beat) => palette::YELLOW,
@@ -77,7 +77,7 @@ fn draw_transport_icon(frame: &mut [u8], input: &OledPresentationInput, brightne
         (OledTransportIcon::Pause, _) => palette::BLUE,
         _ => palette::WHITE,
     };
-    let color = rgb565(scale(rgb, brightness));
+    let color = rgb565(rgb);
     match input.transport.icon {
         OledTransportIcon::Play => draw_mask(frame, &PLAY, 3, TRANSPORT_X + 1, ICON_Y, color),
         OledTransportIcon::Pause => {
@@ -112,7 +112,7 @@ pub(super) fn hint_label_right(hints: &[OledAuxHint; 3], slot: usize) -> usize {
         .map_or(HINT_RIGHT, |(next, _)| HINT_SLOT_X[next] - 2)
 }
 
-fn draw_hints(frame: &mut [u8], hints: &[OledAuxHint; 3], shift: bool, brightness: f32) {
+fn draw_hints(frame: &mut [u8], hints: &[OledAuxHint; 3], shift: bool) {
     for (slot, hint) in hints.iter().enumerate() {
         let Some(cap_label) = hint.turn.as_ref().or(hint.click.as_ref()) else {
             continue;
@@ -122,17 +122,11 @@ fn draw_hints(frame: &mut [u8], hints: &[OledAuxHint; 3], shift: bool, brightnes
             encoder: slot as u8 + 1,
             shift,
         };
-        draw_aux_cap(
-            frame,
-            x,
-            HINT_CAP_Y,
-            cap,
-            shade(cap_label.color, brightness),
-        );
+        draw_aux_cap(frame, x, HINT_CAP_Y, cap, cap_label.color);
         let label_x = x + HINT_LABEL_OFFSET;
         let room = hint_label_right(hints, slot) + 1 - label_x;
         for (label, click, top) in hint_label_rows(hint).into_iter().flatten() {
-            let color = shade(label.color, brightness);
+            let color = label.color;
             let suffix = if click { "!" } else { "" };
             let pen = draw_hint_label(frame, &label.text, suffix, label_x, top, room, color);
             TOM_THUMB.draw(frame, suffix, pen, top, color);

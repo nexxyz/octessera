@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { OLED_HEIGHT, OLED_WIDTH } from '@octessera/device-contracts';
-import { toOledImage } from '../src/ui/oledImage';
+import { oledPanelCurrentFactor, toOledImage } from '../src/ui/oledImage';
 
 const FRAME_BYTES = OLED_WIDTH * OLED_HEIGHT * 2;
 
@@ -63,5 +63,38 @@ test('OLED image converts representative big-endian RGB565 pixels', () => {
       0, 0, 0, 255, 255, 255, 255, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 0,
       255, 255,
     ],
+  );
+});
+
+test('OLED Bright maps to the panel current share of the master contrast step', () => {
+  const steps: [number, number][] = [
+    [0, 0],
+    [10, 1],
+    [15, 1],
+    [20, 2],
+    [50, 7],
+    [75, 11],
+    [90, 13],
+    [95, 14],
+    [100, 15],
+    [255, 15],
+  ];
+  for (const [percent, step] of steps) {
+    assert.equal(
+      oledPanelCurrentFactor(percent),
+      (step + 1) / 16,
+      `${percent}%`,
+    );
+  }
+});
+
+test('OLED image dims full-intensity pixels by the panel current', () => {
+  const pixels = new Uint8Array(FRAME_BYTES);
+  pixels.set([0xff, 0xff, 0xf8, 0x00]);
+  const image = toOledImage(frame(pixels), oledPanelCurrentFactor(75));
+  assert.ok(image);
+  assert.deepEqual(
+    Array.from(image.data.slice(0, 8)),
+    [191, 191, 191, 255, 191, 0, 0, 255],
   );
 });

@@ -8,7 +8,7 @@ use super::footer::PLAY;
 use super::model::{
     OledBarInput, OledBarStyle, OledMenuRowInput, OledMenuRowKind, OledScrollInput,
 };
-use super::pixels::{dim, draw_mask, fill_rect, rgb565, rgb565_to_rgb, scale, shade};
+use super::pixels::{dim, draw_mask, fill_rect, rgb565, rgb565_to_rgb, shade};
 use super::{
     layout_card_body, OledDisplayInput, OledDisplayLayout, CARD_BODY_RECT, MENU_BODY_RECT,
 };
@@ -190,13 +190,10 @@ pub(super) fn draw_body(
     display: &OledDisplayInput,
     selected_row: Option<usize>,
     editing: bool,
-    brightness: f32,
 ) {
     match display.body_layout {
-        OledDisplayLayout::Rows => {
-            draw_menu_body(frame, display, selected_row, editing, brightness)
-        }
-        OledDisplayLayout::Card => draw_card_body(frame, display, selected_row, brightness),
+        OledDisplayLayout::Rows => draw_menu_body(frame, display, selected_row, editing),
+        OledDisplayLayout::Card => draw_card_body(frame, display, selected_row),
     }
 }
 
@@ -218,11 +215,12 @@ pub(super) fn edit_box_x(display: &OledDisplayInput, row: usize) -> Option<usize
 }
 
 /// The area colour of body row `row`.
-pub(super) fn row_area(display: &OledDisplayInput, row: usize, brightness: f32) -> u16 {
-    display.colors.get(row).map_or_else(
-        || rgb565(scale(palette::WHITE, brightness)),
-        |color| shade(*color, brightness),
-    )
+pub(super) fn row_area(display: &OledDisplayInput, row: usize) -> u16 {
+    display
+        .colors
+        .get(row)
+        .copied()
+        .unwrap_or_else(|| rgb565(palette::WHITE))
 }
 
 pub(super) fn page_scroll(display: &OledDisplayInput) -> Option<&OledScrollInput> {
@@ -242,7 +240,6 @@ fn draw_menu_body(
     display: &OledDisplayInput,
     selected_row: Option<usize>,
     editing: bool,
-    brightness: f32,
 ) {
     let scroll = page_scroll(display);
     let bar_right = selection_bar_right(scroll.is_some());
@@ -251,7 +248,7 @@ fn draw_menu_body(
         let top = slot_top(index);
         let selected = selected_row == Some(index);
         let style = RowStyle {
-            area: row_area(display, index, brightness),
+            area: row_area(display, index),
             selected,
             editing: selected && editing,
             gutter,
@@ -266,23 +263,18 @@ fn draw_menu_body(
         }
     }
     if let Some(scroll) = scroll {
-        let area = shade(display.title_color, brightness);
+        let area = display.title_color;
         draw_scrollbar(frame, scroll, scroll.offset * PITCH, area);
     }
 }
 
-fn draw_card_body(
-    frame: &mut [u8],
-    display: &OledDisplayInput,
-    selected_row: Option<usize>,
-    brightness: f32,
-) {
+fn draw_card_body(frame: &mut [u8], display: &OledDisplayInput, selected_row: Option<usize>) {
     for (index, line) in layout_card_body(&display.lines, selected_row, CARD_BODY_RECT)
         .iter()
         .enumerate()
     {
         let style = RowStyle {
-            area: row_area(display, line.source_index, brightness),
+            area: row_area(display, line.source_index),
             selected: line.selected,
             editing: false,
             gutter: false,

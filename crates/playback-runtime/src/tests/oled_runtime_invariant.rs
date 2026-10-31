@@ -184,8 +184,8 @@ fn independent_transport_and_selection_cues_each_invalidate_oled_input() {
 }
 
 #[test]
-fn individual_menu_and_brightness_edits_update_oled_pixels() {
-    for field in ["title", "lines", "brightness"] {
+fn individual_menu_edits_update_oled_pixels() {
+    for field in ["title", "lines"] {
         let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
         let _ = present(&mut runtime, snapshot("MENU"));
         let old_pixels = runtime.last_oled_frame().unwrap().to_vec();
@@ -193,7 +193,6 @@ fn individual_menu_and_brightness_edits_update_oled_pixels() {
         match field {
             "title" => changed["display"]["title"] = json!("Help: Basic Help"),
             "lines" => changed["display"]["lines"] = json!(["Try this"]),
-            "brightness" => changed["settings"]["displayBrightness"] = json!(35),
             _ => unreachable!(),
         }
         let output = present(&mut runtime, changed);
@@ -206,6 +205,18 @@ fn individual_menu_and_brightness_edits_update_oled_pixels() {
             "{field}"
         );
     }
+}
+
+#[test]
+fn brightness_edits_keep_oled_pixels_and_publish_the_setting() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let _ = present(&mut runtime, snapshot("MENU"));
+    let mut changed = snapshot("MENU");
+    changed["settings"]["displayBrightness"] = json!(35);
+    let output = present(&mut runtime, changed);
+    assert!(matches!(output.as_slice(), [
+        RunnerMessage::Snapshot { snapshot }, RunnerMessage::RuntimeStatus { .. }
+    ] if snapshot["oledFrameRevision"] == 1 && snapshot["settings"]["displayBrightness"] == 35));
 }
 
 #[test]

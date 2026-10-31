@@ -377,7 +377,7 @@ ghost_cells	*	key:ghostCells	bool	Ghost Cells	Shows dim cells from inactive laye
 input_events_while_paused	*	key:inputEventsWhilePaused	bool	Paused Events	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
 dim_timer	*	key:dimTimerSeconds	number	Dim Timer	Sets idle timeout before non-OLED LEDs dim.	Set 0 to keep LEDs at configured brightness; this dim is static and does not animate.
 screen_sleep	*	key:screenSleepSeconds	number	OLED Sleep	Sets idle timeout before OLED sleep.	Set 0 to keep display always on. Recording follows this timer too, which spares the OLED during long takes.
-display_bright	*	key:displayBrightness	number	OLED Bright	Sets OLED brightness level.	Higher values improve visibility at cost of brightness.
+display_bright	*	key:displayBrightness	number	OLED Bright	Sets the OLED panel current in 16 steps.	Lower values dim the screen and spare it wear; colours keep their full depth.
 grid_bright	*	key:gridBrightness	number	Grid Bright	Sets grid LED brightness scaling.	Lower values are useful for dark environments.
 button_bright	*	key:buttonBrightness	number	Button Bright	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
 numeric_display	*	key:numericDisplayMode	enum	Num Style	bar draws a small value bar on every bounded number row; numbers shows the numeric values instead.	Bars follow the encoder: time and frequency rows move evenly per detent. This changes the display, not the stored value.

@@ -31,6 +31,10 @@ impl OledRenderDevice for TestOled {
         self.operations.push("off");
         Ok(())
     }
+
+    fn set_master_contrast(&mut self, _step: u8) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 #[test]
@@ -75,7 +79,7 @@ fn failed_oled_write_does_not_advance_revision_before_retry_success() {
     );
     assert_eq!(
         cache.oled_rendered_key,
-        Some(OledOutputKey::new(publication.revision(), true))
+        Some(OledOutputKey::new(&publication, true))
     );
     assert_eq!(oled.writes, 2);
     assert!(oled
@@ -103,7 +107,7 @@ fn accepted_native_frame_is_written_without_semantic_rendering() {
     assert_eq!(oled.frames, vec![pixels]);
     assert_eq!(
         cache.oled_rendered_key,
-        Some(OledOutputKey::new(publication.revision(), false))
+        Some(OledOutputKey::new(&publication, false))
     );
 }
 
@@ -128,7 +132,7 @@ fn newer_native_frame_supersedes_failed_retry_with_exact_bytes() {
     assert_eq!(oled.frames.last(), Some(&newer_pixels));
     assert_eq!(
         cache.oled_rendered_key,
-        Some(OledOutputKey::new(newer.revision(), false))
+        Some(OledOutputKey::new(&newer, false))
     );
 }
 

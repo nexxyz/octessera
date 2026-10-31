@@ -30,7 +30,10 @@ pub(crate) fn prepare_native_scene(
         let hardware = scene.into_hardware_presentation(metrics, error);
         let pixels = playback_runtime::oled_frame::render_oled_frame(&hardware.oled);
         let revision = super::oled_output::physical_oled_revision(&pixels, cache)?;
-        let oled = OledFramePublication::native_pixels(revision, pixels)?;
+        let master_contrast = playback_runtime::oled_frame::oled_master_contrast_step(
+            hardware.oled.display_brightness,
+        );
+        let oled = OledFramePublication::native_pixels(revision, pixels, master_contrast)?;
         Ok(LatestPresentation {
             hardware: Box::new(hardware),
             oled,

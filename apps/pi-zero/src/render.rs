@@ -47,12 +47,17 @@ use sleep_leds::{SleepLedAnimation, SleepLedFrames};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct OledOutputKey {
     pub(super) frame: u64,
+    pub(super) master_contrast: u8,
     pub(super) display_off: bool,
 }
 
 impl OledOutputKey {
-    pub(super) fn new(frame: u64, display_off: bool) -> Self {
-        Self { frame, display_off }
+    pub(super) fn new(publication: &OledFramePublication, display_off: bool) -> Self {
+        Self {
+            frame: publication.revision(),
+            master_contrast: publication.master_contrast(),
+            display_off,
+        }
     }
 }
 
@@ -60,6 +65,7 @@ impl OledOutputKey {
 pub(super) struct OledOutputState {
     pub(super) frame: Option<u64>,
     pub(super) display_off: Option<bool>,
+    pub(super) master_contrast: Option<u8>,
     pub(super) pixels: Option<Vec<u8>>,
     pub(super) physical_revision: u64,
 }

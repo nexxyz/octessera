@@ -6,6 +6,7 @@ mod recording_tests;
 struct FakeOled {
     writes: Vec<Vec<u8>>,
     events: Vec<&'static str>,
+    contrasts: Vec<u8>,
     fail_writes: usize,
 }
 
@@ -14,6 +15,7 @@ impl FakeOled {
         Self {
             writes: Vec::new(),
             events: Vec::new(),
+            contrasts: Vec::new(),
             fail_writes: 0,
         }
     }
@@ -38,6 +40,11 @@ impl OledRenderDevice for FakeOled {
 
     fn display_off(&mut self) -> Result<(), String> {
         self.events.push("off");
+        Ok(())
+    }
+
+    fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
+        self.contrasts.push(step);
         Ok(())
     }
 }
@@ -261,4 +268,40 @@ fn avi_video_payloads(path: &std::path::Path) -> Vec<Vec<u8>> {
         offset = payload_end + size % 2;
     }
     videos
+}
+
+#[test]
+fn master_contrast_is_sent_once_per_change_without_rewriting_unchanged_pixels() {
+    let pixels = vec![0x2a; super::super::OLED_FRAME_BYTES];
+    let bright = OledFramePublication::test_native_with_contrast(7, pixels.clone(), 11);
+    let dim = OledFramePublication::test_native_with_contrast(7, pixels.clone(), 5);
+    let mut cache = HardwareRenderCache::default();
+    let mut oled = FakeOled::new();
+    let now = Instant::now();
+
+    for publication in [&bright, &bright, &dim, &dim] {
+        assert_eq!(
+            render_oled_if_changed_off(&mut oled, false, publication, &mut cache, now),
+            None
+        );
+    }
+    assert_eq!(oled.contrasts, vec![11, 5]);
+    assert_eq!(oled.writes, vec![pixels]);
+    assert!(oled_publication_is_accepted(&dim, false, &cache));
+    assert!(!oled_publication_is_accepted(&bright, false, &cache));
+}
+
+#[test]
+fn forced_restore_sends_the_master_contrast_again() {
+    let publication = OledFramePublication::test_native_with_contrast(
+        7,
+        vec![0x2a; super::super::OLED_FRAME_BYTES],
+        9,
+    );
+    let mut cache = HardwareRenderCache::default();
+    let mut oled = FakeOled::new();
+
+    render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, Instant::now());
+    force_oled_render_off(&mut oled, false, &publication, &mut cache).unwrap();
+    assert_eq!(oled.contrasts, vec![9, 9]);
 }
