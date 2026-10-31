@@ -96,24 +96,6 @@ pub(crate) fn delay_menu_shows_only_the_time_row_of_its_time_mode() {
 }
 
 #[test]
-pub(crate) fn delay_time_rows_no_longer_switch_time_mode() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.transport.bpm = 120.0;
-    set_bus_delay(&mut runner, "ms", 250);
-    let key = "mixer.buses.0.slot1.params.timeNote";
-    assert!(runner.set_fx_bus_param(0, 0, "timeNote", key, json!("1/4")));
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
-    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/4");
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 250);
-
-    set_bus_delay(&mut runner, "note", 250);
-    let key = "mixer.buses.0.slot1.params.timeMs";
-    assert!(runner.set_fx_bus_param(0, 0, "timeMs", key, json!(400)));
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "note");
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 250);
-}
-
-#[test]
 pub(crate) fn aux_binding_to_the_hidden_time_ms_row_reports_the_synced_time() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.bpm = 120.0;

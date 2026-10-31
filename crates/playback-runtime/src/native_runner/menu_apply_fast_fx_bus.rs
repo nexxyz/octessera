@@ -96,7 +96,7 @@ impl NativeRunner {
         self.set_fx_bus_param(bus_index, slot_index, param_path, key, value)
     }
 
-    pub(super) fn set_fx_bus_param(
+    fn set_fx_bus_param(
         &mut self,
         bus_index: usize,
         slot_index: usize,
@@ -430,4 +430,29 @@ fn value_object_to_map(value: &Value) -> BTreeMap<String, Value> {
 fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
     let (index, suffix) = value.split_once('.')?;
     Some((index.parse().ok()?, suffix))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_fx_param_value;
+    use serde_json::json;
+
+    #[test]
+    fn delay_time_rows_no_longer_switch_time_mode() {
+        let mut params = json!({ "timeMode": "ms", "timeMs": 250 });
+        assert!(apply_fx_param_value(
+            &mut params,
+            "timeNote",
+            json!("1/4"),
+            120
+        ));
+        assert_eq!(params["timeMode"], "ms");
+        assert_eq!(params["timeNote"], "1/4");
+        assert_eq!(params["timeMs"], 250);
+
+        let mut params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250 });
+        assert!(apply_fx_param_value(&mut params, "timeMs", json!(400), 120));
+        assert_eq!(params["timeMode"], "note");
+        assert_eq!(params["timeMs"], 250);
+    }
 }
