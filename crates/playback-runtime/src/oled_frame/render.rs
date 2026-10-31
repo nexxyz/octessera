@@ -1,15 +1,16 @@
 use platform_core::palette;
 
+use super::body_animation::draw_body_animation;
 use super::error_layout::runtime_error_rows;
 use super::footer::draw_footer;
 use super::header::draw_header;
-use super::menu_rows::{draw_card_body, draw_menu_body};
+use super::menu_rows::draw_body;
 use super::model::OledRuntimeErrorMetadata;
 use super::pixels::{dim, fill_rect, rgb565, scale};
 use super::splash::render_splash;
 use super::text::draw_text_clipped;
 use super::{
-    fit_line_ellipsis, OledDisplayLayout, OledPresentationInput, OledSplash, OLED_FRAME_BYTES,
+    fit_line_ellipsis, OledPresentationInput, OledSplash, OLED_FRAME_BYTES,
     RUNTIME_ERROR_BODY_RECT, SPLASH_TOAST_RECT,
 };
 
@@ -53,9 +54,15 @@ fn is_concise_runtime_error_presentation(error: &OledRuntimeErrorMetadata) -> bo
 
 fn render_menu_frame(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
     draw_header(frame, input, brightness);
-    match input.display.body_layout {
-        OledDisplayLayout::Rows => draw_menu_body(frame, input, brightness),
-        OledDisplayLayout::Card => draw_card_body(frame, input, brightness),
+    draw_body(
+        frame,
+        &input.display,
+        input.selected_row,
+        input.display.editing,
+        brightness,
+    );
+    if let Some(animation) = &input.animation.body {
+        draw_body_animation(frame, input, animation, brightness);
     }
     draw_footer(frame, input, brightness);
 }

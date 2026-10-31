@@ -1,4 +1,5 @@
 mod aux_cap;
+mod body_animation;
 mod error_layout;
 mod font;
 mod font_5x7;
@@ -23,9 +24,10 @@ pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
 pub(crate) use header::breadcrumb_fits;
 pub(crate) use menu_rows::menu_row_label_overflows;
 pub use model::{
-    OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
-    OledHintLabel, OledHintSource, OledMenuRowInput, OledMenuRowKind, OledPresentationInput,
-    OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash,
+    OledAnimationInput, OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle,
+    OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledHintLabel, OledHintSource,
+    OledMenuRowInput, OledMenuRowKind, OledPresentationInput, OledPresentationMetrics,
+    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledToastSlide,
     OledTransportFlash, OledTransportIcon, OledTransportInput, INDICATOR_FADE_LEVELS,
 };
 pub(crate) use presentation_input::presentation_input_from_snapshot;
@@ -37,6 +39,9 @@ pub use text_layout::{
     FONT_GLYPH_HEIGHT, FONT_GLYPH_WIDTH, MENU_BODY_RECT, RUNTIME_ERROR_BODY_RECT,
     SPLASH_TOAST_RECT, TOAST_RECT,
 };
+
+#[cfg(test)]
+mod body_animation_tests;
 
 #[cfg(test)]
 mod error_layout_tests;

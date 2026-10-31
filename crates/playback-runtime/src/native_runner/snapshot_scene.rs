@@ -302,6 +302,7 @@ impl PresentationScene {
             recording_pulse_dim: self.recording_pulse_dim(),
             metrics,
             runtime_error,
+            animation: Default::default(),
         }
     }
 }

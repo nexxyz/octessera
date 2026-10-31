@@ -22,6 +22,8 @@ const HINT_SINGLE_Y: usize = 119;
 const HINT_CLICK_Y: usize = 115;
 const HINT_TURN_Y: usize = 123;
 const TOAST_Y: usize = 115;
+/// The toast box's height: it reaches the bottom edge.
+const TOAST_ROWS: usize = 128 - TOAST_Y;
 const TOAST_TEXT_X: usize = 4;
 const TOAST_TEXT_Y: usize = 117;
 const PLAY: [u8; 5] = [0b100, 0b110, 0b111, 0b110, 0b100];
@@ -47,15 +49,20 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput, brigh
         let red = rgb565(scale(palette::BEHAVIOR_PRIMARY_RED, brightness * level));
         draw_mask(frame, &DISC, 5, RECORDING_X, ICON_Y, red);
     }
-    if !input.display.toast.is_empty() {
-        fill_rect(frame, 0, TOAST_Y, HINT_RIGHT + 1, 128 - TOAST_Y, 0);
+    let (toast, rows) = match &input.animation.toast {
+        Some(slide) => (slide.text.as_str(), slide.visible_rows.min(TOAST_ROWS)),
+        None => (input.display.toast.as_str(), TOAST_ROWS),
+    };
+    if !toast.is_empty() && rows > 0 {
+        let drop = TOAST_ROWS - rows;
+        fill_rect(frame, 0, TOAST_Y + drop, HINT_RIGHT + 1, rows, 0);
         let white = rgb565(scale(palette::WHITE, brightness));
         M5X7.draw_fitted(
             frame,
-            &input.display.toast,
+            toast,
             HINT_RIGHT + 1 - TOAST_TEXT_X,
             TOAST_TEXT_X,
-            TOAST_TEXT_Y,
+            TOAST_TEXT_Y + drop,
             white,
         );
     }

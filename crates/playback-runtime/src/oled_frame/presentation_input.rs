@@ -1,8 +1,8 @@
 use super::{
-    OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledDisplayLayout,
-    OledMenuRowInput, OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata,
-    OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash, OledTransportIcon,
-    OledTransportInput,
+    OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
+    OledDisplayLayout, OledMenuRowInput, OledPresentationInput, OledPresentationMetrics,
+    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
+    OledTransportIcon, OledTransportInput,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -86,6 +86,7 @@ pub(crate) fn presentation_input_from_snapshot(
     let aux_shift_layer = required::<bool>(snapshot, "auxShiftLayer")?;
     let recording_active = required::<bool>(snapshot, "recordingActive")?;
     let recording_pulse_dim = required::<bool>(snapshot, "recordingPulseDim")?;
+    let animation = optional::<OledAnimationInput>(snapshot, "oledAnimation")?.unwrap_or_default();
     let runtime_error =
         optional::<OledErrorDto>(snapshot, "runtimeError")?.map(|error| OledRuntimeErrorMetadata {
             domain: error.domain,
@@ -152,6 +153,7 @@ pub(crate) fn presentation_input_from_snapshot(
         recording_pulse_dim,
         metrics,
         runtime_error,
+        animation,
     }))
 }
 

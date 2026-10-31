@@ -8,12 +8,14 @@ use super::model::{
     OledBarInput, OledBarStyle, OledMenuRowInput, OledMenuRowKind, OledScrollInput,
 };
 use super::pixels::{dim, fill_rect, rgb565, rgb565_to_rgb, scale, shade};
-use super::{layout_card_body, layout_rows, OledPresentationInput, CARD_BODY_RECT, MENU_BODY_RECT};
+use super::{
+    layout_card_body, OledDisplayInput, OledDisplayLayout, CARD_BODY_RECT, MENU_BODY_RECT,
+};
 
 pub(super) const BODY_ROWS: usize = MENU_BODY_RECT.rows();
 const FIRST_SLOT_Y: usize = 11;
-const PITCH: usize = 13;
-const BAR_HEIGHT: usize = 11;
+pub(super) const PITCH: usize = 13;
+pub(super) const BAR_HEIGHT: usize = 11;
 const CAP_X: usize = 0;
 const BAR_X: usize = 9;
 const NAME_X: usize = 12;
@@ -26,7 +28,7 @@ pub(super) const MARKER_CENTRE_X: usize = 121;
 /// A label ends at least three blank columns before the value, mini bar or marker ink. A
 /// text value clips to the label's end, but always keeps at least a mini bar's width.
 const NAME_VALUE_GAP: usize = 4;
-const SCROLLBAR_X: usize = 126;
+pub(super) const SCROLLBAR_X: usize = 126;
 const SCROLL_TOP: usize = FIRST_SLOT_Y - 1;
 const SCROLL_HEIGHT: usize = (BODY_ROWS - 1) * PITCH + BAR_HEIGHT;
 pub(super) const MINI_WIDTH: usize = 30;
@@ -176,57 +178,106 @@ impl RowStyle {
     }
 }
 
-pub(super) fn draw_menu_body(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
-    let display = &input.display;
-    let white = rgb565(scale(palette::WHITE, brightness));
-    let scroll = display
-        .scroll
-        .as_ref()
-        .filter(|scroll| scroll.total_rows > BODY_ROWS);
-    let bar_right = selection_bar_right(scroll.is_some());
-    let mut menu_rows = display.rows.iter().flatten();
-    let gutter = menu_rows.clone().next().is_some()
-        && !menu_rows.any(|row| row.kind == OledMenuRowKind::Entry);
-    for (index, line) in layout_rows(&display.lines, input.selected_row, MENU_BODY_RECT)
-        .iter()
-        .enumerate()
-    {
-        let top = slot_top(index);
-        let style = RowStyle {
-            area: display
-                .colors
-                .get(line.source_index)
-                .map_or(white, |color| shade(*color, brightness)),
-            selected: line.selected,
-            editing: line.selected && display.editing,
-            gutter,
-            bar_right,
-        };
-        match display.rows.get(line.source_index).and_then(Option::as_ref) {
-            Some(row) => {
-                let bar = display.bars.get(line.source_index).and_then(Option::as_ref);
-                draw_menu_row(frame, top, row, bar, style);
-            }
-            None => draw_plain_row(frame, top, &line.text, style),
+/// Draws a body in its own layout with `selected_row` highlighted, `editing` showing the
+/// selected row's E2 box.
+pub(super) fn draw_body(
+    frame: &mut [u8],
+    display: &OledDisplayInput,
+    selected_row: Option<usize>,
+    editing: bool,
+    brightness: f32,
+) {
+    match display.body_layout {
+        OledDisplayLayout::Rows => {
+            draw_menu_body(frame, display, selected_row, editing, brightness)
         }
-    }
-    if let Some(scroll) = scroll {
-        draw_scrollbar(frame, scroll, shade(display.title_color, brightness));
+        OledDisplayLayout::Card => draw_card_body(frame, display, selected_row, brightness),
     }
 }
 
-pub(super) fn draw_card_body(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
-    let display = &input.display;
-    let white = rgb565(scale(palette::WHITE, brightness));
-    for (index, line) in layout_card_body(&display.lines, input.selected_row, CARD_BODY_RECT)
+/// Where a rows body draws its selection bar: its first and last column.
+pub(super) fn selection_bar_span(display: &OledDisplayInput) -> (usize, usize) {
+    let bar_x = if has_gutter(display) {
+        BAR_X
+    } else {
+        LIST_BAR_X
+    };
+    (bar_x, selection_bar_right(page_scroll(display).is_some()))
+}
+
+/// The first column of `row`'s E2 box.
+pub(super) fn edit_box_x(display: &OledDisplayInput, row: usize) -> Option<usize> {
+    let parts = display.rows.get(row)?.as_ref()?;
+    let bar = display.bars.get(row).and_then(Option::as_ref);
+    Some(row_layout(parts, bar, has_gutter(display)).value_x - 2)
+}
+
+/// The area colour of body row `row`.
+pub(super) fn row_area(display: &OledDisplayInput, row: usize, brightness: f32) -> u16 {
+    display.colors.get(row).map_or_else(
+        || rgb565(scale(palette::WHITE, brightness)),
+        |color| shade(*color, brightness),
+    )
+}
+
+fn page_scroll(display: &OledDisplayInput) -> Option<&OledScrollInput> {
+    display
+        .scroll
+        .as_ref()
+        .filter(|scroll| scroll.total_rows > BODY_ROWS)
+}
+
+fn has_gutter(display: &OledDisplayInput) -> bool {
+    let mut menu_rows = display.rows.iter().flatten();
+    menu_rows.clone().next().is_some() && !menu_rows.any(|row| row.kind == OledMenuRowKind::Entry)
+}
+
+fn draw_menu_body(
+    frame: &mut [u8],
+    display: &OledDisplayInput,
+    selected_row: Option<usize>,
+    editing: bool,
+    brightness: f32,
+) {
+    let scroll = page_scroll(display);
+    let bar_right = selection_bar_right(scroll.is_some());
+    let gutter = has_gutter(display);
+    for (index, line) in display.lines.iter().enumerate().take(BODY_ROWS) {
+        let top = slot_top(index);
+        let selected = selected_row == Some(index);
+        let style = RowStyle {
+            area: row_area(display, index, brightness),
+            selected,
+            editing: selected && editing,
+            gutter,
+            bar_right,
+        };
+        match display.rows.get(index).and_then(Option::as_ref) {
+            Some(row) => {
+                let bar = display.bars.get(index).and_then(Option::as_ref);
+                draw_menu_row(frame, top, row, bar, style);
+            }
+            None => draw_plain_row(frame, top, line, style),
+        }
+    }
+    if let Some(scroll) = scroll {
+        let area = shade(display.title_color, brightness);
+        draw_scrollbar(frame, scroll, scroll.offset * PITCH, area);
+    }
+}
+
+fn draw_card_body(
+    frame: &mut [u8],
+    display: &OledDisplayInput,
+    selected_row: Option<usize>,
+    brightness: f32,
+) {
+    for (index, line) in layout_card_body(&display.lines, selected_row, CARD_BODY_RECT)
         .iter()
         .enumerate()
     {
         let style = RowStyle {
-            area: display
-                .colors
-                .get(line.source_index)
-                .map_or(white, |color| shade(*color, brightness)),
+            area: row_area(display, line.source_index, brightness),
             selected: line.selected,
             editing: false,
             gutter: false,
@@ -364,10 +415,17 @@ fn draw_mini_bar(frame: &mut [u8], x: usize, y: usize, bar: &OledBarInput, fg: u
     }
 }
 
-fn draw_scrollbar(frame: &mut [u8], scroll: &OledScrollInput, area: u16) {
+/// Draws the scrollbar with its thumb at `position`, the scroll offset in 13ths of a row.
+pub(super) fn draw_scrollbar(
+    frame: &mut [u8],
+    scroll: &OledScrollInput,
+    position: usize,
+    area: u16,
+) {
     let thumb = (BODY_ROWS * SCROLL_HEIGHT / scroll.total_rows).max(6);
     let max_offset = (scroll.total_rows - BODY_ROWS).max(1);
-    let y = SCROLL_TOP + scroll.offset.min(max_offset) * (SCROLL_HEIGHT - thumb) / max_offset;
+    let position = position.min(max_offset * PITCH);
+    let y = SCROLL_TOP + position * (SCROLL_HEIGHT - thumb) / (max_offset * PITCH);
     let track = rgb565(dim(rgb565_to_rgb(area), 6));
     fill_rect(frame, SCROLLBAR_X, SCROLL_TOP, 2, SCROLL_HEIGHT, track);
     fill_rect(frame, SCROLLBAR_X, y, 2, thumb, area);

@@ -1,5 +1,6 @@
 use super::OledDisplayLayout;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub const INDICATOR_FADE_LEVELS: u8 = 4;
 
@@ -22,9 +23,67 @@ pub struct OledPresentationInput {
     pub recording_pulse_dim: bool,
     pub metrics: OledPresentationMetrics,
     pub runtime_error: Option<OledRuntimeErrorMetadata>,
+    pub animation: OledAnimationInput,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+/// The in-between state of running OLED animations, resolved when the scene is captured;
+/// empty when the screen shows its end state.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAnimationInput {
+    pub body: Option<OledBodyAnimation>,
+    pub toast: Option<OledToastSlide>,
+}
+
+impl OledAnimationInput {
+    pub fn is_empty(&self) -> bool {
+        self.body.is_none() && self.toast.is_none()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum OledBodyAnimation {
+    /// The selection bar has moved `moved` of 13 px from `from_row` towards the selected row.
+    Select { from_row: usize, moved: usize },
+    /// The list has moved `moved` of 13 px from `from`; the bar stays on the selected slot.
+    Scroll {
+        from: Arc<OledBodyFrom>,
+        down: bool,
+        moved: usize,
+    },
+    /// The new body has slid `moved` of 128 px in over `from`, from the right when `forward`.
+    Slide {
+        from: Arc<OledBodyFrom>,
+        forward: bool,
+        moved: usize,
+    },
+    /// The selected row's E2 box is half grown or half shrunk.
+    Edit,
+}
+
+/// The body a scroll or slide leaves.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledBodyFrom {
+    pub display: OledDisplayInput,
+    pub selected_row: Option<usize>,
+}
+
+/// The toast box with `visible_rows` of its 13 rows above the bottom edge.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledToastSlide {
+    pub text: String,
+    pub visible_rows: usize,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OledDisplayInput {
     pub off: bool,
     pub splash: OledSplash,
@@ -102,7 +161,8 @@ pub enum OledHintSource {
     Manual,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OledBarInput {
     pub fraction: f32,
     pub style: OledBarStyle,
@@ -117,14 +177,16 @@ impl Default for OledBarInput {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum OledBarStyle {
     #[default]
     Fill,
     Marker,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OledScrollInput {
     pub offset: usize,
     pub total_rows: usize,
@@ -163,7 +225,8 @@ pub enum OledSaveFlash {
     Other,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum OledSplash {
     #[default]
     None,
