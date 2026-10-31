@@ -27,7 +27,7 @@ fn assert_typed_oled_matches_legacy(runner: &NativeRunner) {
 }
 
 #[test]
-fn numeric_bars_keep_legacy_fill_marker_null_and_number_width() {
+fn numeric_bars_carry_fill_or_marker_style_on_every_bar_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let payload: Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
@@ -39,16 +39,13 @@ fn numeric_bars_keep_legacy_fill_marker_null_and_number_width() {
     ] {
         assert!(runner.menu.focus_item_key(key), "{key}");
         let snapshot = converted_scene(&runner, false);
-        let bars = snapshot["display"]["barValues"].as_array().unwrap();
-        let populated: Vec<_> = bars.iter().filter(|bar| !bar.is_null()).collect();
-        assert_eq!(populated.len(), 1, "{key}");
-        let bar = populated[0];
-        assert_eq!(bar.as_object().unwrap().len(), 3, "{key}");
+        let row = snapshot["selectedRow"].as_u64().unwrap() as usize;
+        let bar = &snapshot["display"]["barValues"][row];
+        assert_eq!(bar.as_object().unwrap().len(), 2, "{key}");
         assert!(
             (bar["frac"].as_f64().unwrap() - fraction).abs() < 0.000001,
             "{key}"
         );
-        assert_eq!(bar["numChars"], 3, "{key}");
         assert_eq!(bar["style"], style, "{key}");
         assert_typed_oled_matches_legacy(&runner);
     }

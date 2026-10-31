@@ -129,7 +129,7 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
     }
 }
 
-const DISPLAY_MODES: &[&str] = &["bar", "numbers", "bar+numbers"];
+const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
 const PLAY_MODES: &[&str] = &[
     "mix",
     "pan",

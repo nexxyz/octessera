@@ -11,7 +11,8 @@ const RETIRED_RUNTIME_KEYS: [&str; 5] = [
 /// Saves written before the settings were folded still carry these duplicates; the kept copies
 /// (`sound.*`, `transport.bpm`, `midi`) hold the same values, so loading simply drops them. The
 /// old `sound.audioOutputBufferFrames` setting never reached an audio stream and goes the same way.
-/// The HDMI Terminal mode was stored as `none` before it got its own name.
+/// The HDMI Terminal mode was stored as `none` before it got its own name, and the retired
+/// `bar+numbers` Num Style loads as `bar`.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     let mut document = document.clone();
     let Some(runtime) = document
@@ -25,6 +26,11 @@ pub(crate) fn without_retired_keys(document: &Value) -> Value {
     }
     if let Some(sound) = runtime.get_mut("sound").and_then(Value::as_object_mut) {
         sound.remove("audioOutputBufferFrames");
+    }
+    if let Some(mode) = runtime.get_mut("numericDisplayMode") {
+        if mode == "bar+numbers" {
+            *mode = "bar".into();
+        }
     }
     if let Some(mode) = runtime
         .get_mut("hdmi")
@@ -90,6 +96,7 @@ mod tests {
         let mut old_system = documents.system.clone();
         old_system["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
         old_system["runtimeConfig"]["hdmi"]["mode"] = json!("none");
+        old_system["runtimeConfig"]["numericDisplayMode"] = json!("bar+numbers");
 
         let composed = compose_local_system_patch_documents(&old_system, &old_patch).unwrap();
         let fresh =
@@ -99,6 +106,7 @@ mod tests {
         let mut old_full = with_old_duplicates(full);
         old_full["runtimeConfig"]["sound"]["audioOutputBufferFrames"] = json!(256);
         old_full["runtimeConfig"]["hdmi"]["mode"] = json!("none");
+        old_full["runtimeConfig"]["numericDisplayMode"] = json!("bar+numbers");
         assert_eq!(split_system_patch_documents(&old_full).unwrap(), documents);
     }
 }

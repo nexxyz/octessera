@@ -152,7 +152,6 @@ pub struct NativeMenuScrollMetadata {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeMenuBarValue {
     pub frac_pct: u8,
-    pub num_chars: usize,
     pub style: Option<String>,
 }
 

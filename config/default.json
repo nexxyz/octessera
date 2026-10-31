@@ -3479,7 +3479,7 @@
         ]
       }
     },
-    "numericDisplayMode": "bar+numbers",
+    "numericDisplayMode": "bar",
     "recording": {
       "maxMinutes": 10
     },

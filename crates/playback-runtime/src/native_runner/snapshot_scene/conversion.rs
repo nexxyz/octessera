@@ -15,7 +15,6 @@ impl PresentationScene {
                 bar.map(|bar| {
                     json!({
                         "frac": f32::from(bar.frac_pct) / 100.0,
-                        "numChars": bar.num_chars,
                         "style": bar.style,
                     })
                 })

@@ -183,7 +183,7 @@ impl NativeRunner {
             }
         }
         if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
-            if matches!(value, "bar" | "numbers" | "bar+numbers") {
+            if matches!(value, "bar" | "numbers") {
                 self.display.ui.numeric_display_mode = value.into();
             }
         }

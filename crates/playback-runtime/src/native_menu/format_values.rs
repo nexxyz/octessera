@@ -61,9 +61,6 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
             _ => raw,
         };
     }
-    if key == "numericDisplayMode" && raw == "bar+numbers" {
-        return "bar+num".into();
-    }
     if key.ends_with(".arp.source") && raw == "simultaneous" {
         return "together".into();
     }

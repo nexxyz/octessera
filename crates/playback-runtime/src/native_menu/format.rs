@@ -2,6 +2,7 @@ use super::{
     NativeMenuBarValue, NativeMenuItem, NativeMenuRow, NativeMenuRowKind, NativeMenuValue,
 };
 use crate::native_menu::format_values::format_display_value;
+use crate::native_menu::numeric_edit::curve_fraction;
 
 mod format_rows;
 mod format_status;
@@ -171,16 +172,20 @@ pub(super) fn format_item_full_selected_line(item: &NativeMenuItem) -> Option<St
     }
 }
 
+/// In `bar` Num Style every bar-type number row carries its bar, selected or not.
 pub(super) fn format_item_bar_value(
     item: &NativeMenuItem,
-    selected: bool,
     numeric_display_mode: &str,
 ) -> Option<NativeMenuBarValue> {
-    if numeric_display_mode == "numbers" || !selected {
+    if numeric_display_mode == "numbers" {
         return None;
     }
     let NativeMenuValue::Number {
-        value, min, max, ..
+        value,
+        min,
+        max,
+        curve,
+        ..
     } = item.value
     else {
         return None;
@@ -189,15 +194,8 @@ pub(super) fn format_item_bar_value(
     if !should_use_number_bar(key) {
         return None;
     }
-    let range = (max - min).max(1);
-    let frac_pct = ((((value - min).clamp(0, range) as f32 / range as f32) * 100.0).round()) as u8;
     Some(NativeMenuBarValue {
-        frac_pct,
-        num_chars: if numeric_display_mode == "bar" {
-            0
-        } else {
-            bar_number_chars(key, min, max)
-        },
+        frac_pct: (curve_fraction(value, (min, max), curve) * 100.0).round() as u8,
         style: if is_marker_bar_key(key) {
             Some("marker".into())
         } else {
@@ -272,14 +270,6 @@ fn should_use_number_bar(key: &str) -> bool {
         || key_lower.ends_with("autopulseinterval")
         || key_lower.ends_with("autodropinterval")
         || key_lower.ends_with("splashradius")
-}
-
-fn bar_number_chars(key: &str, min: i32, max: i32) -> usize {
-    [min, (min + max) / 2, max]
-        .into_iter()
-        .map(|value| format_display_value(Some(key), value).len())
-        .max()
-        .unwrap_or(0)
 }
 
 fn is_marker_bar_key(key: &str) -> bool {

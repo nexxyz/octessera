@@ -40,7 +40,6 @@ export type DisplayFrame = {
   colors?: number[];
   barValues?: Array<{
     frac: number;
-    numChars: number;
     style?: "marker" | string;
   } | null>;
   rows?: Array<DisplayMenuRow | null>;

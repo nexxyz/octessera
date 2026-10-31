@@ -155,7 +155,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         rolling_backups: true,
         ghost_cells: false,
         input_events_while_paused: true,
-        numeric_display_mode: "bar+numbers".into(),
+        numeric_display_mode: "bar".into(),
         screen_sleep_seconds: 60,
         dim_timer_seconds: 60,
         grid_brightness: 25,

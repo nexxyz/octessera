@@ -133,11 +133,9 @@ fn push_item_row(
             .then(|| format_item_full_selected_line(item))
             .flatten(),
     );
-    snapshot.bar_values.push(format_item_bar_value(
-        item,
-        selected,
-        &model.numeric_display_mode,
-    ));
+    snapshot
+        .bar_values
+        .push(format_item_bar_value(item, &model.numeric_display_mode));
 }
 
 fn item_section_color(root_level: bool, section_color: u16, label: &str) -> u16 {

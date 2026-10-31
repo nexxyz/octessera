@@ -297,7 +297,7 @@ impl Default for NativeUiState {
             button_brightness: 35,
             master_volume: 73,
             ghost_cells: false,
-            numeric_display_mode: "bar+numbers".into(),
+            numeric_display_mode: "bar".into(),
             screen_sleep_seconds: 60,
             dim_timer_seconds: 60,
             fn_held: false,

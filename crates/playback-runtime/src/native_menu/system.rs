@@ -111,11 +111,8 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
         enum_item(
             "Num Style",
             "numericDisplayMode",
-            vec!["bar", "numbers", "bar+numbers"],
-            selected_index(
-                &["bar", "numbers", "bar+numbers"],
-                &config.numeric_display_mode,
-            ),
+            vec!["bar", "numbers"],
+            selected_index(&["bar", "numbers"], &config.numeric_display_mode),
         ),
         number_item(
             "Dim Timer",

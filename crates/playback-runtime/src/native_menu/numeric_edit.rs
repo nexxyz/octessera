@@ -24,6 +24,56 @@ pub(crate) fn curved_edit_value(
     }
 }
 
+/// Where `value` sits between `min` and `max` in encoder-turn space, so a value bar moves
+/// evenly while the encoder turns: the share of coarse detents from `min` on time rows, the
+/// log ratio on frequency rows, the log of the distance to the ceiling on decay and feedback
+/// rows, and the plain share on linear rows.
+pub(crate) fn curve_fraction(value: i32, (min, max): (i32, i32), curve: NumberCurve) -> f32 {
+    if max <= min {
+        return 0.0;
+    }
+    let value = value.clamp(min, max);
+    let linear = f64::from(value - min) / f64::from(max - min);
+    let fraction = match curve {
+        NumberCurve::Linear => linear,
+        NumberCurve::Time { units_per_ms } => {
+            let detents = |to| coarse_time_detents(min, to, units_per_ms.max(1));
+            detents(value) / detents(max)
+        }
+        NumberCurve::Ratio if min > 0 => {
+            log_share(f64::from(min), f64::from(value), f64::from(max))
+        }
+        NumberCurve::Ratio => linear,
+        NumberCurve::TowardsCeiling { ceiling } => {
+            let distance = |at: i32| f64::from((ceiling - at).max(1));
+            1.0 - log_share(distance(max), distance(value), distance(min))
+        }
+    };
+    if fraction.is_finite() {
+        fraction.clamp(0.0, 1.0) as f32
+    } else {
+        linear as f32
+    }
+}
+
+fn log_share(low: f64, at: f64, high: f64) -> f64 {
+    (at / low).ln() / (high / low).ln()
+}
+
+fn coarse_time_detents(min: i32, to: i32, units_per_ms: i32) -> f64 {
+    let (mut at, to) = (i64::from(min), i64::from(to));
+    let mut detents = 0.0;
+    while at < to {
+        let next = time_detent(at, true, units_per_ms, true);
+        if next > to {
+            return detents + (to - at) as f64 / (next - at) as f64;
+        }
+        detents += 1.0;
+        at = next;
+    }
+    detents
+}
+
 fn repeat_detents(
     value: i32,
     min: i32,
@@ -228,6 +278,38 @@ mod curve_tests {
         assert_eq!(ratio(3, -5, true), 2);
         let octave = ratio(40, 24, true);
         assert!((74..=82).contains(&octave), "{octave}");
+    }
+
+    #[test]
+    fn bar_fractions_follow_the_encoder_detents() {
+        let time = NumberCurve::Time { units_per_ms: 1 };
+        let total = (20.0 + 16.0 + 36.0 + 40.0) as f32;
+        assert_eq!(curve_fraction(0, (0, 5_000), time), 0.0);
+        assert!((curve_fraction(20, (0, 5_000), time) - 20.0 / total).abs() < 1e-6);
+        assert!((curve_fraction(1_000, (0, 5_000), time) - 72.0 / total).abs() < 1e-6);
+        assert!((curve_fraction(1_050, (0, 5_000), time) - 72.5 / total).abs() < 1e-6);
+        assert_eq!(curve_fraction(5_000, (0, 5_000), time), 1.0);
+
+        let hz = |value| curve_fraction(value, (100, 1_600), NumberCurve::Ratio);
+        assert!((hz(400) - 0.5).abs() < 1e-6);
+        assert_eq!(hz(1_600), 1.0);
+
+        let decay = |value| {
+            curve_fraction(
+                value,
+                (0, 990),
+                NumberCurve::TowardsCeiling { ceiling: 1000 },
+            )
+        };
+        assert_eq!(decay(0), 0.0);
+        assert!((decay(900) - 0.5).abs() < 1e-6);
+        assert_eq!(decay(990), 1.0);
+
+        assert_eq!(
+            curve_fraction(64, (0, 255), NumberCurve::Linear),
+            64.0 / 255.0
+        );
+        assert_eq!(curve_fraction(5, (5, 5), NumberCurve::Linear), 0.0);
     }
 
     #[test]

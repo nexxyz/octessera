@@ -370,15 +370,19 @@ palette unless a behavior deliberately owns its own.
   Desktop draws a 1-2 px scrollbar inside the OLED body only when rendered rows exceed visible
   rows. It uses no text columns and is omitted for splash/help/confirm overlays unless menu metadata
   is present.
-- When `Num Style` is `bar` or `bar+num`, bounded number rows keep the value on the selected
-  text row and draw a compact bar on the next body row, so the value is not shortened. Bars use the
-  row/menu color, keep a visible bounding box when empty, partial, or full, draw marker-style
-  values as a tick inside the box, and keep contrast on highlighted rows.
+- `Num Style` has two modes. `bar` (the default) gives every bar-type number row a value bar on
+  its own row, selected or not, in place of the number; `numbers` shows numbers only and no bars.
+  Saves holding the retired `bar+numbers` load as `bar`. Each bar carries its fraction and style:
+  `marker` for pan, semitones, cents, detune and envelope amount, `fill` otherwise.
+- Bar fractions follow encoder-turn space (see [Numeric steps](#numeric-steps)), so a bar moves
+  evenly per detent: time rows use the share of coarse detents from the minimum, frequency and Q
+  rows `log(v/min) / log(max/min)`, reverb `Decay` and delay `Feedback` the log of the distance to
+  the top, and every other row, including the instrument cutoff index, the linear share.
 - Bars apply to FX params, synth/FM/sample shaping controls, editable mixer and FX bus volume/pan,
   Play FX controls, System sound/UI controls, Link axis controls, and behavior controls such as
   spawn interval/count, threshold, lifespan, and radius. Selector-like numeric rows stay plain text:
   MIDI channels, instrument/sample slots, layer selectors, and MIDI note ranges.
-- Bar value text uses compact units: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, pan as
+- Number value text uses compact units: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, pan as
   `L15`/`C`/`R15`. Internal `0..1` ranges display as `0..100`.
 
 ### Display priority
