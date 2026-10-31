@@ -4,8 +4,8 @@ use super::link_sections::{
 };
 use super::note_mapping::note_mapping_group;
 use super::{
-    axis_binding_label, bool_item, group, parameter_picker_group, NativeLinkArpConfig,
-    NativeLinkLayerConfig, NativeMenuConfig, NativeMenuItem, NativeValueLaneConfig,
+    bool_item, group, parameter_picker_group, NativeLinkArpConfig, NativeLinkLayerConfig,
+    NativeMenuConfig, NativeMenuItem, NativeValueLaneConfig,
 };
 pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
     NativeLinkLayerConfig {
@@ -184,7 +184,7 @@ fn param_mod_axis_children(
     };
     vec![
         parameter_picker_group(
-            axis_binding_label("Slot 1", slot1),
+            "Slot 1",
             format!("param:{layer_index}:{axis}:0"),
             slot1,
             config,
@@ -195,7 +195,7 @@ fn param_mod_axis_children(
             slot1.map(|binding| binding.invert).unwrap_or(false),
         ),
         parameter_picker_group(
-            axis_binding_label("Slot 2", slot2),
+            "Slot 2",
             format!("param:{layer_index}:{axis}:1"),
             slot2,
             config,

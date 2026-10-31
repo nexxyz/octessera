@@ -5,6 +5,7 @@ use super::link::{link_layer_group, link_root_items};
 use super::play::play_group;
 use super::section_labels::{BUILD_LABEL, LINK_LABEL, SHAPE_LABEL};
 use super::system::system_group;
+use super::system_aux::name_click_pickers_from_menu;
 use super::voice::{instrument_group, InstrumentMenuConfig};
 use super::{number_item, NativeMenuConfig, NativeMenuItem, NativeMenuPick, NativeMenuValue};
 
@@ -14,7 +15,7 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
     } else {
         0
     };
-    NativeMenuItem {
+    let mut root = NativeMenuItem {
         label: "Menu".into(),
         breadcrumb: None,
         key: None,
@@ -35,7 +36,9 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
             system_group(&config, sync_index),
         ],
         pick: NativeMenuPick::None,
-    }
+    };
+    name_click_pickers_from_menu(&mut root);
+    root
 }
 
 fn build_group(config: &NativeMenuConfig) -> NativeMenuItem {

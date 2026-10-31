@@ -382,6 +382,13 @@ palette unless a behavior deliberately owns its own.
   colour (black on the bar), clips with `..` by `x=116`, 3 columns before the right-aligned `>`,
   and on the selected row scrolls like a long label. A picker's breadcrumb shows only its label
   (`/B/L1: life/Beh.`).
+- A picked target shows its menu label (`Trn: Note Length`, `Current: Note Length`) even when its
+  saved binding kept only the key; the label comes from the picker's own entry. A `Clk`/`S+Clk`
+  picker shows the bound action's name (`Clk: Map FX`): its own entry's label, else the label of
+  the menu row that runs it, and updates in place when a click binding changes.
+- Entries in the lists below a picker row pick when pressed, so their rows (`..`, behaviors, note
+  sets, targets, `(none)`) carry no `!`. The `Current:` shortcut row keeps it, as do actions in
+  the sample browser and preset/kit lists and on ordinary pages.
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
   with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
   the same width; shifted rows use `S1-`/`S1!`.

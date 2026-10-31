@@ -167,3 +167,116 @@ pub(crate) fn preset_load_lists_use_the_list_layout_without_a_pointer() {
     assert_eq!(snapshot["display"]["bodyLayout"], "list");
     assert!(active_labels(&snapshot).is_empty());
 }
+
+fn row_kind(snapshot: &Value, label: &str) -> Value {
+    snapshot["display"]["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["label"] == label)
+        .unwrap_or_else(|| panic!("no row {label}"))["kind"]
+        .clone()
+}
+
+fn label_for_key(runner: &NativeRunner, key: &str) -> String {
+    runner.menu.item_for_key(key).unwrap().label
+}
+
+/// The label of the Aux picker that holds the row with `key`.
+fn aux_picker_label(runner: &NativeRunner, key: &str) -> Option<String> {
+    let link = runner
+        .menu
+        .root
+        .children
+        .iter()
+        .find(|item| item.label == "Link")?;
+    let aux = link
+        .children
+        .iter()
+        .find(|item| item.label == "Aux Mappings")?;
+    aux.children
+        .iter()
+        .flat_map(|bank| bank.children.iter())
+        .find(|picker| {
+            picker
+                .children
+                .iter()
+                .any(|row| row.key.as_deref() == Some(key))
+        })
+        .map(|picker| picker.label.clone())
+}
+
+#[test]
+pub(crate) fn picker_list_entries_pick_without_an_action_mark() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key("behaviorId"));
+    press_main(&mut runner);
+    let snapshot = press_main(&mut runner);
+    assert_eq!(row_kind(&snapshot, ".."), "entry");
+    assert_eq!(row_kind(&snapshot, "life"), "entry");
+
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("sound.noteLengthMs".into()),
+        press_action: None,
+    });
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("aux:0:turn"));
+    let snapshot = press_main(&mut runner);
+    assert_eq!(row_kind(&snapshot, "(none)"), "entry");
+    assert_eq!(row_kind(&snapshot, "Current: Note Length"), "action");
+}
+
+#[test]
+pub(crate) fn a_binding_restored_from_saved_config_shows_its_menu_label() {
+    let mut saved = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    saved.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("sound.noteLengthMs".into()),
+        press_action: None,
+    });
+    let payload = saved.config_payload();
+
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_config_payload(payload).unwrap();
+    assert_eq!(label_for_key(&runner, "aux:0:turn"), "Trn: Note Length");
+    assert_eq!(
+        label_for_key(&runner, "aux:0:turn.current"),
+        "Current: Note Length"
+    );
+}
+
+#[test]
+pub(crate) fn clk_pickers_show_the_bound_action_name() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: None,
+        press_action: Some(NativeMenuAction::PlatformEffect("play.fx.map".into())),
+    });
+    runner.shift_aux_bindings[1] = Some(NativeAuxBinding {
+        turn_key: None,
+        press_action: Some(NativeMenuAction::PlatformEffect("default.save".into())),
+    });
+    runner.menu.rebuild(runner.menu_config());
+    assert_eq!(
+        aux_picker_label(&runner, "aux1.click.current").as_deref(),
+        Some("Clk: Map FX")
+    );
+    assert_eq!(
+        aux_picker_label(&runner, "shift_aux2.click.current").as_deref(),
+        Some("S+Clk: Save Patch")
+    );
+}
+
+#[test]
+pub(crate) fn picking_a_clk_action_names_it_on_the_aux_page() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .menu
+        .open_labels(&["Link", "Aux Mappings", "Aux 1", "Clk: (none)", "Actions"]);
+    runner.menu.select_label("Map FX");
+    press_main(&mut runner);
+    let _ = runner.snapshot().unwrap();
+    assert_eq!(
+        aux_picker_label(&runner, "aux1.click.current").as_deref(),
+        Some("Clk: Map FX")
+    );
+}

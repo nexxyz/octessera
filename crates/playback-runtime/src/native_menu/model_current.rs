@@ -32,19 +32,19 @@ impl NativeMenuModel {
         }
     }
 
-    /// Whether the open page is a list opened to pick from, at any depth.
-    pub(super) fn in_pick_list(&self) -> bool {
+    /// The pick of the list the open page belongs to, at any depth: `List`, `Value` or `None`.
+    pub(super) fn open_pick_list(&self) -> NativeMenuPick {
         let mut node = &self.root;
         for idx in &self.state.stack {
             let Some(next) = node.children.get(*idx) else {
                 break;
             };
             if matches!(next.pick, NativeMenuPick::List | NativeMenuPick::Value) {
-                return true;
+                return next.pick;
             }
             node = next;
         }
-        false
+        NativeMenuPick::None
     }
 
     pub(super) fn path_section_color(&self) -> u16 {

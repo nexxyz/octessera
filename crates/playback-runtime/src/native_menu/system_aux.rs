@@ -1,4 +1,5 @@
-use super::binding_picker::{axis_binding_label, parameter_picker_group};
+use super::binding_picker::parameter_picker_group;
+use super::model_search::find_item_by_action;
 use super::{
     action_item, group, mark_active, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
     NativeMenuPick, NativeMenuValue,
@@ -19,14 +20,14 @@ pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     format!("Aux {}", index + 1),
                     vec![
                         parameter_picker_group(
-                            axis_binding_label("Trn", binding.turn.as_ref()),
+                            "Trn",
                             format!("aux:{index}:turn"),
                             binding.turn.as_ref(),
                             config,
                         ),
                         aux_click_picker_group(index, binding.click.as_ref(), config),
                         parameter_picker_group(
-                            axis_binding_label("S+Trn", shift_binding.turn.as_ref()),
+                            "S+Trn",
                             format!("shiftAux:{index}:turn"),
                             shift_binding.turn.as_ref(),
                             config,
@@ -44,7 +45,7 @@ fn aux_click_picker_group(
     current: Option<&NativeMenuAction>,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
-    aux_click_picker_group_with(index, current, config, "Clk", "aux", false)
+    aux_click_picker_group_with(index, current, config, "Clk", false)
 }
 
 fn shift_aux_click_picker_group(
@@ -52,7 +53,7 @@ fn shift_aux_click_picker_group(
     current: Option<&NativeMenuAction>,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
-    aux_click_picker_group_with(index, current, config, "S+Clk", "shift_aux", true)
+    aux_click_picker_group_with(index, current, config, "S+Clk", true)
 }
 
 fn aux_click_picker_group_with(
@@ -60,21 +61,14 @@ fn aux_click_picker_group_with(
     current: Option<&NativeMenuAction>,
     config: &NativeMenuConfig,
     label_prefix: &str,
-    key_prefix: &str,
     shifted: bool,
 ) -> NativeMenuItem {
+    let key_prefix = click_key_prefix(shifted);
     let mut children = vec![action_item(
         "(none)",
         format!("{key_prefix}{}.click.none", index + 1),
         aux_click_action(index, None, shifted),
     )];
-    if let Some(action) = current {
-        children.push(action_item(
-            "Current",
-            format!("{key_prefix}{}.click.current", index + 1),
-            aux_click_action(index, Some(Box::new(action.clone())), shifted),
-        ));
-    }
     let behavior_actions = config
         .build_items
         .iter()
@@ -140,19 +134,134 @@ fn aux_click_picker_group_with(
             ),
         ],
     ));
+    let mut picker = NativeMenuItem {
+        pick: NativeMenuPick::Value,
+        ..group(label_prefix, children)
+    };
+    show_click_binding(&mut picker, index, shifted, current);
+    picker
+}
+
+/// The key of a Clk picker's `(none)` row, which finds the picker.
+pub(super) fn click_none_key(index: usize, shifted: bool) -> String {
+    format!("{}{}.click.none", click_key_prefix(shifted), index + 1)
+}
+
+fn click_key_prefix(shifted: bool) -> &'static str {
+    if shifted {
+        "shift_aux"
+    } else {
+        "aux"
+    }
+}
+
+/// Shows a Clk picker's binding: its Current row, its pointer and the action's name in its
+/// label; `mapped` until the whole menu names an action its list does not hold.
+pub(super) fn show_click_binding(
+    picker: &mut NativeMenuItem,
+    index: usize,
+    shifted: bool,
+    current: Option<&NativeMenuAction>,
+) {
+    let current_key = format!("{}{}.click.current", click_key_prefix(shifted), index + 1);
+    picker
+        .children
+        .retain(|item| item.key.as_deref() != Some(current_key.as_str()));
+    if let Some(action) = current {
+        let at = 1.min(picker.children.len());
+        picker.children.insert(
+            at,
+            action_item(
+                "Current",
+                current_key.clone(),
+                aux_click_action(index, Some(Box::new(action.clone())), shifted),
+            ),
+        );
+    }
     let picked = aux_click_action(index, current.cloned().map(Box::new), shifted);
-    let current_key = format!("{key_prefix}{}.click.current", index + 1);
-    mark_active(&mut children, &|item| {
+    mark_active(&mut picker.children, &|item| {
         matches!(&item.value, NativeMenuValue::Action(action) if *action == picked)
             && item.key.as_deref() != Some(current_key.as_str())
     });
-    let label = current
-        .map(|_| format!("{label_prefix}: mapped"))
-        .unwrap_or_else(|| format!("{label_prefix}: (none)"));
-    NativeMenuItem {
-        pick: NativeMenuPick::Value,
-        ..group(label, children)
+    let name = match current {
+        Some(_) => entry_label_for_action(&picker.children, &picked, &current_key)
+            .unwrap_or_else(|| "mapped".into()),
+        None => "(none)".into(),
+    };
+    let prefix = if shifted { "S+Clk" } else { "Clk" };
+    picker.label = format!("{prefix}: {name}");
+}
+
+fn entry_label_for_action(
+    items: &[NativeMenuItem],
+    action: &NativeMenuAction,
+    current_key: &str,
+) -> Option<String> {
+    items.iter().find_map(|item| match &item.value {
+        NativeMenuValue::Action(entry) if entry == action => {
+            (item.key.as_deref() != Some(current_key)).then(|| item.label.clone())
+        }
+        _ => entry_label_for_action(&item.children, action, current_key),
+    })
+}
+
+/// A Clk picker whose list does not hold its bound action (one bound with Fn + click on another
+/// menu row) takes that row's label from the whole menu.
+pub(super) fn name_click_pickers_from_menu(root: &mut NativeMenuItem) {
+    let mut unnamed = Vec::new();
+    collect_unnamed_click_pickers(root, &mut Vec::new(), &mut unnamed);
+    for (path, action) in unnamed {
+        let Some(name) = find_item_by_action(root, &action).map(|item| item.label.clone()) else {
+            continue;
+        };
+        let picker = path
+            .iter()
+            .fold(&mut *root, |node, index| &mut node.children[*index]);
+        if let Some((prefix, _)) = picker.label.split_once(": ") {
+            picker.label = format!("{prefix}: {name}");
+        }
     }
+}
+
+fn collect_unnamed_click_pickers(
+    node: &NativeMenuItem,
+    path: &mut Vec<usize>,
+    out: &mut Vec<(Vec<usize>, NativeMenuAction)>,
+) {
+    for (index, child) in node.children.iter().enumerate() {
+        path.push(index);
+        if let Some(action) = unnamed_click_action(child) {
+            out.push((path.clone(), action));
+        } else if child.pick != NativeMenuPick::Value {
+            collect_unnamed_click_pickers(child, path, out);
+        }
+        path.pop();
+    }
+}
+
+/// The bound action of a Clk picker that points at none of its entries.
+fn unnamed_click_action(picker: &NativeMenuItem) -> Option<NativeMenuAction> {
+    if picker.pick != NativeMenuPick::Value
+        || picker
+            .children
+            .iter()
+            .any(|child| child.pick == NativeMenuPick::Active)
+    {
+        return None;
+    }
+    picker.children.iter().find_map(|child| match &child.value {
+        NativeMenuValue::Action(
+            NativeMenuAction::SetAuxClick {
+                action: Some(action),
+                ..
+            }
+            | NativeMenuAction::SetShiftAuxClick {
+                action: Some(action),
+                ..
+            },
+        ) => Some((**action).clone()),
+        _ => None,
+    })
 }
 
 fn aux_click_action(

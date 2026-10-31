@@ -2,7 +2,8 @@ use super::format::{
     format_item_bar_value, format_item_full_selected_line, format_item_row, section_color_for_label,
 };
 use super::{
-    NativeMenuItem, NativeMenuModel, NativeMenuScrollMetadata, NativeMenuSnapshot, NativeMenuValue,
+    NativeMenuItem, NativeMenuModel, NativeMenuPick, NativeMenuRowKind, NativeMenuScrollMetadata,
+    NativeMenuSnapshot, NativeMenuValue,
 };
 
 const MENU_BODY_ROWS: usize = 8;
@@ -43,6 +44,7 @@ impl NativeMenuModel {
         let section_color = self.path_section_color();
         let root_level = self.state.stack.is_empty();
         let rows = end - start;
+        let pick_list = self.open_pick_list();
         let mut snapshot = NativeMenuSnapshot {
             path,
             section_color,
@@ -56,10 +58,13 @@ impl NativeMenuModel {
             rows: Vec::with_capacity(rows),
             selected_row: None,
             selected_action: None,
-            list: self.in_pick_list(),
+            list: pick_list != NativeMenuPick::None,
         };
         for (index, item) in siblings.iter().enumerate().skip(start).take(rows) {
             push_item_row(self, item, index, root_level, section_color, &mut snapshot);
+            if pick_list == NativeMenuPick::Value {
+                mark_picker_entry(item, &mut snapshot);
+            }
         }
         if snapshot.lines.is_empty() {
             return NativeMenuSnapshot {
@@ -141,6 +146,20 @@ fn push_item_row(
     snapshot
         .bar_values
         .push(format_item_bar_value(item, &model.numeric_display_mode));
+}
+
+/// Pressing an entry of a value picker's list picks it, so its action row has no `!`; the
+/// `Current:` shortcut row keeps it.
+fn mark_picker_entry(item: &NativeMenuItem, snapshot: &mut NativeMenuSnapshot) {
+    let shortcut = item
+        .key
+        .as_deref()
+        .is_some_and(|key| key.ends_with(".current"));
+    if let Some(Some(row)) = snapshot.rows.last_mut() {
+        if row.kind == NativeMenuRowKind::Action && !shortcut {
+            row.kind = NativeMenuRowKind::Entry;
+        }
+    }
 }
 
 fn item_section_color(root_level: bool, section_color: u16, label: &str) -> u16 {

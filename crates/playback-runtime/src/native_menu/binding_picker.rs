@@ -31,12 +31,15 @@ pub(super) fn axis_binding_label(label: &str, binding: Option<&NativeParamBindin
         .unwrap_or_else(|| format!("{label}: (none)"))
 }
 
+/// A picker row `prefix: <binding>` whose list picks the binding for `target`.
 pub(super) fn parameter_picker_group(
-    label: String,
+    prefix: &str,
     target: String,
     current: Option<&NativeParamBindingSpec>,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
+    let tree = parameter_tree_groups(&target, config);
+    let current = current.map(|binding| labelled_binding(binding, &tree));
     let mut children = vec![action_item(
         "(none)",
         format!("{target}.none"),
@@ -44,19 +47,45 @@ pub(super) fn parameter_picker_group(
             target: target.clone(),
         },
     )];
-    if let Some(binding) = current {
+    if let Some(binding) = &current {
         children.extend(current_binding_rows(&target, binding));
     }
-    children.extend(parameter_tree_groups(&target, config));
-    mark_active_binding(&mut children, current.map(|binding| binding.key.as_str()));
+    children.extend(tree);
+    mark_active_binding(
+        &mut children,
+        current.as_ref().map(|binding| binding.key.as_str()),
+    );
     NativeMenuItem {
-        label,
+        label: axis_binding_label(prefix, current.as_ref()),
         breadcrumb: None,
         key: Some(target),
         value: NativeMenuValue::Group,
         children,
         pick: NativeMenuPick::Value,
     }
+}
+
+/// A saved binding that kept only its key (an Aux turn) takes the label of its picker entry.
+pub(super) fn labelled_binding(
+    binding: &NativeParamBindingSpec,
+    items: &[NativeMenuItem],
+) -> NativeParamBindingSpec {
+    let mut binding = binding.clone();
+    if binding.label.is_none() {
+        binding.label = entry_label_for_key(items, &binding.key);
+    }
+    binding
+}
+
+fn entry_label_for_key(items: &[NativeMenuItem], key: &str) -> Option<String> {
+    items.iter().find_map(|item| match &item.value {
+        NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. })
+            if binding.key == key =>
+        {
+            Some(item.label.clone())
+        }
+        _ => entry_label_for_key(&item.children, key),
+    })
 }
 
 /// Points a parameter picker at the parameter bound to `key` and the groups that hold it, or
@@ -77,13 +106,13 @@ pub(super) fn mark_active_binding(children: &mut [NativeMenuItem], key: Option<&
 }
 
 pub(super) fn parameter_picker_group_numeric(
-    label: String,
+    prefix: &str,
     target: String,
     current: Option<&NativeParamBindingSpec>,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
     let mut item = parameter_picker_group(
-        label,
+        prefix,
         target.clone(),
         current.filter(|b| b.kind == "number"),
         config,

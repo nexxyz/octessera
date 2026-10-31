@@ -13,9 +13,9 @@ Link
 ├── Aux Mappings (group)
 │   ├── Aux 1 (group)
 │   │   ├── Trn: <target | (none)> (picker)      ← parameter picker; no Range Min/Range Max rows
-│   │   ├── Clk: <mapped | (none)> (picker)      ← click action picker
+│   │   ├── Clk: <action | (none)> (picker)      ← click action picker
 │   │   ├── S+Trn: <target | (none)> (picker)    ← shifted bank
-│   │   └── S+Clk: <mapped | (none)> (picker)    ← shifted bank
+│   │   └── S+Clk: <action | (none)> (picker)    ← shifted bank
 │   ├── Aux 2 (group)
 │   └── Aux 3 (group)
 ├── LFOs (group)                                  ← exactly eight global slots
@@ -168,8 +168,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 ## Aux Mappings
 
-- Each `Aux N` group holds four pickers, labelled with the current binding: `Trn`, `Clk`, `S+Trn`,
-  and `S+Clk` (the last two write the shifted bank).
+- Each `Aux N` group holds four pickers, labelled with the current binding's menu name (for
+  example `Trn: Note Length`, `Clk: Map FX`): `Trn`, `Clk`, `S+Trn`, and `S+Clk` (the last two
+  write the shifted bank).
 - `Trn` pickers are the shared parameter picker without `Range Min`/`Range Max`.
 - `Clk` pickers list `(none)`, `Current` when bound, a `Behavior` group with the active layer's
   behavior actions (when it has any), a `Sample Assign` group with one row per instrument, and an

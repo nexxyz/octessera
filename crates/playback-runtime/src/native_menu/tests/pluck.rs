@@ -269,7 +269,7 @@ fn plucked_picker_offers_six_numeric_controls_without_structural_targets() {
     }
     let mut cfg = config();
     cfg.instrument_types[0] = "pluck".into();
-    let numeric = parameter_picker_group_numeric("Bind".into(), "xy:x".into(), None, &cfg);
+    let numeric = parameter_picker_group_numeric("Bind", "xy:x".into(), None, &cfg);
     assert!(find_item_by_key(&numeric, "xy:x.instruments.0.type").is_none());
     assert!(find_item_by_key(&numeric, "xy:x.instruments.0.pluck.filter.type").is_none());
     assert!(find_item_by_key(&numeric, "xy:x.instruments.0.pluck.decayMs").is_some());

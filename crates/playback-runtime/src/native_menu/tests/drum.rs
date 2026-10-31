@@ -297,7 +297,7 @@ fn drum_slot_filter_volume_actions_and_binding_picker_keep_voice_scope() {
     }
     let mut cfg = config();
     cfg.instrument_types[0] = "drum".into();
-    let numeric = parameter_picker_group_numeric("Bind".into(), "xy:x".into(), None, &cfg);
+    let numeric = parameter_picker_group_numeric("Bind", "xy:x".into(), None, &cfg);
     assert!(find_item_by_key(&numeric, "xy:x.instruments.0.type").is_none());
     assert!(find_item_by_key(&numeric, "xy:x.instruments.0.drum.voice").is_none());
     assert!(find_item_by_key(&numeric, "xy:x.instruments.0.drum.voices.0.sound").is_none());

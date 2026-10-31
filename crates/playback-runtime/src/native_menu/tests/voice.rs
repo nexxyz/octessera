@@ -326,7 +326,7 @@ pub(crate) fn binding_target_tree_excludes_delay_time_note_shortcut() {
     config.fx_buses[0].slot1_params =
         serde_json::json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44, "spreadPct": 12 });
 
-    let picker = parameter_picker_group("Bind".into(), "aux.turn.0".into(), None, &config);
+    let picker = parameter_picker_group("Bind", "aux.turn.0".into(), None, &config);
     let keys = binding_action_keys(&picker);
 
     assert!(keys.iter().any(|key| key.ends_with(".params.timeMs")));

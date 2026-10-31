@@ -1,8 +1,7 @@
 use super::{
-    action_item, axis_binding_label, bool_item, enum_item, enum_item_from_strings, group,
-    number_item, parameter_picker_group_numeric, selected_index, slot_option_selected,
-    NativeLinkArpConfig, NativeLinkLayerConfig, NativeLinkLfoConfig, NativeMenuAction,
-    NativeMenuConfig, NativeMenuItem,
+    action_item, bool_item, enum_item, enum_item_from_strings, group, number_item,
+    parameter_picker_group_numeric, selected_index, slot_option_selected, NativeLinkArpConfig,
+    NativeLinkLayerConfig, NativeLinkLfoConfig, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
 };
 
 pub(super) fn arp_group(prefix: &str, arp: &NativeLinkArpConfig) -> NativeMenuItem {
@@ -95,7 +94,7 @@ pub(super) fn link_lfo_group(
         vec![
             bool_item("Enabled", format!("{prefix}.enabled"), lfo.enabled),
             parameter_picker_group_numeric(
-                axis_binding_label("Target", lfo.target.as_ref()),
+                "Target",
                 format!("{prefix}.target"),
                 lfo.target.as_ref(),
                 config,

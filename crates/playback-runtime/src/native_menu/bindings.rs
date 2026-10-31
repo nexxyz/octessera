@@ -1,4 +1,4 @@
-use super::binding_picker::{axis_binding_label, parameter_picker_group};
+use super::binding_picker::parameter_picker_group;
 use super::{
     bool_item, enum_item, linear, number_item, selected_index, NativeMenuConfig, NativeMenuItem,
 };
@@ -6,13 +6,13 @@ use super::{
 pub(super) fn xy_pad_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     vec![
         parameter_picker_group(
-            axis_binding_label("X Axis", config.xy_x_binding.as_ref()),
+            "X Axis",
             "xy:x".into(),
             config.xy_x_binding.as_ref(),
             config,
         ),
         parameter_picker_group(
-            axis_binding_label("Y Axis", config.xy_y_binding.as_ref()),
+            "Y Axis",
             "xy:y".into(),
             config.xy_y_binding.as_ref(),
             config,

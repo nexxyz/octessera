@@ -152,6 +152,8 @@ impl NativeRunner {
         } else {
             None
         };
+        self.menu
+            .show_aux_click_binding(index, shifted, action.as_ref());
         self.display.toast = Some(NativeToast {
             message: format!(
                 "Aux {}{} click mapped",
