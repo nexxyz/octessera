@@ -220,7 +220,7 @@ pub(super) fn row_area(display: &OledDisplayInput, row: usize, brightness: f32) 
     )
 }
 
-fn page_scroll(display: &OledDisplayInput) -> Option<&OledScrollInput> {
+pub(super) fn page_scroll(display: &OledDisplayInput) -> Option<&OledScrollInput> {
     display
         .scroll
         .as_ref()

@@ -149,6 +149,24 @@ fn scroll_moves_the_list_under_a_fixed_bar_and_the_thumb_follows() {
 }
 
 #[test]
+fn a_scroll_onto_a_page_that_fits_draws_no_scrollbar() {
+    let mut old = base();
+    let mut new = scrolled_down();
+    for input in [&mut old, &mut new] {
+        input.display.scroll.as_mut().unwrap().total_rows = 8;
+    }
+    let frame = animated(
+        new,
+        OledBodyAnimation::Scroll {
+            from: from(&old),
+            down: true,
+            moved: 5,
+        },
+    );
+    assert!((10..112).all(|y| pixel(&frame, 126, y) == 0));
+}
+
+#[test]
 fn enter_and_back_slide_only_the_body_in_from_their_side() {
     let mut parent = selected(5);
     parent.display.title = "../I1: synth/Synth".into();

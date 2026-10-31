@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use super::menu_rows::{
-    draw_body, draw_scrollbar, edit_box_x, row_area, selection_bar_span, slot_top, BAR_HEIGHT,
-    PITCH, SCROLLBAR_X,
+    draw_body, draw_scrollbar, edit_box_x, page_scroll, row_area, selection_bar_span, slot_top,
+    BAR_HEIGHT, PITCH, SCROLLBAR_X,
 };
 use super::model::{OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledPresentationInput};
 use super::pixels::{fill_rect, shade};
@@ -201,7 +201,7 @@ fn compose_scroll(
         BODY_BOTTOM + 1 - BODY_TOP,
         0,
     );
-    if let (Some(scroll), Some(old)) = (&display.scroll, &from.display.scroll) {
+    if let (Some(scroll), Some(old)) = (page_scroll(display), &from.display.scroll) {
         let start = old.offset * PITCH;
         let position = if shift.down {
             start + shift.moved
