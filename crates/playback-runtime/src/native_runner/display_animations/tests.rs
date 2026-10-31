@@ -249,6 +249,31 @@ fn a_fast_spin_shows_end_states_until_the_detents_slow_down() {
 }
 
 #[test]
+fn a_spin_from_moving_the_bar_into_scrolling_and_any_position_jump_count_as_one_spin() {
+    let start = Instant::now();
+    let mut animations = settled(&Screen::menu(page("Life", 6, 0), &[0]), start);
+    let at = start + 500 * MS;
+    let detent = |row: usize, offset: usize, when: Instant, animations: &mut DisplayAnimations| {
+        Screen::menu(page("Life", row, offset), &[0]).observe(animations, when)
+    };
+    assert_eq!(moved(&detent(7, 0, at, &mut animations)), Some(5));
+    assert!(
+        detent(7, 1, at + 20 * MS, &mut animations).is_empty(),
+        "the scroll right after a bar move shows its end state"
+    );
+    assert_eq!(
+        moved(&detent(7, 2, at + 120 * MS, &mut animations)),
+        Some(5)
+    );
+
+    assert!(detent(7, 4, at + 400 * MS, &mut animations).is_empty());
+    assert!(
+        detent(6, 4, at + 420 * MS, &mut animations).is_empty(),
+        "a jump that does not animate still counts towards the spin"
+    );
+}
+
+#[test]
 fn toast_slides_up_on_show_and_down_on_hide_with_its_text() {
     let start = Instant::now();
     let mut screen = Screen::menu(page("Filter", 1, 0), &[2]);

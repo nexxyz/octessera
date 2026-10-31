@@ -534,7 +534,9 @@ palette unless a behavior deliberately owns its own.
   on time, and the end state is always the exact static frame.
 - New input mid-animation jumps the running animation to its end state, and the new change animates
   from there. A change of the same kind within that kind's duration of the previous one (a fast
-  encoder spin) shows its end state at once.
+  encoder spin) shows its end state at once. Selection moves and scrolls count as one kind, and
+  every page, selection, scroll or edit change restarts their window, even one that does not
+  animate, so a spin that runs from moving the bar into scrolling the list stays a spin.
 - Animations never delay input: device input, menu application, event dispatch and audio run as
   before, and the menu state changes immediately. While an animation runs, each frame boundary is a
   timed display deadline (`next_timed_display_snapshot_deadline_after`), so both boards and the

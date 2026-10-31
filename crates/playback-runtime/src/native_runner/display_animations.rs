@@ -39,6 +39,15 @@ impl Kind {
     fn duration(self) -> Duration {
         FRAME * self.steps().len() as u32
     }
+
+    fn record(self) -> usize {
+        match self {
+            Self::Select | Self::Scroll => 0,
+            Self::Slide => 1,
+            Self::Edit => 2,
+            Self::Toast => 3,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -142,7 +151,7 @@ pub(super) struct DisplayAnimations {
     previous_toast: String,
     body: Option<Running<BodyTransition>>,
     toast: Option<Running<ToastTransition>>,
-    last_started: [Option<Instant>; 5],
+    last_started: [Option<Instant>; 4],
 }
 
 impl DisplayAnimations {
@@ -189,9 +198,14 @@ impl DisplayAnimations {
             let transition = self.previous.as_ref().and_then(|previous| {
                 body_transition(previous, self.previous_stack.as_deref(), frame)
             });
+            let move_unhurried = self.previous.is_some() && self.start(Kind::Select, now);
             if let Some(transition) = transition {
                 let kind = transition.kind();
-                if self.start(kind, now) {
+                let unhurried = match kind {
+                    Kind::Select | Kind::Scroll => move_unhurried,
+                    _ => self.start(kind, now),
+                };
+                if unhurried {
                     self.body = Some(Running::new(transition, kind, now));
                 }
             }
@@ -227,8 +241,10 @@ impl DisplayAnimations {
 
     /// Records a transition of `kind`; false when the one before started within the
     /// animation's duration (a fast encoder spin), so this one shows its end state at once.
+    /// Selection moves and scrolls share one record, which every position change refreshes, so
+    /// a spin that crosses from moving the bar to scrolling the list stays a spin.
     fn start(&mut self, kind: Kind, now: Instant) -> bool {
-        let last = self.last_started[kind as usize].replace(now);
+        let last = self.last_started[kind.record()].replace(now);
         last.is_none_or(|last| now.saturating_duration_since(last) >= kind.duration())
     }
 
