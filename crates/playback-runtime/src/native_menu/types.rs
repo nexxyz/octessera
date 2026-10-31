@@ -131,7 +131,8 @@ pub struct NativeMenuRow {
     pub kind: NativeMenuRowKind,
     pub label: String,
     pub value: String,
-    /// Character index of the edit cursor in `value`, only for a text row being edited.
+    /// Byte index of the edit cursor in `value` (text entry uses an ASCII charset), only for
+    /// a text row being edited.
     pub text_cursor: Option<usize>,
 }
 

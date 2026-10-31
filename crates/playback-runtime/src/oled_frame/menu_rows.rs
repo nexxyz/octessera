@@ -317,7 +317,11 @@ fn draw_text_cursor(
     top: usize,
     area: u16,
 ) {
-    let (byte, ch) = text.char_indices().nth(cursor).unwrap_or((text.len(), ' '));
+    let byte = (0..=cursor.min(text.len()))
+        .rev()
+        .find(|&index| text.is_char_boundary(index))
+        .unwrap_or(0);
+    let ch = text[byte..].chars().next().unwrap_or(' ');
     let x = value_x + M5X7.advance(&text[..byte]);
     let width = usize::from(M5X7.glyph(ch).advance);
     fill_rect(frame, x - 1, top, width + 1, BAR_HEIGHT - 2, area);
