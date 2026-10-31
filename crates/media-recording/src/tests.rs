@@ -115,6 +115,44 @@ fn automatic_duration_completion_clears_active_state() {
     remove_temp_dir(dir);
 }
 
+static WRITER_HELD: AtomicBool = AtomicBool::new(true);
+
+fn hold_writer() {
+    while WRITER_HELD.load(Ordering::Acquire) {
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn request_stop_returns_before_the_writer_finalizes() {
+    let dir = temp_dir("request-stop");
+    let mut service = RecorderService::new(dir.clone()).with_worker_start(hold_writer);
+    let tap = service.start_with_max_frames(4).unwrap();
+    let mut chunk = tap.new_chunk();
+    assert!(chunk.push_frame(19, 20));
+    tap.push_chunk(chunk);
+
+    service.request_stop();
+    assert!(!service.is_recording());
+    assert!(service.poll_completed().unwrap().is_none());
+    assert_eq!(file_count_with_suffix(&dir, ".partial.wav"), 1);
+
+    WRITER_HELD.store(false, Ordering::Release);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let outcome = loop {
+        if let Some(outcome) = service.poll_completed().unwrap() {
+            break outcome;
+        }
+        assert!(Instant::now() < deadline, "writer did not finish");
+        std::thread::sleep(Duration::from_millis(1));
+    };
+    assert_eq!(outcome.frames_written, 1);
+    assert_eq!(outcome.status, RecordingStatus::Complete);
+    assert_eq!(file_count_with_suffix(&dir, ".partial.wav"), 0);
+    assert!(service.stop_audio().unwrap().is_none());
+    remove_temp_dir(dir);
+}
+
 #[test]
 fn gaps_insert_silence_and_finalize_as_incomplete() {
     let dir = temp_dir("gap");

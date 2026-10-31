@@ -143,13 +143,15 @@ fn orange_recording_effect_writes_internal_stereo_wav_and_stops_cleanly() {
             ))
             .unwrap()
             .as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RecordingStatus {
-                ok: true,
-                message,
-                active: false,
-            }
-        }] if message == "Recording saved"
+        []
+    ));
+    assert!(matches!(
+        adapter.await_recording_status(),
+        RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message,
+            active: false,
+        } if message == "Recording saved"
     ));
     assert!(!audio.is_recording().unwrap());
     assert!(audio.poll_recording_status().is_none());
@@ -232,16 +234,19 @@ fn orange_recording_stop_failure_preserves_error_detail() {
     )
     .unwrap();
 
-    let error = adapter
+    assert!(adapter
         .handle_platform_effect(&request(
             RuntimePlatformEffect::RecordingStop,
             "recording-stop-error",
         ))
-        .unwrap_err();
-    assert_eq!(error.facts.domain, RuntimeErrorDomain::Recording);
-    assert_eq!(error.facts.code, RuntimeErrorCode::OperationFailed);
+        .unwrap()
+        .is_empty());
+    let RuntimeStoreResult::RuntimeFailure { error } = adapter.await_recording_status() else {
+        panic!("expected a recording failure");
+    };
+    assert_eq!(error.domain, RuntimeErrorDomain::Recording);
+    assert_eq!(error.code, RuntimeErrorCode::OperationFailed);
     assert!(error
-        .facts
         .message
         .as_deref()
         .is_some_and(|message| message.contains("already exists")));

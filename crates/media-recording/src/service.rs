@@ -71,6 +71,14 @@ impl RecorderService {
         stop_active_recording(active)
     }
 
+    /// Ends the take without waiting for the writer to finalize the file;
+    /// `poll_completed` reports the outcome once it is saved.
+    pub fn request_stop(&mut self) {
+        if let Some(active) = &self.active {
+            signal_stop(active);
+        }
+    }
+
     pub fn is_recording(&self) -> bool {
         self.active
             .as_ref()
@@ -208,13 +216,17 @@ impl Drop for RecorderService {
 fn stop_active_recording(
     active: ActiveRecording,
 ) -> Result<Option<RecordingOutcome>, RecordingError> {
+    signal_stop(&active);
+    drop(active.tap);
+    join_recording(active.join, active.partial_path)
+}
+
+fn signal_stop(active: &ActiveRecording) {
     active.tap.deactivate_and_flush();
     if let Some(oled) = &active.oled {
         oled.close();
     }
     active.stop.store(true, Ordering::Release);
-    drop(active.tap);
-    join_recording(active.join, active.partial_path)
 }
 
 fn join_recording(

@@ -120,6 +120,21 @@ impl PiHostAdapter {
             .and_then(AudioService::poll_recording_status)
     }
 
+    #[cfg(test)]
+    pub(crate) fn await_recording_status(&self) -> RuntimeStoreResult {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if let Some(result) = self.poll_recording_status() {
+                return result;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "recording did not finish"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+    }
+
     /// Keeps the Bluetooth monitor copy on the speaker the runtime picked, if any.
     pub(crate) fn observe_bluetooth_audio_sink(&mut self, sink: Option<&str>) {
         let current = self

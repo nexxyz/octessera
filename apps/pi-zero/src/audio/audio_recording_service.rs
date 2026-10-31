@@ -117,6 +117,23 @@ impl AudioService {
         Ok(outcome)
     }
 
+    pub(crate) fn request_recording_stop(&self) -> Result<(), String> {
+        let mut recorder = self
+            .recorder
+            .lock()
+            .map_err(|_| "recorder lock poisoned".to_string())?;
+        self.mix_taps
+            .write()
+            .map_err(|_| "recording tap lock poisoned".to_string())?
+            .recording = None;
+        *self
+            .recording_oled
+            .write()
+            .map_err(|_| "OLED recording lock poisoned".to_string())? = None;
+        recorder.request_stop();
+        Ok(())
+    }
+
     pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {
         audio_recording::poll_recording_status(&self.recorder, &self.mix_taps, &self.recording_oled)
     }
@@ -126,9 +143,7 @@ impl AudioService {
             .recorder
             .lock()
             .map_err(|_| "recorder lock poisoned".to_string())?;
-        if recorder.is_recording() {
-            recorder.stop_audio().map_err(|error| error.to_string())?;
-        }
+        recorder.stop_audio().map_err(|error| error.to_string())?;
         self.mix_taps
             .write()
             .map_err(|_| "recording tap lock poisoned".to_string())?

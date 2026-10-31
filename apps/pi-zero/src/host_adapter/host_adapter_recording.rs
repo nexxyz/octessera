@@ -44,11 +44,14 @@ impl PiHostAdapter {
                     request,
                 )
             }
-            RuntimePlatformEffect::RecordingStop => Ok(self
-                .stop_recording_for_transition(request)?
-                .into_iter()
-                .map(|result| HostMessage::RuntimeResult { result })
-                .collect()),
+            RuntimePlatformEffect::RecordingStop => {
+                if let Some(audio) = &self.audio {
+                    audio
+                        .request_recording_stop()
+                        .map_err(crate::audio_recording::recording_finalization_error)?;
+                }
+                Ok(Vec::new())
+            }
             _ => Err(RuntimeAdapterError::from(
                 "non-recording effect sent to Pi recording adapter",
             )),

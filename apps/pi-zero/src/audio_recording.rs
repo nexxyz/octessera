@@ -22,6 +22,7 @@ pub(crate) struct RecordingServices {
     audio: RecorderService,
     audio_oled: RecorderService,
     active: Option<RecordingMode>,
+    stop_requested: bool,
 }
 
 impl RecordingServices {
@@ -32,6 +33,7 @@ impl RecordingServices {
             audio_oled: RecorderService::new(audio_oled_directory)
                 .with_worker_start(pin_writer_off_audio_core),
             active: None,
+            stop_requested: false,
         }
     }
 
@@ -41,6 +43,7 @@ impl RecordingServices {
             audio: self.audio.with_worker_start(writer_start),
             audio_oled: self.audio_oled.with_worker_start(writer_start),
             active: self.active,
+            stop_requested: self.stop_requested,
         }
     }
 
@@ -64,7 +67,21 @@ impl RecordingServices {
         Ok(recording)
     }
 
+    /// A manual Stop: the writer finalizes in the background, so the runtime
+    /// thread never waits on the file system; `poll_completed` reports it.
+    pub(crate) fn request_stop(&mut self) {
+        let Some(mode) = self.active else {
+            return;
+        };
+        match mode {
+            RecordingMode::Audio => self.audio.request_stop(),
+            RecordingMode::AudioOled => self.audio_oled.request_stop(),
+        }
+        self.stop_requested = true;
+    }
+
     pub(crate) fn stop_audio(&mut self) -> Result<Option<RecordingOutcome>, RecordingError> {
+        self.stop_requested = false;
         let Some(mode) = self.active.take() else {
             return Ok(None);
         };
@@ -84,6 +101,7 @@ impl RecordingServices {
         };
         if !matches!(&result, Ok(None)) {
             self.active = None;
+            self.stop_requested = false;
         }
         result
     }
@@ -131,6 +149,7 @@ pub(crate) fn poll_recording_status(
             )));
         }
     };
+    let stop_requested = recorder.stop_requested;
     let result = recorder.poll_completed();
     if !matches!(&result, Ok(None)) {
         if let Err(error) = clear_recording_ingress(mix_taps, recording_oled) {
@@ -138,6 +157,15 @@ pub(crate) fn poll_recording_status(
         }
     }
     match result {
+        Ok(Some(outcome)) if stop_requested => {
+            println!(
+                "recording stopped: path={} frames={} status={:?}",
+                outcome.path.display(),
+                outcome.frames_written,
+                outcome.status
+            );
+            Some(recording_status(outcome.status))
+        }
         Ok(Some(outcome)) => Some(max_time_recording_status(outcome.status)),
         Ok(None) => None,
         Err(error) => Some(recording_failure(error.to_string())),

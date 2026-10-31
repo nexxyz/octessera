@@ -210,15 +210,14 @@ fn raspberry_audio_oled_effect_starts_and_rejects_another_mode() {
             None,
         ))
         .unwrap();
+    assert!(response.is_empty());
     assert!(matches!(
-        response.as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RecordingStatus {
-                ok: true,
-                message,
-                active: false,
-            }
-        }] if message == "Recording saved"
+        adapter.await_recording_status(),
+        RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message,
+            active: false,
+        } if message == "Recording saved"
     ));
     let _ = std::fs::remove_dir_all(root);
 }
@@ -254,17 +253,20 @@ fn raspberry_recording_stop_failure_preserves_error_detail() {
         UsbAudioOut::Jack,
     );
 
-    let error = adapter
+    assert!(adapter
         .handle_platform_effect(&RuntimePlatformRequest::new(
             RuntimePlatformEffect::RecordingStop,
             "recording-stop-error".into(),
             None,
         ))
-        .unwrap_err();
-    assert_eq!(error.facts.domain, RuntimeErrorDomain::Recording);
-    assert_eq!(error.facts.code, RuntimeErrorCode::OperationFailed);
+        .unwrap()
+        .is_empty());
+    let RuntimeStoreResult::RuntimeFailure { error } = adapter.await_recording_status() else {
+        panic!("expected a recording failure");
+    };
+    assert_eq!(error.domain, RuntimeErrorDomain::Recording);
+    assert_eq!(error.code, RuntimeErrorCode::OperationFailed);
     assert!(error
-        .facts
         .message
         .as_deref()
         .is_some_and(|message| message.contains("already exists")));
