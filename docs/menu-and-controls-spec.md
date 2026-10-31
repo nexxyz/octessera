@@ -729,12 +729,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   input is ignored, a scoped `not active` toast is shown, and the binding stays for later.
 - Turn examples:
   - FX param missing for the current slot type: `Trn-1: B1 Time ms not active`
-- A delay in note mode hides `Time ms`, but a binding to it is not stale: its toast shows the
-  note-synced time, which the turn cannot change.
   - Instrument type changed away from the bound subtree: `Trn-1: I1 Filter cutoff not active`
   - Layer scan field while `scanMode` is not `scanning`: `Trn-1: L1 Scan Dir not active`
   - Behavior config param missing from the current behavior's `configMenu()`:
     `Trn-1: L1 Spawn Count not active`
+- A delay in note mode hides `Time ms`, but a binding to it is not stale: its toast shows the
+  note-synced time, which the turn cannot change.
 - Press bindings store the behavior action key. A press fires only if the active layer's behavior
   exposes the same key, otherwise `Clk-1: L1 Spawn Random not active`. A Sample Assign press whose
   instrument is no longer a Sampler is also `not active`.

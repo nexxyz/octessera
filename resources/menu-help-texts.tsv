@@ -327,7 +327,7 @@ filt_env_amt	*	key:instruments.*.synth.filter.envAmountPct	number	Filter Env Amo
 filt_keytrack	*	key:instruments.*.synth.filter.keyTrackingPct	number	Filter Key Tracking	Sets how cutoff follows played pitch across notes.	Higher values keep timbre more consistent by pitch.
 filt_env_adsr	*	key:instruments.*.synth.filterEnv.*	number	Filter Envelope	Shapes filter movement over time using ADSR stages.	Use with Env Amount for plucks, swells, and contour motion.
 bpm_help	*	key:transport.bpm	number	BPM	Sets master tempo in beats per minute.	Affects internal clock rate and algorithm pulse timing.
-engine_group	Menu > System > Audio > Engine		group	Engine	Stores the native DSP worker and bus-idle thresholds.	Worker warning presentation and bus silence behavior are separate runtime phases.
+engine_group	Menu > System > Audio > Engine		group	Engine	Holds the CPU meter warning threshold and the bus-idle threshold.	CPU Warn % only colors the header CPU meter; Bus Idle sets when a quiet FX bus counts as silent.
 dsp_worker_warning	Menu > System > Audio > Engine > CPU Warn %	key:dsp.workerWarningThreshold	enum	CPU Warn %	Sets the CPU percentage at which the header CPU meter shows three red bars: 70, 75, 80, 85, 90, or 95 percent.	Two yellow bars start at about two thirds of it.
 dsp_bus_idle	Menu > System > Audio > Engine > Bus Idle	key:dsp.busIdleThreshold	enum	Bus Idle	Sets the linear-amplitude threshold used by DSP bus-idle handling: exact, -140, -120, -100, or -80 dB.	Exact requires a zero signal; the dB choices allow a small residual to count as quiet.
 notes_group	Menu > System > Notes		group	Notes	Controls note duration and global velocity shaping.	These values affect note events without changing the selected instrument.
