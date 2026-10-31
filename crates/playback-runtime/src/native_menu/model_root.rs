@@ -6,7 +6,7 @@ use super::play::play_group;
 use super::section_labels::{BUILD_LABEL, LINK_LABEL, SHAPE_LABEL};
 use super::system::system_group;
 use super::voice::{instrument_group, InstrumentMenuConfig};
-use super::{number_item, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
+use super::{number_item, NativeMenuConfig, NativeMenuItem, NativeMenuPick, NativeMenuValue};
 
 pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
     let sync_index = if config.sync_source == SyncSource::External {
@@ -30,9 +30,11 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
                 key: None,
                 value: NativeMenuValue::Group,
                 children: vec![],
+                pick: NativeMenuPick::None,
             },
             system_group(&config, sync_index),
         ],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -56,6 +58,7 @@ fn build_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     .get(index)
                     .cloned()
                     .unwrap_or_else(|| config.build_items.clone()),
+                pick: NativeMenuPick::None,
             })
             .chain(std::iter::once(number_item(
                 "Seed",
@@ -66,6 +69,7 @@ fn build_group(config: &NativeMenuConfig) -> NativeMenuItem {
                 1,
             )))
             .collect(),
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -105,6 +109,7 @@ fn link_group(config: &NativeMenuConfig) -> NativeMenuItem {
                 }),
         )
         .collect(),
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -126,6 +131,7 @@ fn shape_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     .enumerate()
                     .map(|(index, label)| instrument_item(config, index, label))
                     .collect(),
+                pick: NativeMenuPick::None,
             },
             fx_buses_group(&config.fx_buses, config.bpm),
             global_fx_group(
@@ -134,6 +140,7 @@ fn shape_group(config: &NativeMenuConfig) -> NativeMenuItem {
                 config.bpm,
             ),
         ],
+        pick: NativeMenuPick::None,
     }
 }
 

@@ -261,7 +261,7 @@ fn glitter_layer(take: &mut ScenarioBuilder) {
     take.confirm();
     take.open(&["Shape", "Instruments", "I6:", "Plucked", "String"]);
     take.set_number("Decay", "instruments.5.pluck.decayMs", 900);
-    take.open(&["Build", "L6:", "Behavior", "[Cellular]", "twinkle"]);
+    take.open(&["Build", "L6:", "Beh.", "[Cellular]", "twinkle"]);
     take.open(&["Build", "L6:"]);
     take.set_value("Step Rate", "algorithmStep", "1/32");
     let config = "layers.5.build.behaviorConfig";

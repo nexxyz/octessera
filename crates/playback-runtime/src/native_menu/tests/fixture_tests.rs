@@ -263,7 +263,8 @@ pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected(
     let root = build_root(cfg.clone());
     let loaded =
         find_item_by_key(&root, "sample.loaded:0:2:Drum/kick/long-sample-file.wav").unwrap();
-    assert_eq!(loaded.label, "long-sample-file.wav");
+    assert_eq!(loaded.label, "S3: long-sample-file.wav");
+    assert_eq!(loaded.pick, NativeMenuPick::Value);
 
     let mut menu = NativeMenuModel::new(cfg);
     let path = find_path_by_key(
@@ -281,7 +282,7 @@ pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected(
         .any(|line| line.contains("sample-file")));
     assert_eq!(
         snapshot.full_lines[selected_row].as_deref(),
-        Some(" !Drum/kick/long-sample-file.wav")
+        Some("  S3: Drum/kick/long-sample-file.wav >")
     );
 }
 
@@ -306,7 +307,7 @@ pub(crate) fn unavailable_loaded_sample_row_shows_na_filename_but_keeps_source_k
 
     assert_eq!(
         snapshot.full_lines[selected_row].as_deref(),
-        Some(" !N/A-missing.wav")
+        Some("  S3: N/A-missing.wav >")
     );
     assert_eq!(
         find_item_by_key(

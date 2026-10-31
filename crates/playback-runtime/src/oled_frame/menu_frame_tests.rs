@@ -208,9 +208,10 @@ fn long_values_clip_with_dots_and_keep_the_label_whole() {
 }
 
 #[test]
-fn browser_lists_have_no_gutter() {
+fn picker_lists_have_no_gutter() {
     use OledMenuRowKind::{Action, Entry};
     let mut input = unscrolled(base());
+    input.display.body_layout = OledDisplayLayout::List;
     input.display.rows = vec![
         menu_row(Entry, "..", "", None),
         menu_row(Entry, "kick_01.wav", "", None),
@@ -224,7 +225,7 @@ fn browser_lists_have_no_gutter() {
     assert_eq!(pixel(&frame, 127, slot(1) - 1), AREA);
     assert_eq!(
         lit_columns(&frame, slot(2)..slot(2) + 9, 0..12).first(),
-        Some(&2)
+        Some(&6)
     );
     assert_eq!(lit_columns(&frame, slot(2)..slot(2) + 9, 100..128), [121]);
 }
@@ -237,6 +238,7 @@ fn a_sounding_preview_marks_its_file_row_with_a_play_triangle() {
         let mut input = unscrolled(base());
         let mut row = menu_row(Entry, name, "", None);
         row.as_mut().unwrap().preview = preview;
+        input.display.body_layout = OledDisplayLayout::List;
         input.display.rows = vec![menu_row(Entry, "..", "", None), row];
         input.display.lines = vec!["..".into(), name.into()];
         input.display.bars = vec![None; 2];
@@ -255,7 +257,7 @@ fn a_sounding_preview_marks_its_file_row_with_a_play_triangle() {
     assert_eq!(ink(&frame, 122), (top + 3..top + 6).collect::<Vec<_>>());
     assert_eq!(ink(&frame, 123), [top + 4]);
     assert!((118..121).all(|x| ink(&frame, x).is_empty()));
-    assert!((2..118).any(|x| !ink(&frame, x).is_empty()));
+    assert!((6..118).any(|x| !ink(&frame, x).is_empty()));
 
     let frame = render(false);
     assert!((121..124).all(|x| ink(&frame, x) != ink(&render(true), x)));

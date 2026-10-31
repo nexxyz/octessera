@@ -165,7 +165,9 @@ like `activate`, or directly from your presses in `keys` and `looper`.
 and a little play triangle sits on its row for as long as the preview is
 actually sounding. Handy for whisper-quiet files or ones with a slow fade-in,
 where your ears alone might swear nothing happened.
-Long names clip or scroll rather than run into other text.
+Long names clip or scroll rather than run into other text. The sampler's
+`S1: kick.wav >` row opens the browser right in that file's folder, with a
+little `▸` pointing at the file you have loaded.
 
 ## Status on the OLED
 
@@ -175,6 +177,8 @@ Long names clip or scroll rather than run into other text.
 | Top right, three bars | How hard the audio engine worked over the last second. One green bar is relaxed, two yellow bars are getting busy, three red bars mean you've reached *CPU Warn %* (`System > Audio > Engine`). On the desktop it shows the simulator's own audio load. |
 | Left of the bars | A green tick while a save happens, and a red square when the audio engine missed a deadline (it stays a few seconds, so you can catch it). |
 | Little discs left of a row | That row is on an Aux encoder right now: one, two or three pips for Aux 1-3, and a bar underneath for the Shift layer. |
+| How a row reads | A value on the right (`Step Rate  1/8`) changes when you click and turn. `Beh.: life >` is picked from a list: click to open it. A plain `>` opens a page, and `!` does something right away. |
+| `▸` in a list | The entry you have picked now, and the folder it lives in. Lists open with the cursor right there. |
 | Bars instead of numbers | `System > Display > Num Style` is on `bar`. Switch it to `numbers` if you'd rather read digits. |
 | Bottom left | What Aux 1-3 do on this page: the turn, and a click with a `!`. Hold *Shift* to peek at the Shift layer. |
 | Bottom right, red disc | A recording is running. It breathes once a second so you don't forget it's on. |

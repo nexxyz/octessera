@@ -1,12 +1,15 @@
 use super::binding_picker::{
-    is_lfo_target_picker, keep_numeric_binding_item, play_fx_binding_group,
+    is_lfo_target_picker, keep_numeric_binding_item, mark_active_binding, play_fx_binding_group,
     INSTRUMENTS_BINDING_GROUP, PLAY_FX_BINDING_GROUP, SYSTEM_BINDING_GROUP,
 };
 use super::binding_picker_voice::instrument_binding_source;
 use super::binding_tree::binding_tree_from_menu_item;
 use super::fx::{FX_BUSES_LABEL, GLOBAL_FX_LABEL};
 use super::play::play_fx_page_items;
-use super::{keyed_group, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue};
+use super::{
+    keyed_group, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuPick,
+    NativeMenuValue,
+};
 
 /// Applies `update` to the children of every parameter picker below `node`; the pickers repeat
 /// the bindable menu, so rows that change there change in each picker too.
@@ -22,10 +25,26 @@ fn update_parameter_pickers(
             _ => None,
         };
         match target {
-            Some(target) => update(&target, &mut child.children),
+            Some(target) => {
+                let bound = active_binding_key(&child.children);
+                update(&target, &mut child.children);
+                mark_active_binding(&mut child.children, bound.as_deref());
+            }
             None => update_parameter_pickers(child, update),
         }
     }
+}
+
+fn active_binding_key(items: &[NativeMenuItem]) -> Option<String> {
+    items
+        .iter()
+        .filter(|item| item.pick == NativeMenuPick::Active)
+        .find_map(|item| match &item.value {
+            NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) => {
+                Some(binding.key.clone())
+            }
+            _ => active_binding_key(&item.children),
+        })
 }
 
 pub(super) fn picker_rows(item: NativeMenuItem, target: &str) -> Option<NativeMenuItem> {

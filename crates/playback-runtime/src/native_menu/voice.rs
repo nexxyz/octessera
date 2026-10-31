@@ -1,6 +1,6 @@
 use super::{
-    action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
-    text_item, NativeMenuAction, NativeMenuItem, NativeSampleAvailability,
+    action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, pick_list,
+    selected_index, text_item, NativeMenuAction, NativeMenuItem, NativeSampleAvailability,
     NativeSampleBrowserConfig,
 };
 
@@ -77,7 +77,7 @@ pub(super) fn factory_load_group(
 ) -> NativeMenuItem {
     group(
         label,
-        vec![group(
+        vec![pick_list(group(
             "Load",
             choices
                 .iter()
@@ -89,7 +89,7 @@ pub(super) fn factory_load_group(
                     )
                 })
                 .collect(),
-        )],
+        ))],
     )
 }
 

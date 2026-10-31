@@ -1,6 +1,7 @@
 use super::binding_picker::{axis_binding_label, parameter_picker_group};
 use super::{
-    action_item, group, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue,
+    action_item, group, mark_active, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    NativeMenuPick, NativeMenuValue,
 };
 
 pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
@@ -139,10 +140,19 @@ fn aux_click_picker_group_with(
             ),
         ],
     ));
+    let picked = aux_click_action(index, current.cloned().map(Box::new), shifted);
+    let current_key = format!("{key_prefix}{}.click.current", index + 1);
+    mark_active(&mut children, &|item| {
+        matches!(&item.value, NativeMenuValue::Action(action) if *action == picked)
+            && item.key.as_deref() != Some(current_key.as_str())
+    });
     let label = current
         .map(|_| format!("{label_prefix}: mapped"))
         .unwrap_or_else(|| format!("{label_prefix}: (none)"));
-    group(label, children)
+    NativeMenuItem {
+        pick: NativeMenuPick::Value,
+        ..group(label, children)
+    }
 }
 
 fn aux_click_action(

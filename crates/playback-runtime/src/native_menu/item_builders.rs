@@ -1,4 +1,4 @@
-use super::{NativeMenuAction, NativeMenuItem, NativeMenuValue, NumberCurve};
+use super::{NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue, NumberCurve};
 
 pub(in crate::native_menu) fn group(
     label: impl Into<String>,
@@ -10,6 +10,7 @@ pub(in crate::native_menu) fn group(
         key: None,
         value: NativeMenuValue::Group,
         children,
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -24,6 +25,7 @@ pub(in crate::native_menu) fn keyed_group(
         key: Some(key.into()),
         value: NativeMenuValue::Group,
         children,
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -42,6 +44,7 @@ pub(in crate::native_menu) fn enum_item(
             selected,
         },
         children: vec![],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -66,6 +69,7 @@ pub(in crate::native_menu) fn number_item(
             curve: curve_for_key(&key),
         },
         children: vec![],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -80,6 +84,7 @@ pub(in crate::native_menu) fn bool_item(
         key: Some(key.into()),
         value: NativeMenuValue::Bool { value },
         children: vec![],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -99,6 +104,7 @@ pub(in crate::native_menu) fn text_item(
             cursor: 0,
         },
         children: vec![],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -113,6 +119,7 @@ pub(in crate::native_menu) fn action_item(
         key: Some(key.into()),
         value: NativeMenuValue::Action(action),
         children: vec![],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -143,6 +150,7 @@ pub(in crate::native_menu) fn enum_item_from_strings(
         key: Some(key.into()),
         value: NativeMenuValue::Enum { options, selected },
         children: vec![],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -156,6 +164,34 @@ fn curve_for_key(key: &str) -> NumberCurve {
     } else {
         NumberCurve::Linear
     }
+}
+
+/// Makes a group open its children as a list to pick from.
+pub(in crate::native_menu) fn pick_list(mut item: NativeMenuItem) -> NativeMenuItem {
+    item.pick = NativeMenuPick::List;
+    item
+}
+
+/// Marks the list entries `is_active` picks and the folders that hold them; whether any is.
+pub(crate) fn mark_active(
+    items: &mut [NativeMenuItem],
+    is_active: &dyn Fn(&NativeMenuItem) -> bool,
+) -> bool {
+    let mut any = false;
+    for item in items {
+        let active = if item.children.is_empty() {
+            is_active(item)
+        } else {
+            mark_active(&mut item.children, is_active)
+        };
+        if active {
+            item.pick = NativeMenuPick::Active;
+        } else if item.pick == NativeMenuPick::Active {
+            item.pick = NativeMenuPick::None;
+        }
+        any |= active;
+    }
+    any
 }
 
 /// Keeps a numeric item on plain linear steps even if its key looks like a time or frequency.

@@ -16,6 +16,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                     selected: 0,
                 },
                 children: vec![],
+                pick: NativeMenuPick::None,
             },
             NativeMenuItem {
                 label: "Step Rate".into(),
@@ -32,6 +33,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                     ),
                 },
                 children: vec![],
+                pick: NativeMenuPick::None,
             },
             NativeMenuItem {
                 label: "Spawn Count".into(),
@@ -45,6 +47,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                     curve: Default::default(),
                 },
                 children: vec![],
+                pick: NativeMenuPick::None,
             },
             NativeMenuItem {
                 label: "Spawn Interval".into(),
@@ -58,6 +61,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                     curve: Default::default(),
                 },
                 children: vec![],
+                pick: NativeMenuPick::None,
             },
             NativeMenuItem {
                 label: "Spawn".into(),
@@ -67,6 +71,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                     "spawnRandom".into(),
                 )),
                 children: vec![],
+                pick: NativeMenuPick::None,
             },
             NativeMenuItem {
                 label: "Reset".into(),
@@ -74,6 +79,7 @@ pub(crate) fn config() -> NativeMenuConfig {
                 key: Some("behavior.reset".into()),
                 value: NativeMenuValue::Action(NativeMenuAction::ResetBehavior),
                 children: vec![],
+                pick: NativeMenuPick::None,
             },
         ],
         build_items_by_layer: vec![],
@@ -223,6 +229,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                         ),
                     },
                     children: vec![],
+                    pick: NativeMenuPick::None,
                 },
                 NativeMenuItem {
                     label: "Spawn Count".into(),
@@ -238,6 +245,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                         curve: Default::default(),
                     },
                     children: vec![],
+                    pick: NativeMenuPick::None,
                 },
                 NativeMenuItem {
                     label: "Spawn Interval".into(),
@@ -253,6 +261,7 @@ pub(crate) fn behavior_target_items() -> Vec<Vec<NativeMenuItem>> {
                         curve: Default::default(),
                     },
                     children: vec![],
+                    pick: NativeMenuPick::None,
                 },
             ]
         })

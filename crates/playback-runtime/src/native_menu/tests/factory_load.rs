@@ -169,7 +169,7 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
         let mut expected = vec![
             "Kit",
             "Sample Slot",
-            "(empty)",
+            "S1: (empty)",
             "S1 Browse",
             "Cell Tune",
             "Cell Fine",

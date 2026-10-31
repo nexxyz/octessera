@@ -30,7 +30,7 @@ Short breadcrumb forms are `B`, `L`, `S`, `P`, and `SYS`.
 ## Tree notation
 
 - `(group)` opens a submenu; `(action)` or a leading `!` is an action row; `(text, max N)` is a text
-  row.
+  row; `(picker)` shows `Label: value >` and opens the list the value is picked from.
 - `[a | b | c]` lists enum options in menu order. Bool rows are written `[on | off]` and display
   `On`/`Off` on the OLED.
 - `[min..max] step N` gives the stored range and linear step. Rows on the time, frequency, or

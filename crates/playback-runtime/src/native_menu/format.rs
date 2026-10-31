@@ -1,5 +1,6 @@
 use super::{
-    NativeMenuBarValue, NativeMenuItem, NativeMenuRow, NativeMenuRowKind, NativeMenuValue,
+    NativeMenuBarValue, NativeMenuItem, NativeMenuPick, NativeMenuRow, NativeMenuRowKind,
+    NativeMenuValue,
 };
 use crate::native_menu::format_values::format_display_value;
 use crate::native_menu::numeric_edit::curve_fraction;
@@ -32,7 +33,7 @@ pub(super) fn format_item_row(
         (NativeMenuRowKind::Group, _) if row.value.is_empty() => {
             format_menu_line(&format!("{} >", row.label))
         }
-        (NativeMenuRowKind::Group, _) => {
+        (NativeMenuRowKind::Group | NativeMenuRowKind::Picker, _) => {
             format_menu_line(&format!("{}: {} >", row.label, row.value))
         }
         (_, NativeMenuValue::Group) => format_menu_line(&row.label),
@@ -71,6 +72,7 @@ fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> Nativ
         label: item.label.clone(),
         value,
         text_cursor: None,
+        active: item.pick == NativeMenuPick::Active,
     };
     let option = |options: &[String], current: usize| {
         format_display_value(
@@ -78,6 +80,18 @@ fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> Nativ
             options.get(current).cloned().unwrap_or_default(),
         )
     };
+    if item.pick == NativeMenuPick::Value {
+        return match (&item.value, item.label.split_once(": ")) {
+            (NativeMenuValue::Enum { options, selected }, _) => {
+                row(NativeMenuRowKind::Picker, option(options, *selected))
+            }
+            (_, Some((label, value))) => NativeMenuRow {
+                label: label.into(),
+                ..row(NativeMenuRowKind::Picker, value.into())
+            },
+            (_, None) => row(NativeMenuRowKind::Picker, String::new()),
+        };
+    }
     match &item.value {
         NativeMenuValue::Group if item.children.is_empty() => {
             row(NativeMenuRowKind::Value, String::new())
@@ -180,12 +194,11 @@ pub(super) fn format_item_full_selected_line(item: &NativeMenuItem) -> Option<St
             .and_then(|key| key.strip_prefix("sample.loaded:"))
             .and_then(|rest| rest.splitn(3, ':').nth(2))
             .map(|path| {
-                let display = if item.label.starts_with("N/A-") {
-                    item.label.as_str()
-                } else {
-                    path
+                let display = match item.label.split_once(": ") {
+                    Some((slot, name)) if !name.starts_with("N/A-") => format!("{slot}: {path}"),
+                    _ => item.label.clone(),
                 };
-                format_action_menu_line(display)
+                format_menu_line(&format!("{display} >"))
             })
             .or_else(|| Some(format_action_menu_line(&item.label))),
     }
@@ -308,7 +321,7 @@ pub(super) fn note_unit_to_pulses(value: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::native_menu::{NativeMenuAction, NativeMenuItem, NativeMenuValue};
+    use crate::native_menu::{NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue};
 
     fn action_item(label: &str) -> NativeMenuItem {
         NativeMenuItem {
@@ -317,6 +330,7 @@ mod tests {
             key: None,
             value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect("test".into())),
             children: Vec::new(),
+            pick: NativeMenuPick::None,
         }
     }
 

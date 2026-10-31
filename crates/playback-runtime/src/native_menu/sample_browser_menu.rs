@@ -1,14 +1,26 @@
 use super::{
-    action_item, NativeMenuAction, NativeMenuItem, NativeMenuValue, NativeSampleBrowserConfig,
+    action_item, NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue,
+    NativeSampleBrowserConfig,
 };
 
 pub(super) fn sample_browser_group(
     instrument_slot: usize,
     sample_slot: usize,
+    loaded: Option<&str>,
     sample_browser: Option<&NativeSampleBrowserConfig>,
     sample_favourite_dirs: &[String],
     sample_builtin_favourite_dirs: &[String],
 ) -> NativeMenuItem {
+    let loaded = loaded.map(|path| path.replace('\\', "/"));
+    let holds_loaded = |path: &str| {
+        let path = path.replace('\\', "/");
+        loaded.as_deref().is_some_and(|loaded| {
+            loaded == path
+                || loaded
+                    .strip_prefix(path.as_str())
+                    .is_some_and(|rest| rest.starts_with('/'))
+        })
+    };
     let mut children = Vec::new();
     if let Some(browser) = sample_browser {
         if browser.instrument_slot == instrument_slot && browser.sample_slot == sample_slot {
@@ -25,17 +37,20 @@ pub(super) fn sample_browser_group(
                 } else {
                     "sample.pick"
                 };
-                children.push(action_item(
-                    if entry.is_dir {
-                        format!("[{}]", entry.name)
-                    } else {
-                        entry.name.clone()
-                    },
-                    format!("{action}.{instrument_slot}.{sample_slot}.{}", entry.path),
-                    NativeMenuAction::PlatformEffect(format!(
-                        "{action}:{instrument_slot}:{sample_slot}:{}",
-                        entry.path
-                    )),
+                children.push(active_if(
+                    holds_loaded(&entry.path),
+                    action_item(
+                        if entry.is_dir {
+                            format!("[{}]", entry.name)
+                        } else {
+                            entry.name.clone()
+                        },
+                        format!("{action}.{instrument_slot}.{sample_slot}.{}", entry.path),
+                        NativeMenuAction::PlatformEffect(format!(
+                            "{action}:{instrument_slot}:{sample_slot}:{}",
+                            entry.path
+                        )),
+                    ),
                 ));
             }
             if browser.dir.is_empty()
@@ -44,12 +59,15 @@ pub(super) fn sample_browser_group(
                 for dir in
                     merged_favourite_dirs(sample_builtin_favourite_dirs, sample_favourite_dirs)
                 {
-                    children.push(action_item(
-                        format!("[★ {}]", favourite_label(&dir)),
-                        format!("sample.favorite.open.{instrument_slot}.{sample_slot}.{dir}"),
-                        NativeMenuAction::PlatformEffect(format!(
-                            "sample.enter:{instrument_slot}:{sample_slot}:{dir}"
-                        )),
+                    children.push(active_if(
+                        holds_loaded(&dir),
+                        action_item(
+                            format!("[★ {}]", favourite_label(&dir)),
+                            format!("sample.favorite.open.{instrument_slot}.{sample_slot}.{dir}"),
+                            NativeMenuAction::PlatformEffect(format!(
+                                "sample.enter:{instrument_slot}:{sample_slot}:{dir}"
+                            )),
+                        ),
                     ));
                 }
                 children.push(NativeMenuItem {
@@ -58,6 +76,7 @@ pub(super) fn sample_browser_group(
                     key: None,
                     value: NativeMenuValue::Group,
                     children: vec![],
+                    pick: NativeMenuPick::None,
                 });
             }
             if children.len() == 1 {
@@ -76,6 +95,7 @@ pub(super) fn sample_browser_group(
                 key: None,
                 value: NativeMenuValue::Group,
                 children: vec![],
+                pick: NativeMenuPick::None,
             });
             let is_builtin_favourite = sample_builtin_favourite_dirs
                 .iter()
@@ -87,6 +107,7 @@ pub(super) fn sample_browser_group(
                     key: None,
                     value: NativeMenuValue::Group,
                     children: vec![],
+                    pick: NativeMenuPick::None,
                 });
             } else {
                 let favorite_action = if sample_favourite_dirs.iter().any(|dir| dir == &browser.dir)
@@ -132,6 +153,18 @@ pub(super) fn sample_browser_group(
         key: Some(format!("sample.choose:{instrument_slot}:{sample_slot}")),
         value: NativeMenuValue::Group,
         children,
+        pick: NativeMenuPick::List,
+    }
+}
+
+fn active_if(active: bool, item: NativeMenuItem) -> NativeMenuItem {
+    NativeMenuItem {
+        pick: if active {
+            NativeMenuPick::Active
+        } else {
+            NativeMenuPick::None
+        },
+        ..item
     }
 }
 

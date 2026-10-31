@@ -90,7 +90,7 @@ fn run_behavior_switch() {
         let mut menu = VisibleMenuDriver::new(&mut device);
         menu.open_group("Build");
         menu.open_group("L2:");
-        menu.open_group("Behavior");
+        menu.open_group("Beh.");
         menu.open_group("Human");
         menu.activate_action("looper");
     }

@@ -2,7 +2,7 @@ use super::*;
 use crate::native_menu::format::{format_item_bar_value, format_item_row};
 use crate::native_runner::{NativeRunner, NativeRunnerConfig};
 use crate::oled_frame::{
-    menu_row_clips, menu_row_label_overflows, OledMenuRowInput, OledMenuRowKind,
+    menu_row_clips, menu_row_text_overflows, OledMenuRowInput, OledMenuRowKind,
 };
 
 const NUMBER_SAMPLES: i32 = 2000;
@@ -50,24 +50,23 @@ fn oled_row(item: &NativeMenuItem) -> Option<OledMenuRowInput> {
             NativeMenuRowKind::Group => OledMenuRowKind::Group,
             NativeMenuRowKind::Action => OledMenuRowKind::Action,
             NativeMenuRowKind::Entry => OledMenuRowKind::Entry,
+            NativeMenuRowKind::Picker => OledMenuRowKind::Picker,
         },
         label: row.label,
         value: row.value,
         text_cursor: None,
         aux_cap: None,
         preview: false,
+        active: false,
     })
 }
 
 fn shows_a_name(item: &NativeMenuItem) -> bool {
-    item.key
-        .as_deref()
-        .is_some_and(|key| key.ends_with("behaviorId"))
-        || item.label.split_once(": ").is_some_and(|(scope, _)| {
-            scope.len() > 1
-                && scope.starts_with(['L', 'I', 'B'])
-                && scope[1..].bytes().all(|byte| byte.is_ascii_digit())
-        })
+    item.label.split_once(": ").is_some_and(|(scope, _)| {
+        scope.len() > 1
+            && scope.starts_with(['L', 'I', 'B'])
+            && scope[1..].bytes().all(|byte| byte.is_ascii_digit())
+    })
 }
 
 fn first_clipped_row(item: &NativeMenuItem) -> Option<String> {
@@ -87,7 +86,7 @@ fn first_clipped_row(item: &NativeMenuItem) -> Option<String> {
         }
         if matches!(item.value, NativeMenuValue::Text { .. }) {
             row.value = "W".repeat(40);
-            if menu_row_label_overflows(&row, false) {
+            if menu_row_text_overflows(&row, false, true) {
                 return Some(format!("{} | <name>", row.label));
             }
             continue;

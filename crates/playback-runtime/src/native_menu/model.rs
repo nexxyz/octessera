@@ -6,12 +6,13 @@ use super::model_edit::turn_key_in_item;
 use super::model_search::{
     find_item_by_action, find_item_by_key, find_item_by_key_mut, find_item_path_by_key,
     replace_children_for_label, replace_group_children_containing_direct_key,
-    replace_group_label_containing_direct_key, replace_item_label, set_item_label_by_key,
+    replace_group_label_containing_direct_key, replace_item_label,
 };
 use super::model_values::{number_from_item, value_from_item};
+use super::note_mapping::mark_selected_note_set;
 use super::{
-    build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuModel,
-    NativeMenuState, NativeMenuValue, NativeParamBindingSpec,
+    build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuItem,
+    NativeMenuModel, NativeMenuState, NativeMenuValue, NativeParamBindingSpec,
 };
 
 impl NativeMenuModel {
@@ -80,12 +81,12 @@ impl NativeMenuModel {
             *save_as = super::system_saves::save_as_group(draft_name);
         }
         if let Some(load) = find_item_by_key_mut(&mut self.root, "preset.library.load") {
-            *load = super::system_saves::preset_action_group(
+            *load = super::pick_list(super::system_saves::preset_action_group(
                 "Load",
                 "preset.library.load",
                 "preset.load",
                 names,
-            );
+            ));
         }
         if let Some(rename) = find_item_by_key_mut(&mut self.root, "preset.library.rename") {
             *rename = super::system_saves::preset_rename_group(names, draft_name, rename_source);
@@ -127,12 +128,39 @@ impl NativeMenuModel {
         true
     }
 
+    /// Opens the group with `key` the way pressing it does.
+    pub fn open_item_key(&mut self, key: &str) -> bool {
+        self.focus_item_key(key)
+            && matches!(
+                self.press(),
+                Some(super::NativeMenuPressResult::EnteredGroup)
+            )
+    }
+
+    /// Moves the cursor to the active entry when the group with `key` is the open page.
+    pub fn focus_active_entry_in(&mut self, key: &str) {
+        if self.open_page_key() != Some(key) {
+            return;
+        }
+        if let Some(index) = self
+            .current_siblings()
+            .iter()
+            .position(|item| item.pick == super::NativeMenuPick::Active)
+        {
+            self.state.cursor = index;
+        }
+    }
+
     pub fn replace_label(&mut self, old: &str, new: &str) -> bool {
         replace_item_label(&mut self.root, old, new)
     }
 
-    pub fn set_label_for_key(&mut self, key: &str, label: &str) -> bool {
-        set_item_label_by_key(&mut self.root, key, label)
+    pub fn set_item_for_key(&mut self, key: &str, item: NativeMenuItem) -> bool {
+        let Some(found) = find_item_by_key_mut(&mut self.root, key) else {
+            return false;
+        };
+        *found = item;
+        true
     }
 
     pub fn replace_group_children_for_label(
@@ -229,6 +257,7 @@ impl NativeMenuModel {
             return false;
         }
         *selected = next;
+        mark_selected_note_set(item);
         true
     }
 

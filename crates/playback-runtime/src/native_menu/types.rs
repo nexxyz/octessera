@@ -100,6 +100,21 @@ pub struct NativeMenuItem {
     pub key: Option<String>,
     pub value: NativeMenuValue,
     pub children: Vec<NativeMenuItem>,
+    pub pick: NativeMenuPick,
+}
+
+/// An item's part in picking a value from a list.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NativeMenuPick {
+    #[default]
+    None,
+    /// Opens a list to pick from; its pages use the list layout.
+    List,
+    /// Opens a list like `List` and shows the value picked from it: `Label: value >`. A group
+    /// or action carries the value in its label, after the first `": "`.
+    Value,
+    /// The list entry picked now, or the folder that holds it.
+    Active,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
@@ -123,6 +138,8 @@ pub struct NativeMenuSnapshot {
     pub rows: Vec<Option<NativeMenuRow>>,
     pub selected_row: Option<usize>,
     pub selected_action: Option<NativeMenuAction>,
+    /// The page is a list opened to pick from: no Aux cap gutter.
+    pub list: bool,
 }
 
 /// One menu item as one body row, split into the parts the OLED draws.
@@ -134,6 +151,8 @@ pub struct NativeMenuRow {
     /// Byte index of the edit cursor in `value` (text entry uses an ASCII charset), only for
     /// a text row being edited.
     pub text_cursor: Option<usize>,
+    /// The list entry picked now, or the folder that holds it.
+    pub active: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -143,6 +162,8 @@ pub enum NativeMenuRowKind {
     Action,
     /// A file or folder of the sample browser.
     Entry,
+    /// A value picked from the list the row opens: `Label: value >`.
+    Picker,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

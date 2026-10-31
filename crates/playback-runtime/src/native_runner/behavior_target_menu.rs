@@ -124,6 +124,7 @@ impl NativeRunner {
                 ),
             },
             children: vec![],
+            pick: crate::native_menu::NativeMenuPick::None,
         }];
         let Some(behavior) = platform_core::get_native_behavior(behavior_id) else {
             return items;
@@ -216,6 +217,7 @@ fn behavior_target_menu_item(
                 curve: Default::default(),
             },
             children: vec![],
+            pick: crate::native_menu::NativeMenuPick::None,
         }),
         BehaviorConfigItemType::Action => Some(crate::native_menu::NativeMenuItem {
             label: item.label,
@@ -225,6 +227,7 @@ fn behavior_target_menu_item(
                 item.key,
             )),
             children: vec![],
+            pick: crate::native_menu::NativeMenuPick::None,
         }),
         BehaviorConfigItemType::Bool => Some(crate::native_menu::NativeMenuItem {
             label: item.label,
@@ -242,6 +245,7 @@ fn behavior_target_menu_item(
                     .unwrap_or(false),
             },
             children: vec![],
+            pick: crate::native_menu::NativeMenuPick::None,
         }),
         BehaviorConfigItemType::Enum => {
             enum_target_menu_item(runner, key, behavior, config, state, item)
@@ -276,6 +280,7 @@ fn enum_target_menu_item(
         key: Some(key),
         value: crate::native_menu::NativeMenuValue::Enum { options, selected },
         children: vec![],
+        pick: crate::native_menu::NativeMenuPick::None,
     })
 }
 

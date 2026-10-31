@@ -40,7 +40,7 @@ pub(super) fn configure_build_and_paint_from_visible_ui(device: &mut DeviceDrive
         let mut menu = VisibleMenuDriver::new(device);
         menu.open_group("Build");
         menu.open_group("L1:");
-        menu.open_group("Behavior");
+        menu.open_group("Beh.");
         menu.open_group("Cellular");
         menu.activate_action("life");
         menu.edit_enum_to("Step Rate", "1/16");
@@ -52,7 +52,7 @@ pub(super) fn configure_build_and_paint_from_visible_ui(device: &mut DeviceDrive
         let mut menu = VisibleMenuDriver::new(device);
         menu.back();
         menu.open_group("L2:");
-        menu.open_group("Behavior");
+        menu.open_group("Beh.");
         menu.open_group("Human");
         menu.activate_action("sequencer");
         menu.edit_enum_to("Step Rate", "1/8");
@@ -62,7 +62,7 @@ pub(super) fn configure_build_and_paint_from_visible_ui(device: &mut DeviceDrive
         let mut menu = VisibleMenuDriver::new(device);
         menu.back();
         menu.open_group("L3:");
-        menu.open_group("Behavior");
+        menu.open_group("Beh.");
         menu.open_group("Human");
         menu.activate_action("looper");
         menu.edit_enum_to("Step Rate", "1/8");

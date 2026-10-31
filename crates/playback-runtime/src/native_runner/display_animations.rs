@@ -329,8 +329,8 @@ fn body_transition(
 ) -> Option<BodyTransition> {
     let (old_stack, stack) = (previous_stack?, frame.menu_stack?);
     let display = frame.display;
-    if previous.display.body_layout != OledDisplayLayout::Rows
-        || display.body_layout != OledDisplayLayout::Rows
+    if previous.display.body_layout == OledDisplayLayout::Card
+        || display.body_layout == OledDisplayLayout::Card
     {
         return None;
     }

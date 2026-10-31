@@ -1,13 +1,14 @@
 use super::{
-    action_item, bool_item, group, keyed_group, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    action_item, bool_item, group, keyed_group, pick_list, NativeMenuAction, NativeMenuConfig,
+    NativeMenuItem,
 };
 
 pub(super) fn load_preset_group(names: &[String]) -> NativeMenuItem {
-    keyed_group(
+    pick_list(keyed_group(
         "Load Preset",
         "preset.load",
         preset_action_children("preset.load", names),
-    )
+    ))
 }
 
 pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
@@ -18,12 +19,12 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                 "Library",
                 vec![
                     save_as_group(&config.preset_draft_name),
-                    preset_action_group(
+                    pick_list(preset_action_group(
                         "Load",
                         "preset.library.load",
                         "preset.load",
                         &config.preset_names,
-                    ),
+                    )),
                     preset_rename_group(
                         &config.preset_names,
                         &config.preset_draft_name,

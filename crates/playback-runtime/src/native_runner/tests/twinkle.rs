@@ -63,7 +63,7 @@ pub(crate) fn twinkle_menu_exposes_native_defaults_and_actions() {
         .is_some());
     assert_eq!(
         runner.menu.item_for_key("behaviorId").unwrap().label,
-        "Behavior: twinkle"
+        "Beh.: twinkle"
     );
 }
 

@@ -87,7 +87,7 @@ fn drum_set_up_from_the_menu_plays_its_stamped_tunes() {
         take.input(button("button_a", true));
         take.input(button("button_a", false));
     }
-    take.open(&["Build", "L5:", "Behavior", "[Human]", "sequencer"]);
+    take.open(&["Build", "L5:", "Beh.", "[Human]", "sequencer"]);
     take.open(&["Link", "L5:", "Scanning"]);
     take.set_value("Scan Mode", "layers.4.link.scanMode", "scanning");
     take.set_value("Scan Unit", "layers.4.link.scanUnit", "1/8");

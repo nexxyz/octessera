@@ -1,5 +1,8 @@
-use super::{enum_item, group, number_item, selected_index, NativeLinkLayerConfig, NativeMenuItem};
-use crate::native_menu::{NativeMenuAction, NativeMenuValue};
+use super::{
+    enum_item, group, mark_active, number_item, selected_index, NativeLinkLayerConfig,
+    NativeMenuItem,
+};
+use crate::native_menu::{NativeMenuAction, NativeMenuPick, NativeMenuValue};
 
 pub(super) fn note_mapping_group(
     layer_index: usize,
@@ -56,7 +59,7 @@ fn note_set_item(layer_index: usize, prefix: &str, selected_id: &str) -> NativeM
         .iter()
         .map(|category| note_set_category_item(*category, layer_index))
         .collect();
-    NativeMenuItem {
+    let mut item = NativeMenuItem {
         label: "Set".into(),
         breadcrumb: None,
         key: Some(format!("{prefix}.pitch.scale")),
@@ -65,7 +68,30 @@ fn note_set_item(layer_index: usize, prefix: &str, selected_id: &str) -> NativeM
             selected: selected_index(&ids, selected_id),
         },
         children,
+        pick: NativeMenuPick::Value,
+    };
+    mark_selected_note_set(&mut item);
+    item
+}
+
+/// Points a note set picker's folders at its selected set; other items are left alone.
+pub(super) fn mark_selected_note_set(item: &mut NativeMenuItem) {
+    let NativeMenuValue::Enum { options, selected } = &item.value else {
+        return;
+    };
+    if item.pick != NativeMenuPick::Value {
+        return;
     }
+    let Some(selected_id) = options.get(*selected).cloned() else {
+        return;
+    };
+    mark_active(&mut item.children, &|entry| {
+        matches!(
+            &entry.value,
+            NativeMenuValue::Action(NativeMenuAction::SelectNoteSet { note_set_id, .. })
+                if *note_set_id == selected_id
+        )
+    });
 }
 
 fn note_set_category_item(
@@ -78,6 +104,7 @@ fn note_set_category_item(
         key: None,
         value: NativeMenuValue::Action(NativeMenuAction::NavigateBack),
         children: vec![],
+        pick: NativeMenuPick::None,
     })
     .chain(
         platform_core::note_set_registry()
@@ -92,6 +119,7 @@ fn note_set_category_item(
                     note_set_id: note_set.id.into(),
                 }),
                 children: vec![],
+                pick: NativeMenuPick::None,
             }),
     )
     .collect();
@@ -101,5 +129,6 @@ fn note_set_category_item(
         key: Some(format!("note_set.category.{}", category.id())),
         value: NativeMenuValue::Group,
         children,
+        pick: NativeMenuPick::None,
     }
 }

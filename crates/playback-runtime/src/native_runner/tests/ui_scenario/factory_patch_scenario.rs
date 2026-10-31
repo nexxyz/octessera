@@ -42,19 +42,19 @@ fn assert_build_menu_generated_values(device: &mut DeviceDriver) {
     menu.back_to_root();
     menu.open_group("Build");
     menu.open_group("L1:");
-    menu.expect_visible_value("Behavior", "life");
+    menu.expect_visible_value("Beh.", "life");
     menu.expect_visible_value("Step Rate", "1/16");
     menu.expect_visible_value("Spawn Count", "0");
     menu.expect_visible_value("Spawn Interval", "1");
     menu.back();
 
     menu.open_group("L2:");
-    menu.expect_visible_value("Behavior", "sequencer");
+    menu.expect_visible_value("Beh.", "sequencer");
     menu.expect_visible_value("Step Rate", "1/8");
     menu.back();
 
     menu.open_group("L3:");
-    menu.expect_visible_value("Behavior", "looper");
+    menu.expect_visible_value("Beh.", "looper");
     menu.expect_visible_value("Step Rate", "1/8");
     menu.expect_visible_value("Length", "16");
     menu.select_visible("Punch");

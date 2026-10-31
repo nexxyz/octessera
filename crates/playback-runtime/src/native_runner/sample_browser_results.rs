@@ -28,6 +28,9 @@ impl NativeRunner {
                     }),
                     instrument_slot,
                 );
+                self.menu.focus_active_entry_in(&format!(
+                    "sample.choose:{instrument_slot}:{sample_slot}"
+                ));
             }
             RuntimeStoreResult::SampleListError {
                 instrument_slot,

@@ -71,6 +71,7 @@ pub(crate) use fx::{
     FX_BUSES_LABEL, GLOBAL_FX_LABEL,
 };
 pub(crate) use fx_params::{delay_time_field, delay_time_row_item};
+pub(crate) use item_builders::mark_active;
 pub(in crate::native_menu) use item_builders::*;
 pub use model_input::NativeMenuPressResult;
 pub(crate) use options::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};

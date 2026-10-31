@@ -98,7 +98,7 @@ impl NativeRunner {
                         self.select_active_layer(index.saturating_sub(1))?;
                         self.update_layer_build_menu_items(previous_index);
                         self.update_layer_build_menu_items(self.active_layer_index);
-                        self.update_active_behavior_selector_label();
+                        self.update_active_behavior_selector();
                     }
                 }
             }

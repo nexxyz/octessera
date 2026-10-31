@@ -1,3 +1,4 @@
+use super::note_mapping::mark_selected_note_set;
 use super::numeric_edit::curved_edit_value;
 use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
 
@@ -38,6 +39,7 @@ pub(super) fn turn_key_in_item(item: &mut NativeMenuItem, key: &str, delta: i8) 
             NativeMenuValue::Enum { options, selected } => {
                 let max = options.len().saturating_sub(1);
                 *selected = ((*selected as isize) + delta as isize).clamp(0, max as isize) as usize;
+                mark_selected_note_set(item);
                 return true;
             }
             NativeMenuValue::Number {

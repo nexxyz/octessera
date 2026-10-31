@@ -52,7 +52,7 @@ Shape
 │   │   ├── Sampler (group)                      ← type sampler
 │   │   │   ├── Kit (group) > Load (group)       ← SDB Kit | Synth Kit | Dist Kit
 │   │   │   ├── Sample Slot: [1..8]
-│   │   │   ├── <loaded sample> (action)         ← opens its folder in the browser; `(empty)` when unset
+│   │   │   ├── S<n>: <loaded sample> (picker)   ← opens the browser in its folder; `(empty)` when unset
 │   │   │   ├── S<n> Browse (group)              ← browses the sample tree (WAV only)
 │   │   │   ├── Cell Tune: [-24..24] st          ← stamp value
 │   │   │   ├── Cell Fine: [-100..100] cents     ← stamp value
@@ -200,6 +200,8 @@ Shape
   100 % being an octave per octave. Amp Env shapes each hit; a note-off starts its release. The
   default Amp Env (A 0, D 0, S 100 %, R 5 ms) plays a sample exactly as recorded, and with Env
   Amount and Key Tracking at 0 the filter stays fixed.
+- The loaded-sample row reads `S<n>: <filename>` and opens `S<n> Browse` in the file's folder with
+  the cursor and pointer on the file.
 - A loaded sample that cannot be found or decoded shows `N/A-<filename>` (the saved path's
   basename) on the loaded-sample row and the matching browser row. The saved path stays the
   replacement action's source and is unchanged in patch/config payloads. Only that slot goes

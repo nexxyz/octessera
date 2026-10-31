@@ -16,6 +16,8 @@ pub enum OledDisplayLayout {
     #[default]
     Rows,
     Card,
+    /// Menu rows of a list opened to pick from: no Aux cap gutter, and a pointer column.
+    List,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

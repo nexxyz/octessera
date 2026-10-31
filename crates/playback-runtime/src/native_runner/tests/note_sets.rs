@@ -53,9 +53,11 @@ pub(crate) fn host_device_input_navigates_and_selects_every_note_set() {
             .iter()
             .position(|category| *category == note_set.category)
             .unwrap();
+        send_turn(&mut runner, -20);
         send_turn(&mut runner, category_index as i8);
         assert_eq!(runner.menu.current_label(), Some(note_set.category.label()));
         send_main(&mut runner, "encoder_press", None);
+        send_turn(&mut runner, -60);
         assert_eq!(runner.menu.current_label(), Some(".."));
         let leaf_index = platform_core::note_set_registry()
             .iter()
@@ -118,14 +120,37 @@ pub(crate) fn physical_back_from_categories_returns_to_note_mapping_set() {
 }
 
 #[test]
+pub(crate) fn the_set_picker_opens_on_the_active_set_and_points_at_it() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(runner.menu.focus_item_key(NOTE_SET_KEY));
+    let snapshot = send_main(&mut runner, "encoder_press", None);
+    assert_eq!(runner.menu.current_label(), Some("Pentatonic"));
+    assert_eq!(snapshot["display"]["bodyLayout"], "list");
+    let active = |snapshot: &Value| {
+        snapshot["display"]["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|row| row["active"] == true)
+            .map(|row| row["label"].as_str().unwrap().to_string())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(active(&snapshot), ["Pentatonic"]);
+    let snapshot = send_main(&mut runner, "encoder_press", None);
+    assert_eq!(runner.menu.current_label(), Some("Major Pentatonic"));
+    assert_eq!(active(&snapshot), ["Major Pentatonic"]);
+}
+
+#[test]
 pub(crate) fn main_on_category_back_row_returns_one_level() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key(NOTE_SET_KEY));
     send_main(&mut runner, "encoder_press", None);
     send_main(&mut runner, "encoder_press", None);
+    send_turn(&mut runner, -20);
     assert_eq!(runner.menu.current_label(), Some(".."));
     send_main(&mut runner, "encoder_press", None);
-    assert_eq!(runner.menu.current_label(), Some("Scales"));
+    assert_eq!(runner.menu.current_label(), Some("Pentatonic"));
 }
 
 #[test]
@@ -134,9 +159,10 @@ pub(crate) fn physical_back_on_category_back_row_returns_one_level() {
     assert!(runner.menu.focus_item_key(NOTE_SET_KEY));
     send_main(&mut runner, "encoder_press", None);
     send_main(&mut runner, "encoder_press", None);
+    send_turn(&mut runner, -20);
     assert_eq!(runner.menu.current_label(), Some(".."));
     send_main(&mut runner, "button_a", Some(true));
-    assert_eq!(runner.menu.current_label(), Some("Scales"));
+    assert_eq!(runner.menu.current_label(), Some("Pentatonic"));
 }
 
 #[test]
@@ -206,6 +232,7 @@ pub(crate) fn fn_aux_binds_note_set_parent_but_not_note_set_leaf() {
     runner.display.ui.fn_held = false;
     assert!(runner.menu.focus_item_key(NOTE_SET_KEY));
     send_main(&mut runner, "encoder_press", None);
+    send_turn(&mut runner, -20);
     send_main(&mut runner, "encoder_press", None);
     send_turn(&mut runner, 1);
     assert_eq!(runner.menu.current_label(), Some("Chromatic"));

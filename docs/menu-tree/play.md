@@ -19,8 +19,8 @@ Play
 ├── Trigger Gate                         ← page-select row
 ├── Transpose                            ← page-select row
 ├── XY (group)
-│   ├── X Axis: <target | (none)> (group)    ← parameter picker
-│   ├── Y Axis: <target | (none)> (group)
+│   ├── X Axis: <target | (none)> (picker)   ← parameter picker
+│   ├── Y Axis: <target | (none)> (picker)
 │   ├── Smoothing: [0..500] step 10 ms       ← default 80; 0 shows Off
 │   ├── Invert X: [on | off]
 │   ├── Invert Y: [on | off]

@@ -253,7 +253,7 @@ pub(crate) fn link_named_selectors_outside_instrument_targets_keep_their_display
     let snapshot = menu.snapshot();
     let row = snapshot.selected_row.expect("selected row");
     let parts = snapshot.rows[row].as_ref().expect("row parts");
-    assert_eq!(parts.kind, NativeMenuRowKind::Group);
+    assert_eq!(parts.kind, NativeMenuRowKind::Picker);
     assert_eq!(parts.label, "Set");
     assert!(!parts.value.contains(':'));
 }

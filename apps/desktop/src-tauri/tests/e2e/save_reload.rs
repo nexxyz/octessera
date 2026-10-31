@@ -13,7 +13,7 @@ fn edited_patch() -> ScenarioBuilder {
     let mut take = builder();
     take.open(&["Shape", "Instruments", "I5:"]);
     take.set_value("Type", "instruments.4.type", "synth");
-    take.open(&["Build", "L5:", "Behavior", "[Human]", "sequencer"]);
+    take.open(&["Build", "L5:", "Beh.", "[Human]", "sequencer"]);
     take.open(&["Link", "L5:", "Scanning"]);
     take.set_value("Scan Mode", "layers.4.link.scanMode", "scanning");
     take.open(&["Link", "L5:", "Note Mapping"]);

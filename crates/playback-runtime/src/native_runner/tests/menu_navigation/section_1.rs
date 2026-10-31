@@ -227,7 +227,7 @@ pub(crate) fn selecting_a_row_keeps_its_text_in_place_with_and_without_aux_prefi
     let first = runner.snapshot().unwrap();
     let lines = first["display"]["lines"].clone();
     assert_eq!(first["selectedRow"], 0);
-    assert_eq!(lines[0], "  Behavior: life >");
+    assert_eq!(lines[0], "  Beh.: life >");
     assert_eq!(lines[3], "1-Step Rate 1/8");
 
     let messages = runner

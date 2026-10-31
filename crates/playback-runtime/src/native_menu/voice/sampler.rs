@@ -7,7 +7,7 @@ use super::{
     InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
 };
 use crate::native_menu::NativeSampleAvailability;
-use crate::native_menu::{sample_display_name, NativeMenuValue};
+use crate::native_menu::{sample_display_name, NativeMenuPick, NativeMenuValue};
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let sample_slot = config.sample_slot.min(7);
@@ -38,6 +38,10 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
         sample_browser_group(
             config.index,
             sample_slot,
+            config
+                .sample_paths
+                .get(sample_slot)
+                .and_then(Option::as_deref),
             config.sample_browser,
             config.sample_favourite_dirs,
             config.sample_builtin_favourite_dirs,
@@ -211,14 +215,14 @@ fn loaded_sample_item(
         .get(sample_slot)
         .copied()
         .unwrap_or(NativeSampleAvailability::Unknown);
-    let label = if path == "(empty)" {
+    let name = if path == "(empty)" {
         path.to_string()
     } else {
         sample_display_name(path, availability)
     };
     let browse_dir = sample_parent_dir(path);
     NativeMenuItem {
-        label,
+        label: format!("S{}: {name}", sample_slot + 1),
         breadcrumb: None,
         key: Some(format!(
             "sample.loaded:{instrument_slot}:{sample_slot}:{path}"
@@ -227,6 +231,7 @@ fn loaded_sample_item(
             "sample.open:{instrument_slot}:{sample_slot}:{browse_dir}"
         ))),
         children: vec![],
+        pick: NativeMenuPick::Value,
     }
 }
 

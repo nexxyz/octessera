@@ -239,7 +239,7 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
 pub(crate) fn custom_binding_is_used_on_build_non_mapped_rows_even_when_auto_map_is_enabled() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.open_labels(&["Build", "L1: life"]);
-    runner.menu.select_label("Behavior: life");
+    runner.menu.select_label("Beh.: life");
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
         press_action: None,

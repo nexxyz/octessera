@@ -60,7 +60,7 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
     assert_eq!(world_labels, expected_world_labels);
     assert_eq!(
         runner.menu.item_for_key("behaviorId").unwrap().label,
-        "Behavior: sequencer"
+        "Beh.: sequencer"
     );
     assert_eq!(
         runner.menu.selected_master_volume(),
@@ -104,7 +104,7 @@ fn non_default_transport_and_display_defaults_are_seeded_without_menu_rebuild_co
     assert_eq!(runner.active_layer_index, expected_seed.active_layer_index);
     assert_eq!(
         runner.menu.item_for_key("behaviorId").unwrap().label,
-        "Behavior: keys"
+        "Beh.: keys"
     );
     assert_eq!(
         runner.menu.selected_sync_source(),

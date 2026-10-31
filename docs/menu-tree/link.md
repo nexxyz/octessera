@@ -12,16 +12,16 @@ Link
 ├── Swing: [0..75] step 1 %  default 0
 ├── Aux Mappings (group)
 │   ├── Aux 1 (group)
-│   │   ├── Trn: <target | (none)> (group)       ← parameter picker; no Range Min/Range Max rows
-│   │   ├── Clk: <mapped | (none)> (group)       ← click action picker
-│   │   ├── S+Trn: <target | (none)> (group)     ← shifted bank
-│   │   └── S+Clk: <mapped | (none)> (group)     ← shifted bank
+│   │   ├── Trn: <target | (none)> (picker)      ← parameter picker; no Range Min/Range Max rows
+│   │   ├── Clk: <mapped | (none)> (picker)      ← click action picker
+│   │   ├── S+Trn: <target | (none)> (picker)    ← shifted bank
+│   │   └── S+Clk: <mapped | (none)> (picker)    ← shifted bank
 │   ├── Aux 2 (group)
 │   └── Aux 3 (group)
 ├── LFOs (group)                                  ← exactly eight global slots
 │   ├── L1 (group)
 │   │   ├── Enabled: [on | off]                   default off
-│   │   ├── Target: <target | (none)> (group)     ← numeric, live-safe targets only
+│   │   ├── Target: <target | (none)> (picker)    ← numeric, live-safe targets only
 │   │   ├── Period: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]  default 1/1
 │   │   └── Depth %: [0..100] step 1              default 100
 │   └── L2 .. L8 (group)
@@ -57,7 +57,7 @@ Link
 │   │   ├── Low Note: [0..127] step 1             default 24; shown as note name + MIDI number, e.g. C1 (24)
 │   │   ├── High Note: [0..127] step 1            default 84
 │   │   ├── 1st Note: [0..127] step 1             default 60
-│   │   ├── Set: <compact> > (bindable enum)      default chromatic; Main opens the foldered selector
+│   │   ├── Set: <compact> (picker, bindable enum) default chromatic; Main opens the foldered selector
 │   │   │   ├── Scales (group)                    ← `..` first, then: Chromatic | Major | Natural Minor | Harmonic Minor | Dorian | Mixolydian
 │   │   │   ├── Chord Tones (group)               ← `..` first, then: Major Triad | Minor Triad | Diminished Triad | Sus 2 | Sus 4 | Major 7 | Dominant 7 | Minor 7 | Major 9 | Dominant 9
 │   │   │   ├── Pentatonic (group)                ← `..` first, then: Major Pentatonic | Minor Pentatonic | Suspended Penta | Hirajoshi-like | In Sen-like | Iwato-like
@@ -65,9 +65,9 @@ Link
 │   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]  default C
 │   │   └── Out of Range: [clamp | wrap]          default wrap
 │   ├── X Axis (group)
-│   │   ├── Slot 1: <target | (none)> (group)     ← parameter picker with Range Min/Range Max for numeric bindings
+│   │   ├── Slot 1: <target | (none)> (picker)    ← parameter picker with Range Min/Range Max for numeric bindings
 │   │   ├── Slot 1 Invert: [on | off]
-│   │   ├── Slot 2: <target | (none)> (group)
+│   │   ├── Slot 2: <target | (none)> (picker)
 │   │   ├── Slot 2 Invert: [on | off]
 │   │   ├── Pitch Steps (group)
 │   │   │   ├── Enabled: [on | off]               default on
@@ -124,9 +124,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 ## Note mapping
 
-- `Set` is the bindable parent at `layers.N.link.pitch.scale`. Main enters its four folders; Main on
-  a folder opens a `..`-first leaf list, and Back or Main on `..` goes up one level. The parent
-  renders `Set: <compact> >` within 19 columns.
+- `Set` is the bindable parent at `layers.N.link.pitch.scale`. Main enters its four folders on the
+  one holding the active set; Main on a folder opens a `..`-first leaf list on the active set, and
+  Back or Main on `..` goes up one level. The parent renders `Set: <compact> >` within 19 columns.
 - A set constrains the concrete notes in `Low Note..High Note` that match the set and `Root`. Sets
   do not emit simultaneous chords or choose inversions. Hirajoshi-like, In Sen-like, and Iwato-like
   are common Western 12-TET approximations of scales with varying forms.

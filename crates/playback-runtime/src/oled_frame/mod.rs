@@ -8,6 +8,7 @@ mod font_tom_thumb;
 mod footer;
 mod header;
 mod master_contrast;
+mod menu_row_layout;
 mod menu_rows;
 mod model;
 mod pixels;
@@ -25,8 +26,8 @@ pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
 pub(crate) use header::breadcrumb_fits;
 pub use master_contrast::{oled_master_contrast_step, OLED_MASTER_CONTRAST_STEPS};
 #[cfg(test)]
-pub(crate) use menu_rows::menu_row_clips;
-pub(crate) use menu_rows::menu_row_label_overflows;
+pub(crate) use menu_row_layout::menu_row_clips;
+pub(crate) use menu_row_layout::menu_row_text_overflows;
 pub use model::{
     OledAnimationInput, OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle,
     OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledHintLabel, OledHintSource,
@@ -58,6 +59,8 @@ mod indicator_tests;
 
 #[cfg(test)]
 mod menu_frame_tests;
+#[cfg(test)]
+mod picker_rows_tests;
 
 #[cfg(test)]
 mod tests;

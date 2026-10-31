@@ -1,13 +1,10 @@
-use std::borrow::Cow;
-
 use platform_core::palette;
 
 use super::aux_cap::draw_aux_cap;
 use super::font::{CLIP_MARKER, M5X7};
 use super::footer::PLAY;
-use super::model::{
-    OledBarInput, OledBarStyle, OledMenuRowInput, OledMenuRowKind, OledScrollInput,
-};
+use super::menu_row_layout::{row_layout, RowValue, LIST_NAME_X, NAME_X};
+use super::model::{OledBarInput, OledBarStyle, OledMenuRowInput, OledScrollInput};
 use super::pixels::{dim, draw_mask, fill_rect, rgb565, rgb565_to_rgb, shade};
 use super::{
     layout_card_body, OledDisplayInput, OledDisplayLayout, CARD_BODY_RECT, MENU_BODY_RECT,
@@ -19,21 +16,19 @@ pub(super) const PITCH: usize = 13;
 pub(super) const BAR_HEIGHT: usize = 11;
 const CAP_X: usize = 0;
 const BAR_X: usize = 9;
-const NAME_X: usize = 12;
 const LIST_BAR_X: usize = 0;
-const LIST_NAME_X: usize = 2;
+/// Text lines of overlays and cards, which have neither a gutter nor a pointer column.
+const PLAIN_X: usize = 2;
+const POINTER_X: usize = 1;
 /// Values, markers and mini bars end here, whether or not the page scrolls.
 pub(super) const VALUE_LAST: usize = 123;
 /// The centre of the last digit cell, shared by the `>` and `!` markers.
 pub(super) const MARKER_CENTRE_X: usize = 121;
-/// A label ends at least three blank columns before the value, mini bar or marker ink. A
-/// text value clips to the label's end, but always keeps at least a mini bar's width.
-const NAME_VALUE_GAP: usize = 4;
 pub(super) const SCROLLBAR_X: usize = 126;
 const SCROLL_TOP: usize = FIRST_SLOT_Y - 1;
 const SCROLL_HEIGHT: usize = (BODY_ROWS - 1) * PITCH + BAR_HEIGHT;
 pub(super) const MINI_WIDTH: usize = 30;
-const PREVIEW_WIDTH: usize = 3;
+pub(super) const PREVIEW_WIDTH: usize = 3;
 const MINI_HEIGHT: usize = 5;
 
 /// The top of body slot `index`; its selection bar spans `top - 1 ..= top + 9` and the
@@ -49,113 +44,6 @@ pub(super) fn selection_bar_right(scrolls: bool) -> usize {
     } else {
         127
     }
-}
-
-enum RowValue<'a> {
-    Empty,
-    Text(&'a str),
-    Mini(&'a OledBarInput),
-    Marker(char),
-    Preview,
-}
-
-struct RowLayout<'a> {
-    name: Cow<'a, str>,
-    name_x: usize,
-    name_room: usize,
-    value: RowValue<'a>,
-    value_end: usize,
-    value_clipped: bool,
-    value_x: usize,
-}
-
-fn row_layout<'a>(
-    row: &'a OledMenuRowInput,
-    bar: Option<&'a OledBarInput>,
-    gutter: bool,
-) -> RowLayout<'a> {
-    let name_x = if gutter { NAME_X } else { LIST_NAME_X };
-    let (name, value): (Cow<str>, RowValue) = match row.kind {
-        OledMenuRowKind::Group if row.value.is_empty() => {
-            (Cow::Borrowed(&row.label), RowValue::Marker('>'))
-        }
-        OledMenuRowKind::Group => (
-            Cow::Owned(format!("{}: {}", row.label, row.value)),
-            RowValue::Marker('>'),
-        ),
-        OledMenuRowKind::Action => (Cow::Borrowed(&row.label), RowValue::Marker('!')),
-        OledMenuRowKind::Entry if row.preview => (Cow::Borrowed(&row.label), RowValue::Preview),
-        OledMenuRowKind::Entry => (Cow::Borrowed(&row.label), RowValue::Empty),
-        OledMenuRowKind::Value => (
-            Cow::Borrowed(&row.label),
-            match bar {
-                Some(bar) => RowValue::Mini(bar),
-                None if row.value.is_empty() && row.text_cursor.is_none() => RowValue::Empty,
-                None => RowValue::Text(&row.value),
-            },
-        ),
-    };
-    let (value_width, value_end, value_clipped) = match value {
-        RowValue::Empty => (0, 0, false),
-        RowValue::Mini(_) => (MINI_WIDTH, 0, false),
-        RowValue::Preview => (PREVIEW_WIDTH, 0, false),
-        RowValue::Marker(marker) => {
-            let (first, last) = M5X7.ink_columns(marker);
-            (
-                VALUE_LAST + 1 + (first + last) / 2 - first - MARKER_CENTRE_X,
-                0,
-                false,
-            )
-        }
-        RowValue::Text(text) => {
-            let room = (VALUE_LAST + 1)
-                .saturating_sub(name_x + M5X7.width(&name) + NAME_VALUE_GAP)
-                .max(MINI_WIDTH);
-            let fit = M5X7.fit(text, room, CLIP_MARKER);
-            let shown = M5X7.advance(&text[..fit.end])
-                + if fit.marker {
-                    M5X7.advance(CLIP_MARKER)
-                } else {
-                    0
-                };
-            let cursor = if row.text_cursor.is_some() {
-                usize::from(M5X7.glyph(' ').advance)
-            } else {
-                0
-            };
-            (shown.saturating_sub(1) + cursor, fit.end, fit.marker)
-        }
-    };
-    let value_x = VALUE_LAST + 1 - value_width;
-    let name_room = if value_width > 0 {
-        (value_x + 1).saturating_sub(NAME_VALUE_GAP + name_x)
-    } else {
-        VALUE_LAST + 1 - name_x
-    };
-    RowLayout {
-        name,
-        name_x,
-        name_room,
-        value,
-        value_end,
-        value_clipped,
-        value_x,
-    }
-}
-
-/// Whether a row's label is wider than its room, so the selected row scrolls it.
-pub(crate) fn menu_row_label_overflows(row: &OledMenuRowInput, has_bar: bool) -> bool {
-    let bar = has_bar.then(OledBarInput::default);
-    let layout = row_layout(row, bar.as_ref(), row.kind != OledMenuRowKind::Entry);
-    M5X7.width(&layout.name) > layout.name_room
-}
-
-/// Whether a row clips its label or its value.
-#[cfg(test)]
-pub(crate) fn menu_row_clips(row: &OledMenuRowInput, has_bar: bool) -> bool {
-    let bar = has_bar.then(OledBarInput::default);
-    let layout = row_layout(row, bar.as_ref(), row.kind != OledMenuRowKind::Entry);
-    layout.value_clipped || M5X7.width(&layout.name) > layout.name_room
 }
 
 #[derive(Clone, Copy)]
@@ -200,7 +88,9 @@ pub(super) fn draw_body(
     editing: bool,
 ) {
     match display.body_layout {
-        OledDisplayLayout::Rows => draw_menu_body(frame, display, selected_row, editing),
+        OledDisplayLayout::Rows | OledDisplayLayout::List => {
+            draw_menu_body(frame, display, selected_row, editing)
+        }
         OledDisplayLayout::Card => draw_card_body(frame, display, selected_row),
     }
 }
@@ -239,8 +129,7 @@ pub(super) fn page_scroll(display: &OledDisplayInput) -> Option<&OledScrollInput
 }
 
 fn has_gutter(display: &OledDisplayInput) -> bool {
-    let mut menu_rows = display.rows.iter().flatten();
-    menu_rows.clone().next().is_some() && !menu_rows.any(|row| row.kind == OledMenuRowKind::Entry)
+    display.body_layout == OledDisplayLayout::Rows && display.rows.iter().flatten().next().is_some()
 }
 
 fn draw_menu_body(
@@ -252,6 +141,13 @@ fn draw_menu_body(
     let scroll = page_scroll(display);
     let bar_right = selection_bar_right(scroll.is_some());
     let gutter = has_gutter(display);
+    let plain_x = if gutter {
+        NAME_X
+    } else if display.body_layout == OledDisplayLayout::List {
+        LIST_NAME_X
+    } else {
+        PLAIN_X
+    };
     for (index, line) in display.lines.iter().enumerate().take(BODY_ROWS) {
         let top = slot_top(index);
         let selected = selected_row == Some(index);
@@ -267,7 +163,7 @@ fn draw_menu_body(
                 let bar = display.bars.get(index).and_then(Option::as_ref);
                 draw_menu_row(frame, top, row, bar, style);
             }
-            None => draw_plain_row(frame, top, line, style),
+            None => draw_plain_row(frame, top, line, plain_x, style),
         }
     }
     if let Some(scroll) = scroll {
@@ -288,13 +184,12 @@ fn draw_card_body(frame: &mut [u8], display: &OledDisplayInput, selected_row: Op
             gutter: false,
             bar_right: selection_bar_right(false),
         };
-        draw_plain_row(frame, slot_top(index), &line.text, style);
+        draw_plain_row(frame, slot_top(index), &line.text, PLAIN_X, style);
     }
 }
 
-fn draw_plain_row(frame: &mut [u8], top: usize, text: &str, style: RowStyle) {
+fn draw_plain_row(frame: &mut [u8], top: usize, text: &str, x: usize, style: RowStyle) {
     style.draw_selection(frame, top);
-    let x = if style.gutter { NAME_X } else { LIST_NAME_X };
     M5X7.draw_fitted(frame, text, VALUE_LAST + 1 - x, x, top + 1, style.text());
 }
 
@@ -356,9 +251,15 @@ fn draw_menu_row(
             );
         }
         RowValue::Marker(marker) => {
-            let text = if marker == '>' { ">" } else { "!" };
-            let (first, _) = M5X7.ink_columns(marker);
-            M5X7.draw(frame, text, layout.value_x - first, glyph_top, value_color);
+            draw_marker(frame, marker, layout.value_x, glyph_top, value_color)
+        }
+        RowValue::Picked(text) => {
+            let x = layout.name_x + M5X7.advance(&layout.name);
+            let pen = M5X7.draw(frame, &text[..layout.value_end], x, glyph_top, value_color);
+            if layout.value_clipped {
+                M5X7.draw(frame, CLIP_MARKER, pen, glyph_top, value_color);
+            }
+            draw_marker(frame, '>', layout.value_x, glyph_top, value_color);
         }
         RowValue::Text(text) => {
             let pen = M5X7.draw(
@@ -382,7 +283,22 @@ fn draw_menu_row(
         if let Some(cap) = row.aux_cap {
             draw_aux_cap(frame, CAP_X, top + 1, cap, style.area);
         }
+    } else if row.active {
+        draw_mask(
+            frame,
+            &PLAY,
+            PREVIEW_WIDTH,
+            POINTER_X,
+            top + 2,
+            style.text(),
+        );
     }
+}
+
+fn draw_marker(frame: &mut [u8], marker: char, x: usize, glyph_top: usize, color: u16) {
+    let text = if marker == '>' { ">" } else { "!" };
+    let (first, _) = M5X7.ink_columns(marker);
+    M5X7.draw(frame, text, x - first, glyph_top, color);
 }
 
 fn draw_text_cursor(

@@ -1,7 +1,7 @@
 //! Edits that reshape other rows update only those rows in place, including their copies in
 //! the parameter pickers: a full menu rebuild costs hundreds of milliseconds on the boards.
 
-use super::binding_picker::{axis_binding_label, current_binding_rows};
+use super::binding_picker::{axis_binding_label, current_binding_rows, mark_active_binding};
 use super::binding_picker_rows::{
     picker_rows, update_instrument_bindings, update_play_fx_bindings, update_shape_bindings,
 };
@@ -40,6 +40,10 @@ impl NativeMenuModel {
             .retain(|item| !item.key.as_ref().is_some_and(|key| row_keys.contains(key)));
         let at = 1.min(picker.children.len());
         picker.children.splice(at..at, rows);
+        mark_active_binding(
+            &mut picker.children,
+            binding.map(|binding| binding.key.as_str()),
+        );
     }
 
     pub fn show_play_fx_rows(&mut self, config: &NativeMenuConfig) {

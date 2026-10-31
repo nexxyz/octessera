@@ -25,7 +25,7 @@ export type DeviceInput =
 
 export type PageId = string;
 
-export type OledDisplayLayout = "rows" | "card";
+export type OledDisplayLayout = "rows" | "card" | "list";
 
 export type DisplayFrame = {
   page: PageId;
@@ -70,12 +70,13 @@ export type AuxHints = {
 };
 
 export type DisplayMenuRow = {
-  kind: "value" | "group" | "action" | "entry";
+  kind: "value" | "group" | "action" | "entry" | "picker";
   label: string;
   value: string;
   textCursor: number | null;
   auxCap: AuxCap | null;
   preview?: boolean;
+  active?: boolean;
 };
 
 export type OledFrame = {

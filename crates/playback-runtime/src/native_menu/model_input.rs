@@ -1,6 +1,6 @@
 use super::model_edit::turn_text_value;
 use super::model_navigation_memory::valid_child_cursor;
-use super::{NativeMenuAction, NativeMenuModel, NativeMenuValue};
+use super::{NativeMenuAction, NativeMenuModel, NativeMenuPick, NativeMenuValue};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuPressResult {
@@ -72,35 +72,9 @@ impl NativeMenuModel {
             {
                 None
             }
-            NativeMenuValue::Group => {
-                self.remember_current_group_cursor();
-                let child_memory_key = self.current_item_path();
-                let child_cursor = {
-                    let current = self.current_item();
-                    self.navigation_memory
-                        .get(&child_memory_key)
-                        .copied()
-                        .map(|cursor| valid_child_cursor(&current.children, cursor))
-                        .unwrap_or(0)
-                };
-                self.state.stack.push(self.state.cursor);
-                self.state.cursor = child_cursor;
-                Some(NativeMenuPressResult::EnteredGroup)
-            }
+            NativeMenuValue::Group => Some(self.enter_current_item()),
             NativeMenuValue::Enum { .. } if !self.current_item().children.is_empty() => {
-                self.remember_current_group_cursor();
-                let child_memory_key = self.current_item_path();
-                let child_cursor = {
-                    let current = self.current_item();
-                    self.navigation_memory
-                        .get(&child_memory_key)
-                        .copied()
-                        .map(|cursor| valid_child_cursor(&current.children, cursor))
-                        .unwrap_or(0)
-                };
-                self.state.stack.push(self.state.cursor);
-                self.state.cursor = child_cursor;
-                Some(NativeMenuPressResult::EnteredGroup)
+                Some(self.enter_current_item())
             }
             NativeMenuValue::Action(action) => Some(NativeMenuPressResult::Action(action.clone())),
             NativeMenuValue::Enum { .. }
@@ -132,6 +106,28 @@ impl NativeMenuModel {
                 }
             }
         }
+    }
+
+    /// Opens the selected item's children on its active entry, else on the remembered row.
+    fn enter_current_item(&mut self) -> NativeMenuPressResult {
+        self.remember_current_group_cursor();
+        let child_memory_key = self.current_item_path();
+        let child_cursor = {
+            let current = self.current_item();
+            current
+                .children
+                .iter()
+                .position(|child| child.pick == NativeMenuPick::Active)
+                .or_else(|| {
+                    self.navigation_memory
+                        .get(&child_memory_key)
+                        .map(|cursor| valid_child_cursor(&current.children, *cursor))
+                })
+                .unwrap_or(0)
+        };
+        self.state.stack.push(self.state.cursor);
+        self.state.cursor = child_cursor;
+        NativeMenuPressResult::EnteredGroup
     }
 
     pub fn back(&mut self) {

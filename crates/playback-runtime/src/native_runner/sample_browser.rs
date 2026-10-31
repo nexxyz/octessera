@@ -13,6 +13,10 @@ impl NativeRunner {
         if let Some(rest) = action.strip_prefix("sample.open:") {
             let (instrument_slot, sample_slot, dir) = parse_sample_action(rest)?;
             let dir = dir.unwrap_or_default();
+            let from_loaded_row = self
+                .menu
+                .current_key()
+                .is_some_and(|key| key.starts_with("sample.loaded:"));
             self.show_sample_browser(
                 Some(NativeSampleBrowser {
                     instrument_slot,
@@ -22,6 +26,10 @@ impl NativeRunner {
                 }),
                 instrument_slot,
             );
+            if from_loaded_row {
+                self.menu
+                    .open_item_key(&format!("sample.choose:{instrument_slot}:{sample_slot}"));
+            }
             return Ok(Some(RuntimePlatformEffect::SampleListRequest {
                 instrument_slot,
                 sample_slot,

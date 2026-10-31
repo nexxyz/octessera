@@ -111,6 +111,9 @@ pub struct OledMenuRowInput {
     /// A browser file row whose sample preview is sounding: a play triangle in its marker column.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub preview: bool,
+    /// The list entry picked now, or the folder that holds it: a pointer left of its name.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub active: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -119,8 +122,10 @@ pub enum OledMenuRowKind {
     Value,
     Group,
     Action,
-    /// A file or folder in a browser list: no marker, and its list has no Aux cap gutter.
+    /// A file or folder in a browser list: no marker.
     Entry,
+    /// A value picked from the list the row opens: `Label: value >`, the value after the colon.
+    Picker,
 }
 
 /// The Aux encoder (1-3) and layer whose control maps to a row or footer hint.

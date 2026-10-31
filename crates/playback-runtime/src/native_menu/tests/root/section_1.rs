@@ -64,6 +64,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
                 selected: 0,
             },
             children: vec![],
+            pick: NativeMenuPick::None,
         },
         NativeMenuItem {
             label: "Play".into(),
@@ -74,6 +75,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
                 selected: 1,
             },
             children: vec![],
+            pick: NativeMenuPick::None,
         },
         NativeMenuItem {
             label: "Other Sync".into(),
@@ -84,6 +86,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
                 selected: 0,
             },
             children: vec![],
+            pick: NativeMenuPick::None,
         },
         NativeMenuItem {
             label: "Sync".into(),
@@ -94,6 +97,7 @@ pub(crate) fn keyed_selectors_prefer_current_row_when_keys_repeat() {
                 selected: 1,
             },
             children: vec![],
+            pick: NativeMenuPick::None,
         },
     ];
     let mut menu = NativeMenuModel::new(cfg);

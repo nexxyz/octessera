@@ -13,7 +13,7 @@ pub(crate) fn behavior_selector_and_visible_params_are_usable() {
         assert_eq!(runner.behavior.id(), behavior_id);
         assert_eq!(
             item_label_for_key(&runner.menu.root, "behaviorId"),
-            Some(format!("Behavior: {behavior_id}"))
+            Some(format!("Beh.: {behavior_id}"))
         );
         if behavior_id != "none" {
             edit_visible_params(

@@ -4,7 +4,7 @@ use crate::native_menu::{
     NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
 };
 use crate::oled_frame::{
-    menu_row_label_overflows, OledAuxCap, OledDisplayLayout, OledMenuRowInput, OledMenuRowKind,
+    menu_row_text_overflows, OledAuxCap, OledDisplayLayout, OledMenuRowInput, OledMenuRowKind,
 };
 
 mod drum;
@@ -96,7 +96,7 @@ impl NativeRunner {
                 display.selected_row = None;
             }
         }
-        if display.body_layout == OledDisplayLayout::Rows {
+        if display.body_layout != OledDisplayLayout::Card {
             display.lines = display
                 .lines
                 .into_iter()
@@ -157,7 +157,8 @@ fn scroll_display_line_once(line: &str, full_line: Option<&str>, ticks: usize) -
         .collect()
 }
 
-/// Scrolls the selected row's label through its slot when it is wider than its room.
+/// Scrolls the selected row's label, or a picker's value, through its slot when it is wider
+/// than its room.
 fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize) {
     if ticks < SELECTED_LINE_SCROLL_TICKS_PER_CHAR {
         return;
@@ -166,17 +167,23 @@ fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize) {
         return;
     };
     let has_bar = display.bar_values.get(index).is_some_and(Option::is_some);
+    let gutter = display.body_layout == OledDisplayLayout::Rows;
     let Some(row) = display.rows.get_mut(index).and_then(Option::as_mut) else {
         return;
     };
-    if !menu_row_label_overflows(row, has_bar) {
+    if !menu_row_text_overflows(row, has_bar, gutter) {
         return;
     }
-    let mut padded = row.label.chars().collect::<Vec<_>>();
+    let text = if row.kind == OledMenuRowKind::Picker {
+        &mut row.value
+    } else {
+        &mut row.label
+    };
+    let mut padded = text.chars().collect::<Vec<_>>();
     let length = padded.len();
     padded.extend(SELECTED_LINE_SCROLL_GAP);
     let offset = (ticks / SELECTED_LINE_SCROLL_TICKS_PER_CHAR - 1) % padded.len();
-    row.label = (0..length)
+    *text = (0..length)
         .map(|index| padded[(offset + index) % padded.len()])
         .collect();
 }
@@ -194,7 +201,9 @@ pub(super) fn selected_menu_label_overflows(
     menu.rows
         .get(index)
         .and_then(Option::as_ref)
-        .is_some_and(|row| menu_row_label_overflows(&menu_row_input(row, None, preview), has_bar))
+        .is_some_and(|row| {
+            menu_row_text_overflows(&menu_row_input(row, None, preview), has_bar, !menu.list)
+        })
 }
 
 fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
@@ -240,7 +249,11 @@ fn menu_display(
         );
     }
     DisplaySnapshot {
-        body_layout: OledDisplayLayout::Rows,
+        body_layout: if menu.list {
+            OledDisplayLayout::List
+        } else {
+            OledDisplayLayout::Rows
+        },
         title: menu.path,
         lines,
         colors: menu.colors,
@@ -306,12 +319,14 @@ fn menu_row_input(
             NativeMenuRowKind::Group => OledMenuRowKind::Group,
             NativeMenuRowKind::Action => OledMenuRowKind::Action,
             NativeMenuRowKind::Entry => OledMenuRowKind::Entry,
+            NativeMenuRowKind::Picker => OledMenuRowKind::Picker,
         },
         label: row.label.clone(),
         value: row.value.clone(),
         text_cursor: row.text_cursor,
         aux_cap: cap.map(|(cap, _)| cap),
         preview,
+        active: row.active,
     }
 }
 

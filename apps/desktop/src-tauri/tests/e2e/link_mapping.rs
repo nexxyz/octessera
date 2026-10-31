@@ -18,7 +18,7 @@ fn played_notes(out_of_range: &str) -> Vec<u8> {
     let mut take = builder();
     take.open(&["Shape", "Instruments", "I5:"]);
     take.set_value("Type", "instruments.4.type", "synth");
-    take.open(&["Build", "L5:", "Behavior", "[Human]", "sequencer"]);
+    take.open(&["Build", "L5:", "Beh.", "[Human]", "sequencer"]);
     take.open(&["Link", "L5:", "Scanning"]);
     take.set_value("Scan Mode", "layers.4.link.scanMode", "scanning");
     take.set_value("Scan Unit", "layers.4.link.scanUnit", "1/8");

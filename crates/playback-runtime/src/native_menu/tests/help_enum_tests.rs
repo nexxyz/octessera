@@ -217,6 +217,7 @@ fn step_rate_item() -> NativeMenuItem {
             ),
         },
         children: vec![],
+        pick: NativeMenuPick::None,
     }
 }
 
@@ -233,5 +234,6 @@ fn behavior_enum_item(item: platform_core::BehaviorConfigItem) -> Option<NativeM
             selected: 0,
         },
         children: vec![],
+        pick: NativeMenuPick::None,
     })
 }

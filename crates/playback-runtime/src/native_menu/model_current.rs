@@ -1,7 +1,7 @@
 use super::format::{abbreviate_path, section_color_from_path};
 use super::help::canonicalize_help_path;
 use super::model_navigation_memory::navigation_memory_allowed;
-use super::{NativeMenuItem, NativeMenuModel};
+use super::{NativeMenuItem, NativeMenuModel, NativeMenuPick};
 
 impl NativeMenuModel {
     pub(super) fn remember_current_group_cursor(&mut self) {
@@ -16,7 +16,12 @@ impl NativeMenuModel {
         let mut labels = Vec::with_capacity(self.state.stack.len());
         for idx in &self.state.stack {
             if let Some(next) = node.children.get(*idx) {
-                labels.push(next.breadcrumb.as_deref().unwrap_or(&next.label));
+                labels.push(next.breadcrumb.as_deref().unwrap_or_else(|| {
+                    match (next.pick, next.label.split_once(": ")) {
+                        (NativeMenuPick::Value, Some((label, _))) => label,
+                        _ => &next.label,
+                    }
+                }));
                 node = next;
             }
         }
@@ -25,6 +30,21 @@ impl NativeMenuModel {
         } else {
             abbreviate_path(&labels.join("/"))
         }
+    }
+
+    /// Whether the open page is a list opened to pick from, at any depth.
+    pub(super) fn in_pick_list(&self) -> bool {
+        let mut node = &self.root;
+        for idx in &self.state.stack {
+            let Some(next) = node.children.get(*idx) else {
+                break;
+            };
+            if matches!(next.pick, NativeMenuPick::List | NativeMenuPick::Value) {
+                return true;
+            }
+            node = next;
+        }
+        false
     }
 
     pub(super) fn path_section_color(&self) -> u16 {
@@ -69,6 +89,14 @@ impl NativeMenuModel {
         }
         let idx = self.state.cursor.min(node.children.len().saturating_sub(1));
         &mut node.children[idx]
+    }
+
+    /// The key of the item whose children are the open page.
+    pub(super) fn open_page_key(&self) -> Option<&str> {
+        if self.state.stack.is_empty() {
+            return None;
+        }
+        self.current_node().key.as_deref()
     }
 
     fn current_node(&self) -> &NativeMenuItem {

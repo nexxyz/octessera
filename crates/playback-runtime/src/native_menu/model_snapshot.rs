@@ -56,12 +56,16 @@ impl NativeMenuModel {
             rows: Vec::with_capacity(rows),
             selected_row: None,
             selected_action: None,
+            list: self.in_pick_list(),
         };
         for (index, item) in siblings.iter().enumerate().skip(start).take(rows) {
             push_item_row(self, item, index, root_level, section_color, &mut snapshot);
         }
         if snapshot.lines.is_empty() {
-            return empty_snapshot(snapshot.path, section_color);
+            return NativeMenuSnapshot {
+                list: snapshot.list,
+                ..empty_snapshot(snapshot.path, section_color)
+            };
         }
         let visible_rows = snapshot.lines.len();
         snapshot.scroll = Some(NativeMenuScrollMetadata {
@@ -92,6 +96,7 @@ fn empty_snapshot(path: String, section_color: u16) -> NativeMenuSnapshot {
         rows: vec![None],
         selected_row: Some(0),
         selected_action: None,
+        list: false,
     }
 }
 

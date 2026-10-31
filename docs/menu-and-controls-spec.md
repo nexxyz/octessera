@@ -367,9 +367,21 @@ palette unless a behavior deliberately owns its own.
   menu item is exactly one body row: selecting or editing never adds a row, and edit mode has no
   `*` marker (the snapshot's `editing` flag carries it). Group rows keep their trailing ` >`.
 - Each menu row also carries its parts for the OLED: kind (`value`, `group` with `>`, `action`
-  with `!`, or `entry` for a sample-browser entry with no marker), label, value text, the edit cursor position of a text row being edited, and the Aux
-  cap (encoder 1-3, plain or Shift) whose turn or click runs it. Scroll metadata counts one row per
-  item.
+  with `!`, `entry` for a sample-browser entry with no marker, or `picker` for a value picked
+  from a list), label, value text, the edit cursor position of a text row being edited, the Aux
+  cap (encoder 1-3, plain or Shift) whose turn or click runs it, and `active` for the entry a
+  picker list has picked. Scroll metadata counts one row per item.
+- Row shapes tell how a row changes: a right-aligned value (`Label  value`) is edited in place by
+  turning; `Label: value >` is picked from the list the row opens; a bare `>` opens a page; `!`
+  runs an action; `▸` marks the active entry of a picker list.
+- Picker rows: the behavior selector (`Beh.: <behavior>`), the `Link > Aux Mappings` pickers
+  (`Trn`, `Clk`, `S+Trn`, `S+Clk`), LFO `Target`, `Link > Lx > X/Y Axis > Slot 1/Slot 2`,
+  `Play > XY > X Axis/Y Axis`, `Note Mapping > Set` and a sampler's loaded-sample row
+  (`S1: <file>`, which opens the browser in the file's folder). The menu model marks these rows
+  where it builds them; the value follows the label after a colon and a space at 70 % of the row
+  colour (black on the bar), clips with `..` by `x=116`, 3 columns before the right-aligned `>`,
+  and on the selected row scrolls like a long label. A picker's breadcrumb shows only its label
+  (`/B/L1: life/Beh.`).
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
   with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
   the same width; shifted rows use `S1-`/`S1!`.
@@ -380,8 +392,15 @@ palette unless a behavior deliberately owns its own.
 - Left gutter: every row an Aux encoder runs shows its Aux cap at `x=0..6`, selected or not and never
   inverted: a disc at 28 % of the row colour with 1-3 pips in the row colour; a plain cap covers
   `s+1..s+7`, a Shift cap `s..s+6` with a 5 px bar at 55 % on `s+8`. The selection bar starts at
-  `x=9` and labels at `x=12`. Sample-browser lists (`entry` rows: `..`, folders, files, `(empty)`)
-  have no gutter: the bar starts at `x=0` and labels at `x=2`. While the highlighted file's
+  `x=9` and labels at `x=12`.
+- Picker lists use the list layout (`bodyLayout: "list"`) at every depth below a picker row:
+  the behavior categories and lists, parameter-target trees, note set folders, the sample browser,
+  and the instrument preset/kit and Saves `Load` lists. They have no gutter: the bar starts at
+  `x=0` and names at `x=6`. The active entry, and every folder or category that holds it, shows a
+  3x5 pointer at `x=1..3`, `y=s+2..s+6`, in the row colour (black on the bar), and a picker opens
+  with the cursor on it. A parameter picker points at its bound target's path, or at `(none)`
+  when unbound; its `Current:` shortcut row carries no pointer. Preset and kit lists have no
+  current entry, so no pointer. While the highlighted file's
   preview is sounding, its row carries `preview` and shows a 3x5 play triangle at `x=121..123`,
   `y=s+2..s+6`, in the row's value colour; its label stops 4 px before it. The host reports the
   preview's start and length once the decoded file reaches the engine (`sample_preview_started`
@@ -396,8 +415,9 @@ palette unless a behavior deliberately owns its own.
   room instead, one character every four snapshot attempts with a three-space gap. A text value
   longer than the room the whole label leaves clips with `..`, but always keeps at least a mini
   bar's 30 px. Fixed labels are sized so that, with their widest value or mini bar, no row clips;
-  only names (sample files, layer, instrument, bus and preset names, and the behavior on a
-  `Behavior:` selector) may clip or scroll. A native test measures every row in m5x7 pixels.
+  only names (sample files, layer, instrument, bus and preset names, and picked values such as
+  behaviors and targets) may clip or scroll. A picker's label leaves its value at least 30 px. A
+  native test measures every row in m5x7 pixels.
 - Editing (E2): the label part of the bar stays filled; the value sits in a black box from 2 px
   left of the value to the bar's right end, full bar height, drawn in the row colour. A text row
   being edited shows its cursor character inverted (a row-colour block with a black glyph), with

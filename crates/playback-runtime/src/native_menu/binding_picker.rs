@@ -8,9 +8,10 @@ use super::fx::{fx_buses_group, global_fx_group};
 use super::play::play_fx_page_items;
 use super::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 use super::{
-    action_item, keyed_group, number_item, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    action_item, keyed_group, mark_active, number_item, NativeMenuAction, NativeMenuConfig,
+    NativeMenuItem,
 };
-use super::{NativeMenuValue, NativeParamBindingSpec};
+use super::{NativeMenuPick, NativeMenuValue, NativeParamBindingSpec};
 
 pub(super) const PLAY_FX_BINDING_GROUP: &str = "binding.group.play_fx";
 pub(super) const SYSTEM_BINDING_GROUP: &str = "binding.group.system";
@@ -47,13 +48,32 @@ pub(super) fn parameter_picker_group(
         children.extend(current_binding_rows(&target, binding));
     }
     children.extend(parameter_tree_groups(&target, config));
+    mark_active_binding(&mut children, current.map(|binding| binding.key.as_str()));
     NativeMenuItem {
         label,
         breadcrumb: None,
         key: Some(target),
         value: NativeMenuValue::Group,
         children,
+        pick: NativeMenuPick::Value,
     }
+}
+
+/// Points a parameter picker at the parameter bound to `key` and the groups that hold it, or
+/// at `(none)`; its Current row is a shortcut, not the list entry.
+pub(super) fn mark_active_binding(children: &mut [NativeMenuItem], key: Option<&str>) {
+    mark_active(children, &|item| match &item.value {
+        NativeMenuValue::Action(NativeMenuAction::ClearParamBinding { .. }) => key.is_none(),
+        NativeMenuValue::Action(NativeMenuAction::SetParamBinding { target, binding }) => {
+            key == Some(binding.key.as_str())
+                && item
+                    .key
+                    .as_deref()
+                    .and_then(|row| row.strip_prefix(target.as_str()))
+                    != Some(".current")
+        }
+        _ => false,
+    });
 }
 
 pub(super) fn parameter_picker_group_numeric(

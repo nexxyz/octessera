@@ -12,7 +12,7 @@ impl NativeRunner {
             .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
         let changed = self.apply_behavior_selection(&behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
-        self.update_active_behavior_selector_label();
+        self.update_active_behavior_selector();
         self.update_active_build_menu_items();
         if changed {
             self.mark_fast_autosave_dirty();
@@ -27,7 +27,7 @@ impl NativeRunner {
             .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
         let changed = self.apply_behavior_selection(behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
-        self.update_active_behavior_selector_label();
+        self.update_active_behavior_selector();
         self.update_active_build_menu_items();
         let _ = self.menu.focus_item_key("behaviorId");
         if changed {

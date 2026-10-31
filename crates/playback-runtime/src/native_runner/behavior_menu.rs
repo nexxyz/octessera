@@ -36,6 +36,7 @@ impl NativeRunner {
                         .unwrap_or(true),
                 },
                 children: vec![],
+                pick: crate::native_menu::NativeMenuPick::None,
             },
             crate::native_menu::NativeMenuItem {
                 label: "Layer Label".into(),
@@ -51,6 +52,7 @@ impl NativeRunner {
                     cursor: 0,
                 },
                 children: vec![],
+                pick: crate::native_menu::NativeMenuPick::None,
             },
         ];
         items.extend(
@@ -75,6 +77,7 @@ impl NativeRunner {
                 value: self.layer_seeded.get(layer_index).copied().unwrap_or(false),
             },
             children: vec![],
+            pick: crate::native_menu::NativeMenuPick::None,
         }
     }
 
@@ -93,6 +96,7 @@ impl NativeRunner {
                         .unwrap_or(true),
                 },
                 children: vec![],
+                pick: crate::native_menu::NativeMenuPick::None,
             },
             crate::native_menu::NativeMenuItem {
                 label: "Layer Label".into(),
@@ -108,6 +112,7 @@ impl NativeRunner {
                     cursor: 0,
                 },
                 children: vec![],
+                pick: crate::native_menu::NativeMenuPick::None,
             },
         ];
 
@@ -132,6 +137,7 @@ impl NativeRunner {
                 ),
             },
             children: vec![],
+            pick: crate::native_menu::NativeMenuPick::None,
         });
 
         if let Ok(Some(config_items)) = self.behavior.config_menu(&self.engine_state()) {
@@ -149,6 +155,7 @@ impl NativeRunner {
             key: Some("behavior.reset".into()),
             value: crate::native_menu::NativeMenuValue::Action(NativeMenuAction::ResetBehavior),
             children: vec![],
+            pick: crate::native_menu::NativeMenuPick::None,
         });
         items
     }
@@ -167,6 +174,13 @@ impl NativeRunner {
             .map(String::as_str)
             .unwrap_or_else(|| self.behavior.id());
         let catalog = platform_core::behavior_catalog();
+        let active = |is_active: bool| {
+            if is_active {
+                crate::native_menu::NativeMenuPick::Active
+            } else {
+                crate::native_menu::NativeMenuPick::None
+            }
+        };
         let children = platform_core::behavior_categories()
             .iter()
             .map(|category| crate::native_menu::NativeMenuItem {
@@ -182,12 +196,11 @@ impl NativeRunner {
                         NativeMenuAction::NavigateBack,
                     ),
                     children: vec![],
+                    pick: crate::native_menu::NativeMenuPick::None,
                 })
-                .chain(category.behavior_ids.iter().filter_map(|behavior_id| {
-                    catalog
-                        .iter()
-                        .find(|entry| entry.id == *behavior_id)
-                        .map(|entry| crate::native_menu::NativeMenuItem {
+                .chain(category.behavior_ids.iter().filter_map(|id| {
+                    catalog.iter().find(|entry| entry.id == *id).map(|entry| {
+                        crate::native_menu::NativeMenuItem {
                             label: entry.label.into(),
                             breadcrumb: None,
                             key: None,
@@ -202,13 +215,16 @@ impl NativeRunner {
                                 },
                             ),
                             children: vec![],
-                        })
+                            pick: active(entry.id == behavior_id),
+                        }
+                    })
                 }))
                 .collect(),
+                pick: active(category.behavior_ids.contains(&behavior_id)),
             })
             .collect();
         crate::native_menu::NativeMenuItem {
-            label: format!("Behavior: {behavior_id}"),
+            label: behavior_selector_label(behavior_id),
             breadcrumb: None,
             key: Some(if layer_index == self.active_layer_index {
                 "behaviorId".into()
@@ -217,17 +233,13 @@ impl NativeRunner {
             }),
             value: crate::native_menu::NativeMenuValue::Group,
             children,
+            pick: crate::native_menu::NativeMenuPick::Value,
         }
     }
 
-    pub(super) fn update_active_behavior_selector_label(&mut self) {
-        let behavior_id = self
-            .layer_behavior_ids
-            .get(self.active_layer_index)
-            .map(String::as_str)
-            .unwrap_or_else(|| self.behavior.id());
-        self.menu
-            .set_label_for_key("behaviorId", &format!("Behavior: {behavior_id}"));
+    pub(super) fn update_active_behavior_selector(&mut self) {
+        let selector = self.behavior_selector_menu_item();
+        self.menu.set_item_for_key("behaviorId", selector);
     }
 
     pub(super) fn layer_labels(&self) -> Vec<String> {
@@ -273,6 +285,7 @@ impl NativeRunner {
                     curve: Default::default(),
                 },
                 children: vec![],
+                pick: crate::native_menu::NativeMenuPick::None,
             }),
             BehaviorConfigItemType::Action => Some(crate::native_menu::NativeMenuItem {
                 label: item.label,
@@ -282,6 +295,7 @@ impl NativeRunner {
                     NativeMenuAction::BehaviorAction(item.key),
                 ),
                 children: vec![],
+                pick: crate::native_menu::NativeMenuPick::None,
             }),
             BehaviorConfigItemType::Bool => Some(crate::native_menu::NativeMenuItem {
                 label: item.label,
@@ -302,6 +316,7 @@ impl NativeRunner {
                         .unwrap_or(false),
                 },
                 children: vec![],
+                pick: crate::native_menu::NativeMenuPick::None,
             }),
             BehaviorConfigItemType::Enum => {
                 let options = item.options.unwrap_or_default();
@@ -327,6 +342,7 @@ impl NativeRunner {
                     key: Some(key),
                     value: crate::native_menu::NativeMenuValue::Enum { options, selected },
                     children: vec![],
+                    pick: crate::native_menu::NativeMenuPick::None,
                 })
             }
         }
@@ -408,4 +424,12 @@ pub(super) fn serialized_behavior_state_enum_default(
         .get(key)?
         .as_str()
         .map(str::to_owned)
+}
+
+fn behavior_selector_label(behavior_id: &str) -> String {
+    let label = platform_core::behavior_catalog()
+        .iter()
+        .find(|entry| entry.id == behavior_id)
+        .map_or(behavior_id, |entry| entry.label);
+    format!("Beh.: {label}")
 }

@@ -9,7 +9,7 @@ steps, and the knobs that behavior exposes.
 ```
 Build
 ├── L1: <label> (group)                          ← one group per layer; entering it makes that layer active
-│   ├── Behavior: <label> (group)                ← browser-style selector, not an editable enum
+│   ├── Beh.: <label> (picker)                   ← browser-style selector, not an editable enum
 │   │   ├── [Human]
 │   │   │   ├── ..
 │   │   │   ├── keys
@@ -90,11 +90,12 @@ Build
   (`forest fire` is `forest_fire`, `predator prey` is `predator_prey`, and so on); every other label
   equals its ID. Category keys for help are `behavior.category.*`.
 - Selecting a behavior writes its ID to the layer's persisted `behaviorId`, switches that layer
-  through the native runtime, and returns focus to the layer's Behavior row. Only the affected Build
+  through the native runtime, and returns focus to the layer's `Beh.` row. The selector opens on
+  the active behavior's category, and the category on the behavior. Only the affected Build
   layer rows refresh; the full menu tree is not rebuilt.
 - With Auto Label on, the layer label follows the behavior ID (for example `life`, `brain`). Layer
   selectors (Fn + left column, Link layer groups) show the computed label, for example `L1: life`.
-- For behavior `none` the layer group shows only Behavior, Auto Label, and Layer Label. Step Rate,
+- For behavior `none` the layer group shows only Beh., Auto Label, and Layer Label. Step Rate,
   config rows, Seeded, and Reset are hidden; stored values are kept.
 - `Seed` sits after the layer groups so the Build cursor still lands on the active layer. It is
   persisted per patch as `runtimeConfig.randomSeed`. What Seeded changes and when streams restart is

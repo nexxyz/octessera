@@ -121,7 +121,7 @@ pub(crate) fn missing_bundled_and_local_samples_show_na_without_rewriting_paths(
         assert_eq!(runner.instruments[0].sample_paths[0].as_deref(), Some(path));
         assert_eq!(
             item_label(&runner.menu.root, &format!("sample.loaded:0:0:{path}")),
-            Some(format!("N/A-{}", path.rsplit('/').next().unwrap()))
+            Some(format!("S1: N/A-{}", path.rsplit('/').next().unwrap()))
         );
         assert_eq!(
             runner.config_payload()["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]
@@ -212,7 +212,7 @@ pub(crate) fn available_sample_listing_keeps_normal_display() {
             &runner.menu.root,
             "sample.loaded:0:0:sd-card/octessera/samples/kick.wav",
         ),
-        Some("kick.wav".into())
+        Some("S1: kick.wav".into())
     );
     assert_eq!(
         runner.sample_availability[0][0],
@@ -259,6 +259,6 @@ pub(crate) fn unavailable_status_survives_a_same_path_config_transaction() {
     );
     assert_eq!(
         item_label(&runner.menu.root, &format!("sample.loaded:0:0:{path}")),
-        Some("N/A-missing.wav".into())
+        Some("S1: N/A-missing.wav".into())
     );
 }
