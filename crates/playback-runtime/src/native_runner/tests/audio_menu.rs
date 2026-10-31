@@ -1,5 +1,6 @@
 use super::*;
 
+mod delay;
 mod fx;
 
 #[test]
