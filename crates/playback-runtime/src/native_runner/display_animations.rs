@@ -152,13 +152,20 @@ pub(super) struct DisplayAnimations {
     body: Option<Running<BodyTransition>>,
     toast: Option<Running<ToastTransition>>,
     last_started: [Option<Instant>; 4],
+    menu_frame_hidden: bool,
 }
 
 impl DisplayAnimations {
     pub(super) fn observe(&mut self, frame: &AnimationFrame, now: Instant) -> OledAnimationInput {
+        self.menu_frame_hidden = !frame.menu_frame;
         self.observe_body(frame, now);
         self.observe_toast(frame, now);
         self.resolve(frame.toast, now)
+    }
+
+    /// The last capture showed the OLED dark or a splash, without the menu frame.
+    pub(super) fn menu_frame_hidden(&self) -> bool {
+        self.menu_frame_hidden
     }
 
     pub(super) fn advance(&mut self, now: Instant) -> bool {

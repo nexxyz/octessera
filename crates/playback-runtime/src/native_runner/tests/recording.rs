@@ -103,6 +103,18 @@ fn active_recording_follows_the_oled_sleep_timer() {
     runner.test_advance_display_time(Duration::from_millis(4_400));
     let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
     assert_eq!(snapshot["display"]["splash"], "sleep");
+    let next_phase = start + Duration::from_millis(5_500);
+    assert_ne!(
+        runner.next_timed_display_snapshot_deadline_after(Some(start + Duration::from_secs(5))),
+        Some(next_phase),
+        "a sleeping screen has no pulse deadline"
+    );
+    runner.test_advance_display_time(Duration::from_millis(600));
+    assert_eq!(
+        runner.pending_display_scene_generation(),
+        None,
+        "nor is it redrawn for the pulse"
+    );
 }
 
 #[test]

@@ -481,7 +481,7 @@ palette unless a behavior deliberately owns its own.
   pulse phase (`recordingPulseDim`). The red disc alternates full and half brightness every
   500 ms from the start of the take; a native deadline at each phase boundary refreshes the
   presentation at 2 Hz while recording. The phase holds while the OLED is dark or on a splash, so
-  a sleeping screen is not redrawn for it.
+  a sleeping screen has no pulse deadline and is not redrawn for it.
 - `DeadlineMiss` is native, nonterminal ownership recovery. A newly missed persistent quantum
   replays the previous final master quantum exactly once when its frame count matches, otherwise it
   emits silence; later refills during recovery are silent. `missedQuantumFlash` stays set for five

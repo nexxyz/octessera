@@ -114,7 +114,8 @@ impl DisplayTransients {
         );
     }
 
-    /// Starts or stops the recording disc; it pulses full/half brightness at 1 Hz.
+    /// Starts or stops the recording disc; it pulses full/half brightness at 1 Hz while the
+    /// menu frame shows.
     pub(super) fn set_recording(&mut self, active: bool, now: Instant) {
         self.advance(now);
         if active == self.recording_started.is_some() {
@@ -155,12 +156,13 @@ impl DisplayTransients {
             self.transport_flash = TransportFlash::None;
             changed = true;
         }
+        let animations = self.animations.get_mut();
         if let Some(started) = self.recording_started {
             let dim = recording_pulse_dim(started, now);
-            changed |= dim != self.recording_pulse_dim;
+            changed |= dim != self.recording_pulse_dim && !animations.menu_frame_hidden();
             self.recording_pulse_dim = dim;
         }
-        changed |= self.animations.get_mut().advance(now);
+        changed |= animations.advance(now);
         if changed {
             self.mark_presentation_due();
         }
@@ -232,12 +234,16 @@ impl DisplayTransients {
                 + EVENT_DOT_HOLD
                 + EVENT_DOT_STEP * u32::from(INDICATOR_FADE_LEVELS - self.event_dot_level)
         });
-        let recording_pulse = self.recording_started.map(|started| {
-            let phases = (self.now().saturating_duration_since(started).as_millis()
-                / RECORDING_PULSE_HALF.as_millis()) as u32;
-            started + RECORDING_PULSE_HALF * (phases + 1)
-        });
-        let animation_step = self.animations.borrow().next_deadline(last_snapshot_at);
+        let animations = self.animations.borrow();
+        let recording_pulse = self
+            .recording_started
+            .filter(|_| !animations.menu_frame_hidden())
+            .map(|started| {
+                let phases = (self.now().saturating_duration_since(started).as_millis()
+                    / RECORDING_PULSE_HALF.as_millis()) as u32;
+                started + RECORDING_PULSE_HALF * (phases + 1)
+            });
+        let animation_step = animations.next_deadline(last_snapshot_at);
         [
             event_dot_step,
             self.transport_flash_until,
