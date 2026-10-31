@@ -164,7 +164,7 @@ impl SynthEngine {
                 .map(|output| output.active_bus_fx_slots)
                 .sum(),
             active_global_fx_slots: self.master_active_slot_indices.len(),
-            #[cfg(feature = "profiling")]
+            #[cfg(any(test, feature = "profiling"))]
             cumulative_voice_steals: self.cumulative_voice_steals,
             cumulative_voice_admission_drops: self.cumulative_voice_admission_drops,
         };

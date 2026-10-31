@@ -105,7 +105,7 @@ pub struct SynthProfileSnapshot {
     pub active_momentary_fx: usize,
     pub active_bus_fx_slots: usize,
     pub active_global_fx_slots: usize,
-    #[cfg(feature = "profiling")]
+    #[cfg(any(test, feature = "profiling"))]
     pub cumulative_voice_steals: u64,
     pub cumulative_voice_admission_drops: u64,
 }

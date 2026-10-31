@@ -22,7 +22,6 @@ fn synth_voice_cap_limits_per_slot_to_configured_cap() {
         engine.active_voice_count_for_slot(0),
         MAX_SYNTH_VOICES_PER_SLOT
     );
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 0);
 }
 
@@ -213,7 +212,6 @@ fn auto_hard_global_voice_budget_reduces_polyphony_under_load() {
 
     assert!(active <= (SYNTH_VOICE_LANE_CAPACITY as f32 * 0.45).round() as usize);
     assert!(active > 16);
-    #[cfg(feature = "profiling")]
     assert!(engine.profile_snapshot().cumulative_voice_steals > 0);
     assert!(status.ratio > 1.0);
 }
@@ -305,7 +303,6 @@ fn fair_global_voice_stealing_balances_two_hot_slots() {
 
     assert_eq!(engine.active_voice_count_for_slot(0), 6);
     assert_eq!(engine.active_voice_count_for_slot(1), 6);
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 4);
 }
 
@@ -362,7 +359,6 @@ fn sample_voice_cap_limits_per_slot_to_configured_cap() {
         engine.profile_snapshot().active_sample_voices,
         MAX_SAMPLE_VOICES_PER_SLOT
     );
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
 }
 

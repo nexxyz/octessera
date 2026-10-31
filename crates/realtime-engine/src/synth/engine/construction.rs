@@ -46,7 +46,7 @@ impl SynthEngine {
             master_volume: 1.0,
             voice_stealing_mode: VoiceStealingMode::AutoBalanced,
             smoothed_load_ratio: 0.0,
-            #[cfg(feature = "profiling")]
+            #[cfg(any(test, feature = "profiling"))]
             cumulative_voice_steals: 0,
             cumulative_voice_admission_drops: 0,
             momentary_fx: Vec::with_capacity(MAX_MOMENTARY_FX),

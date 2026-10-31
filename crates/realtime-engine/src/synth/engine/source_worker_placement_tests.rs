@@ -137,9 +137,7 @@ fn canonical_per_slot_victim_is_unchanged_across_stealing_modes() {
         canonical_notes.sort_unstable();
         placed_notes.sort_unstable();
         assert_eq!(canonical_notes, placed_notes);
-        #[cfg(feature = "profiling")]
         assert_eq!(canonical.profile_snapshot().cumulative_voice_steals, 1);
-        #[cfg(feature = "profiling")]
         assert_eq!(placed.profile_snapshot().cumulative_voice_steals, 1);
     }
 }
@@ -167,7 +165,6 @@ fn cross_worker_synth_steal_fades_the_victim_in_its_lane_and_is_one_steal() {
         [1, 2, 3, 4, 5, 6, 7, 9]
     );
     engine.synth_voice_pool.assert_invariants();
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
 }
 
@@ -208,7 +205,6 @@ fn prepared_many_note_render_preserves_synth_ownership_and_audio() {
         snapshot.active_synth_voices,
         INSTRUMENT_SLOT_COUNT * MAX_SYNTH_VOICES_PER_SLOT
     );
-    #[cfg(feature = "profiling")]
     assert_eq!(snapshot.cumulative_voice_steals, 1);
     engine.synth_voice_pool.assert_invariants();
 
@@ -235,7 +231,6 @@ fn none_mode_still_drops_at_full_capacity_with_load_state() {
         engine.profile_snapshot().cumulative_voice_admission_drops,
         1
     );
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 0);
 }
 
@@ -298,7 +293,6 @@ fn cross_worker_sample_steal_retires_the_parked_arc_and_fades_the_victim_without
         [1, 2, 3, 4, 5, 6, 7, 9]
     );
     engine.sample_voice_pool.assert_invariants();
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
 }
 
@@ -356,6 +350,5 @@ fn sample_cross_worker_steal_preflights_its_retirement_addition() {
         engine.profile_snapshot().cumulative_voice_admission_drops,
         1
     );
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 0);
 }

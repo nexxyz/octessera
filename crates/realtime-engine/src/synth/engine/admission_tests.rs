@@ -45,7 +45,6 @@ fn none_allows_ninth_same_slot_synth_admission_without_stealing() {
 
     let snapshot = engine.profile_snapshot();
     assert_eq!(snapshot.active_synth_voices, 9);
-    #[cfg(feature = "profiling")]
     assert_eq!(snapshot.cumulative_voice_steals, 0);
     assert_eq!(snapshot.cumulative_voice_admission_drops, 0);
     engine.assert_voice_pool_invariants();
@@ -74,7 +73,6 @@ fn none_allows_ninth_same_slot_sample_admission_without_stealing() {
 
     let snapshot = engine.profile_snapshot();
     assert_eq!(snapshot.active_sample_voices, 9);
-    #[cfg(feature = "profiling")]
     assert_eq!(snapshot.cumulative_voice_steals, 0);
     assert_eq!(snapshot.cumulative_voice_admission_drops, 0);
     engine.assert_voice_pool_invariants();
@@ -88,7 +86,6 @@ fn none_rejects_synth_admission_at_physical_capacity_without_mutation() {
         engine.note_on(0, ((36 + lane) % 128) as u8, 100, 50_000);
     }
     let before = synth_slot_state(&engine, 0);
-    #[cfg(feature = "profiling")]
     let before_steals = engine.profile_snapshot().cumulative_voice_steals;
 
     engine.note_on(0, 127, 1, 50_000);
@@ -96,7 +93,6 @@ fn none_rejects_synth_admission_at_physical_capacity_without_mutation() {
     let snapshot = engine.profile_snapshot();
     assert_eq!(synth_slot_state(&engine, 0), before);
     assert_eq!(snapshot.active_synth_voices, SYNTH_VOICE_LANE_CAPACITY);
-    #[cfg(feature = "profiling")]
     assert_eq!(snapshot.cumulative_voice_steals, before_steals);
     assert_eq!(snapshot.cumulative_voice_admission_drops, 1);
     engine.assert_voice_pool_invariants();
@@ -129,7 +125,6 @@ fn none_rejects_sample_admission_at_physical_capacity_without_mutation() {
         engine.note_on(0, 36, 100, 50_000);
     }
     let before = sample_slot_state(&engine, 0);
-    #[cfg(feature = "profiling")]
     let before_steals = engine.profile_snapshot().cumulative_voice_steals;
 
     engine.note_on(0, 36, 1, 50_000);
@@ -137,7 +132,6 @@ fn none_rejects_sample_admission_at_physical_capacity_without_mutation() {
     let snapshot = engine.profile_snapshot();
     assert_eq!(sample_slot_state(&engine, 0), before);
     assert_eq!(snapshot.active_sample_voices, SAMPLE_VOICE_LANE_CAPACITY);
-    #[cfg(feature = "profiling")]
     assert_eq!(snapshot.cumulative_voice_steals, before_steals);
     assert_eq!(snapshot.cumulative_voice_admission_drops, 1);
     engine.assert_voice_pool_invariants();
@@ -198,7 +192,6 @@ fn steady_level_across_a_steal(kind: &str, block: bool) -> (f32, f32) {
     let before = render(&mut engine, 4_800);
     engine.note_on(0, 0, 100, 50_000);
     let after = render(&mut engine, 1);
-    #[cfg(feature = "profiling")]
     assert_eq!(engine.profile_snapshot().cumulative_voice_steals, 1);
     engine.assert_voice_pool_invariants();
     (before, after)
