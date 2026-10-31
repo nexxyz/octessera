@@ -42,6 +42,9 @@ pub use text_layout::{
 mod error_layout_tests;
 
 #[cfg(test)]
+mod glyph_placement_tests;
+
+#[cfg(test)]
 mod indicator_tests;
 
 #[cfg(test)]

@@ -23,6 +23,8 @@ const LIST_NAME_X: usize = 2;
 pub(super) const VALUE_LAST: usize = 123;
 /// The centre of the last digit cell, shared by the `>` and `!` markers.
 pub(super) const MARKER_CENTRE_X: usize = 121;
+/// A label ends at least three blank columns before the value, mini bar or marker ink. A
+/// text value clips to the label's end, but always keeps at least a mini bar's width.
 const NAME_VALUE_GAP: usize = 4;
 const SCROLLBAR_X: usize = 126;
 const SCROLL_TOP: usize = FIRST_SLOT_Y - 1;
@@ -90,9 +92,18 @@ fn row_layout<'a>(
     let (value_width, value_end, value_clipped) = match value {
         RowValue::Empty => (0, 0, false),
         RowValue::Mini(_) => (MINI_WIDTH, 0, false),
-        RowValue::Marker(marker) => (M5X7.width(if marker == '>' { ">" } else { "!" }), 0, false),
+        RowValue::Marker(marker) => {
+            let (first, last) = M5X7.ink_columns(marker);
+            (
+                VALUE_LAST + 1 + (first + last) / 2 - first - MARKER_CENTRE_X,
+                0,
+                false,
+            )
+        }
         RowValue::Text(text) => {
-            let room = (VALUE_LAST + 1).saturating_sub(name_x + M5X7.width(&name) + NAME_VALUE_GAP);
+            let room = (VALUE_LAST + 1)
+                .saturating_sub(name_x + M5X7.width(&name) + NAME_VALUE_GAP)
+                .max(MINI_WIDTH);
             let fit = M5X7.fit(text, room, CLIP_MARKER);
             let shown = M5X7.advance(&text[..fit.end])
                 + if fit.marker {
@@ -280,9 +291,8 @@ fn draw_menu_row(
         }
         RowValue::Marker(marker) => {
             let text = if marker == '>' { ">" } else { "!" };
-            let (first, last) = M5X7.ink_columns(marker);
-            let x = MARKER_CENTRE_X - (first + last) / 2;
-            M5X7.draw(frame, text, x, glyph_top, value_color);
+            let (first, _) = M5X7.ink_columns(marker);
+            M5X7.draw(frame, text, layout.value_x - first, glyph_top, value_color);
         }
         RowValue::Text(text) => {
             let pen = M5X7.draw(

@@ -384,9 +384,11 @@ palette unless a behavior deliberately owns its own.
   covers `x=120..122` and `!` sits on `x=121`, the centre of the last digit cell. Unselected values
   draw at 70 % of the row colour, values on the selection bar in black. The selection bar ends at
   `x=124` when the page scrolls (gap at `x=125`) and at `x=127` when it fits.
-- Clipping: the label stays whole and the value clips with `..` to leave a 4 px gap. A label too
-  wide even alone clips with `..`; on the selected row it scrolls through its room instead, one
-  character every four snapshot attempts with a three-space gap.
+- Clipping: values, mini bars and markers keep their place. A label ends at least 3 blank columns
+  before the value's ink and otherwise clips with `..`; on the selected row it scrolls through its
+  room instead, one character every four snapshot attempts with a three-space gap. A text value
+  longer than the room the whole label leaves clips with `..`, but always keeps at least a mini
+  bar's 30 px.
 - Editing (E2): the label part of the bar stays filled; the value sits in a black box from 2 px
   left of the value to the bar's right end, full bar height, drawn in the row colour. A text row
   being edited shows its cursor character inverted (a row-colour block with a black glyph), with
