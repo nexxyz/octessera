@@ -6,6 +6,7 @@ use crate::native_runner::{
 
 impl PresentationScene {
     pub fn into_snapshot(self) -> Value {
+        let recording_pulse_dim = self.recording_pulse_dim();
         let hdmi = self.hdmi.into_snapshot(&self.led_rgb, &self.active_cells);
         let display = self.display;
         let bar_values = display
@@ -106,7 +107,8 @@ impl PresentationScene {
             "transportFlash": self.transient.transport_flash.as_str(),
             "auxHints": self.aux_hints,
             "auxShiftLayer": ui.shift_held || ui.combined_modifier_held,
-            "recordingActive": self.recording_active,
+            "recordingActive": self.transient.recording_active,
+            "recordingPulseDim": recording_pulse_dim,
             "cpuLoadRatio": 0.0
         });
         if let Some(audio) = self.audio {

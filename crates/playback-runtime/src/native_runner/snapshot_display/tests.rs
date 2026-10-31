@@ -101,7 +101,7 @@ fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
         first.full_lines[detail_row].as_deref(),
         Some("  On Inst I1: This Long Instrument Name Scrolls Across the OLED Display")
     );
-    assert!(first.lines.len() <= 7);
+    assert!(first.lines.len() <= 8);
     runner.display.menu_scroll_offset = 8;
     let next_attempt = start + SNAPSHOT_TICK;
     assert_eq!(
@@ -110,7 +110,7 @@ fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
     );
     let scrolled = runner.display_snapshot(runner.menu.snapshot());
     assert_ne!(first.lines[detail_row], scrolled.lines[detail_row]);
-    assert!(scrolled.lines.len() <= 7);
+    assert!(scrolled.lines.len() <= 8);
 
     assert!(runner.menu.focus_item_key("layers.0.link.pitch.scale"));
     runner.menu.state.editing = true;
@@ -145,7 +145,7 @@ fn header_rule_uses_the_current_menu_area_colour() {
             let offset = (y * 128 + x) * 2;
             u16::from_be_bytes([frame[offset], frame[offset + 1]])
         };
-        assert!((0..128).all(|x| pixel(x, 16) == expected), "{key:?}");
-        assert!((0..128).all(|x| pixel(x, 15) != expected), "{key:?}");
+        assert!((0..128).all(|x| pixel(x, 8) == expected), "{key:?}");
+        assert!((0..128).all(|x| pixel(x, 9) != expected), "{key:?}");
     }
 }

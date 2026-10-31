@@ -1,6 +1,12 @@
+mod aux_cap;
 mod error_layout;
 mod font;
+mod font_5x7;
+mod font_m5x7;
+mod font_tom_thumb;
 mod footer;
+mod header;
+mod menu_rows;
 mod model;
 mod pixels;
 mod presentation_input;
@@ -14,6 +20,8 @@ pub const OLED_HEIGHT: usize = 128;
 pub const OLED_FRAME_BYTES: usize = OLED_WIDTH * OLED_HEIGHT * 2;
 
 pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
+pub(crate) use header::breadcrumb_fits;
+pub(crate) use menu_rows::menu_row_label_overflows;
 pub use model::{
     OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
     OledHintLabel, OledHintSource, OledMenuRowInput, OledMenuRowKind, OledPresentationInput,

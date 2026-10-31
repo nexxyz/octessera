@@ -1,4 +1,4 @@
-use super::font::glyph_rows;
+use super::font_5x7::glyph_rows;
 use super::pixels::fill_rect;
 
 pub(super) fn title_text_for_oled(title: &str) -> String {

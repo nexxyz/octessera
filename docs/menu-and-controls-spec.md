@@ -314,23 +314,28 @@ change; only the distance per detent does.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.
-- Geometry: 5×7 glyphs on a 6 px advance. The top line is the title bar: the white breadcrumb at
-  `y=5` over a full-width 1 px rule at `y=16` in the current area's color (`display.titleColor`:
-  Build green, Link magenta, Shape blue, Play yellow, System and the root menu gray). Help,
-  confirmation, setup and other screens drawn over a menu keep that menu's rule; splash, full
-  runtime-error frames and the off state have none. Header content (breadcrumb glyphs, icons, CPU
-  meter) stays in rows `4..=11`, so four clear rows (12 to 15) sit above the rule and four (17 to 20)
-  below it, before the first row's selection fill at `y=21`. The breadcrumb is clipped to 15
-  characters (`x=5..93`). The
-  menu body is 19 columns by 7 rows (`x=6`, `y=22`, 13 px rows; the last row's highlight ends at `y=109`, clear of the toast line). The toast line at the bottom is 17
-  columns wide (`x=4..104`, `y=118`), left of the transport icon and event dot.
+- Fonts: body text uses m5x7 (proportional, 7 px capitals and 2 px descenders, digits on a 6 px
+  advance); the breadcrumb and the footer hints use Tom Thumb (5 px capitals, 1 px descender).
+  Both are compiled-in glyph tables; characters outside printable ASCII draw as `?` (`★` as `*`).
+  The full runtime-error frame and the splash toast keep the older fixed 5×7 font.
+- Header (`y=0..8`): the breadcrumb at `x=0` with capitals on `y=0..4`, in the current area's
+  colour (`display.titleColor`: Build green, Link magenta, Shape blue, Play yellow, System and the
+  root menu gray), ending at or before `x=103`; a full-width 1 px rule at `y=8` in the same colour.
+  Help, confirmation, setup and other screens drawn over a menu keep that menu's colour; splash,
+  full runtime-error frames and the off state have none. Breadcrumbs keep the page name and drop
+  ancestors from the left behind `../`, measured in Tom Thumb pixels; when even `../page` does not
+  fit, the page name shows alone and clips with `..`.
+- Body: 8 rows on a 13 px pitch. Row `i` has its slot top at `s = 11 + 13*i`, m5x7 capitals on
+  `s+1..s+7` and a selection bar on `s-1..s+9`; the last row's bar ends at `y=111`.
+- Footer (`y=113..127`): Aux hints on the left up to `x=107`, then the recording disc, transport
+  icon and event dot, all centred on `y=121`. The toast covers the hint area.
 - Every snapshot `display` object carries the required `bodyLayout`:
   - `rows` keeps the menu/help/sample/restore/confirmation/System Info/concise-MIDI row
-    semantics, including the 28-character/7-row normalization, bars, selected-line scrolling, and
-    scrollbars.
+    semantics, including the 28-character/8-row normalization, bars, selected-line scrolling, and
+    scrollbars. Lines without menu-row parts draw at `x=2` (`x=12` among menu rows).
   - `card` is used for the setup portal and Backup / Restore status and keeps every complete
-    semantic source string in `display.lines`. Cards use `x=4`, `width=120`, `y=22`, `height=91`,
-    `rowAdvance=13` (20 columns by 7 rows), reserve the final row for the selected action, and
+    semantic source string in `display.lines`. Cards use `x=2`, `width=120`, `y=11`, `height=98`,
+    `rowAdvance=13` (20 columns by 8 rows), reserve the final row for the selected action, and
     ignore row bars and scroll metadata. When card prose wraps or later lines do not fit, only the
     final visible prose row gets `...`. Desktop and both boards draw cards and rows with the one
     shared native OLED renderer.
@@ -359,19 +364,39 @@ palette unless a behavior deliberately owns its own.
   row's text sits at the same position selected or not, with or without an auto-map prefix. Every
   menu item is exactly one body row: selecting or editing never adds a row, and edit mode has no
   `*` marker (the snapshot's `editing` flag carries it). Group rows keep their trailing ` >`.
-- Each menu row also carries its parts for the OLED: kind (`value`, `group` with `>`, or `action`
-  with `!`), label, value text, the edit cursor position of a text row being edited, and the Aux
+- Each menu row also carries its parts for the OLED: kind (`value`, `group` with `>`, `action`
+  with `!`, or `entry` for a sample-browser entry with no marker), label, value text, the edit cursor position of a text row being edited, and the Aux
   cap (encoder 1-3, plain or Shift) whose auto map controls it. Scroll metadata counts one row per
   item.
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
   with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
   the same width; shifted rows use `S1-`/`S1!`.
 - Snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`).
-  Desktop draws a 1-2 px scrollbar inside the OLED body only when rendered rows exceed visible
-  rows. It uses no text columns and is omitted for splash/help/confirm overlays unless menu metadata
-  is present.
-- `Num Style` has two modes. `bar` (the default) gives every bar-type number row a value bar on
-  its own row, selected or not, in place of the number; `numbers` shows numbers only and no bars.
+  When more than 8 rows exist, a 2 px scrollbar sits at `x=126..127`, `y=10..111`: a track at 1/6
+  of the area colour and a thumb in the area colour, `max(6, 8*102/totalRows)` px tall. It is
+  omitted for splash/help/confirm overlays unless menu metadata is present.
+- Left gutter: every auto-mapped row shows its Aux cap at `x=0..6`, selected or not and never
+  inverted: a disc at 28 % of the row colour with 1-3 pips in the row colour; a plain cap covers
+  `s+1..s+7`, a Shift cap `s..s+6` with a 5 px bar at 55 % on `s+8`. The selection bar starts at
+  `x=9` and labels at `x=12`. Sample-browser lists (`entry` rows: `..`, folders, files, `(empty)`)
+  have no gutter: the bar starts at `x=0` and labels at `x=2`.
+- Right column: values, `>`, `!` and mini bars end at `x=123` whether or not the page scrolls. `>`
+  covers `x=120..122` and `!` sits on `x=121`, the centre of the last digit cell. Unselected values
+  draw at 70 % of the row colour, values on the selection bar in black. The selection bar ends at
+  `x=124` when the page scrolls (gap at `x=125`) and at `x=127` when it fits.
+- Clipping: the label stays whole and the value clips with `..` to leave a 4 px gap. A label too
+  wide even alone clips with `..`; on the selected row it scrolls through its room instead, one
+  character every four snapshot attempts with a three-space gap.
+- Editing (E2): the label part of the bar stays filled; the value sits in a black box from 2 px
+  left of the value to the bar's right end, full bar height, drawn in the row colour. A text row
+  being edited shows its cursor character inverted (a row-colour block with a black glyph), with
+  room for a trailing cursor cell.
+- Mini bars are 30×5 at `x=94..123`, `y=s+2..s+6`: a 1 px outline around a 28×3 inside. `fill`
+  fills to the fraction; `marker` draws a centre dot and a 2×3 position block. They draw at 70 %
+  of the row colour on black when unselected, black on the selection bar, and in the row colour
+  inside the editing box.
+- `Num Style` has two modes. `bar` (the default) gives every bar-type number row a mini bar,
+  selected or not, in place of the number; `numbers` shows numbers only and no bars.
   Saves holding the retired `bar+numbers` load as `bar`. Each bar carries its fraction and style:
   `marker` for pan, semitones, cents, detune and envelope amount, `fill` otherwise.
 - Bar fractions follow encoder-turn space (see [Numeric steps](#numeric-steps)), so a bar moves
@@ -424,18 +449,20 @@ palette unless a behavior deliberately owns its own.
 
 ### Status icons and transport indicators
 
-- The transport icon (`▶` / `⏸` / `■`) sits bottom-right at `(107,118)` and the 5×5 event dot at
-  `(119,119)`. Both stay visible while a footer toast is shown; the toast never draws over them.
+- Footer icons, 2 px apart on `y=119..123`: the recording disc at `x=109..113`, the transport slot
+  at `x=116..120` and the event diamond at `x=123..127`. Play is a 3×5 triangle at `x=117..119`
+  (white, green on a measure flash, yellow on a beat flash), stop a 5×5 magenta square, pause two
+  2×5 blue bars. The disc's slot is always reserved, and a toast never draws over the icons.
 - Event-dot and transport-flash timing uses native monotonic deadlines. The event dot holds full
   brightness for 200 ms, then fades in 100 ms steps at 1/2, 1/4 and 1/8 brightness and goes dark
   (500 ms in all); every new event restarts the 200 ms hold, so events less than 200 ms apart keep
-  it steadily at full. The dot is always white. Beat/measure flashes last 90 ms. A visible start, fade step,
+  it steadily at full. The dot is a white 5×5 diamond. Beat/measure flashes last 90 ms. A visible start, fade step,
   flash-kind change, or expiry forces one snapshot; a retrigger while the dot is still at full
   brightness, or a same-kind flash retrigger, only moves the deadline. The fade adds at most one
   one-shot snapshot per 100 ms step; while playing, boards already capture on the 33 ms tick, so
   the fade only changes pixels (one extra OLED write per step, on the render worker).
-- The CPU meter in the header's top right is three bars (`x=116`, `119`, `122`; 3, 5 and 7 px
-  tall, bottoms on `y=11`) and is always shown on menu frames. It reads the highest load reported
+- The CPU meter in the header's top right is three equal 2×5 bars (`x=120`, `123`, `126`,
+  `y=0..4`) and is always shown on menu frames. It reads the highest load reported
   over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker
   utilization on the boards, the audio block render ratio on the desktop, which has no persistent
   workers. With `W` = `System > Audio > Engine > CPU Warn %` (default 85): below
@@ -444,11 +471,15 @@ palette unless a behavior deliberately owns its own.
   `W` = 70/75/80/85/90/95.
 - There is no separate steady high-CPU icon; the meter covers it, so the engine no longer tracks a
   steady-high state.
-- A missed-quantum flash shows the inverted white/black CPU glyph at `(107,5)`. The yellow save
-  icon at `(97,4)` may coexist with it.
+- A missed-quantum flash shows a red 5×5 square with a centre dot at `x=106..110`; the save flash
+  a green 5×5 check mark at `x=113..117`. Both sit on the breadcrumb line (`y=0..4`) and may
+  coexist.
 - The presentation also carries whether a System recording is running (`recordingActive`), from
-  the recording status the host reports when a recording starts, finishes, or fails, for the
-  footer's recording disc.
+  the recording status the host reports when a recording starts, finishes, or fails, and its
+  pulse phase (`recordingPulseDim`). The red disc alternates full and half brightness every
+  500 ms from the start of the take; a native deadline at each phase boundary refreshes the
+  presentation at 2 Hz while recording. The phase holds while the OLED is dark or on a splash, so
+  a sleeping screen is not redrawn for it.
 - `DeadlineMiss` is native, nonterminal ownership recovery. A newly missed persistent quantum
   replays the previous final master quantum exactly once when its frame count matches, otherwise it
   emits silence; later refills during recovery are silent. `missedQuantumFlash` stays set for five
@@ -459,8 +490,9 @@ palette unless a behavior deliberately owns its own.
 
 ### Toasts
 
-- Toasts render on the single bottom line with a 17-column visible window that ends at `x=104`,
-  2 px clear of the transport icon. While more of a longer message follows the window, its last
+- Toasts render in a black box over the hint area (`x=0..107`, `y=115..127`), m5x7 text at `x=4`
+  with capitals on `y=117..123`, from a 17-character window fitted to 104 px (`..` when it still
+  clips). The recording disc, transport icon and event dot stay visible. While more of a longer message follows the window, its last
   two columns show `..`; they clear once the message end is in view. Longer messages scroll
   horizontally by one native offset per display snapshot attempt; the host supplies the 33 ms
   attempt cadence while scrolling. Short messages schedule no scrolling.
@@ -665,12 +697,19 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 
 - The presentation carries, per Aux 1-3 and for the plain and the Shift layer, the turn and the
   click hint of the control that encoder runs on the focused page: custom bindings over the
-  auto map, exactly as a turn or click resolves. Each hint has a short label (at most 7 characters
-  for Aux 1-2 and 6 for Aux 3: the binding or layout label, with inner vowels dropped from the
-  right and then cut when it is longer), the colour of the menu section that owns the target (Play
+  auto map, exactly as a turn or click resolves. Each hint has its full label (the binding or
+  layout label), the colour of the menu section that owns the target (Play
   remote pages own none, so a bus mix hint is Shape blue; clicks: behavior actions Build, platform
   effects by their area), and whether it comes from the auto map or a manual binding. The Shift
   layer flag is set while Shift (alone or with Fn) is held.
+- Slots sit at `x=0`, `37` and `74`: a cap at `x..x+6` on `y=118..124` (Shift cap `117..125`
+  with its bar) in the hint's colour, labels in Tom Thumb from `x+9`. A slot with nothing mapped
+  draws nothing. A single turn or click label is centred on its cap (`y=119..123`); with both,
+  the click label with a trailing `!` sits on `y=115..119` and the turn label on `y=123..127`.
+- A label may run on through an empty neighbour's slot up to `x=107`; otherwise it stops 2 px
+  before the next shown cap. A label that does not fit drops lower-case vowels inside words from
+  the right, then is cut; a click label keeps its `!`. While Shift (alone or with Fn) is held the
+  footer shows the Shift-layer hints under Shift caps.
 - `System > Display > Auto Hints` and `Manual Hints` (both default on) drop the auto-map or the
   manual hints. They change only the footer; row caps stay.
 

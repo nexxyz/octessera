@@ -1,18 +1,17 @@
 use platform_core::palette;
 
 use super::error_layout::runtime_error_rows;
-use super::footer::{draw_footer, draw_status_indicators};
-use super::model::{OledBarInput, OledBarStyle, OledRuntimeErrorMetadata};
-use super::pixels::{dim, fill_rect, rgb565, rgb565_to_rgb, scale};
+use super::footer::draw_footer;
+use super::header::draw_header;
+use super::menu_rows::{draw_card_body, draw_menu_body};
+use super::model::OledRuntimeErrorMetadata;
+use super::pixels::{dim, fill_rect, rgb565, scale};
 use super::splash::render_splash;
-use super::text::{draw_text_clipped, title_text_for_oled};
+use super::text::draw_text_clipped;
 use super::{
-    fit_line_ellipsis, layout_card_body, layout_rows, OledDisplayLayout, OledPresentationInput,
-    OledSplash, CARD_BODY_RECT, MENU_BODY_RECT, OLED_FRAME_BYTES, RUNTIME_ERROR_BODY_RECT,
-    SPLASH_TOAST_RECT,
+    fit_line_ellipsis, OledDisplayLayout, OledPresentationInput, OledSplash, OLED_FRAME_BYTES,
+    RUNTIME_ERROR_BODY_RECT, SPLASH_TOAST_RECT,
 };
-
-const HEADER_RULE_Y: usize = 16;
 
 pub fn render_oled_frame(input: &OledPresentationInput) -> Vec<u8> {
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
@@ -53,138 +52,12 @@ fn is_concise_runtime_error_presentation(error: &OledRuntimeErrorMetadata) -> bo
 }
 
 fn render_menu_frame(frame: &mut [u8], input: &OledPresentationInput, brightness: f32) {
-    let title = title_text_for_oled(&input.display.title);
-    let title_color = rgb565(scale(palette::WHITE, brightness));
-    let dim_color = rgb565(scale(dim(palette::GRAY, 4), brightness));
-    let text_color = rgb565(scale(palette::WHITE, brightness));
-    fill_rect(
-        frame,
-        0,
-        0,
-        128,
-        16,
-        rgb565(scale(palette::BLACK, brightness)),
-    );
-    draw_text_clipped(frame, &title, 5, 5, 15, title_color);
-    fill_rect(
-        frame,
-        0,
-        HEADER_RULE_Y,
-        128,
-        1,
-        rgb565(scale(rgb565_to_rgb(input.display.title_color), brightness)),
-    );
-    draw_status_indicators(frame, input, brightness);
-
-    let body_rect = match input.display.body_layout {
-        OledDisplayLayout::Rows => MENU_BODY_RECT,
-        OledDisplayLayout::Card => CARD_BODY_RECT,
-    };
-    let layout = match input.display.body_layout {
-        OledDisplayLayout::Rows => layout_rows(&input.display.lines, input.selected_row, body_rect),
-        OledDisplayLayout::Card => {
-            layout_card_body(&input.display.lines, input.selected_row, body_rect)
-        }
-    };
-    for (index, row) in layout.iter().enumerate() {
-        let y = body_rect.y + index * body_rect.row_advance;
-        let color = input
-            .display
-            .colors
-            .get(row.source_index)
-            .map(|color| rgb565(scale(rgb565_to_rgb(*color), brightness)))
-            .unwrap_or(text_color);
-        let selected = row.selected;
-        let bar = if input.display.body_layout == OledDisplayLayout::Rows {
-            input
-                .display
-                .bars
-                .get(row.source_index)
-                .and_then(Option::as_ref)
-        } else {
-            None
-        };
-        if selected {
-            fill_rect(frame, 3, y - 1, 122, 11, color);
-        }
-        if let Some(bar) = bar {
-            draw_bar(frame, 87, y - 1, bar, color, selected);
-        }
-        let text = if selected {
-            rgb565(scale(palette::BLACK, brightness))
-        } else {
-            color
-        };
-        let text_x = if input.display.body_layout == OledDisplayLayout::Card {
-            body_rect.x
-        } else if row.text.starts_with("  ") {
-            4
-        } else {
-            6
-        };
-        let text_width = if bar.is_some() {
-            13
-        } else {
-            body_rect.columns()
-        };
-        draw_text_clipped(frame, &row.text, text_x as i32, y as i32, text_width, text);
-    }
-    if input.display.body_layout == OledDisplayLayout::Rows {
-        draw_scrollbar(frame, input, dim_color, text_color);
+    draw_header(frame, input, brightness);
+    match input.display.body_layout {
+        OledDisplayLayout::Rows => draw_menu_body(frame, input, brightness),
+        OledDisplayLayout::Card => draw_card_body(frame, input, brightness),
     }
     draw_footer(frame, input, brightness);
-}
-
-fn draw_bar(frame: &mut [u8], x: usize, y: usize, bar: &OledBarInput, fill: u16, selected: bool) {
-    let fraction = bar.fraction.clamp(0.0, 1.0);
-    let outer_width = 36;
-    let outer_height = 9;
-    let inner_x = x + 1;
-    let inner_y = y + 1;
-    let inner_width = outer_width - 2;
-    let inner_height = outer_height - 2;
-    let outline = if selected {
-        rgb565(scale(palette::BLACK, 1.0))
-    } else {
-        fill
-    };
-    let track = if selected {
-        rgb565(scale(palette::BLACK, 1.0))
-    } else {
-        rgb565(dim(rgb565_to_rgb(fill), 6))
-    };
-    fill_rect(frame, x, y, outer_width, outer_height, outline);
-    fill_rect(frame, inner_x, inner_y, inner_width, inner_height, track);
-    if bar.style == OledBarStyle::Marker {
-        let marker_x = inner_x + ((inner_width - 1) as f32 * fraction).round() as usize;
-        fill_rect(frame, marker_x, inner_y + 1, 1, inner_height - 2, fill);
-        return;
-    }
-    fill_rect(
-        frame,
-        inner_x,
-        inner_y,
-        ((inner_width as f32) * fraction).round() as usize,
-        inner_height,
-        fill,
-    );
-}
-
-fn draw_scrollbar(frame: &mut [u8], input: &OledPresentationInput, track: u16, thumb: u16) {
-    let Some(scroll) = input.display.scroll.as_ref() else {
-        return;
-    };
-    if scroll.total_rows <= scroll.visible_rows || scroll.visible_rows == 0 {
-        return;
-    }
-    let body_top = 22;
-    let body_height = 88;
-    let thumb_height = ((scroll.visible_rows * body_height) / scroll.total_rows).max(6);
-    let max_offset = scroll.total_rows.saturating_sub(scroll.visible_rows).max(1);
-    let max_y = body_top + body_height - thumb_height;
-    let y = body_top + (scroll.offset.min(max_offset) * (max_y - body_top)) / max_offset;
-    fill_rect(frame, 125, body_top, 2, body_height, track);
-    fill_rect(frame, 125, y, 2, thumb_height, thumb);
 }
 
 fn render_runtime_error_frame(frame: &mut [u8], error: &OledRuntimeErrorMetadata, brightness: f32) {

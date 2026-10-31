@@ -28,7 +28,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         .unwrap();
     assert_eq!(
         snapshot_from(&edit_behavior)["display"]["title"],
-        "Behavior: life"
+        "/B/L1: life/Behavior: life"
     );
     assert_eq!(snapshot_from(&edit_behavior)["display"]["editing"], false);
     let behavior_picker_rows = &runner.menu.root.children[0].children[0].children[0].children;
@@ -63,7 +63,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         })
         .unwrap();
     let snapshot = snapshot_from(&flushed);
-    assert_eq!(snapshot["display"]["title"], "Behavior: keys");
+    assert_eq!(snapshot["display"]["title"], "/B/L1: keys/Behavior: keys");
     assert_eq!(snapshot["display"]["editing"], false);
     assert_eq!(snapshot["activeBehavior"], "keys");
 }

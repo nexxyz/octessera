@@ -108,7 +108,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
         "Drums/kick.wav"
     );
     assert!(runner.sample_browser.is_none());
-    assert_eq!(snapshot["display"]["title"], "../Sampler");
+    assert_eq!(snapshot["display"]["title"], "../I1: samp/Sampler");
     let selected_row = snapshot["selectedRow"].as_u64().expect("selected row") as usize;
     assert_eq!(snapshot["display"]["lines"][selected_row], "  S1 Browse >");
     runner.make_deferred_menu_apply_due_for_test();

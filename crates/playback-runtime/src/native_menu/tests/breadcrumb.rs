@@ -19,7 +19,7 @@ fn instrument_page(cfg: NativeMenuConfig) -> (String, String) {
 pub(crate) fn instrument_page_breadcrumb_uses_the_short_model_name() {
     assert_eq!(
         instrument_page(config()),
-        ("I1: synth direct".into(), "../I1: synth".into())
+        ("I1: synth direct".into(), "/S/Instruments/I1: synth".into())
     );
 
     let mut midi = config();
@@ -27,13 +27,13 @@ pub(crate) fn instrument_page_breadcrumb_uses_the_short_model_name() {
     midi.instrument_midi_channels[0] = 3;
     assert_eq!(
         instrument_page(midi),
-        ("I1: midi ch3".into(), "../I1: midi".into())
+        ("I1: midi ch3".into(), "/S/Instruments/I1: midi".into())
     );
 
     let mut none = config();
     none.instrument_types[0] = "none".into();
     assert_eq!(
         instrument_page(none),
-        ("I1: none".into(), "../I1: none".into())
+        ("I1: none".into(), "/S/Instruments/I1: none".into())
     );
 }

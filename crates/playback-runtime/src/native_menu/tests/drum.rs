@@ -77,7 +77,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
         .is_none());
     assert!(menu.focus_current_group_label("Drum"));
     let _ = menu.press();
-    assert_eq!(menu.snapshot().lines.len(), 7);
+    assert_eq!(menu.snapshot().lines.len(), 8);
     assert!(menu.focus_item_key("instruments.0.drum.voices.0.tonePct"));
     let _ = menu.press();
     menu.turn(1);
@@ -89,7 +89,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
     assert!(!menu.state.editing);
     assert!(menu.focus_item_key("instruments.0.drum.voices.0.levelPct"));
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.lines.len(), 7);
+    assert_eq!(snapshot.lines.len(), 8);
     let selected_row = snapshot.selected_row.unwrap();
     assert!(snapshot.lines[selected_row].starts_with("  Level %"));
 }

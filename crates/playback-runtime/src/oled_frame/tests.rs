@@ -8,32 +8,32 @@ use super::INDICATOR_FADE_LEVELS;
 use super::OLED_FRAME_BYTES;
 use platform_core::palette;
 
-const NORMAL_SELECTED_FNV1A64: u64 = 0x66A3_B77D_04D6_1939;
-const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x7659_E6A3_8E27_895B;
+const NORMAL_SELECTED_FNV1A64: u64 = 0x648C_8E6E_E26C_E6D7;
+const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0x82BC_890A_3481_E5EC;
 const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x2E40_726F_83B0_07C9;
-const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0xE6B6_4051_E3CB_5039;
+const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x6F99_C1ED_A3B3_827C;
 const STARTUP_SPLASH_100_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const STARTUP_SPLASH_50_FNV1A64: u64 = 0x4AB2_E39F_7B90_AA8E;
 const SLEEP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SHUTDOWN_SPLASH_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
 const OFF_FNV1A64: u64 = 0x8F69_55BF_94EC_2325;
-const GLYPH_DIGITS_FNV1A64: u64 = 0x42A2_EF8B_19BD_8E0F;
-const GLYPH_UPPERCASE_FIRST_FNV1A64: u64 = 0x70C0_9C0D_9369_AED5;
-const GLYPH_UPPERCASE_LAST_FNV1A64: u64 = 0xFA47_DE9C_7BCB_02F5;
-const GLYPH_LOWERCASE_FIRST_FNV1A64: u64 = 0x519D_496F_FBF6_A4C7;
-const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x47F6_54B9_4895_8D85;
-const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0x2D3F_24C2_EAAF_E3F5;
-const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0x366C_75CE_B452_6101;
-const GLYPH_SYMBOLS_FNV1A64: u64 = 0x6B0C_3FB6_C817_F0EF;
+const GLYPH_DIGITS_FNV1A64: u64 = 0xAC1C_A2AF_64C3_3660;
+const GLYPH_UPPERCASE_FIRST_FNV1A64: u64 = 0xE569_2D5C_7D99_84D0;
+const GLYPH_UPPERCASE_LAST_FNV1A64: u64 = 0xFD41_7EA3_F0FA_4180;
+const GLYPH_LOWERCASE_FIRST_FNV1A64: u64 = 0x38FC_1612_340F_D8E0;
+const GLYPH_LOWERCASE_LAST_FNV1A64: u64 = 0x28D3_743B_CFDE_3BF0;
+const GLYPH_PUNCTUATION_FIRST_FNV1A64: u64 = 0x91A3_6F66_811E_4B70;
+const GLYPH_PUNCTUATION_LAST_FNV1A64: u64 = 0x1147_090F_8100_5BB0;
+const GLYPH_SYMBOLS_FNV1A64: u64 = 0x7DF5_486C_AD3E_AF30;
 pub(super) const GLYPH_GOLDEN_TEXTS: [&str; 8] = [
     "0123456789",
-    "ABCDEFGHIJKLMNOPQRS",
-    "TUVWXYZ",
-    "abcdefghijklmnopqrs",
-    "tuvwxyz",
-    ":.-*+/()_#@><[]%!",
-    "?,\'\"=",
-    "▶■●|",
+    "ABCDEFGHIJKLM",
+    "NOPQRSTUVWXYZ",
+    "abcdefghijklm",
+    "nopqrstuvwxyz",
+    "!\"#$%&'()*+,-./",
+    ":;<=>?@[\\]^_`{|}~",
+    "★ Samples",
 ];
 const BOOT_SPLASH_ASSET_FNV1A64: u64 = STARTUP_SPLASH_100_FNV1A64;
 const SLEEP_SHUTDOWN_SPLASH_ASSET_FNV1A64: u64 = SLEEP_SPLASH_FNV1A64;
@@ -74,6 +74,7 @@ fn typed_oled_golden_anchors_are_stable() {
         ),
         ("glyph-symbols", glyph_fixture(GLYPH_GOLDEN_TEXTS[7])),
     ];
+    let mut mismatches = Vec::new();
     for (name, input) in cases {
         let frame = render_oled_frame(&input);
         assert_eq!(frame.len(), OLED_FRAME_BYTES, "frame length: {name}");
@@ -97,8 +98,14 @@ fn typed_oled_golden_anchors_are_stable() {
             "glyph-symbols" => GLYPH_SYMBOLS_FNV1A64,
             _ => unreachable!("unlisted OLED golden case: {name}"),
         };
-        assert_eq!(fnv1a64(&frame), expected, "frame anchor: {name}");
+        if fnv1a64(&frame) != expected {
+            mismatches.push(format!("{name}: {:#018X}", fnv1a64(&frame)));
+        }
     }
+    assert!(
+        mismatches.is_empty(),
+        "frame anchors changed: {mismatches:#?}"
+    );
     assert_eq!(SPLASH_BOOT.len(), OLED_FRAME_BYTES);
     assert_eq!(SPLASH_SLEEP_SHUTDOWN.len(), OLED_FRAME_BYTES);
     assert_eq!(SPLASH_SLEEP_SHUTDOWN, SPLASH_BOOT);
@@ -133,21 +140,24 @@ fn runtime_error_fallback_and_path_punctuation_are_visible_in_the_fixed_font() {
 }
 
 #[test]
-fn missed_quantum_flash_inverts_cpu_slot_and_preserves_save_icon() {
-    let mut high_cpu = base();
-    high_cpu.metrics = OledPresentationMetrics::from_status(Some(0.9), false);
-    let high_cpu_frame = render_oled_frame(&high_cpu);
-    assert_eq!(pixel(&high_cpu_frame, 108, 6), palette::BLACK_RGB565);
+fn header_icons_sit_left_of_the_cpu_meter_on_the_crumb_line() {
+    let mut input = base();
+    input.metrics.missed_quantum_flash = true;
+    input.save_flash = OledSaveFlash::Flash;
+    let frame = render_oled_frame(&input);
+    let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
+    assert_eq!(pixel(&frame, 106, 0), red);
+    assert_eq!(pixel(&frame, 108, 2), red);
+    assert_eq!(pixel(&frame, 107, 1), 0);
+    assert_eq!(pixel(&frame, 110, 4), red);
+    for (x, y) in [(117, 0), (116, 1), (113, 2), (115, 2), (113, 3), (114, 4)] {
+        assert_eq!(pixel(&frame, x, y), palette::GREEN_RGB565, "check {x},{y}");
+    }
+    assert_eq!(pixel(&frame, 114, 2), 0);
+    assert!((0..128).all(|x| (5..8).all(|y| x < 104 || pixel(&frame, x, y) == 0)));
 
-    let mut missed = high_cpu;
-    missed.metrics.missed_quantum_flash = true;
-    missed.save_flash = OledSaveFlash::Flash;
-    let missed_frame = render_oled_frame(&missed);
-
-    assert_eq!(pixel(&missed_frame, 110, 8), palette::WHITE_RGB565);
-    assert_eq!(pixel(&missed_frame, 108, 6), palette::BLACK_RGB565);
-    assert_eq!(pixel(&missed_frame, 97, 4), palette::YELLOW_RGB565);
-    assert_ne!(missed_frame, high_cpu_frame);
+    let plain = render_oled_frame(&base());
+    assert!((104..120).all(|x| (0..8).all(|y| pixel(&plain, x, y) == 0)));
 }
 
 #[test]
@@ -211,6 +221,7 @@ fn concise_midi_error() -> OledPresentationInput {
     input.display.lines = vec!["MIDI unavailable".into()];
     input.display.colors = vec![platform_core::palette::WHITE_RGB565];
     input.display.bars = vec![None];
+    input.display.rows = vec![None];
     input.runtime_error = Some(OledRuntimeErrorMetadata {
         domain: Some("midi".into()),
         code: Some("operation_failed".into()),
@@ -248,59 +259,79 @@ fn off() -> OledPresentationInput {
 fn glyph_fixture(text: &str) -> OledPresentationInput {
     let mut input = base();
     input.display.title = "Glyphs".into();
-    input.display.lines = [text, text, text, text, text, text, text]
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
-    input.display.colors = vec![platform_core::palette::WHITE_RGB565; 7];
-    input.display.bars = vec![None; 7];
+    input.display.lines = vec![text.to_owned(); 8];
+    input.display.colors = vec![platform_core::palette::WHITE_RGB565; 8];
+    input.display.bars = vec![None; 8];
+    input.display.rows = vec![None; 8];
+    input.display.scroll = None;
     input.selected_row = None;
     input
 }
 
+pub(super) const AREA: u16 = palette::BLUE_RGB565;
+
+pub(super) fn menu_row(
+    kind: OledMenuRowKind,
+    label: &str,
+    value: &str,
+    cap: Option<(u8, bool)>,
+) -> Option<OledMenuRowInput> {
+    Some(OledMenuRowInput {
+        kind,
+        label: label.into(),
+        value: value.into(),
+        text_cursor: None,
+        aux_cap: cap.map(|(encoder, shift)| OledAuxCap { encoder, shift }),
+    })
+}
+
+pub(super) fn hint(text: &str) -> Option<OledHintLabel> {
+    Some(OledHintLabel {
+        text: text.into(),
+        color: AREA,
+        source: OledHintSource::Auto,
+    })
+}
+
+/// A Filter page: eight rows of every kind, Cutoff selected, scrolled, three turn hints.
 pub(super) fn base() -> OledPresentationInput {
+    use OledMenuRowKind::{Action, Group, Value};
+    let rows = vec![
+        menu_row(Value, "Type", "lowpass", Some((2, true))),
+        menu_row(Value, "Cutoff", "221", Some((1, false))),
+        menu_row(Value, "Res", "0", Some((2, false))),
+        menu_row(Value, "Env Amount", "0%", Some((3, false))),
+        menu_row(Value, "Key Tracking", "0%", None),
+        menu_row(Group, "Synth", "", None),
+        menu_row(Action, "Map to Grid", "", None),
+        menu_row(Value, "Name", "Synth", None),
+    ];
+    let bar = |fraction, style| Some(OledBarInput { fraction, style });
     OledPresentationInput {
         display: OledDisplayInput {
             body_layout: OledDisplayLayout::Rows,
-            title: "Voice FX/Aux".into(),
-            title_color: platform_core::palette::BLUE_RGB565,
-            lines: [
-                "  Volume +3",
-                "@@ FX/Aux 1",
-                "*Velocity",
-                "  sample_1",
-                "  (empty)",
-                "  Q/V X",
-                "  J+K",
-            ]
-            .into_iter()
-            .map(str::to_owned)
-            .collect(),
-            colors: vec![
-                platform_core::palette::WHITE_RGB565,
-                platform_core::palette::GREEN_RGB565,
-                platform_core::palette::WHITE_RGB565,
-                platform_core::palette::WHITE_RGB565,
-                platform_core::palette::WHITE_RGB565,
-                platform_core::palette::WHITE_RGB565,
-                platform_core::palette::WHITE_RGB565,
-            ],
+            title: "../I1: synth/Synth/Filter".into(),
+            title_color: AREA,
+            lines: rows
+                .iter()
+                .map(|row| row.as_ref().unwrap().label.clone())
+                .collect(),
+            colors: vec![AREA; rows.len()],
             bars: vec![
                 None,
-                Some(OledBarInput {
-                    fraction: 0.5,
-                    style: OledBarStyle::Fill,
-                }),
-                None,
+                bar(0.87, OledBarStyle::Fill),
+                bar(0.0, OledBarStyle::Fill),
+                bar(0.5, OledBarStyle::Marker),
                 None,
                 None,
                 None,
                 None,
             ],
+            rows,
             scroll: Some(OledScrollInput {
                 offset: 2,
                 total_rows: 12,
-                visible_rows: 7,
+                visible_rows: 8,
             }),
             ..Default::default()
         },
@@ -312,6 +343,23 @@ pub(super) fn base() -> OledPresentationInput {
         event_dot_level: INDICATOR_FADE_LEVELS,
         display_brightness: 100,
         cpu_warn_percent: 85,
+        aux_hints: OledAuxHints {
+            normal: [
+                OledAuxHint {
+                    turn: hint("Cutoff"),
+                    click: None,
+                },
+                OledAuxHint {
+                    turn: hint("Res"),
+                    click: None,
+                },
+                OledAuxHint {
+                    turn: hint("Env"),
+                    click: None,
+                },
+            ],
+            ..Default::default()
+        },
         metrics: OledPresentationMetrics::from_status(None, false),
         ..Default::default()
     }

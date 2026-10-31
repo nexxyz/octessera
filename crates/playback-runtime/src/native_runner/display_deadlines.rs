@@ -1,4 +1,5 @@
-use super::{snapshot_display::selected_menu_presentation_line, NativeOledMode, NativeRunner};
+use super::snapshot_display::{selected_menu_label_overflows, selected_menu_presentation_line};
+use super::{NativeOledMode, NativeRunner};
 use crate::oled_frame::TOAST_RECT;
 use std::time::{Duration, Instant};
 
@@ -148,6 +149,7 @@ impl NativeRunner {
         }
         selected_menu_presentation_line(self, &menu)
             .is_some_and(|line| line.chars().count() > DISPLAY_LINE_WIDTH)
+            || selected_menu_label_overflows(&menu)
     }
 }
 

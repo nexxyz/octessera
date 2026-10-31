@@ -1,29 +1,28 @@
-use super::font::glyph_rows;
+use super::font::M5X7;
 use super::model::*;
-use super::pixels::{dim, rgb565, rgb565_to_rgb, scale};
+use super::pixels::{dim, rgb565, rgb565_to_rgb, scale, shade};
 use super::render::{render_oled_frame, render_oled_frame_into};
-use super::tests::{base, pixel, GLYPH_GOLDEN_TEXTS};
+use super::tests::{base, menu_row, pixel, AREA, GLYPH_GOLDEN_TEXTS};
 use super::text::title_text_for_oled;
 use super::{layout_card_body, OledDisplayLayout, CARD_BODY_RECT, OLED_FRAME_BYTES};
 use platform_core::palette;
 
-const DEFINED_GLYPHS: &str =
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz:.-*+/()_#@><[]%!?,\'\"=▶■●|";
-
-fn green_track() -> u16 {
-    rgb565(dim(rgb565_to_rgb(palette::GREEN_RGB565), 6))
+fn slot(index: usize) -> usize {
+    11 + index * 13
 }
 
-fn with_bar(fraction: f32, style: OledBarStyle, selected_row: usize) -> Vec<u8> {
-    let mut input = base();
-    input.display.bars[1] = Some(OledBarInput { fraction, style });
-    input.selected_row = Some(selected_row);
-    render_oled_frame(&input)
+fn lit_columns(
+    frame: &[u8],
+    rows: std::ops::Range<usize>,
+    xs: std::ops::Range<usize>,
+) -> Vec<usize> {
+    xs.filter(|x| rows.clone().any(|y| pixel(frame, *x, y) != 0))
+        .collect()
 }
 
-fn row_has_color(frame: &[u8], row: usize, color: u16) -> bool {
-    let top = 22 + row * 13;
-    (top..top + 7).any(|y| (4..120).any(|x| pixel(frame, x, y) == color))
+fn unscrolled(mut input: OledPresentationInput) -> OledPresentationInput {
+    input.display.scroll = None;
+    input
 }
 
 fn modal(lines: &[&str], layout: OledDisplayLayout) -> OledPresentationInput {
@@ -32,150 +31,260 @@ fn modal(lines: &[&str], layout: OledDisplayLayout) -> OledPresentationInput {
     input.display.lines = lines.iter().map(|line| (*line).to_owned()).collect();
     input.display.colors = vec![palette::WHITE_RGB565; lines.len()];
     input.display.bars = vec![None; lines.len()];
+    input.display.rows = vec![None; lines.len()];
     input.display.scroll = None;
     input.selected_row = Some(lines.len() - 1);
     input
 }
 
 #[test]
-fn header_rule_spans_the_width_in_the_area_colour_between_title_and_body() {
-    for (title, color, brightness) in [
-        ("/Play", palette::YELLOW_RGB565, 100),
-        ("/Build", palette::GREEN_RGB565, 50),
-        ("MENU", palette::GRAY_RGB565, 100),
-    ] {
+fn header_crumb_and_rule_use_the_area_colour_above_a_clear_row() {
+    for (color, brightness) in [(palette::YELLOW_RGB565, 100), (palette::GREEN_RGB565, 50)] {
         for layout in [OledDisplayLayout::Rows, OledDisplayLayout::Card] {
             let mut input = base();
-            input.display.title = title.into();
             input.display.title_color = color;
             input.display.body_layout = layout;
-            input.selected_row = Some(0);
             input.display_brightness = brightness;
             let frame = render_oled_frame(&input);
-            let expected = rgb565(scale(rgb565_to_rgb(color), f32::from(brightness) / 100.0));
-            assert!(
-                (0..128).all(|x| pixel(&frame, x, 16) == expected),
-                "{title}"
-            );
-            for y in [12, 13, 14, 15, 17, 18, 19, 20] {
-                assert!((0..128).all(|x| pixel(&frame, x, y) == 0), "{title} y={y}");
-            }
-            assert!(
-                (0..128).any(|x| pixel(&frame, x, 11) != 0),
-                "{title} glyphs"
-            );
-            if layout == OledDisplayLayout::Rows {
-                assert_ne!(pixel(&frame, 4, 21), 0, "{title} selection");
-            }
+            let expected = shade(color, f32::from(brightness) / 100.0);
+            assert!((0..128).all(|x| pixel(&frame, x, 8) == expected));
+            assert!((0..128).all(|x| pixel(&frame, x, 9) == 0));
+            assert!((0..104).any(|x| (0..5).any(|y| pixel(&frame, x, y) == expected)));
+            assert!((0..128).all(|x| (6..8).all(|y| pixel(&frame, x, y) == 0)));
         }
     }
 }
 
 #[test]
-fn menu_frame_draws_title_selection_bar_scrollbar_transport_and_event_dot() {
+fn long_titles_clip_with_dots_before_the_header_icons() {
+    let mut input = base();
+    input.display.title = "A Page Name That Runs Far Past The Header".into();
+    let frame = render_oled_frame(&input);
+    assert!(!lit_columns(&frame, 0..6, 96..104).is_empty());
+    assert!(lit_columns(&frame, 0..6, 104..120).is_empty());
+}
+
+#[test]
+fn selection_bar_spans_the_capitals_and_stops_short_of_the_scrollbar() {
     let frame = render_oled_frame(&base());
-    assert_ne!(pixel(&frame, 5, 5), 0);
-    assert_eq!(pixel(&frame, 4, 34), palette::GREEN_RGB565);
-    assert_eq!(pixel(&frame, 87, 34), palette::BLACK_RGB565);
-    assert_eq!(pixel(&frame, 88, 35), palette::GREEN_RGB565);
-    assert_ne!(pixel(&frame, 125, 22), 0);
-    assert_ne!(pixel(&frame, 108, 118), 0);
-    assert_ne!(pixel(&frame, 119, 119), 0);
+    let top = slot(1);
+    assert_eq!(pixel(&frame, 9, top - 1), AREA);
+    assert_eq!(pixel(&frame, 9, top + 9), AREA);
+    assert_eq!(pixel(&frame, 8, top + 3), 0);
+    assert_eq!(pixel(&frame, 9, top - 2), 0);
+    assert_eq!(pixel(&frame, 9, top + 10), 0);
+    assert_eq!(pixel(&frame, 124, top + 3), AREA);
+    assert_eq!(pixel(&frame, 125, top + 3), 0);
+
+    let frame = render_oled_frame(&unscrolled(base()));
+    assert_eq!(pixel(&frame, 127, top + 3), AREA);
+    assert_eq!(pixel(&frame, 126, top + 3), AREA);
 
     let mut unselected = base();
     unselected.selected_row = None;
     let frame = render_oled_frame(&unselected);
-    assert!((17..114).all(|y| pixel(&frame, 3, y) == 0));
+    assert!((10..112).all(|y| pixel(&frame, 9, y) == 0));
 }
 
 #[test]
-fn bars_render_empty_partial_full_marker_and_selected_contrast() {
-    let empty = with_bar(0.0, OledBarStyle::Fill, 0);
-    assert_eq!(pixel(&empty, 87, 34), palette::GREEN_RGB565);
-    assert_eq!(pixel(&empty, 88, 35), green_track());
+fn aux_caps_sit_on_the_capitals_with_pips_and_are_never_inverted() {
+    let frame = render_oled_frame(&base());
+    let disc = shade(AREA, 0.28);
+    let top = slot(1);
+    assert_eq!(pixel(&frame, 0, top + 3), disc);
+    assert_eq!(pixel(&frame, 3, top + 1), disc);
+    assert_eq!(pixel(&frame, 3, top + 4), AREA);
+    assert_eq!(pixel(&frame, 0, top + 1), 0);
+    let top = slot(3);
+    for x in [1, 3, 5] {
+        assert_eq!(pixel(&frame, x, top + 4), AREA, "pip {x}");
+    }
+    let top = slot(0);
+    assert_eq!(pixel(&frame, 3, top), disc);
+    assert_eq!(pixel(&frame, 2, top + 3), AREA);
+    assert_eq!(pixel(&frame, 4, top + 3), AREA);
+    assert_eq!(pixel(&frame, 3, top + 7), 0);
+    assert!((1..6).all(|x| pixel(&frame, x, top + 8) == shade(AREA, 0.55)));
+    assert!(lit_columns(&frame, slot(4)..slot(4) + 9, 0..8).is_empty());
+}
 
-    let partial = with_bar(0.5, OledBarStyle::Fill, 0);
-    assert_eq!(pixel(&partial, 88, 35), palette::GREEN_RGB565);
-    assert_eq!(pixel(&partial, 105, 35), green_track());
+#[test]
+fn values_markers_and_minis_end_on_the_shared_right_column() {
+    let mut input = unscrolled(base());
+    input.selected_row = None;
+    input.display.bars = vec![None; 8];
+    input.display.rows[1].as_mut().unwrap().value = "808".into();
+    let frame = render_oled_frame(&input);
+    let ink = |row| lit_columns(&frame, slot(row) + 1..slot(row) + 10, 60..128);
+    assert_eq!(ink(1).last(), Some(&123));
+    let marker = |row| lit_columns(&frame, slot(row) + 1..slot(row) + 10, 100..128);
+    assert_eq!(marker(5), [120, 121, 122]);
+    assert_eq!(marker(6), [121]);
+    assert!((slot(1) + 1..slot(1) + 8).any(|y| pixel(&frame, 123, y) == shade(AREA, 0.7)));
 
-    let full = with_bar(1.0, OledBarStyle::Fill, 0);
-    assert_eq!(pixel(&full, 121, 35), palette::GREEN_RGB565);
+    let frame = render_oled_frame(&unscrolled(base()));
+    assert_eq!(
+        lit_columns(&frame, slot(2) + 2..slot(2) + 7, 60..128),
+        (94..124).collect::<Vec<_>>()
+    );
+}
 
-    let marker = with_bar(0.5, OledBarStyle::Marker, 0);
-    assert_eq!(pixel(&marker, 105, 36), palette::GREEN_RGB565);
-    assert_eq!(pixel(&marker, 104, 36), green_track());
+#[test]
+fn mini_bars_fill_or_mark_their_fraction_in_each_row_state() {
+    let frame = render_oled_frame(&base());
+    let dimmed = shade(AREA, 0.7);
+    let (top, mini) = (slot(1), slot(1) + 2);
+    assert_eq!(pixel(&frame, 93, top), AREA);
+    assert_eq!(pixel(&frame, 94, mini), 0);
+    assert_eq!(pixel(&frame, 123, mini + 4), 0);
+    assert_eq!(pixel(&frame, 100, mini + 1), 0);
+    assert_eq!(pixel(&frame, 118, mini + 1), 0);
+    assert_eq!(pixel(&frame, 119, mini + 1), AREA);
 
-    let selected = with_bar(1.0, OledBarStyle::Fill, 1);
-    assert_eq!(pixel(&selected, 87, 34), palette::BLACK_RGB565);
-    assert_eq!(pixel(&selected, 121, 35), palette::GREEN_RGB565);
+    let mini = slot(2) + 2;
+    assert_eq!(pixel(&frame, 94, mini), dimmed);
+    assert_eq!(pixel(&frame, 123, mini + 4), dimmed);
+    assert_eq!(pixel(&frame, 95, mini + 1), 0);
+    assert!((mini..mini + 5).all(|y| pixel(&frame, 93, y) == 0 && pixel(&frame, 124, y) == 0));
+
+    let mini = slot(3) + 2;
+    assert_eq!(pixel(&frame, 109, mini + 2), dimmed);
+    assert_eq!(pixel(&frame, 108, mini + 1), dimmed);
+    assert_eq!(pixel(&frame, 109, mini + 1), dimmed);
+    assert_eq!(pixel(&frame, 107, mini + 1), 0);
+    assert_eq!(pixel(&frame, 110, mini + 1), 0);
+    assert_eq!(pixel(&frame, 102, mini + 2), 0);
+}
+
+#[test]
+fn editing_box_runs_from_the_value_to_the_bar_end_with_and_without_a_scrollbar() {
+    let top = slot(1);
+    for (scrolls, bar_right) in [(true, 124), (false, 127)] {
+        let mut input = base();
+        input.display.editing = true;
+        if !scrolls {
+            input.display.scroll = None;
+        }
+        let frame = render_oled_frame(&input);
+        assert_eq!(pixel(&frame, 91, top - 1), AREA, "scrolls {scrolls}");
+        for y in [top - 1, top + 4, top + 9] {
+            assert_eq!(pixel(&frame, 92, y), 0, "scrolls {scrolls} y={y}");
+            assert_eq!(pixel(&frame, bar_right, y), 0, "scrolls {scrolls} y={y}");
+        }
+        assert_eq!(pixel(&frame, 94, top + 2), AREA);
+        assert_eq!(pixel(&frame, 100, top + 3), AREA);
+        assert_eq!(pixel(&frame, 120, top + 3), 0);
+        assert_eq!(pixel(&frame, 126, top + 4), if scrolls { AREA } else { 0 });
+    }
+}
+
+#[test]
+fn text_editing_inverts_the_cursor_character_inside_the_box() {
+    let mut input = unscrolled(base());
+    input.selected_row = Some(7);
+    input.display.editing = true;
+    input.display.rows[7].as_mut().unwrap().text_cursor = Some(2);
+    let frame = render_oled_frame(&input);
+    let top = slot(7);
+    let value_x = 124 - (M5X7.width("Synth") + usize::from(M5X7.glyph(' ').advance));
+    let cursor_x = value_x + M5X7.advance("Sy");
+    assert_eq!(pixel(&frame, value_x - 2, top + 4), 0);
+    assert_eq!(pixel(&frame, cursor_x - 1, top), AREA);
+    assert!((cursor_x..cursor_x + 5).any(|x| (top + 1..top + 8).any(|y| pixel(&frame, x, y) == 0)));
+    assert!(
+        (value_x..cursor_x - 1).any(|x| (top + 1..top + 8).any(|y| pixel(&frame, x, y) == AREA))
+    );
+}
+
+#[test]
+fn long_values_clip_with_dots_and_keep_the_label_whole() {
+    let mut input = unscrolled(base());
+    input.selected_row = None;
+    input.display.rows[0].as_mut().unwrap().value = "an option name far wider than its room".into();
+    let frame = render_oled_frame(&input);
+    let ink = lit_columns(&frame, slot(0) + 1..slot(0) + 10, 12..128);
+    assert_eq!(ink.last(), Some(&123));
+    let label_end = 12 + M5X7.width("Type");
+    assert!(ink.iter().all(|x| *x < label_end || *x >= label_end + 4));
+}
+
+#[test]
+fn browser_lists_have_no_gutter() {
+    use OledMenuRowKind::{Action, Entry};
+    let mut input = unscrolled(base());
+    input.display.rows = vec![
+        menu_row(Entry, "..", "", None),
+        menu_row(Entry, "kick_01.wav", "", None),
+        menu_row(Action, "Set favourite", "", None),
+    ];
+    input.display.lines = vec!["..".into(), "kick_01.wav".into(), "Set favourite".into()];
+    input.display.bars = vec![None; 3];
+    input.selected_row = Some(1);
+    let frame = render_oled_frame(&input);
+    assert_eq!(pixel(&frame, 0, slot(1) - 1), AREA);
+    assert_eq!(pixel(&frame, 127, slot(1) - 1), AREA);
+    assert_eq!(
+        lit_columns(&frame, slot(2)..slot(2) + 9, 0..12).first(),
+        Some(&2)
+    );
+    assert_eq!(lit_columns(&frame, slot(2)..slot(2) + 9, 100..128), [121]);
 }
 
 #[test]
 fn scrollbar_thumb_tracks_offset_and_hides_without_overflow() {
-    let thumb = palette::WHITE_RGB565;
-    let track = rgb565(dim(palette::GRAY, 4));
-    for (offset, total, thumb_rows) in [(0, 12, 22..73), (2, 12, 36..87), (5, 12, 59..110)] {
+    let track = rgb565(dim(rgb565_to_rgb(AREA), 6));
+    for (offset, total, thumb_rows) in [(0, 12, 10..78), (2, 12, 27..95), (4, 12, 44..112)] {
         let mut input = base();
         input.display.scroll = Some(OledScrollInput {
             offset,
             total_rows: total,
-            visible_rows: 7,
+            visible_rows: 8,
         });
         let frame = render_oled_frame(&input);
-        for y in 22..110 {
-            let expected = if thumb_rows.contains(&y) {
-                thumb
-            } else {
-                track
-            };
-            assert_eq!(pixel(&frame, 125, y), expected, "offset {offset} y={y}");
+        for y in 10..112 {
+            let expected = if thumb_rows.contains(&y) { AREA } else { track };
+            assert_eq!(pixel(&frame, 126, y), expected, "offset {offset} y={y}");
+            assert_eq!(pixel(&frame, 127, y), expected, "offset {offset} y={y}");
         }
+        assert_eq!(pixel(&frame, 126, 9), 0);
+        assert_eq!(pixel(&frame, 126, 112), 0);
     }
     for scroll in [
         None,
         Some(OledScrollInput::default()),
         Some(OledScrollInput {
             offset: 0,
-            total_rows: 7,
-            visible_rows: 7,
+            total_rows: 8,
+            visible_rows: 8,
         }),
     ] {
         let mut input = base();
+        input.selected_row = None;
         input.display.scroll = scroll;
         let frame = render_oled_frame(&input);
-        assert!((22..110).all(|y| pixel(&frame, 125, y) == 0));
+        assert!((10..112).all(|y| pixel(&frame, 126, y) == 0));
     }
 }
 
 #[test]
 fn rows_use_their_colours_scaled_by_brightness_and_default_to_white() {
-    let colors = [
-        palette::MAGENTA_RGB565,
-        palette::GREEN_RGB565,
-        palette::BLUE_RGB565,
-        palette::YELLOW_RGB565,
-        palette::GRAY_RGB565,
-        palette::WHITE_RGB565,
-    ];
     let mut input = base();
     input.selected_row = None;
-    input.display.colors = colors.to_vec();
+    input.display.colors = vec![palette::MAGENTA_RGB565, palette::GREEN_RGB565];
     let frame = render_oled_frame(&input);
-    for (row, color) in colors.into_iter().enumerate() {
-        assert!(row_has_color(&frame, row, color), "row {row}");
-    }
-    assert!(row_has_color(&frame, 6, palette::WHITE_RGB565));
-
-    input.display.colors.clear();
-    let frame = render_oled_frame(&input);
-    assert!((0..7).all(|row| row_has_color(&frame, row, palette::WHITE_RGB565)));
+    let has = |row: usize, color| {
+        (slot(row)..slot(row) + 9).any(|y| (12..90).any(|x| pixel(&frame, x, y) == color))
+    };
+    assert!(has(0, palette::MAGENTA_RGB565));
+    assert!(has(1, palette::GREEN_RGB565));
+    assert!(has(2, palette::WHITE_RGB565));
 
     let mut dimmed = base();
     dimmed.display_brightness = 50;
     let frame = render_oled_frame(&dimmed);
     assert_eq!(
-        pixel(&frame, 4, 34),
-        rgb565(scale(rgb565_to_rgb(palette::GREEN_RGB565), 0.5))
+        pixel(&frame, 9, slot(1)),
+        rgb565(scale(rgb565_to_rgb(AREA), 0.5))
     );
 }
 
@@ -195,7 +304,7 @@ fn off_beats_errors_and_splash_while_errors_beat_splash() {
     assert_eq!(pixel(&frame, 0, 0), rgb565(dim(palette::MAGENTA, 6)));
     assert_eq!(pixel(&frame, 10, 10), palette::MAGENTA_RGB565);
     assert_eq!(pixel(&frame, 119, 119), palette::BLACK_RGB565);
-    assert!((0..128).all(|x| pixel(&frame, x, 16) != palette::BLUE_RGB565));
+    assert!((0..128).all(|x| pixel(&frame, x, 8) != AREA));
 
     input.display.off = true;
     assert!(render_oled_frame(&input).iter().all(|byte| *byte == 0));
@@ -203,12 +312,9 @@ fn off_beats_errors_and_splash_while_errors_beat_splash() {
 
 #[test]
 fn concise_midi_error_keeps_the_menu_frame_over_splash() {
-    let mut input = base();
+    let mut input = modal(&["MIDI unavailable"], OledDisplayLayout::Rows);
     input.display.splash = OledSplash::Boot;
     input.display.title = "MIDI INPUTS".into();
-    input.display.lines = vec!["MIDI unavailable".into()];
-    input.display.colors = vec![palette::WHITE_RGB565];
-    input.display.bars = vec![None];
     input.selected_row = None;
     input.runtime_error = Some(OledRuntimeErrorMetadata {
         domain: Some("midi".into()),
@@ -216,10 +322,12 @@ fn concise_midi_error_keeps_the_menu_frame_over_splash() {
         ..Default::default()
     });
     let frame = render_oled_frame(&input);
-    assert_eq!(pixel(&frame, 0, 0), 0);
-    assert_ne!(pixel(&frame, 5, 5), 0);
-    assert_ne!(pixel(&frame, 6, 22), 0);
-    assert_eq!(pixel(&frame, 0, 16), palette::BLUE_RGB565);
+    assert_eq!(pixel(&frame, 0, 8), AREA);
+    assert!(!lit_columns(&frame, 0..5, 0..40).is_empty());
+    assert_eq!(
+        lit_columns(&frame, slot(0)..slot(0) + 9, 0..12).first(),
+        Some(&2)
+    );
 }
 
 #[test]
@@ -273,15 +381,19 @@ fn short_root_titles_expand_to_area_names() {
 }
 
 #[test]
-fn every_defined_glyph_is_drawn_and_pinned_by_a_golden_frame() {
+fn every_printable_glyph_has_ink_and_a_golden_frame() {
     let pinned = GLYPH_GOLDEN_TEXTS.concat();
-    for ch in DEFINED_GLYPHS.chars() {
-        assert_ne!(glyph_rows(ch), [0; 7], "missing glyph {ch:?}");
+    for code in 33..127_u8 {
+        let ch = char::from(code);
+        assert!(M5X7.glyph(ch).rows.iter().any(|row| *row != 0), "{ch:?}");
         assert!(pinned.contains(ch), "glyph {ch:?} has no golden frame");
     }
+    assert_eq!(M5X7.glyph('é').rows, M5X7.glyph('?').rows);
+    assert_eq!(M5X7.glyph('★').rows, M5X7.glyph('*').rows);
+    assert!((b'0'..=b'9').all(|digit| M5X7.glyph(char::from(digit)).advance == 6));
     assert!(GLYPH_GOLDEN_TEXTS
         .iter()
-        .all(|text| text.chars().count() <= 19));
+        .all(|text| M5X7.width(text) <= 122));
 }
 
 #[test]
@@ -289,20 +401,19 @@ fn sparse_menus_render_without_metadata() {
     let mut input = base();
     input.display.bars.clear();
     input.display.colors.clear();
+    input.display.rows.clear();
     input.display.scroll = None;
-    assert_ne!(pixel(&render_oled_frame(&input), 4, 34), 0);
+    assert_ne!(pixel(&render_oled_frame(&input), 0, slot(1)), 0);
 
     input.display.lines.clear();
     input.selected_row = None;
     let frame = render_oled_frame(&input);
-    assert!((17..114).all(|y| (0..128).all(|x| pixel(&frame, x, y) == 0)));
+    assert!((10..113).all(|y| (0..128).all(|x| pixel(&frame, x, y) == 0)));
 
     let empty_browser = modal(&["(empty)"], OledDisplayLayout::Rows);
-    assert!(row_has_color(
-        &render_oled_frame(&empty_browser),
-        0,
-        palette::BLACK_RGB565
-    ));
+    let frame = render_oled_frame(&empty_browser);
+    assert_eq!(pixel(&frame, 0, slot(0)), palette::WHITE_RGB565);
+    assert!((2..20).any(|x| (slot(0)..slot(0) + 9).any(|y| pixel(&frame, x, y) == 0)));
 }
 
 #[test]
@@ -310,14 +421,21 @@ fn modal_rows_and_setup_cards_highlight_their_final_action() {
     for lines in [
         &["Volume", "Tap to change", "> Close"][..],
         &["Discard changes?", "  Yes", "> No"],
-        &["..", "[drums]", "kick.wav", "(empty)"],
         &["Copying", "12 files", "> Stop Transfer"],
-        &["Version 0.7.5", "CPU 12%", "> Back"],
     ] {
         let frame = render_oled_frame(&modal(lines, OledDisplayLayout::Rows));
-        let y = 22 + (lines.len() - 1) * 13;
-        assert_eq!(pixel(&frame, 3, y - 1), palette::WHITE_RGB565, "{lines:?}");
-        assert!((22..110).all(|y| pixel(&frame, 125, y) == 0));
+        let top = slot(lines.len() - 1);
+        assert_eq!(
+            pixel(&frame, 0, top - 1),
+            palette::WHITE_RGB565,
+            "{lines:?}"
+        );
+        assert_eq!(
+            pixel(&frame, 127, top - 1),
+            palette::WHITE_RGB565,
+            "{lines:?}"
+        );
+        assert!((10..112).all(|y| pixel(&frame, 126, y) == 0 || y + 1 >= top));
     }
     for lines in [
         &["Starting hotspot...", "> Hide"][..],
@@ -330,20 +448,17 @@ fn modal_rows_and_setup_cards_highlight_their_final_action() {
             "Portal: 10 minutes",
             "> Hide",
         ],
-        &[
-            "Setup complete",
-            "IP in Maintenance > Sys. Info",
-            "No reboot needed",
-            "> Close",
-        ],
         &["Not available on", "desktop", "> Close"],
     ] {
         let input = modal(lines, OledDisplayLayout::Card);
         let layout = layout_card_body(&input.display.lines, input.selected_row, CARD_BODY_RECT);
         let row = layout.iter().position(|row| row.selected).unwrap();
         let frame = render_oled_frame(&input);
-        let y = CARD_BODY_RECT.y + row * CARD_BODY_RECT.row_advance;
-        assert_eq!(pixel(&frame, 3, y - 1), palette::WHITE_RGB565, "{lines:?}");
-        assert!(row_has_color(&frame, 0, palette::WHITE_RGB565), "{lines:?}");
+        assert_eq!(
+            pixel(&frame, 0, slot(row) - 1),
+            palette::WHITE_RGB565,
+            "{lines:?}"
+        );
+        assert!(!lit_columns(&frame, slot(0)..slot(0) + 9, 0..128).is_empty());
     }
 }

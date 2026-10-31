@@ -12,9 +12,9 @@ const _: () = {
 #[test]
 fn rectangle_capacity_uses_glyph_metrics() {
     assert_eq!(MENU_BODY_RECT.columns(), 19);
-    assert_eq!(MENU_BODY_RECT.rows(), 7);
+    assert_eq!(MENU_BODY_RECT.rows(), 8);
     assert_eq!(CARD_BODY_RECT.columns(), 20);
-    assert_eq!(CARD_BODY_RECT.rows(), 7);
+    assert_eq!(CARD_BODY_RECT.rows(), 8);
     assert_eq!(TextLayoutRect::new(0, 0, 30, 30, 10).columns(), 5);
     assert_eq!(TextLayoutRect::new(0, 0, 30, 30, 10).rows(), 3);
     assert_eq!(
@@ -69,8 +69,8 @@ fn card_layout_ellipsizes_only_the_final_visible_prose_row_when_lines_remain() {
         .collect::<Vec<_>>();
     let rows = layout_card_body(&lines, Some(8), CARD_BODY_RECT);
     assert_eq!(rows.len(), CARD_BODY_RECT.rows());
-    assert_eq!(rows[5].text, "Line 6...");
-    assert!(rows[..5].iter().all(|row| !row.text.ends_with("...")));
+    assert_eq!(rows[6].text, "Line 7...");
+    assert!(rows[..6].iter().all(|row| !row.text.ends_with("...")));
     assert_eq!(rows.last().unwrap().text, "> Hide");
     assert!(rows.last().unwrap().selected);
 }

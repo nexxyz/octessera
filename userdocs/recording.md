@@ -32,6 +32,8 @@ the other device, so record that separately.
 
 What the OLED tells you:
 
+- A small red disc in the bottom right, gently pulsing, for as long as a take
+  is running.
 - `Recording started` when a take begins, or `Recording is already running` if
   one is.
 - `Recording saved` or `Recording incomplete` after you press Stop.

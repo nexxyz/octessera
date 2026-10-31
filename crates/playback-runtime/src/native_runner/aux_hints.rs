@@ -29,15 +29,14 @@ impl NativeRunner {
                 manual[layer][index].clone(),
                 auto[layer * AUX_COUNT + index].clone(),
             );
-            let limit = if index + 1 == AUX_COUNT { 6 } else { 7 };
             OledAuxHint {
                 turn: slot.turn.as_ref().and_then(|turn| {
                     let color = key_home_section_color(&turn.key);
-                    self.hint_label(&turn.label, color, slot.turn_source, limit)
+                    self.hint_label(&turn.label, color, slot.turn_source)
                 }),
                 click: slot.press.as_ref().and_then(|press| {
                     let color = action_home_color(&press.action);
-                    self.hint_label(&press.label, color, slot.press_source, limit)
+                    self.hint_label(&press.label, color, slot.press_source)
                 }),
             }
         };
@@ -52,7 +51,6 @@ impl NativeRunner {
         label: &str,
         color: u16,
         source: AuxBindingSource,
-        limit: usize,
     ) -> Option<OledHintLabel> {
         let ui = &self.display.ui;
         let source = match source {
@@ -61,7 +59,7 @@ impl NativeRunner {
             _ => return None,
         };
         Some(OledHintLabel {
-            text: hint_text(label, limit),
+            text: label.to_string(),
             color,
             source,
         })
@@ -104,34 +102,11 @@ fn action_home_color(action: &NativeMenuAction) -> u16 {
     }
 }
 
-/// Fits a label into `limit` characters: drops vowels inside words from the right, then cuts.
-fn hint_text(label: &str, limit: usize) -> String {
-    let mut chars = label.chars().collect::<Vec<_>>();
-    let mut index = chars.len();
-    while chars.len() > limit && index > 1 {
-        index -= 1;
-        let inside_word = chars[index - 1].is_alphanumeric();
-        if inside_word && matches!(chars[index], 'a' | 'e' | 'i' | 'o' | 'u') {
-            chars.remove(index);
-        }
-    }
-    chars.into_iter().take(limit).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::native_runner::NativeRunnerConfig;
     use platform_core::palette;
-
-    #[test]
-    fn hint_text_keeps_short_labels_and_shortens_long_ones_deterministically() {
-        assert_eq!(hint_text("Cutoff", 7), "Cutoff");
-        assert_eq!(hint_text("Interval", 6), "Intrvl");
-        assert_eq!(hint_text("Interval", 7), "Intervl");
-        assert_eq!(hint_text("Master Vol", 7), "Mstr Vl");
-        assert_eq!(hint_text("Xylophnstrm", 6), "Xylphn");
-    }
 
     fn runner() -> NativeRunner {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -177,7 +152,7 @@ mod tests {
         let turn = manual.turn.as_ref().unwrap();
         assert_eq!(turn.source, OledHintSource::Manual);
         assert_eq!(turn.color, palette::GRAY_RGB565);
-        assert!(turn.text.chars().count() <= 6);
+        assert_eq!(turn.text, "Master Vol");
         assert_eq!(manual.click.as_ref().unwrap().color, palette::GRAY_RGB565);
 
         runner.display.ui.aux_manual_hints = false;

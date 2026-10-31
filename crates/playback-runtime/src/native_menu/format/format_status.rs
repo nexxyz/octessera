@@ -2,8 +2,7 @@ use crate::native_menu::section_labels::{
     BUILD_LABEL, BUILD_SHORT_LABEL, LINK_LABEL, LINK_SHORT_LABEL, PLAY_LABEL, PLAY_SHORT_LABEL,
     SHAPE_LABEL, SHAPE_SHORT_LABEL,
 };
-
-const BREADCRUMB_COLUMNS: usize = 15;
+use crate::oled_frame::breadcrumb_fits;
 
 pub(in crate::native_menu) fn abbreviate_path(path: &str) -> String {
     let segments = path.split('/').collect::<Vec<_>>();
@@ -42,12 +41,12 @@ fn short_path_segment_label(segment: &str) -> String {
 
 fn fit_breadcrumb(labels: &[String]) -> String {
     let full = format!("/{}", labels.join("/"));
-    if full.chars().count() <= BREADCRUMB_COLUMNS {
+    if breadcrumb_fits(&full) {
         return full;
     }
     for start in 1..labels.len() {
         let tail = format!("../{}", labels[start..].join("/"));
-        if tail.chars().count() <= BREADCRUMB_COLUMNS {
+        if breadcrumb_fits(&tail) {
             return tail;
         }
     }
@@ -95,33 +94,36 @@ mod tests {
     }
 
     #[test]
-    fn breadcrumbs_drop_parents_from_the_left_and_keep_the_page() {
+    fn breadcrumbs_drop_parents_from_the_left_by_pixel_width_and_keep_the_page() {
         assert_eq!(
             abbreviate_path("Shape/Instruments/I1: synth/Synth/Filter"),
-            "../Synth/Filter"
+            "../I1: synth/Synth/Filter"
         );
         assert_eq!(
             abbreviate_path("Shape/Instruments/I1: synth/Synth/Filter Env"),
-            "../Filter Env"
+            "../I1: synth/Synth/Filter Env"
+        );
+        assert_eq!(
+            abbreviate_path("Build/Layer 1/Behavior: life"),
+            "/B/L1/Behavior: life"
         );
     }
 
     #[test]
     fn breadcrumbs_show_only_the_page_when_dots_do_not_fit() {
         assert_eq!(
-            abbreviate_path("Build/Layer 1/Behavior: life"),
-            "Behavior: life"
-        );
-        assert_eq!(
-            abbreviate_path("System/A Page Name Beyond Fifteen"),
-            "A Page Name Beyond Fifteen"
+            abbreviate_path("System/A Page Name That Runs Far Past The Header"),
+            "A Page Name That Runs Far Past The Header"
         );
     }
 
     #[test]
     fn shortened_breadcrumb_uses_canonical_section_color() {
-        let path = "Shape/FX/Bus 1/Slot 1/Very Long Name";
-        assert_eq!(abbreviate_path(path), "Very Long Name");
+        let path = "Shape/FX/Bus 1/Slot 1/A Page Name That Runs Far Past The Header";
+        assert_eq!(
+            abbreviate_path(path),
+            "A Page Name That Runs Far Past The Header"
+        );
         assert_eq!(
             section_color_from_path(path),
             platform_core::palette::BLUE_RGB565

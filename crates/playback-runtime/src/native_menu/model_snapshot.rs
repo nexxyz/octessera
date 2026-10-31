@@ -5,7 +5,7 @@ use super::{
     NativeMenuItem, NativeMenuModel, NativeMenuScrollMetadata, NativeMenuSnapshot, NativeMenuValue,
 };
 
-const MENU_BODY_ROWS: usize = 7;
+const MENU_BODY_ROWS: usize = 8;
 
 impl NativeMenuModel {
     pub fn snapshot(&self) -> NativeMenuSnapshot {

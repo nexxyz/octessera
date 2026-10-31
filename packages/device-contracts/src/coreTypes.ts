@@ -70,7 +70,7 @@ export type AuxHints = {
 };
 
 export type DisplayMenuRow = {
-  kind: "value" | "group" | "action";
+  kind: "value" | "group" | "action" | "entry";
   label: string;
   value: string;
   textCursor: number | null;
@@ -105,6 +105,7 @@ export type RuntimeSnapshotFields = {
   auxHints?: AuxHints;
   auxShiftLayer?: boolean;
   recordingActive?: boolean;
+  recordingPulseDim?: boolean;
   cpuLoadRatio?: number;
   settings?: RuntimeSnapshotSettings;
   runtimeError?: RuntimeErrorMetadata;

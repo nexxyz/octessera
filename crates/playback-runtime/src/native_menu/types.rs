@@ -140,6 +140,8 @@ pub enum NativeMenuRowKind {
     Value,
     Group,
     Action,
+    /// A file or folder of the sample browser.
+    Entry,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

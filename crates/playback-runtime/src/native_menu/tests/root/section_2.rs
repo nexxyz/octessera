@@ -243,10 +243,10 @@ pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
     menu.select_label("L8: life");
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/Build");
-    assert_eq!(snapshot.selected_row, Some(5));
+    assert_eq!(snapshot.selected_row, Some(6));
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.scroll_offset),
-        Some(2)
+        Some(1)
     );
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.total_rows),
@@ -254,9 +254,9 @@ pub(crate) fn snapshot_scrolls_to_keep_selected_row_visible() {
     );
     assert_eq!(
         snapshot.scroll.as_ref().map(|scroll| scroll.visible_rows),
-        Some(7)
+        Some(8)
     );
-    assert_eq!(snapshot.lines[5], "  L8: life >");
+    assert_eq!(snapshot.lines[6], "  L8: life >");
     assert!(!snapshot.lines.iter().any(|line| line == "  L1: life"));
 }
 

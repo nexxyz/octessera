@@ -75,9 +75,9 @@ fn typed_oled_preserves_menu_scroll_and_separate_runtime_error_metadata() {
     assert_eq!(
         typed.display.scroll,
         Some(OledScrollInput {
-            offset: 2,
+            offset: 1,
             total_rows: 9,
-            visible_rows: 7
+            visible_rows: 8
         })
     );
     assert_eq!(typed.runtime_error, Some(metadata));

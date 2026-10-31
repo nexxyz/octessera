@@ -206,7 +206,7 @@ fn drum_volume_is_selected_after_twelve_body_rows_without_losing_scroll() {
     menu.turn(12);
     let snapshot = menu.snapshot();
     assert_eq!(menu.current_item().label, "Volume");
-    assert_eq!(snapshot.lines.len(), 7);
+    assert_eq!(snapshot.lines.len(), 8);
     assert!(snapshot.lines[snapshot.selected_row.unwrap()].starts_with("  Volume"));
     assert!(snapshot.scroll.as_ref().unwrap().scroll_offset > 0);
     assert_eq!(snapshot.scroll.as_ref().unwrap().total_rows, 13);

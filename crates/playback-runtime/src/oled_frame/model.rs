@@ -18,6 +18,8 @@ pub struct OledPresentationInput {
     pub aux_shift_layer: bool,
     /// A System recording is running (the footer's recording disc).
     pub recording_active: bool,
+    /// The recording disc's pulse is in its half-brightness phase.
+    pub recording_pulse_dim: bool,
     pub metrics: OledPresentationMetrics,
     pub runtime_error: Option<OledRuntimeErrorMetadata>,
 }
@@ -55,6 +57,8 @@ pub enum OledMenuRowKind {
     Value,
     Group,
     Action,
+    /// A file or folder in a browser list: no marker, and its list has no Aux cap gutter.
+    Entry,
 }
 
 /// The Aux encoder (1-3) and layer whose control maps to a row or footer hint.
@@ -84,7 +88,7 @@ pub struct OledAuxHint {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OledHintLabel {
-    /// At most 7 characters for Aux 1-2 and 6 for Aux 3.
+    /// The full label; the renderer shortens it to the room its footer slot has.
     pub text: String,
     /// RGB565 colour of the menu section that owns the target.
     pub color: u16,

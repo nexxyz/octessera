@@ -3,7 +3,9 @@ use super::{NativeRunner, OLED_BODY_ROWS};
 use crate::native_menu::{
     NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
 };
-use crate::oled_frame::{OledAuxCap, OledDisplayLayout, OledMenuRowInput, OledMenuRowKind};
+use crate::oled_frame::{
+    menu_row_label_overflows, OledAuxCap, OledDisplayLayout, OledMenuRowInput, OledMenuRowKind,
+};
 
 mod drum;
 mod modal_screens;
@@ -94,7 +96,6 @@ impl NativeRunner {
                 display.selected_row = None;
             }
         }
-        display.title = clip_display_line(&display.title, DISPLAY_LINE_WIDTH);
         if display.body_layout == OledDisplayLayout::Rows {
             display.lines = display
                 .lines
@@ -118,6 +119,9 @@ impl NativeRunner {
                     }
                 })
                 .collect();
+            if !self.menu.state.editing || selected_link_instrument_target {
+                scroll_selected_label(&mut display, self.display.menu_scroll_offset);
+            }
         }
         display.colors.truncate(display.lines.len());
         display.bar_values.truncate(display.lines.len());
@@ -151,6 +155,42 @@ fn scroll_display_line_once(line: &str, full_line: Option<&str>, ticks: usize) -
     (0..DISPLAY_LINE_WIDTH)
         .map(|index| padded[(offset + index) % padded.len()])
         .collect()
+}
+
+/// Scrolls the selected row's label through its slot when it is wider than its room.
+fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize) {
+    if ticks < SELECTED_LINE_SCROLL_TICKS_PER_CHAR {
+        return;
+    }
+    let Some(index) = display.selected_row else {
+        return;
+    };
+    let has_bar = display.bar_values.get(index).is_some_and(Option::is_some);
+    let Some(row) = display.rows.get_mut(index).and_then(Option::as_mut) else {
+        return;
+    };
+    if !menu_row_label_overflows(row, has_bar) {
+        return;
+    }
+    let mut padded = row.label.chars().collect::<Vec<_>>();
+    let length = padded.len();
+    padded.extend(SELECTED_LINE_SCROLL_GAP);
+    let offset = (ticks / SELECTED_LINE_SCROLL_TICKS_PER_CHAR - 1) % padded.len();
+    row.label = (0..length)
+        .map(|index| padded[(offset + index) % padded.len()])
+        .collect();
+}
+
+/// Whether the selected menu row's label is too wide for its slot, so it scrolls.
+pub(super) fn selected_menu_label_overflows(menu: &NativeMenuSnapshot) -> bool {
+    let Some(index) = menu.selected_row else {
+        return false;
+    };
+    let has_bar = menu.bar_values.get(index).is_some_and(Option::is_some);
+    menu.rows
+        .get(index)
+        .and_then(Option::as_ref)
+        .is_some_and(|row| menu_row_label_overflows(&menu_row_input(row, None), has_bar))
 }
 
 fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
@@ -253,6 +293,7 @@ fn menu_row_input(row: &NativeMenuRow, cap: Option<(OledAuxCap, bool)>) -> OledM
             NativeMenuRowKind::Value => OledMenuRowKind::Value,
             NativeMenuRowKind::Group => OledMenuRowKind::Group,
             NativeMenuRowKind::Action => OledMenuRowKind::Action,
+            NativeMenuRowKind::Entry => OledMenuRowKind::Entry,
         },
         label: row.label.clone(),
         value: row.value.clone(),

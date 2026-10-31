@@ -1,5 +1,5 @@
 use super::error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
-use super::font::glyph_rows;
+use super::font_5x7::glyph_rows;
 use super::model::OledRuntimeErrorMetadata;
 use crate::{
     RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery,

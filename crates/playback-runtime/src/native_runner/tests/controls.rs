@@ -159,7 +159,14 @@ pub(crate) fn system_info_popup_formats_scrolls_and_dismisses_natively() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.display.system_info_modal.as_ref().unwrap().scroll, 1);
+    assert_eq!(runner.display.system_info_modal.as_ref().unwrap().scroll, 0);
+    assert_eq!(
+        snapshot_from(&scrolled)["display"]["lines"]
+            .as_array()
+            .unwrap()
+            .len(),
+        8
+    );
     assert!(snapshot_from(&scrolled)["display"]["lines"]
         .as_array()
         .unwrap()

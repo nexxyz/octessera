@@ -175,5 +175,5 @@ fn setup_portal_success_opens_sys_info_at_its_maintenance_entry() {
         Some("Sys. Info")
     );
     let snapshot = runtime.last_snapshot().expect("presented snapshot");
-    assert_eq!(snapshot["display"]["title"], "../Maintenance");
+    assert_eq!(snapshot["display"]["title"], "/SYS/Maintenance");
 }

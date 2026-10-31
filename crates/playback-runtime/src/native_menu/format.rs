@@ -26,7 +26,9 @@ pub(super) fn format_item_row(
     }
     let row = item_row_parts(item, selected, editing);
     let line = match (&row.kind, &item.value) {
-        (NativeMenuRowKind::Action, _) => format_action_menu_line(&row.label),
+        (NativeMenuRowKind::Action | NativeMenuRowKind::Entry, _) => {
+            format_action_menu_line(&row.label)
+        }
         (NativeMenuRowKind::Group, _) if row.value.is_empty() => {
             format_menu_line(&format!("{} >", row.label))
         }
@@ -49,6 +51,20 @@ pub(super) fn format_item_row(
     (line, Some(row))
 }
 
+fn is_sample_browser_entry(item: &NativeMenuItem) -> bool {
+    item.key.as_deref().is_some_and(|key| {
+        [
+            "sample.up.",
+            "sample.enter.",
+            "sample.pick.",
+            "sample.open.",
+            "sample.favorite.open.",
+        ]
+        .iter()
+        .any(|prefix| key.starts_with(prefix))
+    })
+}
+
 fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> NativeMenuRow {
     let row = |kind, value: String| NativeMenuRow {
         kind,
@@ -67,6 +83,9 @@ fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> Nativ
             row(NativeMenuRowKind::Value, String::new())
         }
         NativeMenuValue::Group => row(NativeMenuRowKind::Group, String::new()),
+        NativeMenuValue::Action(_) if is_sample_browser_entry(item) => {
+            row(NativeMenuRowKind::Entry, String::new())
+        }
         NativeMenuValue::Action(_) => row(NativeMenuRowKind::Action, String::new()),
         NativeMenuValue::Enum {
             options,

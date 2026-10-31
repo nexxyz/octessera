@@ -229,7 +229,7 @@ pub(crate) fn link_instrument_targets_show_the_full_name_only_on_the_selected_ro
         selected.full_lines[row].as_deref(),
         Some("  Instr. I1: An Instrument Name Longer Than One OLED Line")
     );
-    assert!(selected.lines.len() <= 7);
+    assert!(selected.lines.len() <= 8);
     let scroll = selected.scroll.expect("menu scroll metadata");
     assert!(scroll.total_rows > scroll.visible_rows);
 
@@ -293,16 +293,16 @@ pub(crate) fn event_section_rows_and_boundary_selection_use_exact_budget() {
     let events = menu.snapshot();
     let scroll = events.scroll.expect("Events scroll metadata");
     assert_eq!(scroll.total_rows, 14);
-    assert_eq!(scroll.visible_rows, 7);
-    assert_eq!(events.lines.len(), 7);
+    assert_eq!(scroll.visible_rows, 8);
+    assert_eq!(events.lines.len(), 8);
 
     assert!(menu.focus_item_key("layers.0.link.mapping.deactivate.slot"));
     let selected = menu.snapshot();
     let row = selected.selected_row.expect("selected row");
     let scroll = selected.scroll.expect("selected Events scroll metadata");
     assert_eq!(scroll.total_rows, 14);
-    assert_eq!(scroll.visible_rows, 7);
-    assert_eq!(row, 3);
+    assert_eq!(scroll.visible_rows, 8);
+    assert_eq!(row, 4);
     assert_eq!(
         selected.full_lines[row].as_deref(),
         Some("  Off Inst I1: synth")

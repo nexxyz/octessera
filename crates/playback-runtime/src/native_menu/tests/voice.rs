@@ -9,7 +9,7 @@ pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
     let _ = menu.press();
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "../I1: synth");
+    assert_eq!(snapshot.path, "/S/Instruments/I1: synth");
     assert!(snapshot.lines.iter().any(|line| line == "  Type synth"));
     assert!(snapshot.lines.iter().any(|line| line == "  Synth >"));
     assert!(!snapshot.lines.iter().any(|line| line == "  Sampler >"));

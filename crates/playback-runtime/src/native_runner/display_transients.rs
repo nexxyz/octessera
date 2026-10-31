@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 const EVENT_DOT_HOLD: Duration = Duration::from_millis(200);
 const EVENT_DOT_STEP: Duration = Duration::from_millis(100);
 const TRANSPORT_FLASH_DURATION: Duration = Duration::from_millis(90);
+const RECORDING_PULSE_HALF: Duration = Duration::from_millis(500);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) enum TransportFlash {
@@ -35,6 +36,8 @@ impl TransportFlash {
 pub(super) struct DisplayTransientPresentation {
     pub(super) event_dot_level: u8,
     pub(super) transport_flash: TransportFlash,
+    pub(super) recording_active: bool,
+    pub(super) recording_pulse_dim: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -43,6 +46,8 @@ pub(super) struct DisplayTransients {
     event_dot_level: u8,
     transport_flash: TransportFlash,
     transport_flash_until: Option<Instant>,
+    recording_started: Option<Instant>,
+    recording_pulse_dim: bool,
     snapshot_pending: bool,
     generation: u64,
     #[cfg(any(test, feature = "test-support"))]
@@ -56,6 +61,8 @@ impl DisplayTransients {
             event_dot_level: 0,
             transport_flash: TransportFlash::None,
             transport_flash_until: None,
+            recording_started: None,
+            recording_pulse_dim: false,
             snapshot_pending: false,
             generation: 0,
             #[cfg(any(test, feature = "test-support"))]
@@ -102,6 +109,17 @@ impl DisplayTransients {
         );
     }
 
+    /// Starts or stops the recording disc; it pulses full/half brightness at 1 Hz.
+    pub(super) fn set_recording(&mut self, active: bool, now: Instant) {
+        self.advance(now);
+        if active == self.recording_started.is_some() {
+            return;
+        }
+        self.recording_started = active.then_some(now);
+        self.recording_pulse_dim = false;
+        self.mark_presentation_due();
+    }
+
     pub(super) fn reset(&mut self, now: Instant) {
         self.advance(now);
         let was_active = self.event_dot_started.is_some() || self.transport_flash_until.is_some();
@@ -131,6 +149,11 @@ impl DisplayTransients {
             self.transport_flash_until = None;
             self.transport_flash = TransportFlash::None;
             changed = true;
+        }
+        if let Some(started) = self.recording_started {
+            let dim = recording_pulse_dim(started, now);
+            changed |= dim != self.recording_pulse_dim;
+            self.recording_pulse_dim = dim;
         }
         if changed {
             self.mark_presentation_due();
@@ -181,6 +204,10 @@ impl DisplayTransients {
             } else {
                 TransportFlash::None
             },
+            recording_active: self.recording_started.is_some(),
+            recording_pulse_dim: self
+                .recording_started
+                .is_some_and(|started| recording_pulse_dim(started, now)),
         }
     }
 
@@ -190,7 +217,12 @@ impl DisplayTransients {
                 + EVENT_DOT_HOLD
                 + EVENT_DOT_STEP * u32::from(INDICATOR_FADE_LEVELS - self.event_dot_level)
         });
-        [event_dot_step, self.transport_flash_until]
+        let recording_pulse = self.recording_started.map(|started| {
+            let phases = (self.now().saturating_duration_since(started).as_millis()
+                / RECORDING_PULSE_HALF.as_millis()) as u32;
+            started + RECORDING_PULSE_HALF * (phases + 1)
+        });
+        [event_dot_step, self.transport_flash_until, recording_pulse]
             .into_iter()
             .flatten()
             .filter(|deadline| {
@@ -203,6 +235,10 @@ impl DisplayTransients {
     pub(super) fn set_test_now(&mut self, now: Instant) {
         self.test_now = Some(now);
     }
+}
+
+fn recording_pulse_dim(started: Instant, now: Instant) -> bool {
+    (now.saturating_duration_since(started).as_millis() / RECORDING_PULSE_HALF.as_millis()) % 2 == 1
 }
 
 fn event_dot_level(started: Instant, now: Instant) -> u8 {
@@ -337,6 +373,7 @@ mod tests {
             DisplayTransientPresentation {
                 event_dot_level: 0,
                 transport_flash: TransportFlash::None,
+                ..Default::default()
             }
         );
     }

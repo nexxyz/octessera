@@ -85,6 +85,7 @@ pub(crate) fn presentation_input_from_snapshot(
     let aux_hints = required::<OledAuxHints>(snapshot, "auxHints")?;
     let aux_shift_layer = required::<bool>(snapshot, "auxShiftLayer")?;
     let recording_active = required::<bool>(snapshot, "recordingActive")?;
+    let recording_pulse_dim = required::<bool>(snapshot, "recordingPulseDim")?;
     let runtime_error =
         optional::<OledErrorDto>(snapshot, "runtimeError")?.map(|error| OledRuntimeErrorMetadata {
             domain: error.domain,
@@ -148,6 +149,7 @@ pub(crate) fn presentation_input_from_snapshot(
         aux_hints,
         aux_shift_layer,
         recording_active,
+        recording_pulse_dim,
         metrics,
         runtime_error,
     }))

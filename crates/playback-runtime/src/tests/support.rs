@@ -38,6 +38,7 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
         },
         "auxShiftLayer": false,
         "recordingActive": false,
+        "recordingPulseDim": false,
         "eventDotLevel": 0,
         "transportIcon": "stop",
         "transportFlash": "none"

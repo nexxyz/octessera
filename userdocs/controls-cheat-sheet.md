@@ -166,13 +166,18 @@ Long names clip or scroll rather than run into other text.
 
 | Where | What it tells you |
 |---|---|
-| Top left | Where you are in the menu. The line under it takes the area's colour. |
+| Top left | Where you are in the menu, in the area's colour, with a line of the same colour under it. Long paths lose their parents first (`../`), never the page you're on. |
 | Top right, three bars | How hard the audio engine worked over the last second. One green bar is relaxed, two yellow bars are getting busy, three red bars mean you've reached *CPU Warn %* (`System > Audio > Engine`). On the desktop it shows the simulator's own audio load. |
-| Left of the bars | A yellow disk while a save happens. |
+| Left of the bars | A green tick while a save happens, and a red square when the audio engine missed a deadline (it stays a few seconds, so you can catch it). |
+| Little discs left of a row | That row is on an Aux encoder right now: one, two or three pips for Aux 1-3, and a bar underneath for the Shift layer. |
+| Bars instead of numbers | `System > Display > Num Style` is on `bar`. Switch it to `numbers` if you'd rather read digits. |
+| Bottom left | What Aux 1-3 do on this page: the turn, and a click with a `!`. Hold *Shift* to peek at the Shift layer. |
+| Bottom right, red disc | A recording is running. It breathes once a second so you don't forget it's on. |
 | Bottom right, icon | Play, pause or stop. It blinks yellow on beats and green on bar starts. |
-| Bottom right, dot | Lights for each event, stays bright while events keep coming, and fades out about half a second after the last one. |
+| Bottom right, diamond | Lights for each event, stays bright while events keep coming, and fades out about half a second after the last one. |
 
-Toasts at the bottom leave the transport icon and the dot alone.
+Toasts cover the Aux hints for a moment and leave the recording disc, the
+transport icon and the diamond alone.
 
 ## Tiny survival notes
 

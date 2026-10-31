@@ -84,7 +84,6 @@ pub struct PresentationScene {
     neo_key_colors: [[u8; 3]; 4],
     transient: DisplayTransientPresentation,
     aux_hints: OledAuxHints,
-    recording_active: bool,
     audio: Option<AudioScene>,
 }
 
@@ -216,7 +215,6 @@ impl NativeRunner {
             neo_key_colors: self.neo_key_colors(transient),
             transient,
             aux_hints: self.aux_hints(),
-            recording_active: self.display.recording_active,
             audio,
         })
     }
@@ -225,6 +223,12 @@ impl NativeRunner {
 impl PresentationScene {
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    /// The recording pulse only moves while the menu shows, so a dark or splash OLED
+    /// is not redrawn for it.
+    pub(super) fn recording_pulse_dim(&self) -> bool {
+        self.transient.recording_pulse_dim && !self.off && self.splash.is_empty()
     }
 
     pub fn oled_presentation_input(
@@ -294,7 +298,8 @@ impl PresentationScene {
             save_flash_serial: self.auto_save_flash_serial,
             aux_hints: self.aux_hints.clone(),
             aux_shift_layer: self.ui.shift_held || self.ui.combined_modifier_held,
-            recording_active: self.recording_active,
+            recording_active: self.transient.recording_active,
+            recording_pulse_dim: self.recording_pulse_dim(),
             metrics,
             runtime_error,
         }

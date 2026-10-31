@@ -56,7 +56,8 @@ impl NativeRunner {
             RuntimeStoreResult::RecordingStatus {
                 message, active, ..
             } => {
-                self.display.recording_active = active;
+                let now = self.display.transients.now();
+                self.display.transients.set_recording(active, now);
                 self.display.toast = Some(NativeToast { message, offset: 0 });
             }
             RuntimeStoreResult::RuntimeFailure { error }
@@ -79,7 +80,8 @@ impl NativeRunner {
             RuntimeStoreResult::RuntimeFailure { error } => {
                 self.display.runtime_error_presentation = None;
                 if error.operation == crate::RuntimeOperation::Recording {
-                    self.display.recording_active = false;
+                    let now = self.display.transients.now();
+                    self.display.transients.set_recording(false, now);
                 }
                 let changed_instruments = self.mark_sample_unavailable_from_error(&error);
                 if is_midi_input_list_failure(&error.domain, &error.code, &error.operation) {

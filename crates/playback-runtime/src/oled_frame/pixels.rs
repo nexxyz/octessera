@@ -41,3 +41,26 @@ pub(super) fn dim(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
     let divisor = divisor.max(1);
     [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
 }
+
+/// An RGB565 colour scaled by `factor` (brightness and fades).
+pub(super) fn shade(color: u16, factor: f32) -> u16 {
+    rgb565(scale(rgb565_to_rgb(color), factor))
+}
+
+/// Draws a bitmap whose rows hold `width` pixels, the leftmost in the highest bit.
+pub(super) fn draw_mask(
+    frame: &mut [u8],
+    rows: &[u8],
+    width: usize,
+    x: usize,
+    y: usize,
+    color: u16,
+) {
+    for (row, bits) in rows.iter().enumerate() {
+        for column in 0..width {
+            if (bits >> (width - 1 - column)) & 1 != 0 {
+                fill_rect(frame, x + column, y + row, 1, 1, color);
+            }
+        }
+    }
+}
