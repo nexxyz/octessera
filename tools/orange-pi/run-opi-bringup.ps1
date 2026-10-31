@@ -2,7 +2,6 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$Target,
-  [string]$Key = "",
   [string]$RemoteScript = "/tmp/octessera-opi-bringup-probe.sh",
   [string]$RemoteLogDir = "/tmp/octessera-opi-bringup",
   [string]$LocalOutputDir = "artifacts/orange-pi-bringup",
@@ -11,6 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\deployment-target.ps1")
+$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path
 Assert-DeploymentTarget $Target | Out-Null
 
 function ConvertTo-ShellLiteral {
@@ -18,12 +18,9 @@ function ConvertTo-ShellLiteral {
   return "'" + $Value.Replace("'", "'\''") + "'"
 }
 
-function Invoke-CheckedNative {
-  param(
-    [string]$Command,
-    [string[]]$Arguments
-  )
-  & $Command @Arguments
+function Invoke-CheckedTransport {
+  param([string]$Command, [string[]]$Arguments)
+  & $transport $Command -Board opi -Target $Target @Arguments
   if ($LASTEXITCODE -ne 0) {
     throw "$Command failed with exit code $LASTEXITCODE"
   }
@@ -77,12 +74,6 @@ foreach ($supportFile in $supportFiles) {
   }
 }
 
-$sshBaseArgs = @()
-if ($Key -ne "") {
-  $sshBaseArgs += @("-i", $Key, "-o", "IdentitiesOnly=yes")
-}
-$sshBaseArgs += @("-o", "StrictHostKeyChecking=yes", "-o", "BatchMode=yes")
-
 $remoteSupportFiles = @()
 $remoteSupportDirectory = Get-PosixDirectory $RemoteScript
 foreach ($supportFile in $supportFiles) {
@@ -113,7 +104,7 @@ foreach ($remoteSupportFile in $remoteSupportFiles) {
 }
 
 foreach ($remoteFile in $remoteFiles) {
-  Invoke-CheckedNative "scp" ($sshBaseArgs + @($remoteFile.LocalPath, "${Target}:$($remoteFile.RemotePath)"))
+  Invoke-CheckedTransport "scp" @($remoteFile.LocalPath, "${Target}:$($remoteFile.RemotePath)")
 }
 
 $probeArgs = @("--output-dir", $RemoteLogDir)
@@ -139,9 +130,8 @@ for ($index = 0; $index -lt $remoteFiles.Count; $index++) {
 $remoteCommandParts += "bash $remoteScriptLiteral $remoteArgs"
 $remoteCommand = $remoteCommandParts -join " && "
 
-$sshArgs = $sshBaseArgs + @($Target, $remoteCommand)
 $probeExitCode = 0
-& ssh @sshArgs
+& $transport ssh -Board opi -Target $Target $remoteCommand
 if ($LASTEXITCODE -ne 0) {
   $probeExitCode = $LASTEXITCODE
 }
@@ -151,7 +141,7 @@ if (-not (Test-Path -LiteralPath $LocalOutputDir)) {
 }
 
 $remoteLogDirLiteral = ConvertTo-ShellLiteral $RemoteLogDir
-$latestLogOutput = @(& ssh @sshBaseArgs $Target "cat $remoteLogDirLiteral/latest-log-path 2>/dev/null")
+$latestLogOutput = @(& $transport ssh -Board opi -Target $Target "cat $remoteLogDirLiteral/latest-log-path 2>/dev/null")
 $latestLogExitCode = $LASTEXITCODE
 $latestLogPath = $null
 if ($latestLogOutput.Count -eq 1) {
@@ -159,7 +149,7 @@ if ($latestLogOutput.Count -eq 1) {
 }
 if ($latestLogExitCode -eq 0 -and $latestLogPath -ne $null -and $latestLogPath -ne "") {
   $remoteLogPath = "${Target}:$latestLogPath"
-  & scp @sshBaseArgs $remoteLogPath $LocalOutputDir
+  & $transport scp -Board opi -Target $Target $remoteLogPath $LocalOutputDir
   if ($LASTEXITCODE -ne 0) {
     Write-Warning "Could not copy remote bring-up log from $remoteLogPath"
   }

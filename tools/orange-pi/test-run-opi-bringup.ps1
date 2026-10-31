@@ -1,10 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-$scriptPath = Join-Path $PSScriptRoot "run-opi-bringup.ps1"
+$realScriptPath = Join-Path $PSScriptRoot "run-opi-bringup.ps1"
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ("octessera-opi-bringup-test-" + [guid]::NewGuid().ToString("N"))
+$scriptPath = Join-Path $testRoot "run-opi-bringup.ps1"
 $fakeBin = Join-Path $testRoot "fake tools"
 $recordPath = Join-Path $testRoot "transport.jsonl"
-$oldPath = $env:PATH
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 function Write-Utf8NoBom {
@@ -33,13 +33,11 @@ function Read-TransportRecords {
 }
 
 function Assert-TransportRecord {
-  param([object]$Record, [string]$Tool, [object[]]$ExpectedArguments, [string]$Label, [switch]$Prefix)
-  if ($Record.tool -cne $Tool) {
-    throw "$Label tool mismatch: expected [$Tool], got [$($Record.tool)]"
+  param([object]$Record, [string]$Tool, [object[]]$ExpectedArguments, [string]$Label)
+  if ($Record.tool -cne $Tool -or $Record.board -cne "opi" -or $Record.target -cne $target) {
+    throw "$Label transport mismatch: expected [$Tool opi $target], got [$($Record.tool) $($Record.board) $($Record.target)]"
   }
-  $actual = @($Record.arguments)
-  if ($Prefix) { $actual = @($actual | Select-Object -First $ExpectedArguments.Count) }
-  Assert-ArgumentsEqual $actual $ExpectedArguments $Label
+  Assert-ArgumentsEqual @($Record.arguments) $ExpectedArguments $Label
 }
 
 function Invoke-BringupForTest {
@@ -57,10 +55,12 @@ function Invoke-BringupForTest {
 
 try {
   New-Item -ItemType Directory -Path $fakeBin -Force | Out-Null
-  Write-Utf8NoBom (Join-Path $fakeBin "record-transport.ps1") @'
-$tool = [string]$args[0]
-$arguments = @($args | Select-Object -Skip 1)
-$record = [ordered]@{ tool = $tool; arguments = $arguments }
+  $fakeTransport = Join-Path $fakeBin "fake-transport.ps1"
+  Write-Utf8NoBom $fakeTransport @'
+param([string]$Command, [string]$Board, [string]$Target, [Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest)
+$tool = $Command
+$arguments = @($Rest)
+$record = [ordered]@{ tool = $tool; board = $Board; target = $Target; arguments = $arguments }
 [IO.File]::AppendAllText($env:OCTESSERA_FAKE_TRANSPORT_LOG, ($record | ConvertTo-Json -Compress) + [Environment]::NewLine)
 $isLatestLogLookup = $tool -eq "ssh" -and $arguments.Count -gt 0 -and $arguments[$arguments.Count - 1] -like "cat *latest-log-path*"
 if ($isLatestLogLookup -and $env:OCTESSERA_FAKE_SSH_LOG_LOOKUP -eq "failed") { exit 23 }
@@ -79,24 +79,13 @@ if ($tool -eq "scp" -and $env:OCTESSERA_FAKE_SCP_FAILURE_SOURCE -ne $null) {
 }
 exit 0
 '@
-  Write-Utf8NoBom (Join-Path $fakeBin "ssh.cmd") @'
-@echo off
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0record-transport.ps1" ssh %*
-exit /b %ERRORLEVEL%
-'@
-  Write-Utf8NoBom (Join-Path $fakeBin "scp.cmd") @'
-@echo off
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0record-transport.ps1" scp %*
-exit /b %ERRORLEVEL%
-'@
-
+  $transportLine = '$transport = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\board-dev\with-board-ssh.ps1")).Path'
+  $source = [IO.File]::ReadAllText($realScriptPath)
+  if (-not $source.Contains($transportLine)) { throw "test could not replace the transport binding" }
+  $rootLiteral = "'" + $PSScriptRoot.Replace("'", "''") + "'"
+  $copySource = $source.Replace($transportLine, "`$transport = '$($fakeTransport.Replace("'", "''"))'").Replace('$PSScriptRoot', $rootLiteral)
+  Write-Utf8NoBom $scriptPath $copySource
   $env:OCTESSERA_FAKE_TRANSPORT_LOG = $recordPath
-  $env:PATH = "$fakeBin;$oldPath"
-  $resolvedSsh = (Get-Command ssh -ErrorAction Stop).Source
-  $resolvedScp = (Get-Command scp -ErrorAction Stop).Source
-  if ($resolvedSsh -ne (Join-Path $fakeBin "ssh.cmd") -or $resolvedScp -ne (Join-Path $fakeBin "scp.cmd")) {
-    throw "fake ssh/scp executables were not selected"
-  }
 
   $savedErrorActionPreference = $ErrorActionPreference
   [IO.File]::WriteAllText($recordPath, "", $utf8NoBom)
@@ -125,7 +114,6 @@ exit /b %ERRORLEVEL%
   $cases = @(
     [pscustomobject]@{
       Name = "simple"
-      Key = (Join-Path $testRoot "key with spaces.pem")
       RemoteScript = "/tmp/octessera-opi-probe.sh"
       RemoteLogDir = "/tmp/octessera-opi-bringup"
     }
@@ -136,7 +124,6 @@ exit /b %ERRORLEVEL%
     $localOutputDir = Join-Path $testRoot ("local output " + $case.Name)
     $null = & $scriptPath `
       -Target $target `
-      -Key $case.Key `
       -RemoteScript $case.RemoteScript `
       -RemoteLogDir $case.RemoteLogDir `
       -LocalOutputDir $localOutputDir
@@ -148,25 +135,20 @@ exit /b %ERRORLEVEL%
     if ($records.Count -ne 7) {
       throw "expected two ssh and five scp calls for $($case.Name), got $($records.Count)"
     }
-    $baseArguments = @(
-      "-i", $case.Key,
-      "-o", "IdentitiesOnly=yes",
-      "-o", "StrictHostKeyChecking=yes",
-      "-o", "BatchMode=yes"
-    )
     $probeScriptPath = Join-Path $PSScriptRoot "opi-bringup-probe.sh"
-    Assert-TransportRecord $records[0] "scp" ($baseArguments + @($probeScriptPath, "${target}:$($case.RemoteScript)")) "$($case.Name) upload"
+    Assert-TransportRecord $records[0] "scp" @($probeScriptPath, "${target}:$($case.RemoteScript)") "$($case.Name) upload"
     $supportNames = @("opi-bringup-validator.sh", "opi-bringup-identity-validator.sh", "opi-bringup-hardware-validator.sh")
     for ($supportIndex = 0; $supportIndex -lt $supportNames.Count; $supportIndex++) {
       $supportName = $supportNames[$supportIndex]
       $supportPath = Join-Path $PSScriptRoot $supportName
       $remoteDirectory = $case.RemoteScript.Substring(0, $case.RemoteScript.LastIndexOf('/'))
       $remoteSupportPath = if ($remoteDirectory -eq "/") { "/$supportName" } else { "$remoteDirectory/$supportName" }
-      Assert-TransportRecord $records[$supportIndex + 1] "scp" ($baseArguments + @($supportPath, "${target}:$remoteSupportPath")) "$($case.Name) $supportName upload"
+      Assert-TransportRecord $records[$supportIndex + 1] "scp" @($supportPath, "${target}:$remoteSupportPath") "$($case.Name) $supportName upload"
     }
-    Assert-TransportRecord $records[4] "ssh" ($baseArguments + @($target)) "$($case.Name) probe" -Prefix
-    Assert-TransportRecord $records[5] "ssh" ($baseArguments + @($target)) "$($case.Name) latest-log-path" -Prefix
-    Assert-TransportRecord $records[6] "scp" ($baseArguments + @("${target}:/tmp/fake bringup.log", $localOutputDir)) "$($case.Name) log download"
+    if (@($records[4].arguments).Count -ne 1 -or $records[4].arguments[0] -notlike "umask 077; *bash '$($case.RemoteScript)' *") { throw "$($case.Name) probe command mismatch" }
+    Assert-TransportRecord $records[4] "ssh" @($records[4].arguments) "$($case.Name) probe"
+    Assert-TransportRecord $records[5] "ssh" @("cat '$($case.RemoteLogDir)'/latest-log-path 2>/dev/null") "$($case.Name) latest-log-path"
+    Assert-TransportRecord $records[6] "scp" @("${target}:/tmp/fake bringup.log", $localOutputDir) "$($case.Name) log download"
   }
 
   $collisionNames = @("opi-bringup-validator.sh", "opi-bringup-identity-validator.sh", "opi-bringup-hardware-validator.sh")
@@ -241,7 +223,6 @@ exit /b %ERRORLEVEL%
 
   $failureParameters = @{
     Target = $target
-    Key = (Join-Path $testRoot "failure key.pem")
     RemoteScript = "/tmp/failure-probe.sh"
     RemoteLogDir = "/tmp/failure-logs"
     LocalOutputDir = (Join-Path $testRoot "failure output")
@@ -277,7 +258,6 @@ exit /b %ERRORLEVEL%
   }
   if ($probeFailureText -match "null-valued expression|Trim") { throw "empty log lookup still attempted an unsafe Trim" }
 } finally {
-  $env:PATH = $oldPath
   Remove-Item Env:\OCTESSERA_FAKE_TRANSPORT_LOG -ErrorAction SilentlyContinue
   Remove-Item Env:\OCTESSERA_FAKE_SSH_LOG_LOOKUP -ErrorAction SilentlyContinue
   Remove-Item Env:\OCTESSERA_FAKE_SSH_PROBE -ErrorAction SilentlyContinue
