@@ -1,4 +1,7 @@
-use super::aux_auto_map::{merge_aux_slots, AuxBindingSource, ResolvedAuxSlot};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+use super::aux_auto_map::{custom_aux_slot, merge_aux_slots, AuxBindingSource, ResolvedAuxSlot};
 use super::{NativeAuxBinding, NativeMenuAction, NativeRunner};
 use crate::native_menu::section_labels::{key_home_section_color, section_color, BUILD_LABEL};
 use crate::oled_frame::{OledAuxHint, OledAuxHints, OledHintLabel, OledHintSource};
@@ -6,12 +9,14 @@ use crate::oled_frame::{OledAuxHint, OledAuxHints, OledHintLabel, OledHintSource
 const AUX_COUNT: usize = platform_core::AUX_ENCODER_COUNT;
 
 /// Manual Aux slots with their labels, kept for the bindings they were resolved from: the
-/// labels need menu lookups that are too slow for every display capture.
+/// labels need menu lookups that are too slow for every display capture. A binding whose
+/// target no longer exists keeps its side with an empty label, so it shows no hint and still
+/// hides the auto hint it overrides.
 #[derive(Clone)]
 pub(super) struct ManualAuxHintSlots {
     bindings: [Vec<Option<NativeAuxBinding>>; 2],
     audio_config_revision: u64,
-    behavior_id: String,
+    target_context: u64,
     slots: [[Option<ResolvedAuxSlot>; AUX_COUNT]; 2],
 }
 
@@ -58,6 +63,9 @@ impl NativeRunner {
             AuxBindingSource::Custom if ui.aux_manual_hints => OledHintSource::Manual,
             _ => return None,
         };
+        if label.is_empty() {
+            return None;
+        }
         Some(OledHintLabel {
             text: label.to_string(),
             color,
@@ -66,11 +74,12 @@ impl NativeRunner {
     }
 
     fn manual_aux_hint_slots(&self) -> [[Option<ResolvedAuxSlot>; AUX_COUNT]; 2] {
+        let target_context = self.aux_target_context();
         let current = |cached: &ManualAuxHintSlots| {
             cached.bindings[0] == self.aux_bindings
                 && cached.bindings[1] == self.shift_aux_bindings
                 && cached.audio_config_revision == self.audio_config_revision
-                && cached.behavior_id == self.behavior.id()
+                && cached.target_context == target_context
         };
         if let Some(cached) = self.display.manual_aux_hints.borrow().as_ref() {
             if current(cached) {
@@ -80,14 +89,36 @@ impl NativeRunner {
         let resolved = ManualAuxHintSlots {
             bindings: [self.aux_bindings.clone(), self.shift_aux_bindings.clone()],
             audio_config_revision: self.audio_config_revision,
-            behavior_id: self.behavior.id().to_string(),
+            target_context,
             slots: [&self.aux_bindings, &self.shift_aux_bindings].map(|bindings| {
-                std::array::from_fn(|index| self.resolve_custom_aux_slot_from(bindings, index))
+                std::array::from_fn(|index| {
+                    let binding = bindings.get(index)?.as_ref()?;
+                    Some(custom_aux_slot(
+                        binding,
+                        |key| self.aux_key_target_label(key).unwrap_or_default(),
+                        |action| self.aux_action_target_label(action).unwrap_or_default(),
+                    ))
+                })
             }),
         };
         let slots = resolved.slots.clone();
         *self.display.manual_aux_hints.borrow_mut() = Some(resolved);
         slots
+    }
+
+    /// What decides which bound targets exist: the behavior, the FX slot types and the
+    /// instrument kinds, hashed so the cache check stays cheap on every capture.
+    fn aux_target_context(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.behavior.id().hash(&mut hasher);
+        for bus in &self.fx_buses {
+            (&bus.slot1_type, &bus.slot2_type, &bus.slot3_type).hash(&mut hasher);
+        }
+        self.global_fx_slots.hash(&mut hasher);
+        for instrument in &self.instruments {
+            instrument.kind.hash(&mut hasher);
+        }
+        hasher.finish()
     }
 }
 
@@ -153,7 +184,9 @@ mod tests {
         assert_eq!(turn.source, OledHintSource::Manual);
         assert_eq!(turn.color, palette::GRAY_RGB565);
         assert_eq!(turn.text, "Master Vol");
-        assert_eq!(manual.click.as_ref().unwrap().color, palette::GRAY_RGB565);
+        let click = manual.click.as_ref().unwrap();
+        assert_eq!(click.text, "Stop");
+        assert_eq!(click.color, palette::GRAY_RGB565);
 
         runner.display.ui.aux_manual_hints = false;
         let hints = runner.aux_hints();
@@ -165,5 +198,29 @@ mod tests {
         runner.aux_bindings[2] = None;
         let hints = runner.aux_hints();
         assert_eq!(hints.normal[2].turn.as_ref().unwrap().text, "Time");
+    }
+
+    #[test]
+    fn a_manual_hint_whose_target_left_with_its_fx_type_shows_nothing() {
+        let mut runner = runner();
+        runner.aux_bindings[1] = Some(NativeAuxBinding {
+            turn_key: Some("mixer.buses.0.slot1.params.spreadPct".into()),
+            press_action: None,
+        });
+        assert!(runner
+            .menu
+            .focus_item_key("mixer.buses.0.slot1.params.feedback"));
+        assert_eq!(
+            runner.aux_hints().normal[1].turn.as_ref().unwrap().text,
+            "Spread %"
+        );
+
+        runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();
+        assert_ne!(runner.fx_buses[0].slot1_type, "delay");
+        assert!(runner
+            .menu
+            .binding_spec_for_key("mixer.buses.0.slot1.params.spreadPct")
+            .is_none());
+        assert!(runner.aux_hints().normal[1].turn.is_none());
     }
 }

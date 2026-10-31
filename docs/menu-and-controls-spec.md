@@ -702,6 +702,10 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   remote pages own none, so a bus mix hint is Shape blue; clicks: behavior actions Build, platform
   effects by their area), and whether it comes from the auto map or a manual binding. The Shift
   layer flag is set while Shift (alone or with Fn) is held.
+- A manual hint names its target: the bound row's label for a turn, the bound action's own row
+  label for a click (`Stop` for `System > Recording > Stop`). A manual binding whose target no
+  longer exists (its FX slot type, instrument kind or behavior changed) shows no hint on that
+  side, and the auto hint it overrides stays hidden too.
 - Slots sit at `x=0`, `37` and `74`: a cap at `x..x+6` on `y=118..124` (Shift cap `117..125`
   with its bar) in the hint's colour, labels in Tom Thumb from `x+9`. A slot with nothing mapped
   draws nothing. A single turn or click label is centred on its cap (`y=119..123`); with both,

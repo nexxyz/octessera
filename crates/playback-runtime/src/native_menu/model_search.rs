@@ -1,4 +1,4 @@
-use super::NativeMenuItem;
+use super::{NativeMenuAction, NativeMenuItem, NativeMenuValue};
 
 pub(super) fn find_item<'a>(node: &'a NativeMenuItem, label: &str) -> Option<&'a NativeMenuItem> {
     if node.label == label {
@@ -25,6 +25,18 @@ pub(super) fn find_item_by_key<'a>(
         }
     }
     None
+}
+
+pub(super) fn find_item_by_action<'a>(
+    node: &'a NativeMenuItem,
+    action: &NativeMenuAction,
+) -> Option<&'a NativeMenuItem> {
+    if matches!(&node.value, NativeMenuValue::Action(current) if current == action) {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| find_item_by_action(child, action))
 }
 
 pub(super) fn find_item_by_key_mut<'a>(

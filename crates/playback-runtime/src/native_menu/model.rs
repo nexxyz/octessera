@@ -4,9 +4,9 @@ use super::help::menu_help_target;
 use super::model_binding_specs::param_binding_from_item_key;
 use super::model_edit::turn_key_in_item;
 use super::model_search::{
-    find_item_by_key, find_item_by_key_mut, find_item_path_by_key, replace_children_for_label,
-    replace_group_children_containing_direct_key, replace_group_label_containing_direct_key,
-    replace_item_label, set_item_label_by_key,
+    find_item_by_action, find_item_by_key, find_item_by_key_mut, find_item_path_by_key,
+    replace_children_for_label, replace_group_children_containing_direct_key,
+    replace_group_label_containing_direct_key, replace_item_label, set_item_label_by_key,
 };
 use super::model_values::{number_from_item, value_from_item};
 use super::{
@@ -308,6 +308,11 @@ impl NativeMenuModel {
             (_, NativeMenuValue::Action(action)) => (None, Some(action.clone())),
             _ => (None, None),
         }
+    }
+
+    /// The label of the menu row that runs `action`.
+    pub fn action_label(&self, action: &NativeMenuAction) -> Option<String> {
+        find_item_by_action(&self.root, action).map(|item| item.label.clone())
     }
 
     pub fn binding_spec_for_key(&self, key: &str) -> Option<NativeParamBindingSpec> {

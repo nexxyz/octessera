@@ -96,45 +96,38 @@ impl NativeRunner {
         index: usize,
     ) -> Option<ResolvedAuxSlot> {
         let binding = bindings.get(index)?.as_ref()?;
-        let turn = binding.turn_key.as_ref().map(|key| ResolvedAuxTurn {
-            key: key.clone(),
-            label: self.aux_binding_key_label(key),
-        });
-        let press = binding
-            .press_action
-            .as_ref()
-            .map(|action| ResolvedAuxPress {
-                action: action.clone(),
-                label: self.aux_binding_action_label(action),
-            });
-        Some(ResolvedAuxSlot {
-            turn_source: if turn.is_some() {
-                AuxBindingSource::Custom
-            } else {
-                AuxBindingSource::None
-            },
-            press_source: if press.is_some() {
-                AuxBindingSource::Custom
-            } else {
-                AuxBindingSource::None
-            },
-            turn,
-            press,
-        })
+        Some(custom_aux_slot(
+            binding,
+            |key| self.aux_binding_key_label(key),
+            |action| self.aux_binding_action_label(action),
+        ))
     }
 
     pub(super) fn aux_binding_key_label(&self, key: &str) -> String {
+        self.aux_key_target_label(key)
+            .unwrap_or_else(|| key.rsplit('.').next().unwrap_or(key).into())
+    }
+
+    /// The label of the row a bound key turns, `None` when no such row exists any more.
+    pub(super) fn aux_key_target_label(&self, key: &str) -> Option<String> {
         self.menu
             .binding_spec_for_key(key)
             .and_then(|binding| binding.label)
             .or_else(|| self.hidden_delay_time_item(key).map(|item| item.label))
-            .unwrap_or_else(|| match key {
-                "masterVolume" => "Master Vol".into(),
-                _ => key.rsplit('.').next().unwrap_or(key).into(),
-            })
     }
 
     pub(super) fn aux_binding_action_label(&self, action: &NativeMenuAction) -> String {
+        self.aux_action_target_label(action)
+            .unwrap_or_else(|| match action {
+                NativeMenuAction::BehaviorAction(id) | NativeMenuAction::PlatformEffect(id) => {
+                    id.clone()
+                }
+                _ => "?".into(),
+            })
+    }
+
+    /// The short name of a bound click action, `None` when nothing runs it any more.
+    pub(super) fn aux_action_target_label(&self, action: &NativeMenuAction) -> Option<String> {
         match action {
             NativeMenuAction::BehaviorAction(action_type) => self
                 .build_menu_items()
@@ -146,26 +139,25 @@ impl NativeRunner {
                         Some(item.label)
                     }
                     _ => None,
-                })
-                .unwrap_or_else(|| action_type.clone()),
+                }),
             NativeMenuAction::PlatformEffect(action_type) if action_type == "play.fx.map" => {
-                "Map".into()
+                Some("Map".into())
             }
             NativeMenuAction::PlatformEffect(action_type) if action_type == "midi.panic" => {
-                "MIDI Panic".into()
+                Some("MIDI Panic".into())
             }
             NativeMenuAction::PlatformEffect(action_type)
                 if action_type == "store.refresh" || action_type == "preset.refresh" =>
             {
-                "Refresh".into()
+                Some("Refresh".into())
             }
             NativeMenuAction::PlatformEffect(action_type)
                 if action_type.starts_with("sample.assign:") =>
             {
-                "Assign".into()
+                Some("Assign".into())
             }
-            NativeMenuAction::ResetBehavior => "Reset".into(),
-            _ => "Action".into(),
+            NativeMenuAction::ResetBehavior => Some("Reset".into()),
+            _ => self.menu.action_label(action),
         }
     }
 
@@ -189,6 +181,39 @@ impl NativeRunner {
         let (selected_key, selected_action) = self.menu.current_binding_target();
         let path = self.menu.current_focus_path();
         self.resolve_aux_auto_map(&path, selected_key.as_deref(), selected_action.as_ref())
+    }
+}
+
+/// A resolved custom slot for `binding`, its labels from `turn_label` and `press_label`.
+pub(super) fn custom_aux_slot(
+    binding: &NativeAuxBinding,
+    turn_label: impl Fn(&str) -> String,
+    press_label: impl Fn(&NativeMenuAction) -> String,
+) -> ResolvedAuxSlot {
+    let turn = binding.turn_key.as_ref().map(|key| ResolvedAuxTurn {
+        key: key.clone(),
+        label: turn_label(key),
+    });
+    let press = binding
+        .press_action
+        .as_ref()
+        .map(|action| ResolvedAuxPress {
+            action: action.clone(),
+            label: press_label(action),
+        });
+    ResolvedAuxSlot {
+        turn_source: if turn.is_some() {
+            AuxBindingSource::Custom
+        } else {
+            AuxBindingSource::None
+        },
+        press_source: if press.is_some() {
+            AuxBindingSource::Custom
+        } else {
+            AuxBindingSource::None
+        },
+        turn,
+        press,
     }
 }
 
