@@ -56,9 +56,6 @@ mod indicator_tests;
 mod menu_frame_tests;
 
 #[cfg(test)]
-mod render_bench_tests;
-
-#[cfg(test)]
 mod tests;
 
 #[cfg(test)]

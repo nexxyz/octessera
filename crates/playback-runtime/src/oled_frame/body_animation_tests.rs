@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::model::*;
 use super::render::{render_oled_frame, render_oled_frame_into};
-use super::tests::{base, menu_row, pixel, AREA};
+use super::tests::{base, hint, menu_row, pixel, AREA};
 use super::OLED_FRAME_BYTES;
 
 const BODY: std::ops::RangeInclusive<usize> = 9..=113;
@@ -284,11 +284,19 @@ fn toast_box_rises_from_the_bottom_edge_over_the_hints() {
     assert_eq!(render_oled_frame(&hints_only), hints);
 }
 
-/// Prints the raster cost of the busiest animated frame next to the static one; run with
-/// `cargo test --release -p playback-runtime --lib animated_frame_raster_cost -- --ignored --nocapture`.
+/// Prints the raster cost of a static, the busiest static and the animated frames; run with
+/// `cargo test --release -p playback-runtime --lib frame_raster_cost -- --ignored --nocapture`.
 #[test]
 #[ignore = "release-mode micro-benchmark"]
-fn animated_frame_raster_cost() {
+fn frame_raster_cost() {
+    let mut busiest = base();
+    busiest.display.editing = true;
+    busiest.display.toast = "Saved: Patch 3".into();
+    busiest.save_flash = OledSaveFlash::Flash;
+    busiest.metrics.missed_quantum_flash = true;
+    busiest.recording_active = true;
+    busiest.aux_hints.normal[0].click = hint("Map");
+    busiest.aux_hints.normal[2].click = hint("Record");
     let mut parent = selected(5);
     parent.display.title = "../I1: synth/Synth".into();
     let mut slide = base();
@@ -306,6 +314,7 @@ fn animated_frame_raster_cost() {
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
     for (name, input) in [
         ("static", base()),
+        ("busiest static", busiest),
         ("enter slide", slide),
         ("scroll", scroll),
     ] {
