@@ -78,7 +78,7 @@ impl NativeRunner {
                 )),
                 Some(self.turn_press_slot(
                     format!("{layer_prefix}.gliderSpawnInterval"),
-                    "Glider",
+                    "Interval",
                     NativeMenuAction::BehaviorAction("spawnGlider".into()),
                     "Glider",
                 )),

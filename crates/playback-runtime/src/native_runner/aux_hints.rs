@@ -223,4 +223,19 @@ mod tests {
             .is_none());
         assert!(runner.aux_hints().normal[1].turn.is_none());
     }
+
+    #[test]
+    fn life_shift_hint_names_the_glider_interval_by_its_distinguishing_word() {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner.skip_startup_splash();
+        assert_eq!(runner.behavior.id(), "life");
+        assert!(runner
+            .menu
+            .focus_item_key("layers.0.build.behaviorConfig.randomCellsPerTick"));
+        let hints = runner.aux_hints();
+        let shift = &hints.shift[0];
+        assert_eq!(shift.turn.as_ref().unwrap().text, "Interval");
+        assert_eq!(shift.click.as_ref().unwrap().text, "Glider");
+        assert_eq!(hints.normal[1].turn.as_ref().unwrap().text, "Count");
+    }
 }

@@ -649,7 +649,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Focused rows show indicators such as `1-Cutoff`, `1!Assign` and `S1-Key` in place of the row
   indent, selected or not.
 - Behavior rows map Step Rate to Aux 1 and a behavior-specific set after it (for example Life:
-  Count, then Interval with a Spawn press, then Glider with a Glider press on Shift + Aux 1).
+  Count, then Interval with a Spawn press, then the glider Interval with a Glider press on
+  Shift + Aux 1).
   Sequencer maps Step Rate, Page X, Page Y, then Advance on Shift + Aux 1. Behaviors without
   their own layout map only Step Rate.
 - Instrument layouts (Aux 1-3 | Shift + Aux 1-3):
