@@ -302,10 +302,15 @@ Name scenarios to run a subset: `boot save_restore recording oled soak`.
   contrast is re-sent after the restart, the display goes off on the timer with
   no frame writes while asleep, comes back on with input, and each detent sends
   the next contrast step.
-- `soak` plays the default patch for 10 minutes (`OCTESSERA_SCENARIO_SOAK_SECONDS`)
+- `soak` plays the default patch for 25 minutes (`OCTESSERA_SCENARIO_SOAK_SECONDS`)
   with scripted navigation and Aux turns, OLED awake. It needs 0 underruns, 0
-  late timed events, 0 missed Capacity quanta and no steady RSS or fd growth,
-  sampled once a minute from CPU 0.
+  late timed events, 0 missed Capacity quanta, no steady fd growth, and RSS that
+  is flat after the first 20 minutes (at most 256 kB of growth over the last 5,
+  and not rising at every sample), sampled once a minute from CPU 0. The 25
+  minutes are deliberate: memory is locked with `MCL_ONFAULT`, so preallocated
+  buffers count toward RSS as they are first touched, and a 90-minute
+  measurement showed RSS warming up for 15 to 20 minutes and then staying put.
+  A shorter soak only ever sees the warm-up.
 
 Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
 `target/board-scenarios/<board>-<stamp>/`. Afterwards the payload restores the

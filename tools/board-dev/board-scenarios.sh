@@ -15,7 +15,7 @@ shift 2
 [[ "$board" == rpi || "$board" == opi ]] || { echo "board must be rpi or opi" >&2; exit 2; }
 scenarios=("$@")
 [ ${#scenarios[@]} -gt 0 ] || scenarios=(boot save_restore recording oled soak)
-soak_seconds=${OCTESSERA_SCENARIO_SOAK_SECONDS:-600}
+soak_seconds=${OCTESSERA_SCENARIO_SOAK_SECONDS:-1500}
 cd "$(git rev-parse --show-toplevel)"
 remote() { powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/board-dev/with-board-ssh.ps1 "$1" -Board "$board" -Target "$target" "${@:2}"; }
 local_path() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else printf '%s' "$1"; fi; }

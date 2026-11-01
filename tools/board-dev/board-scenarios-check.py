@@ -190,13 +190,17 @@ def soak(board, out):
         tail = values[2:]
         return len(tail) > 2 and all(b >= a for a, b in zip(tail, tail[1:])) and tail[-1] - tail[0] > margin
 
+    warm = rss[20:]
+    rss_grows = len(warm) > 1 and (warm[-1] - warm[0] > 256 or (len(warm) > 2 and all(b > a for a, b in zip(warm, warm[1:]))))
     problems = []
     if underruns or late or missed:
         problems.append(f"{underruns} underruns, {late} late timed events, {missed} missed quanta")
     if not pulses:
         problems.append("transport was not playing")
-    if not rss or grows(rss, 2048) or grows(fds, 4):
-        problems.append("RSS or open fds grow steadily")
+    if len(rss) < 26:
+        problems.append("soak too short to judge RSS after the 20-minute warm-up")
+    if rss_grows or grows(fds, 4):
+        problems.append("RSS grows after the 20-minute warm-up, or open fds grow steadily")
     problems += errors(rows)
     return problems, (f"{underruns} underruns, {late} late timed events, {missed} missed quanta, {pulses} pulses, worst "
                       f"runtime_late {worst}us, RSS kB {rss}, fds {fds}")
