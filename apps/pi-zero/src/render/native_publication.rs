@@ -1,6 +1,7 @@
 use super::OledFramePublication;
 use super::{HardwareRenderCache, HardwareRenderTargets};
 use crate::render_loop_queue::{NativeSceneCommand, NativeSceneCompletion};
+use playback_runtime::oled_frame::{render_oled_frame_into, OLED_FRAME_BYTES};
 use playback_runtime::NativeHardwarePresentation;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -28,7 +29,8 @@ pub(crate) fn prepare_native_scene(
     let generation = scene.generation();
     let prepared = (|| {
         let hardware = scene.into_hardware_presentation(metrics, error);
-        let pixels = playback_runtime::oled_frame::render_oled_frame(&hardware.oled);
+        let mut pixels: Arc<[u8]> = std::iter::repeat_n(0, OLED_FRAME_BYTES).collect();
+        render_oled_frame_into(&hardware.oled, Arc::make_mut(&mut pixels));
         let revision = super::oled_output::physical_oled_revision(&pixels, cache)?;
         let master_contrast = playback_runtime::oled_frame::oled_master_contrast_step(
             hardware.oled.display_brightness,

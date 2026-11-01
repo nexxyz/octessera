@@ -20,7 +20,7 @@ pub fn render_oled_frame(input: &OledPresentationInput) -> Vec<u8> {
     frame
 }
 
-pub(crate) fn render_oled_frame_into(input: &OledPresentationInput, frame: &mut [u8]) {
+pub fn render_oled_frame_into(input: &OledPresentationInput, frame: &mut [u8]) {
     assert_eq!(frame.len(), OLED_FRAME_BYTES);
     frame.fill(0);
     if input.display.off {

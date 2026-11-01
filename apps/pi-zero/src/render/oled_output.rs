@@ -98,7 +98,11 @@ pub(crate) fn physical_oled_publication(
 ) -> Result<OledFramePublication, String> {
     let pixels = publication.pixels();
     let revision = physical_oled_revision(pixels, cache)?;
-    OledFramePublication::native_pixels(revision, pixels.to_vec(), publication.master_contrast())
+    OledFramePublication::native_pixels(
+        revision,
+        publication.shared_pixels(),
+        publication.master_contrast(),
+    )
 }
 
 pub(super) fn physical_oled_revision(

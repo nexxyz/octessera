@@ -11,7 +11,7 @@ pub(crate) struct OledFramePublication {
 impl OledFramePublication {
     pub(crate) fn native_pixels(
         revision: u64,
-        pixels: Vec<u8>,
+        pixels: Arc<[u8]>,
         master_contrast: u8,
     ) -> Result<Self, String> {
         if revision == 0
@@ -24,7 +24,7 @@ impl OledFramePublication {
         }
         Ok(Self {
             revision,
-            pixels: Arc::from(pixels),
+            pixels,
             master_contrast,
         })
     }
