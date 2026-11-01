@@ -123,12 +123,10 @@ scenario checks in a few seconds and its timing is sample-exact.
 - Scenarios are written with `playback_runtime::scenario::ScenarioBuilder`
   (feature `test-support`): menu paths become the encoder turns and presses a
   player would make, with checkpoints on the OLED title, then timed inputs cued
-  on transport pulses or seconds after B1.
+  on transport pulses.
 - The tests live in `apps/desktop/src-tauri/tests/e2e/`. A failing scenario
   keeps its audio as a WAV under the system temp folder
   (`octessera-e2e/`) so you can listen to it.
-- `record_teaser_v53_take` is ignored by default: it renders the teaser score
-  in real time with the device's Audio+Video recorder running.
 
 They are not part of the pre-push hook; run them after changes to playback,
 menus, Link mapping, instruments or FX.

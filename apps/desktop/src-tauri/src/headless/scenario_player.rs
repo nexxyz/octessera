@@ -1,5 +1,5 @@
 use super::HeadlessSession;
-use playback_runtime::scenario::{button, Cue, Scenario, SetupStep};
+use playback_runtime::scenario::{button, Scenario, SetupStep};
 
 /// One 24-PPQN pulse at 120 BPM; pulse cues left after the transport stops keep this tempo.
 const PULSE_SECONDS: f64 = 0.5 / 24.0;
@@ -32,12 +32,7 @@ impl HeadlessSession {
         self.render(self.seconds_to_frames(preroll_seconds))?;
         let mut applied = vec![false; scenario.perf.len()];
         for (index, timed) in scenario.perf.iter().enumerate() {
-            if timed.cue
-                == (Cue::Pulse {
-                    pulse: 0,
-                    before: true,
-                })
-            {
+            if timed.pulse == 0 && timed.before {
                 applied[index] = true;
                 self.input(timed.input.clone())?;
             }
@@ -62,25 +57,13 @@ impl HeadlessSession {
                 stopped_at = Some((since_b1, max_pulse));
             }
             for (index, timed) in scenario.perf.iter().enumerate() {
-                let due = match (timed.cue, stopped_at) {
-                    (Cue::Seconds(seconds), _) => since_b1 >= seconds,
-                    (Cue::Pulse { pulse, .. }, Some((at, stop_pulse))) => {
-                        since_b1 - at >= pulse.saturating_sub(stop_pulse + 1) as f64 * PULSE_SECONDS
+                let due = match stopped_at {
+                    Some((at, stop_pulse)) => {
+                        since_b1 - at
+                            >= timed.pulse.saturating_sub(stop_pulse + 1) as f64 * PULSE_SECONDS
                     }
-                    (
-                        Cue::Pulse {
-                            pulse,
-                            before: true,
-                        },
-                        None,
-                    ) => pulse <= n + 1,
-                    (
-                        Cue::Pulse {
-                            pulse,
-                            before: false,
-                        },
-                        None,
-                    ) => pulse <= n,
+                    None if timed.before => timed.pulse <= n + 1,
+                    None => timed.pulse <= n,
                 };
                 if !applied[index] && due {
                     applied[index] = true;

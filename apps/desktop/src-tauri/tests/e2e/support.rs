@@ -1,4 +1,4 @@
-use octessera_desktop_lib::headless::{HeadlessSession, Pace, PlayedEvent, PlayedScenario};
+use octessera_desktop_lib::headless::{HeadlessSession, PlayedEvent, PlayedScenario};
 use playback_runtime::scenario::{ScenarioBuilder, BAR};
 use std::path::PathBuf;
 
@@ -13,10 +13,10 @@ pub fn session_root(name: &str) -> PathBuf {
 }
 
 /// A fresh store and recordings folder for one test run.
-pub fn session(name: &str, pace: Pace) -> HeadlessSession {
+pub fn session(name: &str) -> HeadlessSession {
     let root = session_root(name);
     let _ = std::fs::remove_dir_all(&root);
-    HeadlessSession::start(root.join("store"), root.join("media"), pace)
+    HeadlessSession::start(root.join("store"), root.join("media"))
         .unwrap_or_else(|error| panic!("{name}: session failed to start: {error}"))
 }
 

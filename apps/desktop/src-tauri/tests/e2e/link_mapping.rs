@@ -1,7 +1,6 @@
 //! Link note mapping set up from the menu: pitch steps per column and row, a scale and root, and
 //! the difference between clamping and wrapping notes past High Note, heard as played notes.
 use crate::support::{assert_clean_audio, builder, keep_audio, session};
-use octessera_desktop_lib::headless::Pace;
 
 const SYNTH_SLOT: u8 = 4;
 
@@ -39,7 +38,7 @@ fn played_notes(out_of_range: &str) -> Vec<u8> {
         take.tap_now(x, y);
     }
     let name = format!("link-mapping-{out_of_range}");
-    let mut session = session(&name, Pace::Fast);
+    let mut session = session(&name);
     let played = session.play_scenario(&take.build(), 0.5, 4.0).unwrap();
     let wav = keep_audio(&session, &name);
     assert_clean_audio(&session, &name);

@@ -1,6 +1,5 @@
 //! Modifier gestures on the default patch, as a player makes them during playback.
 use crate::support::{builder, keep_audio, session, Timeline};
-use octessera_desktop_lib::headless::Pace;
 use playback_runtime::scenario::{back, button, grid, BAR};
 use serde_json::Value;
 
@@ -55,7 +54,7 @@ fn modifier_gestures_mute_select_open_pages_and_stop() {
         &[button("button_s", true), button("button_s", false)],
     );
     let scenario = take.build();
-    let mut session = session("gestures", Pace::Fast);
+    let mut session = session("gestures");
     let played = session.play_scenario(&scenario, 0.0, 15.0).unwrap();
     let observations = played.observations.clone();
     let timeline = Timeline {

@@ -1,9 +1,8 @@
-//! A desktop session without a window or sound card, for end-to-end tests and scripted takes.
+//! A desktop session without a window or sound card, for end-to-end tests.
 //!
 //! It wires the same runtime, runner, host adapter, sample preparation and engine as the app, but
 //! pulls audio from the engine itself and advances the runtime clock by exactly the audio it
-//! rendered, so musical timing is sample-exact and repeatable. `Pace::Realtime` sleeps to keep
-//! that virtual clock in step with the wall clock, for takes where on-screen timers matter.
+//! rendered, so musical timing is sample-exact and repeatable.
 mod logging_adapter;
 mod scenario_player;
 
@@ -32,12 +31,6 @@ use std::time::{Duration, Instant};
 const BLOCK_FRAMES: usize = 64;
 const SNAPSHOT_INTERVAL_SECONDS: f64 = 0.05;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Pace {
-    Fast,
-    Realtime,
-}
-
 /// A note or cell hit the runtime sent to the engine, with when it happened.
 #[derive(Clone, Debug)]
 pub struct PlayedEvent {
@@ -64,13 +57,11 @@ pub struct HeadlessSession {
     recording_tap: RecordingTapState,
     recording_started_frame: Option<usize>,
     last_snapshot_at: f64,
-    pace: Pace,
-    started: Instant,
 }
 
 impl HeadlessSession {
     /// Starts on `store_dir` (seeded with the shipped default patch when empty).
-    pub fn start(store_dir: PathBuf, recordings_dir: PathBuf, pace: Pace) -> Result<Self, String> {
+    pub fn start(store_dir: PathBuf, recordings_dir: PathBuf) -> Result<Self, String> {
         let store_dir = ensure_store_dir_at(store_dir).map_err(|error| error.to_string())?;
         let (engine_tx, engine_rx) = event_queue();
         let recording = DesktopRecording::with_screen_directory(
@@ -126,8 +117,6 @@ impl HeadlessSession {
             recording_tap,
             recording_started_frame: None,
             last_snapshot_at: 0.0,
-            pace,
-            started: Instant::now(),
         };
         let output = session.playback.dispatch_runner_messages(
             vec![RunnerMessage::PlatformEffects {
@@ -274,12 +263,6 @@ impl HeadlessSession {
         self.poll_services()?;
         for _ in 0..frames * 2 {
             self.audio.push(self.source.next().unwrap_or(0.0));
-        }
-        if self.pace == Pace::Realtime {
-            let ahead = self.virtual_seconds() - self.started.elapsed().as_secs_f64();
-            if ahead > 0.0 {
-                std::thread::sleep(Duration::from_secs_f64(ahead));
-            }
         }
         Ok(())
     }

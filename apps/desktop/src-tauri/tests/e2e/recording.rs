@@ -1,7 +1,7 @@
 //! The device recorder driven from System > Recording during playback: a WAV take, then an
 //! Audio+Video take, each checked against the audio the session rendered over the same span.
 use crate::support::{session, session_root};
-use octessera_desktop_lib::headless::{HeadlessSession, Pace, PlayedScenario};
+use octessera_desktop_lib::headless::{HeadlessSession, PlayedScenario};
 use playback_runtime::scenario::{press_main, turn, BAR};
 use std::path::{Path, PathBuf};
 
@@ -162,7 +162,7 @@ fn recorder_writes_wav_and_avi_takes_that_match_the_rendered_audio() {
     for (pulse, input) in cues {
         take.at(pulse, false, input);
     }
-    let mut session = session("recording", Pace::Fast);
+    let mut session = session("recording");
     let played = session.play_scenario(&take.build(), 0.0, 15.0).unwrap();
     session.settle().unwrap();
     let wav_span = (

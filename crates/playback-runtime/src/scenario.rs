@@ -2,10 +2,9 @@
 //!
 //! A [`ScenarioBuilder`] mirrors the device on its own `NativeRunner` so menu navigation can be
 //! written as label paths and resolved into the exact encoder turns and presses a player would
-//! make. Setup inputs run before B1, the start of the timed section. Timed inputs are cued either
-//! on transport pulses (24 per beat, counted from Play at B1): a `before` input lands once pulse
-//! `p - 1` has played, ahead of the step at `p`, an `after` input once pulse `p` has played; or in
-//! seconds after B1, for parts played while the transport is stopped or restarted.
+//! make. Setup inputs run before B1, the start of the timed section. Timed inputs are cued on
+//! transport pulses (24 per beat, counted from Play at B1): a `before` input lands once pulse
+//! `p - 1` has played, ahead of the step at `p`, an `after` input once pulse `p` has played.
 mod device_input;
 
 use crate::{CoreRunner, HostMessage, NativeRunner, NativeRunnerConfig};
@@ -28,15 +27,10 @@ pub enum SetupStep {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Cue {
-    Pulse { pulse: u64, before: bool },
-    Seconds(f64),
-}
-
 #[derive(Clone, Debug)]
 pub struct TimedInput {
-    pub cue: Cue,
+    pub pulse: u64,
+    pub before: bool,
     pub input: Value,
 }
 
@@ -257,29 +251,10 @@ impl ScenarioBuilder {
 
     pub fn at(&mut self, pulse: u64, before: bool, input: Value) {
         self.perf.push(TimedInput {
-            cue: Cue::Pulse { pulse, before },
+            pulse,
+            before,
             input,
         });
-    }
-
-    pub fn at_seconds(&mut self, seconds: f64, input: Value) {
-        self.perf.push(TimedInput {
-            cue: Cue::Seconds(seconds),
-            input,
-        });
-    }
-
-    /// A gesture at `seconds` after B1, with `mods` held from a little before until after.
-    pub fn gesture_at_seconds(&mut self, mods: &[&str], seconds: f64, inputs: &[Value]) {
-        for kind in mods {
-            self.at_seconds(seconds - 0.12, button(kind, true));
-        }
-        for input in inputs {
-            self.at_seconds(seconds, input.clone());
-        }
-        for kind in mods.iter().rev() {
-            self.at_seconds(seconds + 0.06, button(kind, false));
-        }
     }
 
     /// A gesture at `pulse` with `mods` held from a little before until a little after.
@@ -323,14 +298,7 @@ impl ScenarioBuilder {
     }
 
     pub fn build(mut self) -> Scenario {
-        let order = |cue: &Cue| match *cue {
-            Cue::Pulse { pulse, before } => (pulse as f64, !before),
-            Cue::Seconds(seconds) => (seconds, false),
-        };
-        self.perf.sort_by(|a, b| {
-            let (a, b) = (order(&a.cue), order(&b.cue));
-            a.0.total_cmp(&b.0).then(a.1.cmp(&b.1))
-        });
+        self.perf.sort_by_key(|timed| (timed.pulse, !timed.before));
         Scenario {
             setup: self.setup,
             perf: self.perf,

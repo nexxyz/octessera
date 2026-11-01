@@ -1,7 +1,7 @@
 //! A momentary Play FX mapped from the menu and held on its cell during playback: a filter
 //! sweep at its default cutoff, compared with the same take played dry.
 use crate::support::{assert_clean_audio, builder, keep_audio, session};
-use octessera_desktop_lib::headless::{HeadlessSession, Pace, PlayedScenario};
+use octessera_desktop_lib::headless::{HeadlessSession, PlayedScenario};
 use playback_runtime::scenario::{grid, BAR};
 use std::path::PathBuf;
 
@@ -68,7 +68,7 @@ fn play(hold: bool) -> Take {
         take.at(RELEASE_BAR * BAR, true, grid(FX_CELL.0, FX_CELL.1, false));
     }
     let name = format!("play-fx-{}", if hold { "held" } else { "dry" });
-    let mut session = session(&name, Pace::Fast);
+    let mut session = session(&name);
     let played = session.play_scenario(&take.build(), 0.0, 16.0).unwrap();
     let wav = keep_audio(&session, &name);
     assert_clean_audio(&session, &name);

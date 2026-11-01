@@ -1,7 +1,7 @@
 //! Instrument setup through the menu: type change, kit load with its confirmation, voice edits
 //! and Cell Tune stamps, checked by the pitch of what actually sounds.
 use crate::support::{assert_clean_audio, builder, keep_audio, session};
-use octessera_desktop_lib::headless::{HeadlessSession, Pace};
+use octessera_desktop_lib::headless::HeadlessSession;
 use playback_runtime::scenario::button;
 
 const DRUM_SLOT: u8 = 4;
@@ -98,7 +98,7 @@ fn drum_set_up_from_the_menu_plays_its_stamped_tunes() {
     take.select_layer_now(4);
     take.tap_now(0, 0);
     take.tap_now(4, 1);
-    let mut session = session("instruments", Pace::Fast);
+    let mut session = session("instruments");
     // The pre-roll lets the engine apply the queued voice edits, as a running device would.
     let played = session.play_scenario(&take.build(), 0.5, 4.0).unwrap();
     let wav = keep_audio(&session, "instruments");

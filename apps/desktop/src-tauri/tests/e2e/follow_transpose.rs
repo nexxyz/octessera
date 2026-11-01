@@ -1,7 +1,6 @@
 //! Play Transpose on the Sampler-only L2 beat: its cells shift only when the Sampler's
 //! Follow Transp. is on, heard as the pitch each hit asks the engine for.
 use crate::support::{assert_clean_audio, builder, keep_audio, session, Timeline};
-use octessera_desktop_lib::headless::Pace;
 use playback_runtime::scenario::{grid, BAR};
 use std::collections::BTreeMap;
 
@@ -28,7 +27,7 @@ fn cell_pitches(follow: bool) -> (BTreeMap<u8, i16>, BTreeMap<u8, i16>) {
     take.checkpoint("transpose page");
     take.tap_at(FIFTH_KEY.0, FIFTH_KEY.1, 2 * BAR - 6, true);
     let name = format!("follow-transpose-{follow}");
-    let mut session = session(&name, Pace::Fast);
+    let mut session = session(&name);
     let played = session.play_scenario(&take.build(), 0.5, 8.0).unwrap();
     let wav = keep_audio(&session, &name);
     assert_clean_audio(&session, &name);

@@ -1,7 +1,6 @@
 //! Ten virtual minutes of the default patch: the audio stays clean, every layer keeps playing,
 //! and events stay on the beat grid without drifting, gaps or bursts.
 use crate::support::{assert_clean_audio, builder, keep_audio, session, Timeline};
-use octessera_desktop_lib::headless::Pace;
 use playback_runtime::scenario::BAR;
 
 const BARS: u64 = 300;
@@ -16,7 +15,7 @@ const LAYER_WINDOW_BARS: u64 = 8;
 
 #[test]
 fn default_patch_soaks_for_ten_virtual_minutes() {
-    let mut session = session("soak", Pace::Fast);
+    let mut session = session("soak");
     let played = session
         .play_scenario(&builder().build(), 0.0, BARS as f64 * 2.0)
         .unwrap();

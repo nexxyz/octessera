@@ -1,7 +1,7 @@
 //! Save Patch from the menu, then a fresh start on the same store: the edited patch comes back
 //! as it was saved, and its sequencer pattern plays.
 use crate::support::{assert_clean_audio, builder, keep_audio};
-use octessera_desktop_lib::headless::{HeadlessSession, Pace};
+use octessera_desktop_lib::headless::HeadlessSession;
 use playback_runtime::scenario::ScenarioBuilder;
 use serde_json::Value;
 
@@ -69,7 +69,7 @@ fn saved_patch_reloads_unchanged_after_a_restart() {
         .join(format!("save-reload-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let start = || {
-        HeadlessSession::start(root.join("store"), root.join("media"), Pace::Fast)
+        HeadlessSession::start(root.join("store"), root.join("media"))
             .unwrap_or_else(|error| panic!("save-reload: session failed to start: {error}"))
     };
 

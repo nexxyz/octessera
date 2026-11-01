@@ -1,6 +1,5 @@
 //! Sequencer pages turn on musical time and land on the scan's bar line.
 use crate::support::{assert_clean_audio, builder, keep_audio, session, Timeline};
-use octessera_desktop_lib::headless::Pace;
 
 const SAMPLER: u8 = 1;
 /// The hat row (sample slot 2) in a column page 1 leaves empty.
@@ -23,7 +22,7 @@ fn sequencer_pages_advance_every_bar_in_step_with_scanning() {
     for layer in [0, 2, 3] {
         take.toggle_mute_now(layer);
     }
-    let mut session = session("sequencer-pages", Pace::Fast);
+    let mut session = session("sequencer-pages");
     let played = session.play_scenario(&take.build(), 0.0, 8.0).unwrap();
     let timeline = Timeline {
         session: &session,
