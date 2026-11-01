@@ -43,12 +43,16 @@ impl NativeRunner {
         &mut self,
     ) -> Result<platform_core::NativeTickResult, String> {
         let layer_index = self.active_layer_index;
-        let (sense, probability_map) = self.probability_context(layer_index);
         let mut rng = self.probability_rng(layer_index);
+        let sense = self.link_layers.get(layer_index);
+        let probability_map = self
+            .trigger_probability_maps
+            .get(layer_index)
+            .map_or(&[][..], Vec::as_slice);
         let result = self
             .engine
             .tick_filtered(self.transport.bpm as f32, |intent| {
-                trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
+                trigger_probability_allows(sense, probability_map, &mut rng, intent)
             })?;
         self.store_probability_rng(layer_index, rng);
         Ok(result)
@@ -83,12 +87,6 @@ impl NativeRunner {
             }
             let profile = self.interpretation_profile_for_layer(index);
             let mapping = self.mapping_config_for_layer(index);
-            let sense = self.link_layers.get(index).cloned();
-            let probability_map = self
-                .trigger_probability_maps
-                .get(index)
-                .cloned()
-                .unwrap_or_default();
             let transpose_offset = transpose_offsets
                 .get_or_insert_with(|| self.play_transpose_offsets_for_routing())
                 .get(index)
@@ -106,13 +104,13 @@ impl NativeRunner {
                     engine.set_global_sound(effective_sound.clone());
                     engine.set_interpretation_profile(profile.clone());
                     engine.set_mapping_config(mapping.clone());
+                    let sense = self.link_layers.get(index);
+                    let probability_map = self
+                        .trigger_probability_maps
+                        .get(index)
+                        .map_or(&[][..], Vec::as_slice);
                     engine.tick_filtered(effective_bpm, |intent| {
-                        trigger_probability_allows(
-                            sense.as_ref(),
-                            &probability_map,
-                            &mut rng,
-                            intent,
-                        )
+                        trigger_probability_allows(sense, probability_map, &mut rng, intent)
                     })?
                 };
                 self.store_probability_rng(index, rng);
@@ -128,7 +126,7 @@ impl NativeRunner {
                     LinkRoutingInput {
                         events: tick.events,
                         event_intents: &tick.event_intents,
-                        sense: sense.clone(),
+                        sense: self.link_layers.get(index).cloned(),
                         transpose_offset,
                     },
                 )?;
@@ -184,19 +182,6 @@ impl NativeRunner {
                 .copied()
                 .unwrap_or(super::DEFAULT_ALGORITHM_STEP_RED)
         }
-    }
-
-    fn probability_context(
-        &self,
-        layer_index: usize,
-    ) -> (Option<super::NativeLinkLayer>, Vec<String>) {
-        (
-            self.link_layers.get(layer_index).cloned(),
-            self.trigger_probability_maps
-                .get(layer_index)
-                .cloned()
-                .unwrap_or_default(),
-        )
     }
 
     fn advance_transport_indicators(&mut self, pulses: u32) {

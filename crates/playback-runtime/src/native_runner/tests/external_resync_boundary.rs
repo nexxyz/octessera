@@ -152,6 +152,39 @@ fn dual_scanning_runner() -> NativeRunner {
 }
 
 #[test]
+fn active_and_inactive_sequencer_ticks_follow_their_own_trigger_probability_maps() {
+    for (blocked_layer, audio_ons, midi_ons) in [(0, 0, 1), (1, 1, 0)] {
+        let mut runner = dual_scanning_runner();
+        for layer in 0..2 {
+            let state = if layer == blocked_layer {
+                "zero"
+            } else {
+                "full"
+            };
+            runner.link_layers[layer].trigger_probability_mode = "custom".into();
+            runner.trigger_probability_maps[layer].fill(state.into());
+        }
+        runner.prime_sequencer_layer_origins();
+        let events = runner.advance_due_layer_ticks().unwrap();
+        let note_ons = |lane: &[platform_core::MusicalEvent]| {
+            lane.iter()
+                .filter(|event| matches!(event, platform_core::MusicalEvent::NoteOn { .. }))
+                .count()
+        };
+        assert_eq!(
+            note_ons(&events.audio),
+            audio_ons,
+            "blocked layer {blocked_layer}"
+        );
+        assert_eq!(
+            note_ons(&events.midi),
+            midi_ons,
+            "blocked layer {blocked_layer}"
+        );
+    }
+}
+
+#[test]
 fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_cleanup() {
     let mut runner = dual_scanning_runner();
     runner.prime_sequencer_layer_origins();

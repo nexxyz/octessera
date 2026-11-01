@@ -97,11 +97,11 @@ impl NativeRunner {
     pub(super) fn aux_cap_for_line(
         &self,
         manual: &AuxManualSlots,
+        focus_path: &str,
         key: Option<&str>,
         action: Option<&NativeMenuAction>,
     ) -> Option<(OledAuxCap, bool)> {
-        let path = self.menu.current_focus_path();
-        let auto = self.resolve_aux_auto_map(&path, key, action);
+        let auto = self.resolve_aux_auto_map(focus_path, key, action);
         let slots = self.effective_aux_map(manual, auto);
         slots.iter().enumerate().find_map(|(index, slot)| {
             let turn = key

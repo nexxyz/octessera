@@ -101,12 +101,20 @@ pub fn map_intents_to_musical_events(
     intents: &[CellTriggerIntent],
     config: &MappingConfig,
 ) -> MappingResult {
-    let safe = validate_config(config);
     let mut events = Vec::new();
     let mut matched = Vec::new();
     let mut event_intents = Vec::new();
+    if intents.is_empty() {
+        return MappingResult {
+            events,
+            intents: matched,
+            event_intents,
+        };
+    }
+    let safe = validate_config(config);
+    let scale_notes = scale_notes_in_range(&safe);
     for intent in intents {
-        let note = note_from_degree(intent.degree, &safe);
+        let note = note_from_degree(intent.degree, &scale_notes, &safe);
         let target = target_for_kind(intent.kind, &safe);
         match target.action {
             TriggerAction::None => continue,
@@ -146,8 +154,7 @@ fn target_for_kind(kind: CellTriggerKind, config: &MappingConfig) -> &TriggerTar
     }
 }
 
-fn note_from_degree(degree: i32, config: &MappingConfig) -> i32 {
-    let scale_notes = scale_notes_in_range(config);
+fn note_from_degree(degree: i32, scale_notes: &[i32], config: &MappingConfig) -> i32 {
     if scale_notes.is_empty() {
         return clamp(
             config.base_midi_note,
@@ -155,7 +162,7 @@ fn note_from_degree(degree: i32, config: &MappingConfig) -> i32 {
             config.max_midi_note,
         );
     }
-    let start_index = nearest_scale_index(&scale_notes, config.starting_midi_note);
+    let start_index = nearest_scale_index(scale_notes, config.starting_midi_note);
     let target_index = start_index as i32 + degree;
     match config.range_mode {
         RangeMode::Wrap => scale_notes[modulo(target_index, scale_notes.len() as i32) as usize],
