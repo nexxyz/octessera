@@ -196,6 +196,7 @@ $outputDir = if ([System.IO.Path]::IsPathRooted($OutDir)) { $OutDir } else { Joi
 Push-Location $RepoRoot
 try {
   New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+  Remove-Item -LiteralPath (Join-Path $outputDir "octessera-pi.metadata.json") -Force -ErrorAction SilentlyContinue
   $selectedBackend = $Backend
   if ($selectedBackend -eq "auto") {
     if (Test-WslDocker) {
