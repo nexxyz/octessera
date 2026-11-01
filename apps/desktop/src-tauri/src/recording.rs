@@ -23,6 +23,7 @@ struct DesktopRecorderServices {
     audio: RecorderService,
     audio_oled: RecorderService,
     active: Option<RecordingMode>,
+    stop_requested: bool,
 }
 
 impl DesktopRecorderServices {
@@ -31,6 +32,7 @@ impl DesktopRecorderServices {
             audio: RecorderService::new(audio_directory),
             audio_oled: RecorderService::new(audio_oled_directory),
             active: None,
+            stop_requested: false,
         }
     }
 
@@ -70,7 +72,19 @@ impl DesktopRecorderServices {
         }
     }
 
+    fn request_stop(&mut self) {
+        let Some(mode) = self.active else {
+            return;
+        };
+        match mode {
+            RecordingMode::Audio => self.audio.request_stop(),
+            RecordingMode::AudioOled => self.audio_oled.request_stop(),
+        }
+        self.stop_requested = true;
+    }
+
     fn stop_active(&mut self) -> Result<Option<RecordingOutcome>, media_recording::RecordingError> {
+        self.stop_requested = false;
         let Some(mode) = self.active.take() else {
             return Ok(None);
         };
@@ -92,6 +106,7 @@ impl DesktopRecorderServices {
         };
         if !matches!(&result, Ok(None)) {
             self.active = None;
+            self.stop_requested = false;
         }
         result
     }
@@ -195,7 +210,20 @@ impl DesktopRecording {
         recorder.stop_active().map_err(|error| error.to_string())
     }
 
-    pub(crate) fn poll_completion(&self) -> Result<Option<RecordingOutcome>, String> {
+    /// A manual Stop: the writer finalizes in the background, so the runtime
+    /// worker never waits on the file system; `poll_completion` reports it.
+    pub(crate) fn request_stop(&self) -> Result<(), String> {
+        let mut recorder = self
+            .recorder
+            .lock()
+            .map_err(|_| "recorder lock poisoned".to_string())?;
+        self.clear_ingress()?;
+        recorder.request_stop();
+        Ok(())
+    }
+
+    /// The finished take, if any, and whether a manual Stop ended it.
+    pub(crate) fn poll_completion(&self) -> Result<Option<(RecordingOutcome, bool)>, String> {
         let mut recorder = match self.recorder.lock() {
             Ok(recorder) => recorder,
             Err(_) => {
@@ -206,11 +234,12 @@ impl DesktopRecording {
                 ));
             }
         };
+        let stop_requested = recorder.stop_requested;
         let result = recorder.poll_completed().map_err(|error| error.to_string());
         if !matches!(&result, Ok(None)) {
             self.clear_ingress()?;
         }
-        result
+        result.map(|outcome| outcome.map(|outcome| (outcome, stop_requested)))
     }
 
     fn clear_ingress(&self) -> Result<(), String> {

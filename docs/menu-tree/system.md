@@ -214,8 +214,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   full brightness. Audio is the master clock: each video frame advances every 2,205 audio frames,
   and accepted OLED frames and LED colors hold between updates.
 - `Stop` emits `RuntimePlatformEffect::RecordingStop`, finalizes either format, and is safe when
-  idle. On the boards the writer finishes the file in the background, so playback timing is
-  untouched; the disc clears and the toast appears once the file is saved.
+  idle. On the boards and the desktop the writer finishes the file in the background, so
+  playback timing is untouched; the disc clears and the toast appears once the file is saved.
 - Both formats capture only the final internal stereo output; external MIDI instruments are not
   recorded.
 - Toasts: `Recording started`; `Recording is already running` for a duplicate start; `Recording

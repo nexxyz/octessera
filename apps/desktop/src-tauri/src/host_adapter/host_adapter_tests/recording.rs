@@ -1,10 +1,24 @@
-use super::{platform_request, temp_store_dir, test_adapter_with_recording_dir};
+use super::{
+    platform_request, temp_store_dir, test_adapter_with_recording_dir, DesktopPlaybackHostAdapter,
+};
 use media_recording::RecordingStatus;
 use playback_runtime::{
     HostAdapter, HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimePlatformEffect,
     RuntimeStoreResult,
 };
 use std::fs;
+use std::time::{Duration, Instant};
+
+fn await_recording_status(adapter: &DesktopPlaybackHostAdapter) -> RuntimeStoreResult {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(result) = adapter.poll_recording_status() {
+            return result;
+        }
+        assert!(Instant::now() < deadline, "recording did not finish");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
 
 #[test]
 fn desktop_recording_start_and_stop_finalize_a_valid_wav() {
@@ -26,18 +40,17 @@ fn desktop_recording_start_and_stop_finalize_a_valid_wav() {
             }
         }] if message == "Recording started"
     ));
+    assert!(adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
+        .unwrap()
+        .is_empty());
     assert!(matches!(
-        adapter
-            .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
-            .unwrap()
-            .as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RecordingStatus {
-                ok: true,
-                message,
-                active: false,
-            }
-        }] if message == "Recording saved"
+        await_recording_status(&adapter),
+        RuntimeStoreResult::RecordingStatus {
+            ok: true,
+            message,
+            active: false,
+        } if message == "Recording saved"
     ));
     assert!(adapter.poll_recording_status().is_none());
 
@@ -97,6 +110,7 @@ fn desktop_audio_oled_effect_uses_screen_recording_mode_and_rejects_audio_start(
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
         .unwrap();
+    await_recording_status(&adapter);
 
     assert!(fs::read_dir(&directory).unwrap().any(|entry| entry
         .unwrap()
@@ -133,6 +147,7 @@ fn desktop_recording_reports_already_active_and_filesystem_errors() {
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
         .unwrap();
+    await_recording_status(&adapter);
     let _ = fs::remove_dir_all(directory);
 
     let file_path = temp_store_dir("recording-file").join("not-a-directory");
@@ -172,13 +187,16 @@ fn desktop_recording_reports_already_active_and_filesystem_errors() {
         .trim_end_matches(".partial.wav")
         .to_string();
     fs::create_dir(directory.join(format!("{stem}.wav"))).unwrap();
-    let error = adapter
+    assert!(adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::RecordingStop))
-        .unwrap_err();
-    assert_eq!(error.facts.domain, RuntimeErrorDomain::Recording);
-    assert_eq!(error.facts.code, RuntimeErrorCode::OperationFailed);
+        .unwrap()
+        .is_empty());
+    let RuntimeStoreResult::RuntimeFailure { error } = await_recording_status(&adapter) else {
+        panic!("expected a recording failure");
+    };
+    assert_eq!(error.domain, RuntimeErrorDomain::Recording);
+    assert_eq!(error.code, RuntimeErrorCode::OperationFailed);
     assert!(error
-        .facts
         .message
         .as_deref()
         .is_some_and(|message| message.contains("already exists")));

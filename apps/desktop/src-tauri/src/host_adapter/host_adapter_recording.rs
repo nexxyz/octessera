@@ -19,8 +19,8 @@ pub(crate) fn handle_effect(
             .map(|_| Some(recording_started_status()))
             .or_else(|error| recording_start_result(error, request)),
         RuntimePlatformEffect::RecordingStop => recording
-            .stop_audio()
-            .map(|outcome| outcome.map(|outcome| status_for_recording(outcome.status)))
+            .request_stop()
+            .map(|()| None)
             .map_err(|error| RuntimeAdapterError::from_facts(request.failure_facts(error))),
         _ => Err(RuntimeAdapterError::from(
             "non-recording effect sent to desktop recording adapter",
@@ -99,7 +99,8 @@ fn recording_finalization_error(error: String) -> RuntimeAdapterError {
 
 pub(crate) fn poll_status(recording: &DesktopRecording) -> Option<RuntimeStoreResult> {
     match recording.poll_completion() {
-        Ok(Some(outcome)) => Some(max_time_status_for_recording(outcome.status)),
+        Ok(Some((outcome, true))) => Some(status_for_recording(outcome.status)),
+        Ok(Some((outcome, false))) => Some(max_time_status_for_recording(outcome.status)),
         Ok(None) => None,
         Err(error) => Some(RuntimeStoreResult::RuntimeFailure {
             error: RuntimeErrorFacts::new(
