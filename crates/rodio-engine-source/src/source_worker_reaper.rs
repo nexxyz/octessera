@@ -76,6 +76,7 @@ pub(crate) struct PersistentReaperSpawnFailure {
 
 pub(crate) fn spawn_inline_reaper() -> (Sender<RetiredAudioItem>, Sender<SourceShutdownEnvelope>) {
     let (retired_tx, retired_rx) = bounded(super::RETIREMENT_QUEUE_CAPACITY);
+    crate::retired_audio_backlog::prefault_retirement_ring(&retired_tx, &retired_rx);
     let (shutdown_tx, shutdown_rx) = bounded(1);
     let _ = thread::Builder::new()
         .name(SOURCE_REAPER_THREAD_NAME.into())

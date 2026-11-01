@@ -121,3 +121,21 @@ fn pending_render_retirement_is_deferred_when_storage_is_full() {
     let _ = source.next();
     assert_eq!(source.retired_backlog_len(), RETIREMENT_BACKLOG_CAPACITY);
 }
+
+#[test]
+fn retirement_ring_prefault_writes_every_slot_and_leaves_the_ring_empty() {
+    let (retired_tx, retired_rx) = crossbeam_channel::bounded(RETIREMENT_QUEUE_CAPACITY);
+    assert_eq!(
+        retired_audio_backlog::prefault_retirement_ring(&retired_tx, &retired_rx),
+        RETIREMENT_QUEUE_CAPACITY
+    );
+    assert!(retired_rx.is_empty());
+}
+
+#[test]
+fn new_retirement_backlog_is_empty_after_prefault() {
+    let backlog = retired_audio_backlog::RetiredAudioBacklog::new();
+    assert_eq!(backlog.items.len(), RETIREMENT_BACKLOG_CAPACITY);
+    assert!(backlog.items.iter().all(Option::is_none));
+    assert_eq!((backlog.read, backlog.write, backlog.len), (0, 0, 0));
+}

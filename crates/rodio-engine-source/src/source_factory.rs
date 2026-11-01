@@ -113,6 +113,7 @@ impl EngineSource {
         mut worker_state: EngineSourceWorkerState,
     ) -> Result<(Self, EngineSourceWorkerShutdownOwner), SourceWorkerSetupError> {
         let (retired_tx, retired_rx) = bounded(RETIREMENT_QUEUE_CAPACITY);
+        retired_audio_backlog::prefault_retirement_ring(&retired_tx, &retired_rx);
         let (shutdown_tx, shutdown_owner) =
             match source_worker_reaper::spawn_persistent_reaper(lifecycle, retired_rx, false) {
                 Ok(result) => result,

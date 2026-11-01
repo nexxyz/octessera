@@ -1,5 +1,6 @@
 use super::{drop_retired_item, RetiredAudioItem, RETIREMENT_BACKLOG_CAPACITY};
-use crossbeam_channel::{Sender, TrySendError};
+use crossbeam_channel::{Receiver, Sender, TrySendError};
+use realtime_engine::synth::RetiredAudioState;
 
 pub(crate) struct RetiredAudioBacklog {
     pub(crate) items: Box<[Option<RetiredAudioItem>]>,
@@ -10,10 +11,13 @@ pub(crate) struct RetiredAudioBacklog {
 
 impl RetiredAudioBacklog {
     pub(crate) fn new() -> Self {
-        Self {
-            items: std::iter::repeat_with(|| None)
+        let mut items: Box<[Option<RetiredAudioItem>]> =
+            std::iter::repeat_with(|| Some(full_size_item()))
                 .take(RETIREMENT_BACKLOG_CAPACITY)
-                .collect(),
+                .collect();
+        items.iter_mut().for_each(|slot| *slot = None);
+        Self {
+            items,
             read: 0,
             write: 0,
             len: 0,
@@ -71,5 +75,27 @@ impl RetiredAudioBacklog {
             self.len -= 1;
             drop_retired_item(item);
         }
+    }
+}
+
+pub(crate) fn prefault_retirement_ring(
+    retired_tx: &Sender<RetiredAudioItem>,
+    retired_rx: &Receiver<RetiredAudioItem>,
+) -> usize {
+    let mut written = 0;
+    while retired_tx.try_send(full_size_item()).is_ok() {
+        written += 1;
+    }
+    retired_rx.try_iter().for_each(drop_retired_item);
+    written
+}
+
+// Writing full-size items pre-faults retirement storage: mlockall(MCL_ONFAULT) would otherwise fault its pages in the audio callback.
+fn full_size_item() -> RetiredAudioItem {
+    RetiredAudioItem {
+        state: Some(RetiredAudioState::default()),
+        event: None,
+        #[cfg(test)]
+        drop_probe: None,
     }
 }
