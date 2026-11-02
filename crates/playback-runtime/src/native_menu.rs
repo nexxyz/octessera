@@ -34,6 +34,7 @@ mod model_current;
 mod model_edit;
 mod model_edit_rows;
 mod model_input;
+mod model_key_paths;
 mod model_navigation_memory;
 mod model_root;
 mod model_search;

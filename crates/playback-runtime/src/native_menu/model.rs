@@ -4,9 +4,9 @@ use super::help::menu_help_target;
 use super::model_binding_specs::param_binding_from_item_key;
 use super::model_edit::turn_key_in_item;
 use super::model_search::{
-    find_item_by_action, find_item_by_key, find_item_by_key_mut, find_item_path_by_key,
-    replace_children_for_label, replace_group_children_containing_direct_key,
-    replace_group_label_containing_direct_key, replace_item_label,
+    find_item_by_action, find_item_by_key_mut, find_item_path_by_key, replace_children_for_label,
+    replace_group_children_containing_direct_key, replace_group_label_containing_direct_key,
+    replace_item_label,
 };
 use super::model_values::{number_from_item, value_from_item};
 use super::note_mapping::mark_selected_note_set;
@@ -24,6 +24,7 @@ impl NativeMenuModel {
             state: NativeMenuState::default(),
             numeric_display_mode,
             navigation_memory: Default::default(),
+            key_paths: Default::default(),
             #[cfg(test)]
             rebuild_count: 0,
         }
@@ -35,6 +36,7 @@ impl NativeMenuModel {
             state: NativeMenuState::default(),
             numeric_display_mode: String::new(),
             navigation_memory: Default::default(),
+            key_paths: Default::default(),
             #[cfg(any(test, feature = "test-support"))]
             rebuild_count: 0,
         }
@@ -156,7 +158,7 @@ impl NativeMenuModel {
     }
 
     pub fn set_item_for_key(&mut self, key: &str, item: NativeMenuItem) -> bool {
-        let Some(found) = find_item_by_key_mut(&mut self.root, key) else {
+        let Some(found) = self.key_paths.find_mut(&mut self.root, key) else {
             return false;
         };
         *found = item;
@@ -184,7 +186,7 @@ impl NativeMenuModel {
     }
 
     pub fn set_text_value_for_key(&mut self, key: &str, text: &str) -> bool {
-        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+        let Some(item) = self.key_paths.find_mut(&mut self.root, key) else {
             return false;
         };
         let NativeMenuValue::Text { value, cursor, .. } = &mut item.value else {
@@ -212,7 +214,7 @@ impl NativeMenuModel {
     }
 
     pub fn set_number_value_for_key(&mut self, key: &str, next: i32) -> bool {
-        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+        let Some(item) = self.key_paths.find_mut(&mut self.root, key) else {
             return false;
         };
         let NativeMenuValue::Number {
@@ -230,7 +232,7 @@ impl NativeMenuModel {
     }
 
     pub fn set_bool_value_for_key(&mut self, key: &str, next: bool) -> bool {
-        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+        let Some(item) = self.key_paths.find_mut(&mut self.root, key) else {
             return false;
         };
         let NativeMenuValue::Bool { value } = &mut item.value else {
@@ -244,7 +246,7 @@ impl NativeMenuModel {
     }
 
     pub fn set_enum_value_for_key(&mut self, key: &str, next: &str) -> bool {
-        let Some(item) = find_item_by_key_mut(&mut self.root, key) else {
+        let Some(item) = self.key_paths.find_mut(&mut self.root, key) else {
             return false;
         };
         let NativeMenuValue::Enum { options, selected } = &mut item.value else {
@@ -262,7 +264,7 @@ impl NativeMenuModel {
     }
 
     pub fn item_for_key(&self, key: &str) -> Option<super::NativeMenuItem> {
-        find_item_by_key(&self.root, key).cloned()
+        self.key_paths.find(&self.root, key).cloned()
     }
 
     pub fn value_for_key(&self, key: &str) -> Option<String> {
@@ -345,7 +347,7 @@ impl NativeMenuModel {
     }
 
     pub fn binding_spec_for_key(&self, key: &str) -> Option<NativeParamBindingSpec> {
-        let item = find_item_by_key(&self.root, key)?;
+        let item = self.key_paths.find(&self.root, key)?;
         param_binding_from_item_key(item, key.to_string())
     }
 
@@ -364,14 +366,20 @@ impl NativeMenuModel {
         if self.current_key() == Some(key) {
             return turn_key_in_item(self.current_item_mut(), key, delta);
         }
-        turn_key_in_item(&mut self.root, key, delta)
+        self.key_paths
+            .find_mut(&mut self.root, key)
+            .is_some_and(|item| turn_key_in_item(item, key, delta))
     }
 
     pub(super) fn find_key_value(&self, key: &str) -> Option<String> {
-        find_item_by_key(&self.root, key).and_then(value_from_item)
+        self.key_paths
+            .find(&self.root, key)
+            .and_then(value_from_item)
     }
 
     pub(super) fn find_key_number(&self, key: &str) -> Option<i32> {
-        find_item_by_key(&self.root, key).and_then(number_from_item)
+        self.key_paths
+            .find(&self.root, key)
+            .and_then(number_from_item)
     }
 }

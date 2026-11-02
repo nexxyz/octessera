@@ -193,6 +193,7 @@ pub struct NativeMenuModel {
     pub state: NativeMenuState,
     pub numeric_display_mode: String,
     pub navigation_memory: HashMap<String, usize>,
+    pub(crate) key_paths: super::model_key_paths::MenuKeyPaths,
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) rebuild_count: usize,
 }

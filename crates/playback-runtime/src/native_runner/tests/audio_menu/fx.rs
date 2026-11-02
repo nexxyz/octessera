@@ -100,3 +100,57 @@ pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
     assert_eq!(runner.fx_buses[0].slot1_type, "none");
     assert_eq!(runner.global_fx_slots[0], "none");
 }
+
+fn bind_aux2_to_bus_delay_mix(runner: &mut NativeRunner) -> &'static str {
+    let key = "mixer.buses.0.slot1.params.mixPct";
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot1_params =
+        json!({ "timeMode": "ms", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.menu.rebuild(runner.menu_config());
+    runner.aux_bindings[1] = Some(NativeAuxBinding {
+        turn_key: Some(key.into()),
+        press_action: None,
+    });
+    key
+}
+
+fn turn_aux2(runner: &mut NativeRunner) {
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "delta": -1, "id": "aux2" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+}
+
+#[test]
+pub(crate) fn aux_sweep_on_a_bus_fx_param_searches_the_menu_tree_only_once() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let key = bind_aux2_to_bus_delay_mix(&mut runner);
+    turn_aux2(&mut runner);
+    let searches = runner.menu.key_paths.tree_searches();
+
+    for _ in 0..10 {
+        turn_aux2(&mut runner);
+    }
+
+    assert_eq!(runner.menu.key_paths.tree_searches(), searches);
+    let mix = runner.menu.number_for_key(key).unwrap();
+    assert!(mix < 35, "{mix}");
+    assert_eq!(runner.fx_buses[0].slot1_params["mixPct"], mix);
+}
+
+#[test]
+pub(crate) fn aux_sweep_follows_its_row_after_the_menu_tree_shifts() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let key = bind_aux2_to_bus_delay_mix(&mut runner);
+    turn_aux2(&mut runner);
+    let first = runner.menu.root.children[0].clone();
+    runner.menu.root.children.insert(0, first);
+
+    turn_aux2(&mut runner);
+
+    let mix = runner.menu.number_for_key(key).unwrap();
+    assert!(mix < 34, "{mix}");
+    assert_eq!(runner.fx_buses[0].slot1_params["mixPct"], mix);
+}

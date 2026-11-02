@@ -24,7 +24,9 @@ impl NativeMenuModel {
         let changed = if self.current_key() == Some(key) {
             turn_key_in_item_with_precision(self.current_item_mut(), key, delta, coarse)
         } else {
-            turn_key_in_item_with_precision(&mut self.root, key, delta, coarse)
+            self.key_paths
+                .find_mut(&mut self.root, key)
+                .is_some_and(|item| turn_key_in_item_with_precision(item, key, delta, coarse))
         };
         if changed {
             return true;
