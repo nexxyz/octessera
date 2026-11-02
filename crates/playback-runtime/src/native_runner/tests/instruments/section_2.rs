@@ -68,7 +68,7 @@ pub(crate) fn sample_assign_mode_supports_shift_row_and_fn_shift_column() {
 pub(crate) fn sample_assignment_stamps_tune_and_level_and_an_exact_restamp_clears() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
-    runner.instruments[0].cell_stamp = NativeCellStamp {
+    runner.instruments[0].tile_stamp = NativeTileStamp {
         tune_semis: 5,
         tune_cents: -10,
         level: Some("medium".into()),
@@ -174,11 +174,11 @@ pub(crate) fn link_velocity_and_filter_lanes_modulate_mapped_events() {
         velocity: 100,
         duration_ms: Some(150),
     }];
-    let intents = vec![CellTriggerIntent {
+    let intents = vec![TileTriggerIntent {
         x: 7,
         y: 7,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     }];
 
     let out = apply_sampler_assignments_for_instruments(events, &intents, 0, &[], Some(&sense));
@@ -214,11 +214,11 @@ pub(crate) fn midi_instrument_channel_remaps_note_and_cc_events() {
         },
         ..NativeLinkLayer::default()
     };
-    let intent = CellTriggerIntent {
+    let intent = TileTriggerIntent {
         x: 0,
         y: 7,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     };
 
     let out = apply_sampler_assignments_for_instruments(
@@ -252,11 +252,11 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
         midi_channel: 2,
         ..NativeInstrumentSlot::new(2)
     });
-    let intent = CellTriggerIntent {
+    let intent = TileTriggerIntent {
         x: 0,
         y: 0,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     };
 
     let routed = apply_sampler_assignments_for_instruments_routed(

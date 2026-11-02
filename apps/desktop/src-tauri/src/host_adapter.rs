@@ -143,12 +143,12 @@ impl HostAdapter for DesktopPlaybackHostAdapter {
         self.handle_runtime_musical_event(event, at)
     }
 
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        hit: &playback_runtime::CellHit,
+        hit: &playback_runtime::TileHit,
         at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_cell_hit(hit, at)
+        self.handle_runtime_tile_hit(hit, at)
     }
 
     fn handle_platform_effect(

@@ -243,7 +243,7 @@ fn behavior_render_palettes_match_themes() {
 }
 
 #[test]
-fn themed_background_palettes_keep_live_cells_visible() {
+fn themed_background_palettes_keep_live_tiles_visible() {
     for behavior in [
         NativeBehavior::Life,
         NativeBehavior::Bubbles,
@@ -254,13 +254,13 @@ fn themed_background_palettes_keep_live_cells_visible() {
         assert_ne!(
             model.palette.active,
             model.palette.inactive,
-            "{} active cells must contrast with themed inactive background",
+            "{} active tiles must contrast with themed inactive background",
             behavior.id()
         );
         assert_ne!(
             model.palette.stable,
             model.palette.inactive,
-            "{} stable cells must contrast with themed inactive background",
+            "{} stable tiles must contrast with themed inactive background",
             behavior.id()
         );
     }

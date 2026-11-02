@@ -1,4 +1,4 @@
-use super::snapshot::display_active_cells;
+use super::snapshot::display_active_tiles;
 use super::snapshot_leds::base_led_snapshot;
 use super::toast_text::scrolled_toast;
 use super::{
@@ -58,7 +58,7 @@ pub struct PresentationScene {
     splash: String,
     editing: bool,
     led_rgb: Vec<u8>,
-    active_cells: Vec<bool>,
+    active_tiles: Vec<bool>,
     hdmi: HdmiScene,
     transport: NativeTransportState,
     play_mode: String,
@@ -103,9 +103,9 @@ impl NativeRunner {
         let now = self.display.transients.now();
         let transient = self.display.transients.presentation(now);
         let model = self.engine.model()?;
-        let active_cells = display_active_cells(&model.cells);
+        let active_tiles = display_active_tiles(&model.tiles);
         let mut leds = base_led_snapshot(&model);
-        self.apply_ghost_cells(&mut leds, &model);
+        self.apply_ghost_tiles(&mut leds, &model);
         self.apply_scan_progress_overlay(&mut leds);
         self.apply_play_overlay(&mut leds);
         if self.play_fx_assign.is_none() {
@@ -195,7 +195,7 @@ impl NativeRunner {
             splash,
             editing,
             led_rgb,
-            active_cells,
+            active_tiles,
             hdmi: HdmiScene {
                 mode: self.display.hdmi.mode.clone(),
                 show_gridlines: self.display.hdmi.show_gridlines,

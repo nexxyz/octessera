@@ -115,7 +115,7 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   and Retrig. Delay counts that layer's Link ticks. Retrig adds extra repeats after the original,
   at delay+1, delay+2, and so on. Trigger probability is rolled once before scheduling; delayed
   repeats do not re-roll.
-- Link collapses only same-tick NoteOn duplicates within one CellTriggerKind group and mapping
+- Link collapses only same-tick NoteOn duplicates within one TileTriggerKind group and mapping
   context, after final instrument routing and before Delay/Retrig scheduling. It keeps the first
   event and duration and uses the highest velocity. Other event kinds, lanes, ticks, layers,
   mappings, and durations stay distinct.

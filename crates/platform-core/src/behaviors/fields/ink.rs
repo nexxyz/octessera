@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,7 +15,7 @@ const VISIBLE: u8 = 8;
 pub struct InkState {
     pub ink: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "diffusionPct")]
     pub diffusion_pct: u8,
     #[serde(rename = "fadePct")]
@@ -34,7 +34,7 @@ pub struct InkState {
 struct Config {
     ink: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "diffusionPct")]
     diffusion_pct: Option<Value>,
     #[serde(rename = "fadePct")]
@@ -136,12 +136,12 @@ pub fn ink_render_model(state: &InkState) -> BehaviorRenderModel {
     let flashes = state
         .trigger_types
         .iter()
-        .filter(|trigger| **trigger == CellTriggerType::Activate)
+        .filter(|trigger| **trigger == TileTriggerType::Activate)
         .count();
     BehaviorRenderModel {
         name: "ink".into(),
         status_line: format!("I:{visible} F:{flashes}"),
-        cells: state.ink.iter().map(|value| *value >= VISIBLE).collect(),
+        tiles: state.ink.iter().map(|value| *value >= VISIBLE).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [120, 80, 255],
             inactive: crate::palette::BLACK,
@@ -194,15 +194,15 @@ fn norm_ink(values: Vec<Value>) -> Vec<u8> {
         .into_iter()
         .map(|value| value.as_u64().unwrap_or(0).min(255) as u8)
         .collect::<Vec<_>>();
-    values.resize(CELL_COUNT, 0);
-    values.truncate(CELL_COUNT);
+    values.resize(TILE_COUNT, 0);
+    values.truncate(TILE_COUNT);
     values
 }
 
-fn norm_triggers(values: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(values: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut values = values.unwrap_or_default();
-    values.resize(CELL_COUNT, CellTriggerType::None);
-    values.truncate(CELL_COUNT);
+    values.resize(TILE_COUNT, TileTriggerType::None);
+    values.truncate(TILE_COUNT);
     values
 }
 
@@ -263,22 +263,22 @@ fn neighbor_average(values: &[u8], x: usize, y: usize) -> i16 {
     }
 }
 
-fn triggers(previous: &[u8], next: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut triggers = (0..CELL_COUNT)
+fn triggers(previous: &[u8], next: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut triggers = (0..TILE_COUNT)
         .map(|index| {
             if previous[index] < ACTIVATE && next[index] >= ACTIVATE {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if previous[index] >= VISIBLE && next[index] < VISIBLE {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if next[index] >= VISIBLE {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for index in forced {
-        triggers[*index] = CellTriggerType::Activate;
+        triggers[*index] = TileTriggerType::Activate;
     }
     triggers
 }

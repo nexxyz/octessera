@@ -428,9 +428,9 @@ pub(crate) fn stop_then_start_restarts_scanning_from_first_lane() {
         .unwrap();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
-    let first_lane = cells[display_index(0, 0)].as_object().unwrap();
-    let second_lane = cells[display_index(0, 1)].as_object().unwrap();
+    let tiles = led_tiles(&snapshot);
+    let first_lane = tiles[display_index(0, 0)].as_object().unwrap();
+    let second_lane = tiles[display_index(0, 1)].as_object().unwrap();
 
     assert!(first_lane["r"].as_i64().unwrap() > second_lane["r"].as_i64().unwrap());
 }

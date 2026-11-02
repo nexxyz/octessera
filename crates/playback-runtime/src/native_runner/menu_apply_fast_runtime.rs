@@ -90,8 +90,8 @@ impl NativeRunner {
                 let value = value.clamp(0, 600) as u16;
                 value_changed(&mut runner.display.ui.dim_timer_seconds, value)
             })),
-            "ghostCells" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.display.ui.ghost_cells, value)
+            "ghostTiles" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                bool_changed(&mut runner.display.ui.ghost_tiles, value)
             })),
             "auxAutoHints" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.display.ui.aux_auto_hints, value)

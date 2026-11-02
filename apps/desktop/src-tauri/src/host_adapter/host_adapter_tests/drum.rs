@@ -1,32 +1,32 @@
 use super::{next_event, test_adapter};
-use playback_runtime::{CellHit, RuntimeErrorCode};
+use playback_runtime::{RuntimeErrorCode, TileHit};
 use rodio_engine_source::EngineEvent;
 
 #[test]
-fn desktop_cell_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields() {
+fn desktop_tile_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields() {
     let (mut adapter, mut rx) = test_adapter();
-    let hit = CellHit {
+    let hit = TileHit {
         instrument_slot: 1,
         voice: 7,
-        cell: 9,
+        tile: 9,
         pitch_cents: -2450,
         velocity: 100,
     };
-    adapter.handle_runtime_cell_hit(&hit, None).unwrap();
+    adapter.handle_runtime_tile_hit(&hit, None).unwrap();
     assert!(matches!(
         next_event(&mut rx),
-        EngineEvent::CellHit {
+        EngineEvent::TileHit {
             instrument_slot: 1,
             voice: 7,
-            cell: 9,
+            tile: 9,
             pitch_cents: -2450,
             velocity: 100,
             ..
         }
     ));
     adapter
-        .handle_runtime_cell_hit(
-            &CellHit {
+        .handle_runtime_tile_hit(
+            &TileHit {
                 velocity: 0,
                 ..hit.clone()
             },
@@ -35,29 +35,29 @@ fn desktop_cell_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields()
         .unwrap();
     assert!(matches!(
         next_event(&mut rx),
-        EngineEvent::CellHit { velocity: 0, .. }
+        EngineEvent::TileHit { velocity: 0, .. }
     ));
     for invalid in [
-        CellHit {
+        TileHit {
             instrument_slot: 8,
             ..hit.clone()
         },
-        CellHit {
+        TileHit {
             voice: 8,
             ..hit.clone()
         },
-        CellHit {
+        TileHit {
             pitch_cents: 4801,
             ..hit.clone()
         },
-        CellHit {
+        TileHit {
             velocity: 128,
             ..hit
         },
     ] {
         assert_eq!(
             adapter
-                .handle_runtime_cell_hit(&invalid, None)
+                .handle_runtime_tile_hit(&invalid, None)
                 .unwrap_err()
                 .facts
                 .code,

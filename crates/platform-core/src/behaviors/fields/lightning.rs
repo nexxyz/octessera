@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -22,11 +22,11 @@ pub struct LeaderPos {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LightningState {
-    pub cells: Vec<u8>,
+    pub tiles: Vec<u8>,
     pub ages: Vec<u8>,
     pub leaders: Vec<LeaderPos>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "branchChancePct")]
     pub branch_chance_pct: u8,
     #[serde(rename = "jitterChancePct")]
@@ -41,11 +41,11 @@ pub struct LightningState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Vec<Value>>,
+    tiles: Option<Vec<Value>>,
     ages: Option<Vec<Value>>,
     leaders: Option<Vec<LeaderPos>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "branchChancePct")]
     branch_chance_pct: Option<Value>,
     #[serde(rename = "jitterChancePct")]
@@ -61,7 +61,7 @@ struct Config {
 pub fn lightning_init(config: Value) -> Result<LightningState, String> {
     let config: Config = serde_json::from_value(config).unwrap_or_default();
     let mut state = LightningState {
-        cells: normalize_cells(config.cells.unwrap_or_default()),
+        tiles: normalize_tiles(config.tiles.unwrap_or_default()),
         ages: normalize_ages(config.ages.unwrap_or_default()),
         leaders: config.leaders.unwrap_or_default(),
         trigger_types: normalize_triggers(config.trigger_types),
@@ -72,23 +72,23 @@ pub fn lightning_init(config: Value) -> Result<LightningState, String> {
         target_edge: normalize_edge(config.target_edge),
     };
     normalize_state(&mut state);
-    if !visible_any(&state.cells) {
+    if !visible_any(&state.tiles) {
         start_strike(&mut state);
     }
-    let empty = [false; CELL_COUNT];
-    state.trigger_types = triggers(&empty, &visible(&state.cells), false);
+    let empty = [false; TILE_COUNT];
+    state.trigger_types = triggers(&empty, &visible(&state.tiles), false);
     Ok(state)
 }
 
 pub fn lightning_deserialize(data: Value) -> Result<LightningState, String> {
     let mut state = lightning_init(data)?;
-    state.trigger_types = visible(&state.cells)
+    state.trigger_types = visible(&state.tiles)
         .into_iter()
         .map(|v| {
             if v {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect();
@@ -107,7 +107,7 @@ pub fn lightning_on_input(
     _context: &mut BehaviorContext,
 ) -> LightningState {
     normalize_state(&mut state);
-    let previous = visible(&state.cells);
+    let previous = visible(&state.tiles);
     match input {
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "strikeNow" =>
@@ -120,7 +120,7 @@ pub fn lightning_on_input(
         }
         _ => return state,
     }
-    state.trigger_types = triggers(&previous, &visible(&state.cells), false);
+    state.trigger_types = triggers(&previous, &visible(&state.tiles), false);
     state
 }
 
@@ -129,16 +129,16 @@ pub fn lightning_on_tick(
     _context: &mut BehaviorContext,
 ) -> LightningState {
     normalize_state(&mut state);
-    let previous = visible(&state.cells);
+    let previous = visible(&state.tiles);
     let mut flash = false;
-    if state.cells.contains(&FLASH) {
-        for i in 0..CELL_COUNT {
-            if state.cells[i] == FLASH {
+    if state.tiles.contains(&FLASH) {
+        for i in 0..TILE_COUNT {
+            if state.tiles[i] == FLASH {
                 state.ages[i] = state.ages[i].saturating_add(1);
             }
         }
         if state
-            .cells
+            .tiles
             .iter()
             .enumerate()
             .any(|(i, c)| *c == FLASH && state.ages[i] >= state.decay_ticks)
@@ -159,17 +159,17 @@ pub fn lightning_on_tick(
             flash = true;
         }
     }
-    state.trigger_types = triggers(&previous, &visible(&state.cells), flash);
+    state.trigger_types = triggers(&previous, &visible(&state.tiles), flash);
     state
 }
 
 pub fn lightning_render_model(state: &LightningState) -> BehaviorRenderModel {
     let leaders = state.leaders.len();
-    let flash = state.cells.iter().filter(|c| **c == FLASH).count();
+    let flash = state.tiles.iter().filter(|c| **c == FLASH).count();
     BehaviorRenderModel {
         name: "lightning".into(),
         status_line: format!("L:{leaders} F:{flash}"),
-        cells: visible(&state.cells),
+        tiles: visible(&state.tiles),
         palette: crate::BehaviorRenderPalette {
             active: [255, 255, 180],
             inactive: crate::palette::BLACK,
@@ -191,7 +191,7 @@ pub fn lightning_config_menu() -> Vec<BehaviorConfigItem> {
 }
 
 fn normalize_state(s: &mut LightningState) {
-    s.cells = normalize_cells(s.cells.iter().map(|c| Value::from(*c)).collect());
+    s.tiles = normalize_tiles(s.tiles.iter().map(|c| Value::from(*c)).collect());
     s.ages = normalize_ages(s.ages.iter().map(|a| Value::from(*a)).collect());
     s.trigger_types = normalize_triggers(Some(s.trigger_types.clone()));
     s.branch_chance_pct = s.branch_chance_pct.min(100);
@@ -201,18 +201,18 @@ fn normalize_state(s: &mut LightningState) {
     s.target_edge = normalize_edge(Some(s.target_edge.clone()));
     s.leaders.retain(|p| p.x < GRID_WIDTH && p.y < GRID_HEIGHT);
     s.leaders.truncate(s.leader_limit as usize);
-    if s.cells.contains(&FLASH) {
+    if s.tiles.contains(&FLASH) {
         s.leaders.clear();
-        for cell in &mut s.cells {
-            if *cell == LEADER {
-                *cell = FLASH;
+        for tile in &mut s.tiles {
+            if *tile == LEADER {
+                *tile = FLASH;
             }
         }
         return;
     }
     let limit = s.leader_limit as usize;
-    for index in 0..CELL_COUNT {
-        if s.cells[index] != LEADER {
+    for index in 0..TILE_COUNT {
+        if s.tiles[index] != LEADER {
             continue;
         }
         let x = index % GRID_WIDTH;
@@ -225,28 +225,28 @@ fn normalize_state(s: &mut LightningState) {
             if s.leaders.len() < limit {
                 s.leaders.push(LeaderPos { x, y });
             } else {
-                s.cells[index] = EMPTY;
+                s.tiles[index] = EMPTY;
                 s.ages[index] = 0;
             }
         }
     }
     let leaders = s.leaders.clone();
-    s.cells
+    s.tiles
         .iter_mut()
         .zip(s.ages.iter_mut())
         .enumerate()
-        .for_each(|(index, (cell, age))| {
-            if *cell == LEADER
+        .for_each(|(index, (tile, age))| {
+            if *tile == LEADER
                 && !leaders
                     .iter()
                     .any(|leader| grid_index(leader.x, leader.y) == index)
             {
-                *cell = EMPTY;
+                *tile = EMPTY;
                 *age = 0;
             }
         });
     for leader in leaders {
-        s.cells[grid_index(leader.x, leader.y)] = LEADER;
+        s.tiles[grid_index(leader.x, leader.y)] = LEADER;
     }
 }
 fn number(v: Option<Value>, d: u8, m: u8) -> u8 {
@@ -254,13 +254,13 @@ fn number(v: Option<Value>, d: u8, m: u8) -> u8 {
         .map(|v| v.min(m.into()) as u8)
         .unwrap_or(d)
 }
-fn normalize_cells(v: Vec<Value>) -> Vec<u8> {
+fn normalize_tiles(v: Vec<Value>) -> Vec<u8> {
     let mut out = v
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(2) as u8)
         .collect::<Vec<_>>();
-    out.resize(CELL_COUNT, EMPTY);
-    out.truncate(CELL_COUNT);
+    out.resize(TILE_COUNT, EMPTY);
+    out.truncate(TILE_COUNT);
     out
 }
 fn normalize_ages(v: Vec<Value>) -> Vec<u8> {
@@ -268,14 +268,14 @@ fn normalize_ages(v: Vec<Value>) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(u8::MAX.into()) as u8)
         .collect::<Vec<_>>();
-    out.resize(CELL_COUNT, 0);
-    out.truncate(CELL_COUNT);
+    out.resize(TILE_COUNT, 0);
+    out.truncate(TILE_COUNT);
     out
 }
-fn normalize_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut out = v.unwrap_or_default();
-    out.resize(CELL_COUNT, CellTriggerType::None);
-    out.truncate(CELL_COUNT);
+    out.resize(TILE_COUNT, TileTriggerType::None);
+    out.truncate(TILE_COUNT);
     out
 }
 fn normalize_edge(v: Option<String>) -> String {
@@ -286,30 +286,30 @@ fn normalize_edge(v: Option<String>) -> String {
         "south".into()
     }
 }
-fn visible(cells: &[u8]) -> Vec<bool> {
-    cells.iter().map(|c| *c != EMPTY).collect()
+fn visible(tiles: &[u8]) -> Vec<bool> {
+    tiles.iter().map(|c| *c != EMPTY).collect()
 }
-fn visible_any(cells: &[u8]) -> bool {
-    cells.iter().any(|c| *c != EMPTY)
+fn visible_any(tiles: &[u8]) -> bool {
+    tiles.iter().any(|c| *c != EMPTY)
 }
-fn triggers(prev: &[bool], next: &[bool], flash: bool) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn triggers(prev: &[bool], next: &[bool], flash: bool) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|i| {
             if flash && next[i] {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else {
                 match (prev[i], next[i]) {
-                    (false, true) => CellTriggerType::Activate,
-                    (true, false) => CellTriggerType::Deactivate,
-                    (true, true) => CellTriggerType::Stable,
-                    _ => CellTriggerType::None,
+                    (false, true) => TileTriggerType::Activate,
+                    (true, false) => TileTriggerType::Deactivate,
+                    (true, true) => TileTriggerType::Stable,
+                    _ => TileTriggerType::None,
                 }
             }
         })
         .collect()
 }
 fn clear(s: &mut LightningState) {
-    s.cells.fill(EMPTY);
+    s.tiles.fill(EMPTY);
     s.ages.fill(0);
     s.leaders.clear();
 }
@@ -317,7 +317,7 @@ fn add_leader(s: &mut LightningState, x: usize, y: usize) {
     if s.leaders.len() < s.leader_limit as usize {
         s.leaders.push(LeaderPos { x, y });
     }
-    s.cells[grid_index(x, y)] = LEADER;
+    s.tiles[grid_index(x, y)] = LEADER;
 }
 fn start_strike(s: &mut LightningState) {
     clear(s);
@@ -376,9 +376,9 @@ fn branch_leaders(s: &mut LightningState, snapshot: &[LeaderPos]) {
     }
 }
 fn enter_flash(s: &mut LightningState) {
-    for i in 0..CELL_COUNT {
-        if s.cells[i] != EMPTY {
-            s.cells[i] = FLASH;
+    for i in 0..TILE_COUNT {
+        if s.tiles[i] != EMPTY {
+            s.tiles[i] = FLASH;
             s.ages[i] = 0;
         }
     }

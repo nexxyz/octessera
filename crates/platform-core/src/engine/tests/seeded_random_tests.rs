@@ -11,7 +11,7 @@ fn engine(behavior: NativeBehavior, random_seed: Option<u64>) -> NativeLayerEngi
 
 fn run(engine: &mut NativeLayerEngine, ticks: usize) -> Vec<Vec<bool>> {
     (0..ticks)
-        .map(|_| engine.tick(120.0).unwrap().model.cells)
+        .map(|_| engine.tick(120.0).unwrap().model.tiles)
         .collect()
 }
 
@@ -59,7 +59,7 @@ fn pattern_phase_reset_draws_from_the_seeded_stream() {
     let mut second = engine(NativeBehavior::Weave, Some(8));
     first.reset_transport_phase();
     second.reset_transport_phase();
-    assert_ne!(first.model().unwrap().cells, second.model().unwrap().cells);
+    assert_ne!(first.model().unwrap().tiles, second.model().unwrap().tiles);
 }
 
 #[test]

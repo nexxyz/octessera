@@ -1,7 +1,7 @@
 use super::PatternBehaviorState;
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 
-pub(super) fn cell_active(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
+pub(super) fn tile_active(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     match state.kind.as_str() {
         "weave" => return diagonal_lanes(state, x, y, 2) || crossing_lanes(state, x, y),
         "polyrhythm" => return polyrhythm_lanes(state, x, y),

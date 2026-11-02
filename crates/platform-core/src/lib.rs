@@ -14,8 +14,8 @@ mod transforms;
 
 pub use behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext,
-    BehaviorEngine, BehaviorRenderModel, BehaviorRenderPalette, CellTriggerType, DeviceInput,
-    GridInteraction,
+    BehaviorEngine, BehaviorRenderModel, BehaviorRenderPalette, DeviceInput, GridInteraction,
+    TileTriggerType,
 };
 pub use behavior_random::{stream_seed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK};
 pub use behaviors::{
@@ -25,13 +25,13 @@ pub use behaviors::{
 pub use engine::{NativeInputResult, NativeLayerEngine, NativeLayerEngineConfig, NativeTickResult};
 pub use events::MusicalEvent;
 pub use grid::{
-    display_to_logical_cell, display_to_logical_index, grid_index, logical_grid_index,
-    logical_to_display_cell, logical_to_display_index, GridDimensions, GRID_HEIGHT, GRID_WIDTH,
+    display_to_logical_index, display_to_logical_tile, grid_index, logical_grid_index,
+    logical_to_display_index, logical_to_display_tile, GridDimensions, GRID_HEIGHT, GRID_WIDTH,
 };
 pub use interpretation::{
-    extract_transitions, interpret_grid, AxisStrategy, CellTransition, CellTransitionKind,
-    CellTriggerIntent, CellTriggerKind, GridSnapshot, InterpretationEventProfile,
-    InterpretationProfile, InterpretationStateProfile, TickStrategy,
+    extract_transitions, interpret_grid, AxisStrategy, GridSnapshot, InterpretationEventProfile,
+    InterpretationProfile, InterpretationStateProfile, TickStrategy, TileTransition,
+    TileTransitionKind, TileTriggerIntent, TileTriggerKind,
 };
 pub use mapping::{
     default_mapping_config, map_intents_to_musical_events, MappingConfig, MappingResult, RangeMode,

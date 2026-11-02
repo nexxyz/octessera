@@ -1,67 +1,67 @@
-export type GridCell = { x: number; y: number };
+export type GridTile = { x: number; y: number };
 
 export type GridDomain = {
   width: number;
   height: number;
-  toLogicalCell(inputCell: GridCell): GridCell;
-  toDisplayCell(logicalCell: GridCell): GridCell;
-  indexOf(logicalCell: GridCell): number;
-  cellOf(index: number): GridCell;
-  toLogicalIndex(inputCell: GridCell): number;
-  toDisplayIndex(logicalCell: GridCell): number;
-  displayCellOf(index: number): GridCell;
-  get(cells: boolean[], logicalCell: GridCell): boolean;
-  set(cells: boolean[], logicalCell: GridCell, value: boolean): boolean[];
-  toggle(cells: boolean[], logicalCell: GridCell): boolean[];
+  toLogicalTile(inputTile: GridTile): GridTile;
+  toDisplayTile(logicalTile: GridTile): GridTile;
+  indexOf(logicalTile: GridTile): number;
+  tileOf(index: number): GridTile;
+  toLogicalIndex(inputTile: GridTile): number;
+  toDisplayIndex(logicalTile: GridTile): number;
+  displayTileOf(index: number): GridTile;
+  get(tiles: boolean[], logicalTile: GridTile): boolean;
+  set(tiles: boolean[], logicalTile: GridTile, value: boolean): boolean[];
+  toggle(tiles: boolean[], logicalTile: GridTile): boolean[];
 };
 
 export function createGridDomain(width: number, height: number): GridDomain {
   const clampX = (x: number) => clampInt(x, 0, width - 1);
   const clampY = (y: number) => clampInt(y, 0, height - 1);
 
-  const toLogicalCell = (inputCell: GridCell): GridCell => ({
-    x: clampX(inputCell.x),
-    y: clampY((height - 1) - inputCell.y)
+  const toLogicalTile = (inputTile: GridTile): GridTile => ({
+    x: clampX(inputTile.x),
+    y: clampY((height - 1) - inputTile.y)
   });
 
-  const toDisplayCell = (logicalCell: GridCell): GridCell => ({
-    x: clampX(logicalCell.x),
-    y: clampY((height - 1) - logicalCell.y)
+  const toDisplayTile = (logicalTile: GridTile): GridTile => ({
+    x: clampX(logicalTile.x),
+    y: clampY((height - 1) - logicalTile.y)
   });
 
-  const indexOf = (logicalCell: GridCell): number => clampY(logicalCell.y) * width + clampX(logicalCell.x);
+  const indexOf = (logicalTile: GridTile): number => clampY(logicalTile.y) * width + clampX(logicalTile.x);
 
-  const cellOf = (index: number): GridCell => {
+  const tileOf = (index: number): GridTile => {
     const i = clampInt(index, 0, width * height - 1);
     return { x: i % width, y: Math.floor(i / width) };
   };
 
-  const toLogicalIndex = (inputCell: GridCell): number => indexOf(toLogicalCell(inputCell));
+  const toLogicalIndex = (inputTile: GridTile): number => indexOf(toLogicalTile(inputTile));
 
-  const toDisplayIndex = (logicalCell: GridCell): number => {
-    const display = toDisplayCell(logicalCell);
+  const toDisplayIndex = (logicalTile: GridTile): number => {
+    const display = toDisplayTile(logicalTile);
     return display.y * width + display.x;
   };
 
-  const displayCellOf = (index: number): GridCell => toDisplayCell(cellOf(index));
+  const displayTileOf = (index: number): GridTile => toDisplayTile(tileOf(index));
 
-  const get = (cells: boolean[], logicalCell: GridCell): boolean => !!cells[indexOf(logicalCell)];
+  const get = (tiles: boolean[], logicalTile: GridTile): boolean => !!tiles[indexOf(logicalTile)];
 
-  const set = (cells: boolean[], logicalCell: GridCell, value: boolean): boolean[] => {
-    const idx = indexOf(logicalCell);
-    const next = cells.slice();
+  const set = (tiles: boolean[], logicalTile: GridTile, value: boolean): boolean[] => {
+    const idx = indexOf(logicalTile);
+    const next = tiles.slice();
     next[idx] = value;
     return next;
   };
 
-  const toggle = (cells: boolean[], logicalCell: GridCell): boolean[] => {
-    const idx = indexOf(logicalCell);
-    const next = cells.slice();
+  const toggle = (tiles: boolean[], logicalTile: GridTile): boolean[] => {
+    const idx = indexOf(logicalTile);
+    const next = tiles.slice();
     next[idx] = !next[idx];
     return next;
   };
 
-  return { width, height, toLogicalCell, toDisplayCell, indexOf, cellOf, toLogicalIndex, toDisplayIndex, displayCellOf, get, set, toggle };
+  return { width, height, toLogicalTile, toDisplayTile, indexOf, tileOf, toLogicalIndex, toDisplayIndex, displayTileOf, get, set, toggle };
 }
 
 function clampInt(value: number, min: number, max: number): number {

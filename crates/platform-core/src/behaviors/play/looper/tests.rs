@@ -28,13 +28,13 @@ fn play_mode_behaves_like_keys_without_recording() {
     let state = looper_init(serde_json::json!({ "mode": "play" })).unwrap();
     let state = looper_on_input(state, DeviceInput::GridPress { x: 1, y: 2 }, &mut context);
     let index = grid_index(1, 2);
-    assert!(state.cells[index]);
-    assert!(state.held_cells[index]);
+    assert!(state.tiles[index]);
+    assert!(state.held_tiles[index]);
     assert!(state.steps.iter().all(Vec::is_empty));
 
     let state = looper_on_input(state, DeviceInput::GridRelease { x: 1, y: 2 }, &mut context);
-    assert!(!state.cells[index]);
-    assert_eq!(state.trigger_types[index], CellTriggerType::Deactivate);
+    assert!(!state.tiles[index]);
+    assert_eq!(state.trigger_types[index], TileTriggerType::Deactivate);
 }
 
 #[test]
@@ -50,29 +50,29 @@ fn overdub_records_and_replays_press_release_events() {
     assert_eq!(state.steps[1].len(), 1);
 
     state = looper_on_tick(state, &mut context);
-    assert!(!state.playback_cells[index]);
-    assert!(!state.cells[index]);
-    assert_eq!(state.trigger_types[index], CellTriggerType::Deactivate);
+    assert!(!state.playback_tiles[index]);
+    assert!(!state.tiles[index]);
+    assert_eq!(state.trigger_types[index], TileTriggerType::Deactivate);
 
     state = looper_on_tick(state, &mut context);
-    assert!(state.playback_cells[index]);
-    assert!(state.cells[index]);
-    assert_eq!(state.trigger_types[index], CellTriggerType::Activate);
+    assert!(state.playback_tiles[index]);
+    assert!(state.tiles[index]);
+    assert_eq!(state.trigger_types[index], TileTriggerType::Activate);
 }
 
 #[test]
-fn clear_loop_preserves_live_holds_and_releases_playback_only_cells() {
+fn clear_loop_preserves_live_holds_and_releases_playback_only_tiles() {
     let mut context = context();
     let mut state =
         looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 2 })).unwrap();
     let live = grid_index(1, 1);
     let looped = grid_index(2, 2);
-    state.held_cells[live] = true;
-    state.playback_cells[looped] = true;
-    state.cells[live] = true;
-    state.cells[looped] = true;
+    state.held_tiles[live] = true;
+    state.playback_tiles[looped] = true;
+    state.tiles[live] = true;
+    state.tiles[looped] = true;
     state.steps[0].push(LooperEvent {
-        cell: looped,
+        tile: looped,
         kind: LooperEventKind::Press,
     });
 
@@ -83,9 +83,9 @@ fn clear_loop_preserves_live_holds_and_releases_playback_only_cells() {
         }),
         &mut context,
     );
-    assert!(state.cells[live]);
-    assert!(!state.cells[looped]);
-    assert_eq!(state.trigger_types[looped], CellTriggerType::Deactivate);
+    assert!(state.tiles[live]);
+    assert!(!state.tiles[looped]);
+    assert_eq!(state.trigger_types[looped], TileTriggerType::Deactivate);
     assert!(state.steps.iter().all(Vec::is_empty));
 }
 
@@ -98,13 +98,13 @@ fn serialized_state_stores_sequence_without_live_holds() {
     assert_eq!(serialized["mode"], "overdub");
     assert_eq!(serialized["lengthSteps"], 2);
     assert!(serialized.get("stepIndex").is_none());
-    assert!(serialized.get("heldCells").is_none());
-    assert!(serialized.get("playbackCells").is_none());
+    assert!(serialized.get("heldTiles").is_none());
+    assert!(serialized.get("playbackTiles").is_none());
     assert_eq!(serialized["steps"][0].as_array().unwrap().len(), 1);
 
     let restored = looper_deserialize(serialized).unwrap();
-    assert!(restored.cells.iter().all(|cell| !cell));
-    assert!(restored.held_cells.iter().all(|cell| !cell));
+    assert!(restored.tiles.iter().all(|tile| !tile));
+    assert!(restored.held_tiles.iter().all(|tile| !tile));
     assert_eq!(restored.steps[0].len(), 1);
 }
 
@@ -141,7 +141,7 @@ fn toggle_mode_action_switches_recording_without_clearing_sequence_or_phase() {
     let mut state = looper_init(Value::Null).unwrap();
     state.step_index = 1;
     state.steps[0].push(LooperEvent {
-        cell: grid_index(1, 1),
+        tile: grid_index(1, 1),
         kind: LooperEventKind::Press,
     });
     state = looper_on_input(
@@ -176,26 +176,26 @@ fn reset_transport_phase_restarts_playback_and_preserves_loop_state() {
     .unwrap();
     let live = grid_index(1, 1);
     let looped = grid_index(2, 2);
-    state.held_cells[live] = true;
-    state.playback_cells[looped] = true;
-    state.cells = combined_cells(&state.held_cells, &state.playback_cells);
+    state.held_tiles[live] = true;
+    state.playback_tiles[looped] = true;
+    state.tiles = combined_tiles(&state.held_tiles, &state.playback_tiles);
     state.step_index = 3;
     state.steps[2].push(LooperEvent {
-        cell: looped,
+        tile: looped,
         kind: LooperEventKind::Press,
     });
     let steps = state.steps.clone();
-    let held_cells = state.held_cells.clone();
+    let held_tiles = state.held_tiles.clone();
 
     reset_transport_phase(&mut state);
 
     assert_eq!(state.step_index, 0);
-    assert!(state.playback_cells.iter().all(|cell| !cell));
-    assert_eq!(state.cells, held_cells);
-    assert_eq!(state.trigger_types[looped], CellTriggerType::Deactivate);
-    assert_eq!(state.trigger_types[live], CellTriggerType::Stable);
+    assert!(state.playback_tiles.iter().all(|tile| !tile));
+    assert_eq!(state.tiles, held_tiles);
+    assert_eq!(state.trigger_types[looped], TileTriggerType::Deactivate);
+    assert_eq!(state.trigger_types[live], TileTriggerType::Stable);
     assert_eq!(state.steps, steps);
     assert_eq!(state.mode, "play");
     assert_eq!(state.length_steps, 4);
-    assert_eq!(state.held_cells, held_cells);
+    assert_eq!(state.held_tiles, held_tiles);
 }

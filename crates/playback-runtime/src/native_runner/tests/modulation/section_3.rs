@@ -126,9 +126,9 @@ pub(crate) fn play_xy_overlay_marks_physical_touch_with_inverted_modulation() {
     assert!((runner.xy_touch.x - 6.0 / 7.0).abs() < 0.0001);
     assert!((runner.xy_touch.y - 1.0 / 7.0).abs() < 0.0001);
     let snapshot = snapshot_from(&pressed);
-    let cells = led_cells(&snapshot);
+    let tiles = led_tiles(&snapshot);
     assert_eq!(
-        cells[display_index(1, 6)],
+        tiles[display_index(1, 6)],
         led_rgb(platform_core::palette::WHITE)
     );
 
@@ -140,9 +140,9 @@ pub(crate) fn play_xy_overlay_marks_physical_touch_with_inverted_modulation() {
         .unwrap();
     assert!(!runner.xy_touch.active);
     let snapshot = snapshot_from(&released);
-    let cells = led_cells(&snapshot);
+    let tiles = led_tiles(&snapshot);
     assert_eq!(
-        cells[display_index(1, 6)],
+        tiles[display_index(1, 6)],
         led_rgb(dim_rgb(platform_core::palette::GRAY, 2))
     );
 }
@@ -167,12 +167,12 @@ pub(crate) fn play_xy_reset_center_overlay_returns_to_center() {
         })
         .unwrap();
     let snapshot = snapshot_from(&released);
-    let cells = led_cells(&snapshot);
+    let tiles = led_tiles(&snapshot);
 
     assert_eq!(runner.xy_touch.x, 0.5);
     assert_eq!(runner.xy_touch.y, 0.5);
     assert_eq!(
-        cells[display_index(4, 4)],
+        tiles[display_index(4, 4)],
         led_rgb(dim_rgb(platform_core::palette::GRAY, 4))
     );
 }
@@ -193,11 +193,11 @@ pub(crate) fn param_mod_binding_updates_native_runtime_config() {
         options: vec![],
         invert: false,
     });
-    let intents = vec![CellTriggerIntent {
+    let intents = vec![TileTriggerIntent {
         x: 7,
         y: 0,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     }];
 
     runner.apply_runtime_modulation(&intents, 0);

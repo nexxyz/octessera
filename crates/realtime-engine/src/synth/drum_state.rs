@@ -1,5 +1,5 @@
 use super::drum_config::{DrumSound, DrumVoiceConfig};
-use super::types::CELL_PITCH_CENTS_LIMIT;
+use super::types::TILE_PITCH_CENTS_LIMIT;
 use crate::sine::sin_turns;
 use std::f32::consts::TAU;
 
@@ -60,7 +60,7 @@ impl DrumState {
     ) -> Self {
         let note = voice.sound.base_midi() as f32
             + f32::from(voice.tune_semis.clamp(-12, 12))
-            + f32::from(local_cents.clamp(-CELL_PITCH_CENTS_LIMIT, CELL_PITCH_CENTS_LIMIT)) / 100.0;
+            + f32::from(local_cents.clamp(-TILE_PITCH_CENTS_LIMIT, TILE_PITCH_CENTS_LIMIT)) / 100.0;
         let hz =
             (440.0_f32 * 2.0_f32.powf((note - 69.0) / 12.0)).clamp(1.0, sample_rate as f32 * 0.45);
         let sweep_st = f32::from(voice.sweep_semis);

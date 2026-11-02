@@ -1,6 +1,6 @@
 use crate::support::{assert_clean_audio, builder, keep_audio, session, Timeline};
 
-/// The L2 beat as stored in the default patch: cell index `y * 8 + x` per sequencer column.
+/// The L2 beat as stored in the default patch: tile index `y * 8 + x` per sequencer column.
 const L2_BEAT: [&[u8]; 8] = [&[0], &[17], &[2, 10], &[19], &[4], &[21], &[6, 14], &[23]];
 
 #[test]
@@ -25,7 +25,7 @@ fn default_patch_plays_every_layer_and_the_beat_matches_its_grid() {
     );
 
     for bar in 0..8 {
-        for (column, cells) in L2_BEAT.iter().enumerate() {
+        for (column, tiles) in L2_BEAT.iter().enumerate() {
             let step = f64::from(bar) + column as f64 / 8.0;
             let mut hits: Vec<u8> = timeline
                 .events(step, step + 1.0 / 8.0)
@@ -35,7 +35,7 @@ fn default_patch_plays_every_layer_and_the_beat_matches_its_grid() {
                 .collect();
             hits.sort_unstable();
             assert_eq!(
-                &hits, cells,
+                &hits, tiles,
                 "L2 bar {bar} column {column}, audio in {wav:?}"
             );
         }

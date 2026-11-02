@@ -17,10 +17,10 @@ pub enum EngineEvent {
         duration_ms: u32,
         at: Option<Instant>,
     },
-    CellHit {
+    TileHit {
         instrument_slot: u8,
         voice: u8,
-        cell: u8,
+        tile: u8,
         pitch_cents: i16,
         velocity: u8,
         at: Option<Instant>,

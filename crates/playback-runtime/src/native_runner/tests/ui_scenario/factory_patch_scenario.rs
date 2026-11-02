@@ -216,7 +216,7 @@ fn expected_factory_patch_fixture() -> Value {
                         "behaviorId": "sequencer",
                         "stepRate": "1/8",
                         "savedState": {
-                            "cells": [
+                            "tiles": [
                                 true, false, true, false, true, false, true, false,
                                 false, false, true, false, true, false, false, false,
                                 false, true, false, true, false, true, false, true,

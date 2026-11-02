@@ -132,11 +132,11 @@ pub(crate) fn structural_instrument_modulation_emits_one_slot_command() {
         invert: false,
     });
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 0,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );
@@ -171,11 +171,11 @@ pub(crate) fn supported_synth_modulation_emits_direct_command_and_midi_emits_non
         1.0,
     ));
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 0,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );
@@ -195,11 +195,11 @@ pub(crate) fn supported_synth_modulation_emits_direct_command_and_midi_emits_non
     runner.instruments[0].kind = "midi".into();
     runner.param_mods[0].x[0] = Some(volume_binding());
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 0,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );
@@ -233,11 +233,11 @@ fn assert_type_modulation_emits_midi_slot_update(previous_kind: &str) {
     });
 
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 0,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );

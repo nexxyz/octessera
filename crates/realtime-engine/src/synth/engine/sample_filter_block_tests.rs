@@ -154,7 +154,7 @@ fn sample_voice(
         active: true,
         instrument_slot: 0,
         sample_slot: 0,
-        cell: None,
+        tile: None,
         buffer: Some(SampleBuffer {
             samples: samples.into(),
             channels,

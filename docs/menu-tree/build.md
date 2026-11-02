@@ -111,8 +111,8 @@ Build
 - All layers run in parallel while transport runs. Switching the active layer never clears or resets
   any layer, and the newly selected layer's current state shows immediately.
 - Preset/default save payloads always include each layer's grid state. `looper` stores its recorded
-  sequence in `savedState` as step-bucketed press/release events; live-held cells and currently sounding
-  playback cells are not saved, and a loaded loop restarts from step 1.
+  sequence in `savedState` as step-bucketed press/release events; live-held tiles and currently sounding
+  playback tiles are not saved, and a loaded loop restarts from step 1.
 - Patch-persistent, and round-tripped through preset/default/autosave payloads: Step Rate, behavior
   selection and config, Link mapping, trigger probabilities, instruments, mixer, the selected Play
   page, Play FX assignments, X/Y bindings, and musical aux bindings. Device/System settings and
@@ -203,9 +203,9 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 | bubbles | Spawn Count: [1..8] | number, step 1 (default 2) |
 | bubbles | Min Radius: [1..4] | number, step 1 (default 1) |
 | bubbles | Max Radius: [1..4] | number, step 1 (default 3) |
-| bubbles | Drift: [0..8] | number, step 1 (default 0); eighth-cell units |
-| bubbles | Current: [-8..8] | number, step 1 (default 0); eighth-cell units |
-| bubbles | Buoyancy: [1..8] | number, step 1 (default 3); eighth-cell units |
+| bubbles | Drift: [0..8] | number, step 1 (default 0); eighth-tile units |
+| bubbles | Current: [-8..8] | number, step 1 (default 0); eighth-tile units |
+| bubbles | Buoyancy: [1..8] | number, step 1 (default 3); eighth-tile units |
 | bubbles | Max Bubbles: [1..64] | number, step 1 (default 24) |
 | bubbles | !Add Bubble | action |
 | gravity | Spawn Rate: [0..100] | number, step 1 (default 20) |
@@ -341,34 +341,34 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 ## Behavior notes
 
 Event semantics that the menu rows above do not show. All coordinates are lower-left world space
-(`y=0` is the bottom row); "exact cell" means the pressed world-space cell.
+(`y=0` is the bottom row); "exact tile" means the pressed world-space tile.
 
 | Behavior | Notes |
 |---|---|
 | `sequencer` | A canvas of `Pages X` x `Pages Y` 8x8 pages; the grid is a viewport onto one page (`Page X`, `Page Y`) and shows, edits, and plays only that page. Pages never drawn on stay empty. `Advance` turns the view to the next page in reading order (along the row of pages, then up a row, wrapping) every `Advance` steps of the layer's Step Rate, counted from Play: steps 1 to N play the page in view and step N + 1 turns. Step Rate also paces the layer's scanning, so keep it at the scan unit: with Step Rate 1/8 and an 8-column scan, Advance 8 turns on every bar and Advance 2 on every beat. Stop or reset restarts the count; Link scanning settings and sections never change it. Changing these rows keeps the drawn pages (other behaviors re-initialize). Saves from before pages load as page 1, 1. |
 | `looper` | `Punch In/Out` toggles between overdub and play, keeps the recorded loop and live playback, and toasts `Looper: Overdub` or `Looper: Play`. There is no editable mode row. |
-| `bubbles` | Current, Drift, and Buoyancy use eighth-cell units per tick. `Add Bubble` spawns one bottom-origin rising bubble immediately. |
+| `bubbles` | Current, Drift, and Buoyancy use eighth-tile units per tick. `Add Bubble` spawns one bottom-origin rising bubble immediately. |
 | `forest_fire` | Trees and burning cells render as visible, but events follow trigger types: tree-to-fire and manual ignition activate, burned-out cells deactivate, visible non-burning trees are stable, unrelated empty cells emit nothing. |
 | `crystal_growth` | `cross` grows through cardinal neighbors, `diagonal` through diagonal neighbors, `snowflake` through cardinal neighbors plus parity-selected diagonals (even `x + y` uses NW/SE, odd uses NE/SW). A grid press seeds or refreshes the exact cell without toggling it off or changing its phase; scheduled/action seeding picks deterministic cells. |
-| `lightning` | Target edges: north `y=max`, south `y=0`, east `x=max`, west `x=0`; automatic strikes start from the opposite edge. On the connection tick every visible lightning cell activates once, then stays stable during decay and deactivates when cleared. |
-| `kuramoto` | Cells are visible only near the sync/wrap window. Phase wraps activate, stable sync-window cells stay quiet, and a grid press sets the exact cell just before wrap and activates it. `Desync Pulse` perturbs phases without immediate activations. |
-| `wave` | Oscillating displacement/velocity, not ripple rings or diffusion. A grid press applies an impulse to the exact cell and activates it; threshold crossings activate/deactivate as the wave propagates and damps. `Impulse Interval` and `Spawn Step` schedule small deterministic impulses so the default patch keeps moving. |
-| `gravity` | Falling granular sand only. Moving into a new cell activates the destination and deactivates the origin, settled grains are stable, and near-saturated or stalled defaults drain a few settled grains instead of staying full. |
-| `boids` | Many quantized flocking agents. Cell entry activates; a vacated cell deactivates only when no boid remains; scatter changes velocity without an immediate activation. |
+| `lightning` | Target edges: north `y=max`, south `y=0`, east `x=max`, west `x=0`; automatic strikes start from the opposite edge. On the connection tick every visible lightning tile activates once, then stays stable during decay and deactivates when cleared. |
+| `kuramoto` | Tiles are visible only near the sync/wrap window. Phase wraps activate, stable sync-window tiles stay quiet, and a grid press sets the exact tile just before wrap and activates it. `Desync Pulse` perturbs phases without immediate activations. |
+| `wave` | Oscillating displacement/velocity, not ripple rings or diffusion. A grid press applies an impulse to the exact tile and activates it; threshold crossings activate/deactivate as the wave propagates and damps. `Impulse Interval` and `Spawn Step` schedule small deterministic impulses so the default patch keeps moving. |
+| `gravity` | Falling granular sand only. Moving into a new tile activates the destination and deactivates the origin, settled grains are stable, and near-saturated or stalled defaults drain a few settled grains instead of staying full. |
+| `boids` | Many quantized flocking agents. Tile entry activates; a vacated tile deactivates only when no boid remains; scatter changes velocity without an immediate activation. |
 | `lava_lamp` | Soft moving metaball-like blobs that merge and split. Not flocking, orbiting, or passive diffusion. |
-| `orbit` | Particles orbit one moving attractor. Particle entry activates; a vacated cell deactivates only when no particle remains; attractor-only cells are stable except press/reset forced accents. |
+| `orbit` | Particles orbit one moving attractor. Particle entry activates; a vacated tile deactivates only when no particle remains; attractor-only tiles are stable except press/reset forced accents. |
 | `sand_ripples` | Wind-driven grain transport and migrating crests, with no water flow or gravity avalanche. Saturated defaults shed tiny deterministic gaps so dunes keep moving. |
 | `ink` | Diffuses toward the cardinal-neighbor average and fades. Direct drops force activate, passive threshold crossings activate/deactivate, low pigment stays quiet. `Drop Interval` and `Spawn Step` schedule small deterministic drops. |
-| `ising` | Binary magnetic domains with temperature, noise, and field bias. Flips to +1 activate, flips to -1 deactivate, unchanged +1 cells are stable, -1 cells are quiet. |
-| `reaction_diffusion` | Two-chemical Gray-Scott-style integer pattern formation. B concentration drives visibility; upward threshold crossings activate, downward visibility crossings deactivate. A grid press splashes chemicals into the exact cell plus its cardinal neighbors. `Seed Interval` and `Spawn Step` schedule small deterministic splashes. |
+| `ising` | Binary magnetic domains with temperature, noise, and field bias. Flips to +1 activate, flips to -1 deactivate, unchanged +1 tiles are stable, -1 tiles are quiet. |
+| `reaction_diffusion` | Two-chemical Gray-Scott-style integer pattern formation. B concentration drives visibility; upward threshold crossings activate, downward visibility crossings deactivate. A grid press splashes chemicals into the exact tile plus its cardinal neighbors. `Seed Interval` and `Spawn Step` schedule small deterministic splashes. |
 | `rivers` | Water flow over height with erosion/deposition, cardinal non-wrapping downhill movement, and visible-water threshold triggers. |
-| `cracks` | Crack tips propagate through stressed cells; new tips activate; stress-only cells are stable/quiet. Shatter/replace removes visible pane cells in bounded staged passes with deactivate triggers. |
-| `coral` | Exposed cardinal colony surfaces grow, adjacent opposing colonies become skeletons instead of converting, breakaway clearing deactivates removed cells, and full defaults thin a few cells deterministically. |
-| `physarum` | Bounded agents follow trail and food and deposit evaporating memory. Food is stable/quiet; Seed Slime forces new agent-cell activate accents. |
-| `vines` | Directional tendril tips seek light and open space; branches reserve empty cells without wrapping; pruning deactivates removed vines; full defaults shed a few old cells deterministically; direct planting uses exact cells. |
-| `fractal_explorer` | Samples Mandelbrot/Julia regions with drift and zoom. Class increases activate, class disappearance deactivates, and a grid press recenters on the exact cell with a one-shot forced activate. The mode action key is `toggleFractalMode`. |
-| `maze_growth` | Carves one-cell corridors from frontiers and moves walkers over visible cells, never wrapping. Collapse/removal deactivates visible cells. |
-| `predator_prey` | Grass persistence and regrowth are visible, quiet `Stable` background events. Animals activate on entry, birth, and reseed, deactivate on move-out or death, and are stable while persisting. A predator eating a herbivore adds a one-tick trigger-only cardinal burst without changing neighbor cells, so visible grass may briefly activate as accents. Saturated defaults reopen a few cells. |
-| `twinkle` | Deterministic 1–5 star cap: births activate, deaths deactivate, persisting stars are stable, inactive cells are quiet. A manual birth at the cap replaces one deterministic star. One tick performs at most one eligible fade and one birth. `Star Life` gates fading; `Cluster Bias` picks clipped, non-wrapping neighborhoods over global empty cells. Missing saved cells seed the deterministic default, while an explicit empty array stays empty. `Reseed Stars` and `Clear Stars` are its only actions; Build `Reset` stays the generic reset. |
+| `cracks` | Crack tips propagate through stressed tiles; new tips activate; stress-only tiles are stable/quiet. Shatter/replace removes visible pane tiles in bounded staged passes with deactivate triggers. |
+| `coral` | Exposed cardinal colony surfaces grow, adjacent opposing colonies become skeletons instead of converting, breakaway clearing deactivates removed tiles, and full defaults thin a few tiles deterministically. |
+| `physarum` | Bounded agents follow trail and food and deposit evaporating memory. Food is stable/quiet; Seed Slime forces new agent-tile activate accents. |
+| `vines` | Directional tendril tips seek light and open space; branches reserve empty tiles without wrapping; pruning deactivates removed vines; full defaults shed a few old tiles deterministically; direct planting uses exact tiles. |
+| `fractal_explorer` | Samples Mandelbrot/Julia regions with drift and zoom. Class increases activate, class disappearance deactivates, and a grid press recenters on the exact tile with a one-shot forced activate. The mode action key is `toggleFractalMode`. |
+| `maze_growth` | Carves one-tile corridors from frontiers and moves walkers over visible tiles, never wrapping. Collapse/removal deactivates visible tiles. |
+| `predator_prey` | Grass persistence and regrowth are visible, quiet `Stable` background events. Animals activate on entry, birth, and reseed, deactivate on move-out or death, and are stable while persisting. A predator eating a herbivore adds a one-tick trigger-only cardinal burst without changing neighbor tiles, so visible grass may briefly activate as accents. Saturated defaults reopen a few tiles. |
+| `twinkle` | Deterministic 1–5 star cap: births activate, deaths deactivate, persisting stars are stable, inactive tiles are quiet. A manual birth at the cap replaces one deterministic star. One tick performs at most one eligible fade and one birth. `Star Life` gates fading; `Cluster Bias` picks clipped, non-wrapping neighborhoods over global empty tiles. Missing saved tiles seed the deterministic default, while an explicit empty array stays empty. `Reseed Stars` and `Clear Stars` are its only actions; Build `Reset` stays the generic reset. |
 | `cyclic` | Cells chase the next discrete state through a clipped Moore neighborhood. Advancing activates, except wrap-to-zero, which deactivates. Zero cells are inactive and quiet. |
 | `dla` | `Cell Life` ages out old aggregate cells so the cluster keeps renewing; `0` disables aging/removal. If aging removes the whole cluster, DLA reseeds its small starter cluster. |

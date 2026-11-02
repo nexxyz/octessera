@@ -1,16 +1,16 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DropCell {
+pub struct DropTile {
     pub x: usize,
     pub y: usize,
 }
@@ -24,11 +24,11 @@ pub struct Ring {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaindropsState {
-    pub drops: Vec<DropCell>,
+    pub drops: Vec<DropTile>,
     pub rings: Vec<Ring>,
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "autoDropInterval")]
     pub auto_drop_interval: usize,
     #[serde(rename = "splashRadius")]
@@ -54,8 +54,8 @@ pub fn raindrops_init(config: Value) -> Result<RaindropsState, String> {
     Ok(RaindropsState {
         drops: vec![],
         rings: vec![],
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         auto_drop_interval: config.auto_drop_interval.unwrap_or(3),
         splash_radius: config.splash_radius.unwrap_or(6),
         spawn_step: config.spawn_step.unwrap_or(0).min(63),
@@ -74,12 +74,12 @@ pub fn raindrops_on_input(
             if action_type == "dropNow" =>
         {
             let mut rng = crate::behavior_random::rng();
-            next.drops.push(DropCell {
+            next.drops.push(DropTile {
                 x: rng.gen_range(0..GRID_WIDTH),
                 y: GRID_HEIGHT - 1,
             });
         }
-        DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y == 0 => next.drops.push(DropCell {
+        DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y == 0 => next.drops.push(DropTile {
             x,
             y: GRID_HEIGHT - 1,
         }),
@@ -123,7 +123,7 @@ pub fn raindrops_on_tick(state: RaindropsState, _context: &mut BehaviorContext) 
                 });
             }
         } else {
-            drops.push(DropCell {
+            drops.push(DropTile {
                 x: drop.x,
                 y: drop.y - 1,
             });
@@ -134,29 +134,29 @@ pub fn raindrops_on_tick(state: RaindropsState, _context: &mut BehaviorContext) 
             == state.spawn_step % state.auto_drop_interval
     {
         let mut rng = crate::behavior_random::rng();
-        drops.push(DropCell {
+        drops.push(DropTile {
             x: rng.gen_range(0..GRID_WIDTH),
             y: GRID_HEIGHT - 1,
         });
     }
-    let mut cells = vec![false; CELL_COUNT];
+    let mut tiles = vec![false; TILE_COUNT];
     for drop in &drops {
-        cells[grid_index(drop.x, drop.y)] = true;
+        tiles[grid_index(drop.x, drop.y)] = true;
     }
     for ring in &rings {
         for y in 0..GRID_HEIGHT {
             for x in 0..GRID_WIDTH {
                 if in_ring(x, y, ring.ox, ring.oy, ring.radius) {
-                    cells[grid_index(x, y)] = true;
+                    tiles[grid_index(x, y)] = true;
                 }
             }
         }
     }
-    let trigger_types = trigger_types_from_cells(&state.cells, &cells);
+    let trigger_types = trigger_types_from_tiles(&state.tiles, &tiles);
     RaindropsState {
         drops,
         rings,
-        cells,
+        tiles,
         trigger_types,
         tick_counter,
         ..state
@@ -167,7 +167,7 @@ pub fn raindrops_render_model(state: &RaindropsState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "raindrops".into(),
         status_line: format!("Drops:{} Rings:{}", state.drops.len(), state.rings.len()),
-        cells: state.cells.clone(),
+        tiles: state.tiles.clone(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLUE,
@@ -207,17 +207,17 @@ mod tests {
         let ticked = raindrops_on_tick(state, &mut context);
         assert_eq!(
             ticked.drops[0],
-            DropCell {
+            DropTile {
                 x: 2,
                 y: GRID_HEIGHT - 2
             }
         );
-        assert!(ticked.cells[grid_index(2, GRID_HEIGHT - 2)]);
+        assert!(ticked.tiles[grid_index(2, GRID_HEIGHT - 2)]);
 
         let mut landing =
             raindrops_init(serde_json::json!({ "autoDropInterval": 0, "splashRadius": 2 }))
                 .unwrap();
-        landing.drops.push(DropCell { x: 2, y: 0 });
+        landing.drops.push(DropTile { x: 2, y: 0 });
         let landed = raindrops_on_tick(landing, &mut context);
         assert!(landed.drops.is_empty());
         assert_eq!(landed.rings.len(), 1);
@@ -226,7 +226,7 @@ mod tests {
         let mut no_ring =
             raindrops_init(serde_json::json!({ "autoDropInterval": 0, "splashRadius": 0 }))
                 .unwrap();
-        no_ring.drops.push(DropCell { x: 2, y: 0 });
+        no_ring.drops.push(DropTile { x: 2, y: 0 });
         assert!(raindrops_on_tick(no_ring, &mut context).rings.is_empty());
     }
 
@@ -239,7 +239,7 @@ mod tests {
         let first = raindrops_on_tick(state, &mut context);
         assert_eq!(
             first.drops[0],
-            DropCell {
+            DropTile {
                 x: first.drops[0].x,
                 y: GRID_HEIGHT - 1
             }
@@ -261,7 +261,7 @@ mod tests {
         assert_eq!(ticked.rings[0].radius, 1);
         let model = raindrops_render_model(&ticked);
         assert_eq!(model.name, "raindrops");
-        assert_eq!(model.trigger_types.as_ref().unwrap().len(), CELL_COUNT);
+        assert_eq!(model.trigger_types.as_ref().unwrap().len(), TILE_COUNT);
         assert_eq!(
             raindrops_config_menu()
                 .iter()

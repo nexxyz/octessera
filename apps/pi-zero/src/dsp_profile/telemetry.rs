@@ -203,14 +203,14 @@ pub(crate) fn apply_events(
                 duration_ms,
                 ..
             } => engine.note_on(*instrument_slot, *note, *velocity, *duration_ms),
-            EngineEvent::CellHit {
+            EngineEvent::TileHit {
                 instrument_slot,
                 voice,
-                cell,
+                tile,
                 pitch_cents,
                 velocity,
                 ..
-            } => engine.cell_hit(*instrument_slot, *voice, *cell, *pitch_cents, *velocity),
+            } => engine.tile_hit(*instrument_slot, *voice, *tile, *pitch_cents, *velocity),
             EngineEvent::NoteOff {
                 instrument_slot,
                 note,

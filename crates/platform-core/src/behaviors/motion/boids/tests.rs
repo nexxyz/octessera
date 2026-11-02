@@ -19,7 +19,7 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(s.vy[0], -SPEED);
     assert_eq!(s.active_count, MAX_BOIDS);
     assert_eq!(s.tick_counter, 0);
-    assert!(!s.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!s.trigger_types.contains(&TileTriggerType::Activate));
     let v = boids_serialize(&s).unwrap();
     assert!(v.get("triggerTypes").is_none());
     assert!(v.get("tickCounter").is_none());
@@ -44,12 +44,12 @@ fn grid_press_world_space_and_max_replacement() {
         .zip(s.y.iter())
         .take(s.active_count)
         .any(|(x, y)| *x == 32 && *y == 48));
-    assert_eq!(s.trigger_types[grid_index(2, 3)], CellTriggerType::Activate);
+    assert_eq!(s.trigger_types[grid_index(2, 3)], TileTriggerType::Activate);
 
     let occupied = boids_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(
         occupied.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 }
 
@@ -65,7 +65,7 @@ fn tick_reflects_socially_changes_and_trigger_contract() {
     assert!(t
         .trigger_types
         .iter()
-        .any(|v| *v == CellTriggerType::Activate || *v == CellTriggerType::Stable));
+        .any(|v| *v == TileTriggerType::Activate || *v == TileTriggerType::Stable));
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn scatter_velocity_only_and_seed_activates() {
         &mut c,
     );
     assert_eq!((scattered.x.clone(), scattered.y.clone()), pos);
-    assert!(!scattered.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!scattered.trigger_types.contains(&TileTriggerType::Activate));
     let mut empty =
         boids_deserialize(serde_json::json!({"activeCount":1,"x":[0],"y":[0]})).unwrap();
     empty.x[0] = 100;
@@ -94,5 +94,5 @@ fn scatter_velocity_only_and_seed_activates() {
         &mut c,
     );
     assert_eq!(seeded.x[0], 48);
-    assert!(seeded.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(seeded.trigger_types.contains(&TileTriggerType::Activate));
 }

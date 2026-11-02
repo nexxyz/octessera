@@ -63,7 +63,7 @@ pub(crate) fn play_fx_grid_press_and_release_emit_audio_commands() {
 }
 
 #[test]
-pub(crate) fn play_fx_same_config_assignment_toggles_cell_clear() {
+pub(crate) fn play_fx_same_config_assignment_toggles_tile_clear() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let config = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8 } });
     runner.play_fx_assign = Some(config.clone());
@@ -115,7 +115,7 @@ pub(crate) fn play_fx_press_blocks_same_type_and_limits_concurrency() {
 }
 
 #[test]
-pub(crate) fn play_fx_overlay_marks_active_and_limited_cells() {
+pub(crate) fn play_fx_overlay_marks_active_and_limited_tiles() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "fx".into();
     runner.play_fx_assignments.push(NativePlayFxAssignment {
@@ -134,9 +134,9 @@ pub(crate) fn play_fx_overlay_marks_active_and_limited_cells() {
     ];
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
-    let active = &cells[display_index(0, 0)];
-    let limited = &cells[display_index(1, 0)];
+    let tiles = led_tiles(&snapshot);
+    let active = &tiles[display_index(0, 0)];
+    let limited = &tiles[display_index(1, 0)];
 
     let active_brightness = active["r"].as_i64().unwrap()
         + active["g"].as_i64().unwrap()
@@ -163,22 +163,22 @@ pub(crate) fn play_fx_overlay_uses_canonical_fx_palette() {
     }
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
+    let tiles = led_tiles(&snapshot);
 
     assert_eq!(
-        cells[display_index(0, 0)],
+        tiles[display_index(0, 0)],
         led_rgb(platform_core::palette::YELLOW)
     );
     assert_eq!(
-        cells[display_index(1, 0)],
+        tiles[display_index(1, 0)],
         led_rgb(platform_core::palette::BLUE)
     );
     assert_eq!(
-        cells[display_index(2, 0)],
+        tiles[display_index(2, 0)],
         led_rgb(platform_core::palette::GREEN)
     );
     assert_eq!(
-        cells[display_index(3, 0)],
+        tiles[display_index(3, 0)],
         led_rgb(platform_core::palette::MAGENTA)
     );
 }

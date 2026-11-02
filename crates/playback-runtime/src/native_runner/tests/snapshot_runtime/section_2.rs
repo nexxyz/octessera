@@ -202,9 +202,9 @@ pub(crate) fn sequencer_grid_state_is_serialized_and_rehydrated_for_all_layers()
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(payload).unwrap();
     loaded.select_active_layer(0).unwrap();
-    assert!(loaded.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+    assert!(loaded.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
     loaded.select_active_layer(1).unwrap();
-    assert!(loaded.engine.model().unwrap().cells[platform_core::grid_index(4, 5)]);
+    assert!(loaded.engine.model().unwrap().tiles[platform_core::grid_index(4, 5)]);
 }
 
 #[test]
@@ -233,7 +233,7 @@ pub(crate) fn grid_state_is_always_saved_and_the_old_save_grid_state_key_is_igno
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(payload).unwrap();
 
-    assert!(loaded.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+    assert!(loaded.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
     assert!(
         loaded.config_payload()["runtimeConfig"]["layers"][0]["build"]
             .get("saveGridState")

@@ -126,13 +126,13 @@ pub trait HostAdapter {
         at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError>;
 
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        _hit: &crate::protocol::CellHit,
+        _hit: &crate::protocol::TileHit,
         _at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         Err(RuntimeAdapterError::operation_failed(
-            "CellHit host adapter not connected".into(),
+            "TileHit host adapter not connected".into(),
         ))
     }
 

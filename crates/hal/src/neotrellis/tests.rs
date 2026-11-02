@@ -41,17 +41,17 @@ fn preserves_lower_left_coordinates_and_grb_output() {
 #[test]
 fn exhaustive_fixture_covers_all_four_trellis_devices_and_keys() {
     let fixture = grid_projection_fixture();
-    let cells = fixture["cells"].as_array().unwrap();
+    let tiles = fixture["tiles"].as_array().unwrap();
     assert_eq!(fixture["version"], 1);
     assert_eq!(fixture["width"], 8);
     assert_eq!(fixture["height"], 8);
-    assert_eq!(cells.len(), 64);
+    assert_eq!(tiles.len(), 64);
 
     let addresses = ["0x2e", "0x2f", "0x30", "0x31"];
     let mut mappings = HashSet::new();
-    for cell in cells {
-        let logical = &cell["logical"];
-        let trellis = &cell["neotrellis"];
+    for tile in tiles {
+        let logical = &tile["logical"];
+        let trellis = &tile["neotrellis"];
         let device = trellis["device_index"].as_u64().unwrap() as usize;
         let key = trellis["key"].as_u64().unwrap() as u8;
         assert!(logical["x"].as_u64().unwrap() < 8);
@@ -328,10 +328,10 @@ fn projects_unique_sentinel_leds_using_fixture_device_keys() {
     }
 
     let fixture = grid_projection_fixture();
-    let cells = fixture["cells"].as_array().unwrap();
+    let tiles = fixture["tiles"].as_array().unwrap();
     let mut frame = [[0_u8; 3]; 64];
-    for (sentinel_index, cell) in cells.iter().enumerate() {
-        let display_index = cell["display"]["index"].as_u64().unwrap() as usize;
+    for (sentinel_index, tile) in tiles.iter().enumerate() {
+        let display_index = tile["display"]["index"].as_u64().unwrap() as usize;
         frame[display_index] = [
             sentinel_index as u8 + 1,
             sentinel_index as u8 + 65,
@@ -355,12 +355,12 @@ fn projects_unique_sentinel_leds_using_fixture_device_keys() {
             let offset = u16::from_be_bytes([chunk[0], chunk[1]]) as usize;
             data[offset..offset + chunk.len() - 2].copy_from_slice(&chunk[2..]);
         }
-        for cell in cells {
-            let trellis = &cell["neotrellis"];
+        for tile in tiles {
+            let trellis = &tile["neotrellis"];
             if trellis["device_index"].as_u64().unwrap() as usize != device_index {
                 continue;
             }
-            let display_index = cell["display"]["index"].as_u64().unwrap() as usize;
+            let display_index = tile["display"]["index"].as_u64().unwrap() as usize;
             let key = trellis["key"].as_u64().unwrap() as usize;
             assert_eq!(
                 &data[key * 3..key * 3 + 3],

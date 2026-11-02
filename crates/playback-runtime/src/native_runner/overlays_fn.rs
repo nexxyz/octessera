@@ -2,7 +2,7 @@ use super::led_color::{trigger_gate_color, LedColor};
 use super::play_fx_config::play_fx_type;
 use super::play_fx_presentation::play_fx_color;
 use super::{
-    pan_marker_left_cell, play_fx_cell_id, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT,
+    pan_marker_left_tile, play_fx_tile_id, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT,
     PLAY_FX_MAX_CONCURRENT,
 };
 
@@ -47,7 +47,7 @@ impl NativeRunner {
                 continue;
             };
             let (pan_pos, color) = self.play_pan_target(instrument);
-            let left = pan_marker_left_cell(pan_pos);
+            let left = pan_marker_left_tile(pan_pos);
             let value = if instrument.kind == "none" {
                 color.dim(4)
             } else {
@@ -61,7 +61,7 @@ impl NativeRunner {
     pub(super) fn apply_play_fx_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
         for assignment in &self.play_fx_assignments {
-            let id = play_fx_cell_id(assignment.x, assignment.y);
+            let id = play_fx_tile_id(assignment.x, assignment.y);
             let active = self
                 .active_play_fx
                 .iter()
@@ -138,8 +138,8 @@ impl NativeRunner {
     }
 
     fn dim_fn_overlay(&self, leds: &mut [LedColor]) {
-        for cell in leds.iter_mut() {
-            *cell = LedColor::BLACK;
+        for tile in leds.iter_mut() {
+            *tile = LedColor::BLACK;
         }
     }
 

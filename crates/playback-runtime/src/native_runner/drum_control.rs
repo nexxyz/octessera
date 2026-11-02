@@ -1,6 +1,6 @@
 use super::NativeRunner;
-use crate::protocol::CellHit;
-use platform_core::{CellTriggerIntent, CellTriggerKind};
+use crate::protocol::TileHit;
+use platform_core::{TileTriggerIntent, TileTriggerKind};
 
 impl NativeRunner {
     pub(super) fn enter_drum_assign(&mut self, slot: usize, voice: usize) {
@@ -44,7 +44,7 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn play_drum_cell(&mut self, x: usize, y: usize) {
+    pub(super) fn play_drum_tile(&mut self, x: usize, y: usize) {
         if self.display.ui.shift_held
             || self.display.ui.fn_held
             || self.display.ui.combined_modifier_held
@@ -59,11 +59,11 @@ impl NativeRunner {
         let Some(slot) = slot else {
             return;
         };
-        let intent = CellTriggerIntent {
+        let intent = TileTriggerIntent {
             x,
             y,
             degree: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
         };
         let Some(hit) = super::modulation_sampler::drum_hit_for_intent(
             &self.instruments,
@@ -75,7 +75,7 @@ impl NativeRunner {
         ) else {
             return;
         };
-        self.pending.cell_hits.push(hit);
+        self.pending.tile_hits.push(hit);
         let now = self.display.transients.now();
         self.display.transients.trigger_event_dot(now);
     }
@@ -89,10 +89,10 @@ impl NativeRunner {
         {
             return;
         }
-        self.pending.cell_hits.push(CellHit {
+        self.pending.tile_hits.push(TileHit {
             instrument_slot: slot as u8,
             voice: voice as u8,
-            cell: 0,
+            tile: 0,
             pitch_cents: 0,
             velocity: 100,
         });

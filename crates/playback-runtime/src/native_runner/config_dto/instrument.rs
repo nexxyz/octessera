@@ -21,7 +21,7 @@ pub struct InstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) drum: Option<DrumDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) cell_stamp: Option<CellStampDto>,
+    pub(super) tile_stamp: Option<TileStampDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) sample: Option<SampleDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -32,7 +32,7 @@ pub struct InstrumentDto {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CellStampDto {
+pub struct TileStampDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) tune_semis: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]

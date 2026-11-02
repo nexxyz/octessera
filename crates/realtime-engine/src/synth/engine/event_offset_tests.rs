@@ -159,11 +159,11 @@ fn a_sample_voice_releases_on_its_frame_on_the_block_and_frame_paths() {
 fn offset_zero_matches_an_untimed_event_bit_for_bit() {
     let mut untimed = SynthEngine::new(48_000);
     untimed.note_on(0, 60, 100, 200);
-    untimed.cell_hit(0, 0, 0, 0, 100);
+    untimed.tile_hit(0, 0, 0, 0, 100);
     let mut timed = SynthEngine::new(48_000);
     timed.with_event_frame_offset(0, |engine| {
         engine.note_on(0, 60, 100, 200);
-        engine.cell_hit(0, 0, 0, 0, 100);
+        engine.tile_hit(0, 0, 0, 0, 100);
     });
     let mut expected = render_blocks(&mut untimed, 2);
     let mut rendered = render_blocks(&mut timed, 2);

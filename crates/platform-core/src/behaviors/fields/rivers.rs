@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,7 +17,7 @@ pub struct RiversState {
     pub water: Vec<u8>,
     pub sediment: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "rainPct")]
     pub rain_pct: u8,
     #[serde(rename = "flowPct")]
@@ -37,7 +37,7 @@ struct Config {
     water: Option<Vec<Value>>,
     sediment: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "rainPct")]
     rain_pct: Option<Value>,
     #[serde(rename = "flowPct")]
@@ -115,9 +115,9 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
     let mut nh = ph.clone();
     let mut nw = pw.clone();
     let mut ns = ps.clone();
-    let mut changed = [false; CELL_COUNT];
+    let mut changed = [false; TILE_COUNT];
     let mut forced = Vec::new();
-    for (i, water) in nw.iter_mut().enumerate().take(CELL_COUNT) {
+    for (i, water) in nw.iter_mut().enumerate().take(TILE_COUNT) {
         if hash_pct(state.tick_counter, i, 7) < u32::from(state.rain_pct) {
             let old = *water;
             *water = water.saturating_add(16);
@@ -128,7 +128,7 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
     }
     let rain_water = nw.clone();
     nw.fill(0);
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         let w = rain_water[i];
         if w == 0 {
             continue;
@@ -150,7 +150,7 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
         }
         nw[i] = nw[i].saturating_add(w)
     }
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         if state.evaporation_pct > 0 && nw[i] > 0 {
             let evap = (u16::from(nw[i]) * u16::from(state.evaporation_pct) / 100).max(1) as u8;
             nw[i] = nw[i].saturating_sub(evap)
@@ -174,7 +174,7 @@ pub fn rivers_render_model(s: &RiversState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "rivers".into(),
         status_line: format!("W:{w} E:{}", s.erosion_count),
-        cells: s.water.iter().map(|v| *v >= VISIBLE).collect(),
+        tiles: s.water.iter().map(|v| *v >= VISIBLE).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [80, 180, 255],
             inactive: crate::palette::BLACK,
@@ -197,8 +197,8 @@ fn from_config(v: Value) -> RiversState {
     let c: Config = serde_json::from_value(v).unwrap_or_default();
     let mut s = RiversState {
         height: norm_with_defaults(c.height, default_height()),
-        water: norm(c.water, vec![0; CELL_COUNT]),
-        sediment: norm(c.sediment, vec![0; CELL_COUNT]),
+        water: norm(c.water, vec![0; TILE_COUNT]),
+        sediment: norm(c.sediment, vec![0; TILE_COUNT]),
         trigger_types: norm_triggers(c.trigger_types),
         rain_pct: num(c.rain_pct, 20),
         flow_pct: num(c.flow_pct, 50),
@@ -217,11 +217,11 @@ fn normalize(s: &mut RiversState) {
     );
     s.water = norm(
         Some(s.water.iter().map(|v| Value::from(*v)).collect()),
-        vec![0; CELL_COUNT],
+        vec![0; TILE_COUNT],
     );
     s.sediment = norm(
         Some(s.sediment.iter().map(|v| Value::from(*v)).collect()),
-        vec![0; CELL_COUNT],
+        vec![0; TILE_COUNT],
     );
     s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
     s.rain_pct = s.rain_pct.min(100);
@@ -230,7 +230,7 @@ fn normalize(s: &mut RiversState) {
     s.evaporation_pct = s.evaporation_pct.min(100)
 }
 fn default_height() -> Vec<u8> {
-    (0..CELL_COUNT)
+    (0..TILE_COUNT)
         .map(|i| {
             let x = i % GRID_WIDTH;
             let y = i / GRID_WIDTH;
@@ -247,8 +247,8 @@ fn norm(v: Option<Vec<Value>>, d: Vec<u8>) -> Vec<u8> {
     if o.is_empty() {
         return d;
     }
-    o.resize(CELL_COUNT, 0);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, 0);
+    o.truncate(TILE_COUNT);
     o
 }
 fn norm_with_defaults(v: Option<Vec<Value>>, defaults: Vec<u8>) -> Vec<u8> {
@@ -256,15 +256,15 @@ fn norm_with_defaults(v: Option<Vec<Value>>, defaults: Vec<u8>) -> Vec<u8> {
         return defaults;
     };
     let mut out = defaults;
-    for (i, value) in values.into_iter().take(CELL_COUNT).enumerate() {
+    for (i, value) in values.into_iter().take(TILE_COUNT).enumerate() {
         out[i] = value.as_u64().unwrap_or(u64::from(out[i])).min(255) as u8;
     }
     out
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8) -> u8 {
@@ -296,22 +296,22 @@ fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
     x ^= x >> 16;
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
-fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if p[i] < ACTIVATE && n[i] >= ACTIVATE {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] >= VISIBLE && n[i] < VISIBLE {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] >= VISIBLE {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
-        t[*i] = CellTriggerType::Activate
+        t[*i] = TileTriggerType::Activate
     }
     t
 }

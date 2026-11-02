@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -20,7 +20,7 @@ pub struct SandRipplesState {
     #[serde(rename = "gustTicks", skip_serializing, skip_deserializing)]
     pub gust_ticks: u8,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "windStrengthPct")]
     pub wind_strength_pct: u8,
     #[serde(rename = "depositionPct")]
@@ -37,7 +37,7 @@ struct Config {
     #[serde(rename = "windDir")]
     wind_dir: Option<String>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "windStrengthPct")]
     wind_strength_pct: Option<Value>,
     #[serde(rename = "depositionPct")]
@@ -80,7 +80,7 @@ pub fn sand_ripples_on_input(
             let old = (s.sand[i], s.crest[i]);
             s.sand[i] = s.sand[i].saturating_add(96);
             s.crest[i] = s.crest[i].saturating_add(64);
-            if (s.sand[i], s.crest[i]) != old && rendered_cell(&s, i) >= VISIBLE {
+            if (s.sand[i], s.crest[i]) != old && rendered_tile(&s, i) >= VISIBLE {
                 forced.push(i)
             }
         }
@@ -125,7 +125,7 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
     let mut forced = Vec::new();
     let wind =
         (u16::from(s.wind_strength_pct) + if s.gust_ticks > 0 { 35 } else { 0 }).min(100) as u8;
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         if wind == 0 {
             continue;
         }
@@ -144,7 +144,7 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
             }
         }
     }
-    if wind > 0 && visible_cells(&prev) == visible_cells(&rendered_values(&ns, &nc)) {
+    if wind > 0 && visible_tiles(&prev) == visible_tiles(&rendered_values(&ns, &nc)) {
         renew_one_dune(&mut ns, &mut nc, s.tick_counter, &mut forced);
     }
     prevent_full_saturation(&mut ns, &mut nc, s.tick_counter, &mut forced);
@@ -162,7 +162,7 @@ pub fn sand_ripples_render_model(s: &SandRipplesState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "sand ripples".into(),
         status_line: format!("D:{d} W:{}", wind_label(&s.wind_dir)),
-        cells: r.iter().map(|v| *v >= VISIBLE).collect(),
+        tiles: r.iter().map(|v| *v >= VISIBLE).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [240, 210, 120],
             inactive: crate::palette::BLACK,
@@ -212,14 +212,14 @@ fn norm(v: Option<Vec<Value>>) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(255) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, 0);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, 0);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8) -> u8 {
@@ -259,16 +259,16 @@ fn seed_dunes(s: &mut SandRipplesState) -> Vec<usize> {
         let i = grid_index(x, y);
         s.sand[i] = s.sand[i].max(120);
         s.crest[i] = s.crest[i].max(96);
-        if rendered_cell(s, i) >= VISIBLE {
+        if rendered_tile(s, i) >= VISIBLE {
             forced.push(i)
         }
     }
     forced
 }
 fn renew_one_dune(sand: &mut [u8], crest: &mut [u8], tick: u64, forced: &mut Vec<usize>) {
-    let start = (tick as usize * 5) % CELL_COUNT;
-    let index = (0..CELL_COUNT)
-        .map(|offset| (start + offset) % CELL_COUNT)
+    let start = (tick as usize * 5) % TILE_COUNT;
+    let index = (0..TILE_COUNT)
+        .map(|offset| (start + offset) % TILE_COUNT)
         .find(|index| sand[*index].max(crest[*index]) < VISIBLE)
         .unwrap_or(start);
     sand[index] = sand[index].max(80);
@@ -282,7 +282,7 @@ fn prevent_full_saturation(sand: &mut [u8], crest: &mut [u8], tick: u64, forced:
     {
         return;
     }
-    let index = ((tick as usize) * 11) % CELL_COUNT;
+    let index = ((tick as usize) * 11) % TILE_COUNT;
     sand[index] = 0;
     crest[index] = 0;
     forced.push(index);
@@ -306,12 +306,12 @@ fn rendered(s: &SandRipplesState) -> Vec<u8> {
     rendered_values(&s.sand, &s.crest)
 }
 fn rendered_values(sand: &[u8], crest: &[u8]) -> Vec<u8> {
-    (0..CELL_COUNT).map(|i| sand[i].max(crest[i])).collect()
+    (0..TILE_COUNT).map(|i| sand[i].max(crest[i])).collect()
 }
-fn visible_cells(values: &[u8]) -> Vec<bool> {
+fn visible_tiles(values: &[u8]) -> Vec<bool> {
     values.iter().map(|value| *value >= VISIBLE).collect()
 }
-fn rendered_cell(s: &SandRipplesState, i: usize) -> u8 {
+fn rendered_tile(s: &SandRipplesState, i: usize) -> u8 {
     s.sand[i].max(s.crest[i])
 }
 fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
@@ -323,23 +323,23 @@ fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
     x ^= x >> 16;
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
-fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if p[i] < ACTIVATE && n[i] >= ACTIVATE {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] >= VISIBLE && n[i] < VISIBLE {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] >= VISIBLE {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
         if n[*i] >= VISIBLE {
-            t[*i] = CellTriggerType::Activate
+            t[*i] = TileTriggerType::Activate
         }
     }
     t

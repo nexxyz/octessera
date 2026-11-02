@@ -1,30 +1,30 @@
-use super::{NativeCellStamp, NativeRunner, NativeSampleAssignment, GRID_HEIGHT, GRID_WIDTH};
+use super::{NativeRunner, NativeSampleAssignment, NativeTileStamp, GRID_HEIGHT, GRID_WIDTH};
 use serde_json::{json, Value};
 
 impl NativeRunner {
-    pub(super) fn fast_cell_stamp_key(&mut self, slot: usize, key: &str, field: &str) -> bool {
+    pub(super) fn fast_tile_stamp_key(&mut self, slot: usize, key: &str, field: &str) -> bool {
         let number = self.menu.number_for_key(key);
         let level = self.menu.value_for_key(key);
         let Some(stamp) = self
             .instruments
             .get_mut(slot)
-            .map(|instrument| &mut instrument.cell_stamp)
+            .map(|instrument| &mut instrument.tile_stamp)
         else {
             return false;
         };
         let before = stamp.clone();
         match field {
-            "cell.tuneSemis" => {
+            "tile.tuneSemis" => {
                 if let Some(value) = number {
                     stamp.tune_semis = value.clamp(-24, 24) as i8;
                 }
             }
-            "cell.tuneCents" => {
+            "tile.tuneCents" => {
                 if let Some(value) = number {
                     stamp.tune_cents = value.clamp(-100, 100) as i8;
                 }
             }
-            "cell.level" => {
+            "tile.level" => {
                 stamp.level = match level.as_deref() {
                     Some("High") => Some("high".into()),
                     Some("Medium") => Some("medium".into()),
@@ -59,10 +59,10 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn cell_stamp(&self, slot: usize) -> NativeCellStamp {
+    pub(super) fn tile_stamp(&self, slot: usize) -> NativeTileStamp {
         self.instruments
             .get(slot)
-            .map(|instrument| instrument.cell_stamp.clone())
+            .map(|instrument| instrument.tile_stamp.clone())
             .unwrap_or_default()
     }
 
@@ -77,9 +77,9 @@ impl NativeRunner {
         else {
             return;
         };
-        let stamp = self.cell_stamp(slot);
+        let stamp = self.tile_stamp(slot);
         let level = levels_enabled.then(|| stamp.level.clone()).flatten();
-        let cells = self.stamp_line_cells(x, y);
+        let tiles = self.stamp_line_tiles(x, y);
         let Some(instrument) = self.instruments.get_mut(slot) else {
             return;
         };
@@ -91,16 +91,16 @@ impl NativeRunner {
             tune_semis: stamp.tune_semis,
             tune_cents: stamp.tune_cents,
         };
-        let clear = cells
+        let clear = tiles
             .iter()
             .all(|&(x, y)| instrument.sample_assignments.contains(&stamped(x, y)));
         instrument
             .sample_assignments
-            .retain(|assignment| !cells.contains(&(assignment.x, assignment.y)));
+            .retain(|assignment| !tiles.contains(&(assignment.x, assignment.y)));
         if !clear {
             instrument
                 .sample_assignments
-                .extend(cells.iter().map(|&(x, y)| stamped(x, y)));
+                .extend(tiles.iter().map(|&(x, y)| stamped(x, y)));
         }
         self.show_stamp_toast(clear, 'S', sample_slot, &stamp, level.as_deref());
         self.mark_config_dirty();
@@ -110,8 +110,8 @@ impl NativeRunner {
         let Some((slot, voice)) = self.drum_assign else {
             return;
         };
-        let stamp = self.cell_stamp(slot);
-        let cells = self.stamp_line_cells(x, y);
+        let stamp = self.tile_stamp(slot);
+        let tiles = self.stamp_line_tiles(x, y);
         let Some(assignments) = self
             .instruments
             .get_mut(slot)
@@ -122,36 +122,36 @@ impl NativeRunner {
             return;
         };
         let stamped = |x: usize, y: usize| {
-            let mut cell = json!({ "x": x, "y": y, "voice": voice });
+            let mut tile = json!({ "x": x, "y": y, "voice": voice });
             if stamp.tune_semis != 0 {
-                cell["tuneSemis"] = stamp.tune_semis.into();
+                tile["tuneSemis"] = stamp.tune_semis.into();
             }
             if stamp.tune_cents != 0 {
-                cell["tuneCents"] = stamp.tune_cents.into();
+                tile["tuneCents"] = stamp.tune_cents.into();
             }
             if let Some(level) = &stamp.level {
-                cell["level"] = level.as_str().into();
+                tile["level"] = level.as_str().into();
             }
-            cell
+            tile
         };
-        let offset = |cell: &Value, key: &str| cell.get(key).and_then(Value::as_i64).unwrap_or(0);
-        let matches = |cell: &Value, x: usize, y: usize| {
-            cell.get("x").and_then(Value::as_u64) == Some(x as u64)
-                && cell.get("y").and_then(Value::as_u64) == Some(y as u64)
-                && cell.get("voice").and_then(Value::as_u64) == Some(u64::from(voice))
-                && offset(cell, "tuneSemis") == i64::from(stamp.tune_semis)
-                && offset(cell, "tuneCents") == i64::from(stamp.tune_cents)
-                && cell.get("level").and_then(Value::as_str) == stamp.level.as_deref()
+        let offset = |tile: &Value, key: &str| tile.get(key).and_then(Value::as_i64).unwrap_or(0);
+        let matches = |tile: &Value, x: usize, y: usize| {
+            tile.get("x").and_then(Value::as_u64) == Some(x as u64)
+                && tile.get("y").and_then(Value::as_u64) == Some(y as u64)
+                && tile.get("voice").and_then(Value::as_u64) == Some(u64::from(voice))
+                && offset(tile, "tuneSemis") == i64::from(stamp.tune_semis)
+                && offset(tile, "tuneCents") == i64::from(stamp.tune_cents)
+                && tile.get("level").and_then(Value::as_str) == stamp.level.as_deref()
         };
-        let clear = cells
+        let clear = tiles
             .iter()
-            .all(|&(x, y)| assignments.iter().any(|cell| matches(cell, x, y)));
-        assignments.retain(|cell| {
-            let at = |key: &str| cell.get(key).and_then(Value::as_u64).map(|v| v as usize);
-            !matches!((at("x"), at("y")), (Some(x), Some(y)) if cells.contains(&(x, y)))
+            .all(|&(x, y)| assignments.iter().any(|tile| matches(tile, x, y)));
+        assignments.retain(|tile| {
+            let at = |key: &str| tile.get(key).and_then(Value::as_u64).map(|v| v as usize);
+            !matches!((at("x"), at("y")), (Some(x), Some(y)) if tiles.contains(&(x, y)))
         });
         if !clear {
-            assignments.extend(cells.iter().map(|&(x, y)| stamped(x, y)));
+            assignments.extend(tiles.iter().map(|&(x, y)| stamped(x, y)));
         }
         self.show_stamp_toast(
             clear,
@@ -163,7 +163,7 @@ impl NativeRunner {
         self.mark_config_dirty();
     }
 
-    fn stamp_line_cells(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
+    fn stamp_line_tiles(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
         if x >= GRID_WIDTH || y >= GRID_HEIGHT {
             Vec::new()
         } else if self.display.ui.combined_modifier_held {
@@ -180,7 +180,7 @@ impl NativeRunner {
         cleared: bool,
         prefix: char,
         index: usize,
-        stamp: &NativeCellStamp,
+        stamp: &NativeTileStamp,
         level: Option<&str>,
     ) {
         if cleared {

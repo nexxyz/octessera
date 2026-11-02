@@ -26,7 +26,7 @@ fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slo
         .set_interpretation_profile(runner.interpretation_profile.clone());
 }
 
-fn add_cell(runner: &mut NativeRunner, x: usize, y: usize) {
+fn add_tile(runner: &mut NativeRunner, x: usize, y: usize) {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": x, "y": y }),
@@ -93,7 +93,7 @@ fn state_signature(runner: &NativeRunner) -> (u64, Vec<u64>, Vec<u32>, bool) {
 
 fn prepared_boundary_runner(current_ppqn_pulse: u64) -> NativeRunner {
     let mut runner = scanning_runner("1/16", 0);
-    add_cell(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 0);
     arm_boundary(&mut runner, current_ppqn_pulse);
     runner.prime_sequencer_layer_origins();
     runner
@@ -142,10 +142,10 @@ fn dual_scanning_runner() -> NativeRunner {
     runner.instruments[1].note_behavior = "hold".into();
     runner.select_active_layer(1).unwrap();
     configure_active_scan(&mut runner, "1/8", 1);
-    add_cell(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 0);
     runner.select_active_layer(0).unwrap();
     configure_active_scan(&mut runner, "1/16", 0);
-    add_cell(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 0);
     runner.sync_engine_runtime_config();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner
@@ -261,7 +261,7 @@ fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_c
 #[test]
 fn muted_sequencer_consumes_origin_tick_without_events() {
     let mut runner = scanning_runner("1/16", 0);
-    add_cell(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 0);
     runner.link_layers[0].trigger_probability_mode = "zero".into();
     arm_boundary(&mut runner, 95);
     runner.prime_sequencer_layer_origins();
@@ -292,7 +292,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
                 duration_ms: None,
             }],
             midi: Vec::new(),
-            cells: Vec::new(),
+            tiles: Vec::new(),
         },
     });
     runner.link_arp_held_notes[0].push(LinkArpHeldNote {
@@ -301,7 +301,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
         note: 99,
         velocity: 100,
     });
-    add_cell(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 0);
     arm_boundary(&mut runner, 95);
     runner.prime_sequencer_layer_origins();
 
@@ -357,8 +357,8 @@ fn non_sequencer_resync_does_not_zero_time_tick_looper_pattern_quantized_keys_or
             platform_core::NativeBehaviorState::Looper(state) => assert_eq!(state.step_index, 0),
             platform_core::NativeBehaviorState::Pattern(state) => assert_eq!(state.phase, 0),
             platform_core::NativeBehaviorState::Keys(state) => {
-                assert!(state.cells.iter().all(|cell| !cell));
-                assert!(state.held_cells[platform_core::grid_index(0, 0)]);
+                assert!(state.tiles.iter().all(|tile| !tile));
+                assert!(state.held_tiles[platform_core::grid_index(0, 0)]);
             }
             platform_core::NativeBehaviorState::Life(state) => assert_eq!(state.tick_counter, 0),
             state => panic!("unexpected state for {behavior_id}: {state:?}"),

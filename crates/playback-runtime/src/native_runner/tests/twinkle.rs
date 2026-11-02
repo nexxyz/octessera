@@ -8,12 +8,12 @@ fn twinkle_runner() -> NativeRunner {
     .unwrap()
 }
 
-fn state_cells(runner: &NativeRunner) -> Vec<bool> {
-    runner.engine.serialized_state().unwrap()["cells"]
+fn state_tiles(runner: &NativeRunner) -> Vec<bool> {
+    runner.engine.serialized_state().unwrap()["tiles"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|cell| cell.as_bool().unwrap())
+        .map(|tile| tile.as_bool().unwrap())
         .collect()
 }
 
@@ -101,7 +101,7 @@ pub(crate) fn twinkle_actions_reset_aux_and_autosave_round_trip() {
             "clearStars".into(),
         ))
         .unwrap();
-    assert_eq!(state_cells(&runner).iter().filter(|cell| **cell).count(), 0);
+    assert_eq!(state_tiles(&runner).iter().filter(|tile| **tile).count(), 0);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
 
     runner.config_dirty = false;
@@ -116,13 +116,13 @@ pub(crate) fn twinkle_actions_reset_aux_and_autosave_round_trip() {
             if action == "reseedStars"
     ));
     runner.handle_aux_press(2).unwrap();
-    assert_eq!(state_cells(&runner).iter().filter(|cell| **cell).count(), 3);
+    assert_eq!(state_tiles(&runner).iter().filter(|tile| **tile).count(), 3);
     assert!(runner.config_dirty);
 
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::ResetBehavior)
         .unwrap();
-    assert_eq!(state_cells(&runner).iter().filter(|cell| **cell).count(), 3);
+    assert_eq!(state_tiles(&runner).iter().filter(|tile| **tile).count(), 3);
     let payload = runner.config_payload();
     let expected = runner.engine.serialized_state().unwrap();
     let mut restored = twinkle_runner();

@@ -1,8 +1,8 @@
 use playback_runtime::{
-    CellHit, MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
-    RuntimeErrorFacts, RuntimeOperation,
+    MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
+    RuntimeOperation, TileHit,
 };
-use realtime_engine::synth::{CELL_PITCH_CENTS_LIMIT, INSTRUMENT_SLOT_COUNT};
+use realtime_engine::synth::{INSTRUMENT_SLOT_COUNT, TILE_PITCH_CENTS_LIMIT};
 use rodio_engine_source::EngineEvent;
 use std::time::Instant;
 
@@ -41,26 +41,26 @@ pub(crate) fn musical_event_to_engine_event(
     }
 }
 
-pub(crate) fn cell_hit_to_engine_event(
-    hit: &CellHit,
+pub(crate) fn tile_hit_to_engine_event(
+    hit: &TileHit,
     at: Option<Instant>,
 ) -> Result<EngineEvent, RuntimeAdapterError> {
     if usize::from(hit.instrument_slot) >= INSTRUMENT_SLOT_COUNT
         || hit.voice >= 8
-        || !(-CELL_PITCH_CENTS_LIMIT..=CELL_PITCH_CENTS_LIMIT).contains(&hit.pitch_cents)
+        || !(-TILE_PITCH_CENTS_LIMIT..=TILE_PITCH_CENTS_LIMIT).contains(&hit.pitch_cents)
         || hit.velocity > 127
     {
         return Err(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
             RuntimeErrorDomain::Audio,
             RuntimeErrorCode::InvalidPayload,
             RuntimeOperation::MusicalEvent,
-            Some("invalid cell hit slot, voice, pitch, or velocity".into()),
+            Some("invalid tile hit slot, voice, pitch, or velocity".into()),
         )));
     }
-    Ok(EngineEvent::CellHit {
+    Ok(EngineEvent::TileHit {
         instrument_slot: hit.instrument_slot,
         voice: hit.voice,
-        cell: hit.cell,
+        tile: hit.tile,
         pitch_cents: hit.pitch_cents,
         velocity: hit.velocity,
         at,
@@ -69,8 +69,8 @@ pub(crate) fn cell_hit_to_engine_event(
 
 #[cfg(test)]
 mod tests {
-    use super::{cell_hit_to_engine_event, musical_event_to_engine_event};
-    use playback_runtime::{CellHit, MusicalEvent};
+    use super::{musical_event_to_engine_event, tile_hit_to_engine_event};
+    use playback_runtime::{MusicalEvent, TileHit};
     use rodio_engine_source::EngineEvent;
 
     #[test]
@@ -95,54 +95,54 @@ mod tests {
     }
 
     #[test]
-    fn cell_hit_mapping_preserves_fields_and_rejects_invalid_hit() {
-        let hit = CellHit {
+    fn tile_hit_mapping_preserves_fields_and_rejects_invalid_hit() {
+        let hit = TileHit {
             instrument_slot: 2,
             voice: 7,
-            cell: 12,
+            tile: 12,
             pitch_cents: -2450,
             velocity: 120,
         };
         assert!(matches!(
-            cell_hit_to_engine_event(&hit, None).unwrap(),
-            EngineEvent::CellHit {
+            tile_hit_to_engine_event(&hit, None).unwrap(),
+            EngineEvent::TileHit {
                 instrument_slot: 2,
                 voice: 7,
-                cell: 12,
+                tile: 12,
                 pitch_cents: -2450,
                 velocity: 120,
                 ..
             }
         ));
         assert!(matches!(
-            cell_hit_to_engine_event(
-                &CellHit {
+            tile_hit_to_engine_event(
+                &TileHit {
                     velocity: 0,
                     ..hit.clone()
                 },
                 None
             ),
-            Ok(EngineEvent::CellHit { velocity: 0, .. })
+            Ok(EngineEvent::TileHit { velocity: 0, .. })
         ));
         for invalid in [
-            CellHit {
+            TileHit {
                 instrument_slot: 8,
                 ..hit.clone()
             },
-            CellHit {
+            TileHit {
                 voice: 8,
                 ..hit.clone()
             },
-            CellHit {
+            TileHit {
                 pitch_cents: 4801,
                 ..hit.clone()
             },
-            CellHit {
+            TileHit {
                 velocity: 128,
                 ..hit
             },
         ] {
-            assert!(cell_hit_to_engine_event(&invalid, None).is_err());
+            assert!(tile_hit_to_engine_event(&invalid, None).is_err());
         }
     }
 }

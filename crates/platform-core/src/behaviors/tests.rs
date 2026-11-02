@@ -1,6 +1,6 @@
 use super::*;
-use crate::behavior::{BehaviorContext, CellTriggerType, DeviceInput, GridInteraction};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behavior::{BehaviorContext, DeviceInput, GridInteraction, TileTriggerType};
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use serde_json::Value;
 use std::collections::HashSet;
 
@@ -190,23 +190,23 @@ fn new_pattern_behaviors_toggle_grid_and_round_trip() {
         let behavior = get_native_behavior(id).unwrap();
         let mut context = BehaviorContext::new(120.0);
         let state = behavior.init(Value::Null).unwrap();
-        let before = behavior.render_model(&state).unwrap().cells;
+        let before = behavior.render_model(&state).unwrap().tiles;
         default_frames.insert(before.clone());
         let toggled = behavior
             .on_input(state, DeviceInput::GridPress { x: 1, y: 2 }, &mut context)
             .unwrap();
-        let after = behavior.render_model(&toggled).unwrap().cells;
-        assert_ne!(before, after, "{id} grid input should alter cells");
+        let after = behavior.render_model(&toggled).unwrap().tiles;
+        assert_ne!(before, after, "{id} grid input should alter tiles");
         let restored = behavior
             .deserialize(behavior.serialize(&toggled).unwrap())
             .unwrap();
         let restored_model = behavior.render_model(&restored).unwrap();
-        assert_eq!(restored_model.cells, after);
+        assert_eq!(restored_model.tiles, after);
         assert!(restored_model
             .trigger_types
             .unwrap()
             .iter()
-            .all(|trigger| matches!(trigger, CellTriggerType::Stable | CellTriggerType::None)));
+            .all(|trigger| matches!(trigger, TileTriggerType::Stable | TileTriggerType::None)));
 
         let configured = behavior
             .init(serde_json::json!({
@@ -236,13 +236,13 @@ fn new_pattern_behaviors_toggle_grid_and_round_trip() {
         assert!(low_saved["seed"].as_u64().unwrap_or(0) > 0);
         let configured_model = behavior.render_model(&configured).unwrap();
         for (visible, trigger) in configured_model
-            .cells
+            .tiles
             .iter()
             .zip(configured_model.trigger_types.unwrap())
         {
             assert!(matches!(
                 (*visible, trigger),
-                (true, CellTriggerType::Activate) | (false, CellTriggerType::None)
+                (true, TileTriggerType::Activate) | (false, TileTriggerType::None)
             ));
         }
     }
@@ -413,14 +413,14 @@ fn direct_native_lifecycle_covers_all_native_variants() {
     for behavior in native_variants {
         let state = behavior.init_native(Value::Null).unwrap();
         assert_eq!(
-            behavior.render_model(&state).unwrap().cells.len(),
-            CELL_COUNT
+            behavior.render_model(&state).unwrap().tiles.len(),
+            TILE_COUNT
         );
         let serialized = behavior.serialize(&state).unwrap();
         let restored = behavior.deserialize_native(serialized).unwrap();
         assert_eq!(
-            behavior.render_model(&restored).unwrap().cells.len(),
-            CELL_COUNT
+            behavior.render_model(&restored).unwrap().tiles.len(),
+            TILE_COUNT
         );
     }
 }
@@ -432,7 +432,7 @@ fn every_native_behavior_supports_runtime_contract() {
         let state = behavior.init(Value::Null).unwrap();
         let model = behavior.render_model(&state).unwrap();
         assert_eq!(
-            model.cells.len(),
+            model.tiles.len(),
             crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT
         );
         let serialized = behavior.serialize(&state).unwrap();
@@ -455,7 +455,7 @@ fn every_native_behavior_routes_input_and_tick() {
         let state = behavior.on_tick(state, &mut context).unwrap();
         let model = behavior.render_model(&state).unwrap();
         assert_eq!(
-            model.cells.len(),
+            model.tiles.len(),
             crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT
         );
     }

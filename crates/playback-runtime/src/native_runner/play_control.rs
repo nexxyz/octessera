@@ -3,7 +3,7 @@ use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 use super::pan_mapping::touch_pan_pos_from_grid_x;
 use super::play_fx_config::{play_fx_params, play_fx_target_key, play_fx_type};
 use super::{
-    momentary_fx_target, play_fx_cell_id, trigger_gate_mode_for_column, NativePlayFxAssignment,
+    momentary_fx_target, play_fx_tile_id, trigger_gate_mode_for_column, NativePlayFxAssignment,
     NativeRunner, NativeToast, GRID_HEIGHT, GRID_WIDTH, PLAY_FX_MAX_CONCURRENT,
 };
 
@@ -20,7 +20,7 @@ impl NativeRunner {
         }
         Some(RuntimePlatformEffect::AudioCommand {
             command: RuntimeAudioCommand::MomentaryFxStart {
-                id: play_fx_cell_id(x, y),
+                id: play_fx_tile_id(x, y),
                 epoch: 0,
                 fx_type,
                 params: play_fx_params(&assignment.config),
@@ -41,7 +41,7 @@ impl NativeRunner {
         if fx_type == "none" {
             return Vec::new();
         }
-        let id = play_fx_cell_id(x, y);
+        let id = play_fx_tile_id(x, y);
         if self
             .active_play_fx
             .iter()
@@ -75,7 +75,7 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Vec<RuntimePlatformEffect> {
-        let id = play_fx_cell_id(x, y);
+        let id = play_fx_tile_id(x, y);
         let Some(index) = self
             .active_play_fx
             .iter()

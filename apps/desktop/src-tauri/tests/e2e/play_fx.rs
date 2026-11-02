@@ -1,11 +1,11 @@
-//! A momentary Play FX mapped from the menu and held on its cell during playback: a filter
+//! A momentary Play FX mapped from the menu and held on its tile during playback: a filter
 //! sweep at its default cutoff, compared with the same take played dry.
 use crate::support::{assert_clean_audio, builder, keep_audio, session};
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedScenario};
 use playback_runtime::scenario::{grid, BAR};
 use std::path::PathBuf;
 
-const FX_CELL: (usize, usize) = (3, 3);
+const FX_TILE: (usize, usize) = (3, 3);
 const PRESS_BAR: u64 = 4;
 const RELEASE_BAR: u64 = 6;
 /// One bar at 120 BPM, in seconds.
@@ -52,7 +52,7 @@ impl Take {
     }
 }
 
-/// The default patch with a filter sweep mapped to `FX_CELL`, optionally held from `PRESS_BAR`
+/// The default patch with a filter sweep mapped to `FX_TILE`, optionally held from `PRESS_BAR`
 /// to `RELEASE_BAR`.
 fn play(hold: bool) -> Take {
     let mut take = builder();
@@ -61,11 +61,11 @@ fn play(hold: bool) -> Take {
     take.set_number("Sweep In", "play.fx.params.sweepInMs", 10);
     take.set_number("Sweep Out", "play.fx.params.sweepOutMs", 10);
     take.enter("Map to Grid");
-    take.tap_now(FX_CELL.0, FX_CELL.1);
+    take.tap_now(FX_TILE.0, FX_TILE.1);
     take.checkpoint("fx mapped");
     if hold {
-        take.at(PRESS_BAR * BAR, true, grid(FX_CELL.0, FX_CELL.1, true));
-        take.at(RELEASE_BAR * BAR, true, grid(FX_CELL.0, FX_CELL.1, false));
+        take.at(PRESS_BAR * BAR, true, grid(FX_TILE.0, FX_TILE.1, true));
+        take.at(RELEASE_BAR * BAR, true, grid(FX_TILE.0, FX_TILE.1, false));
     }
     let name = format!("play-fx-{}", if hold { "held" } else { "dry" });
     let mut session = session(&name);
@@ -80,7 +80,7 @@ fn play(hold: bool) -> Take {
 }
 
 #[test]
-fn held_play_fx_cell_filters_only_while_held() {
+fn held_play_fx_tile_filters_only_while_held() {
     let dry = play(false);
     let held = play(true);
     assert_eq!(held.played.start_frame, dry.played.start_frame);

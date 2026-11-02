@@ -7,7 +7,7 @@ use crate::native_runner::{
 impl PresentationScene {
     pub fn into_snapshot(self) -> Value {
         let recording_pulse_dim = self.recording_pulse_dim();
-        let hdmi = self.hdmi.into_snapshot(&self.led_rgb, &self.active_cells);
+        let hdmi = self.hdmi.into_snapshot(&self.led_rgb, &self.active_tiles);
         let display = self.display;
         let bar_values = display
             .bar_values
@@ -44,7 +44,7 @@ impl PresentationScene {
                 "splash": self.splash,
                 "editing": self.editing
             },
-            "leds": {"width": GRID_WIDTH, "height": GRID_HEIGHT, "rgb": self.led_rgb, "active": self.active_cells},
+            "leds": {"width": GRID_WIDTH, "height": GRID_HEIGHT, "rgb": self.led_rgb, "active": self.active_tiles},
             "hdmi": hdmi,
             "transport": {
                 "playing": transport.transport == RuntimeTransportState::Playing,
@@ -64,7 +64,7 @@ impl PresentationScene {
                     "velocityCurve": super::super::velocity_curve_id(sound.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode
                 },
-                "ghostCells": ui.ghost_cells,
+                "ghostTiles": ui.ghost_tiles,
                 "auxAutoHints": ui.aux_auto_hints,
                 "auxManualHints": ui.aux_manual_hints,
                 "inputEventsWhilePaused": self.input_events_while_paused,

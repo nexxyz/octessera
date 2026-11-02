@@ -286,9 +286,9 @@ pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
         .engine
         .model()
         .unwrap()
-        .cells
+        .tiles
         .iter()
-        .filter(|cell| **cell)
+        .filter(|tile| **tile)
         .count();
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -335,9 +335,9 @@ pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
         .engine
         .model()
         .unwrap()
-        .cells
+        .tiles
         .iter()
-        .filter(|cell| **cell)
+        .filter(|tile| **tile)
         .count();
 
     assert!(after >= before);

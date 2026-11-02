@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,14 +16,14 @@ const STRESS_VISIBLE: u8 = 64;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CracksState {
-    pub cells: Vec<u8>,
+    pub tiles: Vec<u8>,
     pub stress: Vec<u8>,
     #[serde(rename = "pendingShatter")]
     pub pending_shatter: bool,
     #[serde(rename = "tickCounter", skip_serializing, skip_deserializing)]
     pub tick_counter: u64,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "stressPct")]
     pub stress_pct: u8,
     #[serde(rename = "branchPct")]
@@ -36,12 +36,12 @@ pub struct CracksState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Vec<Value>>,
+    tiles: Option<Vec<Value>>,
     stress: Option<Vec<Value>>,
     #[serde(rename = "pendingShatter")]
     pending_shatter: Option<Value>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "stressPct")]
     stress_pct: Option<Value>,
     #[serde(rename = "branchPct")]
@@ -56,15 +56,15 @@ pub fn cracks_init(config: Value) -> Result<CracksState, String> {
     let seed_default =
         matches!(&config, Value::Null) || config.as_object().is_some_and(|o| o.is_empty());
     let mut s = from_config(config);
-    if seed_default && visible_cells(&s.cells, &s.stress).iter().all(|cell| !*cell) {
+    if seed_default && visible_tiles(&s.tiles, &s.stress).iter().all(|tile| !*tile) {
         impact(&mut s, GRID_WIDTH / 2, GRID_HEIGHT / 2);
     }
-    s.trigger_types = triggers(&s.cells, &s.stress, &s.cells, &s.stress, &[]);
+    s.trigger_types = triggers(&s.tiles, &s.stress, &s.tiles, &s.stress, &[]);
     Ok(s)
 }
 pub fn cracks_deserialize(data: Value) -> Result<CracksState, String> {
     let mut s = from_config(data);
-    s.trigger_types = triggers(&s.cells, &s.stress, &s.cells, &s.stress, &[]);
+    s.trigger_types = triggers(&s.tiles, &s.stress, &s.tiles, &s.stress, &[]);
     Ok(s)
 }
 pub fn cracks_serialize(state: &CracksState) -> Result<Value, String> {
@@ -79,7 +79,7 @@ pub fn cracks_on_input(
     _: &mut BehaviorContext,
 ) -> CracksState {
     normalize(&mut state);
-    let pc = state.cells.clone();
+    let pc = state.tiles.clone();
     let ps = state.stress.clone();
     let forced = match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
@@ -98,28 +98,28 @@ pub fn cracks_on_input(
         }
         _ => return state,
     };
-    state.trigger_types = triggers(&pc, &ps, &state.cells, &state.stress, &forced);
+    state.trigger_types = triggers(&pc, &ps, &state.tiles, &state.stress, &forced);
     state
 }
 
 pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> CracksState {
     normalize(&mut state);
-    let pc = state.cells.clone();
+    let pc = state.tiles.clone();
     let ps = state.stress.clone();
     let mut forced = Vec::new();
     if state.pending_shatter {
         dissolve_pane(&mut state);
-        state.pending_shatter = visible_cells(&state.cells, &state.stress)
+        state.pending_shatter = visible_tiles(&state.tiles, &state.stress)
             .iter()
             .any(|v| *v);
         if !state.pending_shatter {
             impact(&mut state, GRID_WIDTH / 2, GRID_HEIGHT / 2);
         }
-        state.trigger_types = triggers(&pc, &ps, &state.cells, &state.stress, &[]);
+        state.trigger_types = triggers(&pc, &ps, &state.tiles, &state.stress, &[]);
         return state;
     }
-    let tips = (0..CELL_COUNT)
-        .filter(|i| state.cells[*i] == TIP)
+    let tips = (0..TILE_COUNT)
+        .filter(|i| state.tiles[*i] == TIP)
         .collect::<Vec<_>>();
     for tip in tips {
         if hash(state.tick_counter, tip) % 100 >= u64::from(state.propagation_pct) {
@@ -128,39 +128,39 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
         let Some(dest) = best_neighbor(&state, tip, &[]) else {
             continue;
         };
-        state.cells[tip] = CRACK;
-        state.cells[dest] = TIP;
+        state.tiles[tip] = CRACK;
+        state.tiles[dest] = TIP;
         state.stress[dest] = 0;
         forced.push(dest);
         if hash(state.tick_counter + 1, tip) % 100 < u64::from(state.branch_pct) {
             if let Some(b) = best_neighbor(&state, tip, &[dest]) {
-                state.cells[b] = TIP;
+                state.tiles[b] = TIP;
                 state.stress[b] = 0;
                 forced.push(b);
             }
         }
     }
-    if state.stress_pct > 0 && !state.cells.contains(&TIP) {
+    if state.stress_pct > 0 && !state.tiles.contains(&TIP) {
         let x = (state.tick_counter as usize) % GRID_WIDTH;
         let y = ((state.tick_counter / GRID_WIDTH as u64) as usize) % GRID_HEIGHT;
         forced.extend(impact(&mut state, x, y));
     }
-    for i in 0..CELL_COUNT {
-        if state.cells[i] <= STRESS
+    for i in 0..TILE_COUNT {
+        if state.tiles[i] <= STRESS
             && hash(state.tick_counter, i) % 100 < u64::from(state.stress_pct)
         {
             state.stress[i] = state.stress[i].saturating_add(8);
-            if state.cells[i] == CLEAR && state.stress[i] >= STRESS_VISIBLE {
-                state.cells[i] = STRESS;
+            if state.tiles[i] == CLEAR && state.stress[i] >= STRESS_VISIBLE {
+                state.tiles[i] = STRESS;
             }
         }
-        if state.cells[i] <= STRESS
+        if state.tiles[i] <= STRESS
             && state.stress[i] > 0
             && hash(state.tick_counter + 7, i) % 100 < 8
         {
             state.stress[i] = state.stress[i].saturating_sub(16);
-            if state.stress[i] < STRESS_VISIBLE && state.cells[i] == STRESS {
-                state.cells[i] = CLEAR;
+            if state.stress[i] < STRESS_VISIBLE && state.tiles[i] == STRESS {
+                state.tiles[i] = CLEAR;
             }
         }
     }
@@ -169,17 +169,17 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
     }
     nudge_if_static(&mut state, &pc, &ps);
     state.tick_counter = state.tick_counter.wrapping_add(1);
-    state.trigger_types = triggers(&pc, &ps, &state.cells, &state.stress, &forced);
+    state.trigger_types = triggers(&pc, &ps, &state.tiles, &state.stress, &forced);
     state
 }
 
 pub fn cracks_render_model(state: &CracksState) -> BehaviorRenderModel {
-    let cracks = state.cells.iter().filter(|c| **c == CRACK).count();
-    let tips = state.cells.iter().filter(|c| **c == TIP).count();
+    let cracks = state.tiles.iter().filter(|c| **c == CRACK).count();
+    let tips = state.tiles.iter().filter(|c| **c == TIP).count();
     BehaviorRenderModel {
         name: "cracks".into(),
         status_line: format!("C:{cracks} T:{tips}"),
-        cells: visible_cells(&state.cells, &state.stress),
+        tiles: visible_tiles(&state.tiles, &state.stress),
         palette: crate::BehaviorRenderPalette {
             active: [255, 245, 210],
             inactive: crate::palette::BLACK,
@@ -202,7 +202,7 @@ pub fn cracks_config_menu() -> Vec<BehaviorConfigItem> {
 fn from_config(v: Value) -> CracksState {
     let c: Config = serde_json::from_value(v).unwrap_or_default();
     let mut s = CracksState {
-        cells: norm_cells(c.cells.unwrap_or_default()),
+        tiles: norm_tiles(c.tiles.unwrap_or_default()),
         stress: norm_u8(c.stress.unwrap_or_default()),
         pending_shatter: c
             .pending_shatter
@@ -219,7 +219,7 @@ fn from_config(v: Value) -> CracksState {
     s
 }
 fn normalize(s: &mut CracksState) {
-    s.cells = norm_cells(s.cells.iter().map(|v| Value::from(*v)).collect());
+    s.tiles = norm_tiles(s.tiles.iter().map(|v| Value::from(*v)).collect());
     s.stress = norm_u8(s.stress.iter().map(|v| Value::from(*v)).collect());
     s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
     s.stress_pct = s.stress_pct.min(100);
@@ -227,13 +227,13 @@ fn normalize(s: &mut CracksState) {
     s.propagation_pct = s.propagation_pct.min(100);
     s.shatter_threshold = s.shatter_threshold.clamp(1, 64)
 }
-fn norm_cells(v: Vec<Value>) -> Vec<u8> {
+fn norm_tiles(v: Vec<Value>) -> Vec<u8> {
     let mut o = v
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(3) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, CLEAR);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, CLEAR);
+    o.truncate(TILE_COUNT);
     o
 }
 fn norm_u8(v: Vec<Value>) -> Vec<u8> {
@@ -241,14 +241,14 @@ fn norm_u8(v: Vec<Value>) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(255) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, 0);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, 0);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -258,7 +258,7 @@ fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
 }
 fn impact(s: &mut CracksState, x: usize, y: usize) -> Vec<usize> {
     let idx = grid_index(x, y);
-    s.cells[idx] = TIP;
+    s.tiles[idx] = TIP;
     for dy in -1..=1 {
         for dx in -1..=1 {
             if let (Some(nx), Some(ny)) = (x.checked_add_signed(dx), y.checked_add_signed(dy)) {
@@ -271,25 +271,25 @@ fn impact(s: &mut CracksState, x: usize, y: usize) -> Vec<usize> {
     vec![idx]
 }
 fn replace(s: &mut CracksState) {
-    s.cells.fill(CLEAR);
+    s.tiles.fill(CLEAR);
     s.stress.fill(0)
 }
 fn dissolve_pane(s: &mut CracksState) {
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         if hash(s.tick_counter, i).is_multiple_of(4) {
-            s.cells[i] = CLEAR;
+            s.tiles[i] = CLEAR;
             s.stress[i] = 0;
-        } else if s.cells[i] <= STRESS {
+        } else if s.tiles[i] <= STRESS {
             s.stress[i] = s.stress[i].saturating_sub(64);
             if s.stress[i] < STRESS_VISIBLE {
-                s.cells[i] = CLEAR;
+                s.tiles[i] = CLEAR;
             }
         }
     }
     s.tick_counter = s.tick_counter.wrapping_add(1);
 }
-fn visible_cells(c: &[u8], st: &[u8]) -> Vec<bool> {
-    (0..CELL_COUNT)
+fn visible_tiles(c: &[u8], st: &[u8]) -> Vec<bool> {
+    (0..TILE_COUNT)
         .map(|i| c[i] == CRACK || c[i] == TIP || st[i] >= STRESS_VISIBLE)
         .collect()
 }
@@ -297,36 +297,36 @@ fn nudge_if_static(s: &mut CracksState, pc: &[u8], ps: &[u8]) {
     if s.stress_pct == 0 {
         return;
     }
-    if visible_cells(pc, ps) != visible_cells(&s.cells, &s.stress) {
+    if visible_tiles(pc, ps) != visible_tiles(&s.tiles, &s.stress) {
         return;
     }
-    let index = (s.tick_counter as usize * 13) % CELL_COUNT;
-    if s.cells[index] <= STRESS && s.stress[index] >= STRESS_VISIBLE {
-        s.cells[index] = CLEAR;
+    let index = (s.tick_counter as usize * 13) % TILE_COUNT;
+    if s.tiles[index] <= STRESS && s.stress[index] >= STRESS_VISIBLE {
+        s.tiles[index] = CLEAR;
         s.stress[index] = 0;
-    } else if s.cells[index] <= STRESS {
-        s.cells[index] = STRESS;
+    } else if s.tiles[index] <= STRESS {
+        s.tiles[index] = STRESS;
         s.stress[index] = STRESS_VISIBLE;
     }
 }
-fn triggers(pc: &[u8], ps: &[u8], nc: &[u8], ns: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let pv = visible_cells(pc, ps);
-    let nv = visible_cells(nc, ns);
-    let mut t = (0..CELL_COUNT)
+fn triggers(pc: &[u8], ps: &[u8], nc: &[u8], ns: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let pv = visible_tiles(pc, ps);
+    let nv = visible_tiles(nc, ns);
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if pv[i] && !nv[i] {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if !pv[i] && nv[i] && (nc[i] == CRACK || nc[i] == TIP) {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if nv[i] {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
-        t[*i] = CellTriggerType::Activate;
+        t[*i] = TileTriggerType::Activate;
     }
     t
 }
@@ -356,7 +356,7 @@ fn best_neighbor(s: &CracksState, i: usize, skip: &[usize]) -> Option<usize> {
     let mut best_stress = 0;
     for neighbor in neighbors(i)
         .into_iter()
-        .filter(|n| !skip.contains(n) && s.cells[*n] <= STRESS)
+        .filter(|n| !skip.contains(n) && s.tiles[*n] <= STRESS)
     {
         if best.is_none() || s.stress[neighbor] > best_stress {
             best = Some(neighbor);
@@ -370,15 +370,15 @@ fn hash(t: u64, i: usize) -> u64 {
     t.wrapping_mul(1_103_515_245).wrapping_add(i as u64 * 97)
 }
 fn crack_count(s: &CracksState) -> usize {
-    s.cells
+    s.tiles
         .iter()
         .filter(|c| **c == CRACK || **c == TIP)
         .count()
 }
 fn connects_edges(s: &CracksState) -> bool {
-    let mut visited = [false; CELL_COUNT];
-    for start in 0..CELL_COUNT {
-        if visited[start] || s.cells[start] < CRACK {
+    let mut visited = [false; TILE_COUNT];
+    for start in 0..TILE_COUNT {
+        if visited[start] || s.tiles[start] < CRACK {
             continue;
         }
         let mut stack = vec![start];
@@ -395,7 +395,7 @@ fn connects_edges(s: &CracksState) -> bool {
             left |= x == 0;
             right |= x == GRID_WIDTH - 1;
             for neighbor in neighbors(index) {
-                if !visited[neighbor] && s.cells[neighbor] >= CRACK {
+                if !visited[neighbor] && s.tiles[neighbor] >= CRACK {
                     visited[neighbor] = true;
                     stack.push(neighbor);
                 }

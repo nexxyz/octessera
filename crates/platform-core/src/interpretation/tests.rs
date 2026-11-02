@@ -1,19 +1,19 @@
 use super::*;
 
-fn snapshot(cells: &[u8]) -> GridSnapshot {
+fn snapshot(tiles: &[u8]) -> GridSnapshot {
     GridSnapshot {
         width: 4,
         height: 2,
-        cells: cells.iter().map(|cell| *cell != 0).collect(),
+        tiles: tiles.iter().map(|tile| *tile != 0).collect(),
         trigger_types: None,
     }
 }
 
-fn snapshot_with_triggers(cells: &[u8], trigger_types: Vec<CellTriggerType>) -> GridSnapshot {
+fn snapshot_with_triggers(tiles: &[u8], trigger_types: Vec<TileTriggerType>) -> GridSnapshot {
     GridSnapshot {
         width: 4,
         height: 2,
-        cells: cells.iter().map(|cell| *cell != 0).collect(),
+        tiles: tiles.iter().map(|tile| *tile != 0).collect(),
         trigger_types: Some(trigger_types),
     }
 }
@@ -38,20 +38,20 @@ fn extracts_transitions() {
     assert_eq!(
         extract_transitions(&previous, &next),
         vec![
-            CellTransition {
+            TileTransition {
                 x: 0,
                 y: 0,
-                kind: CellTransitionKind::Activate
+                kind: TileTransitionKind::Activate
             },
-            CellTransition {
+            TileTransition {
                 x: 0,
                 y: 1,
-                kind: CellTransitionKind::Deactivate
+                kind: TileTransitionKind::Deactivate
             },
-            CellTransition {
+            TileTransition {
                 x: 2,
                 y: 1,
-                kind: CellTransitionKind::Activate
+                kind: TileTransitionKind::Activate
             },
         ]
     );
@@ -74,52 +74,52 @@ fn interprets_scan_row_with_degree() {
     assert_eq!(
         intents,
         vec![
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 0,
                 y: 0,
-                kind: CellTriggerKind::Activate,
+                kind: TileTriggerKind::Activate,
                 degree: 0
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 2,
                 y: 0,
-                kind: CellTriggerKind::Activate,
+                kind: TileTriggerKind::Activate,
                 degree: 2
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 0,
                 y: 1,
-                kind: CellTriggerKind::Activate,
+                kind: TileTriggerKind::Activate,
                 degree: 2
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 1,
                 y: 1,
-                kind: CellTriggerKind::Activate,
+                kind: TileTriggerKind::Activate,
                 degree: 3
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 0,
                 y: 1,
-                kind: CellTriggerKind::Scanned,
+                kind: TileTriggerKind::Scanned,
                 degree: 2
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 1,
                 y: 1,
-                kind: CellTriggerKind::Scanned,
+                kind: TileTriggerKind::Scanned,
                 degree: 3
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 2,
                 y: 1,
-                kind: CellTriggerKind::ScannedEmpty,
+                kind: TileTriggerKind::ScannedEmpty,
                 degree: 4
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 3,
                 y: 1,
-                kind: CellTriggerKind::ScannedEmpty,
+                kind: TileTriggerKind::ScannedEmpty,
                 degree: 5
             },
         ]
@@ -142,10 +142,10 @@ fn reverse_scan_row_starts_from_last_row() {
     );
     assert!(intents
         .iter()
-        .any(|intent| intent.x == 3 && intent.y == 1 && intent.kind == CellTriggerKind::Scanned));
+        .any(|intent| intent.x == 3 && intent.y == 1 && intent.kind == TileTriggerKind::Scanned));
     assert!(!intents
         .iter()
-        .any(|intent| intent.x == 0 && intent.y == 0 && intent.kind == CellTriggerKind::Scanned));
+        .any(|intent| intent.x == 0 && intent.y == 0 && intent.kind == TileTriggerKind::Scanned));
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn sectioned_scan_row_limits_output_to_current_section() {
         .filter(|intent| {
             matches!(
                 intent.kind,
-                CellTriggerKind::Scanned | CellTriggerKind::ScannedEmpty
+                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
             )
         })
         .collect::<Vec<_>>();
@@ -194,7 +194,7 @@ fn sectioned_scan_column_limits_output_to_current_section_and_reverse() {
         .filter(|intent| {
             matches!(
                 intent.kind,
-                CellTriggerKind::Scanned | CellTriggerKind::ScannedEmpty
+                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
             )
         })
         .collect::<Vec<_>>();
@@ -207,7 +207,7 @@ fn zero_sized_scan_snapshot_is_safe() {
     let empty = GridSnapshot {
         width: 0,
         height: 0,
-        cells: Vec::new(),
+        tiles: Vec::new(),
         trigger_types: None,
     };
     assert!(interpret_grid(
@@ -242,21 +242,21 @@ fn scan_column_emits_scanned_and_scanned_empty_for_all_rows() {
         .filter(|intent| {
             matches!(
                 intent.kind,
-                CellTriggerKind::Scanned | CellTriggerKind::ScannedEmpty
+                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
             )
         })
         .collect::<Vec<_>>();
     assert_eq!(state_intents.len(), 2);
     assert!(state_intents.iter().any(|intent| intent.x == 1
         && intent.y == 0
-        && intent.kind == CellTriggerKind::ScannedEmpty));
+        && intent.kind == TileTriggerKind::ScannedEmpty));
     assert!(state_intents
         .iter()
-        .any(|intent| intent.x == 1 && intent.y == 1 && intent.kind == CellTriggerKind::Scanned));
+        .any(|intent| intent.x == 1 && intent.y == 1 && intent.kind == TileTriggerKind::Scanned));
 }
 
 #[test]
-fn scan_row_emits_scanned_empty_for_dead_cells() {
+fn scan_row_emits_scanned_empty_for_dead_tiles() {
     let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
     let next = snapshot(&[1, 0, 1, 0, 0, 0, 0, 0]);
     let intents = interpret_grid(
@@ -274,24 +274,24 @@ fn scan_row_emits_scanned_empty_for_dead_cells() {
         .filter(|intent| {
             matches!(
                 intent.kind,
-                CellTriggerKind::Scanned | CellTriggerKind::ScannedEmpty
+                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
             )
         })
         .collect::<Vec<_>>();
     assert_eq!(state_intents.len(), 4);
     assert!(state_intents.iter().any(|intent| intent.x == 1
         && intent.y == 0
-        && intent.kind == CellTriggerKind::ScannedEmpty));
+        && intent.kind == TileTriggerKind::ScannedEmpty));
 }
 
 #[test]
-fn whole_grid_active_emits_only_live_cells() {
+fn whole_grid_active_emits_only_live_tiles() {
     let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
     let next = snapshot(&[1, 0, 1, 0, 0, 0, 1, 0]);
     let intents = interpret_grid(&previous, &next, 0, &profile(TickStrategy::WholeGridActive));
     let state_intents = intents
         .iter()
-        .filter(|intent| intent.kind == CellTriggerKind::Scanned)
+        .filter(|intent| intent.kind == TileTriggerKind::Scanned)
         .collect::<Vec<_>>();
     assert_eq!(state_intents.len(), 3);
     assert!(state_intents
@@ -304,27 +304,27 @@ fn event_candidates_use_render_trigger_types_when_valid() {
     let previous = snapshot_with_triggers(
         &[0, 1, 0, 0, 0, 0, 0, 0],
         vec![
-            CellTriggerType::None,
-            CellTriggerType::Stable,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::Stable,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
         ],
     );
     let next = snapshot_with_triggers(
         &[0, 1, 1, 0, 0, 0, 0, 0],
         vec![
-            CellTriggerType::None,
-            CellTriggerType::Activate,
-            CellTriggerType::Deactivate,
-            CellTriggerType::Stable,
-            CellTriggerType::Scanned,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::Activate,
+            TileTriggerType::Deactivate,
+            TileTriggerType::Stable,
+            TileTriggerType::Scanned,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
         ],
     );
     let intents = interpret_grid(
@@ -336,16 +336,16 @@ fn event_candidates_use_render_trigger_types_when_valid() {
     assert_eq!(
         intents,
         vec![
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 1,
                 y: 0,
-                kind: CellTriggerKind::Activate,
+                kind: TileTriggerKind::Activate,
                 degree: 1
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 2,
                 y: 0,
-                kind: CellTriggerKind::Deactivate,
+                kind: TileTriggerKind::Deactivate,
                 degree: 2
             }
         ]
@@ -355,14 +355,14 @@ fn event_candidates_use_render_trigger_types_when_valid() {
 #[test]
 fn event_candidates_ignore_persistent_stale_render_trigger_types() {
     let stale_triggers = vec![
-        CellTriggerType::Activate,
-        CellTriggerType::Deactivate,
-        CellTriggerType::Stable,
-        CellTriggerType::None,
-        CellTriggerType::None,
-        CellTriggerType::None,
-        CellTriggerType::None,
-        CellTriggerType::None,
+        TileTriggerType::Activate,
+        TileTriggerType::Deactivate,
+        TileTriggerType::Stable,
+        TileTriggerType::None,
+        TileTriggerType::None,
+        TileTriggerType::None,
+        TileTriggerType::None,
+        TileTriggerType::None,
     ];
     let previous = snapshot_with_triggers(&[1, 1, 0, 0, 0, 0, 0, 0], stale_triggers.clone());
     let next = snapshot_with_triggers(&[1, 1, 0, 0, 0, 0, 0, 0], stale_triggers);
@@ -382,27 +382,27 @@ fn fresh_tick_markers_preserve_nonzero_activation_intents() {
     let previous = snapshot_with_triggers(
         &[1, 0, 0, 0, 0, 0, 0, 0],
         vec![
-            CellTriggerType::Activate,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
+            TileTriggerType::Activate,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
         ],
     );
     let next = snapshot_with_triggers(
         &[2, 0, 0, 0, 0, 0, 0, 0],
         vec![
-            CellTriggerType::Activate,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
-            CellTriggerType::None,
+            TileTriggerType::Activate,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
+            TileTriggerType::None,
         ],
     );
 
@@ -415,7 +415,7 @@ fn fresh_tick_markers_preserve_nonzero_activation_intents() {
     );
 
     assert_eq!(intents.len(), 1);
-    assert_eq!(intents[0].kind, CellTriggerKind::Activate);
+    assert_eq!(intents[0].kind, TileTriggerKind::Activate);
 }
 
 #[test]
@@ -425,7 +425,7 @@ fn restart_pitch_counts_from_each_section_lane_on_the_split_axis() {
     let degrees = |tick: TickStrategy, step: usize| {
         let mut intents = interpret_grid(&previous, &next, step, &profile(tick))
             .into_iter()
-            .filter(|intent| intent.kind == CellTriggerKind::Scanned)
+            .filter(|intent| intent.kind == TileTriggerKind::Scanned)
             .map(|intent| (intent.x, intent.y, intent.degree))
             .collect::<Vec<_>>();
         intents.sort();

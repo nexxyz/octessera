@@ -27,7 +27,7 @@ pub use native_runner::{
 pub use platform_core::MusicalEvent;
 pub use preset_name_policy::{clean_preset_name, fresh_preset_name, is_valid_preset_name};
 pub use protocol::{
-    CellHit, HostMessage, MidiPort, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand,
+    HostMessage, MidiPort, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand,
     RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind,
     RuntimeBluetoothPairing, RuntimeBluetoothStatus, RuntimeErrorCode, RuntimeErrorDomain,
     RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeMomentaryFxTarget, RuntimeOperation,
@@ -35,7 +35,7 @@ pub use protocol::{
     RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase, RuntimeSetupPortalStatus, RuntimeStatus,
     RuntimeStatusState, RuntimeStoreResult, RuntimeSystemInfo, RuntimeSystemInfoError,
     RuntimeTransportState, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus,
-    RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus, SampleEntry, SyncSource,
+    RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus, SampleEntry, SyncSource, TileHit,
     SETUP_PORTAL_SUFFIX_MAX_CHARS, USER_DATA_TRANSFER_CODE_ALPHABET,
     USER_DATA_TRANSFER_CODE_LENGTH,
 };

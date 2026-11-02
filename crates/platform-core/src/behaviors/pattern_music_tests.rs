@@ -43,10 +43,10 @@ fn pattern_behaviors_stay_lively_and_bounded_over_long_scan() {
         for _ in 0..300 {
             state = behavior.on_tick(state, &mut context).unwrap();
             let model = behavior.render_model(&state).unwrap();
-            let active = model.cells.iter().filter(|cell| **cell).count();
+            let active = model.tiles.iter().filter(|tile| **tile).count();
             min_active = min_active.min(active);
             max_active = max_active.max(active);
-            unique_frames.insert(model.cells.clone());
+            unique_frames.insert(model.tiles.clone());
 
             if active == 0 {
                 empty_run += 1;
@@ -63,7 +63,7 @@ fn pattern_behaviors_stay_lively_and_bounded_over_long_scan() {
 
             for (y, row_hit) in row_hits.iter_mut().enumerate() {
                 for (x, column_hit) in column_hits.iter_mut().enumerate() {
-                    if model.cells[grid_index(x, y)] {
+                    if model.tiles[grid_index(x, y)] {
                         *row_hit += 1;
                         *column_hit += 1;
                     }
@@ -72,8 +72,8 @@ fn pattern_behaviors_stay_lively_and_bounded_over_long_scan() {
 
             for trigger in model.trigger_types.unwrap_or_default() {
                 match trigger {
-                    crate::behavior::CellTriggerType::Activate => activation_count += 1,
-                    crate::behavior::CellTriggerType::Deactivate => deactivation_count += 1,
+                    crate::behavior::TileTriggerType::Activate => activation_count += 1,
+                    crate::behavior::TileTriggerType::Deactivate => deactivation_count += 1,
                     _ => {}
                 }
             }
@@ -82,7 +82,7 @@ fn pattern_behaviors_stay_lively_and_bounded_over_long_scan() {
         assert!(min_active > 0, "{id} should not produce empty frames");
         assert!(
             max_active < GRID_WIDTH * GRID_HEIGHT,
-            "{id} should not fill every cell"
+            "{id} should not fill every tile"
         );
         assert!(
             longest_empty_run < 4,
@@ -96,10 +96,10 @@ fn pattern_behaviors_stay_lively_and_bounded_over_long_scan() {
             unique_frames.len() >= 4,
             "{id} should evolve over 300 ticks"
         );
-        assert!(activation_count > 0, "{id} should activate cells over time");
+        assert!(activation_count > 0, "{id} should activate tiles over time");
         assert!(
             deactivation_count > 0,
-            "{id} should deactivate cells over time"
+            "{id} should deactivate tiles over time"
         );
         assert!(
             row_hits.iter().filter(|hits| **hits > 0).count() >= 4,
@@ -122,10 +122,10 @@ fn pattern_behavior_controls_affect_generated_frames() {
         let busy = behavior
             .init(serde_json::json!({ "densityPct": 75, "variationPct": 90, "cycleLength": 24, "seed": 909 }))
             .unwrap();
-        let quiet_cells = behavior.render_model(&quiet).unwrap().cells;
-        let busy_cells = behavior.render_model(&busy).unwrap().cells;
+        let quiet_tiles = behavior.render_model(&quiet).unwrap().tiles;
+        let busy_tiles = behavior.render_model(&busy).unwrap().tiles;
         assert_ne!(
-            quiet_cells, busy_cells,
+            quiet_tiles, busy_tiles,
             "{id} controls should change the frame"
         );
     }
@@ -153,15 +153,15 @@ fn assert_control_changes_frame(id: &str, key: &str, low: i32, high: i32) {
     let mut right = left.clone();
     left[key] = serde_json::json!(low);
     right[key] = serde_json::json!(high);
-    let left_cells = behavior
+    let left_tiles = behavior
         .render_model(&behavior.init(left).unwrap())
         .unwrap()
-        .cells;
-    let right_cells = behavior
+        .tiles;
+    let right_tiles = behavior
         .render_model(&behavior.init(right).unwrap())
         .unwrap()
-        .cells;
-    assert_ne!(left_cells, right_cells, "{id} should respond to {key}");
+        .tiles;
+    assert_ne!(left_tiles, right_tiles, "{id} should respond to {key}");
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn reset_transport_phase_rebuilds_phase_zero_frame_and_transitions() {
         "seed": 401
     });
     let mut state = pattern_init("weave", config).unwrap();
-    let previous = state.cells.clone();
+    let previous = state.tiles.clone();
     let expected = pattern_init(
         "weave",
         serde_json::json!({
@@ -190,13 +190,13 @@ fn reset_transport_phase_rebuilds_phase_zero_frame_and_transitions() {
     reset_transport_phase(&mut state);
 
     assert_eq!(state.phase, 0);
-    assert_eq!(state.cells, expected.cells);
-    for (index, (before, after)) in previous.iter().zip(state.cells.iter()).enumerate() {
+    assert_eq!(state.tiles, expected.tiles);
+    for (index, (before, after)) in previous.iter().zip(state.tiles.iter()).enumerate() {
         let expected_trigger = match (*before, *after) {
-            (false, true) => crate::CellTriggerType::Activate,
-            (true, false) => crate::CellTriggerType::Deactivate,
-            (true, true) => crate::CellTriggerType::Stable,
-            (false, false) => crate::CellTriggerType::None,
+            (false, true) => crate::TileTriggerType::Activate,
+            (true, false) => crate::TileTriggerType::Deactivate,
+            (true, true) => crate::TileTriggerType::Stable,
+            (false, false) => crate::TileTriggerType::None,
         };
         assert_eq!(state.trigger_types[index], expected_trigger);
     }
@@ -232,7 +232,7 @@ fn grid_presses_keep_the_pattern_seed_in_range_across_save_and_reload() {
     );
     let reloaded = behavior.deserialize(saved).unwrap();
     assert_eq!(
-        behavior.render_model(&reloaded).unwrap().cells,
-        behavior.render_model(&state).unwrap().cells
+        behavior.render_model(&reloaded).unwrap().tiles,
+        behavior.render_model(&state).unwrap().tiles
     );
 }

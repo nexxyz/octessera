@@ -1,10 +1,10 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use playback_runtime::{
-    CellHit, HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimePlatformRequest,
+    HostAdapter, HostMessage, MusicalEvent, RuntimeAdapterError, RuntimeAudioCommand,
+    RuntimePlatformRequest, TileHit,
 };
 
-/// A note-on or cell hit as it reached the engine, before the session stamps its time.
+/// A note-on or tile hit as it reached the engine, before the session stamps its time.
 pub(super) struct HeardEvent {
     pub(super) slot: u8,
     pub(super) note: u8,
@@ -44,21 +44,21 @@ impl HostAdapter for LoggingAdapter {
         self.inner.handle_musical_event(event, None)
     }
 
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        hit: &CellHit,
+        hit: &TileHit,
         _at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         if hit.velocity > 0 {
             self.heard.push(HeardEvent {
                 slot: hit.instrument_slot,
-                note: hit.cell,
+                note: hit.tile,
                 voice: Some(hit.voice),
                 velocity: hit.velocity,
                 pitch_cents: hit.pitch_cents,
             });
         }
-        self.inner.handle_cell_hit(hit, None)
+        self.inner.handle_tile_hit(hit, None)
     }
 
     fn handle_platform_effect(

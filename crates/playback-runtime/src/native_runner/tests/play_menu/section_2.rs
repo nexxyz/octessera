@@ -108,8 +108,8 @@ pub(crate) fn trigger_gate_page_edits_only_selected_layer_row() {
     assert_eq!(runner.trigger_gate_modes[0], "full");
     assert_eq!(runner.trigger_gate_modes[1], "zero");
     let changed_snapshot = snapshot_from(&changed);
-    let cells = led_cells(&changed_snapshot);
-    let row1_zero = cells[display_index(0, 1)].as_object().unwrap();
+    let tiles = led_tiles(&changed_snapshot);
+    let row1_zero = tiles[display_index(0, 1)].as_object().unwrap();
     assert!(row1_zero["r"].as_i64().unwrap() > 0);
     assert!(row1_zero["r"].as_i64().unwrap() >= row1_zero["g"].as_i64().unwrap());
 }
@@ -332,11 +332,11 @@ pub(crate) fn play_trigger_gate_leds_show_layer_modes_and_all_layers_actions() {
     runner.trigger_gate_modes[1] = "full".into();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
-    let part0_zero = cells[display_index(0, 0)].as_object().unwrap();
-    let part0_custom = cells[display_index(1, 0)].as_object().unwrap();
-    let part1_full = cells[display_index(2, 1)].as_object().unwrap();
-    let all_custom = cells[display_index(6, 0)].as_object().unwrap();
+    let tiles = led_tiles(&snapshot);
+    let part0_zero = tiles[display_index(0, 0)].as_object().unwrap();
+    let part0_custom = tiles[display_index(1, 0)].as_object().unwrap();
+    let part1_full = tiles[display_index(2, 1)].as_object().unwrap();
+    let all_custom = tiles[display_index(6, 0)].as_object().unwrap();
 
     assert!(part0_custom["r"].as_i64().unwrap() > 100 && part0_custom["g"].as_i64().unwrap() > 80);
     assert!(

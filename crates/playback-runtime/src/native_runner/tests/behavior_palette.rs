@@ -14,7 +14,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
         })
         .unwrap();
     let stable_snapshot = snapshot_from(&stable_messages);
-    let stable_leds = led_cells(&stable_snapshot);
+    let stable_leds = led_tiles(&stable_snapshot);
 
     assert_eq!(
         stable_leds[display_index(0, 0)],
@@ -32,7 +32,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
         })
         .unwrap();
     let active_snapshot = snapshot_from(&active_messages);
-    let active_leds = led_cells(&active_snapshot);
+    let active_leds = led_tiles(&active_snapshot);
 
     assert_eq!(
         active_leds[display_index(1, 0)],
@@ -45,7 +45,7 @@ pub(crate) fn life_palette_surfaces_in_runtime_snapshot_led_rgb() {
 }
 
 #[test]
-pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_cells() {
+pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_tiles() {
     for behavior_id in ["bubbles", "raindrops"] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         select_behavior(&mut runner, behavior_id);
@@ -53,7 +53,7 @@ pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_cells() {
         runner.display.oled_splash_until = None;
 
         let snapshot = runner.snapshot().unwrap();
-        let leds = led_cells(&snapshot);
+        let leds = led_tiles(&snapshot);
         assert_eq!(
             leds[display_index(0, 0)],
             led_rgb(platform_core::palette::BLUE),
@@ -70,20 +70,20 @@ pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_cells() {
             runner.engine.tick(runner.transport.bpm as f32).unwrap();
         }
         let active_snapshot = runner.snapshot().unwrap();
-        let active_leds = led_cells(&active_snapshot);
+        let active_leds = led_tiles(&active_snapshot);
         let model = runner.engine.model().unwrap();
         let live_index = model
-            .cells
+            .tiles
             .iter()
-            .position(|cell| *cell)
-            .unwrap_or_else(|| panic!("{behavior_id} should render a live cell after action"));
+            .position(|tile| *tile)
+            .unwrap_or_else(|| panic!("{behavior_id} should render a live tile after action"));
         let x = live_index % GRID_WIDTH;
         let y = live_index / GRID_WIDTH;
 
         assert_ne!(
             active_leds[display_index(x, y)],
             led_rgb(platform_core::palette::BLUE),
-            "{behavior_id} live cell must contrast with water background"
+            "{behavior_id} live tile must contrast with water background"
         );
     }
 }
@@ -99,7 +99,7 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
         .active_engine_input_result(platform_core::DeviceInput::GridPress { x: 2, y: 3 })
         .unwrap();
     let spawn_snapshot = runner.snapshot().unwrap();
-    let spawn_leds = led_cells(&spawn_snapshot);
+    let spawn_leds = led_tiles(&spawn_snapshot);
 
     assert_eq!(spawn_leds[display_index(0, 0)], led_rgb([80, 48, 24]));
     assert_eq!(
@@ -109,7 +109,7 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
 
     runner.engine.tick(runner.transport.bpm as f32).unwrap();
     let tick_snapshot = runner.snapshot().unwrap();
-    let tick_leds = led_cells(&tick_snapshot);
+    let tick_leds = led_tiles(&tick_snapshot);
 
     assert_eq!(
         tick_leds[display_index(2, 3)],
@@ -124,7 +124,7 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
 }
 
 #[test]
-pub(crate) fn ghost_cells_lift_other_layers_cells_under_the_active_layer() {
+pub(crate) fn ghost_tiles_lift_other_layers_tiles_under_the_active_layer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     select_behavior(&mut runner, "life");
     runner.display.oled_splash_text.clear();
@@ -162,15 +162,15 @@ pub(crate) fn ghost_cells_lift_other_layers_cells_under_the_active_layer() {
     );
 
     let background = led_rgb(platform_core::palette::BEHAVIOR_DIM_GREEN);
-    let leds = led_cells(&runner.snapshot().unwrap());
+    let leds = led_tiles(&runner.snapshot().unwrap());
     assert_eq!(
         leds[display_index(2, 5)],
         background,
-        "ghost cells start off"
+        "ghost tiles start off"
     );
 
-    runner.display.ui.ghost_cells = true;
-    let leds = led_cells(&runner.snapshot().unwrap());
+    runner.display.ui.ghost_tiles = true;
+    let leds = led_tiles(&runner.snapshot().unwrap());
     assert_eq!(
         leds[display_index(2, 5)],
         json!({ "r": 16, "g": 83, "b": 10 })
@@ -179,6 +179,6 @@ pub(crate) fn ghost_cells_lift_other_layers_cells_under_the_active_layer() {
     assert_eq!(
         leds[display_index(6, 6)],
         led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_YELLOW),
-        "the active layer's own cells draw over ghosts"
+        "the active layer's own tiles draw over ghosts"
     );
 }

@@ -23,8 +23,8 @@ fn pulse(runner: &mut NativeRunner, pulses: u32) -> Vec<RunnerMessage> {
         .unwrap()
 }
 
-fn intent(kind: platform_core::CellTriggerKind) -> platform_core::CellTriggerIntent {
-    platform_core::CellTriggerIntent {
+fn intent(kind: platform_core::TileTriggerKind) -> platform_core::TileTriggerIntent {
+    platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
@@ -110,8 +110,8 @@ pub(crate) fn coalesced_24_pulses_preserve_cross_tick_retriggers() {
 #[test]
 pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let activate = intent(platform_core::CellTriggerKind::Activate);
-    let deactivate = intent(platform_core::CellTriggerKind::Deactivate);
+    let activate = intent(platform_core::TileTriggerKind::Activate);
+    let deactivate = intent(platform_core::TileTriggerKind::Deactivate);
     let model = runner.engine.model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
@@ -145,7 +145,7 @@ pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
                 Some(activate.clone()),
                 Some(activate),
                 Some(deactivate),
-                Some(intent(platform_core::CellTriggerKind::Activate)),
+                Some(intent(platform_core::TileTriggerKind::Activate)),
             ],
             model,
         })
@@ -200,7 +200,7 @@ pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_event
         instrument.midi_enabled = true;
         instrument.midi_channel = 4;
     }
-    let activate = intent(platform_core::CellTriggerKind::Activate);
+    let activate = intent(platform_core::TileTriggerKind::Activate);
     let model = runner.engine.model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
@@ -236,7 +236,7 @@ pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_event
 }
 
 #[test]
-pub(crate) fn sampler_cells_with_the_same_sample_and_pitch_dedupe_to_one_voice() {
+pub(crate) fn sampler_tiles_with_the_same_sample_and_pitch_dedupe_to_one_voice() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = "sampler".into();
     runner.instruments[0].sample_assignments = vec![
@@ -257,8 +257,8 @@ pub(crate) fn sampler_cells_with_the_same_sample_and_pitch_dedupe_to_one_voice()
             tune_cents: 0,
         },
     ];
-    let first = intent(platform_core::CellTriggerKind::Activate);
-    let second = platform_core::CellTriggerIntent {
+    let first = intent(platform_core::TileTriggerKind::Activate);
+    let second = platform_core::TileTriggerIntent {
         x: 4,
         y: 3,
         ..first.clone()
@@ -288,7 +288,7 @@ pub(crate) fn sampler_cells_with_the_same_sample_and_pitch_dedupe_to_one_voice()
         .unwrap();
 
     assert!(note_ons(&audio_events(&messages)).is_empty());
-    assert_eq!(cell_hit_ons(&messages), vec![(0, 2)]);
+    assert_eq!(tile_hit_ons(&messages), vec![(0, 2)]);
 }
 
 #[test]
@@ -305,14 +305,14 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.link_layers[0].activate_timing.retrigger_count = 1;
-    let activate = intent(platform_core::CellTriggerKind::Activate);
+    let activate = intent(platform_core::TileTriggerKind::Activate);
     let immediate = runner.apply_link_timing(
         0,
         std::slice::from_ref(&activate),
         RoutedMusicalEvents {
             audio: vec![expected.clone()],
             midi: vec![],
-            cells: Vec::new(),
+            tiles: Vec::new(),
         },
     );
     assert_eq!(immediate.audio, vec![expected.clone()]);
@@ -362,7 +362,7 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
 #[test]
 pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let activate = intent(platform_core::CellTriggerKind::Activate);
+    let activate = intent(platform_core::TileTriggerKind::Activate);
     let model = runner.engine.model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
@@ -437,7 +437,7 @@ pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
 #[test]
 pub(crate) fn local_dedupe_keeps_same_note_with_different_durations() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let activate = intent(platform_core::CellTriggerKind::Activate);
+    let activate = intent(platform_core::TileTriggerKind::Activate);
     let model = runner.engine.model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {

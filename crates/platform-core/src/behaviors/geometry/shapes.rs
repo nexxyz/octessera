@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ pub struct ShapesState {
     pub pulses: Vec<Pulse>,
     pub lifetimes: Vec<usize>,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "pulseShape")]
     pub pulse_shape: String,
     pub lifespan: usize,
@@ -52,7 +52,7 @@ struct ShapesConfig {
 
 pub fn shapes_init(config: Value) -> Result<ShapesState, String> {
     let config: ShapesConfig = serde_json::from_value(config).unwrap_or_default();
-    let mut lifetimes = vec![0; CELL_COUNT];
+    let mut lifetimes = vec![0; TILE_COUNT];
     let center = grid_index(GRID_WIDTH / 2, GRID_HEIGHT / 2);
     lifetimes[center] = config.lifespan.unwrap_or(3);
     Ok(ShapesState {
@@ -63,7 +63,7 @@ pub fn shapes_init(config: Value) -> Result<ShapesState, String> {
             max_radius: config.max_radius.unwrap_or(12),
         }],
         lifetimes,
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         pulse_shape: config.pulse_shape.unwrap_or_else(|| "ring".into()),
         lifespan: config.lifespan.unwrap_or(3),
         max_radius: config.max_radius.unwrap_or(12),
@@ -88,7 +88,7 @@ fn in_shape(shape: &str, cx: usize, cy: usize, ox: usize, oy: usize, r: usize) -
     }
 }
 
-fn shape_cells(shape: &str, ox: usize, oy: usize, r: usize) -> Vec<usize> {
+fn shape_tiles(shape: &str, ox: usize, oy: usize, r: usize) -> Vec<usize> {
     let mut out = Vec::new();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
@@ -112,7 +112,7 @@ fn add_pulse(state: &ShapesState, ox: usize, oy: usize) -> ShapesState {
         .map(|life| *life > 0)
         .collect::<Vec<_>>();
     let mut next = state.clone();
-    for index in shape_cells(&state.pulse_shape, ox, oy, 0) {
+    for index in shape_tiles(&state.pulse_shape, ox, oy, 0) {
         next.lifetimes[index] = state.lifespan;
     }
     next.pulses.push(Pulse {
@@ -121,12 +121,12 @@ fn add_pulse(state: &ShapesState, ox: usize, oy: usize) -> ShapesState {
         radius: 0,
         max_radius: state.max_radius,
     });
-    let cells = next
+    let tiles = next
         .lifetimes
         .iter()
         .map(|life| *life > 0)
         .collect::<Vec<_>>();
-    next.trigger_types = trigger_types_from_cells(&previous, &cells);
+    next.trigger_types = trigger_types_from_tiles(&previous, &tiles);
     next
 }
 
@@ -164,13 +164,13 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
     for pulse in &state.pulses {
         let radius = pulse.radius + 1;
         if radius <= pulse.max_radius {
-            let prev = shape_cells(
+            let prev = shape_tiles(
                 &state.pulse_shape,
                 pulse.ox,
                 pulse.oy,
                 radius.saturating_sub(1),
             );
-            for index in shape_cells(&state.pulse_shape, pulse.ox, pulse.oy, radius) {
+            for index in shape_tiles(&state.pulse_shape, pulse.ox, pulse.oy, radius) {
                 if !prev.contains(&index) {
                     lifetimes[index] = state.lifespan;
                 }
@@ -187,7 +187,7 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
             == state.spawn_step % state.auto_pulse_interval
     {
         let (x, y) = deterministic_point(tick_counter);
-        for index in shape_cells(&state.pulse_shape, x, y, 0) {
+        for index in shape_tiles(&state.pulse_shape, x, y, 0) {
             lifetimes[index] = state.lifespan;
         }
         pulses.push(Pulse {
@@ -199,7 +199,7 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
     }
     if lifetimes.iter().all(|life| *life == 0) {
         let (x, y) = deterministic_point(tick_counter + 1);
-        for index in shape_cells(&state.pulse_shape, x, y, 0) {
+        for index in shape_tiles(&state.pulse_shape, x, y, 0) {
             lifetimes[index] = state.lifespan;
         }
         pulses.push(Pulse {
@@ -209,8 +209,8 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
             max_radius: state.max_radius,
         });
     }
-    let cells = lifetimes.iter().map(|life| *life > 0).collect::<Vec<_>>();
-    let trigger_types = trigger_types_from_cells(&previous, &cells);
+    let tiles = lifetimes.iter().map(|life| *life > 0).collect::<Vec<_>>();
+    let trigger_types = trigger_types_from_tiles(&previous, &tiles);
     ShapesState {
         pulses,
         lifetimes,
@@ -229,7 +229,7 @@ pub fn shapes_render_model(state: &ShapesState) -> BehaviorRenderModel {
             if state.pulses.len() == 1 { "" } else { "s" },
             state.pulse_shape
         ),
-        cells: state.lifetimes.iter().map(|life| *life > 0).collect(),
+        tiles: state.lifetimes.iter().map(|life| *life > 0).collect(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLACK,

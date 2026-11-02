@@ -28,7 +28,7 @@ pub(super) fn apply_drum_menu_key(
     if matches!(field, "drum.followTranspose" | "drum.followPitch")
         || field.starts_with("drum.velocityLevels.")
     {
-        return apply_drum_cell_setting(runner, slot, key, field);
+        return apply_drum_tile_setting(runner, slot, key, field);
     }
     apply_drum_common_numeric(runner, slot, key, field)
 }
@@ -132,9 +132,9 @@ fn apply_drum_filter_type(runner: &mut NativeRunner, slot: usize, key: &str) -> 
     Some(true)
 }
 
-/// Settings the runtime applies when it turns a stamped cell into a hit; the audio engine never
+/// Settings the runtime applies when it turns a stamped tile into a hit; the audio engine never
 /// sees them, so they only need saving.
-fn apply_drum_cell_setting(
+fn apply_drum_tile_setting(
     runner: &mut NativeRunner,
     slot: usize,
     key: &str,

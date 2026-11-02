@@ -14,12 +14,12 @@ fn lane(from: u8, to: u8, curve: &str) -> NativeValueLane {
     }
 }
 
-fn intent(x: usize, y: usize) -> CellTriggerIntent {
-    CellTriggerIntent {
+fn intent(x: usize, y: usize) -> TileTriggerIntent {
+    TileTriggerIntent {
         x,
         y,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     }
 }
 

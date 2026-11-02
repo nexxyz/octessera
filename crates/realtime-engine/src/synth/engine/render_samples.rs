@@ -46,7 +46,7 @@ impl SynthEngine {
         &mut self,
         slot: usize,
         sample_slot: usize,
-        cell: Option<u8>,
+        tile: Option<u8>,
         pitch_cents: i16,
         velocity: u8,
     ) {
@@ -170,7 +170,7 @@ impl SynthEngine {
             active: true,
             instrument_slot: slot as u8,
             sample_slot,
-            cell,
+            tile,
             buffer: None,
             filter_cutoff_hz,
             filter_resonance,

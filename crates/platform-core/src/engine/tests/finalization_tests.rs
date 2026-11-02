@@ -9,17 +9,17 @@ fn finalize_events_applies_global_sound_before_hold_and_preserves_intents() {
         value: 90,
     });
     let emitted = context.emitted_events;
-    let first_intent = CellTriggerIntent {
+    let first_intent = TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 8,
-        kind: CellTriggerKind::Activate,
+        kind: TileTriggerKind::Activate,
     };
-    let second_intent = CellTriggerIntent {
+    let second_intent = TileTriggerIntent {
         x: 3,
         y: 3,
         degree: 9,
-        kind: CellTriggerKind::Scanned,
+        kind: TileTriggerKind::Scanned,
     };
     let mapped = MappingResult {
         events: vec![

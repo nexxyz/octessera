@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_cells() {
+pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_tiles() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -25,7 +25,7 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_cells() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(0, 0)]);
+    assert!(runner.engine.model().unwrap().tiles[platform_core::grid_index(0, 0)]);
 
     runner.display.ui.combined_modifier_held = true;
     runner
@@ -35,7 +35,7 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_cells() {
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "zero");
-    assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(0, 0)]);
+    assert!(runner.engine.model().unwrap().tiles[platform_core::grid_index(0, 0)]);
 
     runner
         .send(HostMessage::DeviceInput {
@@ -44,7 +44,7 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_cells() {
         })
         .unwrap();
     assert_eq!(runner.trigger_gate_modes[0], "full");
-    assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(0, 0)]);
+    assert!(runner.engine.model().unwrap().tiles[platform_core::grid_index(0, 0)]);
 }
 
 #[test]
@@ -152,7 +152,7 @@ pub(crate) fn hardware_trigger_gate_toggle_preserves_active_layer_state_and_tran
         .unwrap();
 
     let before_state = runner.engine.serialized_state().unwrap();
-    let before_grid = runner.engine.model().unwrap().cells;
+    let before_grid = runner.engine.model().unwrap().tiles;
     let before_behavior = runner.behavior.id().to_string();
     let before_active_layer = runner.active_layer_index;
     let before_tick = runner.transport.tick;
@@ -182,7 +182,7 @@ pub(crate) fn hardware_trigger_gate_toggle_preserves_active_layer_state_and_tran
     assert_eq!(runner.trigger_gate_modes[0], "zero");
     assert_eq!(runner.link_layers[0].trigger_probability_mode, "zero");
     assert_eq!(runner.engine.serialized_state().unwrap(), before_state);
-    assert_eq!(runner.engine.model().unwrap().cells, before_grid);
+    assert_eq!(runner.engine.model().unwrap().tiles, before_grid);
     assert_eq!(runner.behavior.id(), before_behavior);
     assert_eq!(runner.active_layer_index, before_active_layer);
     assert_eq!(runner.transport.tick, before_tick);

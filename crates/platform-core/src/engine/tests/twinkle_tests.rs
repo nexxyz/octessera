@@ -1,12 +1,12 @@
 use super::*;
 
 fn twinkle_engine() -> NativeLayerEngine {
-    let mut cells = vec![false; GRID_WIDTH * GRID_HEIGHT];
-    cells[0] = true;
+    let mut tiles = vec![false; GRID_WIDTH * GRID_HEIGHT];
+    tiles[0] = true;
     NativeLayerEngine::new(NativeLayerEngineConfig {
         behavior: NativeBehavior::Twinkle,
         behavior_config: serde_json::json!({
-            "cells": cells,
+            "tiles": tiles,
             "ages": [0],
             "density": 1,
             "birthChancePct": 100,
@@ -42,20 +42,20 @@ fn auto_death_birth_then_cap_press_has_only_fresh_events() {
     assert_eq!(tick_intents.len(), 2);
     assert!(tick_intents
         .iter()
-        .any(|intent| intent.kind == CellTriggerKind::Deactivate));
+        .any(|intent| intent.kind == TileTriggerKind::Deactivate));
     assert!(tick_intents
         .iter()
-        .any(|intent| intent.kind == CellTriggerKind::Activate));
+        .any(|intent| intent.kind == TileTriggerKind::Activate));
 
     let model = engine.model().unwrap();
     let replacement_target = model
-        .cells
+        .tiles
         .iter()
         .enumerate()
         .position(|(_, active)| !*active)
         .unwrap();
     let existing_star = model
-        .cells
+        .tiles
         .iter()
         .enumerate()
         .position(|(_, active)| *active)
@@ -78,12 +78,12 @@ fn auto_death_birth_then_cap_press_has_only_fresh_events() {
     assert!(input_intents.iter().any(|intent| {
         intent.x == existing_star % GRID_WIDTH
             && intent.y == existing_star / GRID_WIDTH
-            && intent.kind == CellTriggerKind::Deactivate
+            && intent.kind == TileTriggerKind::Deactivate
     }));
     assert!(input_intents.iter().any(|intent| {
         intent.x == replacement_target % GRID_WIDTH
             && intent.y == replacement_target / GRID_WIDTH
-            && intent.kind == CellTriggerKind::Activate
+            && intent.kind == TileTriggerKind::Activate
     }));
 }
 

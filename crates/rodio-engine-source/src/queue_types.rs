@@ -117,7 +117,7 @@ pub(crate) fn is_musical_event(event: &EngineEvent) -> bool {
     matches!(
         event,
         EngineEvent::NoteOn { .. }
-            | EngineEvent::CellHit { .. }
+            | EngineEvent::TileHit { .. }
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
     )

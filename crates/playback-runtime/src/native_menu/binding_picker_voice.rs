@@ -144,8 +144,8 @@ pub(super) fn instrument_binding_source(
             .get(index)
             .copied()
             .unwrap_or(false),
-        cell_stamp: config
-            .instrument_cell_stamps
+        tile_stamp: config
+            .instrument_tile_stamps
             .get(index)
             .copied()
             .unwrap_or_default(),

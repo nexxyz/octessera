@@ -14,7 +14,7 @@ pub(super) struct NativeUiState {
     pub(super) grid_brightness: u8,
     pub(super) button_brightness: u8,
     pub(super) master_volume: u8,
-    pub(super) ghost_cells: bool,
+    pub(super) ghost_tiles: bool,
     pub(super) aux_auto_hints: bool,
     pub(super) aux_manual_hints: bool,
     pub(super) numeric_display_mode: String,
@@ -43,7 +43,7 @@ pub(super) struct NativePendingState {
     pub(super) suppress_snapshot_response: bool,
     pub(super) presentation_deferred: bool,
     pub(super) external_autosave_deferred: bool,
-    pub(super) cell_hits: Vec<crate::protocol::CellHit>,
+    pub(super) tile_hits: Vec<crate::protocol::TileHit>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -300,7 +300,7 @@ impl Default for NativeUiState {
             grid_brightness: 25,
             button_brightness: 35,
             master_volume: 73,
-            ghost_cells: false,
+            ghost_tiles: false,
             aux_auto_hints: true,
             aux_manual_hints: true,
             numeric_display_mode: "bar".into(),

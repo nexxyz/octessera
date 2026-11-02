@@ -97,14 +97,14 @@ test('desktop grid LED color renders inactive LED rgb', () => {
   );
 });
 
-test('desktop grid LED color keeps non-black cells visible at zero brightness', () => {
+test('desktop grid LED color keeps non-black tiles visible at zero brightness', () => {
   assert.deepEqual(
     gridLedColor(frame(GREEN_COLOR, settings({ gridBrightness: 0 })), 0),
     { r: 4, g: 8, b: 2 },
   );
 });
 
-test('desktop grid LED color keeps dimmed cells visibly dimmer', () => {
+test('desktop grid LED color keeps dimmed tiles visibly dimmer', () => {
   assert.deepEqual(
     gridLedColor(
       frame(GREEN_COLOR, settings({ gridBrightness: 0, ledsDimmed: true })),

@@ -280,9 +280,9 @@ pub(crate) fn entering_play_menu_activates_selected_page_and_overlay() {
     assert_eq!(snapshot["playMode"], "pan");
     assert_eq!(snapshot["activePlayMode"], "pan");
 
-    let cells = led_cells(&snapshot);
-    let left = cells[3].as_object().unwrap();
-    let right = cells[4].as_object().unwrap();
+    let tiles = led_tiles(&snapshot);
+    let left = tiles[3].as_object().unwrap();
+    let right = tiles[4].as_object().unwrap();
     assert!(left["r"].as_i64().unwrap() > 100 && left["g"].as_i64().unwrap() > 100);
     assert!(right["r"].as_i64().unwrap() > 100 && right["g"].as_i64().unwrap() > 100);
 }

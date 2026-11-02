@@ -15,11 +15,11 @@ fn spread_burnout_growth_input_action_and_render_contract() {
     assert_eq!(next.cells[grid_index(2, 1)], BURNING);
     assert_eq!(
         next.trigger_types[grid_index(2, 1)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     assert_eq!(
         next.trigger_types[grid_index(1, 1)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 
     let grown = forest_fire_on_tick(
@@ -34,7 +34,7 @@ fn spread_burnout_growth_input_action_and_render_contract() {
     assert!(grown
         .trigger_types
         .iter()
-        .all(|trigger| *trigger == CellTriggerType::Stable));
+        .all(|trigger| *trigger == TileTriggerType::Stable));
     assert!(forest_fire_on_input(
         grown.clone(),
         DeviceInput::GridPress { x: 2, y: 3 },
@@ -55,7 +55,7 @@ fn spread_burnout_growth_input_action_and_render_contract() {
     let model = forest_fire_render_model(&next);
     assert_eq!(model.name, "forest fire");
     assert!(model.status_line.starts_with("T:"));
-    assert_eq!(model.trigger_types.unwrap().len(), CELL_COUNT);
+    assert_eq!(model.trigger_types.unwrap().len(), TILE_COUNT);
 }
 
 #[test]
@@ -66,8 +66,8 @@ fn normalize_config_and_deserialize_state() {
         "lightningChancePerThousand": 200, "generation": 99, "tickCounter": 99
     }))
     .unwrap();
-    assert_eq!(state.cells.len(), CELL_COUNT);
-    assert_eq!(state.trigger_types.len(), CELL_COUNT);
+    assert_eq!(state.cells.len(), TILE_COUNT);
+    assert_eq!(state.trigger_types.len(), TILE_COUNT);
     assert_eq!(state.cells[0], BURNING);
     assert_eq!(state.tree_density_pct, 100);
     assert_eq!(state.lightning_chance_per_thousand, 20);
@@ -116,8 +116,8 @@ fn malformed_transient_data_preserves_cells_and_clamps_negative_fields() {
     assert_eq!(state.spread_chance_pct, 0);
     assert_eq!(state.reseed_threshold_pct, 0);
     assert_eq!(state.lightning_chance_per_thousand, 0);
-    assert_eq!(state.trigger_types[0], CellTriggerType::Stable);
-    assert_eq!(state.trigger_types[1], CellTriggerType::Activate);
+    assert_eq!(state.trigger_types[0], TileTriggerType::Stable);
+    assert_eq!(state.trigger_types[1], TileTriggerType::Activate);
 }
 
 #[test]
@@ -152,8 +152,8 @@ fn explicit_empty_init_stays_empty() {
 #[test]
 fn reseed_fills_only_empty_cells() {
     let mut state = ForestFireState {
-        cells: vec![EMPTY; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        cells: vec![EMPTY; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         tree_density_pct: 100,
         grow_chance_pct: 0,
         spread_chance_pct: 0,
@@ -161,12 +161,12 @@ fn reseed_fills_only_empty_cells() {
         lightning_chance_per_thousand: 0,
     };
     state.cells[0] = TREE;
-    state.cells[CELL_COUNT - 1] = BURNING;
+    state.cells[TILE_COUNT - 1] = BURNING;
 
     reseed_if_needed(&mut state);
 
     assert_eq!(state.cells[0], TREE);
-    assert_eq!(state.cells[CELL_COUNT - 1], BURNING);
+    assert_eq!(state.cells[TILE_COUNT - 1], BURNING);
     assert!(state.cells.iter().all(|cell| *cell != EMPTY));
 }
 
@@ -183,18 +183,18 @@ fn input_replaces_stale_triggers_and_uses_exact_world_coordinate() {
     assert_eq!(state.cells[grid_index(2, 3)], BURNING);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     assert_eq!(
         state.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
     assert!(state
         .trigger_types
         .iter()
         .enumerate()
         .filter(|(index, _)| *index != grid_index(0, 0) && *index != grid_index(2, 3))
-        .all(|(_, trigger)| *trigger == CellTriggerType::None));
+        .all(|(_, trigger)| *trigger == TileTriggerType::None));
 }
 
 #[test]
@@ -205,16 +205,16 @@ fn pressing_already_burning_cell_does_not_reactivate() {
     }))
     .unwrap();
     state.cells[grid_index(2, 3)] = BURNING;
-    state.trigger_types = vec![CellTriggerType::None; CELL_COUNT];
+    state.trigger_types = vec![TileTriggerType::None; TILE_COUNT];
 
     let state = forest_fire_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
 
     assert_eq!(state.cells[grid_index(2, 3)], BURNING);
-    assert_eq!(state.trigger_types[grid_index(2, 3)], CellTriggerType::None);
+    assert_eq!(state.trigger_types[grid_index(2, 3)], TileTriggerType::None);
     assert!(state
         .trigger_types
         .iter()
-        .all(|trigger| *trigger == CellTriggerType::None));
+        .all(|trigger| *trigger == TileTriggerType::None));
 }
 
 #[test]
@@ -231,7 +231,7 @@ fn edge_spread_does_not_wrap() {
     assert_eq!(next.cells[grid_index(GRID_WIDTH - 1, 0)], TREE);
     assert_eq!(
         next.trigger_types[grid_index(GRID_WIDTH - 1, 0)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
 }
 
@@ -245,13 +245,13 @@ fn reseed_normalizes_render_and_trigger_semantics() {
     let model = forest_fire_render_model(&state);
     let triggers = model.trigger_types.unwrap();
     for (index, cell) in state.cells.iter().enumerate() {
-        assert_eq!(model.cells[index], *cell != EMPTY);
+        assert_eq!(model.tiles[index], *cell != EMPTY);
         assert_eq!(
             triggers[index],
             match *cell {
-                TREE => CellTriggerType::Stable,
-                BURNING => CellTriggerType::Activate,
-                _ => CellTriggerType::None,
+                TREE => TileTriggerType::Stable,
+                BURNING => TileTriggerType::Activate,
+                _ => TileTriggerType::None,
             }
         );
     }
@@ -263,15 +263,15 @@ fn reseed_repopulates_near_empty_forest() {
         "treeDensityPct": 25, "reseedThresholdPct": 10, "growChancePct": 0
     }))
     .unwrap();
-    assert!(state.cells.iter().filter(|cell| **cell == TREE).count() >= CELL_COUNT / 4);
+    assert!(state.cells.iter().filter(|cell| **cell == TREE).count() >= TILE_COUNT / 4);
     assert!(state
         .cells
         .iter()
         .zip(state.trigger_types.iter())
         .all(|(cell, trigger)| if *cell == TREE {
-            *trigger == CellTriggerType::Stable
+            *trigger == TileTriggerType::Stable
         } else {
-            *trigger == CellTriggerType::None
+            *trigger == TileTriggerType::None
         }));
 }
 

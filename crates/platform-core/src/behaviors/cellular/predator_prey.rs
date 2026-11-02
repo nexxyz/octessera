@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ use serde_json::Value;
 mod simulation;
 
 use simulation::{
-    reseed_extinct, starter, triggers, triggers_from_cells, triggers_from_cells_forced,
+    reseed_extinct, starter, triggers, triggers_from_tiles, triggers_from_tiles_forced,
     triggers_with_deactivations, ActorStep, StepBuffers,
 };
 
@@ -23,10 +23,10 @@ pub(super) const PREDATOR: u8 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PredatorPreyState {
-    pub cells: Vec<u8>,
+    pub tiles: Vec<u8>,
     pub energy: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "grassGrowChancePct")]
     pub grass_grow_chance_pct: u8,
     #[serde(rename = "herbivoreReproducePct")]
@@ -39,7 +39,7 @@ pub struct PredatorPreyState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Value>,
+    tiles: Option<Value>,
     energy: Option<Value>,
     #[serde(rename = "triggerTypes")]
     trigger_types: Option<Value>,
@@ -55,9 +55,9 @@ struct Config {
 
 pub fn predator_prey_init(config: Value) -> Result<PredatorPreyState, String> {
     let config: Config = serde_json::from_value(config).unwrap_or_default();
-    let has_cells = config.cells.as_ref().is_some_and(|value| value.is_array());
+    let has_tiles = config.tiles.as_ref().is_some_and(|value| value.is_array());
     let mut state = PredatorPreyState {
-        cells: norm_cells(config.cells.map(array_values).unwrap_or_default()),
+        tiles: norm_tiles(config.tiles.map(array_values).unwrap_or_default()),
         energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
         trigger_types: norm_triggers(parse_triggers(config.trigger_types)),
         grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
@@ -66,18 +66,18 @@ pub fn predator_prey_init(config: Value) -> Result<PredatorPreyState, String> {
         starve_ticks: num(config.starve_ticks, 8, 32).max(1),
     };
     normalize(&mut state);
-    if !has_cells {
+    if !has_tiles {
         starter(&mut state);
     }
-    state.trigger_types = triggers(&state.cells, &state.cells, &[], &[]);
+    state.trigger_types = triggers(&state.tiles, &state.tiles, &[], &[]);
     Ok(state)
 }
 
 pub fn predator_prey_deserialize(data: Value) -> Result<PredatorPreyState, String> {
     let config: Config = serde_json::from_value(data).unwrap_or_default();
-    let has_cells = config.cells.as_ref().is_some_and(|value| value.is_array());
+    let has_tiles = config.tiles.as_ref().is_some_and(|value| value.is_array());
     let mut state = PredatorPreyState {
-        cells: norm_cells(config.cells.map(array_values).unwrap_or_default()),
+        tiles: norm_tiles(config.tiles.map(array_values).unwrap_or_default()),
         energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
         trigger_types: norm_triggers(parse_triggers(config.trigger_types)),
         grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
@@ -86,17 +86,17 @@ pub fn predator_prey_deserialize(data: Value) -> Result<PredatorPreyState, Strin
         starve_ticks: num(config.starve_ticks, 8, 32).max(1),
     };
     normalize(&mut state);
-    if !has_cells {
+    if !has_tiles {
         starter(&mut state);
     }
     state.trigger_types = state
-        .cells
+        .tiles
         .iter()
         .map(|c| {
             if *c == EMPTY {
-                CellTriggerType::None
+                TileTriggerType::None
             } else {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             }
         })
         .collect();
@@ -115,12 +115,12 @@ pub fn predator_prey_on_input(
     _context: &mut BehaviorContext,
 ) -> PredatorPreyState {
     normalize(&mut state);
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let i = grid_index(x, y);
-            state.cells[i] = (state.cells[i] + 1) % 4;
-            state.energy[i] = if state.cells[i] >= HERBIVORE {
+            state.tiles[i] = (state.tiles[i] + 1) % 4;
+            state.energy[i] = if state.tiles[i] >= HERBIVORE {
                 state.starve_ticks
             } else {
                 0
@@ -130,12 +130,12 @@ pub fn predator_prey_on_input(
             if action_type == "reseedEcosystem" =>
         {
             let forced = starter(&mut state);
-            state.trigger_types = triggers_from_cells_forced(&prev, &state.cells, &forced);
+            state.trigger_types = triggers_from_tiles_forced(&prev, &state.tiles, &forced);
             return state;
         }
         _ => return state,
     }
-    state.trigger_types = triggers_from_cells(&prev, &state.cells);
+    state.trigger_types = triggers_from_tiles(&prev, &state.tiles);
     state
 }
 
@@ -143,15 +143,15 @@ pub fn predator_prey_on_tick(
     mut state: PredatorPreyState,
     _context: &mut BehaviorContext,
 ) -> PredatorPreyState {
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     let prev_energy = state.energy.clone();
-    let mut next = vec![EMPTY; CELL_COUNT];
-    let mut energy = vec![0; CELL_COUNT];
-    let mut reserved = vec![false; CELL_COUNT];
-    let mut eaten = vec![false; CELL_COUNT];
+    let mut next = vec![EMPTY; TILE_COUNT];
+    let mut energy = vec![0; TILE_COUNT];
+    let mut reserved = vec![false; TILE_COUNT];
+    let mut eaten = vec![false; TILE_COUNT];
     let mut bursts = Vec::new();
     let mut force_activate = Vec::new();
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         if prev[i] == GRASS {
             next[i] = GRASS;
         }
@@ -205,9 +205,9 @@ pub fn predator_prey_on_tick(
         }
     }
     let mut rng = crate::behavior_random::rng();
-    for cell in next.iter_mut().take(CELL_COUNT) {
-        if *cell == EMPTY && rng.gen_range(0..100) < state.grass_grow_chance_pct {
-            *cell = GRASS;
+    for tile in next.iter_mut().take(TILE_COUNT) {
+        if *tile == EMPTY && rng.gen_range(0..100) < state.grass_grow_chance_pct {
+            *tile = GRASS;
         }
     }
     let nudged = nudge_static_visibility(&prev, &mut next, &mut energy);
@@ -216,12 +216,12 @@ pub fn predator_prey_on_tick(
     if let Some(index) = nudged {
         force_deactivate.push(index);
     }
-    state.cells = next;
+    state.tiles = next;
     state.energy = energy;
     force_activate.extend(reseed_extinct(&mut state));
     state.trigger_types = triggers_with_deactivations(
         &prev,
-        &state.cells,
+        &state.tiles,
         &bursts,
         &force_activate,
         &force_deactivate,
@@ -229,42 +229,42 @@ pub fn predator_prey_on_tick(
     state
 }
 
-fn relieve_full_grid(cells: &mut [u8], energy: &mut [u8]) -> Vec<usize> {
-    let empty_count = cells.iter().filter(|cell| **cell == EMPTY).count();
+fn relieve_full_grid(tiles: &mut [u8], energy: &mut [u8]) -> Vec<usize> {
+    let empty_count = tiles.iter().filter(|tile| **tile == EMPTY).count();
     if empty_count >= 3 {
         return Vec::new();
     }
     let target_relief = 4usize.saturating_sub(empty_count);
-    let mut relieved = cells
+    let mut relieved = tiles
         .iter()
         .enumerate()
-        .filter_map(|(index, cell)| (*cell == GRASS).then_some(index))
+        .filter_map(|(index, tile)| (*tile == GRASS).then_some(index))
         .take(target_relief)
         .collect::<Vec<_>>();
     if relieved.is_empty() {
-        relieved = (0..CELL_COUNT).step_by(17).take(target_relief).collect();
+        relieved = (0..TILE_COUNT).step_by(17).take(target_relief).collect();
     }
     for index in &relieved {
-        cells[*index] = EMPTY;
+        tiles[*index] = EMPTY;
         energy[*index] = 0;
     }
     relieved
 }
 
-fn nudge_static_visibility(previous: &[u8], cells: &mut [u8], energy: &mut [u8]) -> Option<usize> {
+fn nudge_static_visibility(previous: &[u8], tiles: &mut [u8], energy: &mut [u8]) -> Option<usize> {
     if !previous
         .iter()
-        .zip(cells.iter())
+        .zip(tiles.iter())
         .all(|(previous, next)| (*previous != EMPTY) == (*next != EMPTY))
     {
         return None;
     }
-    if let Some(index) = cells.iter().position(|cell| *cell == EMPTY) {
-        cells[index] = GRASS;
+    if let Some(index) = tiles.iter().position(|tile| *tile == EMPTY) {
+        tiles[index] = GRASS;
         return None;
     }
-    if let Some(index) = cells.iter().position(|cell| *cell == GRASS) {
-        cells[index] = EMPTY;
+    if let Some(index) = tiles.iter().position(|tile| *tile == GRASS) {
+        tiles[index] = EMPTY;
         energy[index] = 0;
         return Some(index);
     }
@@ -272,13 +272,13 @@ fn nudge_static_visibility(previous: &[u8], cells: &mut [u8], energy: &mut [u8])
 }
 
 pub fn predator_prey_render_model(state: &PredatorPreyState) -> BehaviorRenderModel {
-    let g = state.cells.iter().filter(|c| **c == GRASS).count();
-    let h = state.cells.iter().filter(|c| **c == HERBIVORE).count();
-    let p = state.cells.iter().filter(|c| **c == PREDATOR).count();
+    let g = state.tiles.iter().filter(|c| **c == GRASS).count();
+    let h = state.tiles.iter().filter(|c| **c == HERBIVORE).count();
+    let p = state.tiles.iter().filter(|c| **c == PREDATOR).count();
     BehaviorRenderModel {
         name: "predator prey".into(),
         status_line: format!("G:{g} H:{h} P:{p}"),
-        cells: state.cells.iter().map(|c| *c != EMPTY).collect(),
+        tiles: state.tiles.iter().map(|c| *c != EMPTY).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 180, 80],
             inactive: crate::palette::BLACK,
@@ -299,15 +299,15 @@ pub fn predator_prey_config_menu() -> Vec<BehaviorConfigItem> {
 }
 
 fn normalize(s: &mut PredatorPreyState) {
-    s.cells = norm_cells(s.cells.iter().map(|c| Value::from(*c)).collect());
+    s.tiles = norm_tiles(s.tiles.iter().map(|c| Value::from(*c)).collect());
     s.energy = norm_energy(s.energy.iter().map(|e| Value::from(*e)).collect());
     s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
     s.grass_grow_chance_pct = s.grass_grow_chance_pct.min(100);
     s.herbivore_reproduce_pct = s.herbivore_reproduce_pct.min(100);
     s.predator_reproduce_pct = s.predator_reproduce_pct.min(100);
     s.starve_ticks = s.starve_ticks.clamp(1, 32);
-    for i in 0..CELL_COUNT {
-        if s.cells[i] < HERBIVORE {
+    for i in 0..TILE_COUNT {
+        if s.tiles[i] < HERBIVORE {
             s.energy[i] = 0
         } else {
             s.energy[i] = s.energy[i].clamp(1, s.starve_ticks)
@@ -322,7 +322,7 @@ fn num(v: Option<Value>, d: u8, m: u8) -> u8 {
 fn array_values(value: Value) -> Vec<Value> {
     value.as_array().cloned().unwrap_or_default()
 }
-fn parse_triggers(value: Option<Value>) -> Option<Vec<CellTriggerType>> {
+fn parse_triggers(value: Option<Value>) -> Option<Vec<TileTriggerType>> {
     value.and_then(|value| {
         value
             .as_array()?
@@ -331,13 +331,13 @@ fn parse_triggers(value: Option<Value>) -> Option<Vec<CellTriggerType>> {
             .collect()
     })
 }
-fn norm_cells(v: Vec<Value>) -> Vec<u8> {
+fn norm_tiles(v: Vec<Value>) -> Vec<u8> {
     let mut o = v
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(3) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, EMPTY);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, EMPTY);
+    o.truncate(TILE_COUNT);
     o
 }
 fn norm_energy(v: Vec<Value>) -> Vec<u8> {
@@ -345,14 +345,14 @@ fn norm_energy(v: Vec<Value>) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(u8::MAX.into()) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, 0);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, 0);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 

@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ pub struct AntState {
     pub ants: Vec<AntAgent>,
     pub cells: Vec<bool>,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "maxAnts")]
     pub max_ants: usize,
     #[serde(rename = "autoSpawnInterval")]
@@ -75,7 +75,7 @@ pub fn ant_on_input(
         _ => return state,
     }
     let cells = ant_cells_with_agents(&next);
-    next.trigger_types = trigger_types_from_cells(&previous, &cells);
+    next.trigger_types = trigger_types_from_tiles(&previous, &cells);
     next
 }
 
@@ -129,7 +129,7 @@ pub fn ant_on_tick(state: AntState, _context: &mut BehaviorContext) -> AntState 
     {
         ants.push(scheduled_ant(tick_counter / state.auto_spawn_interval));
     }
-    let trigger_types = trigger_types_from_cells(&previous, &cells);
+    let trigger_types = trigger_types_from_tiles(&previous, &cells);
     AntState {
         ants,
         cells,
@@ -164,12 +164,12 @@ fn from_value(data: &Value) -> AntState {
 }
 
 fn normalize(state: &mut AntState) {
-    state.cells.resize(CELL_COUNT, false);
-    state.cells.truncate(CELL_COUNT);
+    state.cells.resize(TILE_COUNT, false);
+    state.cells.truncate(TILE_COUNT);
     state
         .trigger_types
-        .resize(CELL_COUNT, CellTriggerType::None);
-    state.trigger_types.truncate(CELL_COUNT);
+        .resize(TILE_COUNT, TileTriggerType::None);
+    state.trigger_types.truncate(TILE_COUNT);
     state.max_ants = state.max_ants.clamp(1, 100);
     state.auto_spawn_interval = state.auto_spawn_interval.clamp(0, 20);
     state.spawn_step = state.spawn_step.clamp(0, 63);
@@ -229,19 +229,19 @@ fn normalize_cells(cells: Option<Vec<Value>>) -> Vec<bool> {
         .into_iter()
         .map(|cell| cell.as_bool().unwrap_or(false))
         .collect::<Vec<_>>();
-    cells.resize(CELL_COUNT, false);
-    cells.truncate(CELL_COUNT);
+    cells.resize(TILE_COUNT, false);
+    cells.truncate(TILE_COUNT);
     cells
 }
 
-fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<TileTriggerType> {
     let mut triggers = triggers
         .unwrap_or_default()
         .into_iter()
-        .map(|trigger| serde_json::from_value(trigger).unwrap_or(CellTriggerType::None))
+        .map(|trigger| serde_json::from_value(trigger).unwrap_or(TileTriggerType::None))
         .collect::<Vec<_>>();
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 
@@ -278,7 +278,7 @@ pub fn ant_render_model(state: &AntState) -> BehaviorRenderModel {
             state.ants.len(),
             if state.ants.len() == 1 { "" } else { "s" }
         ),
-        cells,
+        tiles: cells,
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::BLACK,
             inactive: [80, 48, 24],

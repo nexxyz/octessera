@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,7 +13,7 @@ pub struct KuramotoState {
     pub phases: Vec<u8>,
     pub frequencies: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "couplingPct")]
     pub coupling_pct: u8,
     #[serde(rename = "frequencySpread")]
@@ -29,7 +29,7 @@ struct Config {
     phases: Option<Vec<Value>>,
     frequencies: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "couplingPct")]
     coupling_pct: Option<Value>,
     #[serde(rename = "frequencySpread")]
@@ -68,8 +68,8 @@ pub fn kuramoto_on_input(
     match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             state.phases[grid_index(x, y)] = 255;
-            state.trigger_types = vec![CellTriggerType::None; CELL_COUNT];
-            state.trigger_types[grid_index(x, y)] = CellTriggerType::Activate;
+            state.trigger_types = vec![TileTriggerType::None; TILE_COUNT];
+            state.trigger_types[grid_index(x, y)] = TileTriggerType::Activate;
             state
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
@@ -105,14 +105,14 @@ pub fn kuramoto_render_model(state: &KuramotoState) -> BehaviorRenderModel {
     let flash = state
         .trigger_types
         .iter()
-        .filter(|trigger| **trigger == CellTriggerType::Activate)
+        .filter(|trigger| **trigger == TileTriggerType::Activate)
         .count();
-    let visible = visible_cells(&state.phases);
-    let sync = visible.iter().filter(|cell| **cell).count() * 100 / CELL_COUNT;
+    let visible = visible_tiles(&state.phases);
+    let sync = visible.iter().filter(|tile| **tile).count() * 100 / TILE_COUNT;
     BehaviorRenderModel {
         name: "kuramoto".into(),
         status_line: format!("sync:{sync}% flash:{flash}"),
-        cells: visible,
+        tiles: visible,
         palette: crate::BehaviorRenderPalette {
             active: [255, 255, 200],
             inactive: crate::palette::BLACK,
@@ -147,7 +147,7 @@ fn state_from_config(config: Value) -> KuramotoState {
             .unwrap_or(1) as u32,
     };
     if state.phases.iter().all(|phase| *phase == 0) {
-        for index in 0..CELL_COUNT {
+        for index in 0..TILE_COUNT {
             state.phases[index] = ((index * 37) % 256) as u8;
         }
     }
@@ -189,15 +189,15 @@ fn normalize_values(values: Vec<Value>, default: u8) -> Vec<u8> {
         .into_iter()
         .map(|value| value.as_u64().unwrap_or(u64::from(default)).min(255) as u8)
         .collect::<Vec<_>>();
-    normalized.resize(CELL_COUNT, default);
-    normalized.truncate(CELL_COUNT);
+    normalized.resize(TILE_COUNT, default);
+    normalized.truncate(TILE_COUNT);
     normalized
 }
 
-fn normalize_triggers(triggers: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(triggers: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut triggers = triggers.unwrap_or_default();
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 
@@ -209,7 +209,7 @@ fn number(value: Option<Value>, default: u8, max: u8) -> u8 {
 }
 
 fn seed_frequencies(state: &mut KuramotoState, spread: u8) {
-    for index in 0..CELL_COUNT {
+    for index in 0..TILE_COUNT {
         let offset = ((index * 13 + index / GRID_WIDTH) % (usize::from(spread) + 1)) as u8;
         state.frequencies[index] = 4 + offset;
     }
@@ -260,29 +260,29 @@ fn jitter(state: &mut KuramotoState, index: usize) -> i16 {
 }
 
 fn desync(state: &mut KuramotoState) {
-    for index in 0..CELL_COUNT {
+    for index in 0..TILE_COUNT {
         state.phases[index] = state.phases[index].wrapping_add(((index * 29 + 17) % 97) as u8);
     }
     state.jitter_state = state.jitter_state.wrapping_add(0x9e37_79b9);
 }
 
-fn visible_cells(phases: &[u8]) -> Vec<bool> {
+fn visible_tiles(phases: &[u8]) -> Vec<bool> {
     phases
         .iter()
         .map(|phase| *phase >= 240 || *phase <= 12)
         .collect()
 }
 
-fn trigger_types(old: &[u8], next: &[u8], allow_wrap: bool) -> Vec<CellTriggerType> {
-    let visible = visible_cells(next);
-    (0..CELL_COUNT)
+fn trigger_types(old: &[u8], next: &[u8], allow_wrap: bool) -> Vec<TileTriggerType> {
+    let visible = visible_tiles(next);
+    (0..TILE_COUNT)
         .map(|index| {
             if allow_wrap && next[index] < old[index] {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if visible[index] {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect()

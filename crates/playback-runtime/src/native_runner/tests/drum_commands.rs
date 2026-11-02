@@ -178,7 +178,7 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
 }
 
 #[test]
-fn preview_is_one_transient_hit_without_cell_offset_or_config_command() {
+fn preview_is_one_transient_hit_without_tile_offset_or_config_command() {
     let mut runner = drum_runner();
     runner.instruments[0].drum_config["voices"][4]["tuneSemis"] = json!(-5);
     runner.instruments[0].drum_config["assignments"] =
@@ -193,16 +193,16 @@ fn preview_is_one_transient_hit_without_cell_offset_or_config_command() {
     let hits = preview
         .iter()
         .flat_map(|message| match message {
-            RunnerMessage::CellHits { hits } => hits.clone(),
+            RunnerMessage::TileHits { hits } => hits.clone(),
             _ => Vec::new(),
         })
         .collect::<Vec<_>>();
     assert_eq!(
         hits,
-        vec![crate::protocol::CellHit {
+        vec![crate::protocol::TileHit {
             instrument_slot: 0,
             voice: 4,
-            cell: 0,
+            tile: 0,
             pitch_cents: 0,
             velocity: 100,
         }]

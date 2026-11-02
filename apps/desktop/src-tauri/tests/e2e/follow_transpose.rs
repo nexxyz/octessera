@@ -1,4 +1,4 @@
-//! Play Transpose on the Sampler-only L2 beat: its cells shift only when the Sampler's
+//! Play Transpose on the Sampler-only L2 beat: its tiles shift only when the Sampler's
 //! Follow Transp. is on, heard as the pitch each hit asks the engine for.
 use crate::support::{assert_clean_audio, builder, keep_audio, session, Timeline};
 use playback_runtime::scenario::{grid, BAR};
@@ -8,8 +8,8 @@ const SAMPLER: u8 = 1;
 /// The Transpose page's +7 key: row 3 is the middle octave's white keys, C at column 1.
 const FIFTH_KEY: (usize, usize) = (5, 3);
 
-/// Pitch per L2 cell before (bars 0-2) and after (bars 2-4) the +7 key is pressed at bar 2.
-fn cell_pitches(follow: bool) -> (BTreeMap<u8, i16>, BTreeMap<u8, i16>) {
+/// Pitch per L2 tile before (bars 0-2) and after (bars 2-4) the +7 key is pressed at bar 2.
+fn tile_pitches(follow: bool) -> (BTreeMap<u8, i16>, BTreeMap<u8, i16>) {
     let mut take = builder();
     if follow {
         take.open(&["Shape", "Instruments", "I2:", "Sampler"]);
@@ -36,32 +36,32 @@ fn cell_pitches(follow: bool) -> (BTreeMap<u8, i16>, BTreeMap<u8, i16>) {
         played,
     };
     let pitches = |from_bar: f64, to_bar: f64| {
-        let mut cells = BTreeMap::new();
+        let mut tiles = BTreeMap::new();
         for event in timeline.events(from_bar, to_bar) {
             if event.slot == SAMPLER {
-                let previous = cells.insert(event.note, event.pitch_cents);
+                let previous = tiles.insert(event.note, event.pitch_cents);
                 assert!(
                     previous.is_none_or(|cents| cents == event.pitch_cents),
-                    "cell {} changes pitch within bars {from_bar}-{to_bar}, audio in {wav:?}",
+                    "tile {} changes pitch within bars {from_bar}-{to_bar}, audio in {wav:?}",
                     event.note
                 );
             }
         }
-        assert!(!cells.is_empty(), "L2 silent, audio in {wav:?}");
-        cells
+        assert!(!tiles.is_empty(), "L2 silent, audio in {wav:?}");
+        tiles
     };
     (pitches(0.0, 2.0), pitches(2.0, 4.0))
 }
 
 #[test]
-fn play_transpose_shifts_sampler_cells_only_with_follow_transpose() {
-    let (before, after) = cell_pitches(false);
+fn play_transpose_shifts_sampler_tiles_only_with_follow_transpose() {
+    let (before, after) = tile_pitches(false);
     assert_eq!(after, before, "Follow Transp. off keeps the stamped pitch");
 
-    let (before, after) = cell_pitches(true);
+    let (before, after) = tile_pitches(true);
     let shifted: BTreeMap<u8, i16> = before
         .iter()
-        .map(|(cell, cents)| (*cell, cents + 700))
+        .map(|(tile, cents)| (*tile, cents + 700))
         .collect();
-    assert_eq!(after, shifted, "Follow Transp. on shifts every cell +7 st");
+    assert_eq!(after, shifted, "Follow Transp. on shifts every tile +7 st");
 }

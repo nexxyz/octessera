@@ -1,7 +1,7 @@
 use super::*;
 use playback_runtime::{
-    CellHit, HostAdapter, HostMessage, MusicalEvent, NativeRunnerConfig, RuntimeAdapterError,
-    RuntimeAudioCommand, RuntimePlatformRequest,
+    HostAdapter, HostMessage, MusicalEvent, NativeRunnerConfig, RuntimeAdapterError,
+    RuntimeAudioCommand, RuntimePlatformRequest, TileHit,
 };
 use serde_json::json;
 use std::path::PathBuf;
@@ -27,9 +27,9 @@ impl HostAdapter for TestHost {
         Ok(())
     }
 
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        _hit: &CellHit,
+        _hit: &TileHit,
         _at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         Ok(())

@@ -45,7 +45,7 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
         })
         .unwrap();
 
-    assert!(cell_hit_ons(&messages).contains(&(1, 4)));
+    assert!(tile_hit_ons(&messages).contains(&(1, 4)));
     assert!(!musical_note_ons(&messages)
         .iter()
         .any(|(channel, _)| *channel == 0));
@@ -226,7 +226,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                         "savedState": {
                             "width": 8,
                             "height": 8,
-                            "cells": [
+                            "tiles": [
                                 true, false, false, false, false, false, false, false,
                                 false, false, false, false, false, false, false, false,
                                 false, false, false, false, false, false, false, false,
@@ -275,7 +275,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
         })
         .unwrap();
 
-    assert!(cell_hit_ons(&messages).contains(&(1, 4)));
+    assert!(tile_hit_ons(&messages).contains(&(1, 4)));
     assert!(!musical_note_ons(&messages)
         .iter()
         .any(|(channel, _)| *channel == 0));

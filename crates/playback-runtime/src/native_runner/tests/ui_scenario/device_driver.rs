@@ -105,8 +105,8 @@ impl DeviceDriver {
         self.runner.transport.pending_resync
     }
 
-    pub(super) fn active_grid_cell(&self, x: usize, y: usize) -> bool {
-        self.runner.engine.model().unwrap().cells[platform_core::grid_index(x, y)]
+    pub(super) fn active_grid_tile(&self, x: usize, y: usize) -> bool {
+        self.runner.engine.model().unwrap().tiles[platform_core::grid_index(x, y)]
     }
 
     pub(super) fn clock_pulses(&mut self, pulses: u32) {

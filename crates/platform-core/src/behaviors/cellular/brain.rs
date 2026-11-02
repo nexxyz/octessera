@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ pub struct BrainState {
     #[serde(default, skip_serializing, skip_deserializing)]
     pub generation: usize,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "fireThreshold")]
     pub fire_threshold: usize,
     #[serde(rename = "randomSeedCells")]
@@ -66,7 +66,7 @@ pub fn brain_on_input(
             seed_random_cells(&mut next.cells, next.random_seed_cells);
             let previous = previous.iter().map(|cell| *cell == 1).collect::<Vec<_>>();
             let current = next.cells.iter().map(|cell| *cell == 1).collect::<Vec<_>>();
-            next.trigger_types = trigger_types_from_cells(&previous, &current);
+            next.trigger_types = trigger_types_from_tiles(&previous, &current);
             next
         }
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
@@ -79,7 +79,7 @@ pub fn brain_on_input(
                 .map(|cell| *cell == 1)
                 .collect::<Vec<_>>();
             let current = next.cells.iter().map(|cell| *cell == 1).collect::<Vec<_>>();
-            next.trigger_types = trigger_types_from_cells(&previous, &current);
+            next.trigger_types = trigger_types_from_tiles(&previous, &current);
             next
         }
         _ => state,
@@ -87,8 +87,8 @@ pub fn brain_on_input(
 }
 
 pub fn brain_on_tick(state: BrainState, _context: &mut BehaviorContext) -> BrainState {
-    let mut cells = vec![0; CELL_COUNT];
-    let mut trigger_types = vec![CellTriggerType::None; CELL_COUNT];
+    let mut cells = vec![0; TILE_COUNT];
+    let mut trigger_types = vec![TileTriggerType::None; TILE_COUNT];
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
@@ -96,10 +96,10 @@ pub fn brain_on_tick(state: BrainState, _context: &mut BehaviorContext) -> Brain
             let neighbors = brain_neighbors(&state.cells, x, y);
             if cell == 0 && neighbors == state.fire_threshold {
                 cells[index] = 1;
-                trigger_types[index] = CellTriggerType::Activate;
+                trigger_types[index] = TileTriggerType::Activate;
             } else if cell == 1 {
                 cells[index] = 2;
-                trigger_types[index] = CellTriggerType::Deactivate;
+                trigger_types[index] = TileTriggerType::Deactivate;
             }
         }
     }
@@ -188,19 +188,19 @@ fn normalize_cells(cells: Option<Vec<Value>>) -> Vec<u8> {
         .into_iter()
         .map(|cell| cell.as_u64().unwrap_or(0).min(2) as u8)
         .collect::<Vec<_>>();
-    cells.resize(CELL_COUNT, 0);
-    cells.truncate(CELL_COUNT);
+    cells.resize(TILE_COUNT, 0);
+    cells.truncate(TILE_COUNT);
     cells
 }
 
-fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<TileTriggerType> {
     let mut triggers = triggers
         .unwrap_or_default()
         .into_iter()
-        .map(|trigger| serde_json::from_value(trigger).unwrap_or(CellTriggerType::None))
+        .map(|trigger| serde_json::from_value(trigger).unwrap_or(TileTriggerType::None))
         .collect::<Vec<_>>();
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 
@@ -218,17 +218,17 @@ fn seed_random_cells(cells: &mut [u8], count: usize) {
 
 fn seed_scheduled_cells(
     cells: &mut [u8],
-    trigger_types: &mut [CellTriggerType],
+    trigger_types: &mut [TileTriggerType],
     count: usize,
     step: usize,
 ) {
-    let start = step % CELL_COUNT;
+    let start = step % TILE_COUNT;
     let mut seeded = 0;
-    for offset in 0..CELL_COUNT {
-        let index = (start + offset) % CELL_COUNT;
+    for offset in 0..TILE_COUNT {
+        let index = (start + offset) % TILE_COUNT;
         if cells[index] == 0 {
             cells[index] = 1;
-            trigger_types[index] = CellTriggerType::Activate;
+            trigger_types[index] = TileTriggerType::Activate;
             seeded += 1;
             if seeded == count {
                 break;
@@ -241,7 +241,7 @@ pub fn brain_render_model(state: &BrainState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "brain".into(),
         status_line: format!("Gen {}", state.generation),
-        cells: state.cells.iter().map(|cell| *cell == 1).collect(),
+        tiles: state.cells.iter().map(|cell| *cell == 1).collect(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLACK,

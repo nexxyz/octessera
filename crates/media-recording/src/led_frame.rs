@@ -31,9 +31,9 @@ impl LedColors {
         if grid_rgb.len() != GRID_LED_COUNT * 3 {
             return None;
         }
-        let (cells, _) = grid_rgb.as_chunks::<3>();
+        let (tiles, _) = grid_rgb.as_chunks::<3>();
         Some(Self {
-            grid: std::array::from_fn(|index| cells[index]),
+            grid: std::array::from_fn(|index| tiles[index]),
             keys,
             asleep,
         })

@@ -165,14 +165,14 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
     let cycled = verify_hardware(&runner, OledPresentationMetrics::default(), None);
     assert_eq!(cycled.hdmi.source_layer_index, 1);
     assert_eq!(cycled.hdmi.source_behavior_id, "sequencer");
-    let sequencer_cell = (super::super::GRID_HEIGHT - 1 - 1) * super::super::GRID_WIDTH + 2;
-    assert!(cycled.hdmi.grid.active[sequencer_cell]);
+    let sequencer_tile = (super::super::GRID_HEIGHT - 1 - 1) * super::super::GRID_WIDTH + 2;
+    assert!(cycled.hdmi.grid.active[sequencer_tile]);
     assert_eq!(
-        &cycled.hdmi.grid.rgb[sequencer_cell * 3..sequencer_cell * 3 + 3],
+        &cycled.hdmi.grid.rgb[sequencer_tile * 3..sequencer_tile * 3 + 3],
         &[255, 212, 71]
     );
     assert_ne!(
-        &cycled.hdmi.grid.rgb[sequencer_cell * 3..sequencer_cell * 3 + 3],
+        &cycled.hdmi.grid.rgb[sequencer_tile * 3..sequencer_tile * 3 + 3],
         &[255, 255, 0]
     );
     runner.display.hdmi.mode = "active-behavior".into();

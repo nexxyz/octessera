@@ -82,11 +82,11 @@ fn toggle_mute_expecting(device: &mut DeviceDriver, layer: usize, muted: bool) {
 
 fn assert_muted_sampler_layer_stays_silent(device: &mut DeviceDriver) {
     toggle_mute_expecting(device, 1, true);
-    let hits = device.output().cell_hit_count;
+    let hits = device.output().tile_hit_count;
     for _ in 0..96 {
         device.clock_pulses(6);
     }
-    if device.output().cell_hit_count != hits {
+    if device.output().tile_hit_count != hits {
         device.fail("L2 is muted but its sampler still played");
     }
     toggle_mute_expecting(device, 1, false);

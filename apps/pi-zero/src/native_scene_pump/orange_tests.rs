@@ -4,9 +4,9 @@ use crate::host_adapter::PiHostAdapter;
 use crate::render_loop::RenderWorker;
 use crate::ui_profile::UiProfiler;
 use playback_runtime::{
-    CellHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
-    PlaybackRuntime, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig,
-    RuntimePlatformRequest,
+    HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
+    RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformRequest,
+    TileHit,
 };
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -83,9 +83,9 @@ impl HostAdapter for TestHost {
     ) -> Result<(), RuntimeAdapterError> {
         Ok(())
     }
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        _hit: &CellHit,
+        _hit: &TileHit,
         _at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         Ok(())

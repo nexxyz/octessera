@@ -23,22 +23,22 @@ fn assert_tail_activity(mut state: KuramotoState) {
     let mut previous = Vec::new();
     for tick in 1..=300 {
         state = kuramoto_on_tick(state, &mut context);
-        let cells = kuramoto_render_model(&state).cells;
+        let tiles = kuramoto_render_model(&state).tiles;
         if tick <= 240 {
-            previous = cells;
+            previous = tiles;
             continue;
         }
-        consecutive_empty = if cells.iter().all(|cell| !*cell) {
+        consecutive_empty = if tiles.iter().all(|tile| !*tile) {
             consecutive_empty + 1
         } else {
             0
         };
-        consecutive_full = if cells.iter().all(|cell| *cell) {
+        consecutive_full = if tiles.iter().all(|tile| *tile) {
             consecutive_full + 1
         } else {
             0
         };
-        consecutive_same = if cells == previous {
+        consecutive_same = if tiles == previous {
             consecutive_same + 1
         } else {
             0
@@ -46,7 +46,7 @@ fn assert_tail_activity(mut state: KuramotoState) {
         assert!(consecutive_empty <= 2, "empty run at tick {tick}");
         assert!(consecutive_full <= 2, "full run at tick {tick}");
         assert!(consecutive_same <= 2, "same-frame run at tick {tick}");
-        previous = cells;
+        previous = tiles;
     }
 }
 
@@ -77,7 +77,7 @@ fn menu_palette_and_normalization_contract() {
     assert_eq!(state.frequency_spread, 32);
     assert_eq!(state.jitter_pct, 100);
     assert_eq!(state.jitter_state, 1);
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
 
     let model = kuramoto_render_model(&state);
     assert_eq!(model.name, "kuramoto");
@@ -87,14 +87,14 @@ fn menu_palette_and_normalization_contract() {
 }
 
 #[test]
-fn grid_press_exact_world_cell_activates() {
+fn grid_press_exact_world_tile_activates() {
     let mut context = context();
     let state = base();
     let state = kuramoto_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
     assert_eq!(state.phases[grid_index(2, 3)], 255);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 }
 
@@ -107,13 +107,13 @@ fn wrap_activates_and_stable_window_does_not_repeat_activate() {
     let wrapped = kuramoto_on_tick(state, &mut context);
     assert_eq!(
         wrapped.trigger_types[grid_index(1, 1)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 
     let stable = kuramoto_on_tick(wrapped, &mut context);
     assert_ne!(
         stable.trigger_types[grid_index(1, 1)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 }
 
@@ -130,7 +130,7 @@ fn desync_changes_phase_without_immediate_activate() {
         &mut context,
     );
     assert_ne!(state.phases, old);
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn serialization_is_stable_and_skips_triggers() {
     assert!(serialized.get("triggerTypes").is_none());
     let restored = kuramoto_deserialize(serialized.clone()).unwrap();
     assert_eq!(kuramoto_serialize(&restored).unwrap(), serialized);
-    assert!(!restored.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!restored.trigger_types.contains(&TileTriggerType::Activate));
 }
 
 #[test]

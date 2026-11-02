@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,7 +16,7 @@ pub struct IsingState {
     #[serde(rename = "heatTicks", skip_serializing, skip_deserializing)]
     pub heat_ticks: u8,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "temperaturePct")]
     pub temperature_pct: u8,
     #[serde(rename = "fieldStrengthPct")]
@@ -33,7 +33,7 @@ struct Config {
     #[serde(rename = "fieldSign")]
     field_sign: Option<Value>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "temperaturePct")]
     temperature_pct: Option<Value>,
     #[serde(rename = "fieldStrengthPct")]
@@ -132,7 +132,7 @@ pub fn ising_render_model(state: &IsingState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "ising".into(),
         status_line: format!("+:{positives} F:{sign}"),
-        cells: state.spins.iter().map(|s| *s > 0).collect(),
+        tiles: state.spins.iter().map(|s| *s > 0).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 220, 80],
             inactive: crate::palette::BLACK,
@@ -177,8 +177,8 @@ fn normalize(s: &mut IsingState) {
 }
 fn norm_spins(v: Option<Vec<Value>>) -> Vec<i8> {
     let source = v.unwrap_or_default();
-    let mut out = Vec::with_capacity(CELL_COUNT);
-    for i in 0..CELL_COUNT {
+    let mut out = Vec::with_capacity(TILE_COUNT);
+    for i in 0..TILE_COUNT {
         let x = i % GRID_WIDTH;
         let y = i / GRID_WIDTH;
         let default = if (x + y + (x * y % 3)).is_multiple_of(2) {
@@ -195,10 +195,10 @@ fn norm_spins(v: Option<Vec<Value>>) -> Vec<i8> {
     }
     out
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8) -> u8 {
@@ -243,13 +243,13 @@ fn randomize(s: &mut IsingState) {
         }
     }
 }
-fn triggers(p: &[i8], n: &[i8]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn triggers(p: &[i8], n: &[i8]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|i| match (p[i], n[i]) {
-            (-1, 1) => CellTriggerType::Activate,
-            (1, -1) => CellTriggerType::Deactivate,
-            (1, 1) => CellTriggerType::Stable,
-            _ => CellTriggerType::None,
+            (-1, 1) => TileTriggerType::Activate,
+            (1, -1) => TileTriggerType::Deactivate,
+            (1, 1) => TileTriggerType::Stable,
+            _ => TileTriggerType::None,
         })
         .collect()
 }

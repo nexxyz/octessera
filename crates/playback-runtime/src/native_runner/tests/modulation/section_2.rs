@@ -16,11 +16,11 @@ pub(crate) fn voice_stealing_param_mod_is_transient_until_audio_config_replay() 
         options: vec!["auto-balanced".into(), "auto-hard".into()],
         invert: false,
     });
-    let intents = vec![CellTriggerIntent {
+    let intents = vec![TileTriggerIntent {
         x: 7,
         y: 0,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     }];
 
     runner.apply_runtime_modulation(&intents, 0);
@@ -78,7 +78,7 @@ pub(crate) fn shift_grid_param_mod_mapping_cycles_slots() {
 }
 
 #[test]
-pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_cells() {
+pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_tiles() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let binding = NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
@@ -107,26 +107,26 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_cells() {
     runner.display.ui.shift_held = true;
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
+    let tiles = led_tiles(&snapshot);
 
     assert_eq!(
-        cells[display_index(3, 0)],
+        tiles[display_index(3, 0)],
         led_rgb(platform_core::palette::GREEN)
     );
     assert_eq!(
-        cells[display_index(1, 3)],
+        tiles[display_index(1, 3)],
         led_rgb(platform_core::palette::MAGENTA)
     );
     assert_eq!(
-        cells[display_index(3, 1)],
+        tiles[display_index(3, 1)],
         led_rgb(dim_rgb(platform_core::palette::GRAY, 8))
     );
     assert_eq!(
-        cells[display_index(0, 0)],
+        tiles[display_index(0, 0)],
         led_rgb(platform_core::palette::WHITE)
     );
     assert_eq!(
-        cells[display_index(1, 1)],
+        tiles[display_index(1, 1)],
         json!({ "r": 255, "g": 255, "b": 255 })
     );
 }

@@ -1,13 +1,13 @@
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
 use super::modulation_sampler::event_channel;
 use super::{DelayedRoutedEvents, LinkEventTiming, NativeRunner};
-use crate::protocol::CellHit;
-use platform_core::{CellTriggerIntent, CellTriggerKind, MusicalEvent};
+use crate::protocol::TileHit;
+use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
 use std::collections::HashMap;
 
 pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
-    pub(super) event_intents: &'a [Option<CellTriggerIntent>],
+    pub(super) event_intents: &'a [Option<TileTriggerIntent>],
     pub(super) sense: Option<super::NativeLinkLayer>,
     pub(super) transpose_offset: i8,
 }
@@ -45,7 +45,7 @@ impl NativeRunner {
     pub(super) fn apply_link_timing(
         &mut self,
         layer_index: usize,
-        intents: &[CellTriggerIntent],
+        intents: &[TileTriggerIntent],
         routed: RoutedMusicalEvents,
     ) -> RoutedMusicalEvents {
         let sense = self.link_layers.get(layer_index).cloned();
@@ -55,7 +55,7 @@ impl NativeRunner {
     fn apply_link_timing_with_sense(
         &mut self,
         layer_index: usize,
-        intents: &[CellTriggerIntent],
+        intents: &[TileTriggerIntent],
         routed: RoutedMusicalEvents,
         sense: Option<&super::NativeLinkLayer>,
     ) -> RoutedMusicalEvents {
@@ -67,9 +67,9 @@ impl NativeRunner {
         self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
         let retrigger_count = if routed_contains_held_note_on(&routed)
             || routed
-                .cells
+                .tiles
                 .iter()
-                .any(|hit| self.is_held_cell(layer_index, hit))
+                .any(|hit| self.is_held_tile(layer_index, hit))
         {
             0
         } else {
@@ -111,13 +111,13 @@ impl NativeRunner {
     ) {
         let audio_note_offs = note_off_keys(&note_offs.audio);
         let midi_note_offs = note_off_keys(&note_offs.midi);
-        let cell_releases = note_offs
-            .cells
+        let tile_releases = note_offs
+            .tiles
             .iter()
             .filter(|hit| hit.velocity == 0)
-            .map(|hit| (hit.instrument_slot, hit.cell))
+            .map(|hit| (hit.instrument_slot, hit.tile))
             .collect::<Vec<_>>();
-        if audio_note_offs.is_empty() && midi_note_offs.is_empty() && cell_releases.is_empty() {
+        if audio_note_offs.is_empty() && midi_note_offs.is_empty() && tile_releases.is_empty() {
             return;
         }
         let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
@@ -129,8 +129,8 @@ impl NativeRunner {
             }
             !has_matching_held_note_on(&entry.events.audio, &audio_note_offs)
                 && !has_matching_held_note_on(&entry.events.midi, &midi_note_offs)
-                && !entry.events.cells.iter().any(|hit| {
-                    hit.velocity > 0 && cell_releases.contains(&(hit.instrument_slot, hit.cell))
+                && !entry.events.tiles.iter().any(|hit| {
+                    hit.velocity > 0 && tile_releases.contains(&(hit.instrument_slot, hit.tile))
                 })
         });
     }
@@ -199,7 +199,7 @@ impl NativeRunner {
                 end += 1;
             }
             let grouped_events = events[event_index..end].to_vec();
-            let grouped_intents: Vec<CellTriggerIntent> = event_intents[event_index..end]
+            let grouped_intents: Vec<TileTriggerIntent> = event_intents[event_index..end]
                 .iter()
                 .filter_map(Clone::clone)
                 .collect();
@@ -231,14 +231,14 @@ fn dedupe_note_ons_in_group(
 ) -> RoutedMusicalEvents {
     dedupe_note_ons_in_lane(&mut routed.audio);
     dedupe_note_ons_in_lane(&mut routed.midi);
-    dedupe_sampler_cell_hits(&mut routed.cells, instruments);
+    dedupe_sampler_tile_hits(&mut routed.tiles, instruments);
     routed
 }
 
-/// Cells stamped with the same sample and pitch that fire together play one voice at the
+/// Tiles stamped with the same sample and pitch that fire together play one voice at the
 /// loudest velocity, as identical sampler notes always have.
-fn dedupe_sampler_cell_hits(hits: &mut Vec<CellHit>, instruments: &[super::NativeInstrumentSlot]) {
-    let mut deduped: Vec<CellHit> = Vec::with_capacity(hits.len());
+fn dedupe_sampler_tile_hits(hits: &mut Vec<TileHit>, instruments: &[super::NativeInstrumentSlot]) {
+    let mut deduped: Vec<TileHit> = Vec::with_capacity(hits.len());
     for hit in hits.drain(..) {
         let sampler = instruments
             .get(usize::from(hit.instrument_slot))
@@ -330,17 +330,17 @@ fn has_matching_held_note_on(events: &[MusicalEvent], note_offs: &[(u8, u8)]) ->
 
 fn link_timing_for_intents(
     layer: Option<&super::NativeLinkLayer>,
-    intents: &[CellTriggerIntent],
+    intents: &[TileTriggerIntent],
 ) -> LinkEventTiming {
     let Some(layer) = layer else {
         return LinkEventTiming::default();
     };
     match intents.first().map(|intent| intent.kind) {
-        Some(CellTriggerKind::Activate) => layer.activate_timing,
-        Some(CellTriggerKind::Stable) => layer.stable_timing,
-        Some(CellTriggerKind::Deactivate) => layer.deactivate_timing,
-        Some(CellTriggerKind::Scanned) => layer.scanned_timing,
-        Some(CellTriggerKind::ScannedEmpty) => layer.scanned_empty_timing,
+        Some(TileTriggerKind::Activate) => layer.activate_timing,
+        Some(TileTriggerKind::Stable) => layer.stable_timing,
+        Some(TileTriggerKind::Deactivate) => layer.deactivate_timing,
+        Some(TileTriggerKind::Scanned) => layer.scanned_timing,
+        Some(TileTriggerKind::ScannedEmpty) => layer.scanned_empty_timing,
         None => LinkEventTiming::default(),
     }
 }

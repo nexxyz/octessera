@@ -1,5 +1,5 @@
 use super::*;
-use crate::behavior::{BehaviorActionInput, BehaviorContext, CellTriggerType, DeviceInput};
+use crate::behavior::{BehaviorActionInput, BehaviorContext, DeviceInput, TileTriggerType};
 use serde_json::json;
 
 fn context() -> BehaviorContext {
@@ -17,7 +17,7 @@ fn menu_normalize_serialize_and_restore_quiet() {
     assert_eq!(menu[5].key, "randomizeSpins");
     let state =
         ising_init(json!({"spins":[-2,0,"bad"],"fieldSign":-9,"temperaturePct":200})).unwrap();
-    assert_eq!(state.spins.len(), CELL_COUNT);
+    assert_eq!(state.spins.len(), TILE_COUNT);
     assert_eq!(state.spins[0], -1);
     assert_eq!(state.spins[1], 1);
     assert_eq!(state.field_sign, -1);
@@ -25,7 +25,7 @@ fn menu_normalize_serialize_and_restore_quiet() {
     assert!(state
         .trigger_types
         .iter()
-        .all(|t| *t != CellTriggerType::Activate));
+        .all(|t| *t != TileTriggerType::Activate));
     let value = ising_serialize(&state).unwrap();
     assert!(value.get("triggerTypes").is_none());
     assert!(value.get("heatTicks").is_none());
@@ -43,7 +43,7 @@ fn grid_press_and_actions_follow_trigger_contract() {
     assert_eq!(pressed.spins[grid_index(0, 0)], 1);
     assert_eq!(
         pressed.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let heated = ising_on_input(
         pressed.clone(),
@@ -55,7 +55,7 @@ fn grid_press_and_actions_follow_trigger_contract() {
     assert_eq!(heated.heat_ticks, 1);
     assert_eq!(
         heated.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
     let flipped = ising_on_input(
         heated.clone(),
@@ -67,7 +67,7 @@ fn grid_press_and_actions_follow_trigger_contract() {
     assert_eq!(flipped.field_sign, -1);
     assert_eq!(
         flipped.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
     let randomized = ising_on_input(
         flipped,
@@ -96,7 +96,7 @@ fn grid_press_and_actions_follow_trigger_contract() {
 #[test]
 fn tick_uses_neighbors_field_heat_and_clipped_edges() {
     let mut ctx = context();
-    let mut spins = vec![-1; CELL_COUNT];
+    let mut spins = vec![-1; TILE_COUNT];
     spins[grid_index(1, 0)] = 1;
     spins[grid_index(0, 1)] = 1;
     let state =
@@ -106,7 +106,7 @@ fn tick_uses_neighbors_field_heat_and_clipped_edges() {
     assert_eq!(ticked.spins[grid_index(0, 0)], 1);
     assert_eq!(
         ticked.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let state =
         ising_init(json!({"spins":[-1],"fieldStrengthPct":100,"temperaturePct":0,"noisePct":0}))
@@ -129,7 +129,7 @@ fn tick_uses_neighbors_field_heat_and_clipped_edges() {
     assert_eq!(ticked.heat_ticks, 0);
     assert_eq!(
         ticked.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
     assert!(ising_render_model(&ticked).status_line.starts_with("+:"));
 }

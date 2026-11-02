@@ -6,7 +6,7 @@ use playback_runtime::scenario::ScenarioBuilder;
 use serde_json::Value;
 
 const SYNTH_SLOT: u8 = 4;
-/// Sequencer cells on distinct degrees, so each plays its own note.
+/// Sequencer tiles on distinct degrees, so each plays its own note.
 const TAPS: [(usize, usize); 3] = [(0, 0), (2, 3), (5, 6)];
 
 fn edited_patch() -> ScenarioBuilder {
@@ -100,6 +100,6 @@ fn saved_patch_reloads_unchanged_after_a_restart() {
     assert_eq!(
         l5_notes(&second, played.start_frame).len(),
         TAPS.len(),
-        "the reloaded L5 pattern plays one note per tapped cell, audio in {wav:?}"
+        "the reloaded L5 pattern plays one note per tapped tile, audio in {wav:?}"
     );
 }

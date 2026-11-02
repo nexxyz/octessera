@@ -1,7 +1,7 @@
 use super::super::sample_browser_menu::sample_browser_group;
 use super::super::voice_config_read::{cutoff_hz_to_display, sample_number, sample_string};
 use super::super::voice_env_groups::sample_env_group;
-use super::cell_stamp_items::cell_stamp_items;
+use super::tile_stamp_items::tile_stamp_items;
 use super::{
     action_item, bool_item, enum_item, factory_load_group, group, number_item, selected_index,
     InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
@@ -47,7 +47,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             config.sample_builtin_favourite_dirs,
         ),
     ];
-    children.extend(cell_stamp_items(
+    children.extend(tile_stamp_items(
         config,
         prefix,
         config.sample_velocity_levels_enabled,

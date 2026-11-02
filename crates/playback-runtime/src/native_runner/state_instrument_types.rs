@@ -34,8 +34,8 @@ pub(super) struct NativeInstrumentSlot {
     pub(super) sample_velocity_low: u8,
     pub(super) sample_follow_transpose: bool,
     pub(super) sample_follow_pitch: bool,
-    /// The Cell Tune / Cell Fine / Cell Level rows: what Assign stamps next.
-    pub(super) cell_stamp: NativeCellStamp,
+    /// The Tile Tune / Tile Fine / Tile Level rows: what Assign stamps next.
+    pub(super) tile_stamp: NativeTileStamp,
     pub(super) midi_enabled: bool,
     pub(super) midi_channel: u8,
     pub(super) midi_velocity: u8,
@@ -52,18 +52,18 @@ pub(super) struct NativeSampleAssignment {
     pub(super) tune_cents: i8,
 }
 
-/// The values Assign stamps onto the grid cells it is pressed on: Cell Tune, Cell Fine and
-/// Cell Level. Working state for the menu, not saved; the stamped cells are.
+/// The values Assign stamps onto the grid tiles it is pressed on: Tile Tune, Tile Fine and
+/// Tile Level. Working state for the menu, not saved; the stamped tiles are.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(super) struct NativeCellStamp {
+pub(super) struct NativeTileStamp {
     pub(super) tune_semis: i8,
     pub(super) tune_cents: i8,
     pub(super) level: Option<String>,
 }
 
-impl NativeCellStamp {
-    pub(super) fn menu_value(&self) -> crate::native_menu::NativeMenuCellStamp {
-        crate::native_menu::NativeMenuCellStamp {
+impl NativeTileStamp {
+    pub(super) fn menu_value(&self) -> crate::native_menu::NativeMenuTileStamp {
+        crate::native_menu::NativeMenuTileStamp {
             tune_semis: self.tune_semis,
             tune_cents: self.tune_cents,
             level_index: match self.level.as_deref() {
@@ -127,7 +127,7 @@ impl NativeInstrumentSlot {
             sample_velocity_levels_enabled: false,
             sample_follow_transpose: false,
             sample_follow_pitch: false,
-            cell_stamp: NativeCellStamp::default(),
+            tile_stamp: NativeTileStamp::default(),
             sample_velocity_high: 120,
             sample_velocity_medium: 85,
             sample_velocity_low: 45,

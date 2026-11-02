@@ -1,5 +1,5 @@
 //! Instrument setup through the menu: type change, kit load with its confirmation, voice edits
-//! and Cell Tune stamps, checked by the pitch of what actually sounds.
+//! and Tile Tune stamps, checked by the pitch of what actually sounds.
 use crate::support::{assert_clean_audio, builder, keep_audio, session};
 use octessera_desktop_lib::headless::HeadlessSession;
 use playback_runtime::scenario::button;
@@ -81,7 +81,7 @@ fn drum_set_up_from_the_menu_plays_its_stamped_tunes() {
     }
     take.open(&["Shape", "Instruments", "I5:", "Drum"]);
     for (row, tune) in [(0, 0), (1, 7)] {
-        take.set_number("Cell Tune", "instruments.4.cell.tuneSemis", tune);
+        take.set_number("Tile Tune", "instruments.4.tile.tuneSemis", tune);
         take.enter("Assign");
         take.tap_now(row * 4, row);
         take.input(button("button_a", true));
@@ -109,16 +109,16 @@ fn drum_set_up_from_the_menu_plays_its_stamped_tunes() {
         .iter()
         .filter(|event| event.slot == DRUM_SLOT && event.frame >= played.start_frame)
         .collect();
-    let first = |cell: u8| {
+    let first = |tile: u8| {
         hits.iter()
-            .find(|event| event.note == cell)
-            .unwrap_or_else(|| panic!("cell {cell} never played, audio in {wav:?}"))
+            .find(|event| event.note == tile)
+            .unwrap_or_else(|| panic!("tile {tile} never played, audio in {wav:?}"))
     };
     let (root, fifth) = (first(0), first(12));
     assert_eq!(
         (root.voice, fifth.voice),
         (Some(5), Some(5)),
-        "both cells play V6"
+        "both tiles play V6"
     );
     let ratio = pitch_ratio(
         &log_spectrum(&session, root.frame + 441, 0.08),
@@ -127,6 +127,6 @@ fn drum_set_up_from_the_menu_plays_its_stamped_tunes() {
     let expected = 2.0_f64.powf(7.0 / 12.0);
     assert!(
         (ratio / expected - 1.0).abs() < 0.02,
-        "+7 st cell sounds {ratio:.3}x the root, expected {expected:.3}, audio in {wav:?}"
+        "+7 st tile sounds {ratio:.3}x the root, expected {expected:.3}, audio in {wav:?}"
     );
 }

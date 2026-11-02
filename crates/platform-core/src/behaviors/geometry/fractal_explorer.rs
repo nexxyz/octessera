@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -32,7 +32,7 @@ pub struct FractalExplorerState {
     pub region_index: u8,
     pub classes: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "zoomRatePct")]
     pub zoom_rate_pct: u8,
     #[serde(rename = "driftPct")]
@@ -65,7 +65,7 @@ struct Config {
     region_index: Option<Value>,
     classes: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "zoomRatePct")]
     zoom_rate_pct: Option<Value>,
     #[serde(rename = "driftPct")]
@@ -169,7 +169,7 @@ pub fn fractal_explorer_render_model(s: &FractalExplorerState) -> BehaviorRender
     BehaviorRenderModel {
         name: "fractal explorer".into(),
         status_line: format!("D:{d} Z:{}", s.zoom),
-        cells: s.classes.iter().map(|c| *c != 0).collect(),
+        tiles: s.classes.iter().map(|c| *c != 0).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 220, 180],
             inactive: crate::palette::BLACK,
@@ -253,14 +253,14 @@ fn norm_classes(v: Option<Vec<Value>>) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(2) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, 0);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, 0);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn sample_classes(s: &mut FractalExplorerState) {
@@ -283,7 +283,7 @@ fn sample_view(
     julia_cy: i16,
     iteration_limit: u8,
 ) -> Vec<u8> {
-    let mut classes = vec![0; CELL_COUNT];
+    let mut classes = vec![0; TILE_COUNT];
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let idx = grid_index(x, y);
@@ -372,9 +372,9 @@ fn best_candidate(s: &FractalExplorerState, zoom: u16, prefer_moving: bool) -> O
 }
 fn candidate_score(classes: &[u8], dx: i32, dy: i32, s: &FractalExplorerState) -> i32 {
     let inside = classes.iter().filter(|class| **class == 0).count() as i32;
-    let non_inside = CELL_COUNT as i32 - inside;
+    let non_inside = TILE_COUNT as i32 - inside;
     let balance = inside.min(non_inside);
-    if balance < 4 || non_inside == CELL_COUNT as i32 {
+    if balance < 4 || non_inside == TILE_COUNT as i32 {
         return 0;
     }
     let detail = classes.iter().filter(|class| **class == 1).count() as i32;
@@ -393,8 +393,8 @@ fn candidate_score(classes: &[u8], dx: i32, dy: i32, s: &FractalExplorerState) -
 }
 fn is_interesting(classes: &[u8]) -> bool {
     let inside = classes.iter().filter(|class| **class == 0).count() as i32;
-    let non_inside = CELL_COUNT as i32 - inside;
-    inside.min(non_inside) >= 4 && non_inside != CELL_COUNT as i32 && edge_transitions(classes) > 0
+    let non_inside = TILE_COUNT as i32 - inside;
+    inside.min(non_inside) >= 4 && non_inside != TILE_COUNT as i32 && edge_transitions(classes) > 0
 }
 fn jump_to_interesting_region(s: &mut FractalExplorerState) -> bool {
     for _ in 0..2 {
@@ -454,22 +454,22 @@ fn jump_region(s: &mut FractalExplorerState) {
     s.julia_cy = r.5;
     s.zoom = 1024
 }
-fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if p[i] == 0 && n[i] != 0 || n[i] > p[i] {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] != 0 && n[i] == 0 {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] != 0 {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
-        t[*i] = CellTriggerType::Activate;
+        t[*i] = TileTriggerType::Activate;
     }
     t
 }

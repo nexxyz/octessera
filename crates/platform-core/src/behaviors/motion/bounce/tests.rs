@@ -15,7 +15,7 @@ fn empty_config_seeds_deterministic_ball_and_autospawns_are_bounded() {
         max_activates = max_activates.max(
             a.trigger_types
                 .iter()
-                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .filter(|trigger| **trigger == TileTriggerType::Activate)
                 .count(),
         );
     }
@@ -32,8 +32,8 @@ fn ball_moves_bounces_and_max_balls_limits_spawns() {
             vx: 1.0,
             vy: 0.5,
         }],
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         max_balls: 1,
         spawn_interval: 0,
         spawn_step: 0,
@@ -42,7 +42,7 @@ fn ball_moves_bounces_and_max_balls_limits_spawns() {
     let ticked = bounce_on_tick(state, &mut context);
     assert_eq!(ticked.balls[0].x, 2.0);
     assert_eq!(ticked.balls[0].y, 1.5);
-    assert!(ticked.cells[grid_index(2, 2)]);
+    assert!(ticked.tiles[grid_index(2, 2)]);
 
     let state = BounceState {
         balls: vec![Ball {
@@ -51,8 +51,8 @@ fn ball_moves_bounces_and_max_balls_limits_spawns() {
             vx: 1.0,
             vy: 0.0,
         }],
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         max_balls: 1,
         spawn_interval: 0,
         spawn_step: 0,
@@ -76,7 +76,7 @@ fn bounce_render_and_config_menu_match_contract() {
     let model = bounce_render_model(&state);
     assert_eq!(model.name, "bounce");
     assert_eq!(model.status_line, "0 balls");
-    assert_eq!(model.trigger_types.as_ref().unwrap().len(), CELL_COUNT);
+    assert_eq!(model.trigger_types.as_ref().unwrap().len(), TILE_COUNT);
     assert_eq!(
         bounce_config_menu()
             .iter()

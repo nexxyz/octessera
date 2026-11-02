@@ -3,7 +3,7 @@ use crate::behavior_random::LayerRandom;
 use crate::behaviors::{NativeBehavior, NativeBehaviorState};
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 use crate::interpretation::{
-    interpret_grid_with_marker_authority, CellTriggerIntent, GridSnapshot, InterpretationProfile,
+    interpret_grid_with_marker_authority, GridSnapshot, InterpretationProfile, TileTriggerIntent,
     TriggerMarkerAuthority,
 };
 use crate::mapping::{map_intents_to_musical_events, MappingConfig, MappingResult};
@@ -34,8 +34,8 @@ pub struct NativeLayerEngineConfig {
 pub struct NativeTickResult {
     pub events: Vec<MusicalEvent>,
     pub emitted_events: Vec<MusicalEvent>,
-    pub mapped_intents: Vec<CellTriggerIntent>,
-    pub event_intents: Vec<Option<CellTriggerIntent>>,
+    pub mapped_intents: Vec<TileTriggerIntent>,
+    pub event_intents: Vec<Option<TileTriggerIntent>>,
     pub model: BehaviorRenderModel,
 }
 
@@ -43,8 +43,8 @@ pub struct NativeTickResult {
 pub struct NativeInputResult {
     pub events: Vec<MusicalEvent>,
     pub emitted_events: Vec<MusicalEvent>,
-    pub mapped_intents: Vec<CellTriggerIntent>,
-    pub event_intents: Vec<Option<CellTriggerIntent>>,
+    pub mapped_intents: Vec<TileTriggerIntent>,
+    pub event_intents: Vec<Option<TileTriggerIntent>>,
     pub model: BehaviorRenderModel,
 }
 
@@ -124,7 +124,7 @@ impl NativeLayerEngine {
         &mut self,
         input: DeviceInput,
         bpm: f32,
-        mut filter_intent: impl FnMut(&CellTriggerIntent) -> bool,
+        mut filter_intent: impl FnMut(&TileTriggerIntent) -> bool,
     ) -> Result<NativeInputResult, String> {
         let before = self.behavior.render_model(&self.state)?;
         let marker_authority = match &input {
@@ -184,7 +184,7 @@ impl NativeLayerEngine {
     pub fn tick_filtered(
         &mut self,
         bpm: f32,
-        mut filter_intent: impl FnMut(&CellTriggerIntent) -> bool,
+        mut filter_intent: impl FnMut(&TileTriggerIntent) -> bool,
     ) -> Result<NativeTickResult, String> {
         let before = self.behavior.render_model(&self.state)?;
         let mut context = BehaviorContext::new(bpm);
@@ -328,19 +328,19 @@ fn to_snapshot(model: &BehaviorRenderModel) -> GridSnapshot {
     GridSnapshot {
         width: GRID_WIDTH,
         height: GRID_HEIGHT,
-        cells: model.cells.clone(),
+        tiles: model.tiles.clone(),
         trigger_types: model.trigger_types.clone(),
     }
 }
 
 struct NoteBehaviorWithIntentsResult {
     events: Vec<MusicalEvent>,
-    event_intents: Vec<Option<CellTriggerIntent>>,
+    event_intents: Vec<Option<TileTriggerIntent>>,
 }
 
 fn apply_note_behavior_with_event_intents(
     events: &[MusicalEvent],
-    event_intents: Vec<Option<CellTriggerIntent>>,
+    event_intents: Vec<Option<TileTriggerIntent>>,
     behaviors: &[NoteBehavior],
     held: &mut BTreeSet<HeldNote>,
 ) -> NoteBehaviorWithIntentsResult {

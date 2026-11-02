@@ -213,15 +213,15 @@ pub(super) fn configure_aux_xy_and_play_fx_from_visible_ui(device: &mut DeviceDr
         menu.open_group("Play");
         menu.open_group("FX");
     }
-    map_play_fx_cell(device, 1, 0, 0);
-    map_play_fx_cell(device, 1, 1, 0);
-    map_play_fx_cell(device, 2, 2, 0);
+    map_play_fx_tile(device, 1, 0, 0);
+    map_play_fx_tile(device, 1, 1, 0);
+    map_play_fx_tile(device, 2, 2, 0);
     {
         let mut menu = VisibleMenuDriver::new(device);
         menu.open_group_if_visible("FX >");
         menu.edit_number_by("Semitones", 7);
     }
-    map_play_fx_cell(device, 0, 3, 0);
+    map_play_fx_tile(device, 0, 3, 0);
     let mut menu = VisibleMenuDriver::new(device);
     menu.back_to_root();
 }
@@ -244,7 +244,7 @@ fn select_synth_filter_target(menu: &mut VisibleMenuDriver<'_>, target: &str) {
     menu.activate_action(target);
 }
 
-fn map_play_fx_cell(device: &mut DeviceDriver, type_delta: i32, x: usize, y: usize) {
+fn map_play_fx_tile(device: &mut DeviceDriver, type_delta: i32, x: usize, y: usize) {
     {
         let mut menu = VisibleMenuDriver::new(device);
         menu.open_group_if_visible("FX >");

@@ -155,7 +155,7 @@ find the smallest delay that still logs no `late timed events`.
 a production binary refuses to start with it. It ramps held 2-second
 notes across Synth, Pluck, and FM through the host musical-event path on top of
 the loaded patch, logging one `timing-load step=...` line per step. Every ~0.7 s
-it also presses grid cell (0,0) through the real input dispatch and reports
+it also presses grid tile (0,0) through the real input dispatch and reports
 `probe_wait` (arrival to dispatch) and `probe_dispatch_to_audio` (dispatch to
 the note reaching the audio service). The smoke clones the board's own patch,
 so set it up on the board first and put it back afterwards: a Keys layer with

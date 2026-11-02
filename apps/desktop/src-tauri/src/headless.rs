@@ -31,13 +31,13 @@ use std::time::{Duration, Instant};
 const BLOCK_FRAMES: usize = 64;
 const SNAPSHOT_INTERVAL_SECONDS: f64 = 0.05;
 
-/// A note or cell hit the runtime sent to the engine, with when it happened.
+/// A note or tile hit the runtime sent to the engine, with when it happened.
 #[derive(Clone, Debug)]
 pub struct PlayedEvent {
     pub pulse: u64,
     pub frame: usize,
     pub slot: u8,
-    /// MIDI note for notes; the cell index (`y * 8 + x`) for Sampler/Drum hits.
+    /// MIDI note for notes; the tile index (`y * 8 + x`) for Sampler/Drum hits.
     pub note: u8,
     pub voice: Option<u8>,
     pub velocity: u8,

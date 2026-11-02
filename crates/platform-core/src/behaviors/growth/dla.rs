@@ -1,10 +1,10 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::geometry::shapes::random_point_for_dla;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,7 +15,7 @@ pub struct DlaState {
     #[serde(default)]
     pub ages: Vec<u16>,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "spawnInterval")]
     pub spawn_interval: usize,
     #[serde(rename = "spawnStep")]
@@ -45,7 +45,7 @@ fn default_cell_life() -> usize {
 
 pub fn dla_init(config: Value) -> Result<DlaState, String> {
     let config: DlaConfig = serde_json::from_value(config).unwrap_or_default();
-    let mut cells = vec![false; CELL_COUNT];
+    let mut cells = vec![false; TILE_COUNT];
     let cx = GRID_WIDTH / 2;
     let cy = GRID_HEIGHT / 2;
     cells[grid_index(cx, cy)] = true;
@@ -57,8 +57,8 @@ pub fn dla_init(config: Value) -> Result<DlaState, String> {
     }
     Ok(DlaState {
         cells,
-        ages: vec![0; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        ages: vec![0; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         spawn_interval: config.spawn_interval.unwrap_or(2),
         spawn_step: config.spawn_step.unwrap_or(0).min(63),
         cell_life: config
@@ -89,11 +89,11 @@ fn set_cluster_cell(cells: &mut [bool], ages: &mut [u16], x: usize, y: usize) {
 
 fn normalized_cells_and_ages(state: &DlaState) -> (Vec<bool>, Vec<u16>) {
     let mut cells = state.cells.clone();
-    cells.resize(CELL_COUNT, false);
-    cells.truncate(CELL_COUNT);
+    cells.resize(TILE_COUNT, false);
+    cells.truncate(TILE_COUNT);
     let mut ages = state.ages.clone();
-    ages.resize(CELL_COUNT, 0);
-    ages.truncate(CELL_COUNT);
+    ages.resize(TILE_COUNT, 0);
+    ages.truncate(TILE_COUNT);
     (cells, ages)
 }
 
@@ -148,7 +148,7 @@ pub fn dla_on_input(
     }
     next.cells = cells;
     next.ages = ages;
-    next.trigger_types = trigger_types_from_cells(&previous_cells, &next.cells);
+    next.trigger_types = trigger_types_from_tiles(&previous_cells, &next.cells);
     next
 }
 
@@ -184,7 +184,7 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
             seed_starter_cluster(&mut cells, &mut ages);
         }
     }
-    let trigger_types = trigger_types_from_cells(&previous_cells, &cells);
+    let trigger_types = trigger_types_from_tiles(&previous_cells, &cells);
     DlaState {
         cells,
         ages,
@@ -196,8 +196,8 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
 }
 
 fn next_frontier_cell(cells: &[bool], tick_counter: usize) -> Option<(usize, usize)> {
-    (0..CELL_COUNT).find_map(|offset| {
-        let index = (tick_counter * 17 + offset) % CELL_COUNT;
+    (0..TILE_COUNT).find_map(|offset| {
+        let index = (tick_counter * 17 + offset) % TILE_COUNT;
         let x = index % GRID_WIDTH;
         let y = index / GRID_WIDTH;
         (!cells[index] && has_adjacent_cluster(cells, x, y)).then_some((x, y))
@@ -211,7 +211,7 @@ pub fn dla_render_model(state: &DlaState) -> BehaviorRenderModel {
             "Cells: {}",
             state.cells.iter().filter(|cell| **cell).count()
         ),
-        cells: state.cells.clone(),
+        tiles: state.cells.clone(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::YELLOW,
             inactive: crate::palette::BLACK,

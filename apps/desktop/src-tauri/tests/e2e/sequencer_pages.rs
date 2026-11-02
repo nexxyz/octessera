@@ -3,7 +3,7 @@ use crate::support::{assert_clean_audio, builder, keep_audio, session, Timeline}
 
 const SAMPLER: u8 = 1;
 /// The hat row (sample slot 2) in a column page 1 leaves empty.
-const HAT_ONLY_CELL: u8 = 2 * 8;
+const HAT_ONLY_TILE: u8 = 2 * 8;
 
 #[test]
 fn sequencer_pages_advance_every_bar_in_step_with_scanning() {
@@ -32,7 +32,7 @@ fn sequencer_pages_advance_every_bar_in_step_with_scanning() {
     assert_clean_audio(&session, "sequencer pages");
 
     for bar in 0..4 {
-        let cells: Vec<u8> = timeline
+        let tiles: Vec<u8> = timeline
             .events(f64::from(bar), f64::from(bar) + 1.0)
             .iter()
             .filter(|event| event.slot == SAMPLER)
@@ -40,17 +40,17 @@ fn sequencer_pages_advance_every_bar_in_step_with_scanning() {
             .collect();
         if bar % 2 == 0 {
             assert!(
-                cells.contains(&0),
+                tiles.contains(&0),
                 "bar {bar}: page 1's kick, audio in {wav:?}"
             );
             assert!(
-                !cells.contains(&HAT_ONLY_CELL),
+                !tiles.contains(&HAT_ONLY_TILE),
                 "bar {bar} plays page 1 only"
             );
         } else {
             assert_eq!(
-                cells,
-                vec![HAT_ONLY_CELL],
+                tiles,
+                vec![HAT_ONLY_TILE],
                 "bar {bar}: page 2 only, audio in {wav:?}"
             );
         }

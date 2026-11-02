@@ -106,7 +106,7 @@ pub(crate) fn sampler_slots_velocity_levels_browser_assignment_and_voice_types_a
         Some("Drums/kick.wav")
     );
     assert!(runner.instruments[0].sample_paths[0].is_none());
-    assign_selected_sample_and_use_cell(&mut runner);
+    assign_selected_sample_and_use_tile(&mut runner);
 
     edit_key_to_value(&mut runner, "instruments.0.type", "synth", -1);
     assert!(runner

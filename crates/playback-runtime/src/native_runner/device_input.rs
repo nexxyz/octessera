@@ -299,7 +299,7 @@ impl NativeRunner {
                 return self.messages_with_effects(effects);
             }
         } else if self.active_play_mode == "drums" {
-            self.play_drum_cell(x, y);
+            self.play_drum_tile(x, y);
         } else if self.active_play_mode != "none" {
             self.handle_play_grid_press(x, y);
         } else {

@@ -195,7 +195,7 @@ pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
 }
 
 #[test]
-pub(crate) fn trigger_probability_custom_zero_cell_suppresses_transport_events() {
+pub(crate) fn trigger_probability_custom_zero_tile_suppresses_transport_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -330,7 +330,7 @@ pub(crate) fn grid_state_edit_emits_deferred_auto_save_when_enabled() {
 }
 
 #[test]
-pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color() {
+pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_tile_color() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -351,9 +351,9 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_cell_color()
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
-    let scanned_live = cells[display_index(0, 0)].as_object().unwrap();
-    let scanned_empty = cells[display_index(1, 0)].as_object().unwrap();
+    let tiles = led_tiles(&snapshot);
+    let scanned_live = tiles[display_index(0, 0)].as_object().unwrap();
+    let scanned_empty = tiles[display_index(1, 0)].as_object().unwrap();
 
     assert!(scanned_live["r"].as_i64().unwrap() > 0);
     assert!(scanned_live["g"].as_i64().unwrap() > 0);
@@ -385,7 +385,7 @@ pub(crate) fn switching_active_layer_preserves_current_layer_engine_state() {
     runner.select_active_layer(0).unwrap();
 
     let model = runner.engine.model().unwrap();
-    assert!(model.cells[platform_core::grid_index(2, 3)]);
+    assert!(model.tiles[platform_core::grid_index(2, 3)]);
 }
 
 #[test]
@@ -402,9 +402,9 @@ pub(crate) fn reverse_scan_direction_starts_from_last_lane() {
     runner.refresh_active_interpretation_profile();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
-    let bottom_row = cells[display_index(0, 0)].as_object().unwrap();
-    let top_row = cells[display_index(0, GRID_HEIGHT - 1)]
+    let tiles = led_tiles(&snapshot);
+    let bottom_row = tiles[display_index(0, 0)].as_object().unwrap();
+    let top_row = tiles[display_index(0, GRID_HEIGHT - 1)]
         .as_object()
         .unwrap();
 
@@ -425,9 +425,9 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
     runner.refresh_active_interpretation_profile();
 
     let snapshot = runner.snapshot().unwrap();
-    let cells = led_cells(&snapshot);
-    let in_section = cells[display_index(3, 0)].as_object().unwrap();
-    let out_of_section = cells[display_index(4, 0)].as_object().unwrap();
+    let tiles = led_tiles(&snapshot);
+    let in_section = tiles[display_index(3, 0)].as_object().unwrap();
+    let out_of_section = tiles[display_index(4, 0)].as_object().unwrap();
 
     assert!(in_section["r"].as_i64().unwrap() > out_of_section["r"].as_i64().unwrap());
 }

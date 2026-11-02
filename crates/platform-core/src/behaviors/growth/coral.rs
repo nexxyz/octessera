@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,15 +16,15 @@ const CARDINAL_OFFSETS: [(isize, isize); 4] = [(0, 1), (1, 0), (0, -1), (-1, 0)]
 
 struct ForcedTrigger {
     index: usize,
-    trigger_type: CellTriggerType,
+    trigger_type: TileTriggerType,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoralState {
-    pub cells: Vec<u8>,
+    pub tiles: Vec<u8>,
     pub ages: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "growthPct")]
     pub growth_pct: u8,
     #[serde(rename = "competitionPct")]
@@ -37,10 +37,10 @@ pub struct CoralState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Vec<Value>>,
+    tiles: Option<Vec<Value>>,
     ages: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "growthPct")]
     growth_pct: Option<Value>,
     #[serde(rename = "competitionPct")]
@@ -51,18 +51,18 @@ struct Config {
 
 pub fn coral_init(config: Value) -> Result<CoralState, String> {
     let mut s = from_config(config);
-    if s.cells.iter().all(|cell| *cell == EMPTY) {
+    if s.tiles.iter().all(|tile| *tile == EMPTY) {
         for (x, y, c) in [(1, 0, A), (2, 0, A), (5, 0, B), (6, 0, B)] {
             let i = grid_index(x, y);
-            s.cells[i] = c;
+            s.tiles[i] = c;
         }
     }
-    s.trigger_types = triggers(&s.cells, &s.cells, &[]);
+    s.trigger_types = triggers(&s.tiles, &s.tiles, &[]);
     Ok(s)
 }
 pub fn coral_deserialize(data: Value) -> Result<CoralState, String> {
     let mut s = from_config(data);
-    s.trigger_types = triggers(&s.cells, &s.cells, &[]);
+    s.trigger_types = triggers(&s.tiles, &s.tiles, &[]);
     Ok(s)
 }
 pub fn coral_serialize(state: &CoralState) -> Result<Value, String> {
@@ -76,12 +76,12 @@ pub fn coral_on_input(
     _: &mut BehaviorContext,
 ) -> CoralState {
     normalize(&mut state);
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     let mut forced = Vec::new();
     match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let i = grid_index(x, y);
-            state.cells[i] = match state.cells[i] {
+            state.tiles[i] = match state.tiles[i] {
                 EMPTY | DEAD => A,
                 A => B,
                 _ => EMPTY,
@@ -89,10 +89,10 @@ pub fn coral_on_input(
             state.ages[i] = 0;
             forced.push(ForcedTrigger {
                 index: i,
-                trigger_type: if state.cells[i] == EMPTY {
-                    CellTriggerType::Deactivate
+                trigger_type: if state.tiles[i] == EMPTY {
+                    TileTriggerType::Deactivate
                 } else {
-                    CellTriggerType::Activate
+                    TileTriggerType::Activate
                 },
             })
         }
@@ -101,11 +101,11 @@ pub fn coral_on_input(
         {
             for (x, y, c) in [(1, 0, A), (2, 0, A), (5, 0, B), (6, 0, B)] {
                 let i = grid_index(x, y);
-                state.cells[i] = c;
+                state.tiles[i] = c;
                 state.ages[i] = 0;
                 forced.push(ForcedTrigger {
                     index: i,
-                    trigger_type: CellTriggerType::Activate,
+                    trigger_type: TileTriggerType::Activate,
                 })
             }
         }
@@ -116,15 +116,15 @@ pub fn coral_on_input(
         }
         _ => return state,
     }
-    state.trigger_types = triggers(&prev, &state.cells, &forced);
+    state.trigger_types = triggers(&prev, &state.tiles, &forced);
     state
 }
 pub fn coral_on_tick(mut state: CoralState, _: &mut BehaviorContext) -> CoralState {
     normalize(&mut state);
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     let prev_ages = state.ages.clone();
     let mut forced = Vec::new();
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         if prev[i] != EMPTY {
             state.ages[i] = prev_ages[i].saturating_add(1)
         }
@@ -139,11 +139,11 @@ pub fn coral_on_tick(mut state: CoralState, _: &mut BehaviorContext) -> CoralSta
                 continue;
             }
             if let Some(c) = best_colony(&prev, x, y) {
-                state.cells[i] = c;
+                state.tiles[i] = c;
                 state.ages[i] = 0;
                 forced.push(ForcedTrigger {
                     index: i,
-                    trigger_type: CellTriggerType::Activate,
+                    trigger_type: TileTriggerType::Activate,
                 })
             }
         }
@@ -156,31 +156,31 @@ pub fn coral_on_tick(mut state: CoralState, _: &mut BehaviorContext) -> CoralSta
                 if any_cardinal(x, y, |n| prev[n] == opp)
                     && hash_pct(state.tick_counter, i, 13) < u32::from(state.competition_pct)
                 {
-                    state.cells[i] = DEAD;
+                    state.tiles[i] = DEAD;
                     state.ages[i] = 0
                 }
             }
         }
     }
-    for i in 0..CELL_COUNT {
-        if state.cells[i] == DEAD && state.ages[i] >= state.breakaway_age {
-            state.cells[i] = EMPTY;
+    for i in 0..TILE_COUNT {
+        if state.tiles[i] == DEAD && state.ages[i] >= state.breakaway_age {
+            state.tiles[i] = EMPTY;
             state.ages[i] = 0
         }
     }
     thin_full_frame(&mut state);
     state.tick_counter = state.tick_counter.wrapping_add(1);
-    state.trigger_types = triggers(&prev, &state.cells, &forced);
+    state.trigger_types = triggers(&prev, &state.tiles, &forced);
     state
 }
 pub fn coral_render_model(state: &CoralState) -> BehaviorRenderModel {
-    let a = state.cells.iter().filter(|c| **c == A).count();
-    let b = state.cells.iter().filter(|c| **c == B).count();
-    let d = state.cells.iter().filter(|c| **c == DEAD).count();
+    let a = state.tiles.iter().filter(|c| **c == A).count();
+    let b = state.tiles.iter().filter(|c| **c == B).count();
+    let d = state.tiles.iter().filter(|c| **c == DEAD).count();
     BehaviorRenderModel {
         name: "coral".into(),
         status_line: format!("A:{a} B:{b} D:{d}"),
-        cells: state.cells.iter().map(|c| *c != EMPTY).collect(),
+        tiles: state.tiles.iter().map(|c| *c != EMPTY).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 140, 100],
             inactive: crate::palette::BLACK,
@@ -202,7 +202,7 @@ pub fn coral_config_menu() -> Vec<BehaviorConfigItem> {
 fn from_config(v: Value) -> CoralState {
     let c: Config = serde_json::from_value(v).unwrap_or_default();
     let mut s = CoralState {
-        cells: norm(c.cells, 0, 3),
+        tiles: norm(c.tiles, 0, 3),
         ages: norm(c.ages, 0, 255),
         trigger_types: norm_triggers(c.trigger_types),
         growth_pct: num(c.growth_pct, 35, 100),
@@ -214,8 +214,8 @@ fn from_config(v: Value) -> CoralState {
     s
 }
 fn normalize(s: &mut CoralState) {
-    s.cells = norm(
-        Some(s.cells.iter().map(|v| Value::from(*v)).collect()),
+    s.tiles = norm(
+        Some(s.tiles.iter().map(|v| Value::from(*v)).collect()),
         0,
         3,
     );
@@ -235,14 +235,14 @@ fn norm(v: Option<Vec<Value>>, d: u8, max: u8) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(u64::from(d)).min(u64::from(max)) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, d);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, d);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -268,16 +268,16 @@ fn any_cardinal(x: usize, y: usize, mut f: impl FnMut(usize) -> bool) -> bool {
     });
     found
 }
-fn best_colony(cells: &[u8], x: usize, y: usize) -> Option<u8> {
+fn best_colony(tiles: &[u8], x: usize, y: usize) -> Option<u8> {
     let mut best = (0, A);
     for c in [A, B] {
         let mut same = 0;
         let mut empty = 0;
         for_each_cardinal(x, y, |i| {
-            if cells[i] == c {
+            if tiles[i] == c {
                 same += 1;
             }
-            if cells[i] == EMPTY {
+            if tiles[i] == EMPTY {
                 empty += 1;
             }
         });
@@ -295,18 +295,18 @@ fn best_colony(cells: &[u8], x: usize, y: usize) -> Option<u8> {
         Some(best.1)
     }
 }
-fn exposed(cells: &[u8], i: usize) -> bool {
+fn exposed(tiles: &[u8], i: usize) -> bool {
     let x = i % GRID_WIDTH;
     let y = i / GRID_WIDTH;
-    any_cardinal(x, y, |n| cells[n] == EMPTY)
+    any_cardinal(x, y, |n| tiles[n] == EMPTY)
 }
 fn break_action(s: &mut CoralState) {
-    let mut rows = (0..CELL_COUNT)
-        .filter(|i| s.cells[*i] == DEAD)
+    let mut rows = (0..TILE_COUNT)
+        .filter(|i| s.tiles[*i] == DEAD)
         .map(|i| (0, s.ages[i], i))
         .chain(
-            (0..CELL_COUNT)
-                .filter(|i| (s.cells[*i] == A || s.cells[*i] == B) && exposed(&s.cells, *i))
+            (0..TILE_COUNT)
+                .filter(|i| (s.tiles[*i] == A || s.tiles[*i] == B) && exposed(&s.tiles, *i))
                 .map(|i| (1, s.ages[i], i)),
         )
         .collect::<Vec<_>>();
@@ -316,22 +316,22 @@ fn break_action(s: &mut CoralState) {
             .then_with(|| a.2.cmp(&b.2))
     });
     for (_, _, i) in rows.into_iter().take(8) {
-        s.cells[i] = EMPTY;
+        s.tiles[i] = EMPTY;
         s.ages[i] = 0
     }
 }
 fn thin_full_frame(s: &mut CoralState) {
-    if s.cells.contains(&EMPTY) {
+    if s.tiles.contains(&EMPTY) {
         return;
     }
     let mut removed = 0;
-    for offset in 0..CELL_COUNT {
-        let i = ((s.tick_counter as usize * 11) + offset) % CELL_COUNT;
+    for offset in 0..TILE_COUNT {
+        let i = ((s.tick_counter as usize * 11) + offset) % TILE_COUNT;
         if removed >= 4 {
             break;
         }
-        if s.cells[i] == DEAD || exposed(&s.cells, i) || hash_pct(s.tick_counter, i, 71) < 25 {
-            s.cells[i] = EMPTY;
+        if s.tiles[i] == DEAD || exposed(&s.tiles, i) || hash_pct(s.tick_counter, i, 71) < 25 {
+            s.tiles[i] = EMPTY;
             s.ages[i] = 0;
             removed += 1;
         }
@@ -346,17 +346,17 @@ fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
     x ^= x >> 16;
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
-fn triggers(p: &[u8], n: &[u8], forced: &[ForcedTrigger]) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8], forced: &[ForcedTrigger]) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if p[i] == EMPTY && n[i] != EMPTY {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] != EMPTY && (n[i] == EMPTY || n[i] == DEAD && p[i] != DEAD) {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] != EMPTY {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();

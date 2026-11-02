@@ -271,7 +271,7 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
                 "masterVolume"
                     | "autoSaveDefault"
                     | "rollingBackups"
-                    | "ghostCells"
+                    | "ghostTiles"
                     | "auxAutoHints"
                     | "auxManualHints"
                     | "inputEventsWhilePaused"

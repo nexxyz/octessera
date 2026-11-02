@@ -50,7 +50,7 @@ pub(crate) fn external_resync_splits_clock_batch_at_measure_boundary() {
     runner.transport.layer_pulse_accumulators[0] = 5;
     runner.transport.tick = 7;
     runner.transport.pending_resync = true;
-    let grid_before = runner.engine.model().unwrap().cells;
+    let grid_before = runner.engine.model().unwrap().tiles;
 
     let messages = runner
         .send(HostMessage::MidiRealtimeClock { pulses: 2 })
@@ -61,7 +61,7 @@ pub(crate) fn external_resync_splits_clock_batch_at_measure_boundary() {
     assert!(!runner.transport.pending_resync);
     assert_eq!(runner.transport.tick, 0);
     assert_eq!(runner.transport.layer_pulse_accumulators[0], 1);
-    assert_eq!(runner.engine.model().unwrap().cells, grid_before);
+    assert_eq!(runner.engine.model().unwrap().tiles, grid_before);
     assert!(matches!(
         messages.last(),
         Some(RunnerMessage::RuntimeStatus { status })
@@ -84,7 +84,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+    assert!(runner.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
     runner.display.ui.shift_held = true;
 
     runner
@@ -94,11 +94,11 @@ pub(crate) fn shift_back_clears_active_layer_state() {
         })
         .unwrap();
 
-    assert!(!runner.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+    assert!(!runner.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
 }
 
 #[test]
-pub(crate) fn trigger_probability_grid_editor_cycles_cell_row_and_column() {
+pub(crate) fn trigger_probability_grid_editor_cycles_tile_row_and_column() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.trigger_probability_assign = Some(0);
     runner.trigger_probability_maps[0] = vec!["zero".into(); GRID_WIDTH * GRID_HEIGHT];

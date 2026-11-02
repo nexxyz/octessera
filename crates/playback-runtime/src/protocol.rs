@@ -27,7 +27,7 @@ pub use bluetooth::{
     RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind,
     RuntimeBluetoothPairing, RuntimeBluetoothStatus,
 };
-pub use messages::{CellHit, HostMessage, RunnerMessage};
+pub use messages::{HostMessage, RunnerMessage, TileHit};
 pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{MidiPort, RuntimeStoreResult, SampleEntry};
 pub(crate) use runtime_error::{

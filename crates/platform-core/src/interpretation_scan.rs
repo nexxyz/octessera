@@ -1,20 +1,20 @@
 use crate::interpretation::{
-    AxisStrategy, CellTriggerKind, GridSnapshot, InterpretationProfile, TickStrategy,
+    AxisStrategy, GridSnapshot, InterpretationProfile, TickStrategy, TileTriggerKind,
 };
 
 pub(crate) fn select_state_candidates(
     next: &GridSnapshot,
     tick: usize,
     strategy: &TickStrategy,
-) -> Vec<(usize, usize, CellTriggerKind)> {
+) -> Vec<(usize, usize, TileTriggerKind)> {
     match strategy {
         TickStrategy::WholeGridActive => {
-            let mut out = Vec::with_capacity(next.cells.len());
+            let mut out = Vec::with_capacity(next.tiles.len());
             for y in 0..next.height {
                 let row_start = y * next.width;
                 for x in 0..next.width {
-                    if next.cells[row_start + x] {
-                        out.push((x, y, CellTriggerKind::Scanned));
+                    if next.tiles[row_start + x] {
+                        out.push((x, y, TileTriggerKind::Scanned));
                     }
                 }
             }
@@ -30,14 +30,14 @@ pub(crate) fn select_state_candidates(
             let column = scan_index(tick, next.width, *reverse);
             let mut out = Vec::with_capacity(next.height);
             for y in 0..next.height {
-                let cell_index = y * next.width + column;
+                let tile_index = y * next.width + column;
                 out.push((
                     column,
                     y,
-                    if next.cells[cell_index] {
-                        CellTriggerKind::Scanned
+                    if next.tiles[tile_index] {
+                        TileTriggerKind::Scanned
                     } else {
-                        CellTriggerKind::ScannedEmpty
+                        TileTriggerKind::ScannedEmpty
                     },
                 ));
             }
@@ -58,10 +58,10 @@ pub(crate) fn select_state_candidates(
                 out.push((
                     x,
                     row,
-                    if next.cells[row_start + x] {
-                        CellTriggerKind::Scanned
+                    if next.tiles[row_start + x] {
+                        TileTriggerKind::Scanned
                     } else {
-                        CellTriggerKind::ScannedEmpty
+                        TileTriggerKind::ScannedEmpty
                     },
                 ));
             }
@@ -75,7 +75,7 @@ fn scan_row_sections(
     tick: usize,
     sections: usize,
     reverse: bool,
-) -> Vec<(usize, usize, CellTriggerKind)> {
+) -> Vec<(usize, usize, TileTriggerKind)> {
     let section_width = (next.width / sections).max(1);
     let step = scan_index(tick, next.height * sections, reverse);
     let section = step / next.height;
@@ -88,10 +88,10 @@ fn scan_row_sections(
         out.push((
             x,
             y,
-            if next.cells[row_start + x] {
-                CellTriggerKind::Scanned
+            if next.tiles[row_start + x] {
+                TileTriggerKind::Scanned
             } else {
-                CellTriggerKind::ScannedEmpty
+                TileTriggerKind::ScannedEmpty
             },
         ));
     }
@@ -103,7 +103,7 @@ fn scan_column_sections(
     tick: usize,
     sections: usize,
     reverse: bool,
-) -> Vec<(usize, usize, CellTriggerKind)> {
+) -> Vec<(usize, usize, TileTriggerKind)> {
     let section_height = (next.height / sections).max(1);
     let step = scan_index(tick, next.width * sections, reverse);
     let section = step / next.width;
@@ -112,14 +112,14 @@ fn scan_column_sections(
     let last_y = (first_y + section_height).min(next.height);
     let mut out = Vec::with_capacity(last_y.saturating_sub(first_y));
     for y in first_y..last_y {
-        let cell_index = y * next.width + x;
+        let tile_index = y * next.width + x;
         out.push((
             x,
             y,
-            if next.cells[cell_index] {
-                CellTriggerKind::Scanned
+            if next.tiles[tile_index] {
+                TileTriggerKind::Scanned
             } else {
-                CellTriggerKind::ScannedEmpty
+                TileTriggerKind::ScannedEmpty
             },
         ));
     }

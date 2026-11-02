@@ -10,7 +10,7 @@ use pages::{next_page, store_page, stored_page, StoredPage, MAX_PAGES_PER_AXIS};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
+const TILE_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
 const MAX_ADVANCE_STEPS: usize = 64;
 
 fn one() -> usize {
@@ -22,7 +22,7 @@ pub struct SequencerState {
     pub width: usize,
     pub height: usize,
     /// The page in view: what the grid shows and scanning plays.
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     #[serde(default = "one", rename = "pagesX")]
     pub pages_x: usize,
     #[serde(default = "one", rename = "pagesY")]
@@ -34,7 +34,7 @@ pub struct SequencerState {
     /// Turn to the next page every this many steps; 0 is off.
     #[serde(default, rename = "advanceSteps")]
     pub advance_steps: usize,
-    /// Every drawn page. Absent in single-page saves, whose `cells` are page 1, 1.
+    /// Every drawn page. Absent in single-page saves, whose `tiles` are page 1, 1.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pages: Option<Vec<StoredPage>>,
     /// Steps played since Play; cleared when the transport restarts.
@@ -46,7 +46,7 @@ pub fn init(config: Value) -> Result<SequencerState, String> {
     let empty = serde_json::json!({
         "width": GRID_WIDTH,
         "height": GRID_HEIGHT,
-        "cells": vec![false; CELL_COUNT],
+        "tiles": vec![false; TILE_COUNT],
     });
     let mut merged = empty;
     if let (Some(target), Some(config)) = (merged.as_object_mut(), config.as_object()) {
@@ -60,14 +60,14 @@ pub fn init(config: Value) -> Result<SequencerState, String> {
 }
 
 /// Clamps the canvas and view after a config change or an older save, and shows the page in
-/// view. A save without `pages` (single-page, or from before pages) holds page 1, 1 in `cells`.
+/// view. A save without `pages` (single-page, or from before pages) holds page 1, 1 in `tiles`.
 fn normalized(mut state: SequencerState) -> SequencerState {
-    state.cells.resize(CELL_COUNT, false);
+    state.tiles.resize(TILE_COUNT, false);
     state.width = GRID_WIDTH;
     state.height = GRID_HEIGHT;
     if state.pages.is_none() {
         let mut pages = Vec::new();
-        store_page(&mut pages, 1, 1, &state.cells);
+        store_page(&mut pages, 1, 1, &state.tiles);
         state.pages = Some(pages);
     }
     state.pages_x = state.pages_x.clamp(1, MAX_PAGES_PER_AXIS);
@@ -80,13 +80,13 @@ fn normalized(mut state: SequencerState) -> SequencerState {
 }
 
 fn show_page(state: &mut SequencerState) {
-    state.cells = stored_page(
+    state.tiles = stored_page(
         state.pages.as_deref().unwrap_or_default(),
         state.page_x,
         state.page_y,
     )
-    .map(|page| page.cells.clone())
-    .unwrap_or_else(|| vec![false; CELL_COUNT]);
+    .map(|page| page.tiles.clone())
+    .unwrap_or_else(|| vec![false; TILE_COUNT]);
 }
 
 pub fn on_input(
@@ -98,10 +98,10 @@ pub fn on_input(
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let mut next = state.clone();
             let index = grid_index(x, y);
-            next.cells[index] = !next.cells[index];
-            let cells = next.cells.clone();
+            next.tiles[index] = !next.tiles[index];
+            let tiles = next.tiles.clone();
             let pages = next.pages.get_or_insert_with(Vec::new);
-            store_page(pages, next.page_x, next.page_y, &cells);
+            store_page(pages, next.page_x, next.page_y, &tiles);
             next
         }
         _ => state,
@@ -134,7 +134,7 @@ pub fn render_model(state: &SequencerState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "sequencer".into(),
         status_line,
-        cells: state.cells.clone(),
+        tiles: state.tiles.clone(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLACK,

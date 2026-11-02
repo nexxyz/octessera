@@ -1,5 +1,5 @@
 use super::*;
-use crate::interpretation::{CellTriggerIntent, CellTriggerKind};
+use crate::interpretation::{TileTriggerIntent, TileTriggerKind};
 use crate::{expand_note_set, note_set_registry, NOTE_SET_ROOTS};
 
 #[test]
@@ -7,22 +7,22 @@ fn maps_note_on_and_note_off() {
     let config = default_mapping_config();
     let result = map_intents_to_musical_events(
         &[
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 0,
                 y: 0,
-                kind: CellTriggerKind::Activate,
+                kind: TileTriggerKind::Activate,
                 degree: 0,
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 1,
                 y: 0,
-                kind: CellTriggerKind::Deactivate,
+                kind: TileTriggerKind::Deactivate,
                 degree: 1,
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 2,
                 y: 0,
-                kind: CellTriggerKind::Stable,
+                kind: TileTriggerKind::Stable,
                 degree: 2,
             },
         ],
@@ -55,10 +55,10 @@ fn major_triad_mapping_uses_lower_note_on_an_exact_tie() {
     config.max_midi_note = 67;
     config.scale = expand_note_set("major_triad", "C").unwrap();
     let result = map_intents_to_musical_events(
-        &[CellTriggerIntent {
+        &[TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree: 0,
         }],
         &config,
@@ -100,10 +100,10 @@ fn c_major_triad_range_cases_are_exact() {
         let result = map_intents_to_musical_events(
             &degrees
                 .iter()
-                .map(|degree| CellTriggerIntent {
+                .map(|degree| TileTriggerIntent {
                     x: 0,
                     y: 0,
-                    kind: CellTriggerKind::Activate,
+                    kind: TileTriggerKind::Activate,
                     degree: *degree,
                 })
                 .collect::<Vec<_>>(),
@@ -132,10 +132,10 @@ fn every_registered_set_and_root_maps_into_its_concrete_pitch_classes() {
             config.scale = note_set.pitch_classes(root).unwrap();
             for degree in -32..=32 {
                 let result = map_intents_to_musical_events(
-                    &[CellTriggerIntent {
+                    &[TileTriggerIntent {
                         x: 0,
                         y: 0,
-                        kind: CellTriggerKind::Activate,
+                        kind: TileTriggerKind::Activate,
                         degree,
                     }],
                     &config,
@@ -155,10 +155,10 @@ fn wraps_notes_into_range() {
     config.base_midi_note = 60;
     config.max_midi_note = 64;
     let result = map_intents_to_musical_events(
-        &[CellTriggerIntent {
+        &[TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree: 9,
         }],
         &config,
@@ -183,10 +183,10 @@ fn wrapped_notes_stay_on_scale_when_starting_note_is_off_scale() {
     config.range_mode = RangeMode::Wrap;
 
     let result = map_intents_to_musical_events(
-        &[CellTriggerIntent {
+        &[TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree: 64,
         }],
         &config,
@@ -209,10 +209,10 @@ fn negative_wrapped_notes_stay_on_selected_scale() {
     config.range_mode = RangeMode::Wrap;
 
     let result = map_intents_to_musical_events(
-        &[CellTriggerIntent {
+        &[TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree: -3,
         }],
         &config,
@@ -236,22 +236,22 @@ fn supports_none_note_off_and_scanned_empty_targets() {
     config.scanned.action = TriggerAction::None;
     let result = map_intents_to_musical_events(
         &[
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 0,
                 y: 0,
-                kind: CellTriggerKind::Scanned,
+                kind: TileTriggerKind::Scanned,
                 degree: 0,
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 1,
                 y: 0,
-                kind: CellTriggerKind::ScannedEmpty,
+                kind: TileTriggerKind::ScannedEmpty,
                 degree: 1,
             },
-            CellTriggerIntent {
+            TileTriggerIntent {
                 x: 2,
                 y: 0,
-                kind: CellTriggerKind::Deactivate,
+                kind: TileTriggerKind::Deactivate,
                 degree: 2,
             },
         ],
@@ -286,10 +286,10 @@ fn mapping_config_sanitizes_out_of_range_values_and_empty_scale() {
     config.activate.duration_ms = 0;
 
     let result = map_intents_to_musical_events(
-        &[CellTriggerIntent {
+        &[TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree: 0,
         }],
         &config,
@@ -314,20 +314,20 @@ fn range_mode_clamp_and_wrap_differ_for_high_degree() {
     config.scale = vec![0, 2, 4, 5, 7];
     config.range_mode = RangeMode::Clamp;
     let clamped = map_intents_to_musical_events(
-        &[CellTriggerIntent {
+        &[TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree: 9,
         }],
         &config,
     );
     config.range_mode = RangeMode::Wrap;
     let wrapped = map_intents_to_musical_events(
-        &[CellTriggerIntent {
+        &[TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree: 9,
         }],
         &config,
@@ -355,10 +355,10 @@ fn life_sized_degree_sweep_stays_inside_mapping_range_and_scale() {
     config.range_mode = RangeMode::Clamp;
 
     let intents = (-128..=128)
-        .map(|degree| CellTriggerIntent {
+        .map(|degree| TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
             degree,
         })
         .collect::<Vec<_>>();

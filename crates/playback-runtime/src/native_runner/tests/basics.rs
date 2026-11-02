@@ -36,9 +36,9 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
         .engine
         .model()
         .unwrap()
-        .cells
+        .tiles
         .iter()
-        .any(|cell| *cell));
+        .any(|tile| *tile));
     assert_eq!(runner.instruments[0].kind, "synth");
     assert_eq!(runner.link_layers[0].activate_slot, 0);
     assert_eq!(runner.link_layers[0].activate_action, "note_on");
@@ -93,8 +93,8 @@ pub(crate) fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps(
     let mut notes = musical_note_ons(&first);
     notes.extend(musical_note_ons(&second));
     assert!(notes.iter().any(|(channel, _)| *channel == 0));
-    let mut hits = cell_hit_ons(&first);
-    hits.extend(cell_hit_ons(&second));
+    let mut hits = tile_hit_ons(&first);
+    hits.extend(tile_hit_ons(&second));
     assert!(hits.iter().any(|(slot, _)| *slot == 1));
 }
 
@@ -117,7 +117,7 @@ pub(crate) fn sequencer_behavior_is_native_and_paintable() {
     assert_eq!(runner.behavior.id(), "sequencer");
     assert_eq!(model.name, "sequencer");
     assert_eq!(model.status_line, "Manual");
-    assert!(model.cells[platform_core::grid_index(2, 3)]);
+    assert!(model.tiles[platform_core::grid_index(2, 3)]);
 }
 
 #[test]
@@ -153,7 +153,7 @@ pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     assert!(!runner.auto_save_default);
     assert!(runner.trigger_probability_maps[0]
         .iter()
-        .all(|cell| cell == "full"));
+        .all(|tile| tile == "full"));
 }
 
 #[test]
@@ -187,7 +187,7 @@ pub(crate) fn behavior_menu_actions_dispatch_selected_action_type() {
 
     let model = runner.engine.model().unwrap();
     assert_eq!(model.name, "ant");
-    assert!(model.cells.iter().any(|cell| *cell));
+    assert!(model.tiles.iter().any(|tile| *tile));
 }
 
 #[test]

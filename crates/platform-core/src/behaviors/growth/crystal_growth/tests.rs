@@ -12,18 +12,18 @@ fn empty_state(symmetry: &str) -> CrystalGrowthState {
         "symmetry": symmetry
     }))
     .unwrap();
-    state.cells = vec![EMPTY; CELL_COUNT];
-    state.ages = vec![0; CELL_COUNT];
-    state.trigger_types = vec![CellTriggerType::None; CELL_COUNT];
+    state.cells = vec![EMPTY; TILE_COUNT];
+    state.ages = vec![0; TILE_COUNT];
+    state.trigger_types = vec![TileTriggerType::None; TILE_COUNT];
     state
 }
 
 #[test]
 fn init_menu_and_palette_contract() {
     let state = crystal_growth_init(serde_json::json!({})).unwrap();
-    assert_eq!(state.cells.len(), CELL_COUNT);
-    assert_eq!(state.ages.len(), CELL_COUNT);
-    assert_eq!(state.trigger_types.len(), CELL_COUNT);
+    assert_eq!(state.cells.len(), TILE_COUNT);
+    assert_eq!(state.ages.len(), TILE_COUNT);
+    assert_eq!(state.trigger_types.len(), TILE_COUNT);
     assert!(state.cells.iter().any(|cell| *cell != EMPTY));
 
     let menu = crystal_growth_config_menu();
@@ -58,7 +58,7 @@ fn grid_press_exact_cell_empty_activate_existing_stable() {
     assert_ne!(state.cells[grid_index(2, 3)], EMPTY);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 
     let state = crystal_growth_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
@@ -66,7 +66,7 @@ fn grid_press_exact_cell_empty_activate_existing_stable() {
     assert_eq!(state.ages[grid_index(2, 3)], 0);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
 }
 
@@ -86,14 +86,14 @@ fn action_seed_handles_empty_and_full_grid() {
         state
             .trigger_types
             .iter()
-            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .filter(|trigger| **trigger == TileTriggerType::Activate)
             .count(),
         1
     );
 
     let mut full = state;
-    full.cells = vec![1; CELL_COUNT];
-    full.ages = vec![7; CELL_COUNT];
+    full.cells = vec![1; TILE_COUNT];
+    full.ages = vec![7; TILE_COUNT];
     let full = crystal_growth_on_input(
         full,
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -105,7 +105,7 @@ fn action_seed_handles_empty_and_full_grid() {
     assert!(full
         .trigger_types
         .iter()
-        .all(|trigger| *trigger == CellTriggerType::Stable));
+        .all(|trigger| *trigger == TileTriggerType::Stable));
     assert!(full.ages.contains(&0));
 }
 
@@ -120,7 +120,7 @@ fn deterministic_growth_matches_symmetry_without_cascade_or_wrap() {
     assert_eq!(cross.cells[grid_index(1, 1)], EMPTY);
     assert_eq!(
         cross.trigger_types[grid_index(1, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 
     let mut diagonal = empty_state("diagonal");
@@ -149,13 +149,13 @@ fn cell_life_dissolves_and_empty_grid_reseeds() {
     assert!(state.cells.iter().any(|cell| *cell != EMPTY));
     assert_eq!(
         state.trigger_types[grid_index(2, 2)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
     assert_eq!(
         state
             .trigger_types
             .iter()
-            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .filter(|trigger| **trigger == TileTriggerType::Activate)
             .count(),
         1
     );
@@ -176,9 +176,9 @@ fn malformed_short_state_normalizes_and_serializes() {
     }))
     .unwrap();
     assert_eq!(state.cells[0], MAX_PHASE);
-    assert_eq!(state.cells.len(), CELL_COUNT);
-    assert_eq!(state.ages.len(), CELL_COUNT);
-    assert_eq!(state.trigger_types.len(), CELL_COUNT);
+    assert_eq!(state.cells.len(), TILE_COUNT);
+    assert_eq!(state.ages.len(), TILE_COUNT);
+    assert_eq!(state.trigger_types.len(), TILE_COUNT);
     assert_eq!(state.growth_chance_pct, 100);
     assert_eq!(state.seed_interval, 64);
     assert_eq!(state.seed_step, 63);
@@ -195,7 +195,7 @@ fn restored_crystals_are_stable_and_serialization_is_stable() {
     let mut state = empty_state("cross");
     state.cells[grid_index(1, 1)] = 2;
     state.ages[grid_index(1, 1)] = 7;
-    state.trigger_types[grid_index(1, 1)] = CellTriggerType::Activate;
+    state.trigger_types[grid_index(1, 1)] = TileTriggerType::Activate;
     state.tick_counter = 9;
 
     let serialized = crystal_growth_serialize(&state).unwrap();
@@ -205,9 +205,9 @@ fn restored_crystals_are_stable_and_serialization_is_stable() {
     let restored = crystal_growth_deserialize(serialized.clone()).unwrap();
     assert_eq!(
         restored.trigger_types[grid_index(1, 1)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
-    assert!(!restored.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!restored.trigger_types.contains(&TileTriggerType::Activate));
     assert_eq!(crystal_growth_serialize(&restored).unwrap(), serialized);
 }
 
@@ -235,7 +235,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
             .filter(|trigger| {
                 matches!(
                     trigger,
-                    CellTriggerType::Activate | CellTriggerType::Deactivate
+                    TileTriggerType::Activate | TileTriggerType::Deactivate
                 )
             })
             .count();

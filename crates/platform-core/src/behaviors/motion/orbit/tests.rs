@@ -20,7 +20,7 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(s.active_count, MAX_PARTICLES);
     assert_eq!(s.repel_mode, "off");
     assert_eq!(s.tick_counter, 0);
-    assert!(!s.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!s.trigger_types.contains(&TileTriggerType::Activate));
     let v = orbit_serialize(&s).unwrap();
     assert!(v.get("triggerTypes").is_none());
     assert!(v.get("tickCounter").is_none());
@@ -36,7 +36,7 @@ fn menu_palette_normalize_serialize() {
     let initialized = orbit_init(serde_json::json!({})).unwrap();
     assert!(!initialized
         .trigger_types
-        .contains(&CellTriggerType::Activate));
+        .contains(&TileTriggerType::Activate));
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn grid_press_forces_attractor_activate() {
     let s = orbit_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(s.attractor_x, 32);
     assert_eq!(s.attractor_y, 48);
-    assert_eq!(s.trigger_types[grid_index(2, 3)], CellTriggerType::Activate);
+    assert_eq!(s.trigger_types[grid_index(2, 3)], TileTriggerType::Activate);
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn reset_and_nudge_are_deterministic() {
         &mut c,
     );
     assert_eq!(reset.attractor_x, 64);
-    assert!(reset.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(reset.trigger_types.contains(&TileTriggerType::Activate));
     let nudge = orbit_on_input(
         reset.clone(),
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -80,5 +80,5 @@ fn reset_and_nudge_are_deterministic() {
         &mut c,
     );
     assert_eq!(nudge.attractor_vx, reset.attractor_vx + 2);
-    assert!(!nudge.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!nudge.trigger_types.contains(&TileTriggerType::Activate));
 }

@@ -61,7 +61,7 @@ pub(super) struct DisplayTransients {
     recording_started: Option<Instant>,
     recording_pulse_dim: bool,
     sample_preview: Option<SoundingPreview>,
-    /// Captures take `&self`, so the animations compare each capture through a cell.
+    /// Captures take `&self`, so the animations compare each capture through a tile.
     animations: RefCell<DisplayAnimations>,
     snapshot_pending: bool,
     generation: u64,

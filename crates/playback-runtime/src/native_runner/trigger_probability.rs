@@ -1,11 +1,11 @@
 use super::{NativeLinkLayer, GRID_WIDTH};
-use platform_core::CellTriggerIntent;
+use platform_core::TileTriggerIntent;
 
 pub(super) fn trigger_probability_allows(
     link_layer: Option<&NativeLinkLayer>,
     map: &[String],
     rng: &mut u64,
-    intent: &CellTriggerIntent,
+    intent: &TileTriggerIntent,
 ) -> bool {
     let pct = trigger_probability_pct(link_layer, map, intent.x, intent.y);
     if pct == 0 {
@@ -29,11 +29,11 @@ fn trigger_probability_pct(
     match layer.trigger_probability_mode.as_str() {
         "zero" => 0,
         "custom" => {
-            let cell = map
+            let tile = map
                 .get(y.saturating_mul(GRID_WIDTH).saturating_add(x))
                 .map(String::as_str)
                 .unwrap_or("full");
-            match cell {
+            match tile {
                 "zero" => 0,
                 "low" => layer
                     .trigger_probability_low_pct

@@ -61,7 +61,7 @@ fn desktop_system_tree_has_exact_order() {
     assert_eq!(
         group_labels(&desktop, "Display"),
         vec![
-            "Ghost Cells",
+            "Ghost Tiles",
             "Auto Map",
             "Aux Prio.",
             "Auto Hints",

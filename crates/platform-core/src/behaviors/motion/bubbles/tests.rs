@@ -5,7 +5,7 @@ fn context() -> BehaviorContext {
 }
 
 #[test]
-fn movement_uses_eighth_cell_units_and_clamps_walls() {
+fn movement_uses_eighth_tile_units_and_clamps_walls() {
     let mut state = bubbles_init(
         serde_json::json!({ "spawnInterval": 0, "drift": 0, "current": 8, "buoyancy": 2 }),
     )
@@ -64,20 +64,20 @@ fn defaults_float_upward_and_spawn_visibly_within_cap() {
 #[test]
 fn render_shapes_match_size_levels() {
     assert_eq!(
-        bubble_cells(&Bubble {
+        bubble_tiles(&Bubble {
             x: SUBSTEPS,
             y: SUBSTEPS,
             radius: 1
         }),
         vec![(1, 1)]
     );
-    let plus = bubble_cells(&Bubble {
+    let plus = bubble_tiles(&Bubble {
         x: SUBSTEPS,
         y: SUBSTEPS,
         radius: 2,
     });
     assert!(plus.contains(&(1, 1)) && plus.contains(&(0, 1)) && plus.contains(&(1, 2)));
-    let hollow = bubble_cells(&Bubble {
+    let hollow = bubble_tiles(&Bubble {
         x: SUBSTEPS,
         y: SUBSTEPS,
         radius: 3,
@@ -90,17 +90,17 @@ fn render_shapes_match_size_levels() {
 fn input_spawns_render_immediately_and_deserialize_is_bounded() {
     let state = bubbles_init(serde_json::json!({ "spawnInterval": 0, "drift": 0 })).unwrap();
     let input = bubbles_on_input(state, DeviceInput::GridPress { x: 2, y: 0 }, &mut context());
-    assert!(input.cells[grid_index(2, 0)]);
+    assert!(input.tiles[grid_index(2, 0)]);
     assert_eq!(
         input.trigger_types[grid_index(2, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 
     let oversized = serde_json::json!({
         "bubbles": (0..80)
             .map(|index| serde_json::json!({ "x": index * SUBSTEPS, "y": 0, "radius": 9 }))
             .collect::<Vec<_>>(),
-        "cells": [true],
+        "tiles": [true],
         "triggerTypes": [],
         "minRadius": 1,
         "maxRadius": 4,
@@ -115,8 +115,8 @@ fn input_spawns_render_immediately_and_deserialize_is_bounded() {
     });
     let restored = bubbles_deserialize(oversized).unwrap();
     assert_eq!(restored.bubbles.len(), 8);
-    assert_eq!(restored.cells.len(), CELL_COUNT);
-    assert_eq!(restored.trigger_types.len(), CELL_COUNT);
+    assert_eq!(restored.tiles.len(), TILE_COUNT);
+    assert_eq!(restored.trigger_types.len(), TILE_COUNT);
     assert!(restored.bubbles.iter().all(|bubble| bubble.radius <= 4));
 }
 

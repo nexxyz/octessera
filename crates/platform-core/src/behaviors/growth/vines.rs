@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,11 +15,11 @@ const LEAF: u8 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VinesState {
-    pub cells: Vec<u8>,
+    pub tiles: Vec<u8>,
     pub energy: Vec<u8>,
     pub ages: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "growthPct")]
     pub growth_pct: u8,
     #[serde(rename = "branchPct")]
@@ -34,11 +34,11 @@ pub struct VinesState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Vec<Value>>,
+    tiles: Option<Vec<Value>>,
     energy: Option<Vec<Value>>,
     ages: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "growthPct")]
     growth_pct: Option<Value>,
     #[serde(rename = "branchPct")]
@@ -51,18 +51,18 @@ struct Config {
 
 pub fn vines_init(config: Value) -> Result<VinesState, String> {
     let mut s = from_config(config);
-    if s.cells.iter().all(|cell| *cell == EMPTY) {
+    if s.tiles.iter().all(|tile| *tile == EMPTY) {
         for (x, y) in [(3, 0), (4, 0), (3, 1)] {
             let index = grid_index(x, y);
             plant(&mut s, index);
         }
     }
-    s.trigger_types = triggers(&s.cells, &s.cells);
+    s.trigger_types = triggers(&s.tiles, &s.tiles);
     Ok(s)
 }
 pub fn vines_deserialize(data: Value) -> Result<VinesState, String> {
     let mut s = from_config(data);
-    s.trigger_types = triggers(&s.cells, &s.cells);
+    s.trigger_types = triggers(&s.tiles, &s.tiles);
     Ok(s)
 }
 pub fn vines_serialize(state: &VinesState) -> Result<Value, String> {
@@ -76,7 +76,7 @@ pub fn vines_on_input(
     _: &mut BehaviorContext,
 ) -> VinesState {
     normalize(&mut state);
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     let mut forced = Vec::new();
     match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
@@ -100,17 +100,17 @@ pub fn vines_on_input(
         }
         _ => return state,
     }
-    state.trigger_types = triggers_with_forced(&prev, &state.cells, &forced);
+    state.trigger_types = triggers_with_forced(&prev, &state.tiles, &forced);
     state
 }
 pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesState {
     normalize(&mut state);
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     let prev_energy = state.energy.clone();
     let prev_ages = state.ages.clone();
-    let mut reserved = [false; CELL_COUNT];
+    let mut reserved = [false; TILE_COUNT];
     let mut forced = Vec::new();
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         if prev[i] != EMPTY {
             state.ages[i] = prev_ages[i].saturating_add(1)
         }
@@ -135,7 +135,7 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
                 let dest = first_unreserved(&candidates, &reserved);
                 if let Some(dest) = dest {
                     reserved[dest] = true;
-                    state.cells[i] = STEM;
+                    state.tiles[i] = STEM;
                     state.ages[i] = 0;
                     plant_with_energy(&mut state, dest, 200);
                     if hash_pct(state.tick_counter, i, 29) < u32::from(state.branch_pct) {
@@ -148,33 +148,33 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
             }
         }
     }
-    for i in 0..CELL_COUNT {
-        if state.cells[i] == STEM && state.ages[i] >= state.prune_age {
-            state.cells[i] = LEAF;
+    for i in 0..TILE_COUNT {
+        if state.tiles[i] == STEM && state.ages[i] >= state.prune_age {
+            state.tiles[i] = LEAF;
             state.energy[i] /= 2;
             state.ages[i] = 0;
             forced.push(i);
-        } else if state.cells[i] == LEAF
+        } else if state.tiles[i] == LEAF
             && state.ages[i] >= state.prune_age / 2
             && hash_pct(state.tick_counter, i, 47) < u32::from(state.growth_pct)
         {
-            state.cells[i] = EMPTY;
+            state.tiles[i] = EMPTY;
             state.energy[i] = 0;
             state.ages[i] = 0
         }
     }
     thin_full_frame(&mut state);
     state.tick_counter = state.tick_counter.wrapping_add(1);
-    state.trigger_types = triggers_with_forced(&prev, &state.cells, &forced);
+    state.trigger_types = triggers_with_forced(&prev, &state.tiles, &forced);
     state
 }
 pub fn vines_render_model(state: &VinesState) -> BehaviorRenderModel {
-    let visible = state.cells.iter().filter(|c| **c != EMPTY).count();
-    let tips = state.cells.iter().filter(|c| **c == TIP).count();
+    let visible = state.tiles.iter().filter(|c| **c != EMPTY).count();
+    let tips = state.tiles.iter().filter(|c| **c == TIP).count();
     BehaviorRenderModel {
         name: "vines".into(),
         status_line: format!("V:{visible} T:{tips}"),
-        cells: state.cells.iter().map(|c| *c != EMPTY).collect(),
+        tiles: state.tiles.iter().map(|c| *c != EMPTY).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [170, 255, 100],
             inactive: crate::palette::BLACK,
@@ -197,7 +197,7 @@ pub fn vines_config_menu() -> Vec<BehaviorConfigItem> {
 fn from_config(v: Value) -> VinesState {
     let c: Config = serde_json::from_value(v).unwrap_or_default();
     let mut s = VinesState {
-        cells: norm(c.cells, 0, 3),
+        tiles: norm(c.tiles, 0, 3),
         energy: norm(c.energy, 0, 255),
         ages: norm(c.ages, 0, 255),
         trigger_types: norm_triggers(c.trigger_types),
@@ -211,8 +211,8 @@ fn from_config(v: Value) -> VinesState {
     s
 }
 fn normalize(s: &mut VinesState) {
-    s.cells = norm(
-        Some(s.cells.iter().map(|v| Value::from(*v)).collect()),
+    s.tiles = norm(
+        Some(s.tiles.iter().map(|v| Value::from(*v)).collect()),
         0,
         3,
     );
@@ -238,14 +238,14 @@ fn norm(v: Option<Vec<Value>>, d: u8, max: u8) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(u64::from(d)).min(u64::from(max)) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, d);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, d);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -257,41 +257,41 @@ fn plant(s: &mut VinesState, i: usize) {
     plant_with_energy(s, i, 220)
 }
 fn plant_with_energy(s: &mut VinesState, i: usize, e: u8) {
-    s.cells[i] = TIP;
+    s.tiles[i] = TIP;
     s.energy[i] = e;
     s.ages[i] = 0
 }
 fn prune_action(s: &mut VinesState) {
-    let mut rows = (0..CELL_COUNT)
-        .filter(|i| s.cells[*i] != EMPTY && s.cells[*i] != TIP)
+    let mut rows = (0..TILE_COUNT)
+        .filter(|i| s.tiles[*i] != EMPTY && s.tiles[*i] != TIP)
         .map(|i| (s.ages[i], i))
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
     for (_, i) in rows.into_iter().take(8) {
-        s.cells[i] = EMPTY;
+        s.tiles[i] = EMPTY;
         s.energy[i] = 0;
         s.ages[i] = 0
     }
 }
 fn thin_full_frame(s: &mut VinesState) {
-    if s.cells.contains(&EMPTY) {
+    if s.tiles.contains(&EMPTY) {
         return;
     }
     let mut removed = 0;
-    for offset in 0..CELL_COUNT {
-        let i = ((s.tick_counter as usize * 13) + offset) % CELL_COUNT;
+    for offset in 0..TILE_COUNT {
+        let i = ((s.tick_counter as usize * 13) + offset) % TILE_COUNT;
         if removed >= 4 {
             break;
         }
-        if s.cells[i] != TIP || hash_pct(s.tick_counter, i, 67) < 25 {
-            s.cells[i] = EMPTY;
+        if s.tiles[i] != TIP || hash_pct(s.tick_counter, i, 67) < 25 {
+            s.tiles[i] = EMPTY;
             s.energy[i] = 0;
             s.ages[i] = 0;
             removed += 1;
         }
     }
 }
-fn candidates(cells: &[u8], x: usize, y: usize, source_energy: u32, light_bias: u32) -> Vec<usize> {
+fn candidates(tiles: &[u8], x: usize, y: usize, source_energy: u32, light_bias: u32) -> Vec<usize> {
     let mut out = Vec::new();
     for (dx, dy) in [
         (0, 1),
@@ -306,15 +306,15 @@ fn candidates(cells: &[u8], x: usize, y: usize, source_energy: u32, light_bias: 
         if let (Some(nx), Some(ny)) = (x.checked_add_signed(dx), y.checked_add_signed(dy)) {
             if nx < GRID_WIDTH && ny < GRID_HEIGHT {
                 let i = grid_index(nx, ny);
-                if cells[i] == EMPTY {
+                if tiles[i] == EMPTY {
                     out.push(i)
                 }
             }
         }
     }
     out.sort_by(|a, b| {
-        score(cells, *b, source_energy, light_bias).cmp(&score(
-            cells,
+        score(tiles, *b, source_energy, light_bias).cmp(&score(
+            tiles,
             *a,
             source_energy,
             light_bias,
@@ -322,23 +322,23 @@ fn candidates(cells: &[u8], x: usize, y: usize, source_energy: u32, light_bias: 
     });
     out
 }
-fn score(cells: &[u8], i: usize, source_energy: u32, light_bias: u32) -> u32 {
+fn score(tiles: &[u8], i: usize, source_energy: u32, light_bias: u32) -> u32 {
     let x = i % GRID_WIDTH;
     let y = i / GRID_WIDTH;
-    empty_neighbors(cells, x, y) * 10 + y as u32 * light_bias / 10 + source_energy / 8
+    empty_neighbors(tiles, x, y) * 10 + y as u32 * light_bias / 10 + source_energy / 8
 }
-fn empty_neighbors(cells: &[u8], x: usize, y: usize) -> u32 {
+fn empty_neighbors(tiles: &[u8], x: usize, y: usize) -> u32 {
     let mut c = 0;
     for (dx, dy) in [(0, 1), (1, 0), (0, -1), (-1, 0)] {
         if let (Some(nx), Some(ny)) = (x.checked_add_signed(dx), y.checked_add_signed(dy)) {
-            if nx < GRID_WIDTH && ny < GRID_HEIGHT && cells[grid_index(nx, ny)] == EMPTY {
+            if nx < GRID_WIDTH && ny < GRID_HEIGHT && tiles[grid_index(nx, ny)] == EMPTY {
                 c += 1
             }
         }
     }
     c
 }
-fn first_unreserved(candidates: &[usize], reserved: &[bool; CELL_COUNT]) -> Option<usize> {
+fn first_unreserved(candidates: &[usize], reserved: &[bool; TILE_COUNT]) -> Option<usize> {
     candidates.iter().copied().find(|i| !reserved[*i])
 }
 fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
@@ -350,25 +350,25 @@ fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
     x ^= x >> 16;
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
-fn triggers(p: &[u8], n: &[u8]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|i| {
             if p[i] == EMPTY && n[i] != EMPTY {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] != EMPTY && n[i] == EMPTY {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] != EMPTY {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect()
 }
-fn triggers_with_forced(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
+fn triggers_with_forced(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
     let mut trigger_types = triggers(p, n);
     for index in forced {
-        trigger_types[*index] = CellTriggerType::Activate;
+        trigger_types[*index] = TileTriggerType::Activate;
     }
     trigger_types
 }

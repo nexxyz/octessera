@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ const BURNING: u8 = 2;
 pub struct ForestFireState {
     pub cells: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "treeDensityPct")]
     pub tree_density_pct: u8,
     #[serde(rename = "growChancePct")]
@@ -103,15 +103,15 @@ fn normalize_cells(cells: Vec<Value>) -> Vec<u8> {
                 .min(u64::from(BURNING)) as u8
         })
         .collect::<Vec<_>>();
-    cells.resize(CELL_COUNT, EMPTY);
-    cells.truncate(CELL_COUNT);
+    cells.resize(TILE_COUNT, EMPTY);
+    cells.truncate(TILE_COUNT);
     cells
 }
 
-fn normalize_triggers(triggers: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
-    let mut triggers = triggers.unwrap_or_else(|| vec![CellTriggerType::None; CELL_COUNT]);
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+fn normalize_triggers(triggers: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
+    let mut triggers = triggers.unwrap_or_else(|| vec![TileTriggerType::None; TILE_COUNT]);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 
@@ -167,8 +167,8 @@ pub fn forest_fire_on_tick(
     _context: &mut BehaviorContext,
 ) -> ForestFireState {
     let mut rng = crate::behavior_random::rng();
-    let mut cells = vec![EMPTY; CELL_COUNT];
-    let mut trigger_types = vec![CellTriggerType::None; CELL_COUNT];
+    let mut cells = vec![EMPTY; TILE_COUNT];
+    let mut trigger_types = vec![TileTriggerType::None; TILE_COUNT];
 
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
@@ -218,22 +218,22 @@ pub fn forest_fire_on_tick(
     next
 }
 
-fn trigger_for(previous: u8, next: u8) -> CellTriggerType {
+fn trigger_for(previous: u8, next: u8) -> TileTriggerType {
     match (previous, next) {
-        (_, TREE) => CellTriggerType::Stable,
-        (BURNING, BURNING) => CellTriggerType::None,
-        (_, BURNING) => CellTriggerType::Activate,
-        (TREE | BURNING, EMPTY) => CellTriggerType::Deactivate,
-        _ => CellTriggerType::None,
+        (_, TREE) => TileTriggerType::Stable,
+        (BURNING, BURNING) => TileTriggerType::None,
+        (_, BURNING) => TileTriggerType::Activate,
+        (TREE | BURNING, EMPTY) => TileTriggerType::Deactivate,
+        _ => TileTriggerType::None,
     }
 }
 
 fn reseed_if_needed(state: &mut ForestFireState) {
     let mut live = state.cells.iter().filter(|cell| **cell != EMPTY).count();
-    if live * 100 >= CELL_COUNT * state.reseed_threshold_pct as usize {
+    if live * 100 >= TILE_COUNT * state.reseed_threshold_pct as usize {
         return;
     }
-    let target = (CELL_COUNT * state.tree_density_pct as usize / 100).max(1);
+    let target = (TILE_COUNT * state.tree_density_pct as usize / 100).max(1);
     let mut empty = state
         .cells
         .iter()
@@ -253,7 +253,7 @@ fn relieve_full_frame(state: &mut ForestFireState) {
     if state.reseed_threshold_pct == 0 || state.cells.contains(&EMPTY) {
         return;
     }
-    for index in (0..CELL_COUNT).step_by(17).take(4) {
+    for index in (0..TILE_COUNT).step_by(17).take(4) {
         state.cells[index] = EMPTY;
     }
 }
@@ -263,15 +263,15 @@ fn normalize_current_triggers(state: &mut ForestFireState) {
         .cells
         .iter()
         .map(|cell| match *cell {
-            BURNING => CellTriggerType::Activate,
-            TREE => CellTriggerType::Stable,
-            _ => CellTriggerType::None,
+            BURNING => TileTriggerType::Activate,
+            TREE => TileTriggerType::Stable,
+            _ => TileTriggerType::None,
         })
         .collect();
 }
 
-fn triggers_from_forest_cells(previous: &[u8], next: &[u8]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn triggers_from_forest_cells(previous: &[u8], next: &[u8]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|index| trigger_for(*previous.get(index).unwrap_or(&EMPTY), next[index]))
         .collect()
 }
@@ -282,7 +282,7 @@ pub fn forest_fire_render_model(state: &ForestFireState) -> BehaviorRenderModel 
     BehaviorRenderModel {
         name: "forest fire".into(),
         status_line: format!("T:{trees} F:{fires}"),
-        cells: state.cells.iter().map(|cell| *cell != EMPTY).collect(),
+        tiles: state.cells.iter().map(|cell| *cell != EMPTY).collect(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::YELLOW,
             inactive: crate::palette::BLACK,

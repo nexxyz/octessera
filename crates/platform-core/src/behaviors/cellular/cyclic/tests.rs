@@ -15,7 +15,7 @@ fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty
     let mut state = cyclic_init(serde_json::json!({})).unwrap();
     assert!(state.cells.iter().any(|cell| *cell != 0));
     assert!(state.cells.contains(&0));
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
     let restored = cyclic_deserialize(serde_json::json!({ "cells": [] })).unwrap();
     assert!(restored.cells.iter().all(|cell| *cell == 0));
     let initialized_empty = cyclic_init(serde_json::json!({ "cells": [] })).unwrap();
@@ -29,7 +29,7 @@ fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty
         let activates = state
             .trigger_types
             .iter()
-            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .filter(|trigger| **trigger == TileTriggerType::Activate)
             .count();
         max_activates = max_activates.max(activates);
         total_activates += activates;
@@ -82,7 +82,7 @@ fn menu_palette_and_normalization_contract() {
     assert_eq!(state.cells[0], 7);
     assert_eq!(state.cells[1], 0);
     assert_eq!(state.ages[0], u8::MAX);
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
 
     let serialized = cyclic_serialize(&state).unwrap();
     assert!(serialized.get("triggerTypes").is_none());
@@ -103,7 +103,7 @@ fn grid_press_exact_world_cell_and_wrap_deactivate() {
     assert_eq!(state.cells[grid_index(2, 3)], 1);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 
     let mut state = state;
@@ -112,7 +112,7 @@ fn grid_press_exact_world_cell_and_wrap_deactivate() {
     assert_eq!(state.cells[grid_index(2, 3)], 0);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 }
 
@@ -127,7 +127,7 @@ fn threshold_advancement_and_non_wrapping_edges() {
     assert_eq!(state.cells[grid_index(0, 0)], 2);
     assert_eq!(
         state.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     assert_eq!(state.cells[grid_index(GRID_WIDTH - 1, 0)], 0);
 }
@@ -147,7 +147,7 @@ fn seed_cycle_is_deterministic_and_activates_nonzero_cells() {
     assert_eq!(seeded.cells[grid_index(3, 2)], 1);
     assert_eq!(
         seeded.trigger_types[grid_index(3, 2)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 
     let seeded_again = cyclic_on_input(
@@ -169,7 +169,7 @@ fn persistent_nonzero_stable_and_no_stale_activate() {
     assert_eq!(ticked.cells[grid_index(4, 4)], 1);
     assert_eq!(
         ticked.trigger_types[grid_index(4, 4)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
 }
 
@@ -239,13 +239,13 @@ fn state_advancement_marks_each_local_nonzero_change_as_activate() {
 
     let first = cyclic_on_tick(state, &mut context());
     assert_eq!(first.cells[center], 2);
-    assert_eq!(first.trigger_types[center], CellTriggerType::Activate);
+    assert_eq!(first.trigger_types[center], TileTriggerType::Activate);
 
     let mut second_input = first;
     second_input.cells[neighbor] = 3;
     let second = cyclic_on_tick(second_input, &mut context());
     assert_eq!(second.cells[center], 3);
-    assert_eq!(second.trigger_types[center], CellTriggerType::Activate);
+    assert_eq!(second.trigger_types[center], TileTriggerType::Activate);
 }
 
 #[test]
@@ -266,5 +266,5 @@ fn malformed_transient_data_preserves_persistent_fields_and_clamps_below_minimum
     assert_eq!(state.states, 3);
     assert_eq!(state.threshold, 1);
     assert_eq!(state.range, 1);
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
 }

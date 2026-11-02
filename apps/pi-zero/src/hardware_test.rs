@@ -225,7 +225,7 @@ fn input_event_check(
         "STEP input event logging for up to {} seconds",
         TEST_DURATION.as_secs()
     );
-    println!("Press grid cells, NeoKeys, and turn/click all encoders now.");
+    println!("Press grid tiles, NeoKeys, and turn/click all encoders now.");
     println!("Press Enter when finished, or wait for the timer to expire.");
     let deadline = Instant::now() + TEST_DURATION;
     let (done_tx, done_rx) = mpsc::channel::<()>();
@@ -325,11 +325,11 @@ fn input_event_check(
         }
         thread::sleep(Duration::from_millis(10));
     }
-    let missing = missing_grid_cells(&grid_seen);
+    let missing = missing_grid_tiles(&grid_seen);
     if missing.is_empty() {
-        println!("PASS NeoTrellis grid coverage: all cells seen");
+        println!("PASS NeoTrellis grid coverage: all tiles seen");
     } else {
-        println!("WARN NeoTrellis grid cells not seen: {}", missing.join(" "));
+        println!("WARN NeoTrellis grid tiles not seen: {}", missing.join(" "));
     }
     for index in 0..4 {
         let suppressed =
@@ -427,7 +427,7 @@ fn encoder_label(id: &str) -> &str {
     }
 }
 
-fn missing_grid_cells(grid_seen: &[[bool; 8]; 8]) -> Vec<String> {
+fn missing_grid_tiles(grid_seen: &[[bool; 8]; 8]) -> Vec<String> {
     let mut missing = Vec::new();
     for (y, row) in grid_seen.iter().enumerate() {
         for (x, seen) in row.iter().enumerate() {

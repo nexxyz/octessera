@@ -338,11 +338,11 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
     runner.instruments[0] = instrument.clone();
     assert!(runner.play_transpose_target_eligible(0, "note_on"));
     assert!(runner.play_transpose_target_eligible(0, "note_off"));
-    let intent = platform_core::CellTriggerIntent {
+    let intent = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     };
     let mut held = BTreeMap::new();
     let note_on = apply_sampler_assignments_for_instruments_routed(

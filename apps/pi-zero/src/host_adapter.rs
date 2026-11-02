@@ -6,7 +6,7 @@ mod host_adapter_store;
 mod orange_construction;
 
 use crate::audio::AudioService;
-use crate::audio_event::{cell_hit_to_engine_event, musical_event_to_engine_event};
+use crate::audio_event::{musical_event_to_engine_event, tile_hit_to_engine_event};
 use crate::host_audio_command::send_audio_command;
 use crate::midi_host::RuntimeOutputSink;
 use crate::pi_host_core::{
@@ -17,9 +17,9 @@ use crate::platform_service::{
     usb_sd_transfer_output_block_reason, PiPlatformService, PlatformJobKind,
 };
 use playback_runtime::{
-    AudioOutputSet, CellHit, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
+    AudioOutputSet, HostAdapter, HostMessage, MusicalEvent as RuntimeMusicalEvent,
     RuntimeAdapterError, RuntimeAudioCommand, RuntimePlatformEffect, RuntimePlatformRequest,
-    RuntimeStoreResult, UsbDataRole,
+    RuntimeStoreResult, TileHit, UsbDataRole,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::PathBuf;
@@ -50,12 +50,12 @@ pub enum PowerRequest {
 }
 
 impl PiHostAdapter {
-    pub(crate) fn handle_runtime_cell_hit(
+    pub(crate) fn handle_runtime_tile_hit(
         &mut self,
-        hit: &CellHit,
+        hit: &TileHit,
         at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
-        let event = cell_hit_to_engine_event(hit, at)?;
+        let event = tile_hit_to_engine_event(hit, at)?;
         if self.shutdown_pending() {
             return Ok(());
         }
@@ -268,12 +268,12 @@ impl HostAdapter for PiHostAdapter {
         Ok(())
     }
 
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        hit: &CellHit,
+        hit: &TileHit,
         at: Option<Instant>,
     ) -> Result<(), RuntimeAdapterError> {
-        self.handle_runtime_cell_hit(hit, at)
+        self.handle_runtime_tile_hit(hit, at)
     }
 
     fn handle_platform_effect(

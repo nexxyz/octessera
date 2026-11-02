@@ -52,8 +52,8 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     let mut note_ons = musical_note_ons(&first);
     note_ons.extend(musical_note_ons(&second));
     assert!(note_ons.iter().any(|(channel, _)| *channel == 0));
-    let mut hits = cell_hit_ons(&first);
-    hits.extend(cell_hit_ons(&second));
+    let mut hits = tile_hit_ons(&first);
+    hits.extend(tile_hit_ons(&second));
     assert!(hits.iter().any(|(slot, _)| *slot == 1));
 }
 
@@ -92,7 +92,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.play_fx_assign = Some(json!({ "type": "delay" }));
     runner.aux_auto_map_enabled = false;
-    runner.display.ui.ghost_cells = false;
+    runner.display.ui.ghost_tiles = false;
     runner.display.ui.master_volume = 77;
     runner.midi_enabled = true;
     runner.transport.transport = RuntimeTransportState::Playing;
@@ -134,7 +134,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     assert_ne!(runner.preset_draft_name, "custom draft");
     assert_eq!(runner.preset_names, vec!["old"]);
     assert!(!runner.aux_auto_map_enabled);
-    assert!(!runner.display.ui.ghost_cells);
+    assert!(!runner.display.ui.ghost_tiles);
     assert_eq!(runner.display.ui.master_volume, 77);
     assert!(runner.midi_enabled);
     assert_eq!(runner.audio_config_revision, 1);
@@ -279,7 +279,7 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
         })
         .unwrap();
 
-    assert!(cell_hit_ons(&messages).contains(&(0, 2)));
+    assert!(tile_hit_ons(&messages).contains(&(0, 2)));
 }
 
 #[test]
@@ -324,5 +324,5 @@ pub(crate) fn deferred_autosave_payload_restores_active_sequencer_grid_on_startu
         .unwrap();
 
     assert_eq!(restored.behavior.id(), "sequencer");
-    assert!(restored.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+    assert!(restored.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
 }

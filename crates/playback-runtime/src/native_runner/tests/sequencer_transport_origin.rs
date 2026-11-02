@@ -21,7 +21,7 @@ fn scanning_runner(scan_sections: u8, scan_unit: &str) -> NativeRunner {
     runner
 }
 
-fn add_cell(runner: &mut NativeRunner, x: usize, y: usize) {
+fn add_tile(runner: &mut NativeRunner, x: usize, y: usize) {
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": x, "y": y }),
@@ -77,7 +77,7 @@ fn clearing_running_sequencer_preserves_section_and_fractional_phase() {
     assert_eq!(runner.transport.layer_ticks[0], 9);
     assert_eq!(runner.transport.layer_pulse_accumulators[0], 2);
 
-    add_cell(&mut runner, 4, 1);
+    add_tile(&mut runner, 4, 1);
     let messages = pulse(&mut runner, 4);
     assert_eq!(musical_note_ons(&messages).len(), 1);
 }
@@ -99,7 +99,7 @@ fn active_and_inactive_sequencer_replacements_keep_canonical_phase() {
     runner
         .engine
         .set_interpretation_profile(runner.interpretation_profile.clone());
-    add_cell(&mut runner, 0, 7);
+    add_tile(&mut runner, 0, 7);
     runner.select_active_layer(0).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.tick = 9;
@@ -163,7 +163,7 @@ fn origin_prime_uses_each_scanning_layer_rate() {
 fn transport_origin_primes_only_scanning_sequencers_and_play_scans_tick_zero() {
     let mut runner = scanning_runner(1, "1/16");
     runner.midi_enabled = true;
-    add_cell(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 0);
     let start_messages = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_s", "pressed": true }),
@@ -202,8 +202,8 @@ fn sequencer_origin_batch_partitioning_is_invariant() {
     let mut batched = scanning_runner(1, "1/16");
     let mut partitioned = scanning_runner(1, "1/16");
     for y in 0..3 {
-        add_cell(&mut batched, 0, y);
-        add_cell(&mut partitioned, 0, y);
+        add_tile(&mut batched, 0, y);
+        add_tile(&mut partitioned, 0, y);
     }
     start(&mut batched);
     start(&mut partitioned);
@@ -228,8 +228,8 @@ fn sequencer_origin_batch_partitioning_is_invariant() {
 #[test]
 fn sparse_sectioned_scan_has_leading_rests_and_continues_across_pages() {
     let mut runner = scanning_runner(2, "1/16");
-    add_cell(&mut runner, 4, 0);
-    add_cell(&mut runner, 4, 1);
+    add_tile(&mut runner, 4, 0);
+    add_tile(&mut runner, 4, 1);
     start(&mut runner);
 
     assert!(musical_note_ons(&pulse(&mut runner, 1)).is_empty());
@@ -240,10 +240,10 @@ fn sparse_sectioned_scan_has_leading_rests_and_continues_across_pages() {
 #[test]
 fn pause_resume_and_combined_trigger_gate_preserve_sequencer_phase() {
     let mut runner = scanning_runner(1, "1/16");
-    add_cell(&mut runner, 0, 0);
-    add_cell(&mut runner, 0, 1);
-    add_cell(&mut runner, 0, 2);
-    add_cell(&mut runner, 0, 3);
+    add_tile(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 1);
+    add_tile(&mut runner, 0, 2);
+    add_tile(&mut runner, 0, 3);
     assert_eq!(musical_note_ons(&start(&mut runner)).len(), 1);
     assert!(musical_note_ons(&pulse(&mut runner, 1)).is_empty());
     runner
@@ -291,8 +291,8 @@ fn external_resync_boundary_emits_origin_tick_at_zero_without_following_duplicat
     runner.midi_enabled = true;
     runner.transport.sync_source = SyncSource::External;
     runner.midi_clock_in_enabled = true;
-    add_cell(&mut runner, 0, 0);
-    add_cell(&mut runner, 0, 1);
+    add_tile(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 1);
     start(&mut runner);
     let origin_notes = musical_note_ons(
         &runner
@@ -328,8 +328,8 @@ fn external_resync_boundary_emits_origin_tick_at_zero_without_following_duplicat
 #[test]
 fn external_start_sounds_step_zero_on_the_first_clock_and_step_one_six_clocks_later() {
     let mut runner = scanning_runner(1, "1/16");
-    add_cell(&mut runner, 0, 0);
-    add_cell(&mut runner, 0, 1);
+    add_tile(&mut runner, 0, 0);
+    add_tile(&mut runner, 0, 1);
     runner.transport.sync_source = SyncSource::External;
     runner.midi_clock_in_enabled = true;
     runner.midi_respond_to_start_stop = true;

@@ -8,21 +8,21 @@ pub const MAX_PAGES_PER_AXIS: usize = 4;
 pub struct StoredPage {
     pub x: usize,
     pub y: usize,
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
 }
 
 pub fn stored_page(pages: &[StoredPage], x: usize, y: usize) -> Option<&StoredPage> {
     pages.iter().find(|page| page.x == x && page.y == y)
 }
 
-/// Writes `cells` as page (x, y), dropping the entry again when the page is empty.
-pub fn store_page(pages: &mut Vec<StoredPage>, x: usize, y: usize, cells: &[bool]) {
+/// Writes `tiles` as page (x, y), dropping the entry again when the page is empty.
+pub fn store_page(pages: &mut Vec<StoredPage>, x: usize, y: usize, tiles: &[bool]) {
     pages.retain(|page| page.x != x || page.y != y);
-    if cells.iter().any(|cell| *cell) {
+    if tiles.iter().any(|tile| *tile) {
         pages.push(StoredPage {
             x,
             y,
-            cells: cells.to_vec(),
+            tiles: tiles.to_vec(),
         });
         pages.sort_by_key(|page| (page.y, page.x));
     }
@@ -53,10 +53,10 @@ mod tests {
     #[test]
     fn empty_pages_are_not_stored() {
         let mut pages = Vec::new();
-        let mut cells = vec![false; 64];
-        cells[3] = true;
-        store_page(&mut pages, 2, 1, &cells);
-        assert_eq!(stored_page(&pages, 2, 1).unwrap().cells, cells);
+        let mut tiles = vec![false; 64];
+        tiles[3] = true;
+        store_page(&mut pages, 2, 1, &tiles);
+        assert_eq!(stored_page(&pages, 2, 1).unwrap().tiles, tiles);
         store_page(&mut pages, 2, 1, &[false; 64]);
         assert!(pages.is_empty());
     }

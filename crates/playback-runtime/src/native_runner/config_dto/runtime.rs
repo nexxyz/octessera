@@ -43,7 +43,7 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) sound: Option<SoundDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) ghost_cells: Option<bool>,
+    pub(super) ghost_tiles: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_auto_hints: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -301,7 +301,7 @@ impl RuntimeConfigDto {
             "hdmi",
             "bluetooth",
             "wifi",
-            "ghostCells",
+            "ghostTiles",
             "auxAutoHints",
             "auxManualHints",
             "inputEventsWhilePaused",

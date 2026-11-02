@@ -4,7 +4,6 @@ use super::{
     NativeSampleBrowserConfig,
 };
 
-mod cell_stamp_items;
 mod drum;
 mod fm;
 mod midi;
@@ -12,6 +11,7 @@ mod mixer;
 mod pluck;
 mod sampler;
 mod synth;
+mod tile_stamp_items;
 
 use drum::drum_group;
 use fm::fm_group;
@@ -52,7 +52,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_velocity_levels_enabled: bool,
     pub(super) sample_follow_transpose: bool,
     pub(super) sample_follow_pitch: bool,
-    pub(super) cell_stamp: super::NativeMenuCellStamp,
+    pub(super) tile_stamp: super::NativeMenuTileStamp,
     pub(super) sample_velocity_high: u8,
     pub(super) sample_velocity_medium: u8,
     pub(super) sample_velocity_low: u8,

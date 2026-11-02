@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,7 +13,7 @@ pub struct CyclicState {
     pub cells: Vec<u8>,
     pub ages: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     pub states: u8,
     pub threshold: u8,
     pub range: u8,
@@ -139,7 +139,7 @@ pub fn cyclic_render_model(state: &CyclicState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "cyclic".into(),
         status_line: format!("S:{} T:{} A:{active}", state.states, state.threshold),
-        cells: state.cells.iter().map(|cell| *cell != 0).collect(),
+        tiles: state.cells.iter().map(|cell| *cell != 0).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 120, 220],
             inactive: crate::palette::BLACK,
@@ -202,8 +202,8 @@ fn normalize_cells(cells: Vec<Value>, states: u8) -> Vec<u8> {
         .into_iter()
         .map(|cell| (cell.as_u64().unwrap_or(0).min(255) as u8) % states)
         .collect::<Vec<_>>();
-    cells.resize(CELL_COUNT, 0);
-    cells.truncate(CELL_COUNT);
+    cells.resize(TILE_COUNT, 0);
+    cells.truncate(TILE_COUNT);
     cells
 }
 
@@ -212,15 +212,15 @@ fn normalize_ages(ages: Vec<Value>) -> Vec<u8> {
         .into_iter()
         .map(|age| age.as_u64().unwrap_or(0).min(u8::MAX.into()) as u8)
         .collect::<Vec<_>>();
-    ages.resize(CELL_COUNT, 0);
-    ages.truncate(CELL_COUNT);
+    ages.resize(TILE_COUNT, 0);
+    ages.truncate(TILE_COUNT);
     ages
 }
 
-fn normalize_triggers(triggers: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(triggers: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut triggers = triggers.unwrap_or_default();
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 
@@ -278,21 +278,21 @@ fn count_neighbors(cells: &[u8], x: usize, y: usize, target: u8, range: u8) -> u
     count
 }
 
-fn triggers(previous: &[u8], next: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut triggers = (0..CELL_COUNT)
+fn triggers(previous: &[u8], next: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut triggers = (0..TILE_COUNT)
         .map(|index| match (previous[index], next[index]) {
-            (_, 0) if previous[index] != 0 => CellTriggerType::Deactivate,
-            (0, 0) => CellTriggerType::None,
-            (old, new) if old != new => CellTriggerType::Activate,
-            (_, _) if next[index] != 0 => CellTriggerType::Stable,
-            _ => CellTriggerType::None,
+            (_, 0) if previous[index] != 0 => TileTriggerType::Deactivate,
+            (0, 0) => TileTriggerType::None,
+            (old, new) if old != new => TileTriggerType::Activate,
+            (_, _) if next[index] != 0 => TileTriggerType::Stable,
+            _ => TileTriggerType::None,
         })
         .collect::<Vec<_>>();
     for index in forced {
         triggers[*index] = if next[*index] == 0 {
-            CellTriggerType::Deactivate
+            TileTriggerType::Deactivate
         } else {
-            CellTriggerType::Activate
+            TileTriggerType::Activate
         };
     }
     triggers

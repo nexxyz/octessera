@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,7 +17,7 @@ pub struct CrystalGrowthState {
     pub cells: Vec<u8>,
     pub ages: Vec<u16>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "growthChancePct")]
     pub growth_chance_pct: u8,
     #[serde(rename = "seedInterval")]
@@ -36,7 +36,7 @@ struct CrystalGrowthConfig {
     cells: Option<Vec<Value>>,
     ages: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "growthChancePct")]
     growth_chance_pct: Option<Value>,
     #[serde(rename = "seedInterval")]
@@ -65,7 +65,7 @@ pub fn crystal_growth_init(config: Value) -> Result<CrystalGrowthState, String> 
     };
     normalize_state(&mut state);
     force_reseed_if_empty(&mut state, &[]);
-    let empty = [false; CELL_COUNT];
+    let empty = [false; TILE_COUNT];
     state.trigger_types = triggers_from_visible(&empty, &visible(&state.cells));
     Ok(state)
 }
@@ -114,7 +114,7 @@ pub fn crystal_growth_render_model(state: &CrystalGrowthState) -> BehaviorRender
     BehaviorRenderModel {
         name: "crystal growth".into(),
         status_line: format!("Cr:{count}"),
-        cells: visible(&state.cells),
+        tiles: visible(&state.cells),
         palette: crate::BehaviorRenderPalette {
             active: [220, 255, 255],
             inactive: crate::palette::BLACK,
@@ -141,9 +141,9 @@ pub fn crystal_growth_deserialize(data: Value) -> Result<CrystalGrowthState, Str
         .into_iter()
         .map(|cell| {
             if cell {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect();
@@ -165,7 +165,7 @@ fn normalize_state(state: &mut CrystalGrowthState) {
     state.seed_step = state.seed_step.min(63);
     state.cell_life = state.cell_life.min(256);
     state.symmetry = normalize_symmetry(Some(state.symmetry.clone()));
-    for index in 0..CELL_COUNT {
+    for index in 0..TILE_COUNT {
         if state.cells[index] == EMPTY {
             state.ages[index] = 0;
         }
@@ -191,8 +191,8 @@ fn normalize_cells(cells: Vec<Value>) -> Vec<u8> {
         .into_iter()
         .map(|cell| cell.as_u64().unwrap_or(0).min(MAX_PHASE.into()) as u8)
         .collect::<Vec<_>>();
-    cells.resize(CELL_COUNT, EMPTY);
-    cells.truncate(CELL_COUNT);
+    cells.resize(TILE_COUNT, EMPTY);
+    cells.truncate(TILE_COUNT);
     cells
 }
 
@@ -201,15 +201,15 @@ fn normalize_ages(ages: Vec<Value>) -> Vec<u16> {
         .into_iter()
         .map(|age| age.as_u64().unwrap_or(0).min(u16::MAX.into()) as u16)
         .collect::<Vec<_>>();
-    ages.resize(CELL_COUNT, 0);
-    ages.truncate(CELL_COUNT);
+    ages.resize(TILE_COUNT, 0);
+    ages.truncate(TILE_COUNT);
     ages
 }
 
-fn normalize_triggers(triggers: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(triggers: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut triggers = triggers.unwrap_or_default();
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 
@@ -226,13 +226,13 @@ fn visible(cells: &[u8]) -> Vec<bool> {
     cells.iter().map(|cell| *cell != EMPTY).collect()
 }
 
-fn triggers_from_visible(previous: &[bool], next: &[bool]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn triggers_from_visible(previous: &[bool], next: &[bool]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|index| match (previous[index], next[index]) {
-            (false, true) => CellTriggerType::Activate,
-            (true, false) => CellTriggerType::Deactivate,
-            (true, true) => CellTriggerType::Stable,
-            (false, false) => CellTriggerType::None,
+            (false, true) => TileTriggerType::Activate,
+            (true, false) => TileTriggerType::Deactivate,
+            (true, true) => TileTriggerType::Stable,
+            (false, false) => TileTriggerType::None,
         })
         .collect()
 }
@@ -292,7 +292,7 @@ fn age_and_dissolve(state: &mut CrystalGrowthState) {
     if state.cell_life == 0 {
         return;
     }
-    for index in 0..CELL_COUNT {
+    for index in 0..TILE_COUNT {
         if state.cells[index] == EMPTY {
             continue;
         }
@@ -319,10 +319,10 @@ fn grow_candidates(state: &mut CrystalGrowthState, surviving: &[bool]) {
 }
 
 fn thin_if_crowded(state: &mut CrystalGrowthState) {
-    if state.cells.iter().filter(|cell| **cell != EMPTY).count() <= CELL_COUNT - 8 {
+    if state.cells.iter().filter(|cell| **cell != EMPTY).count() <= TILE_COUNT - 8 {
         return;
     }
-    for index in 0..CELL_COUNT {
+    for index in 0..TILE_COUNT {
         if state.cells[index] != EMPTY && hash(state.tick_counter + 11, index).is_multiple_of(8) {
             state.cells[index] = EMPTY;
             state.ages[index] = 0;

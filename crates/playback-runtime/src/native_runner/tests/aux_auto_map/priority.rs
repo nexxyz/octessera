@@ -124,7 +124,7 @@ pub(crate) fn aux_priority_row_shows_only_while_auto_map_is_on_without_a_rebuild
     assert_eq!(
         display_keys(&runner),
         [
-            "ghostCells",
+            "ghostTiles",
             "auxAutoMapEnabled",
             "auxAutoHints",
             "auxManualHints"
@@ -137,7 +137,7 @@ pub(crate) fn aux_priority_row_shows_only_while_auto_map_is_on_without_a_rebuild
     assert_eq!(
         display_keys(&runner),
         [
-            "ghostCells",
+            "ghostTiles",
             "auxAutoMapEnabled",
             "auxPriority",
             "auxAutoHints"

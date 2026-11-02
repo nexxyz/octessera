@@ -114,8 +114,8 @@ fn draw_block(rgb: &mut [u8], left: usize, top: usize, color: [u8; 3]) {
 fn draw_glyph(rgb: &mut [u8], left: usize, top: usize, glyph: &[&str; 10]) {
     let inset = (BLOCK - glyph.len()) / 2;
     for (row, line) in glyph.iter().enumerate() {
-        for (column, cell) in line.bytes().enumerate() {
-            if cell == b'#' {
+        for (column, tile) in line.bytes().enumerate() {
+            if tile == b'#' {
                 put(rgb, left + inset + column, top + inset + row, [0; 3]);
             }
         }

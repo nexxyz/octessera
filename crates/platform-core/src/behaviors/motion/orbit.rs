@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -32,7 +32,7 @@ pub struct OrbitState {
     #[serde(rename = "activeCount")]
     pub active_count: usize,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "attractionPct")]
     pub attraction_pct: u8,
     #[serde(rename = "orbitPct")]
@@ -62,7 +62,7 @@ struct Config {
     #[serde(rename = "particleCount")]
     particle_count: Option<Value>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "attractionPct")]
     attraction_pct: Option<Value>,
     #[serde(rename = "orbitPct")]
@@ -106,7 +106,7 @@ pub fn orbit_on_input(
             if action_type == "resetOrbit" =>
         {
             reset_orbit(&mut state);
-            force = Some(attractor_cell(&state));
+            force = Some(attractor_tile(&state));
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "nudgeAttractor" =>
@@ -151,13 +151,13 @@ pub fn orbit_on_tick(mut state: OrbitState, _: &mut BehaviorContext) -> OrbitSta
 }
 
 pub fn orbit_render_model(state: &OrbitState) -> BehaviorRenderModel {
-    let mut cells = occupancy(state);
-    cells[attractor_cell(state)] = true;
-    let occupied = cells.iter().filter(|v| **v).count();
+    let mut tiles = occupancy(state);
+    tiles[attractor_tile(state)] = true;
+    let occupied = tiles.iter().filter(|v| **v).count();
     BehaviorRenderModel {
         name: "orbit".into(),
         status_line: format!("P:{} O:{occupied}", state.active_count),
-        cells,
+        tiles,
         palette: crate::BehaviorRenderPalette {
             active: [255, 210, 120],
             inactive: crate::palette::BLACK,
@@ -259,10 +259,10 @@ fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
         .map(|v| v.clamp(1, u64::from(max)) as u8)
         .unwrap_or(d)
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn repel(v: Option<String>) -> String {
@@ -273,33 +273,33 @@ fn repel(v: Option<String>) -> String {
         "off".into()
     }
 }
-fn cell(x: i16, y: i16) -> usize {
+fn tile(x: i16, y: i16) -> usize {
     grid_index(
         (x / UNIT).clamp(0, GRID_WIDTH as i16 - 1) as usize,
         (y / UNIT).clamp(0, GRID_HEIGHT as i16 - 1) as usize,
     )
 }
-fn attractor_cell(s: &OrbitState) -> usize {
-    cell(s.attractor_x, s.attractor_y)
+fn attractor_tile(s: &OrbitState) -> usize {
+    tile(s.attractor_x, s.attractor_y)
 }
 fn occupancy(s: &OrbitState) -> Vec<bool> {
-    let mut o = vec![false; CELL_COUNT];
+    let mut o = vec![false; TILE_COUNT];
     for i in 0..s.active_count {
-        o[cell(s.x[i], s.y[i])] = true;
+        o[tile(s.x[i], s.y[i])] = true;
     }
     o
 }
-fn triggers(p: &[bool], n: &[bool], force: Option<usize>) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[bool], n: &[bool], force: Option<usize>) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| match (p[i], n[i]) {
-            (false, true) => CellTriggerType::Activate,
-            (true, false) => CellTriggerType::Deactivate,
-            (true, true) => CellTriggerType::Stable,
-            _ => CellTriggerType::None,
+            (false, true) => TileTriggerType::Activate,
+            (true, false) => TileTriggerType::Deactivate,
+            (true, true) => TileTriggerType::Stable,
+            _ => TileTriggerType::None,
         })
         .collect::<Vec<_>>();
     if let Some(i) = force {
-        t[i] = CellTriggerType::Activate;
+        t[i] = TileTriggerType::Activate;
     }
     t
 }

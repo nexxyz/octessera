@@ -12,14 +12,14 @@ impl NativeRunner {
         let next = self.next_probability_state(layer_index, x, y);
         if self.display.ui.combined_modifier_held {
             for row in 0..GRID_HEIGHT {
-                self.set_probability_cell(layer_index, x, row, &next);
+                self.set_probability_tile(layer_index, x, row, &next);
             }
         } else if self.display.ui.shift_held {
             for column in 0..GRID_WIDTH {
-                self.set_probability_cell(layer_index, column, y, &next);
+                self.set_probability_tile(layer_index, column, y, &next);
             }
         } else {
-            self.set_probability_cell(layer_index, x, y, &next);
+            self.set_probability_tile(layer_index, x, y, &next);
         }
         self.mark_config_dirty();
     }
@@ -40,7 +40,7 @@ impl NativeRunner {
         .into()
     }
 
-    pub(super) fn set_probability_cell(
+    pub(super) fn set_probability_tile(
         &mut self,
         layer_index: usize,
         x: usize,
@@ -50,8 +50,8 @@ impl NativeRunner {
         let Some(map) = self.trigger_probability_maps.get_mut(layer_index) else {
             return;
         };
-        if let Some(cell) = map.get_mut(y * GRID_WIDTH + x) {
-            *cell = value.into();
+        if let Some(tile) = map.get_mut(y * GRID_WIDTH + x) {
+            *tile = value.into();
         }
     }
 

@@ -96,7 +96,7 @@ impl NativeRunner {
         let (persistence_effects, _) = self.pending_persistence_effects();
         let mut messages = Vec::with_capacity(5);
         self.append_pending_transpose_note_offs(&mut messages);
-        self.append_pending_cell_hits(&mut messages);
+        self.append_pending_tile_hits(&mut messages);
         for effect in persistence_effects {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: vec![effect],
@@ -238,7 +238,7 @@ impl NativeRunner {
     fn drain_pending_output(&mut self) -> Vec<RunnerMessage> {
         let mut messages = Vec::with_capacity(4);
         self.append_pending_transpose_note_offs(&mut messages);
-        self.append_pending_cell_hits(&mut messages);
+        self.append_pending_tile_hits(&mut messages);
         if self.outbox.has_platform_effects() {
             messages.push(RunnerMessage::PlatformEffects {
                 effects: self.outbox.drain_platform_effects(),
@@ -264,15 +264,15 @@ impl NativeRunner {
                 events: events.midi,
             });
         }
-        if !events.cells.is_empty() {
-            messages.push(RunnerMessage::CellHits { hits: events.cells });
+        if !events.tiles.is_empty() {
+            messages.push(RunnerMessage::TileHits { hits: events.tiles });
         }
     }
 
-    fn append_pending_cell_hits(&mut self, messages: &mut Vec<RunnerMessage>) {
-        if !self.pending.cell_hits.is_empty() {
-            messages.push(RunnerMessage::CellHits {
-                hits: std::mem::take(&mut self.pending.cell_hits),
+    fn append_pending_tile_hits(&mut self, messages: &mut Vec<RunnerMessage>) {
+        if !self.pending.tile_hits.is_empty() {
+            messages.push(RunnerMessage::TileHits {
+                hits: std::mem::take(&mut self.pending.tile_hits),
             });
         }
     }
@@ -334,8 +334,8 @@ impl NativeRunner {
                     events: events.midi,
                 });
             }
-            if !events.cells.is_empty() {
-                messages.push(RunnerMessage::CellHits { hits: events.cells });
+            if !events.tiles.is_empty() {
+                messages.push(RunnerMessage::TileHits { hits: events.tiles });
             }
         }
         messages.extend(self.messages_with_snapshot()?);
@@ -362,8 +362,8 @@ impl NativeRunner {
                     events: events.midi,
                 });
             }
-            if !events.cells.is_empty() {
-                messages.push(RunnerMessage::CellHits { hits: events.cells });
+            if !events.tiles.is_empty() {
+                messages.push(RunnerMessage::TileHits { hits: events.tiles });
             }
         }
         Ok(messages)

@@ -1,11 +1,11 @@
 use super::NativeLinkLayer;
-use crate::protocol::CellHit;
-use platform_core::{CellTriggerIntent, MusicalEvent};
+use crate::protocol::TileHit;
+use platform_core::{MusicalEvent, TileTriggerIntent};
 use std::collections::BTreeMap;
 
-mod cell_hits;
-pub(super) use cell_hits::{cell_release, drum_hit_for_intent};
-use cell_hits::{sampler_hit_for_intent, sampler_release_for_intent};
+mod tile_hits;
+pub(super) use tile_hits::{drum_hit_for_intent, tile_release};
+use tile_hits::{sampler_hit_for_intent, sampler_release_for_intent};
 mod intent_values;
 #[cfg(test)]
 pub(super) use intent_values::value_from_lane;
@@ -15,7 +15,7 @@ pub(super) use intent_values::{cc_events_from_intent, velocity_from_intent};
 pub(super) struct RoutedMusicalEvents {
     pub(super) audio: Vec<MusicalEvent>,
     pub(super) midi: Vec<MusicalEvent>,
-    pub(super) cells: Vec<CellHit>,
+    pub(super) tiles: Vec<TileHit>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,15 +23,15 @@ pub(super) struct TransposedHeldNote {
     pub(super) routed_channel: u8,
     pub(super) routed_note: u8,
     pub(super) routed_to_midi: bool,
-    /// `(sample slot, cell)` when the held note is a sustained sampler cell.
-    pub(super) sampler_cell: Option<(u8, u8)>,
+    /// `(sample slot, tile)` when the held note is a sustained sampler tile.
+    pub(super) sampler_tile: Option<(u8, u8)>,
 }
 
 impl TransposedHeldNote {
     pub(super) fn release_into(self, out: &mut RoutedMusicalEvents) {
-        if let Some((voice, cell)) = self.sampler_cell {
-            out.cells
-                .push(cell_hits::cell_release(self.routed_channel, voice, cell));
+        if let Some((voice, tile)) = self.sampler_tile {
+            out.tiles
+                .push(tile_hits::tile_release(self.routed_channel, voice, tile));
             return;
         }
         let event = MusicalEvent::NoteOff {
@@ -48,20 +48,20 @@ impl TransposedHeldNote {
 
 impl RoutedMusicalEvents {
     pub(super) fn is_empty(&self) -> bool {
-        self.audio.is_empty() && self.midi.is_empty() && self.cells.is_empty()
+        self.audio.is_empty() && self.midi.is_empty() && self.tiles.is_empty()
     }
 
     pub(super) fn extend(&mut self, other: RoutedMusicalEvents) {
         self.audio.extend(other.audio);
         self.midi.extend(other.midi);
-        self.cells.extend(other.cells);
+        self.tiles.extend(other.tiles);
     }
 }
 
 #[cfg(test)]
 pub(super) fn apply_sampler_assignments_for_instruments(
     events: Vec<MusicalEvent>,
-    intents: &[CellTriggerIntent],
+    intents: &[TileTriggerIntent],
     mapped_event_offset: usize,
     instruments: &[super::NativeInstrumentSlot],
     sense: Option<&NativeLinkLayer>,
@@ -80,7 +80,7 @@ pub(super) fn apply_sampler_assignments_for_instruments(
 
 pub(super) fn apply_sampler_assignments_for_instruments_routed(
     events: Vec<MusicalEvent>,
-    intents: &[CellTriggerIntent],
+    intents: &[TileTriggerIntent],
     mapped_event_offset: usize,
     instruments: &[super::NativeInstrumentSlot],
     sense: Option<&NativeLinkLayer>,
@@ -167,25 +167,25 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                                 routed_channel: channel,
                                 routed_note: *note,
                                 routed_to_midi: false,
-                                sampler_cell: Some((hit.voice, hit.cell)),
+                                sampler_tile: Some((hit.voice, hit.tile)),
                             },
                         );
                     }
-                    routed.cells.extend(hit);
+                    routed.tiles.extend(hit);
                     continue;
                 }
                 MusicalEvent::NoteOff { note, .. } => {
                     if instrument.kind == "sampler" {
-                        let cell = cell_hits::cell_index(intent.x, intent.y);
-                        match take_held_cell(
+                        let tile = tile_hits::tile_index(intent.x, intent.y);
+                        match take_held_tile(
                             active_transpose_notes.as_deref_mut(),
                             channel,
                             *note,
-                            cell,
+                            tile,
                         ) {
                             Some(held) => held.release_into(&mut routed),
                             None => routed
-                                .cells
+                                .tiles
                                 .extend(sampler_release_for_intent(instrument, channel, intent)),
                         }
                     }
@@ -229,7 +229,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
 
 fn prepare_note_on_with_intent(
     event: &mut MusicalEvent,
-    intent: &CellTriggerIntent,
+    intent: &TileTriggerIntent,
     sense: Option<&NativeLinkLayer>,
     instruments: &[super::NativeInstrumentSlot],
     transpose_offset: i8,
@@ -260,7 +260,7 @@ fn prepare_note_on_with_intent(
                 routed_channel: *channel,
                 routed_note: *note,
                 routed_to_midi: false,
-                sampler_cell: None,
+                sampler_tile: None,
             })
         }
         "midi" if instrument.midi_enabled => {
@@ -270,7 +270,7 @@ fn prepare_note_on_with_intent(
                 routed_channel: *channel,
                 routed_note: *note,
                 routed_to_midi: true,
-                sampler_cell: None,
+                sampler_tile: None,
             })
         }
         "midi" => return true,
@@ -401,18 +401,18 @@ fn route_event_without_intent_with_held_transpose(
     }
 }
 
-fn take_held_cell(
+fn take_held_tile(
     active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
     channel: u8,
     note: u8,
-    cell: u8,
+    tile: u8,
 ) -> Option<TransposedHeldNote> {
     let active_notes = active_transpose_notes?;
     let key = (channel, note);
     let notes = active_notes.get_mut(&key)?;
     let index = notes.iter().position(|held| {
-        held.sampler_cell
-            .is_some_and(|(_, held_cell)| held_cell == cell)
+        held.sampler_tile
+            .is_some_and(|(_, held_tile)| held_tile == tile)
     })?;
     let held_note = notes.remove(index);
     if notes.is_empty() {
@@ -473,5 +473,5 @@ pub(super) fn sampler_assignment_velocity(
         Some("low") => instrument.sample_velocity_low,
         _ => instrument.sample_base_velocity,
     };
-    cell_hits::scale_velocity(base, source_velocity)
+    tile_hits::scale_velocity(base, source_velocity)
 }

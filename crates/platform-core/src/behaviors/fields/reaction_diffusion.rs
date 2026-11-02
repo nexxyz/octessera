@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,7 +16,7 @@ pub struct ReactionDiffusionState {
     pub a: Vec<u8>,
     pub b: Vec<u8>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "feedPct")]
     pub feed_pct: u8,
     #[serde(rename = "killPct")]
@@ -38,7 +38,7 @@ struct Config {
     a: Option<Vec<Value>>,
     b: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "feedPct")]
     feed_pct: Option<Value>,
     #[serde(rename = "killPct")]
@@ -155,7 +155,7 @@ pub fn reaction_diffusion_render_model(state: &ReactionDiffusionState) -> Behavi
     BehaviorRenderModel {
         name: "reaction diffusion".into(),
         status_line: format!("B:{visible} E:{edges}"),
-        cells: state.b.iter().map(|v| *v >= VISIBLE).collect(),
+        tiles: state.b.iter().map(|v| *v >= VISIBLE).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [120, 255, 220],
             inactive: crate::palette::BLACK,
@@ -211,14 +211,14 @@ fn norm(v: Option<Vec<Value>>, d: u8) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(u64::from(d)).min(255) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, d);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, d);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -282,22 +282,22 @@ fn avg(a: &[u8], b: &[u8], x: usize, y: usize) -> (i32, i32) {
         (sa / c, sb / c)
     }
 }
-fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if p[i] < ACTIVATE && n[i] >= ACTIVATE {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] >= VISIBLE && n[i] < VISIBLE {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] >= VISIBLE {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
-        t[*i] = CellTriggerType::Activate;
+        t[*i] = TileTriggerType::Activate;
     }
     t
 }

@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType, DeviceInput,
-    GridInteraction,
+    BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput, GridInteraction,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,13 +14,13 @@ const MAX_EVENTS_PER_STEP: usize = 128;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LooperState {
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
-    #[serde(rename = "heldCells")]
-    pub held_cells: Vec<bool>,
-    #[serde(rename = "playbackCells")]
-    pub playback_cells: Vec<bool>,
+    pub trigger_types: Vec<TileTriggerType>,
+    #[serde(rename = "heldTiles")]
+    pub held_tiles: Vec<bool>,
+    #[serde(rename = "playbackTiles")]
+    pub playback_tiles: Vec<bool>,
     pub steps: Vec<Vec<LooperEvent>>,
     #[serde(rename = "stepIndex")]
     pub step_index: usize,
@@ -31,7 +31,7 @@ pub struct LooperState {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LooperEvent {
-    pub cell: usize,
+    pub tile: usize,
     pub kind: LooperEventKind,
 }
 
@@ -63,10 +63,10 @@ pub fn looper_init(config: Value) -> Result<LooperState, String> {
     let config: LooperConfig = serde_json::from_value(config).unwrap_or_default();
     let length_steps = normalize_length(config.length_steps.unwrap_or(DEFAULT_LENGTH_STEPS));
     Ok(LooperState {
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
-        held_cells: vec![false; CELL_COUNT],
-        playback_cells: vec![false; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
+        held_tiles: vec![false; TILE_COUNT],
+        playback_tiles: vec![false; TILE_COUNT],
         steps: vec![Vec::new(); length_steps],
         step_index: 0,
         length_steps,
@@ -112,35 +112,35 @@ pub fn looper_on_input(
 }
 
 pub fn looper_on_tick(state: LooperState, _context: &mut BehaviorContext) -> LooperState {
-    let mut playback_cells = state.playback_cells.clone();
+    let mut playback_tiles = state.playback_tiles.clone();
     let step_events = state
         .steps
         .get(state.step_index)
         .cloned()
         .unwrap_or_default();
     for event in step_events {
-        if event.cell >= CELL_COUNT {
+        if event.tile >= TILE_COUNT {
             continue;
         }
-        playback_cells[event.cell] = matches!(event.kind, LooperEventKind::Press);
+        playback_tiles[event.tile] = matches!(event.kind, LooperEventKind::Press);
     }
-    let cells = combined_cells(&state.held_cells, &playback_cells);
-    let trigger_types = trigger_types_from_cells(&state.cells, &cells);
+    let tiles = combined_tiles(&state.held_tiles, &playback_tiles);
+    let trigger_types = trigger_types_from_tiles(&state.tiles, &tiles);
     LooperState {
-        cells,
+        tiles,
         trigger_types,
-        playback_cells,
+        playback_tiles,
         step_index: (state.step_index + 1) % state.length_steps.max(1),
         ..state
     }
 }
 
 pub(crate) fn reset_transport_phase(state: &mut LooperState) {
-    let previous = state.cells.clone();
+    let previous = state.tiles.clone();
     state.step_index = 0;
-    state.playback_cells.fill(false);
-    state.cells = state.held_cells.clone();
-    state.trigger_types = trigger_types_from_cells(&previous, &state.cells);
+    state.playback_tiles.fill(false);
+    state.tiles = state.held_tiles.clone();
+    state.trigger_types = trigger_types_from_tiles(&previous, &state.tiles);
 }
 
 pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
@@ -152,7 +152,7 @@ pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
             state.step_index + 1,
             state.length_steps
         ),
-        cells: state.cells.clone(),
+        tiles: state.tiles.clone(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLACK,
@@ -192,10 +192,10 @@ pub fn looper_deserialize(data: Value) -> Result<LooperState, String> {
         .unwrap_or_else(|| vec![Vec::new(); length_steps]);
     resize_steps(&mut steps, length_steps);
     Ok(LooperState {
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
-        held_cells: vec![false; CELL_COUNT],
-        playback_cells: vec![false; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
+        held_tiles: vec![false; TILE_COUNT],
+        playback_tiles: vec![false; TILE_COUNT],
         steps,
         step_index: saved.step_index.unwrap_or(0) % length_steps,
         length_steps,
@@ -208,45 +208,45 @@ fn apply_grid_input(state: LooperState, x: usize, y: usize, kind: LooperEventKin
         return state;
     }
     let index = grid_index(x, y);
-    let mut held_cells = state.held_cells.clone();
-    held_cells[index] = matches!(kind, LooperEventKind::Press);
+    let mut held_tiles = state.held_tiles.clone();
+    held_tiles[index] = matches!(kind, LooperEventKind::Press);
     let mut steps = state.steps.clone();
     if state.mode == "overdub" {
         let step_index = state.step_index.min(steps.len().saturating_sub(1));
         if let Some(events) = steps.get_mut(step_index) {
             if events.len() < MAX_EVENTS_PER_STEP {
-                events.push(LooperEvent { cell: index, kind });
+                events.push(LooperEvent { tile: index, kind });
             }
         }
     }
-    let cells = combined_cells(&held_cells, &state.playback_cells);
-    let trigger_types = trigger_types_from_cells(&state.cells, &cells);
+    let tiles = combined_tiles(&held_tiles, &state.playback_tiles);
+    let trigger_types = trigger_types_from_tiles(&state.tiles, &tiles);
     LooperState {
-        cells,
+        tiles,
         trigger_types,
-        held_cells,
+        held_tiles,
         steps,
         ..state
     }
 }
 
 fn clear_loop(state: LooperState) -> LooperState {
-    let playback_cells = vec![false; CELL_COUNT];
-    let cells = combined_cells(&state.held_cells, &playback_cells);
-    let trigger_types = trigger_types_from_cells(&state.cells, &cells);
+    let playback_tiles = vec![false; TILE_COUNT];
+    let tiles = combined_tiles(&state.held_tiles, &playback_tiles);
+    let trigger_types = trigger_types_from_tiles(&state.tiles, &tiles);
     LooperState {
-        cells,
+        tiles,
         trigger_types,
-        playback_cells,
+        playback_tiles,
         steps: vec![Vec::new(); state.length_steps],
         step_index: 0,
         ..state
     }
 }
 
-fn combined_cells(held_cells: &[bool], playback_cells: &[bool]) -> Vec<bool> {
-    (0..CELL_COUNT)
-        .map(|index| held_cells[index] || playback_cells[index])
+fn combined_tiles(held_tiles: &[bool], playback_tiles: &[bool]) -> Vec<bool> {
+    (0..TILE_COUNT)
+        .map(|index| held_tiles[index] || playback_tiles[index])
         .collect()
 }
 
@@ -267,7 +267,7 @@ fn resize_steps(steps: &mut Vec<Vec<LooperEvent>>, length_steps: usize) {
         steps.push(Vec::new());
     }
     for events in steps {
-        events.retain(|event| event.cell < CELL_COUNT);
+        events.retain(|event| event.tile < TILE_COUNT);
         events.truncate(MAX_EVENTS_PER_STEP);
     }
 }

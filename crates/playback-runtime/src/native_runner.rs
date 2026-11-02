@@ -30,7 +30,7 @@ use platform_core::{
     PAN_POSITION_COUNT, PLAY_FX_MAX_CONCURRENT, SAMPLE_SLOT_COUNT,
 };
 #[cfg(test)]
-use platform_core::{CellTriggerIntent, MusicalEvent};
+use platform_core::{MusicalEvent, TileTriggerIntent};
 use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::{json, Value};
 #[cfg(any(test, feature = "test-support"))]
@@ -67,7 +67,6 @@ mod binding_payload;
 mod binding_specs;
 mod bluetooth;
 mod canonical_presentation;
-mod cell_stamp;
 mod clear_patch_state;
 mod config;
 mod config_document_presence;
@@ -161,6 +160,7 @@ mod retired_config_keys;
 mod system_document_tests;
 #[cfg(test)]
 mod system_store_result_tests;
+mod tile_stamp;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod error_presentation_results;
 mod hardware_test;
@@ -383,11 +383,11 @@ pub struct NativeRunner {
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
     link_arp_held_notes: Vec<Vec<LinkArpHeldNote>>,
-    link_arp_held_cells: Vec<Vec<crate::protocol::CellHit>>,
+    link_arp_held_tiles: Vec<Vec<crate::protocol::TileHit>>,
     link_arp_rotating_phase: Vec<usize>,
     link_arp_random_state: u32,
     emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
-    emitted_route_cell_owners: Vec<BTreeSet<(u8, u8)>>,
+    emitted_route_tile_owners: Vec<BTreeSet<(u8, u8)>>,
     display: NativeDisplayState,
     midi_enabled: bool,
     preset_names: Vec<String>,

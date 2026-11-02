@@ -17,7 +17,7 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(s.mode, "mandelbrot");
     assert_eq!(s.region_index, 7);
     assert_eq!(s.classes[0], 2);
-    assert!(!s.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!s.trigger_types.contains(&TileTriggerType::Activate));
     let v = fractal_explorer_serialize(&s).unwrap();
     assert!(v.get("triggerTypes").is_none());
     assert!(v.get("tickCounter").is_none());
@@ -88,13 +88,13 @@ fn zero_zoom_and_zero_drift_hold_healthy_viewport_steady() {
 }
 
 #[test]
-fn grid_press_forces_only_pressed_cell() {
+fn grid_press_forces_only_pressed_tile() {
     let mut c = ctx();
     let s = fractal_explorer_init(serde_json::json!({})).unwrap();
     let pressed = fractal_explorer_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(
         pressed.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 }
 
@@ -110,7 +110,7 @@ fn bad_viewport_recovers_and_bounds_fallback_triggers() {
     let activations = t
         .trigger_types
         .iter()
-        .filter(|trigger| **trigger == CellTriggerType::Activate)
+        .filter(|trigger| **trigger == TileTriggerType::Activate)
         .count();
     assert!(activations <= 8);
 }
@@ -146,7 +146,7 @@ fn manual_jump_and_toggle_keep_valid_classes() {
 
 #[test]
 fn drift_bias_breaks_close_ties_without_overwhelming_score() {
-    let mut classes = vec![0; CELL_COUNT];
+    let mut classes = vec![0; TILE_COUNT];
     for y in 0..GRID_HEIGHT {
         for x in 4..GRID_WIDTH {
             classes[grid_index(x, y)] = 2;
@@ -167,6 +167,6 @@ fn drift_bias_breaks_close_ties_without_overwhelming_score() {
 
 fn assert_mixed(s: &FractalExplorerState) {
     let visible = s.classes.iter().filter(|class| **class != 0).count();
-    assert!((4..=CELL_COUNT - 4).contains(&visible));
+    assert!((4..=TILE_COUNT - 4).contains(&visible));
     assert!(edge_transitions(&s.classes) > 0);
 }

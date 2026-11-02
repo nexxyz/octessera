@@ -124,11 +124,11 @@ fn runner_only_sample_modulation_does_not_replace_audio_slot() {
         runner.param_mods[0].x[0] =
             Some(numeric_binding(&format!("instruments.0.{field}"), min, max));
         runner.apply_runtime_modulation(
-            &[platform_core::CellTriggerIntent {
+            &[platform_core::TileTriggerIntent {
                 x: 7,
                 y: 0,
                 degree: 0,
-                kind: platform_core::CellTriggerKind::Activate,
+                kind: platform_core::TileTriggerKind::Activate,
             }],
             0,
         );
@@ -150,11 +150,11 @@ fn runner_only_sample_modulation_does_not_replace_audio_slot() {
     slot_binding.options = (1..=8).map(|index| index.to_string()).collect();
     runner.param_mods[0].x[0] = Some(slot_binding);
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 0,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );

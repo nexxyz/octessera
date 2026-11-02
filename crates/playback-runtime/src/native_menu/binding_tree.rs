@@ -123,7 +123,7 @@ pub(super) fn is_excluded_binding_key(key: &str) -> bool {
             .iter()
             .any(|suffix| key.ends_with(suffix))
         || key.contains(".drum.") && !is_bindable_drum_key(key)
-        || key.contains(".cell.")
+        || key.contains(".tile.")
         || key.ends_with(".sample.followTranspose")
         || key.ends_with(".sample.followPitch")
         || key.ends_with(".sample.filter.type")

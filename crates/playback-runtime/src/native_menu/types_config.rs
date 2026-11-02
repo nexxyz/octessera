@@ -55,7 +55,7 @@ pub struct NativeMenuConfig {
     pub instrument_sample_velocity_levels_enabled: Vec<bool>,
     pub instrument_sample_follow_transpose: Vec<bool>,
     pub instrument_sample_follow_pitch: Vec<bool>,
-    pub instrument_cell_stamps: Vec<NativeMenuCellStamp>,
+    pub instrument_tile_stamps: Vec<NativeMenuTileStamp>,
     pub instrument_sample_velocity_high: Vec<u8>,
     pub instrument_sample_velocity_medium: Vec<u8>,
     pub instrument_sample_velocity_low: Vec<u8>,
@@ -80,7 +80,7 @@ pub struct NativeMenuConfig {
     pub voice_stealing_mode: String,
     pub auto_save_default: bool,
     pub rolling_backups: bool,
-    pub ghost_cells: bool,
+    pub ghost_tiles: bool,
     pub aux_auto_hints: bool,
     pub aux_manual_hints: bool,
     pub input_events_while_paused: bool,
@@ -272,12 +272,12 @@ pub struct NativeFxBusConfig {
     pub auto_name: bool,
 }
 
-/// What Assign stamps onto grid cells, as shown in the Sampler and Drum menus.
+/// What Assign stamps onto grid tiles, as shown in the Sampler and Drum menus.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct NativeMenuCellStamp {
+pub struct NativeMenuTileStamp {
     pub tune_semis: i8,
     pub tune_cents: i8,
     pub level_index: usize,
 }
 
-pub const CELL_STAMP_LEVELS: [&str; 4] = ["Base", "High", "Medium", "Low"];
+pub const TILE_STAMP_LEVELS: [&str; 4] = ["Base", "High", "Medium", "Low"];

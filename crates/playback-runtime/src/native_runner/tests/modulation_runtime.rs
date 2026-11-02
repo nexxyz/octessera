@@ -168,7 +168,7 @@ pub(crate) fn multi_target_grid_modulation_aggregates_revision_and_deferred_auto
     runner.param_mods[0].x[1] = Some(pan_binding());
     runner.param_mods[0].y[0] = Some(NativeParamBinding {
         key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
-        label: Some("Seed Cells".into()),
+        label: Some("Seed Tiles".into()),
         kind: "number".into(),
         min: Some(0.0),
         max: Some(20.0),
@@ -180,11 +180,11 @@ pub(crate) fn multi_target_grid_modulation_aggregates_revision_and_deferred_auto
     });
 
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 7,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );
@@ -271,11 +271,11 @@ pub(crate) fn global_sound_and_note_behavior_modulation_syncs_engine_once() {
     runner.engine_runtime_sync_calls = 0;
 
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 0,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );
@@ -322,11 +322,11 @@ pub(crate) fn active_link_modulation_refreshes_mapping_before_next_event() {
     runner.active_link_refresh_calls = 0;
 
     runner.apply_runtime_modulation(
-        &[platform_core::CellTriggerIntent {
+        &[platform_core::TileTriggerIntent {
             x: 7,
             y: 0,
             degree: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
         }],
         0,
     );

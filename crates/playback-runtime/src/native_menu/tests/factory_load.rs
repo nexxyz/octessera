@@ -171,11 +171,11 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
             "Sample Slot",
             "S1: (empty)",
             "S1 Browse",
-            "Cell Tune",
-            "Cell Fine",
+            "Tile Tune",
+            "Tile Fine",
         ];
         if enabled {
-            expected.push("Cell Level");
+            expected.push("Tile Level");
         }
         expected.extend([
             "Assign",

@@ -1,5 +1,5 @@
 use super::*;
-use crate::behavior::{BehaviorActionInput, BehaviorContext, CellTriggerType, DeviceInput};
+use crate::behavior::{BehaviorActionInput, BehaviorContext, DeviceInput, TileTriggerType};
 use serde_json::json;
 fn context() -> BehaviorContext {
     BehaviorContext::new(120.0)
@@ -20,7 +20,7 @@ fn menu_serialization() {
     assert!(s
         .trigger_types
         .iter()
-        .all(|t| *t != CellTriggerType::Activate));
+        .all(|t| *t != TileTriggerType::Activate));
     let v = sand_ripples_serialize(&s).unwrap();
     assert!(v.get("triggerTypes").is_none());
     assert!(v.get("tickCounter").is_none());
@@ -37,7 +37,7 @@ fn input_actions() {
     let p = sand_ripples_on_input(s, DeviceInput::GridPress { x: 0, y: 0 }, &mut ctx);
     assert_eq!(p.sand[0], 96);
     assert_eq!(p.crest[0], 64);
-    assert_eq!(p.trigger_types[0], CellTriggerType::Activate);
+    assert_eq!(p.trigger_types[0], TileTriggerType::Activate);
     let g = sand_ripples_on_input(
         p,
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -64,13 +64,13 @@ fn input_actions() {
     assert_eq!(seeded.sand[grid_index(7, 6)], 120);
     assert_eq!(
         seeded.trigger_types[grid_index(7, 6)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let s = sand_ripples_init(json!({"sand":[120],"crest":[0]})).unwrap();
     let p = sand_ripples_on_input(s, DeviceInput::GridPress { x: 0, y: 0 }, &mut ctx);
-    assert_eq!(p.trigger_types[0], CellTriggerType::Activate);
-    let mut sand = vec![0; CELL_COUNT];
-    let mut crest = vec![0; CELL_COUNT];
+    assert_eq!(p.trigger_types[0], TileTriggerType::Activate);
+    let mut sand = vec![0; TILE_COUNT];
+    let mut crest = vec![0; TILE_COUNT];
     sand[grid_index(0, 1)] = 120;
     crest[grid_index(0, 1)] = 0;
     let s = sand_ripples_init(json!({"sand":sand,"crest":crest})).unwrap();
@@ -83,19 +83,19 @@ fn input_actions() {
     );
     assert_eq!(
         seeded.trigger_types[grid_index(0, 1)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     )
 }
 #[test]
 fn transport_decay_and_nonwrap() {
     let mut ctx = context();
-    let mut sand = vec![0; CELL_COUNT];
+    let mut sand = vec![0; TILE_COUNT];
     sand[grid_index(0, 0)] = 100;
     let s=sand_ripples_init(json!({"sand":sand,"windStrengthPct":100,"erosionPct":100,"depositionPct":100,"windDir":"east"})).unwrap();
     let t = sand_ripples_on_tick(s, &mut ctx);
     assert!(t.sand[grid_index(1, 0)] > 0);
     assert!(t.crest[grid_index(1, 0)] > 0);
-    let mut sand = vec![0; CELL_COUNT];
+    let mut sand = vec![0; TILE_COUNT];
     sand[grid_index(0, 0)] = 100;
     let s = sand_ripples_init(
         json!({"sand":sand,"windStrengthPct":0,"erosionPct":100,"windDir":"east"}),
@@ -104,7 +104,7 @@ fn transport_decay_and_nonwrap() {
     let t = sand_ripples_on_tick(s, &mut ctx);
     assert_eq!(t.sand[grid_index(0, 0)], 100);
     assert_eq!(t.sand[grid_index(1, 0)], 0);
-    let mut sand = vec![0; CELL_COUNT];
+    let mut sand = vec![0; TILE_COUNT];
     sand[grid_index(7, 0)] = 100;
     let s = sand_ripples_init(
         json!({"sand":sand,"windStrengthPct":100,"erosionPct":100,"windDir":"east"}),
@@ -115,23 +115,23 @@ fn transport_decay_and_nonwrap() {
     let s = sand_ripples_init(json!({"crest":[16],"erosionPct":0})).unwrap();
     let t = sand_ripples_on_tick(s, &mut ctx);
     assert_eq!(t.crest[0], 15);
-    assert_eq!(t.trigger_types[0], CellTriggerType::Deactivate)
+    assert_eq!(t.trigger_types[0], TileTriggerType::Deactivate)
 }
 
 #[test]
 fn default_self_sustains_with_bounded_renewal() {
     let mut ctx = context();
     let mut state = sand_ripples_init(json!({})).unwrap();
-    let mut previous = sand_ripples_render_model(&state).cells;
+    let mut previous = sand_ripples_render_model(&state).tiles;
     let mut terminal_same = 1usize;
     let mut final_frames = Vec::new();
     let mut full_run = 0usize;
     let mut empty_run = 0usize;
     for _ in 0..300 {
         state = sand_ripples_on_tick(state, &mut ctx);
-        let frame = sand_ripples_render_model(&state).cells;
-        let visible = frame.iter().filter(|cell| **cell).count();
-        full_run = if visible == CELL_COUNT {
+        let frame = sand_ripples_render_model(&state).tiles;
+        let visible = frame.iter().filter(|tile| **tile).count();
+        full_run = if visible == TILE_COUNT {
             full_run + 1
         } else {
             0
@@ -148,9 +148,9 @@ fn default_self_sustains_with_bounded_renewal() {
             state
                 .trigger_types
                 .iter()
-                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .filter(|trigger| **trigger == TileTriggerType::Activate)
                 .count()
-                <= CELL_COUNT / 2
+                <= TILE_COUNT / 2
         );
         final_frames.push(frame.clone());
         if final_frames.len() > 16 {

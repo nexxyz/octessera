@@ -25,11 +25,11 @@ fn with_config(state: &SequencerState, config: Value) -> SequencerState {
 }
 
 #[test]
-fn grid_press_toggles_cell_and_a_single_page_never_turns() {
+fn grid_press_toggles_tile_and_a_single_page_never_turns() {
     let state = init(Value::Null).unwrap();
     let toggled = press(state, 2, 3);
-    assert!(toggled.cells[grid_index(2, 3)]);
-    assert!(!press(toggled.clone(), 2, 3).cells[grid_index(2, 3)]);
+    assert!(toggled.tiles[grid_index(2, 3)]);
+    assert!(!press(toggled.clone(), 2, 3).tiles[grid_index(2, 3)]);
     assert_eq!(ticks(toggled.clone(), 20), toggled);
 }
 
@@ -39,38 +39,38 @@ fn render_model_matches_ts_behavior_contract() {
     let model = render_model(&state);
     assert_eq!(model.name, "sequencer");
     assert_eq!(model.status_line, "Manual");
-    assert_eq!(model.cells.len(), CELL_COUNT);
+    assert_eq!(model.tiles.len(), TILE_COUNT);
 }
 
 #[test]
 fn saves_from_before_pages_load_as_the_first_page() {
-    let mut cells = vec![false; CELL_COUNT];
-    cells[grid_index(1, 0)] = true;
-    let state = deserialize(json!({ "width": 8, "height": 8, "cells": cells })).unwrap();
+    let mut tiles = vec![false; TILE_COUNT];
+    tiles[grid_index(1, 0)] = true;
+    let state = deserialize(json!({ "width": 8, "height": 8, "tiles": tiles })).unwrap();
     assert_eq!(
         (state.pages_x, state.pages_y, state.page_x, state.page_y),
         (1, 1, 1, 1)
     );
-    assert_eq!(state.cells, cells);
+    assert_eq!(state.tiles, tiles);
     let wider = with_config(&state, json!({ "pagesX": 2, "pageX": 2 }));
-    assert!(wider.cells.iter().all(|cell| !cell), "page 2 starts empty");
+    assert!(wider.tiles.iter().all(|tile| !tile), "page 2 starts empty");
     let back = with_config(&wider, json!({ "pageX": 1 }));
-    assert_eq!(back.cells, cells, "page 1 kept its cells");
+    assert_eq!(back.tiles, tiles, "page 1 kept its tiles");
 }
 
 #[test]
-fn each_page_keeps_its_own_cells_and_the_view_shows_one() {
+fn each_page_keeps_its_own_tiles_and_the_view_shows_one() {
     let state = with_config(
         &init(Value::Null).unwrap(),
         json!({ "pagesX": 2, "pagesY": 2 }),
     );
     let state = press(state, 0, 0);
     let state = with_config(&state, json!({ "pageX": 2, "pageY": 2 }));
-    assert!(state.cells.iter().all(|cell| !cell));
+    assert!(state.tiles.iter().all(|tile| !tile));
     let state = press(state, 7, 7);
     assert_eq!(render_model(&state).status_line, "Page 2,2");
     let first = with_config(&state, json!({ "pageX": 1, "pageY": 1 }));
-    assert!(first.cells[grid_index(0, 0)] && !first.cells[grid_index(7, 7)]);
+    assert!(first.tiles[grid_index(0, 0)] && !first.tiles[grid_index(7, 7)]);
     let narrower = with_config(&state, json!({ "pagesX": 1, "pagesY": 1 }));
     assert_eq!(
         (narrower.page_x, narrower.page_y),

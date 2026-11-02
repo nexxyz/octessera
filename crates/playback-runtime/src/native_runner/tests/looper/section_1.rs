@@ -43,7 +43,7 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.engine.model().unwrap().cells[index]);
+    assert!(runner.engine.model().unwrap().tiles[index]);
 
     pulse_step(&mut runner);
     runner
@@ -52,16 +52,16 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.engine.model().unwrap().cells[index]);
+    assert!(runner.engine.model().unwrap().tiles[index]);
 
     pulse_step(&mut runner);
-    assert!(!runner.engine.model().unwrap().cells[index]);
+    assert!(!runner.engine.model().unwrap().tiles[index]);
     pulse_step(&mut runner);
-    assert!(runner.engine.model().unwrap().cells[index]);
+    assert!(runner.engine.model().unwrap().tiles[index]);
 }
 
 #[test]
-pub(crate) fn looper_clear_loop_action_releases_playback_cells_and_marks_dirty() {
+pub(crate) fn looper_clear_loop_action_releases_playback_tiles_and_marks_dirty() {
     let mut runner = looper_runner();
     runner
         .send(HostMessage::DeviceInput {
@@ -79,7 +79,7 @@ pub(crate) fn looper_clear_loop_action_releases_playback_cells_and_marks_dirty()
     pulse_step(&mut runner);
     pulse_step(&mut runner);
     let index = platform_core::grid_index(2, 3);
-    assert!(runner.engine.model().unwrap().cells[index]);
+    assert!(runner.engine.model().unwrap().tiles[index]);
 
     runner.config_dirty = false;
     runner.menu.open_labels(&["Build", "L1: looper"]);
@@ -90,7 +90,7 @@ pub(crate) fn looper_clear_loop_action_releases_playback_cells_and_marks_dirty()
             request_snapshot: None,
         })
         .unwrap();
-    assert!(!runner.engine.model().unwrap().cells[index]);
+    assert!(!runner.engine.model().unwrap().tiles[index]);
     assert_eq!(snapshot_from(&messages)["display"]["toast"], "Loop cleared");
     assert!(runner.config_dirty);
     assert!(has_note_off(&messages));
@@ -207,7 +207,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     assert_deferred_save(&runner.flush_deferred_menu_apply().unwrap());
     let state_after = runner.engine.serialized_state().unwrap();
     assert_eq!(state_after["steps"][1].as_array().unwrap().len(), 1);
-    assert!(runner.engine.model().unwrap().cells[platform_core::grid_index(2, 3)]);
+    assert!(runner.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
 
     let messages = runner
         .send(HostMessage::DeviceInput {

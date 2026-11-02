@@ -23,7 +23,7 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(s.auto_drop_interval, 64);
     assert_eq!(s.spawn_step, 63);
     assert_eq!(s.tick_counter, 0);
-    assert!(!s.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!s.trigger_types.contains(&TileTriggerType::Activate));
     let v = ink_serialize(&s).unwrap();
     assert!(v.get("triggerTypes").is_none());
     assert!(v.get("tickCounter").is_none());
@@ -47,7 +47,7 @@ fn default_autodrops_keep_ink_alive_with_bounded_pulses() {
         let activates = s
             .trigger_types
             .iter()
-            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .filter(|trigger| **trigger == TileTriggerType::Activate)
             .count();
         if activates > 0 {
             pulse_counts.push(activates);
@@ -64,7 +64,7 @@ fn grid_press_force_activate_and_clear_deactivates() {
     let s = ink_init(serde_json::json!({"dropStrength":20})).unwrap();
     let s = ink_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(s.ink[grid_index(2, 3)], 20);
-    assert_eq!(s.trigger_types[grid_index(2, 3)], CellTriggerType::Activate);
+    assert_eq!(s.trigger_types[grid_index(2, 3)], TileTriggerType::Activate);
     let cleared = ink_on_input(
         s,
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -75,7 +75,7 @@ fn grid_press_force_activate_and_clear_deactivates() {
     assert_eq!(cleared.ink[grid_index(2, 3)], 0);
     assert_eq!(
         cleared.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 }
 
@@ -90,11 +90,11 @@ fn diffusion_fade_thresholds_and_edges() {
     let mut s = ink_init(serde_json::json!({"diffusionPct":0,"fadePct":100})).unwrap();
     s.ink[0] = VISIBLE;
     let t = ink_on_tick(s, &mut c);
-    assert_eq!(t.trigger_types[0], CellTriggerType::Deactivate);
+    assert_eq!(t.trigger_types[0], TileTriggerType::Deactivate);
     let mut s = ink_init(serde_json::json!({"diffusionPct":0,"fadePct":0})).unwrap();
     s.ink[0] = ACTIVATE - 1;
     let pressed = ink_on_input(s, DeviceInput::GridPress { x: 0, y: 0 }, &mut c);
-    assert_eq!(pressed.trigger_types[0], CellTriggerType::Activate);
+    assert_eq!(pressed.trigger_types[0], TileTriggerType::Activate);
 }
 
 #[test]
@@ -110,9 +110,9 @@ fn drop_ink_splash_forces_activate() {
     );
     assert_eq!(
         s.trigger_types[grid_index(GRID_WIDTH / 2, GRID_HEIGHT / 2)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
-    assert!(s.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(s.trigger_types.contains(&TileTriggerType::Activate));
 
     let s = ink_init(serde_json::json!({"dropStrength":1})).unwrap();
     let s = ink_on_input(
@@ -125,7 +125,7 @@ fn drop_ink_splash_forces_activate() {
     assert_eq!(
         s.trigger_types
             .iter()
-            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .filter(|trigger| **trigger == TileTriggerType::Activate)
             .count(),
         1
     );

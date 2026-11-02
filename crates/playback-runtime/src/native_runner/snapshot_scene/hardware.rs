@@ -119,7 +119,7 @@ impl PresentationScene {
         runtime_error: Option<OledRuntimeErrorMetadata>,
     ) -> NativeHardwarePresentation {
         let oled = self.oled_presentation_input(metrics, runtime_error);
-        let hdmi = self.hdmi.into_hardware(&self.led_rgb, &self.active_cells);
+        let hdmi = self.hdmi.into_hardware(&self.led_rgb, &self.active_tiles);
         NativeHardwarePresentation {
             generation: self.generation,
             oled,
@@ -128,7 +128,7 @@ impl PresentationScene {
                     width: GRID_WIDTH,
                     height: GRID_HEIGHT,
                     rgb: self.led_rgb,
-                    active: self.active_cells,
+                    active: self.active_tiles,
                 },
                 brightness: self.ui.grid_brightness,
                 dimmed: self.leds_dimmed,

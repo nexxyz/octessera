@@ -4,8 +4,8 @@ use crate::support::{assert_clean_audio, builder, keep_audio, session};
 
 const SYNTH_SLOT: u8 = 4;
 
-/// Sequencer cells (x, y) and their degree with one step per column and one per row.
-const CELLS: [(usize, usize); 4] = [(0, 0), (1, 0), (3, 1), (7, 7)];
+/// Sequencer tiles (x, y) and their degree with one step per column and one per row.
+const TILES: [(usize, usize); 4] = [(0, 0), (1, 0), (3, 1), (7, 7)];
 
 /// D major pentatonic within the shipped L5 range 36..74, nearest to Start Note 60 is 59 (B3).
 const PENTATONIC: [u8; 16] = [
@@ -34,7 +34,7 @@ fn played_notes(out_of_range: &str) -> Vec<u8> {
         take.toggle_mute_now(layer);
     }
     take.select_layer_now(4);
-    for (x, y) in CELLS {
+    for (x, y) in TILES {
         take.tap_now(x, y);
     }
     let name = format!("link-mapping-{out_of_range}");
@@ -55,7 +55,7 @@ fn played_notes(out_of_range: &str) -> Vec<u8> {
 }
 
 fn expected(wrap: bool) -> Vec<u8> {
-    let mut notes: Vec<u8> = CELLS
+    let mut notes: Vec<u8> = TILES
         .iter()
         .map(|(x, y)| {
             let index = START_INDEX + x + y;
@@ -78,12 +78,12 @@ fn link_note_mapping_steps_through_the_scale_and_clamps_or_wraps_at_the_range() 
     assert_eq!(
         clamped.last(),
         Some(&74),
-        "the top cell clamps to High Note"
+        "the top tile clamps to High Note"
     );
     let wrapped = played_notes("wrap");
     assert_eq!(wrapped, expected(true), "wrap");
     assert!(
         !wrapped.contains(&74),
-        "the top cell wraps back into the range instead"
+        "the top tile wraps back into the range instead"
     );
 }

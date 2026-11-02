@@ -2,8 +2,8 @@ use super::*;
 use playback_runtime::{oled_frame::OledPresentationMetrics, NativeRunner, NativeRunnerConfig};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use playback_runtime::{
-    CellHit, CoreRunner, HostAdapter, HostMessage, MusicalEvent, PlaybackRuntime,
-    RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig, RuntimePlatformRequest, SyncSource,
+    CoreRunner, HostAdapter, HostMessage, MusicalEvent, PlaybackRuntime, RuntimeAdapterError,
+    RuntimeAudioCommand, RuntimeConfig, RuntimePlatformRequest, SyncSource, TileHit,
 };
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::sync::mpsc;
@@ -27,9 +27,9 @@ impl HostAdapter for RecordingHost {
         self.musical_events.push(event.clone());
         Ok(())
     }
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        _hit: &CellHit,
+        _hit: &TileHit,
         _at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         Ok(())

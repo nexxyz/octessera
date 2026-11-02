@@ -14,7 +14,7 @@ pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() 
     };
     runner.xy_x_binding = Some(NativeParamBinding {
         key: key.into(),
-        label: Some("Seed Cells".into()),
+        label: Some("Seed Tiles".into()),
         kind: "number".into(),
         min: Some(0.0),
         max: Some(20.0),
@@ -80,7 +80,7 @@ pub(crate) fn aux_behavior_turn_recomposes_held_value_with_one_replacement() {
     };
     runner.xy_x_binding = Some(NativeParamBinding {
         key: key.into(),
-        label: Some("Seed Cells".into()),
+        label: Some("Seed Tiles".into()),
         kind: "number".into(),
         min: Some(0.0),
         max: Some(20.0),
@@ -129,7 +129,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
     runner.xy_x_binding = Some(NativeParamBinding {
         key: key.into(),
-        label: Some("Seed Cells".into()),
+        label: Some("Seed Tiles".into()),
         kind: "number".into(),
         min: Some(0.0),
         max: Some(20.0),

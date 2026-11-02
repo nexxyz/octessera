@@ -65,7 +65,7 @@ export function App() {
   function setModifier(kind: 'shift' | 'fn', active: boolean) {
     runtime.dispatchAction({ type: kind, active });
   }
-  const { handleMouseUp, handleCellMouseDown, handleCellDrag } =
+  const { handleMouseUp, handleTileMouseDown, handleTileDrag } =
     useGridInteraction(frame, dispatch);
 
   useRuntimeBindings(runtime, setSnapshot);
@@ -97,8 +97,8 @@ export function App() {
 
         <GridMatrix
           frame={frame}
-          onCellDrag={handleCellDrag}
-          onCellMouseDown={handleCellMouseDown}
+          onTileDrag={handleTileDrag}
+          onTileMouseDown={handleTileMouseDown}
         />
       </section>
 

@@ -78,7 +78,7 @@ fn system_document_changes_device_state_without_disturbing_live_patch_runtime() 
         runner.dirty_revision = Some(23);
         runner.config_dirty = true;
         runner.mark_fast_autosave_dirty();
-        assert!(runner.menu.focus_item_key("ghostCells"));
+        assert!(runner.menu.focus_item_key("ghostTiles"));
 
         let patch = runner.patch_payload().unwrap();
         let transport = runner.transport.clone();
@@ -94,17 +94,17 @@ fn system_document_changes_device_state_without_disturbing_live_patch_runtime() 
         );
         let mut system = system_document(&runner);
         system["runtimeConfig"]["displayBrightness"] = json!(5);
-        system["runtimeConfig"]["ghostCells"] = json!(true);
+        system["runtimeConfig"]["ghostTiles"] = json!(true);
 
         runner
             .apply_system_document_preserving_patch(&system)
             .unwrap();
 
         assert_eq!(runner.display.ui.display_brightness, 5);
-        assert!(runner.display.ui.ghost_cells);
+        assert!(runner.display.ui.ghost_tiles);
         assert_eq!(runner.menu.number_for_key("displayBrightness"), Some(5));
         assert_eq!(
-            runner.menu.value_for_key("ghostCells").as_deref(),
+            runner.menu.value_for_key("ghostTiles").as_deref(),
             Some("true")
         );
         assert_eq!(runner.menu.state.stack, menu_stack);

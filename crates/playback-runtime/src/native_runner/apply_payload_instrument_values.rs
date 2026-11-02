@@ -1,8 +1,8 @@
 use super::apply_payload_mixer_values::nested_u64;
-use super::sample_assignment_payload::cell_offset;
+use super::sample_assignment_payload::tile_offset;
 use super::{
-    sample_assignment_from_payload, sanitize_pan_position_payload, NativeCellStamp,
-    NativeInstrumentSlot, Value, SAMPLE_SLOT_COUNT,
+    sample_assignment_from_payload, sanitize_pan_position_payload, NativeInstrumentSlot,
+    NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
 };
 
 pub(super) fn apply_instrument_identity_payload(
@@ -30,16 +30,16 @@ pub(super) fn apply_instrument_identity_payload(
     }
 }
 
-pub(super) fn apply_instrument_cell_stamp_payload(
+pub(super) fn apply_instrument_tile_stamp_payload(
     slot: &Value,
     instrument: &mut NativeInstrumentSlot,
 ) {
-    let Some(stamp) = slot.get("cellStamp") else {
+    let Some(stamp) = slot.get("tileStamp") else {
         return;
     };
-    instrument.cell_stamp = NativeCellStamp {
-        tune_semis: cell_offset(stamp, "tuneSemis", 24),
-        tune_cents: cell_offset(stamp, "tuneCents", 100),
+    instrument.tile_stamp = NativeTileStamp {
+        tune_semis: tile_offset(stamp, "tuneSemis", 24),
+        tune_cents: tile_offset(stamp, "tuneCents", 100),
         level: stamp
             .get("level")
             .and_then(Value::as_str)

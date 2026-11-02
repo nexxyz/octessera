@@ -3,16 +3,16 @@ use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
+const TILE_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NoneState {
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
 }
 
 pub fn init(_config: Value) -> Result<NoneState, String> {
     Ok(NoneState {
-        cells: vec![false; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
     })
 }
 
@@ -32,7 +32,7 @@ pub fn render_model(_state: &NoneState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "none".into(),
         status_line: "Idle".into(),
-        cells: vec![false; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::GRAY,
             inactive: crate::palette::BLACK,
@@ -57,8 +57,8 @@ mod tests {
     #[test]
     fn none_ignores_inputs_and_ticks() {
         let state = init(Value::Null).unwrap();
-        assert_eq!(state.cells.len(), CELL_COUNT);
-        assert!(state.cells.iter().all(|cell| !cell));
+        assert_eq!(state.tiles.len(), TILE_COUNT);
+        assert!(state.tiles.iter().all(|tile| !tile));
 
         let mut context = BehaviorContext::new(120.0);
         for input in [
@@ -77,7 +77,7 @@ mod tests {
         let model = render_model(&state);
         assert_eq!(model.name, "none");
         assert_eq!(model.status_line, "Idle");
-        assert!(model.cells.iter().all(|cell| !cell));
+        assert!(model.tiles.iter().all(|tile| !tile));
         assert!(model.trigger_types.is_none());
 
         let raw = serialize(&state).unwrap();

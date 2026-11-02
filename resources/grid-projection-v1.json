@@ -2,7 +2,7 @@
   "version": 1,
   "width": 8,
   "height": 8,
-  "cells": [
+  "tiles": [
     {"logical":{"x":0,"y":0,"index":0},"display":{"x":0,"y":7,"index":56},"neotrellis":{"device_index":2,"address":"0x30","key":12,"seesaw_key":24}},
     {"logical":{"x":1,"y":0,"index":1},"display":{"x":1,"y":7,"index":57},"neotrellis":{"device_index":2,"address":"0x30","key":13,"seesaw_key":25}},
     {"logical":{"x":2,"y":0,"index":2},"display":{"x":2,"y":7,"index":58},"neotrellis":{"device_index":2,"address":"0x30","key":14,"seesaw_key":26}},

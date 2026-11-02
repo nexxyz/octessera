@@ -22,13 +22,13 @@ fn init_creates_seed_cluster_and_grid_press_toggles_cell() {
     assert!(toggled.cells[grid_index(1, 1)]);
     assert_eq!(
         toggled.trigger_types[grid_index(1, 1)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let toggled = dla_on_input(toggled, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
     assert!(!toggled.cells[grid_index(1, 1)]);
     assert_eq!(
         toggled.trigger_types[grid_index(1, 1)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 }
 
@@ -37,7 +37,7 @@ fn dla_render_and_config_menu_match_contract() {
     let state = dla_init(Value::Null).unwrap();
     let model = dla_render_model(&state);
     assert_eq!(model.name, "dla");
-    assert_eq!(model.trigger_types.as_ref().unwrap().len(), CELL_COUNT);
+    assert_eq!(model.trigger_types.as_ref().unwrap().len(), TILE_COUNT);
     assert_eq!(
         dla_config_menu()
             .iter()
@@ -62,8 +62,8 @@ fn old_payloads_normalize_ages_and_cell_life() {
 
     let ticked = dla_on_tick(state, &mut context);
 
-    assert_eq!(ticked.cells.len(), CELL_COUNT);
-    assert_eq!(ticked.ages.len(), CELL_COUNT);
+    assert_eq!(ticked.cells.len(), TILE_COUNT);
+    assert_eq!(ticked.ages.len(), TILE_COUNT);
     assert_eq!(ticked.cell_life, MAX_CELL_LIFE);
 }
 
@@ -82,12 +82,12 @@ fn old_short_payload_grid_input_normalizes_before_trigger_recompute() {
 
     let next = dla_on_input(state, DeviceInput::GridPress { x: 1, y: 0 }, &mut context);
 
-    assert_eq!(next.cells.len(), CELL_COUNT);
-    assert_eq!(next.ages.len(), CELL_COUNT);
-    assert_eq!(next.trigger_types.len(), CELL_COUNT);
+    assert_eq!(next.cells.len(), TILE_COUNT);
+    assert_eq!(next.ages.len(), TILE_COUNT);
+    assert_eq!(next.trigger_types.len(), TILE_COUNT);
     assert_eq!(
         next.trigger_types[grid_index(1, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 }
 
@@ -95,9 +95,9 @@ fn old_short_payload_grid_input_normalizes_before_trigger_recompute() {
 fn seed_cluster_action_and_no_frontier_tick_are_stable() {
     let mut context = BehaviorContext::new(120.0);
     let empty = DlaState {
-        cells: vec![false; CELL_COUNT],
-        ages: vec![0; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        cells: vec![false; TILE_COUNT],
+        ages: vec![0; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         spawn_interval: 1,
         spawn_step: 0,
         cell_life: 0,
@@ -108,7 +108,7 @@ fn seed_cluster_action_and_no_frontier_tick_are_stable() {
     assert!(ticked
         .trigger_types
         .iter()
-        .all(|trigger| *trigger == CellTriggerType::None));
+        .all(|trigger| *trigger == TileTriggerType::None));
 
     let seeded = dla_on_input(
         empty,
@@ -118,16 +118,16 @@ fn seed_cluster_action_and_no_frontier_tick_are_stable() {
         &mut context,
     );
     assert!(seeded.cells.iter().filter(|cell| **cell).count() >= 1);
-    assert!(seeded.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(seeded.trigger_types.contains(&TileTriggerType::Activate));
 }
 
 #[test]
 fn cell_life_expires_old_cells_and_reseeds_when_empty() {
     let mut context = BehaviorContext::new(120.0);
     let state = DlaState {
-        cells: vec![true; CELL_COUNT],
-        ages: vec![0; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        cells: vec![true; TILE_COUNT],
+        ages: vec![0; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         spawn_interval: 0,
         spawn_step: 0,
         cell_life: 1,
@@ -144,9 +144,9 @@ fn cell_life_expires_old_cells_and_reseeds_when_empty() {
 fn cell_life_zero_disables_aging_and_expiry() {
     let mut context = BehaviorContext::new(120.0);
     let state = DlaState {
-        cells: vec![true; CELL_COUNT],
-        ages: vec![250; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        cells: vec![true; TILE_COUNT],
+        ages: vec![250; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         spawn_interval: 0,
         spawn_step: 0,
         cell_life: 0,
@@ -157,7 +157,7 @@ fn cell_life_zero_disables_aging_and_expiry() {
 
     assert_eq!(
         ticked.cells.iter().filter(|cell| **cell).count(),
-        CELL_COUNT
+        TILE_COUNT
     );
     assert!(ticked.ages.iter().all(|age| *age == 250));
 }
@@ -186,7 +186,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
             .filter(|trigger| {
                 matches!(
                     trigger,
-                    CellTriggerType::Activate | CellTriggerType::Deactivate
+                    TileTriggerType::Activate | TileTriggerType::Deactivate
                 )
             })
             .count();

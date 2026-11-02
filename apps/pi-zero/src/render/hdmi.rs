@@ -178,11 +178,11 @@ fn compose_grid_frame_with_stride(
         return None;
     }
     let side = width.min(height);
-    let cell = side / 8;
-    if cell == 0 || (bytes_per_pixel != 2 && bytes_per_pixel != 4) {
+    let tile = side / 8;
+    if tile == 0 || (bytes_per_pixel != 2 && bytes_per_pixel != 4) {
         return None;
     }
-    let square = cell * 8;
+    let square = tile * 8;
     let x0 = (width - square) / 2;
     let y0 = (height - square) / 2;
     let mut frame = vec![0_u8; stride.checked_mul(height)?];
@@ -190,13 +190,13 @@ fn compose_grid_frame_with_stride(
         for gx in 0..8 {
             let index = gy * 8 + gx;
             let color = color_at(index);
-            for py in 0..cell {
-                for px in 0..cell {
+            for py in 0..tile {
+                for px in 0..tile {
                     if show_gridlines && (px == 0 || py == 0) {
                         continue;
                     }
                     let offset =
-                        (y0 + gy * cell + py) * stride + (x0 + gx * cell + px) * bytes_per_pixel;
+                        (y0 + gy * tile + py) * stride + (x0 + gx * tile + px) * bytes_per_pixel;
                     write_pixel(
                         &mut frame[offset..offset + bytes_per_pixel],
                         color,

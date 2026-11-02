@@ -223,7 +223,7 @@ fn drum_config_validation_rejects_out_of_range_duplicate_and_non_eight_voice_ban
     ]);
     assert!(validate_config_payload(&repeated)
         .unwrap_err()
-        .contains("duplicates a drum cell"));
+        .contains("duplicates a drum tile"));
 }
 
 fn remove_new_drum_fields(payload: &mut Value) {
@@ -369,7 +369,7 @@ fn partial_drum_edit_inherits_new_values_and_invalid_explicit_values_do_not_comm
 }
 
 #[test]
-fn drum_sound_selector_resets_only_selected_voice_and_preserves_cells_and_inactive_settings() {
+fn drum_sound_selector_resets_only_selected_voice_and_preserves_tiles_and_inactive_settings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["instruments"][0]["type"] = json!("drum");

@@ -58,7 +58,7 @@
     "buttonBrightness": 50,
     "dimTimerSeconds": 60,
     "displayBrightness": 14,
-    "ghostCells": false,
+    "ghostTiles": false,
     "auxAutoHints": true,
     "auxManualHints": true,
     "gridBrightness": 25,
@@ -1734,7 +1734,7 @@
           "behaviorConfig": null,
           "behaviorId": "sequencer",
           "savedState": {
-            "cells": [
+            "tiles": [
               true,
               false,
               true,
@@ -2012,97 +2012,97 @@
               [],
               [
                 {
-                  "cell": 49,
+                  "tile": 49,
                   "kind": "press"
                 }
               ],
               [
                 {
-                  "cell": 49,
+                  "tile": 49,
                   "kind": "release"
                 },
                 {
-                  "cell": 42,
+                  "tile": 42,
                   "kind": "press"
                 },
                 {
-                  "cell": 42,
+                  "tile": 42,
                   "kind": "press"
                 }
               ],
               [],
               [
                 {
-                  "cell": 49,
-                  "kind": "press"
-                },
-                {
-                  "cell": 42,
-                  "kind": "release"
-                },
-                {
-                  "cell": 42,
-                  "kind": "release"
-                }
-              ],
-              [],
-              [
-                {
-                  "cell": 49,
-                  "kind": "release"
-                }
-              ],
-              [],
-              [],
-              [
-                {
-                  "cell": 49,
-                  "kind": "press"
-                }
-              ],
-              [
-                {
-                  "cell": 49,
-                  "kind": "release"
-                }
-              ],
-              [],
-              [],
-              [],
-              [],
-              [],
-              [],
-              [],
-              [
-                {
-                  "cell": 49,
+                  "tile": 49,
                   "kind": "press"
                 },
                 {
-                  "cell": 49,
+                  "tile": 42,
                   "kind": "release"
                 },
                 {
-                  "cell": 42,
+                  "tile": 42,
+                  "kind": "release"
+                }
+              ],
+              [],
+              [
+                {
+                  "tile": 49,
+                  "kind": "release"
+                }
+              ],
+              [],
+              [],
+              [
+                {
+                  "tile": 49,
+                  "kind": "press"
+                }
+              ],
+              [
+                {
+                  "tile": 49,
+                  "kind": "release"
+                }
+              ],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [],
+              [
+                {
+                  "tile": 49,
+                  "kind": "press"
+                },
+                {
+                  "tile": 49,
+                  "kind": "release"
+                },
+                {
+                  "tile": 42,
                   "kind": "press"
                 }
               ],
               [],
               [
                 {
-                  "cell": 42,
+                  "tile": 42,
                   "kind": "release"
                 }
               ],
               [
                 {
-                  "cell": 49,
+                  "tile": 49,
                   "kind": "press"
                 }
               ],
               [
                 {
-                  "cell": 49,
+                  "tile": 49,
                   "kind": "release"
                 }
               ],
@@ -2305,7 +2305,7 @@
           "behaviorConfig": null,
           "behaviorId": "sequencer",
           "savedState": {
-            "cells": [
+            "tiles": [
               false,
               true,
               false,

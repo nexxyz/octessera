@@ -151,10 +151,10 @@ pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
         runner.instruments[0].kind = if midi { "midi" } else { "synth" }.into();
         runner.instruments[0].midi_enabled = midi;
         runner.refresh_active_mapping_config();
-        let intent = platform_core::CellTriggerIntent {
+        let intent = platform_core::TileTriggerIntent {
             x: 0,
             y: 0,
-            kind: platform_core::CellTriggerKind::Activate,
+            kind: platform_core::TileTriggerKind::Activate,
             degree: 0,
         };
         let mapped = platform_core::map_intents_to_musical_events(

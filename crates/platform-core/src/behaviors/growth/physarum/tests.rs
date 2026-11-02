@@ -16,7 +16,7 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(s.trail[0], 255);
     assert_eq!(s.food[0], 1);
     assert_eq!(s.food_pattern, 3);
-    assert!(!s.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!s.trigger_types.contains(&TileTriggerType::Activate));
     let v = physarum_serialize(&s).unwrap();
     assert!(v.get("triggerTypes").is_none());
     assert!(v.get("tickCounter").is_none());
@@ -35,12 +35,12 @@ fn grid_press_food_toggle() {
     let s = physarum_init(serde_json::json!({})).unwrap();
     let s = physarum_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(s.food[grid_index(2, 3)], 1);
-    assert_eq!(s.trigger_types[grid_index(2, 3)], CellTriggerType::Stable);
+    assert_eq!(s.trigger_types[grid_index(2, 3)], TileTriggerType::Stable);
     let s = physarum_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(s.food[grid_index(2, 3)], 0);
     assert_eq!(
         s.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 }
 
@@ -72,7 +72,7 @@ fn agent_entry_snapshot_sampling_reflection_and_turn_bias() {
     s.y[0] = 0;
     s.heading[0] = 0;
     let t = physarum_on_tick(s, &mut c);
-    assert_eq!(t.trigger_types[grid_index(1, 0)], CellTriggerType::Activate);
+    assert_eq!(t.trigger_types[grid_index(1, 0)], TileTriggerType::Activate);
 
     let mut s = physarum_init(serde_json::json!({
         "agentCount":2,"depositAmount":64,"evaporationPct":0,"turnBiasPct":100
@@ -137,8 +137,8 @@ fn seed_and_relocate_actions() {
         }),
         &mut c,
     );
-    assert_eq!(seeded.trigger_types[0], CellTriggerType::Deactivate);
-    assert!(seeded.trigger_types.contains(&CellTriggerType::Activate));
+    assert_eq!(seeded.trigger_types[0], TileTriggerType::Deactivate);
+    assert!(seeded.trigger_types.contains(&TileTriggerType::Activate));
     let relocated = physarum_on_input(
         seeded,
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -146,7 +146,7 @@ fn seed_and_relocate_actions() {
         }),
         &mut c,
     );
-    assert!(!relocated.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!relocated.trigger_types.contains(&TileTriggerType::Activate));
     assert_eq!(relocated.food_pattern, 1);
 }
 
@@ -161,7 +161,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
         s = physarum_on_tick(s, &mut c);
         let next = render(&s);
         same = if next == previous { same + 1 } else { 0 };
-        terminal = if next.iter().all(|cell| *cell) || next.iter().all(|cell| !*cell) {
+        terminal = if next.iter().all(|tile| *tile) || next.iter().all(|tile| !*tile) {
             terminal + 1
         } else {
             0
@@ -174,7 +174,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
             .filter(|trigger| {
                 matches!(
                     trigger,
-                    CellTriggerType::Activate | CellTriggerType::Deactivate
+                    TileTriggerType::Activate | TileTriggerType::Deactivate
                 )
             })
             .count();
@@ -233,12 +233,12 @@ fn relocate_food_cycles_all_patterns_and_renders_food() {
             &mut c,
         );
         assert_eq!(s.food_pattern, expected % 4);
-        let food_cells = s.food.iter().filter(|cell| **cell == 1).count();
-        assert!(food_cells > 0);
+        let food_tiles = s.food.iter().filter(|tile| **tile == 1).count();
+        assert!(food_tiles > 0);
         let model = physarum_render_model(&s);
         for (index, food) in s.food.iter().enumerate() {
             if *food == 1 {
-                assert!(model.cells[index]);
+                assert!(model.tiles[index]);
             }
         }
     }

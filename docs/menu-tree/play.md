@@ -42,7 +42,7 @@ Play
   selection does not move the menu.
 - Grid releases on a Play page are consumed and never reach the active behavior.
 - Aux bindings keep their targets; switching pages does not alter them.
-- Every page except Drums dims the behavior cells to a quarter and draws its markers on top. Fn
+- Every page except Drums dims the behavior tiles to a quarter and draws its markers on top. Fn
   navigation LEDs and overlay priority are defined in
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority).
 
@@ -56,7 +56,7 @@ Play
 
 - Each row is an instrument: `x=0` is hard left, `x=7` hard right. The stored scale is 33 positions
   (`0..32`, center `16`), shared with the menu and the audio engine.
-- The eight columns map onto seven two-cell marker positions: column 0 stores `0` and lights 0+1;
+- The eight columns map onto seven two-tile marker positions: column 0 stores `0` and lights 0+1;
   1 stores `5` (1+2); 2 stores `11` (2+3); 3 and 4 both store center `16` (3+4); 5 stores `21`
   (4+5); 6 stores `27` (5+6); 7 stores `32` (6+7).
 - Pan writes the audible target. Direct instruments set `Mixer > Pan Pos`. Bus-routed instruments
@@ -67,20 +67,20 @@ Play
 
 ## Play FX
 
-- Choose `FX Type`, edit its rows, then `Map to Grid` and press a cell. The toast is
-  `Map FX: <type>`, and Back leaves assignment without changing stored cells. The cell stores the
-  type, `Target`, and current parameter values. Mapping `none` clears a cell.
+- Choose `FX Type`, edit its rows, then `Map to Grid` and press a tile. The toast is
+  `Map FX: <type>`, and Back leaves assignment without changing stored tiles. The tile stores the
+  type, `Target`, and current parameter values. Mapping `none` clears a tile.
 - `Target` defaults to `master`. Options list `master`, then the FX buses, then the instruments.
   Insertion points: `instrument_n` on the instrument's outgoing signal before routing/pan; `fx_bus_n`
   on the bus output after its slot FX; `master` after the final mix. Platform-core resolves grid
   semantics into audio commands; desktop forwards them without interpreting Play meaning; Rust runs
   the DSP.
-- On the `fx` page, pressing a mapped cell starts its effect and releasing stops it. At most two
+- On the `fx` page, pressing a mapped tile starts its effect and releasing stops it. At most two
   momentary FX run at once (Play FX concurrency capability), and only one per type. A press that
   would exceed either limit is ignored with `Momentary FX limit reached (2)` or
   `Momentary FX type active (<type>)`.
-- LEDs: stutter yellow, freeze blue, filter_sweep green, pitch_shift magenta. Assigned idle cells are
-  bright, active cells add white, and cells blocked by a limit are dimmed.
+- LEDs: stutter yellow, freeze blue, filter_sweep green, pitch_shift magenta. Assigned idle tiles are
+  bright, active tiles add white, and tiles blocked by a limit are dimmed.
 - `Aux Map` lists the Play FX params and `Map to Grid` that auto-map to aux. Rows are editable but
   do not change the mapping target; OLED prefixes use the live `1-` turn and `1!` press markers.
 
@@ -96,14 +96,14 @@ The `ms` rows use the curved time steps from
 
 ## Trigger Gate
 
-- A live override of each layer's trigger mode. It does not edit the saved per-cell probability map.
+- A live override of each layer's trigger mode. It does not edit the saved per-tile probability map.
 - Rows are layers in Fn-navigation orientation: bottom row is layer 1.
 - Columns `0..2` set that row's layer to `0%` (magenta), `custom` (yellow), or `100%` (green). The
   selected mode is bright, the other two dim.
 - Columns `3..4` are an unassigned gap. Bottom-row columns `5..7` are always-bright all-layer
   actions: every layer to `0%`, `custom`, or `100%`.
 - Filtering per layer: `zero` blocks all triggers, `full` passes all, `custom` uses the stored
-  per-cell probability map with that layer's `Prob Low` and `Prob High`.
+  per-tile probability map with that layer's `Prob Low` and `Prob High`.
 - `Shift+Fn` + left-column layer toggles that layer between `0%` and its previous mode without
   rewriting the map or changing the active layer. Note release on disable is described in the
   [Cheat Sheet](../menu-and-controls-spec.md#cheat-sheet).
@@ -124,7 +124,7 @@ The `ms` rows use the curved time steps from
   enabled layer and toasts `Transpose <±n>`.
 - A layer is eligible when any of its Link mappings sends `note_on` or `note_off` to a Synth, FM, or
   Plucked slot, an enabled MIDI slot, or a Sampler or Drum slot with `Follow Transp.` on. Offsets
-  apply after mapping and before routing. Sampler and Drum cells shift only when their
+  apply after mapping and before routing. Sampler and Drum tiles shift only when their
   `Follow Transp.` is on.
 - LEDs: left column green (selected and enabled), dim blue (selected, disabled), dim gray
   (unselected), dark (ineligible). Keys: the active offset green, center C white, other offsets dim
@@ -147,7 +147,7 @@ The `ms` rows use the curved time steps from
   each mapped normalized axis glides independently from its current value without overshoot, before
   target range/step conversion. Elapsed time is monotonic. `sample-hold` lets an active glide finish
   after release; `reset-center` moves the marker to center at once and glides mapped axes to 0.5.
-- LEDs: the touched cell is bright white while pressed. After release, `sample-hold` leaves a dim
+- LEDs: the touched tile is bright white while pressed. After release, `sample-hold` leaves a dim
   gray marker at the held value and `reset-center` a dimmer gray marker at center.
 
 ## Drums
@@ -155,16 +155,16 @@ The `ms` rows use the curved time steps from
 - `Slot` selects an existing Drum instrument (`I<n>: Drum`), starting with the first Drum slot for
   the session. With no Drum slot the seventh Play row reads `No Drum slot` and has no selectable
   guidance row.
-- On this page a press on an assigned cell plays exactly one hit from the selected slot, even when
-  stopped; releases are consumed. Empty cells, or a slot no longer set to Drum, stay silent. These
+- On this page a press on an assigned tile plays exactly one hit from the selected slot, even when
+  stopped; releases are consumed. Empty tiles, or a slot no longer set to Drum, stay silent. These
   hits bypass behavior, Link timing, and probability, and do not trigger the behavior engine.
-- LEDs: the grid goes black and the selected slot's assigned cells show dim white.
+- LEDs: the grid goes black and the selected slot's assigned tiles show dim white.
 - Outside this page, mapped Drum hits follow the normal behavior/Link path. Drum assignment is in
   [shape.md](shape.md#drum-assignment).
 
 ## Persistence
 
-- Saved with presets and the default patch: the selected Play page, the FX page config and cell
+- Saved with presets and the default patch: the selected Play page, the FX page config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y smoothing, invert flags, and release behavior.
 - Not saved: the active Play overlay on load/startup, Transpose selections/enabled state/offsets, the

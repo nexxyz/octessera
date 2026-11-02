@@ -45,9 +45,9 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
             "Kit",
             "Voice",
             "Edit",
-            "Cell Tune",
-            "Cell Fine",
-            "Cell Level",
+            "Tile Tune",
+            "Tile Fine",
+            "Tile Level",
             "Assign",
             "Preview",
             "Vel Levels",
@@ -343,7 +343,7 @@ fn drum_help_covers_voice_edits_actions_and_play_slot() {
             .unwrap_or_else(|| panic!("Drum help missing: {target:?}"));
         assert!(
             entry.key.contains(".drum.")
-                || entry.key.contains(".cell.")
+                || entry.key.contains(".tile.")
                 || entry.key.starts_with("action:drum.")
                 || entry.path.contains("Instrument * > Drum")
                 || entry.key == "key:play.page.drums"

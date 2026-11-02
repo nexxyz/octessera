@@ -1,5 +1,5 @@
-use crate::behavior::CellTriggerType;
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behavior::TileTriggerType;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 
@@ -131,8 +131,8 @@ fn act_herbivore(
     }
 }
 
-fn place(buffers: &mut StepBuffers<'_>, index: usize, cell: u8, energy: u8) {
-    buffers.next[index] = cell;
+fn place(buffers: &mut StepBuffers<'_>, index: usize, tile: u8, energy: u8) {
+    buffers.next[index] = tile;
     buffers.energy[index] = energy;
     buffers.reserved[index] = true;
 }
@@ -185,15 +185,15 @@ fn burst(index: usize, out: &mut Vec<usize>) {
     }
 }
 
-pub(super) fn triggers_from_cells(prev: &[u8], next: &[u8]) -> Vec<CellTriggerType> {
-    triggers_from_cells_forced(prev, next, &[])
+pub(super) fn triggers_from_tiles(prev: &[u8], next: &[u8]) -> Vec<TileTriggerType> {
+    triggers_from_tiles_forced(prev, next, &[])
 }
 
-pub(super) fn triggers_from_cells_forced(
+pub(super) fn triggers_from_tiles_forced(
     prev: &[u8],
     next: &[u8],
     force_activate: &[usize],
-) -> Vec<CellTriggerType> {
+) -> Vec<TileTriggerType> {
     triggers(prev, next, &[], force_activate)
 }
 
@@ -202,7 +202,7 @@ pub(super) fn triggers(
     next: &[u8],
     bursts: &[usize],
     force_activate: &[usize],
-) -> Vec<CellTriggerType> {
+) -> Vec<TileTriggerType> {
     triggers_with_deactivations(prev, next, bursts, force_activate, &[])
 }
 
@@ -212,8 +212,8 @@ pub(super) fn triggers_with_deactivations(
     bursts: &[usize],
     force_activate: &[usize],
     force_deactivate: &[usize],
-) -> Vec<CellTriggerType> {
-    let mut triggers = (0..CELL_COUNT)
+) -> Vec<TileTriggerType> {
+    let mut triggers = (0..TILE_COUNT)
         .map(|index| transition_trigger(prev[index], next[index]))
         .collect::<Vec<_>>();
     let mut priorities = triggers
@@ -221,12 +221,12 @@ pub(super) fn triggers_with_deactivations(
         .map(|trigger| TriggerPriority::from_trigger(*trigger))
         .collect::<Vec<_>>();
     for index in force_deactivate {
-        if *index < CELL_COUNT && prev[*index] != EMPTY && next[*index] == EMPTY {
+        if *index < TILE_COUNT && prev[*index] != EMPTY && next[*index] == EMPTY {
             apply_trigger(
                 &mut triggers,
                 &mut priorities,
                 *index,
-                CellTriggerType::Deactivate,
+                TileTriggerType::Deactivate,
                 TriggerPriority::Deactivate,
             );
         }
@@ -236,7 +236,7 @@ pub(super) fn triggers_with_deactivations(
             &mut triggers,
             &mut priorities,
             *index,
-            CellTriggerType::Activate,
+            TileTriggerType::Activate,
             TriggerPriority::BurstActivate,
         );
     }
@@ -245,7 +245,7 @@ pub(super) fn triggers_with_deactivations(
             &mut triggers,
             &mut priorities,
             *index,
-            CellTriggerType::Activate,
+            TileTriggerType::Activate,
             TriggerPriority::MovementActivate,
         );
     }
@@ -262,53 +262,53 @@ enum TriggerPriority {
 }
 
 impl TriggerPriority {
-    fn from_trigger(trigger: CellTriggerType) -> Self {
+    fn from_trigger(trigger: TileTriggerType) -> Self {
         match trigger {
-            CellTriggerType::None => Self::None,
-            CellTriggerType::Stable => Self::Stable,
-            CellTriggerType::Activate => Self::MovementActivate,
-            CellTriggerType::Deactivate => Self::Deactivate,
-            CellTriggerType::Scanned => Self::None,
+            TileTriggerType::None => Self::None,
+            TileTriggerType::Stable => Self::Stable,
+            TileTriggerType::Activate => Self::MovementActivate,
+            TileTriggerType::Deactivate => Self::Deactivate,
+            TileTriggerType::Scanned => Self::None,
         }
     }
 }
 
 fn apply_trigger(
-    triggers: &mut [CellTriggerType],
+    triggers: &mut [TileTriggerType],
     priorities: &mut [TriggerPriority],
     index: usize,
-    trigger: CellTriggerType,
+    trigger: TileTriggerType,
     priority: TriggerPriority,
 ) {
-    if index < CELL_COUNT && priority > priorities[index] {
+    if index < TILE_COUNT && priority > priorities[index] {
         triggers[index] = trigger;
         priorities[index] = priority;
     }
 }
 
-fn transition_trigger(previous: u8, next: u8) -> CellTriggerType {
+fn transition_trigger(previous: u8, next: u8) -> TileTriggerType {
     match (previous, next) {
-        (HERBIVORE | PREDATOR, EMPTY | GRASS) => CellTriggerType::Deactivate,
-        (_, GRASS) => CellTriggerType::Stable,
-        (EMPTY | GRASS, HERBIVORE | PREDATOR) => CellTriggerType::Activate,
-        (HERBIVORE, PREDATOR) | (PREDATOR, HERBIVORE) => CellTriggerType::Activate,
-        (HERBIVORE | PREDATOR, HERBIVORE | PREDATOR) => CellTriggerType::Stable,
-        (EMPTY, EMPTY) => CellTriggerType::None,
-        _ => CellTriggerType::Stable,
+        (HERBIVORE | PREDATOR, EMPTY | GRASS) => TileTriggerType::Deactivate,
+        (_, GRASS) => TileTriggerType::Stable,
+        (EMPTY | GRASS, HERBIVORE | PREDATOR) => TileTriggerType::Activate,
+        (HERBIVORE, PREDATOR) | (PREDATOR, HERBIVORE) => TileTriggerType::Activate,
+        (HERBIVORE | PREDATOR, HERBIVORE | PREDATOR) => TileTriggerType::Stable,
+        (EMPTY, EMPTY) => TileTriggerType::None,
+        _ => TileTriggerType::Stable,
     }
 }
 
 pub(super) fn reseed_extinct(state: &mut PredatorPreyState) -> Vec<usize> {
     let mut activated = Vec::new();
-    if state.cells.iter().all(|cell| *cell == EMPTY) {
+    if state.tiles.iter().all(|tile| *tile == EMPTY) {
         return starter(state);
     }
-    if !state.cells.contains(&HERBIVORE) {
+    if !state.tiles.contains(&HERBIVORE) {
         if let Some(index) = seed_one(state, HERBIVORE) {
             activated.push(index);
         }
     }
-    if state.cells.contains(&HERBIVORE) && !state.cells.contains(&PREDATOR) {
+    if state.tiles.contains(&HERBIVORE) && !state.tiles.contains(&PREDATOR) {
         if let Some(index) = seed_one(state, PREDATOR) {
             activated.push(index);
         }
@@ -316,13 +316,13 @@ pub(super) fn reseed_extinct(state: &mut PredatorPreyState) -> Vec<usize> {
     activated
 }
 
-fn seed_one(state: &mut PredatorPreyState, cell: u8) -> Option<usize> {
+fn seed_one(state: &mut PredatorPreyState, tile: u8) -> Option<usize> {
     if let Some(index) = state
-        .cells
+        .tiles
         .iter()
         .position(|current| *current == GRASS || *current == EMPTY)
     {
-        state.cells[index] = cell;
+        state.tiles[index] = tile;
         state.energy[index] = state.starve_ticks;
         Some(index)
     } else {
@@ -331,10 +331,10 @@ fn seed_one(state: &mut PredatorPreyState, cell: u8) -> Option<usize> {
 }
 
 pub(super) fn starter(state: &mut PredatorPreyState) -> Vec<usize> {
-    state.cells.fill(EMPTY);
+    state.tiles.fill(EMPTY);
     state.energy.fill(0);
-    for index in 0..CELL_COUNT.min(6) {
-        state.cells[index] = GRASS;
+    for index in 0..TILE_COUNT.min(6) {
+        state.tiles[index] = GRASS;
     }
     let mut activated = Vec::new();
     if let Some(index) = seed_one(state, HERBIVORE) {

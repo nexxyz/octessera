@@ -106,7 +106,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
 
 fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mut children = vec![
-        bool_item("Ghost Cells", "ghostCells", config.ghost_cells),
+        bool_item("Ghost Tiles", "ghostTiles", config.ghost_tiles),
         bool_item("Auto Map", "auxAutoMapEnabled", config.aux_auto_map_enabled),
         bool_item("Auto Hints", "auxAutoHints", config.aux_auto_hints),
         bool_item("Manual Hints", "auxManualHints", config.aux_manual_hints),

@@ -19,11 +19,11 @@ mod tests {
         version: u32,
         width: usize,
         height: usize,
-        cells: Vec<GridProjectionFixtureCell>,
+        tiles: Vec<GridProjectionFixtureTile>,
     }
 
     #[derive(Deserialize)]
-    struct GridProjectionFixtureCell {
+    struct GridProjectionFixtureTile {
         logical: GridProjectionFixtureCoordinate,
         display: GridProjectionFixtureCoordinate,
     }
@@ -44,21 +44,21 @@ mod tests {
         assert_eq!(fixture.version, 1);
         assert_eq!(fixture.width, GRID_WIDTH);
         assert_eq!(fixture.height, GRID_HEIGHT);
-        assert_eq!(fixture.cells.len(), 64);
+        assert_eq!(fixture.tiles.len(), 64);
 
         let mut display_indices = HashSet::new();
-        for cell in fixture.cells {
+        for tile in fixture.tiles {
             assert_eq!(
-                cell.logical.index,
-                cell.logical.y * GRID_WIDTH + cell.logical.x
+                tile.logical.index,
+                tile.logical.y * GRID_WIDTH + tile.logical.x
             );
-            assert_eq!(cell.display.x, cell.logical.x);
-            assert_eq!(cell.display.y, GRID_HEIGHT - 1 - cell.logical.y);
+            assert_eq!(tile.display.x, tile.logical.x);
+            assert_eq!(tile.display.y, GRID_HEIGHT - 1 - tile.logical.y);
             assert_eq!(
-                display_index(cell.logical.x, cell.logical.y),
-                cell.display.index
+                display_index(tile.logical.x, tile.logical.y),
+                tile.display.index
             );
-            assert!(display_indices.insert(cell.display.index));
+            assert!(display_indices.insert(tile.display.index));
         }
         assert_eq!(display_indices.len(), 64);
     }

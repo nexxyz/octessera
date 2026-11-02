@@ -296,15 +296,15 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
     let model = runner.engine.model().unwrap();
-    assert!(model.cells.iter().any(|alive| *alive));
-    assert!(model.cells.iter().any(|alive| !*alive));
-    assert!(model.cells[GRID_WIDTH + 2]);
-    assert!(!model.cells[0]);
+    assert!(model.tiles.iter().any(|alive| *alive));
+    assert!(model.tiles.iter().any(|alive| !*alive));
+    assert!(model.tiles[GRID_WIDTH + 2]);
+    assert!(!model.tiles[0]);
     let rendered = runner
         .capture_presentation_scene(false)
         .unwrap()
         .into_snapshot();
-    for (index, alive) in model.cells.iter().enumerate() {
+    for (index, alive) in model.tiles.iter().enumerate() {
         let x = index % GRID_WIDTH;
         let y = index / GRID_WIDTH;
         let display_index = (GRID_HEIGHT - 1 - y) * GRID_WIDTH + x;

@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,14 +14,14 @@ const DIRS: &[&str] = &["down", "left", "up", "right"];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GravityState {
-    pub cells: Vec<u8>,
+    pub tiles: Vec<u8>,
     pub age: Vec<u8>,
     #[serde(rename = "gravityDir")]
     pub gravity_dir: String,
     #[serde(rename = "tickCounter", skip_serializing, skip_deserializing)]
     pub tick_counter: u64,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "spawnRatePct")]
     pub spawn_rate_pct: u8,
     #[serde(rename = "slideChancePct")]
@@ -32,12 +32,12 @@ pub struct GravityState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Vec<Value>>,
+    tiles: Option<Vec<Value>>,
     age: Option<Vec<Value>>,
     #[serde(rename = "gravityDir")]
     gravity_dir: Option<String>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "spawnRatePct")]
     spawn_rate_pct: Option<Value>,
     #[serde(rename = "slideChancePct")]
@@ -48,13 +48,13 @@ struct Config {
 
 pub fn gravity_init(config: Value) -> Result<GravityState, String> {
     let mut state = from_config(config);
-    state.trigger_types = triggers(&state.cells, &state.cells);
+    state.trigger_types = triggers(&state.tiles, &state.tiles);
     Ok(state)
 }
 
 pub fn gravity_deserialize(data: Value) -> Result<GravityState, String> {
     let mut state = from_config(data);
-    state.trigger_types = triggers(&state.cells, &state.cells);
+    state.trigger_types = triggers(&state.tiles, &state.tiles);
     Ok(state)
 }
 
@@ -70,11 +70,11 @@ pub fn gravity_on_input(
     _context: &mut BehaviorContext,
 ) -> GravityState {
     normalize(&mut state);
-    let previous = state.cells.clone();
+    let previous = state.tiles.clone();
     match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let i = grid_index(x, y);
-            state.cells[i] = if state.cells[i] == SAND { EMPTY } else { SAND };
+            state.tiles[i] = if state.tiles[i] == SAND { EMPTY } else { SAND };
             state.age[i] = 0;
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
@@ -94,19 +94,19 @@ pub fn gravity_on_input(
         }
         _ => return state,
     }
-    state.trigger_types = triggers(&previous, &state.cells);
+    state.trigger_types = triggers(&previous, &state.tiles);
     state
 }
 
 pub fn gravity_on_tick(mut state: GravityState, _context: &mut BehaviorContext) -> GravityState {
     normalize(&mut state);
-    let previous = state.cells.clone();
-    let mut next = state.cells.clone();
+    let previous = state.tiles.clone();
+    let mut next = state.tiles.clone();
     let mut age = state.age.clone();
-    let mut vacated = vec![false; CELL_COUNT];
+    let mut vacated = vec![false; TILE_COUNT];
     let mut moved = false;
     for i in scan_order(&state.gravity_dir) {
-        if state.cells[i] != SAND || next[i] != SAND {
+        if state.tiles[i] != SAND || next[i] != SAND {
             continue;
         }
         let x = i % GRID_WIDTH;
@@ -122,30 +122,30 @@ pub fn gravity_on_tick(mut state: GravityState, _context: &mut BehaviorContext) 
             age[i] = age[i].saturating_add(1).min(state.settle_age);
         }
     }
-    state.cells = next;
+    state.tiles = next;
     state.age = age;
     spawn_edge_skipping(&mut state, false, &vacated);
     if moved {
         drain_settled_edge(&mut state);
     } else {
-        drain_settled_cell(&mut state);
+        drain_settled_tile(&mut state);
     }
     state.tick_counter = state.tick_counter.wrapping_add(1);
-    state.trigger_types = triggers(&previous, &state.cells);
+    state.trigger_types = triggers(&previous, &state.tiles);
     state
 }
 
 pub fn gravity_render_model(state: &GravityState) -> BehaviorRenderModel {
-    let sand = state.cells.iter().filter(|cell| **cell == SAND).count();
+    let sand = state.tiles.iter().filter(|tile| **tile == SAND).count();
     let moving = state
         .trigger_types
         .iter()
-        .filter(|t| **t == CellTriggerType::Activate)
+        .filter(|t| **t == TileTriggerType::Activate)
         .count();
     BehaviorRenderModel {
         name: "gravity".into(),
         status_line: format!("G:{} M:{moving} S:{sand}", state.gravity_dir),
-        cells: state.cells.iter().map(|cell| *cell == SAND).collect(),
+        tiles: state.tiles.iter().map(|tile| *tile == SAND).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 220, 120],
             inactive: crate::palette::BLACK,
@@ -170,7 +170,7 @@ pub fn gravity_config_menu() -> Vec<BehaviorConfigItem> {
 fn from_config(config: Value) -> GravityState {
     let config: Config = serde_json::from_value(config).unwrap_or_default();
     let mut state = GravityState {
-        cells: norm_cells(config.cells.unwrap_or_default()),
+        tiles: norm_tiles(config.tiles.unwrap_or_default()),
         age: norm_age(config.age.unwrap_or_default()),
         gravity_dir: norm_dir(config.gravity_dir),
         tick_counter: 0,
@@ -184,27 +184,27 @@ fn from_config(config: Value) -> GravityState {
 }
 
 fn normalize(state: &mut GravityState) {
-    state.cells = norm_cells(state.cells.iter().map(|cell| Value::from(*cell)).collect());
+    state.tiles = norm_tiles(state.tiles.iter().map(|tile| Value::from(*tile)).collect());
     state.age = norm_age(state.age.iter().map(|age| Value::from(*age)).collect());
     state.gravity_dir = norm_dir(Some(state.gravity_dir.clone()));
     state.trigger_types = norm_triggers(Some(state.trigger_types.clone()));
     state.spawn_rate_pct = state.spawn_rate_pct.min(100);
     state.slide_chance_pct = state.slide_chance_pct.min(100);
     state.settle_age = state.settle_age.clamp(1, 32);
-    for i in 0..CELL_COUNT {
-        if state.cells[i] == EMPTY {
+    for i in 0..TILE_COUNT {
+        if state.tiles[i] == EMPTY {
             state.age[i] = 0;
         }
     }
 }
 
-fn norm_cells(values: Vec<Value>) -> Vec<u8> {
+fn norm_tiles(values: Vec<Value>) -> Vec<u8> {
     let mut out = values
         .into_iter()
         .map(|v| u8::from(v.as_u64().unwrap_or(0) > 0))
         .collect::<Vec<_>>();
-    out.resize(CELL_COUNT, EMPTY);
-    out.truncate(CELL_COUNT);
+    out.resize(TILE_COUNT, EMPTY);
+    out.truncate(TILE_COUNT);
     out
 }
 fn norm_age(values: Vec<Value>) -> Vec<u8> {
@@ -212,14 +212,14 @@ fn norm_age(values: Vec<Value>) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(u8::MAX.into()) as u8)
         .collect::<Vec<_>>();
-    out.resize(CELL_COUNT, 0);
-    out.truncate(CELL_COUNT);
+    out.resize(TILE_COUNT, 0);
+    out.truncate(TILE_COUNT);
     out
 }
-fn norm_triggers(values: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(values: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut out = values.unwrap_or_default();
-    out.resize(CELL_COUNT, CellTriggerType::None);
-    out.truncate(CELL_COUNT);
+    out.resize(TILE_COUNT, TileTriggerType::None);
+    out.truncate(TILE_COUNT);
     out
 }
 fn norm_dir(value: Option<String>) -> String {
@@ -293,7 +293,7 @@ fn destination(
 }
 
 fn scan_order(dir: &str) -> Vec<usize> {
-    let mut out = Vec::with_capacity(CELL_COUNT);
+    let mut out = Vec::with_capacity(TILE_COUNT);
     let ys: Vec<usize> = if dir == "down" {
         (0..GRID_HEIGHT).collect()
     } else {
@@ -319,12 +319,12 @@ fn spawn_edge(state: &mut GravityState, force: bool) {
 fn spawn_edge_skipping(state: &mut GravityState, force: bool, skip: &[bool]) {
     for index in source_edge(&state.gravity_dir) {
         if !skip.get(index).copied().unwrap_or(false)
-            && state.cells[index] == EMPTY
+            && state.tiles[index] == EMPTY
             && (force
                 || hash(state.tick_counter, index, &state.gravity_dir) % 100
                     < u64::from(state.spawn_rate_pct))
         {
-            state.cells[index] = SAND;
+            state.tiles[index] = SAND;
             state.age[index] = 0;
         }
     }
@@ -332,32 +332,32 @@ fn spawn_edge_skipping(state: &mut GravityState, force: bool, skip: &[bool]) {
 
 fn clear_bottom(state: &mut GravityState) {
     for index in dest_edge(&state.gravity_dir) {
-        state.cells[index] = EMPTY;
+        state.tiles[index] = EMPTY;
         state.age[index] = 0;
     }
 }
 fn drain_settled_edge(state: &mut GravityState) {
-    let filled = state.cells.iter().filter(|cell| **cell == SAND).count();
-    if filled < CELL_COUNT - 2 {
+    let filled = state.tiles.iter().filter(|tile| **tile == SAND).count();
+    if filled < TILE_COUNT - 2 {
         return;
     }
     let edge = dest_edge(&state.gravity_dir);
     let start = (state.tick_counter as usize) % edge.len();
     for offset in 0..edge.len() {
         let index = edge[(start + offset) % edge.len()];
-        if state.cells[index] == SAND && state.age[index] >= state.settle_age {
-            state.cells[index] = EMPTY;
+        if state.tiles[index] == SAND && state.age[index] >= state.settle_age {
+            state.tiles[index] = EMPTY;
             state.age[index] = 0;
             return;
         }
     }
 }
-fn drain_settled_cell(state: &mut GravityState) {
-    let start = (state.tick_counter as usize * 7) % CELL_COUNT;
-    for offset in 0..CELL_COUNT {
-        let index = (start + offset) % CELL_COUNT;
-        if state.cells[index] == SAND && state.age[index] >= state.settle_age {
-            state.cells[index] = EMPTY;
+fn drain_settled_tile(state: &mut GravityState) {
+    let start = (state.tick_counter as usize * 7) % TILE_COUNT;
+    for offset in 0..TILE_COUNT {
+        let index = (start + offset) % TILE_COUNT;
+        if state.tiles[index] == SAND && state.age[index] >= state.settle_age {
+            state.tiles[index] = EMPTY;
             state.age[index] = 0;
             return;
         }
@@ -393,13 +393,13 @@ fn hash(tick: u64, index: usize, dir: &str) -> u64 {
         .wrapping_add(index as u64 * 97)
         .wrapping_add(dir.as_bytes()[0] as u64)
 }
-fn triggers(prev: &[u8], next: &[u8]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn triggers(prev: &[u8], next: &[u8]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|i| match (prev[i], next[i]) {
-            (EMPTY, SAND) => CellTriggerType::Activate,
-            (SAND, EMPTY) => CellTriggerType::Deactivate,
-            (SAND, SAND) => CellTriggerType::Stable,
-            _ => CellTriggerType::None,
+            (EMPTY, SAND) => TileTriggerType::Activate,
+            (SAND, EMPTY) => TileTriggerType::Deactivate,
+            (SAND, SAND) => TileTriggerType::Stable,
+            _ => TileTriggerType::None,
         })
         .collect()
 }

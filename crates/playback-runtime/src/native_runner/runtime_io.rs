@@ -208,7 +208,7 @@ pub(super) fn push_routed_events(out: &mut Vec<RunnerMessage>, events: RoutedMus
             events: events.midi,
         });
     }
-    if !events.cells.is_empty() {
-        out.push(RunnerMessage::CellHits { hits: events.cells });
+    if !events.tiles.is_empty() {
+        out.push(RunnerMessage::TileHits { hits: events.tiles });
     }
 }

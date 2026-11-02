@@ -123,12 +123,12 @@ pub(super) fn hdmi_frame_from_model(
     for led in base_led_snapshot(model) {
         led.append_rgb(&mut rgb);
     }
-    (rgb, display_active_cells(&model.cells))
+    (rgb, display_active_tiles(&model.tiles))
 }
 
-pub(super) fn display_active_cells(cells: &[bool]) -> Vec<bool> {
+pub(super) fn display_active_tiles(tiles: &[bool]) -> Vec<bool> {
     let mut active = vec![false; GRID_WIDTH * GRID_HEIGHT];
-    for (logical_index, alive) in cells.iter().enumerate() {
+    for (logical_index, alive) in tiles.iter().enumerate() {
         let x = logical_index % GRID_WIDTH;
         let y = logical_index / GRID_WIDTH;
         active[display_index(x, y)] = *alive;

@@ -43,10 +43,10 @@ fn distinct_drum_hits_stay_ordered_in_musical_fifo_and_not_latest_cells() {
     let (sender, mut receiver) = event_queue();
     for (voice, pitch_cents) in [(0, -2400), (2, 1250)] {
         sender
-            .send(EngineEvent::CellHit {
+            .send(EngineEvent::TileHit {
                 instrument_slot: 3,
                 voice,
-                cell: voice,
+                tile: voice,
                 pitch_cents,
                 velocity: 100,
                 at: None,
@@ -55,9 +55,9 @@ fn distinct_drum_hits_stay_ordered_in_musical_fifo_and_not_latest_cells() {
     }
     for (voice, pitch_cents) in [(0, -2400), (2, 1250)] {
         assert!(matches!(receiver.try_recv().unwrap(),
-            EngineEvent::CellHit { instrument_slot: 3, voice: actual_voice, cell: actual_cell,
+            EngineEvent::TileHit { instrument_slot: 3, voice: actual_voice, tile: actual_tile,
                 pitch_cents: actual_pitch, velocity: 100, .. }
-            if actual_voice == voice && actual_cell == voice && actual_pitch == pitch_cents));
+            if actual_voice == voice && actual_tile == voice && actual_pitch == pitch_cents));
     }
     assert!(receiver.take_latest_candidate().is_none());
 }

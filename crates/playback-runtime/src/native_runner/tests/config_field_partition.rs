@@ -20,7 +20,7 @@ const FULL_FIELDS: &[&str] = &[
     "mixer",
     "masterVolume",
     "sound",
-    "ghostCells",
+    "ghostTiles",
     "auxAutoHints",
     "auxManualHints",
     "inputEventsWhilePaused",
@@ -64,7 +64,7 @@ const PREFERENCE_FIELDS: &[&str] = &[
     "hdmi",
     "bluetooth",
     "masterVolume",
-    "ghostCells",
+    "ghostTiles",
     "auxAutoHints",
     "auxManualHints",
     "inputEventsWhilePaused",
@@ -89,7 +89,7 @@ const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "hdmi",
     "bluetooth",
     "masterVolume",
-    "ghostCells",
+    "ghostTiles",
     "auxAutoHints",
     "auxManualHints",
     "inputEventsWhilePaused",
@@ -132,7 +132,7 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "bluetooth",
     "wifi",
     "masterVolume",
-    "ghostCells",
+    "ghostTiles",
     "auxAutoHints",
     "auxManualHints",
     "inputEventsWhilePaused",
@@ -235,7 +235,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     });
     source_runtime["masterVolume"] = alternate_unsigned(&canonical_runtime["masterVolume"], 0, 100);
     source_runtime["randomSeed"] = alternate_unsigned(&canonical_runtime["randomSeed"], 1, 9999);
-    source_runtime["ghostCells"] = alternate_bool(&canonical_runtime["ghostCells"]);
+    source_runtime["ghostTiles"] = alternate_bool(&canonical_runtime["ghostTiles"]);
     source_runtime["auxAutoHints"] = alternate_bool(&canonical_runtime["auxAutoHints"]);
     source_runtime["auxManualHints"] = alternate_bool(&canonical_runtime["auxManualHints"]);
     source_runtime["inputEventsWhilePaused"] =

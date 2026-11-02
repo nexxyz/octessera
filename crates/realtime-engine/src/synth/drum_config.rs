@@ -292,11 +292,11 @@ impl DrumConfig {
                     .tune_semis
                     .is_some_and(|tune| !(-24..=24).contains(&tune))
             {
-                return Err("invalid Drum cell assignment".into());
+                return Err("invalid Drum tile assignment".into());
             }
             let index = usize::from(assignment.y) * 8 + usize::from(assignment.x);
             if occupied[index] {
-                return Err("duplicate Drum cell assignment".into());
+                return Err("duplicate Drum tile assignment".into());
             }
             occupied[index] = true;
         }

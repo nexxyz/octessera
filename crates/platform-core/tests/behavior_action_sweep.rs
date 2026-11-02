@@ -9,7 +9,7 @@ use serde_json::Value;
 
 #[test]
 fn behavior_actions_and_grid_edges_route_through_public_runtime_contract() {
-    let cell_count = GRID_WIDTH * GRID_HEIGHT;
+    let tile_count = GRID_WIDTH * GRID_HEIGHT;
     for id in list_native_behavior_ids() {
         let behavior = get_native_behavior(id).unwrap();
         let base_state = behavior.init(Value::Null).unwrap();
@@ -34,8 +34,8 @@ fn behavior_actions_and_grid_edges_route_through_public_runtime_contract() {
                 .unwrap();
             let ticked = behavior.on_tick(state, &mut context).unwrap();
             assert_eq!(
-                behavior.render_model(&ticked).unwrap().cells.len(),
-                cell_count
+                behavior.render_model(&ticked).unwrap().tiles.len(),
+                tile_count
             );
         }
 
@@ -57,7 +57,7 @@ fn behavior_actions_and_grid_edges_route_through_public_runtime_contract() {
                 )
                 .unwrap();
             let model = behavior.render_model(&state).unwrap();
-            assert_eq!(model.cells.len(), cell_count);
+            assert_eq!(model.tiles.len(), tile_count);
         }
     }
 }
@@ -113,7 +113,7 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
     let first = engine.tick(120.0).unwrap();
     assert!(!first.events.is_empty());
     assert_eq!(
-        engine.model().unwrap().cells.len(),
+        engine.model().unwrap().tiles.len(),
         GRID_WIDTH * GRID_HEIGHT
     );
     assert!(matches!(
@@ -123,5 +123,5 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
 
     engine.reset_transport_phase();
     let second = engine.tick(120.0).unwrap();
-    assert_eq!(second.model.cells.len(), GRID_WIDTH * GRID_HEIGHT);
+    assert_eq!(second.model.tiles.len(), GRID_WIDTH * GRID_HEIGHT);
 }

@@ -39,11 +39,11 @@ Shape
 │   │   │   ├── Kit (group) > Load (group)       ← Default | Tight | Heavy
 │   │   │   ├── Voice: [V1: Kick .. V8: Rim]     ← names follow each voice's current Sound
 │   │   │   ├── Edit (group)                     ← Sound, Tune, Decay, Tone, Attack, Sweep st, Sweep ms, Noise %, Level % of the selected voice
-│   │   │   ├── Cell Tune: [-24..24] st          ← stamp value
-│   │   │   ├── Cell Fine: [-100..100] cents     ← stamp value
-│   │   │   ├── Cell Level: [Base | High | Medium | Low]  ← stamp value
-│   │   │   ├── Assign (action)                  ← stamps voice + Cell values onto grid cells
-│   │   │   ├── Preview (action)                 ← selected voice at its own Tune, no cell offset
+│   │   │   ├── Tile Tune: [-24..24] st          ← stamp value
+│   │   │   ├── Tile Fine: [-100..100] cents     ← stamp value
+│   │   │   ├── Tile Level: [Base | High | Medium | Low]  ← stamp value
+│   │   │   ├── Assign (action)                  ← stamps voice + Tile values onto grid tiles
+│   │   │   ├── Preview (action)                 ← selected voice at its own Tune, no tile offset
 │   │   │   ├── Vel Levels (group)               ← High 120, Medium 85, Low 45: [1..127]
 │   │   │   ├── Follow Transp.: [on | off]       ← default off
 │   │   │   ├── Follow Pitch: [on | off]         ← default off
@@ -54,15 +54,15 @@ Shape
 │   │   │   ├── Sample Slot: [1..8]
 │   │   │   ├── S<n>: <loaded sample> (picker)   ← opens the browser in its folder; `(empty)` when unset
 │   │   │   ├── S<n> Browse (group)              ← browses the sample tree (WAV only)
-│   │   │   ├── Cell Tune: [-24..24] st          ← stamp value
-│   │   │   ├── Cell Fine: [-100..100] cents     ← stamp value
-│   │   │   ├── Cell Level: [Base | High | Medium | Low]  ← stamp value; only while Vel Levels is on
-│   │   │   ├── Assign (action)                  ← stamps sample slot + Cell values onto grid cells
+│   │   │   ├── Tile Tune: [-24..24] st          ← stamp value
+│   │   │   ├── Tile Fine: [-100..100] cents     ← stamp value
+│   │   │   ├── Tile Level: [Base | High | Medium | Low]  ← stamp value; only while Vel Levels is on
+│   │   │   ├── Assign (action)                  ← stamps sample slot + Tile values onto grid tiles
 │   │   │   ├── Tune: [-24..24] st               ← slot-wide
 │   │   │   ├── Follow Transp.: [on | off]       ← default off
 │   │   │   ├── Follow Pitch: [on | off]         ← default off
 │   │   │   ├── Gain: [0..100]
-│   │   │   ├── Base Velocity: [1..127]          ← used by Base-level cells
+│   │   │   ├── Base Velocity: [1..127]          ← used by Base-level tiles
 │   │   │   ├── Vel Levels: [on | off]
 │   │   │   ├── Vel Levels (group)               ← High / Medium / Low [1..127]; only while Vel Levels is on
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
@@ -160,16 +160,16 @@ Shape
 
 ### Drum
 
-- Eight one-shot voices and no assigned cells to start with. The thirteen Drum rows scroll in the
+- Eight one-shot voices and no assigned tiles to start with. The thirteen Drum rows scroll in the
   seven-row OLED body down to Volume without covering the footer.
 - `Kit > Load` (Default, Tight, Heavy) changes the eight voice sounds/settings, never the stamped
-  cells.
+  tiles.
 - Voice lists `V1: Kick` through `V8: Rim`, each name taken from the voice's current Sound.
 - Edit acts on the selected voice: Sound (`kick`, `snare`, `closed_hat`, `open_hat`, `low_tom`,
   `high_tom`, `clap`, `rim`), Tune `-12..12` st, Decay `20..2000 ms`, Tone `0..100%`, Attack
   `0..50 ms`, Sweep st `0..36`, Sweep ms `0..200`, Noise % `0..100`, Level % `0..100`. The nine rows
   scroll in the OLED body.
-- Changing Sound resets that voice's style controls; other voices and stamped cells stay. Data
+- Changing Sound resets that voice's style controls; other voices and stamped tiles stay. Data
   missing the sweep/noise/level controls uses per-Sound defaults (Sweep st/Sweep ms/Noise %/Level %):
   Kick 24/55/12/100, Snare 3/25/80/100, Closed and Open Hat 0/0/95/100, Low Tom 8/70/15/100, High
   Tom 6/50/15/100, Clap 0/0/95/100, Rim 0/0/35/100.
@@ -178,15 +178,15 @@ Shape
   the selected voice, not the kit-wide Gain.
 - Filter and Volume are Drum's own values on Synth's control scales (default Gain 80%, Vel Sens
   100%). There is no Amp Env or Filter Env page.
-- Preview plays the selected voice at its own Tune with no cell offset, from the Main encoder,
+- Preview plays the selected voice at its own Tune with no tile offset, from the Main encoder,
   without Space or the sample browser.
 
 ### Sampler
 
-- Row order: Kit, Sample Slot, the loaded sample, Browse, Cell Tune, Cell Fine, Cell Level (only
+- Row order: Kit, Sample Slot, the loaded sample, Browse, Tile Tune, Tile Fine, Tile Level (only
   while Vel Levels is on), Assign, Tune, Follow Transp., Follow Pitch, Gain, Base Velocity, the Vel
   Levels switch, the Vel Levels group (only while on), Filter, Vel Sens, Amp Env, Filter Env.
-- SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths only. Cell assignments and
+- SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths only. Tile assignments and
   levels, the selected Sample Slot, and the other sample settings stay.
 - Tune, Gain, Base Velocity, the Vel Levels velocities, Filter, and the envelopes are slot-wide.
 - Samples play neutral by default: the filter starts as a lowpass at the top of Cutoff with Res
@@ -196,7 +196,7 @@ Shape
 - The browser's sample preview plays the file exactly as recorded, at its own pitch and level,
   straight into the master: none of the slot's sampler settings, mixer, bus FX or route apply.
 - Filter Type picks lowpass, highpass, bandpass or notch. Env Amount (-100..100) lets Filter Env
-  move Cutoff, and Key Tracking moves Cutoff with the played pitch (Tune plus the cell's tune),
+  move Cutoff, and Key Tracking moves Cutoff with the played pitch (Tune plus the tile's tune),
   100 % being an octave per octave. Amp Env shapes each hit; a note-off starts its release. The
   default Amp Env (A 0, D 0, S 100 %, R 5 ms) plays a sample exactly as recorded, and with Env
   Amount and Key Tracking at 0 the filter stays fixed.
@@ -209,23 +209,23 @@ Shape
   preparation, and the runtime opens a scrollable `Samples missing` popup listing each newly
   unavailable slot as `I<n> <path>`. Slots already shown as `N/A-` do not reopen it.
 
-### Cell stamps (Sampler and Drum)
+### Tile stamps (Sampler and Drum)
 
-- The `Cell ...` rows are stamp values, not live sound settings. Assign copies Cell Tune
-  (`-24..24` st), Cell Fine (`-100..100` cents), and Cell Level (Base, High, Medium, Low) onto each
-  cell it stamps, together with the selected sample slot (Sampler) or voice (Drum). Sampler stamps
+- The `Tile ...` rows are stamp values, not live sound settings. Assign copies Tile Tune
+  (`-24..24` st), Tile Fine (`-100..100` cents), and Tile Level (Base, High, Medium, Low) onto each
+  tile it stamps, together with the selected sample slot (Sampler) or voice (Drum). Sampler stamps
   carry a level only while Vel Levels is on.
-- Each instrument saves its stamp values with the patch as `instruments[i].cellStamp`.
-- Base-level cells play at the trigger velocity. High/Medium/Low cells play the Vel Levels
+- Each instrument saves its stamp values with the patch as `instruments[i].tileStamp`.
+- Base-level tiles play at the trigger velocity. High/Medium/Low tiles play the Vel Levels
   velocities, still scaled by velocity shaping.
 - Stamped values are offsets, so slot-wide Tune, Gain, Filter, velocity shaping, and their
-  modulation bindings still act on every stamped cell.
-- Follow Transp. (default off) lets Play Transpose shift this instrument's cells too (see
+  modulation bindings still act on every stamped tile.
+- Follow Transp. (default off) lets Play Transpose shift this instrument's tiles too (see
   [Transpose](play.md#transpose) for which layers transpose).
-- Follow Pitch (default off) plays each cell at the incoming Link note relative to C4 (MIDI 60); the
-  stamped Cell Tune/Fine then says how far to retune the sample so it sounds right at C4. Play Drums
+- Follow Pitch (default off) plays each tile at the incoming Link note relative to C4 (MIDI 60); the
+  stamped Tile Tune/Fine then says how far to retune the sample so it sounds right at C4. Play Drums
   presses have no Link note and play the stamped pitch.
-- The combined cell pitch is clamped to ±48 semitones.
+- The combined tile pitch is clamped to ±48 semitones.
 
 ### Binding targets
 
@@ -238,9 +238,9 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - Drum: the slot's Gain, Filter Cutoff, and Res (live), plus each voice's Tune, Decay, Tone, and
   Attack, which change the next hits and never ringing ones.
 - Sampler: every Sampler row except Follow Transp., Follow Pitch, Filter Type, Env Amount, Key
-  Tracking, Amp Env, Filter Env, and the `Cell ...` rows. The audible targets are Tune, Gain, Base
+  Tracking, Amp Env, Filter Env, and the `Tile ...` rows. The audible targets are Tune, Gain, Base
   Velocity, Vel Sens, the Vel Levels velocities, and Filter Cutoff/Res.
-- No instrument offers its `Cell ...` stamp rows, Ratio, Filter Type, Sound, or Voice as targets.
+- No instrument offers its `Tile ...` stamp rows, Ratio, Filter Type, Sound, or Voice as targets.
 - FM Index, Plucked Decay, and a Drum voice's Tone emit typed controls without reinitializing the
   slot.
 
@@ -250,12 +250,12 @@ Instrument rows offered as modulation, XY, and Aux targets:
 
 - Enter with `Shape > Instruments > <slot> > Sampler > Assign`. The OLED toasts
   `Assign S<n>: grid`; Back exits without changing mappings.
-- One stamp per cell. A plain press stamps that cell, Shift + press its whole world-space row
-  (bottom row `y=0`), and combined modifier + press its column, with the same values on every cell.
-- If every target cell already holds exactly that stamp, the press clears them and toasts
+- One stamp per tile. A plain press stamps that tile, Shift + press its whole world-space row
+  (bottom row `y=0`), and combined modifier + press its column, with the same values on every tile.
+- If every target tile already holds exactly that stamp, the press clears them and toasts
   `Cleared`. Anything else is overwritten and the toast shows the stamp, for example
   `S1 +7 -25c High` (levels read `Base`, `High`, `Med`, `Low`).
-- To change a cell, stamp it again; there is no per-cell editor. Assignments start empty and never
+- To change a tile, stamp it again; there is no per-tile editor. Assignments start empty and never
   auto-fill the grid.
 - LED colors are listed under
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority).

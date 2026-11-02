@@ -108,9 +108,9 @@ impl PlaybackRuntime {
 mod tests {
     use crate::tests::support::FakeHost;
     use crate::{
-        CellHit, HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig,
-        PlaybackRuntime, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig,
-        RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeTransportState,
+        HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
+        RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig, RuntimeOperation,
+        RuntimePlatformEffect, RuntimePlatformRequest, RuntimeTransportState, TileHit,
     };
     use serde_json::{json, Value};
     use std::time::Duration;
@@ -150,13 +150,13 @@ mod tests {
             self.inner.handle_musical_event(event, at)
         }
 
-        fn handle_cell_hit(
+        fn handle_tile_hit(
             &mut self,
-            hit: &CellHit,
+            hit: &TileHit,
             at: Option<std::time::Instant>,
         ) -> Result<(), RuntimeAdapterError> {
             self.calls.push("drum");
-            self.inner.handle_cell_hit(hit, at)
+            self.inner.handle_tile_hit(hit, at)
         }
 
         fn handle_audio_command(

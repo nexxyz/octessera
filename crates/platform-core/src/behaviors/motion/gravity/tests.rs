@@ -7,7 +7,7 @@ fn base() -> GravityState {
     gravity_init(serde_json::json!({"spawnRatePct":0,"slideChancePct":100,"settleAge":8})).unwrap()
 }
 fn visible(state: &GravityState) -> Vec<bool> {
-    gravity_render_model(state).cells
+    gravity_render_model(state).tiles
 }
 
 #[test]
@@ -22,13 +22,13 @@ fn menu_palette_normalize_and_serialization() {
     assert_eq!(menu[4].key, "dropSand");
     assert_eq!(menu[5].key, "clearBottom");
     assert_eq!(menu[6].key, "invertGravity");
-    let state = gravity_deserialize(serde_json::json!({"cells":[9,0],"age":[999],"gravityDir":"bad","tickCounter":5,"spawnRatePct":999,"slideChancePct":999,"settleAge":99,"triggerTypes":["activate"]})).unwrap();
-    assert_eq!(state.cells[0], SAND);
+    let state = gravity_deserialize(serde_json::json!({"tiles":[9,0],"age":[999],"gravityDir":"bad","tickCounter":5,"spawnRatePct":999,"slideChancePct":999,"settleAge":99,"triggerTypes":["activate"]})).unwrap();
+    assert_eq!(state.tiles[0], SAND);
     assert_eq!(state.age[0], u8::MAX);
     assert_eq!(state.gravity_dir, "down");
     assert_eq!(state.spawn_rate_pct, 100);
     assert_eq!(state.settle_age, 32);
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
     assert_eq!(state.tick_counter, 0);
     let serialized = gravity_serialize(&state).unwrap();
     assert!(serialized.get("triggerTypes").is_none());
@@ -47,28 +47,28 @@ fn menu_palette_normalize_and_serialization() {
 fn duplicate_destinations_are_prevented_and_spawn_does_not_mask_vacated_origin() {
     let mut context = context();
     let mut state = base();
-    state.cells[grid_index(0, 2)] = SAND;
-    state.cells[grid_index(2, 2)] = SAND;
-    state.cells[grid_index(0, 1)] = SAND;
-    state.cells[grid_index(2, 1)] = SAND;
-    state.cells[grid_index(3, 1)] = SAND;
-    state.cells[grid_index(0, 0)] = SAND;
-    state.cells[grid_index(1, 0)] = SAND;
-    state.cells[grid_index(2, 0)] = SAND;
-    state.cells[grid_index(3, 0)] = SAND;
+    state.tiles[grid_index(0, 2)] = SAND;
+    state.tiles[grid_index(2, 2)] = SAND;
+    state.tiles[grid_index(0, 1)] = SAND;
+    state.tiles[grid_index(2, 1)] = SAND;
+    state.tiles[grid_index(3, 1)] = SAND;
+    state.tiles[grid_index(0, 0)] = SAND;
+    state.tiles[grid_index(1, 0)] = SAND;
+    state.tiles[grid_index(2, 0)] = SAND;
+    state.tiles[grid_index(3, 0)] = SAND;
 
     let ticked = gravity_on_tick(state, &mut context);
 
-    assert_eq!(ticked.cells[grid_index(1, 1)], SAND);
-    assert_eq!(ticked.cells[grid_index(0, 2)], SAND);
+    assert_eq!(ticked.tiles[grid_index(1, 1)], SAND);
+    assert_eq!(ticked.tiles[grid_index(0, 2)], SAND);
 
     let mut state = gravity_init(serde_json::json!({ "spawnRatePct": 100 })).unwrap();
-    state.cells[grid_index(4, 7)] = SAND;
+    state.tiles[grid_index(4, 7)] = SAND;
     let ticked = gravity_on_tick(state, &mut context);
-    assert_eq!(ticked.cells[grid_index(4, 7)], EMPTY);
+    assert_eq!(ticked.tiles[grid_index(4, 7)], EMPTY);
     assert_eq!(
         ticked.trigger_types[grid_index(4, 7)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 }
 
@@ -77,21 +77,21 @@ fn grid_press_and_fall_non_wrapping_one_step() {
     let mut context = context();
     let state = base();
     let state = gravity_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-    assert_eq!(state.cells[grid_index(2, 3)], SAND);
+    assert_eq!(state.tiles[grid_index(2, 3)], SAND);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let ticked = gravity_on_tick(state, &mut context);
-    assert_eq!(ticked.cells[grid_index(2, 2)], SAND);
-    assert_eq!(ticked.cells[grid_index(2, 1)], EMPTY);
+    assert_eq!(ticked.tiles[grid_index(2, 2)], SAND);
+    assert_eq!(ticked.tiles[grid_index(2, 1)], EMPTY);
     assert_eq!(
         ticked.trigger_types[grid_index(2, 2)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     assert_eq!(
         ticked.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 }
 
@@ -120,7 +120,7 @@ fn direction_edges_and_one_step_motion_do_not_wrap() {
             }),
             &mut context,
         );
-        assert_eq!(dropped.cells[grid_index(source.0, source.1)], SAND, "{dir}");
+        assert_eq!(dropped.tiles[grid_index(source.0, source.1)], SAND, "{dir}");
 
         let cleared = gravity_on_input(
             dropped,
@@ -129,7 +129,7 @@ fn direction_edges_and_one_step_motion_do_not_wrap() {
             }),
             &mut context,
         );
-        assert_eq!(cleared.cells[grid_index(dest.0, dest.1)], EMPTY, "{dir}");
+        assert_eq!(cleared.tiles[grid_index(dest.0, dest.1)], EMPTY, "{dir}");
 
         let mut state = gravity_init(serde_json::json!({
             "gravityDir": dir,
@@ -137,18 +137,18 @@ fn direction_edges_and_one_step_motion_do_not_wrap() {
             "slideChancePct": 0
         }))
         .unwrap();
-        state.cells[grid_index(origin.0, origin.1)] = SAND;
+        state.tiles[grid_index(origin.0, origin.1)] = SAND;
         let ticked = gravity_on_tick(state, &mut context);
-        assert_eq!(ticked.cells[grid_index(origin.0, origin.1)], EMPTY, "{dir}");
-        assert_eq!(ticked.cells[grid_index(moved.0, moved.1)], SAND, "{dir}");
-        assert_eq!(ticked.cells[grid_index(dest.0, dest.1)], EMPTY, "{dir}");
+        assert_eq!(ticked.tiles[grid_index(origin.0, origin.1)], EMPTY, "{dir}");
+        assert_eq!(ticked.tiles[grid_index(moved.0, moved.1)], SAND, "{dir}");
+        assert_eq!(ticked.tiles[grid_index(dest.0, dest.1)], EMPTY, "{dir}");
     }
 }
 
 #[test]
 fn short_legacy_payload_normalizes_and_round_trips() {
     let state = gravity_deserialize(serde_json::json!({
-        "cells": [1, 0, 7],
+        "tiles": [1, 0, 7],
         "age": [999],
         "gravityDir": "right",
         "spawnRatePct": 101,
@@ -157,10 +157,10 @@ fn short_legacy_payload_normalizes_and_round_trips() {
     }))
     .unwrap();
 
-    assert_eq!(state.cells.len(), CELL_COUNT);
-    assert_eq!(state.age.len(), CELL_COUNT);
-    assert_eq!(state.cells[0], SAND);
-    assert_eq!(state.cells[2], SAND);
+    assert_eq!(state.tiles.len(), TILE_COUNT);
+    assert_eq!(state.age.len(), TILE_COUNT);
+    assert_eq!(state.tiles[0], SAND);
+    assert_eq!(state.tiles[2], SAND);
     assert_eq!(state.age[0], u8::MAX);
     assert_eq!(state.age[2], 0);
     assert_eq!(state.gravity_dir, "right");
@@ -179,13 +179,13 @@ fn short_legacy_payload_normalizes_and_round_trips() {
 fn slide_clear_bottom_invert_and_spawn_are_deterministic() {
     let mut context = context();
     let mut state = base();
-    state.cells[grid_index(2, 2)] = SAND;
-    state.cells[grid_index(2, 1)] = SAND;
-    state.cells[grid_index(1, 0)] = SAND;
-    state.cells[grid_index(2, 0)] = SAND;
-    state.cells[grid_index(3, 0)] = SAND;
+    state.tiles[grid_index(2, 2)] = SAND;
+    state.tiles[grid_index(2, 1)] = SAND;
+    state.tiles[grid_index(1, 0)] = SAND;
+    state.tiles[grid_index(2, 0)] = SAND;
+    state.tiles[grid_index(3, 0)] = SAND;
     let slid = gravity_on_tick(state, &mut context);
-    assert!(slid.cells[grid_index(1, 1)] == SAND || slid.cells[grid_index(3, 1)] == SAND);
+    assert!(slid.tiles[grid_index(1, 1)] == SAND || slid.tiles[grid_index(3, 1)] == SAND);
     let inverted = gravity_on_input(
         slid,
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -194,9 +194,9 @@ fn slide_clear_bottom_invert_and_spawn_are_deterministic() {
         &mut context,
     );
     assert_eq!(inverted.gravity_dir, "left");
-    assert!(!inverted.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!inverted.trigger_types.contains(&TileTriggerType::Activate));
     let mut cleared = inverted;
-    cleared.cells[grid_index(0, 4)] = SAND;
+    cleared.tiles[grid_index(0, 4)] = SAND;
     let cleared = gravity_on_input(
         cleared,
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -204,10 +204,10 @@ fn slide_clear_bottom_invert_and_spawn_are_deterministic() {
         }),
         &mut context,
     );
-    assert_eq!(cleared.cells[grid_index(0, 4)], EMPTY);
+    assert_eq!(cleared.tiles[grid_index(0, 4)], EMPTY);
     assert_eq!(
         cleared.trigger_types[grid_index(0, 4)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
     let dropped = gravity_on_input(
         base(),
@@ -217,7 +217,7 @@ fn slide_clear_bottom_invert_and_spawn_are_deterministic() {
         &mut context,
     );
     assert_eq!(
-        dropped.cells.iter().filter(|c| **c == SAND).count(),
+        dropped.tiles.iter().filter(|c| **c == SAND).count(),
         GRID_WIDTH
     );
 }
@@ -228,7 +228,7 @@ fn default_self_sustains_and_leak_is_bounded() {
     let mut state = gravity_init(serde_json::Value::Null).unwrap();
     let mut previous = visible(&state);
     let mut terminal_same = 1usize;
-    let mut terminal_full = usize::from(previous.iter().all(|cell| *cell));
+    let mut terminal_full = usize::from(previous.iter().all(|tile| *tile));
     let mut final_frames = Vec::new();
     for _ in 0..300 {
         state = gravity_on_tick(state, &mut context);
@@ -238,7 +238,7 @@ fn default_self_sustains_and_leak_is_bounded() {
         } else {
             1
         };
-        terminal_full = if frame.iter().all(|cell| *cell) {
+        terminal_full = if frame.iter().all(|tile| *tile) {
             terminal_full + 1
         } else {
             0
@@ -247,9 +247,9 @@ fn default_self_sustains_and_leak_is_bounded() {
             state
                 .trigger_types
                 .iter()
-                .filter(|trigger| **trigger == CellTriggerType::Deactivate)
+                .filter(|trigger| **trigger == TileTriggerType::Deactivate)
                 .count()
-                <= CELL_COUNT / 2
+                <= TILE_COUNT / 2
         );
         final_frames.push(frame.clone());
         if final_frames.len() > 16 {

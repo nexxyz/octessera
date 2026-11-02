@@ -86,7 +86,7 @@ fn wire_count(host: &FakeHost, status: u8) -> usize {
 }
 
 #[test]
-pub(crate) fn scanned_empty_cells_send_no_note_offs_for_silent_notes() {
+pub(crate) fn scanned_empty_tiles_send_no_note_offs_for_silent_notes() {
     let (mut runtime, mut runner, mut host) = scanned_empty_note_off_runtime("oneshot");
 
     play(&mut runtime, &mut runner, &mut host, 4_000);
@@ -101,7 +101,7 @@ pub(crate) fn scanned_empty_cells_send_no_note_offs_for_silent_notes() {
 }
 
 #[test]
-pub(crate) fn scanned_empty_cell_still_ends_a_held_note() {
+pub(crate) fn scanned_empty_tile_still_ends_a_held_note() {
     let (mut runtime, mut runner, mut host) = scanned_empty_note_off_runtime("hold");
 
     play(&mut runtime, &mut runner, &mut host, 4_000);

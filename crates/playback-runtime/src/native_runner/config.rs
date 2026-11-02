@@ -95,10 +95,10 @@ impl NativeRunner {
                 &self.instruments,
             ),
             instrument_sample_follow_pitch: instrument_sample_follow_pitch(&self.instruments),
-            instrument_cell_stamps: self
+            instrument_tile_stamps: self
                 .instruments
                 .iter()
-                .map(|instrument| instrument.cell_stamp.menu_value())
+                .map(|instrument| instrument.tile_stamp.menu_value())
                 .collect(),
             instrument_sample_velocity_medium: instrument_sample_velocity_medium(&self.instruments),
             instrument_sample_velocity_low: instrument_sample_velocity_low(&self.instruments),
@@ -140,7 +140,7 @@ impl NativeRunner {
             voice_stealing_mode: self.voice_stealing_mode.clone(),
             auto_save_default: self.auto_save_default,
             rolling_backups: self.rolling_backups,
-            ghost_cells: self.display.ui.ghost_cells,
+            ghost_tiles: self.display.ui.ghost_tiles,
             aux_auto_hints: self.display.ui.aux_auto_hints,
             aux_manual_hints: self.display.ui.aux_manual_hints,
             input_events_while_paused: self.input_events_while_paused,

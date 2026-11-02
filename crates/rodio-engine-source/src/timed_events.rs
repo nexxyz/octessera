@@ -44,10 +44,10 @@ pub(crate) enum MusicalEvent {
         velocity: u8,
         duration_ms: u32,
     },
-    CellHit {
+    TileHit {
         instrument_slot: u8,
         voice: u8,
-        cell: u8,
+        tile: u8,
         pitch_cents: i16,
         velocity: u8,
     },
@@ -80,18 +80,18 @@ impl MusicalEvent {
                 },
                 at,
             ),
-            EngineEvent::CellHit {
+            EngineEvent::TileHit {
                 instrument_slot,
                 voice,
-                cell,
+                tile,
                 pitch_cents,
                 velocity,
                 at,
             } => (
-                Self::CellHit {
+                Self::TileHit {
                     instrument_slot,
                     voice,
-                    cell,
+                    tile,
                     pitch_cents,
                     velocity,
                 },

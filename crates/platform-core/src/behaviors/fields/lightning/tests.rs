@@ -21,19 +21,19 @@ fn menu_palette_and_normalization_contract() {
         &vec!["north", "east", "south", "west"]
     );
     assert_eq!(menu[5].key, "strikeNow");
-    let state = lightning_deserialize(serde_json::json!({"cells":[9,1],"ages":[999],"leaders":[{"x":99,"y":0}],"branchChancePct":999,"jitterChancePct":999,"decayTicks":99,"leaderLimit":99,"targetEdge":"bad"})).unwrap();
-    assert_eq!(state.cells[0], FLASH);
+    let state = lightning_deserialize(serde_json::json!({"tiles":[9,1],"ages":[999],"leaders":[{"x":99,"y":0}],"branchChancePct":999,"jitterChancePct":999,"decayTicks":99,"leaderLimit":99,"targetEdge":"bad"})).unwrap();
+    assert_eq!(state.tiles[0], FLASH);
     assert_eq!(state.target_edge, "south");
     assert_eq!(state.decay_ticks, 16);
     assert_eq!(state.leader_limit, 8);
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
     let model = lightning_render_model(&state);
     assert_eq!(model.name, "lightning");
     assert_eq!(model.palette.inactive, crate::palette::BLACK);
     assert_eq!(model.palette.active, [255, 255, 180]);
 
     let restored_orphan = lightning_deserialize(serde_json::json!({
-        "cells":[1],
+        "tiles":[1],
         "leaders":[],
         "targetEdge":"south"
     }))
@@ -56,8 +56,8 @@ fn target_edges_seed_opposite_and_move_without_cascade() {
     clear(&mut state);
     add_leader(&mut state, 3, 6);
     let ticked = lightning_on_tick(state, &mut context);
-    assert!(ticked.cells[grid_index(3, 5)] != EMPTY);
-    assert_eq!(ticked.cells[grid_index(3, 4)], EMPTY);
+    assert!(ticked.tiles[grid_index(3, 5)] != EMPTY);
+    assert_eq!(ticked.tiles[grid_index(3, 4)], EMPTY);
 }
 
 #[test]
@@ -66,22 +66,22 @@ fn flash_reactivates_then_stable_then_clear_deactivate_and_restart() {
     let mut state = base("south");
     clear(&mut state);
     add_leader(&mut state, 2, 1);
-    state.cells[grid_index(2, 2)] = LEADER;
+    state.tiles[grid_index(2, 2)] = LEADER;
     let flashed = lightning_on_tick(state, &mut context);
-    assert_eq!(flashed.cells[grid_index(2, 1)], FLASH);
+    assert_eq!(flashed.tiles[grid_index(2, 1)], FLASH);
     assert_eq!(
         flashed.trigger_types[grid_index(2, 2)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let stable = lightning_on_tick(flashed, &mut context);
     assert_eq!(
         stable.trigger_types[grid_index(2, 1)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
     let restarted = lightning_on_tick(stable, &mut context);
     assert_eq!(
         restarted.trigger_types[grid_index(2, 1)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
     assert!(!restarted.leaders.is_empty());
 }
@@ -94,7 +94,7 @@ fn grid_press_strike_now_and_serialization_are_stable() {
     assert_eq!(pressed.leaders, vec![LeaderPos { x: 2, y: 3 }]);
     assert_eq!(
         pressed.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let struck = lightning_on_input(
         pressed,

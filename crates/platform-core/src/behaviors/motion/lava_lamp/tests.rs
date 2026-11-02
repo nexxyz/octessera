@@ -1,5 +1,5 @@
 use super::*;
-use crate::behavior::{BehaviorActionInput, BehaviorContext, CellTriggerType, DeviceInput};
+use crate::behavior::{BehaviorActionInput, BehaviorContext, DeviceInput, TileTriggerType};
 use serde_json::json;
 fn ctx() -> BehaviorContext {
     BehaviorContext::new(120.0)
@@ -19,7 +19,7 @@ fn menu_serialize_restore() {
     assert!(s
         .trigger_types
         .iter()
-        .all(|t| *t != CellTriggerType::Activate));
+        .all(|t| *t != TileTriggerType::Activate));
     let v = lava_lamp_serialize(&s).unwrap();
     assert!(v.get("triggerTypes").is_none());
     assert!(v.get("tickCounter").is_none());
@@ -57,7 +57,7 @@ fn input_actions() {
         &mut c,
     );
     assert_eq!(r.active_count, 4);
-    assert_eq!(r.trigger_types[grid_index(2, 1)], CellTriggerType::Activate);
+    assert_eq!(r.trigger_types[grid_index(2, 1)], TileTriggerType::Activate);
     let r2 = lava_lamp_on_input(
         r.clone(),
         DeviceInput::BehaviorAction(BehaviorActionInput {
@@ -65,9 +65,9 @@ fn input_actions() {
         }),
         &mut c,
     );
-    assert_eq!(r2.trigger_types[grid_index(2, 1)], CellTriggerType::Stable);
+    assert_eq!(r2.trigger_types[grid_index(2, 1)], TileTriggerType::Stable);
     let p = lava_lamp_on_input(r, DeviceInput::GridPress { x: 0, y: 0 }, &mut c);
-    assert!(p.trigger_types[grid_index(0, 0)] != CellTriggerType::None)
+    assert!(p.trigger_types[grid_index(0, 0)] != TileTriggerType::None)
 }
 
 #[test]
@@ -121,8 +121,8 @@ fn reset_normalizes_inactive_tail_and_updates_visible_triggers() {
     assert_eq!(&reset.vx[4..], &[0, 0, 0, 0]);
     assert_eq!(&reset.vy[4..], &[0, 0, 0, 0]);
     assert_eq!(&reset.radius[4..], &[18, 18, 18, 18]);
-    assert!(reset.trigger_types.contains(&CellTriggerType::Activate));
-    assert!(reset.trigger_types.contains(&CellTriggerType::Deactivate));
+    assert!(reset.trigger_types.contains(&TileTriggerType::Activate));
+    assert!(reset.trigger_types.contains(&TileTriggerType::Deactivate));
 }
 
 #[test]
@@ -176,12 +176,12 @@ fn tick_merge_split_reflect() {
 fn default_self_sustains_with_bounded_forced_activity() {
     let mut c = ctx();
     let mut state = lava_lamp_init(json!({})).unwrap();
-    let mut previous = lava_lamp_render_model(&state).cells;
+    let mut previous = lava_lamp_render_model(&state).tiles;
     let mut terminal_same = 1usize;
     let mut final_frames = Vec::new();
     for _ in 0..300 {
         state = lava_lamp_on_tick(state, &mut c);
-        let frame = lava_lamp_render_model(&state).cells;
+        let frame = lava_lamp_render_model(&state).tiles;
         terminal_same = if frame == previous {
             terminal_same + 1
         } else {
@@ -191,7 +191,7 @@ fn default_self_sustains_with_bounded_forced_activity() {
             state
                 .trigger_types
                 .iter()
-                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .filter(|trigger| **trigger == TileTriggerType::Activate)
                 .count()
                 <= 16
         );

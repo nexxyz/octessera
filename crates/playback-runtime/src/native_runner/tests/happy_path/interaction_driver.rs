@@ -174,7 +174,7 @@ pub(super) fn pick_sample_for_selected_slot(runner: &mut NativeRunner) {
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
 }
 
-pub(super) fn assign_selected_sample_and_use_cell(runner: &mut NativeRunner) {
+pub(super) fn assign_selected_sample_and_use_tile(runner: &mut NativeRunner) {
     assert!(runner.menu.focus_item_key("sample.assign.0.7"));
     let _ = press_main(runner);
     assert_eq!(runner.sample_assign, Some((0, 7)));

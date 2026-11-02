@@ -163,17 +163,17 @@ pub(crate) fn mixed_note_off_and_note_on_use_their_own_link_timing() {
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.link_layers[0].deactivate_timing.delay_steps = 0;
     runner.link_layers[0].activate_timing.delay_steps = 1;
-    let deactivate = platform_core::CellTriggerIntent {
+    let deactivate = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Deactivate,
+        kind: platform_core::TileTriggerKind::Deactivate,
     };
-    let activate = platform_core::CellTriggerIntent {
+    let activate = platform_core::TileTriggerIntent {
         x: 3,
         y: 3,
         degree: 1,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     };
     let model = runner.engine.model().unwrap();
 
@@ -294,17 +294,17 @@ pub(crate) fn same_note_events_with_distinct_link_timing_are_split_before_dedupe
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.link_layers[0].activate_timing.delay_steps = 0;
     runner.link_layers[0].scanned_timing.delay_steps = 1;
-    let activate = platform_core::CellTriggerIntent {
+    let activate = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     };
-    let scanned = platform_core::CellTriggerIntent {
+    let scanned = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Scanned,
+        kind: platform_core::TileTriggerKind::Scanned,
     };
     let model = runner.engine.model().unwrap();
 

@@ -32,12 +32,12 @@ impl NativeRunner {
         [LedColor::MAGENTA, space, shift, function].map(|led| [led.r, led.g, led.b])
     }
 
-    pub(super) fn apply_ghost_cells(
+    pub(super) fn apply_ghost_tiles(
         &self,
         leds: &mut [LedColor],
         active: &platform_core::BehaviorRenderModel,
     ) {
-        if !self.display.ui.ghost_cells {
+        if !self.display.ui.ghost_tiles {
             return;
         }
         let mut ghosts = [false; GRID_WIDTH * GRID_HEIGHT];
@@ -53,25 +53,25 @@ impl NativeRunner {
             let Some(model) = engine.as_ref().and_then(|engine| engine.model().ok()) else {
                 continue;
             };
-            for (ghost, alive) in ghosts.iter_mut().zip(&model.cells) {
+            for (ghost, alive) in ghosts.iter_mut().zip(&model.tiles) {
                 *ghost |= *alive;
             }
         }
         for (logical_index, ghost) in ghosts.into_iter().enumerate() {
-            if ghost && !active.cells.get(logical_index).copied().unwrap_or(false) {
+            if ghost && !active.tiles.get(logical_index).copied().unwrap_or(false) {
                 let led = &mut leds
                     [display_index(logical_index % GRID_WIDTH, logical_index / GRID_WIDTH)];
-                *led = led.lift(GHOST_CELL);
+                *led = led.lift(GHOST_TILE);
             }
         }
     }
 }
 
-const GHOST_CELL: LedColor = LedColor::rgb(16, 35, 10);
+const GHOST_TILE: LedColor = LedColor::rgb(16, 35, 10);
 
 pub(super) fn base_led_snapshot(model: &platform_core::BehaviorRenderModel) -> Vec<LedColor> {
     let mut leds = vec![LedColor::BLACK; GRID_WIDTH * GRID_HEIGHT];
-    for (logical_index, alive) in model.cells.iter().enumerate() {
+    for (logical_index, alive) in model.tiles.iter().enumerate() {
         let x = logical_index % GRID_WIDTH;
         let y = logical_index / GRID_WIDTH;
         let display_index = display_index(x, y);
@@ -97,16 +97,16 @@ fn modifier_led(combined: bool, held: bool) -> LedColor {
 
 fn base_led_color(
     alive: bool,
-    trigger: Option<platform_core::CellTriggerType>,
+    trigger: Option<platform_core::TileTriggerType>,
     palette: &platform_core::BehaviorRenderPalette,
 ) -> LedColor {
     if !alive {
         return palette_color(palette.inactive);
     }
-    match trigger.unwrap_or(platform_core::CellTriggerType::Stable) {
-        platform_core::CellTriggerType::Activate => palette_color(palette.active),
-        platform_core::CellTriggerType::Deactivate => LedColor::SYSTEM,
-        platform_core::CellTriggerType::Scanned => LedColor::BLUE,
+    match trigger.unwrap_or(platform_core::TileTriggerType::Stable) {
+        platform_core::TileTriggerType::Activate => palette_color(palette.active),
+        platform_core::TileTriggerType::Deactivate => LedColor::SYSTEM,
+        platform_core::TileTriggerType::Scanned => LedColor::BLUE,
         _ => palette_color(palette.stable),
     }
 }

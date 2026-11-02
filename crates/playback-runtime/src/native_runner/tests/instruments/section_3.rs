@@ -14,17 +14,17 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         tune_cents: 0,
     }];
     let instruments = vec![runner.instruments[0].clone()];
-    let assigned_intent = CellTriggerIntent {
+    let assigned_intent = TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Deactivate,
+        kind: platform_core::TileTriggerKind::Deactivate,
     };
-    let unmapped_intent = CellTriggerIntent {
+    let unmapped_intent = TileTriggerIntent {
         x: 1,
         y: 1,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     };
 
     let assigned = route(
@@ -62,11 +62,11 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
 
     assert!(assigned.audio.is_empty());
     assert!(matches!(
-        assigned.cells.as_slice(),
-        [crate::CellHit {
+        assigned.tiles.as_slice(),
+        [crate::TileHit {
             instrument_slot: 0,
             voice: 4,
-            cell: 26,
+            tile: 26,
             velocity: 0,
             ..
         }]

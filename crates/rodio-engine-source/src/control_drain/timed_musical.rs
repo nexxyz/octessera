@@ -87,16 +87,16 @@ fn apply_musical(
             duration_ms,
         } if allow_note_on => engine.note_on(instrument_slot, note, velocity, duration_ms),
         MusicalEvent::NoteOn { .. } => {}
-        MusicalEvent::CellHit {
+        MusicalEvent::TileHit {
             instrument_slot,
             voice,
-            cell,
+            tile,
             pitch_cents,
             velocity,
         } if allow_note_on || velocity == 0 => {
-            engine.cell_hit(instrument_slot, voice, cell, pitch_cents, velocity)
+            engine.tile_hit(instrument_slot, voice, tile, pitch_cents, velocity)
         }
-        MusicalEvent::CellHit { .. } => {}
+        MusicalEvent::TileHit { .. } => {}
         MusicalEvent::NoteOff {
             instrument_slot,
             note,

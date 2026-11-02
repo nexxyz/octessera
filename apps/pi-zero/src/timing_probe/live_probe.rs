@@ -178,9 +178,9 @@ impl HostAdapter for LiveProbeHost {
         result
     }
 
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        hit: &playback_runtime::CellHit,
+        hit: &playback_runtime::TileHit,
         at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         self.events.push(LiveEventRecord {
@@ -188,7 +188,7 @@ impl HostAdapter for LiveProbeHost {
             key: format!("drum:{}:{}", hit.instrument_slot, hit.voice),
         });
         let started = Instant::now();
-        let result = self.inner.handle_cell_hit(hit, at);
+        let result = self.inner.handle_tile_hit(hit, at);
         self.audio_send_us
             .push(started.elapsed().as_micros() as f64);
         result

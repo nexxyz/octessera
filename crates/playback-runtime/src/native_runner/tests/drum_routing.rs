@@ -2,12 +2,12 @@ use super::super::algorithm::LinkRoutingInput;
 use super::super::modulation_sampler::apply_sampler_assignments_for_instruments_routed;
 use super::*;
 
-fn intent(x: usize, y: usize) -> platform_core::CellTriggerIntent {
-    platform_core::CellTriggerIntent {
+fn intent(x: usize, y: usize) -> platform_core::TileTriggerIntent {
+    platform_core::TileTriggerIntent {
         x,
         y,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     }
 }
 
@@ -33,18 +33,18 @@ fn drum_runner() -> NativeRunner {
     runner
 }
 
-fn hits(messages: &[RunnerMessage]) -> Vec<crate::protocol::CellHit> {
+fn hits(messages: &[RunnerMessage]) -> Vec<crate::protocol::TileHit> {
     messages
         .iter()
         .flat_map(|message| match message {
-            RunnerMessage::CellHits { hits } => hits.clone(),
+            RunnerMessage::TileHits { hits } => hits.clone(),
             _ => Vec::new(),
         })
         .collect()
 }
 
 #[test]
-fn paired_intents_select_world_cells_not_melodic_notes_and_unpaired_notes_are_silent() {
+fn paired_intents_select_world_tiles_not_melodic_notes_and_unpaired_notes_are_silent() {
     let runner = drum_runner();
     let instruments = &runner.instruments;
     let routed = apply_sampler_assignments_for_instruments_routed(
@@ -58,33 +58,33 @@ fn paired_intents_select_world_cells_not_melodic_notes_and_unpaired_notes_are_si
     );
     assert!(routed.audio.is_empty() && routed.midi.is_empty());
     assert_eq!(
-        routed.cells,
+        routed.tiles,
         vec![
-            crate::protocol::CellHit {
+            crate::protocol::TileHit {
                 instrument_slot: 0,
                 voice: 2,
-                cell: 2,
+                tile: 2,
                 pitch_cents: -700,
                 velocity: 93
             },
-            crate::protocol::CellHit {
+            crate::protocol::TileHit {
                 instrument_slot: 0,
                 voice: 2,
-                cell: 3,
+                tile: 3,
                 pitch_cents: 400,
                 velocity: 93
             },
         ]
     );
     assert_eq!(
-        i64::from(routed.cells[0].pitch_cents / 100)
+        i64::from(routed.tiles[0].pitch_cents / 100)
             + runner.instruments[0].drum_config["voices"][2]["tuneSemis"]
                 .as_i64()
                 .unwrap(),
         -2
     );
     assert_eq!(
-        i64::from(routed.cells[1].pitch_cents / 100)
+        i64::from(routed.tiles[1].pitch_cents / 100)
             + runner.instruments[0].drum_config["voices"][2]["tuneSemis"]
                 .as_i64()
                 .unwrap(),
@@ -109,7 +109,7 @@ fn paired_intents_select_world_cells_not_melodic_notes_and_unpaired_notes_are_si
 }
 
 #[test]
-fn missing_or_malformed_cell_tune_plays_at_zero_and_out_of_range_clamps_like_the_sampler() {
+fn missing_or_malformed_tile_tune_plays_at_zero_and_out_of_range_clamps_like_the_sampler() {
     let mut runner = drum_runner();
     runner.instruments[0].drum_config["assignments"][0]
         .as_object_mut()
@@ -126,15 +126,15 @@ fn missing_or_malformed_cell_tune_plays_at_zero_and_out_of_range_clamps_like_the
             None,
         )
     };
-    assert_eq!(route(&runner).cells[0].pitch_cents, 0);
+    assert_eq!(route(&runner).tiles[0].pitch_cents, 0);
     for (stored, cents) in [(json!(-25), -2400), (json!(25), 2400), (json!("7"), 0)] {
         runner.instruments[0].drum_config["assignments"][0]["tuneSemis"] = stored;
-        assert_eq!(route(&runner).cells[0].pitch_cents, cents);
+        assert_eq!(route(&runner).tiles[0].pitch_cents, cents);
     }
 }
 
 #[test]
-fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_midi_or_note_off() {
+fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_midi_or_note_off() {
     let mut runner = drum_runner();
     runner.link_layers[0].activate_timing.delay_steps = 1;
     runner.link_layers[0].activate_timing.retrigger_count = 1;
@@ -152,10 +152,10 @@ fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_
     assert!(routed.is_empty());
     let first = runner.take_due_link_events(0);
     let second = runner.take_due_link_events(0);
-    assert_eq!(first.cells.len(), 2);
-    assert_eq!(first.cells, second.cells);
+    assert_eq!(first.tiles.len(), 2);
+    assert_eq!(first.tiles, second.tiles);
     assert_eq!(
-        (first.cells[0].pitch_cents, first.cells[1].pitch_cents),
+        (first.tiles[0].pitch_cents, first.tiles[1].pitch_cents),
         (-700, 400)
     );
     assert!(first.audio.is_empty() && first.midi.is_empty());
@@ -184,17 +184,17 @@ fn distinct_same_note_cells_survive_link_dedupe_delay_retrigger_and_arp_without_
             },
         )
         .unwrap();
-    assert_eq!(arp.cells.len(), 1);
-    assert_eq!(arp.cells[0].pitch_cents, -700);
+    assert_eq!(arp.tiles.len(), 1);
+    assert_eq!(arp.tiles[0].pitch_cents, -700);
     let next = runner.take_due_link_events(0);
-    assert_eq!(next.cells.len(), 1);
-    assert_eq!(next.cells[0].pitch_cents, 400);
+    assert_eq!(next.tiles.len(), 1);
+    assert_eq!(next.tiles[0].pitch_cents, 400);
     assert!(arp.audio.is_empty() && arp.midi.is_empty());
     assert!(next.audio.is_empty() && next.midi.is_empty());
 }
 
 #[test]
-fn kit_plus_twelve_and_cell_plus_twenty_four_emit_valid_local_hit_from_device_input() {
+fn kit_plus_twelve_and_tile_plus_twenty_four_emit_valid_local_hit_from_device_input() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -215,10 +215,10 @@ fn kit_plus_twelve_and_cell_plus_twenty_four_emit_valid_local_hit_from_device_in
         .unwrap();
     assert_eq!(
         hits(&press),
-        vec![crate::protocol::CellHit {
+        vec![crate::protocol::TileHit {
             instrument_slot: 0,
             voice: 2,
-            cell: 1,
+            tile: 1,
             pitch_cents: 2400,
             velocity: 96,
         }]

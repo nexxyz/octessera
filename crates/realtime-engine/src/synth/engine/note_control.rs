@@ -124,18 +124,18 @@ impl SynthEngine {
         self.note_on_with_drum(instrument_slot, midi_note, velocity, duration_ms, None);
     }
 
-    pub fn cell_hit(
+    pub fn tile_hit(
         &mut self,
         instrument_slot: u8,
         voice: u8,
-        cell: u8,
+        tile: u8,
         pitch_cents: i16,
         velocity: u8,
     ) {
         let slot = usize::from(instrument_slot);
         if slot >= INSTRUMENT_SLOT_COUNT
             || voice >= 8
-            || !(-CELL_PITCH_CENTS_LIMIT..=CELL_PITCH_CENTS_LIMIT).contains(&pitch_cents)
+            || !(-TILE_PITCH_CENTS_LIMIT..=TILE_PITCH_CENTS_LIMIT).contains(&pitch_cents)
             || velocity > 127
         {
             return;
@@ -157,7 +157,7 @@ impl SynthEngine {
             }
             InstrumentKind::Sample if velocity == 0 => {
                 if self.voice_pools_home() {
-                    self.release_sample_voices(slot, |voice| voice.cell == Some(cell));
+                    self.release_sample_voices(slot, |voice| voice.tile == Some(tile));
                 }
             }
             InstrumentKind::Sample => {
@@ -168,7 +168,7 @@ impl SynthEngine {
                 if !self.voice_pools_home() {
                     return;
                 }
-                self.sample_voice_on(slot, usize::from(voice), Some(cell), pitch_cents, velocity);
+                self.sample_voice_on(slot, usize::from(voice), Some(tile), pitch_cents, velocity);
             }
             _ => {}
         }

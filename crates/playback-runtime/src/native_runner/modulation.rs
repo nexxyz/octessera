@@ -12,7 +12,7 @@ pub(super) use super::modulation_sampler::{
 use super::modulation_source::{ModulationAxis, ModulationSourceId};
 use super::modulation_value::axis_norm;
 use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
-use platform_core::CellTriggerIntent;
+use platform_core::TileTriggerIntent;
 
 use super::note_unit_to_pulses;
 use std::collections::BTreeMap;
@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 impl NativeRunner {
     pub(super) fn apply_runtime_modulation(
         &mut self,
-        intents: &[CellTriggerIntent],
+        intents: &[TileTriggerIntent],
         layer_index: usize,
     ) {
         let mut source_changed = false;
@@ -30,9 +30,9 @@ impl NativeRunner {
             .find(|intent| {
                 matches!(
                     intent.kind,
-                    platform_core::CellTriggerKind::Activate
-                        | platform_core::CellTriggerKind::Scanned
-                        | platform_core::CellTriggerKind::Stable
+                    platform_core::TileTriggerKind::Activate
+                        | platform_core::TileTriggerKind::Scanned
+                        | platform_core::TileTriggerKind::Stable
                 )
             })
             .or_else(|| intents.last());

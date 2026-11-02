@@ -77,11 +77,11 @@ impl NativeRunner {
         self.sample_assign = None;
         self.drum_assign = None;
         for instrument in &mut self.instruments {
-            instrument.cell_stamp = NativeCellStamp::default();
+            instrument.tile_stamp = NativeTileStamp::default();
         }
         self.drum_selected_voices.fill(0);
         self.play_drum_selected_slot = None;
-        self.pending.cell_hits.clear();
+        self.pending.tile_hits.clear();
         self.sample_browser = None;
         self.fx_buses = default_fx_buses();
         self.global_fx_slots = default_global_fx_slots();

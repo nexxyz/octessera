@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 const SCALARS: &[&str] = &[
     "masterVolume",
-    "ghostCells",
+    "ghostTiles",
     "auxAutoHints",
     "auxManualHints",
     "inputEventsWhilePaused",

@@ -132,7 +132,7 @@ mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
 mod sample_preview_indicator;
-mod sampler_cells;
+mod sampler_tiles;
 mod scan_note_offs;
 mod scan_replacement;
 mod selected_menu_row;
@@ -177,7 +177,7 @@ pub(crate) fn snapshot_from(messages: &[RunnerMessage]) -> Value {
         .expect("snapshot message")
 }
 
-pub(crate) fn led_cells(snapshot: &Value) -> Vec<Value> {
+pub(crate) fn led_tiles(snapshot: &Value) -> Vec<Value> {
     let rgb = snapshot["leds"]["rgb"].as_array().expect("led rgb array");
     (0..64)
         .map(|index| {
@@ -243,7 +243,7 @@ pub(crate) fn select_behavior(runner: &mut NativeRunner, behavior_id: &str) {
         .unwrap();
 }
 
-/// Audio or MIDI events in order; internal cell hits appear as notes keyed `(slot, cell)`.
+/// Audio or MIDI events in order; internal tile hits appear as notes keyed `(slot, tile)`.
 pub(crate) fn routed_events(
     messages: &[RunnerMessage],
     midi: bool,
@@ -253,16 +253,16 @@ pub(crate) fn routed_events(
         .flat_map(|message| match (midi, message) {
             (false, RunnerMessage::MusicalEvents { events })
             | (true, RunnerMessage::MidiEvents { events }) => events.clone(),
-            (false, RunnerMessage::CellHits { hits }) => hits
+            (false, RunnerMessage::TileHits { hits }) => hits
                 .iter()
                 .map(|hit| match hit.velocity {
                     0 => platform_core::MusicalEvent::NoteOff {
                         channel: hit.instrument_slot,
-                        note: hit.cell,
+                        note: hit.tile,
                     },
                     velocity => platform_core::MusicalEvent::NoteOn {
                         channel: hit.instrument_slot,
-                        note: hit.cell,
+                        note: hit.tile,
                         velocity,
                         duration_ms: None,
                     },
@@ -273,11 +273,11 @@ pub(crate) fn routed_events(
         .collect()
 }
 
-pub(crate) fn cell_hit_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
+pub(crate) fn tile_hit_ons(messages: &[RunnerMessage]) -> Vec<(u8, u8)> {
     messages
         .iter()
         .flat_map(|message| match message {
-            RunnerMessage::CellHits { hits } => hits.as_slice(),
+            RunnerMessage::TileHits { hits } => hits.as_slice(),
             _ => &[],
         })
         .filter(|hit| hit.velocity > 0)

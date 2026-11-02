@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,12 +15,12 @@ const WALKER: u8 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MazeGrowthState {
-    pub cells: Vec<u8>,
+    pub tiles: Vec<u8>,
     pub visited: Vec<u8>,
     pub ages: Vec<u8>,
     pub walkers: Vec<usize>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "carvePct")]
     pub carve_pct: u8,
     #[serde(rename = "collapseAge")]
@@ -33,12 +33,12 @@ pub struct MazeGrowthState {
 
 #[derive(Default, Deserialize)]
 struct Config {
-    cells: Option<Vec<Value>>,
+    tiles: Option<Vec<Value>>,
     visited: Option<Vec<Value>>,
     ages: Option<Vec<Value>>,
     walkers: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "carvePct")]
     carve_pct: Option<Value>,
     #[serde(rename = "collapseAge")]
@@ -49,15 +49,15 @@ struct Config {
 
 pub fn maze_growth_init(config: Value) -> Result<MazeGrowthState, String> {
     let mut s = from_config(config);
-    if s.cells.iter().all(|cell| *cell == WALL) && s.walkers.is_empty() {
+    if s.tiles.iter().all(|tile| *tile == WALL) && s.walkers.is_empty() {
         seed_default(&mut s);
     }
-    s.trigger_types = triggers(&s.cells, &s.cells, &[]);
+    s.trigger_types = triggers(&s.tiles, &s.tiles, &[]);
     Ok(s)
 }
 pub fn maze_growth_deserialize(data: Value) -> Result<MazeGrowthState, String> {
     let mut s = from_config(data);
-    s.trigger_types = triggers(&s.cells, &s.cells, &[]);
+    s.trigger_types = triggers(&s.tiles, &s.tiles, &[]);
     Ok(s)
 }
 pub fn maze_growth_serialize(state: &MazeGrowthState) -> Result<Value, String> {
@@ -71,13 +71,13 @@ pub fn maze_growth_on_input(
     _: &mut BehaviorContext,
 ) -> MazeGrowthState {
     normalize(&mut state);
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     let mut forced = Vec::new();
     match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let i = grid_index(x, y);
-            state.cells[i] = if state.cells[i] == WALL { PATH } else { WALL };
-            state.visited[i] = u8::from(state.cells[i] != WALL);
+            state.tiles[i] = if state.tiles[i] == WALL { PATH } else { WALL };
+            state.visited[i] = u8::from(state.tiles[i] != WALL);
             state.ages[i] = 0;
             forced.push(i)
         }
@@ -93,56 +93,56 @@ pub fn maze_growth_on_input(
         }
         _ => return state,
     }
-    state.trigger_types = triggers(&prev, &state.cells, &forced);
+    state.trigger_types = triggers(&prev, &state.tiles, &forced);
     state
 }
 pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) -> MazeGrowthState {
     normalize(&mut state);
-    let prev = state.cells.clone();
+    let prev = state.tiles.clone();
     let prev_visited = state.visited.clone();
     let prev_walkers = state.walkers.clone();
     let mut forced = Vec::new();
-    let mut reserved = [false; CELL_COUNT];
-    for (i, cell) in prev.iter().enumerate().take(CELL_COUNT) {
-        if *cell == PATH || *cell == FRONTIER {
+    let mut reserved = [false; TILE_COUNT];
+    for (i, tile) in prev.iter().enumerate().take(TILE_COUNT) {
+        if *tile == PATH || *tile == FRONTIER {
             state.ages[i] = state.ages[i].saturating_add(1)
         }
     }
-    for (i, cell) in prev.iter().enumerate().take(CELL_COUNT) {
-        if *cell != FRONTIER {
+    for (i, tile) in prev.iter().enumerate().take(TILE_COUNT) {
+        if *tile != FRONTIER {
             continue;
         }
         if let Some(dest) = wall_neighbor(&prev, &prev_visited, i, state.tick_counter) {
             if !reserved[dest] && hash_pct(state.tick_counter, i, 7) < u32::from(state.carve_pct) {
                 reserved[dest] = true;
-                state.cells[i] = PATH;
-                state.cells[dest] = FRONTIER;
+                state.tiles[i] = PATH;
+                state.tiles[dest] = FRONTIER;
                 state.visited[dest] = 1;
                 state.ages[i] = 0;
                 state.ages[dest] = 0;
                 forced.push(dest)
             }
         } else {
-            state.cells[i] = PATH;
+            state.tiles[i] = PATH;
             state.ages[i] = 0
         }
     }
     let mut new_walkers = Vec::new();
-    let mut walker_reserved = [false; CELL_COUNT];
+    let mut walker_reserved = [false; TILE_COUNT];
     for (wi, origin) in prev_walkers.into_iter().enumerate() {
-        if origin >= CELL_COUNT {
+        if origin >= TILE_COUNT {
             continue;
         }
-        let dest = visible_neighbor(&state.cells, origin, state.tick_counter + wi as u64, |d| {
+        let dest = visible_neighbor(&state.tiles, origin, state.tick_counter + wi as u64, |d| {
             !walker_reserved[d]
         })
         .unwrap_or(origin);
-        state.cells[origin] = if state.cells[origin] == WALKER {
+        state.tiles[origin] = if state.tiles[origin] == WALKER {
             PATH
         } else {
-            state.cells[origin]
+            state.tiles[origin]
         };
-        state.cells[dest] = WALKER;
+        state.tiles[dest] = WALKER;
         state.visited[dest] = 1;
         state.ages[dest] = 0;
         walker_reserved[dest] = true;
@@ -150,33 +150,33 @@ pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) 
         forced.push(dest)
     }
     state.walkers = new_walkers;
-    for i in 0..CELL_COUNT {
-        if state.cells[i] != WALKER
-            && (state.cells[i] == PATH || state.cells[i] == FRONTIER)
+    for i in 0..TILE_COUNT {
+        if state.tiles[i] != WALKER
+            && (state.tiles[i] == PATH || state.tiles[i] == FRONTIER)
             && state.ages[i] > state.collapse_age
             && hash_pct(state.tick_counter, i, 31) < u32::from(state.carve_pct)
         {
-            state.cells[i] = WALL;
+            state.tiles[i] = WALL;
             state.visited[i] = 0;
             state.ages[i] = 0
         }
     }
     renew_exhausted_maze(&mut state, &mut forced);
     state.tick_counter = state.tick_counter.wrapping_add(1);
-    state.trigger_types = triggers(&prev, &state.cells, &forced);
+    state.trigger_types = triggers(&prev, &state.tiles, &forced);
     state
 }
 pub fn maze_growth_render_model(state: &MazeGrowthState) -> BehaviorRenderModel {
     let p = state
-        .cells
+        .tiles
         .iter()
         .filter(|c| **c == PATH || **c == WALKER)
         .count();
-    let f = state.cells.iter().filter(|c| **c == FRONTIER).count();
+    let f = state.tiles.iter().filter(|c| **c == FRONTIER).count();
     BehaviorRenderModel {
         name: "maze growth".into(),
         status_line: format!("P:{p} F:{f}"),
-        cells: state.cells.iter().map(|c| *c != WALL).collect(),
+        tiles: state.tiles.iter().map(|c| *c != WALL).collect(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::YELLOW,
             inactive: crate::palette::BLACK,
@@ -199,7 +199,7 @@ fn from_config(v: Value) -> MazeGrowthState {
     let c: Config = serde_json::from_value(v).unwrap_or_default();
     let walker_count = num(c.walker_count, 2, 8).max(1);
     let mut s = MazeGrowthState {
-        cells: norm(c.cells, 0, 3),
+        tiles: norm(c.tiles, 0, 3),
         visited: norm(c.visited, 0, 1),
         ages: norm(c.ages, 0, 255),
         walkers: norm_walkers(c.walkers, walker_count),
@@ -213,8 +213,8 @@ fn from_config(v: Value) -> MazeGrowthState {
     s
 }
 fn normalize(s: &mut MazeGrowthState) {
-    s.cells = norm(
-        Some(s.cells.iter().map(|v| Value::from(*v)).collect()),
+    s.tiles = norm(
+        Some(s.tiles.iter().map(|v| Value::from(*v)).collect()),
         0,
         3,
     );
@@ -231,7 +231,7 @@ fn normalize(s: &mut MazeGrowthState) {
     s.carve_pct = s.carve_pct.min(100);
     s.collapse_age = s.collapse_age.clamp(1, 64);
     s.walker_count = s.walker_count.clamp(1, 8);
-    s.walkers = clean_walkers(&s.walkers, &mut s.cells, usize::from(s.walker_count));
+    s.walkers = clean_walkers(&s.walkers, &mut s.tiles, usize::from(s.walker_count));
     s.trigger_types = norm_triggers(Some(s.trigger_types.clone()))
 }
 fn norm(v: Option<Vec<Value>>, d: u8, max: u8) -> Vec<u8> {
@@ -240,14 +240,14 @@ fn norm(v: Option<Vec<Value>>, d: u8, max: u8) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(u64::from(d)).min(u64::from(max)) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, d);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, d);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -262,33 +262,33 @@ fn norm_walkers(v: Option<Vec<Value>>, count: u8) -> Vec<usize> {
         .take(count.into())
         .collect()
 }
-fn clean_walkers(w: &[usize], cells: &mut [u8], count: usize) -> Vec<usize> {
+fn clean_walkers(w: &[usize], tiles: &mut [u8], count: usize) -> Vec<usize> {
     let mut out = Vec::new();
     for i in w.iter().copied() {
-        if i < CELL_COUNT && !out.contains(&i) && cells[i] != WALL {
-            cells[i] = WALKER;
+        if i < TILE_COUNT && !out.contains(&i) && tiles[i] != WALL {
+            tiles[i] = WALKER;
             out.push(i)
         }
     }
-    for (i, cell) in cells.iter_mut().enumerate().take(CELL_COUNT) {
-        if *cell == WALKER && !out.contains(&i) {
+    for (i, tile) in tiles.iter_mut().enumerate().take(TILE_COUNT) {
+        if *tile == WALKER && !out.contains(&i) {
             if out.len() < count {
                 out.push(i);
             } else {
-                *cell = PATH;
+                *tile = PATH;
             }
         }
     }
     out.truncate(count);
-    for (i, cell) in cells.iter_mut().enumerate().take(CELL_COUNT) {
-        if *cell == WALKER && !out.contains(&i) {
-            *cell = PATH;
+    for (i, tile) in tiles.iter_mut().enumerate().take(TILE_COUNT) {
+        if *tile == WALKER && !out.contains(&i) {
+            *tile = PATH;
         }
     }
     out
 }
 fn restart(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
-    s.cells.fill(WALL);
+    s.tiles.fill(WALL);
     s.visited.fill(0);
     s.ages.fill(0);
     s.walkers.clear();
@@ -298,7 +298,7 @@ fn restart(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
 }
 fn seed_default(s: &mut MazeGrowthState) {
     for i in [grid_index(3, 4), grid_index(4, 3)] {
-        s.cells[i] = if i == grid_index(3, 4) {
+        s.tiles[i] = if i == grid_index(3, 4) {
             PATH
         } else {
             FRONTIER
@@ -310,35 +310,35 @@ fn seed_default(s: &mut MazeGrowthState) {
         .into_iter()
         .take(s.walker_count.into())
     {
-        s.cells[i] = WALKER;
+        s.tiles[i] = WALKER;
         s.visited[i] = 1;
         s.ages[i] = 0;
         s.walkers.push(i);
     }
 }
 fn collapse_action(s: &mut MazeGrowthState) {
-    let mut rows = (0..CELL_COUNT)
-        .filter(|i| s.cells[*i] == PATH || s.cells[*i] == FRONTIER)
+    let mut rows = (0..TILE_COUNT)
+        .filter(|i| s.tiles[*i] == PATH || s.tiles[*i] == FRONTIER)
         .map(|i| (s.ages[i], i))
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
     for (_, i) in rows.into_iter().take(8) {
         if !s.walkers.contains(&i) {
-            s.cells[i] = WALL;
+            s.tiles[i] = WALL;
             s.visited[i] = 0;
             s.ages[i] = 0
         }
     }
 }
 fn renew_exhausted_maze(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
-    if s.cells.contains(&FRONTIER) {
+    if s.tiles.contains(&FRONTIER) {
         return;
     }
-    let walls = s.cells.iter().filter(|cell| **cell == WALL).count();
+    let walls = s.tiles.iter().filter(|tile| **tile == WALL).count();
     if walls == 0 {
         let index = oldest_path(s).unwrap_or(grid_index(0, 0));
         if !s.walkers.contains(&index) {
-            s.cells[index] = WALL;
+            s.tiles[index] = WALL;
             s.visited[index] = 0;
             s.ages[index] = 0;
             forced.push(index);
@@ -346,16 +346,16 @@ fn renew_exhausted_maze(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
         return;
     }
     let origin = s.walkers.first().copied().unwrap_or(grid_index(3, 3));
-    if let Some(index) = neigh(origin, s.tick_counter).find(|i| s.cells[*i] == WALL) {
-        s.cells[index] = FRONTIER;
+    if let Some(index) = neigh(origin, s.tick_counter).find(|i| s.tiles[*i] == WALL) {
+        s.tiles[index] = FRONTIER;
         s.visited[index] = 1;
         s.ages[index] = 0;
         forced.push(index);
     }
 }
 fn oldest_path(s: &MazeGrowthState) -> Option<usize> {
-    (0..CELL_COUNT)
-        .filter(|i| s.cells[*i] == PATH || s.cells[*i] == FRONTIER)
+    (0..TILE_COUNT)
+        .filter(|i| s.tiles[*i] == PATH || s.tiles[*i] == FRONTIER)
         .max_by_key(|i| (s.ages[*i], std::cmp::Reverse(*i)))
 }
 fn neigh(i: usize, rot: u64) -> impl Iterator<Item = usize> {
@@ -370,16 +370,16 @@ fn neigh(i: usize, rot: u64) -> impl Iterator<Item = usize> {
         .filter(|(x, y)| *x < GRID_WIDTH && *y < GRID_HEIGHT)
         .map(|(x, y)| grid_index(x, y))
 }
-fn wall_neighbor(cells: &[u8], visited: &[u8], i: usize, tick: u64) -> Option<usize> {
-    neigh(i, tick + i as u64).find(|n| cells[*n] == WALL && visited[*n] == 0)
+fn wall_neighbor(tiles: &[u8], visited: &[u8], i: usize, tick: u64) -> Option<usize> {
+    neigh(i, tick + i as u64).find(|n| tiles[*n] == WALL && visited[*n] == 0)
 }
 fn visible_neighbor(
-    cells: &[u8],
+    tiles: &[u8],
     i: usize,
     tick: u64,
     available: impl Fn(usize) -> bool,
 ) -> Option<usize> {
-    neigh(i, tick + i as u64).find(|n| cells[*n] != WALL && available(*n))
+    neigh(i, tick + i as u64).find(|n| tiles[*n] != WALL && available(*n))
 }
 fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
     let tick = tick ^ crate::behavior_random::salt();
@@ -390,25 +390,25 @@ fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
     x ^= x >> 16;
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
-fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if p[i] == WALL && n[i] != WALL {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] != WALL && n[i] == WALL {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] != WALL {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
         t[*i] = if n[*i] == WALL {
-            CellTriggerType::Deactivate
+            TileTriggerType::Deactivate
         } else {
-            CellTriggerType::Activate
+            TileTriggerType::Activate
         }
     }
     t

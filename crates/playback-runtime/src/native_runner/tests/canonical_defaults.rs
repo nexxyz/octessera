@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 const PI_DEFAULT_BYTES: &[u8] =
     include_bytes!("fixtures/config_persistence/pi_canonical_default.json");
-const PI_DEFAULT_SHA256: &str = "eea013b261b1c42301f2d4150c0f3f47b13747d9c7703095093fcf8bf6a59b46";
+const PI_DEFAULT_SHA256: &str = "afba00664bf4b61d21335033d86ebf7f924c4ec0b53c35edc040cb25b8100129";
 
 #[test]
 pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
@@ -22,15 +22,15 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
     let pi_override: Value =
         serde_json::from_str(include_str!("../../../../../config/defaults/pi.json")).unwrap();
 
-    let layer_four_cells = base["runtimeConfig"]["layers"][3]["build"]["savedState"]["cells"]
+    let layer_four_tiles = base["runtimeConfig"]["layers"][3]["build"]["savedState"]["tiles"]
         .as_array()
         .unwrap();
-    assert_eq!(layer_four_cells.len(), 64);
+    assert_eq!(layer_four_tiles.len(), 64);
     assert_eq!(
-        layer_four_cells
+        layer_four_tiles
             .iter()
             .enumerate()
-            .filter_map(|(index, cell)| cell.as_bool().unwrap().then_some(index))
+            .filter_map(|(index, tile)| tile.as_bool().unwrap().then_some(index))
             .collect::<Vec<_>>(),
         vec![1, 3, 5, 7, 42, 46]
     );
@@ -160,37 +160,37 @@ fn assert_default_looper_steps(config: &Value) {
     assert_eq!(
         nonempty,
         vec![
-            (7, serde_json::json!([{"cell": 49, "kind": "press"}])),
+            (7, serde_json::json!([{"tile": 49, "kind": "press"}])),
             (
                 8,
                 serde_json::json!([
-                    {"cell": 49, "kind": "release"},
-                    {"cell": 42, "kind": "press"},
-                    {"cell": 42, "kind": "press"}
+                    {"tile": 49, "kind": "release"},
+                    {"tile": 42, "kind": "press"},
+                    {"tile": 42, "kind": "press"}
                 ])
             ),
             (
                 10,
                 serde_json::json!([
-                    {"cell": 49, "kind": "press"},
-                    {"cell": 42, "kind": "release"},
-                    {"cell": 42, "kind": "release"}
+                    {"tile": 49, "kind": "press"},
+                    {"tile": 42, "kind": "release"},
+                    {"tile": 42, "kind": "release"}
                 ])
             ),
-            (12, serde_json::json!([{"cell": 49, "kind": "release"}])),
-            (15, serde_json::json!([{"cell": 49, "kind": "press"}])),
-            (16, serde_json::json!([{"cell": 49, "kind": "release"}])),
+            (12, serde_json::json!([{"tile": 49, "kind": "release"}])),
+            (15, serde_json::json!([{"tile": 49, "kind": "press"}])),
+            (16, serde_json::json!([{"tile": 49, "kind": "release"}])),
             (
                 24,
                 serde_json::json!([
-                    {"cell": 49, "kind": "press"},
-                    {"cell": 49, "kind": "release"},
-                    {"cell": 42, "kind": "press"}
+                    {"tile": 49, "kind": "press"},
+                    {"tile": 49, "kind": "release"},
+                    {"tile": 42, "kind": "press"}
                 ])
             ),
-            (26, serde_json::json!([{"cell": 42, "kind": "release"}])),
-            (27, serde_json::json!([{"cell": 49, "kind": "press"}])),
-            (28, serde_json::json!([{"cell": 49, "kind": "release"}]))
+            (26, serde_json::json!([{"tile": 42, "kind": "release"}])),
+            (27, serde_json::json!([{"tile": 49, "kind": "press"}])),
+            (28, serde_json::json!([{"tile": 49, "kind": "release"}]))
         ]
     );
     assert_eq!(

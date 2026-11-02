@@ -101,7 +101,7 @@ fn behavior_owned_state_contracts_remain_separate_from_scan_cursor_replacement()
     })
     .unwrap();
     replace_with_current_behavior(&mut keys, None);
-    assert!(!keys.engine.model().unwrap().cells[platform_core::grid_index(0, 0)]);
+    assert!(!keys.engine.model().unwrap().tiles[platform_core::grid_index(0, 0)]);
 
     let mut looper = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "looper".into(),

@@ -1,5 +1,5 @@
 use super::*;
-use crate::behavior::{BehaviorActionInput, BehaviorContext, CellTriggerType, DeviceInput};
+use crate::behavior::{BehaviorActionInput, BehaviorContext, DeviceInput, TileTriggerType};
 use serde_json::json;
 
 fn context() -> BehaviorContext {
@@ -24,7 +24,7 @@ fn menu_serialize_restore_quiet() {
     assert!(state
         .trigger_types
         .iter()
-        .all(|t| *t != CellTriggerType::Activate));
+        .all(|t| *t != TileTriggerType::Activate));
     let value = rivers_serialize(&state).unwrap();
     assert!(value.get("triggerTypes").is_none());
     assert!(value.get("tickCounter").is_none());
@@ -40,7 +40,7 @@ fn grid_actions_and_reset() {
     assert_eq!(pressed.water[grid_index(0, 0)], 96);
     assert_eq!(
         pressed.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let burst = rivers_on_input(
         pressed,
@@ -52,7 +52,7 @@ fn grid_actions_and_reset() {
     assert_eq!(burst.water[grid_index(1, 6)], 64);
     assert_eq!(
         burst.trigger_types[grid_index(1, 6)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let reset = rivers_on_input(
         burst,
@@ -64,17 +64,17 @@ fn grid_actions_and_reset() {
     assert_eq!(reset.water.iter().sum::<u8>(), 0);
     assert_eq!(
         reset.trigger_types[grid_index(1, 6)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     )
 }
 
 #[test]
 fn flow_erosion_evaporation_status() {
     let mut ctx = context();
-    let mut h = vec![100; CELL_COUNT];
+    let mut h = vec![100; TILE_COUNT];
     h[grid_index(0, 0)] = 100;
     h[grid_index(1, 0)] = 0;
-    let mut w = vec![0; CELL_COUNT];
+    let mut w = vec![0; TILE_COUNT];
     w[grid_index(0, 0)] = 64;
     let state = rivers_init(
         json!({"height":h,"water":w,"rainPct":0,"flowPct":50,"erosionPct":100,"evaporationPct":0}),
@@ -84,10 +84,10 @@ fn flow_erosion_evaporation_status() {
     assert!(ticked.water[grid_index(1, 0)] > 0);
     assert_eq!(ticked.height[grid_index(0, 0)], 99);
     assert!(rivers_render_model(&ticked).status_line.contains("E:"));
-    let mut h = vec![100; CELL_COUNT];
+    let mut h = vec![100; TILE_COUNT];
     h[grid_index(0, 0)] = 100;
     h[grid_index(1, 0)] = 0;
-    let mut w = vec![0; CELL_COUNT];
+    let mut w = vec![0; TILE_COUNT];
     w[grid_index(0, 0)] = 64;
     let state = rivers_init(
         json!({"height":h,"water":w,"rainPct":0,"flowPct":0,"erosionPct":100,"evaporationPct":0}),
@@ -102,5 +102,5 @@ fn flow_erosion_evaporation_status() {
     .unwrap();
     let ticked = rivers_on_tick(state, &mut ctx);
     assert_eq!(ticked.water[0], 0);
-    assert_eq!(ticked.trigger_types[0], CellTriggerType::Deactivate);
+    assert_eq!(ticked.trigger_types[0], TileTriggerType::Deactivate);
 }

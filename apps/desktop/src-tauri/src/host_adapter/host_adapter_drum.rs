@@ -5,7 +5,7 @@ use super::host_adapter_musical::{
     invalid_musical_event, validate_musical_channel, validate_musical_range,
 };
 use super::DesktopPlaybackHostAdapter;
-use playback_runtime::{CellHit, RuntimeAdapterError, RuntimeOperation};
+use playback_runtime::{RuntimeAdapterError, RuntimeOperation, TileHit};
 use realtime_engine::synth::DrumParamId;
 use rodio_engine_source::EngineEvent;
 
@@ -38,22 +38,22 @@ impl DesktopPlaybackHostAdapter {
         )
     }
 
-    pub(super) fn handle_runtime_cell_hit(
+    pub(super) fn handle_runtime_tile_hit(
         &mut self,
-        hit: &CellHit,
+        hit: &TileHit,
         at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
         validate_musical_channel(hit.instrument_slot)?;
-        validate_musical_range(hit.voice, 7, "cell voice")?;
-        let limit = realtime_engine::synth::CELL_PITCH_CENTS_LIMIT;
+        validate_musical_range(hit.voice, 7, "tile voice")?;
+        let limit = realtime_engine::synth::TILE_PITCH_CENTS_LIMIT;
         if !(-limit..=limit).contains(&hit.pitch_cents) || hit.velocity > 127 {
-            return Err(invalid_musical_event("invalid cell pitch or velocity"));
+            return Err(invalid_musical_event("invalid tile pitch or velocity"));
         }
         self.send_engine_event(
-            EngineEvent::CellHit {
+            EngineEvent::TileHit {
                 instrument_slot: hit.instrument_slot,
                 voice: hit.voice,
-                cell: hit.cell,
+                tile: hit.tile,
                 pitch_cents: hit.pitch_cents,
                 velocity: hit.velocity,
                 at,

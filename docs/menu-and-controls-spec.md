@@ -57,8 +57,8 @@ Data sources the spec relies on:
 | Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. See [Grid overlays](#overlays-and-priority). |
 | Fn + rightmost grid column | Select Play page | Selects and activates the page on that row (rows 0..6) and moves the menu to it. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier held | Layer-only LEDs | Shows only the left (layer) column of Fn navigation; the Play page column is hidden and reserved. |
-| Sample/Drum assign + Shift + cell | Row stamp | Stamps the current selection on the whole world-space row. |
-| Sample/Drum assign + combined modifier + cell | Column stamp | Stamps the current selection on the whole column. |
+| Sample/Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
+| Sample/Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
 | Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or the focused action as its `!` press target. |
 
 ## Control Mapping
@@ -87,8 +87,8 @@ Data sources the spec relies on:
 | Fn + leftmost grid column | Ctrl + leftmost grid column | Select the active layer (1..8); hold Fn to see layer indicators |
 | Fn + rightmost grid column | Ctrl + rightmost grid column | Select/activate a Play page; hold Fn to see page indicators |
 | Shift + Fn + leftmost grid column | Shift+Ctrl + leftmost grid column | Toggle that layer's trigger gate without changing the active layer (see the Cheat Sheet for note release) |
-| Sample/Drum assign + Shift + cell press | Shift + cell | Stamp the entire row |
-| Sample/Drum assign + combined modifier + cell press | Shift+Ctrl + cell | Stamp the entire column |
+| Sample/Drum assign + Shift + tile press | Shift + tile | Stamp the entire row |
+| Sample/Drum assign + combined modifier + tile press | Shift+Ctrl + tile | Stamp the entire column |
 
 ### USB-host keyboard
 
@@ -131,7 +131,7 @@ encoder rows:
 ### Input dispatch
 
 - Simulator grid drag follows the active behavior's interaction mode. Paint behaviors drag-toggle
-  or draw cells; momentary behaviors such as Keys release the previous cell when the pointer enters
+  or draw tiles; momentary behaviors such as Keys release the previous tile when the pointer enters
   another one, like a finger sliding across the grid buttons.
 - Raspberry and Orange share one encoder dispatch: consecutive same-direction turns from one encoder
   coalesce and clamp to a `-127..127` delta, reversals stay ordered, and pending turns dispatch
@@ -172,7 +172,7 @@ Aux mappings modal:
 - While transport runs, clearing or replacing a behavior reinitializes or restores its own state but
   keeps the transport-owned interpretation cursor, fractional accumulator, and page/section phase.
 - Sequencer alone has origin-immediate static-grid semantics: page 1 step 1 sits on the transport
-  origin, empty leading cells are timed rests, and later pages continue without restarting.
+  origin, empty leading tiles are timed rests, and later pages continue without restarting.
 - The downbeat is PPQN 0. Play from stop (button, or an accepted MIDI Start/Continue-from-stop) on
   the internal clock plays the scanning Sequencer origin step at once. With external sync, the first
   MIDI Clock after the start is the downbeat: it plays the origin step without advancing, and the
@@ -611,50 +611,50 @@ palette unless a behavior deliberately owns its own.
   pure logical row-major and logical/display projection helpers; `playback-runtime` delegates its
   display-index API to them.
 - Desktop `GRID_DOMAIN` is a deliberate boundary mirror for input and rendering, checked against
-  every cell in `resources/grid-projection-v1.json`. The fixture is verification data, not a runtime
+  every tile in `resources/grid-projection-v1.json`. The fixture is verification data, not a runtime
   projection table.
 - HAL NeoTrellis wiring stays fixed adapter data: four device quadrants, physical keys, device
   addresses, and GRB output are kept apart from the shared world/display projection.
 
-### Cell colors
+### Tile colors
 
-Each cell's LED color comes from its behavior palette and `CellTriggerType`. Every behavior provides
+Each tile's LED color comes from its behavior palette and `TileTriggerType`. Every behavior provides
 inactive, active, and stable colors; the defaults are inactive black, active yellow, and stable
 green. Inactive black is preferred unless a behavior needs another off color.
 
 | Condition | Color |
 |---|---|
-| Cell off | Behavior inactive color |
+| Tile off | Behavior inactive color |
 | `activate` | Behavior active color |
 | `stable` | Behavior stable color |
 | `deactivate` | `GRAY` |
 | `scanned` | `BLUE` (only in scan mode `scanning`) |
 
 Grid Bright scales the result after the palette is applied. Snapshots also expose logical
-active-cell booleans so simulator paint controls never infer cell state from RGB.
+active-tile booleans so simulator paint controls never infer tile state from RGB.
 
 ### Overlays and priority
 
 The grid is composed in this order; each step paints over the previous one.
 
-1. Behavior cell colors.
+1. Behavior tile colors.
 2. Scan progress: on the active layer in scan mode `scanning`, the current scan line or lane
    segment gets a dim white lift.
 3. The active Play page overlay (see [play.md](menu-tree/play.md)). `Map to Grid` switches to the
    `fx` page, so FX assignment uses the FX page overlay. The `drums` page blacks out the grid; the
-   other pages dim behavior cells to a quarter and draw their markers on top.
+   other pages dim behavior tiles to a quarter and draw their markers on top.
 4. Unless FX assignment is active: sample assignment, otherwise Drum assignment, otherwise
    probability assignment. Each blacks out the grid first.
-   - Sample assignment: cells of the selected sample slot light magenta (High), yellow (Medium),
-     green (Low), or gray (Base); cells of other sample slots light dim gray.
-   - Drum assignment: the selected voice's cells are bright white, other assigned cells dim white,
-     empty cells dark.
+   - Sample assignment: tiles of the selected sample slot light magenta (High), yellow (Medium),
+     green (Low), or gray (Base); tiles of other sample slots light dim gray.
+   - Drum assignment: the selected voice's tiles are bright white, other assigned tiles dim white,
+     empty tiles dark.
    - Probability map: black `0%`, magenta `low`, yellow `high`, green `100%`.
 5. Param-mod lanes, only while Shift is held without Fn, no Play page or assignment is active, and
    the highlighted row is a bindable parameter. Rows `y=0..1` and columns `x=0..1` show dim gray
    lanes; X slot 1/2 paint row 0/1 and Y slot 1/2 paint column 0/1, green (magenta when inverted),
-   bright for the highlighted target and dim otherwise. Cells `(0,0)` and `(1,1)` are white.
-6. Fn navigation, while Fn or Shift+Fn is held and no assignment is active. All other cells go
+   bright for the highlighted target and dim otherwise. Tiles `(0,0)` and `(1,1)` are white.
+6. Fn navigation, while Fn or Shift+Fn is held and no assignment is active. All other tiles go
    black. The left column is the layer column: without an active Play page the active layer is
    blue, configured layers green, and `none` layers dim gray; with an active Play page every
    configured layer is blue. The right column lists the Play pages by row, dim yellow, with the
@@ -663,10 +663,10 @@ The grid is composed in this order; each step paints over the previous one.
 World coordinates keep the bottom-left origin and the normal LED display conversion in every
 overlay.
 
-Ghost Cells (`System > Display`, off by default): when on, every cell that is lit on another
+Ghost Tiles (`System > Display`, off by default): when on, every tile that is lit on another
 non-`none` layer but not on the active layer gets a very dim green lift (`+16,+35,+10`) on top of
 the active layer's background colour. Ghosts sit below everything else: the active layer's own
-cells, the scan progress ray and every overlay above draw over them.
+tiles, the scan progress ray and every overlay above draw over them.
 
 Hardware Test (`System > Maintenance`, confirmed) stops the transport and takes over the OLED, grid
 and NeoKey LEDs until it ends. *Main* click moves on; *Back* leaves, except on the Keys step where it
@@ -863,7 +863,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   - Each value lane applies its curve after `Grid Offs`: `linear` maps position `t` directly,
     `curve` uses the quadratic ease-in `t²`. Both clamp `t` to `0..1`, hit `From` and `To` exactly,
     and stay inside the inclusive range between them, including when `From > To`.
-  - `Grid Offs` rotates axis indexing (offset 5 treats cell 5 as first, then wraps). Its bounds are
+  - `Grid Offs` rotates axis indexing (offset 5 treats tile 5 as first, then wraps). Its bounds are
     `-(GRID_SIZE-1)..+(GRID_SIZE-1)`, so `-7..7`.
 
 ## Save and Load
@@ -991,14 +991,14 @@ Input events:
 
 ### Trigger types
 
-All behaviors use `CellTriggerType`: `activate`, `stable`, `deactivate`, `scanned`, or `none`.
+All behaviors use `TileTriggerType`: `activate`, `stable`, `deactivate`, `scanned`, or `none`.
 
 | Type | Source | When |
 |---|---|---|
-| `activate` | Behavior | Cell becomes active (birth, shape hits cell, etc.) |
-| `stable` | Behavior | Cell stays active (alive, inside shape interior, etc.) |
-| `deactivate` | Behavior | Cell becomes inactive (death, shape leaves cell, etc.) |
-| `scanned` | Scanning layer | Cell found active during a scan (scan mode `scanning` only) |
+| `activate` | Behavior | Tile becomes active (birth, shape hits tile, etc.) |
+| `stable` | Behavior | Tile stays active (alive, inside shape interior, etc.) |
+| `deactivate` | Behavior | Tile becomes inactive (death, shape leaves tile, etc.) |
+| `scanned` | Scanning layer | Tile found active during a scan (scan mode `scanning` only) |
 
 Scan mode `none` produces no `scanned` triggers. `State Notes` controls only non-scan state-note
 events; `scanned` triggers stay active while scanning.

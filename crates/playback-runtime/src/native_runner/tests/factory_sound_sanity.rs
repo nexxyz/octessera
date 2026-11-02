@@ -31,7 +31,7 @@ fn render(slot: InstrumentSlotConfig, drum: bool) -> (Vec<f32>, Vec<usize>) {
     for (step, hit) in hits.into_iter().enumerate() {
         onsets.push(mono.len());
         if drum {
-            engine.cell_hit(0, hit, hit, 0, 110);
+            engine.tile_hit(0, hit, hit, 0, 110);
         } else {
             engine.note_on(0, hit, 110, NOTE_MS);
         }

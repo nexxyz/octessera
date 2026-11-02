@@ -1,5 +1,5 @@
 use super::*;
-use crate::behavior::{BehaviorActionInput, BehaviorContext, CellTriggerType, DeviceInput};
+use crate::behavior::{BehaviorActionInput, BehaviorContext, DeviceInput, TileTriggerType};
 use serde_json::json;
 
 fn context() -> BehaviorContext {
@@ -14,18 +14,18 @@ fn assert_tail_activity(mut state: ReactionDiffusionState) {
     let mut previous = Vec::new();
     for tick in 1..=300 {
         state = reaction_diffusion_on_tick(state, &mut ctx);
-        let cells = reaction_diffusion_render_model(&state).cells;
-        consecutive_empty = if cells.iter().all(|cell| !*cell) {
+        let tiles = reaction_diffusion_render_model(&state).tiles;
+        consecutive_empty = if tiles.iter().all(|tile| !*tile) {
             consecutive_empty + 1
         } else {
             0
         };
-        consecutive_full = if cells.iter().all(|cell| *cell) {
+        consecutive_full = if tiles.iter().all(|tile| *tile) {
             consecutive_full + 1
         } else {
             0
         };
-        consecutive_same = if cells == previous {
+        consecutive_same = if tiles == previous {
             consecutive_same + 1
         } else {
             0
@@ -33,7 +33,7 @@ fn assert_tail_activity(mut state: ReactionDiffusionState) {
         assert!(consecutive_empty <= 1, "empty run at tick {tick}");
         assert!(consecutive_full <= 1, "full run at tick {tick}");
         assert!(consecutive_same <= 2, "same-frame run at tick {tick}");
-        previous = cells;
+        previous = tiles;
     }
 }
 
@@ -52,7 +52,7 @@ fn menu_palette_normalize_serialize() {
         json!({"a":[300,"bad"],"b":[40],"feedPct":200,"seedInterval":200,"spawnStep":200}),
     )
     .unwrap();
-    assert_eq!(state.a.len(), CELL_COUNT);
+    assert_eq!(state.a.len(), TILE_COUNT);
     assert_eq!(state.a[0], 255);
     assert_eq!(state.a[1], 255);
     assert_eq!(state.b[0], 40);
@@ -62,7 +62,7 @@ fn menu_palette_normalize_serialize() {
     assert!(state
         .trigger_types
         .iter()
-        .all(|t| *t != CellTriggerType::Activate));
+        .all(|t| *t != TileTriggerType::Activate));
     let value = reaction_diffusion_serialize(&state).unwrap();
     assert!(value.get("triggerTypes").is_none());
     assert!(value.get("tickCounter").is_none());
@@ -84,7 +84,7 @@ fn default_seed_interval_keeps_reaction_visible_with_bounded_pulses() {
         let activates = state
             .trigger_types
             .iter()
-            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .filter(|trigger| **trigger == TileTriggerType::Activate)
             .count();
         if activates > 0 {
             pulse_counts.push(activates);
@@ -110,11 +110,11 @@ fn grid_press_seed_and_clear_trigger_contract() {
     assert_eq!(pressed.a[grid_index(0, 0)], 175);
     assert_eq!(
         pressed.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     assert_eq!(
         pressed.trigger_types[grid_index(1, 0)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let seeded = reaction_diffusion_on_input(
         pressed.clone(),
@@ -125,7 +125,7 @@ fn grid_press_seed_and_clear_trigger_contract() {
     );
     assert_eq!(
         seeded.trigger_types[grid_index(3, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let cleared = reaction_diffusion_on_input(
         seeded,
@@ -137,14 +137,14 @@ fn grid_press_seed_and_clear_trigger_contract() {
     assert_eq!(cleared.b.iter().sum::<u8>(), 0);
     assert_eq!(
         cleared.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 }
 
 #[test]
 fn integer_tick_uses_start_snapshot_thresholds_and_edges() {
     let mut ctx = context();
-    let mut b = vec![0; CELL_COUNT];
+    let mut b = vec![0; TILE_COUNT];
     b[grid_index(1, 1)] = 100;
     let state = reaction_diffusion_init(
         json!({"b":b,"feedPct":0,"killPct":0,"diffusionPct":0,"reactionPct":50}),
@@ -154,9 +154,9 @@ fn integer_tick_uses_start_snapshot_thresholds_and_edges() {
     assert!(ticked.b[grid_index(1, 1)] > 100);
     assert_eq!(
         ticked.trigger_types[grid_index(1, 1)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
-    let mut b = vec![0; CELL_COUNT];
+    let mut b = vec![0; TILE_COUNT];
     b[grid_index(0, 0)] = 100;
     let edge = reaction_diffusion_init(
         json!({"b":b,"feedPct":0,"killPct":100,"diffusionPct":100,"reactionPct":0}),
@@ -167,7 +167,7 @@ fn integer_tick_uses_start_snapshot_thresholds_and_edges() {
     assert_eq!(edge.b[grid_index(7, 7)], 0);
     assert_eq!(
         edge.trigger_types[grid_index(0, 0)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
     assert_eq!(
         reaction_diffusion_render_model(&edge).status_line,

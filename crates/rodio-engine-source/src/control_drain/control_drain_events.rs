@@ -184,7 +184,7 @@ impl<'a> ControlDrain<'a> {
             | EngineEvent::SetGlobalFxParam { .. }
             | EngineEvent::MomentaryFxUpdate(_)
             | EngineEvent::NoteOn { .. }
-            | EngineEvent::CellHit { .. }
+            | EngineEvent::TileHit { .. }
             | EngineEvent::NoteOff { .. }
             | EngineEvent::Cc { .. }
             | EngineEvent::AllNotesOff => {}

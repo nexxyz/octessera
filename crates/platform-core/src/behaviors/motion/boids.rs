@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -24,7 +24,7 @@ pub struct BoidsState {
     #[serde(rename = "activeCount")]
     pub active_count: usize,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "separationPct")]
     pub separation_pct: u8,
     #[serde(rename = "alignmentPct")]
@@ -44,7 +44,7 @@ struct Config {
     #[serde(rename = "activeCount")]
     active_count: Option<Value>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "flockSize")]
     flock_size: Option<Value>,
     #[serde(rename = "separationPct")]
@@ -101,7 +101,7 @@ pub fn boids_on_input(
     }
     state.trigger_types = triggers(&prev, &occupancy(&state));
     if let Some(index) = force_activate {
-        state.trigger_types[index] = CellTriggerType::Activate;
+        state.trigger_types[index] = TileTriggerType::Activate;
     }
     state
 }
@@ -169,11 +169,11 @@ pub fn boids_on_tick(mut state: BoidsState, _context: &mut BehaviorContext) -> B
 
 pub fn boids_render_model(state: &BoidsState) -> BehaviorRenderModel {
     let occ = occupancy(state);
-    let cells = occ.iter().filter(|v| **v).count();
+    let tiles = occ.iter().filter(|v| **v).count();
     BehaviorRenderModel {
         name: "boids".into(),
-        status_line: format!("B:{} C:{cells}", state.active_count),
-        cells: occ,
+        status_line: format!("B:{} T:{tiles}", state.active_count),
+        tiles: occ,
         palette: crate::BehaviorRenderPalette {
             active: [255, 240, 160],
             inactive: crate::palette::BLACK,
@@ -261,10 +261,10 @@ fn norm(v: Option<Vec<Value>>, d: i16, min: i16, max: i16) -> Vec<i16> {
     o.truncate(MAX_BOIDS);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -272,26 +272,26 @@ fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
         .map(|v| v.clamp(1, u64::from(max)) as u8)
         .unwrap_or(d)
 }
-fn cell(x: i16, y: i16) -> usize {
+fn tile(x: i16, y: i16) -> usize {
     grid_index(
         (x / UNIT).clamp(0, GRID_WIDTH as i16 - 1) as usize,
         (y / UNIT).clamp(0, GRID_HEIGHT as i16 - 1) as usize,
     )
 }
 fn occupancy(s: &BoidsState) -> Vec<bool> {
-    let mut o = vec![false; CELL_COUNT];
+    let mut o = vec![false; TILE_COUNT];
     for i in 0..s.active_count {
-        o[cell(s.x[i], s.y[i])] = true
+        o[tile(s.x[i], s.y[i])] = true
     }
     o
 }
-fn triggers(p: &[bool], n: &[bool]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn triggers(p: &[bool], n: &[bool]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|i| match (p[i], n[i]) {
-            (false, true) => CellTriggerType::Activate,
-            (true, false) => CellTriggerType::Deactivate,
-            (true, true) => CellTriggerType::Stable,
-            _ => CellTriggerType::None,
+            (false, true) => TileTriggerType::Activate,
+            (true, false) => TileTriggerType::Deactivate,
+            (true, true) => TileTriggerType::Stable,
+            _ => TileTriggerType::None,
         })
         .collect()
 }

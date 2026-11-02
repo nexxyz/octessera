@@ -27,7 +27,7 @@ fn shapes_render_and_config_menu_match_contract() {
     let model = shapes_render_model(&state);
     assert_eq!(model.name, "shapes");
     assert!(model.status_line.contains("ring"));
-    assert_eq!(model.trigger_types.as_ref().unwrap().len(), CELL_COUNT);
+    assert_eq!(model.trigger_types.as_ref().unwrap().len(), TILE_COUNT);
     assert_eq!(
         shapes_config_menu()
             .iter()
@@ -52,10 +52,10 @@ fn default_avoids_consecutive_empty_or_full_frames() {
     let mut full_run = 0usize;
     for _ in 0..300 {
         state = shapes_on_tick(state, &mut context);
-        let cells = shapes_render_model(&state).cells;
-        let visible = cells.iter().filter(|cell| **cell).count();
+        let tiles = shapes_render_model(&state).tiles;
+        let visible = tiles.iter().filter(|tile| **tile).count();
         empty_run = if visible == 0 { empty_run + 1 } else { 0 };
-        full_run = if visible == CELL_COUNT {
+        full_run = if visible == TILE_COUNT {
             full_run + 1
         } else {
             0
@@ -66,9 +66,9 @@ fn default_avoids_consecutive_empty_or_full_frames() {
             state
                 .trigger_types
                 .iter()
-                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .filter(|trigger| **trigger == TileTriggerType::Activate)
                 .count()
-                <= CELL_COUNT / 2
+                <= TILE_COUNT / 2
         );
     }
 }

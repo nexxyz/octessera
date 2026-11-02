@@ -1,22 +1,22 @@
 use crate::behavior::{
-    BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType, DeviceInput,
+    BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput, TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::number_item;
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 mod lanes;
 
-use lanes::cell_active;
+use lanes::tile_active;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PatternBehaviorState {
     pub kind: String,
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     #[serde(rename = "triggerTypes", skip_serializing, skip_deserializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     pub phase: u64,
     #[serde(rename = "densityPct")]
     pub density_pct: u8,
@@ -29,7 +29,7 @@ pub struct PatternBehaviorState {
 
 #[derive(Default, Deserialize)]
 struct PatternBehaviorConfig {
-    cells: Option<Vec<bool>>,
+    tiles: Option<Vec<bool>>,
     phase: Option<u64>,
     #[serde(rename = "densityPct")]
     density_pct: Option<Value>,
@@ -92,12 +92,12 @@ pub fn pattern_spec(id: &str) -> Option<PatternBehaviorSpec> {
 pub fn pattern_init(kind: &str, config: Value) -> Result<PatternBehaviorState, String> {
     let spec = pattern_spec(kind).ok_or_else(|| format!("unknown pattern {kind}"))?;
     let mut state = seeded(spec);
-    let mut restored_cells = false;
+    let mut restored_tiles = false;
     if !config.is_null() {
         let cfg: PatternBehaviorConfig = serde_json::from_value(config).unwrap_or_default();
-        if let Some(cells) = cfg.cells {
-            state.cells = cells;
-            restored_cells = true;
+        if let Some(tiles) = cfg.tiles {
+            state.tiles = tiles;
+            restored_tiles = true;
         }
         if let Some(phase) = cfg.phase {
             state.phase = phase;
@@ -109,13 +109,13 @@ pub fn pattern_init(kind: &str, config: Value) -> Result<PatternBehaviorState, S
     }
     state.kind = kind.to_string();
     normalize(&mut state);
-    if !restored_cells {
-        recompute_cells(&mut state);
+    if !restored_tiles {
+        recompute_tiles(&mut state);
     }
-    state.trigger_types = if restored_cells {
-        restored_trigger_types(&state.cells)
+    state.trigger_types = if restored_tiles {
+        restored_trigger_types(&state.tiles)
     } else {
-        trigger_types(&[false; CELL_COUNT], &state.cells)
+        trigger_types(&[false; TILE_COUNT], &state.tiles)
     };
     Ok(state)
 }
@@ -125,15 +125,15 @@ pub fn pattern_on_input(
     input: DeviceInput,
     _context: &mut BehaviorContext,
 ) -> PatternBehaviorState {
-    let previous = state.cells.clone();
+    let previous = state.tiles.clone();
     if let DeviceInput::GridPress { x, y } = input {
         if x < GRID_WIDTH && y < GRID_HEIGHT {
             let index = grid_index(x, y);
-            state.cells[index] = !state.cells[index];
+            state.tiles[index] = !state.tiles[index];
             state.seed = (state.seed.clamp(1, 9999) - 1 + (index as u32 + 1) * 97) % 9999 + 1;
         }
     }
-    state.trigger_types = trigger_types(&previous, &state.cells);
+    state.trigger_types = trigger_types(&previous, &state.tiles);
     state
 }
 
@@ -141,18 +141,18 @@ pub fn pattern_on_tick(
     mut state: PatternBehaviorState,
     _context: &mut BehaviorContext,
 ) -> PatternBehaviorState {
-    let previous = state.cells.clone();
+    let previous = state.tiles.clone();
     state.phase = state.phase.wrapping_add(1);
-    recompute_cells(&mut state);
-    state.trigger_types = trigger_types(&previous, &state.cells);
+    recompute_tiles(&mut state);
+    state.trigger_types = trigger_types(&previous, &state.tiles);
     state
 }
 
 pub(crate) fn reset_transport_phase(state: &mut PatternBehaviorState) {
-    let previous = state.cells.clone();
+    let previous = state.tiles.clone();
     state.phase = 0;
-    recompute_cells(state);
-    state.trigger_types = trigger_types(&previous, &state.cells);
+    recompute_tiles(state);
+    state.trigger_types = trigger_types(&previous, &state.tiles);
 }
 
 pub fn pattern_render_model(state: &PatternBehaviorState) -> BehaviorRenderModel {
@@ -165,7 +165,7 @@ pub fn pattern_render_model(state: &PatternBehaviorState) -> BehaviorRenderModel
             "{} d{} v{}",
             state.cycle_length, state.density_pct, state.variation_pct
         ),
-        cells: state.cells.clone(),
+        tiles: state.tiles.clone(),
         palette: Default::default(),
         trigger_types: Some(state.trigger_types.clone()),
     }
@@ -183,33 +183,33 @@ pub fn pattern_config_menu() -> Vec<BehaviorConfigItem> {
 fn seeded(spec: PatternBehaviorSpec) -> PatternBehaviorState {
     let mut state = PatternBehaviorState {
         kind: spec.id.to_string(),
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         phase: 0,
         density_pct: spec.density_pct,
         variation_pct: spec.variation_pct,
         cycle_length: spec.cycle_length,
         seed: spec.seed,
     };
-    recompute_cells(&mut state);
-    state.trigger_types = trigger_types(&[false; CELL_COUNT], &state.cells);
+    recompute_tiles(&mut state);
+    state.trigger_types = trigger_types(&[false; TILE_COUNT], &state.tiles);
     state
 }
 
-fn recompute_cells(state: &mut PatternBehaviorState) {
+fn recompute_tiles(state: &mut PatternBehaviorState) {
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
-            state.cells[index] = cell_active(state, x, y);
+            state.tiles[index] = tile_active(state, x, y);
         }
     }
 }
 
 fn normalize(state: &mut PatternBehaviorState) {
-    state.cells.resize(CELL_COUNT, false);
+    state.tiles.resize(TILE_COUNT, false);
     state
         .trigger_types
-        .resize(CELL_COUNT, CellTriggerType::None);
+        .resize(TILE_COUNT, TileTriggerType::None);
     state.density_pct = state.density_pct.clamp(10, 80);
     state.variation_pct = state.variation_pct.min(100);
     state.cycle_length = state.cycle_length.clamp(4, 32);
@@ -234,27 +234,27 @@ fn seed_field(value: Option<Value>, default: u32) -> u32 {
         .unwrap_or(default)
 }
 
-fn trigger_types(previous: &[bool], next: &[bool]) -> Vec<CellTriggerType> {
+fn trigger_types(previous: &[bool], next: &[bool]) -> Vec<TileTriggerType> {
     previous
         .iter()
         .zip(next.iter())
         .map(|(a, b)| match (*a, *b) {
-            (false, true) => CellTriggerType::Activate,
-            (true, false) => CellTriggerType::Deactivate,
-            (true, true) => CellTriggerType::Stable,
-            (false, false) => CellTriggerType::None,
+            (false, true) => TileTriggerType::Activate,
+            (true, false) => TileTriggerType::Deactivate,
+            (true, true) => TileTriggerType::Stable,
+            (false, false) => TileTriggerType::None,
         })
         .collect()
 }
 
-fn restored_trigger_types(cells: &[bool]) -> Vec<CellTriggerType> {
-    cells
+fn restored_trigger_types(tiles: &[bool]) -> Vec<TileTriggerType> {
+    tiles
         .iter()
-        .map(|cell| {
-            if *cell {
-                CellTriggerType::Stable
+        .map(|tile| {
+            if *tile {
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect()

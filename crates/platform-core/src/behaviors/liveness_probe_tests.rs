@@ -7,7 +7,7 @@ const PROBE_TICKS: usize = 300;
 const TRAILING_WINDOW: usize = 64;
 const FINAL_WINDOW: usize = 16;
 const MAX_EXTREME_RUN: usize = 1;
-const GRID_CELLS: usize = crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT;
+const GRID_TILES: usize = crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT;
 const SKIPPED_BEHAVIORS: &[&str] = &["none", "sequencer", "keys", "looper"];
 
 #[derive(Default)]
@@ -21,7 +21,7 @@ struct BehaviorLivenessMetrics {
     terminal_empty_suffix: usize,
     terminal_full_suffix: usize,
     final_unique_signatures: usize,
-    final_changed_cells: usize,
+    final_changed_tiles: usize,
     tail_non_extreme_unique_signatures: usize,
     longest_empty_run: usize,
     longest_full_run: usize,
@@ -38,8 +38,8 @@ fn seeded_liveness(behavior: NativeBehavior, index: usize) -> BehaviorLivenessMe
     random.scope(|| collect_behavior_liveness(behavior, PROBE_TICKS))
 }
 
-fn visible_count(cells: &[bool]) -> usize {
-    cells.iter().filter(|cell| **cell).count()
+fn visible_count(tiles: &[bool]) -> usize {
+    tiles.iter().filter(|tile| **tile).count()
 }
 
 fn repeated_period(frames: &[Vec<bool>]) -> Option<usize> {
@@ -86,7 +86,7 @@ fn longest_visible_run(visible: &[usize], value: usize) -> usize {
     longest
 }
 
-fn changed_cells(frames: &[Vec<bool>]) -> usize {
+fn changed_tiles(frames: &[Vec<bool>]) -> usize {
     frames
         .windows(2)
         .map(|window| {
@@ -110,14 +110,14 @@ fn period_has_live_cycle(frames: &[Vec<bool>], period: Option<usize>) -> bool {
     let cycle = &frames[frames.len() - period..];
     cycle.iter().any(|frame| {
         let visible = visible_count(frame);
-        visible != 0 && visible != GRID_CELLS
+        visible != 0 && visible != GRID_TILES
     })
 }
 
 fn trailing_state(trailing_visible: &[usize], trailing_unique: usize) -> &'static str {
     if trailing_visible
         .iter()
-        .all(|visible| *visible == GRID_CELLS)
+        .all(|visible| *visible == GRID_TILES)
     {
         "all_full"
     } else if trailing_visible.iter().all(|visible| *visible == 0) {
@@ -146,15 +146,15 @@ fn classify_behavior(metrics: &BehaviorLivenessMetrics) -> &'static str {
         "fail_tail_static_period_1"
     } else if metrics.final_unique_signatures <= 1 {
         "fail_final_static"
-    } else if metrics.final_changed_cells == 0 {
+    } else if metrics.final_changed_tiles == 0 {
         "fail_final_unchanged"
     } else if metrics.terminal_same_suffix > 2
         && metrics.final_unique_signatures <= 2
         && !metrics.trailing_period_live_cycle
     {
         "fail_terminal_static"
-    } else if metrics.last_visible >= GRID_CELLS.saturating_sub(1)
-        && metrics.final_changed_cells <= 1
+    } else if metrics.last_visible >= GRID_TILES.saturating_sub(1)
+        && metrics.final_changed_tiles <= 1
     {
         "fail_terminal_full_saturation"
     } else {
@@ -173,16 +173,16 @@ fn collect_behavior_liveness(behavior: NativeBehavior, ticks: usize) -> Behavior
 
     for step in 0..=ticks {
         let model = behavior.render_model(&state).unwrap();
-        let visible = model.cells.iter().filter(|cell| **cell).count();
+        let visible = model.tiles.iter().filter(|tile| **tile).count();
         metrics.min_visible = metrics.min_visible.min(visible);
         metrics.max_visible = metrics.max_visible.max(visible);
         metrics.last_visible = visible;
         if visible == 0 {
             metrics.empty_frames += 1;
-        } else if visible == GRID_CELLS {
+        } else if visible == GRID_TILES {
             metrics.full_frames += 1;
         }
-        frames.push(model.cells);
+        frames.push(model.tiles);
 
         if step < ticks {
             state = behavior.on_tick(state, &mut context).unwrap();
@@ -208,7 +208,7 @@ fn collect_behavior_liveness(behavior: NativeBehavior, ticks: usize) -> Behavior
         .iter()
         .filter(|frame| {
             let visible = visible_count(frame);
-            visible != 0 && visible != GRID_CELLS
+            visible != 0 && visible != GRID_TILES
         })
         .collect::<HashSet<_>>();
 
@@ -216,12 +216,12 @@ fn collect_behavior_liveness(behavior: NativeBehavior, ticks: usize) -> Behavior
     metrics.trailing_unique_signatures = trailing_signatures.len();
     metrics.terminal_same_suffix = terminal_same_suffix(&frames);
     metrics.terminal_empty_suffix = terminal_visible_suffix(&visible, 0);
-    metrics.terminal_full_suffix = terminal_visible_suffix(&visible, GRID_CELLS);
+    metrics.terminal_full_suffix = terminal_visible_suffix(&visible, GRID_TILES);
     metrics.final_unique_signatures = final_signatures.len();
-    metrics.final_changed_cells = changed_cells(final_frames);
+    metrics.final_changed_tiles = changed_tiles(final_frames);
     metrics.tail_non_extreme_unique_signatures = tail_non_extreme_signatures.len();
     metrics.longest_empty_run = longest_visible_run(&visible, 0);
-    metrics.longest_full_run = longest_visible_run(&visible, GRID_CELLS);
+    metrics.longest_full_run = longest_visible_run(&visible, GRID_TILES);
     metrics.trailing_state = trailing_state(&trailing_visible, metrics.trailing_unique_signatures);
     metrics.trailing_period = repeated_period(trailing_frames);
     metrics.trailing_period_live_cycle =
@@ -235,8 +235,8 @@ fn native_behavior_default_liveness_probe_coverage_smoke() {
     for (index, id) in list_native_behavior_ids().iter().enumerate() {
         let behavior = get_native_behavior(id).unwrap();
         let metrics = seeded_liveness(behavior, index);
-        assert!(metrics.min_visible <= GRID_CELLS);
-        assert!(metrics.max_visible <= GRID_CELLS);
+        assert!(metrics.min_visible <= GRID_TILES);
+        assert!(metrics.max_visible <= GRID_TILES);
         assert!(!metrics.classification.is_empty());
     }
 }
@@ -273,7 +273,7 @@ fn native_behavior_default_liveness_probe() {
             metrics.longest_empty_run,
             metrics.longest_full_run,
             metrics.final_unique_signatures,
-            metrics.final_changed_cells,
+            metrics.final_changed_tiles,
             metrics.tail_non_extreme_unique_signatures,
             metrics.full_frames,
             metrics.empty_frames,

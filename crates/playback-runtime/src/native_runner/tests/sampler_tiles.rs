@@ -1,9 +1,9 @@
 use super::super::algorithm::LinkRoutingInput;
 use super::*;
-use platform_core::CellTriggerKind;
+use platform_core::TileTriggerKind;
 
-fn intent(x: usize, kind: CellTriggerKind) -> platform_core::CellTriggerIntent {
-    platform_core::CellTriggerIntent {
+fn intent(x: usize, kind: TileTriggerKind) -> platform_core::TileTriggerIntent {
+    platform_core::TileTriggerIntent {
         x,
         y: 0,
         degree: 0,
@@ -54,8 +54,8 @@ fn sampler_runner(note_behavior: &str) -> NativeRunner {
 fn route(
     runner: &mut NativeRunner,
     events: Vec<MusicalEvent>,
-    intents: &[Option<platform_core::CellTriggerIntent>],
-) -> Vec<crate::protocol::CellHit> {
+    intents: &[Option<platform_core::TileTriggerIntent>],
+) -> Vec<crate::protocol::TileHit> {
     runner
         .route_events_with_link_timing(
             0,
@@ -67,29 +67,29 @@ fn route(
             },
         )
         .unwrap()
-        .cells
+        .tiles
 }
 
 #[test]
-fn held_cells_sharing_a_link_note_release_their_own_cell() {
+fn held_tiles_sharing_a_link_note_release_their_own_tile() {
     let mut runner = sampler_runner("hold");
     route(
         &mut runner,
         vec![held_on(), held_on()],
         &[
-            Some(intent(1, CellTriggerKind::Activate)),
-            Some(intent(2, CellTriggerKind::Activate)),
+            Some(intent(1, TileTriggerKind::Activate)),
+            Some(intent(2, TileTriggerKind::Activate)),
         ],
     );
     let released = route(
         &mut runner,
         vec![off()],
-        &[Some(intent(1, CellTriggerKind::Deactivate))],
+        &[Some(intent(1, TileTriggerKind::Deactivate))],
     );
     assert_eq!(
         released
             .iter()
-            .map(|hit| (hit.cell, hit.velocity))
+            .map(|hit| (hit.tile, hit.velocity))
             .collect::<Vec<_>>(),
         [(1, 0)]
     );
@@ -97,7 +97,7 @@ fn held_cells_sharing_a_link_note_release_their_own_cell() {
     assert_eq!(
         later
             .iter()
-            .map(|hit| (hit.cell, hit.velocity))
+            .map(|hit| (hit.tile, hit.velocity))
             .collect::<Vec<_>>(),
         [(2, 0)]
     );
@@ -110,27 +110,27 @@ fn an_earlier_cell_release_cancels_its_delayed_held_cell_on() {
     assert!(route(
         &mut runner,
         vec![held_on()],
-        &[Some(intent(1, CellTriggerKind::Activate))]
+        &[Some(intent(1, TileTriggerKind::Activate))]
     )
     .is_empty());
     route(
         &mut runner,
         vec![off()],
-        &[Some(intent(1, CellTriggerKind::Deactivate))],
+        &[Some(intent(1, TileTriggerKind::Deactivate))],
     );
     for _ in 0..3 {
-        assert!(runner.take_due_link_events(0).cells.is_empty());
+        assert!(runner.take_due_link_events(0).tiles.is_empty());
     }
 }
 
 #[test]
-fn held_cells_do_not_retrigger_and_arp_suppresses_cell_releases() {
+fn held_tiles_do_not_retrigger_and_arp_suppresses_tile_releases() {
     let mut runner = sampler_runner("hold");
     runner.link_layers[0].activate_timing.retrigger_count = 2;
     route(
         &mut runner,
         vec![held_on()],
-        &[Some(intent(1, CellTriggerKind::Activate))],
+        &[Some(intent(1, TileTriggerKind::Activate))],
     );
     assert!(runner.take_due_link_events(0).is_empty());
 
@@ -139,13 +139,13 @@ fn held_cells_do_not_retrigger_and_arp_suppresses_cell_releases() {
     let released = route(
         &mut runner,
         vec![off()],
-        &[Some(intent(1, CellTriggerKind::Deactivate))],
+        &[Some(intent(1, TileTriggerKind::Deactivate))],
     );
     assert!(released.is_empty());
 }
 
 #[test]
-fn layer_drain_releases_held_cells_but_not_ringing_one_shots() {
+fn layer_drain_releases_held_tiles_but_not_ringing_one_shots() {
     for (behavior, expected_releases) in [("oneshot", 0), ("hold", 1)] {
         let mut runner = sampler_runner(behavior);
         runner
@@ -164,7 +164,7 @@ fn layer_drain_releases_held_cells_but_not_ringing_one_shots() {
         let releases = drained
             .iter()
             .flat_map(|message| match message {
-                RunnerMessage::CellHits { hits } => hits.clone(),
+                RunnerMessage::TileHits { hits } => hits.clone(),
                 _ => Vec::new(),
             })
             .filter(|hit| hit.velocity == 0)

@@ -120,7 +120,7 @@ fn playing_two_lane_device() -> DeviceDriver {
             build["behaviorId"] = json!("sequencer");
             build["stepRate"] = json!("1/16");
             build["savedState"] = json!({
-                "cells": (0..64).map(|cell| cell == index).collect::<Vec<_>>(),
+                "tiles": (0..64).map(|tile| tile == index).collect::<Vec<_>>(),
                 "height": 8,
                 "width": 8
             });

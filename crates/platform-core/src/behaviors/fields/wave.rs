@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,7 +16,7 @@ pub struct WaveState {
     pub displacement: Vec<i16>,
     pub velocity: Vec<i16>,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "dampingPct")]
     pub damping_pct: u8,
     #[serde(rename = "tensionPct")]
@@ -36,7 +36,7 @@ struct Config {
     displacement: Option<Vec<Value>>,
     velocity: Option<Vec<Value>>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "dampingPct")]
     damping_pct: Option<Value>,
     #[serde(rename = "tensionPct")]
@@ -150,12 +150,12 @@ pub fn wave_render_model(state: &WaveState) -> BehaviorRenderModel {
     let peaks = state
         .trigger_types
         .iter()
-        .filter(|trigger| **trigger == CellTriggerType::Activate)
+        .filter(|trigger| **trigger == TileTriggerType::Activate)
         .count();
     BehaviorRenderModel {
         name: "wave".into(),
         status_line: format!("energy:{energy} peaks:{peaks}"),
-        cells: state
+        tiles: state
             .displacement
             .iter()
             .map(|value| value.abs() >= 12)
@@ -230,15 +230,15 @@ fn normalize_values(values: Vec<Value>) -> Vec<i16> {
                 .clamp(i64::from(-CLAMP), i64::from(CLAMP)) as i16
         })
         .collect::<Vec<_>>();
-    normalized.resize(CELL_COUNT, 0);
-    normalized.truncate(CELL_COUNT);
+    normalized.resize(TILE_COUNT, 0);
+    normalized.truncate(TILE_COUNT);
     normalized
 }
 
-fn normalize_triggers(triggers: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(triggers: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut triggers = triggers.unwrap_or_default();
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 
@@ -291,24 +291,24 @@ fn cardinal_with_center(index: usize) -> Vec<usize> {
     indices
 }
 
-fn triggers(old: &[i16], next: &[i16], force_activate: &[usize]) -> Vec<CellTriggerType> {
-    let mut triggers = (0..CELL_COUNT)
+fn triggers(old: &[i16], next: &[i16], force_activate: &[usize]) -> Vec<TileTriggerType> {
+    let mut triggers = (0..TILE_COUNT)
         .map(|index| {
             let was_hot = old[index].abs() >= THRESHOLD;
             let is_hot = next[index].abs() >= THRESHOLD;
             if !was_hot && is_hot {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if was_hot && !is_hot {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if is_hot {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for index in force_activate {
-        triggers[*index] = CellTriggerType::Activate;
+        triggers[*index] = TileTriggerType::Activate;
     }
     triggers
 }

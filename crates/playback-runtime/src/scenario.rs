@@ -223,7 +223,7 @@ impl ScenarioBuilder {
         }
     }
 
-    /// Shift + Fn + left-column cell: toggles a layer's mute (trigger gate), now.
+    /// Shift + Fn + left-column tile: toggles a layer's mute (trigger gate), now.
     pub fn toggle_mute_now(&mut self, layer: usize) {
         self.with_mods_now(
             &["button_shift", "button_fn"],
@@ -231,7 +231,7 @@ impl ScenarioBuilder {
         );
     }
 
-    /// Fn + left-column cell: selects a layer, now.
+    /// Fn + left-column tile: selects a layer, now.
     pub fn select_layer_now(&mut self, layer: usize) {
         self.with_mods_now(
             &["button_fn"],

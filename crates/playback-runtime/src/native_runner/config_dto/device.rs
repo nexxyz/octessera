@@ -21,7 +21,7 @@ pub struct DeviceRuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) wifi: Option<WifiDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) ghost_cells: Option<bool>,
+    pub(super) ghost_tiles: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_auto_hints: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,7 +88,7 @@ impl DeviceRuntimeConfigDto {
             hdmi: runtime.hdmi.clone(),
             bluetooth: runtime.bluetooth.clone(),
             wifi: runtime.wifi.clone(),
-            ghost_cells: runtime.ghost_cells,
+            ghost_tiles: runtime.ghost_tiles,
             aux_auto_hints: runtime.aux_auto_hints,
             aux_manual_hints: runtime.aux_manual_hints,
             input_events_while_paused: runtime.input_events_while_paused,

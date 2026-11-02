@@ -99,16 +99,16 @@ impl HostAdapter for ProbeHost {
         Ok(())
     }
 
-    fn handle_cell_hit(
+    fn handle_tile_hit(
         &mut self,
-        hit: &playback_runtime::CellHit,
+        hit: &playback_runtime::TileHit,
         _at: Option<std::time::Instant>,
     ) -> Result<(), playback_runtime::RuntimeAdapterError> {
         if hit.velocity > 0 {
             self.event_times_ms.push(self.now_ms);
             self.events.push(EventRecord {
                 time_ms: self.now_ms,
-                key: format!("cell:{}:{}:{}", hit.instrument_slot, hit.voice, hit.cell),
+                key: format!("tile:{}:{}:{}", hit.instrument_slot, hit.voice, hit.tile),
             });
         }
         Ok(())

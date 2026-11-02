@@ -1,8 +1,8 @@
 use super::super::{NativeLinkLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
-use platform_core::{CellTriggerIntent, MusicalEvent};
+use platform_core::{MusicalEvent, TileTriggerIntent};
 
 pub(in super::super) fn cc_events_from_intent(
-    intent: &CellTriggerIntent,
+    intent: &TileTriggerIntent,
     sense: &NativeLinkLayer,
     channel: u8,
 ) -> Vec<MusicalEvent> {
@@ -61,7 +61,7 @@ fn push_lane_cc(
 }
 
 pub(in super::super) fn velocity_from_intent(
-    intent: &CellTriggerIntent,
+    intent: &TileTriggerIntent,
     sense: &NativeLinkLayer,
 ) -> Option<u8> {
     let mut values = Vec::new();

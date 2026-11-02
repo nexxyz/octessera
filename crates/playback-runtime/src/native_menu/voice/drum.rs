@@ -1,5 +1,5 @@
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
-use super::cell_stamp_items::cell_stamp_items;
+use super::tile_stamp_items::tile_stamp_items;
 use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, factory_load_group, group,
     number_item, selected_index, InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
@@ -135,7 +135,7 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
             ],
         ),
     ];
-    children.extend(cell_stamp_items(config, prefix, true));
+    children.extend(tile_stamp_items(config, prefix, true));
     children.extend([
         action_item(
             "Assign",

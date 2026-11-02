@@ -3,11 +3,11 @@ use crate::native_runner::modulation_sampler::apply_sampler_assignments_for_inst
 
 #[test]
 pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi() {
-    let intent = CellTriggerIntent {
+    let intent = TileTriggerIntent {
         x: 0,
         y: 0,
         degree: 0,
-        kind: platform_core::CellTriggerKind::Activate,
+        kind: platform_core::TileTriggerKind::Activate,
     };
 
     for kind in ["synth", "sampler"] {
@@ -44,11 +44,11 @@ pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi(
         if kind == "sampler" {
             assert!(routed.audio.is_empty());
             assert!(matches!(
-                routed.cells.as_slice(),
-                [crate::CellHit {
+                routed.tiles.as_slice(),
+                [crate::TileHit {
                     instrument_slot: 0,
                     voice: 0,
-                    cell: 0,
+                    tile: 0,
                     velocity: 1..,
                     ..
                 }]

@@ -246,7 +246,7 @@ pub(crate) fn active_lfo_tick_does_not_reapply_unrelated_held_xy_source() {
     };
     runner.xy_x_binding = Some(NativeParamBinding {
         key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
-        label: Some("Seed Cells".into()),
+        label: Some("Seed Tiles".into()),
         kind: "number".into(),
         min: Some(0.0),
         max: Some(20.0),

@@ -5,7 +5,7 @@ fn empty_config_seeds_quiet_default_oscillator_but_deserialized_empty_stays_empt
     let state = init(serde_json::json!({})).unwrap();
     assert_eq!(state.cells.iter().filter(|cell| **cell).count(), 3);
     assert!(!state.cells[grid_index(2, 3)]);
-    assert!(!state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
     let restored = deserialize(serde_json::json!({
         "width": GRID_WIDTH,
         "height": GRID_HEIGHT,
@@ -89,7 +89,7 @@ fn block_is_stable_and_grid_press_toggles_cell() {
     assert_eq!(next.cells, state.cells);
     assert_eq!(
         next.trigger_types[grid_index(2, 2)],
-        CellTriggerType::Stable
+        TileTriggerType::Stable
     );
 
     let mut context = BehaviorContext::new(120.0);
@@ -110,7 +110,7 @@ fn render_config_and_serialization_match_contract() {
     let model = render_model(&state);
     assert_eq!(model.name, "game of life");
     assert_eq!(model.status_line, "Gen 0");
-    assert_eq!(model.trigger_types.as_ref().unwrap().len(), CELL_COUNT);
+    assert_eq!(model.trigger_types.as_ref().unwrap().len(), TILE_COUNT);
 
     let menu = config_menu(&state);
     assert_eq!(
@@ -145,7 +145,7 @@ fn spawn_glider_action_adds_glider_pattern() {
         assert!(state.cells[grid_index(x, y)]);
         assert_eq!(
             state.trigger_types[grid_index(x, y)],
-            CellTriggerType::Activate
+            TileTriggerType::Activate
         );
     }
 }
@@ -166,7 +166,7 @@ fn spawn_random_action_and_random_tick_spawn_activate_cells() {
         &mut context,
     );
     assert_eq!(spawned.cells.iter().filter(|cell| **cell).count(), 4);
-    assert!(spawned.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(spawned.trigger_types.contains(&TileTriggerType::Activate));
 
     let random_tick = init(serde_json::json!({
         "cells": [],
@@ -177,7 +177,7 @@ fn spawn_random_action_and_random_tick_spawn_activate_cells() {
     .unwrap();
     let ticked = on_tick(random_tick, &mut context);
     assert_eq!(ticked.cells.iter().filter(|cell| **cell).count(), 4);
-    assert!(ticked.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(ticked.trigger_types.contains(&TileTriggerType::Activate));
 
     let zero = init(serde_json::json!({
         "cells": [],
@@ -222,7 +222,7 @@ fn glider_interval_is_disabled_by_default_and_spawn_step_delays_it() {
         assert!(second.cells[grid_index(x, y)]);
         assert_eq!(
             second.trigger_types[grid_index(x, y)],
-            CellTriggerType::Activate
+            TileTriggerType::Activate
         );
     }
 }
@@ -260,11 +260,11 @@ fn malformed_saved_state_normalizes_without_tick_panics() {
 
     assert_eq!(state.width, GRID_WIDTH);
     assert_eq!(state.height, GRID_HEIGHT);
-    assert_eq!(state.cells.len(), CELL_COUNT);
+    assert_eq!(state.cells.len(), TILE_COUNT);
     assert!(state.cells[0]);
-    assert_eq!(state.trigger_types.len(), CELL_COUNT);
-    assert_eq!(state.trigger_types[0], CellTriggerType::Activate);
-    assert_eq!(state.trigger_types[1], CellTriggerType::None);
+    assert_eq!(state.trigger_types.len(), TILE_COUNT);
+    assert_eq!(state.trigger_types[0], TileTriggerType::Activate);
+    assert_eq!(state.trigger_types[1], TileTriggerType::None);
     assert_eq!(state.random_cells_per_tick, 20);
     assert_eq!(state.random_tick_interval, 1);
     assert_eq!(state.glider_spawn_interval, 20);
@@ -273,8 +273,8 @@ fn malformed_saved_state_normalizes_without_tick_panics() {
     assert_eq!(state.tick_counter, 0);
 
     let next = on_tick(state, &mut BehaviorContext::new(120.0));
-    assert_eq!(next.cells.len(), CELL_COUNT);
-    assert_eq!(next.trigger_types.len(), CELL_COUNT);
+    assert_eq!(next.cells.len(), TILE_COUNT);
+    assert_eq!(next.trigger_types.len(), TILE_COUNT);
 }
 
 #[test]

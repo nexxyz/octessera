@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,7 +29,7 @@ pub struct PhysarumState {
     #[serde(rename = "foodPattern")]
     pub food_pattern: u8,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "agentCount")]
     pub agent_count: usize,
     #[serde(rename = "senseDistance")]
@@ -56,7 +56,7 @@ struct Config {
     #[serde(rename = "foodPattern")]
     food_pattern: Option<Value>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "agentCount")]
     agent_count: Option<Value>,
     #[serde(rename = "senseDistance")]
@@ -112,7 +112,7 @@ pub fn physarum_on_input(
         {
             state.trail.fill(0);
             seed_agents(&mut state);
-            agent_cells(&state)
+            agent_tiles(&state)
         }
         _ => return state,
     };
@@ -159,7 +159,7 @@ pub fn physarum_on_tick(mut state: PhysarumState, _: &mut BehaviorContext) -> Ph
         state.x[i] += DX[state.heading[i] as usize] * UNIT;
         state.y[i] += DY[state.heading[i] as usize] * UNIT;
         reflect(&mut state, i);
-        let c = cell(state.x[i], state.y[i]);
+        let c = tile(state.x[i], state.y[i]);
         state.trail[c] = state.trail[c].saturating_add(state.deposit_amount);
     }
     for v in &mut state.trail {
@@ -173,12 +173,12 @@ pub fn physarum_on_tick(mut state: PhysarumState, _: &mut BehaviorContext) -> Ph
 }
 
 pub fn physarum_render_model(state: &PhysarumState) -> BehaviorRenderModel {
-    let cells = render(state);
+    let tiles = render(state);
     let t = state.trail.iter().filter(|v| **v >= VISIBLE).count();
     BehaviorRenderModel {
         name: "physarum".into(),
         status_line: format!("A:{} T:{t}", state.active_count),
-        cells,
+        tiles,
         palette: crate::BehaviorRenderPalette {
             active: [240, 255, 140],
             inactive: crate::palette::BLACK,
@@ -281,8 +281,8 @@ fn norm_u8(v: Option<Vec<Value>>) -> Vec<u8> {
         .into_iter()
         .map(|v| v.as_u64().unwrap_or(0).min(255) as u8)
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, 0);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, 0);
+    o.truncate(TILE_COUNT);
     o
 }
 fn norm_food(v: Option<Vec<Value>>) -> Vec<u8> {
@@ -291,14 +291,14 @@ fn norm_food(v: Option<Vec<Value>>) -> Vec<u8> {
         .into_iter()
         .map(|v| u8::from(v.as_u64().unwrap_or(0) > 0))
         .collect::<Vec<_>>();
-    o.resize(CELL_COUNT, 0);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, 0);
+    o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -306,33 +306,33 @@ fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
         .map(|v| v.min(max.into()) as u8)
         .unwrap_or(d)
 }
-fn cell(x: i16, y: i16) -> usize {
+fn tile(x: i16, y: i16) -> usize {
     grid_index(
         (x / UNIT).clamp(0, GRID_WIDTH as i16 - 1) as usize,
         (y / UNIT).clamp(0, GRID_HEIGHT as i16 - 1) as usize,
     )
 }
 fn render(s: &PhysarumState) -> Vec<bool> {
-    let mut r = (0..CELL_COUNT)
+    let mut r = (0..TILE_COUNT)
         .map(|i| s.trail[i] >= VISIBLE || s.food[i] > 0)
         .collect::<Vec<_>>();
     for i in 0..s.active_count {
-        r[cell(s.x[i], s.y[i])] = true;
+        r[tile(s.x[i], s.y[i])] = true;
     }
     r
 }
-fn agent_cells(s: &PhysarumState) -> Vec<usize> {
-    (0..s.active_count).map(|i| cell(s.x[i], s.y[i])).collect()
+fn agent_tiles(s: &PhysarumState) -> Vec<usize> {
+    (0..s.active_count).map(|i| tile(s.x[i], s.y[i])).collect()
 }
 fn agent_occupancy(s: &PhysarumState) -> Vec<bool> {
-    let mut occupied = vec![false; CELL_COUNT];
-    for index in agent_cells(s) {
+    let mut occupied = vec![false; TILE_COUNT];
+    for index in agent_tiles(s) {
         occupied[index] = true;
     }
     occupied
 }
 fn agent_entries(previous: &[bool], next: &[bool]) -> Vec<usize> {
-    (0..CELL_COUNT)
+    (0..TILE_COUNT)
         .filter(|index| !previous[*index] && next[*index])
         .collect()
 }
@@ -342,26 +342,26 @@ fn triggers(
     nv: &[bool],
     nt: &[u8],
     forced: &[usize],
-) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if !pv[i] && nv[i] && nt[i] >= ACTIVATE {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if pv[i] && !nv[i] {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if nv[i] {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
-        t[*i] = CellTriggerType::Activate;
+        t[*i] = TileTriggerType::Activate;
     }
-    for i in 0..CELL_COUNT {
+    for i in 0..TILE_COUNT {
         if pt[i] < ACTIVATE && nt[i] >= ACTIVATE {
-            t[i] = CellTriggerType::Activate;
+            t[i] = TileTriggerType::Activate;
         }
     }
     t
@@ -370,7 +370,7 @@ fn sample(s: &PhysarumState, trail: &[u8], food: &[u8], x: i16, y: i16, h: u8) -
     let d = i16::from(s.sense_distance) * UNIT;
     let nx = (x + DX[h as usize] * d).clamp(0, WORLD_MAX_X);
     let ny = (y + DY[h as usize] * d).clamp(0, WORLD_MAX_Y);
-    let c = cell(nx, ny);
+    let c = tile(nx, ny);
     u16::from(trail[c]) + u16::from(food[c]) * 255
 }
 fn should_turn(s: &PhysarumState, index: usize, side: u16, ahead: u16) -> bool {

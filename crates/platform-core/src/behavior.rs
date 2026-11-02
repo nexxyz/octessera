@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CellTriggerType {
+pub enum TileTriggerType {
     Activate,
     Stable,
     Deactivate,
@@ -92,11 +92,11 @@ impl BehaviorContext {
 pub struct BehaviorRenderModel {
     pub name: String,
     pub status_line: String,
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     #[serde(default)]
     pub palette: BehaviorRenderPalette,
     #[serde(default)]
-    pub trigger_types: Option<Vec<CellTriggerType>>,
+    pub trigger_types: Option<Vec<TileTriggerType>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -191,7 +191,7 @@ mod tests {
             BehaviorRenderModel {
                 name: "dummy".into(),
                 status_line: "ok".into(),
-                cells: vec![false; 64],
+                tiles: vec![false; 64],
                 palette: Default::default(),
                 trigger_types: None,
             }

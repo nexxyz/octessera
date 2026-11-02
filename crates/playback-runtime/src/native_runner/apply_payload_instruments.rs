@@ -18,7 +18,7 @@ impl NativeRunner {
                 continue;
             };
             apply_instrument_identity_payload(slot, instrument);
-            apply_instrument_cell_stamp_payload(slot, instrument);
+            apply_instrument_tile_stamp_payload(slot, instrument);
             apply_instrument_mixer_payload(slot, instrument);
             apply_instrument_sample_payload(slot, instrument);
             apply_instrument_synth_payload(slot, instrument);
@@ -164,8 +164,8 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_display_payload(&mut self, runtime: &Value) {
-        if let Some(value) = runtime.get("ghostCells").and_then(Value::as_bool) {
-            self.display.ui.ghost_cells = value;
+        if let Some(value) = runtime.get("ghostTiles").and_then(Value::as_bool) {
+            self.display.ui.ghost_tiles = value;
         }
         if let Some(value) = runtime.get("auxAutoHints").and_then(Value::as_bool) {
             self.display.ui.aux_auto_hints = value;

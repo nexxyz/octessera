@@ -15,13 +15,13 @@ fn assert_default_extremes_are_single_frame(mut state: WaveState) {
     let mut consecutive_full = 0;
     for tick in 1..=300 {
         state = wave_on_tick(state, &mut context);
-        let cells = wave_render_model(&state).cells;
-        consecutive_empty = if cells.iter().all(|cell| !*cell) {
+        let tiles = wave_render_model(&state).tiles;
+        consecutive_empty = if tiles.iter().all(|tile| !*tile) {
             consecutive_empty + 1
         } else {
             0
         };
-        consecutive_full = if cells.iter().all(|cell| *cell) {
+        consecutive_full = if tiles.iter().all(|tile| *tile) {
             consecutive_full + 1
         } else {
             0
@@ -59,7 +59,7 @@ fn menu_palette_and_normalization_contract() {
     assert_eq!(state.impulse_strength, 127);
     assert_eq!(state.auto_impulse_interval, 64);
     assert_eq!(state.spawn_step, 63);
-    assert_eq!(state.trigger_types[0], CellTriggerType::Stable);
+    assert_eq!(state.trigger_types[0], TileTriggerType::Stable);
 
     let model = wave_render_model(&state);
     assert_eq!(model.name, "wave");
@@ -78,7 +78,7 @@ fn default_auto_impulses_keep_wave_alive_with_bounded_pulses() {
         let activates = state
             .trigger_types
             .iter()
-            .filter(|trigger| **trigger == CellTriggerType::Activate)
+            .filter(|trigger| **trigger == TileTriggerType::Activate)
             .count();
         if activates > 0 {
             pulse_counts.push(activates);
@@ -95,14 +95,14 @@ fn default_extremes_are_single_frame_through_300_ticks() {
 }
 
 #[test]
-fn grid_press_exact_world_cell_activates() {
+fn grid_press_exact_world_tile_activates() {
     let mut context = context();
     let state = base();
     let state = wave_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
     assert_eq!(state.displacement[grid_index(2, 3)], 80);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
 }
 
@@ -125,7 +125,7 @@ fn damping_quiets_and_threshold_deactivates() {
     state.velocity[0] = 0;
     let ticked = wave_on_tick(state, &mut context);
     assert!(ticked.displacement[0].abs() < THRESHOLD);
-    assert_eq!(ticked.trigger_types[0], CellTriggerType::Deactivate);
+    assert_eq!(ticked.trigger_types[0], TileTriggerType::Deactivate);
 }
 
 #[test]
@@ -139,11 +139,11 @@ fn drop_impulse_forces_activate_and_serialization_is_stable() {
         }),
         &mut context,
     );
-    assert!(state.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(state.trigger_types.contains(&TileTriggerType::Activate));
 
     let serialized = wave_serialize(&state).unwrap();
     assert!(serialized.get("triggerTypes").is_none());
     let restored = wave_deserialize(serialized.clone()).unwrap();
     assert_eq!(wave_serialize(&restored).unwrap(), serialized);
-    assert!(!restored.trigger_types.contains(&CellTriggerType::Activate));
+    assert!(!restored.trigger_types.contains(&TileTriggerType::Activate));
 }

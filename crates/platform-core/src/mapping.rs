@@ -1,5 +1,5 @@
 use crate::events::MusicalEvent;
-use crate::interpretation::{CellTriggerIntent, CellTriggerKind};
+use crate::interpretation::{TileTriggerIntent, TileTriggerKind};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,8 +51,8 @@ pub struct MappingConfig {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MappingResult {
     pub events: Vec<MusicalEvent>,
-    pub intents: Vec<CellTriggerIntent>,
-    pub event_intents: Vec<CellTriggerIntent>,
+    pub intents: Vec<TileTriggerIntent>,
+    pub event_intents: Vec<TileTriggerIntent>,
 }
 
 pub fn default_mapping_config() -> MappingConfig {
@@ -98,7 +98,7 @@ pub fn default_mapping_config() -> MappingConfig {
 }
 
 pub fn map_intents_to_musical_events(
-    intents: &[CellTriggerIntent],
+    intents: &[TileTriggerIntent],
     config: &MappingConfig,
 ) -> MappingResult {
     let mut events = Vec::new();
@@ -144,13 +144,13 @@ pub fn map_intents_to_musical_events(
     }
 }
 
-fn target_for_kind(kind: CellTriggerKind, config: &MappingConfig) -> &TriggerTarget {
+fn target_for_kind(kind: TileTriggerKind, config: &MappingConfig) -> &TriggerTarget {
     match kind {
-        CellTriggerKind::Activate => &config.activate,
-        CellTriggerKind::Deactivate => &config.deactivate,
-        CellTriggerKind::ScannedEmpty => &config.scanned_empty,
-        CellTriggerKind::Scanned => &config.scanned,
-        CellTriggerKind::Stable => &config.stable,
+        TileTriggerKind::Activate => &config.activate,
+        TileTriggerKind::Deactivate => &config.deactivate,
+        TileTriggerKind::ScannedEmpty => &config.scanned_empty,
+        TileTriggerKind::Scanned => &config.scanned,
+        TileTriggerKind::Stable => &config.stable,
     }
 }
 

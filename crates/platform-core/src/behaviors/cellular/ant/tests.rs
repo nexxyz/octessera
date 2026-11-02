@@ -15,7 +15,7 @@ fn empty_config_seeds_deterministic_ant_and_autospawns_are_bounded() {
         max_activates = max_activates.max(
             a.trigger_types
                 .iter()
-                .filter(|trigger| **trigger == CellTriggerType::Activate)
+                .filter(|trigger| **trigger == TileTriggerType::Activate)
                 .count(),
         );
     }
@@ -44,11 +44,11 @@ fn ant_moves_flips_wraps_and_respects_max_ants() {
         AntState {
             ants: vec![AntAgent { x: 0, y: 0, dir: 0 }],
             cells: {
-                let mut cells = vec![false; CELL_COUNT];
+                let mut cells = vec![false; TILE_COUNT];
                 cells[grid_index(0, 0)] = true;
                 cells
             },
-            trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+            trigger_types: vec![TileTriggerType::None; TILE_COUNT],
             max_ants: 1,
             auto_spawn_interval: 0,
             spawn_step: 0,
@@ -67,7 +67,7 @@ fn ant_render_and_config_menu_match_contract() {
     let model = ant_render_model(&state);
     assert_eq!(model.name, "ant");
     assert_eq!(model.status_line, "1 ant");
-    assert!(model.cells[grid_index(1, 2)]);
+    assert!(model.tiles[grid_index(1, 2)]);
     let menu = ant_config_menu();
     assert_eq!(
         menu.iter()
@@ -97,19 +97,19 @@ fn malformed_saved_state_normalizes_vectors_agents_parameters_and_counters() {
     assert_eq!(state.ants.len(), 2);
     assert_eq!(state.ants[0], AntAgent { x: 7, y: 0, dir: 1 });
     assert_eq!(state.ants[1], AntAgent { x: 2, y: 3, dir: 2 });
-    assert_eq!(state.cells.len(), CELL_COUNT);
+    assert_eq!(state.cells.len(), TILE_COUNT);
     assert!(state.cells[0]);
-    assert_eq!(state.trigger_types.len(), CELL_COUNT);
-    assert_eq!(state.trigger_types[0], CellTriggerType::Activate);
-    assert_eq!(state.trigger_types[1], CellTriggerType::None);
+    assert_eq!(state.trigger_types.len(), TILE_COUNT);
+    assert_eq!(state.trigger_types[0], TileTriggerType::Activate);
+    assert_eq!(state.trigger_types[1], TileTriggerType::None);
     assert_eq!(state.max_ants, 2);
     assert_eq!(state.auto_spawn_interval, 0);
     assert_eq!(state.spawn_step, 63);
     assert_eq!(state.tick_counter, 0);
 
     let next = ant_on_tick(state, &mut BehaviorContext::new(120.0));
-    assert_eq!(next.cells.len(), CELL_COUNT);
-    assert_eq!(next.trigger_types.len(), CELL_COUNT);
+    assert_eq!(next.cells.len(), TILE_COUNT);
+    assert_eq!(next.trigger_types.len(), TILE_COUNT);
 }
 
 #[test]

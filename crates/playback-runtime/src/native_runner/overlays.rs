@@ -55,8 +55,8 @@ impl NativeRunner {
         else {
             return;
         };
-        for cell in assignments {
-            let Some((x, y, voice)) = cell_coordinates(cell) else {
+        for tile in assignments {
+            let Some((x, y, voice)) = tile_coordinates(tile) else {
                 continue;
             };
             let color = if selected_voice == voice {
@@ -83,8 +83,8 @@ impl NativeRunner {
         else {
             return;
         };
-        for cell in assignments {
-            if let Some((x, y, _)) = cell_coordinates(cell) {
+        for tile in assignments {
+            if let Some((x, y, _)) = tile_coordinates(tile) {
                 self.set_display_led(leds, x, y, LedColor::WHITE.dim(3));
             }
         }
@@ -243,8 +243,8 @@ impl NativeRunner {
             return;
         }
         let index = display_index(x, y);
-        if let Some(cell) = leds.get_mut(index) {
-            *cell = cell.add_dim_white(24);
+        if let Some(tile) = leds.get_mut(index) {
+            *tile = tile.add_dim_white(24);
         }
     }
 
@@ -259,20 +259,20 @@ impl NativeRunner {
             return;
         }
         let index = display_index(x, y);
-        if let Some(cell) = leds.get_mut(index) {
-            *cell = value;
+        if let Some(tile) = leds.get_mut(index) {
+            *tile = value;
         }
     }
 
     fn fill_leds(&self, leds: &mut [LedColor], value: LedColor) {
-        for cell in leds.iter_mut() {
-            *cell = value;
+        for tile in leds.iter_mut() {
+            *tile = value;
         }
     }
 
     pub(super) fn dim_leds(&self, leds: &mut [LedColor], divisor: u8) {
-        for cell in leds.iter_mut() {
-            *cell = cell.dim(divisor);
+        for tile in leds.iter_mut() {
+            *tile = tile.dim(divisor);
         }
     }
 
@@ -301,10 +301,10 @@ impl NativeRunner {
     }
 }
 
-fn cell_coordinates(cell: &serde_json::Value) -> Option<(usize, usize, u8)> {
+fn tile_coordinates(tile: &serde_json::Value) -> Option<(usize, usize, u8)> {
     Some((
-        usize::try_from(cell.get("x")?.as_u64()?).ok()?,
-        usize::try_from(cell.get("y")?.as_u64()?).ok()?,
-        u8::try_from(cell.get("voice")?.as_u64()?).ok()?,
+        usize::try_from(tile.get("x")?.as_u64()?).ok()?,
+        usize::try_from(tile.get("y")?.as_u64()?).ok()?,
+        u8::try_from(tile.get("voice")?.as_u64()?).ok()?,
     ))
 }

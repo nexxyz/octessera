@@ -16,23 +16,23 @@ pub const fn grid_index(x: usize, y: usize) -> usize {
     logical_grid_index(x, y)
 }
 
-pub const fn logical_to_display_cell(x: usize, y: usize) -> (usize, usize) {
+pub const fn logical_to_display_tile(x: usize, y: usize) -> (usize, usize) {
     (x, GRID_HEIGHT - 1 - y)
 }
 
 pub const fn logical_to_display_index(x: usize, y: usize) -> usize {
-    let (display_x, display_y) = logical_to_display_cell(x, y);
+    let (display_x, display_y) = logical_to_display_tile(x, y);
     logical_grid_index(display_x, display_y)
 }
 
-pub const fn display_to_logical_cell(x: usize, y: usize) -> (usize, usize) {
+pub const fn display_to_logical_tile(x: usize, y: usize) -> (usize, usize) {
     (x, GRID_HEIGHT - 1 - y)
 }
 
 pub const fn display_to_logical_index(index: usize) -> usize {
     let display_x = index % GRID_WIDTH;
     let display_y = index / GRID_WIDTH;
-    let (logical_x, logical_y) = display_to_logical_cell(display_x, display_y);
+    let (logical_x, logical_y) = display_to_logical_tile(display_x, display_y);
     logical_grid_index(logical_x, logical_y)
 }
 
@@ -47,11 +47,11 @@ mod tests {
         version: u32,
         width: usize,
         height: usize,
-        cells: Vec<GridProjectionFixtureCell>,
+        tiles: Vec<GridProjectionFixtureTile>,
     }
 
     #[derive(Deserialize)]
-    struct GridProjectionFixtureCell {
+    struct GridProjectionFixtureTile {
         logical: GridProjectionFixtureCoordinate,
         display: GridProjectionFixtureCoordinate,
     }
@@ -83,16 +83,16 @@ mod tests {
 
     #[test]
     fn display_projection_preserves_lower_left_world_coordinates() {
-        assert_eq!(logical_to_display_cell(0, 0), (0, 7));
-        assert_eq!(logical_to_display_cell(7, 0), (7, 7));
-        assert_eq!(logical_to_display_cell(0, 7), (0, 0));
-        assert_eq!(logical_to_display_cell(7, 7), (7, 0));
+        assert_eq!(logical_to_display_tile(0, 0), (0, 7));
+        assert_eq!(logical_to_display_tile(7, 0), (7, 7));
+        assert_eq!(logical_to_display_tile(0, 7), (0, 0));
+        assert_eq!(logical_to_display_tile(7, 7), (7, 0));
         assert_eq!(logical_to_display_index(0, 0), 56);
         assert_eq!(logical_to_display_index(7, 7), 7);
     }
 
     #[test]
-    fn display_projection_round_trips_every_cell() {
+    fn display_projection_round_trips_every_tile() {
         for index in 0..(GRID_WIDTH * GRID_HEIGHT) {
             let logical_index = display_to_logical_index(index);
             assert_eq!(
@@ -108,39 +108,39 @@ mod tests {
         assert_eq!(fixture.version, 1);
         assert_eq!(fixture.width, GRID_WIDTH);
         assert_eq!(fixture.height, GRID_HEIGHT);
-        assert_eq!(fixture.cells.len(), GRID_WIDTH * GRID_HEIGHT);
+        assert_eq!(fixture.tiles.len(), GRID_WIDTH * GRID_HEIGHT);
 
         let mut logical_indices = HashSet::new();
         let mut display_indices = HashSet::new();
-        for cell in fixture.cells {
-            assert!(cell.logical.x < GRID_WIDTH);
-            assert!(cell.logical.y < GRID_HEIGHT);
-            assert!(cell.logical.index < GRID_WIDTH * GRID_HEIGHT);
-            assert!(cell.display.x < GRID_WIDTH);
-            assert!(cell.display.y < GRID_HEIGHT);
-            assert!(cell.display.index < GRID_WIDTH * GRID_HEIGHT);
+        for tile in fixture.tiles {
+            assert!(tile.logical.x < GRID_WIDTH);
+            assert!(tile.logical.y < GRID_HEIGHT);
+            assert!(tile.logical.index < GRID_WIDTH * GRID_HEIGHT);
+            assert!(tile.display.x < GRID_WIDTH);
+            assert!(tile.display.y < GRID_HEIGHT);
+            assert!(tile.display.index < GRID_WIDTH * GRID_HEIGHT);
             assert_eq!(
-                cell.logical.index,
-                logical_grid_index(cell.logical.x, cell.logical.y)
+                tile.logical.index,
+                logical_grid_index(tile.logical.x, tile.logical.y)
             );
             assert_eq!(
-                logical_to_display_cell(cell.logical.x, cell.logical.y),
-                (cell.display.x, cell.display.y)
+                logical_to_display_tile(tile.logical.x, tile.logical.y),
+                (tile.display.x, tile.display.y)
             );
             assert_eq!(
-                logical_to_display_index(cell.logical.x, cell.logical.y),
-                cell.display.index
+                logical_to_display_index(tile.logical.x, tile.logical.y),
+                tile.display.index
             );
             assert_eq!(
-                display_to_logical_cell(cell.display.x, cell.display.y),
-                (cell.logical.x, cell.logical.y)
+                display_to_logical_tile(tile.display.x, tile.display.y),
+                (tile.logical.x, tile.logical.y)
             );
             assert_eq!(
-                display_to_logical_index(cell.display.index),
-                cell.logical.index
+                display_to_logical_index(tile.display.index),
+                tile.logical.index
             );
-            assert!(logical_indices.insert(cell.logical.index));
-            assert!(display_indices.insert(cell.display.index));
+            assert!(logical_indices.insert(tile.logical.index));
+            assert!(display_indices.insert(tile.display.index));
         }
         assert_eq!(logical_indices.len(), 64);
         assert_eq!(display_indices.len(), 64);

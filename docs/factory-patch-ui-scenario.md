@@ -74,9 +74,9 @@ The pre-push hook runs it too. The recipe lives in
    `Shape > Instruments > I2 > Sampler > Filter > Cutoff`.
 2. `Play > XY > X Axis`: pick I1 `Synth > Filter > Cutoff`. `Y Axis`: pick
    I1 `Synth > Filter > Res`.
-3. `Play > FX`: step the FX type and `Map` a cell each time: stutter on `0,0`,
+3. `Play > FX`: step the FX type and `Map` a tile each time: stutter on `0,0`,
    freeze on `1,0`, pitch_shift on `2,0`. Turn `Semitones` up by 7 and map a
-   second pitch-shift cell on `3,0`.
+   second pitch-shift tile on `3,0`.
 
 ### 6. Save, reload, compare
 

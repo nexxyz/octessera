@@ -51,6 +51,10 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
     full["runtimeConfig"]["activeLayerIndex"] = json!(1);
     full["runtimeConfig"]["activeBehavior"] = json!("sequencer");
     full["runtimeConfig"]["layers"][1]["build"]["behaviorId"] = json!("sequencer");
+    full["runtimeConfig"]["layers"][1]["build"]
+        .as_object_mut()
+        .unwrap()
+        .remove("savedState");
     full["runtimeConfig"]["instruments"][0]["noteBehavior"] = json!("hold");
     full["runtimeConfig"]["masterVolume"] = json!(88);
     full["runtimeConfig"]["displayBrightness"] = json!(11);

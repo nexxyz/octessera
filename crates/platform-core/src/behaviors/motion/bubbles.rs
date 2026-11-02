@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -23,9 +23,9 @@ pub struct Bubble {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BubblesState {
     pub bubbles: Vec<Bubble>,
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "minRadius")]
     pub min_radius: usize,
     #[serde(rename = "maxRadius")]
@@ -91,11 +91,11 @@ fn normalize(state: &mut BubblesState) {
     }
     state.bubbles.retain(|bubble| !fully_above(bubble));
     state.bubbles.truncate(state.max_bubbles);
-    if state.cells.len() != CELL_COUNT {
-        state.cells = vec![false; CELL_COUNT];
+    if state.tiles.len() != TILE_COUNT {
+        state.tiles = vec![false; TILE_COUNT];
     }
-    if state.trigger_types.len() != CELL_COUNT {
-        state.trigger_types = vec![CellTriggerType::None; CELL_COUNT];
+    if state.trigger_types.len() != TILE_COUNT {
+        state.trigger_types = vec![TileTriggerType::None; TILE_COUNT];
     }
 }
 
@@ -103,8 +103,8 @@ pub fn bubbles_init(config: Value) -> Result<BubblesState, String> {
     let config: BubblesConfig = serde_json::from_value(config).unwrap_or_default();
     let mut state = BubblesState {
         bubbles: vec![],
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         min_radius: config.min_radius.unwrap_or(1),
         max_radius: config.max_radius.unwrap_or(3),
         spawn_interval: config.spawn_interval.unwrap_or(3),
@@ -124,17 +124,17 @@ pub fn bubbles_deserialize(data: Value) -> Result<BubblesState, String> {
     let mut state: BubblesState =
         serde_json::from_value(data).map_err(|error| error.to_string())?;
     normalize(&mut state);
-    let cells = render_cells(&state.bubbles);
-    state.trigger_types = trigger_types_from_cells(&cells, &cells);
-    state.cells = cells;
+    let tiles = render_tiles(&state.bubbles);
+    state.trigger_types = trigger_types_from_tiles(&tiles, &tiles);
+    state.tiles = tiles;
     Ok(state)
 }
 
 pub fn bubbles_serialize(state: &BubblesState) -> Result<Value, String> {
     let mut next = state.clone();
     normalize(&mut next);
-    next.cells = render_cells(&next.bubbles);
-    next.trigger_types = trigger_types_from_cells(&next.cells, &next.cells);
+    next.tiles = render_tiles(&next.bubbles);
+    next.trigger_types = trigger_types_from_tiles(&next.tiles, &next.tiles);
     serde_json::to_value(next).map_err(|error| error.to_string())
 }
 
@@ -176,10 +176,10 @@ pub fn bubbles_on_input(
         }
         _ => return state,
     }
-    with_rendered_cells(next, &state.cells)
+    with_rendered_tiles(next, &state.tiles)
 }
 
-fn bubble_cells(bubble: &Bubble) -> Vec<(usize, usize)> {
+fn bubble_tiles(bubble: &Bubble) -> Vec<(usize, usize)> {
     let cx = (bubble.x + SUBSTEPS / 2) / SUBSTEPS;
     let cy = (bubble.y + SUBSTEPS / 2) / SUBSTEPS;
     let offsets: &[(i32, i32)] = match bubble.radius {
@@ -217,10 +217,10 @@ fn bubble_cells(bubble: &Bubble) -> Vec<(usize, usize)> {
 }
 
 fn touches(a: &Bubble, b: &Bubble) -> bool {
-    let cells_a = bubble_cells(a);
-    let cells_b = bubble_cells(b);
-    cells_a.iter().any(|(ax, ay)| {
-        cells_b
+    let tiles_a = bubble_tiles(a);
+    let tiles_b = bubble_tiles(b);
+    tiles_a.iter().any(|(ax, ay)| {
+        tiles_b
             .iter()
             .any(|(bx, by)| (*ax as i32 - *bx as i32).abs() + (*ay as i32 - *by as i32).abs() <= 1)
     })
@@ -253,28 +253,28 @@ fn merge_bubbles(bubbles: &mut Vec<Bubble>, max_radius: usize) {
 }
 
 fn fully_above(bubble: &Bubble) -> bool {
-    bubble_cells(bubble).is_empty() && bubble.y / SUBSTEPS >= GRID_HEIGHT as i32
+    bubble_tiles(bubble).is_empty() && bubble.y / SUBSTEPS >= GRID_HEIGHT as i32
 }
 
-fn render_cells(bubbles: &[Bubble]) -> Vec<bool> {
-    let mut cells = vec![false; CELL_COUNT];
+fn render_tiles(bubbles: &[Bubble]) -> Vec<bool> {
+    let mut tiles = vec![false; TILE_COUNT];
     for bubble in bubbles {
-        for (x, y) in bubble_cells(bubble) {
-            cells[grid_index(x, y)] = true;
+        for (x, y) in bubble_tiles(bubble) {
+            tiles[grid_index(x, y)] = true;
         }
     }
-    cells
+    tiles
 }
 
-fn with_rendered_cells(mut state: BubblesState, previous_cells: &[bool]) -> BubblesState {
-    let cells = render_cells(&state.bubbles);
-    let previous = if previous_cells.len() == CELL_COUNT {
-        previous_cells.to_vec()
+fn with_rendered_tiles(mut state: BubblesState, previous_tiles: &[bool]) -> BubblesState {
+    let tiles = render_tiles(&state.bubbles);
+    let previous = if previous_tiles.len() == TILE_COUNT {
+        previous_tiles.to_vec()
     } else {
-        vec![false; CELL_COUNT]
+        vec![false; TILE_COUNT]
     };
-    state.trigger_types = trigger_types_from_cells(&previous, &cells);
-    state.cells = cells;
+    state.trigger_types = trigger_types_from_tiles(&previous, &tiles);
+    state.tiles = tiles;
     state
 }
 
@@ -297,14 +297,14 @@ pub fn bubbles_on_tick(state: BubblesState, _context: &mut BehaviorContext) -> B
     }
     bubbles.retain(|bubble| !fully_above(bubble));
     merge_bubbles(&mut bubbles, state.max_radius);
-    let previous_cells = state.cells.clone();
-    with_rendered_cells(
+    let previous_tiles = state.tiles.clone();
+    with_rendered_tiles(
         BubblesState {
             bubbles,
             tick_counter,
             ..state
         },
-        &previous_cells,
+        &previous_tiles,
     )
 }
 
@@ -316,7 +316,7 @@ pub fn bubbles_render_model(state: &BubblesState) -> BehaviorRenderModel {
             state.bubbles.len(),
             if state.bubbles.len() == 1 { "" } else { "s" }
         ),
-        cells: state.cells.clone(),
+        tiles: state.tiles.clone(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLUE,

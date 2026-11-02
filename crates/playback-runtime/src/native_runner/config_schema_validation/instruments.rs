@@ -71,8 +71,8 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
             )?;
             validate_route(mixer, &mixer_path)?;
         }
-        if let Some(stamp) = object_field(instrument, "cellStamp", &path)? {
-            let stamp_path = format!("{path}.cellStamp");
+        if let Some(stamp) = object_field(instrument, "tileStamp", &path)? {
+            let stamp_path = format!("{path}.tileStamp");
             signed_field(stamp, "tuneSemis", &stamp_path, -24, 24)?;
             signed_field(stamp, "tuneCents", &stamp_path, -100, 100)?;
             enum_field(stamp, "level", &stamp_path, &["high", "medium", "low"])?;
@@ -300,35 +300,35 @@ fn validate_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), Stri
     if let Some(assignments) = array_field(drum, "assignments", &path, 64)? {
         let mut seen = std::collections::BTreeSet::new();
         for (index, value) in assignments.iter().enumerate() {
-            let cell_path = format!("{path}.assignments[{index}]");
-            let cell = object_value(value, &cell_path)?;
-            unsigned_field(cell, "x", &cell_path, 0, 7)?;
-            unsigned_field(cell, "y", &cell_path, 0, 7)?;
-            unsigned_field(cell, "voice", &cell_path, 0, 7)?;
-            signed_field(cell, "tuneSemis", &cell_path, -24, 24)?;
-            signed_field(cell, "tuneCents", &cell_path, -100, 100)?;
-            if let Some(level) = cell.get("level") {
+            let tile_path = format!("{path}.assignments[{index}]");
+            let tile = object_value(value, &tile_path)?;
+            unsigned_field(tile, "x", &tile_path, 0, 7)?;
+            unsigned_field(tile, "y", &tile_path, 0, 7)?;
+            unsigned_field(tile, "voice", &tile_path, 0, 7)?;
+            signed_field(tile, "tuneSemis", &tile_path, -24, 24)?;
+            signed_field(tile, "tuneCents", &tile_path, -100, 100)?;
+            if let Some(level) = tile.get("level") {
                 if !level.is_null() {
                     enum_value(
                         level,
-                        &format!("{cell_path}.level"),
+                        &format!("{tile_path}.level"),
                         &["high", "medium", "low"],
                     )?;
                 }
             }
-            let x = cell
+            let x = tile
                 .get("x")
                 .and_then(Value::as_u64)
-                .ok_or_else(|| format!("{cell_path}.x is required"))?;
-            let y = cell
+                .ok_or_else(|| format!("{tile_path}.x is required"))?;
+            let y = tile
                 .get("y")
                 .and_then(Value::as_u64)
-                .ok_or_else(|| format!("{cell_path}.y is required"))?;
-            if !cell.contains_key("voice") {
-                return Err(format!("{cell_path}.voice is required"));
+                .ok_or_else(|| format!("{tile_path}.y is required"))?;
+            if !tile.contains_key("voice") {
+                return Err(format!("{tile_path}.voice is required"));
             }
             if !seen.insert((x, y)) {
-                return Err(format!("{cell_path} duplicates a drum cell"));
+                return Err(format!("{tile_path} duplicates a drum tile"));
             }
         }
     }

@@ -54,7 +54,7 @@ fn system_store_load_result_updates_device_display_without_disturbing_patch_runt
     let baseline = runner.restart_settings.clone();
     let mut system = system_document(&runner);
     system["runtimeConfig"]["displayBrightness"] = json!(4);
-    system["runtimeConfig"]["ghostCells"] = json!(true);
+    system["runtimeConfig"]["ghostTiles"] = json!(true);
     register_system_request(
         &mut runner,
         RuntimeOperation::StoreLoadSystem,
@@ -72,10 +72,10 @@ fn system_store_load_result_updates_device_display_without_disturbing_patch_runt
         .unwrap();
 
     assert_eq!(runner.display.ui.display_brightness, 4);
-    assert!(runner.display.ui.ghost_cells);
+    assert!(runner.display.ui.ghost_tiles);
     assert_eq!(runner.menu.number_for_key("displayBrightness"), Some(4));
     assert_eq!(
-        runner.menu.value_for_key("ghostCells").as_deref(),
+        runner.menu.value_for_key("ghostTiles").as_deref(),
         Some("true")
     );
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);

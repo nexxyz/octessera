@@ -75,7 +75,7 @@ System
 │   │   └── Stop Transfer: (action)
 │   └── USB Role: [Gadget | Host]        ← Raspberry only; applies live
 ├── Display (group)
-│   ├── Ghost Cells: [on | off]
+│   ├── Ghost Tiles: [on | off]
 │   ├── Auto Map: [on | off]
 │   ├── Aux Prio.: [Manual | Auto]       ← while Auto Map is on; default Manual
 │   ├── Auto Hints: [on | off]           default on
@@ -134,25 +134,25 @@ Conditional branches:
 Desktop
   Audio: Master Vol; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
-  Display: Ghost Cells … Button Bright; no HDMI Video
+  Display: Ghost Tiles … Button Bright; no HDMI Video
 
 Orange
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer)
-  Display: Ghost Cells … Button Bright; HDMI Video (Mode; Bars per cycle when cycle-behaviors; Grid Lines)
+  Display: Ghost Tiles … Button Bright; HDMI Video (Mode; Bars per cycle when cycle-behaviors; Grid Lines)
 
 Raspberry Gadget
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer); USB Role
-  Display: Ghost Cells … Button Bright; HDMI Video
+  Display: Ghost Tiles … Button Bright; HDMI Video
 
 Raspberry Host
   Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
   MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
-  Display: Ghost Cells … Button Bright; HDMI Video
+  Display: Ghost Tiles … Button Bright; HDMI Video
 
 Raspberry and Orange
   Maintenance: Updates (Check, Apply, Rollback); Backup / Restore; Hardware Test; Reset (Load Empty, Load Factory); Sys. Info
@@ -375,7 +375,7 @@ changed edit saves System like any other System preference, shows `Applying...`,
 
 - `Auto Map` and `Aux Prio.` are described under
   [Auto-map](../menu-and-controls-spec.md#auto-map), `Auto Hints` and `Manual Hints` under
-  [Footer hints](../menu-and-controls-spec.md#footer-hints), `Ghost Cells` under
+  [Footer hints](../menu-and-controls-spec.md#footer-hints), `Ghost Tiles` under
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority), and the brightness
   rows under [Brightness](../menu-and-controls-spec.md#brightness).
 - `HDMI Video > Mode` persists `runtimeConfig.hdmi.mode`
@@ -440,7 +440,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 - `Load Empty` (`system.clearAll`) opens `Confirm Load Empty`; Cancel is a no-op. Confirm stops
   playback with the usual MIDI panic/note-safety path, loads an empty `none`-behavior patch,
   regenerates the preset draft name, marks the patch dirty for autosave, and keeps device/user
-  preferences: brightness, ghost cells, numeric display, sleep/dim timers, master volume, Auto
+  preferences: brightness, ghost tiles, numeric display, sleep/dim timers, master volume, Auto
   Save/Backups, MIDI setup/status/sync, sync source, audio output buffer frames, sample favourites,
   input-events-while-paused, aux auto-map, and the preset name list.
 - `Load Factory` (`factory.load`) opens `Confirm Factory` / `Load factory settings?` and loads the

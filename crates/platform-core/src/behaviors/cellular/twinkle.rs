@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,10 +17,10 @@ const DEFAULT_SEED: u16 = 1;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TwinkleState {
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     pub ages: Vec<u8>,
     #[serde(rename = "triggerTypes", default, skip_serializing, skip_deserializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     pub density: u8,
     #[serde(rename = "birthChancePct")]
     pub birth_chance_pct: u8,
@@ -36,27 +36,27 @@ pub struct TwinkleState {
 }
 
 pub fn twinkle_init(config: Value) -> Result<TwinkleState, String> {
-    let (mut state, has_cells, removed) = state_from_value(&config);
-    if !has_cells {
+    let (mut state, has_tiles, removed) = state_from_value(&config);
+    if !has_tiles {
         reseed_default(&mut state);
-        state.trigger_types = current_triggers(&state.cells);
+        state.trigger_types = current_triggers(&state.tiles);
     } else {
-        state.trigger_types = current_triggers(&state.cells);
+        state.trigger_types = current_triggers(&state.tiles);
         for index in removed {
-            state.trigger_types[index] = CellTriggerType::Deactivate;
+            state.trigger_types[index] = TileTriggerType::Deactivate;
         }
     }
     Ok(state)
 }
 
 pub fn twinkle_deserialize(data: Value) -> Result<TwinkleState, String> {
-    let (mut state, has_cells, removed) = state_from_value(&data);
-    if !has_cells {
+    let (mut state, has_tiles, removed) = state_from_value(&data);
+    if !has_tiles {
         reseed_default(&mut state);
     }
-    state.trigger_types = current_triggers(&state.cells);
+    state.trigger_types = current_triggers(&state.tiles);
     for index in removed {
-        state.trigger_types[index] = CellTriggerType::Deactivate;
+        state.trigger_types[index] = TileTriggerType::Deactivate;
     }
     Ok(state)
 }
@@ -75,25 +75,25 @@ pub fn twinkle_on_input(
     let _ = normalize(&mut state);
     match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
-            let previous = state.cells.clone();
+            let previous = state.tiles.clone();
             manual_press(&mut state, grid_index(x, y));
-            state.trigger_types = transition_triggers(&previous, &state.cells);
+            state.trigger_types = transition_triggers(&previous, &state.tiles);
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "reseedStars" =>
         {
-            let previous = state.cells.clone();
+            let previous = state.tiles.clone();
             state.rng_counter = 0;
             reseed_default(&mut state);
-            state.trigger_types = transition_triggers(&previous, &state.cells);
+            state.trigger_types = transition_triggers(&previous, &state.tiles);
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "clearStars" =>
         {
-            let previous = state.cells.clone();
-            state.cells.fill(false);
+            let previous = state.tiles.clone();
+            state.tiles.fill(false);
             state.ages.fill(0);
-            state.trigger_types = transition_triggers(&previous, &state.cells);
+            state.trigger_types = transition_triggers(&previous, &state.tiles);
         }
         _ => {}
     }
@@ -101,45 +101,45 @@ pub fn twinkle_on_input(
 }
 
 pub fn twinkle_on_tick(mut state: TwinkleState, _context: &mut BehaviorContext) -> TwinkleState {
-    let previous = state.cells.clone();
-    let previously_empty = previous.iter().map(|cell| !*cell).collect::<Vec<_>>();
-    for (cell, age) in state.cells.iter().zip(state.ages.iter_mut()) {
-        if *cell {
+    let previous = state.tiles.clone();
+    let previously_empty = previous.iter().map(|tile| !*tile).collect::<Vec<_>>();
+    for (tile, age) in state.tiles.iter().zip(state.ages.iter_mut()) {
+        if *tile {
             *age = age.saturating_add(1);
         } else {
             *age = 0;
         }
     }
 
-    let eligible_deaths = (0..CELL_COUNT)
-        .filter(|index| state.cells[*index] && state.ages[*index] >= state.star_life)
+    let eligible_deaths = (0..TILE_COUNT)
+        .filter(|index| state.tiles[*index] && state.ages[*index] >= state.star_life)
         .collect::<Vec<_>>();
     let fade_chance_pct = state.fade_chance_pct;
     if !eligible_deaths.is_empty() && chance(&mut state, fade_chance_pct) {
         let index = choose_index(&mut state, &eligible_deaths);
-        state.cells[index] = false;
+        state.tiles[index] = false;
         state.ages[index] = 0;
     }
 
-    let live_count = state.cells.iter().filter(|cell| **cell).count();
+    let live_count = state.tiles.iter().filter(|tile| **tile).count();
     let birth_chance_pct = state.birth_chance_pct;
     if live_count < usize::from(state.density) && chance(&mut state, birth_chance_pct) {
         if let Some(index) = choose_birth(&mut state, &previous, &previously_empty) {
-            state.cells[index] = true;
+            state.tiles[index] = true;
             state.ages[index] = 0;
         }
     }
 
-    state.trigger_types = transition_triggers(&previous, &state.cells);
+    state.trigger_types = transition_triggers(&previous, &state.tiles);
     state
 }
 
 pub fn twinkle_render_model(state: &TwinkleState) -> BehaviorRenderModel {
-    let stars = state.cells.iter().filter(|cell| **cell).count();
+    let stars = state.tiles.iter().filter(|tile| **tile).count();
     BehaviorRenderModel {
         name: "twinkle".into(),
         status_line: format!("S:{stars}/{}", state.density),
-        cells: state.cells.clone(),
+        tiles: state.tiles.clone(),
         palette: crate::BehaviorRenderPalette {
             active: [80, 170, 255],
             inactive: crate::palette::BLACK,
@@ -163,14 +163,14 @@ pub fn twinkle_config_menu() -> Vec<BehaviorConfigItem> {
 }
 
 fn state_from_value(value: &Value) -> (TwinkleState, bool, Vec<usize>) {
-    let has_cells = value
+    let has_tiles = value
         .as_object()
-        .and_then(|object| object.get("cells"))
+        .and_then(|object| object.get("tiles"))
         .is_some_and(Value::is_array);
     let state = TwinkleState {
-        cells: normalize_cells(array_field(value, "cells")),
+        tiles: normalize_tiles(array_field(value, "tiles")),
         ages: normalize_ages(array_field(value, "ages")),
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         density: number_field(value, "density", u64::from(DEFAULT_DENSITY), 1, 5) as u8,
         birth_chance_pct: number_field(
             value,
@@ -205,7 +205,7 @@ fn state_from_value(value: &Value) -> (TwinkleState, bool, Vec<usize>) {
     };
     let mut state = state;
     let removed = normalize(&mut state);
-    (state, has_cells, removed)
+    (state, has_tiles, removed)
 }
 
 fn field<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
@@ -242,10 +242,10 @@ fn normalize(state: &mut TwinkleState) -> Vec<usize> {
     normalize_vectors(state);
     let mut active = 0;
     let mut removed = Vec::new();
-    for index in 0..CELL_COUNT {
-        if state.cells[index] {
+    for index in 0..TILE_COUNT {
+        if state.tiles[index] {
             if active == usize::from(state.density) {
-                state.cells[index] = false;
+                state.tiles[index] = false;
                 state.ages[index] = 0;
                 removed.push(index);
             } else {
@@ -259,25 +259,25 @@ fn normalize(state: &mut TwinkleState) -> Vec<usize> {
 }
 
 fn normalize_vectors(state: &mut TwinkleState) {
-    state.cells.resize(CELL_COUNT, false);
-    state.cells.truncate(CELL_COUNT);
-    state.ages.resize(CELL_COUNT, 0);
-    state.ages.truncate(CELL_COUNT);
+    state.tiles.resize(TILE_COUNT, false);
+    state.tiles.truncate(TILE_COUNT);
+    state.ages.resize(TILE_COUNT, 0);
+    state.ages.truncate(TILE_COUNT);
     state
         .trigger_types
-        .resize(CELL_COUNT, CellTriggerType::None);
-    state.trigger_types.truncate(CELL_COUNT);
+        .resize(TILE_COUNT, TileTriggerType::None);
+    state.trigger_types.truncate(TILE_COUNT);
 }
 
-fn normalize_cells(values: Option<Vec<Value>>) -> Vec<bool> {
-    let mut cells = values
+fn normalize_tiles(values: Option<Vec<Value>>) -> Vec<bool> {
+    let mut tiles = values
         .unwrap_or_default()
         .into_iter()
         .map(|value| value.as_bool().unwrap_or(false))
         .collect::<Vec<_>>();
-    cells.resize(CELL_COUNT, false);
-    cells.truncate(CELL_COUNT);
-    cells
+    tiles.resize(TILE_COUNT, false);
+    tiles.truncate(TILE_COUNT);
+    tiles
 }
 
 fn normalize_ages(values: Option<Vec<Value>>) -> Vec<u8> {
@@ -296,63 +296,63 @@ fn normalize_ages(values: Option<Vec<Value>>) -> Vec<u8> {
                 .unwrap_or(0)
         })
         .collect::<Vec<_>>();
-    ages.resize(CELL_COUNT, 0);
-    ages.truncate(CELL_COUNT);
+    ages.resize(TILE_COUNT, 0);
+    ages.truncate(TILE_COUNT);
     ages
 }
 
-fn current_triggers(cells: &[bool]) -> Vec<CellTriggerType> {
-    cells
+fn current_triggers(tiles: &[bool]) -> Vec<TileTriggerType> {
+    tiles
         .iter()
-        .map(|cell| {
-            if *cell {
-                CellTriggerType::Stable
+        .map(|tile| {
+            if *tile {
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect()
 }
 
-fn transition_triggers(previous: &[bool], next: &[bool]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn transition_triggers(previous: &[bool], next: &[bool]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|index| match (previous[index], next[index]) {
-            (false, true) => CellTriggerType::Activate,
-            (true, false) => CellTriggerType::Deactivate,
-            (true, true) => CellTriggerType::Stable,
-            (false, false) => CellTriggerType::None,
+            (false, true) => TileTriggerType::Activate,
+            (true, false) => TileTriggerType::Deactivate,
+            (true, true) => TileTriggerType::Stable,
+            (false, false) => TileTriggerType::None,
         })
         .collect()
 }
 
 fn manual_press(state: &mut TwinkleState, index: usize) {
-    if state.cells[index] {
-        state.cells[index] = false;
+    if state.tiles[index] {
+        state.tiles[index] = false;
         state.ages[index] = 0;
-    } else if state.cells.iter().filter(|cell| **cell).count() < usize::from(state.density) {
-        state.cells[index] = true;
+    } else if state.tiles.iter().filter(|tile| **tile).count() < usize::from(state.density) {
+        state.tiles[index] = true;
         state.ages[index] = 0;
-    } else if let Some(replaced) = state.cells.iter().position(|cell| *cell) {
-        state.cells[replaced] = false;
+    } else if let Some(replaced) = state.tiles.iter().position(|tile| *tile) {
+        state.tiles[replaced] = false;
         state.ages[replaced] = 0;
-        state.cells[index] = true;
+        state.tiles[index] = true;
         state.ages[index] = 0;
     }
 }
 
 fn reseed_default(state: &mut TwinkleState) {
-    state.cells.fill(false);
+    state.tiles.fill(false);
     state.ages.fill(0);
-    let mut used = [false; CELL_COUNT];
+    let mut used = [false; TILE_COUNT];
     let mut seeded = 0;
     let mut attempt = 0u64;
     while seeded < usize::from(state.density) {
         let index =
-            (splitmix64(u64::from(state.seed).wrapping_add(attempt)) % CELL_COUNT as u64) as usize;
+            (splitmix64(u64::from(state.seed).wrapping_add(attempt)) % TILE_COUNT as u64) as usize;
         attempt = attempt.wrapping_add(1);
         if !used[index] {
             used[index] = true;
-            state.cells[index] = true;
+            state.tiles[index] = true;
             seeded += 1;
         }
     }
@@ -387,7 +387,7 @@ fn empty_indices(empty: &[bool]) -> Vec<usize> {
 
 fn clustered_empty_indices(previous: &[bool]) -> Vec<usize> {
     let mut clustered = Vec::new();
-    for index in 0..CELL_COUNT {
+    for index in 0..TILE_COUNT {
         if previous[index] {
             let x = index % GRID_WIDTH;
             let y = index / GRID_WIDTH;

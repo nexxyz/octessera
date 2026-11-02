@@ -1,20 +1,20 @@
 use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext,
-    BehaviorRenderModel, CellTriggerType, DeviceInput,
+    BehaviorRenderModel, DeviceInput, TileTriggerType,
 };
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-const CELL_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
+const TILE_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
 
-fn trigger_types_from_cells(previous: &[bool], next: &[bool]) -> Vec<CellTriggerType> {
-    (0..CELL_COUNT)
+fn trigger_types_from_tiles(previous: &[bool], next: &[bool]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
         .map(|index| match (previous[index], next[index]) {
-            (false, true) => CellTriggerType::Activate,
-            (true, false) => CellTriggerType::Deactivate,
-            (true, true) | (false, false) => CellTriggerType::None,
+            (false, true) => TileTriggerType::Activate,
+            (true, false) => TileTriggerType::Deactivate,
+            (true, true) | (false, false) => TileTriggerType::None,
         })
         .collect()
 }
@@ -37,7 +37,7 @@ pub struct LifeState {
     #[serde(rename = "tickCounter", default, skip_serializing, skip_deserializing)]
     pub tick_counter: usize,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
 }
 
 pub fn init(config: Value) -> Result<LifeState, String> {
@@ -67,7 +67,7 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
         {
             let mut next = state.clone();
             spawn_random_cells(&mut next.cells, next.random_cells_per_tick);
-            next.trigger_types = trigger_types_from_cells(&state.cells, &next.cells);
+            next.trigger_types = trigger_types_from_tiles(&state.cells, &next.cells);
             next
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
@@ -75,14 +75,14 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
         {
             let mut next = state.clone();
             spawn_glider(&mut next.cells, &mut next.trigger_types, 0, 0);
-            next.trigger_types = trigger_types_from_cells(&state.cells, &next.cells);
+            next.trigger_types = trigger_types_from_tiles(&state.cells, &next.cells);
             next
         }
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let mut next = state.clone();
             let index = grid_index(x, y);
             next.cells[index] = !next.cells[index];
-            next.trigger_types = vec![CellTriggerType::None; CELL_COUNT];
+            next.trigger_types = vec![TileTriggerType::None; TILE_COUNT];
             next
         }
         _ => state,
@@ -91,7 +91,7 @@ pub fn on_input(state: LifeState, input: DeviceInput, _context: &mut BehaviorCon
 
 pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
     let mut next_cells = state.cells.clone();
-    let mut trigger_types = vec![CellTriggerType::None; CELL_COUNT];
+    let mut trigger_types = vec![TileTriggerType::None; TILE_COUNT];
 
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
@@ -105,10 +105,10 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
             };
             next_cells[index] = next_alive;
             trigger_types[index] = match (alive, next_alive) {
-                (false, true) => CellTriggerType::Activate,
-                (true, false) => CellTriggerType::Deactivate,
-                (true, true) => CellTriggerType::Stable,
-                (false, false) => CellTriggerType::None,
+                (false, true) => TileTriggerType::Activate,
+                (true, false) => TileTriggerType::Deactivate,
+                (true, true) => TileTriggerType::Stable,
+                (false, false) => TileTriggerType::None,
             };
         }
     }
@@ -121,9 +121,9 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
     {
         let previous = next_cells.clone();
         spawn_random_cells(&mut next_cells, state.random_cells_per_tick);
-        for index in 0..CELL_COUNT {
+        for index in 0..TILE_COUNT {
             if !previous[index] && next_cells[index] {
-                trigger_types[index] = CellTriggerType::Activate;
+                trigger_types[index] = TileTriggerType::Activate;
             }
         }
     }
@@ -153,7 +153,7 @@ pub fn render_model(state: &LifeState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "game of life".into(),
         status_line: format!("Gen {}", state.generation),
-        cells: state.cells.clone(),
+        tiles: state.cells.clone(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::BEHAVIOR_PRIMARY_MAGENTA,
             inactive: crate::palette::BEHAVIOR_DIM_GREEN,
@@ -224,15 +224,15 @@ pub fn config_menu(_state: &LifeState) -> Vec<BehaviorConfigItem> {
 
 fn spawn_glider(
     cells: &mut [bool],
-    trigger_types: &mut [CellTriggerType],
+    trigger_types: &mut [TileTriggerType],
     origin_x: usize,
     origin_y: usize,
 ) {
     let previous = cells.to_vec();
     seed_glider(cells, origin_x, origin_y);
-    for index in 0..CELL_COUNT {
+    for index in 0..TILE_COUNT {
         if !previous[index] && cells[index] {
-            trigger_types[index] = CellTriggerType::Activate;
+            trigger_types[index] = TileTriggerType::Activate;
         }
     }
 }
@@ -251,7 +251,7 @@ fn from_value(data: &Value) -> LifeState {
     let cells = array_field(data, "cells")
         .map(normalize_cells)
         .unwrap_or_else(|| {
-            let mut cells = vec![false; CELL_COUNT];
+            let mut cells = vec![false; TILE_COUNT];
             seed_blinker(&mut cells);
             cells
         });
@@ -274,12 +274,12 @@ fn from_value(data: &Value) -> LifeState {
 fn normalize(state: &mut LifeState) {
     state.width = GRID_WIDTH;
     state.height = GRID_HEIGHT;
-    state.cells.resize(CELL_COUNT, false);
-    state.cells.truncate(CELL_COUNT);
+    state.cells.resize(TILE_COUNT, false);
+    state.cells.truncate(TILE_COUNT);
     state
         .trigger_types
-        .resize(CELL_COUNT, CellTriggerType::None);
-    state.trigger_types.truncate(CELL_COUNT);
+        .resize(TILE_COUNT, TileTriggerType::None);
+    state.trigger_types.truncate(TILE_COUNT);
     state.random_cells_per_tick = state.random_cells_per_tick.clamp(0, 20);
     state.random_tick_interval = state.random_tick_interval.clamp(1, 20);
     state.glider_spawn_interval = state.glider_spawn_interval.clamp(0, 20);
@@ -312,19 +312,19 @@ fn normalize_cells(cells: Vec<Value>) -> Vec<bool> {
         .into_iter()
         .map(|cell| cell.as_bool().unwrap_or(false))
         .collect::<Vec<_>>();
-    cells.resize(CELL_COUNT, false);
-    cells.truncate(CELL_COUNT);
+    cells.resize(TILE_COUNT, false);
+    cells.truncate(TILE_COUNT);
     cells
 }
 
-fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<CellTriggerType> {
+fn normalize_triggers(triggers: Option<Vec<Value>>) -> Vec<TileTriggerType> {
     let mut triggers = triggers
         .unwrap_or_default()
         .into_iter()
-        .map(|trigger| serde_json::from_value(trigger).unwrap_or(CellTriggerType::None))
+        .map(|trigger| serde_json::from_value(trigger).unwrap_or(TileTriggerType::None))
         .collect::<Vec<_>>();
-    triggers.resize(CELL_COUNT, CellTriggerType::None);
-    triggers.truncate(CELL_COUNT);
+    triggers.resize(TILE_COUNT, TileTriggerType::None);
+    triggers.truncate(TILE_COUNT);
     triggers
 }
 

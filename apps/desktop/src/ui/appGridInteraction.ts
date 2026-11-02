@@ -5,17 +5,17 @@ import {
   type RuntimeSnapshot,
 } from '@octessera/device-contracts';
 
-type GridCell = { x: number; y: number };
+type GridTile = { x: number; y: number };
 
-export function gridLogicalCellFromDisplay(x: number, y: number): GridCell {
-  return GRID_DOMAIN.toLogicalCell({ x, y });
+export function gridLogicalTileFromDisplay(x: number, y: number): GridTile {
+  return GRID_DOMAIN.toLogicalTile({ x, y });
 }
 
 export function gridDisplayIndexFromDisplay(x: number, y: number): number {
-  return GRID_DOMAIN.toDisplayIndex(gridLogicalCellFromDisplay(x, y));
+  return GRID_DOMAIN.toDisplayIndex(gridLogicalTileFromDisplay(x, y));
 }
 
-export function paintCellTransition({
+export function paintTileTransition({
   painted,
   active,
   desired,
@@ -30,7 +30,7 @@ export function paintCellTransition({
 }): { key: string; painted: Set<string>; input: DeviceInput | null } {
   const key = `${x}-${y}`;
   if (painted.has(key)) return { key, painted: new Set(painted), input: null };
-  const world = gridLogicalCellFromDisplay(x, y);
+  const world = gridLogicalTileFromDisplay(x, y);
   return {
     key,
     painted: new Set(painted).add(key),
@@ -41,12 +41,12 @@ export function paintCellTransition({
   };
 }
 
-export function momentaryCellTransition(
-  previous: GridCell | null,
+export function momentaryTileTransition(
+  previous: GridTile | null,
   x: number,
   y: number,
-): { current: GridCell; inputs: DeviceInput[] } {
-  const current = gridLogicalCellFromDisplay(x, y);
+): { current: GridTile; inputs: DeviceInput[] } {
+  const current = gridLogicalTileFromDisplay(x, y);
   if (previous?.x === current.x && previous.y === current.y)
     return { current: previous, inputs: [] };
   return {
@@ -73,23 +73,23 @@ export function useGridInteraction(
   const [paintMode, setPaintMode] = useState<boolean | null>(null);
   const [, setPainted] = useState<Set<string>>(new Set());
   const paintedRef = useRef(new Set<string>());
-  const lastPressedCell = useRef<{ x: number; y: number } | null>(null);
+  const lastPressedTile = useRef<{ x: number; y: number } | null>(null);
 
-  function cellAlive(index: number): boolean {
+  function tileAlive(index: number): boolean {
     return frame.leds.active[index] ?? false;
   }
 
-  function logicalCellFromDisplay(x: number, y: number) {
-    return gridLogicalCellFromDisplay(x, y);
+  function logicalTileFromDisplay(x: number, y: number) {
+    return gridLogicalTileFromDisplay(x, y);
   }
 
   function applyPaint(x: number, y: number, desired: boolean) {
     const key = `${x}-${y}`;
     if (paintedRef.current.has(key)) return;
-    const transition = paintCellTransition({
+    const transition = paintTileTransition({
       painted: paintedRef.current,
-      active: cellAlive(
-        GRID_DOMAIN.toDisplayIndex(logicalCellFromDisplay(x, y)),
+      active: tileAlive(
+        GRID_DOMAIN.toDisplayIndex(logicalTileFromDisplay(x, y)),
       ),
       desired,
       x,
@@ -100,11 +100,11 @@ export function useGridInteraction(
     setPainted(transition.painted);
   }
 
-  function pressMomentaryCell(x: number, y: number) {
-    const previous = lastPressedCell.current;
-    const transition = momentaryCellTransition(previous, x, y);
+  function pressMomentaryTile(x: number, y: number) {
+    const previous = lastPressedTile.current;
+    const transition = momentaryTileTransition(previous, x, y);
     transition.inputs.forEach(dispatch);
-    lastPressedCell.current = transition.current;
+    lastPressedTile.current = transition.current;
   }
 
   function endPaint() {
@@ -114,41 +114,41 @@ export function useGridInteraction(
   }
 
   function handleMouseUp() {
-    if (lastPressedCell.current) {
+    if (lastPressedTile.current) {
       dispatch({
         type: 'grid_release',
-        x: lastPressedCell.current.x,
-        y: lastPressedCell.current.y,
+        x: lastPressedTile.current.x,
+        y: lastPressedTile.current.y,
       });
-      lastPressedCell.current = null;
+      lastPressedTile.current = null;
     }
     endPaint();
   }
 
-  function handleCellMouseDown(index: number, x: number, y: number) {
+  function handleTileMouseDown(index: number, x: number, y: number) {
     if (frame.gridInteraction === 'momentary') {
       setPaintMode(null);
       paintedRef.current = new Set();
       setPainted(new Set());
-      pressMomentaryCell(x, y);
+      pressMomentaryTile(x, y);
       return;
     }
-    const desired = !cellAlive(index);
+    const desired = !tileAlive(index);
     setPaintMode(desired);
     paintedRef.current = new Set();
     setPainted(new Set());
-    lastPressedCell.current = logicalCellFromDisplay(x, y);
+    lastPressedTile.current = logicalTileFromDisplay(x, y);
     applyPaint(x, y, desired);
   }
 
-  function handleCellDrag(x: number, y: number) {
+  function handleTileDrag(x: number, y: number) {
     if (frame.gridInteraction === 'momentary') {
-      pressMomentaryCell(x, y);
+      pressMomentaryTile(x, y);
       return;
     }
     if (paintMode === null) return;
     applyPaint(x, y, paintMode);
   }
 
-  return { handleMouseUp, handleCellMouseDown, handleCellDrag };
+  return { handleMouseUp, handleTileMouseDown, handleTileDrag };
 }

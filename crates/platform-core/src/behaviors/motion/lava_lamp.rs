@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::CELL_COUNT;
+use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -24,7 +24,7 @@ pub struct LavaLampState {
     #[serde(rename = "heatTicks", skip_serializing, skip_deserializing)]
     pub heat_ticks: u8,
     #[serde(rename = "triggerTypes", skip_serializing)]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "blobCount")]
     pub blob_count: u8,
     #[serde(rename = "viscosityPct")]
@@ -48,7 +48,7 @@ struct Config {
     #[serde(rename = "activeCount")]
     active_count: Option<Value>,
     #[serde(rename = "triggerTypes")]
-    trigger_types: Option<Vec<CellTriggerType>>,
+    trigger_types: Option<Vec<TileTriggerType>>,
     #[serde(rename = "blobCount")]
     blob_count: Option<Value>,
     #[serde(rename = "viscosityPct")]
@@ -153,7 +153,7 @@ pub fn lava_lamp_render_model(s: &LavaLampState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "lava lamp".into(),
         status_line: format!("B:{} M:{}", s.active_count, s.last_merge_count),
-        cells: f.iter().map(|v| *v >= VISIBLE).collect(),
+        tiles: f.iter().map(|v| *v >= VISIBLE).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 120, 80],
             inactive: crate::palette::BLACK,
@@ -198,7 +198,7 @@ fn defaults() -> LavaLampState {
         radius: vec![18; BLOBS],
         active_count: 4,
         heat_ticks: 0,
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         blob_count: 4,
         viscosity_pct: 30,
         heat_pct: 45,
@@ -277,10 +277,10 @@ fn norm_r(v: Option<Vec<Value>>, d: &[u8]) -> Vec<u8> {
     o.truncate(BLOBS);
     o
 }
-fn norm_triggers(v: Option<Vec<CellTriggerType>>) -> Vec<CellTriggerType> {
+fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
     let mut o = v.unwrap_or_default();
-    o.resize(CELL_COUNT, CellTriggerType::None);
-    o.truncate(CELL_COUNT);
+    o.resize(TILE_COUNT, TileTriggerType::None);
+    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -334,7 +334,7 @@ fn reflect(p: &mut i16, v: &mut i16) {
     }
 }
 fn field(s: &LavaLampState) -> Vec<u8> {
-    let mut out = vec![0; CELL_COUNT];
+    let mut out = vec![0; TILE_COUNT];
     for cy in 0..GRID_HEIGHT {
         for cx in 0..GRID_WIDTH {
             let mut sum = 0u32;
@@ -386,7 +386,7 @@ fn merge(s: &mut LavaLampState, f: &mut Vec<usize>) {
                 s.active_count -= 1;
                 s.blob_count = s.active_count;
                 s.last_merge_count = 1;
-                f.push(cell_of(s.x[i], s.y[i]));
+                f.push(tile_of(s.x[i], s.y[i]));
                 return;
             }
         }
@@ -413,19 +413,19 @@ fn split(s: &mut LavaLampState, f: &mut Vec<usize>) {
             s.vx[j] = -s.vx[i].abs();
             s.vx[i] = s.vx[i].abs();
             s.vy[j] = s.vy[i];
-            f.push(cell_of(s.x[i], s.y[i]));
-            f.push(cell_of(s.x[j], s.y[j]));
+            f.push(tile_of(s.x[i], s.y[i]));
+            f.push(tile_of(s.x[j], s.y[j]));
             return;
         }
     }
 }
 fn renew_static_tail(s: &mut LavaLampState, prev: &[u8], forced: &mut Vec<usize>) {
     let next = field(s);
-    if visible_cells(prev) != visible_cells(&next) {
+    if visible_tiles(prev) != visible_tiles(&next) {
         return;
     }
     let i = (s.tick_counter as usize) % usize::from(s.active_count);
-    let old = cell_of(s.x[i], s.y[i]);
+    let old = tile_of(s.x[i], s.y[i]);
     let dx = if hash_pct(s.tick_counter, i, 47) < 50 {
         16
     } else {
@@ -440,15 +440,15 @@ fn renew_static_tail(s: &mut LavaLampState, prev: &[u8], forced: &mut Vec<usize>
     s.y[i] = (s.y[i] + dy).clamp(0, MAX_POS);
     s.vx[i] = dx / 4;
     s.vy[i] = dy / 4;
-    let new = cell_of(s.x[i], s.y[i]);
+    let new = tile_of(s.x[i], s.y[i]);
     if new != old {
         forced.push(new);
     }
 }
-fn visible_cells(values: &[u8]) -> Vec<bool> {
+fn visible_tiles(values: &[u8]) -> Vec<bool> {
     values.iter().map(|value| *value >= VISIBLE).collect()
 }
-fn cell_of(x: i16, y: i16) -> usize {
+fn tile_of(x: i16, y: i16) -> usize {
     grid_index((x / 16).clamp(0, 7) as usize, (y / 16).clamp(0, 7) as usize)
 }
 fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
@@ -460,23 +460,23 @@ fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
     x ^= x >> 16;
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
-fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<CellTriggerType> {
-    let mut t = (0..CELL_COUNT)
+fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
+    let mut t = (0..TILE_COUNT)
         .map(|i| {
             if p[i] < ACTIVATE && n[i] >= ACTIVATE {
-                CellTriggerType::Activate
+                TileTriggerType::Activate
             } else if p[i] >= VISIBLE && n[i] < VISIBLE {
-                CellTriggerType::Deactivate
+                TileTriggerType::Deactivate
             } else if n[i] >= VISIBLE {
-                CellTriggerType::Stable
+                TileTriggerType::Stable
             } else {
-                CellTriggerType::None
+                TileTriggerType::None
             }
         })
         .collect::<Vec<_>>();
     for i in forced {
         if n[*i] >= VISIBLE {
-            t[*i] = CellTriggerType::Activate
+            t[*i] = TileTriggerType::Activate
         }
     }
     t

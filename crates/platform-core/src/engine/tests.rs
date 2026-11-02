@@ -1,7 +1,7 @@
 use super::*;
 use crate::interpretation::{
-    AxisStrategy, CellTriggerIntent, CellTriggerKind, InterpretationEventProfile,
-    InterpretationStateProfile, TickStrategy,
+    AxisStrategy, InterpretationEventProfile, InterpretationStateProfile, TickStrategy,
+    TileTriggerIntent, TileTriggerKind,
 };
 use crate::mapping::{default_mapping_config, TriggerAction};
 use crate::transforms::{GlobalSoundConfig, VelocityCurve};
@@ -68,7 +68,7 @@ fn ticks_life_behavior_end_to_end() {
         .unwrap();
 
     let tick = engine.tick(120.0).unwrap();
-    assert!(tick.model.cells[crate::grid_index(3, 2)]);
+    assert!(tick.model.tiles[crate::grid_index(3, 2)]);
     assert!(!tick.events.is_empty());
 }
 
@@ -105,8 +105,8 @@ fn cyclic_consecutive_presses_keep_both_activation_intents() {
 
     assert_eq!(first.mapped_intents.len(), 1);
     assert_eq!(second.mapped_intents.len(), 1);
-    assert_eq!(first.mapped_intents[0].kind, CellTriggerKind::Activate);
-    assert_eq!(second.mapped_intents[0].kind, CellTriggerKind::Activate);
+    assert_eq!(first.mapped_intents[0].kind, TileTriggerKind::Activate);
+    assert_eq!(second.mapped_intents[0].kind, TileTriggerKind::Activate);
 }
 
 #[test]
@@ -195,23 +195,23 @@ fn scan_interpretation_advances_with_engine_ticks() {
     assert_eq!(after_reset.mapped_intents[0].y, 0);
     assert_eq!(
         after_reset.mapped_intents[0].kind,
-        CellTriggerKind::ScannedEmpty
+        TileTriggerKind::ScannedEmpty
     );
 }
 
 #[test]
 fn note_behavior_suppression_keeps_event_intents_aligned() {
-    let duplicate = CellTriggerIntent {
+    let duplicate = TileTriggerIntent {
         x: 1,
         y: 1,
         degree: 0,
-        kind: CellTriggerKind::Activate,
+        kind: TileTriggerKind::Activate,
     };
-    let release = CellTriggerIntent {
+    let release = TileTriggerIntent {
         x: 1,
         y: 1,
         degree: 0,
-        kind: CellTriggerKind::Deactivate,
+        kind: TileTriggerKind::Deactivate,
     };
 
     let result = apply_note_behavior_with_event_intents(
@@ -247,17 +247,17 @@ fn note_behavior_suppression_keeps_event_intents_aligned() {
 
 #[test]
 fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
-    let activate = CellTriggerIntent {
+    let activate = TileTriggerIntent {
         x: 1,
         y: 1,
         degree: 0,
-        kind: CellTriggerKind::Activate,
+        kind: TileTriggerKind::Activate,
     };
-    let scanned = CellTriggerIntent {
+    let scanned = TileTriggerIntent {
         x: 1,
         y: 1,
         degree: 0,
-        kind: CellTriggerKind::Scanned,
+        kind: TileTriggerKind::Scanned,
     };
 
     let result = apply_note_behavior_with_event_intents(
@@ -316,7 +316,7 @@ fn forest_fire_tree_to_burning_and_grid_press_emit_activate_intents() {
 
     let tick = engine.tick(120.0).unwrap();
     assert!(tick.mapped_intents.iter().any(|intent| {
-        intent.x == 2 && intent.y == 1 && intent.kind == CellTriggerKind::Activate
+        intent.x == 2 && intent.y == 1 && intent.kind == TileTriggerKind::Activate
     }));
     assert!(!tick.events.is_empty());
 
@@ -325,11 +325,11 @@ fn forest_fire_tree_to_burning_and_grid_press_emit_activate_intents() {
         .unwrap();
     assert_eq!(
         input.mapped_intents,
-        vec![CellTriggerIntent {
+        vec![TileTriggerIntent {
             x: 5,
             y: 5,
             degree: 15,
-            kind: CellTriggerKind::Activate
+            kind: TileTriggerKind::Activate
         }]
     );
     assert!(!input.events.is_empty());
@@ -360,11 +360,11 @@ fn life_grid_press_still_emits_input_transition_with_trigger_types() {
 
     assert_eq!(
         input.mapped_intents,
-        vec![CellTriggerIntent {
+        vec![TileTriggerIntent {
             x: 2,
             y: 3,
             degree: 8,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
         }]
     );
     assert!(!input.events.is_empty());
@@ -373,8 +373,8 @@ fn life_grid_press_still_emits_input_transition_with_trigger_types() {
 #[test]
 fn life_grid_press_with_legacy_stale_trigger_types_falls_back_to_boolean_transition() {
     let mut trigger_types =
-        vec![crate::CellTriggerType::None; crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT];
-    trigger_types[crate::grid_index(0, 0)] = crate::CellTriggerType::Activate;
+        vec![crate::TileTriggerType::None; crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT];
+    trigger_types[crate::grid_index(0, 0)] = crate::TileTriggerType::Activate;
     let mut engine = NativeLayerEngine::from_serialized_state(
         NativeLayerEngineConfig {
             behavior: NativeBehavior::Life,
@@ -411,11 +411,11 @@ fn life_grid_press_with_legacy_stale_trigger_types_falls_back_to_boolean_transit
 
     assert_eq!(
         input.mapped_intents,
-        vec![CellTriggerIntent {
+        vec![TileTriggerIntent {
             x: 2,
             y: 3,
             degree: 8,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
         }]
     );
 }
@@ -423,8 +423,8 @@ fn life_grid_press_with_legacy_stale_trigger_types_falls_back_to_boolean_transit
 #[test]
 fn brain_grid_press_clears_stale_trigger_types_before_interpretation() {
     let mut trigger_types =
-        vec![crate::CellTriggerType::None; crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT];
-    trigger_types[crate::grid_index(0, 0)] = crate::CellTriggerType::Activate;
+        vec![crate::TileTriggerType::None; crate::grid::GRID_WIDTH * crate::grid::GRID_HEIGHT];
+    trigger_types[crate::grid_index(0, 0)] = crate::TileTriggerType::Activate;
     let mut engine = NativeLayerEngine::from_serialized_state(
         NativeLayerEngineConfig {
             behavior: NativeBehavior::Brain,
@@ -458,11 +458,11 @@ fn brain_grid_press_clears_stale_trigger_types_before_interpretation() {
 
     assert_eq!(
         input.mapped_intents,
-        vec![CellTriggerIntent {
+        vec![TileTriggerIntent {
             x: 4,
             y: 4,
             degree: 12,
-            kind: CellTriggerKind::Activate,
+            kind: TileTriggerKind::Activate,
         }]
     );
     assert!(!input.events.is_empty());

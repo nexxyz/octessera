@@ -37,7 +37,7 @@ pub(crate) fn hardware_test_walks_leds_pads_keys_encoders_and_sound_from_the_dev
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let snapshot = start_test(&mut runner);
     assert_eq!(snapshot["display"]["title"], "Test 1/5: Grid LEDs");
-    let leds = led_cells(&snapshot);
+    let leds = led_tiles(&snapshot);
     assert_eq!(
         leds[display_index(0, 0)],
         led_rgb(platform_core::palette::MAGENTA)
@@ -58,10 +58,10 @@ pub(crate) fn hardware_test_walks_leds_pads_keys_encoders_and_sound_from_the_dev
     ));
     assert_eq!(snapshot["display"]["lines"][1], "Seen 1/64");
     assert_eq!(
-        led_cells(&snapshot)[display_index(3, 4)],
+        led_tiles(&snapshot)[display_index(3, 4)],
         led_rgb(platform_core::palette::GREEN)
     );
-    assert!(!runner.engine.model().unwrap().cells[4 * GRID_WIDTH + 3]);
+    assert!(!runner.engine.model().unwrap().tiles[4 * GRID_WIDTH + 3]);
 
     assert_eq!(
         press_main(&mut runner)["display"]["title"],

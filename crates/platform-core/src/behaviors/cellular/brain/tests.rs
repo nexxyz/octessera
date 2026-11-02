@@ -34,13 +34,13 @@ fn render_input_and_config_menu_match_legacy_contract() {
     assert_eq!(toggled.cells[grid_index(2, 3)], 1);
     assert_eq!(
         toggled.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Activate
+        TileTriggerType::Activate
     );
     let toggled = brain_on_input(toggled, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
     assert_eq!(toggled.cells[grid_index(2, 3)], 0);
     assert_eq!(
         toggled.trigger_types[grid_index(2, 3)],
-        CellTriggerType::Deactivate
+        TileTriggerType::Deactivate
     );
 
     let mut state =
@@ -48,9 +48,9 @@ fn render_input_and_config_menu_match_legacy_contract() {
     state.cells[grid_index(5, 5)] = 1;
     let next = brain_on_tick(state, &mut context);
     let model = brain_render_model(&next);
-    assert_eq!(model.cells.len(), CELL_COUNT);
-    assert!(model.cells.iter().any(|cell| *cell));
-    assert_eq!(model.trigger_types.as_ref().unwrap().len(), CELL_COUNT);
+    assert_eq!(model.tiles.len(), TILE_COUNT);
+    assert!(model.tiles.iter().any(|cell| *cell));
+    assert_eq!(model.trigger_types.as_ref().unwrap().len(), TILE_COUNT);
 
     let menu = brain_config_menu();
     assert_eq!(menu.len(), 5);
@@ -71,12 +71,12 @@ fn default_run_avoids_consecutive_empty_or_full_frames() {
     for _ in 0..300 {
         state = brain_on_tick(state, &mut context);
         let model = brain_render_model(&state);
-        empty_run = if model.cells.iter().all(|cell| !*cell) {
+        empty_run = if model.tiles.iter().all(|cell| !*cell) {
             empty_run + 1
         } else {
             0
         };
-        full_run = if model.cells.iter().all(|cell| *cell) {
+        full_run = if model.tiles.iter().all(|cell| *cell) {
             full_run + 1
         } else {
             0
@@ -100,11 +100,11 @@ fn malformed_saved_state_normalizes_vectors_parameters_and_counters() {
     }))
     .unwrap();
 
-    assert_eq!(state.cells.len(), CELL_COUNT);
+    assert_eq!(state.cells.len(), TILE_COUNT);
     assert_eq!(state.cells[..4], [1, 2, 2, 0]);
-    assert_eq!(state.trigger_types.len(), CELL_COUNT);
-    assert_eq!(state.trigger_types[0], CellTriggerType::Activate);
-    assert_eq!(state.trigger_types[1], CellTriggerType::None);
+    assert_eq!(state.trigger_types.len(), TILE_COUNT);
+    assert_eq!(state.trigger_types[0], TileTriggerType::Activate);
+    assert_eq!(state.trigger_types[1], TileTriggerType::None);
     assert_eq!(state.fire_threshold, 1);
     assert_eq!(state.random_seed_cells, 0);
     assert_eq!(state.seed_interval, 30);
@@ -113,8 +113,8 @@ fn malformed_saved_state_normalizes_vectors_parameters_and_counters() {
     assert_eq!(state.tick_counter, 0);
 
     let next = brain_on_tick(state, &mut BehaviorContext::new(120.0));
-    assert_eq!(next.cells.len(), CELL_COUNT);
-    assert_eq!(next.trigger_types.len(), CELL_COUNT);
+    assert_eq!(next.cells.len(), TILE_COUNT);
+    assert_eq!(next.trigger_types.len(), TILE_COUNT);
 }
 
 #[test]

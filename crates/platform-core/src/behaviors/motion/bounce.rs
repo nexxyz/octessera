@@ -1,9 +1,9 @@
 use crate::behavior::{
-    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, CellTriggerType,
-    DeviceInput,
+    BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
+    TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_cells, CELL_COUNT};
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -20,9 +20,9 @@ pub struct Ball {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BounceState {
     pub balls: Vec<Ball>,
-    pub cells: Vec<bool>,
+    pub tiles: Vec<bool>,
     #[serde(rename = "triggerTypes")]
-    pub trigger_types: Vec<CellTriggerType>,
+    pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "maxBalls")]
     pub max_balls: usize,
     #[serde(rename = "spawnInterval")]
@@ -64,7 +64,7 @@ fn random_ball() -> Ball {
 pub fn bounce_init(config: Value) -> Result<BounceState, String> {
     let seed_default = config
         .as_object()
-        .map(|object| !object.contains_key("balls") && !object.contains_key("cells"))
+        .map(|object| !object.contains_key("balls") && !object.contains_key("tiles"))
         .unwrap_or(true);
     let config: BounceConfig = serde_json::from_value(config).unwrap_or_default();
     Ok(BounceState {
@@ -78,8 +78,8 @@ pub fn bounce_init(config: Value) -> Result<BounceState, String> {
         } else {
             vec![]
         },
-        cells: vec![false; CELL_COUNT],
-        trigger_types: vec![CellTriggerType::None; CELL_COUNT],
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         max_balls: config.max_balls.unwrap_or(60),
         spawn_interval: config.spawn_interval.unwrap_or(16),
         spawn_step: config.spawn_step.unwrap_or(7).min(63),
@@ -139,16 +139,16 @@ pub fn bounce_on_tick(state: BounceState, _context: &mut BehaviorContext) -> Bou
             ball.vy = -ball.vy;
         }
     }
-    let mut cells = vec![false; CELL_COUNT];
+    let mut tiles = vec![false; TILE_COUNT];
     for ball in &balls {
         let x = (ball.x.round() as isize).clamp(0, GRID_WIDTH as isize - 1) as usize;
         let y = (ball.y.round() as isize).clamp(0, GRID_HEIGHT as isize - 1) as usize;
-        cells[grid_index(x, y)] = true;
+        tiles[grid_index(x, y)] = true;
     }
-    let trigger_types = trigger_types_from_cells(&state.cells, &cells);
+    let trigger_types = trigger_types_from_tiles(&state.tiles, &tiles);
     BounceState {
         balls,
-        cells,
+        tiles,
         trigger_types,
         tick_counter,
         ..state
@@ -193,7 +193,7 @@ pub fn bounce_render_model(state: &BounceState) -> BehaviorRenderModel {
             state.balls.len(),
             if state.balls.len() == 1 { "" } else { "s" }
         ),
-        cells: state.cells.clone(),
+        tiles: state.tiles.clone(),
         palette: crate::BehaviorRenderPalette {
             active: crate::palette::WHITE,
             inactive: crate::palette::BLACK,

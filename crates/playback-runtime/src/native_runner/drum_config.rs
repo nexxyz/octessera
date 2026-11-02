@@ -110,7 +110,7 @@ fn drum_velocity_levels_default() -> Value {
     )
 }
 
-/// The velocity a stamped Drum cell level stands for; `None` for Base and unknown levels.
+/// The velocity a stamped Drum tile level stands for; `None` for Base and unknown levels.
 pub(super) fn drum_velocity_level(drum_config: &Value, level: &str) -> Option<u8> {
     let default = DRUM_VELOCITY_LEVELS
         .iter()
