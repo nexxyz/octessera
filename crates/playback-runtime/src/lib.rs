@@ -18,11 +18,11 @@ pub mod user_data_bundle;
 pub use deferred_default_save::{DeferredDefaultSave, DeferredDefaultSaveEntry};
 pub use native_runner::{
     compose_local_system_patch_documents, compose_system_patch_documents, is_valid_fx_string_param,
-    split_local_system_patch_documents, split_system_patch_documents, AudioOptimization,
-    AudioOutputSet, NativeConfigSnapshot, NativeControlButtonPresentation, NativeGridPresentation,
-    NativeHardwarePresentation, NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation,
-    NativeManualSaveRequest, NativePersistenceIntent, NativeRunner, NativeRunnerConfig,
-    PresentationScene, SystemPatchDocuments, UsbDataRole,
+    saved_patch_aux_claims, split_local_system_patch_documents, split_system_patch_documents,
+    AudioOptimization, AudioOutputSet, NativeConfigSnapshot, NativeControlButtonPresentation,
+    NativeGridPresentation, NativeHardwarePresentation, NativeHdmiMode, NativeHdmiPresentation,
+    NativeLedPresentation, NativeManualSaveRequest, NativePersistenceIntent, NativeRunner,
+    NativeRunnerConfig, PresentationScene, SystemPatchDocuments, UsbDataRole,
 };
 pub use platform_core::MusicalEvent;
 pub use preset_name_policy::{clean_preset_name, fresh_preset_name, is_valid_preset_name};

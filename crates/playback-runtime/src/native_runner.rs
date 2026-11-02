@@ -254,7 +254,7 @@ pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
 pub use config_documents::{
-    compose_local_system_patch_documents, compose_system_patch_documents,
+    compose_local_system_patch_documents, compose_system_patch_documents, saved_patch_aux_claims,
     split_local_system_patch_documents, split_system_patch_documents, SystemPatchDocuments,
 };
 pub use config_schema_validation::is_valid_fx_string_param;

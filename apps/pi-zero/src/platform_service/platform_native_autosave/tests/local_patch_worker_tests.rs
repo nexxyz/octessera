@@ -190,3 +190,63 @@ fn native_default_autosave_backup_recovery_and_load_preserve_local_sample_paths(
     );
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn native_default_completion_hands_the_runner_only_the_saved_aux_claims() {
+    let (service, root) = service_and_root("aux-claims-handoff");
+    let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
+    let mut runner = runner_with_aux_mapping(true, false);
+    let mut pending = PendingPiPersistence::default();
+    aux_turn(&mut runner, -1);
+    std::thread::sleep(Duration::from_millis(160));
+    let eligible_at = Instant::now();
+    apply_autosave_at(
+        &mut pending,
+        &service,
+        &mut playback,
+        &mut runner,
+        eligible_at,
+    );
+    let due_at = eligible_at + Duration::from_secs(2);
+    apply_autosave_at(&mut pending, &service, &mut playback, &mut runner, due_at);
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let prepared = loop {
+        assert!(
+            Instant::now() < deadline,
+            "native default completion timed out"
+        );
+        let completion = service
+            .drain_platform_results(8)
+            .into_iter()
+            .find_map(|result| match result {
+                crate::platform_service::platform_native_persistence::PlatformResult::NativeDefaultCompletion(completion) => completion.prepared,
+                _ => None,
+            });
+        if let Some(prepared) = completion {
+            break prepared;
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    };
+    let written = super::super::super::platform_service_store::load_json(
+        &root.join("store/default.patch.json"),
+    )
+    .unwrap()
+    .unwrap();
+    let written_runtime = &written["runtimeConfig"];
+    assert_eq!(
+        prepared["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
+        json!("instruments.0.synth.osc1.levelPct")
+    );
+    assert_eq!(
+        *prepared,
+        json!({
+            "kind": written["kind"],
+            "schemaVersion": written["schemaVersion"],
+            "runtimeConfig": {
+                "auxBindings": written_runtime["auxBindings"],
+                "shiftAuxBindings": written_runtime["shiftAuxBindings"],
+            },
+        })
+    );
+    let _ = std::fs::remove_dir_all(root);
+}

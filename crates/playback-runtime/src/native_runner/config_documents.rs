@@ -50,6 +50,18 @@ fn split_normalized_documents(
     Ok(SystemPatchDocuments { system, patch })
 }
 
+pub fn saved_patch_aux_claims(patch: &Value) -> Value {
+    let runtime = &patch["runtimeConfig"];
+    json!({
+        "kind": patch["kind"],
+        "schemaVersion": patch["schemaVersion"],
+        "runtimeConfig": {
+            "auxBindings": runtime["auxBindings"],
+            "shiftAuxBindings": runtime["shiftAuxBindings"],
+        },
+    })
+}
+
 pub fn compose_system_patch_documents(system: &Value, patch: &Value) -> Result<Value, String> {
     let full = compose_system_patch_documents_structure(system, patch)?;
     validate_patch_sample_paths(patch)?;

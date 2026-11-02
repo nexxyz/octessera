@@ -215,7 +215,7 @@ fn native_default_completion(
                         ok: true,
                         is_auto: None,
                     },
-                    Some(Arc::new(payload)),
+                    Some(Arc::new(playback_runtime::saved_patch_aux_claims(&payload))),
                 ),
                 Err(message) => (native_failure(&request, message), None),
             }

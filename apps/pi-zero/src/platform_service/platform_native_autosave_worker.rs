@@ -36,7 +36,10 @@ pub(super) fn run(
             };
             if let Some(request) = default {
                 let result = save_default(store_dir, &payload);
-                let prepared = result.as_ref().ok().map(|()| Arc::new(payload.clone()));
+                let prepared = result
+                    .as_ref()
+                    .ok()
+                    .map(|()| Arc::new(playback_runtime::saved_patch_aux_claims(&payload)));
                 let result = match result {
                     Ok(()) => RuntimeStoreResult::SaveDefaultResult {
                         ok: true,
