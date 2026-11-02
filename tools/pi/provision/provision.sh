@@ -155,6 +155,14 @@ ensure_raspberry_uart_inactive() {
     sudo systemctl unmask bluetooth.service >/dev/null
     sudo systemctl enable bluetooth.service >/dev/null 2>&1
     sudo sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$(target_path /etc/bluetooth/main.conf)"
+    sudo sed -i -E \
+        -e 's/^#?[[:space:]]*use-ipv6[[:space:]]*=.*/use-ipv6=no/' \
+        -e 's/^#?[[:space:]]*publish-workstation[[:space:]]*=.*/publish-workstation=no/' \
+        -e 's/^#?[[:space:]]*enable-wide-area[[:space:]]*=.*/enable-wide-area=no/' \
+        "$(target_path /etc/avahi/avahi-daemon.conf)"
+    for setting in use-ipv6=no publish-workstation=no enable-wide-area=no; do
+        grep -qx "$setting" "$(target_path /etc/avahi/avahi-daemon.conf)"
+    done
     sudo install -d "$(target_path /etc/systemd/system/bluealsa.service.d)"
     printf '[Service]\nNice=10\nCPUAffinity=2 3\n' | sudo tee "$(target_path /etc/systemd/system/bluealsa.service.d)"/10-octessera-background.conf >/dev/null
     for unit in dbus cron; do

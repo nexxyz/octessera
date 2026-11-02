@@ -180,8 +180,8 @@ fixed in the images; the notes say what to look for if one comes back.
 
 On the Raspberry, ordinary tasks that wake on the audio core (CPU 1) can take
 it from the callback for a few milliseconds: the kernel's fair server reserves
-them time even against real-time threads. The once-a-minute network-health job,
-D-Bus, systemd launching that job and the hourly cron run were the culprits,
+them time even against real-time threads. The network-health job (then once a
+minute), D-Bus, systemd launching that job and the hourly cron run were the culprits,
 so all four are limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's
 `init.scope` is set at every boot by `octessera-performance-governor.service`,
 as scopes keep no persistent drop-ins). Quiet Latency soaks with 16 held notes
@@ -194,6 +194,18 @@ long recording, off the audio core (`/sys/devices/virtual/workqueue/cpumask` =
 the callback in its last few milliseconds. Render blocks that take longer than
 the audio they produce are logged as `audio block overran: ...` with their
 event and voice counts.
+
+The fence moves the same problem to the DSP workers on cores 2 and 3. A
+traced 3-hour soak (2026-11) found that every rare `audio quantum missed its
+deadline` line was an ordinary task running there through the fair server
+while a worker waited, or even preempting a running one: D-Bus and
+`bluetoothd` answering the app's Bluetooth status poll (both boards), systemd
+starting the network-health job, and `avahi-daemon`. So the work itself is
+now rarer: the Bluetooth worker sleeps until BlueZ signals a change and polls
+only while scanning or pairing, the Raspberry network-health job runs every
+10 minutes, and avahi answers for the hostname over IPv4 only, without the
+workstation record or wide-area browsing. Look for a non-worker task between
+a worker's `sched_wakeup` and its `sched_switch` on CPU 2 or 3.
 
 The Orange is less exposed but not immune: NetworkManager's dispatcher, which
 starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), D-Bus and

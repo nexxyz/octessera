@@ -65,7 +65,7 @@ case "$last_recovery" in
 esac
 now_epoch=$(date +%s)
 
-if [ "$fail_count" -ge 5 ] && [ $((now_epoch - last_recovery)) -ge 600 ]; then
+if [ "$fail_count" -ge 3 ] && [ $((now_epoch - last_recovery)) -ge 600 ]; then
     printf '%s recovery=wifi_stack_reset fail_count=%s gateway=%s\n' "$timestamp" "$fail_count" "${gateway:-none}" >> "$LOG_FILE"
     printf '%s\n' "$now_epoch" > "$RECOVERY_STAMP_FILE"
     printf '0\n' > "$FAIL_FILE"

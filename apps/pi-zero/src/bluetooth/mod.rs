@@ -46,6 +46,9 @@ pub(crate) enum WorkerEvent {
         address: String,
         result: Result<(), String>,
     },
+    /// BlueZ signalled a change (power, a device appearing, connecting or leaving).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    Changed,
 }
 
 pub(crate) struct BluetoothHandle {
@@ -60,24 +63,24 @@ impl BluetoothHandle {
         #[cfg(target_os = "linux")]
         let connect = bluez::SystemBluez::connect;
         #[cfg(not(target_os = "linux"))]
-        let connect = || Ok(Unavailable);
+        let connect = |_: Sender<WorkerEvent>| Ok(Unavailable);
         Self::spawn(connect)
     }
 
     #[cfg(test)]
     pub(crate) fn with_fake(bluez: impl Bluez) -> Self {
-        Self::spawn(move || Ok(bluez)).expect("spawn Bluetooth worker")
+        Self::spawn(move |_| Ok(bluez)).expect("spawn Bluetooth worker")
     }
 
     fn spawn<B: Bluez>(
-        connect: impl FnOnce() -> Result<B, String> + Send + 'static,
+        connect: impl FnOnce(Sender<WorkerEvent>) -> Result<B, String> + Send + 'static,
     ) -> Option<Self> {
         let (events, rx) = std::sync::mpsc::channel();
         let (status_tx, status) = std::sync::mpsc::channel();
         let worker_events = events.clone();
         std::thread::Builder::new()
             .name("octessera-bluetooth".into())
-            .spawn(move || match connect() {
+            .spawn(move || match connect(worker_events.clone()) {
                 Ok(bluez) => worker::run(bluez, rx, worker_events, status_tx),
                 Err(error) => eprintln!("Bluetooth unavailable: {error}"),
             })

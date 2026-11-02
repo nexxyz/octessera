@@ -2,8 +2,10 @@ use super::agent::{Agent, AgentState};
 use super::{Bluez, DeviceRecord, WorkerEvent};
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
-use zbus::blocking::{Connection, Proxy};
+use zbus::blocking::{Connection, MessageIterator, Proxy};
+use zbus::message::Type as MessageType;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
+use zbus::MatchRule;
 
 const BLUEZ: &str = "org.bluez";
 const ADAPTER_PATH: &str = "/org/bluez/hci0";
@@ -24,8 +26,9 @@ pub(super) struct SystemBluez {
 }
 
 impl SystemBluez {
-    pub(super) fn connect() -> Result<Self, String> {
+    pub(super) fn connect(changed: Sender<WorkerEvent>) -> Result<Self, String> {
         let connection = Connection::system().map_err(error)?;
+        forward_changes(&connection, changed)?;
         let agent = AgentState::default();
         connection
             .object_server()
@@ -46,6 +49,27 @@ impl SystemBluez {
     fn adapter(&self) -> Result<Proxy<'static>, String> {
         Proxy::new(&self.connection, BLUEZ, ADAPTER_PATH, ADAPTER_IFACE).map_err(error)
     }
+}
+
+/// Wakes the worker on every BlueZ signal, so an idle radio costs no D-Bus polling.
+fn forward_changes(connection: &Connection, changed: Sender<WorkerEvent>) -> Result<(), String> {
+    let rule = MatchRule::builder()
+        .msg_type(MessageType::Signal)
+        .sender(BLUEZ)
+        .map_err(error)?
+        .build();
+    let signals = MessageIterator::for_match_rule(rule, connection, None).map_err(error)?;
+    std::thread::Builder::new()
+        .name("octessera-bt-signals".into())
+        .spawn(move || {
+            for _ in signals {
+                if changed.send(WorkerEvent::Changed).is_err() {
+                    return;
+                }
+            }
+        })
+        .map(|_| ())
+        .map_err(error)
 }
 
 fn device_path(address: &str) -> String {

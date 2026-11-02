@@ -3,7 +3,7 @@ Description=Run octessera network health checks
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=1min
+OnUnitActiveSec=10min
 AccuracySec=15s
 Persistent=true
 

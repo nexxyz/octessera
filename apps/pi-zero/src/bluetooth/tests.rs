@@ -195,6 +195,47 @@ fn cancel_ends_pairing_and_disabled_bluetooth_ignores_device_actions() {
 }
 
 #[test]
+fn only_scanning_or_pairing_keeps_the_worker_polling() {
+    let (mut worker, _) = worker_with(vec![keyboard("BB", Some("Keys"), false)]);
+    let now = Instant::now();
+    worker.handle(WorkerEvent::SetPower(true), now);
+    assert!(!worker.active());
+    worker.handle(WorkerEvent::Scan(true), now);
+    assert!(worker.active());
+    worker.handle(device_event("BB", RuntimeBluetoothDeviceAction::Pair), now);
+    assert!(worker.active());
+    worker.handle(
+        device_event("BB", RuntimeBluetoothDeviceAction::CancelPairing),
+        now,
+    );
+    assert!(!worker.active());
+}
+
+#[test]
+fn a_bluez_change_signal_republishes_the_idle_status() {
+    let fake = FakeBluez::default();
+    let handle = BluetoothHandle::with_fake(fake.clone());
+    let next_status = || {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(message) = handle.drain_status().next() {
+                return message;
+            }
+            assert!(Instant::now() < deadline, "no Bluetooth status");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    };
+    handle.set_enabled(true);
+    let powered = next_status();
+    assert!(format!("{powered:?}").contains("powered: true"));
+
+    *fake.devices.lock().unwrap() = vec![keyboard("AA", Some("Keys"), true)];
+    handle.events.send(WorkerEvent::Changed).unwrap();
+    let changed = next_status();
+    assert!(format!("{changed:?}").contains("\"AA\""));
+}
+
+#[test]
 fn handle_takes_only_bluetooth_effects() {
     let handle = BluetoothHandle::with_fake(FakeBluez::default());
     assert!(handle.handle_effect(&RuntimePlatformEffect::BluetoothScan { active: true }));

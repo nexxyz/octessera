@@ -153,12 +153,13 @@ chmod +x "$FAKE_BIN"/*
 
 new_fixture() {
   FIXTURE="$TMP/fixture-$RANDOM"
-  mkdir -p "$FIXTURE/boot/firmware" "$FIXTURE/home/pi/presets" "$FIXTURE/etc/octessera" "$FIXTURE/etc/bluetooth"
+  mkdir -p "$FIXTURE/boot/firmware" "$FIXTURE/home/pi/presets" "$FIXTURE/etc/octessera" "$FIXTURE/etc/bluetooth" "$FIXTURE/etc/avahi"
   printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$FIXTURE/home/pi/presets/system.json"
   printf '%s\n' '{"kind":"octessera.patch","schemaVersion":2,"runtimeConfig":{}}' > "$FIXTURE/home/pi/presets/default.patch.json"
   printf '%s\n' 'root:x:0:' 'pi:x:1000:' 'input:x:104:' > "$FIXTURE/etc/group"
   printf '# fixture boot config\narm_64bit=1\ndtoverlay=disable-bt\n' > "$FIXTURE/boot/firmware/config.txt"
   printf '[Policy]\nAutoEnable=true\n' > "$FIXTURE/etc/bluetooth/main.conf"
+  printf '[server]\nuse-ipv6=yes\n[wide-area]\nenable-wide-area=yes\n[publish]\npublish-workstation=yes\n' > "$FIXTURE/etc/avahi/avahi-daemon.conf"
   printf 'console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet\n' \
     > "$FIXTURE/boot/firmware/cmdline.txt"
   export FAKE_STATE="$TMP/state-$RANDOM"
@@ -384,6 +385,9 @@ assert_contains "sc4" "$FIXTURE/etc/octessera/board-profile.env" "OCTESSERA_BOAR
 assert_contains "sc4" "$FIXTURE/etc/systemd/system/octessera.service" '^WorkingDirectory=/home/pi/octessera-dev$'
 assert_not_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^dtoverlay=disable-bt$"
 assert_contains "sc4" "$FIXTURE/etc/bluetooth/main.conf" "^AutoEnable=false$"
+assert_contains "sc4" "$FIXTURE/etc/avahi/avahi-daemon.conf" "^use-ipv6=no$"
+assert_contains "sc4" "$FIXTURE/etc/avahi/avahi-daemon.conf" "^publish-workstation=no$"
+assert_contains "sc4" "$FIXTURE/etc/avahi/avahi-daemon.conf" "^enable-wide-area=no$"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^enable_uart=0$"
 assert_contains "sc4" "$FIXTURE/boot/firmware/config.txt" "^\[all\]$"
 [[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=(peripheral|host)$' "$FIXTURE/boot/firmware/config.txt")" == 1 ]]

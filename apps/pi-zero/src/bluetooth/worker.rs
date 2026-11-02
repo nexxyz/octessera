@@ -8,8 +8,10 @@ use std::time::{Duration, Instant};
 
 const SCAN_LIMIT: Duration = Duration::from_secs(60);
 const ACTIVE_POLL: Duration = Duration::from_millis(500);
-const IDLE_POLL: Duration = Duration::from_millis(1500);
 
+/// Idle, the worker sleeps until a command or a BlueZ signal arrives. While
+/// scanning or pairing it polls on a fixed cadence instead, which also bounds
+/// the refreshes a stream of discovery signals can cause.
 pub(super) fn run(
     bluez: impl Bluez,
     events: Receiver<WorkerEvent>,
@@ -17,8 +19,15 @@ pub(super) fn run(
     status: Sender<HostMessage>,
 ) {
     let mut worker = Worker::new(bluez, done);
+    let mut next_poll = Instant::now();
     loop {
-        match events.recv_timeout(worker.poll_interval()) {
+        let event = if worker.active() {
+            events.recv_timeout(next_poll.saturating_duration_since(Instant::now()))
+        } else {
+            events.recv().map_err(|_| RecvTimeoutError::Disconnected)
+        };
+        match event {
+            Ok(WorkerEvent::Changed) if worker.active() && Instant::now() < next_poll => continue,
             Ok(event) => worker.handle(event, Instant::now()),
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return,
@@ -27,6 +36,7 @@ pub(super) fn run(
             worker.handle(event, Instant::now());
         }
         worker.expire_scan(Instant::now());
+        next_poll = Instant::now() + ACTIVE_POLL;
         if let Some(next) = worker.refresh() {
             if status.send(status_message(next)).is_err() {
                 return;
@@ -58,12 +68,8 @@ impl<B: Bluez> Worker<B> {
         }
     }
 
-    fn poll_interval(&self) -> Duration {
-        if self.scan_until.is_some() || self.pairing.is_some() {
-            ACTIVE_POLL
-        } else {
-            IDLE_POLL
-        }
+    pub(super) fn active(&self) -> bool {
+        self.scan_until.is_some() || self.pairing.is_some()
     }
 
     pub(super) fn handle(&mut self, event: WorkerEvent, now: Instant) {
@@ -101,6 +107,7 @@ impl<B: Bluez> Worker<B> {
                     }
                 });
             }
+            WorkerEvent::Changed => {}
             WorkerEvent::ConnectDone { address, result } => {
                 let name = self.name_of(&address);
                 self.message = Some(match result {

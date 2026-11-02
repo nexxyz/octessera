@@ -251,6 +251,16 @@ install -d "$ROOTFS_DIR/etc/systemd/system/bluetooth.target.wants"
 ln -sf /lib/systemd/system/bluetooth.service "$ROOTFS_DIR/etc/systemd/system/bluetooth.target.wants/bluetooth.service"
 ln -sf /lib/systemd/system/bluetooth.service "$ROOTFS_DIR/etc/systemd/system/dbus-org.bluez.service"
 sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' "$ROOTFS_DIR/etc/bluetooth/main.conf"
+# avahi runs next to the DSP workers on cores 2 and 3; answering for the
+# hostname over IPv4 is all it needs to do (ssh and the browser use name.local).
+sed -i -E \
+    -e 's/^#?[[:space:]]*use-ipv6[[:space:]]*=.*/use-ipv6=no/' \
+    -e 's/^#?[[:space:]]*publish-workstation[[:space:]]*=.*/publish-workstation=no/' \
+    -e 's/^#?[[:space:]]*enable-wide-area[[:space:]]*=.*/enable-wide-area=no/' \
+    "$ROOTFS_DIR/etc/avahi/avahi-daemon.conf"
+for setting in use-ipv6=no publish-workstation=no enable-wide-area=no; do
+    grep -qx "$setting" "$ROOTFS_DIR/etc/avahi/avahi-daemon.conf"
+done
 # bluez-alsa encodes the Bluetooth audio monitor; keep it below the audio threads.
 install -d "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d"
 printf '[Service]\nNice=10\nCPUAffinity=2 3\n' > "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d/10-octessera-background.conf"
