@@ -64,6 +64,7 @@ pub(super) fn prepare_config_payload(
     } else {
         derived_names::canonicalize_merged_payload_names(&mut payload, &input);
     }
+    discard_incompatible_layer_state(&mut payload, &input, current);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
