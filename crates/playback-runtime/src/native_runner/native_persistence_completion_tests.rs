@@ -110,7 +110,14 @@ fn native_success_installs_the_same_worker_patch_arc_and_clears_only_its_revisio
     runner.mark_config_dirty();
     let revision = runner.config_revision;
     assert!(runner.register_native_default_write("native-save-2", revision, true));
-    let worker_payload = payload(revision);
+    let mut written = (*payload(revision)).clone();
+    written["runtimeConfig"]["auxBindings"]["aux1"] =
+        json!({ "turnKey": "mixer.buses.0.slot1.params.mixPct" });
+    let worker_payload = Arc::new(written);
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: None,
+    });
     assert!(runner.attach_native_default_write_payload(
         "native-save-2",
         revision,

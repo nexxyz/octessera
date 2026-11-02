@@ -139,13 +139,6 @@ impl NativeRunner {
         revision: u64,
         payload: Arc<Value>,
     ) -> bool {
-        let Ok(system) = super::system_persistence::SystemPersistenceState::system_document(self)
-        else {
-            return false;
-        };
-        if super::compose_local_system_patch_documents(&system, &payload).is_err() {
-            return false;
-        }
         self.restart_settings
             .attach_native_payload(request_id, revision, payload)
     }
