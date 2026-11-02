@@ -104,7 +104,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     runner.test_set_display_time(start);
     let initial = converted_scene(&runner, true);
     assert_typed_oled_matches_legacy(&runner);
-    assert_eq!(initial["display"]["title"], "MENU");
+    assert_eq!(initial["display"]["title"], "Octessera");
     assert_eq!(
         initial["display"]["lines"],
         json!([
@@ -160,7 +160,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     assert_typed_oled_matches_legacy(&runner);
     assert_eq!(expired["transportFlash"], "none");
     assert_eq!(expired["eventDotLevel"], 0);
-    assert_eq!(expired["display"]["title"], "MENU");
+    assert_eq!(expired["display"]["title"], "Octessera");
     runner
         .send(HostMessage::DeviceInput {
             input: json!({"type": "encoder_press", "id": "main"}),
@@ -401,7 +401,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     let sleeping = converted_scene(&runner, false);
     assert_typed_oled_matches_legacy(&runner);
     assert_eq!(sleeping["display"]["off"], true);
-    assert_eq!(sleeping["display"]["title"], "MENU");
+    assert_eq!(sleeping["display"]["title"], "Octessera");
 }
 
 #[test]

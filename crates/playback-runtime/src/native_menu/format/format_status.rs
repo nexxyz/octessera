@@ -20,14 +20,14 @@ fn path_segment_label(segment: &str, short: bool) -> String {
         return short_path_segment_label(segment);
     }
     match segment {
-        "Menu" => "MENU".to_string(),
+        "Menu" => "Octessera".to_string(),
         other => other.to_string(),
     }
 }
 
 fn short_path_segment_label(segment: &str) -> String {
     match segment {
-        "Menu" => "MENU".to_string(),
+        "Menu" => "Octessera".to_string(),
         BUILD_LABEL => BUILD_SHORT_LABEL.to_string(),
         LINK_LABEL => LINK_SHORT_LABEL.to_string(),
         SHAPE_LABEL => SHAPE_SHORT_LABEL.to_string(),
@@ -59,7 +59,7 @@ pub(in crate::native_menu) fn section_color_from_path(path: &str) -> u16 {
         .trim_start_matches('/')
         .split('/')
         .next()
-        .unwrap_or("MENU");
+        .unwrap_or("Octessera");
     section_color_for_label(first)
 }
 
@@ -76,7 +76,7 @@ pub(in crate::native_menu) fn section_color_for_label(label: &str) -> u16 {
     if label == PLAY_LABEL || label == PLAY_SHORT_LABEL {
         return platform_core::palette::YELLOW_RGB565;
     }
-    if label == "System" || label == "SYS" || label == "MENU" {
+    if label == "System" || label == "SYS" || label == "Octessera" {
         return platform_core::palette::GRAY_RGB565;
     }
     platform_core::palette::WHITE_RGB565

@@ -11,9 +11,9 @@ pub(super) fn navigate_to_cutoff(
     dispatch: &mut DispatchInput<'_>,
     board: &str,
 ) -> Result<(), String> {
-    expect_focus(playback, "MENU", "Build", board)?;
+    expect_focus(playback, "Octessera", "Build", board)?;
     turn_main(playback, runner, dispatch, 2)?;
-    expect_focus(playback, "MENU", "Shape", board)?;
+    expect_focus(playback, "Octessera", "Shape", board)?;
     press_main(playback, runner, dispatch)?;
     expect_focus(playback, "Shape", "Instruments", board)?;
     press_main(playback, runner, dispatch)?;
@@ -39,7 +39,7 @@ pub(super) fn enable_study_auto_save(
     dispatch: &mut DispatchInput<'_>,
     board: &str,
 ) -> Result<(), String> {
-    expect_focus(playback, "MENU", "Build", board)?;
+    expect_focus(playback, "Octessera", "Build", board)?;
     turn_main(playback, runner, dispatch, 5)?;
     press_main(playback, runner, dispatch)?;
     move_to_selected_row(playback, runner, dispatch, "Saves", 24, board)?;
@@ -71,7 +71,7 @@ pub(super) fn enable_study_auto_save(
         }
     }
     turn_main(playback, runner, dispatch, -5)?;
-    expect_focus(playback, "MENU", "Build", board)?;
+    expect_focus(playback, "Octessera", "Build", board)?;
     Ok(())
 }
 

@@ -50,5 +50,5 @@ pub(crate) fn contextual_help_scrolls_and_back_closes() {
         })
         .unwrap();
     assert!(runner.display.help_popup.is_none());
-    assert_eq!(snapshot_from(&closed)["display"]["title"], "MENU");
+    assert_eq!(snapshot_from(&closed)["display"]["title"], "Octessera");
 }

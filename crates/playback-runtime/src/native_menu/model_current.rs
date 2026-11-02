@@ -26,7 +26,7 @@ impl NativeMenuModel {
             }
         }
         if labels.is_empty() {
-            "MENU".into()
+            "Octessera".into()
         } else {
             abbreviate_path(&labels.join("/"))
         }
@@ -50,7 +50,7 @@ impl NativeMenuModel {
     pub(super) fn path_section_color(&self) -> u16 {
         let labels = self.stack_labels();
         if labels.is_empty() {
-            section_color_from_path("MENU")
+            section_color_from_path("Octessera")
         } else {
             section_color_from_path(&labels.join("/"))
         }

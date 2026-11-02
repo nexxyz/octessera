@@ -216,7 +216,7 @@ Aux mappings modal:
   list, parameter picker, help, confirm dialog, or assignment overlay.
 - Breadcrumbs show the current page label in full and its ancestors short, fitted to the 15
   OLED title columns. Short forms: `Build`/`B`, `Link`/`L`, `Shape`/`S`, `Play`/`P`,
-  `System`/`SYS`; ancestor labels starting `Layer N` or `Bus N` shorten to `LN`/`BN`. Instrument
+  `System`/`SYS`; the root menu's breadcrumb is `Octessera`; ancestor labels starting `Layer N` or `Bus N` shorten to `LN`/`BN`. Instrument
   pages use the short instrument name without its route (`I1: synth`, `I1: midi`), while the
   Instruments list rows keep the route (`I1: synth direct`). When the path does not fit, ancestors
   drop from the left behind `../` (`../Synth/Filter`, `../Filter Env`); if even `../` plus the page

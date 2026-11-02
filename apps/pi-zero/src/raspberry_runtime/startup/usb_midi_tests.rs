@@ -103,7 +103,7 @@ fn publish(started: &mut Started) -> Result<u64, String> {
 
 fn assert_starts_with_midi_error_frame(mut started: Started, message: &str) {
     let snapshot = started.playback.last_snapshot().unwrap();
-    assert_eq!(snapshot["display"]["title"], "MENU");
+    assert_eq!(snapshot["display"]["title"], "Octessera");
     assert_eq!(snapshot["runtimeError"]["domain"], "midi");
     assert_eq!(snapshot["runtimeError"]["message"], message);
 

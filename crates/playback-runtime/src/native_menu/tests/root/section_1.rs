@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn root_snapshot_includes_play_separator_and_system() {
     let menu = NativeMenuModel::new(config());
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "MENU");
+    assert_eq!(snapshot.path, "Octessera");
     assert_eq!(
         snapshot.lines,
         vec![

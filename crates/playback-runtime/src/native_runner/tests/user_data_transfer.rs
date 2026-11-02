@@ -77,7 +77,7 @@ pub(crate) fn back_hides_ready_transfer_card_while_stop_closes_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_store_result(ready_result()).unwrap();
     let hidden = send_main(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    assert_eq!(snapshot_from(&hidden)["display"]["title"], "MENU");
+    assert_eq!(snapshot_from(&hidden)["display"]["title"], "Octessera");
     assert!(!runner.display.user_data_transfer.as_ref().unwrap().visible);
 
     runner.apply_store_result(ready_result()).unwrap();
@@ -124,7 +124,7 @@ pub(crate) fn closed_status_clears_and_unsupported_is_dismissible() {
         json!(["Not supported here", "Use a Pi device", "> Close"])
     );
     let dismissed = send_main(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    assert_eq!(snapshot_from(&dismissed)["display"]["title"], "MENU");
+    assert_eq!(snapshot_from(&dismissed)["display"]["title"], "Octessera");
     assert!(runner.display.user_data_transfer.is_none());
 }
 
