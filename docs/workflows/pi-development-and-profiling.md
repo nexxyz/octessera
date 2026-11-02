@@ -209,10 +209,14 @@ a worker's `sched_wakeup` and its `sched_switch` on CPU 2 or 3.
 
 The Orange is less exposed but not immune: NetworkManager's dispatcher, which
 starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), D-Bus and
-the hourly cron run took its audio core the same way, so all three are fenced
-to cores 2 and 3 there. A traced Orange recording underrun showed an unbound
-kernel worker (SD-card writeback) holding CPU 1 for about 2 ms with preemption
-off, so the Orange image also sets the workqueue mask to `d`
+the hourly cron run took its audio core the same way, so D-Bus and the
+dispatcher are fenced to cores 2 and 3 there. Cron and journald are fenced to
+core 0 instead: a traced soak caught Armbian's `armbian-truncate-logs` job
+(every 15 minutes) and journald logging its cron session holding a DSP worker
+off core 2 for 4 ms. Core 0 runs only ordinary app threads at a higher
+priority and is mostly idle, so the job just waits its turn there. A traced
+Orange recording underrun showed an unbound kernel worker (SD-card writeback)
+holding CPU 1 for about 2 ms with preemption off, so the Orange image also sets the workqueue mask to `d`
 (`/etc/tmpfiles.d/octessera-audio.conf`).
 
 Runtime lateness (the `runtime_late` profile figure) is sub-millisecond and not

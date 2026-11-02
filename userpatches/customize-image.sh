@@ -342,6 +342,7 @@ install_overlay_file etc/systemd/system/bluealsa.service.d/10-octessera-backgrou
 install_overlay_file etc/systemd/system/dbus.service.d/10-octessera-background.conf /etc/systemd/system/dbus.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf /etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/systemd/system/cron.service.d/10-octessera-background.conf /etc/systemd/system/cron.service.d/10-octessera-background.conf 0644
+install_overlay_file etc/systemd/system/systemd-journald.service.d/10-octessera-background.conf /etc/systemd/system/systemd-journald.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/sysctl.d/60-octessera-audio.conf /etc/sysctl.d/60-octessera-audio.conf 0644
 install_overlay_file etc/tmpfiles.d/octessera-audio.conf /etc/tmpfiles.d/octessera-audio.conf 0644
 for musical_asset in \
