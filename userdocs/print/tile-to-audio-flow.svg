@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="100%" role="graphics-document document" aria-roledescription="flowchart" aria-label="Cell state to sound flowchart">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="100%" role="graphics-document document" aria-roledescription="flowchart" aria-label="Tile state to sound flowchart">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L10,5 L0,10 z" fill="#000"/>
@@ -30,7 +30,7 @@
     <rect class="box" x="630" y="70" width="200" height="62"/>
     <text class="txt title" x="730" y="101" text-anchor="middle" dominant-baseline="middle">Behaviors</text>
     <rect class="box" x="608" y="190" width="244" height="52"/>
-    <text class="txt title" x="730" y="223" text-anchor="middle">Grid Cell State</text>
+    <text class="txt title" x="730" y="223" text-anchor="middle">Grid Tile State</text>
 
     <rect class="group" x="572" y="310" width="316" height="132"/>
     <text class="txt group-title" x="594" y="337">2: Link</text>
@@ -84,7 +84,7 @@
     <text class="label" x="752" y="290" text-anchor="start">Events/Scan Results</text>
 
     <path class="line" d="M730 418 V532"/>
-    <text class="label" x="783" y="475" text-anchor="middle">Note / Grid Cell</text>
+    <text class="label" x="783" y="475" text-anchor="middle">Note / Grid Tile</text>
 
     <path class="line" d="M810 563 H870 V530 H930"/>
     <text class="label" x="896" y="521" text-anchor="middle">MIDI</text>

@@ -29,7 +29,7 @@ Four wall-connected shelves provide Z support. Each continuous support overlaps
 its shelf by `0.10 mm`, avoiding a face-touch-only union. The northeast shelf is
 higher because the raised wave on the instrument is inverted when loaded
 controls-down. The floor guide shows the screen, encoders, NeoKeys, Trellis
-cells, and loading orientation.
+tiles, and loading orientation.
 
 The hard-wall clearance is nominally `+/-1.6 mm` in X and `+/-2.0 mm` in Y.
 The larger check-fit envelope leaves `+/-1.1 mm` in X and `+/-1.5 mm` in Y.

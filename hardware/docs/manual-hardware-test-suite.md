@@ -99,22 +99,22 @@ Goal: check that all 64 grid buttons generate press and release events.
 Test behavior to run from code for up to 90 seconds, or until the operator presses Enter:
 
 1. Clear grid LEDs.
-2. On every grid press, log `grid_press x y` and light that cell yellow.
-3. On release, log `grid_release x y` and dim that cell cyan.
-4. Keep a count of seen cells.
+2. On every grid press, log `grid_press x y` and light that tile yellow.
+3. On release, log `grid_release x y` and dim that tile cyan.
+4. Keep a count of seen tiles.
 5. Print missing coordinates after each pass.
 
 Manual pass:
 
-- Press each cell once, left-to-right, bottom-to-top.
+- Press each tile once, left-to-right, bottom-to-top.
 - Repeat the four corners.
-- Hold two adjacent cells briefly to check multi-key handling.
+- Hold two adjacent tiles briefly to check multi-key handling.
 
 Expected:
 
 - Every press and release logs exactly once.
 - Coordinates match lower-left runtime semantics.
-- No stuck cells remain lit as pressed after release.
+- No stuck tiles remain lit as pressed after release.
 
 ## 4. NeoKey LED And Button Test
 
@@ -240,7 +240,7 @@ Use for an integrated runtime check after the individual hardware tests.
    ```
 
 3. Confirm no `critical hardware init failed` messages.
-4. Press grid cells and NeoKeys.
+4. Press grid tiles and NeoKeys.
 5. Turn and click encoders.
 6. Confirm audio still works.
 7. Stop the service and verify the I2C bus releases:

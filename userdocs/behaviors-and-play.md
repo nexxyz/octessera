@@ -9,10 +9,10 @@ little colony, another your own fingers. Things get interesting when they
 disagree politely.
 
 The grid only shows the layer you're on. To keep an eye on the others, switch on
-**System > Display > Ghost Cells**: their lit cells then glow faintly green
+**System > Display > Ghost Tiles**: their lit tiles then glow faintly green
 underneath, and anything the current layer draws sits on top.
 
-How a behavior's cells turn into notes is covered in
+How a behavior's tiles turn into notes is covered in
 [Sound and Link](sound-and-link.md).
 
 ## Start with a small patch
@@ -26,8 +26,8 @@ voice. These five behaviors make a good first tour:
 |---|---|
 | `life` | Seed a few cells and listen to birth, survival and death move through the grid. Glider Interval, Spawn Step and Spawn Glider add gliders. |
 | `sequencer` | Set a manual rhythm, then add probability if it feels too square. |
-| `keys` | Press cells to play; release to stop. Finger drumming, basically. |
-| `raindrops` | Start with a sparse cell and let drops and ripples bloom outward. |
+| `keys` | Press tiles to play; release to stop. Finger drumming, basically. |
+| `raindrops` | Start with a sparse tile and let drops and ripples bloom outward. |
 | `bounce` | Seed moving particles and listen to their repeating collisions. |
 
 ## Full behavior catalog
@@ -38,7 +38,7 @@ in **Build**.
 | Behavior | Category | What it's good for |
 |---|---|---|
 | `none` | Human | Inactive layer, for when you want space or are setting up. |
-| `keys` | Human | Press a cell to play, release it to stop. Immediate and human. |
+| `keys` | Human | Press a tile to play, release it to stop. Immediate and human. |
 | `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. It can hold up to 4x4 pages of 8x8: pick the page in view with Page X and Page Y, or let Advance turn the pages for you every few steps (at Step Rate 1/8, Advance 8 turns once a bar). |
 | `looper` | Human | Records and replays grid presses and releases. Use Punch In/Out to overdub. |
 | `weave` | Human | Two interlaced melodic strands crossing the grid. Quick counterpoint-ish motion. |
@@ -51,8 +51,8 @@ in **Build**.
 | `ostinato` | Musical | A repeating melodic figure that shifts without losing its anchor. |
 | `motif` | Musical | A short melodic shape that mutates, folds and returns. |
 | `canon` | Musical | Delayed copies of a line, stacked into layered motion. |
-| `chords` | Musical | Moving triad-like cells for harmonic blocks and chord strikes. |
-| `contour` | Musical | Melody-like cells following rise, fall, arch and valley shapes. |
+| `chords` | Musical | Moving triad-like tiles for harmonic blocks and chord strikes. |
+| `contour` | Musical | Melody-like tiles following rise, fall, arch and valley shapes. |
 | `cadence` | Musical | Harmonic movement with repeated tension and resolution points. |
 | `phrase` | Musical | A phrase-shaped pattern with opening, development, rest and return. |
 | `life` | Cellular | Conway-style cells that are born, survive and die, plus optional glider injection. |
@@ -65,8 +65,8 @@ in **Build**.
 | `bounce` | Motion | Particles bouncing through the grid. Good for kinetic, repeating patterns. |
 | `bubbles` | Motion | Bubbles rise from the bottom, merge when they touch and vanish past the top. |
 | `gravity` | Motion | Sand grains fall, slide and settle, and flip direction when you invert gravity. |
-| `boids` | Motion | A small flock steering by separation, alignment and cohesion. It chirps when agents enter new cells. |
-| `orbit` | Motion | Particles circling a moving attractor, flickering as they cross cells. |
+| `boids` | Motion | A small flock steering by separation, alignment and cohesion. It chirps when agents enter new tiles. |
+| `orbit` | Motion | Particles circling a moving attractor, flickering as they cross tiles. |
 | `lava lamp` | Motion | Soft blobs drift, merge and split. |
 | `sand ripples` | Motion | Wind pushes grains into migrating dune crests. Gust it, shift the wind, listen to the ridges move. |
 | `shapes` | Geometry | Geometric areas and edges as musical material, with a visible skeleton. |
@@ -91,11 +91,11 @@ in **Build**.
 
 | Trigger | Meaning |
 |---|---|
-| `activate` | A cell turns on. |
-| `stable` | A cell stays on. |
-| `deactivate` | A cell turns off. |
-| `scanned` | The scan cursor finds a lit cell (scanning layers only). |
-| `scanned_empty` | The scan cursor crosses a dark cell (scanning layers only). |
+| `activate` | A tile turns on. |
+| `stable` | A tile stays on. |
+| `deactivate` | A tile turns off. |
+| `scanned` | The scan cursor finds a lit tile (scanning layers only). |
+| `scanned_empty` | The scan cursor crosses a dark tile (scanning layers only). |
 
 Link turns these into notes. See [Sound and Link](sound-and-link.md#link-what-counts-as-a-note).
 
@@ -104,20 +104,20 @@ Link turns these into notes. See [Sound and Link](sound-and-link.md#link-what-co
 Play pages are performance overlays. They borrow the grid for a moment so you
 can play the whole instrument instead of editing one layer.
 
-Hold *Fn* and press a cell in the right-hand grid column to open a page.
+Hold *Fn* and press a tile in the right-hand grid column to open a page.
 From the bottom up: Mix, Pan, FX, Trigger Gate, Transpose, XY, Drums (the top
-cell is unused). *Back*, or *Fn* plus a layer in the left column, leaves the
+tile is unused). *Back*, or *Fn* plus a layer in the left column, leaves the
 page.
 
 | Page | What the grid becomes | Use it for |
 |---|---|---|
 | Mix | One column per instrument; bottom row is mute, top row is 100%. | Setting each instrument's volume. |
 | Pan | One row per instrument; left edge is hard left, right edge hard right. | Placing instruments in the stereo field. Bus-routed instruments move their bus pan. |
-| FX | Cells you've mapped with momentary effects. | Press to start an effect, release to stop it. |
-| Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three cells set every layer at once. |
-| Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum cells only follow when their **Follow Transp.** is on. Not saved with the patch. |
+| FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
+| Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
+| Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |
 | XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. |
-| Drums | The cells stamped on the selected Drum slot. | Tapping drum hits directly, even while stopped. Empty cells stay quiet. |
+| Drums | The tiles stamped on the selected Drum slot. | Tapping drum hits directly, even while stopped. Empty tiles stay quiet. |
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
 it, so the patch keeps its saved mode.
@@ -126,14 +126,14 @@ it, so the patch keeps its saved mode.
 
 Set up momentary effects under `Play > FX`: choose an **FX Type** (`stutter`,
 `freeze`, `sweep` or `pitch`), a **Target**, and its settings,
-then use **Map to Grid** and press a cell. That cell remembers the whole lot.
-Mapping `none` clears a cell.
+then use **Map to Grid** and press a tile. That tile remembers the whole lot.
+Mapping `none` clears a tile.
 
 - **Target** is `master` (the whole mix), one of the FX buses, or a single
   instrument.
 - Two momentary effects can run at once.
-- Only one of each type at a time. A second cell of the same type is ignored
-  while the first is held, and a toast tells you why. Blocked cells dim.
+- Only one of each type at a time. A second tile of the same type is ignored
+  while the first is held, and a toast tells you why. Blocked tiles dim.
 
 ## A useful patch recipe
 
@@ -141,7 +141,7 @@ Mapping `none` clears a cell.
    rhythm to ground the track.
 2. Add a generative layer (`life`, `raindrops`, `bounce`, `bubbles` or `dla`)
    into a `synth`.
-3. Paint some probability onto the sequencer cells so the rhythm breathes.
+3. Paint some probability onto the sequencer tiles so the rhythm breathes.
 4. Bind one or two Aux encoders to whatever you keep reaching for (*Fn* +
    click an Aux encoder on the highlighted row).
 5. Open Play Mix or Trigger Gate and perform the layers.

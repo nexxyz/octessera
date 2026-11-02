@@ -282,7 +282,7 @@ tightening harder.
    [flash and setup checks](#5-flash-and-setup).
 4. Press each of the four NeoKey keys. If one does not respond, power off and
    open the case to check its seating, rather than pushing the switch harder.
-5. Press all 64 grid cells through the silicone keys, then start a synth and
+5. Press all 64 grid tiles through the silicone keys, then start a synth and
    confirm that sound comes out of the DAC. If either fails, power off and open
    the case rather than leaning on the playing surface.
 6. Check that the boot microSD, OLED microSD, audio, USB-C power and video

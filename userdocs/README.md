@@ -45,10 +45,10 @@ I'd go for the Orange.
 The shipped patch is wired up and ready: Layer 1 runs `life` into Instrument 1,
 a synth.
 
-1. In **Build**, stay on Layer 1 and draw a few cells on the grid. Try swapping
+1. In **Build**, stay on Layer 1 and draw a few tiles on the grid. Try swapping
    its behavior for `brain` or `raindrops` too.
 2. Press **Play** (or **Space** in the simulator).
-3. Hold **Fn** and press the bottom cell of the right-hand grid column to open
+3. Hold **Fn** and press the bottom tile of the right-hand grid column to open
    **Play Mix**. Each column is an instrument; press higher for louder.
 4. Press **Back** to leave Play Mix, then go and poke at the other layers.
 
@@ -67,7 +67,7 @@ Where to go next:
   grid mode.
 - [Behaviors and Play pages](behaviors-and-play.md): the 48 worlds and the
   performance pages.
-- [Sound and Link](sound-and-link.md): how cell changes become notes,
+- [Sound and Link](sound-and-link.md): how tile changes become notes,
   instruments and effects.
 - [Recording](recording.md): capture audio or audio plus video.
 
@@ -91,7 +91,7 @@ down before opening the case or moving wiring.
   [Safety and power](hardware/safety-and-power.md),
   [USB roles](hardware/usb-roles.md).
 - **Printable sheets:** [Quick reference (PDF)](print/quick-reference.pdf),
-  [Cell-to-audio flowchart](print/cell-to-audio-flow.svg). The
+  [Tile-to-audio flowchart](print/tile-to-audio-flow.svg). The
   [controls cheat sheet](controls-cheat-sheet.md) also prints fine.
 - **On the instrument:** `System > Basic Help` shows the core shortcuts, and
   *Shift* + *Fn* + click *Main* opens help for whatever row is highlighted.

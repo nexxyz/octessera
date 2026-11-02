@@ -46,13 +46,13 @@
         <section>
           <h2>Special grid modes</h2>
           <table><tbody>
-            <tr><th>Sample assign</th><td><i>Shift</i> + cell maps row; <i>Shift</i> + <i>Fn</i> + cell maps column</td></tr>
-            <tr><th>Drum assign</th><td><i>Shift</i>+cell: row; <i>Shift</i>+<i>Fn</i>+cell: column; Cell Tune: one cell</td></tr>
-            <tr><th>Probability map</th><td>Trigger chance: never, low, high, always. <i>Shift</i> + cell = row; <i>Shift</i> + <i>Fn</i> + cell = column</td></tr>
+            <tr><th>Sample assign</th><td><i>Shift</i> + tile maps row; <i>Shift</i> + <i>Fn</i> + tile maps column</td></tr>
+            <tr><th>Drum assign</th><td><i>Shift</i>+tile: row; <i>Shift</i>+<i>Fn</i>+tile: column; Tile Tune: one tile</td></tr>
+            <tr><th>Probability map</th><td>Trigger chance: never, low, high, always. <i>Shift</i> + tile = row; <i>Shift</i> + <i>Fn</i> + tile = column</td></tr>
             <tr><th>Play Mix</th><td>Grid becomes a mixer for each layer's volume</td></tr>
             <tr><th>Play Pan</th><td>Grid moves around layers' stereo positions</td></tr>
-            <tr><th>Play FX</th><td>Press mapped cells to trigger live effects</td></tr>
-            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per layer. <i>Shift</i>+<i>Fn</i> together + left layer cell toggles its gate.</td></tr>
+            <tr><th>Play FX</th><td>Press mapped tiles to trigger live effects</td></tr>
+            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per layer. <i>Shift</i>+<i>Fn</i> together + left layer tile toggles its gate.</td></tr>
           </tbody></table>
         </section>
       </div>
@@ -71,18 +71,18 @@
         <section>
           <h2>Triggers</h2>
           <table><tbody>
-            <tr><th>activate</th><td>Cell turns on</td></tr>
-            <tr><th>stable</th><td>Cell stays on</td></tr>
-            <tr><th>deactivate</th><td>Cell turns off</td></tr>
-            <tr><th>scanned</th><td>Scanner finds active cell</td></tr>
-            <tr><th>scanned empty</th><td>Scanner visits inactive cell</td></tr>
+            <tr><th>activate</th><td>Tile turns on</td></tr>
+            <tr><th>stable</th><td>Tile stays on</td></tr>
+            <tr><th>deactivate</th><td>Tile turns off</td></tr>
+            <tr><th>scanned</th><td>Scanner finds active tile</td></tr>
+            <tr><th>scanned empty</th><td>Scanner visits inactive tile</td></tr>
           </tbody></table>
         </section>
         <section>
           <h2>Other Play controls</h2>
           <table><tbody>
             <tr><th>XY</th><td>Mappable two-axis surface for live-manipulating parameters</td></tr>
-            <tr><th>Play Drums</th><td>Tap assigned cells for the selected Drum slot, even while stopped</td></tr>
+            <tr><th>Play Drums</th><td>Tap assigned tiles for the selected Drum slot, even while stopped</td></tr>
             <tr><th>Transpose</th><td>Synth, FM, Plucked &amp; enabled MIDI; not Sampler/Drum</td></tr>
           </tbody></table>
         </section>
@@ -91,7 +91,7 @@
           <ol>
             <li>Route <b>sequencer</b> or <b>looper</b> to <b>sampler</b> for a rhythm loop.</li>
             <li>Add <b>life</b>, <b>raindrops</b>, <b>bounce</b>, or <b>dla</b> to a <b>synth</b>.</li>
-            <li>Use probability on sequencer cells so patterns feel alive.</li>
+            <li>Use probability on sequencer tiles so patterns feel alive.</li>
             <li>Bind aux encoders to parameters or actions you keep reaching for.</li>
           </ol>
           <p class="compact"><b>Aux turns:</b> Normal target: plain coarse, <i>Fn</i> fine. Shifted custom bank: <i>Shift</i> coarse, <i>Shift</i>+<i>Fn</i> fine; no fallback. Other turns are discrete. <i>Shift</i>+<i>Fn</i> is one combined modifier.</p>
@@ -108,14 +108,14 @@
     <header>
       <img src="../../assets/octessera-wordmark.svg" alt="octessera" class="wordmark">
       <div>
-        <h1>cell state to sound</h1>
+        <h1>tile state to sound</h1>
         <p>From behavior state and direct input to MIDI, internal audio, routing, and optional live FX.</p>
       </div>
     </header>
     <main>
-      <img src="cell-to-audio-flow.svg" alt="Flowchart from behavior and cell state through trigger mapping, instrument routing, optional FX branches, MIDI, and audio output" class="flowchart-landscape-img">
+      <img src="tile-to-audio-flow.svg" alt="Flowchart from behavior and tile state through trigger mapping, instrument routing, optional FX branches, MIDI, and audio output" class="flowchart-landscape-img">
     </main>
-    <footer>octessera  /  cell state  ->  behavior  ->  triggers  ->  Link  ->  instrument  ->  output</footer>
+    <footer>octessera  /  tile state  ->  behavior  ->  triggers  ->  Link  ->  instrument  ->  output</footer>
   </section>
 </body>
 </html>

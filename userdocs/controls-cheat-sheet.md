@@ -4,7 +4,7 @@ Keep this beside the instrument while you learn where everything lives. It
 prints on a few pages; the [printable quick reference](print/quick-reference.pdf)
 is the one-sheet version.
 
-Octessera has regular controls and a few temporary modes (Play pages, cell
+Octessera has regular controls and a few temporary modes (Play pages, tile
 assignment, the probability painter, context help). When in doubt, look at
 the OLED. It always shows what the controls are acting on.
 
@@ -16,7 +16,7 @@ the OLED. It always shows what the controls are acting on.
 | Click *Main* | Select, enter, edit or confirm. |
 | *Back* | Leave an edit, an overlay or a menu level. |
 | *Play* (*Space* in the simulator) | Start or pause. |
-| Hold *Fn*, press a grid edge cell | Left column picks a layer, right column picks a Play page. |
+| Hold *Fn*, press a grid edge tile | Left column picks a layer, right column picks a Play page. |
 
 ## Regular controls
 
@@ -138,24 +138,24 @@ The Play pages themselves are explained in
 ## Assignment modes
 
 These take over the grid until you press *Back*. In all of them, *Shift* +
-cell applies to the whole row and *Shift* + *Fn* + cell to the whole column.
+tile applies to the whole row and *Shift* + *Fn* + tile to the whole column.
 
 | Mode | Opened from | What a press does |
 |---|---|---|
-| Sample assignment | `Sampler > Assign` | Stamps the sample slot plus Cell Tune, Fine and Level. High, Medium and Low cells light magenta, yellow and green; Base cells pale white; other slots dim grey. |
-| Drum assignment | `Drum > Assign` | Stamps the selected voice plus the Cell values. The selected voice's cells light bright white, other voices dim white. |
-| Trigger probability map | `Link > Lx > Trigger Prob. > Map Prob Grid` | Cycles the cell through zero, low, high and full (dark, magenta, yellow, green). |
-| Play FX mapping | `Play > FX > Map to Grid` | Stores the current momentary effect on the cell. |
+| Sample assignment | `Sampler > Assign` | Stamps the sample slot plus Tile Tune, Fine and Level. High, Medium and Low tiles light magenta, yellow and green; Base tiles pale white; other slots dim grey. |
+| Drum assignment | `Drum > Assign` | Stamps the selected voice plus the Tile values. The selected voice's tiles light bright white, other voices dim white. |
+| Trigger probability map | `Link > Lx > Trigger Prob. > Map Prob Grid` | Cycles the tile through zero, low, high and full (dark, magenta, yellow, green). |
+| Play FX mapping | `Play > FX > Map to Grid` | Stores the current momentary effect on the tile. |
 
-When stamping, pressing a cell that already holds exactly that stamp clears it;
+When stamping, pressing a tile that already holds exactly that stamp clears it;
 anything else gets overwritten. More in
-[Sound and Link](sound-and-link.md#drum-and-sampler-cells-are-stamps).
+[Sound and Link](sound-and-link.md#drum-and-sampler-tiles-are-stamps).
 
-## Cell-to-audio flow
+## Tile-to-audio flow
 
-![Cell-to-audio flowchart](print/cell-to-audio-flow.svg)
+![Tile-to-audio flowchart](print/tile-to-audio-flow.svg)
 
-Scanning is optional. A layer that isn't scanning still plays from cell events
+Scanning is optional. A layer that isn't scanning still plays from tile events
 like `activate`, or directly from your presses in `keys` and `looper`.
 
 ## Sample browser

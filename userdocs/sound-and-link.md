@@ -1,9 +1,9 @@
-# Sound and Link: from cells to sound
+# Sound and Link: from tiles to sound
 
-A behavior only moves cells around. Three more stops turn that motion into
+A behavior only moves tiles around. Three more stops turn that motion into
 music:
 
-1. **Link** decides which cell changes count as notes, which instrument they
+1. **Link** decides which tile changes count as notes, which instrument they
    go to, what pitch they get, and what else the grid position steers.
 2. **Shape** decides what those notes sound like: the instrument, its
    settings, and where its audio goes.
@@ -13,22 +13,22 @@ Every row in these menus has its own context help on the instrument (hold
 *Shift* + *Fn* and click *Main*). This page is the map; the help is the street
 view.
 
-![Cell-to-audio flowchart](print/cell-to-audio-flow.svg)
+![Tile-to-audio flowchart](print/tile-to-audio-flow.svg)
 
 ## Link: what counts as a note
 
 Each layer has its own Link page (`Link > L1` to `L8`). A layer can make notes
 in two ways, and you can use both at once.
 
-### Events: cells changing state
+### Events: tiles changing state
 
-Under **Events**, three moments in a cell's life can each trigger something:
+Under **Events**, three moments in a tile's life can each trigger something:
 
 | Event | When it fires | Usual job |
 |---|---|---|
-| **On** | A cell turns on | `note_on` |
-| **Hold** | A cell stays on | Often `none`; `note_on` for droning, insistent layers |
-| **Off** | A cell turns off | `note_off`, so held notes stop |
+| **On** | A tile turns on | `note_on` |
+| **Hold** | A tile stays on | Often `none`; `note_on` for droning, insistent layers |
+| **Off** | A tile turns off | `note_off`, so held notes stop |
 
 Each event has an **Inst** (instrument slot 1 to 8), a **Trig** (`none`,
 `note_on` or `note_off`), a **Delay** (0 to 16 layer ticks) and a **Retrig**
@@ -43,8 +43,8 @@ state on every transport tick.
 
 Under **Scanning**, set **Scan Mode** to `scanning` and the layer gets a
 cursor that sweeps rows or columns (**Scan Axis**, **Scan Dir**) at the
-**Scan Unit** rate, from `1/32T` up to `1/1`. When the cursor finds a lit cell
-it plays **Instrument** with **Action**; crossing a dark cell can fire the
+**Scan Unit** rate, from `1/32T` up to `1/1`. When the cursor finds a lit tile
+it plays **Instrument** with **Action**; crossing a dark tile can fire the
 separate **Empty Inst** / **Empty Act** pair, handy for release notes or a
 ghostly counter-rhythm. **Sections** (1, 2, 4 or 8) splits the sweep into
 shorter lanes, so one grid becomes several short loops.
@@ -71,10 +71,10 @@ one chord, so even chaos sounds like it meant it.
 
 ### X and Y: position steers the sound
 
-**X Axis** and **Y Axis** turn where a cell sits into how it sounds. Each lane
+**X Axis** and **Y Axis** turn where a tile sits into how it sounds. Each lane
 has its own **Enabled** switch.
 
-- **Pitch Steps** moves the pitch by **Steps** (-16 to 16) per cell along that
+- **Pitch Steps** moves the pitch by **Steps** (-16 to 16) per tile along that
   axis. **Restart Sect** turns scan sections into little grids of their own:
   each lane counts from its own edge, so they all play in the same register.
   It works on the axis the lanes split (Y for column sections, X for row
@@ -92,8 +92,8 @@ layer makes the delay bloom.
 **Trigger Prob. > Mode** decides which triggers get through:
 
 - `full` lets them all through and `zero` blocks the layer.
-- `custom` uses a per-cell map you paint with **Map Prob Grid**. Each press
-  cycles a cell through zero (dark), low (magenta), high (yellow) and full
+- `custom` uses a per-tile map you paint with **Map Prob Grid**. Each press
+  cycles a tile through zero (dark), low (magenta), high (yellow) and full
   (green); *Shift* paints a row and *Shift* + *Fn* a column.
 - **Prob Low** and **Prob High** set what "low" and "high" mean, in percent.
 
@@ -135,8 +135,8 @@ point at them.
 | `synth` | Two oscillators into a filter, with amp and filter envelopes | **Osc 1** > Wave and Octave, then **Filter** > Cutoff and **Filter Env** |
 | `FM` | A sine carrier and modulator: bells, keys, glassy tones | **Tone** > Ratio and Index, then **Index Env** > Decay |
 | `Plucked` | A modelled ringing string | **String** > Decay, Brightness and Pick Pos |
-| `Drum` | An eight-voice kit; cells are stamped with voices | **Kit** > Load, set the **Cell** rows, then **Assign** |
-| `sampler` | Eight WAV slots; cells are stamped with samples | **Browse** for a sample, set the **Cell** rows, then **Assign** |
+| `Drum` | An eight-voice kit; tiles are stamped with voices | **Kit** > Load, set the **Tile** rows, then **Assign** |
+| `sampler` | Eight WAV slots; tiles are stamped with samples | **Browse** for a sample, set the **Tile** rows, then **Assign** |
 | `midi` | Sends notes to external gear instead of making sound | **MIDI** > Enabled, then Channel, Velocity and Duration |
 
 - **Presets and kits.** Synth, FM and Plucked have **Preset > Load**; Drum and
@@ -154,31 +154,31 @@ point at them.
   (and `System > MIDI > MIDI Active` is on). MIDI never passes through the
   internal effects.
 
-### Drum and Sampler cells are stamps
+### Drum and Sampler tiles are stamps
 
-Drum and Sampler cells play what's stamped onto them, not Link's pitch.
+Drum and Sampler tiles play what's stamped onto them, not Link's pitch.
 
 1. Pick the voice (Drum **Voice**) or sample (**Sample Slot**).
-2. Set **Cell Tune** (-24 to 24 semitones), **Cell Fine** (-100 to 100 cents)
-   and **Cell Level** (Base, High, Medium or Low).
-3. Click **Assign** and press cells. Each press copies those values onto the
-   cell, like a rubber stamp. *Shift* stamps the whole row, *Shift* + *Fn* the
+2. Set **Tile Tune** (-24 to 24 semitones), **Tile Fine** (-100 to 100 cents)
+   and **Tile Level** (Base, High, Medium or Low).
+3. Click **Assign** and press tiles. Each press copies those values onto the
+   tile, like a rubber stamp. *Shift* stamps the whole row, *Shift* + *Fn* the
    whole column. **Back** finishes.
 
-Want a chromatic row? Stamp each cell with the next Cell Tune. Want a ghost
-note? Stamp it Low. On a Sampler, **Cell Level** only appears once
-**Vel Levels** is on. High, Medium and Low cells play at the Vel Levels
-velocities; Base cells play at the normal velocity. To change a cell, stamp it
-again. Pressing a cell that already matches exactly clears it.
+Want a chromatic row? Stamp each tile with the next Tile Tune. Want a ghost
+note? Stamp it Low. On a Sampler, **Tile Level** only appears once
+**Vel Levels** is on. High, Medium and Low tiles play at the Vel Levels
+velocities; Base tiles play at the normal velocity. To change a tile, stamp it
+again. Pressing a tile that already matches exactly clears it.
 
 Everything else (Tune, Gain, Filter, the Vel Levels values) stays slot-wide,
-and anything you modulate there still reaches every stamped cell. Loading a
+and anything you modulate there still reaches every stamped tile. Loading a
 kit swaps the sounds but keeps your stamps.
 
-- **Follow Transp.** lets Play's Transpose page shift these cells too. Off by
+- **Follow Transp.** lets Play's Transpose page shift these tiles too. Off by
   default.
-- **Follow Pitch** makes the cells play Link's note instead of a fixed pitch,
-  measured from C4. Cell Tune and Cell Fine then answer "how far do I nudge
+- **Follow Pitch** makes the tiles play Link's note instead of a fixed pitch,
+  measured from C4. Tile Tune and Tile Fine then answer "how far do I nudge
   this sample so it sounds like a C4?". Stamp a bass hit with `-5` and it
   lands on the G below when Link plays C4, then follows Link's melody from
   there. Drums can do it too, for tuned toms that wander with the tune. (Taps
@@ -232,7 +232,7 @@ so a short attack or a long reverb tail is easy to set. The details are in the
 ## A patch to try
 
 1. **Layer 1:** `sequencer` → Inst 1 set to `Drum`. Stamp a kick, snare and
-   hat onto a few cells.
+   hat onto a few tiles.
 2. **Layer 2:** `boids` → Inst 2 set to `synth`, Route `fx_bus_1`. Note
    Mapping Set `Minor Pentatonic`; X Axis **Filter Cutoff** enabled.
 3. **Bus 1:** Slot 1 `delay` synced to a note, Slot 2 `duck` sourced from

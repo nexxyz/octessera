@@ -10,8 +10,8 @@ if (-not (Test-Path -LiteralPath $Chrome)) {
 
 $root = Resolve-Path "."
 
-if (-not (Test-Path -LiteralPath "userdocs/print/cell-to-audio-flow.svg")) {
-  throw "Missing userdocs/print/cell-to-audio-flow.svg"
+if (-not (Test-Path -LiteralPath "userdocs/print/tile-to-audio-flow.svg")) {
+  throw "Missing userdocs/print/tile-to-audio-flow.svg"
 }
 
 $jobs = @(

@@ -24,9 +24,9 @@ patch. Anything you want to keep from the old one, set up again and save.
 The shipped patch already has Layer 1 running `life` into a synth.
 
 1. In **Build**, stay on Layer 1 (or pick `brain` or `raindrops` for it).
-2. Click a few cells on the grid.
+2. Click a few tiles on the grid.
 3. Press **Space** to start playback.
-4. Hold **Ctrl** (the simulator's *Fn*) and click the second cell from the
+4. Hold **Ctrl** (the simulator's *Fn*) and click the second tile from the
    bottom in the right-hand grid column to open **Play Pan**. Each row is an
    instrument; click left, centre or right on the synth's row (the bottom one)
    to move it across the stereo field.
