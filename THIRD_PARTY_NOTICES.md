@@ -39,7 +39,8 @@ The OLED renderer compiles two pixel fonts into the firmware as glyph tables:
 public domain under CC0 1.0
 ([`licenses/fonts/m5x7/LICENSE`](licenses/fonts/m5x7/LICENSE)), and the Tom
 Thumb 3x5 font from Adafruit GFX by Brian J. Swetland, Vassilii Khachaturov and
-Dan Marks with readability changes by Robey Pointer, under the 3-clause BSD
+Dan Marks with readability changes by Robey Pointer (glyphs further modified for
+Octessera), under the 3-clause BSD
 licence ([`licenses/fonts/tom-thumb/LICENSE`](licenses/fonts/tom-thumb/LICENSE)).
 
 ## Samples
