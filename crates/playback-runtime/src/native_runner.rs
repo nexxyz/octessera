@@ -342,9 +342,6 @@ const OLED_SLEEP_SPLASH_KEY: &str = "sleep";
 const OLED_SHUTDOWN_SPLASH_KEY: &str = "shutdown";
 const OLED_SHUTDOWN_SPLASH_FAILSAFE_MS: u64 = 30_000;
 const AUTO_SAVE_FLASH_MS: u64 = 650;
-#[cfg(not(test))]
-const DEFERRED_MENU_APPLY_MS: u64 = 24;
-#[cfg(test)]
 const DEFERRED_MENU_APPLY_MS: u64 = 24;
 
 pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str> {
