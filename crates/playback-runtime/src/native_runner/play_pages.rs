@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use super::{NativeRunner, GRID_HEIGHT};
 
+mod lfo;
 mod rate;
 mod route;
 mod tempo;
@@ -12,7 +13,7 @@ pub(super) const TECHNICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
     Some("pan"),
     Some("route"),
     Some("tempo"),
-    None,
+    Some("lfo"),
     None,
     None,
     None,

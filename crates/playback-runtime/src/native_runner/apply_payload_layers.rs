@@ -198,7 +198,7 @@ fn apply_link_lfo_value(lfo: &mut NativeLinkLfo, value: &Value) {
         lfo.enabled = false;
     }
     if let Some(period) = value.get("period").and_then(Value::as_str) {
-        if crate::timing_units::NOTE_UNIT_OPTIONS.contains(&period) {
+        if crate::timing_units::LFO_PERIOD_OPTIONS.contains(&period) {
             lfo.period = period.into();
         }
     }

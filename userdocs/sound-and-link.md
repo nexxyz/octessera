@@ -117,7 +117,7 @@ These live at the top of **Link**, not under a layer.
 
 - **LFOs** has eight global sine LFOs. Switch one **Enabled**, pick a
   **Target** (the list only offers parameters that are safe to wobble while
-  playing), a **Period** in note lengths and a **Depth %**. An LFO adds its
+  playing), a **Period** in note lengths (up to eight bars) and a **Depth %**. An LFO adds its
   wobble on top of anything else steering the same parameter.
 - **BPM** sets the tempo (40 to 240).
 - **Swing A** and **Swing B** set the swing ratio: how long each beat's first

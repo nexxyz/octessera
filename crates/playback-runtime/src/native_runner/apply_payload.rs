@@ -58,7 +58,7 @@ impl NativeRunner {
                     == source_lfo.target.as_ref().map(|target| &target.key);
             candidate_lfo.phase_pulses = if preserve_phase {
                 source_lfo.phase_pulses
-                    % crate::timing_units::note_unit_to_pulses(&candidate_lfo.period).max(1)
+                    % crate::timing_units::lfo_period_pulses(&candidate_lfo.period).max(1)
             } else {
                 0
             };

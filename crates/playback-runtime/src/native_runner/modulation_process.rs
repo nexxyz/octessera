@@ -9,7 +9,7 @@ pub(super) use super::modulation_process_sources::ModulationProcessState;
 use super::modulation_process_values::{canonical_clamp, persistent_base_value};
 use super::modulation_source::ModulationSourceId;
 use super::modulation_target::{classify_key, TargetMode, TargetValueKind};
-use super::{note_unit_to_pulses, NativeParamBinding, NativeRunner, Value};
+use super::{NativeParamBinding, NativeRunner, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 impl ModulationProcessState {
@@ -410,7 +410,7 @@ impl NativeRunner {
             if !lfo.enabled || lfo.target.is_none() {
                 continue;
             }
-            let period = note_unit_to_pulses(&lfo.period).max(1);
+            let period = crate::timing_units::lfo_period_pulses(&lfo.period).max(1);
             let phase = (lfo.phase_pulses + pulses) % period;
             phase_changed |= phase != lfo.phase_pulses;
             lfo.phase_pulses = phase;

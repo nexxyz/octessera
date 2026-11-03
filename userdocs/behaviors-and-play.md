@@ -105,7 +105,7 @@ Play pages are performance overlays. They borrow the grid for a moment so you
 can play the whole instrument instead of editing one layer.
 
 The pages come in two banks on the right-hand grid column. Hold *Fn* for the
-technical ones (from the bottom up: Mix, Pan, Route, Tempo) or *Shift* + *Fn* for the
+technical ones (from the bottom up: Mix, Pan, Route, Tempo, LFO) or *Shift* + *Fn* for the
 musical ones (FX, XY, Transpose, Rate, Trigger Gate), then press a tile
 in that column. Unlit tiles are free. *Back*, or *Fn* plus a layer in the left
 column, leaves the page.
@@ -116,6 +116,7 @@ column, leaves the page.
 | Pan | One row per instrument; left edge is hard left, right edge hard right. | Placing instruments in the stereo field. Bus-routed instruments move their bus pan. |
 | Route | One column per instrument. The bottom five rows pick direct or FX bus 1-4; row 6 switches bus and Global FX chains off and on; the top row picks the instrument every duck listens to. | Sending a part through an effect bus, cutting the effects for a dry break, or pumping everything off a different kick. Bypass and duck key are never saved; press the lit tile again to undo. |
 | Tempo | The top five rows are tempo tiles from 50 to 240 BPM (the top-left one is Tap), then a row of -4..+4 nudges, then the two swing rows. | Grabbing a tempo, tapping one in, or dialing in swing: Swing A against Swing B, `4:4` straight. The Tap tile blinks with the beat. |
+| LFO | One row per global LFO, bottom row is LFO 1. The first tile switches it and glows with its wave; the rest pick a period from 1/8 to eight bars. Press a lit period again for its triplet; hold *Shift* for depth. | Slowing a wobble down to a long swell, or snapping it to the beat, without menu diving. |
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |

@@ -102,8 +102,11 @@ pub(super) fn link_lfo_group(
             enum_item(
                 "Period",
                 format!("{prefix}.period"),
-                crate::timing_units::NOTE_UNIT_OPTIONS.to_vec(),
-                crate::timing_units::note_unit_selection_index(&lfo.period),
+                crate::timing_units::LFO_PERIOD_OPTIONS.to_vec(),
+                crate::timing_units::LFO_PERIOD_OPTIONS
+                    .iter()
+                    .position(|period| *period == lfo.period)
+                    .unwrap_or_else(|| crate::timing_units::note_unit_selection_index(&lfo.period)),
             ),
             number_item(
                 "Depth %",

@@ -120,6 +120,7 @@ mod note_sets;
 mod numeric_binding_round_trip;
 mod picker_rows;
 mod play_fx;
+mod play_lfo;
 mod play_menu;
 mod play_mix_mute;
 mod play_overlay;

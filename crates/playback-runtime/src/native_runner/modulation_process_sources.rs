@@ -4,10 +4,11 @@ use super::modulation_process_values::{
     current_discrete_value, numeric_sample, persistent_base_value,
 };
 use super::modulation_source::ModulationSourceId;
-use super::{note_unit_to_pulses, NativeParamBinding, NativeRunner, Value};
+use super::{NativeParamBinding, NativeRunner, Value};
 use crate::native_runner::modulation_target::{
     classify_key, Endpoint, TargetMode, TargetValueKind,
 };
+use crate::timing_units::lfo_period_pulses;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Default)]
@@ -103,8 +104,7 @@ impl ModulationProcessState {
         }
         let (min, max) = super::modulation_process_values::user_binding_range(&binding)
             .ok_or_else(|| format!("LFO target `{}` has no numeric range", binding.key))?;
-        let phase =
-            f64::from(lfo.phase_pulses) / f64::from(note_unit_to_pulses(&lfo.period).max(1));
+        let phase = f64::from(lfo.phase_pulses) / f64::from(lfo_period_pulses(&lfo.period).max(1));
         let mut delta = f64::from(realtime_engine::sine::sin_turns(phase as f32))
             * 0.5
             * f64::from(lfo.depth_pct)

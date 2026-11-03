@@ -30,7 +30,12 @@ pub(super) fn validate_global_modulation(runtime: &Map<String, Value>) -> Result
                 return Err(format!("{path}.target is not additive and live-safe"));
             }
         }
-        enum_field(lfo, "period", &path, crate::timing_units::NOTE_UNIT_OPTIONS)?;
+        enum_field(
+            lfo,
+            "period",
+            &path,
+            crate::timing_units::LFO_PERIOD_OPTIONS,
+        )?;
         unsigned_field(lfo, "depthPct", &path, 0, 100)?;
         if lfo.contains_key("phasePulses") {
             return Err(format!(

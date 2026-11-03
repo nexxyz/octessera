@@ -23,7 +23,7 @@ Link
 │   ├── L1 (group)
 │   │   ├── Enabled: [on | off]                   default off
 │   │   ├── Target: <target | (none)> (picker)    ← numeric, live-safe targets only
-│   │   ├── Period: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]  default 1/1
+│   │   ├── Period: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1 | 2/1T | 2/1 | 4/1T | 4/1 | 8/1T | 8/1]  default 1/1
 │   │   └── Depth %: [0..100] step 1              default 100
 │   └── L2 .. L8 (group)
 ├── Paused Events: [on | off]                     default on
@@ -155,6 +155,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - Targets are additive, numeric, and live-safe; exclusive controls and every LFO configuration key
   are excluded. Claims are validated as described under
   [Modulation](../menu-and-controls-spec.md#modulation).
+- Periods run from `1/32T` to `8/1` (eight bars, 768 pulses); `2/1T`, `4/1T` and `8/1T` are 128,
+  256 and 512 pulses. Changing an LFO's period scales its phase to the new length, so the wave keeps
+  its position in the cycle instead of jumping.
 - Phase and live contributions are transient and never serialized. Playback-runtime sums live LFO
   deltas once per affected endpoint, clamps the result to the target's canonical range, and emits
   transient audio commands without changing the persistent config.

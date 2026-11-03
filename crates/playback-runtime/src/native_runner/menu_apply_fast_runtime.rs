@@ -69,6 +69,7 @@ impl NativeRunner {
             "play.page.pan" => Some(self.fast_play_page_key("pan")),
             "play.page.route" => Some(self.fast_play_page_key("route")),
             "play.page.tempo" => Some(self.fast_play_page_key("tempo")),
+            "play.page.lfo" => Some(self.fast_play_page_key("lfo")),
             "play.page.fx" => Some(self.fast_play_page_key("fx")),
             "play.page.trigger-gate" => Some(self.fast_play_page_key("trigger-gate")),
             "play.page.transpose" => Some(self.fast_play_page_key("transpose")),

@@ -2,7 +2,7 @@
 
 Part of the authoritative menu/control spec; see [`../menu-tree-spec.md`](../menu-tree-spec.md) for
 the index and notation. Play turns the grid into a performance surface. Each page swaps the grid's
-job: mixer faders, pan, routing and live FX bypass, tempo and swing, momentary FX, trigger gates, a transpose keyboard, or
+job: mixer faders, pan, routing and live FX bypass, tempo and swing, the global LFOs, momentary FX, trigger gates, a transpose keyboard, or
 an XY pad.
 
 ## Tree
@@ -13,6 +13,7 @@ Play
 ├── Pan                                  ← page-select row
 ├── Route                                ← page-select row
 ├── Tempo                                ← page-select row
+├── LFO                                  ← page-select row
 ├── FX (group)
 │   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
 │   ├── Target: [master | fx buses | instruments]
@@ -43,12 +44,12 @@ The menu lists the technical bank, then the musical bank.
   | 1 | `pan` | `xy` |
   | 2 | `route` | `transpose` |
   | 3 | `tempo` | `rate` |
-  | 4 | | `trigger-gate` |
+  | 4 | `lfo` | `trigger-gate` |
 
   Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
   that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
   (`Play: trig` for Trigger Gate).
-- In the Play menu, `Mix`, `Pan`, `Route`, `Tempo`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
+- In the Play menu, `Mix`, `Pan`, `Route`, `Tempo`, `LFO`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
   rows: Main press
   selects and activates the page without entering an empty submenu. `FX` and `XY` are
   enterable groups and activate their page too.
@@ -146,6 +147,22 @@ The menu lists the technical bank, then the musical bank.
   nudges dim blue (down) and dim magenta (up); swing markers white on dim gray. While playing, the
   Tap tile pulses with the Play key's beat flash: bright green on the downbeat, half green on
   other beats, dim green between them and while stopped.
+
+## LFO
+
+- Rows are the global LFOs `Link > LFOs > L1..L8`, L1 on the bottom row. Every press goes through
+  the menu edit of that LFO, so it is saved with the patch.
+- Column 0 switches `Enabled` (`L3 on` / `L3 off`). An LFO without a target cannot be switched on:
+  its tile is dark and a press toasts `L3: no target`.
+- Columns `1..7` set `Period` to `1/8`, `1/4`, `1/2`, `1/1`, `2/1`, `4/1`, `8/1`. Pressing the lit
+  period again toggles its triplet (`1/4` and `1/4T`). Toast `L3 period 1/4T`. The phase is scaled
+  to the new period, so the wave keeps its position.
+- Shift + columns `1..7` set `Depth %` to 15, 29, 43, 57, 71, 86, 100 (`L3 depth 43%`).
+- LEDs: column 0 is green while enabled, brightening and darkening with the LFO's current value
+  (updated with the playing display), dim gray while off, dark without a target. Period columns:
+  the current straight period green, a triplet blue, the others dim green. While Shift is held the
+  columns show depth instead: magenta up to the step that holds the current depth, dim magenta
+  above.
 
 ## Play FX
 

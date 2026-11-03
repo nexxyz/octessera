@@ -10,11 +10,16 @@ impl NativeRunner {
                 return None;
             }
             let lfo = self.link_lfos.get_mut(index)?;
+            let previous_period = lfo.period.clone();
             let changed = super::menu_apply_link_fx::apply_link_lfo_slot_menu_state(
                 &self.menu,
                 lfo,
                 &format!("linkLfos.{index}"),
             );
+            if lfo.period != previous_period {
+                lfo.phase_pulses =
+                    rescaled_lfo_phase(lfo.phase_pulses, &previous_period, &lfo.period);
+            }
             let enabled = lfo.enabled;
             self.menu
                 .set_bool_value_for_key(&format!("linkLfos.{index}.enabled"), enabled);
@@ -135,4 +140,11 @@ impl NativeRunner {
         }
         true
     }
+}
+
+/// The same point of the wave in the new period, so a period change does not jump the LFO.
+fn rescaled_lfo_phase(phase: u32, previous: &str, next: &str) -> u32 {
+    let previous = u64::from(crate::timing_units::lfo_period_pulses(previous).max(1));
+    let next = u64::from(crate::timing_units::lfo_period_pulses(next).max(1));
+    ((u64::from(phase) * next + previous / 2) / previous % next) as u32
 }

@@ -2,6 +2,12 @@ pub(crate) const NOTE_UNIT_OPTIONS: &[&str] = &[
     "1/32T", "1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2T", "1/2", "1/1T", "1/1",
 ];
 
+/// LFO periods add multi-bar cycles to the note units.
+pub(crate) const LFO_PERIOD_OPTIONS: &[&str] = &[
+    "1/32T", "1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2T", "1/2", "1/1T", "1/1",
+    "2/1T", "2/1", "4/1T", "4/1", "8/1T", "8/1",
+];
+
 pub(crate) const DEFAULT_NOTE_UNIT: &str = "1/8";
 pub(crate) const DEFAULT_NOTE_UNIT_PULSES: u32 = 12;
 
@@ -36,6 +42,18 @@ pub(crate) fn note_unit_to_pulses_option(unit: &str) -> Option<u32> {
         "1/1T" => Some(64),
         "1/1" => Some(96),
         _ => None,
+    }
+}
+
+pub(crate) fn lfo_period_pulses(period: &str) -> u32 {
+    match period {
+        "2/1T" => 128,
+        "2/1" => 192,
+        "4/1T" => 256,
+        "4/1" => 384,
+        "8/1T" => 512,
+        "8/1" => 768,
+        _ => note_unit_to_pulses(period),
     }
 }
 

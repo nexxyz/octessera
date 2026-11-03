@@ -16,6 +16,7 @@ impl NativeRunner {
             "pan" => self.apply_play_pan_overlay(leds),
             "route" => self.apply_play_route_overlay(leds),
             "tempo" => self.apply_play_tempo_overlay(leds, transient),
+            "lfo" => self.apply_play_lfo_overlay(leds),
             "fx" => self.apply_play_fx_overlay(leds),
             "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),
             "transpose" => self.apply_play_transpose_overlay(leds),

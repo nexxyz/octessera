@@ -141,6 +141,7 @@ const PLAY_MODES: &[&str] = &[
     "pan",
     "route",
     "tempo",
+    "lfo",
     "fx",
     "xy",
     "transpose",
