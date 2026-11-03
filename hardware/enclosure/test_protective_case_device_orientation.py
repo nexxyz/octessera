@@ -91,7 +91,7 @@ class ProtectiveCaseDeviceOrientationTests(unittest.TestCase):
             self.assertAlmostEqual(actual, expected, places=9)
         self.assertEqual(TURNAROUND_EXPECTED_BBOX, (224.109991243, 239.890008757, 66.7, 81.7))
         self.assertEqual(GUIDE_EXPECTED_BBOX, (34.8, 239.890008757, 21.7, 126.7))
-        trellis_boxes = [shape_box(component) for name, component in components if "trellis_cell" in name]
+        trellis_boxes = [shape_box(component) for name, component in components if "trellis_tile" in name]
         self.assertEqual(len(trellis_boxes), 64)
         for actual, expected in zip((min(box.xmin for box in trellis_boxes), max(box.xmax for box in trellis_boxes), min(box.ymin for box in trellis_boxes), max(box.ymax for box in trellis_boxes)), (43.5375, 130.6875, 30.625, 117.775)):
             self.assertAlmostEqual(actual, expected)

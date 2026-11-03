@@ -277,8 +277,8 @@ def _guide_components(params: dict, z_min: float, z_max: float) -> tuple[tuple[s
     )
     components.extend(
         (
-            f"device_orientation_trellis_cell_r{row}_c{column}",
-            _outline(RoundedOutline(center, trellis_cell_size(), trellis_cell_size(), trellis_corner_radius()), z_min, z_max),
+            f"device_orientation_trellis_tile_r{row}_c{column}",
+            _outline(RoundedOutline(center, trellis_tile_size(), trellis_tile_size(), trellis_corner_radius()), z_min, z_max),
         )
         for row, column, center in layout.trellis
     )
@@ -302,7 +302,7 @@ def fused_device_orientation_guide_inlay(params: dict, cutter: bool = False) -> 
     return result
 
 
-def trellis_cell_size() -> float:
+def trellis_tile_size() -> float:
     return load_source_parameters()["neotrellis_button_cutout"] * GUIDE_SCALE
 
 
@@ -384,7 +384,7 @@ def validate_device_orientation(
     expected_names = ["device_orientation_outer_outline", "device_orientation_screen_outline"]
     expected_names += [f"device_orientation_encoder_ring_{index}" for index in range(1, 5)]
     expected_names += [f"device_orientation_neokey_outline_{index}" for index in range(1, 5)]
-    expected_names += [f"device_orientation_trellis_cell_r{row}_c{column}" for row in range(8) for column in range(8)]
+    expected_names += [f"device_orientation_trellis_tile_r{row}_c{column}" for row in range(8) for column in range(8)]
     expected_names += [f"device_orientation_turnaround_arrow_{index}" for index in range(1, 3)]
     _require(names == expected_names, "orientation guide component names or order changed")
     _require(len(components) == 76, f"orientation guide component count changed: {len(components)}")
@@ -398,7 +398,7 @@ def validate_device_orientation(
     for name, outline, (_, component) in zip(names[6:10], layout.neokeys, components[6:10]):
         _check_outline(name, component, outline)
     for name, (_, _, center), (_, component) in zip(names[10:74], layout.trellis, components[10:74]):
-        _check_outline(name, component, RoundedOutline(center, trellis_cell_size(), trellis_cell_size(), trellis_corner_radius()))
+        _check_outline(name, component, RoundedOutline(center, trellis_tile_size(), trellis_tile_size(), trellis_corner_radius()))
 
     arrows = components[74:]
     _require(TURNAROUND_ARC_STROKE == 1.0 and TURNAROUND_ARC_INNER_RADIUS == 6.5 and TURNAROUND_ARC_OUTER_RADIUS == 7.5, "turnaround arc dimensions changed")
@@ -480,4 +480,4 @@ def validate_device_orientation(
     _require(abs(deep_catch_bridge_clearance - CONTROL_SIDE_DEEP_CATCH_BRIDGE_CLEARANCE) <= TOLERANCE, f"deep catch and bridge clearance changed: {deep_catch_bridge_clearance:.6f}")
     _require(receiver_clearance >= CONTROL_SIDE_RECEIVER_CLEARANCE - TOLERANCE, f"turnaround arrow receiver clearance is too small: {receiver_clearance:.6f}")
     _require(abs(control_side_wall_margin - CONTROL_SIDE_WALL_MARGIN) <= 0.01, f"turnaround arrow control-side wall margin changed: {control_side_wall_margin:.9f}")
-    print(f"device_orientation_guide=components=76 grid_cells=64 turnaround_arrows=2 stroke={GUIDE_STROKE:.1f}mm z={GUIDE_Z_MIN:.2f}..{GUIDE_Z_MAX:.2f} turnaround_bbox=X{TURNAROUND_EXPECTED_BBOX[0]:.9f}..{TURNAROUND_EXPECTED_BBOX[1]:.9f}/Y{TURNAROUND_EXPECTED_BBOX[2]:.1f}..{TURNAROUND_EXPECTED_BBOX[3]:.1f} guide_gap={control_side_gap:.9f}mm nominal_clearance={nominal_clearance:.9f}mm guide_clearance={guide_reference_top_clearance:.3f}mm arrow_clearance={reference_top_clearance:.9f}mm support_clearance={control_side_support_clearance:.9f}mm foam_clearance={control_side_foam_clearance:.9f}mm hinge_clearance={hinge_clearance:.9f}mm deep_catch_bridge_clearance={deep_catch_bridge_clearance:.9f}mm receiver_clearance={receiver_clearance:.9f}mm control_side_wall_margin={control_side_wall_margin:.9f}mm floor_attachment={TURNAROUND_FLOOR_ATTACHMENT_VOLUME:.6f}mm3 collision=NONE")
+    print(f"device_orientation_guide=components=76 grid_tiles=64 turnaround_arrows=2 stroke={GUIDE_STROKE:.1f}mm z={GUIDE_Z_MIN:.2f}..{GUIDE_Z_MAX:.2f} turnaround_bbox=X{TURNAROUND_EXPECTED_BBOX[0]:.9f}..{TURNAROUND_EXPECTED_BBOX[1]:.9f}/Y{TURNAROUND_EXPECTED_BBOX[2]:.1f}..{TURNAROUND_EXPECTED_BBOX[3]:.1f} guide_gap={control_side_gap:.9f}mm nominal_clearance={nominal_clearance:.9f}mm guide_clearance={guide_reference_top_clearance:.3f}mm arrow_clearance={reference_top_clearance:.9f}mm support_clearance={control_side_support_clearance:.9f}mm foam_clearance={control_side_foam_clearance:.9f}mm hinge_clearance={hinge_clearance:.9f}mm deep_catch_bridge_clearance={deep_catch_bridge_clearance:.9f}mm receiver_clearance={receiver_clearance:.9f}mm control_side_wall_margin={control_side_wall_margin:.9f}mm floor_attachment={TURNAROUND_FLOOR_ATTACHMENT_VOLUME:.6f}mm3 collision=NONE")
