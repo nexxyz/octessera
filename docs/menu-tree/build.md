@@ -77,7 +77,7 @@ Build
 │   │       └── sand ripples
 │   ├── Auto Label: [on | off]                   ← on: label follows the behavior ID; off: manual text
 │   ├── Layer Label: (text, max 32)              ← editing sets Auto Label off
-│   ├── Step Rate: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]  ← how often the behavior ticks; hidden for none
+│   ├── Step Rate: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]  ← how often the behavior ticks, unless Link scanning is on (then Scan Unit sets it); hidden for none
 │   ├── ... behavior config rows from configMenu() ← hidden for none
 │   ├── Seeded: [on | off]                       ← default off; hidden for none
 │   └── Reset (action)                           ← reinitializes the behavior state; hidden for none
@@ -345,7 +345,7 @@ Event semantics that the menu rows above do not show. All coordinates are lower-
 
 | Behavior | Notes |
 |---|---|
-| `sequencer` | A canvas of `Pages X` x `Pages Y` 8x8 pages; the grid is a viewport onto one page (`Page X`, `Page Y`) and shows, edits, and plays only that page. Pages never drawn on stay empty. `Advance` turns the view to the next page in reading order (along the row of pages, then up a row, wrapping) every `Advance` steps of the layer's Step Rate, counted from Play: steps 1 to N play the page in view and step N + 1 turns. Step Rate also paces the layer's scanning, so keep it at the scan unit: with Step Rate 1/8 and an 8-column scan, Advance 8 turns on every bar and Advance 2 on every beat. Stop or reset restarts the count; Link scanning settings and sections never change it. Changing these rows keeps the drawn pages (other behaviors re-initialize). Saves from before pages load as page 1, 1. |
+| `sequencer` | A canvas of `Pages X` x `Pages Y` 8x8 pages; the grid is a viewport onto one page (`Page X`, `Page Y`) and shows, edits, and plays only that page. Pages never drawn on stay empty. `Advance` turns the view to the next page in reading order (along the row of pages, then up a row, wrapping) every `Advance` layer steps, counted from Play: steps 1 to N play the page in view and step N + 1 turns. A layer steps at its Step Rate, or at its Link `Scan Unit` while Link scanning is on (Step Rate is then unused): with Scan Unit 1/8 and an 8-column scan, Advance 8 turns on every bar and Advance 2 on every beat. Stop or reset restarts the count; Link scanning settings and sections never change it. Changing these rows keeps the drawn pages (other behaviors re-initialize). Saves from before pages load as page 1, 1. |
 | `looper` | `Punch In/Out` toggles between overdub and play, keeps the recorded loop and live playback, and toasts `Looper: Overdub` or `Looper: Play`. There is no editable mode row. |
 | `bubbles` | Current, Drift, and Buoyancy use eighth-tile units per tick. `Add Bubble` spawns one bottom-origin rising bubble immediately. |
 | `forest_fire` | Trees and burning cells render as visible, but events follow trigger types: tree-to-fire and manual ignition activate, burned-out cells deactivate, visible non-burning trees are stable, unrelated empty cells emit nothing. |

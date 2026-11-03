@@ -246,15 +246,19 @@ The `ms` rows use the curved time steps from
 - Columns `0..7` set that layer's `Build > Step Rate` to `1/32`, `1/16T`, `1/16`, `1/8T`, `1/8`,
   `1/4T`, `1/4`, `1/2`, through the same path as the menu edit, so it is saved with the patch. The
   layer keeps its step phase and the new rate applies from its next step. Toast `L3 rate 1/8`.
-- Shift + press arms a resync for that layer (`L3 resync`): at the next bar line its step
-  accumulator is set so a step lands on the bar, and its steps follow the bar grid again. Shift +
-  press never changes the rate.
-- Scanning layers step at their `Link > Lx > Scanning > Scan Unit`, not at Step Rate, so Rate
-  tiles on a scanning layer change the saved Step Rate without changing when it steps; resync
-  still aligns it.
-- LEDs: the current rate bright, the others dim; straight rates green, triplets blue. A layer on a
-  rate outside these eight (`1/32T`, `1/2T`, `1/1T`, `1/1`) shows no bright tile. `none` layers are
-  dark and ignore presses.
+- Scanning layers step at their `Link > Lx > Scanning > Scan Unit`, not at Step Rate, so Step Rate
+  tiles on a scanning layer change the saved Step Rate without changing when it steps.
+- Shift view: while Shift is held the same columns show and set each layer's Scan Unit instead,
+  through the same menu edit path, so it is saved and autosaved with the patch. Toast
+  `L3 scan 1/8`. Layers whose Scan Mode is `none` are dim; a press on one toasts `L3: not scanning`
+  and changes nothing (the page never turns scanning on). Releasing Shift returns to Step Rate.
+- Pressing the lit tile of a layer, in either view, arms a resync for it (`L3 resync`) instead of
+  changing a value: at the next bar line its step accumulator is set so a step lands on the bar
+  and its scan restarts at its first position on that step, so its steps and scan follow the bar
+  grid again.
+- LEDs: the current value bright, the others dim; straight values green (Step Rate) or white
+  (Scan Unit), triplets blue in both views. A layer on a value outside these eight (`1/32T`, `1/2T`,
+  `1/1T`, `1/1`) shows no bright tile. `none` layers are dark and ignore presses.
 
 ## XY
 

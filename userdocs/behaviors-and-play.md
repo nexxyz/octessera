@@ -39,7 +39,7 @@ in **Build**.
 |---|---|---|
 | `none` | Human | Inactive layer, for when you want space or are setting up. |
 | `keys` | Human | Press a tile to play, release it to stop. Immediate and human. |
-| `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. It can hold up to 4x4 pages of 8x8: pick the page in view with Page X and Page Y, or let Advance turn the pages for you every few steps (at Step Rate 1/8, Advance 8 turns once a bar). |
+| `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. It can hold up to 4x4 pages of 8x8: pick the page in view with Page X and Page Y, or let Advance turn the pages for you every few steps (stepping at 1/8, Advance 8 turns once a bar; a scanning layer steps at its Scan Unit). |
 | `looper` | Human | Records and replays grid presses and releases. Use Punch In/Out to overdub. |
 | `weave` | Human | Two interlaced melodic strands crossing the grid. Quick counterpoint-ish motion. |
 | `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. |
@@ -120,7 +120,7 @@ column, leaves the page.
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |
-| Rate | One row per layer, bottom row is Layer 1; the columns are step rates from 1/32 to 1/2, straight green and triplets blue. | Speeding a layer up or slowing it down mid-groove. Shift + tile pulls a drifting layer back onto the bar at the next bar line. |
+| Rate | One row per layer, bottom row is Layer 1; the columns are step rates from 1/32 to 1/2, straight green and triplets blue. Hold *Shift* for each scanning layer's Scan Unit (straight in white). | Speeding a layer up or slowing it down mid-groove. Press a layer's lit tile to pull it back onto the bar at the next bar line. |
 | XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. *Shift* + tile parks it there after you let go, even when **Release** springs back to the center; a plain press un-parks it. |
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
