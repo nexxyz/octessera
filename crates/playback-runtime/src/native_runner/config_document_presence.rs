@@ -21,6 +21,8 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
     "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
+    "mainFont",
+    "smallFont",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",

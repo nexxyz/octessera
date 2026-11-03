@@ -241,11 +241,14 @@ fn shift_layer_shows_its_hints_under_a_barred_cap() {
 
 #[test]
 fn hint_labels_drop_inner_vowels_then_cut_to_their_room() {
-    assert_eq!(shortened_hint("Cutoff", 40), None);
+    assert_eq!(shortened_hint("Cutoff", 40, &TOM_THUMB), None);
     let room = TOM_THUMB.width("Intrvl");
-    assert_eq!(shortened_hint("Interval", room).as_deref(), Some("Intrvl"));
     assert_eq!(
-        shortened_hint("Master Vol", TOM_THUMB.width("Mstr Vl")).as_deref(),
+        shortened_hint("Interval", room, &TOM_THUMB).as_deref(),
+        Some("Intrvl")
+    );
+    assert_eq!(
+        shortened_hint("Master Vol", TOM_THUMB.width("Mstr Vl"), &TOM_THUMB).as_deref(),
         Some("Mstr Vl")
     );
     let mut input = with_hints([turn("Res"), turn("Mix"), turn("Master Volume")]);

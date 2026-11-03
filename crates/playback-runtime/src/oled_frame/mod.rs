@@ -4,7 +4,9 @@ mod error_layout;
 mod font;
 mod font_5x7;
 mod font_m5x7;
+mod font_m5x7_original;
 mod font_tom_thumb;
+mod font_tom_thumb_original;
 mod footer;
 mod header;
 mod master_contrast;
@@ -23,6 +25,7 @@ pub const OLED_HEIGHT: usize = 128;
 pub const OLED_FRAME_BYTES: usize = OLED_WIDTH * OLED_HEIGHT * 2;
 
 pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
+pub use font::OledFont;
 pub(crate) use header::breadcrumb_fits;
 pub use master_contrast::{oled_master_contrast_step, OLED_MASTER_CONTRAST_STEPS};
 #[cfg(test)]
@@ -56,6 +59,9 @@ mod error_layout_tests;
 
 #[cfg(test)]
 mod glyph_placement_tests;
+
+#[cfg(test)]
+mod font_choice_tests;
 
 #[cfg(test)]
 mod indicator_tests;

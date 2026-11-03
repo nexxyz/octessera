@@ -1,7 +1,8 @@
 use super::snapshot_display::DisplaySnapshot;
 use super::snapshot_scene::{oled_bar_input, oled_body_input, oled_scroll_input};
 use crate::oled_frame::{
-    OledAnimationInput, OledBodyAnimation, OledBodyFrom, OledDisplayLayout, OledToastSlide,
+    OledAnimationInput, OledBodyAnimation, OledBodyFrom, OledDisplayLayout, OledFont,
+    OledToastSlide,
 };
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -134,6 +135,7 @@ pub(super) struct AnimationFrame<'a> {
     pub(super) display: &'a DisplaySnapshot,
     pub(super) title_color: u16,
     pub(super) editing: bool,
+    pub(super) fonts: [OledFont; 2],
     pub(super) toast: &'a str,
     /// The menu stack while the plain menu shows; `None` for modals, splash and off.
     pub(super) menu_stack: Option<&'a [usize]>,
@@ -218,7 +220,7 @@ impl DisplayAnimations {
             }
         }
         self.previous = Some(Arc::new(OledBodyFrom {
-            display: oled_body_input(frame.display, frame.title_color, frame.editing),
+            display: oled_body_input(frame.display, frame.title_color, frame.editing, frame.fonts),
             selected_row: frame.display.selected_row,
         }));
         if !same_stack {

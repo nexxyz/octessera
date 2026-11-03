@@ -4,8 +4,8 @@ use crate::native_menu::{
     NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
 };
 use crate::oled_frame::{
-    menu_row_text_overflows, rows_show_aux_caps, OledAuxCap, OledDisplayLayout, OledMenuRowInput,
-    OledMenuRowKind,
+    menu_row_text_overflows, rows_show_aux_caps, OledAuxCap, OledDisplayLayout, OledFont,
+    OledMenuRowInput, OledMenuRowKind,
 };
 
 mod modal_screens;
@@ -120,7 +120,11 @@ impl NativeRunner {
                 })
                 .collect();
             if !self.menu.state.editing || selected_link_instrument_target {
-                scroll_selected_label(&mut display, self.display.menu_scroll_offset);
+                scroll_selected_label(
+                    &mut display,
+                    self.display.menu_scroll_offset,
+                    OledFont::from_setting(&self.display.ui.main_font),
+                );
             }
         }
         display.colors.truncate(display.lines.len());
@@ -159,7 +163,7 @@ fn scroll_display_line_once(line: &str, full_line: Option<&str>, ticks: usize) -
 
 /// Scrolls the selected row's label, or a picker's value, through its slot when it is wider
 /// than its room.
-fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize) {
+fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize, font: OledFont) {
     if ticks < SELECTED_LINE_SCROLL_TICKS_PER_CHAR {
         return;
     }
@@ -172,7 +176,7 @@ fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize) {
     let Some(row) = display.rows.get_mut(index).and_then(Option::as_mut) else {
         return;
     };
-    if !menu_row_text_overflows(row, has_bar, gutter) {
+    if !menu_row_text_overflows(row, has_bar, gutter, font) {
         return;
     }
     let text = if row.kind == OledMenuRowKind::Picker {
@@ -203,7 +207,12 @@ pub(super) fn selected_menu_label_overflows(
         .get(index)
         .and_then(Option::as_ref)
         .is_some_and(|row| {
-            menu_row_text_overflows(&menu_row_input(row, None, preview), has_bar, !menu.list)
+            menu_row_text_overflows(
+                &menu_row_input(row, None, preview),
+                has_bar,
+                !menu.list,
+                OledFont::from_setting(&runner.display.ui.main_font),
+            )
         })
 }
 

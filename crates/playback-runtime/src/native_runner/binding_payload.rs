@@ -276,6 +276,8 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
                     | "auxManualHints"
                     | "inputEventsWhilePaused"
                     | "numericDisplayMode"
+                    | "mainFont"
+                    | "smallFont"
                     | "dimTimerSeconds"
                     | "screenSleepSeconds"
             ))

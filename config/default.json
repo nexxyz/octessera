@@ -3483,6 +3483,8 @@
       }
     },
     "numericDisplayMode": "bar",
+    "mainFont": "octessera",
+    "smallFont": "octessera",
     "recording": {
       "maxMinutes": 10
     },

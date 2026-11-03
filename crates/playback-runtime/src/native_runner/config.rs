@@ -145,6 +145,8 @@ impl NativeRunner {
             aux_manual_hints: self.display.ui.aux_manual_hints,
             input_events_while_paused: self.input_events_while_paused,
             numeric_display_mode: self.display.ui.numeric_display_mode.clone(),
+            main_font: self.display.ui.main_font.clone(),
+            small_font: self.display.ui.small_font.clone(),
             screen_sleep_seconds: self.display.ui.screen_sleep_seconds,
             dim_timer_seconds: self.display.ui.dim_timer_seconds,
             grid_brightness: self.display.ui.grid_brightness,

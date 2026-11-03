@@ -1,7 +1,47 @@
+use serde::{Deserialize, Serialize};
+
 use super::{OLED_HEIGHT, OLED_WIDTH};
 
 pub(super) use super::font_m5x7::M5X7;
+pub(super) use super::font_m5x7_original::M5X7_ORIGINAL;
 pub(super) use super::font_tom_thumb::TOM_THUMB;
+pub(super) use super::font_tom_thumb_original::TOM_THUMB_ORIGINAL;
+
+/// Which glyph set a font role draws: Octessera's edited glyphs or the unmodified originals.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OledFont {
+    #[default]
+    Octessera,
+    Original,
+}
+
+impl OledFont {
+    /// The setting string (`octessera` or `original`) as a font; anything else is Octessera.
+    pub fn from_setting(setting: &str) -> Self {
+        if setting == "original" {
+            Self::Original
+        } else {
+            Self::Octessera
+        }
+    }
+
+    /// The m5x7 table of the body rows and the toast.
+    pub(super) fn main(self) -> &'static PixelFont {
+        match self {
+            Self::Octessera => &M5X7,
+            Self::Original => &M5X7_ORIGINAL,
+        }
+    }
+
+    /// The Tom Thumb table of the breadcrumb and footer hints.
+    pub(super) fn small(self) -> &'static PixelFont {
+        match self {
+            Self::Octessera => &TOM_THUMB,
+            Self::Original => &TOM_THUMB_ORIGINAL,
+        }
+    }
+}
 
 /// Marks text clipped to its room.
 pub(super) const CLIP_MARKER: &str = "..";

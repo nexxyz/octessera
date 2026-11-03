@@ -180,6 +180,7 @@ little `▸` pointing at the file you have loaded.
 | How a row reads | A value on the right (`Step Rate  1/8`) changes when you click and turn. `Beh.: life >` is picked from a list: click to open it. A plain `>` opens a page, and `!` does something right away. |
 | `▸` in a list | The entry you have picked now, and the folder it lives in. Lists open with the cursor right there. |
 | Bars instead of numbers | `System > Display > Num Style` is on `bar`. Switch it to `numbers` if you'd rather read digits. |
+| Letters look different | `System > Display > Main Font` and `Small Font` pick my redrawn glyphs (`Octessera`) or the original fonts (`Original`). Flip them if you want the old look back. |
 | Bottom left | What Aux 1-3 do on this page: the turn, and a click with a `!`. Hold *Shift* to peek at the Shift layer. |
 | Bottom right, red disc | A recording is running. It breathes once a second so you don't forget it's on. |
 | Bottom right, icon | Play, pause or stop. It blinks yellow on beats and green on bar starts. |

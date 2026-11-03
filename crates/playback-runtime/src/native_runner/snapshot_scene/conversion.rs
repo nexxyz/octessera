@@ -69,6 +69,8 @@ impl PresentationScene {
                 "auxManualHints": ui.aux_manual_hints,
                 "inputEventsWhilePaused": self.input_events_while_paused,
                 "numericDisplayMode": ui.numeric_display_mode,
+                "mainFont": ui.main_font,
+                "smallFont": ui.small_font,
                 "dimTimerSeconds": ui.dim_timer_seconds,
                 "screenSleepSeconds": ui.screen_sleep_seconds,
                 "ledsDimmed": self.leds_dimmed,

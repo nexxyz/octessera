@@ -25,6 +25,8 @@ const FULL_FIELDS: &[&str] = &[
     "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
+    "mainFont",
+    "smallFont",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -69,6 +71,8 @@ const PREFERENCE_FIELDS: &[&str] = &[
     "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
+    "mainFont",
+    "smallFont",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -94,6 +98,8 @@ const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
+    "mainFont",
+    "smallFont",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -137,6 +143,8 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
+    "mainFont",
+    "smallFont",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -242,6 +250,10 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         alternate_bool(&canonical_runtime["inputEventsWhilePaused"]);
     source_runtime["numericDisplayMode"] =
         alternate_enum(&canonical_runtime["numericDisplayMode"], "bar", "numbers");
+    source_runtime["mainFont"] =
+        alternate_enum(&canonical_runtime["mainFont"], "octessera", "original");
+    source_runtime["smallFont"] =
+        alternate_enum(&canonical_runtime["smallFont"], "octessera", "original");
     for field in [
         "dimTimerSeconds",
         "screenSleepSeconds",

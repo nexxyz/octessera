@@ -29,7 +29,9 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
             "displayBrightness": 16,
             "autoSaveFlash": "none",
             "autoSaveFlashSerial": 0,
-            "cpuWarnPercent": 85
+            "cpuWarnPercent": 85,
+            "mainFont": "octessera",
+            "smallFont": "octessera"
         },
         "selectedRow": null,
         "auxHints": {

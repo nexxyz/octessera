@@ -1,7 +1,7 @@
 use platform_core::palette;
 
 use super::aux_cap::draw_aux_cap;
-use super::font::{M5X7, TOM_THUMB};
+use super::font::PixelFont;
 use super::model::{
     OledAuxCap, OledAuxHint, OledHintLabel, OledTransportFlash, OledTransportIcon,
     INDICATOR_FADE_LEVELS,
@@ -44,7 +44,12 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput) {
     } else {
         &input.aux_hints.normal
     };
-    draw_hints(frame, hints, input.aux_shift_layer);
+    draw_hints(
+        frame,
+        input.display.small_font.small(),
+        hints,
+        input.aux_shift_layer,
+    );
     if input.recording_active {
         let level = if input.recording_pulse_dim { 0.5 } else { 1.0 };
         let red = rgb565(scale(palette::BEHAVIOR_PRIMARY_RED, level));
@@ -58,7 +63,7 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput) {
         let drop = TOAST_ROWS - rows;
         fill_rect(frame, 0, TOAST_Y + drop, HINT_RIGHT + 1, rows, 0);
         let white = rgb565(palette::WHITE);
-        M5X7.draw_fitted(
+        input.display.main_font.main().draw_fitted(
             frame,
             toast,
             HINT_RIGHT + 1 - TOAST_TEXT_X,
@@ -112,7 +117,7 @@ pub(super) fn hint_label_right(hints: &[OledAuxHint; 3], slot: usize) -> usize {
         .map_or(HINT_RIGHT, |(next, _)| HINT_SLOT_X[next] - 2)
 }
 
-fn draw_hints(frame: &mut [u8], hints: &[OledAuxHint; 3], shift: bool) {
+fn draw_hints(frame: &mut [u8], font: &PixelFont, hints: &[OledAuxHint; 3], shift: bool) {
     for (slot, hint) in hints.iter().enumerate() {
         let Some(cap_label) = hint.turn.as_ref().or(hint.click.as_ref()) else {
             continue;
@@ -128,34 +133,34 @@ fn draw_hints(frame: &mut [u8], hints: &[OledAuxHint; 3], shift: bool) {
         for (label, click, top) in hint_label_rows(hint).into_iter().flatten() {
             let color = label.color;
             let suffix = if click { "!" } else { "" };
-            let pen = draw_hint_label(frame, &label.text, suffix, label_x, top, room, color);
-            TOM_THUMB.draw(frame, suffix, pen, top, color);
+            let label_room = room.saturating_sub(font.advance(suffix));
+            let pen = draw_hint_label(frame, font, &label.text, label_x, top, label_room, color);
+            font.draw(frame, suffix, pen, top, color);
         }
     }
 }
 
-/// Draws as much of a hint label as `room` allows with `suffix` still after it: whole when
-/// it fits, else with vowels inside words dropped from the right, then cut. Returns the pen.
+/// Draws as much of a hint label as `room` allows: whole when it fits, else with vowels inside
+/// words dropped from the right, then cut. Returns the pen.
 fn draw_hint_label(
     frame: &mut [u8],
+    font: &PixelFont,
     text: &str,
-    suffix: &str,
     x: usize,
     top: usize,
     room: usize,
     color: u16,
 ) -> usize {
-    let room = room.saturating_sub(TOM_THUMB.advance(suffix));
-    let shortened = shortened_hint(text, room);
+    let shortened = shortened_hint(text, room, font);
     let label = shortened.as_deref().unwrap_or(text);
-    let fit = TOM_THUMB.fit(label, room, "");
-    TOM_THUMB.draw(frame, &label[..fit.end], x, top, color)
+    let fit = font.fit(label, room, "");
+    font.draw(frame, &label[..fit.end], x, top, color)
 }
 
 /// `text` with lower-case vowels inside words dropped from the right until it fits `room`
 /// pixels; `None` when it already fits.
-pub(super) fn shortened_hint(text: &str, room: usize) -> Option<String> {
-    let mut width = TOM_THUMB.width(text);
+pub(super) fn shortened_hint(text: &str, room: usize, font: &PixelFont) -> Option<String> {
+    let mut width = font.width(text);
     if width <= room {
         return None;
     }
@@ -165,7 +170,7 @@ pub(super) fn shortened_hint(text: &str, room: usize) -> Option<String> {
         index -= 1;
         let inside_word = chars[index - 1].is_alphanumeric();
         if inside_word && matches!(chars[index], 'a' | 'e' | 'i' | 'o' | 'u') {
-            width -= usize::from(TOM_THUMB.glyph(chars[index]).advance);
+            width -= usize::from(font.glyph(chars[index]).advance);
             chars.remove(index);
         }
     }

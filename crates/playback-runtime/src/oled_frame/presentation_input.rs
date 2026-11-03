@@ -1,6 +1,6 @@
 use super::{
     OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
-    OledDisplayLayout, OledMenuRowInput, OledPresentationInput, OledPresentationMetrics,
+    OledDisplayLayout, OledFont, OledMenuRowInput, OledPresentationInput, OledPresentationMetrics,
     OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledTransportFlash,
     OledTransportIcon, OledTransportInput,
 };
@@ -51,6 +51,8 @@ struct OledSettingsDto {
     auto_save_flash: String,
     auto_save_flash_serial: u64,
     cpu_warn_percent: u8,
+    main_font: String,
+    small_font: String,
 }
 
 #[derive(Deserialize)]
@@ -136,6 +138,8 @@ pub(crate) fn presentation_input_from_snapshot(
             scroll,
             editing: display.editing,
             toast: display.toast,
+            main_font: OledFont::from_setting(&settings.main_font),
+            small_font: OledFont::from_setting(&settings.small_font),
         },
         selected_row,
         transport: OledTransportInput {

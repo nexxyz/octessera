@@ -447,6 +447,12 @@ palette unless a behavior deliberately owns its own.
   selected or not, in place of the number; `numbers` shows numbers only and no bars.
   Each bar carries its fraction and style:
   `marker` for pan, semitones, cents, detune and envelope amount, `fill` otherwise.
+- `Main Font` and `Small Font` (System > Display, after `Num Style`) each pick `Octessera` (the
+  default, Octessera's edited glyphs) or `Original` (the unmodified m5x7 and Tom Thumb tables).
+  Main covers menu rows, lists and the toast; Small covers the breadcrumb and footer hints.
+  Stored as `mainFont` / `smallFont` (`octessera` or `original`) in the system preferences. The
+  switch is presentation only: it takes the key fast path, rebuilds no menu and changes no
+  stored musical value. Row-fit and breadcrumb checks must hold in both glyph sets.
 - Bar fractions follow encoder-turn space (see [Numeric steps](#numeric-steps)), so a bar moves
   evenly per detent: time rows use the share of coarse detents from the minimum, frequency and Q
   rows `log(v/min) / log(max/min)`, reverb `Decay` and delay `Feedback` the log of the distance to

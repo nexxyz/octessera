@@ -82,6 +82,12 @@ impl NativeRunner {
             "numericDisplayMode" => Some(self.fast_string_menu_key(key, |runner, value| {
                 value_changed(&mut runner.display.ui.numeric_display_mode, value)
             })),
+            "mainFont" => Some(self.fast_string_menu_key(key, |runner, value| {
+                value_changed(&mut runner.display.ui.main_font, value.to_lowercase())
+            })),
+            "smallFont" => Some(self.fast_string_menu_key(key, |runner, value| {
+                value_changed(&mut runner.display.ui.small_font, value.to_lowercase())
+            })),
             "screenSleepSeconds" => Some(self.fast_number_menu_key(key, |runner, value| {
                 let value = value.clamp(0, 600) as u16;
                 value_changed(&mut runner.display.ui.screen_sleep_seconds, value)

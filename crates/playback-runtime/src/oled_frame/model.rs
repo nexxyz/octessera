@@ -1,4 +1,4 @@
-use super::OledDisplayLayout;
+use super::{OledDisplayLayout, OledFont};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -98,6 +98,8 @@ pub struct OledDisplayInput {
     pub scroll: Option<OledScrollInput>,
     pub editing: bool,
     pub toast: String,
+    pub main_font: OledFont,
+    pub small_font: OledFont,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

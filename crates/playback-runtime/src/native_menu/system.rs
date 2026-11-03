@@ -116,6 +116,18 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             vec!["bar", "numbers"],
             selected_index(&["bar", "numbers"], &config.numeric_display_mode),
         ),
+        enum_item(
+            "Main Font",
+            "mainFont",
+            vec!["Octessera", "Original"],
+            selected_index(&["octessera", "original"], &config.main_font),
+        ),
+        enum_item(
+            "Small Font",
+            "smallFont",
+            vec!["Octessera", "Original"],
+            selected_index(&["octessera", "original"], &config.small_font),
+        ),
         number_item(
             "Dim Timer",
             "dimTimerSeconds",

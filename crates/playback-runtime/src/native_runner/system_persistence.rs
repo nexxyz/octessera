@@ -217,6 +217,8 @@ impl SystemPersistenceState {
             "auxManualHints": runner.display.ui.aux_manual_hints,
             "inputEventsWhilePaused": runner.input_events_while_paused,
             "numericDisplayMode": runner.display.ui.numeric_display_mode,
+            "mainFont": runner.display.ui.main_font,
+            "smallFont": runner.display.ui.small_font,
             "dimTimerSeconds": runner.display.ui.dim_timer_seconds,
             "screenSleepSeconds": runner.display.ui.screen_sleep_seconds,
             "displayBrightness": runner.display.ui.display_brightness,

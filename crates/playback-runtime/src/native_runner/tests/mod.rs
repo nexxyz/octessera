@@ -73,6 +73,7 @@ mod controls;
 mod device_config_apply;
 mod dim_sleep;
 mod display_animations;
+mod display_fonts;
 mod display_transients;
 mod drum_commands;
 mod drum_input;

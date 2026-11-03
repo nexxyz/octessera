@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use super::font::{CLIP_MARKER, M5X7};
+use super::font::{OledFont, PixelFont, CLIP_MARKER};
 use super::menu_rows::{MARKER_CENTRE_X, MINI_WIDTH, PREVIEW_WIDTH, VALUE_LAST};
 use super::model::{OledBarInput, OledMenuRowInput, OledMenuRowKind};
 
@@ -38,6 +38,7 @@ pub(super) fn row_layout<'a>(
     row: &'a OledMenuRowInput,
     bar: Option<&'a OledBarInput>,
     name_x: usize,
+    font: &PixelFont,
 ) -> RowLayout<'a> {
     let (name, value): (Cow<str>, RowValue) = match row.kind {
         OledMenuRowKind::Group if row.value.is_empty() => {
@@ -64,7 +65,7 @@ pub(super) fn row_layout<'a>(
         ),
     };
     let marker_width = |marker| {
-        let (first, last) = M5X7.ink_columns(marker);
+        let (first, last) = font.ink_columns(marker);
         VALUE_LAST + 1 + (first + last) / 2 - first - MARKER_CENTRE_X
     };
     let (value_width, value_end, value_clipped) = match value {
@@ -73,23 +74,23 @@ pub(super) fn row_layout<'a>(
         RowValue::Preview => (PREVIEW_WIDTH, 0, false),
         RowValue::Marker(marker) => (marker_width(marker), 0, false),
         RowValue::Picked(text) => {
-            let room = (PICKED_LAST + 1).saturating_sub(name_x + M5X7.advance(&name));
-            let fit = M5X7.fit(text, room, CLIP_MARKER);
+            let room = (PICKED_LAST + 1).saturating_sub(name_x + font.advance(&name));
+            let fit = font.fit(text, room, CLIP_MARKER);
             (marker_width('>'), fit.end, fit.marker)
         }
         RowValue::Text(text) => {
             let room = (VALUE_LAST + 1)
-                .saturating_sub(name_x + M5X7.width(&name) + NAME_VALUE_GAP)
+                .saturating_sub(name_x + font.width(&name) + NAME_VALUE_GAP)
                 .max(MINI_WIDTH);
-            let fit = M5X7.fit(text, room, CLIP_MARKER);
-            let shown = M5X7.advance(&text[..fit.end])
+            let fit = font.fit(text, room, CLIP_MARKER);
+            let shown = font.advance(&text[..fit.end])
                 + if fit.marker {
-                    M5X7.advance(CLIP_MARKER)
+                    font.advance(CLIP_MARKER)
                 } else {
                     0
                 };
             let cursor = if row.text_cursor.is_some() {
-                usize::from(M5X7.glyph(' ').advance)
+                usize::from(font.glyph(' ').advance)
             } else {
                 0
             };
@@ -117,21 +118,28 @@ pub(super) fn row_layout<'a>(
 
 /// Whether a row's scrolling text, its label or a picker's value, is wider than its room, so
 /// the selected row scrolls it.
-pub(crate) fn menu_row_text_overflows(row: &OledMenuRowInput, has_bar: bool, gutter: bool) -> bool {
+pub(crate) fn menu_row_text_overflows(
+    row: &OledMenuRowInput,
+    has_bar: bool,
+    gutter: bool,
+    font: OledFont,
+) -> bool {
+    let font = font.main();
     let bar = has_bar.then(OledBarInput::default);
     let name_x = if gutter { NAME_X } else { LIST_NAME_X };
-    let layout = row_layout(row, bar.as_ref(), name_x);
+    let layout = row_layout(row, bar.as_ref(), name_x, font);
     match layout.value {
         RowValue::Picked(_) => layout.value_clipped,
-        _ => M5X7.width(&layout.name) > layout.name_room,
+        _ => font.width(&layout.name) > layout.name_room,
     }
 }
 
 /// Whether a row clips its label or a value that does not scroll.
 #[cfg(test)]
-pub(crate) fn menu_row_clips(row: &OledMenuRowInput, has_bar: bool) -> bool {
+pub(crate) fn menu_row_clips(row: &OledMenuRowInput, has_bar: bool, font: OledFont) -> bool {
+    let font = font.main();
     let bar = has_bar.then(OledBarInput::default);
-    let layout = row_layout(row, bar.as_ref(), NAME_X);
+    let layout = row_layout(row, bar.as_ref(), NAME_X, font);
     let picked = matches!(layout.value, RowValue::Picked(_));
-    layout.value_clipped && !picked || M5X7.width(&layout.name) > layout.name_room
+    layout.value_clipped && !picked || font.width(&layout.name) > layout.name_room
 }

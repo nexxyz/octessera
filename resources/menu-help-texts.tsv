@@ -381,6 +381,8 @@ display_bright	*	key:displayBrightness	number	OLED Bright	Sets the OLED panel cu
 grid_bright	*	key:gridBrightness	number	Grid Bright	Sets grid LED brightness scaling.	Lower values are useful for dark environments.
 button_bright	*	key:buttonBrightness	number	Button Bright	Sets NeoKey/button LED brightness scaling.	Helps match hardware feel to ambient light.
 numeric_display	*	key:numericDisplayMode	enum	Num Style	bar draws a small value bar on every bounded number row; numbers shows the numeric values instead.	Bars follow the encoder: time and frequency rows move evenly per detent. This changes the display, not the stored value.
+main_font	*	key:mainFont	enum	Main Font	Octessera uses the edited m5x7 glyphs for menu rows and the toast; Original uses the unmodified m5x7.	This changes only how the OLED draws text, not any stored value.
+small_font	*	key:smallFont	enum	Small Font	Octessera uses the edited Tom Thumb glyphs for the breadcrumb and footer hints; Original uses the unmodified Tom Thumb.	This changes only how the OLED draws text, not any stored value.
 aux_auto_map	*	key:auxAutoMapEnabled	bool	Auto Map	Enables context-sensitive aux mappings for the active menu row.	When off, only custom aux bindings are used and auto-map prefixes disappear.
 aux_priority	*	key:auxPriority	enum	Aux Priority	Manual: your own Aux bindings win over the page's auto map. Auto: the auto map wins on pages that have one.	Decided per turn and per click; a side the winner leaves empty still goes to the other. Shown only while Auto Map is on.
 aux_auto_hints	*	key:auxAutoHints	bool	Auto Hints	Shows what the auto-mapped Aux encoders turn and click in the footer.	Hold Shift to see the Shift layer. The caps on menu rows stay either way.

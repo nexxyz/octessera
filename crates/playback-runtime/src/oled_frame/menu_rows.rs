@@ -1,7 +1,7 @@
 use platform_core::palette;
 
 use super::aux_cap::draw_aux_cap;
-use super::font::{CLIP_MARKER, M5X7};
+use super::font::{PixelFont, CLIP_MARKER};
 use super::footer::PLAY;
 use super::menu_row_layout::{row_layout, RowValue, LIST_NAME_X, NAME_X};
 use super::model::{OledBarInput, OledBarStyle, OledMenuRowInput, OledScrollInput};
@@ -95,6 +95,7 @@ struct RowStyle {
     editing: bool,
     inset: LeftInset,
     bar_right: usize,
+    font: &'static PixelFont,
 }
 
 impl RowStyle {
@@ -149,7 +150,16 @@ pub(super) fn selection_bar_span(display: &OledDisplayInput) -> (usize, usize) {
 pub(super) fn edit_box_x(display: &OledDisplayInput, row: usize) -> Option<usize> {
     let parts = display.rows.get(row)?.as_ref()?;
     let bar = display.bars.get(row).and_then(Option::as_ref);
-    Some(row_layout(parts, bar, left_inset(display).name_x).value_x - 2)
+    Some(
+        row_layout(
+            parts,
+            bar,
+            left_inset(display).name_x,
+            display.main_font.main(),
+        )
+        .value_x
+            - 2,
+    )
 }
 
 /// The area colour of body row `row`.
@@ -204,6 +214,7 @@ fn draw_menu_body(
             editing: selected && editing,
             inset,
             bar_right,
+            font: display.main_font.main(),
         };
         match display.rows.get(index).and_then(Option::as_ref) {
             Some(row) => {
@@ -230,6 +241,7 @@ fn draw_card_body(frame: &mut [u8], display: &OledDisplayInput, selected_row: Op
             editing: false,
             inset: PLAIN_INSET,
             bar_right: selection_bar_right(false),
+            font: display.main_font.main(),
         };
         draw_plain_row(frame, slot_top(0, index), &line.text, style);
     }
@@ -238,7 +250,9 @@ fn draw_card_body(frame: &mut [u8], display: &OledDisplayInput, selected_row: Op
 fn draw_plain_row(frame: &mut [u8], top: usize, text: &str, style: RowStyle) {
     let x = style.inset.name_x;
     style.draw_selection(frame, top);
-    M5X7.draw_fitted(frame, text, VALUE_LAST + 1 - x, x, top + 1, style.text());
+    style
+        .font
+        .draw_fitted(frame, text, VALUE_LAST + 1 - x, x, top + 1, style.text());
 }
 
 fn draw_menu_row(
@@ -248,10 +262,11 @@ fn draw_menu_row(
     bar: Option<&OledBarInput>,
     style: RowStyle,
 ) {
-    let layout = row_layout(row, bar, style.inset.name_x);
+    let font = style.font;
+    let layout = row_layout(row, bar, style.inset.name_x, font);
     let glyph_top = top + 1;
     style.draw_selection(frame, top);
-    M5X7.draw_fitted(
+    font.draw_fitted(
         frame,
         &layout.name,
         layout.name_room,
@@ -299,18 +314,18 @@ fn draw_menu_row(
             );
         }
         RowValue::Marker(marker) => {
-            draw_marker(frame, marker, layout.value_x, glyph_top, value_color)
+            draw_marker(frame, font, marker, layout.value_x, glyph_top, value_color)
         }
         RowValue::Picked(text) => {
-            let x = layout.name_x + M5X7.advance(&layout.name);
-            let pen = M5X7.draw(frame, &text[..layout.value_end], x, glyph_top, value_color);
+            let x = layout.name_x + font.advance(&layout.name);
+            let pen = font.draw(frame, &text[..layout.value_end], x, glyph_top, value_color);
             if layout.value_clipped {
-                M5X7.draw(frame, CLIP_MARKER, pen, glyph_top, value_color);
+                font.draw(frame, CLIP_MARKER, pen, glyph_top, value_color);
             }
-            draw_marker(frame, '>', layout.value_x, glyph_top, value_color);
+            draw_marker(frame, font, '>', layout.value_x, glyph_top, value_color);
         }
         RowValue::Text(text) => {
-            let pen = M5X7.draw(
+            let pen = font.draw(
                 frame,
                 &text[..layout.value_end],
                 layout.value_x,
@@ -318,11 +333,11 @@ fn draw_menu_row(
                 value_color,
             );
             if layout.value_clipped {
-                M5X7.draw(frame, CLIP_MARKER, pen, glyph_top, value_color);
+                font.draw(frame, CLIP_MARKER, pen, glyph_top, value_color);
             }
             if style.editing {
                 if let Some(cursor) = row.text_cursor {
-                    draw_text_cursor(frame, text, cursor, layout.value_x, top, style.area);
+                    draw_text_cursor(frame, font, text, cursor, layout.value_x, top, style.area);
                 }
             }
         }
@@ -341,14 +356,22 @@ fn draw_menu_row(
     }
 }
 
-fn draw_marker(frame: &mut [u8], marker: char, x: usize, glyph_top: usize, color: u16) {
+fn draw_marker(
+    frame: &mut [u8],
+    font: &PixelFont,
+    marker: char,
+    x: usize,
+    glyph_top: usize,
+    color: u16,
+) {
     let text = if marker == '>' { ">" } else { "!" };
-    let (first, _) = M5X7.ink_columns(marker);
-    M5X7.draw(frame, text, x - first, glyph_top, color);
+    let (first, _) = font.ink_columns(marker);
+    font.draw(frame, text, x - first, glyph_top, color);
 }
 
 fn draw_text_cursor(
     frame: &mut [u8],
+    font: &PixelFont,
     text: &str,
     cursor: usize,
     value_x: usize,
@@ -360,11 +383,11 @@ fn draw_text_cursor(
         .find(|&index| text.is_char_boundary(index))
         .unwrap_or(0);
     let ch = text[byte..].chars().next().unwrap_or(' ');
-    let x = value_x + M5X7.advance(&text[..byte]);
-    let width = usize::from(M5X7.glyph(ch).advance);
+    let x = value_x + font.advance(&text[..byte]);
+    let width = usize::from(font.glyph(ch).advance);
     fill_rect(frame, x - 1, top, width + 1, BAR_HEIGHT - 2, area);
     let mut buffer = [0_u8; 4];
-    M5X7.draw(frame, ch.encode_utf8(&mut buffer), x, top + 1, 0);
+    font.draw(frame, ch.encode_utf8(&mut buffer), x, top + 1, 0);
 }
 
 fn draw_mini_bar(frame: &mut [u8], x: usize, y: usize, bar: &OledBarInput, fg: u16, track: u16) {

@@ -1,6 +1,6 @@
 use platform_core::palette;
 
-use super::font::TOM_THUMB;
+use super::font::{TOM_THUMB, TOM_THUMB_ORIGINAL};
 use super::model::OledSaveFlash;
 use super::pixels::{dim, draw_mask, fill_rect, rgb565, shade};
 use super::text::title_text_for_oled;
@@ -18,15 +18,24 @@ const MISSED_QUANTUM: [u8; 5] = [0b11111, 0b10001, 0b10101, 0b10001, 0b11111];
 /// The always-lit area rule draws at this share of full colour (burn-in care).
 const STATIC_CHROME_LEVEL: f32 = 0.625;
 
-/// Whether a breadcrumb fits the header left of the icons.
+/// Whether a breadcrumb fits the header left of the icons in either glyph set.
 pub(crate) fn breadcrumb_fits(text: &str) -> bool {
-    TOM_THUMB.width(text) <= BREADCRUMB_RIGHT + 1
+    [TOM_THUMB.width(text), TOM_THUMB_ORIGINAL.width(text)]
+        .into_iter()
+        .all(|width| width <= BREADCRUMB_RIGHT + 1)
 }
 
 pub(super) fn draw_header(frame: &mut [u8], input: &OledPresentationInput) {
     let area = input.display.title_color;
     let title = title_text_for_oled(&input.display.title);
-    TOM_THUMB.draw_fitted(frame, &title, BREADCRUMB_RIGHT + 1, 0, ICON_Y, area);
+    input.display.small_font.small().draw_fitted(
+        frame,
+        &title,
+        BREADCRUMB_RIGHT + 1,
+        0,
+        ICON_Y,
+        area,
+    );
     fill_rect(frame, 0, RULE_Y, 128, 1, shade(area, STATIC_CHROME_LEVEL));
     draw_cpu_meter(frame, input);
     if input.save_flash == OledSaveFlash::Flash {

@@ -81,6 +81,8 @@ System
 │   ├── Auto Hints: [on | off]           default on
 │   ├── Manual Hints: [on | off]         default on
 │   ├── Num Style: [bar | numbers]       default bar
+│   ├── Main Font: [Octessera | Original]   default Octessera; menu rows and toast (m5x7)
+│   ├── Small Font: [Octessera | Original]  default Octessera; breadcrumb and footer hints (Tom Thumb)
 │   ├── Dim Timer: [0..600] step 10 s
 │   ├── OLED Sleep: [0..600] step 10 s
 │   ├── OLED Bright: [1..16] step 1      default 12; one SSD1351 contrast step each

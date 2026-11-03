@@ -193,6 +193,16 @@ impl NativeRunner {
                 self.display.ui.numeric_display_mode = value.into();
             }
         }
+        if let Some(value) = runtime.get("mainFont").and_then(Value::as_str) {
+            if matches!(value, "octessera" | "original") {
+                self.display.ui.main_font = value.into();
+            }
+        }
+        if let Some(value) = runtime.get("smallFont").and_then(Value::as_str) {
+            if matches!(value, "octessera" | "original") {
+                self.display.ui.small_font = value.into();
+            }
+        }
         let screen_sleep_seconds = runtime.get("screenSleepSeconds").and_then(Value::as_u64);
         if let Some(value) = screen_sleep_seconds {
             if let Ok(value) = u16::try_from(value) {

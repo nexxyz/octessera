@@ -10,7 +10,7 @@ use crate::native_menu::NativeMenuBarValue;
 use crate::native_runner::display_animations::AnimationFrame;
 use crate::native_runner::snapshot_display::{DisplayScrollMetadata, DisplaySnapshot};
 use crate::oled_frame::{
-    OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
+    OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledFont,
     OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
     OledScrollInput, OledSplash, OledTransportFlash, OledTransportIcon, OledTransportInput,
 };
@@ -171,6 +171,10 @@ impl NativeRunner {
                 display: &display,
                 title_color,
                 editing,
+                fonts: [
+                    OledFont::from_setting(&self.display.ui.main_font),
+                    OledFont::from_setting(&self.display.ui.small_font),
+                ],
                 toast: &toast,
                 menu_stack: self
                     .is_canonical_menu_presentation()
@@ -268,7 +272,15 @@ impl PresentationScene {
                     _ => OledSplash::Boot,
                 },
                 toast: self.toast.clone(),
-                ..oled_body_input(display, self.title_color, self.editing)
+                ..oled_body_input(
+                    display,
+                    self.title_color,
+                    self.editing,
+                    [
+                        OledFont::from_setting(&self.ui.main_font),
+                        OledFont::from_setting(&self.ui.small_font),
+                    ],
+                )
             },
             selected_row: display.selected_row,
             transport: OledTransportInput {
@@ -308,6 +320,7 @@ pub(super) fn oled_body_input(
     display: &DisplaySnapshot,
     title_color: u16,
     editing: bool,
+    [main_font, small_font]: [OledFont; 2],
 ) -> OledDisplayInput {
     OledDisplayInput {
         body_layout: display.body_layout,
@@ -323,6 +336,8 @@ pub(super) fn oled_body_input(
         rows: display.rows.clone(),
         scroll: display.scroll.as_ref().map(oled_scroll_input),
         editing,
+        main_font,
+        small_font,
         ..OledDisplayInput::default()
     }
 }

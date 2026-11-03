@@ -67,6 +67,8 @@ fn desktop_system_tree_has_exact_order() {
             "Auto Hints",
             "Manual Hints",
             "Num Style",
+            "Main Font",
+            "Small Font",
             "Dim Timer",
             "OLED Sleep",
             "OLED Bright",

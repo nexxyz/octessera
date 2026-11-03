@@ -10,6 +10,8 @@ const SCALARS: &[&str] = &[
     "auxManualHints",
     "inputEventsWhilePaused",
     "numericDisplayMode",
+    "mainFont",
+    "smallFont",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
