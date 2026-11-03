@@ -14,6 +14,7 @@ impl NativeRunner {
         match self.active_play_mode.as_str() {
             "mix" => self.apply_play_mix_overlay(leds),
             "pan" => self.apply_play_pan_overlay(leds),
+            "route" => self.apply_play_route_overlay(leds),
             "tempo" => self.apply_play_tempo_overlay(leds, transient),
             "fx" => self.apply_play_fx_overlay(leds),
             "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),

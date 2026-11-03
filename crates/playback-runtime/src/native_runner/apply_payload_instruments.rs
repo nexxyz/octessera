@@ -272,9 +272,8 @@ impl NativeRunner {
         }
         if let Some(value) = runtime.get("playMode").and_then(Value::as_str) {
             let normalized = match value {
-                "mix" | "pan" | "tempo" | "fx" | "xy" | "transpose" | "rate" | "trigger-gate" => {
-                    Some(value)
-                }
+                "mix" | "pan" | "route" | "tempo" | "fx" | "xy" | "transpose" | "rate"
+                | "trigger-gate" => Some(value),
                 "none" => Some("mix"),
                 _ => None,
             };

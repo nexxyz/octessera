@@ -127,9 +127,13 @@ impl NativeRunner {
         plan: ConfigurationRuntimePlan,
     ) -> Result<(), String> {
         let unmuted = self.take_instrument_mutes();
+        let fx_overridden = self.take_live_fx_overrides();
         if before == &candidate.configuration_aggregate() {
             self.commit_loaded_revision(source_revision);
             self.resend_engine_volumes(unmuted);
+            if fx_overridden {
+                self.resend_fx_slots();
+            }
             return Ok(());
         }
         self.drain_all_layer_engine_notes();
@@ -149,6 +153,9 @@ impl NativeRunner {
             self.show_toast(format!("LFO composition unavailable: {error}"));
         }
         self.resend_engine_volumes(unmuted);
+        if fx_overridden {
+            self.resend_fx_slots();
+        }
         Ok(())
     }
 

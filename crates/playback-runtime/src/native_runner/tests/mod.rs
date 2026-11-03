@@ -124,6 +124,7 @@ mod play_menu;
 mod play_mix_mute;
 mod play_overlay;
 mod play_rate;
+mod play_route;
 mod play_tempo;
 mod pluck;
 mod pluck_audio;

@@ -147,15 +147,24 @@ impl NativeRunner {
         else {
             return;
         };
+        if self.set_instrument_route(index, &route) {
+            self.show_instrument_rows_around_key(
+                index,
+                &format!("instruments.{index}.mixer.route"),
+            );
+        }
+    }
+
+    pub(super) fn set_instrument_route(&mut self, index: usize, route: &str) -> bool {
         let Some(instrument) = self.instruments.get_mut(index) else {
-            return;
+            return false;
         };
         if instrument.route == route {
-            return;
+            return false;
         }
-        instrument.route = route;
-        self.show_instrument_rows_around_key(index, &format!("instruments.{index}.mixer.route"));
+        instrument.route = route.into();
         self.commit_full_configuration_runtime_plan();
         self.mark_fast_autosave_dirty();
+        true
     }
 }

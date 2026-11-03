@@ -2,7 +2,7 @@
 
 Part of the authoritative menu/control spec; see [`../menu-tree-spec.md`](../menu-tree-spec.md) for
 the index and notation. Play turns the grid into a performance surface. Each page swaps the grid's
-job: mixer faders, pan, tempo and swing, momentary FX, trigger gates, a transpose keyboard, or
+job: mixer faders, pan, routing and live FX bypass, tempo and swing, momentary FX, trigger gates, a transpose keyboard, or
 an XY pad.
 
 ## Tree
@@ -11,6 +11,7 @@ an XY pad.
 Play
 ├── Mix                                  ← page-select row
 ├── Pan                                  ← page-select row
+├── Route                                ← page-select row
 ├── Tempo                                ← page-select row
 ├── FX (group)
 │   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
@@ -40,14 +41,14 @@ The menu lists the technical bank, then the musical bank.
   |---|---|---|
   | 0 | `mix` | `fx` |
   | 1 | `pan` | `xy` |
-  | 2 | | `transpose` |
+  | 2 | `route` | `transpose` |
   | 3 | `tempo` | `rate` |
   | 4 | | `trigger-gate` |
 
   Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
   that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
   (`Play: trig` for Trigger Gate).
-- In the Play menu, `Mix`, `Pan`, `Tempo`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
+- In the Play menu, `Mix`, `Pan`, `Route`, `Tempo`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
   rows: Main press
   selects and activates the page without entering an empty submenu. `FX` and `XY` are
   enterable groups and activate their page too.
@@ -91,6 +92,30 @@ The menu lists the technical bank, then the musical bank.
   show synchronized markers at the bus pan.
 - Marker colors follow the route: white for direct, magenta/blue/green/yellow for buses 1-4. `none`
   slots show a dimmed marker.
+
+## Route
+
+- Columns are instruments I1..I8 unless noted.
+- Rows `0..4` set `Mixer > Route`: direct (white), B1 (magenta), B2 (blue), B3 (green), B4
+  (yellow), the Pan page's bus colors. It is the menu route edit without moving the menu: the
+  saved route changes, the patch is dirty, and the engine gets the new routing. Toast `I2 B1` or
+  `I2 direct`. The current route is bright and the others dim; MIDI and `none` slots are dark and
+  ignore presses.
+- Row 5 is FX bypass, live only: columns `0..3` bypass the B1..B4 slot chains, columns `4..5` the
+  Global FX slots 1 and 2; columns `6..7` are dark. Lit is effects on, dim is bypassed (bus colors,
+  white for Global FX). A bypassed chain reaches the engine with every slot `none`; the saved
+  slots are untouched. Toast `B1 FX bypassed` / `B1 FX on`, `Global FX 1 bypassed` /
+  `Global FX 1 on`.
+- Row 6 is empty.
+- Row 7 is the duck key, live only: pressing an instrument makes every bus duck listen to it
+  (`Duck key: I2`); its own `Source Tap` stays. Another column moves the key; pressing the lit
+  tile again returns every duck to its saved Source (`Duck key off`). The key is red, other
+  audio instruments dim red; MIDI and `none` slots are dark.
+- Bypass and duck key are never saved, never mark the patch dirty, and clear on boot, patch or
+  preset loads, and Clear All. One gate on the engine command path applies them to every bus
+  slot, Global FX slot and full configuration the engine receives, so menu, Aux and LFO edits made
+  meanwhile land in the saved config and reach the engine as soon as the override is undone.
+  Toggling one resends the bus and Global FX slots, which restarts their effect tails.
 
 ## Tempo
 
@@ -229,7 +254,7 @@ The `ms` rows use the curved time steps from
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y smoothing, invert flags, and release behavior.
-- Not saved: the active Play overlay on load/startup, Tap history, Transpose
+- Not saved: the active Play overlay on load/startup, Route FX bypass and duck key, Tap history, Transpose
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary
   overlays.

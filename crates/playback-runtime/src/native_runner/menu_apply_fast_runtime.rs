@@ -67,6 +67,7 @@ impl NativeRunner {
             "playMode" => Some(self.fast_play_mode_menu_key()),
             "play.page.mix" => Some(self.fast_play_page_key("mix")),
             "play.page.pan" => Some(self.fast_play_page_key("pan")),
+            "play.page.route" => Some(self.fast_play_page_key("route")),
             "play.page.tempo" => Some(self.fast_play_page_key("tempo")),
             "play.page.fx" => Some(self.fast_play_page_key("fx")),
             "play.page.trigger-gate" => Some(self.fast_play_page_key("trigger-gate")),

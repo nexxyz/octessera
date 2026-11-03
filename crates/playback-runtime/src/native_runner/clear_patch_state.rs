@@ -113,6 +113,7 @@ impl NativeRunner {
         self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];
         self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
         self.instrument_mutes = [false; INSTRUMENT_COUNT];
+        self.take_live_fx_overrides();
         self.play_transpose_selected = vec![true; LAYER_COUNT];
         self.play_transpose_enabled = vec![true; LAYER_COUNT];
         self.play_transpose_offsets = vec![0; LAYER_COUNT];

@@ -111,6 +111,7 @@ fn play_mode_from_page_label(label: &str) -> Option<&'static str> {
     match label {
         "Mix" => Some("mix"),
         "Pan" => Some("pan"),
+        "Route" => Some("route"),
         "Tempo" => Some("tempo"),
         "FX" => Some("fx"),
         "Trigger Gate" => Some("trigger-gate"),

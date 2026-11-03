@@ -183,6 +183,7 @@ impl NativeRunner {
                     }
                 }
             }
+            "route" => self.handle_play_route_press(x, y),
             "tempo" => self.handle_play_tempo_press(x, y),
             "rate" => self.handle_play_rate_press(x, y),
             "xy" => self.handle_play_xy_press(x, y),

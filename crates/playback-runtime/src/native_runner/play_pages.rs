@@ -3,13 +3,14 @@ use std::time::Instant;
 use super::{NativeRunner, GRID_HEIGHT};
 
 mod rate;
+mod route;
 mod tempo;
 
 /// Fn + right column pages, bottom row first.
 pub(super) const TECHNICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
     Some("mix"),
     Some("pan"),
-    None,
+    Some("route"),
     Some("tempo"),
     None,
     None,
@@ -35,6 +36,7 @@ pub(super) struct PlayLiveState {
     pub(super) tempo_taps: Vec<Instant>,
     /// Layers the Rate page resyncs to the bar grid at the next bar line.
     pub(super) rate_resyncs: [bool; GRID_HEIGHT],
+    pub(super) fx_overrides: route::LiveFxOverrides,
 }
 
 impl NativeRunner {

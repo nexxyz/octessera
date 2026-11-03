@@ -139,6 +139,7 @@ const FONT_SETS: &[&str] = &["octessera", "original"];
 const PLAY_MODES: &[&str] = &[
     "mix",
     "pan",
+    "route",
     "tempo",
     "fx",
     "xy",

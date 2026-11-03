@@ -252,6 +252,7 @@ fn parameterless_play_page_key(key: &str) -> bool {
         key,
         "play.page.mix"
             | "play.page.pan"
+            | "play.page.route"
             | "play.page.tempo"
             | "play.page.trigger-gate"
             | "play.page.transpose"

@@ -22,6 +22,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         vec![
             "Mix",
             "Pan",
+            "Route",
             "Tempo",
             "FX",
             "XY",
@@ -77,6 +78,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         vec![
             "Mix",
             "Pan",
+            "Route",
             "Tempo",
             "FX",
             "XY",
@@ -106,6 +108,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         vec![
             "Mix",
             "Pan",
+            "Route",
             "Tempo",
             "FX",
             "XY",

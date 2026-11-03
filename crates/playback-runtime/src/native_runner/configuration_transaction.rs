@@ -61,7 +61,7 @@ impl NativeRunner {
             ConfigurationRuntimePlan::NoRuntimeChange => {}
             ConfigurationRuntimePlan::DynamicAudioCommands(commands) => {
                 for command in commands {
-                    let command = self.engine_audio_command(command);
+                    let command = self.live_fx_audio_command(self.engine_audio_command(command));
                     self.outbox.push_audio_command(command);
                 }
             }
