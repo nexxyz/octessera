@@ -151,10 +151,8 @@ fn validate_smoothing_ms(xy: &Map<String, Value>, path: &str) -> Result<(), Stri
     let value = value
         .as_u64()
         .ok_or_else(|| format!("{path}.smoothingMs must be an unsigned integer"))?;
-    if value != 0 && (!(10..=500).contains(&value) || !value.is_multiple_of(10)) {
-        return Err(format!(
-            "{path}.smoothingMs must be 0 or a multiple of 10 from 10 to 500"
-        ));
+    if value > u64::from(crate::native_menu::XY_GLIDE_MAX_MS.unsigned_abs()) {
+        return Err(format!("{path}.smoothingMs must be from 0 to 5000"));
     }
     Ok(())
 }

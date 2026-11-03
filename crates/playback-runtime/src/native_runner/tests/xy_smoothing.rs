@@ -56,7 +56,10 @@ pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.xy_smoothing_ms, 100);
+    assert_eq!(
+        runner.xy_smoothing_ms, 82,
+        "fine time steps are 1 ms below 100 ms"
+    );
 
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["xy"]["smoothingMs"] = json!(120);
@@ -68,8 +71,12 @@ pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
     );
 
     let mut invalid = runner.config_payload();
-    invalid["runtimeConfig"]["xy"]["smoothingMs"] = json!(15);
+    invalid["runtimeConfig"]["xy"]["smoothingMs"] = json!(5001);
     assert!(runner.apply_config_payload(invalid).is_err());
+    let mut curved = runner.config_payload();
+    curved["runtimeConfig"]["xy"]["smoothingMs"] = json!(3750);
+    runner.apply_config_payload(curved).unwrap();
+    assert_eq!(runner.xy_smoothing_ms, 3750);
 }
 
 #[test]
@@ -200,10 +207,10 @@ pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
 
     assert!(runner.xy_touch.x > before);
     assert!(runner.xy_touch.x < 1.0);
-    assert_eq!(runner.xy_smoothing_ms, 200);
+    assert_eq!(runner.xy_smoothing_ms, 92);
     assert_eq!(
         runner.xy_x_glide.as_ref().map(|glide| glide.duration),
-        Some(Duration::from_millis(200))
+        Some(Duration::from_millis(92))
     );
 }
 

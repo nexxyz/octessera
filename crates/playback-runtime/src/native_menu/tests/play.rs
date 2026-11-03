@@ -138,7 +138,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
         vec![
             "X Axis: (none)",
             "Y Axis: (none)",
-            "Smoothing",
+            "Glide",
             "Invert X",
             "Invert Y",
             "Release",
@@ -150,8 +150,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
         NativeMenuValue::Number {
             value: 80,
             min: 0,
-            max: 500,
-            step: 10,
+            max: 5000,
             ..
         }
     ));
@@ -162,9 +161,9 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
             .full_lines
             .iter()
             .flatten()
-            .find(|line| line.contains("Smoothing"))
+            .find(|line| line.contains("Glide"))
             .map(String::as_str),
-        Some("  Smoothing Off")
+        Some("  Glide Off")
     );
     menu.set_number_value_for_key("play.xy.smoothingMs", 120);
     assert_eq!(
@@ -172,9 +171,9 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
             .full_lines
             .iter()
             .flatten()
-            .find(|line| line.contains("Smoothing"))
+            .find(|line| line.contains("Glide"))
             .map(String::as_str),
-        Some("  Smoothing 120 ms")
+        Some("  Glide 120 ms")
     );
 }
 

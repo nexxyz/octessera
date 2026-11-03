@@ -23,7 +23,7 @@ Play
 ├── XY (group)
 │   ├── X Axis: <target | (none)> (picker)   ← parameter picker
 │   ├── Y Axis: <target | (none)> (picker)
-│   ├── Smoothing: [0..500] step 10 ms       ← default 80; 0 shows Off
+│   ├── Glide: [0..5000] ms (time steps)     ← default 80; 0 shows Off; stored as smoothingMs
 │   ├── Invert X: [on | off]
 │   ├── Invert Y: [on | off]
 │   └── Release: [hold | center]             ← stored as sample-hold, reset-center
@@ -267,7 +267,8 @@ The `ms` rows use the curved time steps from
 - `Invert X`/`Invert Y` use `value = 1 - norm`, so left (X) or bottom (Y) becomes max. Inversion
   retargets only the affected mapped axis through the smoothing glide; the visual marker is never
   inverted.
-- `Smoothing` is `Off` at 0, otherwise 10–500 ms. Raw markers follow the press immediately, while
+- `Glide` (saved as `smoothingMs`) is `Off` at 0, otherwise 1–5000 ms on the curved time steps
+  from [Numeric steps](../menu-and-controls-spec.md#numeric-steps). Raw markers follow the press immediately, while
   each mapped normalized axis glides independently from its current value without overshoot, before
   target range/step conversion. Elapsed time is monotonic. `sample-hold` lets an active glide finish
   after release; `reset-center` moves the marker to center at once and glides mapped axes to 0.5.
@@ -279,7 +280,7 @@ The `ms` rows use the curved time steps from
 - Saved with presets and the default patch: the selected Play page, BPM and swing, the FX page
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
-  probability map, the global X/Y bindings, X/Y smoothing, invert flags, and release behavior.
+  probability map, the global X/Y bindings, X/Y glide, invert flags, and release behavior.
 - Not saved: the active Play overlay on load/startup, Mix instrument and bus mutes, Route FX bypass
   and duck key, Tap history, Transpose
   selections/enabled state/offsets, the

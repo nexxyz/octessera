@@ -267,7 +267,7 @@ change; only the distance per detent does.
 | Row kind | Coarse detent | Fine (Fn) detent |
 |---|---|---|
 | Linear (default) | `step × m`, where `m = (span + 10·step) / (20·step)` rounded down and clamped to `1..5` | one `step` |
-| Times: every row whose key ends in `Ms`, except XY Smoothing | 1 ms below 20 ms, 5 ms to 100 ms, 25 ms to 1 s, 100 ms above | 0.1 ms below 20 ms where the value stores tenths (otherwise 1 ms), 1 ms to 100 ms, 5 ms to 1 s, 25 ms above |
+| Times: every row whose key ends in `Ms` | 1 ms below 20 ms, 5 ms to 100 ms, 25 ms to 1 s, 100 ms above | 0.1 ms below 20 ms where the value stores tenths (otherwise 1 ms), 1 ms to 100 ms, 5 ms to 1 s, 25 ms above |
 | Frequencies and Q: keys ending in `Hz` except instrument `cutoffHz`, plus FX `Q` and `Mid Q` | multiply by 2^(1/24), about a quarter-tone | multiply by 2^(1/96) |
 | Reverb `Decay` and delay `Feedback` (non-negative ranges) | distance to the top (1.0, or 100%) scales by 2^(1/4) | scales by 2^(1/16) |
 
@@ -281,8 +281,7 @@ change; only the distance per detent does.
 - Frequency rows include Plucked `Body Hz`, FX `Rate Hz`, `Center`, EQ `Mid Freq Hz`, and the Play
   Stutter `Rate Hz`. Instrument filter cutoffs keep their logarithmic `0..255` index with linear
   steps.
-- Bipolar mod-delay `Feedback` stays linear. `Play > XY > Smoothing` stays on plain 10 ms steps
-  because saved smoothing is 0 or a multiple of 10 ms.
+- Bipolar mod-delay `Feedback` stays linear. `Play > XY > Glide` is a time row like the others.
 
 ## OLED Display
 

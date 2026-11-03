@@ -2,7 +2,7 @@ use super::{NativeRunner, NativeXyGlide, DEFAULT_XY_SMOOTHING_MS};
 use std::time::{Duration, Instant};
 
 pub(super) fn normalize_xy_smoothing_ms(value: u64) -> u16 {
-    if value == 0 || (10..=500).contains(&value) && value.is_multiple_of(10) {
+    if value <= u64::from(crate::native_menu::XY_GLIDE_MAX_MS.unsigned_abs()) {
         value as u16
     } else {
         DEFAULT_XY_SMOOTHING_MS

@@ -24,7 +24,7 @@ fn times_frequencies_and_rates_get_curved_encoder_steps() {
         curve_of(&menu, "instruments.0.fm.filter.cutoffHz"),
         NumberCurve::Linear
     );
-    assert_eq!(curve_of(&menu, "play.xy.smoothingMs"), NumberCurve::Linear);
+    assert_eq!(curve_of(&menu, "play.xy.smoothingMs"), time);
     assert_eq!(
         curve_of(&menu, "instruments.0.fm.amp.gainPct"),
         NumberCurve::Linear

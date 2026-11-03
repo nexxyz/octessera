@@ -193,11 +193,3 @@ pub(crate) fn mark_active(
     }
     any
 }
-
-/// Keeps a numeric item on plain linear steps even if its key looks like a time or frequency.
-pub(in crate::native_menu) fn linear(mut item: NativeMenuItem) -> NativeMenuItem {
-    if let NativeMenuValue::Number { curve, .. } = &mut item.value {
-        *curve = NumberCurve::Linear;
-    }
-    item
-}
