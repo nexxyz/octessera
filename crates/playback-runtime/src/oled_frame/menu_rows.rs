@@ -31,10 +31,24 @@ pub(super) const MINI_WIDTH: usize = 30;
 pub(super) const PREVIEW_WIDTH: usize = 3;
 const MINI_HEIGHT: usize = 5;
 
-/// The top of body slot `index`; its selection bar spans `top - 1 ..= top + 9` and the
-/// m5x7 capitals `top + 1 ..= top + 7`.
-pub(super) fn slot_top(index: usize) -> usize {
-    FIRST_SLOT_Y + index * PITCH
+/// A menu page that leaves body rows free sits this many pixels lower.
+const SHORT_PAGE_OFFSET: usize = 6;
+
+/// The top of body slot `index` on a body shifted down by `body_top_offset`; its selection
+/// bar spans `top - 1 ..= top + 9` and the m5x7 capitals `top + 1 ..= top + 7`.
+pub(super) fn slot_top(body_top_offset: usize, index: usize) -> usize {
+    FIRST_SLOT_Y + body_top_offset + index * PITCH
+}
+
+/// How far `display`'s rows sit below the first slot: menu-row bodies that do not fill the
+/// body drop by [`SHORT_PAGE_OFFSET`]; full, scrolling, text and card bodies stay put.
+pub(super) fn body_top_offset(display: &OledDisplayInput) -> usize {
+    let menu_rows = display.body_layout == OledDisplayLayout::List || has_gutter(display);
+    if menu_rows && display.lines.len() < BODY_ROWS {
+        SHORT_PAGE_OFFSET
+    } else {
+        0
+    }
 }
 
 /// The selection bar's last column: the scrollbar keeps two columns and a gap.
@@ -148,8 +162,9 @@ fn draw_menu_body(
     } else {
         PLAIN_X
     };
+    let offset = body_top_offset(display);
     for (index, line) in display.lines.iter().enumerate().take(BODY_ROWS) {
-        let top = slot_top(index);
+        let top = slot_top(offset, index);
         let selected = selected_row == Some(index);
         let style = RowStyle {
             area: row_area(display, index),
@@ -184,7 +199,7 @@ fn draw_card_body(frame: &mut [u8], display: &OledDisplayInput, selected_row: Op
             gutter: false,
             bar_right: selection_bar_right(false),
         };
-        draw_plain_row(frame, slot_top(index), &line.text, PLAIN_X, style);
+        draw_plain_row(frame, slot_top(0, index), &line.text, PLAIN_X, style);
     }
 }
 

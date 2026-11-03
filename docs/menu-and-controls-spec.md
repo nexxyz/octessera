@@ -329,6 +329,11 @@ change; only the distance per detent does.
   fit, the page name shows alone and clips with `..`.
 - Body: 8 rows on a 13 px pitch. Row `i` has its slot top at `s = 11 + 13*i`, m5x7 capitals on
   `s+1..s+7` and a selection bar on `s-1..s+9`; the last row's bar ends at `y=111`.
+  A menu page (menu rows or a picker/browser list) that leaves body rows free, with fewer than 8
+  rows and so no scrollbar, draws its whole row block 6 px lower, `s = 17 + 13*i`: rows, selection
+  bar, caps, markers, mini bars, E2 box and text cursor move together. Full and scrolling pages,
+  plain-text pages and cards keep `s = 11 + 13*i`. A slide between a short and a full page draws
+  each side at its own height.
 - Footer (`y=113..127`): Aux hints on the left up to `x=107`, then the recording disc, transport
   icon and event dot, all centred on `y=121`. The toast covers the hint area.
 - Every snapshot `display` object carries the required `bodyLayout`:

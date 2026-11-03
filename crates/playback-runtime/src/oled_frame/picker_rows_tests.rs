@@ -5,7 +5,8 @@ use super::render::render_oled_frame;
 use super::tests::{base, menu_row, pixel, AREA};
 use super::OledDisplayLayout;
 
-const TOP: usize = 11;
+/// The first slot of a short page, which sits 6 px below the full-page slot.
+const TOP: usize = 17;
 
 fn page(layout: OledDisplayLayout, rows: Vec<Option<OledMenuRowInput>>) -> OledPresentationInput {
     let mut input = base();

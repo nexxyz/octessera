@@ -62,6 +62,9 @@ mod menu_frame_tests;
 mod picker_rows_tests;
 
 #[cfg(test)]
+mod short_page_tests;
+
+#[cfg(test)]
 mod tests;
 
 #[cfg(test)]

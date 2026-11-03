@@ -11,6 +11,10 @@ fn slot(index: usize) -> usize {
     11 + index * 13
 }
 
+fn short_slot(index: usize) -> usize {
+    slot(index) + 6
+}
+
 fn lit_columns(
     frame: &[u8],
     rows: std::ops::Range<usize>,
@@ -221,13 +225,16 @@ fn picker_lists_have_no_gutter() {
     input.display.bars = vec![None; 3];
     input.selected_row = Some(1);
     let frame = render_oled_frame(&input);
-    assert_eq!(pixel(&frame, 0, slot(1) - 1), AREA);
-    assert_eq!(pixel(&frame, 127, slot(1) - 1), AREA);
+    assert_eq!(pixel(&frame, 0, short_slot(1) - 1), AREA);
+    assert_eq!(pixel(&frame, 127, short_slot(1) - 1), AREA);
     assert_eq!(
-        lit_columns(&frame, slot(2)..slot(2) + 9, 0..12).first(),
+        lit_columns(&frame, short_slot(2)..short_slot(2) + 9, 0..12).first(),
         Some(&6)
     );
-    assert_eq!(lit_columns(&frame, slot(2)..slot(2) + 9, 100..128), [121]);
+    assert_eq!(
+        lit_columns(&frame, short_slot(2)..short_slot(2) + 9, 100..128),
+        [121]
+    );
 }
 
 #[test]
@@ -245,7 +252,7 @@ fn a_sounding_preview_marks_its_file_row_with_a_play_triangle() {
         input.selected_row = Some(1);
         render_oled_frame(&input)
     };
-    let top = slot(1);
+    let top = short_slot(1);
     let ink = |frame: &[u8], x: usize| {
         (top..top + 9)
             .filter(|y| pixel(frame, x, *y) == 0)

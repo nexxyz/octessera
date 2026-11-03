@@ -226,6 +226,57 @@ fn enter_and_back_slide_only_the_body_in_from_their_side() {
 }
 
 #[test]
+fn a_slide_between_a_short_and_a_full_page_keeps_each_side_at_its_own_height() {
+    let mut short = base();
+    short.display.scroll = None;
+    short.display.lines.truncate(5);
+    short.display.rows.truncate(5);
+    short.display.bars.truncate(5);
+    short.display.colors.truncate(5);
+    short.selected_row = Some(0);
+    let mut full = base();
+    full.display.scroll = None;
+    full.selected_row = Some(0);
+    let short_frame = render_oled_frame(&short);
+    let full_frame = render_oled_frame(&full);
+    let moved = 40;
+    let keep = 128 - moved;
+    let enter = animated(
+        short.clone(),
+        OledBodyAnimation::Slide {
+            from: from(&full),
+            forward: true,
+            moved,
+        },
+    );
+    let back = animated(
+        full.clone(),
+        OledBodyAnimation::Slide {
+            from: from(&short),
+            forward: false,
+            moved,
+        },
+    );
+    for y in BODY {
+        for x in 0..128 {
+            let expected_enter = if x < keep {
+                pixel(&full_frame, x + moved, y)
+            } else {
+                pixel(&short_frame, x - keep, y)
+            };
+            assert_eq!(pixel(&enter, x, y), expected_enter, "enter {x},{y}");
+            let expected_back = if x < moved {
+                pixel(&full_frame, x + keep, y)
+            } else {
+                pixel(&short_frame, x - moved, y)
+            };
+            assert_eq!(pixel(&back, x, y), expected_back, "back {x},{y}");
+        }
+    }
+    assert_ne!(short_frame, full_frame);
+}
+
+#[test]
 fn edit_box_grows_from_and_shrinks_to_the_bar_end() {
     let plain = selected(1);
     let mut editing = selected(1);
