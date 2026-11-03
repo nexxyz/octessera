@@ -35,7 +35,7 @@ repository notice.
 ## Fonts
 
 The OLED renderer compiles two pixel fonts into the firmware as glyph tables:
-[m5x7](https://managore.itch.io/m5x7) by Daniel Linssen, dedicated to the
+[m5x7](https://managore.itch.io/m5x7) by Daniel Linssen (glyphs modified for Octessera), dedicated to the
 public domain under CC0 1.0
 ([`licenses/fonts/m5x7/LICENSE`](licenses/fonts/m5x7/LICENSE)), and the Tom
 Thumb 3x5 font from Adafruit GFX by Brian J. Swetland, Vassilii Khachaturov and
