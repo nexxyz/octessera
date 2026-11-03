@@ -252,7 +252,7 @@ pub(crate) fn contextual_help_resolves_life_params_and_scrolls_to_bottom() {
         .collect::<Vec<_>>()
         .join(" ");
 
-    assert!(lines.contains("random cells"));
+    assert!(lines.contains("agents"));
     runner.display.ui.combined_modifier_held = false;
 
     runner.turn_help_popup(99);
