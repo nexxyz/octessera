@@ -117,7 +117,7 @@ fn waterfall_columns_run_oldest_to_newest_with_low_bins_at_the_bottom() {
     let mut levels = vec![0_u8; SIGNAL_BAND_WIDTH * SIGNAL_BAND_HEIGHT];
     let newest = SIGNAL_BAND_WIDTH - 1;
     levels[newest * SIGNAL_BAND_HEIGHT] = 255;
-    levels[SIGNAL_BAND_HEIGHT - 1] = 150;
+    levels[SIGNAL_BAND_HEIGHT - 1] = 175;
     let frame = render_oled_frame(&home(Some(OledSignalVisual::Waterfall { levels })));
     let bottom = BAND_TOP + SIGNAL_BAND_HEIGHT - 1;
     assert_eq!(

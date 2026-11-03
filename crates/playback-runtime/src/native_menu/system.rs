@@ -105,7 +105,7 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
 }
 
 /// What the home page shows between its sections and System.
-pub(crate) const HOME_VISUALS: &[&str] = &["none", "scope"];
+pub(crate) const HOME_VISUALS: &[&str] = &["none", "scope", "spectrum", "waterfall"];
 
 fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mut children = vec![

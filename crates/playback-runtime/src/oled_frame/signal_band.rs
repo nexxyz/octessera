@@ -16,9 +16,9 @@ const MID: usize = (SIGNAL_BAND_HEIGHT - 1) / 2;
 /// Waterfall levels climb through these colours.
 const RAMP: [(u8, [u8; 3]); 5] = [
     (0, palette::BLACK),
-    (80, [12, 52, 61]),
-    (150, palette::BLUE),
-    (210, palette::MAGENTA),
+    (110, [10, 40, 48]),
+    (175, palette::BLUE),
+    (225, palette::MAGENTA),
     (255, palette::YELLOW),
 ];
 

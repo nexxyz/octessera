@@ -344,7 +344,18 @@ change; only the distance per detent does.
   - Playing: `scope` draws the master mix in blue, one point per column, two tapped samples
     apart (about 10 ms across). The trace starts at the latest rising zero crossing that follows
     a dip below 30 % of the peak, so steady tones stand still; signals louder than a 0.25 peak fill
-    the band, quieter ones scale linearly. The band steps every 66 ms (about 15 fps); each step
+    the band, quieter ones scale linearly.
+  - `spectrum` draws 62 blue bars, 1 px wide with a 1 px gap, on log-spaced bands from 40 Hz to
+    the tap's Nyquist (12 kHz), each the loudest bin of a 1024-point Hann-windowed FFT of the
+    newest tapped samples, on a 54 dB scale up to a full-scale sine. A bar jumps up and falls
+    24 of 255 levels per step; a white peak dot above it falls 6 per step.
+  - `waterfall` shares that FFT and log scale, one band per band row (27, low at the bottom).
+    Each step scrolls the band one column left and draws the newest column at the right, so the
+    band holds about 8 s; levels climb black, dark teal, blue, magenta, yellow.
+  - A `spectrum` or `waterfall` whose bars, peaks or history have all fallen dark draws the flat
+    line. Changing the visual, stopping or leaving the page starts the next run empty.
+  - The FFT and history run on the runtime thread once per step. The band steps every 66 ms
+    (about 15 fps); each step
     is one new scene generation and one timed display deadline, so the boards and the desktop
     redraw the band at most at that rate.
   - The audio engine copies the mono master into a 2048-sample lock-free ring once per block,
@@ -476,7 +487,8 @@ behavior primary red), so a mute never reads as a section color.
   switch is presentation only: it takes the key fast path, rebuilds no menu and changes no
   stored musical value. Row-fit and breadcrumb checks must hold in both glyph sets.
 - `Home Visual` (System > Display, after `Small Font`) picks what the home page shows between
-  Play and System: `scope` (the default) or `none`. See the signal band under the body layout.
+  Play and System: `scope` (the default), `spectrum`, `waterfall` or `none`. See the signal band
+  under the body layout.
   Stored as `homeVisual` in the system preferences; presentation only, through the key fast path.
 - Bar fractions follow encoder-turn space (see [Numeric steps](#numeric-steps)), so a bar moves
   evenly per detent: time rows use the share of coarse detents from the minimum, frequency and Q

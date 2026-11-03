@@ -2,15 +2,37 @@ use super::snapshot_display::DisplaySnapshot;
 use super::{NativeRunner, RuntimeTransportState};
 use crate::oled_frame::{OledSignalBand, OledSignalVisual};
 use realtime_engine::synth::{master_signal_tap, SignalSource, SignalTap};
+use spectrum::SpectrumHistory;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
+mod fft;
 mod scope;
+mod spectrum;
 
 /// The newest tapped samples each live step reads.
 const WINDOW: usize = 1024;
 /// A live band redraws every second snapshot tick, about 15 times a second.
 const STEP: Duration = Duration::from_millis(66);
+
+/// What a live band draws; `homeVisual` names it, and `none` shows no band.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum HomeVisual {
+    Scope,
+    Spectrum,
+    Waterfall,
+}
+
+impl HomeVisual {
+    pub(super) fn from_setting(value: &str) -> Option<Self> {
+        match value {
+            "scope" => Some(Self::Scope),
+            "spectrum" => Some(Self::Spectrum),
+            "waterfall" => Some(Self::Waterfall),
+            _ => None,
+        }
+    }
+}
 
 /// Turns the tapped master mix into the home page's signal band, one live step at a time.
 #[derive(Clone)]
@@ -22,8 +44,10 @@ pub(super) struct SignalBandMonitor {
 #[derive(Clone)]
 struct MonitorState {
     live: Option<LiveRun>,
+    kind: HomeVisual,
     visual: OledSignalVisual,
     samples: Vec<f32>,
+    spectrum: SpectrumHistory,
 }
 
 /// One stretch of captures that showed the band live.
@@ -49,15 +73,17 @@ impl SignalBandMonitor {
             tap,
             state: RefCell::new(MonitorState {
                 live: None,
+                kind: HomeVisual::Scope,
                 visual: OledSignalVisual::Flat,
                 samples: vec![0.0; WINDOW],
+                spectrum: SpectrumHistory::new(WINDOW),
             }),
         }
     }
 
-    /// The band's picture for a capture at `now`: the tapped signal of the current step while
-    /// `live`, the flat line otherwise. The tap writes only while the band is live.
-    pub(super) fn visual(&self, live: bool, now: Instant) -> OledSignalVisual {
+    /// The band's picture for a capture at `now`: `kind` of the current step's tapped signal
+    /// while `live`, the flat line otherwise. The tap writes only while the band is live.
+    pub(super) fn visual(&self, kind: HomeVisual, live: bool, now: Instant) -> OledSignalVisual {
         let mut state = self.state.borrow_mut();
         let state = &mut *state;
         if !live {
@@ -67,7 +93,14 @@ impl SignalBandMonitor {
             state.visual = OledSignalVisual::Flat;
             return OledSignalVisual::Flat;
         }
+        if state.kind != kind {
+            state.kind = kind;
+            state.live = None;
+        }
         let fresh = state.live.is_none();
+        if fresh {
+            state.spectrum.clear();
+        }
         let run = state.live.get_or_insert_with(|| {
             self.tap.select(Some(SignalSource::Master));
             LiveRun {
@@ -82,7 +115,12 @@ impl SignalBandMonitor {
             run.shown = step;
             run.announced = run.announced.max(step);
             self.tap.read_latest(run.written, &mut state.samples);
-            state.visual = scope::scope_visual(&state.samples);
+            let (samples, rate) = (&state.samples, self.tap.sample_rate());
+            state.visual = match kind {
+                HomeVisual::Scope => scope::scope_visual(samples),
+                HomeVisual::Spectrum => state.spectrum.spectrum(samples, rate),
+                HomeVisual::Waterfall => state.spectrum.waterfall(samples, rate),
+            };
         }
         state.visual.clone()
     }
@@ -115,8 +153,9 @@ impl NativeRunner {
         menu_frame: bool,
         now: Instant,
     ) -> Option<OledSignalBand> {
+        let kind = HomeVisual::from_setting(&self.display.ui.home_visual);
         let home = menu_frame
-            && self.display.ui.home_visual != "none"
+            && kind.is_some()
             && self.menu.state.stack.is_empty()
             && self.is_canonical_menu_presentation()
             && self.display.user_data_restore.is_none()
@@ -130,7 +169,8 @@ impl NativeRunner {
             .then(|| display.lines.iter().position(String::is_empty))
             .flatten();
         let live = slot.is_some() && self.transport.transport == RuntimeTransportState::Playing;
-        let visual = self.display.signal_band.visual(live, now);
+        let kind = kind.unwrap_or(HomeVisual::Scope);
+        let visual = self.display.signal_band.visual(kind, live, now);
         slot.map(|slot| OledSignalBand { slot, visual })
     }
 

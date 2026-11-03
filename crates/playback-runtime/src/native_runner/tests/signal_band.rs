@@ -110,12 +110,43 @@ fn sub_pages_and_home_visual_none_show_no_band() {
 fn home_visual_round_trips_through_the_saved_config() {
     let (mut runner, _) = home_runner(Instant::now());
     assert_eq!(runner.display.ui.home_visual, "scope");
-    let _ = commit_setting(&mut runner, "homeVisual", -1);
+    let _ = commit_setting(&mut runner, "homeVisual", 2);
     let payload = runner.config_payload();
-    assert_eq!(payload["runtimeConfig"]["homeVisual"], "none");
+    assert_eq!(payload["runtimeConfig"]["homeVisual"], "waterfall");
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
-    assert_eq!(restored.display.ui.home_visual, "none");
-    assert_eq!(restored.menu.value_for_key("homeVisual").unwrap(), "none");
+    assert_eq!(restored.display.ui.home_visual, "waterfall");
+    assert_eq!(
+        restored.menu.value_for_key("homeVisual").unwrap(),
+        "waterfall"
+    );
+}
+
+#[test]
+fn spectrum_and_waterfall_draw_the_same_tap_once_it_sounds() {
+    let start = Instant::now();
+    let (mut runner, tap) = home_runner(start);
+    runner.transport.transport = RuntimeTransportState::Playing;
+    let _ = commit_setting(&mut runner, "homeVisual", 1);
+    assert_eq!(runner.display.ui.home_visual, "spectrum");
+    runner.menu.state.stack.clear();
+    assert_eq!(band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
+    sound(tap);
+    runner.display.transients.set_test_now(start + STEP);
+    assert!(matches!(
+        band(&mut runner).unwrap().visual,
+        OledSignalVisual::Spectrum { .. }
+    ));
+
+    let _ = commit_setting(&mut runner, "homeVisual", 1);
+    assert_eq!(runner.display.ui.home_visual, "waterfall");
+    runner.menu.state.stack.clear();
+    assert_eq!(band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
+    sound(tap);
+    runner.display.transients.set_test_now(start + STEP * 2);
+    assert!(matches!(
+        band(&mut runner).unwrap().visual,
+        OledSignalVisual::Waterfall { .. }
+    ));
 }
