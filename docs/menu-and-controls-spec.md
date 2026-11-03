@@ -335,6 +335,24 @@ change; only the distance per detent does.
   bar, caps, markers, mini bars, E2 box and text cursor move together. Full and scrolling pages,
   plain-text pages and cards keep `s = 11 + 13*i`. A slide between a short and a full page draws
   each side at its own height.
+- Signal band: while `Home Visual` is not `none`, the root menu's spacer slot holds a band at
+  `x=2..125`, `y=68..94` (27 rows) and System drops 16 px to `s = 98`; Build, Link, Shape and Play
+  keep their rows. Without a band System stays at `s = 82`. The band never shows on any other
+  page, under a modal, help, splash or the dark OLED.
+  - Stopped, paused or silent (master peak below 0.001): one dim gray line at `y=81`. It is static
+    and schedules no frames.
+  - Playing: `scope` draws the master mix in blue, one point per column, two tapped samples
+    apart (about 10 ms across). The trace starts at the latest rising zero crossing that follows
+    a dip below 30 % of the peak, so steady tones stand still; signals louder than a 0.25 peak fill
+    the band, quieter ones scale linearly. The band steps every 66 ms (about 15 fps); each step
+    is one new scene generation and one timed display deadline, so the boards and the desktop
+    redraw the band at most at that rate.
+  - The audio engine copies the mono master into a 2048-sample lock-free ring once per block,
+    averaging frame pairs (24 kHz at 48 kHz), and only while a live band is on screen; otherwise
+    it costs one flag check per block. The runtime reads the ring when it captures a step; nothing
+    is drawn or analysed on the audio thread.
+  - The boards write only the rows that changed since the last frame, as one SSD1351 column
+    window (the panel is turned clockwise); a band-only step sends 27 of 128 rows.
 - Footer (`y=113..127`): Aux hints on the left up to `x=107`, then the recording disc, transport
   icon and event dot, all centred on `y=121`. The toast covers the hint area.
 - Every snapshot `display` object carries the required `bodyLayout`:
@@ -457,6 +475,9 @@ behavior primary red), so a mute never reads as a section color.
   Stored as `mainFont` / `smallFont` (`octessera` or `original`) in the system preferences. The
   switch is presentation only: it takes the key fast path, rebuilds no menu and changes no
   stored musical value. Row-fit and breadcrumb checks must hold in both glyph sets.
+- `Home Visual` (System > Display, after `Small Font`) picks what the home page shows between
+  Play and System: `scope` (the default) or `none`. See the signal band under the body layout.
+  Stored as `homeVisual` in the system preferences; presentation only, through the key fast path.
 - Bar fractions follow encoder-turn space (see [Numeric steps](#numeric-steps)), so a bar moves
   evenly per detent: time rows use the share of coarse detents from the minimum, frequency and Q
   rows `log(v/min) / log(max/min)`, reverb `Decay` and delay `Feedback` the log of the distance to

@@ -35,6 +35,8 @@ pub struct DeviceRuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) small_font: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) home_visual: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) dim_timer_seconds: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) screen_sleep_seconds: Option<u16>,
@@ -99,6 +101,7 @@ impl DeviceRuntimeConfigDto {
             numeric_display_mode: runtime.numeric_display_mode.clone(),
             main_font: runtime.main_font.clone(),
             small_font: runtime.small_font.clone(),
+            home_visual: runtime.home_visual.clone(),
             dim_timer_seconds: runtime.dim_timer_seconds,
             screen_sleep_seconds: runtime.screen_sleep_seconds,
             display_brightness: runtime.display_brightness,

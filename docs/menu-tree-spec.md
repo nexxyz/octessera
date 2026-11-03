@@ -13,7 +13,7 @@ Root (group)
 ├── Link (group)
 ├── Shape (group)
 ├── Play (group)
-├── [spacer] (blank visual separator)
+├── [spacer] (blank visual separator; the signal band while a Home Visual is on)
 └── System (group)
 ```
 

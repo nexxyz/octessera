@@ -278,6 +278,7 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
                     | "numericDisplayMode"
                     | "mainFont"
                     | "smallFont"
+                    | "homeVisual"
                     | "dimTimerSeconds"
                     | "screenSleepSeconds"
             ))

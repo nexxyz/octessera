@@ -2,14 +2,20 @@ use super::HardwareRenderCache;
 use super::OledFramePublication;
 use super::{OledOutputKey, OledOutputState};
 use octessera_hal::OledSsd1351;
+use std::ops::Range;
 use std::time::{Duration, Instant};
 
 pub(super) const OLED_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 const OLED_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(1);
+const OLED_ROW_BYTES: usize = 128 * 2;
 
 pub(super) trait OledRenderDevice {
     fn display_on(&mut self) -> Result<(), String>;
     fn write_frame(&mut self, frame: &[u8]) -> Result<(), String>;
+    /// Writes only `rows` of `frame`; the panel already shows the others.
+    fn write_rows(&mut self, frame: &[u8], _rows: Range<usize>) -> Result<(), String> {
+        self.write_frame(frame)
+    }
     fn display_off(&mut self) -> Result<(), String>;
     fn set_master_contrast(&mut self, step: u8) -> Result<(), String>;
 }
@@ -21,6 +27,10 @@ impl OledRenderDevice for OledSsd1351 {
 
     fn write_frame(&mut self, frame: &[u8]) -> Result<(), String> {
         OledSsd1351::write_frame(self, frame)
+    }
+
+    fn write_rows(&mut self, frame: &[u8], rows: Range<usize>) -> Result<(), String> {
+        OledSsd1351::write_rows(self, frame, rows)
     }
 
     fn display_off(&mut self) -> Result<(), String> {
@@ -51,9 +61,17 @@ fn render_native_oled<O: OledRenderDevice>(
         oled.display_on()?;
         state.display_off = Some(false);
     }
-    let frame_written = force_frame || state.pixels.as_deref() != Some(frame);
-    if frame_written {
-        oled.write_frame(frame)?;
+    let changed = match state.pixels.as_deref() {
+        Some(shown) if !force_frame => changed_rows(shown, frame),
+        _ => Some(0..frame.len() / OLED_ROW_BYTES),
+    };
+    let frame_written = changed.is_some();
+    if let Some(rows) = changed {
+        if rows.len() * OLED_ROW_BYTES == frame.len() {
+            oled.write_frame(frame)?;
+        } else {
+            oled.write_rows(frame, rows)?;
+        }
         state.pixels = Some(frame.to_vec());
     }
     state.frame = Some(frame_key);
@@ -63,6 +81,21 @@ fn render_native_oled<O: OledRenderDevice>(
         state.display_off = Some(true);
     }
     Ok(frame_written)
+}
+
+/// The first to the last row that differs between the frame on the panel and the new one.
+fn changed_rows(shown: &[u8], frame: &[u8]) -> Option<Range<usize>> {
+    if shown.len() != frame.len() {
+        return Some(0..frame.len() / OLED_ROW_BYTES);
+    }
+    let differs = |row: &usize| {
+        let bytes = row * OLED_ROW_BYTES..(row + 1) * OLED_ROW_BYTES;
+        shown[bytes.clone()] != frame[bytes]
+    };
+    let rows = frame.len() / OLED_ROW_BYTES;
+    let first = (0..rows).find(differs)?;
+    let last = (first..rows).rev().find(differs)?;
+    Some(first..last + 1)
 }
 
 pub(super) fn render_oled_if_changed_off<O: OledRenderDevice>(
@@ -233,5 +266,7 @@ impl HardwareRenderCache {
     }
 }
 
+#[cfg(test)]
+mod row_window_tests;
 #[cfg(test)]
 mod tests;

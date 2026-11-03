@@ -12,6 +12,7 @@ const SCALARS: &[&str] = &[
     "numericDisplayMode",
     "mainFont",
     "smallFont",
+    "homeVisual",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",

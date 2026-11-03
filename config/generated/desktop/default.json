@@ -3485,6 +3485,7 @@
     "numericDisplayMode": "bar",
     "mainFont": "octessera",
     "smallFont": "octessera",
+    "homeVisual": "scope",
     "recording": {
       "maxMinutes": 10
     },

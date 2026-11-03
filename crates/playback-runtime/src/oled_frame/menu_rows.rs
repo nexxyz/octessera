@@ -6,6 +6,7 @@ use super::footer::PLAY;
 use super::menu_row_layout::{row_layout, RowValue, LIST_NAME_X, NAME_X};
 use super::model::{OledBarInput, OledBarStyle, OledMenuRowInput, OledScrollInput};
 use super::pixels::{dim, draw_mask, fill_rect, rgb565, rgb565_to_rgb, shade};
+use super::signal_band::{draw_signal_band, SIGNAL_BAND_DROP};
 use super::{
     layout_card_body, OledDisplayInput, OledDisplayLayout, CARD_BODY_RECT, MENU_BODY_RECT,
 };
@@ -34,6 +35,15 @@ const SHORT_PAGE_OFFSET: usize = 6;
 /// bar spans `top - 1 ..= top + 9` and the m5x7 capitals `top + 1 ..= top + 7`.
 pub(super) fn slot_top(body_top_offset: usize, index: usize) -> usize {
     FIRST_SLOT_Y + body_top_offset + index * PITCH
+}
+
+/// The top of `display`'s body row `index`; the rows after a signal band drop below it.
+pub(super) fn row_top(display: &OledDisplayInput, index: usize) -> usize {
+    let drop = match &display.signal_band {
+        Some(band) if index > band.slot => SIGNAL_BAND_DROP,
+        _ => 0,
+    };
+    slot_top(body_top_offset(display), index) + drop
 }
 
 /// Where a body's rows start on the left: the selection bar's first column and the names'.
@@ -204,9 +214,8 @@ fn draw_menu_body(
     let scroll = page_scroll(display);
     let bar_right = selection_bar_right(scroll.is_some());
     let inset = left_inset(display);
-    let offset = body_top_offset(display);
     for (index, line) in display.lines.iter().enumerate().take(BODY_ROWS) {
-        let top = slot_top(offset, index);
+        let top = row_top(display, index);
         let selected = selected_row == Some(index);
         let style = RowStyle {
             area: row_area(display, index),
@@ -223,6 +232,9 @@ fn draw_menu_body(
             }
             None => draw_plain_row(frame, top, line, style),
         }
+    }
+    if let Some(band) = &display.signal_band {
+        draw_signal_band(frame, band, body_top_offset(display));
     }
     if let Some(scroll) = scroll {
         let area = display.title_color;

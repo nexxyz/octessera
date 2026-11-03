@@ -434,6 +434,8 @@ mod persistent_output_integration_tests;
 
 mod pcm_mirror_integration_tests;
 
+mod signal_tap_integration_tests;
+
 #[cfg(feature = "routing-tree-executor")]
 #[test]
 fn routing_tree_constructor_rejects_invalid_frames_before_setup() {

@@ -104,6 +104,9 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
     group(SYSTEM_LABEL, children)
 }
 
+/// What the home page shows between its sections and System.
+pub(crate) const HOME_VISUALS: &[&str] = &["none", "scope"];
+
 fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let mut children = vec![
         bool_item("Ghost Tiles", "ghostTiles", config.ghost_tiles),
@@ -127,6 +130,12 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             "smallFont",
             vec!["Octessera", "Original"],
             selected_index(&["octessera", "original"], &config.small_font),
+        ),
+        enum_item(
+            "Home Visual",
+            "homeVisual",
+            HOME_VISUALS.to_vec(),
+            selected_index(HOME_VISUALS, &config.home_visual),
         ),
         number_item(
             "Dim Timer",

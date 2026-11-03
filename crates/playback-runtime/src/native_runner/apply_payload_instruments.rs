@@ -1,3 +1,4 @@
+use crate::native_menu::HOME_VISUALS;
 use crate::protocol::RuntimePlatformEffect;
 
 use super::apply_payload_instrument_values::*;
@@ -188,21 +189,7 @@ impl NativeRunner {
                 self.display.ui.button_brightness = value.min(100);
             }
         }
-        if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
-            if matches!(value, "bar" | "numbers") {
-                self.display.ui.numeric_display_mode = value.into();
-            }
-        }
-        if let Some(value) = runtime.get("mainFont").and_then(Value::as_str) {
-            if matches!(value, "octessera" | "original") {
-                self.display.ui.main_font = value.into();
-            }
-        }
-        if let Some(value) = runtime.get("smallFont").and_then(Value::as_str) {
-            if matches!(value, "octessera" | "original") {
-                self.display.ui.small_font = value.into();
-            }
-        }
+        self.apply_oled_style_payload(runtime);
         let screen_sleep_seconds = runtime.get("screenSleepSeconds").and_then(Value::as_u64);
         if let Some(value) = screen_sleep_seconds {
             if let Ok(value) = u16::try_from(value) {
@@ -221,6 +208,30 @@ impl NativeRunner {
             .get("rollingBackups")
             .and_then(Value::as_bool)
             .unwrap_or(true);
+    }
+
+    /// How the OLED draws: number style, fonts and the home page's visual.
+    fn apply_oled_style_payload(&mut self, runtime: &Value) {
+        if let Some(value) = runtime.get("numericDisplayMode").and_then(Value::as_str) {
+            if matches!(value, "bar" | "numbers") {
+                self.display.ui.numeric_display_mode = value.into();
+            }
+        }
+        if let Some(value) = runtime.get("mainFont").and_then(Value::as_str) {
+            if matches!(value, "octessera" | "original") {
+                self.display.ui.main_font = value.into();
+            }
+        }
+        if let Some(value) = runtime.get("smallFont").and_then(Value::as_str) {
+            if matches!(value, "octessera" | "original") {
+                self.display.ui.small_font = value.into();
+            }
+        }
+        if let Some(value) = runtime.get("homeVisual").and_then(Value::as_str) {
+            if HOME_VISUALS.contains(&value) {
+                self.display.ui.home_visual = value.into();
+            }
+        }
     }
 
     pub(super) fn apply_runtime_input_payload(&mut self, runtime: &Value) {

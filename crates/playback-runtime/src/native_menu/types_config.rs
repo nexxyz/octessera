@@ -87,6 +87,7 @@ pub struct NativeMenuConfig {
     pub numeric_display_mode: String,
     pub main_font: String,
     pub small_font: String,
+    pub home_visual: String,
     pub screen_sleep_seconds: u16,
     pub dim_timer_seconds: u16,
     pub grid_brightness: u8,

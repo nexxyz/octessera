@@ -42,7 +42,8 @@ impl PresentationScene {
                 "toast": self.toast,
                 "off": self.off,
                 "splash": self.splash,
-                "editing": self.editing
+                "editing": self.editing,
+                "signalBand": self.signal_band
             },
             "leds": {"width": GRID_WIDTH, "height": GRID_HEIGHT, "rgb": self.led_rgb, "active": self.active_tiles},
             "hdmi": hdmi,

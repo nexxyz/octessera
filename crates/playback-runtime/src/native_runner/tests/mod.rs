@@ -148,6 +148,7 @@ mod sequencer_transport_origin;
 mod setup_portal;
 mod show_hold;
 mod shutdown;
+mod signal_band;
 mod snapshot_autosave;
 mod snapshot_runtime;
 mod step_rates;

@@ -35,7 +35,8 @@ pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, 
 #[cfg(feature = "routing-tree-executor")]
 use realtime_engine::synth::SynthProfileSnapshot;
 use realtime_engine::synth::{
-    RetiredAudioState, SourceWorkerHealth, SynthEngine, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
+    master_signal_tap, RetiredAudioState, SignalTap, SourceWorkerHealth, SynthEngine,
+    DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES,
 };
 #[cfg(feature = "routing-tree-executor")]
 use realtime_engine::synth::{
@@ -107,6 +108,7 @@ pub struct EngineSource {
     persistent_output: PreviousMasterQuantum,
     timed: TimedEvents,
     mirror_producers: PcmMirrorProducers,
+    signal_tap: &'static SignalTap,
 }
 
 impl EngineSource {
@@ -254,6 +256,7 @@ impl EngineSource {
             persistent_output: PreviousMasterQuantum::new(),
             timed: TimedEvents::new(sample_rate),
             mirror_producers: [None, None],
+            signal_tap: master_signal_tap(),
         }
     }
 
@@ -285,6 +288,8 @@ impl EngineSource {
             EngineSourceMode::RoutingTree => self.refill_routing_tree(),
         };
         self.publish_mirrors();
+        self.signal_tap
+            .publish_master(&self.buf, self.block_frames, self.sample_rate);
         self.timed.clock.advance(self.block_frames);
         if !self.engine.pending_render_retired_is_empty()
             && self.retirement_storage_can_accept_item()
@@ -394,6 +399,11 @@ impl EngineSource {
             self.retired_drop_probe.clone(),
         );
         controls.drain(&mut self.engine, &mut self.timed)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_signal_tap_for_test(&mut self, tap: &'static SignalTap) {
+        self.signal_tap = tap;
     }
 
     #[cfg(test)]

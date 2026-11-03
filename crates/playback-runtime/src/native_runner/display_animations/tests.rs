@@ -51,6 +51,7 @@ impl Screen {
                 toast: &self.toast,
                 menu_stack: self.stack.as_deref(),
                 menu_frame: true,
+                signal_band: None,
             },
             now,
         )
@@ -330,6 +331,7 @@ fn modals_splash_and_unrelated_page_changes_do_not_animate() {
         toast: &splash.toast,
         menu_stack: None,
         menu_frame: false,
+        signal_band: None,
     };
     assert!(animations.observe(&frame, start + 500 * MS).is_empty());
 }

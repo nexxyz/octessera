@@ -8,6 +8,7 @@ use super::mapping_bindings;
 use super::mixer_fx;
 use super::modulation;
 use super::Value;
+use crate::native_menu::HOME_VISUALS;
 use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::Map;
 
@@ -28,6 +29,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     )?;
     enum_field(runtime, "mainFont", "runtimeConfig", FONT_SETS)?;
     enum_field(runtime, "smallFont", "runtimeConfig", FONT_SETS)?;
+    enum_field(runtime, "homeVisual", "runtimeConfig", HOME_VISUALS)?;
     enum_field(runtime, "playMode", "runtimeConfig", PLAY_MODES)?;
     enum_field(runtime, "auxPriority", "runtimeConfig", AUX_PRIORITIES)?;
     enum_field(runtime, "xyRelease", "runtimeConfig", XY_RELEASES)?;

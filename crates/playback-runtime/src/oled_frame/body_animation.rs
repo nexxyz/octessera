@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use super::menu_rows::{
-    body_top_offset, draw_body, draw_scrollbar, edit_box_x, page_scroll, row_area,
-    selection_bar_span, slot_top, BAR_HEIGHT, PITCH, SCROLLBAR_X,
+    draw_body, draw_scrollbar, edit_box_x, page_scroll, row_area, row_top, selection_bar_span,
+    BAR_HEIGHT, PITCH, SCROLLBAR_X,
 };
 use super::model::{OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledPresentationInput};
 use super::pixels::fill_rect;
@@ -60,7 +60,7 @@ pub(super) fn draw_body_animation(
             } else {
                 cut..OLED_WIDTH
             };
-            let top = slot_top(body_top_offset(display), row) - 1;
+            let top = row_top(display, row) - 1;
             for y in top..top + BAR_HEIGHT {
                 copy_span(frame, y, &scratch, y, other.clone());
             }
@@ -78,8 +78,8 @@ fn compose_select(
     moved: usize,
 ) {
     let (bar_x, bar_right) = selection_bar_span(display);
-    let offset = body_top_offset(display);
-    let [from_top, to_top] = rows.map(|row| slot_top(offset, row) - 1);
+    let [from_top, to_top] = rows.map(|row| row_top(display, row) - 1);
+    let moved = moved * from_top.abs_diff(to_top) / PITCH;
     let bar_top = if to_top > from_top {
         from_top + moved
     } else {
@@ -143,7 +143,7 @@ fn compose_scroll(
     shift: Shift,
 ) {
     let (bar_x, _) = selection_bar_span(display);
-    let band_top = slot_top(body_top_offset(display), slot) - 1;
+    let band_top = row_top(display, slot) - 1;
     let band = band_top..band_top + BAR_HEIGHT;
     let mut new_band = [0_u8; BAR_HEIGHT * ROW_BYTES];
     new_band.copy_from_slice(&frame[band_top * ROW_BYTES..band.end * ROW_BYTES]);

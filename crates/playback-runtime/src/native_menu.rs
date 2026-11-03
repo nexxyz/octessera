@@ -65,6 +65,7 @@ pub(crate) use bindings::XY_GLIDE_MAX_MS;
 pub(crate) use numeric_edit::curved_edit_value;
 #[cfg(test)]
 pub(crate) use numeric_edit::numeric_edit_value;
+pub(crate) use system::HOME_VISUALS;
 mod voice_config_read;
 mod voice_env_groups;
 

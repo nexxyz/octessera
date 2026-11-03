@@ -12,6 +12,7 @@ mod pluck_dispersion;
 mod pluck_string;
 mod runtime_state;
 mod scalar_param;
+mod signal_tap;
 mod steal_declick;
 mod synth_voice_partition;
 mod synth_voice_pool;
@@ -56,6 +57,9 @@ pub use param_path_validation::{
 };
 pub use scalar_param::{
     DrumParamId, FmParamId, PluckParamId, SampleBankParamId, ScalarMutation, SynthParamId,
+};
+pub use signal_tap::{
+    master_signal_tap, SignalSource, SignalTap, SIGNAL_TAP_CAPACITY, SIGNAL_TAP_DECIMATION,
 };
 pub use types::{
     default_synth_config, AudioLoadStatus, BlockPeak, DrumAssignment, DrumConfig, DrumSound,

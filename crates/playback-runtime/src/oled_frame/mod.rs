@@ -16,6 +16,7 @@ mod model;
 mod pixels;
 mod presentation_input;
 mod render;
+mod signal_band;
 mod splash;
 mod text;
 mod text_layout;
@@ -36,11 +37,13 @@ pub use model::{
     OledAnimationInput, OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle,
     OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledHintLabel, OledHintSource,
     OledMenuRowInput, OledMenuRowKind, OledPresentationInput, OledPresentationMetrics,
-    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSplash, OledToastSlide,
-    OledTransportFlash, OledTransportIcon, OledTransportInput, INDICATOR_FADE_LEVELS,
+    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSignalBand, OledSignalVisual,
+    OledSplash, OledToastSlide, OledTransportFlash, OledTransportIcon, OledTransportInput,
+    INDICATOR_FADE_LEVELS,
 };
 pub(crate) use presentation_input::presentation_input_from_snapshot;
 pub use render::{render_oled_frame, render_oled_frame_into};
+pub use signal_band::{SIGNAL_BAND_HEIGHT, SIGNAL_BAND_WIDTH, SPECTRUM_BARS};
 pub use text_layout::{
     fit_line_ellipsis, force_line_ellipsis, layout_card_body, layout_rows, normalize_text,
     wrap_text, LaidOutTextRow, OledDisplayLayout, TextLayoutRect, CARD_BODY_RECT, FONT_ADVANCE_X,
@@ -73,6 +76,9 @@ mod picker_rows_tests;
 
 #[cfg(test)]
 mod short_page_tests;
+
+#[cfg(test)]
+mod signal_band_tests;
 
 #[cfg(test)]
 mod tests;

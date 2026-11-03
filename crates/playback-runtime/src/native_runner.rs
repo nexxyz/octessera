@@ -219,6 +219,7 @@ mod sample_paths;
 mod scan_overlay;
 mod setup_portal_state;
 mod setup_system_results;
+mod signal_band;
 mod snapshot;
 mod snapshot_audio_settings;
 mod snapshot_display;

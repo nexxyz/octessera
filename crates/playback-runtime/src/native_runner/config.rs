@@ -147,6 +147,7 @@ impl NativeRunner {
             numeric_display_mode: self.display.ui.numeric_display_mode.clone(),
             main_font: self.display.ui.main_font.clone(),
             small_font: self.display.ui.small_font.clone(),
+            home_visual: self.display.ui.home_visual.clone(),
             screen_sleep_seconds: self.display.ui.screen_sleep_seconds,
             dim_timer_seconds: self.display.ui.dim_timer_seconds,
             grid_brightness: self.display.ui.grid_brightness,

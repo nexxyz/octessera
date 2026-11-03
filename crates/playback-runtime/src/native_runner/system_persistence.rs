@@ -219,6 +219,7 @@ impl SystemPersistenceState {
             "numericDisplayMode": runner.display.ui.numeric_display_mode,
             "mainFont": runner.display.ui.main_font,
             "smallFont": runner.display.ui.small_font,
+            "homeVisual": runner.display.ui.home_visual,
             "dimTimerSeconds": runner.display.ui.dim_timer_seconds,
             "screenSleepSeconds": runner.display.ui.screen_sleep_seconds,
             "displayBrightness": runner.display.ui.display_brightness,

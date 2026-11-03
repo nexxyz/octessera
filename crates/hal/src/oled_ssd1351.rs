@@ -10,6 +10,7 @@ use std::io::Write;
 
 #[cfg(not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")))]
 use std::fmt;
+use std::ops::Range;
 
 /// SSD1351 commands
 #[cfg(feature = "raspberry-pi-zero-2w")]
@@ -88,12 +89,14 @@ pub struct OledSsd1351 {
     dc: OutputPin,
     _rst: OutputPin,
     rotated_frame: Vec<u8>,
+    window: Vec<u8>,
 }
 
 #[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
 pub struct OledSsd1351 {
     transport: Option<crate::orange_hardware::OrangeOledTransport>,
     rotated_frame: Vec<u8>,
+    window: Vec<u8>,
 }
 
 #[cfg(feature = "raspberry-pi-zero-2w")]
@@ -184,6 +187,7 @@ impl OledSsd1351 {
             dc,
             _rst: rst,
             rotated_frame: vec![0_u8; FRAME_BYTES],
+            window: Vec::with_capacity(FRAME_BYTES),
         })
     }
 
@@ -231,6 +235,17 @@ impl OledSsd1351 {
         Ok(())
     }
 
+    /// Writes only logical rows `rows` of a pre-rendered frame, as one RAM window.
+    pub fn write_rows(&mut self, pixels: &[u8], rows: Range<usize>) -> Result<(), String> {
+        let columns = rotated_row_window(pixels, rows, &mut self.window);
+        Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_COLUMN_ADDR, &columns)?;
+        Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
+        Self::write_command(&mut self.spi, &mut self.dc, CMD_WRITE_RAM, &[])?;
+        self.dc.set_high();
+        write_all_chunked(&mut self.spi, &self.window)
+            .map_err(|e| format!("SPI window write failed: {}", e))
+    }
+
     pub fn display_on(&mut self) -> Result<(), String> {
         Self::write_command(&mut self.spi, &mut self.dc, CMD_NORMAL_DISPLAY, &[])?;
         Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_ON, &[])
@@ -271,6 +286,25 @@ fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [
     rotated
 }
 
+/// The panel turns the frame clockwise, so logical rows `rows` are one window of physical
+/// columns over every physical row. Fills `window` with its RAM bytes and returns the columns.
+#[cfg(any(
+    feature = "raspberry-pi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
+fn rotated_row_window(pixels: &[u8], rows: Range<usize>, window: &mut Vec<u8>) -> [u8; 2] {
+    let columns = WIDTH - rows.end..WIDTH - rows.start;
+    window.clear();
+    for x in 0..WIDTH {
+        for column in columns.clone() {
+            let source = ((HEIGHT - 1 - column) * WIDTH + x) * BYTES_PER_PIXEL;
+            window.extend_from_slice(&pixels[source..source + BYTES_PER_PIXEL]);
+        }
+    }
+    [columns.start as u8, (columns.end - 1) as u8]
+}
+
 #[cfg(feature = "raspberry-pi-zero-2w")]
 fn write_all_chunked(spi: &mut Spidev, data: &[u8]) -> std::io::Result<()> {
     for chunk in data.chunks(SPI_CHUNK_BYTES) {
@@ -300,6 +334,7 @@ impl OledSsd1351 {
         Ok(Self {
             transport: Some(hardware.into_oled()),
             rotated_frame: vec![0_u8; FRAME_BYTES],
+            window: Vec::with_capacity(FRAME_BYTES),
         })
     }
 
@@ -309,6 +344,15 @@ impl OledSsd1351 {
             .as_mut()
             .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
             .write_frame(frame)
+    }
+
+    /// Writes only logical rows `rows` of a pre-rendered frame, as one RAM window.
+    pub fn write_rows(&mut self, pixels: &[u8], rows: Range<usize>) -> Result<(), String> {
+        let columns = rotated_row_window(pixels, rows, &mut self.window);
+        self.transport
+            .as_mut()
+            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
+            .write_columns(columns, &self.window)
     }
 
     pub fn display_on(&mut self) -> Result<(), String> {
@@ -376,6 +420,10 @@ impl OledSsd1351 {
         Err("Orange OLED requires a Linux target".into())
     }
 
+    pub fn write_rows(&mut self, _pixels: &[u8], _rows: Range<usize>) -> Result<(), String> {
+        Err("Orange OLED requires a Linux target".into())
+    }
+
     pub fn display_on(&mut self) -> Result<(), String> {
         Err("Orange OLED requires a Linux target".into())
     }
@@ -413,6 +461,10 @@ impl OledSsd1351 {
     }
 
     pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn write_rows(&mut self, _pixels: &[u8], _rows: Range<usize>) -> Result<(), String> {
         Ok(())
     }
 

@@ -23,6 +23,7 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
     "numericDisplayMode",
     "mainFont",
     "smallFont",
+    "homeVisual",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
