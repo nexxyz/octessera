@@ -11,7 +11,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         labels,
-        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+        vec!["Mix", "Pan", "FX", "XY", "Transpose", "Trigger Gate"]
     );
     let sense = &menu.root.children[1];
     assert_eq!(sense.children[0].label, "BPM");
@@ -55,7 +55,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         fx_labels,
-        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+        vec!["Mix", "Pan", "FX", "XY", "Transpose", "Trigger Gate"]
     );
     let fx_labels = fx_menu.root.children[3].children[2]
         .children
@@ -75,7 +75,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         trigger_gate_labels,
-        vec!["Mix", "Pan", "FX", "Trigger Gate", "Transpose", "XY"]
+        vec!["Mix", "Pan", "FX", "XY", "Transpose", "Trigger Gate"]
     );
 }
 
@@ -84,7 +84,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
     let mut config = config();
     config.play_mode = "xy".into();
     let mut menu = NativeMenuModel::new(config);
-    let xy = &menu.root.children[3].children[5];
+    let xy = &menu.root.children[3].children[3];
     let labels = xy
         .children
         .iter()

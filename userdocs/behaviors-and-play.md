@@ -104,10 +104,11 @@ Link turns these into notes. See [Sound and Link](sound-and-link.md#link-what-co
 Play pages are performance overlays. They borrow the grid for a moment so you
 can play the whole instrument instead of editing one layer.
 
-Hold *Fn* and press a tile in the right-hand grid column to open a page.
-From the bottom up: Mix, Pan, FX, Trigger Gate, Transpose, XY (the top two
-tiles are unused). *Back*, or *Fn* plus a layer in the left column, leaves the
-page.
+The pages come in two banks on the right-hand grid column. Hold *Fn* for the
+technical ones (from the bottom up: Mix, Pan) or *Shift* + *Fn* for the
+musical ones (FX, XY, Transpose, a free tile, Trigger Gate), then press a tile
+in that column. Unlit tiles are free. *Back*, or *Fn* plus a layer in the left
+column, leaves the page.
 
 | Page | What the grid becomes | Use it for |
 |---|---|---|

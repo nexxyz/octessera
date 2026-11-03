@@ -1,27 +1,6 @@
 use super::NativeRunner;
 
 impl NativeRunner {
-    pub(super) fn select_play_page_from_fn_grid(&mut self, y: usize) {
-        let next_mode = match y {
-            0 => Some(("mix", 0)),
-            1 => Some(("pan", 1)),
-            2 => Some(("fx", 2)),
-            3 => Some(("trigger-gate", 3)),
-            4 => Some(("transpose", 4)),
-            5 => Some(("xy", 5)),
-            _ => None,
-        };
-        let Some((next_mode, cursor)) = next_mode else {
-            return;
-        };
-        self.play_mode = next_mode.into();
-        self.active_play_mode = self.play_mode.clone();
-        self.menu.state.stack = vec![3];
-        self.menu.state.cursor = cursor;
-        self.menu.state.editing = false;
-        self.show_toast(format!("Play: {}", play_mode_label(next_mode)));
-    }
-
     pub(super) fn active_layer_context_toast(&self, index: usize) -> String {
         let label = self
             .layer_labels()
@@ -53,13 +32,6 @@ impl NativeRunner {
                 *restore = None;
             }
         }
-    }
-}
-
-fn play_mode_label(mode: &str) -> &str {
-    match mode {
-        "trigger-gate" => "trig",
-        other => other,
     }
 }
 

@@ -139,11 +139,11 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts() {
 
     let play = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 2 }),
+            input: json!({ "type": "grid_press", "x": 7, "y": 1 }),
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&play)["display"]["toast"], "Play: fx");
+    assert_eq!(snapshot_from(&play)["display"]["toast"], "Play: pan");
 }
 
 #[test]

@@ -1,6 +1,7 @@
 use super::led_color::{trigger_gate_color, LedColor};
 use super::play_fx_config::play_fx_type;
 use super::play_fx_presentation::play_fx_color;
+use super::play_pages::{MUSICAL_PLAY_PAGES, TECHNICAL_PLAY_PAGES};
 use super::{
     pan_marker_left_tile, play_fx_tile_id, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT,
     PLAY_FX_MAX_CONCURRENT,
@@ -16,9 +17,14 @@ impl NativeRunner {
         }
         self.dim_fn_overlay(leds);
         self.paint_fn_layer_column(leds);
-        if !self.display.ui.combined_modifier_held {
-            self.paint_fn_page_column(leds);
-        }
+        self.paint_fn_page_column(
+            leds,
+            if self.display.ui.combined_modifier_held {
+                &MUSICAL_PLAY_PAGES
+            } else {
+                &TECHNICAL_PLAY_PAGES
+            },
+        );
     }
 
     pub(super) fn apply_play_mix_overlay(&self, leds: &mut [LedColor]) {
@@ -158,19 +164,14 @@ impl NativeRunner {
         }
     }
 
-    fn paint_fn_page_column(&self, leds: &mut [LedColor]) {
-        let page_options = ["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
-        for (row, mode) in page_options.iter().enumerate() {
-            let selected = self.active_play_mode != "none" && self.active_play_mode == *mode;
-            let color = if selected {
-                LedColor::GREEN
-            } else {
-                LedColor::YELLOW.dim(4)
+    fn paint_fn_page_column(&self, leds: &mut [LedColor], pages: &[Option<&str>; GRID_HEIGHT]) {
+        for (row, page) in pages.iter().enumerate() {
+            let color = match page {
+                Some(mode) if self.active_play_mode == *mode => LedColor::GREEN,
+                Some(_) => LedColor::YELLOW.dim(4),
+                None => LedColor::SYSTEM.dim(8),
             };
             self.set_display_led(leds, GRID_WIDTH - 1, row, color);
-        }
-        for row in page_options.len()..GRID_HEIGHT {
-            self.set_display_led(leds, GRID_WIDTH - 1, row, LedColor::SYSTEM.dim(8));
         }
     }
 }

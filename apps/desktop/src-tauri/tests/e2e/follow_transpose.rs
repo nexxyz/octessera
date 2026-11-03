@@ -23,7 +23,10 @@ fn tile_pitches(follow: bool) -> (BTreeMap<u8, i16>, BTreeMap<u8, i16>) {
         take.toggle_mute_now(layer);
     }
     take.back_to_root();
-    take.with_mods_now(&["button_fn"], &[grid(7, 4, true), grid(7, 4, false)]);
+    take.with_mods_now(
+        &["button_shift", "button_fn"],
+        &[grid(7, 2, true), grid(7, 2, false)],
+    );
     take.checkpoint("transpose page");
     take.tap_at(FIFTH_KEY.0, FIFTH_KEY.1, 2 * BAR - 6, true);
     let name = format!("follow-transpose-{follow}");

@@ -34,10 +34,10 @@ fn modifier_gestures_mute_select_open_pages_and_stop() {
         &[grid(0, 0, true), grid(0, 0, false)],
     );
     take.gesture_at(
-        &["button_fn"],
+        &["button_shift", "button_fn"],
         5 * BAR,
         true,
-        &[grid(7, 2, true), grid(7, 2, false)],
+        &[grid(7, 0, true), grid(7, 0, false)],
     );
     take.at(5 * BAR + 48, true, back());
     take.at(5 * BAR + 48, true, button("button_a", false));
@@ -93,7 +93,7 @@ fn modifier_gestures_mute_select_open_pages_and_stop() {
     assert_eq!(
         snapshot_after(&observations, 5.0)["activePlayMode"],
         "fx",
-        "Fn+right column opens FX"
+        "Shift+Fn+right column opens FX"
     );
     assert_eq!(
         snapshot_after(&observations, 5.5)["activePlayMode"],

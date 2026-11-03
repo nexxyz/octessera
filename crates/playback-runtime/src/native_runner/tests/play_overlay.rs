@@ -68,34 +68,43 @@ pub(crate) fn fn_overlay_highlights_active_layer_when_not_in_play_mode() {
 }
 
 #[test]
-pub(crate) fn combined_modifier_overlay_shows_layer_column_only() {
+pub(crate) fn combined_modifier_overlay_shows_musical_page_column() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "pan".into();
-    runner.play_mode = "pan".into();
+    runner.active_play_mode = "fx".into();
+    runner.play_mode = "fx".into();
     runner.display.ui.combined_modifier_held = true;
 
     let snapshot = runner.snapshot().unwrap();
     let tiles = led_tiles(&snapshot);
-    let active_layer = &tiles[display_index(0, 0)];
-    let right_page = tiles[display_index(GRID_WIDTH - 1, 1)].as_object().unwrap();
+    let page = |row| &tiles[display_index(GRID_WIDTH - 1, row)];
 
-    assert_eq!(*active_layer, led_rgb(platform_core::palette::BLUE));
-    assert_eq!(right_page["r"], 0);
-    assert_eq!(right_page["g"], 0);
-    assert_eq!(right_page["b"], 0);
+    assert_eq!(
+        tiles[display_index(0, 0)],
+        led_rgb(platform_core::palette::BLUE)
+    );
+    let idle = led_rgb(dim_rgb(platform_core::palette::YELLOW, 4));
+    let free = led_rgb(dim_rgb(platform_core::palette::GRAY, 8));
+    assert_eq!(*page(0), led_rgb(platform_core::palette::GREEN));
+    assert_eq!(*page(1), idle);
+    assert_eq!(*page(2), idle);
+    assert_eq!(*page(3), free);
+    assert_eq!(*page(4), idle);
+    for row in 5..GRID_HEIGHT {
+        assert_eq!(*page(row), free);
+    }
 }
 
 #[test]
 pub(crate) fn fn_overlay_dims_fx_grid_tiles_when_play_mode_is_fx() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.display.ui.fn_held = true;
+    runner.display.ui.combined_modifier_held = true;
     runner.active_play_mode = "fx".into();
     runner.play_mode = "fx".into();
 
     let snapshot = runner.snapshot().unwrap();
     let tiles = led_tiles(&snapshot);
     let mid_tile = tiles[display_index(2, 2)].as_object().unwrap();
-    let fx_page = &tiles[display_index(GRID_WIDTH - 1, 2)];
+    let fx_page = &tiles[display_index(GRID_WIDTH - 1, 0)];
     let layer_tile = tiles[display_index(0, 0)].as_object().unwrap();
 
     assert!(mid_tile["r"].as_i64().unwrap() < 20);

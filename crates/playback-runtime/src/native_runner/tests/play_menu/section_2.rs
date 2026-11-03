@@ -203,9 +203,8 @@ pub(crate) fn combined_modifier_left_column_toggles_selected_layer_trigger_mode(
 }
 
 #[test]
-pub(crate) fn fn_rightmost_grid_column_selects_play_pages() {
+pub(crate) fn fn_rightmost_grid_column_selects_technical_play_pages() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
@@ -213,74 +212,61 @@ pub(crate) fn fn_rightmost_grid_column_selects_play_pages() {
         })
         .unwrap();
 
-    let mix = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    let mix = press_grid(&mut runner, 7, 0);
     assert_eq!(runner.active_play_mode, "mix");
     assert_eq!(snapshot_from(&mix)["display"]["title"], "/Play");
+    assert_eq!(runner.menu.current_key(), Some("play.page.mix"));
 
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 1 }),
-            request_snapshot: None,
-        })
-        .unwrap();
+    let _ = press_grid(&mut runner, 7, 1);
     assert_eq!(runner.active_play_mode, "pan");
+    assert_eq!(runner.menu.current_key(), Some("play.page.pan"));
 
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 3 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(runner.active_play_mode, "trigger-gate");
-
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 4 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(runner.active_play_mode, "transpose");
-
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 5 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(runner.active_play_mode, "xy");
-
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 7 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(runner.active_play_mode, "xy");
+    for free_row in 2..8 {
+        let _ = press_grid(&mut runner, 7, free_row);
+        assert_eq!(runner.active_play_mode, "pan", "row {free_row}");
+    }
 }
 
 #[test]
-pub(crate) fn combined_modifier_rightmost_grid_column_is_reserved() {
+pub(crate) fn shift_fn_rightmost_grid_column_selects_musical_play_pages() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    for button in ["button_shift", "button_fn"] {
+        let _ = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": button, "pressed": true }),
+                request_snapshot: None,
+            })
+            .unwrap();
+    }
+    assert!(runner.display.ui.combined_modifier_held);
 
-    let _ = runner
+    for (row, mode, toast) in [
+        (0, "fx", "Play: fx"),
+        (1, "xy", "Play: xy"),
+        (2, "transpose", "Play: transpose"),
+        (4, "trigger-gate", "Play: trig"),
+    ] {
+        let messages = press_grid(&mut runner, 7, row);
+        assert_eq!(runner.active_play_mode, mode);
+        assert_eq!(snapshot_from(&messages)["display"]["toast"], toast);
+        assert_eq!(
+            runner.menu.current_key(),
+            Some(format!("play.page.{mode}").as_str())
+        );
+    }
+    for free_row in [3, 5, 6, 7] {
+        let _ = press_grid(&mut runner, 7, free_row);
+        assert_eq!(runner.active_play_mode, "trigger-gate", "row {free_row}");
+    }
+}
+
+fn press_grid(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
+    runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_combined_modifier", "pressed": true }),
+            input: json!({ "type": "grid_press", "x": x, "y": y }),
             request_snapshot: None,
         })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 7, "y": 0 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-
-    assert_eq!(runner.active_play_mode, "none");
+        .unwrap()
 }
 
 #[test]

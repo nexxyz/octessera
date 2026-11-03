@@ -16,22 +16,33 @@ Play
 │   ├── ... params of the FX Type (see Play FX)
 │   ├── Map to Grid (action)
 │   └── Aux Map (group)                  ← the Play FX params/actions that auto-map to aux, with their aux markers
-├── Trigger Gate                         ← page-select row
+├── XY (group)
+│   ├── X Axis: <target | (none)> (picker)   ← parameter picker
+│   ├── Y Axis: <target | (none)> (picker)
+│   ├── Smoothing: [0..500] step 10 ms       ← default 80; 0 shows Off
+│   ├── Invert X: [on | off]
+│   ├── Invert Y: [on | off]
+│   └── Release: [hold | center]             ← stored as sample-hold, reset-center
 ├── Transpose                            ← page-select row
-└── XY (group)
-    ├── X Axis: <target | (none)> (picker)   ← parameter picker
-    ├── Y Axis: <target | (none)> (picker)
-    ├── Smoothing: [0..500] step 10 ms       ← default 80; 0 shows Off
-    ├── Invert X: [on | off]
-    ├── Invert Y: [on | off]
-    └── Release: [hold | center]             ← stored as sample-hold, reset-center
+└── Trigger Gate                         ← page-select row
 ```
+
+The menu lists the technical bank, then the musical bank.
 
 ## Pages and navigation
 
-- Pages by Fn + right column row: 0 `mix`, 1 `pan`, 2 `fx`, 3 `trigger-gate`, 4 `transpose`,
-  5 `xy`; rows 6 and 7 do nothing. Fn + right column always selects and activates that page,
-  moves the menu to its Play row, and toasts `Play: <page>`.
+- The pages sit in two banks on the right grid column, bottom row first:
+
+  | Row | Fn: technical | Shift+Fn: musical |
+  |---|---|---|
+  | 0 | `mix` | `fx` |
+  | 1 | `pan` | `xy` |
+  | 2 | | `transpose` |
+  | 4 | | `trigger-gate` |
+
+  Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
+  that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
+  (`Play: trig` for Trigger Gate).
 - In the Play menu, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` are page-select rows: Main press
   selects and activates the page without entering an empty submenu. `FX` and `XY` are
   enterable groups and activate their page too.
