@@ -198,7 +198,7 @@ fn input_replaces_stale_triggers_and_uses_exact_world_coordinate() {
 }
 
 #[test]
-fn pressing_already_burning_cell_does_not_reactivate() {
+fn pressing_a_tile_whose_cell_is_burning_does_not_reactivate() {
     let mut context = BehaviorContext::new(120.0);
     let mut state = forest_fire_init(serde_json::json!({
         "treeDensityPct": 0, "reseedThresholdPct": 0, "growChancePct": 0

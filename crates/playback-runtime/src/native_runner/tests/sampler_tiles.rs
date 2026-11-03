@@ -104,7 +104,7 @@ fn held_tiles_sharing_a_link_note_release_their_own_tile() {
 }
 
 #[test]
-fn an_earlier_cell_release_cancels_its_delayed_held_cell_on() {
+fn an_earlier_tile_release_cancels_its_delayed_held_tile_on() {
     let mut runner = sampler_runner("hold");
     runner.link_layers[0].activate_timing.delay_steps = 2;
     assert!(route(

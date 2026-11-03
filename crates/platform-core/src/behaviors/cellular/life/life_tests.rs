@@ -80,7 +80,7 @@ fn twelve_live_cells_do_not_emit_direct_notes() {
 }
 
 #[test]
-fn block_is_stable_and_grid_press_toggles_cell() {
+fn block_is_stable_and_grid_press_toggles_the_tiles_cell() {
     let mut state = init(serde_json::json!({ "cells": [] })).unwrap();
     for (x, y) in [(2, 2), (3, 2), (2, 3), (3, 3)] {
         state.cells[grid_index(x, y)] = true;

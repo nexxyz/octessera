@@ -9,7 +9,7 @@ fn init_reads_spawn_step_from_config() {
 }
 
 #[test]
-fn init_creates_seed_cluster_and_grid_press_toggles_cell() {
+fn init_creates_seed_cluster_and_grid_press_toggles_the_tiles_cell() {
     let mut context = BehaviorContext::new(120.0);
     let state = dla_init(Value::Null).unwrap();
     let cx = GRID_WIDTH / 2;

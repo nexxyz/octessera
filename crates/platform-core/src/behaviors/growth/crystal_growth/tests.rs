@@ -51,7 +51,7 @@ fn init_menu_and_palette_contract() {
 }
 
 #[test]
-fn grid_press_exact_cell_empty_activate_existing_stable() {
+fn grid_press_exact_tile_empty_activate_existing_stable() {
     let mut context = context();
     let state = empty_state("cross");
     let state = crystal_growth_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);

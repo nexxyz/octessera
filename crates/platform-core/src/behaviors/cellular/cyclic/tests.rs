@@ -96,7 +96,7 @@ fn menu_palette_and_normalization_contract() {
 }
 
 #[test]
-fn grid_press_exact_world_cell_and_wrap_deactivate() {
+fn grid_press_exact_world_tile_and_wrap_deactivate() {
     let mut context = context();
     let state = empty();
     let state = cyclic_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
