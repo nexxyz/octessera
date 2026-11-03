@@ -372,8 +372,10 @@ change; only the distance per detent does.
   (96 rows, one band each) as the home band, opens on `Scope`, and the breadcrumb ends with the
   picture's name (`../I1: synth/Scope`). Main cycles `Scope`, `Spectrum`, `Waterfall`; Back
   closes it onto the same page and row; Main turns do nothing. Modifier chords (help, Aux
-  peek, single step), popups over it, grid, Aux, keys and transport keep their meaning, and an
-  input that moves the menu to another page closes it. Stopped it is the flat line; the steps, tap and frame costs match the home band.
+  peek, single step), popups over it, grid, Aux, keys and transport keep their meaning. Anything
+  that moves the focus off its Monitor row closes it: an input that moves the menu to another
+  page, or a row rebuild such as an Aux type change. Stopped it is the flat line; the steps, tap
+  and frame costs match the home band.
   Switching the source lets one block the routing-tree workers rendered ahead with the old
   source land first.
 - Footer (`y=113..127`): Aux hints on the left up to `x=107`, then the recording disc, transport

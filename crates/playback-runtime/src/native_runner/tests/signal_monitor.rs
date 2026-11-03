@@ -144,3 +144,37 @@ fn modifier_chords_pass_through_and_leaving_the_page_closes_the_monitor() {
     press_main(&mut runner);
     assert!(runner.display.signal_monitor.is_none());
 }
+
+#[test]
+fn an_aux_type_change_closes_the_monitor_before_it_shows_a_midi_source() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    assert!(runner.menu.focus_item_key("aux:0:turn.instruments.0.type"));
+    press_main(&mut runner);
+    assert_eq!(
+        runner.aux_bindings[0]
+            .as_ref()
+            .and_then(|binding| binding.turn_key.as_deref()),
+        Some("instruments.0.type")
+    );
+    let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
+    runner.display.signal = SignalTapReader::new(tap);
+    assert!(runner.menu.focus_item_key("monitor.instrument.0"));
+    press_main(&mut runner);
+    runner.transport.transport = RuntimeTransportState::Playing;
+    let _ = presented(&mut runner);
+    assert_eq!(tap.selected(), Some(SignalSource::Instrument(0)));
+
+    for kind in ["sampler", "midi"] {
+        input(
+            &mut runner,
+            json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+        );
+        assert_eq!(runner.instruments[0].kind, kind);
+        assert!(runner.shown_signal_monitor().is_none(), "{kind}");
+        assert!(presented(&mut runner).display.signal.is_none(), "{kind}");
+        assert_eq!(tap.selected(), None, "{kind}");
+    }
+    press_main(&mut runner);
+    assert!(runner.display.signal_monitor.is_none());
+}

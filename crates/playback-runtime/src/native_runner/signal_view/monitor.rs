@@ -11,8 +11,9 @@ use realtime_engine::synth::SignalSource;
 pub(in crate::native_runner) struct NativeSignalMonitor {
     pub(in crate::native_runner) source: SignalSource,
     pub(in crate::native_runner) kind: VisualKind,
-    /// The menu page it opened on; it closes once another input moves the menu elsewhere.
-    stack: Vec<usize>,
+    /// The Monitor row it opened from; it closes once the focus leaves that row, whether an
+    /// input moved the menu or a row rebuild (such as a type change) moved the focus.
+    key: String,
 }
 
 impl NativeSignalMonitor {
@@ -51,19 +52,22 @@ pub(in crate::native_runner) fn monitor_source(action: &str) -> Option<SignalSou
 
 impl NativeRunner {
     pub(in crate::native_runner) fn open_signal_monitor(&mut self, source: SignalSource) {
+        let Some(key) = self.menu.current_key() else {
+            return;
+        };
         self.display.signal_monitor = Some(NativeSignalMonitor {
             source,
             kind: VisualKind::Scope,
-            stack: self.menu.state.stack.clone(),
+            key: key.to_owned(),
         });
     }
 
-    /// The open monitor, while the menu still stands on the page it opened on.
+    /// The open monitor, while the menu still focuses the Monitor row it opened from.
     pub(in crate::native_runner) fn shown_signal_monitor(&self) -> Option<&NativeSignalMonitor> {
         self.display
             .signal_monitor
             .as_ref()
-            .filter(|monitor| monitor.stack == self.menu.state.stack)
+            .filter(|monitor| self.menu.current_key() == Some(monitor.key.as_str()))
     }
 
     /// While a monitor shows, plain Main presses cycle its picture, plain Main turns do nothing
