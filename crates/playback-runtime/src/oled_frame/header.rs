@@ -40,7 +40,7 @@ pub(super) fn draw_header(frame: &mut [u8], input: &OledPresentationInput) {
 }
 
 pub(super) fn cpu_meter_bars(peak_percent: u8, warn_percent: u8) -> usize {
-    let light_percent = u16::from(warn_percent) / 3 / 5 * 5;
+    let light_percent = (u16::from(warn_percent) + 7) / 15 * 5;
     let moderate_percent = u16::from(warn_percent) * 2 / 3 / 5 * 5;
     if peak_percent >= warn_percent {
         3
