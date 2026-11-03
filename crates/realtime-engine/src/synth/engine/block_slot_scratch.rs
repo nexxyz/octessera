@@ -11,7 +11,6 @@ pub(super) struct BlockSlotScratch {
     pub(super) source_active: Vec<bool>,
     pub(super) preview_out: Vec<f32>,
     pub(super) bus_active: Vec<bool>,
-    /// The tapped bus's chain output per frame of the block.
     pub(super) signal: Vec<f32>,
 }
 

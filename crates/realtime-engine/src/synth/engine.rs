@@ -266,7 +266,6 @@ pub struct SynthEngine {
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
     signal_tap: &'static SignalTap,
-    /// The tapped bus's chain output for the frame being mixed, while a bus is tapped.
     tapped_bus_sample: f32,
 }
 

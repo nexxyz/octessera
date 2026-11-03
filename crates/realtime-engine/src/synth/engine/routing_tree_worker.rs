@@ -151,7 +151,6 @@ pub(super) struct RoutingTreeWorkerContext {
     pub(super) synth_context: SynthSourceContext,
     pub(super) bus_idle_threshold: BusIdleThreshold,
     pub(super) fx_activity_hold_frames: u32,
-    /// The instrument or bus whose owning worker writes it into `signal_tap` this block.
     pub(super) signal: Option<SignalSource>,
     pub(super) signal_tap: &'static SignalTap,
 }
