@@ -294,6 +294,7 @@ fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [
     test
 ))]
 fn rotated_row_window(pixels: &[u8], rows: Range<usize>, window: &mut Vec<u8>) -> [u8; 2] {
+    debug_assert_eq!(pixels.len(), FRAME_BYTES);
     let columns = WIDTH - rows.end..WIDTH - rows.start;
     window.clear();
     for x in 0..WIDTH {

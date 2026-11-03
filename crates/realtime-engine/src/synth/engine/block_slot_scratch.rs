@@ -11,6 +11,8 @@ pub(super) struct BlockSlotScratch {
     pub(super) source_active: Vec<bool>,
     pub(super) preview_out: Vec<f32>,
     pub(super) bus_active: Vec<bool>,
+    /// The tapped bus's chain output per frame of the block.
+    pub(super) signal: Vec<f32>,
 }
 
 impl BlockSlotScratch {
@@ -24,6 +26,7 @@ impl BlockSlotScratch {
             source_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
             preview_out: vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES],
             bus_active: vec![false; BLOCK_SLOT_SCRATCH_FRAMES],
+            signal: vec![0.0; BLOCK_SLOT_SCRATCH_FRAMES],
         }
     }
 

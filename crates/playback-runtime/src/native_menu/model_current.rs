@@ -12,8 +12,24 @@ impl NativeMenuModel {
     }
 
     pub(super) fn path_label(&self) -> String {
+        let labels = self.breadcrumb_labels();
+        if labels.is_empty() {
+            "Octessera".into()
+        } else {
+            abbreviate_path(&labels.join("/"))
+        }
+    }
+
+    /// The breadcrumb of a screen `page` opens on top of the current page.
+    pub(crate) fn breadcrumb_with_page(&self, page: &str) -> String {
+        let mut labels = self.breadcrumb_labels();
+        labels.push(page);
+        abbreviate_path(&labels.join("/"))
+    }
+
+    fn breadcrumb_labels(&self) -> Vec<&str> {
         let mut node = &self.root;
-        let mut labels = Vec::with_capacity(self.state.stack.len());
+        let mut labels = Vec::with_capacity(self.state.stack.len() + 1);
         for idx in &self.state.stack {
             if let Some(next) = node.children.get(*idx) {
                 labels.push(next.breadcrumb.as_deref().unwrap_or_else(|| {
@@ -25,11 +41,7 @@ impl NativeMenuModel {
                 node = next;
             }
         }
-        if labels.is_empty() {
-            "Octessera".into()
-        } else {
-            abbreviate_path(&labels.join("/"))
-        }
+        labels
     }
 
     /// The pick of the list the open page belongs to, at any depth: `List`, `Value` or `None`.

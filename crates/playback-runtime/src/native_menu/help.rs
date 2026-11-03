@@ -184,6 +184,7 @@ fn default_system_effect_help_key(effect: &str) -> Option<String> {
         "system.updateApply" => Some("action:system_update_apply".into()),
         "system.rollback" => Some("action:system_rollback".into()),
         "play.fx.map" => Some("action:fx_assign_enter".into()),
+        value if value.starts_with("monitor.") => Some("action:signal_monitor".into()),
         _ => None,
     }
 }

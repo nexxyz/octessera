@@ -212,6 +212,9 @@ impl NativeRunner {
                 } else if action_type == "system.controlsHelp" {
                     self.open_controls_help();
                     Ok(None)
+                } else if let Some(source) = super::signal_view::monitor_source(&action_type) {
+                    self.open_signal_monitor(source);
+                    Ok(None)
                 } else if action_type == "system.hardwareTest" {
                     self.open_hardware_test();
                     Ok(None)

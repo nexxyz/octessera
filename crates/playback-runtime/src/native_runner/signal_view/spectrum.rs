@@ -1,5 +1,5 @@
 use super::fft::Fft;
-use crate::oled_frame::{OledSignalVisual, SIGNAL_BAND_HEIGHT, SIGNAL_BAND_WIDTH, SPECTRUM_BARS};
+use crate::oled_frame::{OledSignalVisual, SIGNAL_BODY_HEIGHT, SIGNAL_WIDTH, SPECTRUM_BARS};
 
 /// The lowest frequency the log bins show; the highest is the tapped signal's Nyquist.
 const LOW_HZ: f32 = 40.0;
@@ -17,7 +17,8 @@ pub(super) struct SpectrumHistory {
     bins: Vec<u8>,
     bars: Vec<u8>,
     peaks: Vec<u8>,
-    /// Band columns, oldest first, each a level per band row from the lowest bin up.
+    /// Columns, oldest first, each a level per pixel row from the lowest bin up; room for the
+    /// tallest view.
     waterfall: Vec<u8>,
 }
 
@@ -26,10 +27,10 @@ impl SpectrumHistory {
         Self {
             fft: Fft::new(size),
             size,
-            bins: vec![0; SPECTRUM_BARS.max(SIGNAL_BAND_HEIGHT)],
+            bins: vec![0; SPECTRUM_BARS.max(SIGNAL_BODY_HEIGHT)],
             bars: vec![0; SPECTRUM_BARS],
             peaks: vec![0; SPECTRUM_BARS],
-            waterfall: vec![0; SIGNAL_BAND_WIDTH * SIGNAL_BAND_HEIGHT],
+            waterfall: vec![0; SIGNAL_WIDTH * SIGNAL_BODY_HEIGHT],
         }
     }
 
@@ -57,19 +58,25 @@ impl SpectrumHistory {
         }
     }
 
-    /// Scrolls the waterfall one column left and adds the newest on the same log bins, one
-    /// per band row. Flat while the whole history is dark.
-    pub(super) fn waterfall(&mut self, samples: &[f32], rate: u32) -> OledSignalVisual {
-        let column = &mut self.bins[..SIGNAL_BAND_HEIGHT];
+    /// Scrolls a waterfall `rows` tall one column left and adds the newest on the same log
+    /// bins, one per pixel row. Flat while the whole history is dark.
+    pub(super) fn waterfall(
+        &mut self,
+        samples: &[f32],
+        rate: u32,
+        rows: usize,
+    ) -> OledSignalVisual {
+        let column = &mut self.bins[..rows];
         log_levels(self.fft.magnitudes(samples), rate, self.size, column);
-        self.waterfall.rotate_left(SIGNAL_BAND_HEIGHT);
-        let newest = self.waterfall.len() - SIGNAL_BAND_HEIGHT;
-        self.waterfall[newest..].copy_from_slice(column);
-        if self.waterfall.iter().all(|level| *level == 0) {
+        let history = &mut self.waterfall[..SIGNAL_WIDTH * rows];
+        history.rotate_left(rows);
+        let newest = history.len() - rows;
+        history[newest..].copy_from_slice(column);
+        if history.iter().all(|level| *level == 0) {
             return OledSignalVisual::Flat;
         }
         OledSignalVisual::Waterfall {
-            levels: self.waterfall.clone(),
+            levels: history.to_vec(),
         }
     }
 }

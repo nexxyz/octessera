@@ -1,8 +1,8 @@
 use super::fx_params::fx_param_items;
 use super::options::{FX_BUS_SLOT_OPTIONS, GLOBAL_FX_SLOT_OPTIONS};
 use super::{
-    bool_item, enum_item, group, number_item, selected_index, text_item, NativeFxBusConfig,
-    NativeMenuItem,
+    bool_item, enum_item, group, monitor_item, number_item, selected_index, text_item,
+    NativeFxBusConfig, NativeMenuItem,
 };
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
 
@@ -65,6 +65,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig], bpm: u16) -> NativeMe
                             32,
                             1,
                         ),
+                        monitor_item(format!("monitor.bus.{bus_index}")),
                         bool_item("Auto Label", format!("{prefix}.autoName"), bus.auto_name),
                         text_item("Name", format!("{prefix}.name"), bus.name.clone(), 32),
                     ],
@@ -79,27 +80,26 @@ pub(super) fn global_fx_group(
     params: &[serde_json::Value],
     bpm: u16,
 ) -> NativeMenuItem {
-    group(
-        GLOBAL_FX_LABEL,
-        (0..GLOBAL_FX_SLOT_COUNT)
-            .map(|slot_index| {
-                let prefix = format!("mixer.master.slots.{slot_index}");
-                let slot_type = config.get(slot_index).map(String::as_str).unwrap_or("none");
-                let slot_params = params.get(slot_index).unwrap_or(&serde_json::Value::Null);
-                group(
-                    slot_group_label(slot_index + 1, slot_type),
-                    fx_slot_children(
-                        &prefix,
-                        slot_type,
-                        slot_params,
-                        GLOBAL_FX_SLOT_OPTIONS,
-                        None,
-                        bpm,
-                    ),
-                )
-            })
-            .collect(),
-    )
+    let mut children: Vec<NativeMenuItem> = (0..GLOBAL_FX_SLOT_COUNT)
+        .map(|slot_index| {
+            let prefix = format!("mixer.master.slots.{slot_index}");
+            let slot_type = config.get(slot_index).map(String::as_str).unwrap_or("none");
+            let slot_params = params.get(slot_index).unwrap_or(&serde_json::Value::Null);
+            group(
+                slot_group_label(slot_index + 1, slot_type),
+                fx_slot_children(
+                    &prefix,
+                    slot_type,
+                    slot_params,
+                    GLOBAL_FX_SLOT_OPTIONS,
+                    None,
+                    bpm,
+                ),
+            )
+        })
+        .collect();
+    children.push(monitor_item("monitor.global".into()));
+    group(GLOBAL_FX_LABEL, children)
 }
 
 fn fx_slot_group(

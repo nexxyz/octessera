@@ -43,7 +43,7 @@ impl PresentationScene {
                 "off": self.off,
                 "splash": self.splash,
                 "editing": self.editing,
-                "signalBand": self.signal_band
+                "signal": self.signal
             },
             "leds": {"width": GRID_WIDTH, "height": GRID_HEIGHT, "rgb": self.led_rgb, "active": self.active_tiles},
             "hdmi": hdmi,

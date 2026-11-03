@@ -37,6 +37,7 @@ pub(crate) fn key_home_section(key: &str) -> &'static str {
         || key.starts_with("mixer.")
         || key.starts_with("sample.")
         || key.starts_with("drum.")
+        || key.starts_with("monitor.")
         || ["synth.preset", "fm.preset", "pluck.preset"]
             .iter()
             .any(|prefix| key.starts_with(prefix))

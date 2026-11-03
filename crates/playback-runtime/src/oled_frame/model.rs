@@ -101,15 +101,28 @@ pub struct OledDisplayInput {
     pub main_font: OledFont,
     pub small_font: OledFont,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub signal_band: Option<OledSignalBand>,
+    pub signal: Option<OledSignalView>,
 }
 
-/// The home page's signal band: it fills body slot `slot`, and the rows after it drop below it.
+/// A picture of a tapped signal and where the body shows it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OledSignalBand {
-    pub slot: usize,
+pub struct OledSignalView {
+    pub area: OledSignalArea,
     pub visual: OledSignalVisual,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum OledSignalArea {
+    /// The home page's band in body slot `slot`; the rows after it drop below it.
+    Band { slot: usize },
+    /// The whole body, for a Shape monitor.
+    Body,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -121,11 +134,11 @@ pub struct OledSignalBand {
 pub enum OledSignalVisual {
     /// Stopped or silent: a dim flat line.
     Flat,
-    /// One trace value per band column, -127 at the bottom to 127 at the top.
+    /// One trace value per column, -127 at the bottom to 127 at the top.
     Scope { points: Vec<i8> },
     /// One level and one falling peak per bar, 0..=255.
     Spectrum { levels: Vec<u8>, peaks: Vec<u8> },
-    /// Band columns oldest to newest, each a level per band row from the lowest bin up.
+    /// Columns oldest to newest, each a level per pixel row of the area from the lowest bin up.
     Waterfall { levels: Vec<u8> },
 }
 

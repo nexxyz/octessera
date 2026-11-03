@@ -7,7 +7,7 @@ fn pluck_menu() -> NativeMenuModel {
 }
 
 #[test]
-fn plucked_type_and_six_rows_use_standard_oled_navigation() {
+fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
     let mut menu = pluck_menu();
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
@@ -31,6 +31,7 @@ fn plucked_type_and_six_rows_use_standard_oled_navigation() {
             "Note Mode",
             "Plucked",
             "Mixer",
+            "Monitor",
             "Auto Label",
             "Name",
             "Slot Actions"

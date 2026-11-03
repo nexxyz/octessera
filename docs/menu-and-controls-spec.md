@@ -342,11 +342,11 @@ change; only the distance per detent does.
   - Stopped, paused or silent (master peak below 0.001): one dim gray line at `y=81`. It is static
     and schedules no frames.
   - Playing: `scope` draws the master mix in blue, one point per column, two tapped samples
-    apart (about 10 ms across). The trace starts at the latest rising zero crossing that follows
+    apart (about 11 ms across at the 44.1 kHz output rate). The trace starts at the latest rising zero crossing that follows
     a dip below 30 % of the peak, so steady tones stand still; signals louder than a 0.25 peak fill
     the band, quieter ones scale linearly.
   - `spectrum` draws 62 blue bars, 1 px wide with a 1 px gap, on log-spaced bands from 40 Hz to
-    the tap's Nyquist (12 kHz), each the loudest bin of a 1024-point Hann-windowed FFT of the
+    the tap's Nyquist (11 kHz at 44.1 kHz), each the loudest bin of a 1024-point Hann-windowed FFT of the
     newest tapped samples, on a 54 dB scale up to a full-scale sine. A bar jumps up and falls
     24 of 255 levels per step; a white peak dot above it falls 6 per step.
   - `waterfall` shares that FFT and log scale, one band per band row (27, low at the bottom).
@@ -355,15 +355,27 @@ change; only the distance per detent does.
   - A `spectrum` or `waterfall` whose bars, peaks or history have all fallen dark draws the flat
     line. Changing the visual, stopping or leaving the page starts the next run empty.
   - The FFT and history run on the runtime thread once per step. The band steps every 66 ms
-    (about 15 fps); each step
-    is one new scene generation and one timed display deadline, so the boards and the desktop
-    redraw the band at most at that rate.
-  - The audio engine copies the mono master into a 2048-sample lock-free ring once per block,
-    averaging frame pairs (24 kHz at 48 kHz), and only while a live band is on screen; otherwise
-    it costs one flag check per block. The runtime reads the ring when it captures a step; nothing
-    is drawn or analysed on the audio thread.
+    (about 15 fps); each step is one new scene generation and one timed display deadline, so the
+    boards and the desktop redraw the band at most at that rate.
+  - The audio engine copies one selected mono signal into a 2048-sample lock-free ring once per
+    block, averaging frame pairs (22.05 kHz at the 44.1 kHz output rate), and only while a live view is on screen;
+    otherwise it costs one flag check per block. The runtime reads the ring when it captures a
+    step; nothing is drawn or analysed on the audio thread. A source that stopped writing (an
+    idle routing-tree worker) reads as silence.
   - The boards write only the rows that changed since the last frame, as one SSD1351 column
     window (the panel is turned clockwise); a band-only step sends 27 of 128 rows.
+- Shape monitor: the `Monitor` action on an instrument page (internal types only, after
+  `Mixer`), an FX bus page (after `Pan Pos`) and `Global FX` (after the slots) opens a
+  full-screen picture of that page's signal: the instrument slot's own output before its volume,
+  momentary FX and route; the bus chain's output before its momentary FX, pan and volume; or the
+  master mix. It draws at `x=2..125`, `y=12..107` with the same scope, spectrum and waterfall
+  (96 rows, one band each) as the home band, opens on `Scope`, and the breadcrumb ends with the
+  picture's name (`../I1: synth/Scope`). Main cycles `Scope`, `Spectrum`, `Waterfall`; Back
+  closes it onto the same page and row; Main turns do nothing. Modifier chords (help, Aux
+  peek, single step), popups over it, grid, Aux, keys and transport keep their meaning, and an
+  input that moves the menu to another page closes it. Stopped it is the flat line; the steps, tap and frame costs match the home band.
+  Switching the source lets one block the routing-tree workers rendered ahead with the old
+  source land first.
 - Footer (`y=113..127`): Aux hints on the left up to `x=107`, then the recording disc, transport
   icon and event dot, all centred on `y=121`. The toast covers the hint area.
 - Every snapshot `display` object carries the required `bodyLayout`:

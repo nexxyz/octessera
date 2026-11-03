@@ -1,4 +1,5 @@
 use super::*;
+use crate::oled_frame::SIGNAL_BAND_HEIGHT;
 
 const SIZE: usize = 1024;
 const RATE: u32 = 24_000;
@@ -90,19 +91,25 @@ fn bars_jump_up_then_fall_gently_under_slower_peaks_until_flat() {
 fn the_waterfall_adds_the_newest_column_at_the_right_and_scrolls_left() {
     let mut history = SpectrumHistory::new(SIZE);
     let silence = vec![0.0; SIZE];
-    assert_eq!(history.waterfall(&silence, RATE), OledSignalVisual::Flat);
-    let OledSignalVisual::Waterfall { levels } = history.waterfall(&sine(1_000.0, 1.0), RATE)
+    assert_eq!(
+        history.waterfall(&silence, RATE, SIGNAL_BAND_HEIGHT),
+        OledSignalVisual::Flat
+    );
+    let OledSignalVisual::Waterfall { levels } =
+        history.waterfall(&sine(1_000.0, 1.0), RATE, SIGNAL_BAND_HEIGHT)
     else {
         panic!("a tone lights the waterfall");
     };
-    assert_eq!(levels.len(), SIGNAL_BAND_WIDTH * SIGNAL_BAND_HEIGHT);
+    assert_eq!(levels.len(), SIGNAL_WIDTH * SIGNAL_BAND_HEIGHT);
     let newest = &levels[levels.len() - SIGNAL_BAND_HEIGHT..];
     assert!(loudest(newest).abs_diff(band_of(1_000.0, SIGNAL_BAND_HEIGHT)) <= 1);
     assert!(levels[..levels.len() - SIGNAL_BAND_HEIGHT]
         .iter()
         .all(|level| *level == 0));
 
-    let OledSignalVisual::Waterfall { levels: scrolled } = history.waterfall(&silence, RATE) else {
+    let OledSignalVisual::Waterfall { levels: scrolled } =
+        history.waterfall(&silence, RATE, SIGNAL_BAND_HEIGHT)
+    else {
         panic!("the tone column is still on screen");
     };
     let previous = scrolled.len() - 2 * SIGNAL_BAND_HEIGHT;

@@ -79,7 +79,6 @@ fn compose_select(
 ) {
     let (bar_x, bar_right) = selection_bar_span(display);
     let [from_top, to_top] = rows.map(|row| row_top(display, row) - 1);
-    let moved = moved * from_top.abs_diff(to_top) / PITCH;
     let bar_top = if to_top > from_top {
         from_top + moved
     } else {

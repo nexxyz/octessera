@@ -3,6 +3,7 @@ use super::*;
 #[derive(Default)]
 struct WindowOled {
     writes: Vec<Option<Range<usize>>>,
+    fail_next: bool,
 }
 
 impl OledRenderDevice for WindowOled {
@@ -11,11 +12,17 @@ impl OledRenderDevice for WindowOled {
     }
 
     fn write_frame(&mut self, _frame: &[u8]) -> Result<(), String> {
+        if std::mem::take(&mut self.fail_next) {
+            return Err("test frame failure".into());
+        }
         self.writes.push(None);
         Ok(())
     }
 
     fn write_rows(&mut self, _frame: &[u8], rows: Range<usize>) -> Result<(), String> {
+        if std::mem::take(&mut self.fail_next) {
+            return Err("test window failure".into());
+        }
         self.writes.push(Some(rows));
         Ok(())
     }
@@ -65,4 +72,45 @@ fn a_forced_render_writes_the_whole_frame() {
     let publication = OledFramePublication::test_native(2, frame_with(&[9]));
     force_oled_render_off(&mut oled, false, &publication, &mut cache).unwrap();
     assert_eq!(oled.writes, [None, None]);
+}
+
+#[test]
+fn a_failed_window_makes_the_next_write_a_whole_frame() {
+    let mut oled = WindowOled::default();
+    let mut cache = HardwareRenderCache::default();
+    present(&mut oled, &mut cache, 1, frame_with(&[]));
+    oled.fail_next = true;
+    let publication = OledFramePublication::test_native(2, frame_with(&[70]));
+    assert!(
+        render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, Instant::now())
+            .is_some()
+    );
+    let retry = cache.oled_retry_at.unwrap();
+    let next = OledFramePublication::test_native(3, frame_with(&[]));
+    assert_eq!(
+        render_oled_if_changed_off(&mut oled, false, &next, &mut cache, retry),
+        None
+    );
+    assert_eq!(oled.writes, [None, None]);
+}
+
+#[test]
+fn a_failed_whole_frame_makes_the_next_write_a_whole_frame() {
+    let mut oled = WindowOled::default();
+    let mut cache = HardwareRenderCache::default();
+    present(&mut oled, &mut cache, 1, frame_with(&[]));
+    oled.fail_next = true;
+    let publication = OledFramePublication::test_native(2, frame_with(&[0, 127]));
+    assert!(
+        render_oled_if_changed_off(&mut oled, false, &publication, &mut cache, Instant::now())
+            .is_some()
+    );
+    let retry = cache.oled_retry_at.unwrap();
+    let next = OledFramePublication::test_native(3, frame_with(&[70]));
+    assert_eq!(
+        render_oled_if_changed_off(&mut oled, false, &next, &mut cache, retry),
+        None
+    );
+    present(&mut oled, &mut cache, 4, frame_with(&[71]));
+    assert_eq!(oled.writes, [None, None, Some(70..72)]);
 }

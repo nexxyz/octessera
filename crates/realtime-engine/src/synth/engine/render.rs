@@ -33,30 +33,37 @@ impl SynthEngine {
         let sample_active = self.render_sample_voices(&mut slot_out);
         let (preview, preview_active) = self.render_preview_sample_voices();
         let synth_active = self.render_synth_voices(&mut slot_out);
-        self.finish_serial_frame(
+        self.finish_serial_frame::<false>(
             slot_out,
             sample_active,
             preview,
             preview_active,
             synth_active,
+            0,
         )
     }
 
-    fn finish_serial_frame(
+    /// One frame's mix down to the master output; with `TAP` it also keeps `tapped_bus`'s
+    /// chain output in `tapped_bus_sample`.
+    fn finish_serial_frame<const TAP: bool>(
         &mut self,
         slot_out: [f32; INSTRUMENT_SLOT_COUNT],
         sample_active: bool,
         preview: f32,
         preview_active: bool,
         synth_active: bool,
+        tapped_bus: usize,
     ) -> (f32, f32) {
         let process_buses = self.should_process_fx_buses();
         if process_buses {
             self.prepare_bus_buffers();
         }
         let (mut left, mut right) = self.mix_instrument_slots(&slot_out);
+        if TAP {
+            self.tapped_bus_sample = 0.0;
+        }
         if process_buses {
-            (left, right) = self.mix_fx_buses(&slot_out, left, right);
+            (left, right) = self.mix_fx_buses::<TAP>(&slot_out, left, right, tapped_bus);
         }
         left += preview;
         right += preview;
@@ -137,14 +144,31 @@ impl SynthEngine {
                 active_slots: &mut self.active_synth_slots,
             },
         );
-        self.finish_block_slot_frame_graph(frames, left_out, right_out);
+        let signal = self.signal_tap.selected();
+        if let Some(SignalSource::Instrument(slot)) = signal {
+            let scratch = &self.block_slot_scratch;
+            let block = scratch.sample_slot_out[slot][..frames]
+                .iter()
+                .zip(&scratch.synth_slot_out[slot][..frames])
+                .map(|(sample, synth)| sample + synth);
+            self.signal_tap.publish_mono(block, self.sample_rate);
+        }
+        match signal {
+            Some(SignalSource::Bus(bus)) => {
+                self.finish_block_slot_frame_graph::<true>(frames, left_out, right_out, bus);
+                let block = self.block_slot_scratch.signal[..frames].iter().copied();
+                self.signal_tap.publish_mono(block, self.sample_rate);
+            }
+            _ => self.finish_block_slot_frame_graph::<false>(frames, left_out, right_out, 0),
+        }
     }
 
-    pub(super) fn finish_block_slot_frame_graph(
+    fn finish_block_slot_frame_graph<const TAP: bool>(
         &mut self,
         frames: usize,
         left_out: &mut [f32],
         right_out: &mut [f32],
+        tapped_bus: usize,
     ) {
         for frame in 0..frames {
             let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
@@ -159,13 +183,17 @@ impl SynthEngine {
                 *out += self.block_slot_scratch.synth_slot_out[slot][frame];
                 synth_active |= self.block_slot_scratch.synth_active[slot][frame];
             }
-            let (left, right) = self.finish_serial_frame(
+            let (left, right) = self.finish_serial_frame::<TAP>(
                 slot_out,
                 sample_active,
                 preview,
                 preview_active,
                 synth_active,
+                tapped_bus,
             );
+            if TAP {
+                self.block_slot_scratch.signal[frame] = self.tapped_bus_sample;
+            }
             left_out[frame] = left;
             right_out[frame] = right;
         }

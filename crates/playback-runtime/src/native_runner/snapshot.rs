@@ -8,7 +8,7 @@ impl NativeRunner {
             .transients
             .observe_transport(&self.transport.transport);
         self.display.transients.advance(now);
-        self.announce_signal_band_step(now);
+        self.announce_signal_step(now);
         self.advance_oled_sleep_state();
         self.advance_toast_state();
         self.capture_presentation_scene(false)
@@ -27,7 +27,7 @@ impl NativeRunner {
     pub fn pending_display_scene_generation(&mut self) -> Option<u64> {
         let now = self.display.transients.now();
         self.display.transients.advance(now);
-        self.announce_signal_band_step(now);
+        self.announce_signal_step(now);
         self.display
             .transients
             .snapshot_pending()

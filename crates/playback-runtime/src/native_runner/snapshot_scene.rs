@@ -12,7 +12,7 @@ use crate::native_runner::snapshot_display::{DisplayScrollMetadata, DisplaySnaps
 use crate::oled_frame::{
     OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledFont,
     OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
-    OledScrollInput, OledSignalBand, OledSplash, OledTransportFlash, OledTransportIcon,
+    OledScrollInput, OledSignalView, OledSplash, OledTransportFlash, OledTransportIcon,
     OledTransportInput,
 };
 use crate::protocol::MidiPort;
@@ -89,7 +89,7 @@ pub struct PresentationScene {
     transient: DisplayTransientPresentation,
     aux_hints: OledAuxHints,
     animation: OledAnimationInput,
-    signal_band: Option<OledSignalBand>,
+    signal: Option<OledSignalView>,
     audio: Option<AudioScene>,
 }
 
@@ -168,7 +168,7 @@ impl NativeRunner {
             String::new()
         };
         let editing = self.menu.state.editing && self.display.help_popup.is_none();
-        let signal_band = self.signal_band_presentation(&display, !off && splash.is_empty(), now);
+        let signal = self.signal_presentation(&display, !off && splash.is_empty(), now);
         let animation = self.display.transients.observe_animations(
             &AnimationFrame {
                 display: &display,
@@ -183,7 +183,7 @@ impl NativeRunner {
                     .is_canonical_menu_presentation()
                     .then_some(self.menu.state.stack.as_slice()),
                 menu_frame: !off && splash.is_empty(),
-                signal_band: signal_band.as_ref(),
+                signal: signal.as_ref(),
             },
             now,
         );
@@ -244,7 +244,7 @@ impl NativeRunner {
             transient,
             aux_hints: self.aux_hints(),
             animation,
-            signal_band,
+            signal,
             audio,
         })
     }
@@ -277,7 +277,7 @@ impl PresentationScene {
                     _ => OledSplash::Boot,
                 },
                 toast: self.toast.clone(),
-                signal_band: self.signal_band.clone(),
+                signal: self.signal.clone(),
                 ..oled_body_input(
                     display,
                     self.title_color,

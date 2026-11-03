@@ -12,7 +12,7 @@ fn fm_item<'a>(menu: &'a NativeMenuModel, field: &str) -> &'a NativeMenuItem {
 }
 
 #[test]
-fn fm_type_and_seven_group_rows_use_standard_navigation() {
+fn fm_type_and_eight_group_rows_use_standard_navigation() {
     let mut menu = fm_menu();
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
@@ -32,6 +32,7 @@ fn fm_type_and_seven_group_rows_use_standard_navigation() {
             "Note Mode",
             "FM",
             "Mixer",
+            "Monitor",
             "Auto Label",
             "Name",
             "Slot Actions"

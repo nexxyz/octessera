@@ -67,6 +67,13 @@ impl SynthEngine {
             event_frame_offset: 0,
             dsp_config: DspRuntimeConfig::default(),
             worker_utilization_ppm: None,
+            signal_tap: master_signal_tap(),
+            tapped_bus_sample: 0.0,
         }
+    }
+
+    /// Writes instrument and bus signals into `tap` instead of the process's tap.
+    pub fn set_signal_tap(&mut self, tap: &'static SignalTap) {
+        self.signal_tap = tap;
     }
 }

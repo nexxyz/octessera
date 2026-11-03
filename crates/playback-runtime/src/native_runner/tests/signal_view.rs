@@ -1,7 +1,9 @@
 use super::device_config_apply::commit_setting;
 use super::*;
-use crate::native_runner::signal_band::SignalBandMonitor;
-use crate::oled_frame::{OledPresentationMetrics, OledSignalBand, OledSignalVisual};
+use crate::native_runner::signal_view::SignalTapReader;
+use crate::oled_frame::{
+    OledPresentationMetrics, OledSignalArea, OledSignalView, OledSignalVisual,
+};
 use realtime_engine::synth::SignalTap;
 
 const STEP: Duration = Duration::from_millis(66);
@@ -11,17 +13,17 @@ fn home_runner(start: Instant) -> (NativeRunner, &'static SignalTap) {
     runner.skip_startup_splash();
     runner.display.transients.set_test_now(start);
     let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
-    runner.display.signal_band = SignalBandMonitor::new(tap);
+    runner.display.signal = SignalTapReader::new(tap);
     (runner, tap)
 }
 
-fn band(runner: &mut NativeRunner) -> Option<OledSignalBand> {
+fn band(runner: &mut NativeRunner) -> Option<OledSignalView> {
     runner
         .capture_display_scene()
         .unwrap()
         .oled_presentation_input(OledPresentationMetrics::default(), None)
         .display
-        .signal_band
+        .signal
 }
 
 fn sound(tap: &SignalTap) {
@@ -40,12 +42,12 @@ fn the_stopped_home_page_shows_a_flat_band_and_schedules_nothing() {
     let (mut runner, tap) = home_runner(start);
     assert_eq!(
         band(&mut runner),
-        Some(OledSignalBand {
-            slot: 4,
+        Some(OledSignalView {
+            area: OledSignalArea::Band { slot: 4 },
             visual: OledSignalVisual::Flat
         })
     );
-    assert_eq!(runner.display.signal_band.next_step_at(), None);
+    assert_eq!(runner.display.signal.next_step_at(), None);
     sound(tap);
     assert_eq!(tap.written(), 0);
 }
@@ -82,7 +84,7 @@ fn a_playing_home_page_steps_its_scope_every_66_ms_until_the_transport_stops() {
 
     runner.transport.transport = RuntimeTransportState::Stopped;
     assert_eq!(band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
-    assert_eq!(runner.display.signal_band.next_step_at(), None);
+    assert_eq!(runner.display.signal.next_step_at(), None);
     let written = tap.written();
     sound(tap);
     assert_eq!(tap.written(), written);
@@ -97,7 +99,7 @@ fn sub_pages_and_home_visual_none_show_no_band() {
     assert_eq!(runner.display.ui.home_visual, "none");
     runner.menu.state.stack.clear();
     assert_eq!(band(&mut runner), None);
-    assert_eq!(runner.display.signal_band.next_step_at(), None);
+    assert_eq!(runner.display.signal.next_step_at(), None);
 
     let _ = commit_setting(&mut runner, "homeVisual", 1);
     runner.menu.state.stack = vec![0];

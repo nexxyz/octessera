@@ -118,11 +118,12 @@ impl SynthEngine {
         (left, right)
     }
 
-    pub(super) fn mix_fx_buses(
+    pub(super) fn mix_fx_buses<const TAP: bool>(
         &mut self,
         slot_out: &[f32; INSTRUMENT_SLOT_COUNT],
         mut left: f32,
         mut right: f32,
+        tapped_bus: usize,
     ) -> (f32, f32) {
         self.bus_mono_snapshot
             .copy_from_slice(&self.bus_mono_scratch);
@@ -146,6 +147,9 @@ impl SynthEngine {
             let mut bus_output =
                 self.bus_chains[bus_idx].process(bus_input, &resolved_duck, self.sample_rate);
             let chain_output = bus_output.mono;
+            if TAP && bus_idx == tapped_bus {
+                self.tapped_bus_sample = chain_output;
+            }
             self.observe_bus_chain(bus_idx, bus_input, chain_output);
             let input_present = self.signal_present_mono(bus_input);
             let output_present = self.signal_present_mono(chain_output);

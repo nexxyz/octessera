@@ -1,7 +1,7 @@
 use super::{
     OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
     OledDisplayLayout, OledFont, OledMenuRowInput, OledPresentationInput, OledPresentationMetrics,
-    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSignalBand, OledSplash,
+    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSignalView, OledSplash,
     OledTransportFlash, OledTransportIcon, OledTransportInput,
 };
 use serde::Deserialize;
@@ -35,7 +35,7 @@ struct DisplayInputDto {
     editing: bool,
     toast: String,
     #[serde(default)]
-    signal_band: Option<OledSignalBand>,
+    signal: Option<OledSignalView>,
 }
 
 #[derive(Deserialize)]
@@ -142,7 +142,7 @@ pub(crate) fn presentation_input_from_snapshot(
             toast: display.toast,
             main_font: OledFont::from_setting(&settings.main_font),
             small_font: OledFont::from_setting(&settings.small_font),
-            signal_band: display.signal_band,
+            signal: display.signal,
         },
         selected_row,
         transport: OledTransportInput {

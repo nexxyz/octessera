@@ -1,8 +1,10 @@
-use super::model::{OledMenuRowKind, OledSignalBand, OledSignalVisual};
+use super::model::{OledMenuRowKind, OledSignalArea, OledSignalView, OledSignalVisual};
 use super::pixels::{dim, rgb565};
 use super::render::render_oled_frame;
 use super::tests::{base, menu_row, pixel, AREA};
-use super::{OledPresentationInput, SIGNAL_BAND_HEIGHT, SIGNAL_BAND_WIDTH, SPECTRUM_BARS};
+use super::{
+    OledPresentationInput, SIGNAL_BAND_HEIGHT, SIGNAL_BODY_HEIGHT, SIGNAL_WIDTH, SPECTRUM_BARS,
+};
 use platform_core::palette;
 
 /// The home page's rows start 6 px low; slot 4 is the blank line above System.
@@ -21,7 +23,10 @@ fn home(visual: Option<OledSignalVisual>) -> OledPresentationInput {
     input.display.colors = vec![AREA; names.len()];
     input.display.bars = vec![None; names.len()];
     input.display.scroll = None;
-    input.display.signal_band = visual.map(|visual| OledSignalBand { slot: 4, visual });
+    input.display.signal = visual.map(|visual| OledSignalView {
+        area: OledSignalArea::Band { slot: 4 },
+        visual,
+    });
     input.selected_row = Some(5);
     input
 }
@@ -57,7 +62,7 @@ fn a_stopped_band_is_one_dim_line_across_the_band() {
     let frame = render_oled_frame(&home(Some(OledSignalVisual::Flat)));
     let line = rgb565(dim(palette::GRAY, 5));
     let mid = BAND_TOP + (SIGNAL_BAND_HEIGHT - 1) / 2;
-    let expected: Vec<_> = (BAND_X..BAND_X + SIGNAL_BAND_WIDTH)
+    let expected: Vec<_> = (BAND_X..BAND_X + SIGNAL_WIDTH)
         .map(|x| (x, mid, line))
         .collect();
     assert_eq!(band_pixels(&frame), expected);
@@ -65,7 +70,7 @@ fn a_stopped_band_is_one_dim_line_across_the_band() {
 
 #[test]
 fn scope_points_span_the_band_and_join_column_to_column() {
-    let mut points = vec![0_i8; SIGNAL_BAND_WIDTH];
+    let mut points = vec![0_i8; SIGNAL_WIDTH];
     points[10] = 127;
     points[11] = -127;
     let frame = render_oled_frame(&home(Some(OledSignalVisual::Scope { points })));
@@ -86,7 +91,7 @@ fn scope_points_span_the_band_and_join_column_to_column() {
     assert_eq!(column(BAND_X + 12), (mid..bottom).collect::<Vec<_>>());
     assert!(band_pixels(&frame)
         .iter()
-        .all(|(x, _, _)| (BAND_X..BAND_X + SIGNAL_BAND_WIDTH).contains(x)));
+        .all(|(x, _, _)| (BAND_X..BAND_X + SIGNAL_WIDTH).contains(x)));
 }
 
 #[test]
@@ -114,8 +119,8 @@ fn spectrum_bars_rise_from_the_band_floor_under_their_peaks() {
 
 #[test]
 fn waterfall_columns_run_oldest_to_newest_with_low_bins_at_the_bottom() {
-    let mut levels = vec![0_u8; SIGNAL_BAND_WIDTH * SIGNAL_BAND_HEIGHT];
-    let newest = SIGNAL_BAND_WIDTH - 1;
+    let mut levels = vec![0_u8; SIGNAL_WIDTH * SIGNAL_BAND_HEIGHT];
+    let newest = SIGNAL_WIDTH - 1;
     levels[newest * SIGNAL_BAND_HEIGHT] = 255;
     levels[SIGNAL_BAND_HEIGHT - 1] = 175;
     let frame = render_oled_frame(&home(Some(OledSignalVisual::Waterfall { levels })));
@@ -127,4 +132,47 @@ fn waterfall_columns_run_oldest_to_newest_with_low_bins_at_the_bottom() {
             (BAND_X + newest, bottom, rgb565(palette::YELLOW)),
         ]
     );
+}
+
+fn monitor(visual: OledSignalVisual) -> OledPresentationInput {
+    let mut input = base();
+    input.display.title = "/S/Instruments/I1: synth/Scope".into();
+    input.display.lines.clear();
+    input.display.rows.clear();
+    input.display.colors.clear();
+    input.display.bars.clear();
+    input.display.scroll = None;
+    input.display.signal = Some(OledSignalView {
+        area: OledSignalArea::Body,
+        visual,
+    });
+    input.selected_row = None;
+    input
+}
+
+#[test]
+fn a_monitor_fills_the_body_between_the_header_and_the_footer() {
+    let lit_rows = |frame: &[u8]| -> Vec<usize> {
+        (9..113)
+            .filter(|y| (0..128).any(|x| pixel(frame, x, *y) != 0))
+            .collect()
+    };
+    let flat = render_oled_frame(&monitor(OledSignalVisual::Flat));
+    assert_eq!(lit_rows(&flat), vec![12 + (SIGNAL_BODY_HEIGHT - 1) / 2]);
+    let mut points = vec![0_i8; SIGNAL_WIDTH];
+    points[0] = 127;
+    points[1] = -127;
+    let scope = render_oled_frame(&monitor(OledSignalVisual::Scope { points }));
+    assert_eq!(
+        lit_rows(&scope),
+        (12..12 + SIGNAL_BODY_HEIGHT - 1).collect::<Vec<_>>()
+    );
+    let levels = vec![255_u8; SIGNAL_WIDTH * SIGNAL_BODY_HEIGHT];
+    let waterfall = render_oled_frame(&monitor(OledSignalVisual::Waterfall { levels }));
+    assert_eq!(
+        lit_rows(&waterfall),
+        (12..12 + SIGNAL_BODY_HEIGHT).collect::<Vec<_>>()
+    );
+    assert_eq!(pixel(&waterfall, BAND_X, 12), rgb565(palette::YELLOW));
+    assert_eq!(pixel(&waterfall, BAND_X - 1, 12), 0);
 }

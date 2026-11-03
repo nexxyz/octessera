@@ -6,6 +6,7 @@ use super::render_routing::{render_bus_stereo_output, FxBusOutputSpreadState};
 use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use super::source_worker_lifecycle::OwnerEnvelope;
 use crate::synth::fx_params::FxBusParams;
+use crate::synth::signal_tap::SignalSource;
 use crate::synth::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
 
 pub(super) fn stage_components(
@@ -107,6 +108,12 @@ pub(super) fn stage_components(
             }
         }
     }
+    if let Some(SignalSource::Instrument(slot)) = context.signal {
+        if context.slot_worker[slot] == owner.parity as u8 {
+            let block = routing.scratch.slot_out[slot][..frames].iter().copied();
+            context.signal_tap.publish_mono(block, context.sample_rate);
+        }
+    }
     for bus in 0..context.bus_count {
         if context.bus_worker[bus] != owner.parity as u8 {
             continue;
@@ -132,6 +139,22 @@ pub(super) fn stage_components(
                 )
                 .map_err(|_| ())?,
         );
+        if context.signal == Some(SignalSource::Bus(bus)) {
+            let scratch = &carrier.scratch;
+            let processed = if scratch.executed {
+                scratch.processed_prefix
+            } else {
+                0
+            };
+            let block = (0..frames).map(|frame| {
+                if frame < processed {
+                    scratch.mono_output[frame]
+                } else {
+                    0.0
+                }
+            });
+            context.signal_tap.publish_mono(block, context.sample_rate);
+        }
         let spread_state = carrier
             .routing_tree_spread_state
             .as_mut()

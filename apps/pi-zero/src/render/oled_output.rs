@@ -67,10 +67,14 @@ fn render_native_oled<O: OledRenderDevice>(
     };
     let frame_written = changed.is_some();
     if let Some(rows) = changed {
-        if rows.len() * OLED_ROW_BYTES == frame.len() {
-            oled.write_frame(frame)?;
+        let written = if rows.len() * OLED_ROW_BYTES == frame.len() {
+            oled.write_frame(frame)
         } else {
-            oled.write_rows(frame, rows)?;
+            oled.write_rows(frame, rows)
+        };
+        if let Err(error) = written {
+            state.pixels = None;
+            return Err(error);
         }
         state.pixels = Some(frame.to_vec());
     }

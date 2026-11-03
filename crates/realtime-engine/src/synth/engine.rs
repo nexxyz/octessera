@@ -5,6 +5,7 @@ use super::fx::{
 };
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
 use super::runtime_state::*;
+use super::signal_tap::{master_signal_tap, SignalSource, SignalTap};
 use super::synth_voice_pool::SynthVoicePool;
 use super::types::*;
 use render_voice::{refresh_synth_voice_render_cache, SynthVoiceRenderConfig};
@@ -264,6 +265,9 @@ pub struct SynthEngine {
     event_frame_offset: u32,
     dsp_config: DspRuntimeConfig,
     worker_utilization_ppm: Option<u32>,
+    signal_tap: &'static SignalTap,
+    /// The tapped bus's chain output for the frame being mixed, while a bus is tapped.
+    tapped_bus_sample: f32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

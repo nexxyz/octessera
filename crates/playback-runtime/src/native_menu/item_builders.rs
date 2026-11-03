@@ -123,6 +123,15 @@ pub(in crate::native_menu) fn action_item(
     }
 }
 
+/// A Shape page's Monitor row; `target` is its `monitor.*` key and the effect that opens it.
+pub(in crate::native_menu) fn monitor_item(target: String) -> NativeMenuItem {
+    action_item(
+        "Monitor",
+        target.clone(),
+        NativeMenuAction::PlatformEffect(target),
+    )
+}
+
 pub(in crate::native_menu) fn selected_index(options: &[&str], value: &str) -> usize {
     options
         .iter()

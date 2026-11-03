@@ -23,7 +23,7 @@ impl NativeRunner {
         self.next_display_state_deadline_after(last_snapshot_at)
             .into_iter()
             .chain(transient)
-            .chain(self.display.signal_band.next_step_at())
+            .chain(self.display.signal.next_step_at())
             .min()
     }
 

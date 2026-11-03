@@ -404,6 +404,7 @@ impl EngineSource {
     #[cfg(test)]
     pub(crate) fn set_signal_tap_for_test(&mut self, tap: &'static SignalTap) {
         self.signal_tap = tap;
+        self.engine.set_signal_tap(tap);
     }
 
     #[cfg(test)]

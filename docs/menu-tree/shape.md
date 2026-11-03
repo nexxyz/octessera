@@ -78,6 +78,7 @@ Shape
 │   │   │   ├── Route: [direct | fx_bus_1 | fx_bus_2 | fx_bus_3 | fx_bus_4]  default direct
 │   │   │   ├── Volume: [0..100]                 default 100
 │   │   │   └── Pan Pos: [0..32]                 ← 33-position scale, 16 = center; bus-routed slots show an empty `Pan Pos -- (bus)` row instead
+│   │   ├── Monitor (action)                     ← internal types only; full-screen scope / spectrum / waterfall of this slot
 │   │   ├── Auto Label: [on | off]               ← on: label follows Type (`Synth`, `FM`, `Plucked`, `Drum`, `Sampler`, `MIDI`)
 │   │   ├── Name: (text, max 32)                 ← editing sets Auto Label off; uppercase, lowercase, digits, space, `_`, `-`
 │   │   └── Slot Actions (group)                 ← hidden for none
@@ -92,13 +93,18 @@ Shape
 │   │   ├── Slot 3: <Effect> (group)
 │   │   ├── Volume: [0..100]
 │   │   ├── Pan Pos: [0..32]                     ← 33-position scale, 16 = center
+│   │   ├── Monitor (action)                     ← full-screen picture of this bus's output
 │   │   ├── Auto Label: [on | off]               ← on: name built from the slot types, e.g. `Delay+Duck`, or `None`
 │   │   └── Name: (text, max 32)                 ← editing sets Auto Label off
 └── Global FX (group)
-    └── Slot 1..N: <Effect> (group)              ← N = globalFxSlotCount (2)
-        ├── Type: [none | vinyl | eq | compressor | saturator | distortion]
-        └── ... params of that Type
+    ├── Slot 1..N: <Effect> (group)              ← N = globalFxSlotCount (2)
+    │   ├── Type: [none | vinyl | eq | compressor | saturator | distortion]
+    │   └── ... params of that Type
+    └── Monitor (action)                         ← full-screen picture of the master mix
 ```
+
+- `Monitor` opens the Shape monitor (see the signal band in the main spec): Main cycles
+  `Scope`, `Spectrum` and `Waterfall`, Back closes it.
 
 - Type `none` keeps Type, Auto Label, and Name and hides everything else without deleting stored
   config.
@@ -124,7 +130,7 @@ Shape
 
 ### FM
 
-- A sine carrier and a sine modulator. The top level fits seven rows below the OLED title.
+- A sine carrier and a sine modulator. The top level has eight rows, a full OLED body.
 - Tone, in order:
   - Ratio `0.5|1|2|3|4|5|6|8` (default `2`), displayed `1:2|1:1|2:1|3:1|4:1|5:1|6:1|8:1`: the
     modulator-to-carrier pitch relationship.
@@ -143,8 +149,8 @@ Shape
 
 ### Plucked
 
-- A ringing string colored by Decay, Brightness, picking, stiffness, and body. The top level fits
-  six rows below the OLED title.
+- A ringing string colored by Decay, Brightness, picking, stiffness, and body. The top level has
+  eight rows, a full OLED body.
 - String, in order: Decay `100..5000 ms` (default `1500`), Brightness `0..100%` (`65`), Pick Pos
   `5..50%` (`25`), Pick Depth `0..100%` (`65`), Stiffness `0..100%` (`0`), Body Amt `0..100%`
   (`0`), Body Hz `100..2000 Hz` (`500`). The seven rows fit the OLED body.

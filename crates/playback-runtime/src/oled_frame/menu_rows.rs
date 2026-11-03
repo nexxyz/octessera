@@ -4,9 +4,9 @@ use super::aux_cap::draw_aux_cap;
 use super::font::{PixelFont, CLIP_MARKER};
 use super::footer::PLAY;
 use super::menu_row_layout::{row_layout, RowValue, LIST_NAME_X, NAME_X};
-use super::model::{OledBarInput, OledBarStyle, OledMenuRowInput, OledScrollInput};
+use super::model::{OledBarInput, OledBarStyle, OledMenuRowInput, OledScrollInput, OledSignalArea};
 use super::pixels::{dim, draw_mask, fill_rect, rgb565, rgb565_to_rgb, shade};
-use super::signal_band::{draw_signal_band, SIGNAL_BAND_DROP};
+use super::signal_view::{draw_signal_view, SIGNAL_BAND_DROP};
 use super::{
     layout_card_body, OledDisplayInput, OledDisplayLayout, CARD_BODY_RECT, MENU_BODY_RECT,
 };
@@ -39,8 +39,8 @@ pub(super) fn slot_top(body_top_offset: usize, index: usize) -> usize {
 
 /// The top of `display`'s body row `index`; the rows after a signal band drop below it.
 pub(super) fn row_top(display: &OledDisplayInput, index: usize) -> usize {
-    let drop = match &display.signal_band {
-        Some(band) if index > band.slot => SIGNAL_BAND_DROP,
+    let drop = match display.signal.as_ref().map(|view| view.area) {
+        Some(OledSignalArea::Band { slot }) if index > slot => SIGNAL_BAND_DROP,
         _ => 0,
     };
     slot_top(body_top_offset(display), index) + drop
@@ -233,8 +233,8 @@ fn draw_menu_body(
             None => draw_plain_row(frame, top, line, style),
         }
     }
-    if let Some(band) = &display.signal_band {
-        draw_signal_band(frame, band, body_top_offset(display));
+    if let Some(view) = &display.signal {
+        draw_signal_view(frame, view, body_top_offset(display));
     }
     if let Some(scroll) = scroll {
         let area = display.title_color;
