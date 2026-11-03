@@ -15,7 +15,7 @@ impl NativeRunner {
         self.sample_assign = None;
         self.trigger_probability_assign = None;
         self.drum_assign = Some((slot, voice as u8));
-        self.show_toast(format!("Assign V{}: grid", voice + 1));
+        self.show_toast(format!("V{}: press tiles to assign", voice + 1));
     }
 
     pub(super) fn preview_drum_voice(&mut self, slot: usize, voice: usize) {

@@ -248,7 +248,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
 ### Sample assignment
 
 - Enter with `Shape > Instruments > <slot> > Sampler > Assign`. The OLED toasts
-  `Assign S<n>: grid`; Back exits without changing mappings.
+  `S<n>: press tiles to assign`; Back exits without changing mappings.
 - One stamp per tile. A plain press stamps that tile, Shift + press its whole world-space row
   (bottom row `y=0`), and combined modifier + press its column, with the same values on every tile.
 - If every target tile already holds exactly that stamp, the press clears them and toasts
