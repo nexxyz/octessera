@@ -84,6 +84,32 @@ fn drum_rows_and_columns_stamp_every_tile_and_a_fully_stamped_line_clears() {
 }
 
 #[test]
+fn a_press_outside_the_grid_stamps_nothing_shows_no_toast_and_leaves_the_config_clean() {
+    let mut runner = drum_runner();
+    assign_voice(&mut runner, 0);
+    runner.display.toast = None;
+    runner.config_dirty = false;
+    let before = runner.instruments[0].drum_config["assignments"].clone();
+    for (shift, combined) in [(false, false), (true, false), (false, true)] {
+        runner.display.ui.shift_held = shift;
+        runner.display.ui.combined_modifier_held = combined;
+        runner.handle_drum_assignment_grid_press(GRID_WIDTH, GRID_HEIGHT);
+    }
+    assert_eq!(runner.instruments[0].drum_config["assignments"], before);
+    assert!(runner.display.toast.is_none());
+    assert!(!runner.config_dirty);
+
+    runner.instruments[1].kind = "sampler".into();
+    runner.sample_assign = Some((1, 0));
+    runner.drum_assign = None;
+    runner.display.ui.shift_held = true;
+    runner.handle_sample_assignment_grid_press(0, GRID_HEIGHT);
+    assert!(runner.instruments[1].sample_assignments.is_empty());
+    assert!(runner.display.toast.is_none());
+    assert!(!runner.config_dirty);
+}
+
+#[test]
 fn drum_tiles_stamp_tune_fine_and_level_and_restamping_replaces_or_clears() {
     let mut runner = drum_runner();
     set_stamp(&mut runner, 7, -25, "High");

@@ -80,7 +80,7 @@ impl NativeRunner {
         let stamp = self.tile_stamp(slot);
         let level = levels_enabled.then(|| stamp.level.clone()).flatten();
         let tiles = self.stamp_line_tiles(x, y);
-        let Some(instrument) = self.instruments.get_mut(slot) else {
+        let Some(instrument) = self.instruments.get_mut(slot).filter(|_| !tiles.is_empty()) else {
             return;
         };
         let stamped = |x: usize, y: usize| NativeSampleAssignment {
@@ -115,7 +115,7 @@ impl NativeRunner {
         let Some(assignments) = self
             .instruments
             .get_mut(slot)
-            .filter(|instrument| instrument.kind == "drum")
+            .filter(|instrument| instrument.kind == "drum" && !tiles.is_empty())
             .and_then(|instrument| instrument.drum_config.get_mut("assignments"))
             .and_then(Value::as_array_mut)
         else {
