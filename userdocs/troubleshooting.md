@@ -9,7 +9,7 @@ on the enclosure and break.
 
 | Symptom | First action | More |
 |---|---|---|
-| No sound from the device | Check that the layer's Link **Inst** points at an instrument that isn't `none`, that it has a level in Play Mix, and the cable. The shipped patch (`System > Maintenance > Reset > Load Factory`) is a known-good starting point. | [Sound and Link](sound-and-link.md), [behaviors](behaviors-and-play.md) |
+| No sound from the device | Check that the layer's Link **Inst** points at an instrument that isn't `none`, that it has a level in Play Mix and isn't muted there (red bottom tile), and the cable. The shipped patch (`System > Maintenance > Reset > Load Factory`) is a known-good starting point. | [Sound and Link](sound-and-link.md), [behaviors](behaviors-and-play.md) |
 | A `midi` instrument stays silent | Switch on its **MIDI > Enabled** and `System > MIDI > MIDI Active`, and check the channel. | [Sound and Link](sound-and-link.md#shape-what-it-sounds-like), [USB roles](hardware/usb-roles.md) |
 | Notes hang on external gear | `System > Panic` sends all-notes-off. | |
 | Crackles or short dropouts | Set `System > Audio > Polyphony` to `auto-hard` first (it keeps the low-latency feel), then thin out dense patches or switch **Perf. Mode** to Capacity. Avoid updates or SSH maintenance while playing. | [Practical performance](README.md#practical-performance), [playing in front of people](README.md#playing-in-front-of-people) |

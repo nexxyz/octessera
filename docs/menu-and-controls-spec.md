@@ -366,6 +366,9 @@ palette unless a behavior deliberately owns its own.
 | `WHITE` | `#FFFFFF` | |
 | `BLACK` | `#000000` | |
 
+One grid exception: the Play Mix mute tile of a muted instrument is pure red (`#FF0000`, the
+behavior primary red), so a mute never reads as a section color.
+
 ### Body rows
 
 - The inverted highlight bar alone marks the selected menu row; there is no text marker, so a
@@ -659,7 +662,8 @@ The grid is composed in this order; each step paints over the previous one.
    segment gets a dim white lift.
 3. The active Play page overlay (see [play.md](menu-tree/play.md)). `Map to Grid` switches to the
    `fx` page, so FX assignment uses the FX page overlay. Each page dims behavior tiles to a quarter
-   and draws its markers on top.
+   and draws its markers on top. Play Mix draws the live-only mute toggles on row 0 (green active,
+   red muted) and each volume marker on rows `1..7`, dimmed while that instrument is muted.
 4. Unless FX assignment is active: sample assignment, otherwise Drum assignment, otherwise
    probability assignment. Each blacks out the grid first.
    - Sample assignment: tiles of the selected sample slot light magenta (High), yellow (Medium),

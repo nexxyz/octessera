@@ -101,6 +101,7 @@ mod grid_coords;
 mod help_text;
 mod instrument_audio_payload;
 mod instrument_collections;
+mod instrument_mute;
 mod instrument_runtime;
 mod json_path;
 mod layer_behavior_config;
@@ -434,6 +435,7 @@ pub struct NativeRunner {
     param_mods: Vec<NativeParamMods>,
     trigger_gate_modes: Vec<String>,
     trigger_gate_restore_modes: Vec<Option<String>>,
+    instrument_mutes: [bool; INSTRUMENT_COUNT],
     play_transpose_selected: Vec<bool>,
     play_transpose_enabled: Vec<bool>,
     play_transpose_offsets: Vec<i8>,

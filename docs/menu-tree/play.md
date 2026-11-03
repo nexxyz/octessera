@@ -46,9 +46,22 @@ Play
 
 ## Mix
 
-- Each column is an instrument. Pressing row `y` sets that slot's `Mixer > Volume` to
-  `round(y / 7 × 100)`: `y=0` mutes, `y=7` is 100%. Type `none` slots ignore presses.
-- LEDs: the current volume marker is green; `none` slots show a dim gray marker.
+- Each column is an instrument. Row `y=0` toggles that slot's mute; rows `1..7` set its
+  `Mixer > Volume` to `round(y / 7 × 100)`: row 1 is 14%, row 7 is 100%. Play Mix cannot set
+  0%; the menu, Aux or modulation can. Type `none` slots ignore presses.
+- Mute is live only: it is never saved and never marks the patch dirty. Boot, patch/preset loads
+  and Clear All start unmuted. Toasts read `I3 muted` / `I3 unmuted`.
+- A muted internal instrument keeps its stored volume; the engine receives volume 0 from every
+  volume path (Play Mix, menu, Aux, LFO/XY modulation, slot changes, full config syncs) until it
+  is unmuted, which re-sends the effective volume. Volume rows still change the stored volume
+  while muted. Held internal notes and one-shots keep running silently, so an unmute mid-note
+  brings their tails back, like a mixer channel mute.
+- A muted MIDI slot sends no new note-ons on its MIDI channel; muting sends exact note-offs for its
+  held external notes, and unmuting does not revive them. Note-offs still pass, so a key released
+  while muted may send a harmless extra note-off. MIDI slots sharing a channel mute together.
+- LEDs: row 0 is green when active and red when muted. The volume marker sits at its rounded row
+  clamped to `1..7` (low volumes show on row 1): green, or dimmed green while muted. `none` slots
+  show dim gray on row 0 and at the marker.
 
 ## Pan
 

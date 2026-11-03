@@ -111,7 +111,7 @@ page.
 
 | Page | What the grid becomes | Use it for |
 |---|---|---|
-| Mix | One column per instrument; bottom row is mute, top row is 100%. | Setting each instrument's volume. |
+| Mix | One column per instrument. The bottom tile mutes and unmutes it (green is live, red is muted); the rows above set the volume, top row 100%. | Setting each instrument's volume, and dropping parts in and out. Mutes are never saved. |
 | Pan | One row per instrument; left edge is hard left, right edge hard right. | Placing instruments in the stereo field. Bus-routed instruments move their bus pan. |
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |

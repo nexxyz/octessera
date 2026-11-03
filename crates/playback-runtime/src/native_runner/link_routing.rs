@@ -32,6 +32,7 @@ impl NativeRunner {
             }
         }
         *queue = kept;
+        self.drop_muted_midi_note_ons(&mut due);
         due
     }
 
@@ -145,7 +146,9 @@ impl NativeRunner {
         let instruments = std::mem::take(&mut self.instruments);
         let routed = self.route_with_instruments(layer_index, input, &instruments);
         self.instruments = instruments;
-        routed
+        let mut routed = routed?;
+        self.drop_muted_midi_note_ons(&mut routed);
+        Ok(routed)
     }
 
     fn route_with_instruments(

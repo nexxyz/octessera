@@ -126,8 +126,10 @@ impl NativeRunner {
         before: &ConfigurationAggregate,
         plan: ConfigurationRuntimePlan,
     ) -> Result<(), String> {
+        let unmuted = self.take_instrument_mutes();
         if before == &candidate.configuration_aggregate() {
             self.commit_loaded_revision(source_revision);
+            self.resend_engine_volumes(unmuted);
             return Ok(());
         }
         self.drain_all_layer_engine_notes();
@@ -146,6 +148,7 @@ impl NativeRunner {
         if let Err(error) = self.process_modulation_step(false) {
             self.show_toast(format!("LFO composition unavailable: {error}"));
         }
+        self.resend_engine_volumes(unmuted);
         Ok(())
     }
 

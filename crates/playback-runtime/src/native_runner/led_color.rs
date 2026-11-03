@@ -13,6 +13,7 @@ impl LedColor {
     pub const BLUE: Self = Self::from_rgb(platform_core::palette::BLUE);
     pub const WHITE: Self = Self::from_rgb(platform_core::palette::WHITE);
     pub const GREEN: Self = Self::from_rgb(platform_core::palette::GREEN);
+    pub const RED: Self = Self::from_rgb(platform_core::palette::BEHAVIOR_PRIMARY_RED);
 
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }

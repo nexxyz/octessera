@@ -27,12 +27,15 @@ impl NativeRunner {
             let instrument = self.instruments.get(x);
             let volume = instrument.map(|inst| inst.volume).unwrap_or(0).min(100);
             let y = ((f32::from(volume) / 100.0) * (GRID_HEIGHT - 1) as f32).round() as usize;
-            let color = if instrument.map(|inst| inst.kind.as_str()) == Some("none") {
-                LedColor::SYSTEM.dim(4)
+            let (toggle, marker) = if instrument.map(|inst| inst.kind.as_str()) == Some("none") {
+                (LedColor::SYSTEM.dim(4), LedColor::SYSTEM.dim(4))
+            } else if self.instrument_muted(x) {
+                (LedColor::RED, LedColor::GREEN.dim(4))
             } else {
-                LedColor::GREEN
+                (LedColor::GREEN, LedColor::GREEN)
             };
-            self.set_display_led(leds, x, y, color);
+            self.set_display_led(leds, x, 0, toggle);
+            self.set_display_led(leds, x, y.max(1), marker);
         }
     }
 

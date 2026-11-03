@@ -128,6 +128,7 @@ impl NativeRunner {
 
     pub(super) fn handle_play_grid_press(&mut self, x: usize, y: usize) {
         match self.active_play_mode.as_str() {
+            "mix" if y == 0 => self.toggle_instrument_mute(x),
             "mix" => {
                 if let Some(instrument) = self.instruments.get_mut(x) {
                     if instrument.kind != "none" {

@@ -49,7 +49,8 @@ a synth.
    its behavior for `brain` or `raindrops` too.
 2. Press **Play** (or **Space** in the simulator).
 3. Hold **Fn** and press the bottom tile of the right-hand grid column to open
-   **Play Mix**. Each column is an instrument; press higher for louder.
+   **Play Mix**. Each column is an instrument; press higher for louder, and tap
+   the bottom tile to mute it.
 4. Press **Back** to leave Play Mix, then go and poke at the other layers.
 
 **Save what you like.** Auto Save is off, so your edits live in memory until
