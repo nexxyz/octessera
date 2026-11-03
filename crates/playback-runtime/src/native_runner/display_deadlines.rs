@@ -101,10 +101,7 @@ impl NativeRunner {
             || toast_active
             || self.display.help_popup.is_some()
             || self.display.confirm_dialog.is_some()
-            || self.sample_assign.is_some()
-            || self.drum_assign.is_some()
-            || self.trigger_probability_assign.is_some()
-            || self.play_fx_assign.is_some()
+            || self.grid_assign_active()
         {
             return None;
         }

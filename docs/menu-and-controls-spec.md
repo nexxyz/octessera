@@ -797,6 +797,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   reinitializing the whole slot.
 - No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout
   (also listed in [`Play > FX > Aux Map`](menu-tree/play.md)).
+- No auto-map applies while an assignment mode is active (Sample, Drum and trigger-probability
+  Assign, Play FX `Map to Grid`): no auto caps, no auto hints, and Aux input skips the auto
+  layout. Manual bindings keep working, and the layout returns when Back leaves the mode.
 
 ### Footer hints
 

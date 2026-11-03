@@ -254,6 +254,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - If every target tile already holds exactly that stamp, the press clears them and toasts
   `Cleared`. Anything else is overwritten and the toast shows the stamp, for example
   `S1 +7 -25c High` (levels read `Base`, `High`, `Med`, `Low`).
+- Auto-map Aux layouts are off while assigning; manual Aux bindings still work.
 - To change a tile, stamp it again; there is no per-tile editor. Assignments start empty and never
   auto-fill the grid.
 - LED colors are listed under

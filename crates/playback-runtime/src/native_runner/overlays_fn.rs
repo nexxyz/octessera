@@ -11,11 +11,7 @@ impl NativeRunner {
         if !self.display.ui.fn_held && !self.display.ui.combined_modifier_held {
             return;
         }
-        if self.sample_assign.is_some()
-            || self.drum_assign.is_some()
-            || self.trigger_probability_assign.is_some()
-            || self.play_fx_assign.is_some()
-        {
+        if self.grid_assign_active() {
             return;
         }
         self.dim_fn_overlay(leds);
