@@ -65,14 +65,27 @@ fn drum_rows_and_columns_stamp_every_tile_and_a_fully_stamped_line_clears() {
     press(&mut runner, 3, 0);
     assert_eq!(tile(&runner, 3, 0).unwrap()["voice"], 1);
 
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "V2 +0 +0c Base"
+    );
+
     with_modifier(&mut runner, "button_shift", 3, 0);
     for x in 0..GRID_WIDTH {
         assert_eq!(tile(&runner, x, 0).unwrap()["voice"], 1);
     }
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "row +0 +0c Base"
+    );
     with_modifier(&mut runner, "button_shift", 5, 0);
     for x in 0..GRID_WIDTH {
         assert!(tile(&runner, x, 0).is_none());
     }
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "Cleared row"
+    );
 
     assign_voice(&mut runner, 2);
     press(&mut runner, 4, 3);
@@ -81,6 +94,15 @@ fn drum_rows_and_columns_stamp_every_tile_and_a_fully_stamped_line_clears() {
         assert_eq!(tile(&runner, 4, y).unwrap()["voice"], 2);
     }
     assert!(tile(&runner, 3, 3).is_none());
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "col +0 +0c Base"
+    );
+    with_modifier(&mut runner, "button_combined_modifier", 4, 6);
+    assert_eq!(
+        runner.snapshot().unwrap()["display"]["toast"],
+        "Cleared col"
+    );
 }
 
 #[test]

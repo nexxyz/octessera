@@ -79,7 +79,7 @@ impl NativeRunner {
         };
         let stamp = self.tile_stamp(slot);
         let level = levels_enabled.then(|| stamp.level.clone()).flatten();
-        let tiles = self.stamp_line_tiles(x, y);
+        let (tiles, line) = self.stamp_line_tiles(x, y);
         let Some(instrument) = self.instruments.get_mut(slot).filter(|_| !tiles.is_empty()) else {
             return;
         };
@@ -102,7 +102,7 @@ impl NativeRunner {
                 .sample_assignments
                 .extend(tiles.iter().map(|&(x, y)| stamped(x, y)));
         }
-        self.show_stamp_toast(clear, 'S', sample_slot, &stamp, level.as_deref());
+        self.show_stamp_toast(clear, line, 'S', sample_slot, &stamp, level.as_deref());
         self.mark_config_dirty();
     }
 
@@ -111,7 +111,7 @@ impl NativeRunner {
             return;
         };
         let stamp = self.tile_stamp(slot);
-        let tiles = self.stamp_line_tiles(x, y);
+        let (tiles, line) = self.stamp_line_tiles(x, y);
         let Some(assignments) = self
             .instruments
             .get_mut(slot)
@@ -155,6 +155,7 @@ impl NativeRunner {
         }
         self.show_stamp_toast(
             clear,
+            line,
             'V',
             usize::from(voice),
             &stamp,
@@ -163,28 +164,36 @@ impl NativeRunner {
         self.mark_config_dirty();
     }
 
-    fn stamp_line_tiles(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
+    /// The tiles a press stamps and, for a whole row or column, that line's toast word.
+    fn stamp_line_tiles(&self, x: usize, y: usize) -> (Vec<(usize, usize)>, Option<&'static str>) {
         if x >= GRID_WIDTH || y >= GRID_HEIGHT {
-            Vec::new()
+            (Vec::new(), None)
         } else if self.display.ui.combined_modifier_held {
-            (0..GRID_HEIGHT).map(|row| (x, row)).collect()
+            ((0..GRID_HEIGHT).map(|row| (x, row)).collect(), Some("col"))
         } else if self.display.ui.shift_held {
-            (0..GRID_WIDTH).map(|column| (column, y)).collect()
+            (
+                (0..GRID_WIDTH).map(|column| (column, y)).collect(),
+                Some("row"),
+            )
         } else {
-            vec![(x, y)]
+            (vec![(x, y)], None)
         }
     }
 
+    /// A line toast names the line instead of the slot, so `row -24 +100c Base` still fits.
     fn show_stamp_toast(
         &mut self,
         cleared: bool,
+        line: Option<&str>,
         prefix: char,
         index: usize,
         stamp: &NativeTileStamp,
         level: Option<&str>,
     ) {
         if cleared {
-            self.show_toast("Cleared");
+            self.show_toast(
+                line.map_or_else(|| "Cleared".into(), |line| format!("Cleared {line}")),
+            );
             return;
         }
         let level = match level {
@@ -193,11 +202,10 @@ impl NativeRunner {
             Some("low") => "Low",
             _ => "Base",
         };
+        let target = line.map_or_else(|| format!("{prefix}{}", index + 1), str::to_owned);
         self.show_toast(format!(
-            "{prefix}{} {:+} {:+}c {level}",
-            index + 1,
-            stamp.tune_semis,
-            stamp.tune_cents
+            "{target} {:+} {:+}c {level}",
+            stamp.tune_semis, stamp.tune_cents
         ));
     }
 }
