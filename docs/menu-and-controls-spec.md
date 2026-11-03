@@ -339,7 +339,8 @@ change; only the distance per detent does.
 - Every snapshot `display` object carries the required `bodyLayout`:
   - `rows` keeps the menu/help/sample/restore/confirmation/System Info/concise-MIDI row
     semantics, including the 28-character/8-row normalization, bars, selected-line scrolling, and
-    scrollbars. Lines without menu-row parts draw at `x=2` (`x=12` among menu rows).
+    scrollbars. Lines without menu-row parts draw at `x=2` (among menu rows at the page's name
+    column, `x=12` or `x=6`).
   - `card` is used for the setup portal and Backup / Restore status and keeps every complete
     semantic source string in `display.lines`. Cards use `x=2`, `width=120`, `y=11`, `height=98`,
     `rowAdvance=13` (20 columns by 8 rows), reserve the final row for the selected action, and
@@ -403,8 +404,12 @@ palette unless a behavior deliberately owns its own.
   omitted for splash/help/confirm overlays unless menu metadata is present.
 - Left gutter: every row an Aux encoder runs shows its Aux cap at `x=0..6`, selected or not and never
   inverted: a disc at 28 % of the row colour with 1-3 pips in the row colour; a plain cap covers
-  `s+1..s+7`, a Shift cap `s..s+6` with a 5 px bar at 55 % on `s+8`. The selection bar starts at
-  `x=9` and labels at `x=12`.
+  `s+1..s+7`, a Shift cap `s..s+6` with a 5 px bar at 55 % on `s+8`. On a page where any row
+  shows a cap, the selection bar starts at `x=9` and labels at `x=12`. A page whose rows show no
+  cap drops the gutter and lines up with the picker lists: the bar starts at `x=0` and labels at
+  `x=6`, leaving `x=1..3` free, which mirrors the scrollbar room on the right. The bar, labels,
+  markers, mini bars, E2 box and text cursor all follow the page's inset, the right edge stays
+  put, and a slide between a capped and a cap-less page draws each side at its own inset.
 - Picker lists use the list layout (`bodyLayout: "list"`) at every depth below a picker row:
   the behavior categories and lists, parameter-target trees, note set folders, the sample browser,
   and the instrument preset/kit and Saves `Load` lists. They have no gutter: the bar starts at

@@ -28,6 +28,7 @@ pub use master_contrast::{oled_master_contrast_step, OLED_MASTER_CONTRAST_STEPS}
 #[cfg(test)]
 pub(crate) use menu_row_layout::menu_row_clips;
 pub(crate) use menu_row_layout::menu_row_text_overflows;
+pub(crate) use menu_rows::rows_show_aux_caps;
 pub use model::{
     OledAnimationInput, OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle,
     OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledHintLabel, OledHintSource,
@@ -46,6 +47,9 @@ pub use text_layout::{
 
 #[cfg(test)]
 mod body_animation_tests;
+
+#[cfg(test)]
+mod cap_gutter_tests;
 
 #[cfg(test)]
 mod error_layout_tests;

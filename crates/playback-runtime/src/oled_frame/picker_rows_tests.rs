@@ -40,9 +40,9 @@ fn columns_in(frame: &[u8], color: u16, xs: std::ops::Range<usize>) -> Vec<usize
 #[test]
 fn a_picker_row_draws_its_value_after_the_colon_in_the_value_shade() {
     let frame = render_oled_frame(&page(OledDisplayLayout::Rows, vec![picker("Beh.", "life")]));
-    let value_x = 12 + M5X7.advance("Beh.: ");
+    let value_x = 6 + M5X7.advance("Beh.: ");
     let label = columns_in(&frame, AREA, 0..value_x);
-    assert_eq!(label.first(), Some(&12));
+    assert_eq!(label.first(), Some(&6));
     let value = columns_in(&frame, shade(AREA, 0.7), value_x..128);
     assert_eq!(value.first(), Some(&value_x));
     assert_eq!(
@@ -77,7 +77,7 @@ fn a_selected_picker_row_is_black_on_the_bar() {
     let mut input = page(OledDisplayLayout::Rows, vec![picker("Trn", "Cutoff")]);
     input.selected_row = Some(0);
     let frame = render_oled_frame(&input);
-    let value_x = 12 + M5X7.advance("Trn: ");
+    let value_x = 6 + M5X7.advance("Trn: ");
     assert!((TOP..TOP + 9).any(|y| pixel(&frame, value_x, y) == 0));
     assert!((TOP..TOP + 9).any(|y| pixel(&frame, 121, y) == 0));
 }
@@ -114,7 +114,10 @@ fn the_active_list_entry_has_a_pointer_left_of_its_name() {
 fn rows_with_a_gutter_draw_no_pointer() {
     let frame = render_oled_frame(&page(
         OledDisplayLayout::Rows,
-        vec![active(menu_row(OledMenuRowKind::Group, "Synth", "", None))],
+        vec![
+            active(menu_row(OledMenuRowKind::Group, "Synth", "", None)),
+            menu_row(OledMenuRowKind::Value, "Cutoff", "50", Some((1, false))),
+        ],
     ));
     assert!((TOP..TOP + 9).all(|y| (0..9).all(|x| pixel(&frame, x, y) == 0)));
 }

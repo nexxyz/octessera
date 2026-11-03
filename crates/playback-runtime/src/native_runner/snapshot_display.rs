@@ -4,7 +4,8 @@ use crate::native_menu::{
     NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
 };
 use crate::oled_frame::{
-    menu_row_text_overflows, OledAuxCap, OledDisplayLayout, OledMenuRowInput, OledMenuRowKind,
+    menu_row_text_overflows, rows_show_aux_caps, OledAuxCap, OledDisplayLayout, OledMenuRowInput,
+    OledMenuRowKind,
 };
 
 mod drum;
@@ -167,7 +168,8 @@ fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize) {
         return;
     };
     let has_bar = display.bar_values.get(index).is_some_and(Option::is_some);
-    let gutter = display.body_layout == OledDisplayLayout::Rows;
+    let gutter =
+        display.body_layout == OledDisplayLayout::Rows && rows_show_aux_caps(&display.rows);
     let Some(row) = display.rows.get_mut(index).and_then(Option::as_mut) else {
         return;
     };

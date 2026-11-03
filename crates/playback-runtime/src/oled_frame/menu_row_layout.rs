@@ -37,9 +37,8 @@ pub(super) struct RowLayout<'a> {
 pub(super) fn row_layout<'a>(
     row: &'a OledMenuRowInput,
     bar: Option<&'a OledBarInput>,
-    gutter: bool,
+    name_x: usize,
 ) -> RowLayout<'a> {
-    let name_x = if gutter { NAME_X } else { LIST_NAME_X };
     let (name, value): (Cow<str>, RowValue) = match row.kind {
         OledMenuRowKind::Group if row.value.is_empty() => {
             (Cow::Borrowed(&row.label), RowValue::Marker('>'))
@@ -120,7 +119,8 @@ pub(super) fn row_layout<'a>(
 /// the selected row scrolls it.
 pub(crate) fn menu_row_text_overflows(row: &OledMenuRowInput, has_bar: bool, gutter: bool) -> bool {
     let bar = has_bar.then(OledBarInput::default);
-    let layout = row_layout(row, bar.as_ref(), gutter);
+    let name_x = if gutter { NAME_X } else { LIST_NAME_X };
+    let layout = row_layout(row, bar.as_ref(), name_x);
     match layout.value {
         RowValue::Picked(_) => layout.value_clipped,
         _ => M5X7.width(&layout.name) > layout.name_room,
@@ -131,7 +131,7 @@ pub(crate) fn menu_row_text_overflows(row: &OledMenuRowInput, has_bar: bool, gut
 #[cfg(test)]
 pub(crate) fn menu_row_clips(row: &OledMenuRowInput, has_bar: bool) -> bool {
     let bar = has_bar.then(OledBarInput::default);
-    let layout = row_layout(row, bar.as_ref(), true);
+    let layout = row_layout(row, bar.as_ref(), NAME_X);
     let picked = matches!(layout.value, RowValue::Picked(_));
     layout.value_clipped && !picked || M5X7.width(&layout.name) > layout.name_room
 }

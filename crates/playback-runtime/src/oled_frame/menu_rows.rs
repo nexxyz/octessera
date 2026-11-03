@@ -15,10 +15,6 @@ const FIRST_SLOT_Y: usize = 11;
 pub(super) const PITCH: usize = 13;
 pub(super) const BAR_HEIGHT: usize = 11;
 const CAP_X: usize = 0;
-const BAR_X: usize = 9;
-const LIST_BAR_X: usize = 0;
-/// Text lines of overlays and cards, which have neither a gutter nor a pointer column.
-const PLAIN_X: usize = 2;
 const POINTER_X: usize = 1;
 /// Values, markers and mini bars end here, whether or not the page scrolls.
 pub(super) const VALUE_LAST: usize = 123;
@@ -40,11 +36,43 @@ pub(super) fn slot_top(body_top_offset: usize, index: usize) -> usize {
     FIRST_SLOT_Y + body_top_offset + index * PITCH
 }
 
+/// Where a body's rows start on the left: the selection bar's first column and the names'.
+#[derive(Clone, Copy)]
+pub(super) struct LeftInset {
+    pub(super) bar_x: usize,
+    pub(super) name_x: usize,
+}
+
+/// A menu page with an Aux cap keeps the 9 px cap gutter.
+const GUTTER_INSET: LeftInset = LeftInset {
+    bar_x: 9,
+    name_x: NAME_X,
+};
+/// Other menu pages line up with the picker lists, keeping the pointer column at x=1..3 free.
+const LIST_INSET: LeftInset = LeftInset {
+    bar_x: 0,
+    name_x: LIST_NAME_X,
+};
+/// Text lines of overlays and cards, which have neither a gutter nor a pointer column.
+const PLAIN_INSET: LeftInset = LeftInset {
+    bar_x: 0,
+    name_x: 2,
+};
+
+pub(super) fn left_inset(display: &OledDisplayInput) -> LeftInset {
+    if has_gutter(display) {
+        GUTTER_INSET
+    } else if has_menu_rows(display) {
+        LIST_INSET
+    } else {
+        PLAIN_INSET
+    }
+}
+
 /// How far `display`'s rows sit below the first slot: menu-row bodies that do not fill the
 /// body drop by [`SHORT_PAGE_OFFSET`]; full, scrolling, text and card bodies stay put.
 pub(super) fn body_top_offset(display: &OledDisplayInput) -> usize {
-    let menu_rows = display.body_layout == OledDisplayLayout::List || has_gutter(display);
-    if menu_rows && display.lines.len() < BODY_ROWS {
+    if has_menu_rows(display) && display.lines.len() < BODY_ROWS {
         SHORT_PAGE_OFFSET
     } else {
         0
@@ -65,7 +93,7 @@ struct RowStyle {
     area: u16,
     selected: bool,
     editing: bool,
-    gutter: bool,
+    inset: LeftInset,
     bar_right: usize,
 }
 
@@ -80,7 +108,7 @@ impl RowStyle {
 
     fn draw_selection(self, frame: &mut [u8], top: usize) {
         if self.selected {
-            let bar_x = if self.gutter { BAR_X } else { LIST_BAR_X };
+            let bar_x = self.inset.bar_x;
             fill_rect(
                 frame,
                 bar_x,
@@ -111,19 +139,17 @@ pub(super) fn draw_body(
 
 /// Where a rows body draws its selection bar: its first and last column.
 pub(super) fn selection_bar_span(display: &OledDisplayInput) -> (usize, usize) {
-    let bar_x = if has_gutter(display) {
-        BAR_X
-    } else {
-        LIST_BAR_X
-    };
-    (bar_x, selection_bar_right(page_scroll(display).is_some()))
+    (
+        left_inset(display).bar_x,
+        selection_bar_right(page_scroll(display).is_some()),
+    )
 }
 
 /// The first column of `row`'s E2 box.
 pub(super) fn edit_box_x(display: &OledDisplayInput, row: usize) -> Option<usize> {
     let parts = display.rows.get(row)?.as_ref()?;
     let bar = display.bars.get(row).and_then(Option::as_ref);
-    Some(row_layout(parts, bar, has_gutter(display)).value_x - 2)
+    Some(row_layout(parts, bar, left_inset(display).name_x).value_x - 2)
 }
 
 /// The area colour of body row `row`.
@@ -143,7 +169,20 @@ pub(super) fn page_scroll(display: &OledDisplayInput) -> Option<&OledScrollInput
 }
 
 fn has_gutter(display: &OledDisplayInput) -> bool {
-    display.body_layout == OledDisplayLayout::Rows && display.rows.iter().flatten().next().is_some()
+    display.body_layout == OledDisplayLayout::Rows && rows_show_aux_caps(&display.rows)
+}
+
+/// Whether any of a rows page's menu rows wears an Aux cap, so the page keeps the cap gutter.
+pub(crate) fn rows_show_aux_caps(rows: &[Option<OledMenuRowInput>]) -> bool {
+    rows.iter().flatten().any(|row| row.aux_cap.is_some())
+}
+
+fn has_menu_rows(display: &OledDisplayInput) -> bool {
+    match display.body_layout {
+        OledDisplayLayout::List => true,
+        OledDisplayLayout::Rows => display.rows.iter().flatten().next().is_some(),
+        OledDisplayLayout::Card => false,
+    }
 }
 
 fn draw_menu_body(
@@ -154,14 +193,7 @@ fn draw_menu_body(
 ) {
     let scroll = page_scroll(display);
     let bar_right = selection_bar_right(scroll.is_some());
-    let gutter = has_gutter(display);
-    let plain_x = if gutter {
-        NAME_X
-    } else if display.body_layout == OledDisplayLayout::List {
-        LIST_NAME_X
-    } else {
-        PLAIN_X
-    };
+    let inset = left_inset(display);
     let offset = body_top_offset(display);
     for (index, line) in display.lines.iter().enumerate().take(BODY_ROWS) {
         let top = slot_top(offset, index);
@@ -170,7 +202,7 @@ fn draw_menu_body(
             area: row_area(display, index),
             selected,
             editing: selected && editing,
-            gutter,
+            inset,
             bar_right,
         };
         match display.rows.get(index).and_then(Option::as_ref) {
@@ -178,7 +210,7 @@ fn draw_menu_body(
                 let bar = display.bars.get(index).and_then(Option::as_ref);
                 draw_menu_row(frame, top, row, bar, style);
             }
-            None => draw_plain_row(frame, top, line, plain_x, style),
+            None => draw_plain_row(frame, top, line, style),
         }
     }
     if let Some(scroll) = scroll {
@@ -196,14 +228,15 @@ fn draw_card_body(frame: &mut [u8], display: &OledDisplayInput, selected_row: Op
             area: row_area(display, line.source_index),
             selected: line.selected,
             editing: false,
-            gutter: false,
+            inset: PLAIN_INSET,
             bar_right: selection_bar_right(false),
         };
-        draw_plain_row(frame, slot_top(0, index), &line.text, PLAIN_X, style);
+        draw_plain_row(frame, slot_top(0, index), &line.text, style);
     }
 }
 
-fn draw_plain_row(frame: &mut [u8], top: usize, text: &str, x: usize, style: RowStyle) {
+fn draw_plain_row(frame: &mut [u8], top: usize, text: &str, style: RowStyle) {
+    let x = style.inset.name_x;
     style.draw_selection(frame, top);
     M5X7.draw_fitted(frame, text, VALUE_LAST + 1 - x, x, top + 1, style.text());
 }
@@ -215,7 +248,7 @@ fn draw_menu_row(
     bar: Option<&OledBarInput>,
     style: RowStyle,
 ) {
-    let layout = row_layout(row, bar, style.gutter);
+    let layout = row_layout(row, bar, style.inset.name_x);
     let glyph_top = top + 1;
     style.draw_selection(frame, top);
     M5X7.draw_fitted(
@@ -294,11 +327,9 @@ fn draw_menu_row(
             }
         }
     }
-    if style.gutter {
-        if let Some(cap) = row.aux_cap {
-            draw_aux_cap(frame, CAP_X, top + 1, cap, style.area);
-        }
-    } else if row.active {
+    if let Some(cap) = row.aux_cap {
+        draw_aux_cap(frame, CAP_X, top + 1, cap, style.area);
+    } else if row.active && style.inset.bar_x == 0 {
         draw_mask(
             frame,
             &PLAY,
