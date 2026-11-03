@@ -26,6 +26,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
             "FX",
             "XY",
             "Transpose",
+            "Rate",
             "Trigger Gate"
         ]
     );
@@ -80,6 +81,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
             "FX",
             "XY",
             "Transpose",
+            "Rate",
             "Trigger Gate"
         ]
     );
@@ -108,6 +110,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
             "FX",
             "XY",
             "Transpose",
+            "Rate",
             "Trigger Gate"
         ]
     );

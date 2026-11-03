@@ -18,6 +18,7 @@ impl NativeRunner {
             "fx" => self.apply_play_fx_overlay(leds),
             "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),
             "transpose" => self.apply_play_transpose_overlay(leds),
+            "rate" => self.apply_play_rate_overlay(leds),
             "xy" => self.apply_play_xy_overlay(leds),
             _ => {}
         }

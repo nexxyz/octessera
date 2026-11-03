@@ -70,6 +70,7 @@ impl NativeRunner {
         self.advance_global_lfo_audio(pulses)?;
         let swung_pulses = self.consume_swung_pulses(pulses);
         self.accumulate_layer_pulses(swung_pulses);
+        self.apply_due_rate_resyncs(pulses);
         self.advance_due_layer_ticks()
     }
 
@@ -186,7 +187,7 @@ impl NativeRunner {
         }
     }
 
-    fn step_pulses_for_layer(&self, index: usize) -> u32 {
+    pub(super) fn step_pulses_for_layer(&self, index: usize) -> u32 {
         if let Some(layer) = self.link_layers.get(index) {
             if layer.scan_mode == "scanning" {
                 return crate::timing_units::note_unit_to_pulses(&layer.scan_unit);

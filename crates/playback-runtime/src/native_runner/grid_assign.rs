@@ -115,6 +115,7 @@ fn play_mode_from_page_label(label: &str) -> Option<&'static str> {
         "FX" => Some("fx"),
         "Trigger Gate" => Some("trigger-gate"),
         "Transpose" => Some("transpose"),
+        "Rate" => Some("rate"),
         "XY" => Some("xy"),
         _ => None,
     }

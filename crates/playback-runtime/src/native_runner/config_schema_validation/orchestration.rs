@@ -141,9 +141,10 @@ const PLAY_MODES: &[&str] = &[
     "pan",
     "tempo",
     "fx",
-    "trigger-gate",
-    "transpose",
     "xy",
+    "transpose",
+    "rate",
+    "trigger-gate",
 ];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
 const PLAY_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];

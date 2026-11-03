@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use super::{NativeRunner, GRID_HEIGHT};
 
+mod rate;
 mod tempo;
 
 /// Fn + right column pages, bottom row first.
@@ -21,7 +22,7 @@ pub(super) const MUSICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
     Some("fx"),
     Some("xy"),
     Some("transpose"),
-    None,
+    Some("rate"),
     Some("trigger-gate"),
     None,
     None,
@@ -32,6 +33,8 @@ pub(super) const MUSICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
 #[derive(Debug, Default)]
 pub(super) struct PlayLiveState {
     pub(super) tempo_taps: Vec<Instant>,
+    /// Layers the Rate page resyncs to the bar grid at the next bar line.
+    pub(super) rate_resyncs: [bool; GRID_HEIGHT],
 }
 
 impl NativeRunner {

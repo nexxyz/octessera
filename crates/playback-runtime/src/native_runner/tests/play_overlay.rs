@@ -87,7 +87,7 @@ pub(crate) fn combined_modifier_overlay_shows_musical_page_column() {
     assert_eq!(*page(0), led_rgb(platform_core::palette::GREEN));
     assert_eq!(*page(1), idle);
     assert_eq!(*page(2), idle);
-    assert_eq!(*page(3), free);
+    assert_eq!(*page(3), idle);
     assert_eq!(*page(4), idle);
     for row in 5..GRID_HEIGHT {
         assert_eq!(*page(row), free);

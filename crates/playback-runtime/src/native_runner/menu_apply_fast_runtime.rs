@@ -71,6 +71,7 @@ impl NativeRunner {
             "play.page.fx" => Some(self.fast_play_page_key("fx")),
             "play.page.trigger-gate" => Some(self.fast_play_page_key("trigger-gate")),
             "play.page.transpose" => Some(self.fast_play_page_key("transpose")),
+            "play.page.rate" => Some(self.fast_play_page_key("rate")),
             "play.page.xy" => Some(self.fast_play_page_key("xy")),
             "algorithmStep" => Some(self.fast_algorithm_step_menu_key()),
             "masterVolume" => Some(self.fast_master_volume_menu_key()),

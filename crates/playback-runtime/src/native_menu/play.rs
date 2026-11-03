@@ -16,6 +16,7 @@ pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
             keyed_group("FX", "play.page.fx", play_fx_page_children(config)),
             keyed_group("XY", "play.page.xy", xy_pad_items(config)),
             keyed_group("Transpose", "play.page.transpose", vec![]),
+            keyed_group("Rate", "play.page.rate", vec![]),
             keyed_group("Trigger Gate", "play.page.trigger-gate", vec![]),
         ],
     )

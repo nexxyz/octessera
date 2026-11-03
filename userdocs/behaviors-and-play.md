@@ -106,7 +106,7 @@ can play the whole instrument instead of editing one layer.
 
 The pages come in two banks on the right-hand grid column. Hold *Fn* for the
 technical ones (from the bottom up: Mix, Pan, a free tile, Tempo) or *Shift* + *Fn* for the
-musical ones (FX, XY, Transpose, a free tile, Trigger Gate), then press a tile
+musical ones (FX, XY, Transpose, Rate, Trigger Gate), then press a tile
 in that column. Unlit tiles are free. *Back*, or *Fn* plus a layer in the left
 column, leaves the page.
 
@@ -118,6 +118,7 @@ column, leaves the page.
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |
+| Rate | One row per layer, bottom row is Layer 1; the columns are step rates from 1/32 to 1/2, straight green and triplets blue. | Speeding a layer up or slowing it down mid-groove. Shift + tile pulls a drifting layer back onto the bar at the next bar line. |
 | XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. |
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing

@@ -26,6 +26,7 @@ Play
 │   ├── Invert Y: [on | off]
 │   └── Release: [hold | center]             ← stored as sample-hold, reset-center
 ├── Transpose                            ← page-select row
+├── Rate                                 ← page-select row
 └── Trigger Gate                         ← page-select row
 ```
 
@@ -40,13 +41,14 @@ The menu lists the technical bank, then the musical bank.
   | 0 | `mix` | `fx` |
   | 1 | `pan` | `xy` |
   | 2 | | `transpose` |
-  | 3 | `tempo` | |
+  | 3 | `tempo` | `rate` |
   | 4 | | `trigger-gate` |
 
   Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
   that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
   (`Play: trig` for Trigger Gate).
-- In the Play menu, `Mix`, `Pan`, `Tempo`, `Trigger Gate`, and `Transpose` are page-select rows: Main press
+- In the Play menu, `Mix`, `Pan`, `Tempo`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
+  rows: Main press
   selects and activates the page without entering an empty submenu. `FX` and `XY` are
   enterable groups and activate their page too.
 - Entering `Play` activates the saved page. Back, Fn + left column (layer select), and entering
@@ -186,6 +188,22 @@ The `ms` rows use the curved time steps from
   blue.
 - Held transposed notes drain with exact routed note-offs when transpose routing is retargeted,
   disabled, stopped, or reset.
+
+## Rate
+
+- Rows are layers in Fn-navigation orientation: bottom row is layer 1.
+- Columns `0..7` set that layer's `Build > Step Rate` to `1/32`, `1/16T`, `1/16`, `1/8T`, `1/8`,
+  `1/4T`, `1/4`, `1/2`, through the same path as the menu edit, so it is saved with the patch. The
+  layer keeps its step phase and the new rate applies from its next step. Toast `L3 rate 1/8`.
+- Shift + press arms a resync for that layer (`L3 resync`): at the next bar line its step
+  accumulator is set so a step lands on the bar, and its steps follow the bar grid again. Shift +
+  press never changes the rate.
+- Scanning layers step at their `Link > Lx > Scanning > Scan Unit`, not at Step Rate, so Rate
+  tiles on a scanning layer change the saved Step Rate without changing when it steps; resync
+  still aligns it.
+- LEDs: the current rate bright, the others dim; straight rates green, triplets blue. A layer on a
+  rate outside these eight (`1/32T`, `1/2T`, `1/1T`, `1/1`) shows no bright tile. `none` layers are
+  dark and ignore presses.
 
 ## XY
 

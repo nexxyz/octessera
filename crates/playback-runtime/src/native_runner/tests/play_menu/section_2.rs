@@ -248,6 +248,7 @@ pub(crate) fn shift_fn_rightmost_grid_column_selects_musical_play_pages() {
         (0, "fx", "Play: fx"),
         (1, "xy", "Play: xy"),
         (2, "transpose", "Play: transpose"),
+        (3, "rate", "Play: rate"),
         (4, "trigger-gate", "Play: trig"),
     ] {
         let messages = press_grid(&mut runner, 7, row);
@@ -258,7 +259,7 @@ pub(crate) fn shift_fn_rightmost_grid_column_selects_musical_play_pages() {
             Some(format!("play.page.{mode}").as_str())
         );
     }
-    for free_row in [3, 5, 6, 7] {
+    for free_row in [5, 6, 7] {
         let _ = press_grid(&mut runner, 7, free_row);
         assert_eq!(runner.active_play_mode, "trigger-gate", "row {free_row}");
     }

@@ -56,6 +56,9 @@ impl NativeMenuModel {
         if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Transpose")) {
             return Some("transpose".into());
         }
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Rate")) {
+            return Some("rate".into());
+        }
         if path.starts_with(&format!("{PLAY_PATH_PREFIX} > XY")) {
             return Some("xy".into());
         }
