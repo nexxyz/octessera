@@ -188,7 +188,9 @@ pub struct TransportDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) bpm: Option<serde_json::Number>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) swing_pct: Option<u8>,
+    pub(super) swing_a: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) swing_b: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

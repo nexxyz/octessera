@@ -2,8 +2,11 @@ use super::modulation::RoutedMusicalEvents;
 use super::trigger_probability::trigger_probability_allows;
 use super::{NativeRunner, RuntimeTransportState, TransportFlash, GRID_HEIGHT};
 use platform_core::DeviceInput;
+use swing::Swing;
 
 pub(super) use super::link_routing::LinkRoutingInput;
+
+pub(super) mod swing;
 
 impl NativeRunner {
     pub(super) fn active_engine_input_result(
@@ -96,6 +99,8 @@ impl NativeRunner {
                 &*effective_sound.get_or_insert_with(|| self.global_sound.clone());
             while self.transport.layer_pulse_accumulators[index] >= step_pulses {
                 self.transport.layer_pulse_accumulators[index] -= step_pulses;
+                let offset =
+                    self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
                 let mut rng = self.probability_rng(index);
                 let tick = {
                     let Some(engine) = self.layer_engines[index].as_mut() else {
@@ -119,7 +124,12 @@ impl NativeRunner {
                 }
                 let due_events = self.take_due_link_events(index);
                 self.track_emitted_route_notes(index, &due_events);
-                events.extend(due_events);
+                push_tick_events(
+                    &mut events,
+                    &mut self.transport.swung_events,
+                    offset,
+                    due_events,
+                );
                 inactive_modulation_updates.push((index, tick.mapped_intents.clone()));
                 let tick_events = self.route_events_with_link_timing(
                     index,
@@ -131,13 +141,18 @@ impl NativeRunner {
                     },
                 )?;
                 self.track_emitted_route_notes(index, &tick_events);
-                events.extend(tick_events);
+                push_tick_events(
+                    &mut events,
+                    &mut self.transport.swung_events,
+                    offset,
+                    tick_events,
+                );
             }
         }
         for (index, mapped_intents) in inactive_modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
         }
-        if !events.is_empty() {
+        if !events.is_empty() || !self.transport.swung_events.is_empty() {
             let now = self.display.transients.now();
             self.display.transients.trigger_event_dot(now);
         }
@@ -164,6 +179,10 @@ impl NativeRunner {
                     *accumulator = step_pulses;
                 }
             }
+        }
+        let swing_lead = self.consume_swung_pulses(0);
+        if swing_lead > 0 {
+            self.accumulate_layer_pulses(swing_lead);
         }
     }
 
@@ -214,22 +233,44 @@ impl NativeRunner {
         }
     }
 
+    pub(super) fn swing(&self) -> Swing {
+        Swing::new(self.transport.swing_a, self.transport.swing_b)
+    }
+
     fn consume_swung_pulses(&mut self, straight_pulses: u32) -> u32 {
-        let swing_pct = self.transport.swing_pct;
-        if swing_pct == 0 || straight_pulses == 0 {
-            self.transport.swung_ppqn_pulse = self.transport.current_ppqn_pulse;
+        let swing = self.swing();
+        let current = self.transport.current_ppqn_pulse;
+        let previous = current.saturating_sub(u64::from(straight_pulses));
+        if swing.is_straight() && self.transport.swung_ppqn_pulse <= previous {
+            self.transport.swung_ppqn_pulse = current;
             return straight_pulses;
         }
-        let previous = self
+        let target = if swing.is_straight() {
+            current
+        } else {
+            swing.warped_pulse(current)
+        };
+        let swung = target.saturating_sub(self.transport.swung_ppqn_pulse);
+        self.transport.swung_ppqn_pulse = self.transport.swung_ppqn_pulse.max(target);
+        swung.min(u64::from(u32::MAX)) as u32
+    }
+
+    /// How long after this pulse step's stamp a layer step sounds whose accumulator now holds
+    /// `accumulator` warped pulses.
+    fn swing_offset_nanos(&self, accumulator: u32) -> u64 {
+        let swing = self.swing();
+        if swing.is_straight() {
+            return 0;
+        }
+        let warped = self
             .transport
-            .current_ppqn_pulse
-            .saturating_sub(u64::from(straight_pulses));
-        let previous_swung = swung_pulse_total(previous, swing_pct);
-        let current_swung = swung_pulse_total(self.transport.current_ppqn_pulse, swing_pct);
-        self.transport.swung_ppqn_pulse = current_swung;
-        current_swung
-            .saturating_sub(previous_swung)
-            .min(u64::from(u32::MAX)) as u32
+            .swung_ppqn_pulse
+            .saturating_sub(u64::from(accumulator));
+        swing.offset_nanos(
+            warped,
+            self.transport.current_ppqn_pulse,
+            self.transport.bpm,
+        )
     }
 
     fn advance_active_layer(&mut self, events: &mut RoutedMusicalEvents) -> Result<(), String> {
@@ -237,6 +278,9 @@ impl NativeRunner {
         while self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses
         {
             self.transport.layer_pulse_accumulators[self.active_layer_index] -= active_step_pulses;
+            let offset = self.swing_offset_nanos(
+                self.transport.layer_pulse_accumulators[self.active_layer_index],
+            );
             let tick = self.active_engine_tick_result()?;
             self.transport.tick = self.transport.tick.saturating_add(1);
             if let Some(layer_tick) = self.transport.layer_ticks.get_mut(self.active_layer_index) {
@@ -244,7 +288,7 @@ impl NativeRunner {
             }
             let due_events = self.take_due_link_events(self.active_layer_index);
             self.track_emitted_route_notes(self.active_layer_index, &due_events);
-            events.extend(due_events);
+            push_tick_events(events, &mut self.transport.swung_events, offset, due_events);
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self
                 .play_transpose_offsets_for_routing()
@@ -262,7 +306,12 @@ impl NativeRunner {
                 },
             )?;
             self.track_emitted_route_notes(self.active_layer_index, &tick_events);
-            events.extend(tick_events);
+            push_tick_events(
+                events,
+                &mut self.transport.swung_events,
+                offset,
+                tick_events,
+            );
         }
         Ok(())
     }
@@ -272,16 +321,18 @@ fn crossed_ppqn_boundary(previous: u64, current: u64, boundary: u64) -> bool {
     boundary > 0 && current >= boundary && previous / boundary != current / boundary
 }
 
-fn swung_pulse_total(pulse: u64, swing_pct: u8) -> u64 {
-    let beat = pulse / 24;
-    let phase = (pulse % 24) as u32;
-    let delay = ((u32::from(swing_pct.min(75)) * 6) + 50) / 100;
-    let swung_phase = if delay == 0 || phase < 12 {
-        phase
-    } else if phase < 12 + delay {
-        12
-    } else {
-        12 + ((phase - 12 - delay) * 12) / (12 - delay)
-    };
-    beat * 24 + u64::from(swung_phase.min(23))
+fn push_tick_events(
+    events: &mut RoutedMusicalEvents,
+    swung: &mut Vec<(u64, RoutedMusicalEvents)>,
+    offset_nanos: u64,
+    tick_events: RoutedMusicalEvents,
+) {
+    if offset_nanos == 0 || tick_events.is_empty() {
+        events.extend(tick_events);
+        return;
+    }
+    match swung.last_mut() {
+        Some((offset, group)) if *offset == offset_nanos => group.extend(tick_events),
+        _ => swung.push((offset_nanos, tick_events)),
+    }
 }

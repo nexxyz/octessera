@@ -46,7 +46,7 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
         "displayBrightness" => unsigned_range(value, path, 1, 16)?,
         "velocityScalePct" => unsigned_range(value, path, 0, 200)?,
         "screenSleepSeconds" | "dimTimerSeconds" => unsigned_range(value, path, 0, 600)?,
-        "swingPct" => unsigned_range(value, path, 0, 75)?,
+        "swingA" | "swingB" => unsigned_range(value, path, 1, 7)?,
         "smoothingMs" => unsigned_value(value, path)?,
         "bpm" => number_value(value, path, 40.0, 240.0)?,
         "noteLengthMs" => signed_value(value, path, 10, 2000)?,

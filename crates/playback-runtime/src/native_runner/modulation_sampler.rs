@@ -11,7 +11,7 @@ mod intent_values;
 pub(super) use intent_values::value_from_lane;
 pub(super) use intent_values::{cc_events_from_intent, velocity_from_intent};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(super) struct RoutedMusicalEvents {
     pub(super) audio: Vec<MusicalEvent>,
     pub(super) midi: Vec<MusicalEvent>,

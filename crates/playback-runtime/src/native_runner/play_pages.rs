@@ -1,8 +1,20 @@
+use std::time::Instant;
+
 use super::{NativeRunner, GRID_HEIGHT};
 
+mod tempo;
+
 /// Fn + right column pages, bottom row first.
-pub(super) const TECHNICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] =
-    [Some("mix"), Some("pan"), None, None, None, None, None, None];
+pub(super) const TECHNICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
+    Some("mix"),
+    Some("pan"),
+    None,
+    Some("tempo"),
+    None,
+    None,
+    None,
+    None,
+];
 
 /// Shift+Fn + right column pages, bottom row first.
 pub(super) const MUSICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
@@ -15,6 +27,12 @@ pub(super) const MUSICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
     None,
     None,
 ];
+
+/// Live Play page state; never saved.
+#[derive(Debug, Default)]
+pub(super) struct PlayLiveState {
+    pub(super) tempo_taps: Vec<Instant>,
+}
 
 impl NativeRunner {
     pub(super) fn select_play_page_from_fn_grid(

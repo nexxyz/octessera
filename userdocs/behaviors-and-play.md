@@ -105,7 +105,7 @@ Play pages are performance overlays. They borrow the grid for a moment so you
 can play the whole instrument instead of editing one layer.
 
 The pages come in two banks on the right-hand grid column. Hold *Fn* for the
-technical ones (from the bottom up: Mix, Pan) or *Shift* + *Fn* for the
+technical ones (from the bottom up: Mix, Pan, a free tile, Tempo) or *Shift* + *Fn* for the
 musical ones (FX, XY, Transpose, a free tile, Trigger Gate), then press a tile
 in that column. Unlit tiles are free. *Back*, or *Fn* plus a layer in the left
 column, leaves the page.
@@ -114,6 +114,7 @@ column, leaves the page.
 |---|---|---|
 | Mix | One column per instrument. The bottom tile mutes and unmutes it (green is live, red is muted); the rows above set the volume, top row 100%. | Setting each instrument's volume, and dropping parts in and out. Mutes are never saved. |
 | Pan | One row per instrument; left edge is hard left, right edge hard right. | Placing instruments in the stereo field. Bus-routed instruments move their bus pan. |
+| Tempo | The top five rows are tempo tiles from 50 to 240 BPM (the top-left one is Tap), then a row of -4..+4 nudges, then the two swing rows. | Grabbing a tempo, tapping one in, or dialing in swing: Swing A against Swing B, `4:4` straight. The Tap tile blinks with the beat. |
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |

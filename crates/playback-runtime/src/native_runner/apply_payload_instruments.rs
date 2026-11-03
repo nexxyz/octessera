@@ -259,17 +259,20 @@ impl NativeRunner {
         {
             self.transport.bpm = crate::delay_timing::clamp_visible_bpm(value);
         }
-        if let Some(value) = transport
-            .and_then(|transport| transport.get("swingPct"))
-            .and_then(Value::as_u64)
-        {
-            if let Ok(value) = u8::try_from(value) {
-                self.transport.swing_pct = value.min(75);
+        for (key, swing) in [
+            ("swingA", &mut self.transport.swing_a),
+            ("swingB", &mut self.transport.swing_b),
+        ] {
+            if let Some(value) = transport
+                .and_then(|transport| transport.get(key))
+                .and_then(Value::as_u64)
+            {
+                *swing = value.clamp(1, 7) as u8;
             }
         }
         if let Some(value) = runtime.get("playMode").and_then(Value::as_str) {
             let normalized = match value {
-                "mix" | "pan" | "fx" | "trigger-gate" | "transpose" | "xy" => Some(value),
+                "mix" | "pan" | "tempo" | "fx" | "trigger-gate" | "transpose" | "xy" => Some(value),
                 "none" => Some("mix"),
                 _ => None,
             };

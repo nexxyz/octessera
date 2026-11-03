@@ -48,7 +48,7 @@ impl PresentationScene {
             "hdmi": hdmi,
             "transport": {
                 "playing": transport.transport == RuntimeTransportState::Playing,
-                "bpm": transport.bpm, "swingPct": transport.swing_pct,
+                "bpm": transport.bpm, "swingA": transport.swing_a, "swingB": transport.swing_b,
                 "tick": transport.tick, "ppqnPulse": transport.current_ppqn_pulse
             },
             "activeBehavior": self.behavior_id,
@@ -80,7 +80,7 @@ impl PresentationScene {
                 "autoSaveFlash": if self.auto_save_flash { "flash" } else { "none" },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
                 "cpuWarnPercent": self.cpu_warn_percent,
-                "transport": {"bpm": transport.bpm, "swingPct": transport.swing_pct},
+                "transport": {"bpm": transport.bpm, "swingA": transport.swing_a, "swingB": transport.swing_b},
                 "stopLatched": false,
                 "fnHeld": ui.fn_held, "combinedModifierHeld": ui.combined_modifier_held,
                 "midi": {

@@ -76,6 +76,10 @@ pub enum RunnerMessage {
     MidiEvents {
         events: Vec<MusicalEvent>,
     },
+    /// The event messages that follow in this batch sound this long after the step's stamp.
+    SequencedOffset {
+        nanos: u64,
+    },
     AudioCommands {
         commands: Vec<RuntimeAudioCommand>,
     },

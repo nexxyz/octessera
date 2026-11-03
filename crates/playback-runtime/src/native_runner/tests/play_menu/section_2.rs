@@ -221,9 +221,13 @@ pub(crate) fn fn_rightmost_grid_column_selects_technical_play_pages() {
     assert_eq!(runner.active_play_mode, "pan");
     assert_eq!(runner.menu.current_key(), Some("play.page.pan"));
 
-    for free_row in 2..8 {
+    let _ = press_grid(&mut runner, 7, 3);
+    assert_eq!(runner.active_play_mode, "tempo");
+    assert_eq!(runner.menu.current_key(), Some("play.page.tempo"));
+
+    for free_row in [2, 4, 5, 6, 7] {
         let _ = press_grid(&mut runner, 7, free_row);
-        assert_eq!(runner.active_play_mode, "pan", "row {free_row}");
+        assert_eq!(runner.active_play_mode, "tempo", "row {free_row}");
     }
 }
 

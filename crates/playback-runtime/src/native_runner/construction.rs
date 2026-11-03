@@ -73,7 +73,7 @@ impl NativeRunner {
             note_behaviors: config.note_behaviors,
             transport: NativeTransportState::new(
                 seed.bpm,
-                seed.swing_pct,
+                (seed.swing_a, seed.swing_b),
                 seed.sync_source.clone(),
                 seed.algorithm_step_pulses,
             ),
@@ -136,6 +136,7 @@ impl NativeRunner {
             trigger_gate_modes: vec!["full".into(); LAYER_COUNT],
             trigger_gate_restore_modes: vec![None; LAYER_COUNT],
             instrument_mutes: [false; INSTRUMENT_COUNT],
+            play_live: Default::default(),
             play_transpose_selected: vec![true; LAYER_COUNT],
             play_transpose_enabled: vec![true; LAYER_COUNT],
             play_transpose_offsets: vec![0; LAYER_COUNT],

@@ -153,9 +153,12 @@ pub(super) struct NativeTransportState {
     /// without advancing the pulse count.
     pub(super) awaiting_external_downbeat: bool,
     pub(super) bpm: f64,
-    pub(super) swing_pct: u8,
+    pub(super) swing_a: u8,
+    pub(super) swing_b: u8,
     pub(super) current_ppqn_pulse: u64,
     pub(super) swung_ppqn_pulse: u64,
+    /// Swung layer steps of the current pulse step that sound after its stamp, by offset.
+    pub(super) swung_events: Vec<(u64, RoutedMusicalEvents)>,
     pub(super) tick: u64,
     pub(super) layer_ticks: Vec<u64>,
     pub(super) algorithm_step_pulses: u32,
@@ -167,7 +170,7 @@ pub(super) struct NativeTransportState {
 impl NativeTransportState {
     pub(super) fn new(
         bpm: f64,
-        swing_pct: u8,
+        (swing_a, swing_b): (u8, u8),
         sync_source: SyncSource,
         algorithm_step_pulses: u32,
     ) -> Self {
@@ -177,9 +180,11 @@ impl NativeTransportState {
             pending_resync: false,
             awaiting_external_downbeat: false,
             bpm,
-            swing_pct,
+            swing_a,
+            swing_b,
             current_ppqn_pulse: 0,
             swung_ppqn_pulse: 0,
+            swung_events: Vec::new(),
             tick: 0,
             layer_ticks: vec![0; LAYER_COUNT],
             algorithm_step_pulses,

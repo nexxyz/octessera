@@ -434,6 +434,7 @@ pub struct NativeRunner {
     trigger_gate_modes: Vec<String>,
     trigger_gate_restore_modes: Vec<Option<String>>,
     instrument_mutes: [bool; INSTRUMENT_COUNT],
+    play_live: play_pages::PlayLiveState,
     play_transpose_selected: Vec<bool>,
     play_transpose_enabled: Vec<bool>,
     play_transpose_offsets: Vec<i8>,

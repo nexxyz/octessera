@@ -120,8 +120,11 @@ These live at the top of **Link**, not under a layer.
   playing), a **Period** in note lengths and a **Depth %**. An LFO adds its
   wobble on top of anything else steering the same parameter.
 - **BPM** sets the tempo (40 to 240).
-- **Swing** delays the off-beats of internal steps and scanning, for groove
-  without bending the main clock. External MIDI clock out stays straight.
+- **Swing A** and **Swing B** set the swing ratio: how long each beat's first
+  eighth lasts against its second. `4` and `4` is straight, `5:3` is a lazy
+  shuffle, `3:5` rushes the offbeat. Steps land exactly on the ratio, even
+  between clock pulses. External MIDI clock out stays straight. The Tempo Play
+  page has both rows on the grid.
 - Each layer's **Seeded** row makes trigger probability and random arp orders
   repeatable; see [Seeds](behaviors-and-play.md#seeds-surprises-you-can-keep).
 

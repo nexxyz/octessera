@@ -12,6 +12,7 @@ pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
         vec![
             keyed_group("Mix", "play.page.mix", vec![]),
             keyed_group("Pan", "play.page.pan", vec![]),
+            keyed_group("Tempo", "play.page.tempo", vec![]),
             keyed_group("FX", "play.page.fx", play_fx_page_children(config)),
             keyed_group("XY", "play.page.xy", xy_pad_items(config)),
             keyed_group("Transpose", "play.page.transpose", vec![]),

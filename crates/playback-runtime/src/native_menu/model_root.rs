@@ -86,11 +86,19 @@ fn link_group(config: &NativeMenuConfig) -> NativeMenuItem {
         children: [
             number_item("BPM", "transport.bpm", i32::from(config.bpm), 40, 240, 1),
             number_item(
-                "Swing",
-                "transport.swingPct",
-                i32::from(config.swing_pct),
-                0,
-                75,
+                "Swing A",
+                "transport.swingA",
+                i32::from(config.swing_a),
+                1,
+                7,
+                1,
+            ),
+            number_item(
+                "Swing B",
+                "transport.swingB",
+                i32::from(config.swing_b),
+                1,
+                7,
                 1,
             ),
         ]

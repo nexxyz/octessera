@@ -226,3 +226,53 @@ fn external_clock_output_is_stamped_from_each_clock_arrival() {
         vec![Some(first + D), Some(second + D), None]
     );
 }
+
+struct SwungRunner;
+
+impl CoreRunner for SwungRunner {
+    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        let HostMessage::TransportPulseStep { pulses: 1, .. } = message else {
+            return Ok(Vec::new());
+        };
+        Ok(vec![
+            RunnerMessage::MusicalEvents { events: vec![NOTE] },
+            RunnerMessage::SequencedOffset { nanos: 7_000_000 },
+            RunnerMessage::MusicalEvents { events: vec![NOTE] },
+            RunnerMessage::SequencedOffset { nanos: 0 },
+            RunnerMessage::MusicalEvents { events: vec![NOTE] },
+        ])
+    }
+
+    fn send_system_store_result(
+        &mut self,
+        _message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String> {
+        Ok((Vec::new(), None))
+    }
+}
+
+#[test]
+fn swung_events_play_their_offset_after_the_pulse_stamp() {
+    let (mut runtime, mut host, origin) = started(true);
+    host.musical_event_at.clear();
+    host.midi_messages.clear();
+    host.midi_message_at.clear();
+    runtime
+        .advance_duration(Duration::from_micros(21_000), &mut SwungRunner, &mut host)
+        .unwrap();
+
+    let pulse = origin + pulse_offset(1);
+    let swung = pulse + Duration::from_millis(7);
+    assert_eq!(
+        host.musical_event_at,
+        vec![Some(pulse), Some(swung), Some(pulse)]
+    );
+    let note_ons: Vec<_> = host
+        .midi_messages
+        .iter()
+        .zip(&host.midi_message_at)
+        .filter(|(bytes, _)| bytes[0] == 0x90)
+        .map(|(_, at)| *at)
+        .collect();
+    assert_eq!(note_ons, vec![Some(pulse), Some(swung), Some(pulse)]);
+}

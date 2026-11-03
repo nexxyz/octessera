@@ -30,7 +30,8 @@ impl NativeRunner {
         self.base_mapping_config = default_mapping_config();
         self.mapping_config = self.base_mapping_config.clone();
         self.transport.bpm = 120.0;
-        self.transport.swing_pct = 0;
+        self.transport.swing_a = 4;
+        self.transport.swing_b = 4;
         self.voice_stealing_mode = "auto-balanced".into();
         self.link_layers = default_link_layers();
         self.trigger_probability_assign = None;

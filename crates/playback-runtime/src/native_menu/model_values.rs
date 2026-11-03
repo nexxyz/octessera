@@ -44,6 +44,9 @@ impl NativeMenuModel {
         if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Pan")) {
             return Some("pan".into());
         }
+        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Tempo")) {
+            return Some("tempo".into());
+        }
         if path.starts_with(&format!("{PLAY_PATH_PREFIX} > FX")) {
             return Some("fx".into());
         }

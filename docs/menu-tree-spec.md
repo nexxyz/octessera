@@ -22,7 +22,7 @@ Short breadcrumb forms are `B`, `L`, `S`, `P`, and `SYS`. The root menu's breadc
 ## Section trees
 
 - [Build](menu-tree/build.md): layers, behavior selector, behavior config rows, Seed
-- [Link](menu-tree/link.md): BPM, Swing, Aux Mappings, LFOs, per-layer scanning/events/mapping/axes/Arp
+- [Link](menu-tree/link.md): BPM, Swing A/B, Aux Mappings, LFOs, per-layer scanning/events/mapping/axes/Arp
 - [Shape](menu-tree/shape.md): instruments, FX buses, global FX, [routing semantics](menu-tree/shape.md#routing-semantics)
 - [Play](menu-tree/play.md): Play pages and their grid layouts
 - [System](menu-tree/system.md): System tree resolved per platform, and every System action

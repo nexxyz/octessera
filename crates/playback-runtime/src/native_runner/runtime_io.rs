@@ -17,7 +17,7 @@ impl NativeRunner {
         let mut out = Vec::new();
         let events = self.advance_algorithm(pulses)?;
         self.append_music_first_audio_commands(&mut out);
-        push_routed_events(&mut out, events);
+        self.push_routed_events(&mut out, events);
         if self.outbox.has_platform_effects() {
             out.push(RunnerMessage::PlatformEffects {
                 effects: self.outbox.drain_platform_effects(),
@@ -74,7 +74,7 @@ impl NativeRunner {
         let events = self.advance_due_layer_ticks()?;
         let mut out = Vec::new();
         self.append_music_first_audio_commands(&mut out);
-        push_routed_events(&mut out, events);
+        self.push_routed_events(&mut out, events);
         out.extend(self.messages_with_snapshot()?);
         Ok(out)
     }
@@ -119,7 +119,7 @@ impl NativeRunner {
             remaining -= 1;
             let events = self.advance_due_layer_ticks()?;
             self.append_music_first_audio_commands(&mut out);
-            push_routed_events(&mut out, events);
+            self.push_routed_events(&mut out, events);
             out.extend(self.clock_status_messages()?);
         }
         while remaining > 0 {
@@ -137,7 +137,7 @@ impl NativeRunner {
                         .saturating_add(u64::from(before_boundary));
                     let events = self.advance_algorithm(before_boundary)?;
                     self.append_music_first_audio_commands(&mut out);
-                    push_routed_events(&mut out, events);
+                    self.push_routed_events(&mut out, events);
                     out.extend(self.clock_status_messages()?);
                     remaining -= before_boundary;
                     continue;
@@ -149,7 +149,7 @@ impl NativeRunner {
                 self.append_pending_transpose_note_offs(&mut out);
                 let events = self.advance_due_layer_ticks()?;
                 self.append_music_first_audio_commands(&mut out);
-                push_routed_events(&mut out, events);
+                self.push_routed_events(&mut out, events);
                 out.extend(self.clock_status_messages()?);
                 continue;
             }
@@ -161,7 +161,7 @@ impl NativeRunner {
                 .saturating_add(u64::from(chunk));
             let events = self.advance_algorithm(chunk)?;
             self.append_music_first_audio_commands(&mut out);
-            push_routed_events(&mut out, events);
+            self.push_routed_events(&mut out, events);
             out.extend(self.clock_status_messages()?);
             remaining -= chunk;
         }
@@ -197,7 +197,23 @@ impl NativeRunner {
     }
 }
 
-pub(super) fn push_routed_events(out: &mut Vec<RunnerMessage>, events: RoutedMusicalEvents) {
+impl NativeRunner {
+    /// Pushes this pulse step's events, then each swung group after an offset marker.
+    fn push_routed_events(&mut self, out: &mut Vec<RunnerMessage>, events: RoutedMusicalEvents) {
+        push_event_messages(out, events);
+        let swung = std::mem::take(&mut self.transport.swung_events);
+        if swung.is_empty() {
+            return;
+        }
+        for (nanos, events) in swung {
+            out.push(RunnerMessage::SequencedOffset { nanos });
+            push_event_messages(out, events);
+        }
+        out.push(RunnerMessage::SequencedOffset { nanos: 0 });
+    }
+}
+
+fn push_event_messages(out: &mut Vec<RunnerMessage>, events: RoutedMusicalEvents) {
     if !events.audio.is_empty() {
         out.push(RunnerMessage::MusicalEvents {
             events: events.audio,

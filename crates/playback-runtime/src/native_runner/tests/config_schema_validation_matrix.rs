@@ -168,8 +168,8 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
     );
     assert_validation_error(
         "transport swing",
-        "configuration.runtimeConfig.transport.swingPct is outside the supported range",
-        |payload| payload["runtimeConfig"]["transport"]["swingPct"] = json!(76),
+        "configuration.runtimeConfig.transport.swingA is outside the supported range",
+        |payload| payload["runtimeConfig"]["transport"]["swingA"] = json!(8),
     );
     assert_validation_error(
         "Play FX type",

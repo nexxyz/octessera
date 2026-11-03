@@ -90,6 +90,7 @@ impl CapturedOutput {
                 RunnerMessage::Snapshot { .. }
                 | RunnerMessage::OledFrame { .. }
                 | RunnerMessage::RuntimeConfigChanged { .. }
+                | RunnerMessage::SequencedOffset { .. }
                 | RunnerMessage::PresentedRuntimeErrorDismissed => {}
             }
         }

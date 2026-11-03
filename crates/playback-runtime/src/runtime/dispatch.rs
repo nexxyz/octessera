@@ -4,6 +4,7 @@ use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorMetadata,
     RuntimeOperation, RuntimePlatformEffect, RuntimeRecovery, RuntimeStoreResult,
 };
+use std::time::Duration;
 
 impl PlaybackRuntime {
     pub fn dispatch<R: CoreRunner, H: HostAdapter>(
@@ -233,8 +234,13 @@ impl PlaybackRuntime {
         let mut output = RuntimeIngest::default();
         let previous_snapshot_revision = self.last_snapshot_revision;
         let mut received_snapshot = false;
+        let step_stamp = self.sequenced_at;
         for message in messages {
             match message {
+                RunnerMessage::SequencedOffset { nanos } => {
+                    self.sequenced_at =
+                        step_stamp.and_then(|at| at.checked_add(Duration::from_nanos(nanos)));
+                }
                 RunnerMessage::Snapshot { snapshot } => {
                     if snapshot.is_object() {
                         self.last_good_snapshot = Some(snapshot);
@@ -453,6 +459,7 @@ impl PlaybackRuntime {
                 }
             }
         }
+        self.sequenced_at = step_stamp;
         self.append_ingested_presentations(
             &mut output,
             received_snapshot || self.last_snapshot_revision != previous_snapshot_revision,

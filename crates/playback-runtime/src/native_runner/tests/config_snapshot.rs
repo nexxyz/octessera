@@ -73,7 +73,7 @@ pub(crate) fn config_snapshot_capture_is_owned_and_matches_frozen_payload_fields
         "runtimeConfig": {
             "activeBehavior": "life",
             "activeLayerIndex": 0,
-            "transport": { "bpm": 120, "swingPct": 0 },
+            "transport": { "bpm": 120, "swingA": 4, "swingB": 4 },
             "instruments": [{ "synth": { "filter": { "cutoff": 182 } } }]
         }
     });

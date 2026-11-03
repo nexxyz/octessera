@@ -107,7 +107,7 @@ impl NativeRunner {
         let mut leds = base_led_snapshot(&model);
         self.apply_ghost_tiles(&mut leds, &model);
         self.apply_scan_progress_overlay(&mut leds);
-        self.apply_play_overlay(&mut leds);
+        self.apply_play_overlay(&mut leds, transient);
         if self.play_fx_assign.is_none() {
             if self.sample_assign.is_some() {
                 self.apply_sample_assignment_overlay(&mut leds);

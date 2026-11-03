@@ -250,6 +250,10 @@ impl NativeRunner {
 fn parameterless_play_page_key(key: &str) -> bool {
     matches!(
         key,
-        "play.page.mix" | "play.page.pan" | "play.page.trigger-gate" | "play.page.transpose"
+        "play.page.mix"
+            | "play.page.pan"
+            | "play.page.tempo"
+            | "play.page.trigger-gate"
+            | "play.page.transpose"
     )
 }

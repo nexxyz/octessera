@@ -1,5 +1,13 @@
 use super::*;
 
+fn play_page<'a>(menu: &'a NativeMenuModel, label: &str) -> &'a NativeMenuItem {
+    menu.root.children[3]
+        .children
+        .iter()
+        .find(|item| item.label == label)
+        .unwrap()
+}
+
 #[test]
 pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
     let menu = NativeMenuModel::new(config());
@@ -11,11 +19,20 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         labels,
-        vec!["Mix", "Pan", "FX", "XY", "Transpose", "Trigger Gate"]
+        vec![
+            "Mix",
+            "Pan",
+            "Tempo",
+            "FX",
+            "XY",
+            "Transpose",
+            "Trigger Gate"
+        ]
     );
     let sense = &menu.root.children[1];
     assert_eq!(sense.children[0].label, "BPM");
-    assert_eq!(sense.children[1].label, "Swing");
+    assert_eq!(sense.children[1].label, "Swing A");
+    assert_eq!(sense.children[2].label, "Swing B");
     let bpm = sense
         .children
         .iter()
@@ -33,13 +50,14 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
     let swing = sense
         .children
         .iter()
-        .find(|item| item.label == "Swing")
+        .find(|item| item.label == "Swing A")
         .unwrap();
     assert!(matches!(
         swing.value,
         NativeMenuValue::Number {
-            min: 0,
-            max: 75,
+            value: 4,
+            min: 1,
+            max: 7,
             step: 1,
             ..
         }
@@ -55,9 +73,17 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         fx_labels,
-        vec!["Mix", "Pan", "FX", "XY", "Transpose", "Trigger Gate"]
+        vec![
+            "Mix",
+            "Pan",
+            "Tempo",
+            "FX",
+            "XY",
+            "Transpose",
+            "Trigger Gate"
+        ]
     );
-    let fx_labels = fx_menu.root.children[3].children[2]
+    let fx_labels = play_page(&fx_menu, "FX")
         .children
         .iter()
         .map(|item| item.label.as_str())
@@ -75,7 +101,15 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
         .collect::<Vec<_>>();
     assert_eq!(
         trigger_gate_labels,
-        vec!["Mix", "Pan", "FX", "XY", "Transpose", "Trigger Gate"]
+        vec![
+            "Mix",
+            "Pan",
+            "Tempo",
+            "FX",
+            "XY",
+            "Transpose",
+            "Trigger Gate"
+        ]
     );
 }
 
@@ -84,7 +118,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
     let mut config = config();
     config.play_mode = "xy".into();
     let mut menu = NativeMenuModel::new(config);
-    let xy = &menu.root.children[3].children[3];
+    let xy = play_page(&menu, "XY");
     let labels = xy
         .children
         .iter()
@@ -204,7 +238,7 @@ pub(crate) fn play_aux_map_rows_show_the_mapped_controls() {
     config.play_mode = "fx".into();
     config.play_fx_type = "stutter".into();
     let menu = NativeMenuModel::new(config);
-    let aux_map = menu.root.children[3].children[2]
+    let aux_map = play_page(&menu, "FX")
         .children
         .iter()
         .find(|item| item.label == "Aux Map")

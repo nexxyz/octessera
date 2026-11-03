@@ -9,7 +9,8 @@ instrument, when, at what pitch, and how the grid position bends other parameter
 ```
 Link
 ├── BPM: [40..240] step 1  default 120
-├── Swing: [0..75] step 1 %  default 0
+├── Swing A: [1..7] step 1  default 4
+├── Swing B: [1..7] step 1  default 4
 ├── Aux Mappings (group)
 │   ├── Aux 1 (group)
 │   │   ├── Trn: <target | (none)> (picker)      ← parameter picker; no Range Min/Range Max rows
@@ -99,8 +100,12 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 ## Transport and timing
 
-- `Swing` is a global groove amount. `0%` is straight. Swing delays internal off-beat step/scan
-  progression and catches up before the next beat; external MIDI clock out stays straight.
+- Swing is the global ratio `Swing A : Swing B` of each beat's on-beat eighth to its offbeat
+  eighth. Equal values (`4:4`, also `2:2`, `3:3`) are straight. `5:3` puts the offbeat at 5/8 of
+  the beat, `4:5` at 4/9. Layer steps and scans run on this warped clock, and a step that falls
+  between two 24 PPQN pulses is sent with the earlier pulse plus its exact offset, so the engine
+  and MIDI sender place it on time rather than on the pulse grid. External MIDI clock out stays
+  straight; the beat and bar boundaries never move.
 - Musical timing selectors use the 24 PPQN vocabulary `1/32T`, `1/32`, `1/16T`, `1/16`, `1/8T`,
   `1/8`, `1/4T`, `1/4`, `1/2T`, `1/2`, `1/1T`, `1/1`. Straight `1/64` is left out because it would
   be 1.5 pulses at 24 PPQN; triplet values are exact. Invalid labels show the canonical `1/8`

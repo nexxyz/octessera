@@ -8,7 +8,7 @@ impl NativeRunner {
     pub(super) fn apply_runtime_menu_key_fast(&mut self, key: &str) -> Option<bool> {
         match key {
             "transport.bpm" => Some(self.fast_bpm_menu_key()),
-            "transport.swingPct" => Some(self.fast_swing_menu_key()),
+            "transport.swingA" | "transport.swingB" => Some(self.fast_swing_menu_key(key)),
             "midiSyncMode" => Some(self.fast_sync_source_menu_key()),
             "midiEnabled" => Some(self.fast_midi_enabled_menu_key()),
             "midi.clockOutEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
@@ -67,6 +67,7 @@ impl NativeRunner {
             "playMode" => Some(self.fast_play_mode_menu_key()),
             "play.page.mix" => Some(self.fast_play_page_key("mix")),
             "play.page.pan" => Some(self.fast_play_page_key("pan")),
+            "play.page.tempo" => Some(self.fast_play_page_key("tempo")),
             "play.page.fx" => Some(self.fast_play_page_key("fx")),
             "play.page.trigger-gate" => Some(self.fast_play_page_key("trigger-gate")),
             "play.page.transpose" => Some(self.fast_play_page_key("transpose")),
@@ -159,13 +160,18 @@ impl NativeRunner {
         true
     }
 
-    fn fast_swing_menu_key(&mut self) -> bool {
-        let Some(swing_pct) = self.menu.number_for_key("transport.swingPct") else {
+    fn fast_swing_menu_key(&mut self, key: &str) -> bool {
+        let Some(value) = self.menu.number_for_key(key) else {
             return false;
         };
-        let swing_pct = swing_pct.clamp(0, 75) as u8;
-        if self.transport.swing_pct != swing_pct {
-            self.transport.swing_pct = swing_pct;
+        let value = value.clamp(1, 7) as u8;
+        let swing = if key == "transport.swingA" {
+            &mut self.transport.swing_a
+        } else {
+            &mut self.transport.swing_b
+        };
+        if *swing != value {
+            *swing = value;
             self.mark_fast_autosave_dirty();
         }
         true

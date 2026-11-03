@@ -69,7 +69,8 @@ pub(super) fn validate_system(root: &Map<String, Value>) -> Result<(), String> {
 fn validate_transport(runtime: &Map<String, Value>) -> Result<(), String> {
     if let Some(transport) = object_field(runtime, "transport", "runtimeConfig")? {
         number_field(transport, "bpm", "runtimeConfig.transport", 40.0, 240.0)?;
-        unsigned_field(transport, "swingPct", "runtimeConfig.transport", 0, 75)?;
+        unsigned_field(transport, "swingA", "runtimeConfig.transport", 1, 7)?;
+        unsigned_field(transport, "swingB", "runtimeConfig.transport", 1, 7)?;
     }
     Ok(())
 }
@@ -135,7 +136,15 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
 const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
 const AUX_PRIORITIES: &[&str] = &["manual", "auto"];
 const FONT_SETS: &[&str] = &["octessera", "original"];
-const PLAY_MODES: &[&str] = &["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
+const PLAY_MODES: &[&str] = &[
+    "mix",
+    "pan",
+    "tempo",
+    "fx",
+    "trigger-gate",
+    "transpose",
+    "xy",
+];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
 const PLAY_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
 const PLAY_TARGETS: &[&str] = &[

@@ -1,15 +1,20 @@
 use super::led_color::LedColor;
 use super::scan_overlay::{scan_index_for_overlay, scan_section_count};
 use super::{
-    display_index, native_binding_from_spec, NativeInstrumentSlot, NativeParamBinding,
-    NativeRunner, GRID_HEIGHT, GRID_WIDTH,
+    display_index, native_binding_from_spec, DisplayTransientPresentation, NativeInstrumentSlot,
+    NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {
-    pub(super) fn apply_play_overlay(&self, leds: &mut [LedColor]) {
+    pub(super) fn apply_play_overlay(
+        &self,
+        leds: &mut [LedColor],
+        transient: DisplayTransientPresentation,
+    ) {
         match self.active_play_mode.as_str() {
             "mix" => self.apply_play_mix_overlay(leds),
             "pan" => self.apply_play_pan_overlay(leds),
+            "tempo" => self.apply_play_tempo_overlay(leds, transient),
             "fx" => self.apply_play_fx_overlay(leds),
             "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),
             "transpose" => self.apply_play_transpose_overlay(leds),

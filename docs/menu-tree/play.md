@@ -2,7 +2,8 @@
 
 Part of the authoritative menu/control spec; see [`../menu-tree-spec.md`](../menu-tree-spec.md) for
 the index and notation. Play turns the grid into a performance surface. Each page swaps the grid's
-job: mixer faders, pan, momentary FX, trigger gates, a transpose keyboard, or an XY pad.
+job: mixer faders, pan, tempo and swing, momentary FX, trigger gates, a transpose keyboard, or
+an XY pad.
 
 ## Tree
 
@@ -10,6 +11,7 @@ job: mixer faders, pan, momentary FX, trigger gates, a transpose keyboard, or an
 Play
 ├── Mix                                  ← page-select row
 ├── Pan                                  ← page-select row
+├── Tempo                                ← page-select row
 ├── FX (group)
 │   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
 │   ├── Target: [master | fx buses | instruments]
@@ -38,12 +40,13 @@ The menu lists the technical bank, then the musical bank.
   | 0 | `mix` | `fx` |
   | 1 | `pan` | `xy` |
   | 2 | | `transpose` |
+  | 3 | `tempo` | |
   | 4 | | `trigger-gate` |
 
   Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
   that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
   (`Play: trig` for Trigger Gate).
-- In the Play menu, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` are page-select rows: Main press
+- In the Play menu, `Mix`, `Pan`, `Tempo`, `Trigger Gate`, and `Transpose` are page-select rows: Main press
   selects and activates the page without entering an empty submenu. `FX` and `XY` are
   enterable groups and activate their page too.
 - Entering `Play` activates the saved page. Back, Fn + left column (layer select), and entering
@@ -86,6 +89,36 @@ The menu lists the technical bank, then the musical bank.
   show synchronized markers at the bus pan.
 - Marker colors follow the route: white for direct, magenta/blue/green/yellow for buses 1-4. `none`
   slots show a dimmed marker.
+
+## Tempo
+
+- Rows top to bottom:
+
+  | Row | Columns 0..7 |
+  |---|---|
+  | 7 | Tap, then 50 55 60 65 70 75 80 BPM |
+  | 6 | 85 .. 120 BPM in steps of 5 |
+  | 5 | 125 .. 160 |
+  | 4 | 165 .. 200 |
+  | 3 | 205 .. 240 |
+  | 2 | nudge -4 -3 -2 -1 +1 +2 +3 +4 BPM |
+  | 1 | Swing A: 1 2 3 4 4 5 6 7 |
+  | 0 | Swing B: 1 2 3 4 4 5 6 7 |
+
+- A tempo tile or nudge sets `Link > BPM` through the same path as the menu edit, at once and
+  phase-continuous: the clock keeps its position and runs on at the new rate. BPM stays in
+  `40..240`. Toast: `Tempo 120`.
+- Tap: the BPM is the average beat of the last four taps, set from the second tap on and clamped
+  to `40..240` (`Tap 117`). A gap over 2 s starts over.
+- Swing rows set `Link > Swing A` and `Swing B` with Pan-style two-tile markers: value `n` lights
+  columns `n-1` and `n`, so `4` lights the middle pair and both middle columns set `4`. Toast
+  `Swing 4:5`. Equal values are straight.
+- Under external sync the tempo, nudge and Tap tiles are dim and a press toasts `External sync`;
+  Swing still works.
+- LEDs: the exact BPM tile green, otherwise the nearest tile yellow; other tempo tiles dim gray;
+  nudges dim blue (down) and dim magenta (up); swing markers white on dim gray. While playing, the
+  Tap tile pulses with the Play key's beat flash: bright green on the downbeat, half green on
+  other beats, dim green between them and while stopped.
 
 ## Play FX
 
@@ -174,9 +207,11 @@ The `ms` rows use the curved time steps from
 
 ## Persistence
 
-- Saved with presets and the default patch: the selected Play page, the FX page config and tile
+- Saved with presets and the default patch: the selected Play page, BPM and swing, the FX page
+  config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y smoothing, invert flags, and release behavior.
-- Not saved: the active Play overlay on load/startup, Transpose selections/enabled state/offsets, the
+- Not saved: the active Play overlay on load/startup, Tap history, Transpose
+  selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary
   overlays.

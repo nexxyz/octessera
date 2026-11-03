@@ -3614,7 +3614,8 @@
     "playMode": "fx",
     "transport": {
       "bpm": 120,
-      "swingPct": 0
+      "swingA": 4,
+      "swingB": 4
     },
     "usb": {
       "dataRole": "gadget",

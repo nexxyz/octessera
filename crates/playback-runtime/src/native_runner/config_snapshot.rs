@@ -15,7 +15,8 @@ pub struct NativeConfigSnapshot {
     play_fx_selected: Value,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
     bpm: f64,
-    swing_pct: u8,
+    swing_a: u8,
+    swing_b: u8,
     xy_release: String,
     sample_favourite_dirs: Vec<String>,
     hdmi_mode: String,
@@ -150,7 +151,8 @@ impl NativeConfigSnapshot {
                 },
                 "transport": {
                     "bpm": crate::delay_timing::visible_bpm_u16(self.bpm),
-                    "swingPct": self.swing_pct
+                    "swingA": self.swing_a,
+                    "swingB": self.swing_b
                 },
                 "xyRelease": self.xy_release,
                 "sampleFavouriteDirs": self.sample_favourite_dirs,
@@ -314,7 +316,8 @@ impl NativeConfigSnapshot {
             play_fx_selected: runner.play_fx_selected.clone(),
             play_fx_assignments: runner.play_fx_assignments.clone(),
             bpm: runner.transport.bpm,
-            swing_pct: runner.transport.swing_pct,
+            swing_a: runner.transport.swing_a,
+            swing_b: runner.transport.swing_b,
             xy_release: runner.xy_release.clone(),
             sample_favourite_dirs: runner.sample_favourite_dirs.clone(),
             hdmi_mode: runner.display.hdmi.mode.clone(),
