@@ -116,7 +116,6 @@ pub struct NativeMenuConfig {
     pub bluetooth_paired: Vec<(String, String)>,
     pub bluetooth_found: Vec<(String, String)>,
     pub play_mode: String,
-    pub play_drum_selected_slot: Option<usize>,
     pub play_fx_type: String,
     pub play_fx_target: String,
     pub play_fx_params: serde_json::Map<String, serde_json::Value>,

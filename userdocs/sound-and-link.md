@@ -181,8 +181,7 @@ kit swaps the sounds but keeps your stamps.
   measured from C4. Tile Tune and Tile Fine then answer "how far do I nudge
   this sample so it sounds like a C4?". Stamp a bass hit with `-5` and it
   lands on the G below when Link plays C4, then follows Link's melody from
-  there. Drums can do it too, for tuned toms that wander with the tune. (Taps
-  on the Play Drums page have no Link note, so they play the stamped pitch.)
+  there. Drums can do it too, for tuned toms that wander with the tune.
 
 ### Mixer
 

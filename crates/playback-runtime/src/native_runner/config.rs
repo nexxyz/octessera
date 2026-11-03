@@ -176,11 +176,6 @@ impl NativeRunner {
             bluetooth_paired: self.bluetooth.paired_rows(),
             bluetooth_found: self.bluetooth.found_rows(),
             play_mode: self.play_mode.clone(),
-            play_drum_selected_slot: self.play_drum_selected_slot.or_else(|| {
-                self.instruments
-                    .iter()
-                    .position(|instrument| instrument.kind == "drum")
-            }),
             play_fx_type: play_fx_type(&self.play_fx_selected).into(),
             play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
             play_fx_params: play_fx_params_map(&self.play_fx_selected),

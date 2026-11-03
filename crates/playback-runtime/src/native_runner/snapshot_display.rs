@@ -8,7 +8,6 @@ use crate::oled_frame::{
     OledMenuRowKind,
 };
 
-mod drum;
 mod modal_screens;
 
 use modal_screens::{
@@ -77,7 +76,7 @@ impl NativeRunner {
         } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
         } else {
-            drum::play_menu_display(self, menu)
+            menu_display(self, menu)
         };
         let setup_visible = self
             .display
@@ -206,21 +205,6 @@ pub(super) fn selected_menu_label_overflows(
         .is_some_and(|row| {
             menu_row_text_overflows(&menu_row_input(row, None, preview), has_bar, !menu.list)
         })
-}
-
-fn overlay_display(title: String, lines: Vec<String>) -> DisplaySnapshot {
-    let line_count = lines.len();
-    DisplaySnapshot {
-        body_layout: OledDisplayLayout::Rows,
-        title,
-        lines,
-        colors: vec![platform_core::palette::WHITE_RGB565; line_count],
-        bar_values: vec![None; line_count],
-        full_lines: vec![None; line_count],
-        rows: vec![None; line_count],
-        scroll: None,
-        selected_row: None,
-    }
 }
 
 fn menu_display(

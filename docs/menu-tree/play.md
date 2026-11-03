@@ -2,7 +2,7 @@
 
 Part of the authoritative menu/control spec; see [`../menu-tree-spec.md`](../menu-tree-spec.md) for
 the index and notation. Play turns the grid into a performance surface. Each page swaps the grid's
-job: mixer faders, pan, momentary FX, trigger gates, a transpose keyboard, an XY pad, or drum pads.
+job: mixer faders, pan, momentary FX, trigger gates, a transpose keyboard, or an XY pad.
 
 ## Tree
 
@@ -18,31 +18,29 @@ Play
 │   └── Aux Map (group)                  ← the Play FX params/actions that auto-map to aux, with their aux markers
 ├── Trigger Gate                         ← page-select row
 ├── Transpose                            ← page-select row
-├── XY (group)
-│   ├── X Axis: <target | (none)> (picker)   ← parameter picker
-│   ├── Y Axis: <target | (none)> (picker)
-│   ├── Smoothing: [0..500] step 10 ms       ← default 80; 0 shows Off
-│   ├── Invert X: [on | off]
-│   ├── Invert Y: [on | off]
-│   └── Release: [hold | center]             ← stored as sample-hold, reset-center
-└── Drums (group)                        ← labelled `No Drum slot`, with no rows, when no Drum slot exists
-    └── Slot: [I<n>: Drum ...]           ← existing Drum slots; session-local
+└── XY (group)
+    ├── X Axis: <target | (none)> (picker)   ← parameter picker
+    ├── Y Axis: <target | (none)> (picker)
+    ├── Smoothing: [0..500] step 10 ms       ← default 80; 0 shows Off
+    ├── Invert X: [on | off]
+    ├── Invert Y: [on | off]
+    └── Release: [hold | center]             ← stored as sample-hold, reset-center
 ```
 
 ## Pages and navigation
 
 - Pages by Fn + right column row: 0 `mix`, 1 `pan`, 2 `fx`, 3 `trigger-gate`, 4 `transpose`,
-  5 `xy`, 6 `drums`; row 7 does nothing. Fn + right column always selects and activates that page,
+  5 `xy`; rows 6 and 7 do nothing. Fn + right column always selects and activates that page,
   moves the menu to its Play row, and toasts `Play: <page>`.
 - In the Play menu, `Mix`, `Pan`, `Trigger Gate`, and `Transpose` are page-select rows: Main press
-  selects and activates the page without entering an empty submenu. `FX`, `XY`, and `Drums` are
+  selects and activates the page without entering an empty submenu. `FX` and `XY` are
   enterable groups and activate their page too.
 - Entering `Play` activates the saved page. Back, Fn + left column (layer select), and entering
   Build, Link, Shape, or System leave the Play overlay without changing the saved page. Layer
   selection does not move the menu.
 - Grid releases on a Play page are consumed and never reach the active behavior.
 - Aux bindings keep their targets; switching pages does not alter them.
-- Every page except Drums dims the behavior tiles to a quarter and draws its markers on top. Fn
+- Every page dims the behavior tiles to a quarter and draws its markers on top. Fn
   navigation LEDs and overlay priority are defined in
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority).
 
@@ -150,23 +148,11 @@ The `ms` rows use the curved time steps from
 - LEDs: the touched tile is bright white while pressed. After release, `sample-hold` leaves a dim
   gray marker at the held value and `reset-center` a dimmer gray marker at center.
 
-## Drums
-
-- `Slot` selects an existing Drum instrument (`I<n>: Drum`), starting with the first Drum slot for
-  the session. With no Drum slot the seventh Play row reads `No Drum slot` and has no selectable
-  guidance row.
-- On this page a press on an assigned tile plays exactly one hit from the selected slot, even when
-  stopped; releases are consumed. Empty tiles, or a slot no longer set to Drum, stay silent. These
-  hits bypass behavior, Link timing, and probability, and do not trigger the behavior engine.
-- LEDs: the grid goes black and the selected slot's assigned tiles show dim white.
-- Outside this page, mapped Drum hits follow the normal behavior/Link path. Drum assignment is in
-  [shape.md](shape.md#drum-assignment).
-
 ## Persistence
 
 - Saved with presets and the default patch: the selected Play page, the FX page config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y smoothing, invert flags, and release behavior.
 - Not saved: the active Play overlay on load/startup, Transpose selections/enabled state/offsets, the
-  live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, other temporary
-  overlays, and the Play Drums slot choice.
+  live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary
+  overlays.

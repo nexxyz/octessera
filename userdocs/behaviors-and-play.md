@@ -105,8 +105,8 @@ Play pages are performance overlays. They borrow the grid for a moment so you
 can play the whole instrument instead of editing one layer.
 
 Hold *Fn* and press a tile in the right-hand grid column to open a page.
-From the bottom up: Mix, Pan, FX, Trigger Gate, Transpose, XY, Drums (the top
-tile is unused). *Back*, or *Fn* plus a layer in the left column, leaves the
+From the bottom up: Mix, Pan, FX, Trigger Gate, Transpose, XY (the top two
+tiles are unused). *Back*, or *Fn* plus a layer in the left column, leaves the
 page.
 
 | Page | What the grid becomes | Use it for |
@@ -117,10 +117,14 @@ page.
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |
 | XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. |
-| Drums | The tiles stamped on the selected Drum slot. | Tapping drum hits directly, even while stopped. Empty tiles stay quiet. |
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
 it, so the patch keeps its saved mode.
+
+Want to finger-drum? Give a layer the `keys` behavior and point its
+Link **Inst** at a Drum instrument. Now the stamped tiles are your pads, and
+your taps get Link, probability and Play FX like any other layer. Your fingers
+are just one more little world in the mix.
 
 ## Play FX
 

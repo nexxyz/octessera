@@ -105,7 +105,6 @@ impl NativeRunner {
         self.sample_assign = source.sample_assign;
         self.drum_assign = source.drum_assign;
         self.drum_selected_voices = source.drum_selected_voices.clone();
-        self.play_drum_selected_slot = source.play_drum_selected_slot;
         self.trigger_probability_assign = source.trigger_probability_assign;
     }
 

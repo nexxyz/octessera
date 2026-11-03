@@ -160,15 +160,7 @@ impl NativeRunner {
     }
 
     fn paint_fn_page_column(&self, leds: &mut [LedColor]) {
-        let page_options = [
-            "mix",
-            "pan",
-            "fx",
-            "trigger-gate",
-            "transpose",
-            "xy",
-            "drums",
-        ];
+        let page_options = ["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
         for (row, mode) in page_options.iter().enumerate() {
             let selected = self.active_play_mode != "none" && self.active_play_mode == *mode;
             let color = if selected {

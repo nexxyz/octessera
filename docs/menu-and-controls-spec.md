@@ -55,7 +55,7 @@ Data sources the spec relies on:
 | Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
 | Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Only this disable transition releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes; an already-ringing one-shot Drum hit finishes its decay. Ordinary Play Trigger Gate edits to `0%` only suppress future admissions. Other layers are unaffected, and re-enabling does not resurrect released notes. |
 | Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. See [Grid overlays](#overlays-and-priority). |
-| Fn + rightmost grid column | Select Play page | Selects and activates the page on that row (rows 0..6) and moves the menu to it. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
+| Fn + rightmost grid column | Select Play page | Selects and activates the page on that row (rows 0..5) and moves the menu to it. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier held | Layer-only LEDs | Shows only the left (layer) column of Fn navigation; the Play page column is hidden and reserved. |
 | Sample/Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
 | Sample/Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
@@ -652,8 +652,8 @@ The grid is composed in this order; each step paints over the previous one.
 2. Scan progress: on the active layer in scan mode `scanning`, the current scan line or lane
    segment gets a dim white lift.
 3. The active Play page overlay (see [play.md](menu-tree/play.md)). `Map to Grid` switches to the
-   `fx` page, so FX assignment uses the FX page overlay. The `drums` page blacks out the grid; the
-   other pages dim behavior tiles to a quarter and draw their markers on top.
+   `fx` page, so FX assignment uses the FX page overlay. Each page dims behavior tiles to a quarter
+   and draws its markers on top.
 4. Unless FX assignment is active: sample assignment, otherwise Drum assignment, otherwise
    probability assignment. Each blacks out the grid first.
    - Sample assignment: tiles of the selected sample slot light magenta (High), yellow (Medium),
@@ -669,7 +669,7 @@ The grid is composed in this order; each step paints over the previous one.
    black. The left column is the layer column: without an active Play page the active layer is
    blue, configured layers green, and `none` layers dim gray; with an active Play page every
    configured layer is blue. The right column lists the Play pages by row, dim yellow, with the
-   active page green; row 7 is dim gray. Shift+Fn shows only the layer column.
+   active page green; rows 6 and 7 are dim gray. Shift+Fn shows only the layer column.
 
 World coordinates keep the bottom-left origin and the normal LED display conversion in every
 overlay.

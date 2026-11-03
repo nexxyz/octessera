@@ -14,7 +14,6 @@ impl NativeRunner {
             "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),
             "transpose" => self.apply_play_transpose_overlay(leds),
             "xy" => self.apply_play_xy_overlay(leds),
-            "drums" => self.apply_play_drum_overlay(leds),
             _ => {}
         }
     }
@@ -65,28 +64,6 @@ impl NativeRunner {
                 LedColor::WHITE.dim(3)
             };
             self.set_display_led(leds, x, y, color);
-        }
-    }
-
-    fn apply_play_drum_overlay(&self, leds: &mut [LedColor]) {
-        self.fill_leds(leds, LedColor::BLACK);
-        let slot = self.play_drum_selected_slot.or_else(|| {
-            self.instruments
-                .iter()
-                .position(|instrument| instrument.kind == "drum")
-        });
-        let Some(assignments) = slot
-            .and_then(|slot| self.instruments.get(slot))
-            .filter(|instrument| instrument.kind == "drum")
-            .and_then(|instrument| instrument.drum_config.get("assignments"))
-            .and_then(serde_json::Value::as_array)
-        else {
-            return;
-        };
-        for tile in assignments {
-            if let Some((x, y, _)) = tile_coordinates(tile) {
-                self.set_display_led(leds, x, y, LedColor::WHITE.dim(3));
-            }
         }
     }
 

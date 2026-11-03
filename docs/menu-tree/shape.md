@@ -223,8 +223,7 @@ Shape
 - Follow Transp. (default off) lets Play Transpose shift this instrument's tiles too (see
   [Transpose](play.md#transpose) for which layers transpose).
 - Follow Pitch (default off) plays each tile at the incoming Link note relative to C4 (MIDI 60); the
-  stamped Tile Tune/Fine then says how far to retune the sample so it sounds right at C4. Play Drums
-  presses have no Link note and play the stamped pitch.
+  stamped Tile Tune/Fine then says how far to retune the sample so it sounds right at C4.
 - The combined tile pitch is clamped to ±48 semitones.
 
 ### Binding targets
@@ -264,8 +263,8 @@ Instrument rows offered as modulation, XY, and Aux targets:
 
 - Drum `Assign` uses the same gestures, clear rule, and toast (prefix `V`, for example
   `V1 +7 -25c High`). Back exits without undoing work.
-- Behavior-triggered Drum hits follow the normal Link/probability/timing path. Direct play from the
-  grid is the [Play Drums page](play.md#drums).
+- Drum hits follow the normal behavior/Link/probability/timing path. To finger-drum, give a layer
+  the `keys` behavior and map it to the Drum slot.
 
 ### Sample browser
 

@@ -414,7 +414,6 @@ pub struct NativeRunner {
     recording_max_minutes: u16,
     play_mode: String,
     active_play_mode: String,
-    play_drum_selected_slot: Option<usize>,
     drum_selected_voices: Vec<usize>,
     drum_assign: Option<(usize, u8)>,
     play_fx_selected: Value,

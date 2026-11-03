@@ -196,7 +196,6 @@ pub(crate) fn config() -> NativeMenuConfig {
         bluetooth_paired: vec![],
         bluetooth_found: vec![],
         play_mode: "mix".into(),
-        play_drum_selected_slot: None,
         play_fx_type: "none".into(),
         play_fx_target: "master".into(),
         play_fx_params: serde_json::Map::new(),

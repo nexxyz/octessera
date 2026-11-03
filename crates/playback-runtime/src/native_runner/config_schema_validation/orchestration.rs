@@ -132,15 +132,7 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
 
 const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
 const AUX_PRIORITIES: &[&str] = &["manual", "auto"];
-const PLAY_MODES: &[&str] = &[
-    "mix",
-    "pan",
-    "fx",
-    "trigger-gate",
-    "transpose",
-    "xy",
-    "drums",
-];
+const PLAY_MODES: &[&str] = &["mix", "pan", "fx", "trigger-gate", "transpose", "xy"];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
 const PLAY_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
 const PLAY_TARGETS: &[&str] = &[

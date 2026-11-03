@@ -298,8 +298,6 @@ impl NativeRunner {
             if !effects.is_empty() {
                 return self.messages_with_effects(effects);
             }
-        } else if self.active_play_mode == "drums" {
-            self.play_drum_tile(x, y);
         } else if self.active_play_mode != "none" {
             self.handle_play_grid_press(x, y);
         } else {
@@ -315,7 +313,7 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.drum_assign.is_some() || self.active_play_mode == "drums" {
+        if self.drum_assign.is_some() {
             return self.messages_with_snapshot();
         }
         if self.active_play_mode != "none" {

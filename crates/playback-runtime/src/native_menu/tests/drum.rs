@@ -314,7 +314,7 @@ fn drum_slot_filter_volume_actions_and_binding_picker_keep_voice_scope() {
 }
 
 #[test]
-fn drum_help_covers_voice_edits_actions_and_play_slot() {
+fn drum_help_covers_voice_edits_and_actions() {
     let menu = drum_menu();
     let targets = menu
         .help_targets()
@@ -323,8 +323,6 @@ fn drum_help_covers_voice_edits_actions_and_play_slot() {
             target.key.contains(".drum.")
                 || target.key.starts_with("action:drum.")
                 || target.path.contains(" > Drum")
-                || target.key == "key:play.page.drums"
-                || target.key == "key:play.drums.slot"
         })
         .collect::<Vec<_>>();
     assert!(targets
@@ -335,9 +333,6 @@ fn drum_help_covers_voice_edits_actions_and_play_slot() {
             .iter()
             .any(|target| { target.key == format!("key:instruments.*.drum.voices.*.{field}") }));
     }
-    assert!(targets
-        .iter()
-        .any(|target| target.key == "key:play.drums.slot"));
     for target in targets {
         let entry = crate::native_help::resolve_native_help_entry(&target)
             .unwrap_or_else(|| panic!("Drum help missing: {target:?}"));
@@ -345,9 +340,7 @@ fn drum_help_covers_voice_edits_actions_and_play_slot() {
             entry.key.contains(".drum.")
                 || entry.key.contains(".tile.")
                 || entry.key.starts_with("action:drum.")
-                || entry.path.contains("Instrument * > Drum")
-                || entry.key == "key:play.page.drums"
-                || entry.key == "key:play.drums.slot",
+                || entry.path.contains("Instrument * > Drum"),
             "{target:?} resolved to {}",
             entry.key
         );

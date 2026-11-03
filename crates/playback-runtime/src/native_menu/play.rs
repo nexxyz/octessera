@@ -16,7 +16,6 @@ pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
             keyed_group("Trigger Gate", "play.page.trigger-gate", vec![]),
             keyed_group("Transpose", "play.page.transpose", vec![]),
             keyed_group("XY", "play.page.xy", xy_pad_items(config)),
-            drums_page(config),
         ],
     )
 }
@@ -26,36 +25,6 @@ pub(super) fn play_fx_page_children(config: &NativeMenuConfig) -> Vec<NativeMenu
         .into_iter()
         .chain([group("Aux Map", play_aux_map_items(config))])
         .collect()
-}
-
-pub(super) fn drums_page(config: &NativeMenuConfig) -> NativeMenuItem {
-    let slots = config
-        .instrument_types
-        .iter()
-        .enumerate()
-        .filter(|(_, kind)| *kind == "drum")
-        .map(|(index, _)| index)
-        .collect::<Vec<_>>();
-    let Some(selected) = slots
-        .iter()
-        .position(|index| Some(*index) == config.play_drum_selected_slot)
-        .or_else(|| (!slots.is_empty()).then_some(0))
-    else {
-        return keyed_group("No Drum slot", "play.page.drums", vec![]);
-    };
-    keyed_group(
-        "Drums",
-        "play.page.drums",
-        vec![enum_item_from_strings(
-            "Slot",
-            "play.drums.slot",
-            slots
-                .iter()
-                .map(|index| format!("I{}: Drum", index + 1))
-                .collect(),
-            selected,
-        )],
-    )
 }
 
 fn play_aux_map_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {

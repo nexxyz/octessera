@@ -15,7 +15,7 @@ use super::model_search::{
     replace_group_children_containing_direct_key, replace_group_label_containing_direct_key,
     update_items,
 };
-use super::play::{drums_page, play_fx_page_children};
+use super::play::play_fx_page_children;
 use super::section_labels::{LINK_LABEL, SHAPE_LABEL};
 use super::system_aux::{click_none_key, name_click_pickers_from_menu, show_click_binding};
 use super::{
@@ -134,8 +134,8 @@ impl NativeMenuModel {
         }
     }
 
-    /// An instrument's name and type also show in the Link instrument choices, the Aux
-    /// Sample Assign rows and the Play Drums page.
+    /// An instrument's name and type also show in the Link instrument choices and the Aux
+    /// Sample Assign rows.
     pub fn show_instrument_identity(&mut self, config: &NativeMenuConfig, index: usize) {
         self.show_instrument_rows(config, index);
         let options = link_instrument_options(&config.instrument_labels);
@@ -164,9 +164,6 @@ impl NativeMenuModel {
                     }
                 }
             });
-        }
-        if let Some(drums) = find_item_by_key_mut(&mut self.root, "play.page.drums") {
-            *drums = drums_page(config);
         }
         self.clamp_cursor_to_siblings();
     }

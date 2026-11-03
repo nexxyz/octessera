@@ -128,7 +128,7 @@ OLED markers:
 |---|---|
 | Hold *Fn* | Preview: the left column shows layers (cyan for the current one, green for layers with a behavior, dim for empty ones; with a Play page open, every layer with a behavior shows cyan). The right column shows Play pages in dim yellow with the open one in green. |
 | *Fn* + left column | Jump to that layer (bottom row is Layer 1). This also closes any open Play page. |
-| *Fn* + right column | Open a Play page. From the bottom: Mix, Pan, FX, Trigger Gate, Transpose, XY, Drums. |
+| *Fn* + right column | Open a Play page. From the bottom: Mix, Pan, FX, Trigger Gate, Transpose, XY. |
 | *Shift* + *Fn* + left column | Mute or unmute that layer's triggers without switching to it. Muting releases its held notes. |
 | *Fn* + click an Aux encoder | Bind the highlighted value or action to that encoder. |
 
