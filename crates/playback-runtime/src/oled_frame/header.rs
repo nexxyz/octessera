@@ -2,7 +2,7 @@ use platform_core::palette;
 
 use super::font::TOM_THUMB;
 use super::model::OledSaveFlash;
-use super::pixels::{dim, draw_mask, fill_rect, rgb565, scale, shade};
+use super::pixels::{dim, draw_mask, fill_rect, rgb565, shade};
 use super::text::title_text_for_oled;
 use super::OledPresentationInput;
 
@@ -15,7 +15,7 @@ const SAVE_X: usize = 113;
 const CPU_X: usize = 120;
 const SAVE_CHECK: [u8; 5] = [0b00001, 0b00011, 0b10110, 0b11100, 0b01000];
 const MISSED_QUANTUM: [u8; 5] = [0b11111, 0b10001, 0b10101, 0b10001, 0b11111];
-/// The always-lit rule and resting CPU bar draw at this share of full colour (burn-in care).
+/// The always-lit area rule draws at this share of full colour (burn-in care).
 const STATIC_CHROME_LEVEL: f32 = 0.625;
 
 /// Whether a breadcrumb fits the header left of the icons.
@@ -40,13 +40,16 @@ pub(super) fn draw_header(frame: &mut [u8], input: &OledPresentationInput) {
 }
 
 pub(super) fn cpu_meter_bars(peak_percent: u8, warn_percent: u8) -> usize {
+    let light_percent = u16::from(warn_percent) / 3 / 5 * 5;
     let moderate_percent = u16::from(warn_percent) * 2 / 3 / 5 * 5;
     if peak_percent >= warn_percent {
         3
     } else if u16::from(peak_percent) >= moderate_percent {
         2
-    } else {
+    } else if u16::from(peak_percent) >= light_percent {
         1
+    } else {
+        0
     }
 }
 
@@ -55,7 +58,7 @@ fn draw_cpu_meter(frame: &mut [u8], input: &OledPresentationInput) {
     let lit_rgb = match lit {
         3 => palette::BEHAVIOR_PRIMARY_RED,
         2 => palette::YELLOW,
-        _ => scale(palette::GREEN, STATIC_CHROME_LEVEL),
+        _ => palette::GREEN,
     };
     for bar in 0..3 {
         let rgb = if bar < lit {

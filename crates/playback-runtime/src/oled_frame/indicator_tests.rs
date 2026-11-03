@@ -270,15 +270,22 @@ fn hint_labels_drop_inner_vowels_then_cut_to_their_room() {
 #[test]
 fn cpu_meter_lights_three_equal_bars_by_peak_load_against_the_cpu_warn_setting() {
     for (warn, peak, bars) in [
-        (85, 0, 1),
+        (85, 0, 0),
+        (85, 20, 0),
+        (85, 24, 0),
+        (85, 25, 1),
         (85, 50, 1),
         (85, 55, 2),
         (85, 80, 2),
         (85, 85, 3),
         (85, 200, 3),
+        (70, 15, 0),
+        (70, 20, 1),
         (70, 40, 1),
         (70, 45, 2),
         (70, 70, 3),
+        (95, 25, 0),
+        (95, 30, 1),
         (95, 55, 1),
         (95, 60, 2),
         (95, 90, 2),
@@ -289,9 +296,10 @@ fn cpu_meter_lights_three_equal_bars_by_peak_load_against_the_cpu_warn_setting()
 
     let unlit = rgb565(dim(palette::GRAY, 4));
     let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
-    let resting = rgb565(scale(palette::GREEN, 0.625));
+    let green = rgb565(palette::GREEN);
     for (warn, peak, expected) in [
-        (85, 20, [resting, unlit, unlit]),
+        (85, 20, [unlit, unlit, unlit]),
+        (85, 40, [green, unlit, unlit]),
         (
             85,
             60,

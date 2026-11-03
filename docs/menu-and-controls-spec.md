@@ -509,10 +509,11 @@ palette unless a behavior deliberately owns its own.
   over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker
   utilization on the boards, the audio block render ratio on the desktop, which has no persistent
   workers. With `W` = `System > Audio > Engine > CPU Warn %` (default 85): below
-  `floor(2W/3)` rounded down to a multiple of 5 one green bar at 62.5 % intensity (it is always
-  lit); from there up to `W` two full yellow bars;
-  at or above `W` three red bars. Unlit bars are dark gray. Yellow starts at 45/50/50/55/60/60 % for
-  `W` = 70/75/80/85/90/95.
+  `floor(W/3)` rounded down to a multiple of 5 no bar is lit (all three dark gray: no significant
+  load); from there up to `floor(2W/3)` rounded down to a multiple of 5 one full green bar; from
+  there up to `W` two full yellow bars; at or above `W` three red bars. Unlit bars are dark gray.
+  For `W` = 85 that is gray below 25, green 25..54, yellow 55..84, red from 85. Green starts at
+  20/25/25/25/30/30 % and yellow at 45/50/50/55/60/60 % for `W` = 70/75/80/85/90/95.
 - There is no separate steady high-CPU icon; the meter covers it, so the engine no longer tracks a
   steady-high state.
 - A missed-quantum flash shows a red 5×5 square with a centre dot at `x=106..110`; the save flash
