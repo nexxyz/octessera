@@ -85,7 +85,7 @@ impl SignalTap {
             .store(source.map_or(OFF, SignalSource::code), Ordering::Relaxed);
     }
 
-    /// The source the audio side should write; its one check per block.
+    /// The source the audio side should write.
     pub fn selected(&self) -> Option<SignalSource> {
         SignalSource::from_code(self.source.load(Ordering::Relaxed))
     }
