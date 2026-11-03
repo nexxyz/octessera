@@ -80,6 +80,15 @@ The menu lists the technical bank, then the musical bank.
 - LEDs: row 0 is green when active and red when muted. The volume marker sits at its rounded row
   clamped to `1..7` (low volumes show on row 1): green, or dimmed green while muted. `none` slots
   show dim gray on row 0 and at the marker.
+- Holding Shift switches the page to buses and master until Shift is released. Columns `0..3` are
+  B1..B4 in the Pan page's bus colors (magenta, blue, green, yellow): rows `1..7` set the saved bus
+  `Volume` on the instrument scale, and row 0 toggles a live-only bus mute (green active, red
+  muted; `B2 muted` / `B2 unmuted`) with the same rules as instrument mutes: never saved, cleared on
+  boot, patch loads and Clear All, and the engine gets volume 0 for a muted bus from every bus
+  volume path while the stored volume keeps changing. A muted bus's marker dims. Column 5 is the
+  master (white): rows `1..7` set `System > Master Vol` through its menu edit; it has no mute, so
+  its row 0 is dark. Columns 4, 6 and 7 are dark. Shift + press here never reaches the behavior or
+  the param-mod lanes.
 
 ## Pan
 
@@ -271,7 +280,8 @@ The `ms` rows use the curved time steps from
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y smoothing, invert flags, and release behavior.
-- Not saved: the active Play overlay on load/startup, Route FX bypass and duck key, Tap history, Transpose
+- Not saved: the active Play overlay on load/startup, Mix instrument and bus mutes, Route FX bypass
+  and duck key, Tap history, Transpose
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary
   overlays.

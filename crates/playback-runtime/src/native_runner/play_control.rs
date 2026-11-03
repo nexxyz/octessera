@@ -7,6 +7,8 @@ use super::{
     NativeRunner, NativeToast, GRID_HEIGHT, GRID_WIDTH, PLAY_FX_MAX_CONCURRENT,
 };
 
+pub(super) const MIX_MASTER_COLUMN: usize = 5;
+
 impl NativeRunner {
     fn play_fx_start_effect_for_assignment(
         &self,
@@ -128,6 +130,7 @@ impl NativeRunner {
 
     pub(super) fn handle_play_grid_press(&mut self, x: usize, y: usize) {
         match self.active_play_mode.as_str() {
+            "mix" if self.display.ui.shift_held => self.handle_play_mix_bus_press(x, y),
             "mix" if y == 0 => self.toggle_instrument_mute(x),
             "mix" => {
                 if let Some(instrument) = self.instruments.get_mut(x) {
@@ -188,6 +191,25 @@ impl NativeRunner {
             "lfo" => self.handle_play_lfo_press(x, y),
             "rate" => self.handle_play_rate_press(x, y),
             "xy" => self.handle_play_xy_press(x, y),
+            _ => {}
+        }
+    }
+
+    /// The Mix page's Shift view: buses B1..B4 in columns 0..3, master in column 5.
+    fn handle_play_mix_bus_press(&mut self, x: usize, y: usize) {
+        let volume = ((y as f32 / (GRID_HEIGHT - 1) as f32) * 100.0).round() as u8;
+        match x {
+            0..=3 if y == 0 => self.toggle_bus_mute(x),
+            0..=3 => {
+                self.set_fx_bus_volume(x, volume);
+            }
+            MIX_MASTER_COLUMN if y > 0 => {
+                self.menu
+                    .set_number_value_for_key("masterVolume", i32::from(volume));
+                if let Err(error) = self.apply_or_schedule_menu_key("masterVolume") {
+                    self.show_toast(error);
+                }
+            }
             _ => {}
         }
     }

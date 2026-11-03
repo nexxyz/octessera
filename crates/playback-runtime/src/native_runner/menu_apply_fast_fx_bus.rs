@@ -65,16 +65,22 @@ impl NativeRunner {
         let Some(value) = self.menu.number_for_key(key) else {
             return false;
         };
+        self.set_fx_bus_volume(bus_index, value.clamp(0, 100) as u8)
+    }
+
+    pub(super) fn set_fx_bus_volume(&mut self, bus_index: usize, volume_pct: u8) -> bool {
+        let key = format!("mixer.buses.{bus_index}.volume");
         let Some(bus) = self.fx_buses.get_mut(bus_index) else {
             return false;
         };
-        let volume_pct = value.clamp(0, 100) as u8;
         if bus.volume_pct == volume_pct {
             return true;
         }
         bus.volume_pct = volume_pct;
+        self.menu
+            .set_number_value_for_key(&key, i32::from(volume_pct));
         self.mark_fast_autosave_dirty();
-        if !self.rebase_and_recompose_modulation_key(key) {
+        if !self.rebase_and_recompose_modulation_key(&key) {
             self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
                 bus_index,
                 generation: 0,

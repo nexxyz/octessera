@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use super::{NativeRunner, GRID_HEIGHT};
+use super::{NativeRunner, BUS_COUNT, GRID_HEIGHT};
 
 mod lfo;
 mod rate;
@@ -38,6 +38,8 @@ pub(super) struct PlayLiveState {
     /// Layers the Rate page resyncs to the bar grid at the next bar line.
     pub(super) rate_resyncs: [bool; GRID_HEIGHT],
     pub(super) fx_overrides: route::LiveFxOverrides,
+    /// Play Mix Shift view bus mutes; the engine gets volume 0 for a muted bus.
+    pub(super) bus_mutes: [bool; BUS_COUNT],
 }
 
 impl NativeRunner {

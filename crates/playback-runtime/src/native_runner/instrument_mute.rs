@@ -1,5 +1,5 @@
 use super::modulation::RoutedMusicalEvents;
-use super::{NativeRunner, Value, INSTRUMENT_COUNT};
+use super::{NativeRunner, Value, BUS_COUNT, INSTRUMENT_COUNT};
 use crate::protocol::RuntimeAudioCommand;
 use platform_core::MusicalEvent;
 
@@ -32,6 +32,47 @@ impl NativeRunner {
         std::mem::take(&mut self.instrument_mutes)
     }
 
+    pub(super) fn bus_muted(&self, index: usize) -> bool {
+        self.play_live.bus_mutes.get(index) == Some(&true)
+    }
+
+    pub(super) fn toggle_bus_mute(&mut self, index: usize) {
+        let Some(muted) = self.play_live.bus_mutes.get_mut(index) else {
+            return;
+        };
+        *muted = !*muted;
+        let state = if *muted { "muted" } else { "unmuted" };
+        let mut buses = [false; BUS_COUNT];
+        buses[index] = true;
+        self.resend_bus_volumes(buses);
+        self.show_toast(format!("B{} {state}", index + 1));
+    }
+
+    pub(super) fn take_bus_mutes(&mut self) -> [bool; BUS_COUNT] {
+        std::mem::take(&mut self.play_live.bus_mutes)
+    }
+
+    pub(super) fn resend_bus_volumes(&mut self, buses: [bool; BUS_COUNT]) {
+        if !buses.contains(&true) {
+            return;
+        }
+        for (index, _) in buses.iter().enumerate().filter(|(_, resend)| **resend) {
+            let Some(volume) = self.fx_buses.get(index).map(|bus| bus.volume_pct) else {
+                continue;
+            };
+            self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
+                bus_index: index,
+                generation: 0,
+                pan_pos: None,
+                volume_pct: Some(f32::from(volume)),
+            });
+        }
+        self.invalidate_lfo_audio_cache();
+        if let Err(error) = self.process_modulation_step(true) {
+            self.show_toast(format!("LFO composition unavailable: {error}"));
+        }
+    }
+
     pub(super) fn resend_engine_volumes(&mut self, slots: [bool; INSTRUMENT_COUNT]) {
         if !slots.contains(&true) {
             return;
@@ -57,10 +98,15 @@ impl NativeRunner {
         &self,
         mut command: RuntimeAudioCommand,
     ) -> RuntimeAudioCommand {
-        if !self.instrument_mutes.contains(&true) {
+        if !self.instrument_mutes.contains(&true) && !self.play_live.bus_mutes.contains(&true) {
             return command;
         }
         match &mut command {
+            RuntimeAudioCommand::SetFxBusMixer {
+                bus_index,
+                volume_pct: Some(volume),
+                ..
+            } if self.bus_muted(*bus_index) => *volume = 0.0,
             RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot,
                 volume_pct: Some(volume),
@@ -80,6 +126,17 @@ impl NativeRunner {
                 for (index, instrument) in instruments.enumerate() {
                     if self.instrument_muted(index) {
                         silence_payload_volume(instrument);
+                    }
+                }
+                let buses = config
+                    .get_mut("mixer")
+                    .and_then(|mixer| mixer.get_mut("buses"))
+                    .and_then(Value::as_array_mut)
+                    .into_iter()
+                    .flatten();
+                for (index, bus) in buses.enumerate() {
+                    if self.bus_muted(index) {
+                        bus["volumePct"] = Value::from(0);
                     }
                 }
             }

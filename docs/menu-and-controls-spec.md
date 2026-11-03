@@ -665,7 +665,8 @@ The grid is composed in this order; each step paints over the previous one.
 3. The active Play page overlay (see [play.md](menu-tree/play.md)). `Map to Grid` switches to the
    `fx` page, so FX assignment uses the FX page overlay. Each page dims behavior tiles to a quarter
    and draws its markers on top. Play Mix draws the live-only mute toggles on row 0 (green active,
-   red muted) and each volume marker on rows `1..7`, dimmed while that instrument is muted. Play
+   red muted) and each volume marker on rows `1..7`, dimmed while that instrument is muted; while
+   Shift is held it shows the bus and master view instead (see play.md). Play
    Tempo's Tap tile pulses with the Play key's beat flash while playing.
 4. Unless FX assignment is active: sample assignment, otherwise Drum assignment, otherwise
    probability assignment. Each blacks out the grid first.

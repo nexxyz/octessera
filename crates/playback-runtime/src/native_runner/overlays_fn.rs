@@ -1,10 +1,11 @@
 use super::led_color::{trigger_gate_color, LedColor};
+use super::play_control::MIX_MASTER_COLUMN;
 use super::play_fx_config::play_fx_type;
 use super::play_fx_presentation::play_fx_color;
 use super::play_pages::{MUSICAL_PLAY_PAGES, TECHNICAL_PLAY_PAGES};
 use super::{
-    pan_marker_left_tile, play_fx_tile_id, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT,
-    PLAY_FX_MAX_CONCURRENT,
+    pan_marker_left_tile, play_fx_tile_id, NativeRunner, BUS_COUNT, GRID_HEIGHT, GRID_WIDTH,
+    INSTRUMENT_COUNT, PLAY_FX_MAX_CONCURRENT,
 };
 
 impl NativeRunner {
@@ -29,6 +30,10 @@ impl NativeRunner {
 
     pub(super) fn apply_play_mix_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
+        if self.display.ui.shift_held {
+            self.paint_play_mix_bus_view(leds);
+            return;
+        }
         for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
             let instrument = self.instruments.get(x);
             let volume = instrument.map(|inst| inst.volume).unwrap_or(0).min(100);
@@ -43,6 +48,27 @@ impl NativeRunner {
             self.set_display_led(leds, x, 0, toggle);
             self.set_display_led(leds, x, y.max(1), marker);
         }
+    }
+
+    fn paint_play_mix_bus_view(&self, leds: &mut [LedColor]) {
+        for (index, bus) in self.fx_buses.iter().enumerate().take(BUS_COUNT) {
+            let muted = self.bus_muted(index);
+            let color = bus_color(index);
+            let toggle = if muted {
+                LedColor::RED
+            } else {
+                LedColor::GREEN
+            };
+            self.set_display_led(leds, index, 0, toggle);
+            let marker = if muted { color.dim(4) } else { color };
+            self.set_display_led(leds, index, volume_row(bus.volume_pct), marker);
+        }
+        self.set_display_led(
+            leds,
+            MIX_MASTER_COLUMN,
+            volume_row(self.display.ui.master_volume),
+            LedColor::WHITE,
+        );
     }
 
     pub(super) fn apply_play_pan_overlay(&self, leds: &mut [LedColor]) {
@@ -190,4 +216,21 @@ fn fn_layer_color(configured: bool, active: bool, play_active: bool) -> LedColor
     } else {
         LedColor::SYSTEM.dim(8)
     }
+}
+
+/// The Pan page's bus colors.
+fn bus_color(index: usize) -> LedColor {
+    match index {
+        0 => LedColor::MAGENTA,
+        1 => LedColor::BLUE,
+        2 => LedColor::GREEN,
+        _ => LedColor::YELLOW,
+    }
+}
+
+/// Mix marker row for a volume, clamped to rows 1..7 above the mute row.
+fn volume_row(volume: u8) -> usize {
+    ((f32::from(volume.min(100)) / 100.0) * (GRID_HEIGHT - 1) as f32)
+        .round()
+        .max(1.0) as usize
 }
