@@ -40,6 +40,8 @@ pub(super) struct PlayLiveState {
     pub(super) fx_overrides: route::LiveFxOverrides,
     /// Play Mix Shift view bus mutes; the engine gets volume 0 for a muted bus.
     pub(super) bus_mutes: [bool; BUS_COUNT],
+    /// Shift + press on the XY page holds that position after release, even with center release.
+    pub(super) xy_latched: bool,
 }
 
 impl NativeRunner {

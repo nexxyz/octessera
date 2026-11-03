@@ -148,7 +148,7 @@ impl NativeRunner {
             (self.xy_touch.display_x.clamp(0.0, 1.0) * (GRID_WIDTH - 1) as f32).round() as usize;
         let y =
             (self.xy_touch.display_y.clamp(0.0, 1.0) * (GRID_HEIGHT - 1) as f32).round() as usize;
-        let color = if self.xy_touch.active {
+        let color = if self.xy_touch.active || self.play_live.xy_latched {
             LedColor::WHITE
         } else if self.xy_release == "sample-hold" {
             LedColor::SYSTEM.dim(2)

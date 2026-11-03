@@ -272,8 +272,13 @@ The `ms` rows use the curved time steps from
   each mapped normalized axis glides independently from its current value without overshoot, before
   target range/step conversion. Elapsed time is monotonic. `sample-hold` lets an active glide finish
   after release; `reset-center` moves the marker to center at once and glides mapped axes to 0.5.
-- LEDs: the touched tile is bright white while pressed. After release, `sample-hold` leaves a dim
-  gray marker at the held value and `reset-center` a dimmer gray marker at center.
+- Shift + press latches that position: after release the marker and the axes stay there even with
+  `reset-center` (with `sample-hold` it behaves like the normal hold), and the glide runs as usual.
+  A plain press clears the latch and behaves as above. The latch is live only: never saved, never
+  marks the patch dirty, and clears on boot, patch loads and Clear All.
+- LEDs: the touched tile is bright white while pressed, and stays bright white while latched.
+  After release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` a
+  dimmer gray marker at center.
 
 ## Persistence
 
@@ -281,7 +286,7 @@ The `ms` rows use the curved time steps from
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y glide, invert flags, and release behavior.
-- Not saved: the active Play overlay on load/startup, Mix instrument and bus mutes, Route FX bypass
+- Not saved: the active Play overlay on load/startup, the XY latch, Mix instrument and bus mutes, Route FX bypass
   and duck key, Tap history, Transpose
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary

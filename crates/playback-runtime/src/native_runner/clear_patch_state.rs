@@ -115,6 +115,7 @@ impl NativeRunner {
         self.instrument_mutes = [false; INSTRUMENT_COUNT];
         self.take_live_fx_overrides();
         self.take_bus_mutes();
+        self.play_live.xy_latched = false;
         self.play_transpose_selected = vec![true; LAYER_COUNT];
         self.play_transpose_enabled = vec![true; LAYER_COUNT];
         self.play_transpose_offsets = vec![0; LAYER_COUNT];

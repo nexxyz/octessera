@@ -121,7 +121,7 @@ column, leaves the page.
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |
 | Rate | One row per layer, bottom row is Layer 1; the columns are step rates from 1/32 to 1/2, straight green and triplets blue. | Speeding a layer up or slowing it down mid-groove. Shift + tile pulls a drifting layer back onto the bar at the next bar line. |
-| XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. |
+| XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. *Shift* + tile parks it there after you let go, even when **Release** springs back to the center; a plain press un-parks it. |
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
 it, so the patch keeps its saved mode.
