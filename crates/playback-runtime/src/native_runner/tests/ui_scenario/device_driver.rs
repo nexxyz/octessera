@@ -160,11 +160,13 @@ impl DeviceDriver {
         self.release_button("fn");
     }
 
-    pub(super) fn select_play_page_with_fn(&mut self, y: usize) {
+    pub(super) fn select_musical_play_page(&mut self, y: usize) {
+        self.hold_button("shift");
         self.hold_button("fn");
         self.press_grid(7, y);
         self.release_grid(7, y);
         self.release_button("fn");
+        self.release_button("shift");
     }
 
     pub(super) fn toggle_layer_mute(&mut self, layer_index: usize) {
