@@ -120,8 +120,8 @@ sheet](../controls-cheat-sheet.md#usb-host-keyboard).
   second one waits until the first is unplugged. Plugging and unplugging works
   while the instrument is running.
 - **Held keys:** arrow and Aux-turn keys repeat when held, like turning the
-  knob further. Held Enter, Aux clicks, Back, Space, Shift and Control do not
-  repeat, so combinations such as Shift+Space (Shift+Play) and Control+Space
+  knob further. Held grid keys, Enter, Aux clicks, Back, Space, Shift and
+  Control do not repeat, so combinations such as Shift+Space (Shift+Play) and Control+Space
   (Fn+Play) behave like the buttons.
 
 A [Bluetooth keyboard](../bluetooth.md) uses the same map and works in either

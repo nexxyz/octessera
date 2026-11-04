@@ -39,12 +39,21 @@ see [Samples](README.md#samples).
 | Simulator | Instrument control |
 |---|---|
 | Arrow keys or mouse wheel | Turn *Main* |
-| *Enter* | Click *Main* |
+| *Enter* or number-pad *Enter* | Click *Main* |
 | *Backspace* or *Escape* | *Back* |
 | *Space* | *Play* |
 | *Shift* | *Shift* |
 | *Ctrl* | *Fn* |
-| On-screen encoders | The three Aux encoders |
+| *1 2 3*, *Q W E*, *A S D* | *Aux 1*, *2*, *3*: left / click / right |
+| Four rows of eight keys, left *Alt* for the top half | The grid tiles |
+| On-screen encoders and grid | The same, with the mouse |
+
+The keys are the same as for a [keyboard on the
+instrument](controls-cheat-sheet.md#usb-host-keyboard), and like there they
+count by position, so your layout doesn't matter. Left *Alt* won't wander off
+into a window menu while the simulator has focus. If you click another window
+while holding keys, the simulator lets go of every tile and button it was
+holding.
 
 Everything else works the same as on the hardware, combos included, so the
 [controls cheat sheet](controls-cheat-sheet.md) applies here too.

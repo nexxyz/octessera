@@ -65,24 +65,28 @@ Data sources the spec relies on:
 
 ## Control Mapping
 
+Simulator keys are physical key positions, the same as the [USB-host keyboard](#usb-host-keyboard)
+map, so they work on any layout.
+
 | Control | Simulator key | Function |
 |---|---|---|
-| Main encoder turn | ← → | Move cursor / adjust values |
-| Main encoder press | Enter | Enter group / enter or exit edit / trigger action |
+| Main encoder turn | ← ↑ / → ↓ | Move cursor / adjust values |
+| Main encoder press | Enter / Numpad Enter | Enter group / enter or exit edit / trigger action |
 | Back button | Backspace / Esc | Go back / exit edit / clear grid (with Shift) |
 | Space button | Space | Play / Pause |
 | Shift + Space | Shift+Space | Stop/reset with internal-audio silence and bounded held-note cleanup; under external sync, arms the next 96-PPQN boundary instead |
 | Fn + Space | Ctrl+Space | Reset stop with internal-audio silence and bounded held-note cleanup |
 | Shift + Fn + Space | Shift+Ctrl+Space | Reserved no-op |
 | Shift + Back | Shift+Backspace / Shift+Esc | Clear grid (re-initialize behavior) |
-| Aux encoder 1-3 turn | (simulated) | Adjust a numeric target coarsely; enum/bool targets keep ordinary discrete turns. Orange SW1/SW2/SW4 use the native GPIO event path |
-| Aux encoder 1-3 press | (simulated) | Trigger the bound press mapping. Orange AUX2's switch line is unavailable only while UART0 TX is active and is enabled by the input-routing overlay |
-| Fn + Aux encoder press | Fn + (simulated) | Alternate action: bind the current value as Turn target or the current action as `!` press target |
+| Grid tile | 32 grid keys, Left Alt for the top half | Press and release a tile, like the NeoTrellis |
+| Aux encoder 1-3 turn | `1`/`3`, `Q`/`E`, `A`/`D` | Adjust a numeric target coarsely; enum/bool targets keep ordinary discrete turns. Orange SW1/SW2/SW4 use the native GPIO event path |
+| Aux encoder 1-3 press | `2`, `W`, `S` | Trigger the bound press mapping. Orange AUX2's switch line is unavailable only while UART0 TX is active and is enabled by the input-routing overlay |
+| Fn + Aux encoder press | Ctrl + Aux key | Alternate action: bind the current value as Turn target or the current action as `!` press target |
 | Fn + Main encoder press | Fn+Enter | Open/close the Aux mappings modal; holding Fn alone does not open it |
-| Shift + Aux encoder turn/press | Shift + (simulated) | Numeric turns are coarse; uses only the shifted aux binding bank |
-| Fn + Aux encoder turn | Fn + (simulated) | Fine numeric turn on the normal custom/auto-map target |
-| Shift + Fn + Aux encoder press | Shift+Ctrl + (simulated) | Bind the current value/action into the shifted aux binding bank |
-| Shift + Fn + Aux encoder turn | Shift+Ctrl + (simulated) | Fine numeric turn using only the shifted custom bank |
+| Shift + Aux encoder turn/press | Shift + Aux key | Numeric turns are coarse; uses only the shifted aux binding bank |
+| Fn + Aux encoder turn | Ctrl + Aux key | Fine numeric turn on the normal custom/auto-map target |
+| Shift + Fn + Aux encoder press | Shift+Ctrl + Aux key | Bind the current value/action into the shifted aux binding bank |
+| Shift + Fn + Aux encoder turn | Shift+Ctrl + Aux key | Fine numeric turn using only the shifted custom bank |
 | Shift + Fn | Shift+Ctrl | Combined modifier; acts as its own logical button and disables Fn/Shift functions while both are held |
 | Combined modifier + Main press | Shift+Ctrl+Enter | Context help for the highlighted entry |
 | Fn + Main encoder turn right outside editing | Ctrl+→ | Single behavior generation step while paused/stopped. While editing, numeric values turn finely and other edit types keep their ordinary turn |
@@ -95,32 +99,52 @@ Data sources the spec relies on:
 
 ### USB-host keyboard
 
-The base keyboard controls mirror the simulator keys. USB-host capture also maps the three AUX
-encoder rows:
+The USB-host keyboard and the simulator share one map. Every key is bound by its physical
+position (`KeyboardEvent.code` on the desktop, Linux evdev codes on the boards), never by the
+character it types, so QWERTZ, AZERTY, Dvorak, Colemak and non-Latin layouts all land on the same
+tiles and controls. Only keys present on ANSI, ISO and JIS boards are used. Tables name each key
+by its US position name and show the German and US keycaps.
 
-| Keyboard key | Native control | Repeat |
-|---|---|---|
-| ← / ↑ | Main encoder turn `-1` | Accepted |
-| → / ↓ | Main encoder turn `+1` | Accepted |
-| Q / W / E | AUX1 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
-| A / S / D | AUX2 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
-| Y/Z / X / C | AUX3 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
-| Enter | Main encoder press | Suppressed |
-| Backspace / Escape | Back button | Suppressed |
-| Space | Space button (`S`) | Suppressed |
-| Shift | Shift modifier | Suppressed |
-| Control | Fn modifier | Suppressed |
+| Key position (US code) | German keycap | US keycap | Native control | Repeat |
+|---|---|---|---|---|
+| `ArrowLeft` / `ArrowUp` | ← / ↑ | ← / ↑ | Main encoder turn `-1` | Accepted |
+| `ArrowRight` / `ArrowDown` | → / ↓ | → / ↓ | Main encoder turn `+1` | Accepted |
+| `Enter` / `NumpadEnter` | Enter | Enter | Main encoder press | Suppressed |
+| `Digit1` `Digit2` `Digit3` | 1 2 3 | 1 2 3 | AUX1 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
+| `KeyQ` `KeyW` `KeyE` | q w e | q w e | AUX2 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
+| `KeyA` `KeyS` `KeyD` | a s d | a s d | AUX3 turn `-1` / click / turn `+1` | Turns accepted; click suppressed |
+| `Backspace` / `Escape` | ⌫ / Esc | Backspace / Esc | Back button | Suppressed |
+| `Space` | Space | Space | Space button (`S`) | Suppressed |
+| `ShiftLeft` / `ShiftRight` | Shift | Shift | Shift modifier | Suppressed |
+| `ControlLeft` / `ControlRight` | Strg | Ctrl | Fn modifier | Suppressed |
+| `AltLeft` | Alt | Alt | Held: grid keys press the top half | - |
 
+Grid keys, left to right = grid columns 1..8. Grid rows count from the bottom (world space):
+
+| Key positions (US code) | German keycaps | US keycaps | Grid row | With Left Alt |
+|---|---|---|---|---|
+| `Digit4`..`Digit9` `Digit0` `Minus` | 4 5 6 7 8 9 0 ß | 4 5 6 7 8 9 0 - | 4 | 8 (top) |
+| `KeyR` `KeyT` `KeyY` `KeyU` `KeyI` `KeyO` `KeyP` `BracketLeft` | r t z u i o p ü | r t y u i o p [ | 3 | 7 |
+| `KeyF` `KeyG` `KeyH` `KeyJ` `KeyK` `KeyL` `Semicolon` `Quote` | f g h j k l ö ä | f g h j k l ; ' | 2 | 6 |
+| `KeyC` `KeyV` `KeyB` `KeyN` `KeyM` `Comma` `Period` `Slash` | c v b n m , . - | c v b n m , . / | 1 (bottom) | 5 |
+
+- A grid key down sends the same `grid_press` as the NeoTrellis tile, and key up its
+  `grid_release`. The release goes to the tile that was pressed, even if Left Alt changed in
+  between. Auto-repeat of grid keys is ignored. Right Alt (AltGr) is ignored.
 - Key presses and releases update the matching native button or modifier state. Key-repeat on
   arrow and AUX turn keys emits extra turns; repeats of Enter, the AUX click keys, Back, Space,
   Shift, and Control emit no extra edges.
 - Releasing an AUX click key clears its held keyboard state without retriggering the click.
-  Disconnect, disable, read failure, and shutdown use the same held-state cleanup.
-- The AUX3 left key is the physical key right of left Shift. Linux reports that position as
-  `KEY_Z` whether the keycap says `Y` or `Z`.
-- Space is the hardware Space/S button; the letter `S` is the AUX2 click. Modifier combinations
-  keep their meaning: Shift+Space is Stop (Resync arm under external sync), Control+Space is Reset
-  stop, and Shift+Control+Enter opens context help.
+  Disconnect, disable, read failure, shutdown, and simulator focus loss use the same held-state
+  cleanup, which also releases every held tile.
+- Unused: `KeyZ` and `KeyX` (German y and x, US z and x) and the ISO key `IntlBackslash` (German
+  `<`).
+- Space is the hardware Space/S button; the `KeyS` position is the AUX3 click. Modifier
+  combinations keep their meaning: Shift+Space is Stop (Resync arm under external sync),
+  Control+Space is Reset stop, Shift+Control+Enter opens context help, and Shift, Control or both
+  with a grid key act like the matching NeoKey modifiers with a tile.
+- The simulator suppresses the default action of mapped keys and of Left Alt while it has focus,
+  so Alt does not move focus to the window menu.
 - Raspberry captures only while the USB role is `Host`, and follows a live role change at once.
   Orange captures on its separate USB-C host connector, independent of USB0
   OTG/gadget behavior.
@@ -129,7 +153,8 @@ encoder rows:
   Bluetooth keyboards are accepted under the same gate.
 - Hotplug and HDMI-mode changes apply live. The first supported keyboard is selected and grabbed
   exclusively, a second keyboard is ignored while one is selected, and a disconnect or gate change
-  releases held logical controls and the grab.
+  releases held logical controls and the grab. A supported keyboard reports every mapped key
+  except Numpad Enter.
 
 ### Input dispatch
 

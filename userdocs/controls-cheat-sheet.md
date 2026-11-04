@@ -51,19 +51,45 @@ else moves in plain even steps.
 
 A computer keyboard plugged into the instrument (or a paired
 [Bluetooth keyboard](bluetooth.md)) acts as a second set of controls, not a
-typing machine:
+typing machine. The [desktop simulator](desktop-simulator.md) uses the same
+map.
 
-| Keyboard | Instrument control |
+Keys count by where they sit, not by what's printed on them. A German,
+French, US, Dvorak or Cyrillic layout all put the same tiles under the same
+fingers, so the tables show both the German and the US keycaps for each
+spot.
+
+| Key (German / US keycap) | Instrument control |
 |---|---|
 | *←* / *↑* and *→* / *↓* | Turn *Main* left / right. |
-| *Enter* | Click *Main*. |
-| *Q* / *W* / *E* | *Aux 1* left / click / right. |
-| *A* / *S* / *D* | *Aux 2* left / click / right. |
-| *Y/Z* / *X* / *C* | *Aux 3* left / click / right. The first key is the one immediately right of left *Shift*, whatever its keycap says. |
+| *Enter* or the number pad's *Enter* | Click *Main*. |
+| *1* / *2* / *3* | *Aux 1* left / click / right. |
+| *Q* / *W* / *E* | *Aux 2* left / click / right. |
+| *A* / *S* / *D* | *Aux 3* left / click / right. |
 | *Backspace* / *Escape* | *Back*. |
-| *Space* | *Play*. (The letter *S* is the *Aux 2* click.) |
+| *Space* | *Play*. (The letter *S* is the *Aux 3* click.) |
 | *Shift* | *Shift*. |
-| *Control* | *Fn*. |
+| *Control* (*Strg*) | *Fn*. |
+| Left *Alt* (hold) | Grid keys play the top half instead of the bottom. |
+
+**The grid on your keyboard.** Four rows of eight keys are the bottom half of
+the grid; hold the left *Alt* and the same keys are the top half. Left to
+right is grid column 1 to 8:
+
+| Keys (German) | Keys (US) | Grid row | With left *Alt* |
+|---|---|---|---|
+| *4 5 6 7 8 9 0 ß* | *4 5 6 7 8 9 0 -* | 4 | 8 (top) |
+| *R T Z U I O P Ü* | *R T Y U I O P [* | 3 | 7 |
+| *F G H J K L Ö Ä* | *F G H J K L ; '* | 2 | 6 |
+| *C V B N M , . -* | *C V B N M , . /* | 1 (bottom) | 5 |
+
+A key is a tile: press it, hold it, let go, just like the NeoTrellis button.
+*Shift*, *Control* or both plus a grid key work like the modifiers with a
+tile, so *Control* with *4*, *R*, *F* or *C* (the left grid column) picks a
+layer.
+Letting go releases the tile you pressed, even if *Alt* changed meanwhile.
+Holding a grid key doesn't repeat. *Y* and *X* (US *Z* and *X*), the German
+*<* key and the right *Alt* (*AltGr*) do nothing.
 
 Two conditions apply. `System > Display > HDMI Video > Mode` has to be a
 graphical mode, not `Terminal` (the shipped default `live-grid` is fine). A
