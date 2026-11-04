@@ -1012,10 +1012,11 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   apart, and hosts keep the latest 20 rolling patch backups.
 - `Save Patch` writes the default patch. Confirmed `Load Patch` and named-preset loads stop/reset
   playback and panic/clear held notes while keeping local System settings and ports.
-- A load refuses with `Save pending, try again` before confirmation when a patch write is pending or
-  an Auto Save-eligible patch edit is dirty; the same check after confirmation catches a newly
-  pending write. With Auto Save off and no pending write, the confirmation may discard unsaved patch
-  edits on purpose.
+- A confirmed load waits for the current patch's save when a patch write is pending or an Auto
+  Save-eligible patch edit is dirty: it shows `Saving, then loading`, saves (or lets the pending write
+  finish), then loads. A failed save drops the load with `Save failed, not loaded`. With Auto Save
+  off and no pending write, the confirmation may discard unsaved patch edits on purpose. After a
+  load the menu stays on the row it was loaded from.
 - Patches, named presets, `.oct` musical exports, the local default patch, rolling backups, and
   recovery all keep any safe relative WAV sample path (no absolute paths, `..`, or backslashes),
   even when the media is missing. On another device the patch loads cleanly where the same files

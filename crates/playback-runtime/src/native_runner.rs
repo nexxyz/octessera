@@ -154,6 +154,7 @@ mod native_persistence_completion_tests;
 mod numeric_encoder_tests;
 #[cfg(test)]
 mod patch_load_admission_tests;
+mod patch_load_after_save;
 mod patch_sample_path;
 #[cfg(test)]
 mod persistence_intent_tests;

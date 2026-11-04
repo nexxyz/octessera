@@ -132,6 +132,8 @@ pub fn handle_deferred_host_work(
 mod duck_slot_tests;
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod native_autosave_tests;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+mod patch_load_repeat_tests;
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(

@@ -23,9 +23,11 @@ portable preferences off the board so you can reflash without losing anything.
 | `System > Load Preset` | Shortcut to load a named preset. |
 
 A confirmed load stops and rewinds playback and silences held notes. If a save
-is still being written (or, with Auto Save on, an edit hasn't been saved yet)
-the load refuses with `Save pending, try again`; give it a moment. With Auto
-Save off, loading throws away unsaved changes, so save first if you care.
+is still being written (or, with Auto Save on, an edit hasn't been saved yet),
+Octessera shows `Saving, then loading`, finishes that save and then loads. If
+the save fails, nothing is loaded. With Auto Save off, loading throws away
+unsaved changes, so save first if you care. After a load the menu stays on the
+row you loaded from.
 
 Patches remember their samples by path, including your own and SD-card
 samples.

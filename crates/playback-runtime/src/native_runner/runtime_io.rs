@@ -174,7 +174,10 @@ impl NativeRunner {
     ) -> Result<Vec<RunnerMessage>, String> {
         let had_runtime_error = self.display.runtime_error_presentation.is_some();
         let save_flash_serial = self.display.auto_save_flash_serial;
+        let operation = result.operation();
+        let succeeded = result.error_facts().is_none();
         self.apply_store_result(result)?;
+        self.continue_patch_load_after_save(&operation, succeeded);
         if self.pending.presentation_deferred {
             if !had_runtime_error && self.display.runtime_error_presentation.is_some() {
                 self.require_synchronous_action_presentation();

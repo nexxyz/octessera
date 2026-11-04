@@ -1,6 +1,5 @@
 use super::tests::snapshot_from;
 use super::*;
-use std::time::{Duration, Instant};
 
 fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
     runner
@@ -64,52 +63,97 @@ fn preset_runner() -> NativeRunner {
     runner
 }
 
-fn has_patch_load_or_save(messages: &[RunnerMessage]) -> bool {
-    messages.iter().any(|message| matches!(message,
-        RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect,
-            RuntimePlatformEffect::StoreLoadDefault
-                | RuntimePlatformEffect::StoreLoadPreset { .. }
-                | RuntimePlatformEffect::StoreSaveDefault { .. }
-        ))
-    ))
+fn effects(messages: &[RunnerMessage]) -> Vec<RuntimePlatformEffect> {
+    messages
+        .iter()
+        .filter_map(|message| match message {
+            RunnerMessage::PlatformEffects { effects } => Some(effects.clone()),
+            _ => None,
+        })
+        .flatten()
+        .collect()
 }
 
-fn assert_blocked_before_confirmation(runner: &mut NativeRunner, key: &str) {
-    let before = (
-        runner.restart_settings.clone(),
-        runner.pending.pending_save_revision,
-        runner.pending.manual_save_request.clone(),
-        runner.pending.pending_autosave_payload_due_at,
-        runner.pending.autosave_payload_notified_at,
+fn is_load(effect: &RuntimePlatformEffect) -> bool {
+    matches!(
+        effect,
+        RuntimePlatformEffect::StoreLoadDefault | RuntimePlatformEffect::StoreLoadPreset { .. }
+    )
+}
+
+fn toast(runner: &NativeRunner) -> Option<&str> {
+    runner
+        .display
+        .toast
+        .as_ref()
+        .map(|toast| toast.message.as_str())
+}
+
+/// Confirms a load that has to wait: no load goes out yet, and the dialog is closed.
+fn confirm_waiting_load(runner: &mut NativeRunner, key: &str) -> Vec<RunnerMessage> {
+    let messages = confirm_load(runner, key);
+    assert!(
+        !effects(&messages).iter().any(is_load),
+        "{key} loaded early"
     );
-    assert!(runner.menu.focus_item_key(key));
-    let messages = press_main(runner);
-    assert!(!has_patch_load_or_save(&messages));
     assert!(runner.display.confirm_dialog.is_none());
+    assert_eq!(toast(runner), Some("Saving, then loading"));
+    messages
+}
+
+fn finish_default_save(
+    runner: &mut NativeRunner,
+    request_id: &str,
+    ok: bool,
+) -> Vec<RunnerMessage> {
+    let revision = runner.pending_default_write_revision();
+    runner.register_default_write_request(request_id, revision);
+    let result = if ok {
+        RuntimeStoreResult::SaveDefaultResult {
+            ok: true,
+            is_auto: None,
+        }
+    } else {
+        RuntimeStoreResult::RuntimeFailure {
+            error: crate::RuntimeErrorFacts::new(
+                crate::RuntimeErrorDomain::Storage,
+                crate::RuntimeErrorCode::OperationFailed,
+                crate::RuntimeOperation::StoreSaveDefault,
+                Some("disk full".into()),
+            ),
+        }
+    };
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: result.with_identity(request_id.into(), revision),
+        })
+        .unwrap()
+}
+
+/// The Pi side of a music-first manual save: take the request, write it, report success.
+fn finish_manual_default_save(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     assert_eq!(
+        runner.take_manual_save_request(),
+        Some(NativeManualSaveRequest::Default)
+    );
+    let revision = runner.config_revision;
+    assert!(runner.register_native_default_write("manual-save", revision, false));
+    let payload = std::sync::Arc::new(
         runner
-            .display
-            .toast
-            .as_ref()
-            .map(|toast| toast.message.as_str()),
-        Some("Save pending, try again")
+            .capture_config_snapshot()
+            .into_portable_patch_payload()
+            .unwrap(),
     );
-    assert!(messages.iter().any(|message| matches!(message,
-        RunnerMessage::Snapshot { snapshot }
-            if snapshot["display"]["toast"]
-                .as_str()
-                .is_some_and(|toast| toast.contains("pending"))
-    )));
-    assert_eq!(
-        (
-            runner.restart_settings.clone(),
-            runner.pending.pending_save_revision,
-            runner.pending.manual_save_request.clone(),
-            runner.pending.pending_autosave_payload_due_at,
-            runner.pending.autosave_payload_notified_at,
-        ),
-        before
-    );
+    assert!(runner.attach_native_default_write_payload("manual-save", revision, payload));
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: None,
+            }
+            .with_identity("manual-save".into(), Some(revision)),
+        })
+        .unwrap()
 }
 
 fn queue_manual_default_save(runner: &mut NativeRunner) {
@@ -146,85 +190,6 @@ fn queue_default_save_write(runner: &mut NativeRunner) -> u64 {
         .expect("default save request");
     assert!(runner.restart_settings.has_pending_write());
     revision
-}
-
-#[test]
-fn pending_manual_default_save_refuses_default_and_preset_load_device_flows() {
-    let mut runner = preset_runner();
-    queue_manual_default_save(&mut runner);
-
-    assert_blocked_before_confirmation(&mut runner, "default.load");
-    assert_blocked_before_confirmation(&mut runner, "preset.load.Alpha");
-}
-
-#[test]
-fn pending_default_write_refuses_default_and_named_load_before_confirmation() {
-    let mut runner = preset_runner();
-    let _ = queue_default_save_write(&mut runner);
-
-    assert_blocked_before_confirmation(&mut runner, "default.load");
-    assert_blocked_before_confirmation(&mut runner, "preset.load.Alpha");
-}
-
-#[test]
-fn save_started_while_load_confirmation_is_open_is_rechecked_on_confirm() {
-    let mut runner = preset_runner();
-    assert!(runner.menu.focus_item_key("default.load"));
-    let opened = press_main(&mut runner);
-    assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Patch");
-    let opened_snapshot = snapshot_from(&opened);
-    let lines = opened_snapshot["display"]["lines"].as_array().unwrap();
-    let cancel_index = lines.iter().position(|line| line == "> Cancel").unwrap();
-    let confirm_index = lines
-        .iter()
-        .position(|line| line.as_str().is_some_and(|line| line.trim() == "Confirm"))
-        .unwrap();
-    assert!(cancel_index < confirm_index);
-
-    runner.pending.pending_save_revision = Some(runner.config_revision);
-    let _ = turn_main(&mut runner, 1);
-    let confirmed = press_main(&mut runner);
-    assert!(!has_patch_load_or_save(&confirmed));
-    assert_eq!(
-        runner
-            .display
-            .toast
-            .as_ref()
-            .map(|toast| toast.message.as_str()),
-        Some("Save pending, try again")
-    );
-}
-
-#[test]
-fn pending_patch_revision_and_autosave_debounce_refuse_load_without_emitting_old_save() {
-    let mut runner = preset_runner();
-    runner.auto_save_default = true;
-    runner.mark_fast_autosave_dirty();
-    let due = runner.pending.pending_autosave_payload_due_at.unwrap();
-    assert!(runner
-        .persistence_intent_at(due - Duration::from_millis(1))
-        .is_none());
-    let revision = runner.dirty_revision.unwrap();
-    runner.pending.pending_save_revision = Some(revision);
-    runner.pending.pending_autosave_payload_due_at =
-        Some(Instant::now() - Duration::from_millis(1));
-
-    assert_blocked_before_confirmation(&mut runner, "default.load");
-    assert_blocked_before_confirmation(&mut runner, "preset.load.Alpha");
-}
-
-#[test]
-fn autosave_enabled_dirty_patch_is_blocked_before_debounce_has_a_persistence_intent() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.auto_save_default = true;
-    runner.mark_fast_autosave_dirty();
-    let due = runner.pending.pending_autosave_payload_due_at.unwrap();
-    assert!(runner
-        .persistence_intent_at(due - Duration::from_millis(1))
-        .is_none());
-    runner.pending.pending_save_revision = None;
-
-    assert_blocked_before_confirmation(&mut runner, "default.load");
 }
 
 #[test]
@@ -297,4 +262,131 @@ fn successful_default_save_completion_clears_admission_and_allows_load() {
         RunnerMessage::PlatformEffects { effects }
             if effects.contains(&RuntimePlatformEffect::StoreLoadDefault)
     )));
+}
+
+#[test]
+fn pending_default_write_finishes_before_default_and_named_load() {
+    for (key, load) in [
+        ("default.load", RuntimePlatformEffect::StoreLoadDefault),
+        (
+            "preset.load.Alpha",
+            RuntimePlatformEffect::StoreLoadPreset {
+                name: "Alpha".into(),
+            },
+        ),
+    ] {
+        let mut runner = preset_runner();
+        let _ = queue_default_save_write(&mut runner);
+        let waiting = confirm_waiting_load(&mut runner, key);
+        assert!(!effects(&waiting)
+            .iter()
+            .any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { .. })));
+
+        let saved = finish_default_save(&mut runner, "default-save", true);
+        assert_eq!(
+            effects(&saved)
+                .into_iter()
+                .filter(is_load)
+                .collect::<Vec<_>>(),
+            vec![load]
+        );
+    }
+}
+
+#[test]
+fn pending_manual_default_save_finishes_before_load() {
+    let mut runner = preset_runner();
+    queue_manual_default_save(&mut runner);
+    let _ = confirm_waiting_load(&mut runner, "preset.load.Alpha");
+
+    let saved = finish_manual_default_save(&mut runner);
+    assert_eq!(
+        effects(&saved)
+            .into_iter()
+            .filter(is_load)
+            .collect::<Vec<_>>(),
+        vec![RuntimePlatformEffect::StoreLoadPreset {
+            name: "Alpha".into()
+        }]
+    );
+}
+
+#[test]
+fn dirty_autosave_patch_is_saved_now_then_loaded() {
+    let mut runner = preset_runner();
+    runner.auto_save_default = true;
+    runner.mark_fast_autosave_dirty();
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+
+    let _ = confirm_waiting_load(&mut runner, "default.load");
+    assert!(runner.pending.pending_autosave_payload_due_at.is_none());
+
+    let saved = finish_manual_default_save(&mut runner);
+    assert!(!runner.config_dirty);
+    assert_eq!(
+        effects(&saved)
+            .into_iter()
+            .filter(is_load)
+            .collect::<Vec<_>>(),
+        vec![RuntimePlatformEffect::StoreLoadDefault]
+    );
+}
+
+#[test]
+fn save_started_while_load_confirmation_is_open_finishes_first() {
+    let mut runner = preset_runner();
+    assert!(runner.menu.focus_item_key("default.load"));
+    let _ = press_main(&mut runner);
+    runner.auto_save_default = true;
+    runner.mark_config_dirty();
+    let _ = turn_main(&mut runner, 1);
+    let confirmed = press_main(&mut runner);
+    assert!(!effects(&confirmed).iter().any(is_load));
+    assert_eq!(toast(&runner), Some("Saving, then loading"));
+
+    let saved = finish_manual_default_save(&mut runner);
+    assert!(effects(&saved).iter().any(is_load));
+}
+
+#[test]
+fn failed_save_drops_the_waiting_load() {
+    let mut runner = preset_runner();
+    let _ = queue_default_save_write(&mut runner);
+    let _ = confirm_waiting_load(&mut runner, "preset.load.Alpha");
+
+    let failed = finish_default_save(&mut runner, "default-save", false);
+    assert!(!effects(&failed).iter().any(is_load));
+    assert_eq!(toast(&runner), Some("Save failed, not loaded"));
+    assert!(runner.pending.patch_load_after_save.is_none());
+}
+
+#[test]
+fn consecutive_loads_each_open_their_dialog_and_load() {
+    let mut runner = preset_runner();
+    let patch = super::system_persistence::SystemPersistenceState::patch_document(&runner).unwrap();
+    assert!(runner.menu.focus_item_key("default.load"));
+    for round in 0..5 {
+        let opened = press_main(&mut runner);
+        assert_eq!(
+            snapshot_from(&opened)["display"]["title"],
+            "Confirm Patch",
+            "round {round}"
+        );
+        let _ = turn_main(&mut runner, 1);
+        let confirmed = press_main(&mut runner);
+        assert!(effects(&confirmed).contains(&RuntimePlatformEffect::StoreLoadDefault));
+        let mut loaded = patch.clone();
+        loaded["runtimeConfig"]["transport"]["bpm"] = json!(90 + round);
+        let _ = runner
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::LoadDefaultResult {
+                    payload: Some(loaded),
+                },
+            })
+            .unwrap();
+        assert_eq!(runner.transport.bpm, f64::from(90 + round));
+        assert_eq!(toast(&runner), Some("Patch loaded"));
+        assert!(runner.display.confirm_dialog.is_none());
+        assert_eq!(runner.menu.current_key(), Some("default.load"));
+    }
 }

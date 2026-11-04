@@ -149,7 +149,11 @@ impl NativeRunner {
         candidate.commit_configuration_runtime_plan(&plan);
         candidate.last_snapshot_audio_config_revision = self.last_snapshot_audio_config_revision;
         candidate.queued_audio_config_revision = self.queued_audio_config_revision;
+        let focused_key = self.menu.current_key().map(str::to_owned);
         *self = candidate;
+        if let Some(key) = focused_key {
+            self.menu.focus_item_key(&key);
+        }
         self.commit_loaded_revision(source_revision);
         if let Err(error) = self.process_modulation_step(false) {
             self.show_toast(format!("LFO composition unavailable: {error}"));

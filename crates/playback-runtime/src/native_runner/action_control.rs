@@ -151,14 +151,6 @@ impl NativeRunner {
         confirmed: bool,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
         if !confirmed {
-            let is_patch_load = matches!(
-                &action,
-                NativeMenuAction::PlatformEffect(action_type)
-                    if action_type == "default.load" || action_type.starts_with("preset.load:")
-            );
-            if is_patch_load && self.reject_patch_load_while_save_pending() {
-                return Ok(None);
-            }
             if let Some(confirm) = self.confirmation_for_action(&action) {
                 self.display.confirm_dialog = Some(confirm);
                 return Ok(None);
