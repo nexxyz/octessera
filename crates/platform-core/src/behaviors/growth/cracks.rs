@@ -126,6 +126,7 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
             continue;
         }
         let Some(dest) = best_neighbor(&state, tip, &[]) else {
+            state.tiles[tip] = CRACK;
             continue;
         };
         state.tiles[tip] = CRACK;

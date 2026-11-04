@@ -246,5 +246,32 @@ fn threshold_and_blocked_tip_semantics() {
     blocked.tiles.fill(CRACK);
     blocked.tiles[grid_index(3, 3)] = TIP;
     let ticked = cracks_on_tick(blocked, &mut c);
-    assert_eq!(ticked.tiles[grid_index(3, 3)], TIP);
+    assert_eq!(ticked.tiles[grid_index(3, 3)], CRACK);
+    assert!(!ticked.tiles.contains(&TIP));
+}
+
+// A tip moves or retires every tick; only a shatter's dissolve (a few ticks) is quiet before the
+// next impact, so a default pane never goes longer than this without an Activate.
+const SHATTER_AND_REIMPACT_TICKS: usize = 8;
+
+#[test]
+fn default_pane_keeps_activating_across_salts() {
+    for salt in 0..200u64 {
+        let mut random = crate::behavior_random::LayerRandom::new(Some(salt));
+        random.scope(|| {
+            let mut c = ctx();
+            let mut s = cracks_init(serde_json::json!({})).unwrap();
+            let mut last_activate = 0;
+            for tick in 1..=3000 {
+                s = cracks_on_tick(s, &mut c);
+                if s.trigger_types.contains(&TileTriggerType::Activate) {
+                    last_activate = tick;
+                }
+                assert!(
+                    tick - last_activate <= SHATTER_AND_REIMPACT_TICKS,
+                    "salt {salt}: no activate between ticks {last_activate} and {tick}"
+                );
+            }
+        });
+    }
 }
