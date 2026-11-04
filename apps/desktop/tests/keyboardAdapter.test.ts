@@ -1,103 +1,202 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  mapKeyboardEventToInputAction,
-  mapKeyboardKeyupToInputAction,
+  createKeyboardMapper,
+  gridKeyTile,
   shouldPreventKeyboardDefault,
 } from '../src/runtime/inputAdapters/keyboardAdapter';
+import { momentaryTileTransition } from '../src/ui/appGridInteraction';
 
 function keyEvent(
-  key: string,
-  shiftKey = false,
-  ctrlKey = false,
+  code: string,
+  { repeat = false, shiftKey = false, key = '' } = {},
 ): KeyboardEvent {
-  return { key, shiftKey, ctrlKey } as KeyboardEvent;
+  return { code, key, repeat, shiftKey } as KeyboardEvent;
 }
 
-test('maps arrows and enter/backspace/esc/space', () => {
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('ArrowLeft')), {
-    type: 'device_input',
-    input: { type: 'encoder_turn', delta: -1, id: 'main' },
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('ArrowRight')), {
-    type: 'device_input',
-    input: { type: 'encoder_turn', delta: 1, id: 'main' },
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('Enter')), {
-    type: 'device_input',
-    input: { type: 'encoder_press', id: 'main' },
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('Backspace')), {
-    type: 'device_input',
-    input: { type: 'button_a', pressed: true },
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('Escape')), {
-    type: 'device_input',
-    input: { type: 'button_a', pressed: true },
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent(' ')), {
-    type: 'device_input',
-    input: { type: 'button_s', pressed: true },
-  });
+const device = (input: object) => ({ type: 'device_input', input });
+const turn = (id: string, delta: number) =>
+  device({ type: 'encoder_turn', delta, id });
+const click = (id: string) => device({ type: 'encoder_press', id });
+const tile = (type: string, x: number, y: number) => device({ type, x, y });
+
+test('maps every key position by KeyboardEvent.code', () => {
+  const expected: [string, object][] = [
+    ['ArrowLeft', turn('main', -1)],
+    ['ArrowUp', turn('main', -1)],
+    ['ArrowRight', turn('main', 1)],
+    ['ArrowDown', turn('main', 1)],
+    ['Enter', click('main')],
+    ['NumpadEnter', click('main')],
+    ['Backspace', device({ type: 'button_a', pressed: true })],
+    ['Escape', device({ type: 'button_a', pressed: true })],
+    ['Space', device({ type: 'button_s', pressed: true })],
+    ['ShiftLeft', { type: 'shift', active: true }],
+    ['ShiftRight', { type: 'shift', active: true }],
+    ['ControlLeft', { type: 'fn', active: true }],
+    ['ControlRight', { type: 'fn', active: true }],
+    ['Digit1', turn('aux1', -1)],
+    ['Digit2', click('aux1')],
+    ['Digit3', turn('aux1', 1)],
+    ['KeyQ', turn('aux2', -1)],
+    ['KeyW', click('aux2')],
+    ['KeyE', turn('aux2', 1)],
+    ['KeyA', turn('aux3', -1)],
+    ['KeyS', click('aux3')],
+    ['KeyD', turn('aux3', 1)],
+  ];
+  for (const [code, action] of expected) {
+    assert.deepEqual(createKeyboardMapper().keydown(keyEvent(code)), [action]);
+    assert.equal(shouldPreventKeyboardDefault(keyEvent(code)), true);
+  }
 });
 
-test('maps modifiers and emergency brake', () => {
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('Shift')), {
-    type: 'shift',
-    active: true,
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('Control')), {
-    type: 'fn',
-    active: true,
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent(' ', true)), {
-    type: 'emergency_brake',
-  });
-  assert.deepEqual(mapKeyboardEventToInputAction(keyEvent('Control', true)), {
-    type: 'fn',
-    active: true,
-  });
-  assert.deepEqual(
-    mapKeyboardEventToInputAction(keyEvent('Shift', false, true)),
+test('grid keys map four keyboard rows to grid columns and rows', () => {
+  const rows = [
+    ['KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'Comma', 'Period', 'Slash'],
+    ['KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote'],
+    ['KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'BracketLeft'],
+    [
+      'Digit4',
+      'Digit5',
+      'Digit6',
+      'Digit7',
+      'Digit8',
+      'Digit9',
+      'Digit0',
+      'Minus',
+    ],
+  ];
+  rows.forEach((codes, y) =>
+    codes.forEach((code, x) => {
+      assert.deepEqual(gridKeyTile(code, false), { x, y });
+      assert.deepEqual(gridKeyTile(code, true), { x, y: y + 4 });
+      assert.equal(shouldPreventKeyboardDefault(keyEvent(code)), true);
+    }),
+  );
+});
+
+test('unused keys stay unmapped and AltLeft only suppresses its default', () => {
+  for (const code of ['KeyZ', 'KeyX', 'IntlBackslash', 'AltRight', 'F1']) {
+    assert.deepEqual(createKeyboardMapper().keydown(keyEvent(code)), []);
+    assert.equal(shouldPreventKeyboardDefault(keyEvent(code)), false);
+  }
+  assert.deepEqual(createKeyboardMapper().keydown(keyEvent('AltLeft')), []);
+  assert.equal(shouldPreventKeyboardDefault(keyEvent('AltLeft')), true);
+});
+
+test('layout characters do not matter, only the key position', () => {
+  const mapper = createKeyboardMapper();
+  assert.deepEqual(mapper.keydown(keyEvent('KeyQ', { key: 'a' })), [
+    turn('aux2', -1),
+  ]);
+  assert.deepEqual(mapper.keydown(keyEvent('Semicolon', { key: 'm' })), [
+    tile('grid_press', 6, 1),
+  ]);
+});
+
+test('a keyboard grid press sends the same input as a simulator tile press', () => {
+  const display = momentaryTileTransition(null, 0, 7).inputs;
+  assert.deepEqual(createKeyboardMapper().keydown(keyEvent('KeyC')), [
+    device(display[0]),
+  ]);
+  const topRight = momentaryTileTransition(null, 7, 0).inputs;
+  const mapper = createKeyboardMapper();
+  mapper.keydown(keyEvent('AltLeft'));
+  assert.deepEqual(mapper.keydown(keyEvent('Minus')), [device(topRight[0])]);
+});
+
+test('AltLeft selects the top half and AltRight is ignored', () => {
+  const mapper = createKeyboardMapper();
+  mapper.keydown(keyEvent('AltRight'));
+  assert.deepEqual(mapper.keydown(keyEvent('KeyC')), [
+    tile('grid_press', 0, 0),
+  ]);
+  mapper.keydown(keyEvent('AltLeft'));
+  assert.deepEqual(mapper.keydown(keyEvent('KeyV')), [
+    tile('grid_press', 1, 4),
+  ]);
+  mapper.keyup(keyEvent('AltLeft'));
+  assert.deepEqual(mapper.keydown(keyEvent('KeyB')), [
+    tile('grid_press', 2, 0),
+  ]);
+});
+
+test('a held tile is released where it was pressed after Alt changes', () => {
+  const mapper = createKeyboardMapper();
+  assert.deepEqual(mapper.keydown(keyEvent('KeyR')), [
+    tile('grid_press', 0, 2),
+  ]);
+  mapper.keydown(keyEvent('AltLeft'));
+  assert.deepEqual(mapper.keyup(keyEvent('KeyR')), [
+    tile('grid_release', 0, 2),
+  ]);
+  assert.deepEqual(mapper.keydown(keyEvent('KeyT')), [
+    tile('grid_press', 1, 6),
+  ]);
+  mapper.keyup(keyEvent('AltLeft'));
+  assert.deepEqual(mapper.keyup(keyEvent('KeyT')), [
+    tile('grid_release', 1, 6),
+  ]);
+  assert.deepEqual(mapper.keyup(keyEvent('KeyT')), []);
+});
+
+test('repeat is ignored for grid, clicks and buttons but accepted for turns', () => {
+  const mapper = createKeyboardMapper();
+  for (const code of ['KeyC', 'Digit2', 'Enter', 'NumpadEnter', 'Space']) {
+    mapper.keydown(keyEvent(code));
+    assert.deepEqual(mapper.keydown(keyEvent(code, { repeat: true })), []);
+    assert.deepEqual(mapper.keydown(keyEvent(code)), []);
+  }
+  for (const [code, action] of [
+    ['ArrowDown', turn('main', 1)],
+    ['Digit3', turn('aux1', 1)],
+    ['KeyA', turn('aux3', -1)],
+  ] as const) {
+    mapper.keydown(keyEvent(code));
+    assert.deepEqual(mapper.keydown(keyEvent(code, { repeat: true })), [
+      action,
+    ]);
+  }
+});
+
+test('modifier combos and releases keep their meaning', () => {
+  const mapper = createKeyboardMapper();
+  assert.deepEqual(mapper.keydown(keyEvent('ShiftLeft', { shiftKey: true })), [
     { type: 'shift', active: true },
-  );
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent('Shift')), {
-    type: 'shift',
-    active: false,
-  });
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent('Control')), {
-    type: 'fn',
-    active: false,
-  });
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent(' ')), {
-    type: 'device_input',
-    input: { type: 'button_s', pressed: false },
-  });
+  ]);
+  assert.deepEqual(mapper.keydown(keyEvent('Space', { shiftKey: true })), [
+    { type: 'emergency_brake' },
+  ]);
+  assert.deepEqual(mapper.keyup(keyEvent('Space')), [
+    device({ type: 'button_s', pressed: false }),
+  ]);
+  assert.deepEqual(mapper.keyup(keyEvent('ShiftLeft')), [
+    { type: 'shift', active: false },
+  ]);
+  mapper.keydown(keyEvent('Escape'));
+  assert.deepEqual(mapper.keyup(keyEvent('Escape')), [
+    device({ type: 'button_a', pressed: false }),
+  ]);
+  mapper.keydown(keyEvent('Enter'));
+  assert.deepEqual(mapper.keyup(keyEvent('Enter')), []);
 });
 
-test('maps back and play key releases', () => {
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent('Backspace')), {
-    type: 'device_input',
-    input: { type: 'button_a', pressed: false },
-  });
-  assert.deepEqual(mapKeyboardKeyupToInputAction(keyEvent('Escape')), {
-    type: 'device_input',
-    input: { type: 'button_a', pressed: false },
-  });
-});
-
-test('prevent-default only for mapped keys', () => {
-  assert.equal(shouldPreventKeyboardDefault(keyEvent('ArrowUp')), true);
-  assert.equal(shouldPreventKeyboardDefault(keyEvent('x')), false);
-});
-
-test('handles combined modifiers', () => {
-  assert.deepEqual(
-    mapKeyboardEventToInputAction(keyEvent('Shift', true, true)),
-    { type: 'shift', active: true },
-  );
-  assert.deepEqual(
-    mapKeyboardEventToInputAction(keyEvent('Control', true, true)),
-    { type: 'fn', active: true },
-  );
+test('focus loss releases every held tile, button and modifier once', () => {
+  const mapper = createKeyboardMapper();
+  for (const code of ['KeyC', 'Backspace', 'ControlLeft', 'KeyW']) {
+    mapper.keydown(keyEvent(code));
+  }
+  mapper.keydown(keyEvent('AltLeft'));
+  mapper.keydown(keyEvent('Slash'));
+  assert.deepEqual(mapper.releaseAll(), [
+    tile('grid_release', 0, 0),
+    device({ type: 'button_a', pressed: false }),
+    { type: 'fn', active: false },
+    tile('grid_release', 7, 4),
+  ]);
+  assert.deepEqual(mapper.releaseAll(), []);
+  assert.deepEqual(mapper.keydown(keyEvent('KeyC')), [
+    tile('grid_press', 0, 0),
+  ]);
 });

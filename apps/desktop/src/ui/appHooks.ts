@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import {
-  mapKeyboardEventToInputAction,
-  mapKeyboardKeyupToInputAction,
+  createKeyboardMapper,
   shouldPreventKeyboardDefault,
 } from '../runtime/inputAdapters/keyboardAdapter';
+import type { InputAction } from '../runtime/types';
 import type { createSimulatorRuntime } from '../runtime/simulatorRuntime';
 
 type AppRuntime = ReturnType<typeof createSimulatorRuntime>;
@@ -31,43 +31,31 @@ export function useKeyboardBindings(
   bumpDialPhase: (id: EncoderId | undefined, delta: number) => void,
 ): void {
   useEffect(() => {
-    const pressedKeys = new Set<string>();
+    const mapper = createKeyboardMapper();
+    const dispatch = (actions: InputAction[]) => {
+      for (const action of actions) {
+        if (
+          action.type === 'device_input' &&
+          action.input.type === 'encoder_turn'
+        ) {
+          bumpDialPhase(action.input.id, action.input.delta);
+        }
+        runtime.dispatchAction(action);
+      }
+    };
 
     const onKey = (event: KeyboardEvent) => {
       if (shouldPreventKeyboardDefault(event)) event.preventDefault();
-      const action = mapKeyboardEventToInputAction(event);
-      if (!action) return;
-
-      const edgeOnlyKeys = new Set([
-        'Shift',
-        'Control',
-        ' ',
-        'Enter',
-        'Backspace',
-        'Escape',
-      ]);
-      if (edgeOnlyKeys.has(event.key)) {
-        if (pressedKeys.has(event.key) || event.repeat) return;
-        pressedKeys.add(event.key);
-      }
-
-      if (
-        action.type === 'device_input' &&
-        action.input.type === 'encoder_turn'
-      ) {
-        bumpDialPhase(action.input.id, action.input.delta);
-      }
-      runtime.dispatchAction(action);
+      dispatch(mapper.keydown(event));
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      pressedKeys.delete(event.key);
-      const action = mapKeyboardKeyupToInputAction(event);
-      if (action) runtime.dispatchAction(action);
+      if (shouldPreventKeyboardDefault(event)) event.preventDefault();
+      dispatch(mapper.keyup(event));
     };
 
     const onBlur = () => {
-      pressedKeys.clear();
+      dispatch(mapper.releaseAll());
       runtime.dispatchAction({ type: 'shift', active: false });
       runtime.dispatchAction({ type: 'fn', active: false });
     };
