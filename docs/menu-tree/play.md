@@ -281,7 +281,8 @@ The `ms` rows use the curved time steps from
 - Shift + press latches that position: after release the marker and the axes stay there even with
   `reset-center` (with `sample-hold` it behaves like the normal hold), and the glide runs as usual.
   A plain press clears the latch and behaves as above. The latch is live only: never saved, never
-  marks the patch dirty, and clears on boot, patch loads and Clear All.
+  marks the patch dirty, and clears on boot, patch loads and Clear All. When a patch load clears
+  it under `reset-center`, the marker and the axes return to the center.
 - LEDs: the touched tile is bright white while pressed, and stays bright white while latched.
   After release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` a
   dimmer gray marker at center.

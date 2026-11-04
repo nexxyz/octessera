@@ -129,6 +129,7 @@ impl NativeRunner {
         let unmuted = self.take_instrument_mutes();
         let unmuted_buses = self.take_bus_mutes();
         let fx_overridden = self.take_live_fx_overrides();
+        let xy_was_latched = self.play_live.xy_latched;
         if before == &candidate.configuration_aggregate() {
             self.commit_loaded_revision(source_revision);
             self.resend_engine_volumes(unmuted);
@@ -158,6 +159,9 @@ impl NativeRunner {
         self.resend_bus_volumes(unmuted_buses);
         if fx_overridden {
             self.resend_fx_slots();
+        }
+        if xy_was_latched {
+            self.handle_play_xy_release();
         }
         Ok(())
     }

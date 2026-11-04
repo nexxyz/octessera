@@ -96,6 +96,12 @@ fn clear_all_and_patch_load_drop_the_latch() {
     let payload = runner.config_payload();
     runner.apply_config_payload(payload).unwrap();
     assert!(!runner.play_live.xy_latched);
+    assert_eq!(
+        (runner.xy_touch.display_x, runner.xy_touch.display_y),
+        (0.5, 0.5),
+        "center release recentres once the latch is gone"
+    );
+    assert_ne!(tile(&runner, 6, 5), led_rgb(platform_core::palette::WHITE));
 
     open_xy_page(&mut runner);
     shift_tap(&mut runner, 6, 5);
