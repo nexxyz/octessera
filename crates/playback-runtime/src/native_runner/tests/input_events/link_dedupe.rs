@@ -295,6 +295,7 @@ pub(crate) fn sampler_tiles_with_the_same_sample_and_pitch_dedupe_to_one_voice()
 pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
     let mut probe = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     probe.transport.transport = RuntimeTransportState::Playing;
+    probe.transport.current_ppqn_pulse = 12;
     let first_tick = probe.advance_algorithm(12).unwrap();
     let expected = first_tick
         .audio
@@ -317,6 +318,7 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
     );
     assert_eq!(immediate.audio, vec![expected.clone()]);
 
+    runner.transport.current_ppqn_pulse = 12;
     let events = runner.advance_algorithm(12).unwrap();
     assert_eq!(
         events

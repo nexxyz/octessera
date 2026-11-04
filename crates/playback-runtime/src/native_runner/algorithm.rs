@@ -68,7 +68,7 @@ impl NativeRunner {
 
         self.advance_transport_indicators(pulses);
         self.advance_global_lfo_audio(pulses)?;
-        let swung_pulses = self.consume_swung_pulses(pulses);
+        let swung_pulses = self.consume_swung_pulses();
         self.accumulate_layer_pulses(swung_pulses);
         self.apply_due_rate_resyncs(pulses);
         self.advance_due_layer_ticks()
@@ -181,7 +181,7 @@ impl NativeRunner {
                 }
             }
         }
-        let swing_lead = self.consume_swung_pulses(0);
+        let swing_lead = self.consume_swung_pulses();
         if swing_lead > 0 {
             self.accumulate_layer_pulses(swing_lead);
         }
@@ -238,14 +238,9 @@ impl NativeRunner {
         Swing::new(self.transport.swing_a, self.transport.swing_b)
     }
 
-    fn consume_swung_pulses(&mut self, straight_pulses: u32) -> u32 {
+    fn consume_swung_pulses(&mut self) -> u32 {
         let swing = self.swing();
         let current = self.transport.current_ppqn_pulse;
-        let previous = current.saturating_sub(u64::from(straight_pulses));
-        if swing.is_straight() && self.transport.swung_ppqn_pulse <= previous {
-            self.transport.swung_ppqn_pulse = current;
-            return straight_pulses;
-        }
         let target = if swing.is_straight() {
             current
         } else {

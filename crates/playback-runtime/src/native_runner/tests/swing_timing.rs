@@ -30,7 +30,7 @@ fn eighth_note_layer(swing: (u8, u8)) -> NativeRunner {
             })
             .unwrap();
     }
-    (runner.transport.swing_a, runner.transport.swing_b) = swing;
+    set_swing_through_menu(&mut runner, swing.0.into(), swing.1.into());
     for pressed in [true, false] {
         runner
             .send(HostMessage::DeviceInput {
@@ -113,4 +113,42 @@ fn swing_menu_rows_set_the_ratio_through_the_menu_dispatch() {
     let transport = &runner.config_payload()["runtimeConfig"]["transport"];
     assert_eq!(transport["swingA"], 5);
     assert_eq!(transport["swingB"], 3);
+}
+
+fn set_swing_through_menu(runner: &mut NativeRunner, a: i32, b: i32) {
+    for (key, value) in [("transport.swingA", a), ("transport.swingB", b)] {
+        if runner.menu.set_number_value_for_key(key, value) {
+            runner.apply_or_schedule_menu_key(key).unwrap();
+        }
+    }
+}
+
+#[test]
+fn switching_to_straight_mid_beat_keeps_layers_on_the_bar() {
+    let mut runner = eighth_note_layer((7, 1));
+    note_on_times(&mut runner, 30);
+    set_swing_through_menu(&mut runner, 4, 4);
+    // 7:1 holds the warped clock behind until pulse 21; straight time must hand back the gap.
+    let times = note_on_times(&mut runner, 42);
+    assert_eq!(times.last(), Some(&(42, 0)), "{times:?}");
+    assert!(times
+        .iter()
+        .all(|(pulse, offset)| (pulse + 30) % 12 == 0 && *offset == 0));
+}
+
+#[test]
+fn swing_modulated_across_eight_bars_does_not_drift() {
+    let mut runner = eighth_note_layer((4, 4));
+    let ratios = [(7, 1), (4, 4), (5, 3), (2, 2), (1, 7), (6, 6), (3, 5)];
+    let mut notes = 0;
+    for pulse in 0..(8 * 96) {
+        if pulse % 5 == 0 {
+            let (a, b) = ratios[pulse / 5 % ratios.len()];
+            set_swing_through_menu(&mut runner, a, b);
+        }
+        notes += note_on_times(&mut runner, 1).len();
+    }
+    assert_eq!(notes, 8 * 8);
+    set_swing_through_menu(&mut runner, 4, 4);
+    assert_eq!(note_on_times(&mut runner, 24), vec![(12, 0), (24, 0)]);
 }
