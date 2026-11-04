@@ -5,23 +5,18 @@ use super::{
 };
 use crate::native_menu::binding_picker::play_fx_targets;
 use crate::native_menu::section_labels::PLAY_LABEL;
+use crate::native_runner::play_pages::PLAY_PAGES;
 
 pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    group(
-        PLAY_LABEL,
-        vec![
-            keyed_group("Mix", "play.page.mix", vec![]),
-            keyed_group("Pan", "play.page.pan", vec![]),
-            keyed_group("Route", "play.page.route", vec![]),
-            keyed_group("Tempo", "play.page.tempo", vec![]),
-            keyed_group("LFO", "play.page.lfo", vec![]),
-            keyed_group("FX", "play.page.fx", play_fx_page_children(config)),
-            keyed_group("XY", "play.page.xy", xy_pad_items(config)),
-            keyed_group("Transpose", "play.page.transpose", vec![]),
-            keyed_group("Rate", "play.page.rate", vec![]),
-            keyed_group("Trigger Gate", "play.page.trigger-gate", vec![]),
-        ],
-    )
+    let pages = PLAY_PAGES.iter().map(|page| {
+        let children = match page.mode {
+            "fx" => play_fx_page_children(config),
+            "xy" => xy_pad_items(config),
+            _ => vec![],
+        };
+        keyed_group(page.label, format!("play.page.{}", page.mode), children)
+    });
+    group(PLAY_LABEL, pages.collect())
 }
 
 pub(super) fn play_fx_page_children(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {

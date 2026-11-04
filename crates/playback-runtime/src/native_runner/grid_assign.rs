@@ -1,3 +1,4 @@
+use super::play_pages::PLAY_PAGES;
 use super::*;
 use crate::native_menu::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 
@@ -108,17 +109,8 @@ impl NativeRunner {
 }
 
 fn play_mode_from_page_label(label: &str) -> Option<&'static str> {
-    match label {
-        "Mix" => Some("mix"),
-        "Pan" => Some("pan"),
-        "Route" => Some("route"),
-        "Tempo" => Some("tempo"),
-        "LFO" => Some("lfo"),
-        "FX" => Some("fx"),
-        "Trigger Gate" => Some("trigger-gate"),
-        "Transpose" => Some("transpose"),
-        "Rate" => Some("rate"),
-        "XY" => Some("xy"),
-        _ => None,
-    }
+    PLAY_PAGES
+        .iter()
+        .find(|page| page.label == label)
+        .map(|page| page.mode)
 }

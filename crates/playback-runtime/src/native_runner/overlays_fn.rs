@@ -2,7 +2,7 @@ use super::led_color::{trigger_gate_color, LedColor};
 use super::play_control::MIX_MASTER_COLUMN;
 use super::play_fx_config::play_fx_type;
 use super::play_fx_presentation::play_fx_color;
-use super::play_pages::{MUSICAL_PLAY_PAGES, TECHNICAL_PLAY_PAGES};
+use super::play_pages::{play_page_at, PlayBank};
 use super::play_trigger_gate::TRIGGER_GATE_MODES;
 use super::{
     pan_marker_left_tile, play_fx_tile_id, NativeRunner, BUS_COUNT, GRID_HEIGHT, GRID_WIDTH,
@@ -22,9 +22,9 @@ impl NativeRunner {
         self.paint_fn_page_column(
             leds,
             if self.display.ui.combined_modifier_held {
-                &MUSICAL_PLAY_PAGES
+                PlayBank::Musical
             } else {
-                &TECHNICAL_PLAY_PAGES
+                PlayBank::Technical
             },
         );
     }
@@ -191,10 +191,10 @@ impl NativeRunner {
         }
     }
 
-    fn paint_fn_page_column(&self, leds: &mut [LedColor], pages: &[Option<&str>; GRID_HEIGHT]) {
-        for (row, page) in pages.iter().enumerate() {
-            let color = match page {
-                Some(mode) if self.active_play_mode == *mode => LedColor::GREEN,
+    fn paint_fn_page_column(&self, leds: &mut [LedColor], bank: PlayBank) {
+        for row in 0..GRID_HEIGHT {
+            let color = match play_page_at(bank, row) {
+                Some(mode) if self.active_play_mode == mode => LedColor::GREEN,
                 Some(_) => LedColor::YELLOW.dim(4),
                 None => LedColor::SYSTEM.dim(8),
             };

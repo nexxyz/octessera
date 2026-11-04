@@ -7,29 +7,54 @@ mod rate;
 mod route;
 mod tempo;
 
-/// Fn + right column pages, bottom row first.
-pub(super) const TECHNICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
-    Some("mix"),
-    Some("pan"),
-    Some("route"),
-    Some("tempo"),
-    Some("lfo"),
-    None,
-    None,
-    None,
+/// The right-column page banks: Fn + tile is technical, Shift+Fn + tile musical.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PlayBank {
+    Technical,
+    Musical,
+}
+
+/// One Play page: its saved mode, its Play menu row, and its right-column bank row.
+pub(crate) struct PlayPage {
+    pub(crate) mode: &'static str,
+    pub(crate) label: &'static str,
+    pub(crate) bank: PlayBank,
+    pub(crate) row: usize,
+}
+
+const fn page(mode: &'static str, label: &'static str, bank: PlayBank, row: usize) -> PlayPage {
+    PlayPage {
+        mode,
+        label,
+        bank,
+        row,
+    }
+}
+
+/// Every Play page in menu order: the technical bank, then the musical bank, bottom row first.
+pub(crate) const PLAY_PAGES: [PlayPage; 10] = [
+    page("mix", "Mix", PlayBank::Technical, 0),
+    page("pan", "Pan", PlayBank::Technical, 1),
+    page("route", "Route", PlayBank::Technical, 2),
+    page("tempo", "Tempo", PlayBank::Technical, 3),
+    page("lfo", "LFO", PlayBank::Technical, 4),
+    page("fx", "FX", PlayBank::Musical, 0),
+    page("xy", "XY", PlayBank::Musical, 1),
+    page("transpose", "Transpose", PlayBank::Musical, 2),
+    page("rate", "Rate", PlayBank::Musical, 3),
+    page("trigger-gate", "Trigger Gate", PlayBank::Musical, 4),
 ];
 
-/// Shift+Fn + right column pages, bottom row first.
-pub(super) const MUSICAL_PLAY_PAGES: [Option<&str>; GRID_HEIGHT] = [
-    Some("fx"),
-    Some("xy"),
-    Some("transpose"),
-    Some("rate"),
-    Some("trigger-gate"),
-    None,
-    None,
-    None,
-];
+pub(crate) fn is_play_mode(mode: &str) -> bool {
+    PLAY_PAGES.iter().any(|page| page.mode == mode)
+}
+
+pub(super) fn play_page_at(bank: PlayBank, row: usize) -> Option<&'static str> {
+    PLAY_PAGES
+        .iter()
+        .find(|page| page.bank == bank && page.row == row)
+        .map(|page| page.mode)
+}
 
 /// Live Play page state; never saved.
 #[derive(Debug, Default)]
@@ -47,12 +72,8 @@ pub(super) struct PlayLiveState {
 }
 
 impl NativeRunner {
-    pub(super) fn select_play_page_from_fn_grid(
-        &mut self,
-        pages: &[Option<&str>; GRID_HEIGHT],
-        y: usize,
-    ) {
-        let Some(next_mode) = pages.get(y).copied().flatten() else {
+    pub(super) fn select_play_page_from_fn_grid(&mut self, bank: PlayBank, y: usize) {
+        let Some(next_mode) = play_page_at(bank, y) else {
             return;
         };
         self.play_mode = next_mode.into();

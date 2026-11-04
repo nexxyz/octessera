@@ -2,7 +2,7 @@ use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 use std::time::Instant;
 
 use super::algorithm::LinkRoutingInput;
-use super::play_pages::{MUSICAL_PLAY_PAGES, TECHNICAL_PLAY_PAGES};
+use super::play_pages::PlayBank;
 use super::{
     display_layer_index_from_y, DeviceInput, NativeRunner, NativeToast, RuntimeTransportState,
     SyncSource,
@@ -277,7 +277,7 @@ impl NativeRunner {
         } else if self.display.ui.combined_modifier_held && x == 0 {
             self.toggle_layer_trigger_gate(display_layer_index_from_y(y));
         } else if self.display.ui.combined_modifier_held && x == super::GRID_WIDTH - 1 {
-            self.select_play_page_from_fn_grid(&MUSICAL_PLAY_PAGES, y);
+            self.select_play_page_from_fn_grid(PlayBank::Musical, y);
         } else if self.display.ui.fn_held && x == 0 && !self.display.ui.shift_held {
             self.select_active_layer(display_layer_index_from_y(y))?;
             self.active_play_mode = "none".into();
@@ -285,7 +285,7 @@ impl NativeRunner {
             && x == super::GRID_WIDTH - 1
             && !self.display.ui.shift_held
         {
-            self.select_play_page_from_fn_grid(&TECHNICAL_PLAY_PAGES, y);
+            self.select_play_page_from_fn_grid(PlayBank::Technical, y);
         } else if self.display.ui.shift_held
             && !self.display.ui.fn_held
             && self.active_play_mode == "none"

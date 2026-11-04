@@ -3,6 +3,7 @@ use crate::protocol::SyncSource;
 use super::format::note_unit_to_pulses;
 use super::section_labels::PLAY_PATH_PREFIX;
 use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
+use crate::native_runner::play_pages::PLAY_PAGES;
 
 impl NativeMenuModel {
     pub fn selected_behavior(&self) -> Option<String> {
@@ -38,37 +39,10 @@ impl NativeMenuModel {
 
     pub fn selected_play_mode(&self) -> Option<String> {
         let path = self.current_focus_path();
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Mix")) {
-            return Some("mix".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Pan")) {
-            return Some("pan".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Route")) {
-            return Some("route".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Tempo")) {
-            return Some("tempo".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > LFO")) {
-            return Some("lfo".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > FX")) {
-            return Some("fx".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Trigger Gate")) {
-            return Some("trigger-gate".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Transpose")) {
-            return Some("transpose".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > Rate")) {
-            return Some("rate".into());
-        }
-        if path.starts_with(&format!("{PLAY_PATH_PREFIX} > XY")) {
-            return Some("xy".into());
-        }
-        None
+        PLAY_PAGES
+            .iter()
+            .find(|page| path.starts_with(&format!("{PLAY_PATH_PREFIX} > {}", page.label)))
+            .map(|page| page.mode.into())
     }
 }
 

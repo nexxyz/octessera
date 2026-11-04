@@ -9,6 +9,7 @@ use super::mixer_fx;
 use super::modulation;
 use super::Value;
 use crate::native_menu::HOME_VISUALS;
+use crate::native_runner::play_pages::PLAY_PAGES;
 use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::Map;
 
@@ -30,7 +31,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     enum_field(runtime, "mainFont", "runtimeConfig", FONT_SETS)?;
     enum_field(runtime, "smallFont", "runtimeConfig", FONT_SETS)?;
     enum_field(runtime, "homeVisual", "runtimeConfig", HOME_VISUALS)?;
-    enum_field(runtime, "playMode", "runtimeConfig", PLAY_MODES)?;
+    play_mode_field(runtime, "runtimeConfig")?;
     enum_field(runtime, "auxPriority", "runtimeConfig", AUX_PRIORITIES)?;
     enum_field(runtime, "xyRelease", "runtimeConfig", XY_RELEASES)?;
     validate_dsp(runtime)?;
@@ -61,9 +62,14 @@ fn validate_dsp(runtime: &Map<String, Value>) -> Result<(), String> {
         .map_err(|error| format!("runtimeConfig.dsp is invalid: {error}"))
 }
 
+fn play_mode_field(object: &Map<String, Value>, path: &str) -> Result<(), String> {
+    let modes: Vec<&str> = PLAY_PAGES.iter().map(|page| page.mode).collect();
+    enum_field(object, "playMode", path, &modes)
+}
+
 pub(super) fn validate_system(root: &Map<String, Value>) -> Result<(), String> {
     if let Some(system) = object_field(root, "system", "configuration")? {
-        enum_field(system, "playMode", "configuration.system", PLAY_MODES)?;
+        play_mode_field(system, "configuration.system")?;
     }
     Ok(())
 }
@@ -138,18 +144,6 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
 const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
 const AUX_PRIORITIES: &[&str] = &["manual", "auto"];
 const FONT_SETS: &[&str] = &["octessera", "original"];
-const PLAY_MODES: &[&str] = &[
-    "mix",
-    "pan",
-    "route",
-    "tempo",
-    "lfo",
-    "fx",
-    "xy",
-    "transpose",
-    "rate",
-    "trigger-gate",
-];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
 const PLAY_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
 const PLAY_TARGETS: &[&str] = &[

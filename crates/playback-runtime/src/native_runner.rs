@@ -201,7 +201,7 @@ mod persistence_intent;
 mod play_control;
 mod play_fx_config;
 mod play_fx_presentation;
-mod play_pages;
+pub(crate) mod play_pages;
 mod play_transpose;
 mod play_trigger_gate;
 mod portable_patch_validation;

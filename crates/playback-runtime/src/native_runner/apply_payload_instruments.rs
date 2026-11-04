@@ -4,6 +4,7 @@ use crate::protocol::RuntimePlatformEffect;
 use super::apply_payload_instrument_values::*;
 use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
+use super::play_pages::is_play_mode;
 use super::{
     velocity_curve_from_id, AudioOptimization, AudioOutputSet, NativeRunner, SyncSource,
     UsbDataRole, Value,
@@ -283,9 +284,8 @@ impl NativeRunner {
         }
         if let Some(value) = runtime.get("playMode").and_then(Value::as_str) {
             let normalized = match value {
-                "mix" | "pan" | "route" | "tempo" | "lfo" | "fx" | "xy" | "transpose" | "rate"
-                | "trigger-gate" => Some(value),
                 "none" => Some("mix"),
+                _ if is_play_mode(value) => Some(value),
                 _ => None,
             };
             if let Some(value) = normalized {
