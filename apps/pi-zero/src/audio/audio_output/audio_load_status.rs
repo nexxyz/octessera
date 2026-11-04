@@ -5,6 +5,7 @@ use playback_runtime::{
 };
 use rodio_engine_source::AudioLoadStatusReceiver;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 static MISSED_QUANTUM_SHOWN: AtomicBool = AtomicBool::new(false);
 
@@ -28,24 +29,32 @@ pub(crate) fn drain_audio_load_status(
     playback: &mut PlaybackRuntime,
     reset_pending: bool,
 ) -> RuntimeIngest {
+    let now = Instant::now();
     if playback
         .last_status()
         .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
     {
         let mut changed = reset_pending
-            && playback.update_native_presentation_metrics(RuntimePresentationMetrics::default());
+            && playback
+                .update_native_presentation_metrics(RuntimePresentationMetrics::default(), now);
         let mut newest = None;
+        let mut clipped = false;
         while let Ok(status) = load_rx.try_recv() {
             log_block_overrun(&status);
             log_missed_quantum(&status);
+            clipped |= status.output_clipped;
             newest = Some(status);
         }
         if let Some(status) = newest {
-            changed |= playback.update_native_presentation_metrics(RuntimePresentationMetrics {
-                audio_load_ratio: status.ratio,
-                worker_utilization: status.worker_utilization,
-                missed_quantum_flash: status.missed_quantum_flash,
-            });
+            changed |= playback.update_native_presentation_metrics(
+                RuntimePresentationMetrics {
+                    audio_load_ratio: status.ratio,
+                    worker_utilization: status.worker_utilization,
+                    missed_quantum_flash: status.missed_quantum_flash,
+                    output_clipped: clipped,
+                },
+                now,
+            );
         }
         if changed {
             playback.request_next_snapshot();
@@ -53,22 +62,28 @@ pub(crate) fn drain_audio_load_status(
         return RuntimeIngest::default();
     }
     let mut output = if reset_pending {
-        playback.update_presentation_metrics(RuntimePresentationMetrics::default())
+        playback.update_presentation_metrics(RuntimePresentationMetrics::default(), now)
     } else {
         RuntimeIngest::default()
     };
     let mut newest = None;
+    let mut clipped = false;
     while let Ok(status) = load_rx.try_recv() {
         log_block_overrun(&status);
         log_missed_quantum(&status);
+        clipped |= status.output_clipped;
         newest = Some(status);
     }
     if let Some(status) = newest {
-        let next = playback.update_presentation_metrics(RuntimePresentationMetrics {
-            audio_load_ratio: status.ratio,
-            worker_utilization: status.worker_utilization,
-            missed_quantum_flash: status.missed_quantum_flash,
-        });
+        let next = playback.update_presentation_metrics(
+            RuntimePresentationMetrics {
+                audio_load_ratio: status.ratio,
+                worker_utilization: status.worker_utilization,
+                missed_quantum_flash: status.missed_quantum_flash,
+                output_clipped: clipped,
+            },
+            now,
+        );
         output.messages.extend(next.messages);
         output.follow_ups.extend(next.follow_ups);
     }

@@ -90,6 +90,7 @@ pub struct EngineSource {
     load_tx: Option<AudioLoadStatusSender>,
     last_load_report: Instant,
     pending_load_status_after_fresh: bool,
+    output_clipped: bool,
     telemetry: EngineTelemetry,
     retired_tx: SourceOwned<Sender<RetiredAudioItem>>,
     retired_backlog: Option<RetiredAudioBacklog>,
@@ -238,6 +239,7 @@ impl EngineSource {
             load_tx,
             last_load_report: Instant::now(),
             pending_load_status_after_fresh: false,
+            output_clipped: false,
             telemetry: EngineTelemetry::default(),
             retired_tx: SourceOwned::new(retired_tx),
             retired_backlog: Some(RetiredAudioBacklog::new()),
@@ -287,6 +289,7 @@ impl EngineSource {
             #[cfg(feature = "routing-tree-executor")]
             EngineSourceMode::RoutingTree => self.refill_routing_tree(),
         };
+        self.output_clipped |= self.engine.take_output_clipped();
         self.publish_mirrors();
         self.signal_tap
             .publish_master(&self.buf, self.block_frames, self.sample_rate);
@@ -377,9 +380,11 @@ impl EngineSource {
         let mut status = self.engine.audio_load_status();
         self.telemetry.apply_to_status(&mut status);
         self.persistent_output.apply_to_status(&mut status);
+        status.output_clipped = self.output_clipped;
         let status_queued = load_tx.try_send(status);
         if status_queued {
             self.telemetry.reset_peak();
+            self.output_clipped = false;
         }
         if status_queued || !acknowledge_send {
             self.last_load_report = Instant::now();

@@ -10,6 +10,8 @@ pub(super) const RULE_Y: usize = 8;
 /// The breadcrumb ends at or before this column, left of the header icons.
 pub(super) const BREADCRUMB_RIGHT: usize = 103;
 const ICON_Y: usize = 0;
+/// While the output clips, `CLIP` takes the breadcrumb's last 16 columns (88..103).
+const CLIP_X: usize = 88;
 const MISSED_QUANTUM_X: usize = 106;
 const SAVE_X: usize = 113;
 const CPU_X: usize = 120;
@@ -28,14 +30,18 @@ pub(crate) fn breadcrumb_fits(text: &str) -> bool {
 pub(super) fn draw_header(frame: &mut [u8], input: &OledPresentationInput) {
     let area = input.display.title_color;
     let title = title_text_for_oled(&input.display.title);
-    input.display.small_font.small().draw_fitted(
-        frame,
-        &title,
-        BREADCRUMB_RIGHT + 1,
-        0,
-        ICON_Y,
-        area,
-    );
+    let small = input.display.small_font.small();
+    let clipping = input.metrics.output_clipping;
+    let title_width = if clipping {
+        CLIP_X - 1
+    } else {
+        BREADCRUMB_RIGHT + 1
+    };
+    small.draw_fitted(frame, &title, title_width, 0, ICON_Y, area);
+    if clipping {
+        let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
+        small.draw(frame, "CLIP", CLIP_X, ICON_Y, red);
+    }
     fill_rect(frame, 0, RULE_Y, 128, 1, shade(area, STATIC_CHROME_LEVEL));
     draw_cpu_meter(frame, input);
     if input.save_flash == OledSaveFlash::Flash {

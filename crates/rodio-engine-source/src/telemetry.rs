@@ -127,6 +127,7 @@ mod tests {
             ratio,
             worker_utilization: Some(ratio),
             missed_quantum_flash: false,
+            output_clipped: false,
             block_ratio_p95: ratio,
             block_ratio_max: ratio,
             blocks: 0,

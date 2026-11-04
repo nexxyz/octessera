@@ -47,6 +47,7 @@ pub struct RuntimePresentationMetrics {
     pub audio_load_ratio: f32,
     pub worker_utilization: Option<f32>,
     pub missed_quantum_flash: bool,
+    pub output_clipped: bool,
 }
 
 pub enum RuntimeDispatchInput {

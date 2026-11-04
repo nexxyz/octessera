@@ -45,7 +45,7 @@ impl SynthEngine {
 
     /// One frame's mix down to the master output; with `TAP` it also keeps `tapped_bus`'s
     /// chain output in `tapped_bus_sample`.
-    fn finish_serial_frame<const TAP: bool>(
+    pub(super) fn finish_serial_frame<const TAP: bool>(
         &mut self,
         slot_out: [f32; INSTRUMENT_SLOT_COUNT],
         sample_active: bool,
@@ -85,10 +85,10 @@ impl SynthEngine {
             };
         }
         self.sample_clock = self.sample_clock.saturating_add(1);
-        (
-            (left * self.master_volume).clamp(-1.0, 1.0),
-            (right * self.master_volume).clamp(-1.0, 1.0),
-        )
+        let left = left * self.master_volume;
+        let right = right * self.master_volume;
+        self.output_clipped |= left.abs().max(right.abs()) > 1.0;
+        (left.clamp(-1.0, 1.0), right.clamp(-1.0, 1.0))
     }
 
     fn block_slot_frame_graph(
@@ -206,6 +206,7 @@ impl SynthEngine {
         left: &mut [f32],
         right: &mut [f32],
     ) {
+        let mut clipped = false;
         for frame in 0..frames {
             let mut frame_left = left[frame];
             let mut frame_right = right[frame];
@@ -229,9 +230,18 @@ impl SynthEngine {
                     };
             }
             self.sample_clock = self.sample_clock.saturating_add(1);
-            left[frame] = (frame_left * self.master_volume).clamp(-1.0, 1.0);
-            right[frame] = (frame_right * self.master_volume).clamp(-1.0, 1.0);
+            let frame_left = frame_left * self.master_volume;
+            let frame_right = frame_right * self.master_volume;
+            clipped |= frame_left.abs().max(frame_right.abs()) > 1.0;
+            left[frame] = frame_left.clamp(-1.0, 1.0);
+            right[frame] = frame_right.clamp(-1.0, 1.0);
         }
+        self.output_clipped |= clipped;
+    }
+
+    /// Whether the output went over full scale before the master clamp since the last call.
+    pub fn take_output_clipped(&mut self) -> bool {
+        std::mem::take(&mut self.output_clipped)
     }
 
     pub fn render_interleaved_block(

@@ -2,6 +2,7 @@ use super::oled_runtime_fixtures::{present, snapshot, status};
 use super::support::{FakeHost, FakeRunner};
 use crate::{PlaybackRuntime, RunnerMessage, RuntimeConfig, RuntimePresentationMetrics};
 use serde_json::json;
+use std::time::Instant;
 
 #[test]
 fn invalid_first_presentation_is_status_only_and_recovery_is_positive_revisioned() {
@@ -80,11 +81,14 @@ fn every_emitted_snapshot_has_a_positive_revision_across_runtime_paths() {
         .unwrap();
     assert_positive_snapshot_revisions(&platform.messages);
 
-    let metrics = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        audio_load_ratio: 0.9,
-        worker_utilization: Some(0.93),
-        ..Default::default()
-    });
+    let metrics = runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            audio_load_ratio: 0.9,
+            worker_utilization: Some(0.93),
+            ..Default::default()
+        },
+        Instant::now(),
+    );
     assert_positive_snapshot_revisions(&metrics.messages);
 
     let recovery = runtime
@@ -238,10 +242,13 @@ fn visible_oled_inputs_rebuild_pixels_while_metrics_and_errors_remain_live() {
     ] if snapshot["oledFrameRevision"] == 2 && pixels != &initial_pixels));
     assert_eq!(runtime.test_oled_render_count(), 2);
 
-    let metrics = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        worker_utilization: Some(0.9),
-        ..Default::default()
-    });
+    let metrics = runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            worker_utilization: Some(0.9),
+            ..Default::default()
+        },
+        Instant::now(),
+    );
     assert_positive_snapshot_revisions(&metrics.messages);
     assert_eq!(runtime.test_oled_render_count(), 3);
 

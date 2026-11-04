@@ -3,6 +3,7 @@ use crate::{
     PlaybackRuntime, RunnerMessage, RuntimeConfig, RuntimeErrorCode, RuntimeErrorDomain,
     RuntimeErrorMetadata, RuntimeOperation, RuntimePresentationMetrics, RuntimeRecovery,
 };
+use std::time::{Duration, Instant};
 
 #[test]
 fn native_state_reads_normalized_metrics_without_revising_or_serializing_oled() {
@@ -16,11 +17,14 @@ fn native_state_reads_normalized_metrics_without_revising_or_serializing_oled() 
             &mut host,
         )
         .unwrap();
-    runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        worker_utilization: Some(0.93),
-        missed_quantum_flash: true,
-        ..Default::default()
-    });
+    runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            worker_utilization: Some(0.93),
+            missed_quantum_flash: true,
+            ..Default::default()
+        },
+        Instant::now(),
+    );
     let revision = runtime.oled_frame_revision();
     let snapshot_revision = runtime.last_snapshot_revision();
     let snapshot = runtime.last_snapshot().cloned();
@@ -33,10 +37,13 @@ fn native_state_reads_normalized_metrics_without_revising_or_serializing_oled() 
     assert_eq!(runtime.oled_frame_revision(), revision);
     assert_eq!(runtime.last_snapshot_revision(), snapshot_revision);
     assert_eq!(runtime.last_snapshot(), snapshot.as_ref());
-    runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        worker_utilization: None,
-        ..Default::default()
-    });
+    runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            worker_utilization: None,
+            ..Default::default()
+        },
+        Instant::now(),
+    );
     let (metrics, _) = runtime.native_presentation_state();
     assert_eq!(metrics.worker_utilization, None);
 }
@@ -199,8 +206,9 @@ fn native_metric_updates_change_only_typed_state_and_report_normalized_edges() {
         audio_load_ratio: 0.9,
         worker_utilization: Some(0.91),
         missed_quantum_flash: true,
+        output_clipped: false,
     };
-    assert!(runtime.update_native_presentation_metrics(first));
+    assert!(runtime.update_native_presentation_metrics(first, Instant::now()));
     let (metrics, error) = runtime.native_presentation_state();
     assert_eq!(metrics.worker_utilization, Some(0.91));
     assert!(metrics.missed_quantum_flash);
@@ -208,23 +216,25 @@ fn native_metric_updates_change_only_typed_state_and_report_normalized_edges() {
     let revision = runtime.oled_frame_revision();
     let snapshot_revision = runtime.last_snapshot_revision();
     let render_count = runtime.test_oled_render_count();
-    assert!(
-        !runtime.update_native_presentation_metrics(RuntimePresentationMetrics {
+    assert!(!runtime.update_native_presentation_metrics(
+        RuntimePresentationMetrics {
             audio_load_ratio: 0.1,
             ..first
-        })
-    );
+        },
+        Instant::now()
+    ));
     assert_eq!(runtime.oled_frame_revision(), revision);
     assert_eq!(runtime.last_snapshot_revision(), snapshot_revision);
     assert_eq!(runtime.test_oled_render_count(), render_count);
 
-    assert!(
-        runtime.update_native_presentation_metrics(RuntimePresentationMetrics {
+    assert!(runtime.update_native_presentation_metrics(
+        RuntimePresentationMetrics {
             worker_utilization: None,
             missed_quantum_flash: false,
             ..Default::default()
-        })
-    );
+        },
+        Instant::now()
+    ));
     let (cleared, _) = runtime.native_presentation_state();
     assert_eq!(cleared.worker_utilization, None);
     assert!(!cleared.missed_quantum_flash);
@@ -242,20 +252,43 @@ fn cpu_load_holds_the_one_second_peak() {
             worker_utilization,
             ..Default::default()
         };
-    runtime.update_native_presentation_metrics(report(Some(0.87), 0.1));
+    runtime.update_native_presentation_metrics(report(Some(0.87), 0.1), Instant::now());
     let mut peaks = Vec::new();
     for _ in 0..10 {
-        runtime.update_native_presentation_metrics(report(Some(0.2), 0.1));
+        runtime.update_native_presentation_metrics(report(Some(0.2), 0.1), Instant::now());
         let (metrics, _) = runtime.native_presentation_state();
         peaks.push(metrics.cpu_load_peak_percent);
     }
     assert_eq!(peaks, [85, 85, 85, 85, 85, 85, 85, 85, 85, 20]);
 
     for _ in 0..10 {
-        runtime.update_native_presentation_metrics(report(None, 0.62));
+        runtime.update_native_presentation_metrics(report(None, 0.62), Instant::now());
     }
     assert_eq!(
         runtime.native_presentation_state().0.cpu_load_peak_percent,
         60
     );
+}
+
+#[test]
+fn clip_shows_at_once_and_clears_two_seconds_after_the_last_clipped_report() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let start = Instant::now();
+    let report = |output_clipped: bool| RuntimePresentationMetrics {
+        output_clipped,
+        ..Default::default()
+    };
+    let at = |ms: u64| start + Duration::from_millis(ms);
+    let clipping =
+        |runtime: &PlaybackRuntime| runtime.native_presentation_state().0.output_clipping;
+
+    assert!(!runtime.update_native_presentation_metrics(report(false), at(0)));
+    assert!(runtime.update_native_presentation_metrics(report(true), at(100)));
+    assert!(clipping(&runtime));
+    assert!(!runtime.update_native_presentation_metrics(report(true), at(1_000)));
+    assert!(!runtime.update_native_presentation_metrics(report(false), at(2_900)));
+    assert!(clipping(&runtime));
+    assert!(runtime.update_native_presentation_metrics(report(false), at(3_000)));
+    assert!(!clipping(&runtime));
+    assert!(!runtime.update_native_presentation_metrics(report(false), at(9_000)));
 }

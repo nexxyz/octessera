@@ -77,7 +77,9 @@ impl RuntimeWorker {
                 self.emit_runtime_output(output)?;
             }
             WorkerCommand::PresentationMetrics(metrics) => {
-                let output = self.playback.update_presentation_metrics(metrics);
+                let output = self
+                    .playback
+                    .update_presentation_metrics(metrics, Instant::now());
                 self.emit_runtime_output(output)?;
             }
         }

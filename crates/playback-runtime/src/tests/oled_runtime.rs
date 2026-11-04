@@ -7,6 +7,7 @@ use crate::{
 };
 use base64::Engine;
 use serde_json::json;
+use std::time::Instant;
 
 #[test]
 fn first_changed_and_unchanged_presentations_have_ordered_revisioned_frames() {
@@ -72,17 +73,23 @@ fn normalized_metrics_only_publish_visible_changes() {
     metric_snapshot["eventDotLevel"] = json!(4);
     let _ = present(&mut runtime, metric_snapshot);
     assert!(runtime
-        .update_presentation_metrics(RuntimePresentationMetrics {
-            audio_load_ratio: 0.02,
-            ..Default::default()
-        })
+        .update_presentation_metrics(
+            RuntimePresentationMetrics {
+                audio_load_ratio: 0.02,
+                ..Default::default()
+            },
+            Instant::now()
+        )
         .messages
         .is_empty());
-    let hot = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        audio_load_ratio: 0.85,
-        worker_utilization: Some(0.93),
-        ..Default::default()
-    });
+    let hot = runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            audio_load_ratio: 0.85,
+            worker_utilization: Some(0.93),
+            ..Default::default()
+        },
+        Instant::now(),
+    );
     assert!(matches!(
         hot.messages.as_slice(),
         [
@@ -105,11 +112,14 @@ fn missed_quantum_flash_preserves_native_transition_independently_of_cpu_warning
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let _ = present(&mut runtime, snapshot("metrics"));
 
-    let missed = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        worker_utilization: Some(0.9),
-        missed_quantum_flash: true,
-        ..Default::default()
-    });
+    let missed = runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            worker_utilization: Some(0.9),
+            missed_quantum_flash: true,
+            ..Default::default()
+        },
+        Instant::now(),
+    );
     assert_eq!(
         missed.messages.iter().find_map(|message| match message {
             RunnerMessage::Snapshot { snapshot } => snapshot.get("missedQuantumFlash"),
@@ -118,11 +128,14 @@ fn missed_quantum_flash_preserves_native_transition_independently_of_cpu_warning
         Some(&json!(true))
     );
 
-    let cleared = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        worker_utilization: Some(0.9),
-        missed_quantum_flash: false,
-        ..Default::default()
-    });
+    let cleared = runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            worker_utilization: Some(0.9),
+            missed_quantum_flash: false,
+            ..Default::default()
+        },
+        Instant::now(),
+    );
     assert_eq!(
         cleared.messages.iter().find_map(|message| match message {
             RunnerMessage::Snapshot { snapshot } => snapshot.get("missedQuantumFlash"),
@@ -141,10 +154,13 @@ fn aggregate_load_ratio_drives_the_cpu_meter_without_worker_metrics() {
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let _ = present(&mut runtime, snapshot("metrics"));
 
-    let output = runtime.update_presentation_metrics(RuntimePresentationMetrics {
-        audio_load_ratio: 1.0,
-        ..Default::default()
-    });
+    let output = runtime.update_presentation_metrics(
+        RuntimePresentationMetrics {
+            audio_load_ratio: 1.0,
+            ..Default::default()
+        },
+        Instant::now(),
+    );
 
     assert!(matches!(
         output.messages.as_slice(),

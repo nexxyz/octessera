@@ -8,14 +8,17 @@ use crate::protocol::{
     RuntimeRecovery,
 };
 use serde_json::Value;
+use std::time::{Duration, Instant};
 
 const CPU_LOAD_PEAK_REPORTS: usize = 10;
+const CLIP_HOLD: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct RuntimeOled {
     pub(super) normalized_metrics: OledPresentationMetrics,
     cpu_load_reports: [u8; CPU_LOAD_PEAK_REPORTS],
     next_cpu_load_report: usize,
+    clip_hold_until: Option<Instant>,
     current: Vec<u8>,
     scratch: Vec<u8>,
     revision: u64,
@@ -41,6 +44,7 @@ impl Default for RuntimeOled {
             normalized_metrics: OledPresentationMetrics::default(),
             cpu_load_reports: [0; CPU_LOAD_PEAK_REPORTS],
             next_cpu_load_report: 0,
+            clip_hold_until: None,
             current: vec![0; OLED_FRAME_BYTES],
             scratch: vec![0; OLED_FRAME_BYTES],
             revision: 0,
@@ -66,6 +70,7 @@ impl RuntimeOled {
     fn normalize_metrics(
         &mut self,
         metrics: RuntimePresentationMetrics,
+        now: Instant,
     ) -> OledPresentationMetrics {
         let load = metrics
             .worker_utilization
@@ -78,6 +83,10 @@ impl RuntimeOled {
             metrics.missed_quantum_flash,
         );
         normalized.cpu_load_peak_percent = self.cpu_load_reports.iter().copied().max().unwrap_or(0);
+        if metrics.output_clipped {
+            self.clip_hold_until = Some(now + CLIP_HOLD);
+        }
+        normalized.output_clipping = self.clip_hold_until.is_some_and(|until| now < until);
         normalized
     }
 
@@ -207,11 +216,13 @@ impl PlaybackRuntime {
         self.oled.has_frame.then_some(self.oled.current.as_slice())
     }
 
+    /// `now` is when the audio status arrived; it times the CLIP hold.
     pub fn update_presentation_metrics(
         &mut self,
         metrics: RuntimePresentationMetrics,
+        now: Instant,
     ) -> RuntimeIngest {
-        let normalized = self.oled.normalize_metrics(metrics);
+        let normalized = self.oled.normalize_metrics(metrics, now);
         if normalized == self.oled.normalized_metrics {
             return RuntimeIngest::default();
         }
@@ -226,8 +237,9 @@ impl PlaybackRuntime {
     pub fn update_native_presentation_metrics(
         &mut self,
         metrics: RuntimePresentationMetrics,
+        now: Instant,
     ) -> bool {
-        let normalized = self.oled.normalize_metrics(metrics);
+        let normalized = self.oled.normalize_metrics(metrics, now);
         if normalized == self.oled.normalized_metrics {
             return false;
         }

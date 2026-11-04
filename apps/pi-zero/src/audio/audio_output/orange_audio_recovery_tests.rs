@@ -250,6 +250,7 @@ fn load_status(worker_utilization: f32) -> realtime_engine::synth::AudioLoadStat
         ratio: 0.2,
         worker_utilization: Some(worker_utilization),
         missed_quantum_flash: false,
+        output_clipped: false,
         block_ratio_p95: 0.2,
         block_ratio_max: 0.2,
         blocks: 1,

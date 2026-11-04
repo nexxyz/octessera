@@ -93,6 +93,7 @@ pub(crate) fn spawn_load_listener(
                     audio_load_ratio: status.ratio,
                     worker_utilization: status.worker_utilization,
                     missed_quantum_flash: status.missed_quantum_flash,
+                    output_clipped: status.output_clipped,
                 },
             ));
             let _ = app_handle.emit(

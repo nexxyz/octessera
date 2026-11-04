@@ -73,6 +73,7 @@ fn status(worker_utilization: Option<f32>, missed_quantum_flash: bool) -> AudioL
         ratio: 0.2,
         worker_utilization,
         missed_quantum_flash,
+        output_clipped: false,
         block_ratio_p95: 0.2,
         block_ratio_max: 0.2,
         blocks: 1,

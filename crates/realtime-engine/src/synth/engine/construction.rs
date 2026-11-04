@@ -69,6 +69,7 @@ impl SynthEngine {
             worker_utilization_ppm: None,
             signal_tap: master_signal_tap(),
             tapped_bus_sample: 0.0,
+            output_clipped: false,
         }
     }
 

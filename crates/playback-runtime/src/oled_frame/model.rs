@@ -290,6 +290,7 @@ pub struct OledPresentationMetrics {
     pub worker_utilization: Option<f32>,
     pub cpu_load_peak_percent: u8,
     pub missed_quantum_flash: bool,
+    pub output_clipping: bool,
 }
 
 impl OledPresentationMetrics {
@@ -298,6 +299,7 @@ impl OledPresentationMetrics {
             worker_utilization,
             cpu_load_peak_percent: 0,
             missed_quantum_flash,
+            output_clipping: false,
         }
     }
 }

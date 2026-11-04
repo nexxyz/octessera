@@ -1,4 +1,5 @@
 use super::error_layout::runtime_error_rows;
+use super::font::OledFont;
 use super::model::*;
 use super::pixels::rgb565;
 use super::render::render_oled_frame;
@@ -155,6 +156,43 @@ fn header_icons_sit_left_of_the_cpu_meter_on_the_crumb_line() {
 
     let plain = render_oled_frame(&base());
     assert!((104..120).all(|x| (0..8).all(|y| pixel(&plain, x, y) == 0)));
+}
+
+#[test]
+fn clip_takes_the_crumb_end_in_red_and_shortens_only_a_long_crumb() {
+    let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
+    let header = |frame: &[u8], xs: std::ops::Range<usize>| {
+        xs.flat_map(|x| (0..8).map(move |y| (x, y)))
+            .map(|(x, y)| pixel(frame, x, y))
+            .collect::<Vec<_>>()
+    };
+    for font in [OledFont::Octessera, OledFont::Original] {
+        for (title, long) in [
+            ("/System", false),
+            ("../L1: life/Y Axis/Slot 1/Build", true),
+        ] {
+            let mut input = base();
+            input.display.small_font = font;
+            input.display.title = title.into();
+            let plain = render_oled_frame(&input);
+            input.metrics.output_clipping = true;
+            let clipping = render_oled_frame(&input);
+
+            let crumb_end = header(&plain, 88..104);
+            assert_eq!(crumb_end.contains(&AREA), long, "{font:?} {title}");
+            let clip = header(&clipping, 87..104);
+            assert!(clip.iter().all(|pixel| [0, red].contains(pixel)));
+            assert!(header(&clipping, 87..88).iter().all(|pixel| *pixel == 0));
+            assert!(clip.contains(&red));
+            assert_eq!(header(&clipping, 104..128), header(&plain, 104..128));
+            assert_eq!(clipping[128 * 8 * 2..], plain[128 * 8 * 2..]);
+            assert_eq!(
+                header(&clipping, 0..88) == header(&plain, 0..88),
+                !long,
+                "{font:?} {title}"
+            );
+        }
+    }
 }
 
 #[test]

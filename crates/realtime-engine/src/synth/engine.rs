@@ -267,6 +267,7 @@ pub struct SynthEngine {
     worker_utilization_ppm: Option<u32>,
     signal_tap: &'static SignalTap,
     tapped_bus_sample: f32,
+    output_clipped: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

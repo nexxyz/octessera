@@ -170,6 +170,47 @@ fn sample_bank(samples: Vec<f32>) -> SampleBankConfig {
     bank
 }
 
+#[test]
+fn serial_frames_flag_output_over_full_scale_until_taken() {
+    let mut engine = SynthEngine::new(48_000);
+    let silent = [0.0_f32; INSTRUMENT_SLOT_COUNT];
+    let frame = |engine: &mut SynthEngine, preview: f32| {
+        engine.finish_serial_frame::<false>(silent, false, preview, true, false, 0)
+    };
+    assert_eq!(frame(&mut engine, 1.0), (1.0, 1.0));
+    assert!(!engine.take_output_clipped());
+
+    assert_eq!(frame(&mut engine, 1.5), (1.0, 1.0));
+    frame(&mut engine, 0.25);
+    assert!(engine.take_output_clipped());
+    frame(&mut engine, 0.25);
+    assert!(!engine.take_output_clipped());
+
+    engine.master_volume = 0.5;
+    frame(&mut engine, 1.5);
+    assert!(!engine.take_output_clipped());
+}
+
+#[cfg(feature = "routing-tree-executor")]
+#[test]
+fn persistent_blocks_flag_output_over_full_scale_until_taken() {
+    let mut engine = SynthEngine::new(48_000);
+    let block = |engine: &mut SynthEngine, peak: f32| {
+        let mut left = [0.25, -peak, 0.5];
+        let mut right = [0.0, 0.25, peak];
+        engine.finish_persistent_block(3, &mut left, &mut right);
+        (left, right)
+    };
+    block(&mut engine, 1.0);
+    assert!(!engine.take_output_clipped());
+
+    let (left, right) = block(&mut engine, 1.25);
+    assert_eq!((left[1], right[2]), (-1.0, 1.0));
+    assert!(engine.take_output_clipped());
+    block(&mut engine, 0.5);
+    assert!(!engine.take_output_clipped());
+}
+
 include!("scalar_fx_tests.rs");
 include!("scalar_param_contract_tests.rs");
 include!("scalar_control_tests.rs");

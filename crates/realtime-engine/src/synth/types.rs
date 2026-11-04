@@ -84,6 +84,7 @@ pub struct AudioLoadStatus {
     pub ratio: f32,
     pub worker_utilization: Option<f32>,
     pub missed_quantum_flash: bool,
+    pub output_clipped: bool,
     pub block_ratio_p95: f32,
     pub block_ratio_max: f32,
     pub blocks: u64,
