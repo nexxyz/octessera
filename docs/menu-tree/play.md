@@ -195,7 +195,7 @@ The menu lists the technical bank, then the musical bank.
 - LEDs: stutter yellow, freeze blue, filter_sweep green, pitch_shift magenta. Assigned idle tiles are
   bright, active tiles add white, and tiles blocked by a limit are dimmed.
 - `Aux Map` lists the Play FX params and `Map to Grid` that auto-map to aux. Rows are editable but
-  do not change the mapping target; OLED prefixes use the live `1-` turn and `1!` press markers.
+  do not change the mapping target; they wear the same Aux caps as the live auto-mapped rows.
 
 | FX Type | Rows | Behavior |
 |---|---|---|

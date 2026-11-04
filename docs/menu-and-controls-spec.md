@@ -444,8 +444,8 @@ behavior primary red), so a mute never reads as a section color.
   sets, targets, `(none)`) carry no `!`. The `Current:` shortcut row keeps it, as do actions in
   the sample browser and preset/kit lists and on ordinary pages.
 - `!` marks an action row. Plain action rows drop one leading display space so the text lines up
-  with ordinary rows. Auto-mapped rows keep normal alignment because the `1-` and `1!` prefixes are
-  the same width; shifted rows use `S1-`/`S1!`.
+  with ordinary rows. The OLED marks Aux-run rows with a gutter cap (below); only the text
+  snapshot lines prefix them with `1-` (turn) or `1!` (click), `S1-`/`S1!` for the Shift bank.
 - Snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`).
   When more than 8 rows exist, a 2 px scrollbar sits at `x=126..127`, `y=10..111`: a track at 1/6
   of the area colour and a thumb in the area colour, `max(6, 8*102/totalRows)` px tall. It is
@@ -806,8 +806,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   the Fn mapping overlay.
 - Each layout lists up to six entries in order of how often they are played: the first three go
   to Aux 1-3, the rest to Shift + Aux 1-3.
-- Focused rows show indicators such as `1-Cutoff`, `1!Assign` and `S1-Key` in place of the row
-  indent, selected or not.
+- Rows an Aux runs wear its gutter cap ([Body rows](#body-rows)), selected or not. The text
+  snapshot lines show the same as `1-Cutoff`, `1!Assign` or `S1-Key` in place of the row indent.
 - Behavior rows map Step Rate to Aux 1 and a behavior-specific set after it (for example Life:
   Count, then Interval with a Spawn press, then the glider Interval with a Glider press on
   Shift + Aux 1).

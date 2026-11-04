@@ -116,10 +116,9 @@ OLED markers:
 
 | Marker | Meaning |
 |---|---|
-| `1-Cutoff` | *Aux 1* turn is bound or auto-mapped to Cutoff. |
-| `1!Assign` | *Aux 1* click is bound or auto-mapped to Assign. |
-| `S1-Key` | *Shift* + *Aux 1* turn is auto-mapped to Key. |
-| `1-` and `1!` on one row | That encoder has both a turn and a click binding here. |
+| A little cap left of a row | An Aux encoder turns or clicks this row, bound by you or by auto-map. One pip is *Aux 1*, two pips *Aux 2*, three *Aux 3*. |
+| A bar under the cap | It's the *Shift* bank: hold *Shift* while you turn or click that encoder. |
+| Bottom left of the screen | One cap per Aux encoder with what it does on this page: the turn label, and the click label with a `!` (the click sits above the turn when there are both). Hold *Shift* to see the *Shift* bank. Switch off `System > Display > Auto Hints` or `Manual Hints` to drop the auto-mapped or your own hints there; the row caps stay. |
 | `not active` toast | The binding still exists, but its target is hidden or inactive right now. |
 
 ## Grid navigation
