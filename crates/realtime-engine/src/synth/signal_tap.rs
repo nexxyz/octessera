@@ -4,9 +4,9 @@
 use super::types::{BUS_COUNT, INSTRUMENT_SLOT_COUNT};
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 
-pub const SIGNAL_TAP_CAPACITY: usize = 2048;
+const SIGNAL_TAP_CAPACITY: usize = 2048;
 /// Each tapped sample is the mono average of this many output frames.
-pub const SIGNAL_TAP_DECIMATION: usize = 2;
+const SIGNAL_TAP_DECIMATION: usize = 2;
 /// The interleaved samples one tapped master sample averages.
 const GROUP: usize = 2 * SIGNAL_TAP_DECIMATION;
 const MONO_SCALE: f32 = 1.0 / GROUP as f32;
