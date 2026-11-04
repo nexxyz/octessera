@@ -28,7 +28,7 @@ The shipped patch already has Layer 1 running `life` into a synth.
 3. Press **Space** to start playback.
 4. Hold **Ctrl** (the simulator's *Fn*) and click the second tile from the
    bottom in the right-hand grid column to open **Play Pan**. Each row is an
-   instrument; click left, centre or right on the synth's row (the bottom one)
+   instrument; click left, center or right on the synth's row (the bottom one)
    to move it across the stereo field.
 5. Press **Backspace** to leave Play Pan.
 
@@ -60,6 +60,6 @@ Everything else works the same as on the hardware, combos included, so the
 The simulator plays through your computer's audio output, and its own audio
 settings don't change the computer's default output. It doesn't reproduce the
 feel of the physical grid and encoders, the LED brightness, the DAC, power
-behaviour or USB gadget connections, and board-only rows (Bluetooth, SD Card 2,
+behavior or USB gadget connections, and board-only rows (Bluetooth, SD Card 2,
 HDMI Video, Live Show Mode) aren't in its System menu. Recording works and
 saves to your Music folder; see [Recording](recording.md).

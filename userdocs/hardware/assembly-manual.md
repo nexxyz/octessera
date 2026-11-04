@@ -154,7 +154,7 @@ address jumpers, because you set them from the back, where left and right swap.
    lower-right **as seen from the play surface**.
 2. Turn the whole arrangement over as one piece. From here on, positions are as
    seen **from the bottom**.
-3. Solder 20 straight male header pins between neighbouring boards to join them.
+3. Solder 20 straight male header pins between neighboring boards to join them.
 4. Add 5 straight male header pins at the north end of the west (left) edge of
    the board that is upper-left as seen from the play surface. Looking at the
    bottom, that's the top end of the upper-right board's right-hand edge. This
@@ -185,7 +185,7 @@ Now put it together on the bench, case still off.
    NeoTrellis board with five female-to-female Dupont leads. Match `INT`,
    `VIN`, `GND`, `SCL` and `SDA` by their labels, using the [J1 pin
    reference](../../hardware/docs/pinout-and-connections.md#other-connections).
-   Do not trust cable colours or assume the pin order is the same at both ends.
+   Do not trust cable colors or assume the pin order is the same at both ends.
 3. Check orientation before power: on the NeoKey and the NeoTrellis connector,
    `INT` must be on the south side.
 4. If your build has the optional Orange Pi antenna, connect it now and fix it

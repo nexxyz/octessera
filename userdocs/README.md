@@ -199,7 +199,7 @@ To add your own WAVs:
 
 | Where | Folder |
 |---|---|
-| Desktop, Windows | `%APPDATA%\octessera\samples` (the browser's `User data` favourite) |
+| Desktop, Windows | `%APPDATA%\octessera\samples` (the browser's `User data` favorite) |
 | Desktop, Linux | `~/.local/share/octessera/samples` |
 | Raspberry | `/home/pi/samples` (copy over SSH) |
 | Orange | `/var/lib/octessera/samples` |
@@ -209,7 +209,7 @@ SD2 is the optional card in the OLED board; the compute board's boot card is
 SD1. Format it as FAT32 or exFAT and name the volume `OCTESSERA` exactly, or
 the instrument ignores it. You can swap the card while the instrument is on;
 give it a couple of seconds to show up. It appears in the sample browser as
-the `SD card` favourite.
+the `SD card` favorite.
 
 To copy files from a computer without pulling the card, use
 **System > Connections > SD Card 2 > Start Transfer** in USB Gadget mode

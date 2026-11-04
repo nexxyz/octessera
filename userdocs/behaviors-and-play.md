@@ -58,7 +58,7 @@ in **Build**.
 | `life` | Cellular | Conway-style cells that are born, survive and die, plus optional glider injection. |
 | `brain` | Cellular | Brian's Brain states. Leaves trails and pulses rather than plain living and dying. |
 | `cyclic` | Cellular | Multi-state wave fronts chasing each other round the grid. |
-| `forest fire` | Cellular | Trees grow, catch from burning neighbours and occasionally get zapped by lightning. Presses plant and ignite. |
+| `forest fire` | Cellular | Trees grow, catch from burning neighbors and occasionally get zapped by lightning. Presses plant and ignite. |
 | `predator prey` | Cellular | Grass feeds herbivores, herbivores feed predators, and starvation keeps the ecosystem moving. |
 | `ant` | Cellular | Langton-style: a tiny agent walks the grid and flips cells as it goes. |
 | `twinkle` | Cellular | Stars appear one at a time, linger and fade. Cluster Bias decides whether they bunch up or scatter. |

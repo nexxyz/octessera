@@ -7,7 +7,7 @@ music:
    go to, what pitch they get, and what else the grid position steers.
 2. **Shape** decides what those notes sound like: the instrument, its
    settings, and where its audio goes.
-3. **FX buses and Global FX** colour the sound on its way out.
+3. **FX buses and Global FX** color the sound on its way out.
 
 Every row in these menus has its own context help on the instrument (hold
 *Shift* + *Fn* and click *Main*). This page is the map; the help is the street

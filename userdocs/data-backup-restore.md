@@ -111,7 +111,7 @@ Never pull the power or either microSD card during a transfer or restore.
 The `.oct` file is portable by design, not a clone of the instrument. These
 stay with whichever board you restore onto:
 
-- USB role, MIDI and audio device choices, and favourite sample folders.
+- USB role, MIDI and audio device choices, and favorite sample folders.
 - Any other System settings beyond the few portable preferences (such as
   brightness) the archive carries.
 - The SD2 card's `octessera/saves` folder. Copy that by hand if you want it.
