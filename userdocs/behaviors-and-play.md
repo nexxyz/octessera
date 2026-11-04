@@ -131,7 +131,7 @@ it, so the patch keeps its saved mode.
 
 Each column of the Faders page is a slider with two targets: `Target` for a
 plain press and `S+Target` for *Shift* + press, picked under
-`Play > Faders > F1..F8` from the same list as the LFOs and Aux turns. The
+`Play > Faders > Fader 1..8` from the same list as the LFOs and Aux turns. The
 bottom row gives the target's **Range Min**, the top row its **Range Max**, and
 **Invert** flips that. Columns without a target stay dark and ignore you.
 

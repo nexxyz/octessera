@@ -15,7 +15,7 @@ Play
 ├── Tempo                                ← page-select row
 ├── LFO                                  ← page-select row
 ├── Faders (group)
-│   ├── F1..F8 (group)                   ← one per grid column
+│   ├── Fader 1..8 (group)              ← one per grid column
 │   │   ├── Target: <target | (none)> (picker)     ← plain press; Range Min/Max inside
 │   │   ├── Invert: [on | off]
 │   │   ├── S+Target: <target | (none)> (picker)   ← Shift + press; its own Range Min/Max
@@ -202,7 +202,7 @@ The menu lists the technical bank, then the musical bank.
   moves that column's slider to the row, Shift + press moves its second slider, so the page drives
   16 parameters.
 - Each slider is a modulation source with its own picked target, `Range Min`/`Range Max` and
-  `Invert` (`Play > Faders > Fn > Target`/`S+Target`): the bottom row gives Range Min, the top row
+  `Invert` (`Play > Faders > Fader n > Target`/`S+Target`): the bottom row gives Range Min, the top row
   Range Max, reversed when inverted. The usual claim rules apply, so a second claim on an exclusive
   target shows `Mapping rejected: target already claimed`. A new target, range or invert moves the
   target to the slider's position at once.

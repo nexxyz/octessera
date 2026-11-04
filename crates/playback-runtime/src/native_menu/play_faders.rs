@@ -46,7 +46,9 @@ pub(super) fn faders_page_children(config: &NativeMenuConfig) -> Vec<NativeMenuI
                     },
                 )
                 .collect();
-            group(format!("F{}", column + 1), rows)
+            let mut fader = group(format!("Fader {}", column + 1), rows);
+            fader.breadcrumb = Some(format!("F{}", column + 1));
+            fader
         })
         .collect::<Vec<_>>();
     children.push(number_item(

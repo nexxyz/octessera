@@ -457,7 +457,7 @@ behavior primary red), so a mute never reads as a section color.
   runs an action; `▸` marks the active entry of a picker list.
 - Picker rows: the behavior selector (`Beh.: <behavior>`), the `Link > Aux Mappings` pickers
   (`Trn`, `Clk`, `S+Trn`, `S+Clk`), LFO and MIDI CC In `Target`, `Link > Lx > X/Y Axis > Slot 1/Slot 2`,
-  `Play > XY > X Axis/Y Axis`, `Play > Faders > Fn > Target/S+Target`, the Faders `Tile Map`
+  `Play > XY > X Axis/Y Axis`, `Play > Faders > Fader n > Target/S+Target`, the Faders `Tile Map`
   `Action`, `S+Action` and `Target`, `Note Mapping > Set` and a sampler's loaded-sample row
   (`S1: <file>`, which opens the browser in the file's folder). The menu model marks these rows
   where it builds them; the value follows the label after a colon and a space at 70 % of the row

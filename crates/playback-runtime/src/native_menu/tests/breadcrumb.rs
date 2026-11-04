@@ -37,3 +37,25 @@ pub(crate) fn instrument_page_breadcrumb_uses_the_short_model_name() {
         ("I1: none".into(), "/S/Instruments/I1: none".into())
     );
 }
+
+#[test]
+pub(crate) fn fader_rows_read_fader_n_and_the_breadcrumb_stays_short() {
+    let mut menu = NativeMenuModel::new(config());
+    assert!(menu.focus_item_key("play.faders.0.target"));
+    assert_eq!(menu.snapshot().path, "/P/Faders/F1");
+    assert!(menu.focus_item_key("play.faders.7.target"));
+    assert_eq!(menu.snapshot().path, "/P/Faders/F8");
+    let faders = menu.root.children.iter().find(|item| item.label == "Play");
+    let rows: Vec<_> = faders
+        .and_then(|play| play.children.iter().find(|item| item.label == "Faders"))
+        .map(|group| {
+            group
+                .children
+                .iter()
+                .take(2)
+                .map(|i| i.label.as_str())
+                .collect()
+        })
+        .unwrap();
+    assert_eq!(rows, ["Fader 1", "Fader 2"]);
+}
