@@ -36,25 +36,31 @@
             <tr><th><i>Fn</i> + left column</th><td><b>Navigate to Layer 1-8</b>  /  bottom row = layer 1</td></tr>
             <tr><th><i>Hold</i> <i>Fn</i></th><td><b>Preview</b>  /  layers and Play pages</td></tr>
             <tr><th><i>Fn</i> + right column</th><td><b>Technical Play pages</b>  /  Mix, Pan, Route, Tempo, LFO</td></tr>
-            <tr><th><i>Shift</i> + <i>Fn</i> + right column</th><td><b>Musical Play pages</b>  /  FX, XY, Transpose, Rate, Trig</td></tr>
+            <tr><th><i>Shift</i> + <i>Fn</i> + right column</th><td><b>Musical Play pages</b>  /  FX, XY, Transpose, Rate, Trigger Gate</td></tr>
+            <tr><th><i>Shift</i> + <i>Fn</i> + left column</th><td><b>Gate a layer</b>  /  its triggers off, press again to restore</td></tr>
             <tr><th><i>Fn</i> + <i>Aux click</i></th><td><b>Bind focused value/action</b>  /  value to turn, action to click</td></tr>
             <tr><th><i>Fn</i> + click <i>Main</i></th><td><b>Open Aux mapping</b>  /  12-slot scrollable modal</td></tr>
           </tbody></table>
-          <p class="compact"><b>Aux map:</b> Release <i>Fn</i> to keep its 12-slot scrollable modal open; turn <i>Main</i> to scroll, click <i>Main</i> or press <i>Back</i> to close. <i>Fn</i> alone previews navigation only.</p>
-          <p class="compact">Auto-map fills unbound <i>Aux 1-3</i> slots with values/actions for this menu area; manual bindings take priority.</p>
-          <p class="chips"><span>1-Cutoff</span> <i>Aux 1</i> turn <span class="action-chip">1!Assign</span> <i>Aux 1</i> click</p>
+          <p class="compact"><b>Aux map:</b> stays open after you release <i>Fn</i>; turn <i>Main</i> to scroll, click <i>Main</i> or press <i>Back</i> to close.</p>
+          <p class="compact"><b>Auto-map</b> fills unbound Aux turns and clicks for this menu area; manual wins unless <b>Aux Prio.</b> is <b>Auto</b>.</p>
+          <p class="compact"><b>Aux markers:</b> row caps show the Aux (1-3 pips, bar: <i>Shift</i> bank); footer: turn, click with <code>!</code>.</p>
         </section>
         <section>
           <h2>Special grid modes</h2>
           <table><tbody>
             <tr><th>Sample assign</th><td><i>Shift</i> + tile maps row; <i>Shift</i> + <i>Fn</i> + tile maps column</td></tr>
             <tr><th>Drum assign</th><td><i>Shift</i>+tile: row; <i>Shift</i>+<i>Fn</i>+tile: column; Tile Tune: one tile</td></tr>
-            <tr><th>Probability map</th><td>Trigger chance: never, low, high, always. <i>Shift</i> + tile = row; <i>Shift</i> + <i>Fn</i> + tile = column</td></tr>
-            <tr><th>Play Mix</th><td>Columns set each instrument's volume; the bottom row mutes</td></tr>
-            <tr><th>Play Pan</th><td>Grid moves around layers' stereo positions</td></tr>
-            <tr><th>Play FX</th><td>Press mapped tiles to trigger live effects</td></tr>
-            <tr><th>Trigger Gate</th><td>Block, allow, or use custom probability per layer. <i>Shift</i>+<i>Fn</i> together + left layer tile toggles its gate.</td></tr>
+            <tr><th>Probability map</th><td>Never, low, high, always. <i>Shift</i>+tile: row; <i>Shift</i>+<i>Fn</i>+tile: column</td></tr>
           </tbody></table>
+        </section>
+        <section>
+          <h2>Patch orientation</h2>
+          <ol>
+            <li>Route <b>sequencer</b> or <b>looper</b> to <b>sampler</b> for a rhythm loop.</li>
+            <li>Add <b>life</b>, <b>raindrops</b>, <b>bounce</b>, or <b>dla</b> to a <b>synth</b>.</li>
+            <li>Use probability on sequencer tiles so patterns feel alive.</li>
+            <li>Bind aux encoders to parameters or actions you keep reaching for.</li>
+          </ol>
         </section>
       </div>
       <div class="column">
@@ -68,35 +74,29 @@
             <tr><th>shapes</th><td>Geometric regions</td><th>raindrops</th><td>Drops and ripples</td></tr>
             <tr><th>dla</th><td>Branching growth</td><th></th><td></td></tr>
           </tbody></table>
+          <p class="compact"><b>Triggers:</b> <code>activate</code> tile turns on; <code>stable</code> stays on; <code>deactivate</code> turns off; <code>scanned</code> scanner finds a lit tile; <code>scanned empty</code> scanner visits a dark one.</p>
         </section>
         <section>
-          <h2>Triggers</h2>
-          <table><tbody>
-            <tr><th>activate</th><td>Tile turns on</td></tr>
-            <tr><th>stable</th><td>Tile stays on</td></tr>
-            <tr><th>deactivate</th><td>Tile turns off</td></tr>
-            <tr><th>scanned</th><td>Scanner finds active tile</td></tr>
-            <tr><th>scanned empty</th><td>Scanner visits inactive tile</td></tr>
+          <h2>Play pages</h2>
+          <table class="play-table"><tbody>
+            <tr><th>Mix</th><td>Volumes; bottom row mutes (never saved). <i>Shift</i>: B1-B4 + master.</td></tr>
+            <tr><th>Pan</th><td>Rows are instruments, left to right; bus-routed ones move their bus pan</td></tr>
+            <tr><th>Route</th><td>Bottom five rows: direct or B1-B4. Row 6: FX bypass, B1-B4 + Global 1-2. Top row: duck key. Press again to undo.</td></tr>
+            <tr><th>Tempo</th><td>50-240 BPM ladder, Tap top-left, a -4..+4 nudge row, then Swing A:B (<code>4:4</code> straight)</td></tr>
+            <tr><th>LFO</th><td>Row per LFO: on/off, then 1/8 to 8 bars (again: triplet). <i>Shift</i>: depth.</td></tr>
+            <tr><th>FX</th><td>Press mapped tiles to trigger live effects</td></tr>
+            <tr><th>XY</th><td>Two-axis surface for mapped parameters. <i>Shift</i> + press latches; <b>Glide</b> smooths it.</td></tr>
+            <tr><th>Transpose</th><td>Synth, FM, Plucked &amp; enabled MIDI; Sampler/Drum when <b>Follow Transp.</b> is on</td></tr>
+            <tr><th>Rate</th><td>Step rate per layer. <i>Shift</i>: Scan Unit. Lit tile: resync at the next bar.</td></tr>
+            <tr><th>Trigger Gate</th><td>Per layer: block, custom probability, or allow</td></tr>
           </tbody></table>
         </section>
         <section>
-          <h2>Other Play controls</h2>
-          <table><tbody>
-            <tr><th>XY</th><td>Mappable two-axis surface for live-manipulating parameters</td></tr>
-            <tr><th>Transpose</th><td>Synth, FM, Plucked &amp; enabled MIDI; not Sampler/Drum</td></tr>
-          </tbody></table>
-        </section>
-        <section>
-          <h2>Patch orientation</h2>
-          <ol>
-            <li>Route <b>sequencer</b> or <b>looper</b> to <b>sampler</b> for a rhythm loop.</li>
-            <li>Add <b>life</b>, <b>raindrops</b>, <b>bounce</b>, or <b>dla</b> to a <b>synth</b>.</li>
-            <li>Use probability on sequencer tiles so patterns feel alive.</li>
-            <li>Bind aux encoders to parameters or actions you keep reaching for.</li>
-          </ol>
-          <p class="compact"><b>Aux turns:</b> Normal target: plain coarse, <i>Fn</i> fine. Shifted custom bank: <i>Shift</i> coarse, <i>Shift</i>+<i>Fn</i> fine; no fallback. Other turns are discrete. <i>Shift</i>+<i>Fn</i> is one combined modifier.</p>
+          <h2>Good to know</h2>
+          <p class="compact"><b>Aux turns:</b> numbers coarse, <i>Fn</i> fine; the <i>Shift</i> bank with <i>Shift</i> (<i>Shift</i>+<i>Fn</i> fine). Lists move one option.</p>
           <p class="compact">Factory preset hint: <b>life</b> on Layer 1, <b>sequencer</b> rhythm on Layer 2.</p>
-          <p class="compact"><b>Sample browser:</b> <code>..</code> parent; <code>[folder]</code> folder; file rows are samples; <code>(empty)</code> means no entries. <i>Play</i> / <i>Space</i> previews the highlighted sample. Long names clip or scroll without overlapping other OLED text.</p>
+          <p class="compact"><b>Sample browser:</b> <code>..</code> parent, <code>[folder]</code> folder, <code>(empty)</code> nothing; <i>Play</i> previews. Long names clip or scroll.</p>
+          <p class="compact"><b>Display:</b> <code>System &gt; Display &gt; Home Visual</code> draws the master as scope, spectrum or waterfall on the home page. <b>Signal</b> on an instrument, bus or Global FX fills the screen with that sound; click <i>Main</i> to flip views. <b>Main Font</b> / <b>Small Font</b>: Octessera or Original.</p>
           <p class="compact"><b>Bench safety:</b> Power through the enclosure USB-C breakout; remove both the board microSD card and OLED microSD card before closing the case.</p>
           <p class="note">If the grid behaves unexpectedly, check the OLED. You are probably in an overlay or Play page. Use <i>Back</i> or <i>Fn</i> to leave.</p>
         </section>
