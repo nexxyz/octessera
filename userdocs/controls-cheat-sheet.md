@@ -182,7 +182,7 @@ little `▸` pointing at the file you have loaded.
 | `▸` in a list | The entry you have picked now, and the folder it lives in. Lists open with the cursor right there. |
 | Bars instead of numbers | `System > Display > Num Style` is on `bar`. Switch it to `numbers` if you'd rather read digits. |
 | Letters look different | `System > Display > Main Font` and `Small Font` pick my redrawn glyphs (`Octessera`) or the original fonts (`Original`). Flip them if you want the old look back. |
-| Watching one sound | `Monitor` on an instrument, an FX bus or `Global FX` fills the screen with that sound. Click Main to flip between the waveform, the frequency bars and the waterfall; Back drops you on the page you came from. |
+| Watching one sound | `Signal` on an instrument, an FX bus or `Global FX` fills the screen with that sound. Click Main to flip between the waveform, the frequency bars and the waterfall; Back drops you on the page you came from. |
 | A wiggly line on the home page | That's the master output, drawn live while the transport plays. When it's quiet it lies flat and dim. `System > Display > Home Visual` swaps it for frequency bars (`spectrum`) or a scrolling `waterfall`, or turns it off if you'd rather have the old calm home page. |
 | Bottom left | What Aux 1-3 do on this page: the turn, and a click with a `!`. Hold *Shift* to peek at the Shift layer. |
 | Bottom right, red disc | A recording is running. It breathes once a second so you don't forget it's on. |

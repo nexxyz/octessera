@@ -134,7 +134,7 @@ fn waterfall_columns_run_oldest_to_newest_with_low_bins_at_the_bottom() {
     );
 }
 
-fn monitor(visual: OledSignalVisual) -> OledPresentationInput {
+fn full_screen(visual: OledSignalVisual) -> OledPresentationInput {
     let mut input = base();
     input.display.title = "/S/Instruments/I1: synth/Scope".into();
     input.display.lines.clear();
@@ -151,24 +151,24 @@ fn monitor(visual: OledSignalVisual) -> OledPresentationInput {
 }
 
 #[test]
-fn a_monitor_fills_the_body_between_the_header_and_the_footer() {
+fn a_full_screen_view_fills_the_body_between_the_header_and_the_footer() {
     let lit_rows = |frame: &[u8]| -> Vec<usize> {
         (9..113)
             .filter(|y| (0..128).any(|x| pixel(frame, x, *y) != 0))
             .collect()
     };
-    let flat = render_oled_frame(&monitor(OledSignalVisual::Flat));
+    let flat = render_oled_frame(&full_screen(OledSignalVisual::Flat));
     assert_eq!(lit_rows(&flat), vec![12 + (SIGNAL_BODY_HEIGHT - 1) / 2]);
     let mut points = vec![0_i8; SIGNAL_WIDTH];
     points[0] = 127;
     points[1] = -127;
-    let scope = render_oled_frame(&monitor(OledSignalVisual::Scope { points }));
+    let scope = render_oled_frame(&full_screen(OledSignalVisual::Scope { points }));
     assert_eq!(
         lit_rows(&scope),
         (12..12 + SIGNAL_BODY_HEIGHT - 1).collect::<Vec<_>>()
     );
     let levels = vec![255_u8; SIGNAL_WIDTH * SIGNAL_BODY_HEIGHT];
-    let waterfall = render_oled_frame(&monitor(OledSignalVisual::Waterfall { levels }));
+    let waterfall = render_oled_frame(&full_screen(OledSignalVisual::Waterfall { levels }));
     assert_eq!(
         lit_rows(&waterfall),
         (12..12 + SIGNAL_BODY_HEIGHT).collect::<Vec<_>>()

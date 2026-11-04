@@ -1,7 +1,7 @@
 use super::fx_params::fx_param_items;
 use super::options::{FX_BUS_SLOT_OPTIONS, GLOBAL_FX_SLOT_OPTIONS};
 use super::{
-    bool_item, enum_item, group, monitor_item, number_item, selected_index, text_item,
+    bool_item, enum_item, group, number_item, selected_index, signal_item, text_item,
     NativeFxBusConfig, NativeMenuItem,
 };
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
@@ -65,7 +65,7 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig], bpm: u16) -> NativeMe
                             32,
                             1,
                         ),
-                        monitor_item(format!("monitor.bus.{bus_index}")),
+                        signal_item(format!("signal.bus.{bus_index}")),
                         bool_item("Auto Label", format!("{prefix}.autoName"), bus.auto_name),
                         text_item("Name", format!("{prefix}.name"), bus.name.clone(), 32),
                     ],
@@ -98,7 +98,7 @@ pub(super) fn global_fx_group(
             )
         })
         .collect();
-    children.push(monitor_item("monitor.global".into()));
+    children.push(signal_item("signal.global".into()));
     group(GLOBAL_FX_LABEL, children)
 }
 

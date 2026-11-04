@@ -364,7 +364,7 @@ change; only the distance per detent does.
     that stopped writing (an idle routing-tree worker) reads as silence.
   - The boards write only the rows that changed since the last frame, as one SSD1351 column
     window (the panel is turned clockwise); a band-only step sends 27 of 128 rows.
-- Shape monitor: the `Monitor` action on an instrument page (internal types only, after
+- Shape signal view: the `Signal` action on an instrument page (internal types only, after
   `Mixer`), an FX bus page (after `Pan Pos`) and `Global FX` (after the slots) opens a
   full-screen picture of that page's signal: the instrument slot's own output before its volume,
   momentary FX and route; the bus chain's output before its momentary FX, pan and volume; or the
@@ -373,7 +373,7 @@ change; only the distance per detent does.
   picture's name (`../I1: synth/Scope`). Main cycles `Scope`, `Spectrum`, `Waterfall`; Back
   closes it onto the same page and row; Main turns do nothing. Modifier chords (help, Aux
   peek, single step), popups over it, grid, Aux, keys and transport keep their meaning. Anything
-  that moves the focus off its Monitor row closes it: an input that moves the menu to another
+  that moves the focus off its Signal row closes it: an input that moves the menu to another
   page, or a row rebuild such as an Aux type change. Stopped it is the flat line; the steps, tap
   and frame costs match the home band.
   Switching the source lets one block the routing-tree workers rendered ahead with the old

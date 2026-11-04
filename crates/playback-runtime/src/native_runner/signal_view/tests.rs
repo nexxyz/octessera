@@ -53,40 +53,40 @@ fn loud_signals_fill_the_band_and_quiet_ones_stop_growing_at_the_gain_floor() {
 }
 
 #[test]
-fn the_monitor_taps_only_while_live_and_reads_once_per_step() {
+fn the_reader_taps_only_while_live_and_reads_once_per_step() {
     let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
-    let monitor = SignalTapReader::new(tap);
+    let reader = SignalTapReader::new(tap);
     let block: Vec<f32> = tone(0, 0.5).iter().flat_map(|s| [*s, *s]).collect();
     let start = Instant::now();
     let at = |ms: u64| start + Duration::from_millis(ms);
-    assert_eq!(monitor.visual(None, start), OledSignalVisual::Flat);
-    assert_eq!(monitor.next_step_at(), None);
+    assert_eq!(reader.visual(None, start), OledSignalVisual::Flat);
+    assert_eq!(reader.next_step_at(), None);
     tap.publish_master(&block, block.len() / 2, 48_000);
     assert_eq!(tap.written(), 0);
 
     assert_eq!(
-        monitor.visual(Some(MASTER_SCOPE), start),
+        reader.visual(Some(MASTER_SCOPE), start),
         OledSignalVisual::Flat
     );
-    assert_eq!(monitor.next_step_at(), Some(at(66)));
+    assert_eq!(reader.next_step_at(), Some(at(66)));
     tap.publish_master(&block, block.len() / 2, 48_000);
-    assert!(!monitor.take_new_step(at(65)));
+    assert!(!reader.take_new_step(at(65)));
     assert_eq!(
-        monitor.visual(Some(MASTER_SCOPE), at(65)),
+        reader.visual(Some(MASTER_SCOPE), at(65)),
         OledSignalVisual::Flat
     );
-    assert!(monitor.take_new_step(at(66)));
-    assert!(!monitor.take_new_step(at(70)));
+    assert!(reader.take_new_step(at(66)));
+    assert!(!reader.take_new_step(at(70)));
     assert!(matches!(
-        monitor.visual(Some(MASTER_SCOPE), at(70)),
+        reader.visual(Some(MASTER_SCOPE), at(70)),
         OledSignalVisual::Scope { .. }
     ));
-    assert_eq!(monitor.next_step_at(), Some(at(132)));
-    assert!(monitor.take_new_step(at(200)));
+    assert_eq!(reader.next_step_at(), Some(at(132)));
+    assert!(reader.take_new_step(at(200)));
 
-    assert_eq!(monitor.visual(None, at(200)), OledSignalVisual::Flat);
-    assert_eq!(monitor.next_step_at(), None);
-    assert!(!monitor.take_new_step(at(300)));
+    assert_eq!(reader.visual(None, at(200)), OledSignalVisual::Flat);
+    assert_eq!(reader.next_step_at(), None);
+    assert!(!reader.take_new_step(at(300)));
     let written = tap.written();
     tap.publish_master(&block, block.len() / 2, 48_000);
     assert_eq!(tap.written(), written);

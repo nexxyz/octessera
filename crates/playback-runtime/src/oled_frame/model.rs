@@ -121,7 +121,7 @@ pub struct OledSignalView {
 pub enum OledSignalArea {
     /// The home page's band in body slot `slot`; the rows after it drop below it.
     Band { slot: usize },
-    /// The whole body, for a Shape monitor.
+    /// The whole body, for a Shape signal view.
     Body,
 }
 

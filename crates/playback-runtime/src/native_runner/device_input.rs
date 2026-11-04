@@ -131,7 +131,7 @@ impl NativeRunner {
         if self.display.hardware_test.is_some() {
             return self.handle_hardware_test_input(input);
         }
-        if let Some(result) = self.handle_signal_monitor_input(&input) {
+        if let Some(result) = self.handle_full_screen_signal_input(&input) {
             return result;
         }
         if self.display.aux_mapping_peek_visible

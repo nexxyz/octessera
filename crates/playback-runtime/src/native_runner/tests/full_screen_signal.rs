@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_runner::signal_view::monitor_source;
+use crate::native_runner::signal_view::signal_row_source;
 use crate::native_runner::signal_view::SignalTapReader;
 use crate::oled_frame::{OledPresentationInput, OledPresentationMetrics, OledSignalArea};
 use realtime_engine::synth::{SignalSource, SignalTap};
@@ -24,7 +24,7 @@ fn presented(runner: &mut NativeRunner) -> OledPresentationInput {
         .oled_presentation_input(OledPresentationMetrics::default(), None)
 }
 
-fn monitoring(key: &str) -> (NativeRunner, &'static SignalTap) {
+fn open_signal_view(key: &str) -> (NativeRunner, &'static SignalTap) {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
@@ -35,35 +35,41 @@ fn monitoring(key: &str) -> (NativeRunner, &'static SignalTap) {
 }
 
 #[test]
-fn monitor_rows_name_their_instrument_bus_or_the_master() {
+fn signal_rows_name_their_instrument_bus_or_the_master() {
     assert_eq!(
-        monitor_source("monitor.instrument.3"),
+        signal_row_source("signal.instrument.3"),
         Some(SignalSource::Instrument(3))
     );
-    assert_eq!(monitor_source("monitor.bus.1"), Some(SignalSource::Bus(1)));
-    assert_eq!(monitor_source("monitor.global"), Some(SignalSource::Master));
-    assert_eq!(monitor_source("monitor.layer.1"), None);
-    assert_eq!(monitor_source("system.info"), None);
+    assert_eq!(
+        signal_row_source("signal.bus.1"),
+        Some(SignalSource::Bus(1))
+    );
+    assert_eq!(
+        signal_row_source("signal.global"),
+        Some(SignalSource::Master)
+    );
+    assert_eq!(signal_row_source("signal.layer.1"), None);
+    assert_eq!(signal_row_source("system.info"), None);
     for (key, source) in [
-        ("monitor.instrument.0", SignalSource::Instrument(0)),
-        ("monitor.bus.2", SignalSource::Bus(2)),
-        ("monitor.global", SignalSource::Master),
+        ("signal.instrument.0", SignalSource::Instrument(0)),
+        ("signal.bus.2", SignalSource::Bus(2)),
+        ("signal.global", SignalSource::Master),
     ] {
-        let (runner, _) = monitoring(key);
+        let (runner, _) = open_signal_view(key);
         assert_eq!(
             runner
                 .display
-                .signal_monitor
+                .full_screen_signal
                 .as_ref()
-                .map(|monitor| monitor.source),
+                .map(|view| view.source),
             Some(source)
         );
     }
 }
 
 #[test]
-fn a_stopped_monitor_fills_the_body_with_a_flat_line_under_its_page() {
-    let (mut runner, tap) = monitoring("monitor.instrument.0");
+fn a_stopped_signal_view_fills_the_body_with_a_flat_line_under_its_page() {
+    let (mut runner, tap) = open_signal_view("signal.instrument.0");
     assert!(!runner.is_canonical_menu_presentation());
     let shown = presented(&mut runner);
     assert_eq!(shown.display.title, "../I1: synth/Scope");
@@ -77,7 +83,7 @@ fn a_stopped_monitor_fills_the_body_with_a_flat_line_under_its_page() {
 
 #[test]
 fn main_cycles_the_picture_turns_do_nothing_and_back_closes() {
-    let (mut runner, _) = monitoring("monitor.bus.0");
+    let (mut runner, _) = open_signal_view("signal.bus.0");
     let row = runner.menu.snapshot().selected_row;
     for label in ["Spectrum", "Waterfall", "Scope"] {
         press_main(&mut runner);
@@ -91,15 +97,15 @@ fn main_cycles_the_picture_turns_do_nothing_and_back_closes() {
 
     input(&mut runner, json!({ "type": "button_a", "pressed": true }));
     input(&mut runner, json!({ "type": "button_a", "pressed": false }));
-    assert!(runner.display.signal_monitor.is_none());
-    assert_eq!(runner.menu.current_key(), Some("monitor.bus.0"));
+    assert!(runner.display.full_screen_signal.is_none());
+    assert_eq!(runner.menu.current_key(), Some("signal.bus.0"));
     assert!(presented(&mut runner).display.signal.is_none());
 }
 
 #[test]
-fn a_playing_monitor_taps_its_own_source() {
+fn a_playing_signal_view_taps_its_own_source() {
     let start = Instant::now();
-    let (mut runner, tap) = monitoring("monitor.instrument.2");
+    let (mut runner, tap) = open_signal_view("signal.instrument.2");
     runner.display.transients.set_test_now(start);
     runner.transport.transport = RuntimeTransportState::Playing;
     let _ = presented(&mut runner);
@@ -122,16 +128,16 @@ fn a_playing_monitor_taps_its_own_source() {
 }
 
 #[test]
-fn modifier_chords_pass_through_and_leaving_the_page_closes_the_monitor() {
-    let (mut runner, _) = monitoring("monitor.instrument.0");
+fn modifier_chords_pass_through_and_leaving_the_page_closes_the_signal_view() {
+    let (mut runner, _) = open_signal_view("signal.instrument.0");
     input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
     press_main(&mut runner);
     input(
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
-    let monitor = runner.display.signal_monitor.as_ref().unwrap();
-    assert_eq!(monitor.kind.label(), "Scope");
+    let view = runner.display.full_screen_signal.as_ref().unwrap();
+    assert_eq!(view.kind.label(), "Scope");
     assert!(runner.display.help_popup.is_some());
     assert!(presented(&mut runner).display.signal.is_none());
     runner.display.help_popup = None;
@@ -142,11 +148,11 @@ fn modifier_chords_pass_through_and_leaving_the_page_closes_the_monitor() {
     let shown = presented(&mut runner).display.signal.unwrap();
     assert_eq!(shown.area, OledSignalArea::Band { slot: 4 });
     press_main(&mut runner);
-    assert!(runner.display.signal_monitor.is_none());
+    assert!(runner.display.full_screen_signal.is_none());
 }
 
 #[test]
-fn an_aux_type_change_closes_the_monitor_before_it_shows_a_midi_source() {
+fn an_aux_type_change_closes_the_signal_view_before_it_shows_a_midi_source() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     assert!(runner.menu.focus_item_key("aux:0:turn.instruments.0.type"));
@@ -159,7 +165,7 @@ fn an_aux_type_change_closes_the_monitor_before_it_shows_a_midi_source() {
     );
     let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
     runner.display.signal = SignalTapReader::new(tap);
-    assert!(runner.menu.focus_item_key("monitor.instrument.0"));
+    assert!(runner.menu.focus_item_key("signal.instrument.0"));
     press_main(&mut runner);
     runner.transport.transport = RuntimeTransportState::Playing;
     let _ = presented(&mut runner);
@@ -171,10 +177,10 @@ fn an_aux_type_change_closes_the_monitor_before_it_shows_a_midi_source() {
             json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
         );
         assert_eq!(runner.instruments[0].kind, kind);
-        assert!(runner.shown_signal_monitor().is_none(), "{kind}");
+        assert!(runner.shown_full_screen_signal().is_none(), "{kind}");
         assert!(presented(&mut runner).display.signal.is_none(), "{kind}");
         assert_eq!(tap.selected(), None, "{kind}");
     }
     press_main(&mut runner);
-    assert!(runner.display.signal_monitor.is_none());
+    assert!(runner.display.full_screen_signal.is_none());
 }

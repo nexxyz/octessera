@@ -32,7 +32,7 @@ fn fm_type_and_eight_group_rows_use_standard_navigation() {
             "Note Mode",
             "FM",
             "Mixer",
-            "Monitor",
+            "Signal",
             "Auto Label",
             "Name",
             "Slot Actions"

@@ -30,7 +30,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
             "Type",
             "Drum",
             "Mixer",
-            "Monitor",
+            "Signal",
             "Auto Label",
             "Name",
             "Slot Actions"

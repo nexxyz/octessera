@@ -9,11 +9,11 @@ use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 mod fft;
-mod monitor;
+mod full_screen;
 mod scope;
 mod spectrum;
 
-pub(super) use monitor::{monitor_source, NativeSignalMonitor};
+pub(super) use full_screen::{signal_row_source, NativeFullScreenSignal};
 
 /// The newest tapped samples each live step reads.
 const WINDOW: usize = 1024;
@@ -63,7 +63,7 @@ pub(super) struct LiveView {
     pub(super) rows: usize,
 }
 
-/// Turns a tapped signal into the home band's or a Shape monitor's picture, one live step at a
+/// Turns a tapped signal into the home band's or a Shape signal view's picture, one live step at a
 /// time.
 #[derive(Clone)]
 pub(super) struct SignalTapReader {
@@ -179,7 +179,7 @@ impl SignalTapReader {
 }
 
 impl NativeRunner {
-    /// The signal a capture of `display` shows: an open Shape monitor's, or the home band on
+    /// The signal a capture of `display` shows: an open Shape signal view's, or the home band on
     /// the plain home page while a Home Visual is on. Either is live while the transport plays.
     pub(super) fn signal_presentation(
         &self,
@@ -198,10 +198,10 @@ impl NativeRunner {
             && self.bluetooth.pairing().is_none();
         let shown = if !unobstructed {
             None
-        } else if let Some(monitor) = self.shown_signal_monitor() {
+        } else if let Some(view) = self.shown_full_screen_signal() {
             let view = LiveView {
-                source: monitor.source,
-                kind: monitor.kind,
+                source: view.source,
+                kind: view.kind,
                 rows: SIGNAL_BODY_HEIGHT,
             };
             Some((OledSignalArea::Body, view))

@@ -75,8 +75,8 @@ impl NativeRunner {
             super::bluetooth::bluetooth_pairing_display(pairing)
         } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
-        } else if let Some(monitor) = self.shown_signal_monitor() {
-            monitor.display(&self.menu)
+        } else if let Some(view) = self.shown_full_screen_signal() {
+            view.display(&self.menu)
         } else {
             menu_display(self, menu)
         };

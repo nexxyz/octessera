@@ -10,7 +10,7 @@ const LEFT_X: usize = 2;
 pub const SIGNAL_WIDTH: usize = 124;
 /// From the band slot's bar top to two rows above the bar of the dropped row after it.
 pub const SIGNAL_BAND_HEIGHT: usize = PITCH - 2 + SIGNAL_BAND_DROP;
-/// A Shape monitor's picture fills the body between the header rule and the footer.
+/// A Shape signal view's picture fills the body between the header rule and the footer.
 const BODY_TOP: usize = 12;
 pub const SIGNAL_BODY_HEIGHT: usize = 96;
 /// 1 px bars with a 1 px gap.

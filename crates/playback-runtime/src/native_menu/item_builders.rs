@@ -123,10 +123,10 @@ pub(in crate::native_menu) fn action_item(
     }
 }
 
-/// A Shape page's Monitor row; `target` is its `monitor.*` key and the effect that opens it.
-pub(in crate::native_menu) fn monitor_item(target: String) -> NativeMenuItem {
+/// A Shape page's Signal row; `target` is its `signal.*` key and the effect that opens it.
+pub(in crate::native_menu) fn signal_item(target: String) -> NativeMenuItem {
     action_item(
-        "Monitor",
+        "Signal",
         target.clone(),
         NativeMenuAction::PlatformEffect(target),
     )

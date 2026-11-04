@@ -1,6 +1,6 @@
 use super::{
-    action_item, bool_item, enum_item, enum_item_from_strings, group, monitor_item, number_item,
-    pick_list, selected_index, text_item, NativeMenuAction, NativeMenuItem,
+    action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, pick_list,
+    selected_index, signal_item, text_item, NativeMenuAction, NativeMenuItem,
     NativeSampleAvailability, NativeSampleBrowserConfig,
 };
 
@@ -147,7 +147,7 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
     }
     if matches!(config.kind, "synth" | "sampler" | "fm" | "pluck" | "drum") {
         children.push(mixer_group(&config, &prefix));
-        children.push(monitor_item(format!("monitor.instrument.{}", config.index)));
+        children.push(signal_item(format!("signal.instrument.{}", config.index)));
     }
     children.push(bool_item(
         "Auto Label",

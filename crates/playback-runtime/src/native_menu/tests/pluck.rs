@@ -31,7 +31,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
             "Note Mode",
             "Plucked",
             "Mixer",
-            "Monitor",
+            "Signal",
             "Auto Label",
             "Name",
             "Slot Actions"

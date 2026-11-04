@@ -2,11 +2,11 @@ use super::{NativeOledMode, NativeRunner};
 
 impl NativeRunner {
     pub fn is_canonical_menu_presentation(&self) -> bool {
-        self.shown_signal_monitor().is_none() && self.is_unobstructed_presentation()
+        self.shown_full_screen_signal().is_none() && self.is_unobstructed_presentation()
     }
 
     /// No splash, dark screen, modal, overlay or runtime error covers the menu or an open
-    /// Shape monitor.
+    /// Shape signal view.
     pub(super) fn is_unobstructed_presentation(&self) -> bool {
         self.display.oled_mode == NativeOledMode::Normal
             && self.display.oled_splash_until.is_none()
