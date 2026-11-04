@@ -146,6 +146,7 @@ fn tap_averages_the_last_four_taps_and_resets_after_two_seconds() {
 
     tap(&mut runner, 0);
     assert_eq!(runner.transport.bpm, 120.0, "one tap sets nothing");
+    assert_eq!(toast(&runner), "Tap");
     tap(&mut runner, 400);
     assert_eq!(runner.transport.bpm, 150.0);
     assert_eq!(toast(&runner), "Tap 150");

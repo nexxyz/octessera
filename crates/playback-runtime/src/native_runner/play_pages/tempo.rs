@@ -144,6 +144,7 @@ impl NativeRunner {
         }
         let intervals = taps.len().saturating_sub(1);
         if intervals == 0 {
+            self.show_toast("Tap");
             return;
         }
         let beat = now.saturating_duration_since(taps[0]).as_secs_f64() / intervals as f64;
