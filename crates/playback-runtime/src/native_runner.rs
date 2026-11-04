@@ -445,6 +445,7 @@ pub struct NativeRunner {
     seeded_link_streams: random_streams::SeededLinkStreams,
     link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
     midi_cc_mappings: [midi_cc_in::NativeMidiCcMapping; midi_cc_in::MIDI_CC_SLOT_COUNT],
+    midi_cc_learn: Option<midi_cc_in::MidiCcLearn>,
     modulation_process: ModulationProcessState,
     link_layers: Vec<NativeLinkLayer>,
     aux_bindings: Vec<Option<NativeAuxBinding>>,

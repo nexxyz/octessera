@@ -209,6 +209,9 @@ impl NativeRunner {
                         offset: 0,
                     });
                     self.platform_effect_for_action(&action_type)
+                } else if let Some(slot) = super::midi_cc_in::midi_cc_learn_slot(&action_type) {
+                    self.start_midi_cc_learn(slot);
+                    Ok(None)
                 } else if action_type == "system.controlsHelp" {
                     self.open_controls_help();
                     Ok(None)

@@ -1,4 +1,4 @@
-use super::audio_restart_persistence::{press, turn};
+use super::audio_restart_persistence::{back, press, turn};
 use super::in_place_menu_actions::press_key;
 use super::*;
 use crate::{MidiControlChange, MidiControlChangeBatch};
@@ -50,6 +50,51 @@ fn switch_on(runner: &mut NativeRunner, key: &str) {
 fn set_menu_number(runner: &mut NativeRunner, key: &str, value: i32) {
     assert!(runner.menu.set_number_value_for_key(key, value), "{key}");
     runner.apply_or_schedule_menu_key(key).unwrap();
+}
+
+#[test]
+fn learn_takes_the_next_cc_and_its_channel() {
+    let mut runner = midi_runner();
+    press_key(&mut runner, "midiCc.2.learn");
+    assert_eq!(toast(&runner), "CC3: send a CC");
+
+    send_cc_bytes(&mut runner, &[[0xB4, 74, 99]]);
+
+    assert_eq!(toast(&runner), "CC3: learned CC 74 ch 5");
+    assert_eq!(runner.midi_cc_mappings[2].cc, 74);
+    assert_eq!(runner.midi_cc_mappings[2].channel, 5);
+    assert_eq!(runner.menu.number_for_key("midiCc.2.cc"), Some(74));
+    assert_eq!(
+        runner.menu.value_for_key("midiCc.2.channel").as_deref(),
+        Some("5")
+    );
+    assert!(runner.midi_cc_learn.is_none());
+
+    send_cc_bytes(&mut runner, &[[0xB0, 10, 1]]);
+    assert_eq!(runner.midi_cc_mappings[2].cc, 74, "learn takes one CC only");
+}
+
+#[test]
+fn back_or_the_timeout_cancels_learn() {
+    let mut runner = midi_runner();
+    press_key(&mut runner, "midiCc.0.learn");
+    back(&mut runner);
+    assert_eq!(toast(&runner), "Learn cancelled");
+    assert!(runner.menu.focus_item_key("midiCc.0.learn"));
+    send_cc_bytes(&mut runner, &[[0xB0, 74, 99]]);
+    assert_eq!(runner.midi_cc_mappings[0].cc, 1);
+
+    press_key(&mut runner, "midiCc.0.learn");
+    let expires_at = runner.midi_cc_learn.unwrap().expires_at;
+    assert_eq!(
+        runner.next_display_state_deadline_after(None),
+        Some(expires_at),
+        "the timeout wakes the display"
+    );
+    runner.midi_cc_learn.as_mut().unwrap().expires_at = Instant::now();
+    runner.messages_with_snapshot().unwrap();
+    assert_eq!(toast(&runner), "Learn cancelled");
+    assert!(runner.midi_cc_learn.is_none());
 }
 
 #[test]
@@ -124,7 +169,7 @@ fn a_second_claim_on_an_exclusive_target_is_rejected() {
 }
 
 #[test]
-fn disabled_midi_ignores_control_changes() {
+fn disabled_midi_ignores_control_changes_and_learn() {
     let mut runner = midi_runner();
     map_velocity_to_cc1(&mut runner);
     send_cc_bytes(&mut runner, &[[0xB0, 1, 127]]);
@@ -132,6 +177,10 @@ fn disabled_midi_ignores_control_changes() {
 
     send_cc_bytes(&mut runner, &[[0xB0, 1, 0]]);
     assert_eq!(velocity(&runner), 200);
+
+    press_key(&mut runner, "midiCc.0.learn");
+    assert_eq!(toast(&runner), "Learn: MIDI is off");
+    assert!(runner.midi_cc_learn.is_none());
 }
 
 #[test]

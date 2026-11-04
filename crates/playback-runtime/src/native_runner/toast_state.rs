@@ -9,6 +9,7 @@ impl NativeRunner {
 
     pub(super) fn advance_toast_state(&mut self) {
         let now = std::time::Instant::now();
+        self.expire_midi_cc_learn(now);
         if self.display.toast.is_none()
             && self.display.help_popup.is_none()
             && self.display.confirm_dialog.is_none()

@@ -3,8 +3,10 @@ use super::{param_binding_from_payload, param_binding_payload, NativeParamBindin
 use crate::protocol::RunnerMessage;
 use crate::runtime::MidiControlChange;
 use serde_json::{json, Value};
+use std::time::{Duration, Instant};
 
 pub(super) const MIDI_CC_SLOT_COUNT: usize = 8;
+const LEARN_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct NativeMidiCcMapping {
@@ -31,6 +33,13 @@ impl NativeMidiCcMapping {
     }
 }
 
+/// A Learn press waits for the next Control Change until Back or the timeout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct MidiCcLearn {
+    slot: usize,
+    pub(super) expires_at: Instant,
+}
+
 pub(super) fn default_midi_cc_mappings() -> [NativeMidiCcMapping; MIDI_CC_SLOT_COUNT] {
     std::array::from_fn(NativeMidiCcMapping::new)
 }
@@ -40,6 +49,14 @@ pub(super) fn midi_cc_target_slot(target: &str) -> Option<usize> {
     let slot = target
         .strip_prefix("midiCc.")?
         .strip_suffix(".target")?
+        .parse::<usize>()
+        .ok()?;
+    (slot < MIDI_CC_SLOT_COUNT).then_some(slot)
+}
+
+pub(super) fn midi_cc_learn_slot(action: &str) -> Option<usize> {
+    let slot = action
+        .strip_prefix(crate::native_menu::MIDI_CC_LEARN_ACTION_PREFIX)?
         .parse::<usize>()
         .ok()?;
     (slot < MIDI_CC_SLOT_COUNT).then_some(slot)
@@ -88,6 +105,10 @@ impl NativeRunner {
         if !self.midi_enabled {
             return self.messages_without_snapshot();
         }
+        if let Some(learn) = self.midi_cc_learn.take() {
+            self.learn_midi_cc(learn.slot, change);
+            return self.messages_with_snapshot();
+        }
         let mut changed = false;
         for slot in 0..MIDI_CC_SLOT_COUNT {
             if self.midi_cc_mappings[slot].listens_to(&change) {
@@ -101,6 +122,52 @@ impl NativeRunner {
             }
         }
         self.messages_without_snapshot()
+    }
+
+    pub(super) fn start_midi_cc_learn(&mut self, slot: usize) {
+        if !self.midi_enabled {
+            self.show_toast("Learn: MIDI is off");
+            return;
+        }
+        let expires_at = Instant::now() + LEARN_TIMEOUT;
+        self.midi_cc_learn = Some(MidiCcLearn { slot, expires_at });
+        self.show_toast(format!("CC{}: send a CC", slot + 1));
+        self.display.toast_expires_at = Some(expires_at);
+    }
+
+    /// Back cancels a waiting Learn; true when one was waiting.
+    pub(super) fn cancel_midi_cc_learn(&mut self) -> bool {
+        if self.midi_cc_learn.take().is_none() {
+            return false;
+        }
+        self.show_toast("Learn cancelled");
+        true
+    }
+
+    pub(super) fn expire_midi_cc_learn(&mut self, now: Instant) {
+        if self
+            .midi_cc_learn
+            .is_some_and(|learn| now >= learn.expires_at)
+        {
+            self.cancel_midi_cc_learn();
+        }
+    }
+
+    fn learn_midi_cc(&mut self, slot: usize, change: MidiControlChange) {
+        let channel = change.channel + 1;
+        let mapping = &mut self.midi_cc_mappings[slot];
+        mapping.cc = change.controller;
+        mapping.channel = channel;
+        self.menu
+            .set_number_value_for_key(&format!("midiCc.{slot}.cc"), i32::from(change.controller));
+        self.menu
+            .set_enum_value_for_key(&format!("midiCc.{slot}.channel"), &channel.to_string());
+        self.mark_fast_autosave_dirty();
+        self.show_toast(format!(
+            "CC{}: learned CC {} ch {channel}",
+            slot + 1,
+            change.controller
+        ));
     }
 
     /// Sets the slot's modulation source from its last value; false without a target or value.

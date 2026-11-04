@@ -192,6 +192,9 @@ impl NativeRunner {
             self.display.help_popup = None;
             return self.messages_with_snapshot();
         }
+        if self.cancel_midi_cc_learn() {
+            return self.messages_with_snapshot();
+        }
         if self.play_fx_assign.is_some() {
             self.play_fx_assign = None;
         } else if self.sample_assign.is_some() {

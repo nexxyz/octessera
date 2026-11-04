@@ -77,6 +77,7 @@ pub(crate) use fx::{
 pub(crate) use fx_params::{delay_time_field, delay_time_row_item};
 pub(crate) use item_builders::mark_active;
 pub(in crate::native_menu) use item_builders::*;
+pub(crate) use link_midi_cc::MIDI_CC_LEARN_ACTION_PREFIX;
 pub use model_input::NativeMenuPressResult;
 pub(crate) use options::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
 pub use types::*;

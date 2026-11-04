@@ -156,6 +156,7 @@ impl NativeRunner {
             ),
             link_lfos: seed.link_lfos,
             midi_cc_mappings: super::midi_cc_in::default_midi_cc_mappings(),
+            midi_cc_learn: None,
             modulation_process: ModulationProcessState::default(),
             link_layers: seed.link_layers,
             aux_bindings: seed.aux_bindings,

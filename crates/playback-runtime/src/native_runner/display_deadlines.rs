@@ -61,6 +61,9 @@ impl NativeRunner {
         if let Some(toast_expires_at) = self.display.toast_expires_at {
             deadline = earliest_deadline(deadline, toast_expires_at, last_snapshot_at);
         }
+        if let Some(learn) = self.midi_cc_learn {
+            deadline = earliest_deadline(deadline, learn.expires_at, last_snapshot_at);
+        }
         if let Some(auto_save_flash_until) = self.display.auto_save_flash_until {
             deadline = earliest_deadline(deadline, auto_save_flash_until, last_snapshot_at);
         }
