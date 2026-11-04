@@ -236,7 +236,7 @@ pub(crate) fn custom_aux_binding_overrides_auto_map_when_enabled() {
 }
 
 #[test]
-pub(crate) fn custom_binding_is_used_on_build_non_mapped_rows_even_when_auto_map_is_enabled() {
+pub(crate) fn custom_binding_wins_on_the_build_behavior_row_under_manual_priority() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.menu.open_labels(&["Build", "L1: life"]);
     runner.menu.select_label("Beh.: life");
@@ -345,4 +345,43 @@ pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
         runner.display.toast.as_ref().unwrap().message,
         format!("Clk-{}: Spawn", spawn_aux_index + 1)
     );
+}
+
+#[test]
+pub(crate) fn behavior_row_uses_the_behavior_layout_for_caps_hints_and_turns() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner.menu.open_labels(&["Build", "L1: life"]);
+    runner.menu.select_label("Beh.: life");
+
+    let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    assert!(lines
+        .iter()
+        .any(|line| line.as_str().unwrap_or_default().starts_with("1-Step Rate")));
+    let hints = runner.aux_hints();
+    assert_eq!(hints.normal[0].turn.as_ref().unwrap().text, "Step");
+    assert_eq!(hints.normal[1].turn.as_ref().unwrap().text, "Count");
+
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(!snapshot_from(&messages)["display"]
+        .to_string()
+        .contains("No binding"));
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["layers"][0]["build"]["stepRate"],
+        "1/4T"
+    );
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_turn", "id": "aux2", "delta": 1 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.behavior_config["randomCellsPerTick"], 1);
+    assert_eq!(runner.menu.current_label(), Some("Beh.: life"));
 }

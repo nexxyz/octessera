@@ -209,6 +209,12 @@ impl NativeRunner {
     }
     pub(super) fn current_auto_aux_map(&self) -> AuxAutoMap {
         let (selected_key, selected_action) = self.menu.current_binding_target();
+        let selected_key = selected_key.or_else(|| {
+            self.menu
+                .current_key()
+                .filter(|key| *key == "behaviorId")
+                .map(str::to_owned)
+        });
         let path = self.menu.current_focus_path();
         self.resolve_aux_auto_map(&path, selected_key.as_deref(), selected_action.as_ref())
     }

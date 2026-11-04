@@ -68,6 +68,7 @@ impl NativeRunner {
 
     fn is_behavior_auto_map_key(&self, key: &str) -> bool {
         key == "algorithmStep"
+            || key == "behaviorId"
             || key.starts_with(&format!(
                 "layers.{}.build.behaviorConfig.",
                 self.active_layer_index

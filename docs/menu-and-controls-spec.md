@@ -850,7 +850,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   Count, then Interval with a Spawn press, then the glider Interval with a Glider press on
   Shift + Aux 1).
   Sequencer maps Step Rate, Page X, Page Y, then Advance on Shift + Aux 1. Behaviors without
-  their own layout map only Step Rate.
+  their own layout map only Step Rate. The active layer's `Beh.: <behavior>` row uses the same
+  layout, so its caps, footer hints and Aux turns match the rows below it.
 - Instrument layouts (Aux 1-3 | Shift + Aux 1-3):
 
   | Context | Aux 1-3 | Shift + Aux 1-3 |
