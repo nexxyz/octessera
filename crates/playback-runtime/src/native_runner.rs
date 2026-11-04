@@ -101,7 +101,6 @@ mod grid_coords;
 mod help_text;
 mod instrument_audio_payload;
 mod instrument_collections;
-mod instrument_mute;
 mod instrument_runtime;
 mod json_path;
 mod layer_behavior_config;
@@ -135,6 +134,7 @@ mod menu_apply_link_fx;
 mod menu_apply_structural;
 mod menu_value_apply;
 mod message_dispatch;
+mod mix_mutes;
 mod modal_popups;
 mod modulation;
 #[cfg(test)]
@@ -434,7 +434,6 @@ pub struct NativeRunner {
     param_mods: Vec<NativeParamMods>,
     trigger_gate_modes: Vec<String>,
     trigger_gate_restore_modes: Vec<Option<String>>,
-    instrument_mutes: [bool; INSTRUMENT_COUNT],
     play_live: play_pages::PlayLiveState,
     play_transpose_selected: Vec<bool>,
     play_transpose_enabled: Vec<bool>,

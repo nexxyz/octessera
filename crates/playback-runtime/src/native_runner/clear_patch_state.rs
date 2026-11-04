@@ -112,7 +112,7 @@ impl NativeRunner {
         clear_patch_aux_sides(&mut self.shift_aux_bindings);
         self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];
         self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
-        self.instrument_mutes = [false; INSTRUMENT_COUNT];
+        self.take_instrument_mutes();
         self.take_live_fx_overrides();
         self.take_bus_mutes();
         self.play_live.xy_latched = false;

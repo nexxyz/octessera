@@ -135,7 +135,6 @@ impl NativeRunner {
             param_mods: seed.param_mods,
             trigger_gate_modes: vec!["full".into(); LAYER_COUNT],
             trigger_gate_restore_modes: vec![None; LAYER_COUNT],
-            instrument_mutes: [false; INSTRUMENT_COUNT],
             play_live: Default::default(),
             play_transpose_selected: vec![true; LAYER_COUNT],
             play_transpose_enabled: vec![true; LAYER_COUNT],

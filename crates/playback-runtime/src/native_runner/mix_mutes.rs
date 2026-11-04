@@ -5,7 +5,7 @@ use platform_core::MusicalEvent;
 
 impl NativeRunner {
     pub(super) fn instrument_muted(&self, index: usize) -> bool {
-        self.instrument_mutes.get(index) == Some(&true)
+        self.play_live.instrument_mutes.get(index) == Some(&true)
     }
 
     pub(super) fn toggle_instrument_mute(&mut self, index: usize) {
@@ -16,11 +16,11 @@ impl NativeRunner {
         {
             return;
         }
-        let muted = !self.instrument_mutes[index];
+        let muted = !self.play_live.instrument_mutes[index];
         if muted {
             self.release_midi_notes_on_mute(index);
         }
-        self.instrument_mutes[index] = muted;
+        self.play_live.instrument_mutes[index] = muted;
         let mut slots = [false; INSTRUMENT_COUNT];
         slots[index] = true;
         self.resend_engine_volumes(slots);
@@ -29,7 +29,7 @@ impl NativeRunner {
     }
 
     pub(super) fn take_instrument_mutes(&mut self) -> [bool; INSTRUMENT_COUNT] {
-        std::mem::take(&mut self.instrument_mutes)
+        std::mem::take(&mut self.play_live.instrument_mutes)
     }
 
     pub(super) fn bus_muted(&self, index: usize) -> bool {
@@ -98,7 +98,9 @@ impl NativeRunner {
         &self,
         mut command: RuntimeAudioCommand,
     ) -> RuntimeAudioCommand {
-        if !self.instrument_mutes.contains(&true) && !self.play_live.bus_mutes.contains(&true) {
+        if !self.play_live.instrument_mutes.contains(&true)
+            && !self.play_live.bus_mutes.contains(&true)
+        {
             return command;
         }
         match &mut command {
@@ -146,7 +148,7 @@ impl NativeRunner {
     }
 
     pub(super) fn drop_muted_midi_note_ons(&self, events: &mut RoutedMusicalEvents) {
-        if events.midi.is_empty() || !self.instrument_mutes.contains(&true) {
+        if events.midi.is_empty() || !self.play_live.instrument_mutes.contains(&true) {
             return;
         }
         let channels = (0..INSTRUMENT_COUNT)
