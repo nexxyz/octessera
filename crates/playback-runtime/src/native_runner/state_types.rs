@@ -167,7 +167,6 @@ pub(super) struct NativeTransportState {
     pub(super) tick: u64,
     pub(super) layer_ticks: Vec<u64>,
     pub(super) algorithm_step_pulses: u32,
-    pub(super) algorithm_pulse_accumulator: u32,
     pub(super) layer_algorithm_step_pulses: Vec<u32>,
     pub(super) layer_pulse_accumulators: Vec<u32>,
 }
@@ -193,7 +192,6 @@ impl NativeTransportState {
             tick: 0,
             layer_ticks: vec![0; LAYER_COUNT],
             algorithm_step_pulses,
-            algorithm_pulse_accumulator: 0,
             layer_algorithm_step_pulses: vec![algorithm_step_pulses; LAYER_COUNT],
             layer_pulse_accumulators: vec![0; LAYER_COUNT],
         }

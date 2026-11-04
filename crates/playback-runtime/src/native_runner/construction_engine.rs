@@ -53,7 +53,6 @@ impl NativeRunner {
         self.transport.current_ppqn_pulse = 0;
         self.transport.swung_ppqn_pulse = 0;
         self.transport.layer_ticks.fill(0);
-        self.transport.algorithm_pulse_accumulator = 0;
         let now = self.display.transients.now();
         self.display.transients.reset(now);
         self.reset_global_lfo_phases();

@@ -115,7 +115,6 @@ impl NativeRunner {
         self.transport.swung_ppqn_pulse = source.transport.swung_ppqn_pulse;
         self.transport.tick = source.transport.tick;
         self.transport.layer_ticks = source.transport.layer_ticks.clone();
-        self.transport.algorithm_pulse_accumulator = source.transport.algorithm_pulse_accumulator;
         self.transport.layer_pulse_accumulators = source.transport.layer_pulse_accumulators.clone();
     }
 
