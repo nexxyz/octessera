@@ -17,6 +17,8 @@ mod pattern_music;
 mod play;
 
 #[cfg(test)]
+mod activate_cadence_tests;
+#[cfg(test)]
 mod liveness_probe_tests;
 #[cfg(test)]
 mod native_behavior_transport_tests;
