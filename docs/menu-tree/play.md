@@ -116,8 +116,7 @@ The menu lists the technical bank, then the musical bank.
 - Row 5 is FX bypass, live only: columns `0..3` bypass the B1..B4 slot chains, columns `4..5` the
   Global FX slots 1 and 2; columns `6..7` are dark. Lit is effects on, dim is bypassed (bus colors,
   white for Global FX). A bypassed chain reaches the engine with every slot `none`; the saved
-  slots are untouched. Toast `B1 FX bypassed` / `B1 FX on`, `Global FX 1 bypassed` /
-  `Global FX 1 on`.
+  slots are untouched. Toast `B1 FX bypassed` / `B1 FX on`, `G1 FX bypassed` / `G1 FX on`.
 - Row 6 is empty.
 - Row 7 is the duck key, live only: pressing an instrument makes every bus duck listen to it
   (`Duck key: I2`); its own `Source Tap` stays. Another column moves the key; pressing the lit

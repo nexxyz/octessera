@@ -203,7 +203,7 @@ impl NativeRunner {
         *bypassed = !*bypassed;
         let state = if *bypassed { "bypassed" } else { "on" };
         self.resend_fx_slots();
-        self.show_toast(format!("Global FX {} {state}", slot + 1));
+        self.show_toast(format!("G{} FX {state}", slot + 1));
     }
 
     fn toggle_duck_key(&mut self, instrument: usize) {

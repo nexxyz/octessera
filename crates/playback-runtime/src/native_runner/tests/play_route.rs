@@ -196,12 +196,12 @@ fn global_fx_bypass_passes_its_slot_through() {
     assert_eq!(tile(&runner, 6, 5), led_rgb(platform_core::palette::BLACK));
 
     let bypassed = press(&mut runner, 4, 5);
-    assert_eq!(toast(&runner), "Global FX 1 bypassed");
+    assert_eq!(toast(&runner), "G1 FX bypassed");
     assert_eq!(engine_global_slot(&bypassed, 0), Some("none".into()));
     assert_eq!(runner.global_fx_slots[0], "compressor");
 
     let restored = press(&mut runner, 4, 5);
-    assert_eq!(toast(&runner), "Global FX 1 on");
+    assert_eq!(toast(&runner), "G1 FX on");
     assert_eq!(engine_global_slot(&restored, 0), Some("compressor".into()));
 }
 
