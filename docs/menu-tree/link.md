@@ -29,8 +29,8 @@ Link
 ├── Paused Events: [on | off]                     default on
 ├── L1: <label> (group)                           ← one group per layer; entering it makes that layer active
 │   ├── Scanning (group)
-│   │   ├── Scan Mode: [none | scanning]
-│   │   ├── Scan Axis: [rows | columns]           ← the rows below show only while scanning
+│   │   ├── Scan Mode: [none | scanning]          ← the rows below show only while scanning
+│   │   ├── Scan Axis: [rows | columns]
 │   │   ├── Scan Unit: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]
 │   │   ├── Scan Dir: [forward | reverse]
 │   │   ├── Sections: [1 | 2 | 4 | 8]
@@ -132,7 +132,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 - `Set` is the bindable parent at `layers.N.link.pitch.scale`. Main enters its four folders on the
   one holding the active set; Main on a folder opens a `..`-first leaf list on the active set, and
-  Back or Main on `..` goes up one level. The parent renders `Set: <compact> >` within 19 columns.
+  Back or Main on `..` goes up one level. The parent renders `Set: <compact> >` with the set's compact name, so the row fits the OLED in
+  both fonts.
 - A set constrains the concrete notes in `Low Note..High Note` that match the set and `Root`. Sets
   do not emit simultaneous chords or choose inversions. Hirajoshi-like, In Sen-like, and Iwato-like
   are common Western 12-TET approximations of scales with varying forms.

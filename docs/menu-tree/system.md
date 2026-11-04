@@ -86,7 +86,7 @@ System
 │   ├── Home Visual: [none | scope | spectrum | waterfall]  default scope; the home page's signal band
 │   ├── Dim Timer: [0..600] step 10 s
 │   ├── OLED Sleep: [0..600] step 10 s
-│   ├── OLED Bright: [1..16] step 1      default 12; one SSD1351 contrast step each
+│   ├── OLED Bright: [1..16] step 1      default 12 (desktop 16); one SSD1351 contrast step each
 │   ├── Grid Bright: [10..100] step 5
 │   ├── Button Bright: [10..100] step 5
 │   └── HDMI Video (group)               ← Raspberry and Orange
@@ -123,7 +123,7 @@ System children after conditional rows are resolved:
 
 ```
 Desktop:
-Load Preset, Saves, Recording, Notes, Audio, MIDI, Connections, Display,
+Load Preset, Saves, Recording, Notes, Audio, MIDI, Display,
 Maintenance, Panic, Basic Help, Reboot, Shutdown
 
 Orange, Raspberry Gadget, and Raspberry Host:
@@ -382,8 +382,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - `Auto Map` and `Aux Prio.` are described under
   [Auto-map](../menu-and-controls-spec.md#auto-map), `Auto Hints` and `Manual Hints` under
   [Footer hints](../menu-and-controls-spec.md#footer-hints), `Ghost Tiles` under
-  [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority), and the brightness
-  rows under [Brightness](../menu-and-controls-spec.md#brightness).
+  [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority), `Num Style`, `Main Font`,
+  `Small Font` and `Home Visual` under [Body rows](../menu-and-controls-spec.md#body-rows), and the
+  brightness rows under [Brightness](../menu-and-controls-spec.md#brightness).
 - `HDMI Video > Mode` persists `runtimeConfig.hdmi.mode`
   (`terminal|live-grid|plain-grid|active-behavior|cycle-behaviors`, default `live-grid`). Terminal releases and disables Octessera framebuffer output so the Linux terminal can
   show, while snapshots keep their black/inactive HDMI grid.
@@ -446,9 +447,11 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 - `Load Empty` (`system.clearAll`) opens `Confirm Load Empty`; Cancel is a no-op. Confirm stops
   playback with the usual MIDI panic/note-safety path, loads an empty `none`-behavior patch,
   regenerates the preset draft name, marks the patch dirty for autosave, and keeps device/user
-  preferences: brightness, ghost tiles, numeric display, sleep/dim timers, master volume, Auto
-  Save/Backups, MIDI setup/status/sync, sync source, audio output buffer frames, sample favourites,
-  input-events-while-paused, aux auto-map, and the preset name list.
+  preferences: every `Display` row (ghost tiles, Auto Map, Aux Prio., Auto/Manual Hints, Num Style,
+  fonts, Home Visual, timers, brightness, HDMI Video), master volume, Auto Save/Backups, MIDI
+  setup/status/sync, sync source, audio output buffer frames, sample favorites, Paused Events, and
+  the preset name list. `Notes` (Note Length 120 ms, Vel Scale 100, Vel Curve linear) and
+  `Polyphony` (`auto-balanced`) return to their defaults.
 - `Load Factory` (`factory.load`) opens `Confirm Factory` / `Load factory settings?` and loads the
   factory payload on Confirm.
 

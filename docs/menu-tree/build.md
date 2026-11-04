@@ -146,7 +146,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 | life | Spawn Count: [0..20] | number, step 1 (default 0) |
 | life | Spawn Interval: [1..20] | number, step 1 (default 1) |
 | life | Glider Interval: [0..20] | number, step 1 (default 0; 0 disables automatic glider injection) |
-| life | Spawn Step: [0..63] | number, step 1 |
+| life | Spawn Step: [0..63] | number, step 1 (default 0) |
 | life | !Spawn Random | action |
 | life | !Spawn Glider | action |
 | sequencer | Pages X: [1..4] | number, step 1 (default 1): pages side by side on the canvas |

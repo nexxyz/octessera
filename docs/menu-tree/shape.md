@@ -51,7 +51,7 @@ Shape
 │   │   │   └── Volume (group)                   ← Gain, Vel Sens
 │   │   ├── Sampler (group)                      ← type sampler
 │   │   │   ├── Kit (group) > Load (group)       ← SDB Kit | Synth Kit | Dist Kit
-│   │   │   ├── Sample Slot: [1..8]
+│   │   │   ├── Sample Slot: [1 | 2 | 3 | 4 | 5 | 6 | 7 | 8]
 │   │   │   ├── S<n>: <loaded sample> (picker)   ← opens the browser in its folder; `(empty)` when unset
 │   │   │   ├── S<n> Browse (group)              ← browses the sample tree (WAV only)
 │   │   │   ├── Tile Tune: [-24..24] st          ← stamp value
@@ -73,7 +73,7 @@ Shape
 │   │   │   ├── Enabled: [on | off]
 │   │   │   ├── Channel: [1..16]
 │   │   │   ├── Velocity: [1..127]
-│   │   │   └── Duration: [10..2000] ms
+│   │   │   └── Duration: [10..2000] ms (time steps)
 │   │   ├── Mixer (group)                        ← internal types only (synth, sampler, fm, pluck, drum)
 │   │   │   ├── Route: [direct | fx_bus_1 | fx_bus_2 | fx_bus_3 | fx_bus_4]  default direct
 │   │   │   ├── Volume: [0..100]                 default 100
@@ -167,7 +167,7 @@ Shape
 ### Drum
 
 - Eight one-shot voices and no assigned tiles to start with. The thirteen Drum rows scroll in the
-  seven-row OLED body down to Volume without covering the footer.
+  eight-row OLED body down to Volume without covering the footer.
 - `Kit > Load` (Default, Tight, Heavy) changes the eight voice sounds/settings, never the stamped
   tiles.
 - Voice lists `V1: Kick` through `V8: Rim`, each name taken from the voice's current Sound.
@@ -206,7 +206,7 @@ Shape
   100 % being an octave per octave. Amp Env shapes each hit; a note-off starts its release. The
   default Amp Env (A 0, D 0, S 100 %, R 5 ms) plays a sample exactly as recorded, and with Env
   Amount and Key Tracking at 0 the filter stays fixed.
-- The loaded-sample row reads `S<n>: <filename>` and opens `S<n> Browse` in the file's folder with
+- The loaded-sample row reads `S<n>: <filename> >` and opens `S<n> Browse` in the file's folder with
   the cursor and pointer on the file.
 - A loaded sample that cannot be found or decoded shows `N/A-<filename>` (the saved path's
   basename) on the loaded-sample row and the matching browser row. The saved path stays the
@@ -245,7 +245,8 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - Sampler: every Sampler row except Follow Transp., Follow Pitch, Filter Type, Env Amount, Key
   Tracking, Amp Env, Filter Env, and the `Tile ...` rows. The audible targets are Tune, Gain, Base
   Velocity, Vel Sens, the Vel Levels velocities, and Filter Cutoff/Res.
-- No instrument offers its `Tile ...` stamp rows, Ratio, Filter Type, Sound, or Voice as targets.
+- No instrument offers its `Tile ...` stamp rows, Ratio, Sound, or Voice as targets, and only
+  Synth offers its Filter Type.
 - FM Index, Plucked Decay, and a Drum voice's Tone emit typed controls without reinitializing the
   slot.
 
@@ -290,7 +291,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
   OLED SD2 `OCTESSERA` mount point). An unmounted SD card shows a clear unavailable message.
   Desktop has a built-in `User data` favourite.
 - Assigned sample playback follows the instrument route, pan, volume, bus FX, and master output gain.
-  The browser preview skips all of those and joins the master directly, centred, before master FX.
+  The browser preview skips all of those and joins the master directly, centered, before master FX.
 - Runtime audio commands and full audio-config payloads use the same native normalization on desktop
   and Pi. Malformed instrument/FX payloads keep the last good audio state and raise a typed audio
   failure. Sample preview resolves and decodes through the host adapter before entering the selected
@@ -333,8 +334,8 @@ Instrument rows offered as modulation, XY, and Aux targets:
   `1..5000 ms`. These menu, saved-config, and realtime ranges are the same; accepted values go to the
   ducking renderer without a narrower range. Tap points are under
   [Routing semantics](#routing-semantics).
-- When bus config is missing, the menu shows the shipped defaults (`Slot 1: Delay`, `Slot 2: Duck`,
-  `Slot 3: None`) rather than the first option. Old configs without `slot3` load it as `none`; saved
+- When bus 1's config is missing, the menu shows its shipped defaults (`Slot 1: Delay`,
+  `Slot 2: Duck`, `Slot 3: None`) rather than the first option; buses 2-4 show `None` slots. Old configs without `slot3` load it as `none`; saved
   configs always include `slot3`.
 
 ## Routing semantics

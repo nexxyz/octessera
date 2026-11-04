@@ -16,7 +16,7 @@ Play
 ├── LFO                                  ← page-select row
 ├── FX (group)
 │   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
-│   ├── Target: [master | fx buses | instruments]
+│   ├── Target: [master | fx_bus_1..fx_bus_4 | I1..I8]   ← instruments stored as instrument_n
 │   ├── ... params of the FX Type (see Play FX)
 │   ├── Map to Grid (action)
 │   └── Aux Map (group)                  ← the Play FX params/actions that auto-map to aux, with their aux markers
@@ -91,7 +91,8 @@ The menu lists the technical bank, then the musical bank.
   boot, patch loads and Clear All, and the engine gets volume 0 for a muted bus from every bus
   volume path while the stored volume keeps changing. A muted bus's marker dims. Column 5 is the
   master (white): rows `1..7` set `System > Master Vol` through its menu edit; it has no mute, so
-  its row 0 is dark. Columns 4, 6 and 7 are dark. Shift + press here never reaches the behavior or
+  its row 0 has no marker. Columns 4, 6 and 7 have no markers either and keep the dimmed behavior
+  tiles. Shift + press here never reaches the behavior or
   the param-mod lanes.
 
 ## Pan
@@ -181,7 +182,8 @@ The menu lists the technical bank, then the musical bank.
 ## Play FX
 
 - Choose `FX Type`, edit its rows, then `Map to Grid` and press a tile. The toast is
-  `Map FX: <type>`, and Back leaves assignment without changing stored tiles. The tile stores the
+  `Map FX: <type>`, placing it on a tile toasts `FX mapped`, and Back leaves assignment without
+  changing stored tiles. The tile stores the
   type, `Target`, and current parameter values. Mapping `none` clears a tile.
 - `Target` defaults to `master`. Options list `master`, then the FX buses, then the instruments.
   Insertion points: `instrument_n` on the instrument's outgoing signal before routing/pan; `fx_bus_n`
@@ -274,7 +276,7 @@ The `ms` rows use the curved time steps from
   under `runtimeConfig.xy`. XY is a global Play source, separate from per-layer Link axis slots.
 - `Release: sample-hold` keeps the last values after lifting; `reset-center` returns X and Y to 0.5.
 - `Invert X`/`Invert Y` use `value = 1 - norm`, so left (X) or bottom (Y) becomes max. Inversion
-  retargets only the affected mapped axis through the smoothing glide; the visual marker is never
+  retargets only the affected mapped axis through the Glide; the visual marker is never
   inverted.
 - `Glide` (saved as `smoothingMs`) is `Off` at 0, otherwise 1–5000 ms on the curved time steps
   from [Numeric steps](../menu-and-controls-spec.md#numeric-steps). Raw markers follow the press immediately, while
