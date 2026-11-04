@@ -193,6 +193,11 @@ impl NativeRunner {
                 return crate::timing_units::note_unit_to_pulses(&layer.scan_unit);
             }
         }
+        self.layer_step_rate_pulses(index)
+    }
+
+    /// The layer's Build Step Rate, whether or not it scans.
+    pub(super) fn layer_step_rate_pulses(&self, index: usize) -> u32 {
         if index == self.active_layer_index {
             self.transport.algorithm_step_pulses
         } else {

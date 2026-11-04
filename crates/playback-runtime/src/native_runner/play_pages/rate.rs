@@ -132,16 +132,4 @@ impl NativeRunner {
         };
         crate::timing_units::note_unit_from_pulses(pulses)
     }
-
-    fn layer_step_rate_pulses(&self, layer: usize) -> u32 {
-        if layer == self.active_layer_index {
-            self.transport.algorithm_step_pulses
-        } else {
-            self.transport
-                .layer_algorithm_step_pulses
-                .get(layer)
-                .copied()
-                .unwrap_or(super::super::DEFAULT_ALGORITHM_STEP_RED)
-        }
-    }
 }
