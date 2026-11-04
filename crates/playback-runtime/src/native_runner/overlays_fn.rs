@@ -181,10 +181,15 @@ impl NativeRunner {
                 .get(row)
                 .map(|id| id != "none")
                 .unwrap_or(false);
+            let gated = self
+                .link_layers
+                .get(row)
+                .is_some_and(|layer| layer.trigger_probability_mode == "zero");
             let color = fn_layer_color(
                 configured,
                 row == self.active_layer_index,
                 self.active_play_mode != "none",
+                gated,
             );
             self.set_display_led(leds, 0, row, color);
         }
@@ -202,19 +207,14 @@ impl NativeRunner {
     }
 }
 
-fn fn_layer_color(configured: bool, active: bool, play_active: bool) -> LedColor {
-    if play_active {
-        if configured {
-            LedColor::BLUE
-        } else {
-            LedColor::SYSTEM.dim(8)
-        }
-    } else if active {
-        LedColor::BLUE
-    } else if configured {
-        LedColor::GREEN
-    } else {
-        LedColor::SYSTEM.dim(8)
+fn fn_layer_color(configured: bool, active: bool, play_active: bool, gated: bool) -> LedColor {
+    let lit = if play_active { configured } else { active };
+    match (lit, configured, gated) {
+        (true, _, true) => LedColor::MAGENTA,
+        (true, _, false) => LedColor::BLUE,
+        (false, true, true) => LedColor::MAGENTA.dim(4),
+        (false, true, false) => LedColor::GREEN,
+        (false, false, _) => LedColor::SYSTEM.dim(8),
     }
 }
 

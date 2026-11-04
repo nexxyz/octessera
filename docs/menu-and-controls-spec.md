@@ -54,10 +54,10 @@ Data sources the spec relies on:
 | Combined modifier + Space | Reserved | No-op. |
 | Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
 | Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Only this disable transition releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes; an already-ringing one-shot Drum hit finishes its decay. Ordinary Play Trigger Gate edits to `0%` only suppress future admissions. Other layers are unaffected, and re-enabling does not resurrect released notes. |
-| Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. See [Grid overlays](#overlays-and-priority). |
+| Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. A layer whose trigger mode is `0%` shows magenta instead of blue and dim magenta instead of green. See [Grid overlays](#overlays-and-priority). |
 | Fn + rightmost grid column | Select technical Play page | Selects and activates the technical-bank page on that row and moves the menu to it ([banks](menu-tree/play.md#pages-and-navigation)). Free rows do nothing. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier + rightmost grid column | Select musical Play page | The same for the musical bank. |
-| Combined modifier held | Musical navigation LEDs | Shows the layer column and the musical page column. |
+| Combined modifier held | Musical navigation LEDs | Shows the layer column, with the same colors as Fn held, and the musical page column. |
 | Fn or combined modifier + other tile, Play page active | Nothing | The navigation overlay hides the page, so the press neither edits the page nor reaches the behavior. Without a Play page, Fn + tile still goes to the behavior. |
 | Sample/Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
 | Sample/Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
@@ -765,7 +765,9 @@ The grid is composed in this order; each step paints over the previous one.
 6. Fn navigation, while Fn or Shift+Fn is held and no assignment is active. All other tiles go
    black. The left column is the layer column: without an active Play page the active layer is
    blue, configured layers green, and `none` layers dim gray; with an active Play page every
-   configured layer is blue. The right column lists the Play pages of the held bank by row
+   configured layer is blue. A layer whose trigger mode is `0%` (gated by Shift+Fn + left column,
+   the Trigger Gate page, or its saved `Trigger Prob.` mode) shows magenta where it would be blue
+   and dim magenta where it would be green; `none` layers stay dim gray. The right column lists the Play pages of the held bank by row
    (Fn: technical, Shift+Fn: musical), dim yellow, with the active page green; free rows are dim
    gray.
 

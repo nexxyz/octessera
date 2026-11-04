@@ -281,6 +281,8 @@ The `ms` rows use the curved time steps from
 - `Shift+Fn` + left-column layer toggles that layer between `0%` and its previous mode without
   rewriting the map or changing the active layer. Note release on disable is described in the
   [Cheat Sheet](../menu-and-controls-spec.md#cheat-sheet).
+- While Fn or Shift+Fn is held, a layer at `0%` shows magenta in the layer column (bright where it
+  would be blue, dim where it would be green), so gated layers are visible from any page.
 
 ### Probability map
 

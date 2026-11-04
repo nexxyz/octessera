@@ -125,7 +125,8 @@ column, leaves the page.
 | XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. *Shift* + tile parks it there after you let go, even when **Release** springs back to the center; a plain press un-parks it. |
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
-it, so the patch keeps its saved mode.
+it, so the patch keeps its saved mode. Hold *Fn* to check which layers are
+blocked: they're magenta in the left column.
 
 ### Faders
 

@@ -151,11 +151,11 @@ OLED markers:
 
 | Control | What it does |
 |---|---|
-| Hold *Fn* | Preview: the left column shows layers (cyan for the current one, green for layers with a behavior, dim for empty ones; with a Play page open, every layer with a behavior shows cyan). The right column shows the technical Play pages in dim yellow with the open one in green. Hold *Shift* + *Fn* to see the musical ones. |
+| Hold *Fn* | Preview: the left column shows layers (cyan for the current one, green for layers with a behavior, dim for empty ones; with a Play page open, every layer with a behavior shows cyan). A gated layer shows magenta instead: bright for the current one, dim for the others. The right column shows the technical Play pages in dim yellow with the open one in green. Hold *Shift* + *Fn* to see the musical ones. |
 | *Fn* + left column | Jump to that layer (bottom row is Layer 1). This also closes any open Play page. |
 | *Fn* + right column | Open a technical Play page. From the bottom: Mix, Pan, Route, Tempo, LFO, Faders. |
 | *Shift* + *Fn* + right column | Open a musical Play page. From the bottom: FX, XY, Transpose, Rate, Trigger Gate. |
-| *Shift* + *Fn* + left column | Mute or unmute that layer's triggers without switching to it. Muting releases its held notes. |
+| *Shift* + *Fn* + left column | Mute or unmute that layer's triggers without switching to it. Muting releases its held notes, and the layer turns magenta in the left column. |
 | *Fn* + click an Aux encoder | Bind the highlighted value or action to that encoder. |
 
 The Play pages themselves are explained in

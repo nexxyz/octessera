@@ -87,6 +87,7 @@ mod factory_sound_sanity;
 mod fast_dispatch_parity;
 mod fm;
 mod fm_device;
+mod fn_layer_gate_colors;
 mod full_screen_signal;
 mod happy_path;
 mod hardware_test;
