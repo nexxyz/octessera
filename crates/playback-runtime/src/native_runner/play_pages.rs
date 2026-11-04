@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use super::{NativeRunner, BUS_COUNT, GRID_HEIGHT, INSTRUMENT_COUNT};
 
+pub(super) mod faders;
 mod lfo;
 mod rate;
 mod route;
@@ -32,12 +33,13 @@ const fn page(mode: &'static str, label: &'static str, bank: PlayBank, row: usiz
 }
 
 /// Every Play page in menu order: the technical bank, then the musical bank, bottom row first.
-pub(crate) const PLAY_PAGES: [PlayPage; 10] = [
+pub(crate) const PLAY_PAGES: [PlayPage; 11] = [
     page("mix", "Mix", PlayBank::Technical, 0),
     page("pan", "Pan", PlayBank::Technical, 1),
     page("route", "Route", PlayBank::Technical, 2),
     page("tempo", "Tempo", PlayBank::Technical, 3),
     page("lfo", "LFO", PlayBank::Technical, 4),
+    page("faders", "Faders", PlayBank::Technical, 5),
     page("fx", "FX", PlayBank::Musical, 0),
     page("xy", "XY", PlayBank::Musical, 1),
     page("transpose", "Transpose", PlayBank::Musical, 2),

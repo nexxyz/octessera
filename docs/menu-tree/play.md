@@ -2,8 +2,8 @@
 
 Part of the authoritative menu/control spec; see [`../menu-tree-spec.md`](../menu-tree-spec.md) for
 the index and notation. Play turns the grid into a performance surface. Each page swaps the grid's
-job: mixer faders, pan, routing and live FX bypass, tempo and swing, the global LFOs, momentary FX, trigger gates, a transpose keyboard, or
-an XY pad.
+job: mixer faders, pan, routing and live FX bypass, tempo and swing, the global LFOs, eight
+parameter sliders, momentary FX, trigger gates, a transpose keyboard, or an XY pad.
 
 ## Tree
 
@@ -14,6 +14,12 @@ Play
 ├── Route                                ← page-select row
 ├── Tempo                                ← page-select row
 ├── LFO                                  ← page-select row
+├── Faders (group)
+│   └── F1..F8 (group)                   ← one per grid column
+│       ├── Target: <target | (none)> (picker)     ← plain press; Range Min/Max inside
+│       ├── Invert: [on | off]
+│       ├── S+Target: <target | (none)> (picker)   ← Shift + press; its own Range Min/Max
+│       └── S+Invert: [on | off]
 ├── FX (group)
 │   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
 │   ├── Target: [master | fx_bus_1..fx_bus_4 | I1..I8]   ← instruments stored as instrument_n
@@ -45,6 +51,7 @@ The menu lists the technical bank, then the musical bank.
   | 2 | `route` | `transpose` |
   | 3 | `tempo` | `rate` |
   | 4 | `lfo` | `trigger-gate` |
+  | 5 | `faders` | |
 
   Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
   that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
@@ -53,7 +60,7 @@ The menu lists the technical bank, then the musical bank.
   nothing.
 - In the Play menu, `Mix`, `Pan`, `Route`, `Tempo`, `LFO`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
   rows: Main press
-  selects and activates the page without entering an empty submenu. `FX` and `XY` are
+  selects and activates the page without entering an empty submenu. `Faders`, `FX` and `XY` are
   enterable groups and activate their page too.
 - Entering `Play` activates the saved page. Back, Fn + left column (layer select), and entering
   Build, Link, Shape, or System leave the Play overlay without changing the saved page. Layer
@@ -182,6 +189,24 @@ The menu lists the technical bank, then the musical bank.
   columns show depth instead: magenta up to the step that holds the current depth, dim magenta
   above.
 
+## Faders
+
+- Each column is a vertical slider; rows `0..7` are its positions `0`, `1/7` .. `1`. A press
+  moves that column's slider to the row, Shift + press moves its second slider, so the page drives
+  16 parameters.
+- Each slider is a modulation source with its own picked target, `Range Min`/`Range Max` and
+  `Invert` (`Play > Faders > Fn > Target`/`S+Target`): the bottom row gives Range Min, the top row
+  Range Max, reversed when inverted. The usual claim rules apply, so a second claim on an exclusive
+  target shows `Mapping rejected: target already claimed`. A new target, range or invert moves the
+  target to the slider's position at once.
+- Toast: `F3: Volume 57`, `S+F3: ...` for the Shift slider. A side without a target ignores
+  presses.
+- Targets and positions are saved with the patch, and a load sets every targeted slider's source
+  to its saved position, so a reloaded patch sounds as saved.
+- LEDs: each targeted column is a bar, bright up to the slider's row and dim above it, green for
+  the plain sliders and magenta while Shift is held. Columns without a target on the shown side
+  are dark.
+
 ## Play FX
 
 - Choose `FX Type`, edit its rows, then `Map to Grid` and press a tile. The toast is
@@ -300,7 +325,8 @@ The `ms` rows use the curved time steps from
 - Saved with presets and the default patch: the selected Play page, BPM and swing, the FX page
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
-  probability map, the global X/Y bindings, X/Y glide, invert flags, and release behavior.
+  probability map, the global X/Y bindings, X/Y glide, invert flags, and release behavior, and the
+  Faders slider targets and positions.
 - Not saved: the active Play overlay on load/startup, the XY latch, Mix instrument and bus mutes, Route FX bypass, Tap history, Transpose
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary

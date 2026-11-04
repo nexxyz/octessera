@@ -137,6 +137,21 @@ fn current_bindings(
             ));
         }
     }
+    for column in 0..super::play_pages::faders::FADER_COUNT {
+        for shifted in [false, true] {
+            let key = super::play_pages::faders::fader_target_key(column, shifted);
+            let current = runner.faders.sliders[column][usize::from(shifted)]
+                .target
+                .as_ref();
+            if let Some(binding) = changed_binding(&key, current, changes) {
+                bindings.push((
+                    ModulationSourceId::fader(column, shifted)
+                        .map_err(|_| BindingValidationError::UnsupportedTarget)?,
+                    binding,
+                ));
+            }
+        }
+    }
     Ok(bindings)
 }
 

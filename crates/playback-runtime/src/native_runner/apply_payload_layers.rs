@@ -31,6 +31,9 @@ impl NativeRunner {
         apply_global_link_lfos_payload(self, runtime);
         apply_global_xy_binding_payload(self, runtime);
         self.apply_midi_cc_payload(runtime);
+        if let Some(faders) = runtime.get("faders") {
+            self.faders.apply_payload(faders);
+        }
     }
 }
 

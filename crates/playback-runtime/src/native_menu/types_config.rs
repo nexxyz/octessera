@@ -20,6 +20,7 @@ pub struct NativeMenuConfig {
     pub active_layer_index: usize,
     pub link_lfos: [NativeLinkLfoConfig; 8],
     pub midi_cc_mappings: [NativeMidiCcConfig; 8],
+    pub faders: NativeFadersConfig,
     pub param_mods: Vec<NativeParamModsConfig>,
     pub xy_x_binding: Option<NativeParamBindingSpec>,
     pub xy_y_binding: Option<NativeParamBindingSpec>,
@@ -241,6 +242,12 @@ pub struct NativeMidiCcConfig {
     /// 0 is Any.
     pub channel: u8,
     pub target: Option<NativeParamBindingSpec>,
+}
+
+/// The Play Faders page: each column's plain and Shift slider targets.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NativeFadersConfig {
+    pub targets: [[Option<NativeParamBindingSpec>; 2]; 8],
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

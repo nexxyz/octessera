@@ -104,6 +104,7 @@ pub(crate) fn config() -> NativeMenuConfig {
             channel: 0,
             target: None,
         }),
+        faders: NativeFadersConfig::default(),
         param_mods: vec![NativeParamModsConfig::default(); LAYER_COUNT],
         xy_x_binding: None,
         xy_y_binding: None,

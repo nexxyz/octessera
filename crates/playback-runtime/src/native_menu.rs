@@ -48,6 +48,7 @@ mod note_mapping;
 mod numeric_edit;
 mod options;
 mod play;
+mod play_faders;
 mod sample_browser_menu;
 pub(crate) mod section_labels;
 mod synth_preset_items;

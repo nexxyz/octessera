@@ -9,6 +9,7 @@ use super::modulation_assignment_validation::{
     inert_sample_binding_key, validate_binding_changes, BindingChange, BindingValidationError,
 };
 use super::modulation_source::{ModulationAxis, ModulationSourceId};
+use super::play_pages::faders::fader_target_side;
 use super::{
     native_binding_from_spec, parse_sample_action, NativeParamBinding, NativeRunner, NativeToast,
     GRID_HEIGHT,
@@ -68,6 +69,8 @@ impl NativeRunner {
             self.xy_y_binding = binding.clone();
         } else if let Some(slot) = midi_cc_target_slot(target) {
             self.set_midi_cc_target(slot, binding.clone());
+        } else if let Some((column, shifted)) = fader_target_side(target) {
+            self.set_fader_target(column, shifted, binding.clone());
         } else if let Some(rest) = target
             .strip_prefix("linkLfos.")
             .and_then(|s| s.strip_suffix(".target"))
@@ -86,6 +89,7 @@ impl NativeRunner {
         if target == "xy:x" || target == "xy:y" {
             self.refresh_xy_runtime_sources();
         }
+        self.reapply_fader_source_for_target(target);
         let label = binding
             .as_ref()
             .and_then(|binding| binding.label.as_deref())
@@ -125,6 +129,10 @@ impl NativeRunner {
         } else if let Some(slot) = midi_cc_target_slot(target) {
             self.clear_runtime_source_input(
                 ModulationSourceId::midi_cc(slot).expect("validated MIDI CC slot"),
+            );
+        } else if let Some((column, shifted)) = fader_target_side(target) {
+            self.clear_runtime_source_input(
+                ModulationSourceId::fader(column, shifted).expect("validated Faders column"),
             );
         }
     }
@@ -172,6 +180,7 @@ impl NativeRunner {
                 self.refresh_xy_runtime_sources();
             }
             self.reapply_midi_cc_source_for_target(target);
+            self.reapply_fader_source_for_target(target);
             self.mark_config_dirty();
             self.mark_fast_autosave_dirty();
             if let Err(error) = self.process_dirty_modulation_step(false) {
@@ -203,6 +212,8 @@ impl NativeRunner {
             return self.xy_y_binding.as_mut();
         } else if let Some(slot) = midi_cc_target_slot(target) {
             return self.midi_cc_mappings[slot].target.as_mut();
+        } else if let Some((column, shifted)) = fader_target_side(target) {
+            return self.fader_target_mut(column, shifted).as_mut();
         } else if let Some(rest) = target
             .strip_prefix("linkLfos.")
             .and_then(|s| s.strip_suffix(".target"))
@@ -393,6 +404,7 @@ fn is_modulation_binding_target(target: &str) -> bool {
         || target == "xy:y"
         || (target.starts_with("linkLfos.") && target.ends_with(".target"))
         || midi_cc_target_slot(target).is_some()
+        || fader_target_side(target).is_some()
 }
 
 fn aux_turn_target(target: &str) -> Option<(usize, bool)> {

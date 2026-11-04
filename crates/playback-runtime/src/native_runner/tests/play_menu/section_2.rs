@@ -233,9 +233,13 @@ pub(crate) fn fn_rightmost_grid_column_selects_technical_play_pages() {
     assert_eq!(runner.active_play_mode, "lfo");
     assert_eq!(runner.menu.current_key(), Some("play.page.lfo"));
 
-    for free_row in [5, 6, 7] {
+    let _ = press_grid(&mut runner, 7, 5);
+    assert_eq!(runner.active_play_mode, "faders");
+    assert_eq!(runner.menu.current_key(), Some("play.page.faders"));
+
+    for free_row in [6, 7] {
         let _ = press_grid(&mut runner, 7, free_row);
-        assert_eq!(runner.active_play_mode, "lfo", "row {free_row}");
+        assert_eq!(runner.active_play_mode, "faders", "row {free_row}");
     }
 }
 

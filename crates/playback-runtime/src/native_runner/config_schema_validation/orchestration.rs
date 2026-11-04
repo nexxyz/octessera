@@ -2,6 +2,7 @@ use super::canonical::{
     enum_field, number_field, object_field, object_value, signed_value, unsigned_field,
 };
 use super::device_io;
+use super::faders;
 use super::instruments;
 use super::layers;
 use super::mapping_bindings;
@@ -41,6 +42,7 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     validate_transport(runtime)?;
     unsigned_field(runtime, "randomSeed", "runtimeConfig", 1, 9999)?;
     validate_play(runtime)?;
+    faders::validate_faders(runtime)?;
     instruments::validate_instruments(runtime)?;
     mixer_fx::validate_mixer(runtime)?;
     mapping_bindings::validate_bindings(runtime)?;

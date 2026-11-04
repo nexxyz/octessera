@@ -3,6 +3,7 @@ use serde_json::Map;
 
 mod canonical;
 mod device_io;
+mod faders;
 mod instruments;
 mod layers;
 mod mapping_bindings;

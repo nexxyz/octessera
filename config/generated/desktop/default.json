@@ -76,6 +76,58 @@
       "busIdleThreshold": "-120",
       "workerWarningThreshold": "85"
     },
+    "faders": {
+      "sliders": [
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        },
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        },
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        },
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        },
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        },
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        },
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        },
+        {
+          "target": null,
+          "position": 0,
+          "shiftTarget": null,
+          "shiftPosition": 0
+        }
+      ]
+    },
     "ghostTiles": false,
     "auxAutoHints": true,
     "auxManualHints": true,

@@ -17,6 +17,8 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi_cc_mappings: Option<Vec<MidiCcMappingDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) faders: Option<FadersDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) xy: Option<XyDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) layers: Option<Vec<LayerDto>>,
@@ -111,6 +113,21 @@ pub struct MidiCcMappingDto {
     pub(super) cc: Option<u8>,
     pub(super) channel: Option<u8>,
     pub(super) target: Option<Option<ParamBindingDto>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FadersDto {
+    pub(super) sliders: Option<Vec<FaderSliderDto>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaderSliderDto {
+    pub(super) target: Option<Option<ParamBindingDto>>,
+    pub(super) position: Option<u8>,
+    pub(super) shift_target: Option<Option<ParamBindingDto>>,
+    pub(super) shift_position: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

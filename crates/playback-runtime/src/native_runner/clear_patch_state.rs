@@ -110,6 +110,7 @@ impl NativeRunner {
         self.param_mods = vec![NativeParamMods::default(); LAYER_COUNT];
         self.midi_cc_mappings = super::midi_cc_in::default_midi_cc_mappings();
         self.midi_cc_learn = None;
+        self.faders = Default::default();
         clear_patch_aux_sides(&mut self.aux_bindings);
         clear_patch_aux_sides(&mut self.shift_aux_bindings);
         self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];

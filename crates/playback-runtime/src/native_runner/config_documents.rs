@@ -100,6 +100,13 @@ fn require_local_patch_fixed_arrays(runtime: &Value) -> Result<(), String> {
         "patch.runtimeConfig.midiCcMappings",
         super::midi_cc_in::MIDI_CC_SLOT_COUNT,
     )?;
+    require_fixed_array(
+        runtime
+            .get("faders")
+            .and_then(|faders| faders.get("sliders")),
+        "patch.runtimeConfig.faders.sliders",
+        super::play_pages::faders::FADER_COUNT,
+    )?;
 
     for (index, instrument) in instruments.iter().enumerate() {
         let sample = instrument

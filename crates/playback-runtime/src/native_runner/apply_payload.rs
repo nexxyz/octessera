@@ -202,6 +202,7 @@ impl NativeRunner {
             self.apply_patch_runtime_payload(runtime, envelope.mapping_config())?;
         }
         self.resample_xy_runtime_sources();
+        self.apply_fader_sources();
         self.apply_hdmi_payload(runtime);
         self.apply_bluetooth_payload(runtime);
         if let Some(enabled) = runtime

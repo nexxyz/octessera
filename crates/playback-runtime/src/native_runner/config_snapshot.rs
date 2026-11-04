@@ -7,6 +7,7 @@ pub struct NativeConfigSnapshot {
     active_layer_index: usize,
     link_lfos: Vec<NativeLinkLfoSnapshot>,
     midi_cc_mappings: Vec<super::midi_cc_in::NativeMidiCcMapping>,
+    faders: super::play_pages::faders::NativeFaders,
     xy_x_binding: Option<NativeParamBinding>,
     xy_y_binding: Option<NativeParamBinding>,
     xy_smoothing_ms: u16,
@@ -136,6 +137,7 @@ impl NativeConfigSnapshot {
                     "depthPct": lfo.depth_pct
                 })).collect::<Vec<_>>(),
                 "midiCcMappings": super::midi_cc_in::midi_cc_mappings_payload(&self.midi_cc_mappings),
+                "faders": self.faders.payload(),
                 "xy": {
                     "x": super::param_binding_payload(self.xy_x_binding.as_ref()),
                     "y": super::param_binding_payload(self.xy_y_binding.as_ref()),
@@ -312,6 +314,7 @@ impl NativeConfigSnapshot {
                 })
                 .collect(),
             midi_cc_mappings: runner.midi_cc_mappings.to_vec(),
+            faders: runner.faders.clone(),
             xy_x_binding: runner.xy_x_binding.clone(),
             xy_y_binding: runner.xy_y_binding.clone(),
             xy_smoothing_ms: runner.xy_smoothing_ms,

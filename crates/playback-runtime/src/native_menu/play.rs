@@ -12,6 +12,7 @@ pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
         let children = match page.mode {
             "fx" => play_fx_page_children(config),
             "xy" => xy_pad_items(config),
+            "faders" => super::play_faders::faders_page_children(config),
             _ => vec![],
         };
         keyed_group(page.label, format!("play.page.{}", page.mode), children)

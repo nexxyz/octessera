@@ -54,6 +54,7 @@ impl NativeRunner {
                     target: mapping.target.as_ref().map(param_binding_spec_from_native),
                 }
             }),
+            faders: self.faders.menu_config(),
             param_mods: param_mod_configs(&self.param_mods),
             xy_x_binding: self
                 .xy_x_binding

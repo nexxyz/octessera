@@ -121,6 +121,7 @@ mod note_set_runtime;
 mod note_sets;
 mod numeric_binding_round_trip;
 mod picker_rows;
+mod play_faders;
 mod play_fx;
 mod play_lfo;
 mod play_menu;

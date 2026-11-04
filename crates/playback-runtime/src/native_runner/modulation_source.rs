@@ -5,6 +5,8 @@ const GLOBAL_LFO_SOURCE_COUNT: usize = 8;
 const MIDI_CC_SOURCE_COUNT: usize = 8;
 const GLOBAL_LFO_BASE: usize = LAYER_COUNT * AXIS_SLOT_COUNT * 2 + 2;
 const MIDI_CC_BASE: usize = GLOBAL_LFO_BASE + GLOBAL_LFO_SOURCE_COUNT;
+const FADER_COLUMN_COUNT: usize = 8;
+const FADER_BASE: usize = MIDI_CC_BASE + MIDI_CC_SOURCE_COUNT;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum ModulationAxis {
@@ -21,11 +23,12 @@ pub(crate) enum ModulationSourceError {
     AxisSlot,
     LfoSlot,
     MidiCcSlot,
+    FaderColumn,
 }
 
 impl ModulationSourceId {
     #[cfg(test)]
-    pub(crate) const COUNT: usize = MIDI_CC_BASE + MIDI_CC_SOURCE_COUNT;
+    pub(crate) const COUNT: usize = FADER_BASE + 2 * FADER_COLUMN_COUNT;
 
     pub(crate) fn layer_axis(
         layer_index: usize,
@@ -57,6 +60,16 @@ impl ModulationSourceId {
             return Err(ModulationSourceError::MidiCcSlot);
         }
         Ok(Self(MIDI_CC_BASE + slot))
+    }
+
+    /// A Faders slider: its plain target, or with `shifted` its Shift target.
+    pub(crate) fn fader(column: usize, shifted: bool) -> Result<Self, ModulationSourceError> {
+        if column >= FADER_COLUMN_COUNT {
+            return Err(ModulationSourceError::FaderColumn);
+        }
+        Ok(Self(
+            FADER_BASE + usize::from(shifted) * FADER_COLUMN_COUNT + column,
+        ))
     }
 
     pub(crate) const fn play_x() -> Self {
@@ -109,7 +122,11 @@ impl ModulationSourceId {
             0 => "Play X".into(),
             1 => "Play Y".into(),
             _ if self.is_global_lfo() => format!("LFO {}", self.0 - GLOBAL_LFO_BASE + 1),
-            _ => format!("CC{}", self.0 - MIDI_CC_BASE + 1),
+            _ if self.0 < FADER_BASE => format!("CC{}", self.0 - MIDI_CC_BASE + 1),
+            _ if self.0 < FADER_BASE + FADER_COLUMN_COUNT => {
+                format!("F{}", self.0 - FADER_BASE + 1)
+            }
+            _ => format!("S+F{}", self.0 - FADER_BASE - FADER_COLUMN_COUNT + 1),
         }
     }
 }
@@ -132,6 +149,11 @@ mod tests {
         assert_eq!(sources[49].label(), "CC8");
         assert!(!sources[42].is_global_lfo());
         assert!(sources[41].is_global_lfo());
+        assert_eq!(sources[50].label(), "F1");
+        assert_eq!(sources[57].label(), "F8");
+        assert_eq!(sources[58].label(), "S+F1");
+        assert_eq!(sources[65].label(), "S+F8");
+        assert_eq!(ModulationSourceId::fader(7, true).unwrap(), sources[65]);
         for (index, source) in sources.into_iter().enumerate() {
             assert_eq!(source.stable_index(), index);
             assert_eq!(ModulationSourceId::from_stable_index(index), Some(source));
@@ -155,6 +177,10 @@ mod tests {
         assert_eq!(
             ModulationSourceId::midi_cc(MIDI_CC_SOURCE_COUNT),
             Err(ModulationSourceError::MidiCcSlot)
+        );
+        assert_eq!(
+            ModulationSourceId::fader(FADER_COLUMN_COUNT, false),
+            Err(ModulationSourceError::FaderColumn)
         );
     }
 }
