@@ -978,7 +978,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   is the plain `samples/` folder; there is no sample manifest.
 - Named presets are portable patch files. Loading one applies musical patch state only and keeps
   local settings such as brightness, MIDI ports/sync, USB, HDMI, recording settings, audio buffer,
-  Auto Save/Backups, and sample favourites. Device/System aux bindings stay local; musical aux
+  Auto Save/Backups, and sample favorites. Device/System aux bindings stay local; musical aux
   bindings travel with the patch.
 - Patch-persistent state and transient state per section are listed in
   [build.md](menu-tree/build.md#layer-runtime-behavior) and [play.md](menu-tree/play.md#persistence).
@@ -1008,7 +1008,7 @@ Some ownership decisions do not follow the menu headings:
 | System → Audio → Polyphony (`voiceStealingMode`) | Musical patch | Menu-location exception; moving it would change musical behavior. |
 | Link → Paused Events | System settings | Menu-location exception. |
 | Link → Aux Mappings, including Shift | Split by target | Musical bindings travel with the patch; hardware/System bindings stay local. Two documents claiming the same bank, control and Turn/Click side are rejected, not resolved by load order. |
-| Shape sample-browser favourites | System settings | Bookmarks are local; assigned sample IDs are musical. |
+| Shape sample-browser favorites | System settings | Bookmarks are local; assigned sample IDs are musical. |
 | Active layer, behavior and Play-page selection | Musical patch | The saved initial focus, not live transport state. |
 
 Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.

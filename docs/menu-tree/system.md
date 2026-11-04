@@ -439,7 +439,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   Stop closes it and revokes the code. The card ranks after confirmation dialogs and the setup
   portal, ahead of system info and help. Desktop has no Backup / Restore row.
 - The `.oct` archive carries music, selected portable preferences, and optionally media. It is not a
-  complete device backup: USB role, MIDI/audio endpoint IDs, and favourites stay local to the
+  complete device backup: USB role, MIDI/audio endpoint IDs, and favorites stay local to the
   destination. Rolling `Saves > Default > Backups` are separate and patch-only.
 
 ### Reset

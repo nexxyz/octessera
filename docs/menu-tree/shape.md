@@ -279,17 +279,17 @@ Instrument rows offered as modulation, XY, and Aux targets:
 ### Sample browser
 
 - The browser menu carries the slot context (`S1 Browse`). Body rows are browser entries: `..`,
-  built-in/user favourites at the sample root, `[folder]` rows, file rows, or `(empty)`, then a blank
-  separator row and a current-folder favourite action.
+  built-in/user favorites at the sample root, `[folder]` rows, file rows, or `(empty)`, then a blank
+  separator row and a current-folder favorite action.
 - Before directory entries arrive it shows `(loading...)` instead of `(empty)`. Long highlighted
   names are clipped to the row width and never overlap other display areas.
 - Space previews the highlighted WAV through the selected instrument slot (folders and `..` do
   nothing). While that preview sounds, its row shows a play triangle in the marker column. The favourite action toggles the current folder in `runtimeConfig.sampleFavouriteDirs`.
-  Platform built-in favourites are added dynamically and cannot be removed from that config.
-- Pi built-in favourites are `Samples` (`/home/pi/samples`) and `SD card`
+  Platform built-in favorites are added dynamically and cannot be removed from that config.
+- Pi built-in favorites are `Samples` (`/home/pi/samples`) and `SD card`
   (`/home/pi/samples/sd-card/octessera/samples`, with `/home/pi/samples/sd-card` expected to be the
   OLED SD2 `OCTESSERA` mount point). An unmounted SD card shows a clear unavailable message.
-  Desktop has a built-in `User data` favourite.
+  Desktop has a built-in `User data` favorite.
 - Assigned sample playback follows the instrument route, pan, volume, bus FX, and master output gain.
   The browser preview skips all of those and joins the master directly, centered, before master FX.
 - Runtime audio commands and full audio-config payloads use the same native normalization on desktop

@@ -152,7 +152,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     let snapshot = runner.menu.snapshot();
     assert_eq!(
         snapshot.lines,
-        vec![" !..", " !kick.wav", "", " !Set favourite"]
+        vec![" !..", " !kick.wav", "", " !Set favorite"]
     );
 
     let _ = runner
@@ -163,7 +163,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
         .unwrap();
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "Favourite set"
+        "Favorite set"
     );
     assert_eq!(runner.sample_favourite_dirs, vec![String::from("Samples")]);
 
@@ -202,7 +202,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
         .unwrap();
     assert_eq!(
         loaded.display.toast.as_ref().unwrap().message,
-        "Favourite removed"
+        "Favorite removed"
     );
     assert!(loaded.sample_favourite_dirs.is_empty());
 }
