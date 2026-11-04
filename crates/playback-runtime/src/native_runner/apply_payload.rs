@@ -141,7 +141,9 @@ impl NativeRunner {
         self.drain_all_layer_engine_notes();
         candidate.pending_transpose_note_offs = self.pending_transpose_note_offs.clone();
         candidate.preserve_sample_availability_from(self);
+        let focused_key = self.menu.current_key().map(str::to_owned);
         if self.menu.is_built() {
+            self.menu = crate::native_menu::NativeMenuModel::unbuilt();
             candidate.menu.rebuild(candidate.menu_config());
         }
         candidate.config_revision = self.config_revision;
@@ -149,7 +151,6 @@ impl NativeRunner {
         candidate.commit_configuration_runtime_plan(&plan);
         candidate.last_snapshot_audio_config_revision = self.last_snapshot_audio_config_revision;
         candidate.queued_audio_config_revision = self.queued_audio_config_revision;
-        let focused_key = self.menu.current_key().map(str::to_owned);
         *self = candidate;
         if let Some(key) = focused_key {
             self.menu.focus_item_key(&key);
