@@ -11,7 +11,7 @@ same thing, down to the toast text.
 | This file | Controls and modifiers, value editing, OLED and LED presentation, overlay priority, aux bindings, modulation, save/load, and the native behavior contract |
 | [`menu-tree-spec.md`](menu-tree-spec.md) | Root menu, tree notation, and the index of section trees |
 | [`menu-tree/build.md`](menu-tree/build.md) | Build tree, behavior categories, per-behavior config rows, behavior notes |
-| [`menu-tree/link.md`](menu-tree/link.md) | Link tree, event mapping and timing, LFOs, Arp, X/Y axis slots, Aux Mappings |
+| [`menu-tree/link.md`](menu-tree/link.md) | Link tree, event mapping and timing, LFOs, MIDI CC In, Arp, X/Y axis slots, Aux Mappings |
 | [`menu-tree/shape.md`](menu-tree/shape.md) | Instruments, FX buses, global FX, routing, sample and drum assignment |
 | [`menu-tree/play.md`](menu-tree/play.md) | Play pages, their grid layouts, Play FX, XY |
 | [`menu-tree/system.md`](menu-tree/system.md) | System tree per platform and every System setting and action |
@@ -235,15 +235,16 @@ Aux mappings modal:
 
 ### Parameter target pickers
 
-Modulation slots, Aux Turn bindings, Play XY axes, and LFO targets share one menu-mirrored picker.
+Modulation slots, Aux Turn bindings, Play XY axes, LFO targets, and MIDI CC In targets share one
+menu-mirrored picker.
 
 - Children: `(none)`, then `Current: <label>` when bound, then `Range Min` and `Range Max` when the
   binding is numeric and the picker is not an Aux Turn picker, then the target tree.
 - The tree mirrors the root order (`Build`, `Link`, `Shape`, `Play`, `System`). Under Build, layers
   with behavior `none` expose no behavior targets; other layers expose their own Step Rate as
   `layers.N.algorithmStep` and their config fields/actions as `layers.N.build.behaviorConfig.*`.
-- `Range Min`/`Range Max` constrain the output of every source (slots, XY, LFOs) while keeping the
-  target's capability `min`/`max` metadata. Missing sides fall back to the target range; equal
+- `Range Min`/`Range Max` constrain the output of every source (slots, XY, LFOs, MIDI CC In) while
+  keeping the target's capability `min`/`max` metadata. Missing sides fall back to the target range; equal
   values produce a fixed value. Enum and bool bindings ignore user ranges.
 - LFO target pickers list only numeric, live-safe targets and never another LFO's settings. The
   instrument-specific numeric targets are listed in [shape.md](menu-tree/shape.md#binding-targets).
@@ -429,7 +430,7 @@ behavior primary red), so a mute never reads as a section color.
   turning; `Label: value >` is picked from the list the row opens; a bare `>` opens a page; `!`
   runs an action; `▸` marks the active entry of a picker list.
 - Picker rows: the behavior selector (`Beh.: <behavior>`), the `Link > Aux Mappings` pickers
-  (`Trn`, `Clk`, `S+Trn`, `S+Clk`), LFO `Target`, `Link > Lx > X/Y Axis > Slot 1/Slot 2`,
+  (`Trn`, `Clk`, `S+Trn`, `S+Clk`), LFO and MIDI CC In `Target`, `Link > Lx > X/Y Axis > Slot 1/Slot 2`,
   `Play > XY > X Axis/Y Axis`, `Note Mapping > Set` and a sampler's loaded-sample row
   (`S1: <file>`, which opens the browser in the file's folder). The menu model marks these rows
   where it builds them; the value follows the label after a colon and a space at 70 % of the row
@@ -931,8 +932,11 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   resample active XY afterwards so its captured base is the loaded value.
 - Enabled targeted LFO phases advance and wrap even at depth zero. Other PPQN paths and wall-clock
   timing never advance LFOs or process unrelated held sources.
-- Layer X/Y, Play XY, and LFO assignments are staged through the native claim validator. An
-  exclusive target may have one layer/Play claim, and an LFO may never claim one. A rejected
+- Modulation sources, in their stable order: layer X/Y slots, Play X/Y, the eight Link LFOs, then
+  the eight MIDI CC In slots. A CC slot holds its last `value / 127` like a held XY position; a
+  loaded patch starts with none ([link.md](menu-tree/link.md#midi-cc-in)).
+- Layer X/Y, Play XY, LFO, and MIDI CC In assignments are staged through the native claim
+  validator. An exclusive target may have one layer/Play/CC claim, and an LFO may never claim one. A rejected
   assignment leaves binding, contribution, revision, autosave state, and menu focus unchanged and
   shows `Mapping rejected: unsupported target`, `Mapping rejected: target type mismatch`,
   `Mapping rejected: LFO needs a live numeric target`, or

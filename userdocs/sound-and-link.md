@@ -130,6 +130,28 @@ These live at the top of **Link**, not under a layer.
 - Each layer's **Seeded** row makes trigger probability and random arp orders
   repeatable; see [Seeds](behaviors-and-play.md#seeds-surprises-you-can-keep).
 
+### MIDI CC In: your knobs, steering the worlds
+
+**Link > MIDI CC In** has eight slots, **CC1** to **CC8**, that let the knobs
+and faders on a MIDI controller move parameters, much like the XY pad does.
+
+- Switch on `System > MIDI > MIDI Active` and connect the controller under
+  **MIDI In** (or plug a computer into USB MIDI). Clock and sync settings
+  don't matter here.
+- In a slot, press **Learn** and wiggle the knob you want. The slot takes its
+  CC number and channel (`CC1: learned CC 74 ch 1`). Back, or ten seconds of
+  silence, cancels. You can also set **CC** and **Channel** by hand; `any`
+  listens on every channel.
+- Pick a **Target** from the usual list and narrow it with **Range Min** and
+  **Range Max**. The knob's full turn sweeps that range, and **Invert** turns it
+  around.
+- The parameter stays where the knob left it. The mappings are saved with the
+  patch, but a freshly loaded patch keeps its saved values until you touch a
+  knob, so nothing jumps on load.
+- Switch-like parameters (on/off, a choice from a list) take one driver at a
+  time. If an XY slot or another CC already has one, you get `Mapping rejected:
+  target already claimed`.
+
 ## Shape: what it sounds like
 
 `Shape > Instruments` holds eight instrument slots. Link's **Inst** numbers

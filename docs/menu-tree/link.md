@@ -26,6 +26,14 @@ Link
 │   │   ├── Period: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1 | 2/1T | 2/1 | 4/1T | 4/1 | 8/1T | 8/1]  default 1/1
 │   │   └── Depth %: [0..100] step 1              default 100
 │   └── L2 .. L8 (group)
+├── MIDI CC In (group)                            ← exactly eight slots, saved with the patch
+│   ├── CC1 (group)
+│   │   ├── CC: [0..127] step 1                   default 1 (CC2 listens to 2, .. CC8 to 8)
+│   │   ├── Channel: [any | 1 .. 16]              default any
+│   │   ├── Learn !                               ← next incoming CC sets CC and Channel
+│   │   ├── Target: <target | (none)> (picker)    ← parameter picker with Range Min/Range Max
+│   │   └── Invert: [on | off]                    default off; needs a Target
+│   └── CC2 .. CC8 (group)
 ├── Paused Events: [on | off]                     default on
 ├── L1: <label> (group)                           ← one group per layer; entering it makes that layer active
 │   ├── Scanning (group)
@@ -163,6 +171,26 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - Phase and live contributions are transient and never serialized. Playback-runtime sums live LFO
   deltas once per affected endpoint, clamps the result to the target's canonical range, and emits
   transient audio commands without changing the persistent config.
+
+## MIDI CC In
+
+- `Link > MIDI CC In > CC1..CC8` is stored with the patch as `runtimeConfig.midiCcMappings`, exactly
+  eight slots of `{ "cc": 0..127, "channel": 0..16, "target": <binding | null> }`. Channel `0` is
+  `any`; the target binding carries `userMin`/`userMax` (Range Min/Max) and `invert`.
+- Each slot is a modulation source after the LFOs. A Control Change whose number matches, on the
+  slot's channel or any channel for `any`, sets the source to `value / 127` (`1 - value / 127` when
+  inverted), mapped through the target's range. The value holds until the next CC; changing Range
+  or Invert reshapes the held value at once, a new Target waits for the next CC. Claims are
+  validated as described under [Modulation](../menu-and-controls-spec.md#modulation).
+- CC only applies while `System > MIDI > MIDI Active` is on, from the port `MIDI In` (or USB MIDI)
+  connects. A loaded patch starts with no CC input: targets keep their saved values until a CC
+  arrives.
+- `Learn` takes the number and channel of the next incoming CC (`CC1: learned CC 74 ch 1`). Back or
+  10 s without a CC cancels it (`Learn cancelled`); with MIDI Active off it only shows
+  `Learn: MIDI is off`.
+- Hosts pass Control Change (`0xB0`-`0xBF`) next to clock, Start, Continue and Stop; notes and other
+  messages stay out. A drain handles its realtime bytes first, then applies only the latest value
+  per channel and CC number.
 
 ## Arp
 

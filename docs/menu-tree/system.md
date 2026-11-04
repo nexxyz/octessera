@@ -264,7 +264,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   MIDI input and output, and Host-selected input/output IDs are ignored. Orange keeps those Host
   selections for use after USB MIDI is turned off. USB MIDI applies live: turning it on or off
   rebuilds the USB gadget, and the gadget MIDI port connects as soon as it appears.
-- General MIDI enable, ports, clock, and sync stay under `System > MIDI`.
+- General MIDI enable, ports, clock, and sync stay under `System > MIDI`. Incoming Control Changes
+  drive `Link > MIDI CC In` ([link.md](link.md#midi-cc-in)) under the same gate and port.
 
 ## Restart-sensitive settings
 
