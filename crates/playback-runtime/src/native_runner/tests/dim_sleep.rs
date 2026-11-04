@@ -127,7 +127,7 @@ pub(crate) fn fresh_startup_timed_snapshots_reach_sleep_without_input() {
     assert_eq!(snapshot_from(&messages)["display"]["splash"], "");
     assert_eq!(
         snapshot_from(&messages)["display"]["toast"],
-        "Help: Sh+Fn+Enter"
+        "Help: Sh+Fn+Main"
     );
 
     runner.display.last_interaction_at = Instant::now() - Duration::from_secs(2);

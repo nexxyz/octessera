@@ -370,7 +370,7 @@ rolling_backups	*	key:rollingBackups	bool	Backups	When enabled, config edits wri
 note_length	*	key:sound.noteLengthMs	number	Note Length	Default note duration when note_on has no explicit length.	Hold-mode notes may bypass duration and wait for note_off.
 velocity_scale	*	key:sound.velocityScalePct	number	Vel Scale	Scales velocity values globally after mapping.	Use to tame or boost overall dynamic output.
 ui_group	Menu > System > Display		group	Display	OLED, grid and button lighting, display helpers, and HDMI video.	These do not change musical generation.
-controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Includes help, back, transport, Fn navigation, alternate aux binding, sample, and probability-map shortcuts.
+controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Covers help, Back, transport, Fn and Shift+Fn grid navigation, the layer mute, Fn+Aux binding and the Fn+Main Aux map.
 ghost_tiles	*	key:ghostTiles	bool	Ghost Tiles	Shows dim tiles from inactive layers behind the active layer.	Off by default for clarity; active layer tiles always take visual priority.
 input_events_while_paused	*	key:inputEventsWhilePaused	bool	Paused Events	When On, grid presses continue to fire musical events even when transport is stopped or paused.	Disable to keep paused/stopped grid edits silent while algorithm evolution remains stopped.
 dim_timer	*	key:dimTimerSeconds	number	Dim Timer	Sets idle timeout before non-OLED LEDs dim.	Set 0 to keep LEDs at configured brightness; this dim is static and does not animate.

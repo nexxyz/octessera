@@ -21,7 +21,7 @@ impl NativeRunner {
                 .is_some_and(|started| now.duration_since(started) >= Duration::from_millis(1000))
         {
             let message = if self.display.ui.combined_modifier_held {
-                "Help: Sh+Fn+Enter"
+                "Help: Sh+Fn+Main"
             } else if self.display.ui.fn_held {
                 "Fn: nav/alt"
             } else {

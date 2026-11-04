@@ -101,7 +101,7 @@ pub(crate) fn startup_splash_closes_into_help_toast() {
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "");
     assert_eq!(display["off"], false);
-    assert_eq!(display["toast"], "Help: Sh+Fn+Enter");
+    assert_eq!(display["toast"], "Help: Sh+Fn+Main");
 }
 
 #[test]

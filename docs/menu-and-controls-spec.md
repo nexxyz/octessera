@@ -613,8 +613,8 @@ behavior primary red), so a mute never reads as a section color.
 - Context changes show toasts such as `Layer: L3 rain` or `Play: fx`. Help and confirm modals keep
   display priority over them.
 - Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a hint
-  toast: `Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Enter`. Startup shows
-  `Help: Sh+Fn+Enter` too. Existing toasts, help/confirm dialogs, assignment overlays, and consumed
+  toast: `Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Main`. Startup shows
+  `Help: Sh+Fn+Main` too. Existing toasts, help/confirm dialogs, assignment overlays, and consumed
   mappings suppress the hint.
 
 ### OLED animations

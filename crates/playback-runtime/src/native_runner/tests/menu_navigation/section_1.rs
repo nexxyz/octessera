@@ -109,7 +109,7 @@ pub(crate) fn transport_pulse_snapshot_clears_startup_splash_after_timeout() {
 
     let display = &snapshot_from(&messages)["display"];
     assert_eq!(display["splash"], "");
-    assert_eq!(display["toast"], "Help: Sh+Fn+Enter");
+    assert_eq!(display["toast"], "Help: Sh+Fn+Main");
 }
 
 #[test]
