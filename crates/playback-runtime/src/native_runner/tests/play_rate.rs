@@ -276,3 +276,34 @@ fn pressing_the_lit_tile_in_either_view_restarts_the_scan_on_the_next_bar() {
         assert_eq!(runner.transport.layer_ticks[0], 2);
     }
 }
+
+#[test]
+fn stop_and_clear_all_drop_a_pending_resync() {
+    let mut runner = rate_runner();
+    let _ = press(&mut runner, 6, 1);
+    let play = |runner: &mut NativeRunner| {
+        for pressed in [true, false] {
+            let _ = input(runner, json!({ "type": "button_s", "pressed": pressed }));
+        }
+    };
+    play(&mut runner);
+    let _ = pulse(&mut runner, 50);
+    let _ = press(&mut runner, 6, 1);
+    assert!(runner.play_live.rate_resyncs[1]);
+
+    shift(&mut runner, true);
+    play(&mut runner);
+    shift(&mut runner, false);
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
+    play(&mut runner);
+    let _ = pulse(&mut runner, 100);
+    assert!(
+        runner.transport.layer_ticks[1] >= 4,
+        "a stale resync restarted the layer at the bar: {}",
+        runner.transport.layer_ticks[1]
+    );
+
+    let _ = press(&mut runner, 6, 1);
+    runner.clear_patch_state().unwrap();
+    assert!(!runner.play_live.rate_resyncs.contains(&true));
+}

@@ -48,6 +48,7 @@ impl NativeRunner {
         self.drain_all_play_transpose_notes();
         self.transport.pending_resync = false;
         self.transport.awaiting_external_downbeat = false;
+        self.play_live.rate_resyncs = [false; GRID_HEIGHT];
         self.transport.tick = 0;
         self.transport.current_ppqn_pulse = 0;
         self.transport.swung_ppqn_pulse = 0;

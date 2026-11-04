@@ -257,7 +257,7 @@ The `ms` rows use the curved time steps from
 - Pressing the lit tile of a layer, in either view, arms a resync for it (`L3 resync`) instead of
   changing a value: at the next bar line its step accumulator is set so a step lands on the bar
   and its scan restarts at its first position on that step, so its steps and scan follow the bar
-  grid again.
+  grid again. Stop and Clear All drop a resync that has not landed yet.
 - LEDs: the current value bright, the others dim; straight values green (Step Rate) or white
   (Scan Unit), triplets blue in both views. A layer on a value outside these eight (`1/32T`, `1/2T`,
   `1/1T`, `1/1`) shows no bright tile. `none` layers are dark and ignore presses.

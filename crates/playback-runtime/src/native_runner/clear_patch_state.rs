@@ -116,6 +116,7 @@ impl NativeRunner {
         self.take_live_fx_overrides();
         self.take_bus_mutes();
         self.play_live.xy_latched = false;
+        self.play_live.rate_resyncs = [false; GRID_HEIGHT];
         self.play_transpose_selected = vec![true; LAYER_COUNT];
         self.play_transpose_enabled = vec![true; LAYER_COUNT];
         self.play_transpose_offsets = vec![0; LAYER_COUNT];
