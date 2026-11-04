@@ -61,6 +61,9 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
     if is_play_assignments_path(path) {
         return validate_play_assignments(value, path);
     }
+    if path.ends_with(".faders.tiles") {
+        return validate_fader_tiles(value, path);
+    }
     match (value, template) {
         (Value::Object(object), Value::Object(template)) => {
             for (key, value) in object {
@@ -195,6 +198,22 @@ fn validate_play_assignments(value: &Value, path: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_fader_tiles(value: &Value, path: &str) -> Result<(), String> {
+    let tiles = value
+        .as_array()
+        .ok_or_else(|| format!("{path} must be an array"))?;
+    for (index, tile) in tiles.iter().enumerate() {
+        let path = format!("{path}[{index}]");
+        validate_object_keys(tile, &path, FADER_TILE_FIELDS)?;
+        for key in ["action", "shiftAction"] {
+            if let Some(action) = tile.get(key).filter(|action| !action.is_null()) {
+                validate_object_keys(action, &format!("{path}.{key}"), PRESS_ACTION_FIELDS)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_play_assignment_config(value: &Value, path: &str) -> Result<(), String> {
     let object = value
         .as_object()
@@ -227,6 +246,7 @@ fn is_dynamic_params_path(path: &str) -> bool {
 
 fn is_param_binding_path(path: &str) -> bool {
     path.ends_with(".target")
+        || path.ends_with(".shiftTarget")
         || path.ends_with(".xy.x")
         || path.ends_with(".xy.y")
         || path.contains(".paramMods.x[")
@@ -255,6 +275,7 @@ const PARAM_BINDING_FIELDS: &[&str] = &[
 ];
 const AUX_BINDING_FIELDS: &[&str] = &["turnKey", "pressAction"];
 const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "action", "slot"];
+const FADER_TILE_FIELDS: &[&str] = &["x", "y", "type", "action", "shiftAction", "target"];
 const SYSTEM_FIELDS: &[&str] = &["playMode"];
 const SAMPLE_ASSIGNMENT_FIELDS: &[&str] =
     &["level", "sampleSlot", "x", "y", "tuneSemis", "tuneCents"];

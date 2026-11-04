@@ -5,9 +5,10 @@ use super::super::menu_apply_fast::value_changed;
 use super::super::modulation_source::ModulationSourceId;
 use super::super::modulation_value::quantize_binding_value;
 use super::super::{
-    param_binding_from_payload, param_binding_payload, param_binding_spec_from_native,
-    NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
+    aux_turn_binding_spec, param_binding_from_payload, param_binding_payload,
+    param_binding_spec_from_native, NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
 };
+use super::fader_tiles::{NativeFaderTile, NativeFaderTileMapping};
 use crate::native_menu::NativeFadersConfig;
 
 pub(in crate::native_runner) const FADER_COUNT: usize = GRID_WIDTH;
@@ -22,10 +23,17 @@ pub(in crate::native_runner) struct NativeFaderSide {
     pub(in crate::native_runner) position: u8,
 }
 
-/// The Faders page, saved with the patch: each column's plain and Shift slider.
+/// The Faders page. Saved with the patch: each column's plain and Shift slider, how many columns
+/// from the right are action columns instead, and their tiles.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(in crate::native_runner) struct NativeFaders {
     pub(in crate::native_runner) sliders: [[NativeFaderSide; 2]; FADER_COUNT],
+    pub(in crate::native_runner) action_cols: u8,
+    pub(in crate::native_runner) tiles: Vec<NativeFaderTile>,
+    /// Live only: the Tile Map rows, a waiting Map to Grid and the held action tile.
+    pub(in crate::native_runner) draft: NativeFaderTileMapping,
+    pub(in crate::native_runner) assigning: bool,
+    pub(in crate::native_runner) held_tile: Option<(usize, usize)>,
 }
 
 /// The column and side of a `play.faders.N.target` or `play.faders.N.shiftTarget` picker.
@@ -90,10 +98,15 @@ impl NativeFaders {
                 Value::Object(slider)
             })
             .collect::<Vec<_>>();
-        json!({ "sliders": sliders })
+        json!({
+            "sliders": sliders,
+            "actionCols": self.action_cols,
+            "tiles": self.tiles_payload(),
+        })
     }
 
     pub(in crate::native_runner) fn apply_payload(&mut self, faders: &Value) {
+        self.apply_tiles_payload(faders);
         let Some(sliders) = faders.get("sliders").and_then(Value::as_array) else {
             return;
         };
@@ -118,6 +131,10 @@ impl NativeFaders {
                     .each_ref()
                     .map(|side| side.target.as_ref().map(param_binding_spec_from_native))
             }),
+            action_cols: self.action_cols,
+            tile_type: self.draft.kind.as_str().into(),
+            tile_actions: self.draft.actions.clone(),
+            tile_target: self.draft.target.as_deref().map(aux_turn_binding_spec),
         }
     }
 }
@@ -160,7 +177,8 @@ impl NativeRunner {
         } else {
             LedColor::GREEN
         };
-        for (x, sides) in self.faders.sliders.iter().enumerate() {
+        let sliders = self.faders.first_action_column();
+        for (x, sides) in self.faders.sliders.iter().enumerate().take(sliders) {
             let side = &sides[usize::from(shifted)];
             for y in 0..GRID_HEIGHT {
                 let value = match side.target {
@@ -171,6 +189,7 @@ impl NativeRunner {
                 self.set_display_led(leds, x, y, value);
             }
         }
+        self.apply_fader_tiles_overlay(leds);
     }
 
     /// Holds the side's position as its source input; false without a target.

@@ -190,3 +190,38 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         |payload| payload["system"]["playMode"] = json!("broken"),
     );
 }
+
+#[test]
+pub(crate) fn validation_rejects_bad_fader_sliders_and_tiles() {
+    assert_validation_error(
+        "fader position",
+        "runtimeConfig.faders.sliders[2].shiftPosition is outside the supported range",
+        |payload| payload["runtimeConfig"]["faders"]["sliders"][2]["shiftPosition"] = json!(8),
+    );
+    assert_validation_error(
+        "fader action columns",
+        "runtimeConfig.faders.actionCols is outside the supported range",
+        |payload| payload["runtimeConfig"]["faders"]["actionCols"] = json!(9),
+    );
+    assert_validation_error(
+        "fader tile kind",
+        "runtimeConfig.faders.tiles[0].shiftAction must be null on a param tile",
+        |payload| {
+            payload["runtimeConfig"]["faders"]["tiles"] = json!([{
+                "x": 7, "y": 0, "type": "param", "action": null,
+                "shiftAction": { "kind": "reset_behavior" }, "target": null
+            }])
+        },
+    );
+    assert_validation_error(
+        "fader tile position",
+        "runtimeConfig.faders.tiles[1] repeats an earlier tile position",
+        |payload| {
+            let tile = json!({
+                "x": 7, "y": 0, "type": "action", "action": null,
+                "shiftAction": null, "target": null
+            });
+            payload["runtimeConfig"]["faders"]["tiles"] = json!([tile, tile]);
+        },
+    );
+}

@@ -17,7 +17,9 @@ use super::model_search::{
 };
 use super::play::play_fx_page_children;
 use super::section_labels::{LINK_LABEL, SHAPE_LABEL};
-use super::system_aux::{click_none_key, name_click_pickers_from_menu, show_click_binding};
+use super::system_aux::{
+    click_none_key, name_click_pickers_from_menu, show_click_binding, ClickPickerSlot,
+};
 use super::{
     NativeLinkLayerConfig, NativeMenuAction, NativeMenuConfig, NativeMenuModel, NativeMenuValue,
     NativeParamBindingSpec,
@@ -66,7 +68,7 @@ impl NativeMenuModel {
         let picker = path[..path.len() - 1]
             .iter()
             .fold(&mut self.root, |node, index| &mut node.children[*index]);
-        show_click_binding(picker, index, shifted, action);
+        show_click_binding(picker, ClickPickerSlot::Aux { index, shifted }, action);
         name_click_pickers_from_menu(&mut self.root);
     }
 

@@ -118,6 +118,12 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     dynamic.sample_favourite_dirs = vec![String::new()];
     configs.push(dynamic);
 
+    for tile_type in ["action", "param"] {
+        let mut faders = config();
+        faders.faders.tile_type = tile_type.into();
+        configs.push(faders);
+    }
+
     let mut scanning = config();
     scanning.link_layers[0].scan_mode = "scanning".into();
     scanning.link_layers[0].x_velocity.enabled = true;

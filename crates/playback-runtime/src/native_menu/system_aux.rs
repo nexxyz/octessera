@@ -40,12 +40,53 @@ pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
     )
 }
 
+/// What a click picker binds: one side of an Aux encoder's click, or one side of the Play
+/// Faders Tile Map.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ClickPickerSlot {
+    Aux { index: usize, shifted: bool },
+    FaderTile { shifted: bool },
+}
+
+impl ClickPickerSlot {
+    /// The prefix of every row key in the picker.
+    fn key_root(self) -> String {
+        match self {
+            Self::Aux { index, shifted } => {
+                format!("{}{}.click", click_key_prefix(shifted), index + 1)
+            }
+            Self::FaderTile { shifted: false } => "play.faders.tile.action".into(),
+            Self::FaderTile { shifted: true } => "play.faders.tile.shiftAction".into(),
+        }
+    }
+
+    fn label_prefix(self) -> &'static str {
+        match self {
+            Self::Aux { shifted: false, .. } => "Clk",
+            Self::Aux { shifted: true, .. } => "S+Clk",
+            Self::FaderTile { shifted: false } => "Action",
+            Self::FaderTile { shifted: true } => "S+Action",
+        }
+    }
+
+    fn action(self, action: Option<Box<NativeMenuAction>>) -> NativeMenuAction {
+        match self {
+            Self::Aux { index, shifted } => aux_click_action(index, action, shifted),
+            Self::FaderTile { shifted } => NativeMenuAction::SetFaderTileAction { shifted, action },
+        }
+    }
+}
+
 fn aux_click_picker_group(
     index: usize,
     current: Option<&NativeMenuAction>,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
-    aux_click_picker_group_with(index, current, config, "Clk", false)
+    let slot = ClickPickerSlot::Aux {
+        index,
+        shifted: false,
+    };
+    click_picker_group(slot, current, config)
 }
 
 fn shift_aux_click_picker_group(
@@ -53,21 +94,24 @@ fn shift_aux_click_picker_group(
     current: Option<&NativeMenuAction>,
     config: &NativeMenuConfig,
 ) -> NativeMenuItem {
-    aux_click_picker_group_with(index, current, config, "S+Clk", true)
+    let slot = ClickPickerSlot::Aux {
+        index,
+        shifted: true,
+    };
+    click_picker_group(slot, current, config)
 }
 
-fn aux_click_picker_group_with(
-    index: usize,
+/// The actions an Aux click can run, as a picker that binds them to `slot`.
+pub(super) fn click_picker_group(
+    slot: ClickPickerSlot,
     current: Option<&NativeMenuAction>,
     config: &NativeMenuConfig,
-    label_prefix: &str,
-    shifted: bool,
 ) -> NativeMenuItem {
-    let key_prefix = click_key_prefix(shifted);
+    let root = slot.key_root();
     let mut children = vec![action_item(
         "(none)",
-        format!("{key_prefix}{}.click.none", index + 1),
-        aux_click_action(index, None, shifted),
+        format!("{root}.none"),
+        slot.action(None),
     )];
     let behavior_actions = config
         .build_items
@@ -75,12 +119,10 @@ fn aux_click_picker_group_with(
         .filter_map(|item| match &item.value {
             NativeMenuValue::Action(NativeMenuAction::BehaviorAction(action)) => Some(action_item(
                 item.label.clone(),
-                format!("{key_prefix}{}.click.behavior.{action}", index + 1),
-                aux_click_action(
-                    index,
-                    Some(Box::new(NativeMenuAction::BehaviorAction(action.clone()))),
-                    shifted,
-                ),
+                format!("{root}.behavior.{action}"),
+                slot.action(Some(Box::new(NativeMenuAction::BehaviorAction(
+                    action.clone(),
+                )))),
             )),
             _ => None,
         })
@@ -97,14 +139,10 @@ fn aux_click_picker_group_with(
             .map(|(instrument, label)| {
                 action_item(
                     label.clone(),
-                    format!("{key_prefix}{}.click.sample.{instrument}", index + 1),
-                    aux_click_action(
-                        index,
-                        Some(Box::new(NativeMenuAction::PlatformEffect(format!(
-                            "sample.assign:{instrument}:0"
-                        )))),
-                        shifted,
-                    ),
+                    format!("{root}.sample.{instrument}"),
+                    slot.action(Some(Box::new(NativeMenuAction::PlatformEffect(format!(
+                        "sample.assign:{instrument}:0"
+                    ))))),
                 )
             })
             .collect(),
@@ -114,31 +152,23 @@ fn aux_click_picker_group_with(
         vec![
             action_item(
                 "Map FX",
-                format!("{key_prefix}{}.click.fx_map", index + 1),
-                aux_click_action(
-                    index,
-                    Some(Box::new(NativeMenuAction::PlatformEffect(
-                        "play.fx.map".into(),
-                    ))),
-                    shifted,
-                ),
+                format!("{root}.fx_map"),
+                slot.action(Some(Box::new(NativeMenuAction::PlatformEffect(
+                    "play.fx.map".into(),
+                )))),
             ),
             action_item(
                 "Reset Behavior",
-                format!("{key_prefix}{}.click.reset", index + 1),
-                aux_click_action(
-                    index,
-                    Some(Box::new(NativeMenuAction::ResetBehavior)),
-                    shifted,
-                ),
+                format!("{root}.reset"),
+                slot.action(Some(Box::new(NativeMenuAction::ResetBehavior))),
             ),
         ],
     ));
     let mut picker = NativeMenuItem {
         pick: NativeMenuPick::Value,
-        ..group(label_prefix, children)
+        ..group(slot.label_prefix(), children)
     };
-    show_click_binding(&mut picker, index, shifted, current);
+    show_click_binding(&mut picker, slot, current);
     picker
 }
 
@@ -159,11 +189,10 @@ fn click_key_prefix(shifted: bool) -> &'static str {
 /// label; `mapped` until the whole menu names an action its list does not hold.
 pub(super) fn show_click_binding(
     picker: &mut NativeMenuItem,
-    index: usize,
-    shifted: bool,
+    slot: ClickPickerSlot,
     current: Option<&NativeMenuAction>,
 ) {
-    let current_key = format!("{}{}.click.current", click_key_prefix(shifted), index + 1);
+    let current_key = format!("{}.current", slot.key_root());
     picker
         .children
         .retain(|item| item.key.as_deref() != Some(current_key.as_str()));
@@ -174,11 +203,11 @@ pub(super) fn show_click_binding(
             action_item(
                 "Current",
                 current_key.clone(),
-                aux_click_action(index, Some(Box::new(action.clone())), shifted),
+                slot.action(Some(Box::new(action.clone()))),
             ),
         );
     }
-    let picked = aux_click_action(index, current.cloned().map(Box::new), shifted);
+    let picked = slot.action(current.cloned().map(Box::new));
     mark_active(&mut picker.children, &|item| {
         matches!(&item.value, NativeMenuValue::Action(action) if *action == picked)
             && item.key.as_deref() != Some(current_key.as_str())
@@ -188,8 +217,7 @@ pub(super) fn show_click_binding(
             .unwrap_or_else(|| "mapped".into()),
         None => "(none)".into(),
     };
-    let prefix = if shifted { "S+Clk" } else { "Clk" };
-    picker.label = format!("{prefix}: {name}");
+    picker.label = format!("{}: {name}", slot.label_prefix());
 }
 
 fn entry_label_for_action(

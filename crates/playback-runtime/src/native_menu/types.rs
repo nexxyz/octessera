@@ -31,6 +31,11 @@ pub enum NativeMenuAction {
         index: usize,
         action: Option<Box<NativeMenuAction>>,
     },
+    /// Picks the plain or Shift action of the Play Faders Tile Map.
+    SetFaderTileAction {
+        shifted: bool,
+        action: Option<Box<NativeMenuAction>>,
+    },
     CloneInstrument {
         index: usize,
     },

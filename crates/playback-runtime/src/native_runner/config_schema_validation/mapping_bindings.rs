@@ -33,28 +33,33 @@ fn validate_aux_binding(value: &Value, path: &str) -> Result<(), String> {
         }
     }
     if let Some(action) = binding.get("pressAction") {
-        if action.is_null() {
-            return Ok(());
-        }
-        let action_path = format!("{path}.pressAction");
-        let action = object_value(action, &action_path)?;
-        let kind = action
-            .get("kind")
-            .and_then(Value::as_str)
-            .ok_or_else(|| format!("{action_path}.kind must be a string"))?;
-        match kind {
-            "behavior_action" => string_field(action, "actionType", &action_path)?,
-            "platform_effect" => string_field(action, "action", &action_path)?,
-            "instrument_clone" | "instrument_reset" => unsigned_field(
-                action,
-                "slot",
-                &action_path,
-                0,
-                (INSTRUMENT_COUNT - 1) as u64,
-            )?,
-            "reset_behavior" => {}
-            _ => return Err(format!("{action_path}.kind has unknown value `{kind}`")),
-        }
+        validate_press_action(action, &format!("{path}.pressAction"))?;
+    }
+    Ok(())
+}
+
+/// A saved click action: an Aux click or a Faders action tile; null is no action.
+pub(super) fn validate_press_action(action: &Value, action_path: &str) -> Result<(), String> {
+    if action.is_null() {
+        return Ok(());
+    }
+    let action = object_value(action, action_path)?;
+    let kind = action
+        .get("kind")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{action_path}.kind must be a string"))?;
+    match kind {
+        "behavior_action" => string_field(action, "actionType", action_path)?,
+        "platform_effect" => string_field(action, "action", action_path)?,
+        "instrument_clone" | "instrument_reset" => unsigned_field(
+            action,
+            "slot",
+            action_path,
+            0,
+            (INSTRUMENT_COUNT - 1) as u64,
+        )?,
+        "reset_behavior" => {}
+        _ => return Err(format!("{action_path}.kind has unknown value `{kind}`")),
     }
     Ok(())
 }

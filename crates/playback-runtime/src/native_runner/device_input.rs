@@ -272,6 +272,8 @@ impl NativeRunner {
             self.handle_drum_assignment_grid_press(x, y);
         } else if self.trigger_probability_assign.is_some() {
             self.handle_trigger_probability_grid_press(x, y);
+        } else if self.faders.assigning {
+            self.handle_fader_tile_assignment_press(x, y);
         } else if self.active_play_mode == "transpose" && x == 0 && self.display.ui.shift_held {
             self.toggle_all_play_transpose_layers();
         } else if self.display.ui.combined_modifier_held && x == 0 {
@@ -299,6 +301,8 @@ impl NativeRunner {
             && (self.display.ui.fn_held || self.display.ui.combined_modifier_held)
         {
             // The navigation overlay hides the page, so a stray tile must not edit it.
+        } else if self.fader_action_tile(x) {
+            return self.handle_fader_tile_press(x, y);
         } else if self.active_play_mode == "trigger-gate" {
             self.handle_trigger_gate_grid_press(x, y);
         } else if self.active_play_mode == "transpose" {
@@ -327,6 +331,7 @@ impl NativeRunner {
             return self.messages_with_snapshot();
         }
         if self.active_play_mode != "none" {
+            self.release_fader_tile(x, y);
             if self.active_play_mode == "fx" {
                 let effects = self.play_fx_release_effects(x, y);
                 if !effects.is_empty() {

@@ -32,7 +32,7 @@ pub(super) fn apply_aux_bindings_payload(
     }
 }
 
-fn parse_aux_press_action(value: &Value) -> Option<NativeMenuAction> {
+pub(super) fn parse_aux_press_action(value: &Value) -> Option<NativeMenuAction> {
     match value.get("kind").and_then(Value::as_str)? {
         "behavior_action" => value
             .get("actionType")

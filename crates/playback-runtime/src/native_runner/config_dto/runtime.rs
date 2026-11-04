@@ -119,6 +119,20 @@ pub struct MidiCcMappingDto {
 #[serde(rename_all = "camelCase")]
 pub struct FadersDto {
     pub(super) sliders: Option<Vec<FaderSliderDto>>,
+    pub(super) action_cols: Option<u8>,
+    pub(super) tiles: Option<Vec<FaderTileDto>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaderTileDto {
+    pub(super) x: Option<u8>,
+    pub(super) y: Option<u8>,
+    #[serde(rename = "type")]
+    pub(super) kind: Option<String>,
+    pub(super) action: Option<Value>,
+    pub(super) shift_action: Option<Value>,
+    pub(super) target: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

@@ -15,11 +15,18 @@ Play
 ├── Tempo                                ← page-select row
 ├── LFO                                  ← page-select row
 ├── Faders (group)
-│   └── F1..F8 (group)                   ← one per grid column
-│       ├── Target: <target | (none)> (picker)     ← plain press; Range Min/Max inside
-│       ├── Invert: [on | off]
-│       ├── S+Target: <target | (none)> (picker)   ← Shift + press; its own Range Min/Max
-│       └── S+Invert: [on | off]
+│   ├── F1..F8 (group)                   ← one per grid column
+│   │   ├── Target: <target | (none)> (picker)     ← plain press; Range Min/Max inside
+│   │   ├── Invert: [on | off]
+│   │   ├── S+Target: <target | (none)> (picker)   ← Shift + press; its own Range Min/Max
+│   │   └── S+Invert: [on | off]
+│   ├── Action Cols: [0..8]              ← columns from the right that hold tiles, not sliders
+│   └── Tile Map (group)                 ← live only; Map to Grid stores it on a tile
+│       ├── Type: [none | action | param]
+│       ├── Action: <action | (none)> (picker)     ← action: plain press; the Aux click actions
+│       ├── S+Action: <action | (none)> (picker)   ← action: Shift + press
+│       ├── Target: <target | (none)> (picker)     ← param: the row a press steps
+│       └── Map to Grid (action)
 ├── FX (group)
 │   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
 │   ├── Target: [master | fx_bus_1..fx_bus_4 | I1..I8]   ← instruments stored as instrument_n
@@ -207,6 +214,30 @@ The menu lists the technical bank, then the musical bank.
   the plain sliders and magenta while Shift is held. Columns without a target on the shown side
   are dark.
 
+### Action columns
+
+- `Action Cols: 0..8` turns that many columns, counted from the right, from sliders into tiles.
+  A slider in such a column keeps its target and holds its saved position, but presses no longer
+  move it. Each of the column's tiles holds one mapping:
+  - `action`: a plain press runs `Action`, Shift + press runs `S+Action`, from the same list as an
+    Aux click (the active layer's behavior actions, Sample Assign per instrument, Map FX, Reset
+    Behavior) and through the same menu action. A behavior action the active layer lacks, or
+    Sample Assign on a non-sampler, only toasts `Tile: Spawn not active`; an empty side toasts
+    `S+Tile: No binding`. Otherwise the toast is `Tile: <action>` (`S+Tile: ...` for Shift).
+  - `param`: a plain press steps `Target` up one menu step, Shift + press one step down, exactly
+    like an Aux detent turn (coarse, no Fn), through the menu edit, so it saves and autosaves like
+    a menu edit. The toast is the Aux turn toast without its cap (`Volume: 86`).
+- Setup: in `Tile Map` pick `Type`, then the actions or the target, then `Map to Grid` and press
+  an action-column tile. The toast is `Map tiles: press to assign`; the press stores the mapping
+  (`Tile mapped`) and leaves the mode, a press outside the action columns toasts
+  `Not an action column` and keeps waiting, and Back leaves without changes. Mapping `none` clears
+  the tile (`Tile cleared`). With `Action Cols` at 0, `Map to Grid` only toasts `Action Cols is 0`.
+  The Tile Map rows themselves are live only.
+- Tiles and `Action Cols` are saved with the patch. Lowering `Action Cols` keeps the tiles of the
+  freed columns, so they return when the columns do.
+- LEDs: action tiles white, param tiles yellow, at half brightness, full while held; unmapped
+  tiles dark. While `Map to Grid` waits, unmapped action-column tiles are dim gray.
+
 ## Play FX
 
 - Choose `FX Type`, edit its rows, then `Map to Grid` and press a tile. The toast is
@@ -326,8 +357,8 @@ The `ms` rows use the curved time steps from
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y glide, invert flags, and release behavior, and the
-  Faders slider targets and positions.
+  Faders slider targets and positions, `Action Cols` and the action-column tiles.
 - Not saved: the active Play overlay on load/startup, the XY latch, Mix instrument and bus mutes, Route FX bypass, Tap history, Transpose
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary
-  overlays.
+  overlays, and the Faders Tile Map rows.

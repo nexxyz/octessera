@@ -123,6 +123,9 @@ fn menu_action_help_target(action: &NativeMenuAction) -> (String, String) {
         NativeMenuAction::SetAuxClick { .. } | NativeMenuAction::SetShiftAuxClick { .. } => {
             ("action:aux_click_set_target".into(), "action".into())
         }
+        NativeMenuAction::SetFaderTileAction { .. } => {
+            ("action:fader_tile_set_action".into(), "action".into())
+        }
         NativeMenuAction::CloneInstrument { .. } => {
             ("action:instrument_clone".into(), "action".into())
         }
@@ -184,6 +187,7 @@ fn default_system_effect_help_key(effect: &str) -> Option<String> {
         "system.updateApply" => Some("action:system_update_apply".into()),
         "system.rollback" => Some("action:system_rollback".into()),
         "play.fx.map" => Some("action:fx_assign_enter".into()),
+        "play.faders.tile.map" => Some("action:fader_tile_assign_enter".into()),
         value if value.starts_with("signal.") => Some("action:signal_view".into()),
         _ => None,
     }

@@ -264,7 +264,8 @@ Modulation slots, Aux Turn bindings, Play XY axes, LFO targets, MIDI CC In targe
 Faders slider targets share one menu-mirrored picker.
 
 - Children: `(none)`, then `Current: <label>` when bound, then `Range Min` and `Range Max` when the
-  binding is numeric and the picker is not an Aux Turn picker, then the target tree.
+  binding is numeric and the picker is not an Aux Turn or Faders Tile Map picker (those step their
+  row), then the target tree.
 - The tree mirrors the root order (`Build`, `Link`, `Shape`, `Play`, `System`). Under Build, layers
   with behavior `none` expose no behavior targets; other layers expose their own Step Rate as
   `layers.N.algorithmStep` and their config fields/actions as `layers.N.build.behaviorConfig.*`.
@@ -456,7 +457,8 @@ behavior primary red), so a mute never reads as a section color.
   runs an action; `▸` marks the active entry of a picker list.
 - Picker rows: the behavior selector (`Beh.: <behavior>`), the `Link > Aux Mappings` pickers
   (`Trn`, `Clk`, `S+Trn`, `S+Clk`), LFO and MIDI CC In `Target`, `Link > Lx > X/Y Axis > Slot 1/Slot 2`,
-  `Play > XY > X Axis/Y Axis`, `Play > Faders > Fn > Target/S+Target`, `Note Mapping > Set` and a sampler's loaded-sample row
+  `Play > XY > X Axis/Y Axis`, `Play > Faders > Fn > Target/S+Target`, the Faders `Tile Map`
+  `Action`, `S+Action` and `Target`, `Note Mapping > Set` and a sampler's loaded-sample row
   (`S1: <file>`, which opens the browser in the file's folder). The menu model marks these rows
   where it builds them; the value follows the label after a colon and a space at 70 % of the row
   colour (black on the bar), clips with `..` by `x=116`, 3 columns before the right-aligned `>`,
@@ -743,7 +745,8 @@ The grid is composed in this order; each step paints over the previous one.
 2. Scan progress: on the active layer in scan mode `scanning`, the current scan line or lane
    segment gets a dim white lift.
 3. The active Play page overlay (see [play.md](menu-tree/play.md)). `Map to Grid` switches to the
-   `fx` page, so FX assignment uses the FX page overlay. Each page dims behavior tiles to a quarter
+   `fx` page, so FX assignment uses the FX page overlay; the Faders Tile Map `Map to Grid` switches
+   to the `faders` page and dims its free action-column tiles gray. Each page dims behavior tiles to a quarter
    and draws its markers on top. Play Mix draws the live-only mute toggles on row 0 (green active,
    red muted) and each volume marker on rows `1..7`, dimmed while that instrument is muted; while
    Shift is held it shows the bus and master view instead (see play.md). Play
@@ -887,7 +890,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout
   (also listed in [`Play > FX > Aux Map`](menu-tree/play.md)).
 - No auto-map applies while an assignment mode is active (Sample, Drum and trigger-probability
-  Assign, Play FX `Map to Grid`): no auto caps, no auto hints, and Aux input skips the auto
+  Assign, Play FX and Faders Tile Map `Map to Grid`): no auto caps, no auto hints, and Aux input skips the auto
   layout. Manual bindings keep working, and the layout returns when Back leaves the mode.
 
 ### Footer hints

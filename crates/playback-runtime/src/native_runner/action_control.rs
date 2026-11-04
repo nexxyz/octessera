@@ -19,6 +19,10 @@ impl NativeRunner {
             self.apply_factory_payload()?;
             return Ok(None);
         }
+        if action == crate::native_menu::FADER_TILE_MAP_ACTION {
+            self.enter_fader_tile_assign();
+            return Ok(None);
+        }
         if action == "play.fx.map" {
             let config = self.play_fx_selected.clone();
             self.play_fx_assign = Some(config.clone());
@@ -280,6 +284,10 @@ impl NativeRunner {
             }
             NativeMenuAction::SetShiftAuxClick { index, action } => {
                 self.set_shift_aux_click_target(index, action.map(|action| *action));
+                Ok(None)
+            }
+            NativeMenuAction::SetFaderTileAction { shifted, action } => {
+                self.set_fader_tile_action(shifted, action.map(|action| *action));
                 Ok(None)
             }
             NativeMenuAction::CloneInstrument { index } => {

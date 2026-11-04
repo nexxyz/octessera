@@ -140,7 +140,10 @@ pub(super) fn current_binding_rows(
             binding: binding.clone(),
         },
     )];
-    if binding.kind == "number" && !target.starts_with("aux:") && !target.starts_with("shiftAux:") {
+    let steps_its_key = target.starts_with("aux:")
+        || target.starts_with("shiftAux:")
+        || target == super::play_faders::FADER_TILE_TARGET;
+    if binding.kind == "number" && !steps_its_key {
         rows.push(range_item("Range Min", target, "rangeMin", binding));
         rows.push(range_item("Range Max", target, "rangeMax", binding));
     }

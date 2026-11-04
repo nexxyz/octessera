@@ -81,6 +81,7 @@ pub(in crate::native_menu) use item_builders::*;
 pub(crate) use link_midi_cc::MIDI_CC_LEARN_ACTION_PREFIX;
 pub use model_input::NativeMenuPressResult;
 pub(crate) use options::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
+pub(crate) use play_faders::{FADER_TILE_MAP_ACTION, FADER_TILE_TARGET, FADER_TILE_TYPES};
 pub use types::*;
 
 use model_root::build_root;

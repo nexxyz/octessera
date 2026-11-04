@@ -62,16 +62,7 @@ pub(super) fn aux_bindings_payload(bindings: &[Option<NativeAuxBinding>]) -> Val
         let value = if let Some(binding) = binding {
             json!({
                 "turnKey": binding.turn_key.clone(),
-                "pressAction": match &binding.press_action {
-                    Some(NativeMenuAction::BehaviorAction(action)) => json!({ "kind": "behavior_action", "actionType": action.clone() }),
-                    Some(NativeMenuAction::SelectBehavior(_)) => Value::Null,
-                    Some(NativeMenuAction::NavigateBack) => Value::Null,
-                    Some(NativeMenuAction::PlatformEffect(action)) => json!({ "kind": "platform_effect", "action": action.clone() }),
-                    Some(NativeMenuAction::CloneInstrument { index }) => json!({ "kind": "instrument_clone", "slot": index }),
-                    Some(NativeMenuAction::ResetInstrument { index }) => json!({ "kind": "instrument_reset", "slot": index }),
-                    Some(NativeMenuAction::ResetBehavior) => json!({ "kind": "reset_behavior" }),
-                    _ => Value::Null,
-                }
+                "pressAction": press_action_payload(binding.press_action.as_ref()),
             })
         } else {
             Value::Null
@@ -79,6 +70,26 @@ pub(super) fn aux_bindings_payload(bindings: &[Option<NativeAuxBinding>]) -> Val
         object.insert(key, value);
     }
     Value::Object(object)
+}
+
+/// A bound click action as saved: an Aux click or a Faders action tile.
+pub(super) fn press_action_payload(action: Option<&NativeMenuAction>) -> Value {
+    match action {
+        Some(NativeMenuAction::BehaviorAction(action)) => {
+            json!({ "kind": "behavior_action", "actionType": action })
+        }
+        Some(NativeMenuAction::PlatformEffect(action)) => {
+            json!({ "kind": "platform_effect", "action": action })
+        }
+        Some(NativeMenuAction::CloneInstrument { index }) => {
+            json!({ "kind": "instrument_clone", "slot": index })
+        }
+        Some(NativeMenuAction::ResetInstrument { index }) => {
+            json!({ "kind": "instrument_reset", "slot": index })
+        }
+        Some(NativeMenuAction::ResetBehavior) => json!({ "kind": "reset_behavior" }),
+        _ => Value::Null,
+    }
 }
 
 pub(super) fn aux_turn_binding_spec(key: &str) -> NativeParamBindingSpec {

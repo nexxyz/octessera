@@ -16,6 +16,7 @@ impl NativeRunner {
             && self.sample_assign.is_none()
             && self.trigger_probability_assign.is_none()
             && self.play_fx_assign.is_none()
+            && !self.faders.assigning
             && self
                 .display
                 .modifier_hint_started_at

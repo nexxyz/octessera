@@ -155,16 +155,10 @@ impl NativeRunner {
         let Some(press) = self.effective_aux_slot(index).press else {
             return Ok(None);
         };
-        let NativeMenuAction::BehaviorAction(action_type) = press.action else {
+        let NativeMenuAction::BehaviorAction(action_type) = press.action.clone() else {
             return Ok(None);
         };
-        let valid = self.build_menu_items().into_iter().any(|item| {
-            matches!(
-                item.value,
-                crate::native_menu::NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == &action_type
-            )
-        });
-        if !valid {
+        if !self.bound_action_active(&press.action) {
             self.show_toast(format!(
                 "{click_prefix}-{}: {} not active",
                 index + 1,
@@ -197,6 +191,8 @@ impl NativeRunner {
         }
         if self.play_fx_assign.is_some() {
             self.play_fx_assign = None;
+        } else if self.faders.assigning {
+            self.faders.assigning = false;
         } else if self.sample_assign.is_some() {
             self.sample_assign = None;
         } else if self.drum_assign.is_some() {

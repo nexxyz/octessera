@@ -14,6 +14,7 @@ impl NativeRunner {
             || self.drum_assign.is_some()
             || self.trigger_probability_assign.is_some()
             || self.play_fx_assign.is_some()
+            || self.faders.assigning
     }
 
     pub(super) fn resolve_aux_auto_map(

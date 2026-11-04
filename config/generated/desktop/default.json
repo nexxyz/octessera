@@ -126,7 +126,9 @@
           "shiftTarget": null,
           "shiftPosition": 0
         }
-      ]
+      ],
+      "actionCols": 0,
+      "tiles": []
     },
     "ghostTiles": false,
     "auxAutoHints": true,

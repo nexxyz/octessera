@@ -32,6 +32,10 @@ impl NativeRunner {
             self.set_aux_turn_binding(index, shifted, binding);
             return;
         }
+        if target == crate::native_menu::FADER_TILE_TARGET {
+            self.set_fader_tile_target(binding);
+            return;
+        }
         if is_modulation_binding_target(target) {
             let change = BindingChange {
                 key: target.into(),
@@ -350,42 +354,13 @@ impl NativeRunner {
             self.show_toast(format!("{click_prefix}-{}: No binding", index + 1));
             return Ok(None);
         };
-        if let NativeMenuAction::BehaviorAction(action_type) = &press.action {
-            let valid = self.build_menu_items().into_iter().any(|item| {
-                matches!(
-                    item.value,
-                    NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == action_type
-                )
-            });
-            if !valid {
-                self.show_toast(format!(
-                    "{click_prefix}-{}: {} not active",
-                    index + 1,
-                    press.label
-                ));
-                return Ok(None);
-            }
-        }
-        if matches!(&press.action, NativeMenuAction::PlatformEffect(action) if action.starts_with("sample.assign:"))
-        {
-            let NativeMenuAction::PlatformEffect(action) = &press.action else {
-                unreachable!();
-            };
-            if let Ok((instrument_slot, _, _)) = parse_sample_action(&action[14..]) {
-                if self
-                    .instruments
-                    .get(instrument_slot)
-                    .map(|instrument| instrument.kind.as_str() != "sampler")
-                    .unwrap_or(true)
-                {
-                    self.show_toast(format!(
-                        "{click_prefix}-{}: {} not active",
-                        index + 1,
-                        press.label
-                    ));
-                    return Ok(None);
-                }
-            }
+        if !self.bound_action_active(&press.action) {
+            self.show_toast(format!(
+                "{click_prefix}-{}: {} not active",
+                index + 1,
+                press.label
+            ));
+            return Ok(None);
         }
         let result = self.execute_menu_action(press.action.clone())?;
         if !matches!(
@@ -395,6 +370,32 @@ impl NativeRunner {
             self.show_toast(format!("{click_prefix}-{}: {}", index + 1, press.label));
         }
         Ok(result)
+    }
+}
+
+impl NativeRunner {
+    /// Whether a bound click action can run now: a behavior action must be one the active layer
+    /// offers, and a sample assign needs a sampler slot.
+    pub(super) fn bound_action_active(&self, action: &NativeMenuAction) -> bool {
+        match action {
+            NativeMenuAction::BehaviorAction(action_type) => {
+                self.build_menu_items().into_iter().any(|item| {
+                    matches!(
+                        item.value,
+                        NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == action_type
+                    )
+                })
+            }
+            NativeMenuAction::PlatformEffect(action) => action
+                .strip_prefix("sample.assign:")
+                .and_then(|rest| parse_sample_action(rest).ok())
+                .is_none_or(|(instrument_slot, _, _)| {
+                    self.instruments
+                        .get(instrument_slot)
+                        .is_some_and(|instrument| instrument.kind == "sampler")
+                }),
+            _ => true,
+        }
     }
 }
 

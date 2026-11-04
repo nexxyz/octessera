@@ -244,10 +244,16 @@ pub struct NativeMidiCcConfig {
     pub target: Option<NativeParamBindingSpec>,
 }
 
-/// The Play Faders page: each column's plain and Shift slider targets.
+/// The Play Faders page: each column's plain and Shift slider targets, the action columns and
+/// the Tile Map rows.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NativeFadersConfig {
     pub targets: [[Option<NativeParamBindingSpec>; 2]; 8],
+    pub action_cols: u8,
+    /// `none`, `action` or `param`.
+    pub tile_type: String,
+    pub tile_actions: [Option<NativeMenuAction>; 2],
+    pub tile_target: Option<NativeParamBindingSpec>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -14,42 +14,48 @@ impl NativeRunner {
             return Ok(());
         };
         let coarse = !(self.display.ui.fn_held || self.display.ui.combined_modifier_held);
-        match self.turn_generated_behavior_target(&turn.key, delta, coarse) {
-            Ok(Some(value)) => self.show_or_queue_aux_turn_toast(
-                format!("{prefix}-{}: {}: ", index + 1, turn.label),
-                value.to_string(),
-            ),
-            Ok(None) if self.menu.turn_key_with_precision(&turn.key, delta, coarse) => {
-                self.apply_or_schedule_menu_key(&turn.key)?;
-                let value = self
-                    .menu
-                    .value_for_key(&turn.key)
-                    .or_else(|| {
-                        self.menu
-                            .number_for_key(&turn.key)
-                            .map(|value| value.to_string())
-                    })
-                    .unwrap_or_else(|| "changed".into());
+        match self.turn_bound_key(&turn.key, &turn.label, delta, coarse) {
+            Ok(Some((label, value))) => {
                 self.show_or_queue_aux_turn_toast(
-                    format!("{prefix}-{}: {}: ", index + 1, turn.label),
+                    format!("{prefix}-{}: {label}: ", index + 1),
                     value,
                 );
             }
-            Ok(None) => match self.hidden_delay_time_item(&turn.key) {
-                Some(hidden) => self.show_or_queue_aux_turn_toast(
-                    format!("{prefix}-{}: {}: ", index + 1, hidden.label),
-                    hidden_row_value(&hidden),
-                ),
-                None => {
-                    self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
-                }
-            },
+            Ok(None) => {
+                self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
+            }
             Err(error) => {
                 self.show_toast(error.clone());
                 return Err(error);
             }
         }
         Ok(())
+    }
+
+    /// Turns a bound key one detent like an Aux turn: its label and new value, `None` when no
+    /// row turns it.
+    pub(super) fn turn_bound_key(
+        &mut self,
+        key: &str,
+        label: &str,
+        delta: i8,
+        coarse: bool,
+    ) -> Result<Option<(String, String)>, String> {
+        if let Some(value) = self.turn_generated_behavior_target(key, delta, coarse)? {
+            return Ok(Some((label.into(), value.to_string())));
+        }
+        if self.menu.turn_key_with_precision(key, delta, coarse) {
+            self.apply_or_schedule_menu_key(key)?;
+            let value = self
+                .menu
+                .value_for_key(key)
+                .or_else(|| self.menu.number_for_key(key).map(|value| value.to_string()))
+                .unwrap_or_else(|| "changed".into());
+            return Ok(Some((label.into(), value)));
+        }
+        Ok(self
+            .hidden_delay_time_item(key)
+            .map(|hidden| (hidden.label.clone(), hidden_row_value(&hidden))))
     }
 }
 

@@ -82,6 +82,9 @@ impl NativeRunner {
         if let Some(applied) = self.apply_faders_menu_key_fast(key) {
             return applied;
         }
+        if let Some(applied) = self.apply_fader_tile_menu_key_fast(key) {
+            return applied;
+        }
         self.apply_instrument_menu_key_fast(key).unwrap_or(false)
     }
 
