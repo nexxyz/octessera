@@ -122,7 +122,8 @@ The menu lists the technical bank, then the musical bank.
 - Row 7 is the duck key, live only: pressing an instrument makes every bus duck listen to it
   (`Duck key: I2`); its own `Source Tap` stays. Another column moves the key; pressing the lit
   tile again returns every duck to its saved Source (`Duck key off`). The key is red, other
-  audio instruments dim red; MIDI and `none` slots are dark.
+  audio instruments dim red; MIDI and `none` slots are dark. A key whose slot has since become
+  MIDI or `none` stays red, and pressing it clears the key.
 - Bypass and duck key are never saved, never mark the patch dirty, and clear on boot, patch or
   preset loads, and Clear All. One gate on the engine command path applies them to every bus
   slot, Global FX slot and full configuration the engine receives, so menu, Aux and LFO edits made

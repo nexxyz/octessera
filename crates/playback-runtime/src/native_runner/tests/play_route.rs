@@ -253,3 +253,27 @@ fn patch_load_clears_bypass_and_duck_key() {
     );
     assert_eq!(engine_bus_slot(&loaded, 1, 0).unwrap().1["source"], "I1");
 }
+
+#[test]
+fn duck_key_on_a_slot_that_turned_midi_stays_red_and_clears_on_press() {
+    let mut runner = route_runner();
+    let _ = press(&mut runner, 2, 7);
+    assert!(runner
+        .menu
+        .set_enum_value_for_key("instruments.2.type", "midi"));
+    runner
+        .apply_or_schedule_menu_key("instruments.2.type")
+        .unwrap();
+    assert_eq!(runner.instruments[2].kind, "midi");
+    assert_eq!(
+        tile(&runner, 2, 7),
+        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_RED)
+    );
+
+    let released = press(&mut runner, 2, 7);
+    assert_eq!(toast(&runner), "Duck key off");
+    assert_eq!(engine_bus_slot(&released, 1, 0).unwrap().1["source"], "I1");
+    assert_eq!(tile(&runner, 2, 7), led_rgb(platform_core::palette::BLACK));
+    let _ = press(&mut runner, 2, 7);
+    assert_eq!(runner.play_live.fx_overrides, Default::default());
+}

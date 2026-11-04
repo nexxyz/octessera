@@ -37,7 +37,12 @@ impl NativeRunner {
             BYPASS_ROW if x < BUS_COUNT + GLOBAL_FX_SLOT_COUNT => {
                 self.toggle_global_fx_bypass(x - BUS_COUNT);
             }
-            DUCK_KEY_ROW if self.instrument_has_audio(x) => self.toggle_duck_key(x),
+            DUCK_KEY_ROW
+                if self.instrument_has_audio(x)
+                    || self.play_live.fx_overrides.duck_key == Some(x) =>
+            {
+                self.toggle_duck_key(x);
+            }
             _ => {}
         }
     }
@@ -56,9 +61,9 @@ impl NativeRunner {
                 self.set_display_led(leds, x, y, color);
             }
             let duck = match (audio, self.play_live.fx_overrides.duck_key == Some(x)) {
-                (false, _) => LedColor::BLACK,
-                (true, true) => LedColor::RED,
+                (_, true) => LedColor::RED,
                 (true, false) => LedColor::RED.dim(6),
+                (false, false) => LedColor::BLACK,
             };
             self.set_display_led(leds, x, DUCK_KEY_ROW, duck);
             self.set_display_led(leds, x, DUCK_KEY_ROW - 1, LedColor::BLACK);
