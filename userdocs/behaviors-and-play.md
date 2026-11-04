@@ -105,7 +105,7 @@ Play pages are performance overlays. They borrow the grid for a moment so you
 can play the whole instrument instead of editing one layer.
 
 The pages come in two banks on the right-hand grid column. Hold *Fn* for the
-technical ones (from the bottom up: Mix, Pan, Route, Tempo, LFO) or *Shift* + *Fn* for the
+technical ones (from the bottom up: Mix, Pan, Route, Tempo, LFO, Faders) or *Shift* + *Fn* for the
 musical ones (FX, XY, Transpose, Rate, Trigger Gate), then press a tile
 in that column. Unlit tiles are free. *Back*, or *Fn* plus a layer in the left
 column, leaves the page.
@@ -117,6 +117,7 @@ column, leaves the page.
 | Route | One column per instrument. The bottom five rows pick direct or FX bus 1-4; row 6 switches bus and Global FX chains off and on; the top row picks the instrument every duck listens to and saves it as each duck's Source. | Sending a part through an effect bus, cutting the effects for a dry break, or pumping everything off a different kick. Routes and duck sources stick with the patch; bypass is never saved, so press the lit tile again to undo it. |
 | Tempo | The top five rows are tempo tiles from 50 to 240 BPM (the top-left one is Tap), then a row of -4..+4 nudges, then the two swing rows. | Grabbing a tempo, tapping one in, or dialing in swing: Swing A against Swing B, `4:4` straight. The Tap tile blinks with the beat. |
 | LFO | One row per global LFO, bottom row is LFO 1. The first tile switches it and glows with its wave; the rest pick a period from 1/8 to eight bars. Press a lit period again for its triplet; hold *Shift* for depth. | Slowing a wobble down to a long swell, or snapping it to the beat, without menu diving. |
+| Faders | Eight vertical sliders, one per column; press a row to move that column's slider there. Hold *Shift* for a second set of eight. Columns from the right can become action tiles instead (see below). | Riding 16 parameters of your choice, like a little fader box. Slider positions are saved with the patch, so it comes back sounding the same. |
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |
@@ -125,6 +126,23 @@ column, leaves the page.
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
 it, so the patch keeps its saved mode.
+
+### Faders
+
+Each column of the Faders page is a slider with two targets: `Target` for a
+plain press and `S+Target` for *Shift* + press, picked under
+`Play > Faders > F1..F8` from the same list as the LFOs and Aux turns. The
+bottom row gives the target's **Range Min**, the top row its **Range Max**, and
+**Invert** flips that. Columns without a target stay dark and ignore you.
+
+Want buttons too? Turn up **Action Cols** and that many columns, counted from
+the right, become tiles. Set one up in `Play > Faders > Tile Map`: pick a
+**Type**, then either two actions (`Action` for a plain press, `S+Action` for
+*Shift* + press, the same ones an Aux click can run) or a parameter `Target`
+that a press nudges up one step (*Shift* + press: down), just like turning an
+Aux encoder by one detent. Then **Map to Grid** and press the tile. Action
+tiles glow white, parameter tiles yellow; *Back* leaves without changing
+anything, and mapping type `none` clears a tile.
 
 Want to finger-drum? Give a layer the `keys` behavior and point its
 Link **Inst** at a Drum instrument. Now the stamped tiles are your pads, and
