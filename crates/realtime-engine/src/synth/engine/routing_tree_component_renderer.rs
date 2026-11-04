@@ -142,17 +142,14 @@ pub(super) fn stage_components(
         if context.signal == Some(SignalSource::Bus(bus)) {
             let scratch = &carrier.scratch;
             let processed = if scratch.executed {
-                scratch.processed_prefix
+                scratch.processed_prefix.min(frames)
             } else {
                 0
             };
-            let block = (0..frames).map(|frame| {
-                if frame < processed {
-                    scratch.mono_output[frame]
-                } else {
-                    0.0
-                }
-            });
+            let block = scratch.mono_output[..processed]
+                .iter()
+                .copied()
+                .chain(std::iter::repeat_n(0.0, frames - processed));
             context.signal_tap.publish_mono(block, context.sample_rate);
         }
         let spread_state = carrier
