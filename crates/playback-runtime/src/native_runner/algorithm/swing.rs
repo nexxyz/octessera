@@ -42,8 +42,17 @@ impl Swing {
     /// The last warped pulse that falls before straight pulse `pulse + 1`. Steps due inside the
     /// coming pulse are emitted one pulse step early and placed by their offset.
     pub(in crate::native_runner) fn warped_pulse(self, pulse: u64) -> u64 {
+        self.last_warped_before((pulse + 1) * self.units_per_pulse())
+    }
+
+    /// The last warped pulse at or before straight pulse `pulse`, for clocks whose next pulse
+    /// time is unknown: each step sounds on the first pulse at or after its exact time.
+    pub(in crate::native_runner) fn reached_warped_pulse(self, pulse: u64) -> u64 {
+        self.last_warped_before(pulse * self.units_per_pulse() + 1)
+    }
+
+    fn last_warped_before(self, limit: u64) -> u64 {
         let units = self.units_per_pulse();
-        let limit = (pulse + 1) * units;
         let beat_units = BEAT_PULSES * units;
         let beat = limit / beat_units;
         let rest = limit % beat_units;

@@ -4,11 +4,15 @@ const PULSE_NANOS_AT_120: f64 = 60e9 / 24.0 / 120.0;
 
 /// An eighth-note layer that sounds a note on every step, started from stop with the Play key.
 fn eighth_note_layer(swing: (u8, u8)) -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
+    let runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    start_eighth_note_layer(runner, swing)
+}
+
+fn start_eighth_note_layer(mut runner: NativeRunner, swing: (u8, u8)) -> NativeRunner {
     let layer = &mut runner.link_layers[0];
     layer.scan_mode = "scanning".into();
     layer.scan_axis = "rows".into();
@@ -151,4 +155,37 @@ fn swing_modulated_across_eight_bars_does_not_drift() {
     assert_eq!(notes, 8 * 8);
     set_swing_through_menu(&mut runner, 4, 4);
     assert_eq!(note_on_times(&mut runner, 24), vec![(12, 0), (24, 0)]);
+}
+
+#[test]
+fn external_sync_swing_lands_on_the_first_clock_at_or_after_its_time() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "sequencer".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.midi_enabled = true;
+    runner.midi_clock_in_enabled = true;
+    runner.transport.sync_source = SyncSource::External;
+    let mut runner = start_eighth_note_layer(runner, (4, 5));
+    let mut times = Vec::new();
+    for pulse in 0..=48 {
+        let messages = runner
+            .send(HostMessage::MidiRealtimeClock { pulses: 1 })
+            .unwrap();
+        for message in messages {
+            match message {
+                RunnerMessage::SequencedOffset { nanos } => assert_eq!(nanos, 0),
+                RunnerMessage::MusicalEvents { events } | RunnerMessage::MidiEvents { events } => {
+                    let notes = events
+                        .iter()
+                        .filter(|event| matches!(event, MusicalEvent::NoteOn { .. }));
+                    times.extend(notes.map(|_| pulse));
+                }
+                _ => {}
+            }
+        }
+    }
+    // The first clock is the downbeat; 4:5 puts the offbeat at 10 2/3 pulses, so it waits for 11.
+    assert_eq!(times, vec![0, 11, 24, 35, 48]);
 }

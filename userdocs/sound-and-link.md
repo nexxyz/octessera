@@ -123,8 +123,10 @@ These live at the top of **Link**, not under a layer.
 - **Swing A** and **Swing B** set the swing ratio: how long each beat's first
   eighth lasts against its second. `4` and `4` is straight, `5:3` is a lazy
   shuffle, `3:5` rushes the offbeat. Steps land exactly on the ratio, even
-  between clock pulses. External MIDI clock out stays straight. The Tempo Play
-  page has both rows on the grid.
+  between clock pulses. Following an external MIDI clock, a swung step waits
+  for the first clock pulse at or after its spot instead, since nobody tells
+  us when the next pulse will come. External MIDI clock out stays straight.
+  The Tempo Play page has both rows on the grid.
 - Each layer's **Seeded** row makes trigger probability and random arp orders
   repeatable; see [Seeds](behaviors-and-play.md#seeds-surprises-you-can-keep).
 

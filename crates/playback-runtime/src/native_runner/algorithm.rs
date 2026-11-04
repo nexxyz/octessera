@@ -1,6 +1,6 @@
 use super::modulation::RoutedMusicalEvents;
 use super::trigger_probability::trigger_probability_allows;
-use super::{NativeRunner, RuntimeTransportState, TransportFlash, GRID_HEIGHT};
+use super::{NativeRunner, RuntimeTransportState, SyncSource, TransportFlash, GRID_HEIGHT};
 use platform_core::DeviceInput;
 use swing::Swing;
 
@@ -243,6 +243,8 @@ impl NativeRunner {
         let current = self.transport.current_ppqn_pulse;
         let target = if swing.is_straight() {
             current
+        } else if self.transport.sync_source == SyncSource::External {
+            swing.reached_warped_pulse(current)
         } else {
             swing.warped_pulse(current)
         };
