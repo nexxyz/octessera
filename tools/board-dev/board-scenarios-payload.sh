@@ -143,7 +143,7 @@ soak() {
     [ \$minute -lt $minutes ] && sleep 60
   done" > soak-proc.log &
   mark soak_start
-  keys soak "esc*8 up*10 down enter down*12 up*12 enter esc down enter esc up esc down enter down*2 up*2 esc up*2 q*2 e*2 a*2 d*2 z*2 c*2" "$soak_seconds"
+  keys soak "esc*8 up*10 down enter down*12 up*12 enter esc down enter esc up esc down enter down*2 up*2 esc up*2 1*2 3*2 q*2 e*2 a*2 d*2" "$soak_seconds"
   wait
   mark soak_end
 }

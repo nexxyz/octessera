@@ -99,55 +99,103 @@ fn is_supported_keyboard(device: &Device, buses: super::KeyboardBuses) -> bool {
     super::worker::accepts_keyboard(bus_allowed, |key| keys.contains(evdev_key(key)))
 }
 
+const AUX_KEYS: [[KeyCode; 3]; 3] = [
+    [KeyCode::KEY_1, KeyCode::KEY_2, KeyCode::KEY_3],
+    [KeyCode::KEY_Q, KeyCode::KEY_W, KeyCode::KEY_E],
+    [KeyCode::KEY_A, KeyCode::KEY_S, KeyCode::KEY_D],
+];
+
+/// Keyboard rows from the bottom: `C`..`/`, `F`..`'`, `R`..`[`, `4`..`-`.
+const GRID_KEYS: [[KeyCode; 8]; 4] = [
+    [
+        KeyCode::KEY_C,
+        KeyCode::KEY_V,
+        KeyCode::KEY_B,
+        KeyCode::KEY_N,
+        KeyCode::KEY_M,
+        KeyCode::KEY_COMMA,
+        KeyCode::KEY_DOT,
+        KeyCode::KEY_SLASH,
+    ],
+    [
+        KeyCode::KEY_F,
+        KeyCode::KEY_G,
+        KeyCode::KEY_H,
+        KeyCode::KEY_J,
+        KeyCode::KEY_K,
+        KeyCode::KEY_L,
+        KeyCode::KEY_SEMICOLON,
+        KeyCode::KEY_APOSTROPHE,
+    ],
+    [
+        KeyCode::KEY_R,
+        KeyCode::KEY_T,
+        KeyCode::KEY_Y,
+        KeyCode::KEY_U,
+        KeyCode::KEY_I,
+        KeyCode::KEY_O,
+        KeyCode::KEY_P,
+        KeyCode::KEY_LEFTBRACE,
+    ],
+    [
+        KeyCode::KEY_4,
+        KeyCode::KEY_5,
+        KeyCode::KEY_6,
+        KeyCode::KEY_7,
+        KeyCode::KEY_8,
+        KeyCode::KEY_9,
+        KeyCode::KEY_0,
+        KeyCode::KEY_MINUS,
+    ],
+];
+
+const NAMED_KEYS: [(KeyCode, KeyboardKey); 14] = [
+    (KeyCode::KEY_LEFT, KeyboardKey::Left),
+    (KeyCode::KEY_UP, KeyboardKey::Up),
+    (KeyCode::KEY_RIGHT, KeyboardKey::Right),
+    (KeyCode::KEY_DOWN, KeyboardKey::Down),
+    (KeyCode::KEY_ENTER, KeyboardKey::Enter),
+    (KeyCode::KEY_KPENTER, KeyboardKey::KeypadEnter),
+    (KeyCode::KEY_BACKSPACE, KeyboardKey::Backspace),
+    (KeyCode::KEY_ESC, KeyboardKey::Escape),
+    (KeyCode::KEY_SPACE, KeyboardKey::Space),
+    (KeyCode::KEY_LEFTSHIFT, KeyboardKey::LeftShift),
+    (KeyCode::KEY_RIGHTSHIFT, KeyboardKey::RightShift),
+    (KeyCode::KEY_LEFTCTRL, KeyboardKey::LeftControl),
+    (KeyCode::KEY_RIGHTCTRL, KeyboardKey::RightControl),
+    (KeyCode::KEY_LEFTALT, KeyboardKey::LeftAlt),
+];
+
 pub(super) fn evdev_key(key: KeyboardKey) -> KeyCode {
     match key {
-        KeyboardKey::Left => KeyCode::KEY_LEFT,
-        KeyboardKey::Up => KeyCode::KEY_UP,
-        KeyboardKey::Right => KeyCode::KEY_RIGHT,
-        KeyboardKey::Down => KeyCode::KEY_DOWN,
-        KeyboardKey::Q => KeyCode::KEY_Q,
-        KeyboardKey::W => KeyCode::KEY_W,
-        KeyboardKey::E => KeyCode::KEY_E,
-        KeyboardKey::A => KeyCode::KEY_A,
-        KeyboardKey::S => KeyCode::KEY_S,
-        KeyboardKey::D => KeyCode::KEY_D,
-        KeyboardKey::Z => KeyCode::KEY_Z,
-        KeyboardKey::X => KeyCode::KEY_X,
-        KeyboardKey::C => KeyCode::KEY_C,
-        KeyboardKey::Enter => KeyCode::KEY_ENTER,
-        KeyboardKey::Backspace => KeyCode::KEY_BACKSPACE,
-        KeyboardKey::Escape => KeyCode::KEY_ESC,
-        KeyboardKey::Space => KeyCode::KEY_SPACE,
-        KeyboardKey::LeftShift => KeyCode::KEY_LEFTSHIFT,
-        KeyboardKey::RightShift => KeyCode::KEY_RIGHTSHIFT,
-        KeyboardKey::LeftControl => KeyCode::KEY_LEFTCTRL,
-        KeyboardKey::RightControl => KeyCode::KEY_RIGHTCTRL,
+        KeyboardKey::Aux { encoder, slot } => AUX_KEYS[usize::from(encoder - 1)][usize::from(slot)],
+        KeyboardKey::Grid { column, row } => GRID_KEYS[usize::from(row)][usize::from(column)],
+        _ => {
+            NAMED_KEYS
+                .iter()
+                .find(|(_, named)| *named == key)
+                .expect("every named keyboard key has an evdev code")
+                .0
+        }
     }
 }
 
 pub(super) fn keyboard_key(code: u16) -> Option<KeyboardKey> {
-    Some(match KeyCode::new(code) {
-        KeyCode::KEY_LEFT => KeyboardKey::Left,
-        KeyCode::KEY_UP => KeyboardKey::Up,
-        KeyCode::KEY_RIGHT => KeyboardKey::Right,
-        KeyCode::KEY_DOWN => KeyboardKey::Down,
-        KeyCode::KEY_Q => KeyboardKey::Q,
-        KeyCode::KEY_W => KeyboardKey::W,
-        KeyCode::KEY_E => KeyboardKey::E,
-        KeyCode::KEY_A => KeyboardKey::A,
-        KeyCode::KEY_S => KeyboardKey::S,
-        KeyCode::KEY_D => KeyboardKey::D,
-        KeyCode::KEY_Z => KeyboardKey::Z,
-        KeyCode::KEY_X => KeyboardKey::X,
-        KeyCode::KEY_C => KeyboardKey::C,
-        KeyCode::KEY_ENTER => KeyboardKey::Enter,
-        KeyCode::KEY_BACKSPACE => KeyboardKey::Backspace,
-        KeyCode::KEY_ESC => KeyboardKey::Escape,
-        KeyCode::KEY_SPACE => KeyboardKey::Space,
-        KeyCode::KEY_LEFTSHIFT => KeyboardKey::LeftShift,
-        KeyCode::KEY_RIGHTSHIFT => KeyboardKey::RightShift,
-        KeyCode::KEY_LEFTCTRL => KeyboardKey::LeftControl,
-        KeyCode::KEY_RIGHTCTRL => KeyboardKey::RightControl,
-        _ => return None,
-    })
+    let code = KeyCode::new(code);
+    for (encoder, keys) in (1..).zip(AUX_KEYS) {
+        if let Some(slot) = keys.iter().position(|key| *key == code) {
+            let slot = slot as u8;
+            return Some(KeyboardKey::Aux { encoder, slot });
+        }
+    }
+    for (row, keys) in (0..).zip(GRID_KEYS) {
+        if let Some(column) = keys.iter().position(|key| *key == code) {
+            let column = column as u8;
+            return Some(KeyboardKey::Grid { column, row });
+        }
+    }
+    NAMED_KEYS
+        .iter()
+        .find(|(named, _)| *named == code)
+        .map(|(_, key)| *key)
 }

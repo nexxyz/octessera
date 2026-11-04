@@ -216,6 +216,11 @@ fn host_message(input: KeyboardInput) -> HostMessage {
         KeyboardInput::ButtonS(pressed) => crate::input::neokey_message(1, pressed),
         KeyboardInput::ButtonShift(pressed) => crate::input::neokey_message(2, pressed),
         KeyboardInput::ButtonFn(pressed) => crate::input::neokey_message(3, pressed),
+        KeyboardInput::Grid { x, y, pressed } => Some(crate::input::grid_message(
+            usize::from(x),
+            usize::from(y),
+            pressed,
+        )),
     }
     .expect("keyboard input uses a valid native key")
 }
@@ -225,7 +230,7 @@ fn emit(input_tx: &Sender<HostMessage>, input: KeyboardInput) -> bool {
 }
 
 fn release_held_inputs(state: &mut KeyboardState, input_tx: &Sender<HostMessage>) -> bool {
-    for input in state.held_releases().into_iter().flatten() {
+    for input in state.held_releases() {
         if !emit(input_tx, input) {
             return false;
         }
@@ -246,6 +251,8 @@ fn run_worker(control: KeyboardCaptureControl, _input_tx: Sender<HostMessage>) {
     }
 }
 
+#[cfg(test)]
+mod mapping_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

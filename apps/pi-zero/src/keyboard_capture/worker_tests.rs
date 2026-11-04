@@ -12,6 +12,11 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+const AUX1_CLICK: KeyboardKey = KeyboardKey::Aux {
+    encoder: 1,
+    slot: 1,
+};
+
 type FakeEvents = Arc<Mutex<VecDeque<io::Result<Vec<(KeyboardKey, i32)>>>>>;
 
 struct FakeDevice {
@@ -190,9 +195,21 @@ fn worker_drives_enable_events_disable_and_ordered_releases() {
             1,
             [Ok(vec![
                 (KeyboardKey::Backspace, 1),
-                (KeyboardKey::Q, 1),
-                (KeyboardKey::W, 1),
-                (KeyboardKey::E, 1),
+                (
+                    KeyboardKey::Aux {
+                        encoder: 1,
+                        slot: 0,
+                    },
+                    1,
+                ),
+                (AUX1_CLICK, 1),
+                (
+                    KeyboardKey::Aux {
+                        encoder: 1,
+                        slot: 2,
+                    },
+                    1,
+                ),
                 (KeyboardKey::Space, 1),
             ])],
             &drops,
@@ -235,13 +252,47 @@ fn worker_drives_enable_events_disable_and_ordered_releases() {
 }
 
 #[test]
+fn worker_disconnect_releases_held_tiles_in_both_halves() {
+    let drops = Arc::new(Mutex::new(Vec::new()));
+    let mut worker = harness(
+        [ready_device(
+            9,
+            [
+                Ok(vec![
+                    (KeyboardKey::Grid { column: 0, row: 0 }, 1),
+                    (KeyboardKey::LeftAlt, 1),
+                    (KeyboardKey::Grid { column: 7, row: 3 }, 1),
+                ]),
+                Err(io::Error::new(io::ErrorKind::NotFound, "disconnected")),
+            ],
+            &drops,
+        )],
+        drops.clone(),
+    );
+    worker.enable();
+    for (x, y, pressed) in [(0, 0, true), (7, 7, true), (0, 0, false), (7, 7, false)] {
+        let input_type = if pressed {
+            "grid_press"
+        } else {
+            "grid_release"
+        };
+        assert_eq!(
+            worker.recv_input(),
+            serde_json::json!({ "type": input_type, "x": x, "y": y })
+        );
+    }
+    wait_until(|| worker.dropped() == vec![9]);
+    worker.stop();
+}
+
+#[test]
 fn worker_releases_and_drops_after_read_failure() {
     let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
         [ready_device(
             2,
             [
-                Ok(vec![(KeyboardKey::W, 1)]),
+                Ok(vec![(AUX1_CLICK, 1)]),
                 Err(io::Error::new(io::ErrorKind::NotFound, "disconnected")),
             ],
             &drops,
@@ -264,11 +315,7 @@ fn worker_aux_click_repeat_and_disable_do_not_emit_another_click() {
     let mut worker = harness(
         [ready_device(
             8,
-            [Ok(vec![
-                (KeyboardKey::W, 1),
-                (KeyboardKey::W, 2),
-                (KeyboardKey::W, 0),
-            ])],
+            [Ok(vec![(AUX1_CLICK, 1), (AUX1_CLICK, 2), (AUX1_CLICK, 0)])],
             &drops,
         )],
         drops.clone(),
@@ -289,7 +336,7 @@ fn worker_aux_click_repeat_and_disable_do_not_emit_another_click() {
 fn worker_shutdown_clears_held_aux_click_and_drops() {
     let drops = Arc::new(Mutex::new(Vec::new()));
     let mut worker = harness(
-        [ready_device(3, [Ok(vec![(KeyboardKey::W, 1)])], &drops)],
+        [ready_device(3, [Ok(vec![(AUX1_CLICK, 1)])], &drops)],
         drops.clone(),
     );
     worker.enable();
@@ -381,19 +428,13 @@ fn keyboard_acceptance_requires_usb_bus_and_every_capability() {
     assert!(worker::accepts_keyboard(true, |_| true));
     assert!(!worker::accepts_keyboard(false, |_| true));
     assert!(!worker::accepts_keyboard(true, |key| key != KeyboardKey::Space));
-    for missing in [
-        KeyboardKey::Q,
-        KeyboardKey::W,
-        KeyboardKey::E,
-        KeyboardKey::A,
-        KeyboardKey::S,
-        KeyboardKey::D,
-        KeyboardKey::Z,
-        KeyboardKey::X,
-        KeyboardKey::C,
-    ] {
+    for missing in worker::required_keys() {
         assert!(!worker::accepts_keyboard(true, |key| key != missing));
     }
+    assert!(worker::accepts_keyboard(true, |key| {
+        key != KeyboardKey::KeypadEnter
+    }));
+    assert_eq!(worker::required_keys().count(), 13 + 9 + 32);
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -416,7 +457,9 @@ fn json_input(input: KeyboardInput) -> Value {
         KeyboardInput::ButtonS(pressed) => ("button_s", pressed),
         KeyboardInput::ButtonShift(pressed) => ("button_shift", pressed),
         KeyboardInput::ButtonFn(pressed) => ("button_fn", pressed),
-        KeyboardInput::EncoderTurn { .. } | KeyboardInput::EncoderPress { .. } => {
+        KeyboardInput::EncoderTurn { .. }
+        | KeyboardInput::EncoderPress { .. }
+        | KeyboardInput::Grid { .. } => {
             panic!("test only expects button input")
         }
     };

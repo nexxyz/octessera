@@ -1,3 +1,4 @@
+use super::mapping::{AUX_ENCODERS, GRID_KEY_COLUMNS, GRID_KEY_ROWS};
 use super::{
     emit, release_held_inputs, KeyboardBuses, KeyboardCaptureControl, KeyboardKey, KeyboardState,
 };
@@ -25,32 +26,34 @@ pub(super) fn accepts_keyboard(
     bus_allowed: bool,
     mut supports_key: impl FnMut(KeyboardKey) -> bool,
 ) -> bool {
-    bus_allowed && REQUIRED_KEYS.iter().copied().all(&mut supports_key)
+    bus_allowed && required_keys().all(&mut supports_key)
 }
 
-const REQUIRED_KEYS: [KeyboardKey; 21] = [
-    KeyboardKey::Left,
-    KeyboardKey::Up,
-    KeyboardKey::Right,
-    KeyboardKey::Down,
-    KeyboardKey::Q,
-    KeyboardKey::W,
-    KeyboardKey::E,
-    KeyboardKey::A,
-    KeyboardKey::S,
-    KeyboardKey::D,
-    KeyboardKey::Z,
-    KeyboardKey::X,
-    KeyboardKey::C,
-    KeyboardKey::Enter,
-    KeyboardKey::Backspace,
-    KeyboardKey::Escape,
-    KeyboardKey::Space,
-    KeyboardKey::LeftShift,
-    KeyboardKey::RightShift,
-    KeyboardKey::LeftControl,
-    KeyboardKey::RightControl,
-];
+/// Every mapped key except Keypad Enter, which compact keyboards lack.
+pub(super) fn required_keys() -> impl Iterator<Item = KeyboardKey> {
+    let aux = (1..=AUX_ENCODERS)
+        .flat_map(|encoder| (0..3).map(move |slot| KeyboardKey::Aux { encoder, slot }));
+    let grid = (0..GRID_KEY_ROWS)
+        .flat_map(|row| (0..GRID_KEY_COLUMNS).map(move |column| KeyboardKey::Grid { column, row }));
+    [
+        KeyboardKey::Left,
+        KeyboardKey::Up,
+        KeyboardKey::Right,
+        KeyboardKey::Down,
+        KeyboardKey::Enter,
+        KeyboardKey::Backspace,
+        KeyboardKey::Escape,
+        KeyboardKey::Space,
+        KeyboardKey::LeftShift,
+        KeyboardKey::RightShift,
+        KeyboardKey::LeftControl,
+        KeyboardKey::RightControl,
+        KeyboardKey::LeftAlt,
+    ]
+    .into_iter()
+    .chain(aux)
+    .chain(grid)
+}
 
 #[cfg(target_os = "linux")]
 pub(super) fn run(control: KeyboardCaptureControl, input_tx: Sender<HostMessage>) {

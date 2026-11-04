@@ -12,8 +12,8 @@ import sys
 import time
 
 KEYS = {"esc": 1, "enter": 28, "space": 57, "shift": 42, "ctrl": 29, "up": 103, "down": 108,
-        "left": 105, "right": 106, "q": 16, "w": 17, "e": 18, "a": 30, "s": 31, "d": 32,
-        "z": 44, "x": 45, "c": 46}
+        "left": 105, "right": 106, "1": 2, "2": 3, "3": 4, "q": 16, "w": 17, "e": 18, "a": 30,
+        "s": 31, "d": 32}
 EV_SYN, EV_KEY = 0, 1
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE, UI_DEV_DESTROY = 0x40045564, 0x40045565, 0x5501, 0x5502
 BUS = {"usb": 0x03, "bt": 0x05}
