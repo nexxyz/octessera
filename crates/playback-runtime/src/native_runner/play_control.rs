@@ -133,59 +133,16 @@ impl NativeRunner {
             "mix" if self.display.ui.shift_held => self.handle_play_mix_bus_press(x, y),
             "mix" if y == 0 => self.toggle_instrument_mute(x),
             "mix" => {
-                if let Some(instrument) = self.instruments.get_mut(x) {
-                    if instrument.kind != "none" {
-                        let volume = ((y as f32 / (GRID_HEIGHT - 1) as f32) * 100.0).round() as u8;
-                        if instrument.volume != volume {
-                            instrument.volume = volume;
-                            self.mark_config_dirty();
-                            self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
-                                instrument_slot: x,
-                                generation: 0,
-                                volume_pct: Some(f32::from(volume)),
-                                pan_pos: None,
-                            });
-                        }
-                    }
+                if self
+                    .instruments
+                    .get(x)
+                    .is_some_and(|instrument| instrument.kind != "none")
+                {
+                    let volume = ((y as f32 / (GRID_HEIGHT - 1) as f32) * 100.0).round() as i32;
+                    self.set_play_menu_number(&format!("instruments.{x}.mixer.volume"), volume);
                 }
             }
-            "pan" => {
-                let pan_pos = touch_pan_pos_from_grid_x(x);
-                let Some(instrument) = self.instruments.get_mut(y) else {
-                    return;
-                };
-                if instrument.kind != "none" {
-                    let bus_index = instrument
-                        .route
-                        .strip_prefix("fx_bus_")
-                        .and_then(|value| value.parse::<usize>().ok())
-                        .and_then(|value| value.checked_sub(1));
-                    if instrument.pan_pos != pan_pos {
-                        instrument.pan_pos = pan_pos;
-                        self.mark_config_dirty();
-                        self.queue_audio_command(RuntimeAudioCommand::SetInstrumentMixer {
-                            instrument_slot: y,
-                            generation: 0,
-                            volume_pct: None,
-                            pan_pos: Some(usize::from(pan_pos)),
-                        });
-                    }
-                    if let Some(bus_index) = bus_index {
-                        if let Some(bus) = self.fx_buses.get_mut(bus_index) {
-                            if bus.pan_pos != pan_pos {
-                                bus.pan_pos = pan_pos;
-                                self.mark_config_dirty();
-                                self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
-                                    bus_index,
-                                    generation: 0,
-                                    pan_pos: Some(usize::from(pan_pos)),
-                                    volume_pct: None,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
+            "pan" => self.handle_play_pan_press(x, y),
             "route" => self.handle_play_route_press(x, y),
             "tempo" => self.handle_play_tempo_press(x, y),
             "lfo" => self.handle_play_lfo_press(x, y),
@@ -203,14 +160,41 @@ impl NativeRunner {
             0..=3 => {
                 self.set_fx_bus_volume(x, volume);
             }
-            MIX_MASTER_COLUMN if y > 0 => {
-                self.menu
-                    .set_number_value_for_key("masterVolume", i32::from(volume));
-                if let Err(error) = self.apply_or_schedule_menu_key("masterVolume") {
-                    self.show_toast(error);
-                }
-            }
+            MIX_MASTER_COLUMN if y > 0 => self.set_play_menu_number("masterVolume", volume.into()),
             _ => {}
+        }
+    }
+
+    /// Bus-routed instruments pan their bus; their own pan has no menu row then but is kept.
+    fn handle_play_pan_press(&mut self, x: usize, y: usize) {
+        let pan_pos = i32::from(touch_pan_pos_from_grid_x(x));
+        let Some(instrument) = self
+            .instruments
+            .get(y)
+            .filter(|instrument| instrument.kind != "none")
+        else {
+            return;
+        };
+        let bus_index = instrument
+            .route
+            .strip_prefix("fx_bus_")
+            .and_then(|value| value.parse::<usize>().ok())
+            .and_then(|value| value.checked_sub(1));
+        let Some(bus_index) = bus_index else {
+            self.set_play_menu_number(&format!("instruments.{y}.mixer.panPos"), pan_pos);
+            return;
+        };
+        if self.fast_instrument_pan_key(y, Some(pan_pos)) {
+            self.mark_fast_autosave_dirty();
+        }
+        self.set_play_menu_number(&format!("mixer.buses.{bus_index}.panPos"), pan_pos);
+    }
+
+    /// A Play page press edits its menu row like a turn would, so the row and modulation follow.
+    fn set_play_menu_number(&mut self, key: &str, value: i32) {
+        self.menu.set_number_value_for_key(key, value);
+        if let Err(error) = self.apply_or_schedule_menu_key(key) {
+            self.show_toast(error);
         }
     }
 

@@ -66,7 +66,9 @@ The menu lists the technical bank, then the musical bank.
 
 - Each column is an instrument. Row `y=0` toggles that slot's mute; rows `1..7` set its
   `Mixer > Volume` to `round(y / 7 × 100)`: row 1 is 14%, row 7 is 100%. Play Mix cannot set
-  0%; the menu, Aux or modulation can. Type `none` slots ignore presses.
+  0%; the menu, Aux or modulation can. Type `none` slots ignore presses. Mix and Pan presses go
+  through the same edit as turning the menu row, so the row follows and an LFO or XY on the value
+  wobbles around the new setting.
 - Mute is live only: it is never saved and never marks the patch dirty. Boot, patch/preset loads
   and Clear All start unmuted. Toasts read `I3 muted` / `I3 unmuted`.
 - A muted internal instrument keeps its stored volume; the engine receives volume 0 from every

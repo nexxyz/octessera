@@ -124,6 +124,7 @@ mod play_fx;
 mod play_lfo;
 mod play_menu;
 mod play_mix_buses;
+mod play_mix_dispatch;
 mod play_mix_mute;
 mod play_overlay;
 mod play_rate;

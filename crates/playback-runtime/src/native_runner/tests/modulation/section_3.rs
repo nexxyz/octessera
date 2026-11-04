@@ -59,15 +59,8 @@ pub(crate) fn play_mix_grid_edit_autosaves_persistent_volume_change() {
                 } if (*volume - 14.0).abs() < f32::EPSILON
             ))
     )));
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if matches!(
-                effects.as_slice(),
-                [RuntimePlatformEffect::StoreSaveDefault { mode, .. }]
-                    if mode.as_deref() == Some("deferred")
-            )
-    )));
+    assert!(runner.config_dirty);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
 }
 
 #[test]
