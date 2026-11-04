@@ -205,3 +205,28 @@ fn tap_tile_pulses_with_the_beat_only_while_playing() {
         led_rgb(dim_rgb(platform_core::palette::GREEN, 2))
     );
 }
+
+#[test]
+fn fn_or_shift_fn_with_a_page_tile_leaves_the_hidden_page_alone() {
+    let mut runner = tempo_runner();
+    let hold = |runner: &mut NativeRunner, buttons: &[&str], pressed: bool| {
+        for button in buttons {
+            let _ = input(runner, json!({ "type": button, "pressed": pressed }));
+        }
+    };
+    for buttons in [&["button_fn"][..], &["button_shift", "button_fn"][..]] {
+        hold(&mut runner, buttons, true);
+        let _ = press(&mut runner, 1, 7);
+        let _ = press(&mut runner, 6, 1);
+        hold(&mut runner, buttons, false);
+        assert_eq!(runner.transport.bpm, 120.0, "{buttons:?}");
+        assert_eq!(
+            (runner.transport.swing_a, runner.transport.swing_b),
+            (4, 4),
+            "{buttons:?}"
+        );
+        assert_eq!(runner.active_play_mode, "tempo");
+    }
+    let _ = press(&mut runner, 1, 7);
+    assert_eq!(runner.transport.bpm, 50.0);
+}

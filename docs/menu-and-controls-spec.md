@@ -58,6 +58,7 @@ Data sources the spec relies on:
 | Fn + rightmost grid column | Select technical Play page | Selects and activates the technical-bank page on that row and moves the menu to it ([banks](menu-tree/play.md#pages-and-navigation)). Free rows do nothing. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier + rightmost grid column | Select musical Play page | The same for the musical bank. |
 | Combined modifier held | Musical navigation LEDs | Shows the layer column and the musical page column. |
+| Fn or combined modifier + other tile, Play page active | Nothing | The navigation overlay hides the page, so the press neither edits the page nor reaches the behavior. Without a Play page, Fn + tile still goes to the behavior. |
 | Sample/Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
 | Sample/Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
 | Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or the focused action as its `!` press target. |

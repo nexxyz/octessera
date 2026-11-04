@@ -48,7 +48,9 @@ The menu lists the technical bank, then the musical bank.
 
   Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
   that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
-  (`Play: trig` for Trigger Gate).
+  (`Play: trig` for Trigger Gate). While Fn or Shift+Fn is held, the other tiles do nothing on a
+  Play page: the navigation overlay hides it, so brushing a tile while switching pages edits
+  nothing.
 - In the Play menu, `Mix`, `Pan`, `Route`, `Tempo`, `LFO`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
   rows: Main press
   selects and activates the page without entering an empty submenu. `FX` and `XY` are

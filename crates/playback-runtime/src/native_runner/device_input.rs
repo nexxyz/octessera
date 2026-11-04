@@ -295,6 +295,10 @@ impl NativeRunner {
                 let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
                 return self.messages_with_input_result(result);
             }
+        } else if self.active_play_mode != "none"
+            && (self.display.ui.fn_held || self.display.ui.combined_modifier_held)
+        {
+            // The navigation overlay hides the page, so a stray tile must not edit it.
         } else if self.active_play_mode == "trigger-gate" {
             self.handle_trigger_gate_grid_press(x, y);
         } else if self.active_play_mode == "transpose" {
