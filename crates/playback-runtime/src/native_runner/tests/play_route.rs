@@ -18,32 +18,40 @@ fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
     messages
 }
 
-/// Bus 1 runs a reverb, bus 2 a duck keyed from I1, global slot 1 a compressor, I8 is MIDI.
+/// Bus 1 runs a reverb, buses 2 and 3 a duck keyed from I1, global slot 1 a compressor, I8 is MIDI.
 fn route_runner() -> NativeRunner {
+    route_runner_with_ducks(&[(1, 1, "I1", "post"), (2, 2, "I1", "pre")])
+}
+
+/// The Route page with a duck `(bus, slot, source, sourceTap)` per entry beside the reverb.
+fn route_runner_with_ducks(ducks: &[(usize, usize, &str, &str)]) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
     let mixer = &mut payload["runtimeConfig"]["mixer"];
     mixer["buses"][0]["slot1"] = json!({ "type": "reverb", "params": fx_default_params("reverb") });
-    let mut duck = fx_default_params("duck");
-    duck["source"] = json!("I1");
-    duck["sourceTap"] = json!("post");
-    mixer["buses"][1]["slot1"] = json!({ "type": "duck", "params": duck });
+    for (bus, slot, source, tap) in ducks {
+        let mut duck = fx_default_params("duck");
+        duck["source"] = json!(source);
+        duck["sourceTap"] = json!(tap);
+        mixer["buses"][*bus][format!("slot{slot}")] = json!({ "type": "duck", "params": duck });
+    }
     mixer["master"]["slots"][0] =
         json!({ "type": "compressor", "params": fx_default_params("compressor") });
     payload["runtimeConfig"]["instruments"][7]["type"] = json!("midi");
     runner.apply_config_payload(payload).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    let _ = input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
-    let opened = press(&mut runner, GRID_WIDTH - 1, 2);
-    let _ = input(
-        &mut runner,
-        json!({ "type": "button_fn", "pressed": false }),
-    );
-    assert_eq!(runner.active_play_mode, "route");
-    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: route");
+    open_route_page(&mut runner);
     runner.config_dirty = false;
     runner.dirty_revision = None;
     runner
+}
+
+fn open_route_page(runner: &mut NativeRunner) {
+    let _ = input(runner, json!({ "type": "button_fn", "pressed": true }));
+    let opened = press(runner, GRID_WIDTH - 1, 2);
+    let _ = input(runner, json!({ "type": "button_fn", "pressed": false }));
+    assert_eq!(runner.active_play_mode, "route");
+    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: route");
 }
 
 fn toast(runner: &NativeRunner) -> String {
@@ -145,7 +153,8 @@ fn midi_slots_are_dark_and_ignore_route_and_duck_presses() {
     let _ = press(&mut runner, 7, 3);
     let _ = press(&mut runner, 7, 7);
     assert_eq!(runner.instruments[7].route, "direct");
-    assert_eq!(runner.play_live.fx_overrides, Default::default());
+    assert_eq!(duck_source(&runner, 1, 1), "I1");
+    assert!(!runner.config_dirty);
 }
 
 #[test]
@@ -205,42 +214,35 @@ fn global_fx_bypass_passes_its_slot_through() {
     assert_eq!(engine_global_slot(&restored, 0), Some("compressor".into()));
 }
 
-#[test]
-fn duck_key_points_every_duck_at_one_instrument_until_pressed_again() {
-    let mut runner = route_runner();
+fn duck_source(runner: &NativeRunner, bus: usize, slot: usize) -> String {
+    runner.config_payload()["runtimeConfig"]["mixer"]["buses"][bus][format!("slot{slot}")]["params"]
+        ["source"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string()
+}
 
-    let keyed = press(&mut runner, 2, 7);
-    assert_eq!(toast(&runner), "Duck key: I3");
-    let (fx_type, params) = engine_bus_slot(&keyed, 1, 0).unwrap();
-    assert_eq!(fx_type, "duck");
-    assert_eq!(params["source"], "I3");
-    assert_eq!(params["sourceTap"], "post");
-    assert_eq!(
-        tile(&runner, 2, 7),
-        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_RED)
-    );
-    assert!(!runner.config_dirty);
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][1]["slot1"]["params"]["source"],
-        "I1"
-    );
+fn load_duck_sources(runner: &mut NativeRunner, ducks: &[(usize, usize, &str)]) {
+    let mut payload = runner.config_payload();
+    for (bus, slot, source) in ducks {
+        payload["runtimeConfig"]["mixer"]["buses"][*bus][format!("slot{slot}")]["params"]
+            ["source"] = json!(source);
+    }
+    runner.apply_config_payload(payload).unwrap();
+    let _ = runner.messages_with_snapshot().unwrap();
+}
 
-    let moved = press(&mut runner, 4, 7);
-    assert_eq!(toast(&runner), "Duck key: I5");
-    assert_eq!(engine_bus_slot(&moved, 1, 0).unwrap().1["source"], "I5");
-
-    let released = press(&mut runner, 4, 7);
-    assert_eq!(toast(&runner), "Duck key off");
-    let (_, params) = engine_bus_slot(&released, 1, 0).unwrap();
-    assert_eq!(params["source"], "I1");
-    assert_eq!(params["sourceTap"], "post");
+fn red(divisor: u8) -> Value {
+    led_rgb(dim_rgb(
+        platform_core::palette::BEHAVIOR_PRIMARY_RED,
+        divisor,
+    ))
 }
 
 #[test]
-fn patch_load_clears_bypass_and_duck_key() {
+fn patch_load_clears_bus_bypass() {
     let mut runner = route_runner();
     let _ = press(&mut runner, 0, 5);
-    let _ = press(&mut runner, 2, 7);
     let payload = runner.config_payload();
 
     runner.apply_config_payload(payload).unwrap();
@@ -251,31 +253,106 @@ fn patch_load_clears_bypass_and_duck_key() {
         engine_bus_slot(&loaded, 0, 0).map(|(fx_type, _)| fx_type),
         Some("reverb".into())
     );
-    assert_eq!(engine_bus_slot(&loaded, 1, 0).unwrap().1["source"], "I1");
 }
 
 #[test]
-fn duck_key_on_a_slot_that_turned_midi_stays_red_and_clears_on_press() {
+fn duck_source_press_saves_the_instrument_on_every_bus_duck() {
     let mut runner = route_runner();
-    let _ = press(&mut runner, 2, 7);
+    assert_eq!(tile(&runner, 0, 7), red(1));
+    assert_eq!(tile(&runner, 2, 7), red(8));
+
+    let keyed = press(&mut runner, 2, 7);
+    assert_eq!(toast(&runner), "Duck source: I3 (2 ducks)");
+    let (fx_type, params) = engine_bus_slot(&keyed, 1, 0).unwrap();
+    assert_eq!(fx_type, "duck");
+    assert_eq!(params["source"], "I3");
+    assert_eq!(params["sourceTap"], "post");
+    assert_eq!(engine_bus_slot(&keyed, 2, 1).unwrap().1["sourceTap"], "pre");
+    assert!(runner.config_dirty);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+    assert_eq!(duck_source(&runner, 1, 1), "I3");
+    assert_eq!(duck_source(&runner, 2, 2), "I3");
+    for key in [
+        "mixer.buses.1.slot1.params.source",
+        "mixer.buses.2.slot2.params.source",
+    ] {
+        assert_eq!(runner.menu.value_for_key(key).as_deref(), Some("I3"));
+    }
+    assert_eq!(tile(&runner, 2, 7), red(1));
+    assert_eq!(tile(&runner, 0, 7), red(8));
+}
+
+#[test]
+fn duck_source_press_on_the_lit_tile_does_nothing() {
+    let mut runner = route_runner();
+    let pressed = press(&mut runner, 0, 7);
+    assert_eq!(toast(&runner), "Play: route");
+    assert_eq!(resent_slots(&pressed), (vec![], vec![]));
+    assert!(!runner.config_dirty);
+    assert_eq!(tile(&runner, 0, 7), red(1));
+}
+
+#[test]
+fn mixed_duck_sources_show_dim_and_bus_sources_stay_off_the_row() {
+    let mut runner = route_runner_with_ducks(&[
+        (1, 1, "I2", "pre"),
+        (2, 3, "I5", "pre"),
+        (3, 1, "B1", "pre"),
+    ]);
+    assert_eq!(tile(&runner, 1, 7), red(3));
+    assert_eq!(tile(&runner, 4, 7), red(3));
+    assert_eq!(tile(&runner, 0, 7), red(8));
+
+    let _ = press(&mut runner, 1, 7);
+    assert_eq!(toast(&runner), "Duck source: I2 (3 ducks)");
+    assert_eq!(duck_source(&runner, 3, 1), "I2");
+    assert_eq!(tile(&runner, 1, 7), red(1));
+    assert_eq!(tile(&runner, 4, 7), red(8));
+}
+
+#[test]
+fn duck_source_press_without_a_duck_only_toasts() {
+    let mut runner = route_runner_with_ducks(&[]);
+    let pressed = press(&mut runner, 2, 7);
+    assert_eq!(toast(&runner), "No duck on any bus");
+    assert_eq!(resent_slots(&pressed), (vec![], vec![]));
+    assert!(!runner.config_dirty);
+}
+
+#[test]
+fn patch_load_shows_the_loaded_duck_sources() {
+    let mut runner = route_runner();
+    load_duck_sources(&mut runner, &[(1, 1, "I4"), (2, 2, "I4")]);
+    open_route_page(&mut runner);
+
+    assert_eq!(tile(&runner, 3, 7), red(1));
+    assert_eq!(tile(&runner, 0, 7), red(8));
+    assert_eq!(
+        runner
+            .menu
+            .value_for_key("mixer.buses.2.slot2.params.source")
+            .as_deref(),
+        Some("I4")
+    );
+}
+
+#[test]
+fn duck_source_on_a_slot_that_turned_midi_stays_lit_and_ignores_presses() {
+    let mut runner = route_runner();
     assert!(runner
         .menu
-        .set_enum_value_for_key("instruments.2.type", "midi"));
+        .set_enum_value_for_key("instruments.0.type", "midi"));
     runner
-        .apply_or_schedule_menu_key("instruments.2.type")
+        .apply_or_schedule_menu_key("instruments.0.type")
         .unwrap();
-    assert_eq!(runner.instruments[2].kind, "midi");
-    assert_eq!(
-        tile(&runner, 2, 7),
-        led_rgb(platform_core::palette::BEHAVIOR_PRIMARY_RED)
-    );
+    assert_eq!(runner.instruments[0].kind, "midi");
+    assert_eq!(tile(&runner, 0, 7), red(1));
+    runner.config_dirty = false;
 
-    let released = press(&mut runner, 2, 7);
-    assert_eq!(toast(&runner), "Duck key off");
-    assert_eq!(engine_bus_slot(&released, 1, 0).unwrap().1["source"], "I1");
-    assert_eq!(tile(&runner, 2, 7), led_rgb(platform_core::palette::BLACK));
-    let _ = press(&mut runner, 2, 7);
-    assert_eq!(runner.play_live.fx_overrides, Default::default());
+    let pressed = press(&mut runner, 0, 7);
+    assert_eq!(resent_slots(&pressed), (vec![], vec![]));
+    assert!(!runner.config_dirty);
+    assert_eq!(duck_source(&runner, 1, 1), "I1");
 }
 
 /// `(bus, slot)` of every bus slot command and `slot` of every global slot command.
@@ -304,5 +381,5 @@ fn route_toggles_resend_only_the_chain_they_change() {
     let global = press(&mut runner, 5, 5);
     assert_eq!(resent_slots(&global), (vec![], vec![1]));
     let duck = press(&mut runner, 3, 7);
-    assert_eq!(resent_slots(&duck), (vec![(1, 0)], vec![]));
+    assert_eq!(resent_slots(&duck), (vec![(1, 0), (2, 1)], vec![]));
 }

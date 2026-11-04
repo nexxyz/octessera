@@ -9,7 +9,7 @@ use crate::protocol::RuntimeAudioCommand;
 
 const ROUTES: [&str; 5] = ["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"];
 const BYPASS_ROW: usize = 5;
-const DUCK_KEY_ROW: usize = 7;
+const DUCK_SOURCE_ROW: usize = 7;
 const BUS_SLOT_COUNT: usize = 3;
 
 /// Live-only FX overrides from the Route page; the saved config never changes.
@@ -17,14 +17,11 @@ const BUS_SLOT_COUNT: usize = 3;
 pub(in crate::native_runner) struct LiveFxOverrides {
     bus_bypassed: [bool; BUS_COUNT],
     global_bypassed: [bool; GLOBAL_FX_SLOT_COUNT],
-    duck_key: Option<usize>,
 }
 
 impl LiveFxOverrides {
     fn is_empty(&self) -> bool {
-        self.duck_key.is_none()
-            && !self.bus_bypassed.contains(&true)
-            && !self.global_bypassed.contains(&true)
+        !self.bus_bypassed.contains(&true) && !self.global_bypassed.contains(&true)
     }
 }
 
@@ -37,18 +34,23 @@ impl NativeRunner {
             BYPASS_ROW if x < BUS_COUNT + GLOBAL_FX_SLOT_COUNT => {
                 self.toggle_global_fx_bypass(x - BUS_COUNT);
             }
-            DUCK_KEY_ROW
-                if self.instrument_has_audio(x)
-                    || self.play_live.fx_overrides.duck_key == Some(x) =>
-            {
-                self.toggle_duck_key(x);
-            }
+            DUCK_SOURCE_ROW if self.instrument_has_audio(x) => self.set_duck_source(x),
             _ => {}
         }
     }
 
     pub(in crate::native_runner) fn apply_play_route_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
+        let duck_sources: Vec<Option<usize>> = self
+            .bus_duck_sources()
+            .into_iter()
+            .map(|(_, source)| source)
+            .collect();
+        let shared_source = duck_sources
+            .first()
+            .copied()
+            .flatten()
+            .filter(|first| duck_sources.iter().all(|source| *source == Some(*first)));
         for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
             let audio = self.instrument_has_audio(x);
             let route = self.instruments.get(x).map(|slot| slot.route.as_str());
@@ -60,13 +62,17 @@ impl NativeRunner {
                 };
                 self.set_display_led(leds, x, y, color);
             }
-            let duck = match (audio, self.play_live.fx_overrides.duck_key == Some(x)) {
-                (_, true) => LedColor::RED,
-                (true, false) => LedColor::RED.dim(6),
-                (false, false) => LedColor::BLACK,
+            let duck = if shared_source == Some(x) {
+                LedColor::RED
+            } else if duck_sources.contains(&Some(x)) {
+                LedColor::RED.dim(3)
+            } else if audio {
+                LedColor::RED.dim(8)
+            } else {
+                LedColor::BLACK
             };
-            self.set_display_led(leds, x, DUCK_KEY_ROW, duck);
-            self.set_display_led(leds, x, DUCK_KEY_ROW - 1, LedColor::BLACK);
+            self.set_display_led(leds, x, DUCK_SOURCE_ROW, duck);
+            self.set_display_led(leds, x, DUCK_SOURCE_ROW - 1, LedColor::BLACK);
         }
         let overrides = &self.play_live.fx_overrides;
         for bus in 0..BUS_COUNT {
@@ -108,13 +114,9 @@ impl NativeRunner {
                 fx_type,
                 params,
                 ..
-            } => {
-                if overrides.bus_bypassed.get(*bus_index) == Some(&true) {
-                    *fx_type = "none".into();
-                    params.clear();
-                } else if let (Some(key), "duck") = (overrides.duck_key, fx_type.as_str()) {
-                    params.insert("source".into(), Value::from(duck_source(key)));
-                }
+            } if overrides.bus_bypassed.get(*bus_index) == Some(&true) => {
+                *fx_type = "none".into();
+                params.clear();
             }
             RuntimeAudioCommand::SetGlobalFxSlot {
                 slot_index,
@@ -141,23 +143,23 @@ impl NativeRunner {
 
     /// Sends every bus and global FX slot again, through the override gate.
     pub(in crate::native_runner) fn resend_fx_slots(&mut self) {
-        self.resend_fx_slots_matching(|_, _| true, |_| true);
+        self.resend_fx_slots_matching(|_| true, |_| true);
     }
 
-    /// Sends the bus slots `(bus, type)` and global slots `slot` that match again, so a toggle
+    /// Sends the bus slots of the buses and the global slots that match again, so a toggle
     /// restarts only the chains it changes.
     fn resend_fx_slots_matching(
         &mut self,
-        bus_slot_matches: impl Fn(usize, &str) -> bool,
+        bus_matches: impl Fn(usize) -> bool,
         global_slot_matches: impl Fn(usize) -> bool,
     ) {
         let mut commands = Vec::new();
         for (bus_index, bus) in self.fx_buses.iter().enumerate() {
+            if !bus_matches(bus_index) {
+                continue;
+            }
             for slot_index in 0..BUS_SLOT_COUNT {
                 let (fx_type, params) = bus_slot(bus, slot_index);
-                if !bus_slot_matches(bus_index, fx_type) {
-                    continue;
-                }
                 commands.push(RuntimeAudioCommand::SetFxBusSlot {
                     bus_index,
                     slot_index,
@@ -210,7 +212,7 @@ impl NativeRunner {
         let bypassed = &mut self.play_live.fx_overrides.bus_bypassed[bus];
         *bypassed = !*bypassed;
         let state = if *bypassed { "bypassed" } else { "on" };
-        self.resend_fx_slots_matching(|index, _| index == bus, |_| false);
+        self.resend_fx_slots_matching(|index| index == bus, |_| false);
         self.show_toast(format!("B{} FX {state}", bus + 1));
     }
 
@@ -218,19 +220,53 @@ impl NativeRunner {
         let bypassed = &mut self.play_live.fx_overrides.global_bypassed[slot];
         *bypassed = !*bypassed;
         let state = if *bypassed { "bypassed" } else { "on" };
-        self.resend_fx_slots_matching(|_, _| false, |index| index == slot);
+        self.resend_fx_slots_matching(|_| false, |index| index == slot);
         self.show_toast(format!("G{} FX {state}", slot + 1));
     }
 
-    fn toggle_duck_key(&mut self, instrument: usize) {
-        let duck_key = &mut self.play_live.fx_overrides.duck_key;
-        *duck_key = (*duck_key != Some(instrument)).then_some(instrument);
-        let toast = match *duck_key {
-            Some(key) => format!("Duck key: {}", duck_source(key)),
-            None => "Duck key off".into(),
-        };
-        self.resend_fx_slots_matching(|_, fx_type| fx_type == "duck", |_| false);
-        self.show_toast(toast);
+    /// Writes the instrument into the saved Source of every bus duck, through the menu edit path.
+    fn set_duck_source(&mut self, instrument: usize) {
+        let ducks = self.bus_duck_sources();
+        if ducks.is_empty() {
+            self.show_toast("No duck on any bus");
+            return;
+        }
+        if ducks.iter().all(|(_, source)| *source == Some(instrument)) {
+            return;
+        }
+        let source = format!("I{}", instrument + 1);
+        for (key, _) in &ducks {
+            self.menu.set_enum_value_for_key(key, &source);
+            if let Err(error) = self.apply_or_schedule_menu_key(key) {
+                self.show_toast(error);
+                return;
+            }
+        }
+        let count = ducks.len();
+        let noun = if count == 1 { "duck" } else { "ducks" };
+        self.show_toast(format!("Duck source: {source} ({count} {noun})"));
+    }
+
+    /// The Source menu key of every bus duck, with its instrument index when the source is one.
+    fn bus_duck_sources(&self) -> Vec<(String, Option<usize>)> {
+        let mut ducks = Vec::new();
+        for (bus_index, bus) in self.fx_buses.iter().enumerate() {
+            for slot_index in 0..BUS_SLOT_COUNT {
+                let (fx_type, params) = bus_slot(bus, slot_index);
+                if fx_type != "duck" {
+                    continue;
+                }
+                let source = params.get("source").and_then(Value::as_str).unwrap_or("I1");
+                ducks.push((
+                    format!(
+                        "mixer.buses.{bus_index}.slot{}.params.source",
+                        slot_index + 1
+                    ),
+                    instrument_source_index(source),
+                ));
+            }
+        }
+        ducks
     }
 
     fn instrument_has_audio(&self, index: usize) -> bool {
@@ -252,14 +288,6 @@ impl NativeRunner {
                     };
                     if overrides.bus_bypassed.get(index) == Some(&true) {
                         *slot = serde_json::json!({ "type": "none", "params": {} });
-                    } else if let Some(key) = overrides.duck_key {
-                        if slot.get("type").and_then(Value::as_str) == Some("duck") {
-                            if let Some(params) =
-                                slot.get_mut("params").and_then(Value::as_object_mut)
-                            {
-                                params.insert("source".into(), Value::from(duck_source(key)));
-                            }
-                        }
                     }
                 }
             }
@@ -288,8 +316,12 @@ fn route_color(row: usize) -> LedColor {
     }
 }
 
-fn duck_source(instrument: usize) -> String {
-    format!("I{}", instrument + 1)
+fn instrument_source_index(source: &str) -> Option<usize> {
+    source
+        .strip_prefix('I')?
+        .parse::<usize>()
+        .ok()?
+        .checked_sub(1)
 }
 
 fn bus_slot(bus: &NativeFxBus, slot: usize) -> (&str, &Value) {

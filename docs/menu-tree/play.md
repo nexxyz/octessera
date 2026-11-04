@@ -121,17 +121,20 @@ The menu lists the technical bank, then the musical bank.
   white for Global FX). A bypassed chain reaches the engine with every slot `none`; the saved
   slots are untouched. Toast `B1 FX bypassed` / `B1 FX on`, `G1 FX bypassed` / `G1 FX on`.
 - Row 6 is empty.
-- Row 7 is the duck key, live only: pressing an instrument makes every bus duck listen to it
-  (`Duck key: I2`); its own `Source Tap` stays. Another column moves the key; pressing the lit
-  tile again returns every duck to its saved Source (`Duck key off`). The key is red, other
-  audio instruments dim red; MIDI and `none` slots are dark. A key whose slot has since become
-  MIDI or `none` stays red, and pressing it clears the key.
-- Bypass and duck key are never saved, never mark the patch dirty, and clear on boot, patch or
-  preset loads, and Clear All. One gate on the engine command path applies them to every bus
-  slot, Global FX slot and full configuration the engine receives, so menu, Aux and LFO edits made
-  meanwhile land in the saved config and reach the engine as soon as the override is undone.
-  Toggling one resends only the chain it changes, which restarts that chain's effect tails: the
-  bus's slots for a bus bypass, that slot for a Global FX bypass, the duck slots for the key.
+- Row 7 is the duck source: pressing an instrument writes it into the saved `Source` of every
+  bus slot whose type is `duck`, the same edit as turning each duck's `Source` row, so the patch
+  is dirty, autosave runs and the menu rows show it. Each duck keeps its own `Source Tap`. Toast
+  `Duck source: I2 (3 ducks)`; with no duck on any bus the press only toasts `No duck on any bus`.
+  When every duck uses the same instrument its column is red and pressing it does nothing; when
+  the ducks use different instruments each source column is dim red. A bus source (`B2`) is not
+  shown on the row. Other audio instruments are faint red. MIDI and `none` slots ignore presses
+  and are dark unless a duck uses them as its source.
+- Bypass is never saved, never marks the patch dirty, and clears on boot, patch or preset loads,
+  and Clear All. One gate on the engine command path applies it to every bus slot, Global FX slot
+  and full configuration the engine receives, so menu, Aux and LFO edits made meanwhile land in
+  the saved config and reach the engine as soon as the bypass is undone. Toggling one resends only
+  the chain it changes, which restarts that chain's effect tails: the bus's slots for a bus
+  bypass, that slot for a Global FX bypass. A duck source press resends the duck slots.
 
 ## Tempo
 
@@ -298,8 +301,7 @@ The `ms` rows use the curved time steps from
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y glide, invert flags, and release behavior.
-- Not saved: the active Play overlay on load/startup, the XY latch, Mix instrument and bus mutes, Route FX bypass
-  and duck key, Tap history, Transpose
+- Not saved: the active Play overlay on load/startup, the XY latch, Mix instrument and bus mutes, Route FX bypass, Tap history, Transpose
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary
   overlays.
