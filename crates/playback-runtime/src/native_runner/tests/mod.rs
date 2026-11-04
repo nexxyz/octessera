@@ -129,6 +129,7 @@ mod play_overlay;
 mod play_rate;
 mod play_route;
 mod play_tempo;
+mod play_trigger_gate;
 mod play_xy_latch;
 mod pluck;
 mod pluck_audio;

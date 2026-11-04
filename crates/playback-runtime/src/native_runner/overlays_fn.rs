@@ -3,6 +3,7 @@ use super::play_control::MIX_MASTER_COLUMN;
 use super::play_fx_config::play_fx_type;
 use super::play_fx_presentation::play_fx_color;
 use super::play_pages::{MUSICAL_PLAY_PAGES, TECHNICAL_PLAY_PAGES};
+use super::play_trigger_gate::TRIGGER_GATE_MODES;
 use super::{
     pan_marker_left_tile, play_fx_tile_id, NativeRunner, BUS_COUNT, GRID_HEIGHT, GRID_WIDTH,
     INSTRUMENT_COUNT, PLAY_FX_MAX_CONCURRENT,
@@ -123,7 +124,7 @@ impl NativeRunner {
     pub(super) fn apply_play_trigger_gate_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
         for (row, mode) in self.trigger_gate_modes.iter().enumerate().take(GRID_HEIGHT) {
-            for (x, candidate) in [(0, "zero"), (1, "custom"), (2, "full")] {
+            for (x, candidate) in TRIGGER_GATE_MODES.into_iter().enumerate() {
                 let color = trigger_gate_color(candidate);
                 self.set_display_led(
                     leds,
@@ -137,9 +138,9 @@ impl NativeRunner {
                 );
             }
         }
-        self.set_display_led(leds, 5, 0, trigger_gate_color("zero"));
-        self.set_display_led(leds, 6, 0, trigger_gate_color("custom"));
-        self.set_display_led(leds, 7, 0, trigger_gate_color("full"));
+        for (x, mode) in TRIGGER_GATE_MODES.into_iter().enumerate() {
+            self.set_display_led(leds, x + 5, 0, trigger_gate_color(mode));
+        }
     }
 
     pub(super) fn apply_play_xy_overlay(&self, leds: &mut [LedColor]) {

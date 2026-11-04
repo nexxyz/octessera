@@ -3,8 +3,8 @@ use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 use super::pan_mapping::touch_pan_pos_from_grid_x;
 use super::play_fx_config::{play_fx_params, play_fx_target_key, play_fx_type};
 use super::{
-    momentary_fx_target, play_fx_tile_id, trigger_gate_mode_for_column, NativePlayFxAssignment,
-    NativeRunner, NativeToast, GRID_HEIGHT, GRID_WIDTH, PLAY_FX_MAX_CONCURRENT,
+    momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner, NativeToast,
+    GRID_HEIGHT, GRID_WIDTH, PLAY_FX_MAX_CONCURRENT, TRIGGER_GATE_MODES,
 };
 
 pub(super) const MIX_MASTER_COLUMN: usize = 5;
@@ -252,15 +252,11 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_trigger_gate_grid_press(&mut self, x: usize, y: usize) {
-        let mode = trigger_gate_mode_for_column(x);
-        let Some(mode) = mode else {
-            return;
-        };
-        if x == 6 && y == 0 {
-            self.apply_trigger_gate_mode_to_all_layers(mode);
-            return;
+        match (x, y) {
+            (0..=2, _) => self.apply_trigger_gate_mode_to_layer(y, TRIGGER_GATE_MODES[x]),
+            (5..=7, 0) => self.apply_trigger_gate_mode_to_all_layers(TRIGGER_GATE_MODES[x - 5]),
+            _ => {}
         }
-        self.apply_trigger_gate_mode_to_layer(y, mode);
     }
 
     pub(super) fn select_active_layer(&mut self, index: usize) -> Result<(), String> {

@@ -35,13 +35,5 @@ impl NativeRunner {
     }
 }
 
-pub(super) fn trigger_gate_mode_for_column(x: usize) -> Option<&'static str> {
-    match x {
-        0 => Some("zero"),
-        1 => Some("custom"),
-        2 => Some("full"),
-        6 => Some("custom"),
-        7 => Some("full"),
-        _ => None,
-    }
-}
+/// Trigger Gate columns `0..2` (per layer) and bottom-row columns `5..7` (all layers).
+pub(super) const TRIGGER_GATE_MODES: [&str; 3] = ["zero", "custom", "full"];
