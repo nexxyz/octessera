@@ -144,6 +144,7 @@ pub(super) fn link_root_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> 
     vec![
         super::system_aux::aux_mappings_group(config),
         global_link_lfos_group(config),
+        super::link_midi_cc::midi_cc_in_group(config),
         bool_item(
             "Paused Events",
             "inputEventsWhilePaused",

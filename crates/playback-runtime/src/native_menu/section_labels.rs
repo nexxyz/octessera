@@ -23,6 +23,7 @@ pub(crate) fn key_home_section(key: &str) -> &'static str {
     } else if layer_field
         .is_some_and(|field| field.starts_with("link.") || field.starts_with("paramMods."))
         || key.starts_with("linkLfos.")
+        || key.starts_with("midiCc.")
         || key.starts_with("transport.")
         || key.starts_with("note_set.")
         || key == "inputEventsWhilePaused"

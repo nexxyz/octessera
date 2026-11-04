@@ -3367,6 +3367,48 @@
       "respondToStartStop": true,
       "syncMode": "internal"
     },
+    "midiCcMappings": [
+      {
+        "cc": 1,
+        "channel": 0,
+        "target": null
+      },
+      {
+        "cc": 2,
+        "channel": 0,
+        "target": null
+      },
+      {
+        "cc": 3,
+        "channel": 0,
+        "target": null
+      },
+      {
+        "cc": 4,
+        "channel": 0,
+        "target": null
+      },
+      {
+        "cc": 5,
+        "channel": 0,
+        "target": null
+      },
+      {
+        "cc": 6,
+        "channel": 0,
+        "target": null
+      },
+      {
+        "cc": 7,
+        "channel": 0,
+        "target": null
+      },
+      {
+        "cc": 8,
+        "channel": 0,
+        "target": null
+      }
+    ],
     "mixer": {
       "buses": [
         {

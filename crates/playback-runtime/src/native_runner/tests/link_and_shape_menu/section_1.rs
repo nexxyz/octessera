@@ -66,12 +66,16 @@ pub(crate) fn link_exposes_aux_mappings_and_enterable_layer_rows() {
         .as_array()
         .unwrap()
         .clone();
-    assert!(lines
+    assert!(runner.menu.root.children[1]
+        .children
         .iter()
-        .any(|line| line.as_str().unwrap_or("") == "  Aux Mappings >"));
+        .any(|item| item.label == "Aux Mappings"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("") == "  LFOs >"));
+    assert!(lines
+        .iter()
+        .any(|line| line.as_str().unwrap_or("") == "  MIDI CC In >"));
     assert!(lines
         .iter()
         .any(|line| line.as_str().unwrap_or("").contains("L1:")));

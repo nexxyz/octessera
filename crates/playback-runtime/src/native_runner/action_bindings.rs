@@ -3,6 +3,7 @@ use crate::protocol::RuntimePlatformEffect;
 
 mod aux_binding_ownership;
 
+use super::midi_cc_in::midi_cc_target_slot;
 use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
 use super::modulation_assignment_validation::{
     inert_sample_binding_key, validate_binding_changes, BindingChange, BindingValidationError,
@@ -65,6 +66,8 @@ impl NativeRunner {
             self.xy_x_binding = binding.clone();
         } else if target == "xy:y" {
             self.xy_y_binding = binding.clone();
+        } else if let Some(slot) = midi_cc_target_slot(target) {
+            self.set_midi_cc_target(slot, binding.clone());
         } else if let Some(rest) = target
             .strip_prefix("linkLfos.")
             .and_then(|s| s.strip_suffix(".target"))
@@ -119,6 +122,10 @@ impl NativeRunner {
             self.clear_runtime_source_input(ModulationSourceId::play_x());
         } else if target == "xy:y" {
             self.clear_runtime_source_input(ModulationSourceId::play_y());
+        } else if let Some(slot) = midi_cc_target_slot(target) {
+            self.clear_runtime_source_input(
+                ModulationSourceId::midi_cc(slot).expect("validated MIDI CC slot"),
+            );
         }
     }
 
@@ -164,6 +171,7 @@ impl NativeRunner {
             if target == "xy:x" || target == "xy:y" {
                 self.refresh_xy_runtime_sources();
             }
+            self.reapply_midi_cc_source_for_target(target);
             self.mark_config_dirty();
             self.mark_fast_autosave_dirty();
             if let Err(error) = self.process_dirty_modulation_step(false) {
@@ -193,6 +201,8 @@ impl NativeRunner {
             return self.xy_x_binding.as_mut();
         } else if target == "xy:y" {
             return self.xy_y_binding.as_mut();
+        } else if let Some(slot) = midi_cc_target_slot(target) {
+            return self.midi_cc_mappings[slot].target.as_mut();
         } else if let Some(rest) = target
             .strip_prefix("linkLfos.")
             .and_then(|s| s.strip_suffix(".target"))
@@ -382,6 +392,7 @@ fn is_modulation_binding_target(target: &str) -> bool {
         || target == "xy:x"
         || target == "xy:y"
         || (target.starts_with("linkLfos.") && target.ends_with(".target"))
+        || midi_cc_target_slot(target).is_some()
 }
 
 fn aux_turn_target(target: &str) -> Option<(usize, bool)> {

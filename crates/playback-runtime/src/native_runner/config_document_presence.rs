@@ -4,6 +4,7 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
     "activeBehavior",
     "activeLayerIndex",
     "linkLfos",
+    "midiCcMappings",
     "xy",
     "layers",
     "playFx",

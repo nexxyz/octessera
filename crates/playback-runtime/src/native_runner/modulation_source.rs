@@ -2,6 +2,9 @@ use platform_core::LAYER_COUNT;
 
 const AXIS_SLOT_COUNT: usize = 2;
 const GLOBAL_LFO_SOURCE_COUNT: usize = 8;
+const MIDI_CC_SOURCE_COUNT: usize = 8;
+const GLOBAL_LFO_BASE: usize = LAYER_COUNT * AXIS_SLOT_COUNT * 2 + 2;
+const MIDI_CC_BASE: usize = GLOBAL_LFO_BASE + GLOBAL_LFO_SOURCE_COUNT;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum ModulationAxis {
@@ -17,11 +20,12 @@ pub(crate) enum ModulationSourceError {
     LayerIndex,
     AxisSlot,
     LfoSlot,
+    MidiCcSlot,
 }
 
 impl ModulationSourceId {
     #[cfg(test)]
-    pub(crate) const COUNT: usize = LAYER_COUNT * AXIS_SLOT_COUNT * 2 + 2 + GLOBAL_LFO_SOURCE_COUNT;
+    pub(crate) const COUNT: usize = MIDI_CC_BASE + MIDI_CC_SOURCE_COUNT;
 
     pub(crate) fn layer_axis(
         layer_index: usize,
@@ -45,7 +49,14 @@ impl ModulationSourceId {
         if slot >= GLOBAL_LFO_SOURCE_COUNT {
             return Err(ModulationSourceError::LfoSlot);
         }
-        Ok(Self(LAYER_COUNT * AXIS_SLOT_COUNT * 2 + 2 + slot))
+        Ok(Self(GLOBAL_LFO_BASE + slot))
+    }
+
+    pub(crate) fn midi_cc(slot: usize) -> Result<Self, ModulationSourceError> {
+        if slot >= MIDI_CC_SOURCE_COUNT {
+            return Err(ModulationSourceError::MidiCcSlot);
+        }
+        Ok(Self(MIDI_CC_BASE + slot))
     }
 
     pub(crate) const fn play_x() -> Self {
@@ -57,7 +68,7 @@ impl ModulationSourceId {
     }
 
     pub(crate) fn is_global_lfo(self) -> bool {
-        self.0 >= LAYER_COUNT * AXIS_SLOT_COUNT * 2 + 2
+        (GLOBAL_LFO_BASE..MIDI_CC_BASE).contains(&self.0)
     }
 
     #[cfg(test)]
@@ -97,7 +108,8 @@ impl ModulationSourceId {
         match self.0 - LAYER_COUNT * AXIS_SLOT_COUNT * 2 {
             0 => "Play X".into(),
             1 => "Play Y".into(),
-            slot => format!("LFO {}", slot - 1),
+            _ if self.is_global_lfo() => format!("LFO {}", self.0 - GLOBAL_LFO_BASE + 1),
+            _ => format!("CC{}", self.0 - MIDI_CC_BASE + 1),
         }
     }
 }
@@ -116,6 +128,10 @@ mod tests {
         assert_eq!(sources[33].label(), "Play Y");
         assert_eq!(sources[34].label(), "LFO 1");
         assert_eq!(sources[41].label(), "LFO 8");
+        assert_eq!(sources[42].label(), "CC1");
+        assert_eq!(sources[49].label(), "CC8");
+        assert!(!sources[42].is_global_lfo());
+        assert!(sources[41].is_global_lfo());
         for (index, source) in sources.into_iter().enumerate() {
             assert_eq!(source.stable_index(), index);
             assert_eq!(ModulationSourceId::from_stable_index(index), Some(source));
@@ -135,6 +151,10 @@ mod tests {
         assert_eq!(
             ModulationSourceId::global_lfo(GLOBAL_LFO_SOURCE_COUNT),
             Err(ModulationSourceError::LfoSlot)
+        );
+        assert_eq!(
+            ModulationSourceId::midi_cc(MIDI_CC_SOURCE_COUNT),
+            Err(ModulationSourceError::MidiCcSlot)
         );
     }
 }

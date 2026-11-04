@@ -30,6 +30,7 @@ impl NativeRunner {
         apply_xy_release_payload(self, runtime);
         apply_global_link_lfos_payload(self, runtime);
         apply_global_xy_binding_payload(self, runtime);
+        self.apply_midi_cc_payload(runtime);
     }
 }
 

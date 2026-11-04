@@ -27,6 +27,7 @@ mod help;
 mod item_builders;
 mod link;
 mod link_axis;
+mod link_midi_cc;
 mod link_sections;
 mod model;
 mod model_binding_specs;

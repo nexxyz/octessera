@@ -194,6 +194,7 @@ pub(super) fn is_musical_aux_turn_key(key: &str) -> bool {
     supported_param_binding_key(key)
         || key.starts_with("layers.")
         || key.starts_with("linkLfos.")
+        || key.starts_with("midiCc.")
         || key.starts_with("mixer.")
         || key.starts_with("transport.")
         || key.starts_with("play.")

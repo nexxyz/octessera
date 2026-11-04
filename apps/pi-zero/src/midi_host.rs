@@ -214,6 +214,8 @@ fn midi_sender_start_hook() {
 }
 
 mod connections;
+#[cfg(test)]
+mod drain_tests;
 mod port_identity;
 mod port_watch;
 #[cfg(test)]

@@ -108,6 +108,7 @@ mod looper;
 mod menu_edit_dispatch;
 mod menu_navigation;
 mod menu_navigation_state;
+mod midi_cc_in;
 mod modulation;
 mod modulation_behavior_targets;
 mod modulation_bindings;

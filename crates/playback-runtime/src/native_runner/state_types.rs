@@ -31,6 +31,12 @@ pub(super) struct NativeUiState {
     pub(super) combined_button_pressed: bool,
 }
 
+#[derive(Clone)]
+pub(super) struct PendingMenuApply {
+    pub(super) due_at: Instant,
+    pub(super) key: String,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct NativePendingState {
     pub(super) pending_save_revision: Option<u64>,

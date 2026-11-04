@@ -127,6 +127,16 @@ fn current_bindings(
             ));
         }
     }
+    for (slot, mapping) in runner.midi_cc_mappings.iter().enumerate() {
+        let key = format!("midiCc.{slot}.target");
+        if let Some(binding) = changed_binding(&key, mapping.target.as_ref(), changes) {
+            bindings.push((
+                ModulationSourceId::midi_cc(slot)
+                    .map_err(|_| BindingValidationError::UnsupportedTarget)?,
+                binding,
+            ));
+        }
+    }
     Ok(bindings)
 }
 

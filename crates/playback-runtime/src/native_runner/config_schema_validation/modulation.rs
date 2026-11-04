@@ -43,6 +43,7 @@ pub(super) fn validate_global_modulation(runtime: &Map<String, Value>) -> Result
             ));
         }
     }
+    validate_midi_cc_mappings(runtime)?;
     let xy = object_field(runtime, "xy", "runtimeConfig")?
         .ok_or_else(|| "runtimeConfig.xy must be present".to_string())?;
     validate_binding_field(xy, "x", "runtimeConfig.xy")?;
@@ -51,6 +52,23 @@ pub(super) fn validate_global_modulation(runtime: &Map<String, Value>) -> Result
     bool_field(xy, "xInvert", "runtimeConfig.xy")?;
     bool_field(xy, "yInvert", "runtimeConfig.xy")?;
     validate_canonical_modulation(runtime)
+}
+
+fn validate_midi_cc_mappings(runtime: &Map<String, Value>) -> Result<(), String> {
+    let count = super::super::midi_cc_in::MIDI_CC_SLOT_COUNT;
+    let slots = array_field(runtime, "midiCcMappings", "runtimeConfig", count)?
+        .ok_or_else(|| "runtimeConfig.midiCcMappings must be present".to_string())?;
+    if slots.len() != count {
+        return Err("runtimeConfig.midiCcMappings must contain exactly eight slots".into());
+    }
+    for (index, value) in slots.iter().enumerate() {
+        let path = format!("runtimeConfig.midiCcMappings[{index}]");
+        let slot = object_value(value, &path)?;
+        unsigned_field(slot, "cc", &path, 0, 127)?;
+        unsigned_field(slot, "channel", &path, 0, 16)?;
+        validate_binding_field(slot, "target", &path)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_canonical_lfo_bank_shape(payload: &Value) -> Result<(), String> {
@@ -86,6 +104,18 @@ fn validate_canonical_modulation(runtime: &Map<String, Value>) -> Result<(), Str
                         "runtimeConfig.layers[{layer_index}].paramMods.{axis}[{slot}] conflicts with an earlier exclusive binding"
                     ));
                 }
+            }
+        }
+    }
+    if let Some(slots) = runtime.get("midiCcMappings").and_then(Value::as_array) {
+        for (index, slot) in slots.iter().enumerate() {
+            let Some(binding) = slot.get("target") else {
+                continue;
+            };
+            if claim_is_exclusive(binding, &mut claimed) {
+                return Err(format!(
+                    "runtimeConfig.midiCcMappings[{index}].target conflicts with an earlier exclusive binding"
+                ));
             }
         }
     }

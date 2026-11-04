@@ -48,7 +48,7 @@ pub(crate) fn canonical_oled_snapshot(title: &str) -> Value {
 }
 
 #[derive(Default)]
-pub(super) struct FakeRunner {
+pub(crate) struct FakeRunner {
     pub seen: Vec<HostMessage>,
 }
 

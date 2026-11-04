@@ -63,6 +63,8 @@ impl From<MidiControlChange> for HostMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::support::{FakeHost, FakeRunner};
+    use crate::{PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, SyncSource};
 
     #[test]
     fn only_three_byte_control_changes_parse() {
@@ -106,6 +108,57 @@ mod tests {
                     channel: 1,
                     controller: 74,
                     value: 4
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn a_control_change_burst_follows_the_clock_pulses_of_its_drain_as_one_message() {
+        let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+            bpm: 120.0,
+            sync_source: SyncSource::External,
+            midi_clock_out_enabled: false,
+            midi_out_enabled: true,
+        });
+        let mut runner = FakeRunner::default();
+        let mut host = FakeHost::default();
+        let mut control_changes = MidiControlChangeBatch::default();
+        let drained: [&[u8]; 5] = [
+            &[0xB0, 74, 10],
+            &[0xF8],
+            &[0xB0, 74, 20],
+            &[0xF8],
+            &[0xB0, 74, 127],
+        ];
+
+        for bytes in drained {
+            match MidiControlChange::parse(bytes) {
+                Some(change) => control_changes.push(change),
+                None => runtime
+                    .handle_midi_realtime_bytes(bytes, &mut runner, &mut host)
+                    .unwrap(),
+            }
+        }
+        for change in control_changes {
+            runtime
+                .dispatch(
+                    RuntimeDispatchInput::HostMessage(change.into()),
+                    &mut runner,
+                    &mut host,
+                )
+                .unwrap();
+        }
+
+        assert_eq!(
+            runner.seen,
+            vec![
+                HostMessage::MidiRealtimeClock { pulses: 1 },
+                HostMessage::MidiRealtimeClock { pulses: 1 },
+                HostMessage::MidiControlChange {
+                    channel: 0,
+                    controller: 74,
+                    value: 127
                 },
             ]
         );

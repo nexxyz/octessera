@@ -99,6 +99,11 @@ pub(crate) fn config() -> NativeMenuConfig {
             period: "1/1".into(),
             depth_pct: 100,
         }),
+        midi_cc_mappings: std::array::from_fn(|slot| NativeMidiCcConfig {
+            cc: slot as u8 + 1,
+            channel: 0,
+            target: None,
+        }),
         param_mods: vec![NativeParamModsConfig::default(); LAYER_COUNT],
         xy_x_binding: None,
         xy_y_binding: None,

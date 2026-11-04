@@ -19,6 +19,7 @@ pub struct NativeMenuConfig {
     pub link_layers: Vec<NativeLinkLayerConfig>,
     pub active_layer_index: usize,
     pub link_lfos: [NativeLinkLfoConfig; 8],
+    pub midi_cc_mappings: [NativeMidiCcConfig; 8],
     pub param_mods: Vec<NativeParamModsConfig>,
     pub xy_x_binding: Option<NativeParamBindingSpec>,
     pub xy_y_binding: Option<NativeParamBindingSpec>,
@@ -232,6 +233,14 @@ pub struct NativeLinkLfoConfig {
     pub target: Option<NativeParamBindingSpec>,
     pub period: String,
     pub depth_pct: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeMidiCcConfig {
+    pub cc: u8,
+    /// 0 is Any.
+    pub channel: u8,
+    pub target: Option<NativeParamBindingSpec>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

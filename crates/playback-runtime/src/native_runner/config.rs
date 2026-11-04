@@ -47,6 +47,13 @@ impl NativeRunner {
                 period: lfo.period,
                 depth_pct: lfo.depth_pct,
             }),
+            midi_cc_mappings: self.midi_cc_mappings.clone().map(|mapping| {
+                crate::native_menu::NativeMidiCcConfig {
+                    cc: mapping.cc,
+                    channel: mapping.channel,
+                    target: mapping.target.as_ref().map(param_binding_spec_from_native),
+                }
+            }),
             param_mods: param_mod_configs(&self.param_mods),
             xy_x_binding: self
                 .xy_x_binding

@@ -76,6 +76,9 @@ impl NativeRunner {
         if let Some(applied) = self.apply_link_menu_key_fast(key) {
             return applied;
         }
+        if let Some(applied) = self.apply_midi_cc_menu_key_fast(key) {
+            return applied;
+        }
         self.apply_instrument_menu_key_fast(key).unwrap_or(false)
     }
 

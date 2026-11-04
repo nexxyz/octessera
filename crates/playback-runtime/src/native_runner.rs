@@ -358,12 +358,6 @@ pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str>
     }
 }
 
-#[derive(Clone)]
-struct PendingMenuApply {
-    due_at: Instant,
-    key: String,
-}
-
 pub struct NativeRunner {
     engine: NativeLayerEngine,
     layer_engines: Vec<Option<NativeLayerEngine>>,
@@ -450,6 +444,7 @@ pub struct NativeRunner {
     layer_seeded: Vec<bool>,
     seeded_link_streams: random_streams::SeededLinkStreams,
     link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
+    midi_cc_mappings: [midi_cc_in::NativeMidiCcMapping; midi_cc_in::MIDI_CC_SLOT_COUNT],
     modulation_process: ModulationProcessState,
     link_layers: Vec<NativeLinkLayer>,
     aux_bindings: Vec<Option<NativeAuxBinding>>,
