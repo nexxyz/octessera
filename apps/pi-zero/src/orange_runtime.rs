@@ -4,7 +4,7 @@ use crate::boot_oled_handoff::{HandoffMode, StartupFatalCode};
 use crate::candidate_readiness::CandidateReadiness;
 use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::host_adapter::PiHostAdapter;
-use crate::input::{midi_realtime_message, MidiMessage};
+use crate::input::{midi_input_message, MidiMessage};
 use crate::main_paths::default_store_dir;
 use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render::HardwareRenderTargets;
@@ -69,7 +69,7 @@ pub fn run() -> Result<(), String> {
     let profile = crate::audio::orange_profile(audio_optimization);
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
-        if let Some(message) = midi_realtime_message(&bytes) {
+        if let Some(message) = midi_input_message(&bytes) {
             let _ = midi_tx.send(message);
         }
     });

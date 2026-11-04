@@ -44,6 +44,12 @@ pub enum HostMessage {
     MidiRealtimeStart,
     MidiRealtimeContinue,
     MidiRealtimeStop,
+    /// A Control Change from the selected MIDI In; `channel` is 0-15.
+    MidiControlChange {
+        channel: u8,
+        controller: u8,
+        value: u8,
+    },
     TransportStop,
     RuntimeResult {
         result: RuntimeStoreResult,

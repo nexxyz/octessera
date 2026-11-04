@@ -261,6 +261,11 @@ fn message_label(message: &HostMessage) -> String {
         HostMessage::MidiRealtimeStop => "midi_stop".into(),
         HostMessage::TransportStop => "transport_stop".into(),
         HostMessage::MidiRealtimeClock { pulses } => format!("midi_clock:{pulses}"),
+        HostMessage::MidiControlChange {
+            channel,
+            controller,
+            ..
+        } => format!("midi_cc:{channel}:{controller}"),
         HostMessage::RuntimeResult { .. } => "runtime_result".into(),
     }
 }

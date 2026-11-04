@@ -10,6 +10,7 @@ pub enum MidiMessage {
         bytes: Vec<u8>,
         received_at: Instant,
     },
+    ControlChange(playback_runtime::MidiControlChange),
 }
 
 pub fn encoder_input_id(index: usize) -> &'static str {
@@ -83,8 +84,9 @@ pub fn neokey_message(key: u8, pressed: bool) -> Option<HostMessage> {
     })
 }
 
+/// Clock, Start, Continue, Stop and Control Change pass; notes and everything else stay out.
 #[cfg(feature = "native-audio")]
-pub fn midi_realtime_message(bytes: &[u8]) -> Option<MidiMessage> {
+pub fn midi_input_message(bytes: &[u8]) -> Option<MidiMessage> {
     if bytes
         .iter()
         .any(|byte| matches!(*byte, 0xF8 | 0xFA | 0xFB | 0xFC))
@@ -94,7 +96,7 @@ pub fn midi_realtime_message(bytes: &[u8]) -> Option<MidiMessage> {
             received_at: Instant::now(),
         });
     }
-    None
+    playback_runtime::MidiControlChange::parse(bytes).map(MidiMessage::ControlChange)
 }
 
 #[cfg(test)]
@@ -139,8 +141,20 @@ mod tests {
 
     #[cfg(feature = "native-audio")]
     #[test]
-    fn non_realtime_midi_is_ignored() {
-        assert!(midi_realtime_message(&[0x90, 60, 100]).is_none());
-        assert!(midi_realtime_message(&[0xF8]).is_some());
+    fn the_midi_filter_passes_realtime_and_control_changes_but_drops_notes() {
+        assert!(midi_input_message(&[0x90, 60, 100]).is_none());
+        assert!(midi_input_message(&[0x80, 60, 0]).is_none());
+        assert!(midi_input_message(&[0xE0, 0, 64]).is_none());
+        assert!(matches!(
+            midi_input_message(&[0xF8]),
+            Some(MidiMessage::Realtime { .. })
+        ));
+        let Some(MidiMessage::ControlChange(change)) = midi_input_message(&[0xB2, 74, 99]) else {
+            panic!("a Control Change passes the filter");
+        };
+        assert_eq!(
+            (change.channel, change.controller, change.value),
+            (2, 74, 99)
+        );
     }
 }

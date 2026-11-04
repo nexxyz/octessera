@@ -218,6 +218,15 @@ impl super::CoreRunner for NativeRunner {
             HostMessage::MidiRealtimeStop => self.send_midi_realtime_stop(),
             HostMessage::TransportStop => self.send_transport_stop(),
             HostMessage::MidiRealtimeClock { pulses } => self.send_midi_realtime_clock(pulses),
+            HostMessage::MidiControlChange {
+                channel,
+                controller,
+                value,
+            } => self.send_midi_control_change(crate::runtime::MidiControlChange {
+                channel,
+                controller,
+                value,
+            }),
             HostMessage::RuntimeResult { result } => {
                 let is_default_load =
                     result.operation() == crate::RuntimeOperation::StoreLoadDefault;

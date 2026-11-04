@@ -134,6 +134,7 @@ mod menu_apply_link_fx;
 mod menu_apply_structural;
 mod menu_value_apply;
 mod message_dispatch;
+mod midi_cc_in;
 mod mix_mutes;
 mod modal_popups;
 mod modulation;

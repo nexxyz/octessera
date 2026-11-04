@@ -14,6 +14,7 @@ mod default_load_tests;
 mod dispatch;
 mod dispatch_profile;
 mod midi;
+mod midi_cc_input;
 mod midi_realtime_input;
 mod music_first;
 mod oled;
@@ -32,6 +33,7 @@ mod system_store_aux_tests;
 #[cfg(test)]
 mod system_store_tests;
 
+pub use midi_cc_input::{MidiControlChange, MidiControlChangeBatch};
 pub use music_first::NativeStoreRequest;
 
 pub(super) const PPQN: f64 = 24.0;

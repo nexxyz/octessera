@@ -133,7 +133,7 @@ use audio::AudioManager;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use hardware_init::{init_encoders, init_hardware, HardwareDevices};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use input::{midi_realtime_message, MidiMessage};
+use input::{midi_input_message, MidiMessage};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use render::HardwareRenderTargets;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
@@ -280,7 +280,7 @@ fn main() -> std::process::ExitCode {
 
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
-        if let Some(message) = midi_realtime_message(&bytes) {
+        if let Some(message) = midi_input_message(&bytes) {
             let _ = midi_tx.send(message);
         }
     });

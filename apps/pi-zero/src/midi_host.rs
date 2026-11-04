@@ -1,5 +1,6 @@
 use playback_runtime::{
-    HostAdapter, HostMessage, NativeRunner, PlaybackRuntime, RuntimePlatformEffect, TimedMidiSender,
+    HostAdapter, HostMessage, MidiControlChangeBatch, NativeRunner, PlaybackRuntime,
+    RuntimePlatformEffect, TimedMidiSender,
 };
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
@@ -8,6 +9,7 @@ use crate::input::MidiMessage;
 use connections::{MidiConnectCommand, MidiConnectEvent, MidiConnections};
 
 const MIDI_REALTIME_BUDGET: usize = 32;
+const MIDI_DRAIN_LIMIT: usize = 256;
 
 pub(crate) trait RuntimeOutputSink: HostAdapter {
     fn dispatch_output(
@@ -18,29 +20,58 @@ pub(crate) trait RuntimeOutputSink: HostAdapter {
     ) -> Result<(), String>;
 }
 
+/// Realtime bytes are handled as they arrive; Control Changes wait for the end of the drain
+/// and keep only the latest value per channel and controller, so a knob sweep cannot crowd
+/// clock pulses out of the tick.
 pub(crate) fn drain_midi_messages<A: HostAdapter + RuntimeOutputSink>(
     midi_rx: &Receiver<MidiMessage>,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut A,
 ) {
-    for _ in 0..MIDI_REALTIME_BUDGET {
-        let Ok(MidiMessage::Realtime { bytes, received_at }) = midi_rx.try_recv() else {
+    let mut realtime = 0;
+    let mut control_changes = MidiControlChangeBatch::default();
+    for _ in 0..MIDI_DRAIN_LIMIT {
+        if realtime == MIDI_REALTIME_BUDGET {
+            break;
+        }
+        let Ok(message) = midi_rx.try_recv() else {
             break;
         };
-        match playback.handle_midi_realtime_bytes_music_first_with_output(
-            &bytes,
-            Some(received_at),
-            runner,
-            adapter,
-        ) {
-            Ok(output) => {
-                if let Err(error) = adapter.dispatch_output(playback, runner, output) {
-                    eprintln!("realtime MIDI output processing failed: {error}");
-                }
+        match message {
+            MidiMessage::Realtime { bytes, received_at } => {
+                realtime += 1;
+                let output = playback.handle_midi_realtime_bytes_music_first_with_output(
+                    &bytes,
+                    Some(received_at),
+                    runner,
+                    adapter,
+                );
+                dispatch_midi_output(output, playback, runner, adapter, "realtime MIDI");
             }
-            Err(error) => eprintln!("realtime MIDI handling failed: {error}"),
+            MidiMessage::ControlChange(change) => control_changes.push(change),
         }
+    }
+    for change in control_changes {
+        let output = playback.dispatch_host_message_music_first(change.into(), runner, adapter);
+        dispatch_midi_output(output, playback, runner, adapter, "MIDI Control Change");
+    }
+}
+
+fn dispatch_midi_output<A: HostAdapter + RuntimeOutputSink>(
+    output: Result<playback_runtime::RuntimeIngest, String>,
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut A,
+    kind: &str,
+) {
+    match output {
+        Ok(output) => {
+            if let Err(error) = adapter.dispatch_output(playback, runner, output) {
+                eprintln!("{kind} output processing failed: {error}");
+            }
+        }
+        Err(error) => eprintln!("{kind} handling failed: {error}"),
     }
 }
 

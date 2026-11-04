@@ -41,6 +41,7 @@ const DESKTOP_SEQUENCED_OUTPUT_DELAY: Duration = Duration::from_millis(30);
 pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
     NativeMidiRealtime(Vec<u8>, Instant),
+    NativeMidiControlChange(playback_runtime::MidiControlChange),
     PresentationMetrics(RuntimePresentationMetrics),
 }
 

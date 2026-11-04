@@ -59,19 +59,32 @@ fn runtime_outbox_retains_capped_monotonic_tail() {
 }
 
 #[test]
-fn worker_command_priority_separates_midi_realtime_from_normal_work() {
+fn worker_command_priority_separates_midi_realtime_and_control_changes_from_normal_work() {
     let (dispatch_tx, _) = mpsc::channel();
     let mut realtime = Vec::new();
+    let mut control_changes = playback_runtime::MidiControlChangeBatch::default();
     let mut normal = VecDeque::new();
 
     queue_by_priority(
         WorkerCommand::Dispatch(playback_runtime::HostMessage::MidiRealtimeStop, dispatch_tx),
         &mut realtime,
+        &mut control_changes,
         &mut normal,
     );
+    for value in [10, 20, 30] {
+        queue_by_priority(
+            WorkerCommand::NativeMidiControlChange(
+                playback_runtime::MidiControlChange::parse(&[0xB0, 74, value]).unwrap(),
+            ),
+            &mut realtime,
+            &mut control_changes,
+            &mut normal,
+        );
+    }
     queue_by_priority(
         WorkerCommand::NativeMidiRealtime(vec![0xF8], Instant::now()),
         &mut realtime,
+        &mut control_changes,
         &mut normal,
     );
 
@@ -79,6 +92,9 @@ fn worker_command_priority_separates_midi_realtime_from_normal_work() {
     assert_eq!(normal.len(), 1);
     assert!(matches!(realtime[0], WorkerCommand::NativeMidiRealtime(..)));
     assert!(matches!(normal[0], WorkerCommand::Dispatch(_, _)));
+    let control_changes = control_changes.into_iter().collect::<Vec<_>>();
+    assert_eq!(control_changes.len(), 1);
+    assert_eq!(control_changes[0].value, 30);
 }
 
 #[test]

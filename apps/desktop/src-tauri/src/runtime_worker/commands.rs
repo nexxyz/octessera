@@ -1,5 +1,5 @@
 use super::{queue_by_priority, RuntimeWorker, WorkerCommand, MAX_COMMANDS_PER_WAKE};
-use playback_runtime::SyncSource;
+use playback_runtime::{MidiControlChangeBatch, SyncSource};
 use std::sync::mpsc::{self, Receiver};
 use std::time::Instant;
 
@@ -17,17 +17,23 @@ impl RuntimeWorker {
         rx: &Receiver<WorkerCommand>,
     ) -> Result<(), String> {
         let mut realtime = Vec::new();
+        let mut control_changes = MidiControlChangeBatch::default();
         let mut normal = std::collections::VecDeque::new();
-        queue_by_priority(first, &mut realtime, &mut normal);
+        queue_by_priority(first, &mut realtime, &mut control_changes, &mut normal);
         for _ in 1..MAX_COMMANDS_PER_WAKE {
             match rx.try_recv() {
-                Ok(command) => queue_by_priority(command, &mut realtime, &mut normal),
+                Ok(command) => {
+                    queue_by_priority(command, &mut realtime, &mut control_changes, &mut normal)
+                }
                 Err(mpsc::TryRecvError::Empty) => break,
                 Err(mpsc::TryRecvError::Disconnected) => break,
             }
         }
         for command in realtime {
             self.handle_command(command)?;
+        }
+        for change in control_changes {
+            self.handle_command(WorkerCommand::NativeMidiControlChange(change))?;
         }
         while let Some(command) = normal.pop_front() {
             if self.is_internal_playing() {
@@ -74,6 +80,14 @@ impl RuntimeWorker {
             }
             WorkerCommand::NativeMidiRealtime(bytes, received_at) => {
                 let output = self.handle_midi_realtime(bytes, received_at)?;
+                self.emit_runtime_output(output)?;
+            }
+            WorkerCommand::NativeMidiControlChange(change) => {
+                let output = self.playback.dispatch(
+                    playback_runtime::RuntimeDispatchInput::HostMessage(change.into()),
+                    &mut self.runner,
+                    &mut self.adapter,
+                )?;
                 self.emit_runtime_output(output)?;
             }
             WorkerCommand::PresentationMetrics(metrics) => {

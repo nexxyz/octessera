@@ -139,7 +139,8 @@ impl CoreRunner for FakeRunner {
             }]),
             HostMessage::DeviceInput { .. }
             | HostMessage::PresentedRuntimeErrorInput { .. }
-            | HostMessage::MidiRealtimeContinue => Ok(vec![]),
+            | HostMessage::MidiRealtimeContinue
+            | HostMessage::MidiControlChange { .. } => Ok(vec![]),
         }
     }
 
