@@ -141,10 +141,23 @@ impl NativeRunner {
 
     /// Sends every bus and global FX slot again, through the override gate.
     pub(in crate::native_runner) fn resend_fx_slots(&mut self) {
+        self.resend_fx_slots_matching(|_, _| true, |_| true);
+    }
+
+    /// Sends the bus slots `(bus, type)` and global slots `slot` that match again, so a toggle
+    /// restarts only the chains it changes.
+    fn resend_fx_slots_matching(
+        &mut self,
+        bus_slot_matches: impl Fn(usize, &str) -> bool,
+        global_slot_matches: impl Fn(usize) -> bool,
+    ) {
         let mut commands = Vec::new();
         for (bus_index, bus) in self.fx_buses.iter().enumerate() {
             for slot_index in 0..BUS_SLOT_COUNT {
                 let (fx_type, params) = bus_slot(bus, slot_index);
+                if !bus_slot_matches(bus_index, fx_type) {
+                    continue;
+                }
                 commands.push(RuntimeAudioCommand::SetFxBusSlot {
                     bus_index,
                     slot_index,
@@ -155,6 +168,9 @@ impl NativeRunner {
             }
         }
         for (slot_index, fx_type) in self.global_fx_slots.iter().enumerate() {
+            if !global_slot_matches(slot_index) {
+                continue;
+            }
             let params = self
                 .global_fx_params
                 .get(slot_index)
@@ -194,7 +210,7 @@ impl NativeRunner {
         let bypassed = &mut self.play_live.fx_overrides.bus_bypassed[bus];
         *bypassed = !*bypassed;
         let state = if *bypassed { "bypassed" } else { "on" };
-        self.resend_fx_slots();
+        self.resend_fx_slots_matching(|index, _| index == bus, |_| false);
         self.show_toast(format!("B{} FX {state}", bus + 1));
     }
 
@@ -202,7 +218,7 @@ impl NativeRunner {
         let bypassed = &mut self.play_live.fx_overrides.global_bypassed[slot];
         *bypassed = !*bypassed;
         let state = if *bypassed { "bypassed" } else { "on" };
-        self.resend_fx_slots();
+        self.resend_fx_slots_matching(|_, _| false, |index| index == slot);
         self.show_toast(format!("G{} FX {state}", slot + 1));
     }
 
@@ -213,7 +229,7 @@ impl NativeRunner {
             Some(key) => format!("Duck key: {}", duck_source(key)),
             None => "Duck key off".into(),
         };
-        self.resend_fx_slots();
+        self.resend_fx_slots_matching(|_, fx_type| fx_type == "duck", |_| false);
         self.show_toast(toast);
     }
 

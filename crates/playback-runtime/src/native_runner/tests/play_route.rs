@@ -277,3 +277,32 @@ fn duck_key_on_a_slot_that_turned_midi_stays_red_and_clears_on_press() {
     let _ = press(&mut runner, 2, 7);
     assert_eq!(runner.play_live.fx_overrides, Default::default());
 }
+
+/// `(bus, slot)` of every bus slot command and `slot` of every global slot command.
+fn resent_slots(messages: &[RunnerMessage]) -> (Vec<(usize, usize)>, Vec<usize>) {
+    let mut buses = Vec::new();
+    let mut globals = Vec::new();
+    for command in audio_commands(messages) {
+        match command {
+            RuntimeAudioCommand::SetFxBusSlot {
+                bus_index,
+                slot_index,
+                ..
+            } => buses.push((bus_index, slot_index)),
+            RuntimeAudioCommand::SetGlobalFxSlot { slot_index, .. } => globals.push(slot_index),
+            _ => {}
+        }
+    }
+    (buses, globals)
+}
+
+#[test]
+fn route_toggles_resend_only_the_chain_they_change() {
+    let mut runner = route_runner();
+    let bus = press(&mut runner, 2, 5);
+    assert_eq!(resent_slots(&bus), (vec![(2, 0), (2, 1), (2, 2)], vec![]));
+    let global = press(&mut runner, 5, 5);
+    assert_eq!(resent_slots(&global), (vec![], vec![1]));
+    let duck = press(&mut runner, 3, 7);
+    assert_eq!(resent_slots(&duck), (vec![(1, 0)], vec![]));
+}

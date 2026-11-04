@@ -129,7 +129,8 @@ The menu lists the technical bank, then the musical bank.
   preset loads, and Clear All. One gate on the engine command path applies them to every bus
   slot, Global FX slot and full configuration the engine receives, so menu, Aux and LFO edits made
   meanwhile land in the saved config and reach the engine as soon as the override is undone.
-  Toggling one resends the bus and Global FX slots, which restarts their effect tails.
+  Toggling one resends only the chain it changes, which restarts that chain's effect tails: the
+  bus's slots for a bus bypass, that slot for a Global FX bypass, the duck slots for the key.
 
 ## Tempo
 
