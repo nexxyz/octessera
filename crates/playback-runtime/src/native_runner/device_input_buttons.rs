@@ -92,7 +92,7 @@ impl NativeRunner {
                                 effects.push(RuntimePlatformEffect::MidiListInputsRequest)
                             }
                             Some(super::bluetooth::PAIR_NEW_LABEL) => {
-                                effects.push(RuntimePlatformEffect::BluetoothScan { active: true })
+                                effects.push(self.start_bluetooth_scan());
                             }
                             _ => {}
                         }

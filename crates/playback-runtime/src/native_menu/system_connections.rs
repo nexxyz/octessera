@@ -13,6 +13,7 @@ pub(super) fn connections_group(config: &NativeMenuConfig, host_role: bool) -> N
             audio: config.bluetooth_audio,
             paired: &config.bluetooth_paired,
             found: &config.bluetooth_found,
+            searching: config.bluetooth_searching,
         }),
         sd_card_2_group(host_role),
     ];

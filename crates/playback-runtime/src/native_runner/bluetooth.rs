@@ -16,6 +16,8 @@ pub(super) struct NativeBluetoothState {
     pub(super) enabled: bool,
     pub(super) audio: bool,
     pub(super) status: Option<RuntimeBluetoothStatus>,
+    /// Pair New asked for a scan and no status has reported it over yet.
+    pub(super) searching: bool,
 }
 
 impl NativeRunner {
@@ -138,6 +140,7 @@ impl NativeRunner {
             return;
         };
         let message = status.message.take();
+        self.bluetooth.searching = status.scanning;
         self.bluetooth.status = Some(status);
         self.show_bluetooth_menu_rows();
         if let Some(message) = message {
@@ -151,7 +154,15 @@ impl NativeRunner {
             audio: self.bluetooth.audio,
             paired: &self.bluetooth.paired_rows(),
             found: &self.bluetooth.found_rows(),
+            searching: self.bluetooth.searching,
         });
+    }
+
+    /// Opening Pair New or pressing `Search again` scans for up to the host's limit.
+    pub(super) fn start_bluetooth_scan(&mut self) -> RuntimePlatformEffect {
+        self.bluetooth.searching = true;
+        self.show_bluetooth_menu_rows();
+        RuntimePlatformEffect::BluetoothScan { active: true }
     }
 
     pub(super) fn bluetooth_effect_for_action(

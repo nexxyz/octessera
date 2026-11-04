@@ -198,6 +198,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         bluetooth_audio: false,
         bluetooth_paired: vec![],
         bluetooth_found: vec![],
+        bluetooth_searching: false,
         play_mode: "mix".into(),
         play_fx_type: "none".into(),
         play_fx_target: "master".into(),

@@ -338,3 +338,72 @@ fn bluetooth_changes_update_their_rows_in_place_to_match_a_full_rebuild() {
     );
     assert!(runner.menu.focus_item_key("bluetooth.pair:BB"));
 }
+
+fn pair_page_rows(runner: &NativeRunner) -> Vec<(String, u16)> {
+    let snapshot = runner.menu.snapshot();
+    snapshot
+        .lines
+        .iter()
+        .map(|line| line.trim().to_string())
+        .zip(snapshot.colors.iter().copied())
+        .collect()
+}
+
+fn turn(runner: &mut NativeRunner, delta: i32) {
+    input(
+        runner,
+        json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
+    );
+}
+
+#[test]
+fn pair_new_shows_searching_until_the_scan_ends_then_offers_search_again() {
+    let mut runner = board_runner();
+    turn_bluetooth_on(&mut runner);
+    assert!(runner.menu.focus_item_key("bluetooth.pair"));
+    let _ = press(&mut runner);
+    let rows = pair_page_rows(&runner);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].0, "Searching...");
+    let section = runner.menu.snapshot().section_color;
+    assert_eq!(rows[0].1, (section >> 1) & 0x7BEF, "the row is dim");
+
+    let scanning = RuntimeBluetoothStatus {
+        powered: true,
+        scanning: true,
+        devices: vec![device("KB", "Keys", false, false)],
+        ..RuntimeBluetoothStatus::default()
+    };
+    send_status(&mut runner, scanning.clone());
+    let rows = pair_page_rows(&runner);
+    assert_eq!(rows.len(), 2, "{rows:?}");
+    assert_eq!(rows[1].0, "Searching...");
+    turn(&mut runner, 1);
+    assert!(
+        effects(&press(&mut runner)).is_empty(),
+        "Searching... is inert"
+    );
+    assert!(runner.in_bluetooth_pair_page());
+
+    send_status(
+        &mut runner,
+        RuntimeBluetoothStatus {
+            scanning: false,
+            devices: vec![],
+            ..scanning
+        },
+    );
+    let rows = pair_page_rows(&runner);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert!(rows[0].0.contains("Search again"), "{rows:?}");
+    assert_eq!(rows[0].1, section);
+    assert_eq!(
+        effects(&press(&mut runner)),
+        vec![RuntimePlatformEffect::BluetoothScan { active: true }]
+    );
+    assert_eq!(pair_page_rows(&runner)[0].0, "Searching...");
+    assert_eq!(
+        effects(&back(&mut runner)),
+        vec![RuntimePlatformEffect::BluetoothScan { active: false }]
+    );
+}

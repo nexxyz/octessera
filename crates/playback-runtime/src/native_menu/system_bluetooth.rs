@@ -9,11 +9,27 @@ pub(super) fn bluetooth_group(rows: NativeBluetoothRows<'_>) -> NativeMenuItem {
         children.extend([
             bool_item("Audio Out", "bluetooth.audio", rows.audio),
             device_rows_group("Devices", "toggle", rows.paired),
-            device_rows_group("Pair New", "pair", rows.found),
+            pair_new_group(rows.found, rows.searching),
             device_rows_group("Forget", "forget", rows.paired),
         ]);
     }
     group("Bluetooth", children)
+}
+
+/// The found devices, then a dim `Searching...` row while the scan runs, or `Search again` once
+/// it has ended.
+fn pair_new_group(found: &[(String, String)], searching: bool) -> NativeMenuItem {
+    let mut pair_new = device_rows_group("Pair New", "pair", found);
+    pair_new.children.push(if searching {
+        group("Searching...", vec![])
+    } else {
+        action_item(
+            "Search again",
+            "bluetooth.scan",
+            NativeMenuAction::PlatformEffect("bluetooth.scan".into()),
+        )
+    });
+    pair_new
 }
 
 /// Keyed so the page opens while empty; Pair New must open to start searching.

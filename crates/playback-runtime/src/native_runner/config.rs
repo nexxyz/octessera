@@ -178,6 +178,7 @@ impl NativeRunner {
             bluetooth_audio: self.bluetooth.audio,
             bluetooth_paired: self.bluetooth.paired_rows(),
             bluetooth_found: self.bluetooth.found_rows(),
+            bluetooth_searching: self.bluetooth.searching,
             play_mode: self.play_mode.clone(),
             play_fx_type: play_fx_type(&self.play_fx_selected).into(),
             play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),

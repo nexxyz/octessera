@@ -133,9 +133,12 @@ fn push_item_row(
     let (line, row) = format_item_row(item, selected, editing);
     snapshot.lines.push(line);
     snapshot.rows.push(row);
-    snapshot
-        .colors
-        .push(item_section_color(root_level, section_color, &item.label));
+    let color = item_section_color(root_level, section_color, &item.label);
+    snapshot.colors.push(if is_inert_row(item) {
+        dim_rgb565(color)
+    } else {
+        color
+    });
     snapshot.line_keys.push(item.key.clone());
     snapshot.line_actions.push(selected_action(item));
     snapshot.full_lines.push(
@@ -160,6 +163,19 @@ fn mark_picker_entry(item: &NativeMenuItem, snapshot: &mut NativeMenuSnapshot) {
             row.kind = NativeMenuRowKind::Entry;
         }
     }
+}
+
+/// A labelled row with nothing to open, edit or press, such as `Searching...`.
+fn is_inert_row(item: &NativeMenuItem) -> bool {
+    !item.label.is_empty()
+        && item.key.is_none()
+        && item.children.is_empty()
+        && item.value == NativeMenuValue::Group
+}
+
+/// Half brightness: each RGB565 channel shifted right by one.
+fn dim_rgb565(color: u16) -> u16 {
+    (color >> 1) & 0x7BEF
 }
 
 fn item_section_color(root_level: bool, section_color: u16, label: &str) -> u16 {

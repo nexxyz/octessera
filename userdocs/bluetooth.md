@@ -37,8 +37,9 @@ The setting lives in the System save, so it survives a reboot.
    Bluetooth or Fn key combination until a light blinks; the keyboard's manual
    knows the exact trick.
 3. Open `System > Connections > Bluetooth > Pair New` and wait a few seconds.
-   Keyboards show up as `name [kbd]`. The search stops when you leave the page,
-   or after a minute.
+   Keyboards show up as `name [kbd]`, above a dim `Searching...` row. The
+   search stops when you leave the page, or after a minute; then the last row
+   turns into `Search again`, which looks for another minute.
 4. Click the keyboard's row.
 5. Some keyboards ask for a code. The OLED shows six digits: type them on the
    keyboard and press *Enter*. *Back* or a click on *Main* cancels.

@@ -68,7 +68,7 @@ System
 │   │   ├── Bluetooth: [on | off]        default off
 │   │   ├── Audio Out: [on | off]        ← while Bluetooth is on; default off
 │   │   ├── Devices (group)              ← while Bluetooth is on; one connect/disconnect action per paired device
-│   │   ├── Pair New (group)             ← while Bluetooth is on; searches while open; one pair action per found device
+│   │   ├── Pair New (group)             ← while Bluetooth is on; searches while open; one pair action per found device, then Searching... or Search again
 │   │   └── Forget (group)               ← while Bluetooth is on; one forget action per paired device
 │   ├── SD Card 2 (group)                ← Raspberry and Orange
 │   │   ├── Start Transfer: (action)     ← hidden in Raspberry Host
@@ -361,7 +361,10 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - `Devices` lists paired devices as `name [kbd]` or `name [audio]`, with ` - on` for connected ones.
   Pressing a row connects or disconnects it.
 - `Pair New` emits `BluetoothScan { active: true }` when it opens and `active: false` when Back
-  leaves it. It opens while still empty and lists found unpaired keyboards and speakers. Pressing a
+  leaves it. It opens while still empty and lists found unpaired keyboards and speakers. Below
+  them a dim, inert `Searching...` row shows while the status says scanning, from the moment the
+  page opens. When the host's one-minute scan limit ends with the page still open, the row becomes
+  a `Search again` action that emits `BluetoothScan { active: true }` again. Pressing a device
   row pairs, trusts, then connects. A passkey shows as a modal; Back or a Main click cancels pairing.
 - `Forget` removes a pairing. Results and failures arrive as `BluetoothStatus` toasts.
 - While Bluetooth is on, keyboard capture also accepts Bluetooth keyboards under the same HDMI gate,

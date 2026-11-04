@@ -118,6 +118,7 @@ pub struct NativeMenuConfig {
     pub bluetooth_audio: bool,
     pub bluetooth_paired: Vec<(String, String)>,
     pub bluetooth_found: Vec<(String, String)>,
+    pub bluetooth_searching: bool,
     pub play_mode: String,
     pub play_fx_type: String,
     pub play_fx_target: String,
@@ -139,6 +140,8 @@ pub struct NativeBluetoothRows<'a> {
     pub audio: bool,
     pub paired: &'a [(String, String)],
     pub found: &'a [(String, String)],
+    /// A Pair New scan is running; once it ends the page offers `Search again`.
+    pub searching: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -143,6 +143,7 @@ impl NativeRunner {
                     id: if id.is_empty() { None } else { Some(id.into()) },
                 })
             }
+            "bluetooth.scan" => Some(self.start_bluetooth_scan()),
             action => self.bluetooth_effect_for_action(action),
         };
         Ok(effect)
