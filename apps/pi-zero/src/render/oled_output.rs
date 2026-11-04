@@ -76,7 +76,10 @@ fn render_native_oled<O: OledRenderDevice>(
             state.pixels = None;
             return Err(error);
         }
-        state.pixels = Some(frame.to_vec());
+        match &mut state.pixels {
+            Some(shown) if shown.len() == frame.len() => shown.copy_from_slice(frame),
+            shown => *shown = Some(frame.to_vec()),
+        }
     }
     state.frame = Some(frame_key);
     state.physical_revision = state.physical_revision.max(frame_key);
