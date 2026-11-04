@@ -89,11 +89,11 @@ fn a_row_window_holds_the_rotated_frame_columns_of_those_rows() {
     rotate_clockwise_rgb565(&source, &mut rotated);
     let mut window = Vec::new();
 
-    let columns = rotated_row_window(&source, 68..95, &mut window);
+    let columns = rotated_row_window(&source, 69..96, &mut window);
 
-    assert_eq!(columns, [33, 59]);
+    assert_eq!(columns, [32, 58]);
     let expected: Vec<u8> = (0..HEIGHT)
-        .flat_map(|row| rotated[(row * WIDTH + 33) * 2..(row * WIDTH + 60) * 2].to_vec())
+        .flat_map(|row| rotated[(row * WIDTH + 32) * 2..(row * WIDTH + 59) * 2].to_vec())
         .collect();
     assert_eq!(window, expected);
     assert_eq!(
@@ -134,8 +134,8 @@ fn a_row_window_sends_the_full_frame_bytes_to_the_same_addresses() {
     let old: Vec<u8> = (0..FRAME_BYTES)
         .map(|index| (index * 7 % 251) as u8)
         .collect();
-    let home_band = 68..95;
-    let band_and_footer = 68..128;
+    let home_band = 69..96;
+    let band_and_footer = 69..128;
     let monitor = 12..108;
     for rows in [home_band, band_and_footer, monitor] {
         let mut new = old.clone();

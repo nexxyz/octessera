@@ -8,7 +8,7 @@ use super::{
 use platform_core::palette;
 
 /// The home page's rows start 6 px low; slot 4 is the blank line above System.
-const BAND_TOP: usize = 11 + 6 + 4 * 13 - 1;
+const BAND_TOP: usize = 11 + 6 + 4 * 13;
 const BAND_X: usize = 2;
 
 fn home(visual: Option<OledSignalVisual>) -> OledPresentationInput {
@@ -48,7 +48,7 @@ fn the_band_drops_only_the_rows_after_it_by_less_than_two_rows() {
     let plain = bar_rows(&home(None));
     let banded = bar_rows(&home(Some(OledSignalVisual::Flat)));
     assert_eq!(plain, (81..=91).collect::<Vec<_>>());
-    assert_eq!(banded, (97..=107).collect::<Vec<_>>());
+    assert_eq!(banded, (99..=109).collect::<Vec<_>>());
     let mut first = home(Some(OledSignalVisual::Flat));
     first.selected_row = Some(0);
     assert_eq!(bar_rows(&first), (16..=26).collect::<Vec<_>>());

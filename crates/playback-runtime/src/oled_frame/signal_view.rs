@@ -1,15 +1,19 @@
 use platform_core::palette;
 
-use super::menu_rows::{slot_top, PITCH};
+use super::menu_rows::{slot_top, BAR_HEIGHT, PITCH};
 use super::model::{OledSignalArea, OledSignalView, OledSignalVisual};
 use super::pixels::{dim, fill_rect, rgb565};
 
 /// How far the rows after the home band drop below their slots: less than two row pitches.
-pub(super) const SIGNAL_BAND_DROP: usize = 16;
+pub(super) const SIGNAL_BAND_DROP: usize = 18;
 const LEFT_X: usize = 2;
 pub const SIGNAL_WIDTH: usize = 124;
-/// From the band slot's bar top to two rows above the bar of the dropped row after it.
-pub const SIGNAL_BAND_HEIGHT: usize = PITCH - 2 + SIGNAL_BAND_DROP;
+/// Odd, so a stopped band's flat line has a middle row.
+pub const SIGNAL_BAND_HEIGHT: usize = 27;
+/// The free rows from below the bar above the band slot to the bar of the dropped row after it.
+const BAND_SPACE: usize = 2 * PITCH - BAR_HEIGHT + SIGNAL_BAND_DROP;
+/// How far the band's first row sits below its slot top, centred in [`BAND_SPACE`].
+const BAND_TOP_BELOW_SLOT: usize = (BAND_SPACE - SIGNAL_BAND_HEIGHT) / 2 - (PITCH - BAR_HEIGHT + 1);
 /// A Shape signal view's picture fills the body between the header rule and the footer.
 const BODY_TOP: usize = 12;
 pub const SIGNAL_BODY_HEIGHT: usize = 96;
@@ -44,7 +48,7 @@ impl Rows {
 pub(super) fn draw_signal_view(frame: &mut [u8], view: &OledSignalView, body_top_offset: usize) {
     let rows = match view.area {
         OledSignalArea::Band { slot } => Rows {
-            top: slot_top(body_top_offset, slot) - 1,
+            top: slot_top(body_top_offset, slot) + BAND_TOP_BELOW_SLOT,
             height: SIGNAL_BAND_HEIGHT,
         },
         OledSignalArea::Body => Rows {

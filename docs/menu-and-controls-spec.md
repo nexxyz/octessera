@@ -336,10 +336,10 @@ change; only the distance per detent does.
   plain-text pages and cards keep `s = 11 + 13*i`. A slide between a short and a full page draws
   each side at its own height.
 - Signal band: while `Home Visual` is not `none`, the root menu's spacer slot holds a band at
-  `x=2..125`, `y=68..94` (27 rows) and System drops 16 px to `s = 98`; Build, Link, Shape and Play
+  `x=2..125`, `y=69..95` (27 rows) and System drops 18 px to `s = 100`; Build, Link, Shape and Play
   keep their rows. Without a band System stays at `s = 82`. The band never shows on any other
   page, under a modal, help, splash or the dark OLED.
-  - Stopped, paused or silent (master peak below 0.001): one dim gray line at `y=81`. It is static
+  - Stopped, paused or silent (master peak below 0.001): one dim gray line at `y=82`. It is static
     and schedules no frames.
   - Playing: `scope` draws the master mix in blue, one point per column, two tapped samples
     apart (about 11 ms across at the 44.1 kHz output rate). The trace starts at the latest rising
