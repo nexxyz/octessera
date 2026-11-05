@@ -124,3 +124,86 @@ fn sender_without_an_output_ignores_messages() {
     assert_eq!(sender.panic(), Ok(()));
     assert!(sender.worker.is_none());
 }
+
+fn sleeping(sleep: Sleep) -> Shared {
+    Shared {
+        inbox: Mutex::new(Inbox {
+            commands: Vec::new(),
+            sleep,
+            stopped: false,
+        }),
+        wake: Condvar::new(),
+    }
+}
+
+fn woken(shared: &Shared) -> bool {
+    matches!(shared.lock().sleep, Sleep::Awake)
+}
+
+#[test]
+fn a_message_due_no_earlier_than_the_sleep_does_not_wake_the_sender() {
+    let deadline = Instant::now() + FAR;
+    let shared = sleeping(Sleep::Until(deadline));
+    let send = |at| Command::Send {
+        at: Some(at),
+        bytes: vec![0xF8],
+    };
+
+    shared.post(send(deadline), Some(deadline)).unwrap();
+    shared
+        .post(send(deadline + FAR), Some(deadline + FAR))
+        .unwrap();
+    assert!(!woken(&shared));
+    assert_eq!(shared.lock().commands.len(), 2);
+
+    let earlier = deadline - Duration::from_millis(1);
+    shared.post(send(earlier), Some(earlier)).unwrap();
+    assert!(woken(&shared));
+}
+
+#[test]
+fn untimed_messages_and_commands_wake_a_sleeping_sender() {
+    let deadline = Instant::now() + FAR;
+    for command in [
+        Command::Send {
+            at: None,
+            bytes: vec![0x90, 60, 100],
+        },
+        Command::Flush,
+    ] {
+        let shared = sleeping(Sleep::Until(deadline));
+        shared.post(command, None).unwrap();
+        assert!(woken(&shared));
+    }
+    let idle = sleeping(Sleep::UntilMessage);
+    idle.post(Command::Flush, Some(deadline)).unwrap();
+    assert!(woken(&idle));
+}
+
+#[test]
+fn a_stopped_sender_refuses_messages() {
+    let shared = sleeping(Sleep::Awake);
+    shared.stop();
+    assert_eq!(
+        shared.post(Command::Flush, None),
+        Err(SENDER_STOPPED.to_string())
+    );
+}
+
+#[test]
+fn timed_messages_behind_the_next_deadline_still_go_out_in_order() {
+    let (mut sender, rx) = channel_sender();
+    let soon = Instant::now() + Duration::from_millis(2);
+    sender.send(Some(soon), &[0x90, 60, 100]).unwrap();
+    sender
+        .send(Some(soon + Duration::from_millis(1)), &[0x80, 60, 0])
+        .unwrap();
+    sender
+        .send(Some(soon + Duration::from_millis(2)), &MARKER)
+        .unwrap();
+
+    assert_eq!(
+        received_until_marker(&rx),
+        vec![vec![0x90, 60, 100], vec![0x80, 60, 0]]
+    );
+}

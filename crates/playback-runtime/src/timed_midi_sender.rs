@@ -1,6 +1,7 @@
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
+use std::sync::mpsc::{self, SyncSender};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::Instant;
 
 pub type MidiSink = Box<dyn FnMut(&[u8]) -> Result<(), String> + Send>;
@@ -14,8 +15,78 @@ enum Command {
     SetSink(Option<MidiSink>),
 }
 
+/// How the sender thread sleeps. On the boards it outranks the runtime thread on the same
+/// core, so a wake preempts the runtime; a message it would reach in time anyway does not
+/// wake it.
+#[derive(Clone, Copy)]
+enum Sleep {
+    Awake,
+    UntilMessage,
+    Until(Instant),
+}
+
+struct Inbox {
+    commands: Vec<Command>,
+    sleep: Sleep,
+    stopped: bool,
+}
+
+struct Shared {
+    inbox: Mutex<Inbox>,
+    wake: Condvar,
+}
+
+impl Shared {
+    fn lock(&self) -> MutexGuard<'_, Inbox> {
+        self.inbox.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Queues a command due at `due` (now when `None`).
+    fn post(&self, command: Command, due: Option<Instant>) -> Result<(), String> {
+        let mut inbox = self.lock();
+        if inbox.stopped {
+            return Err(SENDER_STOPPED.into());
+        }
+        inbox.commands.push(command);
+        let wake = match inbox.sleep {
+            Sleep::Awake => false,
+            Sleep::UntilMessage => true,
+            Sleep::Until(deadline) => due.is_none_or(|due| due < deadline),
+        };
+        if wake {
+            inbox.sleep = Sleep::Awake;
+            drop(inbox);
+            self.wake.notify_one();
+        }
+        Ok(())
+    }
+
+    fn stop(&self) {
+        let mut inbox = self.lock();
+        inbox.stopped = true;
+        inbox.commands.clear();
+        drop(inbox);
+        self.wake.notify_one();
+    }
+}
+
 struct Worker {
-    tx: Sender<Command>,
+    shared: Arc<Shared>,
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.shared.stop();
+    }
+}
+
+/// Marks the sender stopped when its thread ends, also by a panic in an output.
+struct StopOnExit(Arc<Shared>);
+
+impl Drop for StopOnExit {
+    fn drop(&mut self) {
+        self.0.stop();
+    }
 }
 
 /// Sends MIDI from one thread per output, holding timestamped messages until they are due.
@@ -47,13 +118,8 @@ impl TimedMidiSender {
         let Some(worker) = &self.worker else {
             return Ok(());
         };
-        worker
-            .tx
-            .send(Command::Send {
-                at,
-                bytes: bytes.to_vec(),
-            })
-            .map_err(|_| SENDER_STOPPED.to_string())
+        let bytes = bytes.to_vec();
+        worker.shared.post(Command::Send { at, bytes }, at)
     }
 
     pub fn flush(&mut self) -> Result<(), String> {
@@ -79,23 +145,29 @@ impl TimedMidiSender {
         let Some(worker) = &self.worker else {
             return Err(SENDER_STOPPED.into());
         };
-        worker
-            .tx
-            .send(command)
-            .map_err(|_| SENDER_STOPPED.to_string())
+        worker.shared.post(command, None)
     }
 
     fn spawn(&self) -> Result<Worker, String> {
-        let (tx, rx) = mpsc::channel();
+        let shared = Arc::new(Shared {
+            inbox: Mutex::new(Inbox {
+                commands: Vec::new(),
+                sleep: Sleep::Awake,
+                stopped: false,
+            }),
+            wake: Condvar::new(),
+        });
+        let thread_shared = Arc::clone(&shared);
         let on_start = self.on_start;
         std::thread::Builder::new()
             .name(self.thread_name.into())
             .spawn(move || {
+                let _stop = StopOnExit(Arc::clone(&thread_shared));
                 on_start();
-                run(&rx);
+                run(&thread_shared);
             })
             .map_err(|error| format!("MIDI sender thread failed to start: {error}"))?;
-        Ok(Worker { tx })
+        Ok(Worker { shared })
     }
 }
 
@@ -132,52 +204,69 @@ impl Output {
     }
 }
 
-fn run(rx: &Receiver<Command>) {
+fn run(shared: &Shared) {
     let mut schedule = MidiSchedule::default();
     let mut output = Output::default();
     loop {
-        let command = match schedule.next_due() {
-            None => match rx.recv() {
-                Ok(command) => command,
-                Err(_) => return,
-            },
-            Some(due) => {
-                let now = Instant::now();
-                if let Some(bytes) = schedule.pop_due(now) {
-                    output.emit(&bytes);
-                    continue;
+        if let Some(bytes) = schedule.pop_due(Instant::now()) {
+            output.emit(&bytes);
+            continue;
+        }
+        let mut inbox = shared.lock();
+        if inbox.stopped {
+            return;
+        }
+        if inbox.commands.is_empty() {
+            let due = schedule.next_due();
+            inbox.sleep = due.map_or(Sleep::UntilMessage, Sleep::Until);
+            let mut inbox = match due {
+                None => shared
+                    .wake
+                    .wait(inbox)
+                    .unwrap_or_else(PoisonError::into_inner),
+                Some(due) => {
+                    shared
+                        .wake
+                        .wait_timeout(inbox, due.saturating_duration_since(Instant::now()))
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .0
                 }
-                match rx.recv_timeout(due.saturating_duration_since(now)) {
-                    Ok(command) => command,
-                    Err(RecvTimeoutError::Timeout) => continue,
-                    Err(RecvTimeoutError::Disconnected) => return,
-                }
+            };
+            inbox.sleep = Sleep::Awake;
+            continue;
+        }
+        let commands = std::mem::take(&mut inbox.commands);
+        drop(inbox);
+        for command in commands {
+            handle(command, &mut schedule, &mut output);
+        }
+    }
+}
+
+fn handle(command: Command, schedule: &mut MidiSchedule, output: &mut Output) {
+    match command {
+        Command::Send { at: None, bytes } => output.emit(&bytes),
+        Command::Send {
+            at: Some(at),
+            bytes,
+        } => schedule.push(at, bytes),
+        Command::Flush => {
+            for bytes in schedule.take_note_offs() {
+                output.emit(&bytes);
             }
-        };
-        match command {
-            Command::Send { at: None, bytes } => output.emit(&bytes),
-            Command::Send {
-                at: Some(at),
-                bytes,
-            } => schedule.push(at, bytes),
-            Command::Flush => {
-                for bytes in schedule.take_note_offs() {
-                    output.emit(&bytes);
-                }
+        }
+        Command::Panic { done } => {
+            schedule.clear();
+            for message in midi_panic_messages() {
+                output.emit(&message);
             }
-            Command::Panic { done } => {
-                schedule.clear();
-                for message in midi_panic_messages() {
-                    output.emit(&message);
-                }
-                let _ = done.send(());
+            let _ = done.send(());
+        }
+        Command::SetSink(next) => {
+            for bytes in schedule.take_note_offs() {
+                output.emit(&bytes);
             }
-            Command::SetSink(next) => {
-                for bytes in schedule.take_note_offs() {
-                    output.emit(&bytes);
-                }
-                output.replace(next);
-            }
+            output.replace(next);
         }
     }
 }
