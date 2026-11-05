@@ -111,6 +111,7 @@ impl NativeRunner {
         self.transport.pending_resync = source.transport.pending_resync;
         self.transport.current_ppqn_pulse = source.transport.current_ppqn_pulse;
         self.transport.swung_ppqn_pulse = source.transport.swung_ppqn_pulse;
+        self.transport.applied_swing = source.transport.applied_swing;
         self.transport.tick = source.transport.tick;
         self.transport.layer_ticks = source.transport.layer_ticks.clone();
         self.transport.layer_pulse_accumulators = source.transport.layer_pulse_accumulators.clone();

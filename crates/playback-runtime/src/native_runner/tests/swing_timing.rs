@@ -128,16 +128,65 @@ fn set_swing_through_menu(runner: &mut NativeRunner, a: i32, b: i32) {
 }
 
 #[test]
-fn switching_to_straight_mid_beat_keeps_layers_on_the_bar() {
+fn switching_to_straight_mid_beat_finishes_the_beat_swung_then_runs_straight() {
     let mut runner = eighth_note_layer((7, 1));
     note_on_times(&mut runner, 30);
     set_swing_through_menu(&mut runner, 4, 4);
-    // 7:1 holds the warped clock behind until pulse 21; straight time must hand back the gap.
-    let times = note_on_times(&mut runner, 42);
-    assert_eq!(times.last(), Some(&(42, 0)), "{times:?}");
-    assert!(times
-        .iter()
-        .all(|(pulse, offset)| (pulse + 30) % 12 == 0 && *offset == 0));
+    // Beat 2 (pulses 24..48) keeps 7:1, its offbeat at 24 + 21; straight eighths from pulse 48.
+    assert_eq!(
+        note_on_times(&mut runner, 42),
+        vec![(15, 0), (18, 0), (30, 0), (42, 0)]
+    );
+}
+
+#[test]
+fn a_mid_beat_swing_change_waits_for_the_next_beat_without_flam_or_gap() {
+    // 7:1 puts the offbeat at pulse 21 of the beat, 1:7 at pulse 3.
+    for (from, to, expected) in [
+        (
+            (7, 1),
+            (1, 7),
+            vec![(15, 0), (18, 0), (21, 0), (42, 0), (45, 0)],
+        ),
+        ((1, 7), (7, 1), vec![(18, 0), (39, 0), (42, 0)]),
+    ] {
+        let mut runner = eighth_note_layer(from);
+        note_on_times(&mut runner, 30);
+        set_swing_through_menu(&mut runner, to.0, to.1);
+        assert_eq!(
+            note_on_times(&mut runner, 48),
+            expected,
+            "{from:?} -> {to:?}"
+        );
+    }
+}
+
+#[test]
+fn swing_changed_on_every_pulse_plays_each_beat_on_its_starting_ratio() {
+    let mut runner = eighth_note_layer((4, 4));
+    let ratios: [(u8, u8); 7] = [(7, 1), (4, 5), (5, 3), (1, 7), (2, 6), (6, 6), (3, 5)];
+    let mut times = Vec::new();
+    let mut expected = Vec::new();
+    for pulse in 0..(4 * 96u64) {
+        let (a, b) = ratios[pulse as usize % ratios.len()];
+        set_swing_through_menu(&mut runner, a.into(), b.into());
+        if (pulse + 1) % 24 == 0 {
+            let offbeat = 24 * u64::from(a);
+            let units = u64::from(a + b);
+            let offset = (PULSE_NANOS_AT_120 * (offbeat % units) as f64 / units as f64).round();
+            expected.push((pulse + 1 + offbeat / units, offset as u64));
+            expected.push((pulse + 25, 0));
+        }
+        times.extend(
+            note_on_times(&mut runner, 1)
+                .into_iter()
+                .map(|(_, offset)| (pulse + 1, offset)),
+        );
+    }
+    expected.retain(|(pulse, _)| *pulse <= 4 * 96);
+    // The first beat runs on the ratio set before Play.
+    assert_eq!(&times[..2], &[(12, 0), (24, 0)]);
+    assert_eq!(&times[2..], &expected[..], "{times:?}");
 }
 
 #[test]
@@ -154,7 +203,11 @@ fn swing_modulated_across_eight_bars_does_not_drift() {
     }
     assert_eq!(notes, 8 * 8);
     set_swing_through_menu(&mut runner, 4, 4);
-    assert_eq!(note_on_times(&mut runner, 24), vec![(12, 0), (24, 0)]);
+    // The beat that started on 3:5 finishes on it; straight eighths from the next beat.
+    assert_eq!(
+        note_on_times(&mut runner, 48),
+        vec![(9, 0), (24, 0), (36, 0), (48, 0)]
+    );
 }
 
 #[test]

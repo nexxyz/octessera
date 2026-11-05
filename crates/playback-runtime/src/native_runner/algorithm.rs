@@ -173,9 +173,14 @@ impl NativeRunner {
         Swing::new(self.transport.swing_a, self.transport.swing_b)
     }
 
+    /// A swing change waits for the next beat: within a beat every ratio emits the same steps, so
+    /// switching only where nothing of the coming beat has been emitted keeps each step once.
     fn consume_swung_pulses(&mut self) -> u32 {
-        let swing = self.swing();
         let current = self.transport.current_ppqn_pulse;
+        if current / swing::BEAT_PULSES > self.transport.swung_ppqn_pulse / swing::BEAT_PULSES {
+            self.transport.applied_swing = self.swing();
+        }
+        let swing = self.transport.applied_swing;
         let target = if swing.is_straight() {
             current
         } else if self.transport.sync_source == SyncSource::External {
@@ -191,7 +196,7 @@ impl NativeRunner {
     /// How long after this pulse step's stamp a layer step sounds whose accumulator now holds
     /// `accumulator` warped pulses.
     fn swing_offset_nanos(&self, accumulator: u32) -> u64 {
-        let swing = self.swing();
+        let swing = self.transport.applied_swing;
         if swing.is_straight() {
             return 0;
         }

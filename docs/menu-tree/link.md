@@ -115,6 +115,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   and MIDI sender place it on time rather than on the pulse grid. Under external sync the next
   pulse time is unknown, so a swung step lands on the nearest incoming MIDI clock pulse at or after
   its exact time. External MIDI clock out stays straight; the beat and bar boundaries never move.
+- A swing change, from the menu, the Tempo page or a modulation source, takes effect at the next
+  beat: the running beat finishes on the ratio it started with, so a change in the middle of a
+  beat never doubles or drops a step.
 - Musical timing selectors use the 24 PPQN vocabulary `1/32T`, `1/32`, `1/16T`, `1/16`, `1/8T`,
   `1/8`, `1/4T`, `1/4`, `1/2T`, `1/2`, `1/1T`, `1/1`. Straight `1/64` is left out because it would
   be 1.5 pulses at 24 PPQN; triplet values are exact. Invalid labels show the canonical `1/8`
