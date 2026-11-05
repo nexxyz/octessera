@@ -5,7 +5,10 @@ pub(crate) fn assignment_mode_wins_over_fn_layer_navigation_and_autosaves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
     runner.instruments[0].kind = "sampler".into();
-    runner.sample_assign = Some((0, 1));
+    runner.grid_assign = Some(GridAssign::Sample {
+        slot: 0,
+        sample_slot: 1,
+    });
     runner.display.ui.fn_held = true;
 
     let messages = runner

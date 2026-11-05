@@ -1,5 +1,6 @@
 //! MIDI Drum: an instrument slot whose stamped tiles send MIDI notes instead of sound.
 
+use super::grid_assign::GridAssign;
 use super::led_color::LedColor;
 use super::{NativeInstrumentSlot, NativeRunner, Value};
 use crate::native_menu::NativeMenuMidiDrum;
@@ -133,10 +134,7 @@ impl NativeRunner {
         else {
             return;
         };
-        self.play_fx_assign = None;
-        self.sample_assign = None;
-        self.trigger_probability_assign = None;
-        self.drum_assign = Some((slot, 0));
+        self.grid_assign = Some(GridAssign::MidiDrum { slot });
         self.show_toast(format!(
             "N{} v{}: press tiles to assign",
             settings.tile_note, settings.tile_velocity

@@ -8,22 +8,13 @@ use super::*;
 use crate::native_menu::section_labels::{LINK_LABEL, PLAY_LABEL};
 
 impl NativeRunner {
-    /// Whether a grid press stamps an assignment (sample, drum, trigger probability, Play FX).
-    pub(super) fn grid_assign_active(&self) -> bool {
-        self.sample_assign.is_some()
-            || self.drum_assign.is_some()
-            || self.trigger_probability_assign.is_some()
-            || self.play_fx_assign.is_some()
-            || self.faders.assigning
-    }
-
     pub(super) fn resolve_aux_auto_map(
         &self,
         path: &str,
         selected_key: Option<&str>,
         selected_action: Option<&NativeMenuAction>,
     ) -> AuxAutoMap {
-        if !self.aux_auto_map_enabled || self.grid_assign_active() || path.contains(LINK_LABEL) {
+        if !self.aux_auto_map_enabled || self.grid_assign.is_some() || path.contains(LINK_LABEL) {
             return AuxAutoMap::default();
         }
 

@@ -27,10 +27,12 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_sample_assignment_overlay(&self, leds: &mut [LedColor]) {
-        let Some((instrument_slot, selected_sample_slot)) = self.sample_assign else {
-            return;
-        };
+    pub(super) fn apply_sample_assignment_overlay(
+        &self,
+        instrument_slot: usize,
+        selected_sample_slot: usize,
+        leds: &mut [LedColor],
+    ) {
         self.fill_leds(leds, LedColor::BLACK);
         let Some(instrument) = self.instruments.get(instrument_slot) else {
             return;
@@ -50,17 +52,12 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_drum_assignment_overlay(&self, leds: &mut [LedColor]) {
-        let Some((slot, selected_voice)) = self.drum_assign else {
-            return;
-        };
-        if self
-            .instruments
-            .get(slot)
-            .is_some_and(|slot| slot.kind == "midi_drum")
-        {
-            return self.apply_midi_drum_assignment_overlay(slot, leds);
-        }
+    pub(super) fn apply_drum_assignment_overlay(
+        &self,
+        slot: usize,
+        selected_voice: u8,
+        leds: &mut [LedColor],
+    ) {
         self.fill_leds(leds, LedColor::BLACK);
         let Some(assignments) = self
             .instruments
@@ -83,10 +80,11 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_trigger_probability_overlay(&self, leds: &mut [LedColor]) {
-        let Some(layer_index) = self.trigger_probability_assign else {
-            return;
-        };
+    pub(super) fn apply_trigger_probability_overlay(
+        &self,
+        layer_index: usize,
+        leds: &mut [LedColor],
+    ) {
         self.fill_leds(leds, LedColor::BLACK);
         let Some(map) = self.trigger_probability_maps.get(layer_index) else {
             return;

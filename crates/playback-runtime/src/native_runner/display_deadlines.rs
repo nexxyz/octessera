@@ -105,7 +105,7 @@ impl NativeRunner {
             || toast_active
             || self.display.help_popup.is_some()
             || self.display.confirm_dialog.is_some()
-            || self.grid_assign_active()
+            || self.grid_assign.is_some()
         {
             return None;
         }

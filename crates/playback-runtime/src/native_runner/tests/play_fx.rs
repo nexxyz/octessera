@@ -66,11 +66,11 @@ pub(crate) fn play_fx_grid_press_and_release_emit_audio_commands() {
 pub(crate) fn play_fx_same_config_assignment_toggles_tile_clear() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let config = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8 } });
-    runner.play_fx_assign = Some(config.clone());
+    runner.grid_assign = Some(GridAssign::PlayFx(config.clone()));
     runner.handle_play_fx_assignment_grid_press(1, 2);
     assert_eq!(runner.play_fx_assignments.len(), 1);
 
-    runner.play_fx_assign = Some(config);
+    runner.grid_assign = Some(GridAssign::PlayFx(config));
     runner.handle_play_fx_assignment_grid_press(1, 2);
     assert!(runner.play_fx_assignments.is_empty());
 }
@@ -196,7 +196,7 @@ pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
             "play.fx.map".into(),
         ))
         .unwrap();
-    assert!(runner.play_fx_assign.is_some());
+    assert!(matches!(runner.grid_assign, Some(GridAssign::PlayFx(_))));
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 4, "y": 5 }),

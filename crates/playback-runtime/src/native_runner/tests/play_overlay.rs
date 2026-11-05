@@ -120,9 +120,14 @@ pub(crate) fn assignment_overlays_suppress_fn_navigation_overlay() {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.display.ui.fn_held = true;
         match guard {
-            "sample" => runner.sample_assign = Some((0, 0)),
-            "trigger" => runner.trigger_probability_assign = Some(0),
-            _ => runner.play_fx_assign = Some(json!({ "fxType": "filter" })),
+            "sample" => {
+                runner.grid_assign = Some(GridAssign::Sample {
+                    slot: 0,
+                    sample_slot: 0,
+                })
+            }
+            "trigger" => runner.grid_assign = Some(GridAssign::TriggerProbability(0)),
+            _ => runner.grid_assign = Some(GridAssign::PlayFx(json!({ "fxType": "filter" }))),
         }
 
         let snapshot = runner.snapshot().unwrap();

@@ -1,3 +1,4 @@
+use super::grid_assign::GridAssign;
 use super::NativeRunner;
 use crate::protocol::TileHit;
 
@@ -11,10 +12,10 @@ impl NativeRunner {
         {
             return;
         }
-        self.play_fx_assign = None;
-        self.sample_assign = None;
-        self.trigger_probability_assign = None;
-        self.drum_assign = Some((slot, voice as u8));
+        self.grid_assign = Some(GridAssign::Drum {
+            slot,
+            voice: voice as u8,
+        });
         self.show_toast(format!("V{}: press tiles to assign", voice + 1));
     }
 

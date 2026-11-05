@@ -177,7 +177,13 @@ pub(super) fn pick_sample_for_selected_slot(runner: &mut NativeRunner) {
 pub(super) fn assign_selected_sample_and_use_tile(runner: &mut NativeRunner) {
     assert!(runner.menu.focus_item_key("sample.assign.0.7"));
     let _ = press_main(runner);
-    assert_eq!(runner.sample_assign, Some((0, 7)));
+    assert_eq!(
+        runner.grid_assign,
+        Some(GridAssign::Sample {
+            slot: 0,
+            sample_slot: 7
+        })
+    );
     assert_snapshot(grid_press(runner, 1, 2));
     assert!(runner.instruments[0]
         .sample_assignments

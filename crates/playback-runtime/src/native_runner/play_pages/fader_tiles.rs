@@ -1,6 +1,7 @@
 use serde_json::{json, Value};
 
 use super::super::aux_binding_payload_apply::parse_aux_press_action;
+use super::super::grid_assign::GridAssign;
 use super::super::led_color::LedColor;
 use super::super::menu_apply_fast::value_changed;
 use super::super::{
@@ -112,7 +113,6 @@ impl NativeFaders {
             .flatten()
             .filter_map(tile_from_payload)
             .collect();
-        self.assigning = false;
         self.held_tile = None;
     }
 }
@@ -231,11 +231,7 @@ impl NativeRunner {
             self.show_toast("Action Cols is 0");
             return;
         }
-        self.play_fx_assign = None;
-        self.sample_assign = None;
-        self.drum_assign = None;
-        self.trigger_probability_assign = None;
-        self.faders.assigning = true;
+        self.grid_assign = Some(GridAssign::FaderTiles);
         self.active_play_mode = "faders".into();
         self.show_toast("Map tiles: press to assign");
     }
@@ -251,7 +247,7 @@ impl NativeRunner {
             self.show_toast("Not an action column");
             return;
         }
-        self.faders.assigning = false;
+        self.grid_assign = None;
         let mapping = self.faders.draft.stamped();
         self.faders.tiles.retain(|tile| tile.x != x || tile.y != y);
         let toast = if mapping.kind == FaderTileKind::None {
@@ -323,7 +319,9 @@ impl NativeRunner {
                 let color = match self.faders.tile_at(x, y).map(|mapping| mapping.kind) {
                     Some(FaderTileKind::Action) => LedColor::WHITE,
                     Some(FaderTileKind::Param) => LedColor::YELLOW,
-                    _ if self.faders.assigning => LedColor::SYSTEM.dim(6),
+                    _ if self.grid_assign == Some(GridAssign::FaderTiles) => {
+                        LedColor::SYSTEM.dim(6)
+                    }
                     _ => LedColor::BLACK,
                 };
                 let mapped = self.faders.tile_at(x, y).is_some();

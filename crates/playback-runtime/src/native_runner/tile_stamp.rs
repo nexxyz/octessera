@@ -66,10 +66,13 @@ impl NativeRunner {
             .unwrap_or_default()
     }
 
-    pub(super) fn handle_sample_assignment_grid_press(&mut self, x: usize, y: usize) {
-        let Some((slot, sample_slot)) = self.sample_assign else {
-            return;
-        };
+    pub(super) fn handle_sample_assignment_grid_press(
+        &mut self,
+        slot: usize,
+        sample_slot: usize,
+        x: usize,
+        y: usize,
+    ) {
         let Some(levels_enabled) = self
             .instruments
             .get(slot)
@@ -106,17 +109,13 @@ impl NativeRunner {
         self.mark_config_dirty();
     }
 
-    pub(super) fn handle_drum_assignment_grid_press(&mut self, x: usize, y: usize) {
-        let Some((slot, voice)) = self.drum_assign else {
-            return;
-        };
-        if self
-            .instruments
-            .get(slot)
-            .is_some_and(|slot| slot.kind == "midi_drum")
-        {
-            return self.handle_midi_drum_assignment_grid_press(slot, x, y);
-        }
+    pub(super) fn handle_drum_assignment_grid_press(
+        &mut self,
+        slot: usize,
+        voice: u8,
+        x: usize,
+        y: usize,
+    ) {
         let stamp = self.tile_stamp(slot);
         let (tiles, line) = self.stamp_line_tiles(x, y);
         let Some(assignments) = self

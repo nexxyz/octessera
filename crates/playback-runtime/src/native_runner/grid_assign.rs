@@ -2,11 +2,41 @@ use super::play_pages::PLAY_PAGES;
 use super::*;
 use crate::native_menu::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 
+/// The one grid assignment a press stamps; entering one replaces any other.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) enum GridAssign {
+    PlayFx(Value),
+    Sample { slot: usize, sample_slot: usize },
+    Drum { slot: usize, voice: u8 },
+    MidiDrum { slot: usize },
+    TriggerProbability(usize),
+    FaderTiles,
+}
+
 impl NativeRunner {
-    pub(super) fn handle_trigger_probability_grid_press(&mut self, x: usize, y: usize) {
-        let Some(layer_index) = self.trigger_probability_assign else {
-            return;
-        };
+    /// Stamps a press into the active grid assignment; false when none is active.
+    pub(super) fn handle_grid_assign_press(&mut self, x: usize, y: usize) -> bool {
+        match self.grid_assign {
+            None => return false,
+            Some(GridAssign::PlayFx(_)) => self.handle_play_fx_assignment_grid_press(x, y),
+            Some(GridAssign::Sample { slot, sample_slot }) => {
+                self.handle_sample_assignment_grid_press(slot, sample_slot, x, y);
+            }
+            Some(GridAssign::Drum { slot, voice }) => {
+                self.handle_drum_assignment_grid_press(slot, voice, x, y);
+            }
+            Some(GridAssign::MidiDrum { slot }) => {
+                self.handle_midi_drum_assignment_grid_press(slot, x, y);
+            }
+            Some(GridAssign::TriggerProbability(layer)) => {
+                self.handle_trigger_probability_grid_press(layer, x, y);
+            }
+            Some(GridAssign::FaderTiles) => self.handle_fader_tile_assignment_press(x, y),
+        }
+        true
+    }
+
+    fn handle_trigger_probability_grid_press(&mut self, layer_index: usize, x: usize, y: usize) {
         if x >= GRID_WIDTH || y >= GRID_HEIGHT {
             return;
         }

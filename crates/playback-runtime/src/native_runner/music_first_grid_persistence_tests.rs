@@ -6,7 +6,10 @@ fn stopped_music_first_grid_edit_defers_payload_serialization_to_pi_autosave() {
     runner.skip_startup_splash();
     runner.auto_save_default = true;
     runner.instruments[0].kind = "sampler".into();
-    runner.sample_assign = Some((0, 0));
+    runner.grid_assign = Some(GridAssign::Sample {
+        slot: 0,
+        sample_slot: 0,
+    });
     let serialization_calls = runner.behavior_state_serialization_calls.get();
 
     let messages = runner

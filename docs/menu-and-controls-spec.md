@@ -907,6 +907,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - No auto-map applies while an assignment mode is active (Sample, Drum, MIDI Drum and trigger-probability
   Assign, Play FX and Faders Tile Map `Map to Grid`): no auto caps, no auto hints, and Aux input skips the auto
   layout. Manual bindings keep working, and the layout returns when Back leaves the mode.
+- Only one assignment mode is active at a time: entering one leaves any other, and one Back press
+  leaves it. While a mode is active, holding Shift or Fn shows no modifier hint toast.
 
 ### Footer hints
 

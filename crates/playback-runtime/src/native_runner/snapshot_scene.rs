@@ -1,3 +1,4 @@
+use super::grid_assign::GridAssign;
 use super::snapshot::display_active_tiles;
 use super::snapshot_leds::base_led_snapshot;
 use super::toast_text::scrolled_toast;
@@ -110,14 +111,20 @@ impl NativeRunner {
         self.apply_ghost_tiles(&mut leds, &model);
         self.apply_scan_progress_overlay(&mut leds);
         self.apply_play_overlay(&mut leds, transient);
-        if self.play_fx_assign.is_none() {
-            if self.sample_assign.is_some() {
-                self.apply_sample_assignment_overlay(&mut leds);
-            } else if self.drum_assign.is_some() {
-                self.apply_drum_assignment_overlay(&mut leds);
-            } else if self.trigger_probability_assign.is_some() {
-                self.apply_trigger_probability_overlay(&mut leds);
+        match self.grid_assign {
+            Some(GridAssign::Sample { slot, sample_slot }) => {
+                self.apply_sample_assignment_overlay(slot, sample_slot, &mut leds);
             }
+            Some(GridAssign::Drum { slot, voice }) => {
+                self.apply_drum_assignment_overlay(slot, voice, &mut leds);
+            }
+            Some(GridAssign::MidiDrum { slot }) => {
+                self.apply_midi_drum_assignment_overlay(slot, &mut leds);
+            }
+            Some(GridAssign::TriggerProbability(layer)) => {
+                self.apply_trigger_probability_overlay(layer, &mut leds);
+            }
+            _ => {}
         }
         self.apply_param_mod_overlay(&mut leds);
         self.apply_fn_overlay(&mut leds);

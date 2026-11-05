@@ -14,7 +14,7 @@ impl NativeRunner {
         if !self.display.ui.fn_held && !self.display.ui.combined_modifier_held {
             return;
         }
-        if self.grid_assign_active() {
+        if self.grid_assign.is_some() {
             return;
         }
         self.dim_fn_overlay(leds);
@@ -162,10 +162,7 @@ impl NativeRunner {
         self.display.ui.shift_held
             && !self.display.ui.fn_held
             && self.active_play_mode == "none"
-            && self.sample_assign.is_none()
-            && self.drum_assign.is_none()
-            && self.trigger_probability_assign.is_none()
-            && self.play_fx_assign.is_none()
+            && self.grid_assign.is_none()
     }
 
     fn dim_fn_overlay(&self, leds: &mut [LedColor]) {

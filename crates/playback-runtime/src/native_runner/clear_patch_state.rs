@@ -34,7 +34,7 @@ impl NativeRunner {
         self.transport.swing_b = 4;
         self.voice_stealing_mode = "auto-balanced".into();
         self.link_layers = default_link_layers();
-        self.trigger_probability_assign = None;
+        self.grid_assign = None;
         self.trigger_probability_maps =
             vec![vec!["full".into(); GRID_WIDTH * GRID_HEIGHT]; LAYER_COUNT];
         self.instruments = (0..INSTRUMENT_COUNT)
@@ -75,8 +75,6 @@ impl NativeRunner {
         self.transport.algorithm_step_pulses = DEFAULT_ALGORITHM_STEP_RED;
         self.transport.layer_algorithm_step_pulses = vec![DEFAULT_ALGORITHM_STEP_RED; LAYER_COUNT];
         self.sync_engine_runtime_config();
-        self.sample_assign = None;
-        self.drum_assign = None;
         for instrument in &mut self.instruments {
             instrument.tile_stamp = NativeTileStamp::default();
         }
@@ -87,7 +85,6 @@ impl NativeRunner {
         self.global_fx_slots = default_global_fx_slots();
         self.global_fx_params = default_global_fx_params();
         self.play_fx_selected = default_play_fx_selected();
-        self.play_fx_assign = None;
         self.play_fx_assignments.clear();
         self.active_play_fx.clear();
         self.play_mode = "mix".into();

@@ -112,7 +112,7 @@ fn map_to_grid_stores_clears_and_back_leaves_unchanged() {
     let tiles = runner.faders.tiles.clone();
 
     press_key(&mut runner, "play.faders.tile.map");
-    assert!(runner.grid_assign_active());
+    assert_eq!(runner.grid_assign, Some(GridAssign::FaderTiles));
     tap(&mut runner, 2, 2);
     assert_eq!(toast(&runner), "Not an action column");
     assert_eq!(
@@ -121,7 +121,7 @@ fn map_to_grid_stores_clears_and_back_leaves_unchanged() {
         "free tiles show while waiting"
     );
     back(&mut runner);
-    assert!(!runner.faders.assigning);
+    assert!(runner.grid_assign.is_none());
     assert_eq!(runner.faders.tiles, tiles);
 
     set_tile_type(&mut runner, "none");
@@ -133,7 +133,7 @@ fn map_to_grid_stores_clears_and_back_leaves_unchanged() {
     set_menu_number(&mut runner, "play.faders.actionCols", 0);
     press_key(&mut runner, "play.faders.tile.map");
     assert_eq!(toast(&runner), "Action Cols is 0");
-    assert!(!runner.faders.assigning);
+    assert!(runner.grid_assign.is_none());
 }
 
 #[test]
@@ -144,7 +144,10 @@ fn an_action_tile_runs_its_action_and_shift_runs_the_second_one() {
 
     held(&mut runner, "button_shift", |runner| tap(runner, 6, 0));
     assert_eq!(toast(&runner), "S+Tile: Map");
-    assert!(runner.play_fx_assign.is_some(), "Map FX waits for a tile");
+    assert!(
+        matches!(runner.grid_assign, Some(GridAssign::PlayFx(_))),
+        "Map FX waits for a tile"
+    );
 }
 
 #[test]
@@ -158,7 +161,7 @@ fn an_inactive_or_missing_action_toasts_and_runs_nothing() {
 
     tap(&mut runner, 7, 7);
     assert_eq!(toast(&runner), "Tile: Assign not active");
-    assert!(runner.sample_assign.is_none());
+    assert!(runner.grid_assign.is_none());
     held(&mut runner, "button_shift", |runner| tap(runner, 7, 7));
     assert_eq!(toast(&runner), "S+Tile: No binding");
 }
@@ -209,7 +212,7 @@ fn fn_and_shift_fn_presses_on_a_tile_run_nothing() {
         tap(runner, 6, 0)
     });
     assert_eq!(volume(&runner), start);
-    assert!(runner.play_fx_assign.is_none());
+    assert!(runner.grid_assign.is_none());
 }
 
 #[test]

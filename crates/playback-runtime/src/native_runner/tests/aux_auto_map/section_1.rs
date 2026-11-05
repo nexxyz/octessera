@@ -128,7 +128,13 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
         })
         .unwrap();
 
-    assert_eq!(runner.sample_assign, Some((0, 0)));
+    assert_eq!(
+        runner.grid_assign,
+        Some(GridAssign::Sample {
+            slot: 0,
+            sample_slot: 0
+        })
+    );
 }
 
 #[test]

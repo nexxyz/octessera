@@ -229,11 +229,11 @@ fn assign_stamps_tiles_rows_and_columns_and_the_same_stamp_clears() {
         assert_eq!(rig.stamp(6, y), Some((SNARE, 90)), "col y={y}");
     }
     assert_eq!(rig.toast(), "col N38 v90");
-    assert!(rig.runner.grid_assign_active());
+    assert!(rig.runner.grid_assign.is_some());
     assert!(rig.take_notes().is_empty());
 
     rig.back();
-    assert!(!rig.runner.grid_assign_active());
+    assert!(rig.runner.grid_assign.is_none());
     rig.press(6, 2);
     assert_eq!(rig.take_notes()[0], vec![0x99, SNARE, 90]);
 }
@@ -338,10 +338,10 @@ fn an_octave_spread_arp_never_re_pitches_or_re_lengthens_a_midi_drum_note() {
 fn changing_the_type_leaves_midi_drum_assign_mode() {
     let mut rig = Rig::midi_drum();
     rig.press_main_on("midiDrum.assign.0");
-    assert!(rig.runner.grid_assign_active());
+    assert!(rig.runner.grid_assign.is_some());
     rig.turn("instruments.0.type", -1);
     assert_eq!(rig.runner.instruments[0].kind, "drum");
-    assert!(!rig.runner.grid_assign_active());
+    assert!(rig.runner.grid_assign.is_none());
 }
 
 #[test]

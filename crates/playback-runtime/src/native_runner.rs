@@ -18,6 +18,7 @@ use defaults::{
     default_link_layers, derive_bus_name, derive_bus_name_from_slots, derive_instrument_name,
     fx_default_params, fx_slot_payload_with_params,
 };
+use grid_assign::GridAssign;
 use modulation_keys::{parse_instrument_binding_key, parse_layer_behavior_config_binding_key};
 #[cfg(test)]
 use modulation_sampler::sampler_assignment_velocity;
@@ -413,9 +414,8 @@ pub struct NativeRunner {
     play_mode: String,
     active_play_mode: String,
     drum_selected_voices: Vec<usize>,
-    drum_assign: Option<(usize, u8)>,
     play_fx_selected: Value,
-    play_fx_assign: Option<Value>,
+    grid_assign: Option<GridAssign>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
     active_play_fx: Vec<(String, String)>,
     xy_touch: NativeXyTouch,
@@ -438,7 +438,6 @@ pub struct NativeRunner {
     play_transpose_offsets: Vec<i8>,
     play_transpose_active_notes: Vec<BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
     pending_transpose_note_offs: RoutedMusicalEvents,
-    trigger_probability_assign: Option<usize>,
     trigger_probability_maps: Vec<Vec<String>>,
     layer_behavior_ids: Vec<String>,
     layer_names: Vec<String>,
@@ -456,7 +455,6 @@ pub struct NativeRunner {
     shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
     active_layer_index: usize,
     instruments: Vec<NativeInstrumentSlot>,
-    sample_assign: Option<(usize, usize)>,
     fx_buses: Vec<NativeFxBus>,
     global_fx_slots: Vec<String>,
     global_fx_params: Vec<Value>,

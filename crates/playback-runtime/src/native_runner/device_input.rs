@@ -2,6 +2,7 @@ use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 use std::time::Instant;
 
 use super::algorithm::LinkRoutingInput;
+use super::grid_assign::GridAssign;
 use super::play_pages::PlayBank;
 use super::{
     display_layer_index_from_y, DeviceInput, NativeRunner, NativeToast, RuntimeTransportState,
@@ -264,17 +265,10 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.play_fx_assign.is_some() {
-            self.handle_play_fx_assignment_grid_press(x, y);
-        } else if self.sample_assign.is_some() {
-            self.handle_sample_assignment_grid_press(x, y);
-        } else if self.drum_assign.is_some() {
-            self.handle_drum_assignment_grid_press(x, y);
-        } else if self.trigger_probability_assign.is_some() {
-            self.handle_trigger_probability_grid_press(x, y);
-        } else if self.faders.assigning {
-            self.handle_fader_tile_assignment_press(x, y);
-        } else if self.active_play_mode == "transpose" && x == 0 && self.display.ui.shift_held {
+        if self.handle_grid_assign_press(x, y) {
+            return self.messages_with_snapshot();
+        }
+        if self.active_play_mode == "transpose" && x == 0 && self.display.ui.shift_held {
             self.toggle_all_play_transpose_layers();
         } else if self.display.ui.combined_modifier_held && x == 0 {
             self.toggle_layer_trigger_gate(display_layer_index_from_y(y));
@@ -327,7 +321,10 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if self.drum_assign.is_some() {
+        if matches!(
+            self.grid_assign,
+            Some(GridAssign::Drum { .. } | GridAssign::MidiDrum { .. })
+        ) {
             return self.messages_with_snapshot();
         }
         if self.active_play_mode != "none" {

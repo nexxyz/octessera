@@ -1,3 +1,4 @@
+use super::grid_assign::GridAssign;
 use super::play_fx_config::{default_play_fx_selected, sanitize_play_fx_config};
 #[cfg(test)]
 use super::prepare_device_payload;
@@ -100,10 +101,11 @@ impl NativeRunner {
         self.play_transpose_offsets = source.play_transpose_offsets.clone();
         self.play_transpose_active_notes = source.play_transpose_active_notes.clone();
         self.pending_transpose_note_offs = source.pending_transpose_note_offs.clone();
-        self.sample_assign = source.sample_assign;
-        self.drum_assign = source.drum_assign;
+        self.grid_assign = source
+            .grid_assign
+            .clone()
+            .filter(|assign| !matches!(assign, GridAssign::PlayFx(_) | GridAssign::FaderTiles));
         self.drum_selected_voices = source.drum_selected_voices.clone();
-        self.trigger_probability_assign = source.trigger_probability_assign;
     }
 
     fn copy_transport_runtime_state_from(&mut self, source: &NativeRunner) {
@@ -360,7 +362,9 @@ impl NativeRunner {
                     .collect()
             })
             .unwrap_or_default();
-        self.play_fx_assign = None;
+        if matches!(self.grid_assign, Some(GridAssign::PlayFx(_))) {
+            self.grid_assign = None;
+        }
         self.active_layer_index = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
         self.transport.algorithm_step_pulses = self
             .transport

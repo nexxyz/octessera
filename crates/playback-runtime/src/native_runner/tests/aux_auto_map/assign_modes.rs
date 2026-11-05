@@ -43,7 +43,13 @@ fn sampler_assign_drops_the_auto_map_from_caps_hints_and_turns_but_keeps_manual_
         &mut runner,
         json!({ "type": "encoder_press", "id": "aux1" }),
     );
-    assert_eq!(runner.sample_assign, Some((0, 0)));
+    assert_eq!(
+        runner.grid_assign,
+        Some(GridAssign::Sample {
+            slot: 0,
+            sample_slot: 0
+        })
+    );
     assert!(row_caps(&runner).is_empty());
     for (layer, index) in [("normal", 0), ("normal", 1), ("shift", 0), ("shift", 1)] {
         assert_eq!(
@@ -70,6 +76,6 @@ fn sampler_assign_drops_the_auto_map_from_caps_hints_and_turns_but_keeps_manual_
     assert_ne!(runner.menu.number_for_key("masterVolume"), volume);
 
     input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    assert_eq!(runner.sample_assign, None);
+    assert_eq!(runner.grid_assign, None);
     assert!(!row_caps(&runner).is_empty());
 }

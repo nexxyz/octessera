@@ -32,7 +32,6 @@ pub(in crate::native_runner) struct NativeFaders {
     pub(in crate::native_runner) tiles: Vec<NativeFaderTile>,
     /// Live only: the Tile Map rows, a waiting Map to Grid and the held action tile.
     pub(in crate::native_runner) draft: NativeFaderTileMapping,
-    pub(in crate::native_runner) assigning: bool,
     pub(in crate::native_runner) held_tile: Option<(usize, usize)>,
 }
 

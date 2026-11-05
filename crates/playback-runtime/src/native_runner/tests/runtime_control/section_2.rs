@@ -100,7 +100,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
 #[test]
 pub(crate) fn trigger_probability_grid_editor_cycles_tile_row_and_column() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.trigger_probability_assign = Some(0);
+    runner.grid_assign = Some(GridAssign::TriggerProbability(0));
     runner.trigger_probability_maps[0] = vec!["zero".into(); GRID_WIDTH * GRID_HEIGHT];
 
     runner

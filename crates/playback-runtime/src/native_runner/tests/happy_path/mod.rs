@@ -199,7 +199,7 @@ pub(crate) fn play_pages_fx_mapping_and_momentary_use_are_usable() {
 
     assert!(runner.menu.focus_item_key("play.fx.map"));
     let _ = press_main(&mut runner);
-    assert!(runner.play_fx_assign.is_some());
+    assert!(matches!(runner.grid_assign, Some(GridAssign::PlayFx(_))));
     assert_snapshot(grid_press(&mut runner, 2, 3));
     let start = grid_press(&mut runner, 2, 3);
     assert!(contains_momentary_start(&start));

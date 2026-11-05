@@ -1,5 +1,6 @@
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
+use super::grid_assign::GridAssign;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
 use super::play_fx_config::{play_fx_params, play_fx_target_key, play_fx_type};
 use super::{
@@ -98,7 +99,7 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_play_fx_assignment_grid_press(&mut self, x: usize, y: usize) {
-        let Some(config) = self.play_fx_assign.take() else {
+        let Some(GridAssign::PlayFx(config)) = self.grid_assign.take() else {
             return;
         };
         let same_existing = self.play_fx_assignments.iter().any(|assignment| {

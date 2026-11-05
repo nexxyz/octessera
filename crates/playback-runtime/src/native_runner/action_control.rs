@@ -3,6 +3,7 @@ use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
 mod factory_instrument_load;
 
+use super::grid_assign::GridAssign;
 use super::play_fx_config::play_fx_type;
 use super::{
     derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
@@ -25,7 +26,7 @@ impl NativeRunner {
         }
         if action == "play.fx.map" {
             let config = self.play_fx_selected.clone();
-            self.play_fx_assign = Some(config.clone());
+            self.grid_assign = Some(GridAssign::PlayFx(config.clone()));
             self.active_play_mode = "fx".into();
             self.display.toast = Some(NativeToast {
                 message: format!("Map FX: {}", play_fx_type(&config)),
@@ -35,7 +36,10 @@ impl NativeRunner {
         }
         if let Some(rest) = action.strip_prefix("sample.assign:") {
             let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
-            self.sample_assign = Some((instrument_slot, sample_slot));
+            self.grid_assign = Some(GridAssign::Sample {
+                slot: instrument_slot,
+                sample_slot,
+            });
             self.show_toast(format!("S{}: press tiles to assign", sample_slot + 1));
             return Ok(None);
         }
@@ -61,7 +65,9 @@ impl NativeRunner {
         }
         if let Some(rest) = action.strip_prefix("trigger.probability.assign:") {
             if let Ok(layer_index) = rest.parse::<usize>() {
-                self.trigger_probability_assign = Some(layer_index.min(GRID_HEIGHT - 1));
+                self.grid_assign = Some(GridAssign::TriggerProbability(
+                    layer_index.min(GRID_HEIGHT - 1),
+                ));
                 self.show_toast(format!("L{}: press tiles to assign", layer_index + 1));
             }
             return Ok(None);

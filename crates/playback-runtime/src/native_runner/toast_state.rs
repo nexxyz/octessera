@@ -13,10 +13,7 @@ impl NativeRunner {
         if self.display.toast.is_none()
             && self.display.help_popup.is_none()
             && self.display.confirm_dialog.is_none()
-            && self.sample_assign.is_none()
-            && self.trigger_probability_assign.is_none()
-            && self.play_fx_assign.is_none()
-            && !self.faders.assigning
+            && self.grid_assign.is_none()
             && self
                 .display
                 .modifier_hint_started_at

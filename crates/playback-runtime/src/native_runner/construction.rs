@@ -111,9 +111,8 @@ impl NativeRunner {
             play_mode: seed.play_mode,
             active_play_mode: "none".into(),
             drum_selected_voices: vec![0; INSTRUMENT_COUNT],
-            drum_assign: None,
             play_fx_selected: seed.play_fx_selected,
-            play_fx_assign: None,
+            grid_assign: None,
             play_fx_assignments: vec![],
             active_play_fx: Vec::new(),
             xy_touch: NativeXyTouch {
@@ -142,7 +141,6 @@ impl NativeRunner {
             play_transpose_offsets: vec![0; LAYER_COUNT],
             play_transpose_active_notes: vec![BTreeMap::new(); LAYER_COUNT],
             pending_transpose_note_offs: RoutedMusicalEvents::default(),
-            trigger_probability_assign: None,
             trigger_probability_maps: vec![
                 vec!["full".into(); GRID_WIDTH * GRID_HEIGHT];
                 LAYER_COUNT
@@ -165,7 +163,6 @@ impl NativeRunner {
             shift_aux_bindings: seed.shift_aux_bindings,
             active_layer_index: seed.active_layer_index,
             instruments: seed.instruments,
-            sample_assign: None,
             fx_buses: seed.fx_buses,
             global_fx_slots: seed.global_fx_slots,
             global_fx_params: seed.global_fx_params,

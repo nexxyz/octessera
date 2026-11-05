@@ -90,7 +90,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.preset_names = vec!["old".into()];
     runner.instruments[0].kind = "synth".into();
     runner.fx_buses[0].slot1_type = "delay".into();
-    runner.play_fx_assign = Some(json!({ "type": "delay" }));
+    runner.grid_assign = Some(GridAssign::PlayFx(json!({ "type": "delay" })));
     runner.aux_auto_map_enabled = false;
     runner.display.ui.ghost_tiles = false;
     runner.display.ui.master_volume = 77;
@@ -123,7 +123,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
         .iter()
         .all(|bus| bus.slot1_type == "none" && bus.slot2_type == "none"));
     assert!(runner.global_fx_slots.iter().all(|slot| slot == "none"));
-    assert_eq!(runner.trigger_probability_assign, None);
+    assert_eq!(runner.grid_assign, None);
     assert!(runner
         .trigger_probability_maps
         .iter()

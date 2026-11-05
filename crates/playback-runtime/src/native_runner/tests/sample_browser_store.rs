@@ -235,8 +235,11 @@ pub(crate) fn replacement_and_assignment_preserve_sample_path_contract() {
     );
     assert!(runner.instruments[0].sample_assignments.is_empty());
 
-    runner.sample_assign = Some((0, 0));
-    runner.handle_sample_assignment_grid_press(3, 4);
+    runner.grid_assign = Some(GridAssign::Sample {
+        slot: 0,
+        sample_slot: 0,
+    });
+    runner.handle_grid_assign_press(3, 4);
     assert_eq!(
         runner.instruments[0].sample_paths[0].as_deref(),
         Some(replacement)

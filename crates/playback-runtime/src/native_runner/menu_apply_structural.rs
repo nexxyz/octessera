@@ -1,3 +1,4 @@
+use super::grid_assign::GridAssign;
 use super::{derive_instrument_name, NativeRunner};
 use crate::protocol::RuntimeAudioCommand;
 
@@ -123,8 +124,11 @@ impl NativeRunner {
             return;
         }
         instrument.kind = kind;
-        if self.drum_assign.is_some_and(|(slot, _)| slot == index) {
-            self.drum_assign = None;
+        if matches!(
+            self.grid_assign,
+            Some(GridAssign::Drum { slot, .. } | GridAssign::MidiDrum { slot }) if slot == index
+        ) {
+            self.grid_assign = None;
         }
         if instrument.auto_name {
             instrument.name = derive_instrument_name(index, &instrument.kind);

@@ -115,17 +115,19 @@ fn a_press_outside_the_grid_stamps_nothing_shows_no_toast_and_leaves_the_config_
     for (shift, combined) in [(false, false), (true, false), (false, true)] {
         runner.display.ui.shift_held = shift;
         runner.display.ui.combined_modifier_held = combined;
-        runner.handle_drum_assignment_grid_press(GRID_WIDTH, GRID_HEIGHT);
+        runner.handle_grid_assign_press(GRID_WIDTH, GRID_HEIGHT);
     }
     assert_eq!(runner.instruments[0].drum_config["assignments"], before);
     assert!(runner.display.toast.is_none());
     assert!(!runner.config_dirty);
 
     runner.instruments[1].kind = "sampler".into();
-    runner.sample_assign = Some((1, 0));
-    runner.drum_assign = None;
+    runner.grid_assign = Some(GridAssign::Sample {
+        slot: 1,
+        sample_slot: 0,
+    });
     runner.display.ui.shift_held = true;
-    runner.handle_sample_assignment_grid_press(0, GRID_HEIGHT);
+    runner.handle_grid_assign_press(0, GRID_HEIGHT);
     assert!(runner.instruments[1].sample_assignments.is_empty());
     assert!(runner.display.toast.is_none());
     assert!(!runner.config_dirty);
@@ -240,7 +242,7 @@ fn drum_assignment_leds_use_world_to_display_index_and_override_play_fn_navigati
     press(&mut runner, 2, 0);
     assign_voice(&mut runner, 2);
     press(&mut runner, 2, 7);
-    runner.drum_assign = None;
+    runner.grid_assign = None;
     runner.active_play_mode = "xy".into();
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(

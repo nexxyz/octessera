@@ -189,17 +189,10 @@ impl NativeRunner {
         if self.cancel_midi_cc_learn() {
             return self.messages_with_snapshot();
         }
-        if self.play_fx_assign.is_some() {
-            self.play_fx_assign = None;
-        } else if self.faders.assigning {
-            self.faders.assigning = false;
-        } else if self.sample_assign.is_some() {
-            self.sample_assign = None;
-        } else if self.drum_assign.is_some() {
-            self.drum_assign = None;
-        } else if self.trigger_probability_assign.is_some() {
-            self.trigger_probability_assign = None;
-        } else if self.display.help_popup.is_some() {
+        if self.grid_assign.take().is_some() {
+            return self.messages_with_snapshot();
+        }
+        if self.display.help_popup.is_some() {
             self.display.help_popup = None;
         } else if self.display.ui.shift_held {
             let editing_key = self
