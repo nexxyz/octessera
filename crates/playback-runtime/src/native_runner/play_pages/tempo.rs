@@ -111,8 +111,7 @@ impl NativeRunner {
     fn set_tempo_from_grid(&mut self, bpm: i32, label: &str) {
         let bpm = bpm.clamp(40, 240);
         self.menu.set_number_value_for_key("transport.bpm", bpm);
-        if let Err(error) = self.apply_or_schedule_menu_key("transport.bpm") {
-            self.show_toast(error);
+        if !self.dispatch_play_menu_key("transport.bpm") {
             return;
         }
         self.show_toast(format!("{label} {bpm}"));
@@ -120,8 +119,7 @@ impl NativeRunner {
 
     fn set_swing_from_grid(&mut self, key: &str, value: u8) {
         self.menu.set_number_value_for_key(key, i32::from(value));
-        if let Err(error) = self.apply_or_schedule_menu_key(key) {
-            self.show_toast(error);
+        if !self.dispatch_play_menu_key(key) {
             return;
         }
         self.show_toast(format!(

@@ -20,15 +20,20 @@ impl NativeRunner {
             let enabled = !lfo.enabled;
             let key = format!("{prefix}.enabled");
             self.menu.set_bool_value_for_key(&key, enabled);
-            self.apply_lfo_key(
-                &key,
-                format!("L{} {}", index + 1, if enabled { "on" } else { "off" }),
-            );
+            if self.dispatch_play_menu_key(&key) {
+                self.show_toast(format!(
+                    "L{} {}",
+                    index + 1,
+                    if enabled { "on" } else { "off" }
+                ));
+            }
         } else if self.display.ui.shift_held {
             let depth = DEPTHS[column - 1];
             let key = format!("{prefix}.depthPct");
             self.menu.set_number_value_for_key(&key, i32::from(depth));
-            self.apply_lfo_key(&key, format!("L{} depth {depth}%", index + 1));
+            if self.dispatch_play_menu_key(&key) {
+                self.show_toast(format!("L{} depth {depth}%", index + 1));
+            }
         } else {
             let base = PERIODS[column - 1];
             let period = if lfo.period == base {
@@ -38,7 +43,9 @@ impl NativeRunner {
             };
             let key = format!("{prefix}.period");
             self.menu.set_enum_value_for_key(&key, &period);
-            self.apply_lfo_key(&key, format!("L{} period {period}", index + 1));
+            if self.dispatch_play_menu_key(&key) {
+                self.show_toast(format!("L{} period {period}", index + 1));
+            }
         }
     }
 
@@ -70,13 +77,6 @@ impl NativeRunner {
                 };
                 self.set_display_led(leds, x, y, color);
             }
-        }
-    }
-
-    fn apply_lfo_key(&mut self, key: &str, toast: String) {
-        match self.apply_or_schedule_menu_key(key) {
-            Ok(()) => self.show_toast(toast),
-            Err(error) => self.show_toast(error),
         }
     }
 }

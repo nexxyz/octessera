@@ -153,9 +153,7 @@ impl NativeRunner {
         let volume = ((y as f32 / (GRID_HEIGHT - 1) as f32) * 100.0).round() as u8;
         match x {
             0..=3 if y == 0 => self.toggle_bus_mute(x),
-            0..=3 => {
-                self.set_fx_bus_volume(x, volume);
-            }
+            0..=3 => self.set_play_menu_number(&format!("mixer.buses.{x}.volume"), volume.into()),
             MIX_MASTER_COLUMN if y > 0 => self.set_play_menu_number("masterVolume", volume.into()),
             _ => {}
         }
@@ -186,11 +184,20 @@ impl NativeRunner {
         self.set_play_menu_number(&format!("mixer.buses.{bus_index}.panPos"), pan_pos);
     }
 
-    /// A Play page press edits its menu row like a turn would, so the row and modulation follow.
     fn set_play_menu_number(&mut self, key: &str, value: i32) {
         self.menu.set_number_value_for_key(key, value);
-        if let Err(error) = self.apply_or_schedule_menu_key(key) {
-            self.show_toast(error);
+        self.dispatch_play_menu_key(key);
+    }
+
+    /// A Play page press dispatches the menu row it wrote like a turn would, so the row and
+    /// modulation follow; an error shows as a toast. Returns whether the edit applied.
+    pub(super) fn dispatch_play_menu_key(&mut self, key: &str) -> bool {
+        match self.apply_or_schedule_menu_key(key) {
+            Ok(()) => true,
+            Err(error) => {
+                self.show_toast(error);
+                false
+            }
         }
     }
 

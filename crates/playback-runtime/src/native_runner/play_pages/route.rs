@@ -229,8 +229,7 @@ impl NativeRunner {
         let source = format!("I{}", instrument + 1);
         for (key, _) in &ducks {
             self.menu.set_enum_value_for_key(key, &source);
-            if let Err(error) = self.apply_or_schedule_menu_key(key) {
-                self.show_toast(error);
+            if !self.dispatch_play_menu_key(key) {
                 return;
             }
         }

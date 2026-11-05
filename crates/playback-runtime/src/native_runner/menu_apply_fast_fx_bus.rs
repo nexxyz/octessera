@@ -68,7 +68,7 @@ impl NativeRunner {
         self.set_fx_bus_volume(bus_index, value.clamp(0, 100) as u8)
     }
 
-    pub(super) fn set_fx_bus_volume(&mut self, bus_index: usize, volume_pct: u8) -> bool {
+    fn set_fx_bus_volume(&mut self, bus_index: usize, volume_pct: u8) -> bool {
         let key = format!("mixer.buses.{bus_index}.volume");
         let Some(bus) = self.fx_buses.get_mut(bus_index) else {
             return false;

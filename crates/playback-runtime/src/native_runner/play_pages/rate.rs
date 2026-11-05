@@ -35,8 +35,7 @@ impl NativeRunner {
             return;
         }
         self.menu.set_enum_value_for_key(&key, rate);
-        if let Err(error) = self.apply_or_schedule_menu_key(&key) {
-            self.show_toast(error);
+        if !self.dispatch_play_menu_key(&key) {
             return;
         }
         self.show_toast(format!("L{} {label} {rate}", layer + 1));
