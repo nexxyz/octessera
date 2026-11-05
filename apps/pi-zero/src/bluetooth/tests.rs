@@ -95,6 +95,17 @@ fn disabled_bluetooth_publishes_nothing_and_never_calls_bluez() {
 }
 
 #[test]
+fn a_refused_scan_still_answers_so_searching_ends() {
+    let (mut worker, fake) = worker_with(vec![keyboard("BB", Some("Keys"), false)]);
+    worker.handle(WorkerEvent::Scan(true), Instant::now());
+    let status = worker.refresh().expect("a refused scan publishes a status");
+    assert!(!status.scanning);
+    assert_eq!(status.message.as_deref(), Some("Search failed"));
+    assert!(!fake.calls().contains(&"discovering true".to_string()));
+    assert!(worker.refresh().is_none());
+}
+
+#[test]
 fn powered_bluetooth_lists_paired_devices_and_only_publishes_changes() {
     let (mut worker, fake) = worker_with(vec![
         keyboard("AA", Some("Keys"), true),

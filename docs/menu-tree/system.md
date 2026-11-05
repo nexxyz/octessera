@@ -375,7 +375,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
   leaves it. It opens while still empty and lists found unpaired keyboards and speakers. Below
   them a dim, inert `Searching...` row shows while the status says scanning, from the moment the
   page opens. When the host's one-minute scan limit ends with the page still open, the row becomes
-  a `Search again` action that emits `BluetoothScan { active: true }` again. Pressing a device
+  a `Search again` action that emits `BluetoothScan { active: true }` again. A search the host
+  cannot start (radio off or BlueZ refusing) answers with a non-scanning status and the toast
+  `Search failed`, so the row turns into `Search again` right away. Pressing a device
   row pairs, trusts, then connects. A passkey shows as a modal; Back or a Main click cancels pairing.
 - `Forget` removes a pairing. Results and failures arrive as `BluetoothStatus` toasts.
 - While Bluetooth is on, keyboard capture also accepts Bluetooth keyboards under the same HDMI gate,

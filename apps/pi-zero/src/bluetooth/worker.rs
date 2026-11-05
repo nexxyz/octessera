@@ -89,6 +89,7 @@ impl<B: Bluez> Worker<B> {
                 Ok(()) => self.scan_until = Some(now + SCAN_LIMIT),
                 Err(_) => self.message = Some("Search failed".into()),
             },
+            WorkerEvent::Scan(true) => self.message = Some("Search failed".into()),
             WorkerEvent::Scan(_) => self.stop_scan(),
             WorkerEvent::Device { address, action } if self.enabled => {
                 self.device_action(&address, action);

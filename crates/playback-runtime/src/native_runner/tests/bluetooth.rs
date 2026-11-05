@@ -407,3 +407,32 @@ fn pair_new_shows_searching_until_the_scan_ends_then_offers_search_again() {
         vec![RuntimePlatformEffect::BluetoothScan { active: false }]
     );
 }
+
+#[test]
+fn a_refused_search_ends_searching_and_offers_search_again() {
+    let mut runner = board_runner();
+    turn_bluetooth_on(&mut runner);
+    assert!(runner.menu.focus_item_key("bluetooth.pair"));
+    let _ = press(&mut runner);
+    assert_eq!(pair_page_rows(&runner)[0].0, "Searching...");
+
+    send_status(
+        &mut runner,
+        RuntimeBluetoothStatus {
+            message: Some("Search failed".into()),
+            ..RuntimeBluetoothStatus::default()
+        },
+    );
+
+    let rows = pair_page_rows(&runner);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert!(rows[0].0.contains("Search again"), "{rows:?}");
+    assert_eq!(
+        runner
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| toast.message.as_str()),
+        Some("Search failed")
+    );
+}
