@@ -58,30 +58,23 @@ const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
     all(feature = "orange-pi-zero-2w", target_os = "linux"),
     test
 ))]
-fn rotate_clockwise_rgb565<'a>(pixels: &'a [u8], rotated: &'a mut [u8]) -> &'a [u8] {
-    if pixels.len() != FRAME_BYTES || rotated.len() != FRAME_BYTES {
-        return pixels;
-    }
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            let source = (y * WIDTH + x) * BYTES_PER_PIXEL;
-            let destination = (x * WIDTH + (WIDTH - 1 - y)) * BYTES_PER_PIXEL;
-            rotated[destination] = pixels[source];
-            rotated[destination + 1] = pixels[source + 1];
-        }
-    }
-    rotated
-}
-
 /// The panel turns the frame clockwise, so logical rows `rows` are one window of physical
-/// columns over every physical row. Fills `window` with its RAM bytes and returns the columns.
-#[cfg(any(
-    feature = "raspberry-pi-zero-2w",
-    all(feature = "orange-pi-zero-2w", target_os = "linux"),
-    test
-))]
-fn rotated_row_window(pixels: &[u8], rows: Range<usize>, window: &mut Vec<u8>) -> [u8; 2] {
-    debug_assert_eq!(pixels.len(), FRAME_BYTES);
+/// columns over every physical row; `0..HEIGHT` is the whole frame. Fills `window` with its RAM
+/// bytes and returns the columns.
+fn rotated_row_window(
+    pixels: &[u8],
+    rows: Range<usize>,
+    window: &mut Vec<u8>,
+) -> Result<[u8; 2], String> {
+    if pixels.len() != FRAME_BYTES {
+        return Err(format!(
+            "OLED frame is {} bytes, expected {FRAME_BYTES}",
+            pixels.len()
+        ));
+    }
+    if rows.is_empty() || rows.end > HEIGHT {
+        return Err(format!("OLED rows {rows:?} are outside 0..{HEIGHT}"));
+    }
     let columns = WIDTH - rows.end..WIDTH - rows.start;
     window.clear();
     for x in 0..WIDTH {
@@ -90,7 +83,7 @@ fn rotated_row_window(pixels: &[u8], rows: Range<usize>, window: &mut Vec<u8>) -
             window.extend_from_slice(&pixels[source..source + BYTES_PER_PIXEL]);
         }
     }
-    [columns.start as u8, (columns.end - 1) as u8]
+    Ok([columns.start as u8, (columns.end - 1) as u8])
 }
 
 #[cfg(test)]

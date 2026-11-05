@@ -1,4 +1,4 @@
-use super::{rotate_clockwise_rgb565, rotated_row_window, FRAME_BYTES};
+use super::{rotated_row_window, FRAME_BYTES, HEIGHT};
 use rppal::gpio::{Gpio, OutputPin};
 use spidev::Spidev;
 use std::io::Write;
@@ -33,7 +33,6 @@ pub struct OledSsd1351 {
     spi: Spidev,
     dc: OutputPin,
     _rst: OutputPin,
-    rotated_frame: Vec<u8>,
     window: Vec<u8>,
 }
 
@@ -123,7 +122,6 @@ impl OledSsd1351 {
             spi,
             dc,
             _rst: rst,
-            rotated_frame: vec![0_u8; FRAME_BYTES],
             window: Vec::with_capacity(FRAME_BYTES),
         })
     }
@@ -151,30 +149,12 @@ impl OledSsd1351 {
 
     /// Write pre-rendered RGB565 frame (128x128x2 bytes)
     pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
-        // Set column address: 0-127
-        Self::write_command(
-            &mut self.spi,
-            &mut self.dc,
-            CMD_SET_COLUMN_ADDR,
-            &[0x00, 0x7F],
-        )?;
-
-        // Set row address: 0-127
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
-
-        // Write to RAM
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_WRITE_RAM, &[])?;
-        self.dc.set_high();
-        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
-        write_all_chunked(&mut self.spi, frame)
-            .map_err(|e| format!("SPI frame write failed: {}", e))?;
-
-        Ok(())
+        self.write_rows(pixels, 0..HEIGHT)
     }
 
     /// Writes only logical rows `rows` of a pre-rendered frame, as one RAM window.
     pub fn write_rows(&mut self, pixels: &[u8], rows: Range<usize>) -> Result<(), String> {
-        let columns = rotated_row_window(pixels, rows, &mut self.window);
+        let columns = rotated_row_window(pixels, rows, &mut self.window)?;
         Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_COLUMN_ADDR, &columns)?;
         Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
         Self::write_command(&mut self.spi, &mut self.dc, CMD_WRITE_RAM, &[])?;

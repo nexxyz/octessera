@@ -1,9 +1,8 @@
-use super::{rotate_clockwise_rgb565, rotated_row_window, FRAME_BYTES};
+use super::{rotated_row_window, FRAME_BYTES, HEIGHT};
 use std::ops::Range;
 
 pub struct OledSsd1351 {
     transport: Option<crate::orange_hardware::OrangeOledTransport>,
-    rotated_frame: Vec<u8>,
     window: Vec<u8>,
 }
 
@@ -25,22 +24,17 @@ impl OledSsd1351 {
         };
         Ok(Self {
             transport: Some(hardware.into_oled()),
-            rotated_frame: vec![0_u8; FRAME_BYTES],
             window: Vec::with_capacity(FRAME_BYTES),
         })
     }
 
     pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
-        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
-        self.transport
-            .as_mut()
-            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .write_frame(frame)
+        self.write_rows(pixels, 0..HEIGHT)
     }
 
     /// Writes only logical rows `rows` of a pre-rendered frame, as one RAM window.
     pub fn write_rows(&mut self, pixels: &[u8], rows: Range<usize>) -> Result<(), String> {
-        let columns = rotated_row_window(pixels, rows, &mut self.window);
+        let columns = rotated_row_window(pixels, rows, &mut self.window)?;
         self.transport
             .as_mut()
             .ok_or_else(|| "Orange OLED hardware is detached".to_string())?

@@ -1,4 +1,4 @@
-use super::{rotate_clockwise_rgb565, rotated_row_window, FRAME_BYTES, HEIGHT, WIDTH};
+use super::{rotated_row_window, FRAME_BYTES, HEIGHT, WIDTH};
 
 fn set_pixel(frame: &mut [u8], x: usize, y: usize, bytes: [u8; 2]) {
     let offset = (y * WIDTH + x) * 2;
@@ -10,74 +10,40 @@ fn pixel(frame: &[u8], x: usize, y: usize) -> [u8; 2] {
     [frame[offset], frame[offset + 1]]
 }
 
+fn rotated_frame(pixels: &[u8]) -> Vec<u8> {
+    let mut window = Vec::new();
+    assert_eq!(
+        rotated_row_window(pixels, 0..HEIGHT, &mut window),
+        Ok([0, 127])
+    );
+    window
+}
+
 #[test]
-fn clockwise_rotation_preserves_asymmetric_rgb565_corner_pairs() {
+fn the_full_frame_window_turns_asymmetric_rgb565_corner_pairs_clockwise() {
     let mut source = vec![0_u8; FRAME_BYTES];
     set_pixel(&mut source, 0, 0, [0x12, 0x34]);
     set_pixel(&mut source, WIDTH - 1, 0, [0x56, 0x78]);
     set_pixel(&mut source, 0, HEIGHT - 1, [0x9A, 0xBC]);
     set_pixel(&mut source, WIDTH - 1, HEIGHT - 1, [0xDE, 0xF0]);
     set_pixel(&mut source, 3, 11, [0x45, 0x67]);
-    let mut rotated = vec![0_u8; FRAME_BYTES];
 
-    rotate_clockwise_rgb565(&source, &mut rotated);
+    let rotated = rotated_frame(&source);
 
     assert_eq!(pixel(&rotated, WIDTH - 1, 0), [0x12, 0x34]);
     assert_eq!(pixel(&rotated, WIDTH - 1, HEIGHT - 1), [0x56, 0x78]);
     assert_eq!(pixel(&rotated, 0, 0), [0x9A, 0xBC]);
     assert_eq!(pixel(&rotated, 0, HEIGHT - 1), [0xDE, 0xF0]);
-    assert_eq!(pixel(&rotated, HEIGHT - 1 - 11, 3), [0x45, 0x67]);
+    assert_eq!(pixel(&rotated, WIDTH - 1 - 11, 3), [0x45, 0x67]);
 }
 
 #[test]
-fn raspberry_native_frame_uses_clockwise_mapping() {
-    let mut source = vec![0_u8; FRAME_BYTES];
-    set_pixel(&mut source, 0, 0, [0x12, 0x34]);
-    set_pixel(&mut source, WIDTH - 1, 0, [0x56, 0x78]);
-    set_pixel(&mut source, 0, HEIGHT - 1, [0x9A, 0xBC]);
-    set_pixel(&mut source, WIDTH - 1, HEIGHT - 1, [0xDE, 0xF0]);
-    set_pixel(&mut source, 3, 11, [0x45, 0x67]);
-    let mut rotated = vec![0_u8; FRAME_BYTES];
-
-    let frame = rotate_clockwise_rgb565(&source, &mut rotated);
-
-    assert_eq!(pixel(frame, WIDTH - 1, 0), [0x12, 0x34]);
-    assert_eq!(pixel(frame, WIDTH - 1, HEIGHT - 1), [0x56, 0x78]);
-    assert_eq!(pixel(frame, 0, 0), [0x9A, 0xBC]);
-    assert_eq!(pixel(frame, 0, HEIGHT - 1), [0xDE, 0xF0]);
-    assert_eq!(pixel(frame, WIDTH - 1 - 11, 3), [0x45, 0x67]);
-}
-
-#[cfg(feature = "orange-pi-zero-2w")]
-#[test]
-fn orange_native_frame_uses_clockwise_mapping() {
-    let mut source = vec![0_u8; FRAME_BYTES];
-    set_pixel(&mut source, 0, 0, [0x12, 0x34]);
-    set_pixel(&mut source, WIDTH - 1, 0, [0x56, 0x78]);
-    set_pixel(&mut source, 0, HEIGHT - 1, [0x9A, 0xBC]);
-    set_pixel(&mut source, WIDTH - 1, HEIGHT - 1, [0xDE, 0xF0]);
-    set_pixel(&mut source, 3, 11, [0x45, 0x67]);
-    let mut transformed = vec![0_u8; FRAME_BYTES];
-
-    let frame = rotate_clockwise_rgb565(&source, &mut transformed);
-
-    assert_eq!(pixel(frame, WIDTH - 1, 0), [0x12, 0x34]);
-    assert_eq!(pixel(frame, WIDTH - 1, HEIGHT - 1), [0x56, 0x78]);
-    assert_eq!(pixel(frame, 0, 0), [0x9A, 0xBC]);
-    assert_eq!(pixel(frame, 0, HEIGHT - 1), [0xDE, 0xF0]);
-    assert_eq!(pixel(frame, WIDTH - 1 - 11, 3), [0x45, 0x67]);
-}
-
-#[cfg(feature = "orange-pi-zero-2w")]
-#[test]
-fn orange_transform_returns_invalid_frames_unchanged() {
-    let source = [0x12, 0x34];
-    let mut transformed = vec![0_u8; FRAME_BYTES];
-
-    assert_eq!(
-        rotate_clockwise_rgb565(&source, &mut transformed),
-        source.as_slice()
-    );
+fn a_frame_of_the_wrong_length_or_rows_off_the_panel_are_refused() {
+    let mut window = Vec::new();
+    assert!(rotated_row_window(&[0x12, 0x34], 0..HEIGHT, &mut window).is_err());
+    let frame = vec![0_u8; FRAME_BYTES];
+    assert!(rotated_row_window(&frame, 0..HEIGHT + 1, &mut window).is_err());
+    assert!(rotated_row_window(&frame, 5..5, &mut window).is_err());
 }
 
 #[test]
@@ -85,22 +51,16 @@ fn a_row_window_holds_the_rotated_frame_columns_of_those_rows() {
     let source: Vec<u8> = (0..FRAME_BYTES)
         .map(|index| (index * 7 % 251) as u8)
         .collect();
-    let mut rotated = vec![0_u8; FRAME_BYTES];
-    rotate_clockwise_rgb565(&source, &mut rotated);
+    let rotated = rotated_frame(&source);
     let mut window = Vec::new();
 
     let columns = rotated_row_window(&source, 69..96, &mut window);
 
-    assert_eq!(columns, [32, 58]);
+    assert_eq!(columns, Ok([32, 58]));
     let expected: Vec<u8> = (0..HEIGHT)
         .flat_map(|row| rotated[(row * WIDTH + 32) * 2..(row * WIDTH + 59) * 2].to_vec())
         .collect();
     assert_eq!(window, expected);
-    assert_eq!(
-        rotated_row_window(&source, 0..HEIGHT, &mut window),
-        [0, 127]
-    );
-    assert_eq!(window, rotated);
 }
 
 /// Both drivers send a window's RAM bytes after column (15h) and row (75h) address commands;
@@ -118,14 +78,8 @@ fn write_ram(ram: &mut [u8], columns: [u8; 2], rows: [u8; 2], data: &[u8]) {
 }
 
 fn full_frame_ram(pixels: &[u8]) -> Vec<u8> {
-    let mut rotated = vec![0_u8; FRAME_BYTES];
     let mut ram = vec![0_u8; FRAME_BYTES];
-    write_ram(
-        &mut ram,
-        [0x00, 0x7F],
-        [0x00, 0x7F],
-        rotate_clockwise_rgb565(pixels, &mut rotated),
-    );
+    write_ram(&mut ram, [0x00, 0x7F], [0x00, 0x7F], &rotated_frame(pixels));
     ram
 }
 
@@ -148,7 +102,7 @@ fn a_row_window_sends_the_full_frame_bytes_to_the_same_addresses() {
         let mut ram = full_frame_ram(&old);
         let mut window = Vec::new();
 
-        let columns = rotated_row_window(&new, rows.clone(), &mut window);
+        let columns = rotated_row_window(&new, rows.clone(), &mut window).unwrap();
         write_ram(&mut ram, columns, [0x00, 0x7F], &window);
 
         assert_eq!(

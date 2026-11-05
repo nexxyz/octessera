@@ -145,10 +145,6 @@ impl OrangeOledTransport {
         self.write_command_until(0xAF, &[], deadline)
     }
 
-    pub fn write_frame(&mut self, frame: &[u8]) -> Result<(), String> {
-        self.write_frame_until(frame, timing::operation_deadline())
-    }
-
     /// Writes the RAM bytes of physical columns `columns[0]..=columns[1]`, every row.
     pub fn write_columns(&mut self, columns: [u8; 2], data: &[u8]) -> Result<(), String> {
         self.write_window_until(columns, data, timing::operation_deadline())
