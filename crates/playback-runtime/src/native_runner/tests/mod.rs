@@ -92,6 +92,7 @@ mod full_screen_signal;
 mod happy_path;
 mod hardware_test;
 mod hdmi;
+mod idle_layer_ticks;
 mod in_place_menu_actions;
 mod in_place_menu_identity;
 mod in_place_menu_rows;

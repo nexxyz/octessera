@@ -6,6 +6,7 @@ use swing::Swing;
 
 pub(super) use super::link_routing::LinkRoutingInput;
 
+mod inactive_layer_steps;
 pub(super) mod swing;
 
 impl NativeRunner {
@@ -78,78 +79,7 @@ impl NativeRunner {
         let mut events = RoutedMusicalEvents::default();
         self.advance_active_layer(&mut events)?;
 
-        let mut transpose_offsets = None;
-        let mut effective_sound = None;
-        let effective_bpm = self.transport.bpm as f32;
-        let mut inactive_modulation_updates = Vec::new();
-        for index in 0..self.layer_engines.len() {
-            let step_pulses = self.step_pulses_for_layer(index);
-            if index == self.active_layer_index
-                || self.transport.layer_pulse_accumulators[index] < step_pulses
-            {
-                continue;
-            }
-            let profile = self.interpretation_profile_for_layer(index);
-            let mapping = self.mapping_config_for_layer(index);
-            let transpose_offset = transpose_offsets
-                .get_or_insert_with(|| self.play_transpose_offsets_for_routing())
-                .get(index)
-                .copied()
-                .unwrap_or(0);
-            let effective_sound =
-                &*effective_sound.get_or_insert_with(|| self.global_sound.clone());
-            while self.transport.layer_pulse_accumulators[index] >= step_pulses {
-                self.transport.layer_pulse_accumulators[index] -= step_pulses;
-                let offset =
-                    self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
-                let mut rng = self.probability_rng(index);
-                let tick = {
-                    let Some(engine) = self.layer_engines[index].as_mut() else {
-                        continue;
-                    };
-                    engine.set_global_sound(effective_sound.clone());
-                    engine.set_interpretation_profile(profile.clone());
-                    engine.set_mapping_config(mapping.clone());
-                    let sense = self.link_layers.get(index);
-                    let probability_map = self
-                        .trigger_probability_maps
-                        .get(index)
-                        .map_or(&[][..], Vec::as_slice);
-                    engine.tick_filtered(effective_bpm, |intent| {
-                        trigger_probability_allows(sense, probability_map, &mut rng, intent)
-                    })?
-                };
-                self.store_probability_rng(index, rng);
-                if let Some(layer_tick) = self.transport.layer_ticks.get_mut(index) {
-                    *layer_tick = layer_tick.saturating_add(1);
-                }
-                let due_events = self.take_due_link_events(index);
-                self.track_emitted_route_notes(index, &due_events);
-                push_tick_events(
-                    &mut events,
-                    &mut self.transport.swung_events,
-                    offset,
-                    due_events,
-                );
-                inactive_modulation_updates.push((index, tick.mapped_intents.clone()));
-                let tick_events = self.route_events_with_link_timing(
-                    index,
-                    LinkRoutingInput {
-                        events: tick.events,
-                        event_intents: &tick.event_intents,
-                        sense: self.link_layers.get(index).cloned(),
-                        transpose_offset,
-                    },
-                )?;
-                self.track_emitted_route_notes(index, &tick_events);
-                push_tick_events(
-                    &mut events,
-                    &mut self.transport.swung_events,
-                    offset,
-                    tick_events,
-                );
-            }
-        }
+        let inactive_modulation_updates = self.advance_inactive_layers(&mut events)?;
         for (index, mapped_intents) in inactive_modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
         }

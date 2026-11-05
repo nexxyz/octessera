@@ -284,6 +284,11 @@ impl NativeLayerEngine {
         self.tick = tick;
     }
 
+    /// Counts one step without ticking the behavior.
+    pub fn advance_interpretation_tick(&mut self) {
+        self.tick = self.tick.saturating_add(1);
+    }
+
     pub fn state(&self) -> &NativeBehaviorState {
         &self.state
     }
