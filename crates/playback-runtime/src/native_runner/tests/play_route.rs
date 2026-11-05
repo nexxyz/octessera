@@ -383,3 +383,26 @@ fn route_toggles_resend_only_the_chain_they_change() {
     let duck = press(&mut runner, 3, 7);
     assert_eq!(resent_slots(&duck), (vec![(1, 0), (2, 1)], vec![]));
 }
+
+#[test]
+fn duck_source_set_on_a_bypassed_bus_lands_when_the_bypass_ends() {
+    let mut runner = route_runner();
+    let _ = press(&mut runner, 1, 5);
+    assert_eq!(toast(&runner), "B2 FX bypassed");
+
+    let keyed = press(&mut runner, 2, 7);
+    assert_eq!(toast(&runner), "Duck source: I3 (2 ducks)");
+    assert_eq!(
+        engine_bus_slot(&keyed, 1, 0).map(|(fx_type, _)| fx_type),
+        Some("none".into()),
+        "the bypass gates the resent duck"
+    );
+    assert_eq!(engine_bus_slot(&keyed, 2, 1).unwrap().1["source"], "I3");
+    assert_eq!(duck_source(&runner, 1, 1), "I3");
+
+    let restored = press(&mut runner, 1, 5);
+    assert_eq!(toast(&runner), "B2 FX on");
+    let (fx_type, params) = engine_bus_slot(&restored, 1, 0).unwrap();
+    assert_eq!(fx_type, "duck");
+    assert_eq!(params["source"], "I3");
+}
