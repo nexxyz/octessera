@@ -1,5 +1,4 @@
 import type { DeviceInput } from '@octessera/device-contracts';
-import type { InputAction } from '../types';
 
 type KeyEventLike = Pick<
   KeyboardEvent,
@@ -7,9 +6,9 @@ type KeyEventLike = Pick<
 >;
 
 export type KeyboardMapper = {
-  keydown(event: KeyEventLike): InputAction[];
-  keyup(event: KeyEventLike): InputAction[];
-  releaseAll(): InputAction[];
+  keydown(event: KeyEventLike): DeviceInput[];
+  keyup(event: KeyEventLike): DeviceInput[];
+  releaseAll(): DeviceInput[];
 };
 
 const GRID_KEY_ROWS = [
@@ -41,24 +40,23 @@ const MAIN_TURNS = new Map<string, -1 | 1>([
   ['ArrowDown', 1],
 ]);
 
-type Edge = { press: InputAction; release: InputAction | null };
+type Edge = { press: DeviceInput; release: DeviceInput | null };
 
 const MAIN_PRESS: Edge = {
-  press: wrap({ type: 'encoder_press', id: 'main' }),
+  press: { type: 'encoder_press', id: 'main' },
   release: null,
 };
-const SPACE = button('button_s');
 
 const EDGE_KEYS = new Map<string, Edge>([
   ['Enter', MAIN_PRESS],
   ['NumpadEnter', MAIN_PRESS],
   ['Backspace', button('button_a')],
   ['Escape', button('button_a')],
-  ['Space', SPACE],
-  ['ShiftLeft', modifier('shift')],
-  ['ShiftRight', modifier('shift')],
-  ['ControlLeft', modifier('fn')],
-  ['ControlRight', modifier('fn')],
+  ['Space', button('button_s')],
+  ['ShiftLeft', button('button_shift')],
+  ['ShiftRight', button('button_shift')],
+  ['ControlLeft', button('button_fn')],
+  ['ControlRight', button('button_fn')],
 ]);
 
 export function gridKeyTile(
@@ -83,24 +81,24 @@ export function shouldPreventKeyboardDefault(event: KeyEventLike): boolean {
 }
 
 export function createKeyboardMapper(): KeyboardMapper {
-  const held = new Map<string, InputAction | null>();
+  const held = new Map<string, DeviceInput | null>();
   let altLeft = false;
   let controlLeftJustPressed = false;
 
-  const press = (code: string, edge: Edge): InputAction[] => {
+  const press = (code: string, edge: Edge): DeviceInput[] => {
     held.set(code, edge.release);
     controlLeftJustPressed = code === 'ControlLeft';
     return [edge.press];
   };
 
-  const release = (code: string): InputAction[] => {
+  const release = (code: string): DeviceInput[] => {
     if (!held.has(code)) return [];
     const action = held.get(code) ?? null;
     held.delete(code);
     return action ? [action] : [];
   };
 
-  const altGr = (event: KeyEventLike): InputAction[] | null => {
+  const altGr = (event: KeyEventLike): DeviceInput[] | null => {
     const afterControlLeft = controlLeftJustPressed;
     controlLeftJustPressed = false;
     if (event.code !== 'AltRight') return null;
@@ -109,7 +107,7 @@ export function createKeyboardMapper(): KeyboardMapper {
       : [];
   };
 
-  const keydown = (event: KeyEventLike): InputAction[] => {
+  const keydown = (event: KeyEventLike): DeviceInput[] => {
     const { code } = event;
     if (code === 'AltLeft') {
       altLeft = true;
@@ -118,11 +116,6 @@ export function createKeyboardMapper(): KeyboardMapper {
     const turn = turnAction(code);
     if (turn) return [turn];
     if (event.repeat || held.has(code)) return [];
-    if (code === 'Space' && event.shiftKey)
-      return press(code, {
-        press: { type: 'emergency_brake' },
-        release: SPACE.release,
-      });
     const edge =
       EDGE_KEYS.get(code) ?? auxClick(code) ?? gridEdge(code, altLeft);
     return edge ? press(code, edge) : [];
@@ -139,7 +132,7 @@ export function createKeyboardMapper(): KeyboardMapper {
     },
     releaseAll() {
       const releases = [...held.values()].filter(
-        (release): release is InputAction => release !== null,
+        (release): release is DeviceInput => release !== null,
       );
       held.clear();
       altLeft = false;
@@ -148,19 +141,18 @@ export function createKeyboardMapper(): KeyboardMapper {
   };
 }
 
-function turnAction(code: string): InputAction | null {
+function turnAction(code: string): DeviceInput | null {
   const mainDelta = MAIN_TURNS.get(code);
-  if (mainDelta)
-    return wrap({ type: 'encoder_turn', delta: mainDelta, id: 'main' });
+  if (mainDelta) return { type: 'encoder_turn', delta: mainDelta, id: 'main' };
   const aux = auxKey(code);
   if (!aux || aux.slot === 1) return null;
-  return wrap({ type: 'encoder_turn', delta: aux.slot - 1, id: aux.id });
+  return { type: 'encoder_turn', delta: aux.slot - 1, id: aux.id };
 }
 
 function auxClick(code: string): Edge | null {
   const aux = auxKey(code);
   if (aux?.slot !== 1) return null;
-  return { press: wrap({ type: 'encoder_press', id: aux.id }), release: null };
+  return { press: { type: 'encoder_press', id: aux.id }, release: null };
 }
 
 function auxKey(code: string): { id: `aux${number}`; slot: number } | null {
@@ -175,25 +167,16 @@ function gridEdge(code: string, altLeft: boolean): Edge | null {
   const tile = gridKeyTile(code, altLeft);
   if (!tile) return null;
   return {
-    press: wrap({ type: 'grid_press', ...tile }),
-    release: wrap({ type: 'grid_release', ...tile }),
+    press: { type: 'grid_press', ...tile },
+    release: { type: 'grid_release', ...tile },
   };
 }
 
-function button(type: 'button_a' | 'button_s'): Edge {
+function button(
+  type: 'button_a' | 'button_s' | 'button_shift' | 'button_fn',
+): Edge {
   return {
-    press: wrap({ type, pressed: true }),
-    release: wrap({ type, pressed: false }),
+    press: { type, pressed: true },
+    release: { type, pressed: false },
   };
-}
-
-function modifier(type: 'shift' | 'fn'): Edge {
-  return {
-    press: { type, active: true },
-    release: { type, active: false },
-  };
-}
-
-function wrap(input: DeviceInput): InputAction {
-  return { type: 'device_input', input };
 }

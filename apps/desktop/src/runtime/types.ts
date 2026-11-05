@@ -4,15 +4,6 @@ import type {
 } from '@octessera/device-contracts';
 import type { OledFrameCacheFault } from './oledFrameCache';
 
-export type InputAction =
-  | {
-      type: 'device_input';
-      input: import('@octessera/device-contracts').DeviceInput;
-    }
-  | { type: 'emergency_brake' }
-  | { type: 'shift'; active: boolean }
-  | { type: 'fn'; active: boolean };
-
 export type SimulatorSnapshot = {
   frame: RuntimeSnapshot;
   runtimeStatus: RuntimeStatus | null;

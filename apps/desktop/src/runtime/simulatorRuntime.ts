@@ -15,13 +15,12 @@ import {
   createIntervalRuntimeScheduler,
   type RuntimeScheduler,
 } from './runtimeScheduler';
-import type { InputAction, RuntimeListener, SimulatorSnapshot } from './types';
+import type { RuntimeListener, SimulatorSnapshot } from './types';
 
 export { shouldApplyRuntimeBatch } from './simulatorRuntimeConnection';
 
 type SimulatorRuntime = {
   dispatch(input: DeviceInput): void;
-  dispatchAction(action: InputAction): void;
   start(): void;
   stop(): void;
   subscribe(listener: RuntimeListener): () => void;
@@ -97,28 +96,8 @@ export function createSimulatorRuntime(
     }
   }
 
-  function dispatchInputAction(action: InputAction): void {
-    if (action.type === 'emergency_brake') {
-      dispatchDeviceInput({ type: 'button_s', pressed: true });
-      return;
-    }
-    if (action.type === 'shift') {
-      dispatchDeviceInput({
-        type: 'button_shift',
-        pressed: action.active,
-      });
-      return;
-    }
-    if (action.type === 'fn') {
-      dispatchDeviceInput({ type: 'button_fn', pressed: action.active });
-      return;
-    }
-    dispatchDeviceInput(action.input);
-  }
-
   return {
     dispatch: dispatchDeviceInput,
-    dispatchAction: dispatchInputAction,
     start() {
       lifecycle.start();
       connection.start();

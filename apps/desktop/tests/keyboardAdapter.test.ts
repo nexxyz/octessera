@@ -15,11 +15,13 @@ function keyEvent(
   return { code, key, repeat, shiftKey, getModifierState } as KeyboardEvent;
 }
 
-const device = (input: object) => ({ type: 'device_input', input });
-const turn = (id: string, delta: number) =>
-  device({ type: 'encoder_turn', delta, id });
-const click = (id: string) => device({ type: 'encoder_press', id });
-const tile = (type: string, x: number, y: number) => device({ type, x, y });
+const turn = (id: string, delta: number) => ({
+  type: 'encoder_turn',
+  delta,
+  id,
+});
+const click = (id: string) => ({ type: 'encoder_press', id });
+const tile = (type: string, x: number, y: number) => ({ type, x, y });
 
 test('maps every key position by KeyboardEvent.code', () => {
   const expected: [string, object][] = [
@@ -29,13 +31,13 @@ test('maps every key position by KeyboardEvent.code', () => {
     ['ArrowDown', turn('main', 1)],
     ['Enter', click('main')],
     ['NumpadEnter', click('main')],
-    ['Backspace', device({ type: 'button_a', pressed: true })],
-    ['Escape', device({ type: 'button_a', pressed: true })],
-    ['Space', device({ type: 'button_s', pressed: true })],
-    ['ShiftLeft', { type: 'shift', active: true }],
-    ['ShiftRight', { type: 'shift', active: true }],
-    ['ControlLeft', { type: 'fn', active: true }],
-    ['ControlRight', { type: 'fn', active: true }],
+    ['Backspace', { type: 'button_a', pressed: true }],
+    ['Escape', { type: 'button_a', pressed: true }],
+    ['Space', { type: 'button_s', pressed: true }],
+    ['ShiftLeft', { type: 'button_shift', pressed: true }],
+    ['ShiftRight', { type: 'button_shift', pressed: true }],
+    ['ControlLeft', { type: 'button_fn', pressed: true }],
+    ['ControlRight', { type: 'button_fn', pressed: true }],
     ['Digit1', turn('aux1', -1)],
     ['Digit2', click('aux1')],
     ['Digit3', turn('aux1', 1)],
@@ -99,12 +101,12 @@ test('layout characters do not matter, only the key position', () => {
 test('a keyboard grid press sends the same input as a simulator tile press', () => {
   const display = momentaryTileTransition(null, 0, 7).inputs;
   assert.deepEqual(createKeyboardMapper().keydown(keyEvent('KeyC')), [
-    device(display[0]),
+    display[0],
   ]);
   const topRight = momentaryTileTransition(null, 7, 0).inputs;
   const mapper = createKeyboardMapper();
   mapper.keydown(keyEvent('AltLeft'));
-  assert.deepEqual(mapper.keydown(keyEvent('Minus')), [device(topRight[0])]);
+  assert.deepEqual(mapper.keydown(keyEvent('Minus')), [topRight[0]]);
 });
 
 test('AltLeft selects the top half and AltRight is ignored', () => {
@@ -164,20 +166,20 @@ test('repeat is ignored for grid, clicks and buttons but accepted for turns', ()
 test('modifier combos and releases keep their meaning', () => {
   const mapper = createKeyboardMapper();
   assert.deepEqual(mapper.keydown(keyEvent('ShiftLeft', { shiftKey: true })), [
-    { type: 'shift', active: true },
+    { type: 'button_shift', pressed: true },
   ]);
   assert.deepEqual(mapper.keydown(keyEvent('Space', { shiftKey: true })), [
-    { type: 'emergency_brake' },
+    { type: 'button_s', pressed: true },
   ]);
   assert.deepEqual(mapper.keyup(keyEvent('Space')), [
-    device({ type: 'button_s', pressed: false }),
+    { type: 'button_s', pressed: false },
   ]);
   assert.deepEqual(mapper.keyup(keyEvent('ShiftLeft')), [
-    { type: 'shift', active: false },
+    { type: 'button_shift', pressed: false },
   ]);
   mapper.keydown(keyEvent('Escape'));
   assert.deepEqual(mapper.keyup(keyEvent('Escape')), [
-    device({ type: 'button_a', pressed: false }),
+    { type: 'button_a', pressed: false },
   ]);
   mapper.keydown(keyEvent('Enter'));
   assert.deepEqual(mapper.keyup(keyEvent('Enter')), []);
@@ -192,8 +194,8 @@ test('focus loss releases every held tile, button and modifier once', () => {
   mapper.keydown(keyEvent('Slash'));
   assert.deepEqual(mapper.releaseAll(), [
     tile('grid_release', 0, 0),
-    device({ type: 'button_a', pressed: false }),
-    { type: 'fn', active: false },
+    { type: 'button_a', pressed: false },
+    { type: 'button_fn', pressed: false },
     tile('grid_release', 7, 4),
   ]);
   assert.deepEqual(mapper.releaseAll(), []);
@@ -202,8 +204,8 @@ test('focus loss releases every held tile, button and modifier once', () => {
   ]);
 });
 
-const fnOn = { type: 'fn', active: true };
-const fnOff = { type: 'fn', active: false };
+const fnOn = { type: 'button_fn', pressed: true };
+const fnOff = { type: 'button_fn', pressed: false };
 
 test('AltGr takes back the fake left Control that Windows sends before it', () => {
   const mapper = createKeyboardMapper();

@@ -63,7 +63,10 @@ export function App() {
   }
 
   function setModifier(kind: 'shift' | 'fn', active: boolean) {
-    runtime.dispatchAction({ type: kind, active });
+    dispatch({
+      type: kind === 'shift' ? 'button_shift' : 'button_fn',
+      pressed: active,
+    });
   }
   const { handleMouseUp, handleTileMouseDown, handleTileDrag } =
     useGridInteraction(frame, dispatch);

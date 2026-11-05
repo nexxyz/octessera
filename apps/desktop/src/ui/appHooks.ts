@@ -3,7 +3,7 @@ import {
   createKeyboardMapper,
   shouldPreventKeyboardDefault,
 } from '../runtime/inputAdapters/keyboardAdapter';
-import type { InputAction } from '../runtime/types';
+import type { DeviceInput } from '@octessera/device-contracts';
 import type { createSimulatorRuntime } from '../runtime/simulatorRuntime';
 
 type AppRuntime = ReturnType<typeof createSimulatorRuntime>;
@@ -32,15 +32,10 @@ export function useKeyboardBindings(
 ): void {
   useEffect(() => {
     const mapper = createKeyboardMapper();
-    const dispatch = (actions: InputAction[]) => {
-      for (const action of actions) {
-        if (
-          action.type === 'device_input' &&
-          action.input.type === 'encoder_turn'
-        ) {
-          bumpDialPhase(action.input.id, action.input.delta);
-        }
-        runtime.dispatchAction(action);
+    const dispatch = (inputs: DeviceInput[]) => {
+      for (const input of inputs) {
+        if (input.type === 'encoder_turn') bumpDialPhase(input.id, input.delta);
+        runtime.dispatch(input);
       }
     };
 
@@ -56,8 +51,8 @@ export function useKeyboardBindings(
 
     const onBlur = () => {
       dispatch(mapper.releaseAll());
-      runtime.dispatchAction({ type: 'shift', active: false });
-      runtime.dispatchAction({ type: 'fn', active: false });
+      runtime.dispatch({ type: 'button_shift', pressed: false });
+      runtime.dispatch({ type: 'button_fn', pressed: false });
     };
 
     window.addEventListener('keydown', onKey);

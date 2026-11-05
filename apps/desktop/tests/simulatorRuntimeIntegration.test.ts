@@ -233,10 +233,7 @@ test('semantic encoder actions use the direct encoder batching route', async () 
   });
 
   runtime.dispatch({ type: 'encoder_turn', id: 'main', delta: 1 });
-  runtime.dispatchAction({
-    type: 'device_input',
-    input: { type: 'encoder_turn', id: 'main', delta: 1 },
-  });
+  runtime.dispatch({ type: 'encoder_turn', id: 'main', delta: 1 });
   await new Promise((resolve) => setTimeout(resolve, 12));
   await waitTurn();
 
