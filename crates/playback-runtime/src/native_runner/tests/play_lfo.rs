@@ -123,6 +123,30 @@ fn column_zero_follows_the_lfo_value() {
 }
 
 #[test]
+fn an_lfo_switched_off_for_three_bars_comes_back_in_phrase() {
+    let mut runner = lfo_runner();
+    runner.transport.transport = RuntimeTransportState::Playing;
+    pulse(&mut runner, 24);
+    let _ = press(&mut runner, 0, 0);
+    assert!(!runner.link_lfos[0].enabled);
+
+    pulse(&mut runner, 3 * 96 + 10);
+    let _ = runner.outbox.drain_audio_commands();
+    let _ = press(&mut runner, 0, 0);
+
+    assert!(runner.link_lfos[0].enabled);
+    assert_eq!(runner.link_lfos[0].phase_pulses, (24 + 3 * 96 + 10) % 96);
+    let mut free_running = lfo_runner();
+    free_running.transport.transport = RuntimeTransportState::Playing;
+    pulse(&mut free_running, 24 + 3 * 96 + 10);
+    assert_eq!(
+        runner.link_lfos[0].phase_pulses,
+        free_running.link_lfos[0].phase_pulses
+    );
+    assert_eq!(tile(&runner, 0, 0), tile(&free_running, 0, 0));
+}
+
+#[test]
 fn period_tiles_set_the_period_and_a_second_press_toggles_triplet() {
     let mut runner = lfo_runner();
     assert_eq!(tile(&runner, 4, 0), led_rgb(platform_core::palette::GREEN));

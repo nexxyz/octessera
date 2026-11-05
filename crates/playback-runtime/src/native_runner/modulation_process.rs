@@ -407,12 +407,9 @@ impl NativeRunner {
     pub(super) fn advance_global_lfo_audio(&mut self, pulses: u32) -> Result<(), String> {
         let mut phase_changed = false;
         for lfo in &mut self.link_lfos {
-            if !lfo.enabled || lfo.target.is_none() {
-                continue;
-            }
             let period = crate::timing_units::lfo_period_pulses(&lfo.period).max(1);
             let phase = (lfo.phase_pulses + pulses) % period;
-            phase_changed |= phase != lfo.phase_pulses;
+            phase_changed |= lfo.enabled && lfo.target.is_some() && phase != lfo.phase_pulses;
             lfo.phase_pulses = phase;
         }
         if !phase_changed {

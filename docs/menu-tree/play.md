@@ -188,7 +188,8 @@ The menu lists the technical bank, then the musical bank.
 - Rows are the global LFOs `Link > LFOs > L1..L8`, L1 on the bottom row. Every press goes through
   the menu edit of that LFO, so it is saved with the patch.
 - Column 0 switches `Enabled` (`L3 on` / `L3 off`). An LFO without a target cannot be switched on:
-  its tile is dark and a press toasts `L3: no target`.
+  its tile is dark and a press toasts `L3: no target`. The phase keeps running while off, so an
+  LFO switched back on comes in at the same point as one that stayed on.
 - Columns `1..7` set `Period` to `1/8`, `1/4`, `1/2`, `1/1`, `2/1`, `4/1`, `8/1`. Pressing the lit
   period again toggles its triplet (`1/4` and `1/4T`). Toast `L3 period 1/4T`. The phase is scaled
   to the new period, so the wave keeps its position.

@@ -973,7 +973,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   payload; no immediate full payload or behavior-state serialization is emitted.
 - Config/patch transactions reset candidate modulation state, install all persistent owners, and
   resample active XY afterwards so its captured base is the loaded value.
-- Enabled targeted LFO phases advance and wrap even at depth zero. Other PPQN paths and wall-clock
+- Every LFO phase advances and wraps while playing, also when the LFO is off, untargeted, or at
+  depth zero; only enabled targeted LFOs trigger modulation work. Other PPQN paths and wall-clock
   timing never advance LFOs or process unrelated held sources.
 - Modulation sources, in their stable order: layer X/Y slots, Play X/Y, the eight Link LFOs, the
   eight MIDI CC In slots, then the 16 Play Faders sliders (F1..F8, then S+F1..S+F8). A CC slot

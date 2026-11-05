@@ -168,6 +168,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - Periods run from `1/32T` to `8/1` (eight bars, 768 pulses); `2/1T`, `4/1T` and `8/1T` are 128,
   256 and 512 pulses. Changing an LFO's period scales its phase to the new length, so the wave keeps
   its position in the cycle instead of jumping.
+- An LFO's phase keeps running while it is off, so switching it back on (from the menu or the LFO
+  play page) picks the wave up where a never-switched-off LFO would be, in phrase with the music.
+  While off it contributes nothing.
 - Phase and live contributions are transient and never serialized. Playback-runtime sums live LFO
   deltas once per affected endpoint, clamps the result to the target's canonical range, and emits
   transient audio commands without changing the persistent config.

@@ -52,10 +52,8 @@ impl NativeRunner {
         candidate.validate_audio_outputs()?;
         candidate.validate_usb_data_role()?;
         for (candidate_lfo, source_lfo) in candidate.link_lfos.iter_mut().zip(&self.link_lfos) {
-            let preserve_phase = candidate_lfo.enabled
-                && source_lfo.enabled
-                && candidate_lfo.target.as_ref().map(|target| &target.key)
-                    == source_lfo.target.as_ref().map(|target| &target.key);
+            let preserve_phase = candidate_lfo.target.as_ref().map(|target| &target.key)
+                == source_lfo.target.as_ref().map(|target| &target.key);
             candidate_lfo.phase_pulses = if preserve_phase {
                 source_lfo.phase_pulses
                     % crate::timing_units::lfo_period_pulses(&candidate_lfo.period).max(1)
