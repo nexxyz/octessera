@@ -354,6 +354,11 @@ impl NativeRunner {
         self.modulation_process.overlay_for_key(key)
     }
 
+    /// The edit itself applied; only its modulation could not be recomposed.
+    pub(super) fn show_modulation_unavailable(&mut self, error: &str) {
+        self.show_toast(format!("Modulation unavailable: {error}"));
+    }
+
     pub(super) fn process_modulation_step(&mut self, force: bool) -> Result<(), String> {
         #[cfg(test)]
         {

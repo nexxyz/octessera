@@ -151,7 +151,7 @@ impl NativeRunner {
         }
         self.commit_loaded_revision(source_revision);
         if let Err(error) = self.process_modulation_step(false) {
-            self.show_toast(format!("LFO composition unavailable: {error}"));
+            self.show_modulation_unavailable(&error);
         }
         self.restore_after_live_play(&ended_live);
         Ok(())

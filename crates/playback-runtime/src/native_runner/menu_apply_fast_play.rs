@@ -23,7 +23,7 @@ impl NativeRunner {
         if value_changed(&mut self.xy_smoothing_ms, value) {
             if self.set_xy_smoothing_ms_at(u64::from(value), std::time::Instant::now()) {
                 if let Err(error) = self.process_dirty_modulation_step(false) {
-                    self.show_toast(format!("modulation composition unavailable: {error}"));
+                    self.show_modulation_unavailable(&error);
                 }
             }
             self.mark_fast_autosave_dirty();
@@ -48,7 +48,7 @@ impl NativeRunner {
         if changed {
             self.resample_xy_runtime_sources();
             if let Err(error) = self.process_dirty_modulation_step(false) {
-                self.show_toast(format!("modulation composition unavailable: {error}"));
+                self.show_modulation_unavailable(&error);
             }
             self.mark_fast_autosave_dirty();
         }

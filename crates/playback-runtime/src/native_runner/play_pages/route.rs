@@ -181,7 +181,7 @@ impl NativeRunner {
         }
         self.invalidate_lfo_audio_cache();
         if let Err(error) = self.process_modulation_step(true) {
-            self.show_toast(format!("LFO composition unavailable: {error}"));
+            self.show_modulation_unavailable(&error);
         }
     }
 

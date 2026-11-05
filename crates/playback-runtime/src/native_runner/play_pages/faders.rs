@@ -155,7 +155,7 @@ impl NativeRunner {
         }
         if self.apply_fader_source(column, shifted) {
             if let Err(error) = self.process_dirty_modulation_step(true) {
-                self.show_toast(format!("modulation composition unavailable: {error}"));
+                self.show_modulation_unavailable(&error);
                 return;
             }
         }

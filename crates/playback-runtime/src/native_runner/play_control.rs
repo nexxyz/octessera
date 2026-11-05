@@ -214,7 +214,7 @@ impl NativeRunner {
         self.xy_touch.active = true;
         if self.retarget_xy_runtime_sources_at(now, false) {
             if let Err(error) = self.process_dirty_modulation_step(true) {
-                self.show_toast(format!("modulation composition unavailable: {error}"));
+                self.show_modulation_unavailable(&error);
             }
         }
     }
@@ -230,7 +230,7 @@ impl NativeRunner {
             self.xy_touch.active = false;
             if self.retarget_xy_runtime_sources_at(now, true) {
                 if let Err(error) = self.process_dirty_modulation_step(true) {
-                    self.show_toast(format!("modulation composition unavailable: {error}"));
+                    self.show_modulation_unavailable(&error);
                 }
             }
         } else {

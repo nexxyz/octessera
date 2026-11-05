@@ -58,7 +58,7 @@ impl NativeRunner {
         self.show_param_binding_target(target);
         let _ = self.menu.focus_item_key(target);
         if let Err(error) = self.process_dirty_modulation_step(false) {
-            self.show_toast(format!("LFO composition unavailable: {error}"));
+            self.show_modulation_unavailable(&error);
         }
     }
 
@@ -161,7 +161,7 @@ impl NativeRunner {
             self.mark_config_dirty();
             self.mark_fast_autosave_dirty();
             if let Err(error) = self.process_dirty_modulation_step(false) {
-                self.show_toast(format!("LFO composition unavailable: {error}"));
+                self.show_modulation_unavailable(&error);
             }
         }
         changed
@@ -278,7 +278,7 @@ impl NativeRunner {
             let _ = self.menu.focus_item_key(&focus_key);
         }
         if let Err(error) = self.process_dirty_modulation_step(false) {
-            self.show_toast(format!("LFO composition unavailable: {error}"));
+            self.show_modulation_unavailable(&error);
         }
         true
     }

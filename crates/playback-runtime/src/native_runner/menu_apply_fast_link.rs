@@ -28,7 +28,7 @@ impl NativeRunner {
             if changed {
                 self.mark_fast_autosave_dirty();
                 if let Err(error) = self.process_dirty_modulation_step(false) {
-                    self.show_toast(format!("LFO composition unavailable: {error}"));
+                    self.show_modulation_unavailable(&error);
                 }
             }
             return Some(true);

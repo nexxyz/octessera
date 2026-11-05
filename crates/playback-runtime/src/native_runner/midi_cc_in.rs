@@ -119,7 +119,7 @@ impl NativeRunner {
         }
         if changed {
             if let Err(error) = self.process_dirty_modulation_step(true) {
-                self.show_toast(format!("modulation composition unavailable: {error}"));
+                self.show_modulation_unavailable(&error);
             }
         }
         self.messages_without_snapshot()

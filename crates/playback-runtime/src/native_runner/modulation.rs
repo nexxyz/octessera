@@ -70,7 +70,7 @@ impl NativeRunner {
         }
         if source_changed {
             if let Err(error) = self.process_dirty_modulation_step(true) {
-                self.show_toast(format!("modulation composition unavailable: {error}"));
+                self.show_modulation_unavailable(&error);
             }
         }
     }

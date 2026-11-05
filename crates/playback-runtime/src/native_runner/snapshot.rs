@@ -70,7 +70,7 @@ impl NativeRunner {
             );
             self.queued_audio_config_revision = Some(self.audio_config_revision);
             if let Err(error) = self.process_modulation_step(true) {
-                self.show_toast(format!("LFO composition unavailable: {error}"));
+                self.show_modulation_unavailable(&error);
             }
         }
     }
