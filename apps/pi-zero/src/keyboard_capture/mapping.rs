@@ -79,9 +79,9 @@ impl KeyboardState {
             | Some(action @ KeyboardInput::ButtonS(pressed))
             | Some(action @ KeyboardInput::ButtonShift(pressed))
             | Some(action @ KeyboardInput::ButtonFn(pressed)) => {
-                let kind = button_kind(key).expect("button action has a button key");
-                let was_held = button_held(self.held.keys, kind);
-                let remains_held = button_held(keys, kind);
+                let button = button_keys(action);
+                let was_held = self.held.keys & button != 0;
+                let remains_held = keys & button != 0;
                 (pressed && !was_held || !pressed && was_held && !remains_held).then_some(action)
             }
             Some(KeyboardInput::Grid { .. }) | None => None,
@@ -129,16 +129,15 @@ impl KeyboardState {
                 }
             }
         }
-        let keys = self.held.keys;
         releases.extend(
             [
-                button_held(keys, ButtonKind::A).then_some(KeyboardInput::ButtonA(false)),
-                button_held(keys, ButtonKind::S).then_some(KeyboardInput::ButtonS(false)),
-                button_held(keys, ButtonKind::Shift).then_some(KeyboardInput::ButtonShift(false)),
-                button_held(keys, ButtonKind::Fn).then_some(KeyboardInput::ButtonFn(false)),
+                KeyboardInput::ButtonA(false),
+                KeyboardInput::ButtonS(false),
+                KeyboardInput::ButtonShift(false),
+                KeyboardInput::ButtonFn(false),
             ]
             .into_iter()
-            .flatten(),
+            .filter(|release| self.held.keys & button_keys(*release) != 0),
         );
         releases
     }
@@ -216,40 +215,23 @@ fn button_edge(key: KeyboardKey, value: i32) -> Option<KeyboardInput> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ButtonKind {
-    A,
-    S,
-    Shift,
-    Fn,
-}
+const BUTTON_A_KEYS: u16 = key_bit(KeyboardKey::Backspace) | key_bit(KeyboardKey::Escape);
+const BUTTON_S_KEYS: u16 = key_bit(KeyboardKey::Space);
+const SHIFT_KEYS: u16 = key_bit(KeyboardKey::LeftShift) | key_bit(KeyboardKey::RightShift);
+const FN_KEYS: u16 = key_bit(KeyboardKey::LeftControl) | key_bit(KeyboardKey::RightControl);
 
-fn button_kind(key: KeyboardKey) -> Option<ButtonKind> {
-    match key {
-        KeyboardKey::Backspace | KeyboardKey::Escape => Some(ButtonKind::A),
-        KeyboardKey::Space => Some(ButtonKind::S),
-        KeyboardKey::LeftShift | KeyboardKey::RightShift => Some(ButtonKind::Shift),
-        KeyboardKey::LeftControl | KeyboardKey::RightControl => Some(ButtonKind::Fn),
-        _ => None,
+/// The held-key bits of every key that drives a button input; a button stays held while one is.
+fn button_keys(input: KeyboardInput) -> u16 {
+    match input {
+        KeyboardInput::ButtonA(_) => BUTTON_A_KEYS,
+        KeyboardInput::ButtonS(_) => BUTTON_S_KEYS,
+        KeyboardInput::ButtonShift(_) => SHIFT_KEYS,
+        KeyboardInput::ButtonFn(_) => FN_KEYS,
+        _ => 0,
     }
 }
 
-fn button_held(held_keys: u16, kind: ButtonKind) -> bool {
-    [
-        KeyboardKey::Backspace,
-        KeyboardKey::Escape,
-        KeyboardKey::Space,
-        KeyboardKey::LeftShift,
-        KeyboardKey::RightShift,
-        KeyboardKey::LeftControl,
-        KeyboardKey::RightControl,
-    ]
-    .into_iter()
-    .filter(|key| button_kind(*key) == Some(kind))
-    .any(|key| held_keys & key_bit(key) != 0)
-}
-
-fn key_bit(key: KeyboardKey) -> u16 {
+const fn key_bit(key: KeyboardKey) -> u16 {
     match key {
         KeyboardKey::Backspace => 1 << 0,
         KeyboardKey::Escape => 1 << 1,
