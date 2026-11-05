@@ -9,9 +9,10 @@ import { momentaryTileTransition } from '../src/ui/appGridInteraction';
 
 function keyEvent(
   code: string,
-  { repeat = false, shiftKey = false, key = '' } = {},
+  { repeat = false, shiftKey = false, key = '', altGraph = false } = {},
 ): KeyboardEvent {
-  return { code, key, repeat, shiftKey } as KeyboardEvent;
+  const getModifierState = (name: string) => altGraph && name === 'AltGraph';
+  return { code, key, repeat, shiftKey, getModifierState } as KeyboardEvent;
 }
 
 const device = (input: object) => ({ type: 'device_input', input });
@@ -199,4 +200,73 @@ test('focus loss releases every held tile, button and modifier once', () => {
   assert.deepEqual(mapper.keydown(keyEvent('KeyC')), [
     tile('grid_press', 0, 0),
   ]);
+});
+
+const fnOn = { type: 'fn', active: true };
+const fnOff = { type: 'fn', active: false };
+
+test('AltGr takes back the fake left Control that Windows sends before it', () => {
+  const mapper = createKeyboardMapper();
+  assert.deepEqual(mapper.keydown(keyEvent('ControlLeft')), [fnOn]);
+  assert.deepEqual(
+    mapper.keydown(keyEvent('AltRight', { altGraph: true, key: 'AltGraph' })),
+    [fnOff],
+  );
+  assert.deepEqual(mapper.keydown(keyEvent('KeyC')), [
+    tile('grid_press', 0, 0),
+  ]);
+  assert.deepEqual(
+    mapper.keydown(keyEvent('ControlLeft', { repeat: true })),
+    [],
+  );
+  assert.deepEqual(
+    mapper.keydown(
+      keyEvent('AltRight', { altGraph: true, key: 'AltGraph', repeat: true }),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    mapper.keyup(keyEvent('ControlLeft', { altGraph: true })),
+    [],
+  );
+  assert.deepEqual(mapper.keyup(keyEvent('AltRight')), []);
+  assert.deepEqual(mapper.releaseAll(), [tile('grid_release', 0, 0)]);
+});
+
+test('a real left Control is Fn at once and releases cleanly', () => {
+  const mapper = createKeyboardMapper();
+  assert.deepEqual(mapper.keydown(keyEvent('ControlLeft')), [fnOn]);
+  assert.deepEqual(mapper.keydown(keyEvent('KeyC')), [
+    tile('grid_press', 0, 0),
+  ]);
+  assert.deepEqual(
+    mapper.keydown(keyEvent('AltRight', { altGraph: true })),
+    [],
+  );
+  assert.deepEqual(mapper.keyup(keyEvent('KeyC')), [
+    tile('grid_release', 0, 0),
+  ]);
+  assert.deepEqual(mapper.keyup(keyEvent('ControlLeft')), [fnOff]);
+  assert.deepEqual(mapper.releaseAll(), []);
+});
+
+test('right Alt without AltGraph keeps a real left Control held', () => {
+  const mapper = createKeyboardMapper();
+  assert.deepEqual(mapper.keydown(keyEvent('ControlLeft')), [fnOn]);
+  assert.deepEqual(mapper.keydown(keyEvent('AltRight')), []);
+  assert.deepEqual(mapper.keyup(keyEvent('ControlLeft')), [fnOff]);
+});
+
+test('real left Control with left Alt is Fn on a top-half tile', () => {
+  const mapper = createKeyboardMapper();
+  assert.deepEqual(mapper.keydown(keyEvent('ControlLeft')), [fnOn]);
+  assert.deepEqual(mapper.keydown(keyEvent('AltLeft')), []);
+  assert.deepEqual(mapper.keydown(keyEvent('KeyC')), [
+    tile('grid_press', 0, 4),
+  ]);
+  assert.deepEqual(mapper.keyup(keyEvent('KeyC')), [
+    tile('grid_release', 0, 4),
+  ]);
+  mapper.keyup(keyEvent('AltLeft'));
+  assert.deepEqual(mapper.keyup(keyEvent('ControlLeft')), [fnOff]);
 });

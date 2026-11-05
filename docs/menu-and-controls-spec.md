@@ -130,7 +130,10 @@ Grid keys, left to right = grid columns 1..8. Grid rows count from the bottom (w
 
 - A grid key down sends the same `grid_press` as the NeoTrellis tile, and key up its
   `grid_release`. The release goes to the tile that was pressed, even if Left Alt changed in
-  between. Auto-repeat of grid keys is ignored. Right Alt (AltGr) is ignored.
+  between. Auto-repeat of grid keys is ignored. Right Alt (AltGr) is ignored. On Windows, AltGr
+  arrives as a `ControlLeft` keydown directly followed by an `AltRight` keydown whose
+  `getModifierState('AltGraph')` is true; the simulator then takes back the Fn press of that
+  `ControlLeft` and ignores its keyup, so AltGr never holds Fn. A real left Control is Fn at once.
 - Key presses and releases update the matching native button or modifier state. Key-repeat on
   arrow and AUX turn keys emits extra turns; repeats of Enter, the AUX click keys, Back, Space,
   Shift, and Control emit no extra edges.

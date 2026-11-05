@@ -51,7 +51,9 @@ see [Samples](README.md#samples).
 The keys are the same as for a [keyboard on the
 instrument](controls-cheat-sheet.md#usb-host-keyboard), and like there they
 count by position, so your layout doesn't matter. Left *Alt* won't wander off
-into a window menu while the simulator has focus. If you click another window
+into a window menu while the simulator has focus, and the right *Alt*
+(*AltGr*) does nothing, even though Windows quietly sends a *Ctrl* press
+along with it. If you click another window
 while holding keys, the simulator lets go of every tile and button it was
 holding.
 

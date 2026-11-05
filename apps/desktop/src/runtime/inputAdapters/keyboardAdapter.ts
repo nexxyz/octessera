@@ -1,7 +1,10 @@
 import type { DeviceInput } from '@octessera/device-contracts';
 import type { InputAction } from '../types';
 
-type KeyEventLike = Pick<KeyboardEvent, 'code' | 'repeat' | 'shiftKey'>;
+type KeyEventLike = Pick<
+  KeyboardEvent,
+  'code' | 'repeat' | 'shiftKey' | 'getModifierState'
+>;
 
 export type KeyboardMapper = {
   keydown(event: KeyEventLike): InputAction[];
@@ -82,37 +85,57 @@ export function shouldPreventKeyboardDefault(event: KeyEventLike): boolean {
 export function createKeyboardMapper(): KeyboardMapper {
   const held = new Map<string, InputAction | null>();
   let altLeft = false;
+  let controlLeftJustPressed = false;
 
   const press = (code: string, edge: Edge): InputAction[] => {
     held.set(code, edge.release);
+    controlLeftJustPressed = code === 'ControlLeft';
     return [edge.press];
+  };
+
+  const release = (code: string): InputAction[] => {
+    if (!held.has(code)) return [];
+    const action = held.get(code) ?? null;
+    held.delete(code);
+    return action ? [action] : [];
+  };
+
+  const altGr = (event: KeyEventLike): InputAction[] | null => {
+    const afterControlLeft = controlLeftJustPressed;
+    controlLeftJustPressed = false;
+    if (event.code !== 'AltRight') return null;
+    return afterControlLeft && event.getModifierState('AltGraph')
+      ? release('ControlLeft')
+      : [];
+  };
+
+  const keydown = (event: KeyEventLike): InputAction[] => {
+    const { code } = event;
+    if (code === 'AltLeft') {
+      altLeft = true;
+      return [];
+    }
+    const turn = turnAction(code);
+    if (turn) return [turn];
+    if (event.repeat || held.has(code)) return [];
+    if (code === 'Space' && event.shiftKey)
+      return press(code, {
+        press: { type: 'emergency_brake' },
+        release: SPACE.release,
+      });
+    const edge =
+      EDGE_KEYS.get(code) ?? auxClick(code) ?? gridEdge(code, altLeft);
+    return edge ? press(code, edge) : [];
   };
 
   return {
     keydown(event) {
-      const { code } = event;
-      if (code === 'AltLeft') {
-        altLeft = true;
-        return [];
-      }
-      const turn = turnAction(code);
-      if (turn) return [turn];
-      if (event.repeat || held.has(code)) return [];
-      if (code === 'Space' && event.shiftKey)
-        return press(code, {
-          press: { type: 'emergency_brake' },
-          release: SPACE.release,
-        });
-      const edge =
-        EDGE_KEYS.get(code) ?? auxClick(code) ?? gridEdge(code, altLeft);
-      return edge ? press(code, edge) : [];
+      return altGr(event) ?? keydown(event);
     },
     keyup(event) {
+      controlLeftJustPressed = false;
       if (event.code === 'AltLeft') altLeft = false;
-      if (!held.has(event.code)) return [];
-      const release = held.get(event.code) ?? null;
-      held.delete(event.code);
-      return release ? [release] : [];
+      return release(event.code);
     },
     releaseAll() {
       const releases = [...held.values()].filter(
