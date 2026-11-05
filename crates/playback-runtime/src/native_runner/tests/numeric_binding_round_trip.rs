@@ -23,7 +23,7 @@ fn offered_keys(
 ) -> Vec<NativeParamBindingSpec> {
     runner.menu.rebuild(runner.menu_config());
     let mut bindings = Vec::new();
-    offered_bindings(&runner.menu.root, &mut bindings);
+    offered_bindings(&runner.menu.browsable_root(), &mut bindings);
     bindings.retain(|binding| binding.kind == kind && binding.key.starts_with(prefix));
     bindings.sort_by(|a, b| a.key.cmp(&b.key));
     bindings.dedup_by(|a, b| a.key == b.key);

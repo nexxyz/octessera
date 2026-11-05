@@ -17,6 +17,7 @@ impl NativeMenuModel {
             node = &node.children[index];
         }
         self.state.stack = stack;
+        self.sync_open_picker();
     }
 
     pub(crate) fn select_label(&mut self, label: &str) {

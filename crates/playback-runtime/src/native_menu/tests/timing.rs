@@ -32,7 +32,7 @@ pub(crate) fn invalid_timing_menu_labels_use_the_canonical_default() {
         "mixPct": 35
     });
 
-    let root = build_root(config);
+    let root = NativeMenuModel::new(config).root;
 
     assert_eq!(
         selected_option(&root, "linkLfos.0.period"),
@@ -50,7 +50,7 @@ pub(crate) fn invalid_timing_menu_labels_use_the_canonical_default() {
 
 #[test]
 pub(crate) fn scan_unit_binding_keeps_the_canonical_note_option_order() {
-    let root = build_root(config());
+    let root = NativeMenuModel::new(config()).browsable_root();
     let scan_unit = item_with_label(&root, "Scan Unit").expect("scan unit binding");
     let NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) =
         &scan_unit.value

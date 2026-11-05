@@ -26,10 +26,12 @@ unsafe impl GlobalAlloc for CountingAllocator {
 #[global_allocator]
 static ALLOCATOR: CountingAllocator = CountingAllocator;
 
-/// A load builds the new menu tree after the old one is gone, so the boards' allocator never has
-/// to hold two trees (it keeps the peak as resident memory).
+/// The boards' allocator keeps a load's allocation peak as resident memory. A load once held two
+/// full menu trees (25 MB each) at its peak; it now peaks about 8 MB above the runner on the PC.
+const LOAD_PEAK_LIMIT: isize = 12 << 20;
+
 #[test]
-fn patch_load_never_holds_two_menu_trees() {
+fn patch_load_peak_stays_small() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     let patch = runner
@@ -56,7 +58,7 @@ fn patch_load_never_holds_two_menu_trees() {
     assert_eq!(applied["runtimeConfig"]["transport"]["bpm"], 97);
     let extra = PEAK.load(Ordering::Relaxed) - live;
     assert!(
-        extra < live / 2,
+        extra < LOAD_PEAK_LIMIT,
         "load peaked {extra} bytes above a {live}-byte runner"
     );
 }

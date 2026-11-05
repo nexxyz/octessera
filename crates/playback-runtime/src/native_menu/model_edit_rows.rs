@@ -1,11 +1,9 @@
 //! Edits that reshape other rows update only those rows in place, including their copies in
-//! the parameter pickers: a full menu rebuild costs hundreds of milliseconds on the boards.
+//! the shared parameter tree: a full menu rebuild costs hundreds of milliseconds on the boards.
 
-use super::binding_picker::{
-    axis_binding_label, current_binding_rows, labelled_binding, mark_active_binding,
-};
+use super::binding_picker::labelled_binding;
 use super::binding_picker_rows::{
-    picker_rows, update_instrument_bindings, update_play_fx_bindings, update_shape_bindings,
+    show_picker_binding, update_instrument_bindings, update_play_fx_bindings, update_shape_bindings,
 };
 use super::link::link_instrument_options;
 use super::link_sections::scanning_group;
@@ -31,27 +29,15 @@ impl NativeMenuModel {
         let Some(picker) = find_item_by_key_mut(&mut self.root, target) else {
             return;
         };
-        let binding = binding.map(|binding| labelled_binding(binding, &picker.children));
-        let binding = binding.as_ref();
-        if let Some((prefix, _)) = picker.label.split_once(": ") {
-            picker.label = axis_binding_label(prefix, binding);
-        }
-        let rows = binding
-            .map(|binding| current_binding_rows(target, binding))
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|row| picker_rows(row, target))
-            .collect::<Vec<_>>();
-        let row_keys = ["current", "rangeMin", "rangeMax"].map(|row| format!("{target}.{row}"));
-        picker
-            .children
-            .retain(|item| !item.key.as_ref().is_some_and(|key| row_keys.contains(key)));
-        let at = 1.min(picker.children.len());
-        picker.children.splice(at..at, rows);
-        mark_active_binding(
-            &mut picker.children,
-            binding.map(|binding| binding.key.as_str()),
-        );
+        let binding = binding.map(|binding| {
+            let binding = labelled_binding(binding, &picker.children);
+            if binding.label.is_none() {
+                labelled_binding(&binding, &self.parameter_tree)
+            } else {
+                binding
+            }
+        });
+        show_picker_binding(picker, target, binding.as_ref());
     }
 
     /// Shows an Aux click binding on its Clk or S+Clk picker.
@@ -69,14 +55,15 @@ impl NativeMenuModel {
             .iter()
             .fold(&mut self.root, |node, index| &mut node.children[*index]);
         show_click_binding(picker, ClickPickerSlot::Aux { index, shifted }, action);
-        name_click_pickers_from_menu(&mut self.root);
+        name_click_pickers_from_menu(&mut self.root, &self.parameter_tree);
     }
 
     pub fn show_play_fx_rows(&mut self, config: &NativeMenuConfig) {
         if let Some(page) = find_item_by_key_mut(&mut self.root, "play.page.fx") {
             page.children = play_fx_page_children(config);
         }
-        update_play_fx_bindings(&mut self.root, config);
+        update_play_fx_bindings(&mut self.parameter_tree, config);
+        self.refresh_open_picker();
         self.clamp_cursor_to_siblings();
     }
 
@@ -106,7 +93,8 @@ impl NativeMenuModel {
                 *cursor = name_cursor.min(value.len() + 1);
             }
         }
-        update_instrument_bindings(&mut self.root, config, index);
+        update_instrument_bindings(&mut self.parameter_tree, config, index);
+        self.refresh_open_picker();
         self.clamp_cursor_to_siblings();
     }
 
@@ -132,7 +120,8 @@ impl NativeMenuModel {
             .and_then(|shape| shape.children.iter().find(|item| item.label == label))
             .cloned();
         if let Some(source) = source {
-            update_shape_bindings(&mut self.root, &source);
+            update_shape_bindings(&mut self.parameter_tree, &source);
+            self.refresh_open_picker();
         }
     }
 

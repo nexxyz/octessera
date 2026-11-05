@@ -268,12 +268,12 @@ pub(crate) fn play_aux_map_rows_show_the_mapped_controls() {
 pub(crate) fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targets() {
     let menu = NativeMenuModel::new(config());
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "aux:0:turn",
         "sound.noteLengthMs"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "param:0:x:0",
         "instruments.0.mixer.volume"
     ));
@@ -282,7 +282,7 @@ pub(crate) fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targ
     xy_config.play_mode = "xy".into();
     let xy_menu = NativeMenuModel::new(xy_config);
     assert!(contains_set_binding(
-        &xy_menu.root,
+        &xy_menu.browsable_root(),
         "xy:x",
         "sound.velocityScalePct"
     ));
@@ -298,32 +298,32 @@ pub(crate) fn link_lfo_picker_only_exposes_live_safe_targets() {
     let target = "linkLfos.0.target";
 
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         target,
         "instruments.0.mixer.volume"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         target,
         "mixer.buses.0.volume"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         target,
         "mixer.buses.0.slot1.params.feedback"
     ));
     assert!(!contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         target,
         "sound.noteLengthMs"
     ));
     assert!(!contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         target,
         "mixer.buses.0.slot1.params.timeMs"
     ));
     assert!(!contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         target,
         "instruments.0.synth.filter.cutoffHz"
     ));
@@ -342,37 +342,37 @@ pub(crate) fn parameter_picker_includes_behavior_link_fx_and_global_fx_families(
     let menu = NativeMenuModel::new(cfg);
 
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "xy:x",
         "layers.0.build.behaviorConfig.randomTickInterval"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "xy:x",
         "layers.1.build.behaviorConfig.randomTickInterval"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "xy:x",
         "layers.0.link.scanMode"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "xy:x",
         "instruments.0.synth.filter.cutoffHz"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "xy:x",
         "mixer.buses.0.slot1.params.feedback"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "xy:x",
         "mixer.master.slots.0.params.cracklePct"
     ));
     assert!(contains_set_binding(
-        &menu.root,
+        &menu.browsable_root(),
         "xy:x",
         "play.fx.params.rateHz"
     ));
@@ -382,10 +382,14 @@ pub(crate) fn parameter_picker_includes_behavior_link_fx_and_global_fx_families(
 pub(crate) fn aux_click_picker_exposes_assignable_actions() {
     let menu = NativeMenuModel::new(config());
     assert!(contains_aux_click_action(
-        &menu.root,
+        &menu.browsable_root(),
         0,
         "sample.assign:0:0"
     ));
-    assert!(contains_aux_click_action(&menu.root, 0, "play.fx.map"));
-    assert!(contains_aux_click_reset(&menu.root, 0));
+    assert!(contains_aux_click_action(
+        &menu.browsable_root(),
+        0,
+        "play.fx.map"
+    ));
+    assert!(contains_aux_click_reset(&menu.browsable_root(), 0));
 }

@@ -1,5 +1,6 @@
 use crate::protocol::SyncSource;
 
+use super::binding_picker_rows::name_parameter_pickers;
 use super::fx::{fx_buses_group, global_fx_group};
 use super::link::{link_layer_group, link_root_items};
 use super::play::play_group;
@@ -9,7 +10,7 @@ use super::system_aux::name_click_pickers_from_menu;
 use super::voice::{instrument_group, InstrumentMenuConfig};
 use super::{number_item, NativeMenuConfig, NativeMenuItem, NativeMenuPick, NativeMenuValue};
 
-pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
+pub(super) fn build_root(config: NativeMenuConfig, tree: &[NativeMenuItem]) -> NativeMenuItem {
     let sync_index = if config.sync_source == SyncSource::External {
         1
     } else {
@@ -37,7 +38,8 @@ pub(super) fn build_root(config: NativeMenuConfig) -> NativeMenuItem {
         ],
         pick: NativeMenuPick::None,
     };
-    name_click_pickers_from_menu(&mut root);
+    name_parameter_pickers(&mut root, tree);
+    name_click_pickers_from_menu(&mut root, tree);
     root
 }
 

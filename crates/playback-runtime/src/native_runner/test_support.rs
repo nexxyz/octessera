@@ -1,5 +1,4 @@
 use super::{NativeOledMode, NativeRunner, Value};
-use crate::native_menu::NativeMenuItem;
 use std::time::{Duration, Instant};
 
 impl NativeRunner {
@@ -33,8 +32,10 @@ impl NativeRunner {
     }
 
     pub fn test_focus_menu_item(&mut self, key: &str) -> Result<String, String> {
-        let label = find_menu_item(&self.menu.root, key)
-            .map(|item| item.label.clone())
+        let label = self
+            .menu
+            .item_for_key(key)
+            .map(|item| item.label)
             .ok_or_else(|| format!("native menu item key not found: {key}"))?;
         if !self.menu.focus_item_key(key) {
             return Err(format!("native menu item key could not be focused: {key}"));
@@ -121,15 +122,6 @@ impl NativeRunner {
             })
             .unwrap_or_default()
     }
-}
-
-fn find_menu_item<'a>(item: &'a NativeMenuItem, key: &str) -> Option<&'a NativeMenuItem> {
-    if item.key.as_deref() == Some(key) {
-        return Some(item);
-    }
-    item.children
-        .iter()
-        .find_map(|child| find_menu_item(child, key))
 }
 
 #[cfg(test)]

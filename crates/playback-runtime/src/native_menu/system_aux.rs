@@ -1,4 +1,5 @@
 use super::binding_picker::parameter_picker_group;
+use super::binding_picker_rows::picker_entry_for_action;
 use super::model_search::find_item_by_action;
 use super::{
     action_item, group, mark_active, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
@@ -23,14 +24,12 @@ pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
                             "Trn",
                             format!("aux:{index}:turn"),
                             binding.turn.as_ref(),
-                            config,
                         ),
                         aux_click_picker_group(index, binding.click.as_ref(), config),
                         parameter_picker_group(
                             "S+Trn",
                             format!("shiftAux:{index}:turn"),
                             shift_binding.turn.as_ref(),
-                            config,
                         ),
                         shift_aux_click_picker_group(index, shift_binding.click.as_ref(), config),
                     ],
@@ -235,11 +234,14 @@ fn entry_label_for_action(
 
 /// A Clk picker whose list does not hold its bound action (one bound with Fn + click on another
 /// menu row) takes that row's label from the whole menu.
-pub(super) fn name_click_pickers_from_menu(root: &mut NativeMenuItem) {
+pub(super) fn name_click_pickers_from_menu(root: &mut NativeMenuItem, tree: &[NativeMenuItem]) {
     let mut unnamed = Vec::new();
     collect_unnamed_click_pickers(root, &mut Vec::new(), &mut unnamed);
     for (path, action) in unnamed {
-        let Some(name) = find_item_by_action(root, &action).map(|item| item.label.clone()) else {
+        let Some(name) = find_item_by_action(root, &action)
+            .or_else(|| picker_entry_for_action(root, tree, &action))
+            .map(|item| item.label.clone())
+        else {
             continue;
         };
         let picker = path

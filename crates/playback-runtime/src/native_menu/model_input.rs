@@ -112,21 +112,19 @@ impl NativeMenuModel {
     fn enter_current_item(&mut self) -> NativeMenuPressResult {
         self.remember_current_group_cursor();
         let child_memory_key = self.current_item_path();
-        let child_cursor = {
-            let current = self.current_item();
-            current
-                .children
-                .iter()
-                .position(|child| child.pick == NativeMenuPick::Active)
-                .or_else(|| {
-                    self.navigation_memory
-                        .get(&child_memory_key)
-                        .map(|cursor| valid_child_cursor(&current.children, *cursor))
-                })
-                .unwrap_or(0)
-        };
         self.state.stack.push(self.state.cursor);
-        self.state.cursor = child_cursor;
+        self.sync_open_picker();
+        let children = self.current_siblings();
+        let cursor = children
+            .iter()
+            .position(|child| child.pick == NativeMenuPick::Active)
+            .or_else(|| {
+                self.navigation_memory
+                    .get(&child_memory_key)
+                    .map(|cursor| valid_child_cursor(children, *cursor))
+            })
+            .unwrap_or(0);
+        self.state.cursor = cursor;
         NativeMenuPressResult::EnteredGroup
     }
 
@@ -138,6 +136,7 @@ impl NativeMenuModel {
         self.remember_current_group_cursor();
         if let Some(cursor) = self.state.stack.pop() {
             self.state.cursor = cursor;
+            self.sync_open_picker();
         }
     }
 

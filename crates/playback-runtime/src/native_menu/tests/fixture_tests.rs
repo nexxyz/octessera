@@ -64,7 +64,7 @@ pub(crate) fn native_menu_snapshot_rows_fit_oled_width() {
 
 #[test]
 pub(crate) fn aux_mappings_include_plain_and_shifted_rows() {
-    let root = build_root(config());
+    let root = NativeMenuModel::new(config()).root;
 
     let turn = find_item_by_key(&root, "aux:0:turn").unwrap();
     assert_eq!(turn.label, "Trn: (none)");
@@ -251,7 +251,7 @@ pub(crate) fn sample_browser_label_includes_selected_slot_context_without_body_r
         }],
     });
 
-    let root = build_root(cfg);
+    let root = NativeMenuModel::new(cfg).root;
     let browser = find_item_by_key(&root, "sample.choose:0:2").unwrap();
 
     assert_eq!(browser.label, "S3 Browse");
@@ -266,7 +266,7 @@ pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected(
     cfg.instrument_sample_slots[0] = 2;
     cfg.instrument_sample_paths[0][2] = Some("Drum/kick/long-sample-file.wav".into());
 
-    let root = build_root(cfg.clone());
+    let root = NativeMenuModel::new(cfg.clone()).root;
     let loaded =
         find_item_by_key(&root, "sample.loaded:0:2:Drum/kick/long-sample-file.wav").unwrap();
     assert_eq!(loaded.label, "S3: long-sample-file.wav");
@@ -341,7 +341,7 @@ pub(crate) fn sample_browser_empty_and_long_name_rows_preserve_display_contract(
         entries: vec![],
     });
 
-    let root = build_root(cfg.clone());
+    let root = NativeMenuModel::new(cfg.clone()).root;
     let browser = find_item_by_key(&root, "sample.choose:0:0").unwrap();
     let labels = browser
         .children
@@ -370,7 +370,7 @@ pub(crate) fn sample_browser_empty_and_long_name_rows_preserve_display_contract(
         ],
     });
 
-    let root = build_root(cfg.clone());
+    let root = NativeMenuModel::new(cfg.clone()).root;
     let browser = find_item_by_key(&root, "sample.choose:0:0").unwrap();
     assert!(browser
         .children

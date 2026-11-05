@@ -175,7 +175,7 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
 }
 
 pub(super) fn system_labels(config: &NativeMenuConfig) -> Vec<String> {
-    let root = build_root(config.clone());
+    let root = NativeMenuModel::new(config.clone()).root;
     root.children
         .iter()
         .find(|item| item.label == "System")
@@ -190,7 +190,8 @@ pub(super) fn system_labels(config: &NativeMenuConfig) -> Vec<String> {
 }
 
 pub(super) fn group_labels(config: &NativeMenuConfig, path: &str) -> Vec<String> {
-    let mut item = build_root(config.clone())
+    let mut item = NativeMenuModel::new(config.clone())
+        .root
         .children
         .into_iter()
         .find(|child| child.label == "System")

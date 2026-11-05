@@ -1,10 +1,12 @@
+use super::binding_picker::parameter_tree_groups;
+use super::binding_picker_rows::picker_entry_for_action;
 #[cfg(test)]
 use super::help::collect_help_targets;
 use super::help::menu_help_target;
 use super::model_binding_specs::param_binding_from_item_key;
 use super::model_edit::turn_key_in_item;
 use super::model_search::{
-    find_item_by_action, find_item_by_key_mut, find_item_path_by_key, replace_children_for_label,
+    find_item_by_action, find_item_by_key_mut, replace_children_for_label,
     replace_group_children_containing_direct_key, replace_group_label_containing_direct_key,
     replace_item_label,
 };
@@ -18,16 +20,10 @@ use super::{
 impl NativeMenuModel {
     #[cfg(test)]
     pub fn new(config: NativeMenuConfig) -> Self {
-        let numeric_display_mode = config.numeric_display_mode.clone();
-        Self {
-            root: build_root(config),
-            state: NativeMenuState::default(),
-            numeric_display_mode,
-            navigation_memory: Default::default(),
-            key_paths: Default::default(),
-            #[cfg(test)]
-            rebuild_count: 0,
-        }
+        let mut menu = Self::unbuilt();
+        menu.rebuild(config);
+        menu.rebuild_count = 0;
+        menu
     }
 
     pub(crate) fn unbuilt() -> Self {
@@ -37,6 +33,8 @@ impl NativeMenuModel {
             numeric_display_mode: String::new(),
             navigation_memory: Default::default(),
             key_paths: Default::default(),
+            parameter_tree: Vec::new(),
+            open_picker: None,
             #[cfg(any(test, feature = "test-support"))]
             rebuild_count: 0,
         }
@@ -52,8 +50,11 @@ impl NativeMenuModel {
             self.rebuild_count = self.rebuild_count.saturating_add(1);
         }
         self.numeric_display_mode = config.numeric_display_mode.clone();
-        self.root = build_root(config);
+        self.parameter_tree = parameter_tree_groups("", &config);
+        self.root = build_root(config, &self.parameter_tree);
+        self.open_picker = None;
         self.navigation_memory.clear();
+        self.sync_open_picker();
         self.clamp_cursor_to_siblings();
     }
 
@@ -120,13 +121,16 @@ impl NativeMenuModel {
     }
 
     pub fn focus_item_key(&mut self, key: &str) -> bool {
-        let mut path = Vec::new();
-        if !find_item_path_by_key(&self.root, key, &mut path) || path.is_empty() {
+        let Some(path) = self.item_path_opening_pickers(key) else {
+            return false;
+        };
+        if path.is_empty() {
             return false;
         }
         self.state.cursor = *path.last().unwrap_or(&0);
         self.state.stack = path[..path.len().saturating_sub(1)].to_vec();
         self.state.editing = false;
+        self.sync_open_picker();
         true
     }
 
@@ -154,7 +158,11 @@ impl NativeMenuModel {
     }
 
     pub fn replace_label(&mut self, old: &str, new: &str) -> bool {
-        replace_item_label(&mut self.root, old, new)
+        let mut changed = replace_item_label(&mut self.root, old, new);
+        for group in &mut self.parameter_tree {
+            changed |= replace_item_label(group, old, new);
+        }
+        changed
     }
 
     pub fn set_item_for_key(&mut self, key: &str, item: NativeMenuItem) -> bool {
@@ -263,8 +271,13 @@ impl NativeMenuModel {
         true
     }
 
+    /// The row with `key`, also in a parameter picker's list; a picker comes with its list.
     pub fn item_for_key(&self, key: &str) -> Option<super::NativeMenuItem> {
-        self.key_paths.find(&self.root, key).cloned()
+        let Some(mut item) = self.key_paths.find(&self.root, key).cloned() else {
+            return self.picker_entry_for_key(key);
+        };
+        super::binding_picker_rows::open_picker(&mut item, &self.parameter_tree);
+        Some(item)
     }
 
     pub fn value_for_key(&self, key: &str) -> Option<String> {
@@ -317,7 +330,7 @@ impl NativeMenuModel {
     #[cfg(test)]
     pub fn help_targets(&self) -> Vec<NativeMenuHelpTarget> {
         let mut targets = Vec::new();
-        collect_help_targets(&self.root, "Menu".into(), &mut targets);
+        collect_help_targets(&self.browsable_root(), "Menu".into(), &mut targets);
         targets
     }
 
@@ -343,7 +356,9 @@ impl NativeMenuModel {
 
     /// The label of the menu row that runs `action`.
     pub fn action_label(&self, action: &NativeMenuAction) -> Option<String> {
-        find_item_by_action(&self.root, action).map(|item| item.label.clone())
+        find_item_by_action(&self.root, action)
+            .or_else(|| picker_entry_for_action(&self.root, &self.parameter_tree, action))
+            .map(|item| item.label.clone())
     }
 
     pub fn binding_spec_for_key(&self, key: &str) -> Option<NativeParamBindingSpec> {

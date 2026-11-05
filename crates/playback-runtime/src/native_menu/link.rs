@@ -184,23 +184,13 @@ fn param_mod_axis_children(
         (bindings.y[0].as_ref(), bindings.y[1].as_ref())
     };
     vec![
-        parameter_picker_group(
-            "Slot 1",
-            format!("param:{layer_index}:{axis}:0"),
-            slot1,
-            config,
-        ),
+        parameter_picker_group("Slot 1", format!("param:{layer_index}:{axis}:0"), slot1),
         bool_item(
             "Slot 1 Invert",
             format!("{prefix}.0.invert"),
             slot1.map(|binding| binding.invert).unwrap_or(false),
         ),
-        parameter_picker_group(
-            "Slot 2",
-            format!("param:{layer_index}:{axis}:1"),
-            slot2,
-            config,
-        ),
+        parameter_picker_group("Slot 2", format!("param:{layer_index}:{axis}:1"), slot2),
         bool_item(
             "Slot 2 Invert",
             format!("{prefix}.1.invert"),

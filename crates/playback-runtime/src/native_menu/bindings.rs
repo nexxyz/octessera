@@ -5,18 +5,8 @@ pub(crate) const XY_GLIDE_MAX_MS: i32 = 5000;
 
 pub(super) fn xy_pad_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     vec![
-        parameter_picker_group(
-            "X Axis",
-            "xy:x".into(),
-            config.xy_x_binding.as_ref(),
-            config,
-        ),
-        parameter_picker_group(
-            "Y Axis",
-            "xy:y".into(),
-            config.xy_y_binding.as_ref(),
-            config,
-        ),
+        parameter_picker_group("X Axis", "xy:x".into(), config.xy_x_binding.as_ref()),
+        parameter_picker_group("Y Axis", "xy:y".into(), config.xy_y_binding.as_ref()),
         number_item(
             "Glide",
             "play.xy.smoothingMs",

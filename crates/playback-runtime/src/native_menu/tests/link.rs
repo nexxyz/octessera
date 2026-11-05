@@ -78,18 +78,14 @@ pub(crate) fn link_spec_rows_include_probability_mapping_and_axis_controls() {
         ]
     );
     assert!(contains_set_binding(
-        x_axis,
+        &menu.item_for_key("param:0:x:0").unwrap(),
         "param:0:x:0",
         "sound.noteLengthMs"
     ));
 
-    let y_axis = layer
-        .children
-        .iter()
-        .find(|item| item.label == "Y Axis")
-        .expect("y axis group");
+    assert!(layer.children.iter().any(|item| item.label == "Y Axis"));
     assert!(contains_set_binding(
-        y_axis,
+        &menu.item_for_key("param:0:y:0").unwrap(),
         "param:0:y:0",
         "sound.noteLengthMs"
     ));

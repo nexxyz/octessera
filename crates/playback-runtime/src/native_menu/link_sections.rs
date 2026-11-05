@@ -87,7 +87,6 @@ pub(super) fn link_lfo_group(
     label: String,
     prefix: &str,
     lfo: &NativeLinkLfoConfig,
-    config: &NativeMenuConfig,
 ) -> NativeMenuItem {
     group(
         label,
@@ -97,7 +96,6 @@ pub(super) fn link_lfo_group(
                 "Target",
                 format!("{prefix}.target"),
                 lfo.target.as_ref(),
-                config,
             ),
             enum_item(
                 "Period",
@@ -128,12 +126,7 @@ pub(super) fn global_link_lfos_group(config: &NativeMenuConfig) -> NativeMenuIte
             .iter()
             .enumerate()
             .map(|(index, lfo)| {
-                link_lfo_group(
-                    format!("L{}", index + 1),
-                    &format!("linkLfos.{index}"),
-                    lfo,
-                    config,
-                )
+                link_lfo_group(format!("L{}", index + 1), &format!("linkLfos.{index}"), lfo)
             })
             .collect(),
     )

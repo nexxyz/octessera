@@ -199,6 +199,10 @@ pub struct NativeMenuModel {
     pub numeric_display_mode: String,
     pub navigation_memory: HashMap<String, usize>,
     pub(crate) key_paths: super::model_key_paths::MenuKeyPaths,
+    /// The bindable parameters every parameter picker lists, kept once without a target.
+    pub(super) parameter_tree: Vec<NativeMenuItem>,
+    /// The target of the parameter picker whose list is open: the one on the menu path.
+    pub(super) open_picker: Option<String>,
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) rebuild_count: usize,
 }

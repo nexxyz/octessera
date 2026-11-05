@@ -1,50 +1,139 @@
 use super::binding_picker::{
-    is_lfo_target_picker, keep_numeric_binding_item, mark_active_binding, play_fx_binding_group,
-    INSTRUMENTS_BINDING_GROUP, PLAY_FX_BINDING_GROUP, SYSTEM_BINDING_GROUP,
+    axis_binding_label, current_binding_rows, is_lfo_target_picker, keep_numeric_binding_item,
+    labelled_binding, mark_active_binding, play_fx_binding_group, INSTRUMENTS_BINDING_GROUP,
+    PLAY_FX_BINDING_GROUP, SYSTEM_BINDING_GROUP,
 };
 use super::binding_picker_voice::instrument_binding_source;
 use super::binding_tree::binding_tree_from_menu_item;
 use super::fx::{FX_BUSES_LABEL, GLOBAL_FX_LABEL};
+use super::model_search::{find_item_by_action, find_item_by_key};
 use super::play::play_fx_page_items;
 use super::{
-    keyed_group, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuPick,
-    NativeMenuValue,
+    keyed_group, NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuValue,
+    NativeParamBindingSpec,
 };
 
-/// Applies `update` to the children of every parameter picker below `node`; the pickers repeat
-/// the bindable menu, so rows that change there change in each picker too.
-fn update_parameter_pickers(
-    node: &mut NativeMenuItem,
-    update: &mut dyn FnMut(&str, &mut Vec<NativeMenuItem>),
+/// The target of a parameter picker, whose first row clears its binding.
+pub(super) fn picker_target(item: &NativeMenuItem) -> Option<&str> {
+    match item.children.first().map(|first| &first.value) {
+        Some(NativeMenuValue::Action(NativeMenuAction::ClearParamBinding { target })) => {
+            Some(target)
+        }
+        _ => None,
+    }
+}
+
+/// Shows a parameter picker's binding: its label and its Current and Range rows.
+pub(super) fn show_picker_binding(
+    picker: &mut NativeMenuItem,
+    target: &str,
+    binding: Option<&NativeParamBindingSpec>,
 ) {
+    if let Some((prefix, _)) = picker.label.split_once(": ") {
+        picker.label = axis_binding_label(prefix, binding);
+    }
+    let rows = binding
+        .map(|binding| current_binding_rows(target, binding))
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| picker_rows(row, target))
+        .collect::<Vec<_>>();
+    let row_keys = ["current", "rangeMin", "rangeMax"].map(|row| format!("{target}.{row}"));
+    picker
+        .children
+        .retain(|item| !item.key.as_ref().is_some_and(|key| row_keys.contains(key)));
+    let at = 1.min(picker.children.len());
+    picker.children.splice(at..at, rows);
+    mark_active_binding(
+        &mut picker.children,
+        binding.map(|binding| binding.key.as_str()),
+    );
+}
+
+/// Names the pickers whose binding kept only its key from their entries in the shared `tree`.
+pub(super) fn name_parameter_pickers(node: &mut NativeMenuItem, tree: &[NativeMenuItem]) {
     for child in &mut node.children {
-        let target = match child.children.first().map(|first| &first.value) {
-            Some(NativeMenuValue::Action(NativeMenuAction::ClearParamBinding { target })) => {
-                Some(target.clone())
+        let Some(target) = picker_target(child).map(str::to_owned) else {
+            name_parameter_pickers(child, tree);
+            continue;
+        };
+        let unnamed = child.children.iter().find_map(|row| match &row.value {
+            NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. })
+                if binding.label.is_none() =>
+            {
+                Some(labelled_binding(binding, tree))
             }
             _ => None,
-        };
-        match target {
-            Some(target) => {
-                let bound = active_binding_key(&child.children);
-                update(&target, &mut child.children);
-                mark_active_binding(&mut child.children, bound.as_deref());
-            }
-            None => update_parameter_pickers(child, update),
+        });
+        if let Some(binding) = unnamed.filter(|binding| binding.label.is_some()) {
+            show_picker_binding(child, &target, Some(&binding));
         }
     }
 }
 
-fn active_binding_key(items: &[NativeMenuItem]) -> Option<String> {
-    items
-        .iter()
-        .filter(|item| item.pick == NativeMenuPick::Active)
-        .find_map(|item| match &item.value {
-            NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) => {
-                Some(binding.key.clone())
-            }
-            _ => active_binding_key(&item.children),
-        })
+/// The top groups of a picker's list; its own `(none)`, Current and Range rows are no groups.
+fn is_list_group(item: &NativeMenuItem) -> bool {
+    item.value == NativeMenuValue::Group
+}
+
+/// Copies the shared parameter `tree` into the picker, with the picker's target in each entry.
+pub(super) fn open_picker(picker: &mut NativeMenuItem, tree: &[NativeMenuItem]) {
+    let Some(target) = picker_target(picker).map(str::to_owned) else {
+        return;
+    };
+    if picker.children.iter().any(is_list_group) {
+        return;
+    }
+    let bound = picker.children.iter().find_map(|row| match &row.value {
+        NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) => {
+            Some(binding.key.clone())
+        }
+        _ => None,
+    });
+    let head = picker.children.len();
+    picker.children.extend(tree.iter().filter_map(|group| {
+        let mut group = group.clone();
+        retarget(&mut group, &target);
+        picker_rows(group, &target)
+    }));
+    mark_active_binding(&mut picker.children[head..], bound.as_deref());
+}
+
+pub(super) fn close_picker(picker: &mut NativeMenuItem) {
+    picker.children.retain(|row| !is_list_group(row));
+}
+
+fn retarget(item: &mut NativeMenuItem, target: &str) {
+    if let NativeMenuValue::Action(NativeMenuAction::SetParamBinding {
+        target: row_target,
+        binding,
+    }) = &mut item.value
+    {
+        target.clone_into(row_target);
+        item.key = Some(format!("{target}.{}", binding.key));
+    }
+    for child in &mut item.children {
+        retarget(child, target);
+    }
+}
+
+/// The entry of `target`'s picker list that runs `action`, found in the shared `tree`.
+pub(super) fn picker_entry_for_action<'a>(
+    root: &NativeMenuItem,
+    tree: &'a [NativeMenuItem],
+    action: &NativeMenuAction,
+) -> Option<&'a NativeMenuItem> {
+    let NativeMenuAction::SetParamBinding { target, binding } = action else {
+        return None;
+    };
+    find_item_by_key(root, target).filter(|picker| picker_target(picker) == Some(target))?;
+    let untargeted = NativeMenuAction::SetParamBinding {
+        target: String::new(),
+        binding: binding.clone(),
+    };
+    tree.iter()
+        .find_map(|group| find_item_by_action(group, &untargeted))
+        .filter(|entry| picker_rows((*entry).clone(), target).is_some())
 }
 
 pub(super) fn picker_rows(item: NativeMenuItem, target: &str) -> Option<NativeMenuItem> {
@@ -55,25 +144,20 @@ pub(super) fn picker_rows(item: NativeMenuItem, target: &str) -> Option<NativeMe
     }
 }
 
-pub(super) fn update_play_fx_bindings(root: &mut NativeMenuItem, config: &NativeMenuConfig) {
-    let items = play_fx_page_items(config);
-    update_parameter_pickers(root, &mut |target, children| {
-        children.retain(|child| child.key.as_deref() != Some(PLAY_FX_BINDING_GROUP));
-        let Some(group) =
-            play_fx_binding_group(&items, target).and_then(|group| picker_rows(group, target))
-        else {
-            return;
-        };
-        let at = children
-            .iter()
-            .position(|child| child.key.as_deref() == Some(SYSTEM_BINDING_GROUP))
-            .unwrap_or(children.len());
-        children.insert(at, group);
-    });
+pub(super) fn update_play_fx_bindings(tree: &mut Vec<NativeMenuItem>, config: &NativeMenuConfig) {
+    tree.retain(|child| child.key.as_deref() != Some(PLAY_FX_BINDING_GROUP));
+    let Some(group) = play_fx_binding_group(&play_fx_page_items(config), "") else {
+        return;
+    };
+    let at = tree
+        .iter()
+        .position(|child| child.key.as_deref() == Some(SYSTEM_BINDING_GROUP))
+        .unwrap_or(tree.len());
+    tree.insert(at, group);
 }
 
 pub(super) fn update_instrument_bindings(
-    root: &mut NativeMenuItem,
+    tree: &mut [NativeMenuItem],
     config: &NativeMenuConfig,
     index: usize,
 ) {
@@ -88,54 +172,43 @@ pub(super) fn update_instrument_bindings(
     };
     let is_instruments =
         |child: &NativeMenuItem| child.key.as_deref() == Some(INSTRUMENTS_BINDING_GROUP);
-    update_parameter_pickers(root, &mut |target, children| {
-        let Some(shape) = shape_binding_group(children) else {
-            return;
-        };
-        if !shape.children.iter().any(is_instruments) {
-            shape.children.insert(
-                0,
-                keyed_group("Instruments", INSTRUMENTS_BINDING_GROUP, Vec::new()),
-            );
-        }
-        if let Some(instruments) = shape
-            .children
-            .iter_mut()
-            .find(|child| is_instruments(child))
-        {
-            replace_binding_tree(&mut instruments.children, &source, target, &rank);
-        }
-        shape
-            .children
-            .retain(|child| !is_instruments(child) || !child.children.is_empty());
-    });
+    let Some(shape) = shape_binding_group(tree) else {
+        return;
+    };
+    if !shape.children.iter().any(is_instruments) {
+        shape.children.insert(
+            0,
+            keyed_group("Instruments", INSTRUMENTS_BINDING_GROUP, Vec::new()),
+        );
+    }
+    if let Some(instruments) = shape
+        .children
+        .iter_mut()
+        .find(|child| is_instruments(child))
+    {
+        replace_binding_tree(&mut instruments.children, &source, &rank);
+    }
+    shape
+        .children
+        .retain(|child| !is_instruments(child) || !child.children.is_empty());
 }
 
 /// `source` is a Shape group such as FX Buses or Global FX, already updated in the menu.
-pub(super) fn update_shape_bindings(root: &mut NativeMenuItem, source: &NativeMenuItem) {
+pub(super) fn update_shape_bindings(tree: &mut [NativeMenuItem], source: &NativeMenuItem) {
     let rank = |label: &str| {
         ["Instruments", FX_BUSES_LABEL, GLOBAL_FX_LABEL]
             .iter()
             .position(|known| *known == label)
     };
-    update_parameter_pickers(root, &mut |target, children| {
-        if let Some(shape) = shape_binding_group(children) {
-            replace_binding_tree(&mut shape.children, source, target, &rank);
-        }
-    });
+    if let Some(shape) = shape_binding_group(tree) {
+        replace_binding_tree(&mut shape.children, source, &rank);
+    }
 }
 
 fn shape_binding_group(children: &mut [NativeMenuItem]) -> Option<&mut NativeMenuItem> {
-    child_with_key(children, "binding.group.shape")
-}
-
-fn child_with_key<'a>(
-    children: &'a mut [NativeMenuItem],
-    key: &str,
-) -> Option<&'a mut NativeMenuItem> {
     children
         .iter_mut()
-        .find(|child| child.key.as_deref() == Some(key))
+        .find(|child| child.key.as_deref() == Some("binding.group.shape"))
 }
 
 /// Picker groups keep their sources' order, so `rank` places the new tree, and the one it
@@ -143,14 +216,11 @@ fn child_with_key<'a>(
 fn replace_binding_tree(
     children: &mut Vec<NativeMenuItem>,
     source: &NativeMenuItem,
-    target: &str,
     rank: &dyn Fn(&str) -> Option<usize>,
 ) {
     let own = rank(&source.label);
     children.retain(|child| rank(&child.label) != own);
-    if let Some(tree) =
-        binding_tree_from_menu_item(source, target).and_then(|tree| picker_rows(tree, target))
-    {
+    if let Some(tree) = binding_tree_from_menu_item(source, "") {
         let at = children
             .iter()
             .take_while(|child| rank(&child.label) < own)

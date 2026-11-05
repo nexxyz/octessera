@@ -39,7 +39,7 @@ fn collect_enum_help_targets(menu: &NativeMenuModel) -> Vec<EnumHelpTarget> {
     let mut target_index = 0;
     let mut enum_targets = Vec::new();
     collect_enum_help_targets_from_item(
-        &menu.root,
+        &menu.browsable_root(),
         &help_targets,
         &mut target_index,
         &mut enum_targets,

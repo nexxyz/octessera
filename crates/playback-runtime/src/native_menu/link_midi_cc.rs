@@ -13,16 +13,12 @@ pub(super) fn midi_cc_in_group(config: &NativeMenuConfig) -> NativeMenuItem {
             .midi_cc_mappings
             .iter()
             .enumerate()
-            .map(|(slot, mapping)| midi_cc_slot_group(slot, mapping, config))
+            .map(|(slot, mapping)| midi_cc_slot_group(slot, mapping))
             .collect(),
     )
 }
 
-fn midi_cc_slot_group(
-    slot: usize,
-    mapping: &NativeMidiCcConfig,
-    config: &NativeMenuConfig,
-) -> NativeMenuItem {
+fn midi_cc_slot_group(slot: usize, mapping: &NativeMidiCcConfig) -> NativeMenuItem {
     let prefix = format!("midiCc.{slot}");
     let channels = std::iter::once("any".to_string())
         .chain((1..=16).map(|channel| channel.to_string()))
@@ -53,7 +49,6 @@ fn midi_cc_slot_group(
                 "Target",
                 format!("{prefix}.target"),
                 mapping.target.as_ref(),
-                config,
             ),
             bool_item(
                 "Invert",

@@ -1,4 +1,5 @@
 use super::binding_picker::parameter_picker_group;
+use super::binding_picker_rows::name_parameter_pickers;
 use super::model_search::{find_item_by_key_mut, find_item_path_by_key};
 use super::system_aux::{click_picker_group, show_click_binding, ClickPickerSlot};
 use super::{
@@ -35,7 +36,6 @@ pub(super) fn faders_page_children(config: &NativeMenuConfig) -> Vec<NativeMenuI
                                 label,
                                 format!("play.faders.{column}.{target_field}"),
                                 target.as_ref(),
-                                config,
                             ),
                             bool_item(
                                 *invert_label,
@@ -87,7 +87,6 @@ fn tile_map_children(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
             "Target",
             FADER_TILE_TARGET.into(),
             faders.tile_target.as_ref(),
-            config,
         )),
         _ => {}
     }
@@ -104,7 +103,9 @@ impl NativeMenuModel {
     pub fn show_fader_tile_rows(&mut self, config: &NativeMenuConfig) {
         if let Some(tile_map) = find_item_by_key_mut(&mut self.root, TILE_MAP_KEY) {
             tile_map.children = tile_map_children(config);
+            name_parameter_pickers(tile_map, &self.parameter_tree);
         }
+        self.sync_open_picker();
         self.clamp_cursor_to_siblings();
     }
 

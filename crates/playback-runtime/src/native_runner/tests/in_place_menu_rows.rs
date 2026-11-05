@@ -5,8 +5,8 @@ use crate::native_menu::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
 pub(super) fn assert_matches_fresh_build(runner: &NativeRunner, rebuilds: usize) {
     assert_eq!(runner.menu.rebuild_count, rebuilds);
     assert_eq!(
-        without_text_cursors(runner.menu.root.clone()),
-        NativeMenuModel::new(runner.menu_config()).root
+        without_text_cursors(runner.menu.browsable_root()),
+        NativeMenuModel::new(runner.menu_config()).browsable_root()
     );
     assert_focus_on_open_page(&runner.menu);
 }

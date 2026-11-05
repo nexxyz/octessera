@@ -99,18 +99,6 @@ pub(crate) fn representative_selector_actions_update_link_aux_and_play_xy_bindin
     assert_eq!(runner.xy_y_binding.as_ref().unwrap().key, binding.key);
 }
 
-pub(crate) fn find_item_by_key<'a>(
-    item: &'a crate::native_menu::NativeMenuItem,
-    key: &str,
-) -> Option<&'a crate::native_menu::NativeMenuItem> {
-    if item.key.as_deref() == Some(key) {
-        return Some(item);
-    }
-    item.children
-        .iter()
-        .find_map(|child| find_item_by_key(child, key))
-}
-
 pub(crate) fn collect_set_binding_keys(
     item: &crate::native_menu::NativeMenuItem,
     target: &str,
@@ -141,16 +129,19 @@ pub(crate) fn generated_selector_trees_expose_representative_bindings() {
         ("aux:0:turn", "sound.noteLengthMs"),
         ("xy:x", "sound.noteLengthMs"),
     ] {
-        let picker = find_item_by_key(&runner.menu.root, target).expect("picker target");
+        let picker = runner.menu.item_for_key(target).expect("picker target");
         let mut keys = Vec::new();
-        collect_set_binding_keys(picker, target, &mut keys);
+        collect_set_binding_keys(&picker, target, &mut keys);
         assert!(
             keys.iter().any(|key| key == expected_key),
             "{target} should expose {expected_key}, got {keys:?}"
         );
     }
 
-    let picker = find_item_by_key(&runner.menu.root, "param:0:x:0").expect("sense x picker");
+    let picker = runner
+        .menu
+        .item_for_key("param:0:x:0")
+        .expect("sense x picker");
     let group_labels = picker
         .children
         .iter()
@@ -172,7 +163,10 @@ pub(crate) fn behavior_target_picker_uses_per_layer_behavior_rows_and_hides_none
     runner.layer_names[2] = "none".into();
     runner.menu.rebuild(runner.menu_config());
 
-    let picker = find_item_by_key(&runner.menu.root, "param:0:x:0").expect("sense x picker");
+    let picker = runner
+        .menu
+        .item_for_key("param:0:x:0")
+        .expect("sense x picker");
     let behavior_group = picker
         .children
         .iter()

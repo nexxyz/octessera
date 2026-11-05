@@ -2,6 +2,7 @@ use platform_core::BUS_COUNT as FX_BUS_COUNT;
 
 use super::binding_behavior::behavior_binding_groups;
 use super::binding_link::link_binding_group;
+use super::binding_picker_rows::show_picker_binding;
 use super::binding_picker_voice::instrument_binding_groups;
 use super::binding_tree::{binding_action, binding_group_from_items, binding_tree_from_menu_item};
 use super::fx::{fx_buses_group, global_fx_group};
@@ -31,38 +32,29 @@ pub(super) fn axis_binding_label(label: &str, binding: Option<&NativeParamBindin
         .unwrap_or_else(|| format!("{label}: (none)"))
 }
 
-/// A picker row `prefix: <binding>` whose list picks the binding for `target`.
+/// A picker row `prefix: <binding>` whose list picks the binding for `target`. It holds only
+/// its `(none)`, Current and Range rows; the list opens from the menu's shared parameter tree.
 pub(super) fn parameter_picker_group(
     prefix: &str,
     target: String,
     current: Option<&NativeParamBindingSpec>,
-    config: &NativeMenuConfig,
 ) -> NativeMenuItem {
-    let tree = parameter_tree_groups(&target, config);
-    let current = current.map(|binding| labelled_binding(binding, &tree));
-    let mut children = vec![action_item(
-        "(none)",
-        format!("{target}.none"),
-        NativeMenuAction::ClearParamBinding {
-            target: target.clone(),
-        },
-    )];
-    if let Some(binding) = &current {
-        children.extend(current_binding_rows(&target, binding));
-    }
-    children.extend(tree);
-    mark_active_binding(
-        &mut children,
-        current.as_ref().map(|binding| binding.key.as_str()),
-    );
-    NativeMenuItem {
-        label: axis_binding_label(prefix, current.as_ref()),
+    let mut picker = NativeMenuItem {
+        label: format!("{prefix}: "),
         breadcrumb: None,
-        key: Some(target),
+        key: Some(target.clone()),
         value: NativeMenuValue::Group,
-        children,
+        children: vec![action_item(
+            "(none)",
+            format!("{target}.none"),
+            NativeMenuAction::ClearParamBinding {
+                target: target.clone(),
+            },
+        )],
         pick: NativeMenuPick::Value,
-    }
+    };
+    show_picker_binding(&mut picker, &target, current);
+    picker
 }
 
 /// A saved binding that kept only its key (an Aux turn) takes the label of its picker entry.
@@ -109,20 +101,8 @@ pub(super) fn parameter_picker_group_numeric(
     prefix: &str,
     target: String,
     current: Option<&NativeParamBindingSpec>,
-    config: &NativeMenuConfig,
 ) -> NativeMenuItem {
-    let mut item = parameter_picker_group(
-        prefix,
-        target.clone(),
-        current.filter(|b| b.kind == "number"),
-        config,
-    );
-    item.children = item
-        .children
-        .into_iter()
-        .filter_map(|item| keep_numeric_binding_item(item, &target))
-        .collect();
-    item
+    parameter_picker_group(prefix, target, current.filter(|b| b.kind == "number"))
 }
 
 pub(super) fn current_binding_rows(
