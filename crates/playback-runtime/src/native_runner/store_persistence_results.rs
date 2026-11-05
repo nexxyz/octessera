@@ -401,8 +401,6 @@ impl NativeRunner {
     }
 
     fn apply_default_patch_document(&mut self, payload: Value) -> Result<(), String> {
-        let system = super::system_persistence::SystemPersistenceState::system_document(self)?;
-        super::compose_local_system_patch_documents(&system, &payload)?;
         let baseline = super::saved_patch_aux_claims(&payload);
         self.apply_local_patch_payload_preserving_device(payload)?;
         self.pending.saved_patch_baseline = Some(Arc::new(baseline));

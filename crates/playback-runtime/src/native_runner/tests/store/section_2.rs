@@ -249,3 +249,32 @@ pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
             if effects == &vec![RuntimePlatformEffect::StoreDeletePreset { name: "Alpha".into() }]
     )));
 }
+
+#[test]
+pub(crate) fn rejected_default_patch_keeps_the_runner_and_reports_the_compose_error() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let before = runner.config_payload();
+    let documents = split_local_system_patch_documents(&before).unwrap();
+    let mut patch = documents.patch;
+    patch["runtimeConfig"]["linkLfos"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    let expected = compose_local_system_patch_documents(&documents.system, &patch).unwrap_err();
+
+    let result = runner
+        .apply_default_patch_result_for_runtime(RuntimeStoreResult::LoadDefaultResult {
+            payload: Some(patch),
+        })
+        .unwrap();
+
+    assert_eq!(runner.config_payload(), before);
+    assert!(runner.display.runtime_error_presentation.is_some());
+    assert!(
+        matches!(&result, RuntimeStoreResult::RuntimeFailure { error }
+            if error.code == crate::RuntimeErrorCode::InvalidPayload
+                && error.message.as_deref() == Some(expected.as_str())),
+        "{result:?}"
+    );
+    assert!(runner.outbox.drain_platform_effects().is_empty());
+}
