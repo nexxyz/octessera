@@ -20,7 +20,7 @@ pub(in crate::native_runner) struct LiveFxOverrides {
 }
 
 impl LiveFxOverrides {
-    fn is_empty(&self) -> bool {
+    pub(in crate::native_runner) fn is_empty(&self) -> bool {
         !self.bus_bypassed.contains(&true) && !self.global_bypassed.contains(&true)
     }
 }
@@ -133,12 +133,6 @@ impl NativeRunner {
             _ => {}
         }
         command
-    }
-
-    pub(in crate::native_runner) fn take_live_fx_overrides(&mut self) -> bool {
-        let had = !self.play_live.fx_overrides.is_empty();
-        self.play_live.fx_overrides = LiveFxOverrides::default();
-        had
     }
 
     /// Sends every bus and global FX slot again, through the override gate.

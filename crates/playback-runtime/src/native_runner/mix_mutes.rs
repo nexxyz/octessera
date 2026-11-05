@@ -23,13 +23,9 @@ impl NativeRunner {
         self.play_live.instrument_mutes[index] = muted;
         let mut slots = [false; INSTRUMENT_COUNT];
         slots[index] = true;
-        self.resend_engine_volumes(slots);
+        self.resend_mixer_volumes(slots, [false; BUS_COUNT]);
         let state = if muted { "muted" } else { "unmuted" };
         self.show_toast(format!("I{} {state}", index + 1));
-    }
-
-    pub(super) fn take_instrument_mutes(&mut self) -> [bool; INSTRUMENT_COUNT] {
-        std::mem::take(&mut self.play_live.instrument_mutes)
     }
 
     pub(super) fn bus_muted(&self, index: usize) -> bool {
@@ -44,40 +40,20 @@ impl NativeRunner {
         let state = if *muted { "muted" } else { "unmuted" };
         let mut buses = [false; BUS_COUNT];
         buses[index] = true;
-        self.resend_bus_volumes(buses);
+        self.resend_mixer_volumes([false; INSTRUMENT_COUNT], buses);
         self.show_toast(format!("B{} {state}", index + 1));
     }
 
-    pub(super) fn take_bus_mutes(&mut self) -> [bool; BUS_COUNT] {
-        std::mem::take(&mut self.play_live.bus_mutes)
-    }
-
-    pub(super) fn resend_bus_volumes(&mut self, buses: [bool; BUS_COUNT]) {
-        if !buses.contains(&true) {
+    /// Sends the stored volume of each flagged instrument and bus again, through the mute gate.
+    pub(super) fn resend_mixer_volumes(
+        &mut self,
+        instruments: [bool; INSTRUMENT_COUNT],
+        buses: [bool; BUS_COUNT],
+    ) {
+        if !instruments.contains(&true) && !buses.contains(&true) {
             return;
         }
-        for (index, _) in buses.iter().enumerate().filter(|(_, resend)| **resend) {
-            let Some(volume) = self.fx_buses.get(index).map(|bus| bus.volume_pct) else {
-                continue;
-            };
-            self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
-                bus_index: index,
-                generation: 0,
-                pan_pos: None,
-                volume_pct: Some(f32::from(volume)),
-            });
-        }
-        self.invalidate_lfo_audio_cache();
-        if let Err(error) = self.process_modulation_step(true) {
-            self.show_toast(format!("LFO composition unavailable: {error}"));
-        }
-    }
-
-    pub(super) fn resend_engine_volumes(&mut self, slots: [bool; INSTRUMENT_COUNT]) {
-        if !slots.contains(&true) {
-            return;
-        }
-        for (index, _) in slots.iter().enumerate().filter(|(_, resend)| **resend) {
+        for index in (0..INSTRUMENT_COUNT).filter(|&index| instruments[index]) {
             let Some(volume) = self.instruments.get(index).map(|slot| slot.volume) else {
                 continue;
             };
@@ -86,6 +62,17 @@ impl NativeRunner {
                 generation: 0,
                 volume_pct: Some(f32::from(volume)),
                 pan_pos: None,
+            });
+        }
+        for index in (0..BUS_COUNT).filter(|&index| buses[index]) {
+            let Some(volume) = self.fx_buses.get(index).map(|bus| bus.volume_pct) else {
+                continue;
+            };
+            self.queue_audio_command(RuntimeAudioCommand::SetFxBusMixer {
+                bus_index: index,
+                generation: 0,
+                pan_pos: None,
+                volume_pct: Some(f32::from(volume)),
             });
         }
         self.invalidate_lfo_audio_cache();

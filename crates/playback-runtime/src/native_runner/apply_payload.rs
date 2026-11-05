@@ -126,17 +126,10 @@ impl NativeRunner {
         before: &ConfigurationAggregate,
         plan: ConfigurationRuntimePlan,
     ) -> Result<(), String> {
-        let unmuted = self.take_instrument_mutes();
-        let unmuted_buses = self.take_bus_mutes();
-        let fx_overridden = self.take_live_fx_overrides();
-        let xy_was_latched = self.play_live.xy_latched;
+        let ended_live = std::mem::take(&mut self.play_live);
         if before == &candidate.configuration_aggregate() {
             self.commit_loaded_revision(source_revision);
-            self.resend_engine_volumes(unmuted);
-            self.resend_bus_volumes(unmuted_buses);
-            if fx_overridden {
-                self.resend_fx_slots();
-            }
+            self.restore_after_live_play(&ended_live);
             return Ok(());
         }
         self.drain_all_layer_engine_notes();
@@ -160,14 +153,7 @@ impl NativeRunner {
         if let Err(error) = self.process_modulation_step(false) {
             self.show_toast(format!("LFO composition unavailable: {error}"));
         }
-        self.resend_engine_volumes(unmuted);
-        self.resend_bus_volumes(unmuted_buses);
-        if fx_overridden {
-            self.resend_fx_slots();
-        }
-        if xy_was_latched {
-            self.handle_play_xy_release();
-        }
+        self.restore_after_live_play(&ended_live);
         Ok(())
     }
 

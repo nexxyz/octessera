@@ -368,3 +368,6 @@ The `ms` rows use the curved time steps from
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary
   overlays, and the Faders Tile Map rows.
+- Every patch load, whether or not it changes the patch, and Clear All end all live-only Play state
+  at once: Mix instrument and bus mutes, Route FX bypass, the XY latch, pending Rate resyncs and
+  the Tap history.

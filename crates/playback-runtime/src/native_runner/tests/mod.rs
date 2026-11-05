@@ -129,6 +129,7 @@ mod play_fader_tiles;
 mod play_faders;
 mod play_fx;
 mod play_lfo;
+mod play_live_reset;
 mod play_menu;
 mod play_mix_buses;
 mod play_mix_dispatch;

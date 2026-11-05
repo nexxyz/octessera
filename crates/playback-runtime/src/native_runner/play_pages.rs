@@ -75,6 +75,18 @@ pub(super) struct PlayLiveState {
 }
 
 impl NativeRunner {
+    /// After a patch load has taken the live Play state, sends the engine again what the
+    /// mutes and FX bypasses overrode and lets go of an XY latch.
+    pub(super) fn restore_after_live_play(&mut self, ended: &PlayLiveState) {
+        self.resend_mixer_volumes(ended.instrument_mutes, ended.bus_mutes);
+        if !ended.fx_overrides.is_empty() {
+            self.resend_fx_slots();
+        }
+        if ended.xy_latched {
+            self.handle_play_xy_release();
+        }
+    }
+
     pub(super) fn select_play_page_from_fn_grid(&mut self, bank: PlayBank, y: usize) {
         let Some(next_mode) = play_page_at(bank, y) else {
             return;
