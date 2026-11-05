@@ -77,17 +77,22 @@ impl NativeRunner {
 
     pub(super) fn play_transpose_offsets_for_routing(&self) -> Vec<i8> {
         (0..self.play_transpose_offsets.len())
-            .map(|layer| {
+            .map(|layer| self.play_transpose_offset_for_layer(layer))
+            .collect()
+    }
+
+    /// The semitones Play Transpose shifts a layer's notes by; 0 when it does not apply.
+    pub(super) fn play_transpose_offset_for_layer(&self, layer: usize) -> i8 {
+        match self.play_transpose_offsets.get(layer) {
+            Some(&offset)
                 if self.play_transpose_enabled.get(layer) == Some(&true)
                     && self.play_transpose_selected.get(layer) == Some(&true)
-                    && self.play_transpose_layer_eligible(layer)
-                {
-                    self.play_transpose_offsets[layer]
-                } else {
-                    0
-                }
-            })
-            .collect()
+                    && self.play_transpose_layer_eligible(layer) =>
+            {
+                offset
+            }
+            _ => 0,
+        }
     }
 
     pub(super) fn apply_play_transpose_overlay(&self, leds: &mut [LedColor]) {

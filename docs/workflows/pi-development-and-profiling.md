@@ -305,7 +305,8 @@ tools/board-dev/board-scenarios.sh rpi "$PiTarget"
 tools/board-dev/board-scenarios.sh opi "$OrangeTarget"
 ```
 
-Name scenarios to run a subset: `boot save_restore recording oled soak`.
+Name scenarios to run a subset: `boot save_restore recording oled soak keymap
+usb_midi usb_audio`.
 
 - `boot` reboots the board and only reads the live service: kernel, splash,
   service, audio and menu-ready times from the journal and readiness marker, an
@@ -336,6 +337,47 @@ Name scenarios to run a subset: `boot save_restore recording oled soak`.
   buffers count toward RSS as they are first touched, and a 90-minute
   measurement showed RSS warming up for 15 to 20 minutes and then staying put.
   A shorter soak only ever sees the warm-up.
+- `keymap` turns Auto Save on, empties L1's sequencer and types on the grid
+  keys: the bottom row, Left Alt + the leftmost key of each row, and
+  Left Alt + `;`. The autosaved tiles must be exactly the world-space set
+  (x 0..7, y 0), (0, 4..7) and (6, 5).
+
+`usb_midi` and `usb_audio` are driven from this host over the board's USB
+connection, so plug both boards in and install `python-rtmidi`,
+`sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
+`ffmpeg` decodes the recording. The payload waits at a gate for each host
+measurement, and SSH is used only between measurements. Run one board at a
+time: Windows names neither board in its capture device (`Octessera Audio`
+on the Orange, `Octessera Line In` on the Raspberry).
+
+- `usb_midi` sets external sync, Clock In, Follow S/S and Send MIDI all inst.
+  in the clone. L1 steps a Drum on every bottom tile at 1/8 (its kick is
+  mirrored on channel 1), L2 a MIDI Drum on channel 10 with two stamped tiles
+  and a 150 ms Duration. `host_usb_midi.py` sends Start and 24 PPQN clock at
+  100 BPM for 120 s, 140 BPM for 60 s, then Stop, and stamps every incoming
+  message with `perf_counter` in the loop that sends the clock. It needs
+  300 ± 2 ms between notes at 100 BPM, under 2 ms of drift against the host
+  clock, 214.29 ± 2 ms from one bar after the tempo change, 100 ms mirrored
+  and 150 ms MIDI Drum notes (± 3 ms), and after Stop every note ended and
+  nothing more for the next 2.7 s. A second pass with Swing 4:5 needs the
+  offbeat on clock pulse 11 (275 / 325 ms). The journal must show no underruns
+  and no late timed events, like the timing smoke. Windows timestamps are good
+  to about 1 ms; intervals next to a clock pulse the host itself sent more
+  than 1 ms late are skipped and counted.
+- `usb_audio` turns USB Audio on in the clone and rebuilds the USB gadget from
+  it (the cleanup rebuilds it from the live store). `host_usb_audio.py` waits
+  for the capture device and records 90 s of the store's own patch through
+  WASAPI in exclusive mode, because shared-mode capture (ffmpeg dshow) runs
+  the Windows microphone effects, which rounded off the clipped tops and
+  slowly turned the level down. It needs RMS within 3 dB of the first run's
+  baseline (`target/board-scenarios/usb-audio-baseline-<board>.json`), no
+  exact-zero run of 64 frames or more while sounding, no full-scale sample and
+  no underruns. The first 2 s after the stream opens are reported apart, as
+  `startup_gaps`. Then eight synth notes per step pushed past full scale at
+  Master Vol 100 must show flat-topped full-scale runs, while an Audio+Video
+  recording shows the red `CLIP` in the OLED header; after Master Vol goes
+  down to 20, `CLIP` must clear 2 to 3 s after the recording's last clipped
+  sample.
 
 Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
 `target/board-scenarios/<board>-<stamp>/`. Afterwards the payload restores the

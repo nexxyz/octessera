@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Runs on the board, started by board-scenarios.sh. "boot" collects cold-boot evidence from the live
 # service. "run" (started detached) drives the given scenarios with the virtual keyboard on the real
-# service with a cloned store, then restores the service and removes the clone and any recordings.
+# service with a cloned store, then restores the service (and the USB gadget, if a scenario rebuilt it)
+# and removes the clone and any recordings. usb_midi and usb_audio wait at gates for the host's part:
+# the payload touches <gate>.ready and goes on once the host touches <gate>.go.
 #
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
-#   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak
+#   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_audio
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -14,11 +17,14 @@ service=octessera.service
 ready=/run/octessera/candidate-ready.json
 if [ "$board" = rpi ]; then
   user=pi live=/home/pi/presets media="/home/pi/recordings /home/pi/screen-recordings" bus=bt spi=0
+  gadget_unit=octessera-usb-gadget.service
 else
   user=octessera-runtime live=/var/lib/octessera/presets bus=usb spi=1
+  gadget_unit=octessera-orange-usb-gadget.service
   media="/var/lib/octessera/recordings /var/lib/octessera/screen-recordings"
 fi
 hashes() { sudo -n sha256sum "$live/system.json" "$live/default.patch.json" "$live/recovery-save.json"; }
+gadget_functions() { sudo -n sh -c 'ls /sys/kernel/config/usb_gadget/*/configs/*/ 2>/dev/null' | tr '\n' ' '; }
 
 if [ "$mode" = boot ]; then
   pid=$(systemctl show -p MainPID --value "$service")
@@ -77,6 +83,33 @@ start() {
   mark ready_timeout
   return 1
 }
+# Rebuilds the USB gadget from the clone's System document; cleanup rebuilds it from the live one.
+gadget_from_clone() {
+  gadget_changed=1
+  if [ "$board" = rpi ]; then
+    sudo -n /usr/local/sbin/octessera-usb-gadget teardown
+    sudo -n env OCTESSERA_USB_CONFIG="$store/system.json" /usr/local/sbin/octessera-usb-gadget setup
+  else
+    sudo -n /usr/local/sbin/octessera-orange-usb-gadget teardown
+    sudo -n /usr/local/sbin/octessera-orange-usb-gadget setup --config "$store/system.json"
+  fi
+  echo "gadget from clone: $(gadget_functions)" >> host.log
+}
+gate() {
+  mark "${1}_ready"
+  touch "$root/$1.ready"
+  for _ in $(seq 1 900); do
+    [ -e "$root/$1.go" ] && { mark "${1}_go"; return 0; }
+    sleep 1
+  done
+  mark "${1}_timeout"
+  return 1
+}
+prepare() {
+  sudo -n systemctl stop "$service"
+  sudo -n cp -a -- "$live/system.json" "$live/default.patch.json" "$store/"
+  sudo -n python3 "$root/board-scenarios-store.py" "$store" "$1"
+}
 cleanup() {
   set +e
   if sudo -n test -d "$trace"; then
@@ -86,12 +119,13 @@ cleanup() {
   sudo -n journalctl -u "$service" --since "@$started" --no-pager -o short-monotonic > journal.log
   sudo -n rm -f "$dropin"
   sudo -n systemctl daemon-reload
+  [ "$gadget_changed" = 1 ] && sudo -n systemctl restart "$gadget_unit"
   sudo -n systemctl restart "$service"
   sudo -n rm -rf -- "$store"
   # shellcheck disable=SC2086
   sudo -n find $media -type f -newer "$root/started" -print -delete >> host.log 2>&1
   for _ in $(seq 1 30); do [ "$(systemctl is-active "$service")" = active ] && break; sleep 1; done
-  echo "restore service=$(systemctl is-active "$service") live_store_unchanged=$([ "$(hashes)" = "$original" ] && echo yes || echo NO) dropin_left=$(test -e "$dropin" && echo yes || echo no)" >> host.log
+  echo "restore service=$(systemctl is-active "$service") live_store_unchanged=$([ "$(hashes)" = "$original" ] && echo yes || echo NO) dropin_left=$(test -e "$dropin" && echo yes || echo no) gadget_restored=$([ "$(gadget_functions)" = "$gadget_original" ] && echo yes || echo NO)" >> host.log
   touch "$root/done"
 }
 
@@ -147,8 +181,40 @@ soak() {
   wait
   mark soak_end
 }
+keymap() {
+  prepare keymap
+  start || return
+  keys keymap "c v b n m , . / alt+c alt+f alt+r alt+4 alt+; wait:12"
+  snapshot keymap
+}
+usb_midi() {
+  local setup
+  for setup in usb_midi usb_midi_swing; do
+    prepare "$setup"
+    start OCTESSERA_RUNTIME_TIMING_TRACE=1 OCTESSERA_PI_UI_PROFILE=1 || return
+    sleep 5
+    gate "$setup" || return
+  done
+}
+usb_audio() {
+  prepare usb_audio
+  gadget_from_clone
+  start OCTESSERA_TIMING_AUTOPLAY=1 OCTESSERA_RUNTIME_TIMING_TRACE=1 OCTESSERA_PI_UI_PROFILE=1 || return
+  gate usb_audio || return
+  prepare usb_audio_clip
+  start OCTESSERA_TIMING_AUTOPLAY=1 || return
+  gate usb_audio_clip || return
+  sleep 5
+  keys clip "$system down*2 enter down*2 enter mark:start wait:12 $system down*4 enter up*20 down*2 enter gap:0.02 left*16 gap:0.12 mark:lowered enter wait:8 $system down*2 enter up*20 down*3 enter mark:stop wait:8"
+  # shellcheck disable=SC2086
+  avi=$(sudo -n find $media -type f -name '*.avi' -newer "$root/started" | tail -n 1)
+  [ -n "$avi" ] && sudo -n cat "$avi" > clip.avi
+  echo "recording $avi" >> host.log
+}
 
 started=$(date +%s)
+gadget_changed=0
+gadget_original=$(gadget_functions)
 touch started
 original=$(hashes)
 trap cleanup EXIT

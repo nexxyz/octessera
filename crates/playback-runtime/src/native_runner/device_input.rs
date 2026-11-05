@@ -446,11 +446,7 @@ impl NativeRunner {
         }
         let mut events = self.take_due_link_events(self.active_layer_index);
         self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
-        let transpose_offset = self
-            .play_transpose_offsets_for_routing()
-            .get(self.active_layer_index)
-            .copied()
-            .unwrap_or(0);
+        let transpose_offset = self.play_transpose_offset_for_layer(self.active_layer_index);
         let sense = self.link_layers.get(self.active_layer_index).cloned();
         events.extend(self.route_events_with_link_timing(
             self.active_layer_index,

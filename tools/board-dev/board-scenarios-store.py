@@ -6,7 +6,7 @@ setups:
                   at 1/8, L2 a MIDI Drum with two stamped tiles; no autoplay
   usb_midi_swing  usb_midi with Swing 4:5
   usb_audio       USB Audio on, the store's own patch and Master Vol
-  usb_audio_clip  USB Audio on, Master Vol 100, a hot synth playing eight notes per step
+  usb_audio_clip  USB Audio on, Master Vol 100, eight synth notes per step pushed past full scale
   keymap          Auto Save on, L1 a sequencer with an empty grid, keyboard capture allowed
 """
 import json
@@ -77,7 +77,11 @@ def main():
             for osc in ("osc1", "osc2"):
                 synth[osc]["levelPct"] = 100
             instruments[0]["mixer"].update(route="direct", volume=100)
-            music["mixer"]["master"]["slots"] = [{"params": {}, "type": "none"}] * len(music["mixer"]["master"]["slots"])
+            # The engine keeps eight full voices near -6 dBFS, so 12 dB of compressor makeup at ratio 1 drives it
+            # to about 2x full scale; Master Vol 20 brings it back to about -8 dBFS.
+            slots = music["mixer"]["master"]["slots"]
+            slots[:] = [{"params": {"attackMs": 36, "makeupDb": 12, "mixPct": 100, "ratio": 1, "releaseMs": 100,
+                                    "thresholdDb": 0}, "type": "compressor"}] + [{"params": {}, "type": "none"}] * (len(slots) - 1)
             music["sound"].update(noteLengthMs=240, velocityScalePct=200)
     elif setup == "keymap":
         config["autoSaveDefault"] = True

@@ -174,14 +174,21 @@ def oled(board, out):
                       f"{frames_asleep} frames asleep, on again after input, detents sent contrast {steps}")
 
 
+def window_counts(out, start, end):
+    found = marks(out)
+    rows = [r for r in journal(out / "journal.log") if found[start] <= r[0] <= found[end]]
+    underruns = sum("underrun occurred" in text for _, _, text in rows)
+    late = sum(int(m.group(1)) for _, _, text in rows for m in [re.search(r"late timed events: (\d+)", text)] if m)
+    worst = max((int(m.group(1)) for _, _, text in rows for m in [re.search(r"runtime_late=n=\d+ avg=\d+us max=(\d+)us", text)] if m), default=None)
+    return underruns, late, worst, errors(rows)
+
+
 def soak(board, out):
     found = marks(out)
     rows = [r for r in journal(out / "journal.log") if found["soak_start"] <= r[0] <= found["soak_end"]]
-    underruns = sum("underrun occurred" in text for _, _, text in rows)
+    underruns, late, worst, _ = window_counts(out, "soak_start", "soak_end")
     missed = sum("quantum missed" in text for _, _, text in rows)
-    late = sum(int(m.group(1)) for _, _, text in rows for m in [re.search(r"late timed events: (\d+)", text)] if m)
     pulses = sum(int(m.group(1)) for _, _, text in rows for m in [re.search(r"runtime-timing playing \S+ pulses=(\d+)", text)] if m)
-    worst = max((int(m.group(1)) for _, _, text in rows for m in [re.search(r"runtime_late=n=\d+ avg=\d+us max=(\d+)us", text)] if m), default=None)
     samples = [line.split() for line in (out / "soak-proc.log").read_text().splitlines()]
     rss = [int(s[1]) for s in samples if len(s) == 3]
     fds = [int(s[2]) for s in samples if len(s) == 3]
@@ -204,6 +211,76 @@ def soak(board, out):
     problems += errors(rows)
     return problems, (f"{underruns} underruns, {late} late timed events, {missed} missed quanta, {pulses} pulses, worst "
                       f"runtime_late {worst}us, RSS kB {rss}, fds {fds}")
+
+
+def keymap(board, out):
+    patch = json.loads((out / "keymap-patch.json").read_text())["runtimeConfig"]
+    tiles = patch["layers"][0]["build"]["savedState"]["tiles"]
+    saved = {(i % 8, i // 8) for i, on in enumerate(tiles) if on}
+    expected = {(x, 0) for x in range(8)} | {(0, y) for y in range(4, 8)} | {(6, 5)}
+    problems = window_errors(out, "keymap")
+    if saved != expected:
+        problems.append(f"missing {sorted(expected - saved)}, unexpected {sorted(saved - expected)}")
+    return problems, f"saved tiles {sorted(saved)}"
+
+
+def usb_midi(board, out):
+    problems, evidence = [], []
+    for phase, gate in (("straight", "usb_midi"), ("swing", "usb_midi_swing")):
+        result = json.loads((out / f"usb-midi-{phase}.json").read_text())
+        underruns, late, worst, journal_errors = window_counts(out, f"{gate}_ready", f"{gate}_go")
+        problems += [f"{phase}: {p}" for p in result["problems"] + journal_errors]
+        if underruns or late:
+            problems.append(f"{phase}: {underruns} underruns and {late} late timed events (timing smoke: 0 and 0)")
+        evidence.append(f"{phase} {json.dumps(result['metrics'])}, {underruns} underruns, {late} late timed events, "
+                        f"worst runtime_late {worst}us")
+    return problems, "; ".join(evidence)
+
+
+def clip_frames(avi):
+    probe = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(avi)],
+                                      capture_output=True, check=True).stdout)
+    video = next(s for s in probe["streams"] if s["codec_type"] == "video")
+    width, height = int(video["width"]), int(video["height"])
+    rgb = subprocess.run(["ffmpeg", "-v", "error", "-i", str(avi), "-map", "0:v", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                         capture_output=True, check=True).stdout
+    size = width * height * 3
+    red = []
+    for start in range(0, len(rgb) - size + 1, size):
+        hits = 0
+        for y in range(0, 5):
+            row = rgb[start + (y * width + 88) * 3:start + (y * width + 104) * 3]
+            hits += sum(1 for i in range(0, len(row), 3) if row[i] > 128 and row[i + 1] < 64 and row[i + 2] < 64)
+        red.append(hits > 0)
+    return red
+
+
+def usb_audio(board, out):
+    problems, evidence = [], []
+    for take in ("level", "clip"):
+        result = json.loads((out / f"usb-audio-{take}.json").read_text())
+        problems += [f"{take}: {p}" for p in result["problems"]]
+        evidence.append(f"{take} {json.dumps(result['metrics'])}")
+    underruns, late, worst, journal_errors = window_counts(out, "usb_audio_ready", "usb_audio_go")
+    problems += journal_errors
+    if underruns:
+        problems.append(f"{underruns} underruns during the level take")
+    red = clip_frames(out / "clip.avi")
+    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(out / "clip.avi"), "-map", "0:a", "-f", "s16le", "-ac", "1", "-"],
+                         capture_output=True, check=True).stdout
+    samples = memoryview(pcm).cast("h")
+    clipped = [i for i in range(0, len(samples), 64) if max(map(abs, samples[i:i + 64])) >= 32767]
+    last = clipped[-1] / 44100 if clipped else 0.0
+    lit = sum(red[: int(last * 20)])
+    cleared = next((i / 20 - last for i in range(int(last * 20), len(red)) if not any(red[i:i + 20])), None)
+    if not clipped or lit < (last - 1) * 20 * 0.9:
+        problems.append(f"CLIP lit in only {lit} of the {int(last * 20)} frames while the take clipped")
+    if cleared is None or not 2.0 <= cleared <= 3.0:
+        problems.append(f"CLIP cleared {cleared} s after the last clipped sample, not 2-3 s")
+    evidence.append(f"{underruns} underruns, {late} late timed events, worst runtime_late {worst}us; recording clipped "
+                    f"for {last:.2f} s, CLIP lit in {lit} of those frames, cleared "
+                    f"{cleared if cleared is None else round(cleared, 2)} s after the last clipped sample")
+    return problems, "; ".join(evidence)
 
 
 def main():
