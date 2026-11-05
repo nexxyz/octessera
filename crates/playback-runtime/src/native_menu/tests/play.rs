@@ -393,3 +393,35 @@ pub(crate) fn aux_click_picker_exposes_assignable_actions() {
     ));
     assert!(contains_aux_click_reset(&menu.browsable_root(), 0));
 }
+
+#[test]
+fn a_picker_entry_lookup_matches_the_entry_in_the_opened_picker() {
+    let menu = NativeMenuModel::new(config());
+    let root = menu.browsable_root();
+    for target in ["aux:0:turn", "param:0:x:0", "linkLfos.0.target"] {
+        let picker = find_item_by_key(&root, target).expect(target);
+        let mut entries = Vec::new();
+        collect_set_bindings(picker, &mut entries);
+        assert!(entries.len() > 10, "{target}");
+        for entry in entries {
+            let key = entry.key.as_deref().expect("entry key");
+            assert_eq!(menu.item_for_key(key).as_ref(), Some(entry), "{key}");
+        }
+    }
+}
+
+fn collect_set_bindings<'a>(node: &'a NativeMenuItem, entries: &mut Vec<&'a NativeMenuItem>) {
+    if matches!(
+        node.value,
+        NativeMenuValue::Action(NativeMenuAction::SetParamBinding { .. })
+    ) && node
+        .key
+        .as_deref()
+        .is_some_and(|key| !key.ends_with(".current"))
+    {
+        entries.push(node);
+    }
+    for child in &node.children {
+        collect_set_bindings(child, entries);
+    }
+}

@@ -84,12 +84,7 @@ pub(super) fn open_picker(picker: &mut NativeMenuItem, tree: &[NativeMenuItem]) 
     if picker.children.iter().any(is_list_group) {
         return;
     }
-    let bound = picker.children.iter().find_map(|row| match &row.value {
-        NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) => {
-            Some(binding.key.clone())
-        }
-        _ => None,
-    });
+    let bound = bound_key(picker).map(str::to_owned);
     let head = picker.children.len();
     picker.children.extend(tree.iter().filter_map(|group| {
         let mut group = group.clone();
@@ -97,6 +92,46 @@ pub(super) fn open_picker(picker: &mut NativeMenuItem, tree: &[NativeMenuItem]) 
         picker_rows(group, &target)
     }));
     mark_active_binding(&mut picker.children[head..], bound.as_deref());
+}
+
+/// The entry of a closed picker's list that binds `binding_key`, retargeted and marked as
+/// `open_picker` shows it, without copying the rest of the list.
+pub(super) fn picker_list_entry(
+    picker: &NativeMenuItem,
+    tree: &[NativeMenuItem],
+    binding_key: &str,
+) -> Option<NativeMenuItem> {
+    let target = picker_target(picker)?;
+    let mut entry = tree.iter().find_map(|group| {
+        let mut entry = find_binding_entry(group, binding_key)?.clone();
+        retarget(&mut entry, target);
+        picker_rows(entry, target)
+    })?;
+    mark_active_binding(std::slice::from_mut(&mut entry), bound_key(picker));
+    Some(entry)
+}
+
+fn bound_key(picker: &NativeMenuItem) -> Option<&str> {
+    picker.children.iter().find_map(|row| match &row.value {
+        NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. }) => {
+            Some(binding.key.as_str())
+        }
+        _ => None,
+    })
+}
+
+fn find_binding_entry<'a>(node: &'a NativeMenuItem, key: &str) -> Option<&'a NativeMenuItem> {
+    match &node.value {
+        NativeMenuValue::Action(NativeMenuAction::SetParamBinding { binding, .. })
+            if binding.key == key =>
+        {
+            Some(node)
+        }
+        _ => node
+            .children
+            .iter()
+            .find_map(|child| find_binding_entry(child, key)),
+    }
 }
 
 pub(super) fn close_picker(picker: &mut NativeMenuItem) {

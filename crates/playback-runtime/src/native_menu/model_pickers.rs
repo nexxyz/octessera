@@ -1,7 +1,7 @@
 //! A parameter picker holds its list only while the menu path runs through it; the model keeps
 //! the list once, as the shared parameter tree.
 
-use super::binding_picker_rows::{close_picker, open_picker, picker_target};
+use super::binding_picker_rows::{close_picker, open_picker, picker_list_entry, picker_target};
 use super::model_search::{find_item_by_key, find_item_by_key_mut, find_item_path_by_key};
 use super::{NativeMenuItem, NativeMenuModel};
 
@@ -84,9 +84,9 @@ impl NativeMenuModel {
             let target = &key[..at];
             let picker = find_item_by_key(&self.root, target)
                 .filter(|picker| picker_target(picker) == Some(target))?;
-            let mut picker = picker.clone();
-            open_picker(&mut picker, &self.parameter_tree);
-            find_item_by_key(&picker, key).cloned()
+            find_item_by_key(picker, key)
+                .cloned()
+                .or_else(|| picker_list_entry(picker, &self.parameter_tree, &key[at + 1..]))
         })
     }
 
