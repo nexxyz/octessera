@@ -1,7 +1,7 @@
 use crate::protocol::RunnerMessage;
 use crate::runtime::RuntimeConfig;
 
-use super::NativeRunner;
+use super::{NativeRunner, INSTRUMENT_COUNT};
 
 impl NativeRunner {
     fn runtime_config(&self) -> RuntimeConfig {
@@ -11,8 +11,17 @@ impl NativeRunner {
             midi_clock_out_enabled: self.midi_clock_out_enabled,
             midi_out_enabled: self.midi_enabled
                 && (self.usb_midi_out_enabled || self.selected_midi_output_id.is_some()),
-            midi_out_internal_notes: self.midi_send_instruments == "all",
+            midi_out_internal_channels: self.midi_internal_note_channels(),
         }
+    }
+
+    fn midi_internal_note_channels(&self) -> u16 {
+        if self.midi_send_instruments != "all" {
+            return 0;
+        }
+        (0..INSTRUMENT_COUNT)
+            .filter(|index| !self.instrument_muted(*index))
+            .fold(0, |channels, index| channels | 1 << index)
     }
 
     pub(super) fn append_runtime_config_if_changed(&mut self, messages: &mut Vec<RunnerMessage>) {

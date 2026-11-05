@@ -362,7 +362,7 @@ fn midi_start_goes_out_with_the_downbeat_clock_but_continue_does_not() {
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: true,
         midi_out_enabled: true,
-        midi_out_internal_notes: true,
+        midi_out_internal_channels: u16::MAX,
     });
     let mut host = FakeHost::default();
     let mut ingest = |runtime: &mut PlaybackRuntime, transport| {

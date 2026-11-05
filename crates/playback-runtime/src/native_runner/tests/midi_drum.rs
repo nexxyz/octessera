@@ -103,6 +103,14 @@ impl Rig {
         }
     }
 
+    fn toggle_mute(&mut self) {
+        self.press_with(&["button_fn"], GRID_WIDTH - 1, 0);
+        assert_eq!(self.runner.active_play_mode, "mix");
+        self.press(0, 0);
+        self.press_with(&["button_fn"], 0, 0);
+        assert_eq!(self.runner.active_play_mode, "none");
+    }
+
     fn back(&mut self) {
         self.input(json!({ "type": "button_a", "pressed": true }));
         self.input(json!({ "type": "button_a", "pressed": false }));
@@ -272,17 +280,11 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
     rig.press(2, 3);
     rig.back();
 
-    rig.press_with(&["button_fn"], GRID_WIDTH - 1, 0);
-    assert_eq!(rig.runner.active_play_mode, "mix");
-    rig.press(0, 0);
+    rig.toggle_mute();
     assert!(rig.runner.instrument_muted(0));
-    rig.press_with(&["button_fn"], 0, 0);
-    assert_eq!(rig.runner.active_play_mode, "none");
     rig.press(2, 3);
     assert!(rig.take_notes().is_empty(), "muted");
-    rig.press_with(&["button_fn"], GRID_WIDTH - 1, 0);
-    rig.press(0, 0);
-    rig.press_with(&["button_fn"], 0, 0);
+    rig.toggle_mute();
     rig.press(2, 3);
     assert_eq!(rig.take_notes().len(), 1, "unmuted");
 
@@ -416,10 +418,17 @@ fn drum_and_sampler_hits_go_to_midi_only_under_send_midi_all() {
         rig.advance(100);
         assert_eq!(rig.take_notes(), vec![vec![0x80, note, 0]], "{kind}");
 
-        rig.turn("midi.sendInstruments", -1);
+        rig.toggle_mute();
         rig.press(2, 3);
         rig.advance(100);
         assert_eq!(struck(&rig).len(), 3, "{kind}");
+        assert!(rig.take_notes().is_empty(), "{kind} muted");
+        rig.toggle_mute();
+
+        rig.turn("midi.sendInstruments", -1);
+        rig.press(2, 3);
+        rig.advance(100);
+        assert_eq!(struck(&rig).len(), 4, "{kind}");
         assert!(rig.take_notes().is_empty(), "{kind} back on MIDI inst.");
     }
 }

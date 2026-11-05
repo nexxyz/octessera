@@ -11,7 +11,8 @@ pub(super) type MirroredHeldNotes = BTreeSet<(u8, u8)>;
 const MIRRORED_TILE_HIT_MS: u32 = 100;
 
 impl PlaybackRuntime {
-    /// Copies an internal instrument's event to MIDI out; notes only when Send MIDI is all.
+    /// Copies an internal instrument's event to MIDI out; notes only for the channels Send MIDI
+    /// all inst. copies, and a note-off only for a held note it copied.
     pub(super) fn mirror_internal_event<H: HostAdapter>(
         &mut self,
         event: MusicalEvent,
@@ -19,7 +20,14 @@ impl PlaybackRuntime {
     ) -> Result<(), RuntimeAdapterError> {
         match event {
             MusicalEvent::Cc { .. } => {}
-            _ if !self.config.midi_out_internal_notes => return Ok(()),
+            MusicalEvent::NoteOff { channel, note } => {
+                if !self.mirrored_held_notes.remove(&(channel, note)) {
+                    return Ok(());
+                }
+            }
+            MusicalEvent::NoteOn { channel, .. } if !copies_channel(&self.config, channel) => {
+                return Ok(())
+            }
             MusicalEvent::NoteOn {
                 channel,
                 note,
@@ -27,9 +35,6 @@ impl PlaybackRuntime {
                 ..
             } => {
                 self.mirrored_held_notes.insert((channel, note));
-            }
-            MusicalEvent::NoteOff { channel, note } => {
-                self.mirrored_held_notes.remove(&(channel, note));
             }
             MusicalEvent::NoteOn { .. } => {}
         }
@@ -44,10 +49,7 @@ impl PlaybackRuntime {
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
         host.handle_tile_hit(hit, self.sequenced_at)?;
-        if hit.velocity == 0
-            || !self.config.midi_out_enabled
-            || !self.config.midi_out_internal_notes
-        {
+        if hit.velocity == 0 || !copies_channel(&self.config, hit.instrument_slot) {
             return Ok(());
         }
         self.send_musical_event_midi(
@@ -61,16 +63,17 @@ impl PlaybackRuntime {
         )
     }
 
-    /// Sends note-offs for the held notes copied to MIDI out once `next` stops copying them.
+    /// Sends note-offs for the held notes copied to MIDI out whose channel `next` stops copying.
     pub(super) fn end_mirrored_held_notes<H: HostAdapter>(
         &mut self,
         next: &RuntimeConfig,
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
-        if next.midi_out_enabled && next.midi_out_internal_notes {
-            return Ok(());
-        }
-        for (channel, note) in std::mem::take(&mut self.mirrored_held_notes) {
+        let (kept, ended) = std::mem::take(&mut self.mirrored_held_notes)
+            .into_iter()
+            .partition(|(channel, _)| copies_channel(next, *channel));
+        self.mirrored_held_notes = kept;
+        for (channel, note) in ended {
             self.send_midi_message(
                 &[0x80 | (channel & 0x0F), note.min(127), 0],
                 self.sequenced_at,
@@ -80,4 +83,12 @@ impl PlaybackRuntime {
         }
         Ok(())
     }
+}
+
+fn copies_channel(config: &RuntimeConfig, channel: u8) -> bool {
+    config.midi_out_enabled
+        && config
+            .midi_out_internal_channels
+            .checked_shr(u32::from(channel))
+            .is_some_and(|channels| channels & 1 != 0)
 }

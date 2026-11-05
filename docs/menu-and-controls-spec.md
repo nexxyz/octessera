@@ -349,7 +349,8 @@ change; only the distance per detent does.
   them on their slot's channel. Drum hits send the GM note of their voice's Sound, Sampler hits
   notes 36..43 for slots 1..8, each a fixed 100 ms note at the hit's velocity. Clock and CC out are
   unaffected. Switching to `MIDI inst.` sends exact note-offs for the copied notes still held, and
-  leaves MIDI Inst. and MIDI Drum notes alone.
+  leaves MIDI Inst. and MIDI Drum notes alone. An instrument muted in Play Mix sends no copies;
+  muting it sends the same exact note-offs for its held copies.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.

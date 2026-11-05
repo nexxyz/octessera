@@ -121,7 +121,7 @@ fn run_live_one(
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
-        midi_out_internal_notes: false,
+        midi_out_internal_channels: 0,
     });
     let mut runner = LiveProbeRunner {
         inner: NativeRunner::new(NativeRunnerConfig {

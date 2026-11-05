@@ -178,7 +178,7 @@ fn internal_clock_advances_runner_and_schedules_note_offs() {
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: true,
         midi_out_enabled: true,
-        midi_out_internal_notes: true,
+        midi_out_internal_channels: u16::MAX,
     });
     let mut runner = FakeRunner::default();
     let mut host = FakeHost::default();
@@ -205,7 +205,7 @@ fn internal_clock_preserves_sub_millisecond_transport_time() {
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
-        midi_out_internal_notes: true,
+        midi_out_internal_channels: u16::MAX,
     });
     let mut runner = FakeRunner::default();
     let mut host = FakeHost::default();
@@ -326,7 +326,7 @@ fn midi_only_events_send_midi_without_host_audio_and_schedule_note_off() {
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: true,
-        midi_out_internal_notes: true,
+        midi_out_internal_channels: u16::MAX,
     });
     let mut runner = MidiOnlyRunner;
     let mut host = FakeHost::default();
@@ -351,7 +351,7 @@ fn external_midi_realtime_bytes_preserve_clock_control_order() {
         sync_source: SyncSource::External,
         midi_clock_out_enabled: true,
         midi_out_enabled: true,
-        midi_out_internal_notes: true,
+        midi_out_internal_channels: u16::MAX,
     });
     let mut runner = FakeRunner::default();
     let mut host = FakeHost::default();
@@ -449,7 +449,7 @@ fn dispatch_consumes_native_runtime_config_publication() {
                     sync_source: SyncSource::External,
                     midi_clock_out_enabled: true,
                     midi_out_enabled: true,
-                    midi_out_internal_notes: true,
+                    midi_out_internal_channels: u16::MAX,
                 },
             }])
         }
@@ -484,7 +484,7 @@ fn dispatch_consumes_native_runtime_config_publication() {
             sync_source: SyncSource::External,
             midi_clock_out_enabled: true,
             midi_out_enabled: true,
-            midi_out_internal_notes: true,
+            midi_out_internal_channels: u16::MAX,
         }
     );
 }

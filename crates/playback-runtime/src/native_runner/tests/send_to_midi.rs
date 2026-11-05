@@ -63,6 +63,21 @@ impl Rig {
         self.input(json!({ "type": "grid_release", "x": 2, "y": 3 }));
     }
 
+    fn toggle_mute(&mut self) {
+        self.input(json!({ "type": "button_fn", "pressed": true }));
+        self.input(json!({ "type": "grid_press", "x": GRID_WIDTH - 1, "y": 0 }));
+        self.input(json!({ "type": "grid_release", "x": GRID_WIDTH - 1, "y": 0 }));
+        self.input(json!({ "type": "button_fn", "pressed": false }));
+        assert_eq!(self.runner.active_play_mode, "mix");
+        self.input(json!({ "type": "grid_press", "x": 0, "y": 0 }));
+        self.input(json!({ "type": "grid_release", "x": 0, "y": 0 }));
+        self.input(json!({ "type": "button_fn", "pressed": true }));
+        self.input(json!({ "type": "grid_press", "x": 0, "y": 0 }));
+        self.input(json!({ "type": "grid_release", "x": 0, "y": 0 }));
+        self.input(json!({ "type": "button_fn", "pressed": false }));
+        assert_eq!(self.runner.active_play_mode, "none");
+    }
+
     fn turn_send_to_midi(&mut self, delta: i8) {
         assert!(self.runner.menu.focus_item_key(SEND_TO_MIDI));
         self.runner.menu.state.editing = true;
@@ -96,7 +111,7 @@ fn notes(messages: &[Vec<u8>]) -> Vec<Vec<u8>> {
 #[test]
 fn midi_inst_keeps_internal_notes_off_midi_out_but_sends_clock_and_cc() {
     let mut rig = Rig::new("synth");
-    assert!(!rig.runtime.config().midi_out_internal_notes);
+    assert_eq!(rig.runtime.config().midi_out_internal_channels, 0);
 
     rig.press_tile();
     rig.release_tile();
@@ -127,7 +142,10 @@ fn all_inst_mirrors_internal_notes_on_their_slot_channel() {
     let mut rig = Rig::new("synth");
     rig.turn_send_to_midi(1);
     assert_eq!(rig.runner.midi_send_instruments, "all");
-    assert!(rig.runtime.config().midi_out_internal_notes);
+    assert_eq!(
+        rig.runtime.config().midi_out_internal_channels,
+        (1 << INSTRUMENT_COUNT) - 1
+    );
 
     rig.press_tile();
     rig.release_tile();
@@ -152,6 +170,34 @@ fn switching_to_midi_inst_ends_each_held_mirrored_note_once() {
 
     rig.release_tile();
     assert_eq!(notes(&rig.take_midi()), Vec::<Vec<u8>>::new());
+}
+
+#[test]
+fn muting_an_internal_slot_ends_its_held_copy_once_and_sends_no_new_ones() {
+    let mut rig = Rig::new("synth");
+    rig.turn_send_to_midi(1);
+    rig.press_tile();
+    let note = rig.internal_note();
+    assert_eq!(notes(&rig.take_midi()).len(), 1);
+
+    rig.toggle_mute();
+    assert!(rig.runner.instrument_muted(0));
+    assert_eq!(notes(&rig.take_midi()), vec![vec![0x80, note, 0]]);
+    rig.release_tile();
+    rig.press_tile();
+    rig.release_tile();
+    assert!(rig.host.musical_events.len() > 2);
+    assert_eq!(notes(&rig.take_midi()), Vec::<Vec<u8>>::new());
+
+    rig.toggle_mute();
+    assert!(!rig.runner.instrument_muted(0));
+    assert_eq!(notes(&rig.take_midi()), Vec::<Vec<u8>>::new());
+    rig.press_tile();
+    rig.release_tile();
+    let sent = notes(&rig.take_midi());
+    assert_eq!(sent.len(), 2);
+    assert_eq!(sent[0][..2], [0x90, note]);
+    assert_eq!(sent[1], vec![0x80, note, 0]);
 }
 
 #[test]

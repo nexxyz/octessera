@@ -72,8 +72,9 @@ pub struct RuntimeConfig {
     pub sync_source: SyncSource,
     pub midi_clock_out_enabled: bool,
     pub midi_out_enabled: bool,
-    /// Internal instruments' notes also go to MIDI out (System > MIDI > Send MIDI).
-    pub midi_out_internal_notes: bool,
+    /// Channels (one bit each) whose internal-instrument notes are copied to MIDI out: all
+    /// unmuted slots under System > MIDI > Send MIDI all inst., none under MIDI inst.
+    pub midi_out_internal_channels: u16,
 }
 
 impl Default for RuntimeConfig {
@@ -83,7 +84,7 @@ impl Default for RuntimeConfig {
             sync_source: SyncSource::Internal,
             midi_clock_out_enabled: false,
             midi_out_enabled: true,
-            midi_out_internal_notes: true,
+            midi_out_internal_channels: u16::MAX,
         }
     }
 }

@@ -189,7 +189,8 @@ point at them.
   closed hat 42 and so on), and Sampler slots 1 to 8 send notes 36 to 43, each
   as a short 100 ms note. Handy for doubling a part on outboard
   gear. Flip it back to `MIDI inst.` and any note still held gets its
-  note-off, so nothing hangs on the other end.
+  note-off, so nothing hangs on the other end. Muting a slot in Play Mix
+  silences its MIDI copy too, the same tidy way.
 
 ### Drum and Sampler tiles are stamps
 

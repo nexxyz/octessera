@@ -138,7 +138,7 @@ fn native_runner_publishes_runtime_config_changes_once() {
                 sync_source: SyncSource::Internal,
                 midi_clock_out_enabled: false,
                 midi_out_enabled: false,
-                midi_out_internal_notes: false,
+                midi_out_internal_channels: 0,
             }
         }
     )));
@@ -180,7 +180,7 @@ fn native_runner_publishes_runtime_config_changes_once() {
                 sync_source: SyncSource::External,
                 midi_clock_out_enabled: true,
                 midi_out_enabled: true,
-                midi_out_internal_notes: false,
+                midi_out_internal_channels: 0,
             }
         } if (*bpm - 93.5).abs() < f64::EPSILON
     )));

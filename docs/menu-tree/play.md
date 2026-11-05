@@ -95,6 +95,9 @@ The menu lists the technical bank, then the musical bank.
 - A muted MIDI slot sends no new note-ons on its MIDI channel; muting sends exact note-offs for its
   held external notes, and unmuting does not revive them. Note-offs still pass, so a key released
   while muted may send a harmless extra note-off. MIDI slots sharing a channel mute together.
+- Under `System > MIDI > Send MIDI` `all inst.`, a muted internal instrument sends no MIDI copies:
+  muting sends exact note-offs for its held copied notes, new notes and Drum/Sampler hits stay off
+  MIDI out, and unmuting does not revive the held copies.
 - LEDs: row 0 is green when active and red when muted. The volume marker sits at its rounded row
   clamped to `1..7` (low volumes show on row 1): green, or dimmed green while muted. `none` slots
   show dim gray on row 0 and at the marker.
