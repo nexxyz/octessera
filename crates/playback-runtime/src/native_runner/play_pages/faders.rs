@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 use super::super::action_bindings::BindingTarget;
 use super::super::led_color::LedColor;
 use super::super::menu_apply_fast::value_changed;
+use super::super::menu_apply_fast_values::parse_indexed_key;
 use super::super::modulation_source::ModulationSourceId;
 use super::super::modulation_value::quantize_binding_value;
 use super::super::{
@@ -14,8 +15,27 @@ use crate::native_menu::NativeFadersConfig;
 
 pub(in crate::native_runner) const FADER_COUNT: usize = GRID_WIDTH;
 const TOP_POSITION: u8 = (GRID_HEIGHT - 1) as u8;
-/// Saved slider fields: the plain side, then the Shift side.
-const SIDE_FIELDS: [(&str, &str); 2] = [("target", "position"), ("shiftTarget", "shiftPosition")];
+
+/// A slider side's field names in saves and `play.faders.N.<field>` menu keys.
+pub(crate) struct FaderSideFields {
+    pub(crate) target: &'static str,
+    pub(crate) invert: &'static str,
+    position: &'static str,
+}
+
+/// The plain side, then the Shift side.
+pub(crate) const FADER_SIDE_FIELDS: [FaderSideFields; 2] = [
+    FaderSideFields {
+        target: "target",
+        invert: "invert",
+        position: "position",
+    },
+    FaderSideFields {
+        target: "shiftTarget",
+        invert: "shiftInvert",
+        position: "shiftPosition",
+    },
+];
 
 /// One side of a slider: its target and its position, row 0 (bottom) to 7 (top).
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -36,30 +56,30 @@ pub(in crate::native_runner) struct NativeFaders {
     pub(in crate::native_runner) held_tile: Option<(usize, usize)>,
 }
 
+/// The column and side of a `play.faders.N.<field>` key whose field `field_of` names.
+fn fader_key_side(
+    key: &str,
+    field_of: impl Fn(&FaderSideFields) -> &'static str,
+) -> Option<(usize, bool)> {
+    let (column, field) = parse_indexed_key(key.strip_prefix("play.faders.")?)?;
+    let side = FADER_SIDE_FIELDS
+        .iter()
+        .position(|side| field_of(side) == field)?;
+    (column < FADER_COUNT).then_some((column, side == 1))
+}
+
 /// The column and side of a `play.faders.N.target` or `play.faders.N.shiftTarget` picker.
 pub(in crate::native_runner) fn fader_target_side(target: &str) -> Option<(usize, bool)> {
-    let (column, field) = target.strip_prefix("play.faders.")?.split_once('.')?;
-    let shifted = match field {
-        "target" => false,
-        "shiftTarget" => true,
-        _ => return None,
-    };
-    let column = column
-        .parse::<usize>()
-        .ok()
-        .filter(|column| *column < FADER_COUNT)?;
-    Some((column, shifted))
+    fader_key_side(target, |side| side.target)
 }
 
 pub(in crate::native_runner) fn fader_target_key(column: usize, shifted: bool) -> String {
-    format!(
-        "play.faders.{column}.{}",
-        SIDE_FIELDS[usize::from(shifted)].0
-    )
+    let field = FADER_SIDE_FIELDS[usize::from(shifted)].target;
+    format!("play.faders.{column}.{field}")
 }
 
 fn fader_invert_key(column: usize, shifted: bool) -> String {
-    let field = if shifted { "shiftInvert" } else { "invert" };
+    let field = FADER_SIDE_FIELDS[usize::from(shifted)].invert;
     format!("play.faders.{column}.{field}")
 }
 
@@ -91,9 +111,12 @@ impl NativeFaders {
             .iter()
             .map(|sides| {
                 let mut slider = serde_json::Map::new();
-                for (side, (target, position)) in sides.iter().zip(SIDE_FIELDS) {
-                    slider.insert(target.into(), param_binding_payload(side.target.as_ref()));
-                    slider.insert(position.into(), json!(side.position));
+                for (side, fields) in sides.iter().zip(&FADER_SIDE_FIELDS) {
+                    slider.insert(
+                        fields.target.into(),
+                        param_binding_payload(side.target.as_ref()),
+                    );
+                    slider.insert(fields.position.into(), json!(side.position));
                 }
                 Value::Object(slider)
             })
@@ -111,15 +134,18 @@ impl NativeFaders {
             return;
         };
         for (sides, value) in self.sliders.iter_mut().zip(sliders) {
-            for (side, (target, position)) in sides.iter_mut().zip(SIDE_FIELDS) {
-                side.target = value.get(target).and_then(param_binding_from_payload);
-                side.position = value
-                    .get(position)
-                    .and_then(Value::as_u64)
-                    .map_or(0, |position| {
-                        u8::try_from(position.min(u64::from(TOP_POSITION)))
-                            .expect("clamped position fits u8")
-                    });
+            for (side, fields) in sides.iter_mut().zip(&FADER_SIDE_FIELDS) {
+                side.target = value
+                    .get(fields.target)
+                    .and_then(param_binding_from_payload);
+                side.position =
+                    value
+                        .get(fields.position)
+                        .and_then(Value::as_u64)
+                        .map_or(0, |position| {
+                            u8::try_from(position.min(u64::from(TOP_POSITION)))
+                                .expect("clamped position fits u8")
+                        });
             }
         }
     }
@@ -240,16 +266,7 @@ impl NativeRunner {
         &mut self,
         key: &str,
     ) -> Option<bool> {
-        let (column, field) = key.strip_prefix("play.faders.")?.split_once('.')?;
-        let shifted = match field {
-            "invert" => false,
-            "shiftInvert" => true,
-            _ => return None,
-        };
-        let column = column
-            .parse::<usize>()
-            .ok()
-            .filter(|column| *column < FADER_COUNT)?;
+        let (column, shifted) = fader_key_side(key, |side| side.invert)?;
         Some(self.fast_binding_invert_key(BindingTarget::Fader { column, shifted }, key))
     }
 }

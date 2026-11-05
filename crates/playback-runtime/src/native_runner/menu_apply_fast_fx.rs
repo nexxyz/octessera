@@ -1,3 +1,4 @@
+use super::menu_apply_fast_values::parse_indexed_key;
 use super::play_fx_config::{play_fx_target_key, sanitize_play_fx_config};
 use super::{json, NativeRunner};
 use crate::native_menu::FX_BUSES_LABEL;
@@ -157,9 +158,4 @@ impl NativeRunner {
         }
         false
     }
-}
-
-fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
-    let (index, suffix) = value.split_once('.')?;
-    Some((index.parse().ok()?, suffix))
 }

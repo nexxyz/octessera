@@ -1,3 +1,4 @@
+use super::menu_apply_fast_values::parse_indexed_key;
 use crate::delay_timing::{
     nearest_note_for_ms, normalized_delay_params, note_ms, strip_delay_timing_metadata,
 };
@@ -416,11 +417,6 @@ fn value_object_to_map(value: &Value) -> BTreeMap<String, Value> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
-    let (index, suffix) = value.split_once('.')?;
-    Some((index.parse().ok()?, suffix))
 }
 
 #[cfg(test)]

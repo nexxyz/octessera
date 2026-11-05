@@ -6,6 +6,7 @@ use super::{
     action_item, bool_item, enum_item, group, keyed_group, number_item, selected_index,
     NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuModel,
 };
+use crate::native_runner::play_pages::faders::FADER_SIDE_FIELDS;
 
 /// The Tile Map's parameter picker; a param tile steps its key like an Aux turn.
 pub(crate) const FADER_TILE_TARGET: &str = "play.faders.tile.target";
@@ -13,11 +14,8 @@ pub(crate) const FADER_TILE_MAP_ACTION: &str = "play.faders.tile.map";
 pub(crate) const FADER_TILE_TYPES: [&str; 3] = ["none", "action", "param"];
 const TILE_MAP_KEY: &str = "play.faders.tile";
 
-/// The two sides of a Faders column: the plain press and the Shift + press target.
-const SIDES: [(&str, &str, &str, &str); 2] = [
-    ("Target", "target", "Invert", "invert"),
-    ("S+Target", "shiftTarget", "S+Invert", "shiftInvert"),
-];
+/// The row labels of a Faders column's two sides: the plain press and the Shift + press target.
+const SIDE_LABELS: [(&str, &str); 2] = [("Target", "Invert"), ("S+Target", "S+Invert")];
 
 pub(super) fn faders_page_children(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     let mut children = config
@@ -26,25 +24,24 @@ pub(super) fn faders_page_children(config: &NativeMenuConfig) -> Vec<NativeMenuI
         .iter()
         .enumerate()
         .map(|(column, targets)| {
-            let rows = SIDES
+            let rows = SIDE_LABELS
                 .iter()
+                .zip(&FADER_SIDE_FIELDS)
                 .zip(targets)
-                .flat_map(
-                    |((label, target_field, invert_label, invert_field), target)| {
-                        [
-                            parameter_picker_group(
-                                label,
-                                format!("play.faders.{column}.{target_field}"),
-                                target.as_ref(),
-                            ),
-                            bool_item(
-                                *invert_label,
-                                format!("play.faders.{column}.{invert_field}"),
-                                target.as_ref().is_some_and(|binding| binding.invert),
-                            ),
-                        ]
-                    },
-                )
+                .flat_map(|(((label, invert_label), fields), target)| {
+                    [
+                        parameter_picker_group(
+                            label,
+                            format!("play.faders.{column}.{}", fields.target),
+                            target.as_ref(),
+                        ),
+                        bool_item(
+                            *invert_label,
+                            format!("play.faders.{column}.{}", fields.invert),
+                            target.as_ref().is_some_and(|binding| binding.invert),
+                        ),
+                    ]
+                })
                 .collect();
             let mut fader = group(format!("Fader {}", column + 1), rows);
             fader.breadcrumb = Some(format!("F{}", column + 1));

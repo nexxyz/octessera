@@ -3,7 +3,7 @@ use std::time::Instant;
 use super::{NativeRunner, BUS_COUNT, GRID_HEIGHT, INSTRUMENT_COUNT};
 
 mod fader_tiles;
-pub(super) mod faders;
+pub(crate) mod faders;
 mod lfo;
 mod rate;
 mod route;
