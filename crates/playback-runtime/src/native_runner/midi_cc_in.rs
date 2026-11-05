@@ -1,3 +1,4 @@
+use super::action_bindings::BindingTarget;
 use super::modulation_source::ModulationSourceId;
 use super::{param_binding_from_payload, param_binding_payload, NativeParamBinding, NativeRunner};
 use crate::protocol::RunnerMessage;
@@ -171,7 +172,7 @@ impl NativeRunner {
     }
 
     /// Sets the slot's modulation source from its last value; false without a target or value.
-    fn apply_midi_cc_source(&mut self, slot: usize) -> bool {
+    pub(super) fn apply_midi_cc_source(&mut self, slot: usize) -> bool {
         let mapping = &self.midi_cc_mappings[slot];
         let (Some(binding), Some(value)) = (mapping.target.clone(), mapping.last_value) else {
             return false;
@@ -184,13 +185,6 @@ impl NativeRunner {
         };
         let source = ModulationSourceId::midi_cc(slot).expect("validated MIDI CC slot");
         self.set_runtime_source_input(source, binding, normalized)
-    }
-
-    /// A new Range or Invert reshapes the held value at once.
-    pub(super) fn reapply_midi_cc_source_for_target(&mut self, target: &str) {
-        if let Some(slot) = midi_cc_target_slot(target) {
-            self.apply_midi_cc_source(slot);
-        }
     }
 
     pub(super) fn set_midi_cc_target(&mut self, slot: usize, binding: Option<NativeParamBinding>) {
@@ -224,38 +218,14 @@ impl NativeRunner {
                     channel,
                 )
             }
-            "invert" => return Some(self.fast_midi_cc_invert_key(slot, key)),
+            "invert" => {
+                return Some(self.fast_binding_invert_key(BindingTarget::MidiCc(slot), key));
+            }
             _ => return None,
         };
         if changed {
             self.mark_fast_autosave_dirty();
         }
         Some(true)
-    }
-
-    fn fast_midi_cc_invert_key(&mut self, slot: usize, key: &str) -> bool {
-        let Some(invert) = self.menu.value_for_key(key).map(|value| value == "true") else {
-            return false;
-        };
-        let target = self.midi_cc_mappings[slot].target.as_mut();
-        let changed = target.is_some_and(|binding| {
-            let changed = binding.invert != invert;
-            binding.invert = invert;
-            changed
-        });
-        let stored = self.midi_cc_mappings[slot]
-            .target
-            .as_ref()
-            .is_some_and(|binding| binding.invert);
-        self.menu.set_bool_value_for_key(key, stored);
-        if changed {
-            self.mark_fast_autosave_dirty();
-            if self.apply_midi_cc_source(slot) {
-                if let Err(error) = self.process_dirty_modulation_step(false) {
-                    self.show_toast(format!("modulation composition unavailable: {error}"));
-                }
-            }
-        }
-        true
     }
 }

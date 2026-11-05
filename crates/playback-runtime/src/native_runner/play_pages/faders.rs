@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use super::super::action_bindings::BindingTarget;
 use super::super::led_color::LedColor;
 use super::super::menu_apply_fast::value_changed;
 use super::super::modulation_source::ModulationSourceId;
@@ -192,7 +193,11 @@ impl NativeRunner {
     }
 
     /// Holds the side's position as its source input; false without a target.
-    fn apply_fader_source(&mut self, column: usize, shifted: bool) -> bool {
+    pub(in crate::native_runner) fn apply_fader_source(
+        &mut self,
+        column: usize,
+        shifted: bool,
+    ) -> bool {
         let side = &self.faders.sliders[column][usize::from(shifted)];
         let Some(binding) = side.target.clone() else {
             return false;
@@ -208,13 +213,6 @@ impl NativeRunner {
             for shifted in [false, true] {
                 self.apply_fader_source(column, shifted);
             }
-        }
-    }
-
-    /// A new target, Range or Invert moves the target to the slider's position at once.
-    pub(in crate::native_runner) fn reapply_fader_source_for_target(&mut self, target: &str) {
-        if let Some((column, shifted)) = fader_target_side(target) {
-            self.apply_fader_source(column, shifted);
         }
     }
 
@@ -252,28 +250,6 @@ impl NativeRunner {
             .parse::<usize>()
             .ok()
             .filter(|column| *column < FADER_COUNT)?;
-        Some(self.fast_fader_invert_key(column, shifted, key))
-    }
-
-    fn fast_fader_invert_key(&mut self, column: usize, shifted: bool, key: &str) -> bool {
-        let Some(invert) = self.menu.value_for_key(key).map(|value| value == "true") else {
-            return false;
-        };
-        let target = self.fader_target_mut(column, shifted).as_mut();
-        let changed = target.is_some_and(|binding| value_changed(&mut binding.invert, invert));
-        let stored = self
-            .fader_target_mut(column, shifted)
-            .as_ref()
-            .is_some_and(|binding| binding.invert);
-        self.menu.set_bool_value_for_key(key, stored);
-        if changed {
-            self.mark_fast_autosave_dirty();
-            if self.apply_fader_source(column, shifted) {
-                if let Err(error) = self.process_dirty_modulation_step(false) {
-                    self.show_toast(format!("modulation composition unavailable: {error}"));
-                }
-            }
-        }
-        true
+        Some(self.fast_binding_invert_key(BindingTarget::Fader { column, shifted }, key))
     }
 }

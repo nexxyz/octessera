@@ -1,3 +1,5 @@
+use super::action_bindings::BindingTarget;
+use super::modulation_source::ModulationAxis;
 use super::{
     instrument_labels, link_layer_configs, menu_apply_fast_values::parse_indexed_key, NativeRunner,
 };
@@ -107,38 +109,15 @@ impl NativeRunner {
         else {
             return false;
         };
-        let Some(invert) = self.menu.value_for_key(key).map(|value| value == "true") else {
-            return false;
-        };
-        let Some(mods) = self.param_mods.get_mut(layer) else {
-            return false;
-        };
-        let lanes = match axis {
-            "x" => &mut mods.x,
-            "y" => &mut mods.y,
+        let axis = match axis {
+            "x" => ModulationAxis::X,
+            "y" => ModulationAxis::Y,
             _ => return false,
         };
-        let Some(binding) = slot
-            .parse::<usize>()
-            .ok()
-            .and_then(|slot| lanes.get_mut(slot))
-        else {
+        let Ok(slot) = slot.parse() else {
             return false;
         };
-        let changed = binding.as_mut().is_some_and(|binding| {
-            let changed = binding.invert != invert;
-            binding.invert = invert;
-            changed
-        });
-        let stored = binding.as_ref().is_some_and(|binding| binding.invert);
-        self.menu.set_bool_value_for_key(key, stored);
-        if changed {
-            self.mark_fast_autosave_dirty();
-            if let Err(error) = self.process_dirty_modulation_step(false) {
-                self.show_toast(format!("modulation composition unavailable: {error}"));
-            }
-        }
-        true
+        self.fast_binding_invert_key(BindingTarget::LayerAxis { layer, axis, slot }, key)
     }
 }
 

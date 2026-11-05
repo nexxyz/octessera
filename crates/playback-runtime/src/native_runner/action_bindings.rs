@@ -2,14 +2,15 @@ use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 use crate::protocol::RuntimePlatformEffect;
 
 mod aux_binding_ownership;
+mod binding_target;
 
-use super::midi_cc_in::midi_cc_target_slot;
+pub(super) use binding_target::BindingTarget;
+
 use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
 use super::modulation_assignment_validation::{
     inert_sample_binding_key, validate_binding_changes, BindingChange, BindingValidationError,
 };
-use super::modulation_source::{ModulationAxis, ModulationSourceId};
-use super::play_pages::faders::fader_target_side;
+use super::modulation_source::ModulationAxis;
 use super::{
     native_binding_from_spec, parse_sample_action, NativeParamBinding, NativeRunner, GRID_HEIGHT,
 };
@@ -35,7 +36,8 @@ impl NativeRunner {
             self.set_fader_tile_target(binding);
             return;
         }
-        if is_modulation_binding_target(target) {
+        let parsed = BindingTarget::parse(target);
+        if let Some(parsed) = parsed {
             let change = BindingChange {
                 key: target.into(),
                 binding: binding.clone(),
@@ -44,55 +46,9 @@ impl NativeRunner {
                 self.show_toast(error.toast_message());
                 return;
             }
+            self.clear_runtime_source_for_binding_target(parsed);
+            self.store_binding(parsed, binding.clone());
         }
-        self.clear_runtime_source_for_binding_target(target);
-        if let Some(rest) = target.strip_prefix("param:") {
-            let parts = rest.split(':').collect::<Vec<_>>();
-            if parts.len() == 3 {
-                let layer = parts[0]
-                    .parse::<usize>()
-                    .unwrap_or(self.active_layer_index)
-                    .min(GRID_HEIGHT - 1);
-                let slot = parts[2].parse::<usize>().unwrap_or(0).min(1);
-                if let Some(param_mods) = self.param_mods.get_mut(layer) {
-                    match parts[1] {
-                        "x" => param_mods.x[slot] = binding.clone(),
-                        "y" => param_mods.y[slot] = binding.clone(),
-                        _ => {}
-                    }
-                    self.menu.set_bool_value_for_key(
-                        &format!("layers.{layer}.paramMods.{}.{slot}.invert", parts[1]),
-                        binding.as_ref().is_some_and(|binding| binding.invert),
-                    );
-                }
-            }
-        } else if target == "xy:x" {
-            self.xy_x_binding = binding.clone();
-        } else if target == "xy:y" {
-            self.xy_y_binding = binding.clone();
-        } else if let Some(slot) = midi_cc_target_slot(target) {
-            self.set_midi_cc_target(slot, binding.clone());
-        } else if let Some((column, shifted)) = fader_target_side(target) {
-            self.set_fader_target(column, shifted, binding.clone());
-        } else if let Some(rest) = target
-            .strip_prefix("linkLfos.")
-            .and_then(|s| s.strip_suffix(".target"))
-        {
-            if let Ok(index) = rest.parse::<usize>() {
-                if let Some(lfo) = self.link_lfos.get_mut(index) {
-                    lfo.target = binding.clone();
-                    if lfo.target.is_none() {
-                        lfo.enabled = false;
-                        self.menu
-                            .set_bool_value_for_key(&format!("linkLfos.{index}.enabled"), false);
-                    }
-                }
-            }
-        }
-        if target == "xy:x" || target == "xy:y" {
-            self.refresh_xy_runtime_sources();
-        }
-        self.reapply_fader_source_for_target(target);
         let label = binding
             .as_ref()
             .and_then(|binding| binding.label.as_deref())
@@ -106,37 +62,47 @@ impl NativeRunner {
         }
     }
 
-    fn clear_runtime_source_for_binding_target(&mut self, target: &str) {
-        if let Some(rest) = target.strip_prefix("param:") {
-            let parts = rest.split(':').collect::<Vec<_>>();
-            if parts.len() == 3 {
-                let Ok(layer) = parts[0].parse::<usize>() else {
-                    return;
-                };
-                let Ok(slot) = parts[2].parse::<usize>() else {
-                    return;
-                };
-                let axis = match parts[1] {
-                    "x" => ModulationAxis::X,
-                    "y" => ModulationAxis::Y,
-                    _ => return,
-                };
-                if let Ok(source) = ModulationSourceId::layer_axis(layer, axis, slot) {
-                    self.clear_runtime_source_input(source);
+    /// Stores a picked binding with each target's side effects: the matching invert row, an
+    /// LFO that loses its target switching off, and the XY or Faders source following it.
+    fn store_binding(&mut self, target: BindingTarget, binding: Option<NativeParamBinding>) {
+        match target {
+            BindingTarget::MidiCc(slot) => self.set_midi_cc_target(slot, binding),
+            BindingTarget::Fader { column, shifted } => {
+                self.set_fader_target(column, shifted, binding);
+                self.apply_fader_source(column, shifted);
+            }
+            BindingTarget::LayerAxis { layer, axis, slot } => {
+                let invert = binding.as_ref().is_some_and(|binding| binding.invert);
+                if let Some(stored) = self.binding_slot_mut(target) {
+                    *stored = binding;
+                    let axis = match axis {
+                        ModulationAxis::X => "x",
+                        ModulationAxis::Y => "y",
+                    };
+                    let (layer, slot) = (layer.min(GRID_HEIGHT - 1), slot.min(1));
+                    self.menu.set_bool_value_for_key(
+                        &format!("layers.{layer}.paramMods.{axis}.{slot}.invert"),
+                        invert,
+                    );
                 }
             }
-        } else if target == "xy:x" {
-            self.clear_runtime_source_input(ModulationSourceId::play_x());
-        } else if target == "xy:y" {
-            self.clear_runtime_source_input(ModulationSourceId::play_y());
-        } else if let Some(slot) = midi_cc_target_slot(target) {
-            self.clear_runtime_source_input(
-                ModulationSourceId::midi_cc(slot).expect("validated MIDI CC slot"),
-            );
-        } else if let Some((column, shifted)) = fader_target_side(target) {
-            self.clear_runtime_source_input(
-                ModulationSourceId::fader(column, shifted).expect("validated Faders column"),
-            );
+            BindingTarget::Lfo(index) => {
+                let Some(lfo) = self.link_lfos.get_mut(index) else {
+                    return;
+                };
+                lfo.target = binding;
+                if lfo.target.is_none() {
+                    lfo.enabled = false;
+                    self.menu
+                        .set_bool_value_for_key(&format!("linkLfos.{index}.enabled"), false);
+                }
+            }
+            BindingTarget::PlayX | BindingTarget::PlayY => {
+                if let Some(stored) = self.binding_slot_mut(target) {
+                    *stored = binding;
+                }
+                self.refresh_xy_runtime_sources();
+            }
         }
     }
 
@@ -146,8 +112,11 @@ impl NativeRunner {
         is_min: bool,
         value: i32,
     ) -> bool {
+        let Some(parsed) = BindingTarget::parse(target) else {
+            return false;
+        };
         let changed = {
-            let Some(binding) = self.param_binding_target_mut(target) else {
+            let Some(binding) = self.binding_slot_mut(parsed).and_then(Option::as_mut) else {
                 return false;
             };
             if binding.kind != "number" {
@@ -178,12 +147,17 @@ impl NativeRunner {
             changed
         };
         if changed {
-            self.clear_runtime_source_for_binding_target(target);
-            if target == "xy:x" || target == "xy:y" {
-                self.refresh_xy_runtime_sources();
+            self.clear_runtime_source_for_binding_target(parsed);
+            match parsed {
+                BindingTarget::PlayX | BindingTarget::PlayY => self.refresh_xy_runtime_sources(),
+                BindingTarget::MidiCc(slot) => {
+                    self.apply_midi_cc_source(slot);
+                }
+                BindingTarget::Fader { column, shifted } => {
+                    self.apply_fader_source(column, shifted);
+                }
+                _ => {}
             }
-            self.reapply_midi_cc_source_for_target(target);
-            self.reapply_fader_source_for_target(target);
             self.mark_config_dirty();
             self.mark_fast_autosave_dirty();
             if let Err(error) = self.process_dirty_modulation_step(false) {
@@ -197,34 +171,8 @@ impl NativeRunner {
         &mut self,
         target: &str,
     ) -> Option<&mut NativeParamBinding> {
-        if let Some(rest) = target.strip_prefix("param:") {
-            let parts = rest.split(':').collect::<Vec<_>>();
-            if parts.len() == 3 {
-                let layer = parts[0].parse::<usize>().ok()?.min(GRID_HEIGHT - 1);
-                let slot = parts[2].parse::<usize>().ok()?.min(1);
-                let param_mods = self.param_mods.get_mut(layer)?;
-                return match parts[1] {
-                    "x" => param_mods.x.get_mut(slot)?.as_mut(),
-                    "y" => param_mods.y.get_mut(slot)?.as_mut(),
-                    _ => None,
-                };
-            }
-        } else if target == "xy:x" {
-            return self.xy_x_binding.as_mut();
-        } else if target == "xy:y" {
-            return self.xy_y_binding.as_mut();
-        } else if let Some(slot) = midi_cc_target_slot(target) {
-            return self.midi_cc_mappings[slot].target.as_mut();
-        } else if let Some((column, shifted)) = fader_target_side(target) {
-            return self.fader_target_mut(column, shifted).as_mut();
-        } else if let Some(rest) = target
-            .strip_prefix("linkLfos.")
-            .and_then(|s| s.strip_suffix(".target"))
-        {
-            let layer = rest.parse::<usize>().ok()?;
-            return self.link_lfos.get_mut(layer)?.target.as_mut();
-        }
-        None
+        let target = BindingTarget::parse(target)?;
+        self.binding_slot_mut(target)?.as_mut()
     }
 
     pub(super) fn aux_index(id: Option<&str>) -> Option<usize> {
@@ -393,15 +341,6 @@ impl NativeRunner {
             _ => true,
         }
     }
-}
-
-fn is_modulation_binding_target(target: &str) -> bool {
-    target.starts_with("param:")
-        || target == "xy:x"
-        || target == "xy:y"
-        || (target.starts_with("linkLfos.") && target.ends_with(".target"))
-        || midi_cc_target_slot(target).is_some()
-        || fader_target_side(target).is_some()
 }
 
 fn aux_turn_target(target: &str) -> Option<(usize, bool)> {
