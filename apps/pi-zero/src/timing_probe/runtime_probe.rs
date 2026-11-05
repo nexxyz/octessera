@@ -159,6 +159,7 @@ fn run_one(
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: true,
+        midi_out_internal_notes: true,
     });
     let mut runner = ProbeRunner {
         inner: NativeRunner::new(NativeRunnerConfig::default())?,

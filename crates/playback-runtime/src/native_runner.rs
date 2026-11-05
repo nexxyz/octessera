@@ -404,6 +404,7 @@ pub struct NativeRunner {
     midi_clock_out_enabled: bool,
     midi_clock_in_enabled: bool,
     midi_respond_to_start_stop: bool,
+    midi_send_instruments: String,
     audio_outputs: AudioOutputSet,
     usb_data_role: UsbDataRole,
     usb_midi_out_enabled: bool,

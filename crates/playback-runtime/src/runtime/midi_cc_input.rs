@@ -120,6 +120,7 @@ mod tests {
             sync_source: SyncSource::External,
             midi_clock_out_enabled: false,
             midi_out_enabled: true,
+            midi_out_internal_notes: true,
         });
         let mut runner = FakeRunner::default();
         let mut host = FakeHost::default();

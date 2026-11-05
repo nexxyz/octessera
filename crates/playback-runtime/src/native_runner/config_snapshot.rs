@@ -66,6 +66,7 @@ pub struct NativeConfigSnapshot {
     midi_clock_out_enabled: bool,
     midi_clock_in_enabled: bool,
     midi_respond_to_start_stop: bool,
+    midi_send_instruments: String,
     usb_data_role: UsbDataRole,
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
@@ -214,7 +215,8 @@ impl NativeConfigSnapshot {
                     },
                     "clockOutEnabled": self.midi_clock_out_enabled,
                     "clockInEnabled": self.midi_clock_in_enabled,
-                    "respondToStartStop": self.midi_respond_to_start_stop
+                    "respondToStartStop": self.midi_respond_to_start_stop,
+                    "sendInstruments": self.midi_send_instruments
                 },
                 "usb": {
                     "dataRole": self.usb_data_role.as_str(),
@@ -373,6 +375,7 @@ impl NativeConfigSnapshot {
             midi_clock_out_enabled: runner.midi_clock_out_enabled,
             midi_clock_in_enabled: runner.midi_clock_in_enabled,
             midi_respond_to_start_stop: runner.midi_respond_to_start_stop,
+            midi_send_instruments: runner.midi_send_instruments.clone(),
             usb_data_role: runner.usb_data_role,
             usb_midi_out_enabled: runner.usb_midi_out_enabled,
             audio_outputs: runner.audio_outputs,

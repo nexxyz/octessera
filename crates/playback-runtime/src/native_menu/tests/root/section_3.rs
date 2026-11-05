@@ -23,7 +23,13 @@ pub(crate) fn orange_shows_both_midi_host_and_usb_device_groups() {
     );
     assert_eq!(
         super::section_1::group_labels(&config, "MIDI"),
-        vec!["MIDI Active", "MIDI Host", "USB Device", "Sync / Clock"]
+        vec![
+            "MIDI Active",
+            "Send MIDI",
+            "MIDI Host",
+            "USB Device",
+            "Sync / Clock"
+        ]
     );
     assert_eq!(
         super::section_1::group_labels(&config, "MIDI > MIDI Host"),

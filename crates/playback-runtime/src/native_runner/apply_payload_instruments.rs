@@ -371,6 +371,9 @@ impl NativeRunner {
         if let Some(value) = midi.get("respondToStartStop").and_then(Value::as_bool) {
             self.midi_respond_to_start_stop = value;
         }
+        if let Some(value) = midi.get("sendInstruments").and_then(Value::as_str) {
+            self.midi_send_instruments = value.into();
+        }
     }
 
     fn queue_midi_selection_effects(&mut self) {

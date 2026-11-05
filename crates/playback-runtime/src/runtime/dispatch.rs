@@ -430,13 +430,14 @@ impl PlaybackRuntime {
                     }
                 }
                 RunnerMessage::RuntimeConfigChanged { config } => {
+                    let mirror_error = self.end_mirrored_held_notes(&config, host).err();
                     let disable_error =
                         if self.config().midi_out_enabled && !config.midi_out_enabled {
-                            host.flush_external_midi()
-                                .err()
+                            mirror_error
+                                .or(host.flush_external_midi().err())
                                 .or_else(|| self.flush_scheduled_midi_now(host).err())
                         } else {
-                            None
+                            mirror_error
                         };
                     if disable_error.is_some() {
                         self.clear_scheduled_midi();

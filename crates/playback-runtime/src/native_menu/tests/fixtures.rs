@@ -183,6 +183,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         midi_clock_out_enabled: false,
         midi_clock_in_enabled: false,
         midi_respond_to_start_stop: true,
+        midi_send_instruments: "midi".into(),
         audio_outputs: AudioOutputSet::default(),
         board: false,
         audio_optimization: crate::native_runner::AudioOptimization::Latency,

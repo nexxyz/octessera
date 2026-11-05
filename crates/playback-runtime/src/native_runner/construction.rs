@@ -107,6 +107,7 @@ impl NativeRunner {
             midi_clock_out_enabled: seed.midi_clock_out_enabled,
             midi_clock_in_enabled: seed.midi_clock_in_enabled,
             midi_respond_to_start_stop: seed.midi_respond_to_start_stop,
+            midi_send_instruments: seed.midi_send_instruments,
             play_mode: seed.play_mode,
             active_play_mode: "none".into(),
             drum_selected_voices: vec![0; INSTRUMENT_COUNT],

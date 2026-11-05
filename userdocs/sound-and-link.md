@@ -180,6 +180,13 @@ point at them.
 - **MIDI.** A `midi` slot sends nothing until its **MIDI > Enabled** is on
   (and `System > MIDI > MIDI Active` is on). MIDI never passes through the
   internal effects.
+- **Internal notes on MIDI out.** Out of the box only `midi` slots talk to
+  MIDI out. Set `System > MIDI > Send MIDI` to `all inst.` and the synth,
+  FM and Plucked slots send their notes too, each on its slot's channel (slot 1
+  on channel 1, and so on), while still playing here. Drum and Sampler tiles
+  stay home. Handy for doubling a part on outboard
+  gear. Flip it back to `MIDI inst.` and any note still held gets its
+  note-off, so nothing hangs on the other end.
 
 ### Drum and Sampler tiles are stamps
 

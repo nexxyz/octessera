@@ -329,6 +329,7 @@ fn desktop_playback_runtime() -> PlaybackRuntime {
         sync_source: playback_runtime::SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
+        midi_out_internal_notes: false,
     });
     playback.set_sequenced_output_delay(DESKTOP_SEQUENCED_OUTPUT_DELAY);
     playback

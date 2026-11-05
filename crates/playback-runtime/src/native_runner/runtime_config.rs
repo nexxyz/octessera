@@ -11,6 +11,7 @@ impl NativeRunner {
             midi_clock_out_enabled: self.midi_clock_out_enabled,
             midi_out_enabled: self.midi_enabled
                 && (self.usb_midi_out_enabled || self.selected_midi_output_id.is_some()),
+            midi_out_internal_notes: self.midi_send_instruments == "all",
         }
     }
 

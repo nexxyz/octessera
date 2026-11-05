@@ -64,6 +64,13 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     if key.ends_with(".arp.source") && raw == "simultaneous" {
         return "together".into();
     }
+    if key == "midi.sendInstruments" {
+        return match raw.as_str() {
+            "midi" => "MIDI inst.".into(),
+            "all" => "all inst.".into(),
+            _ => raw,
+        };
+    }
     if key == "sound.optimizeFor" {
         return match raw.as_str() {
             "latency" => "Lat".into(),

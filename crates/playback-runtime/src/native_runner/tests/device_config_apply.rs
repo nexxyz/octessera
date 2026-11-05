@@ -41,7 +41,7 @@ pub(super) fn commit_setting(
     press(runner)
 }
 
-fn save_setting_payload(
+pub(super) fn save_setting_payload(
     runner: &mut NativeRunner,
     key: &str,
     delta: i32,
@@ -96,7 +96,7 @@ fn toast(runner: &NativeRunner) -> String {
     runner.display.toast.as_ref().unwrap().message.clone()
 }
 
-fn reload_system_payload(payload: Value) -> NativeRunner {
+pub(super) fn reload_system_payload(payload: Value) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         ..NativeRunnerConfig::default()

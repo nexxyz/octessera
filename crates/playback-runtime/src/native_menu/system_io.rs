@@ -93,7 +93,15 @@ pub(super) fn midi_group(
     sync_index: usize,
     host_role: bool,
 ) -> NativeMenuItem {
-    let mut children = vec![bool_item("MIDI Active", "midiEnabled", config.midi_enabled)];
+    let mut children = vec![
+        bool_item("MIDI Active", "midiEnabled", config.midi_enabled),
+        enum_item(
+            "Send MIDI",
+            "midi.sendInstruments",
+            vec!["midi", "all"],
+            selected_index(&["midi", "all"], &config.midi_send_instruments),
+        ),
+    ];
     if !config.usb_data_role_available || host_role {
         children.push(midi_host_group(&config.midi_outputs, &config.midi_inputs));
     }

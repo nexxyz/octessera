@@ -161,7 +161,13 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
     );
     assert_eq!(
         group_labels(&pi, "MIDI"),
-        vec!["MIDI Active", "MIDI Host", "USB Device", "Sync / Clock"]
+        vec![
+            "MIDI Active",
+            "Send MIDI",
+            "MIDI Host",
+            "USB Device",
+            "Sync / Clock"
+        ]
     );
     assert_eq!(
         group_labels(&pi, "Connections > SD Card 2"),

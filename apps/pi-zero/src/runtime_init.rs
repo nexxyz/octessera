@@ -23,6 +23,7 @@ pub(crate) fn new_runtime(
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: false,
+        midi_out_internal_notes: false,
     });
     let delay = crate::audio::sequenced_output_delay(audio_optimization);
     #[cfg(feature = "profiling")]

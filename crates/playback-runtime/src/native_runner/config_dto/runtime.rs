@@ -294,6 +294,8 @@ pub struct MidiDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) respond_to_start_stop: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) send_instruments: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) channel: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) velocity: Option<u8>,

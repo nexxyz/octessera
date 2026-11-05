@@ -50,6 +50,7 @@ System
 │       └── Bus Idle: [exact | -140 | -120 | -100 | -80]  default -120
 ├── MIDI (group)
 │   ├── MIDI Active: [on | off]
+│   ├── Send MIDI: [midi | all]          ← shown as MIDI inst. | all inst.; default midi
 │   ├── MIDI Host (group)                ← desktop, Orange, and Raspberry Host
 │   │   ├── MIDI Out (group)             ← Disconnect, then one action per detected output port
 │   │   └── MIDI In (group)              ← Disconnect, then one action per detected input port
@@ -136,24 +137,24 @@ Conditional branches:
 ```
 Desktop
   Audio: Master Vol; Polyphony; Engine (CPU Warn %, Bus Idle)
-  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Display: Ghost Tiles … Button Bright; no HDMI Video
 
 Orange
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
-  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer)
   Display: Ghost Tiles … Button Bright; HDMI Video (Mode; Bars per cycle when cycle-behaviors; Grid Lines)
 
 Raspberry Gadget
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
-  MIDI: MIDI Active; USB Device (USB MIDI); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer); USB Role
   Display: Ghost Tiles … Button Bright; HDMI Video
 
 Raspberry Host
   Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
-  MIDI: MIDI Active; MIDI Host (MIDI Out, MIDI In); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
   Display: Ghost Tiles … Button Bright; HDMI Video
 
@@ -258,6 +259,11 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 ## MIDI
 
 - `MIDI Active` is the global runtime MIDI gate. It selects no port or device.
+- `Send MIDI` picks which instruments' notes reach MIDI out. `MIDI inst.` (the default) sends
+  only MIDI instrument slots; `all inst.` also sends Synth, FM and Plucked notes on their slot's
+  channel (slot 1 is channel 1); Drum and Sampler tiles stay internal. Clock and CC out are unaffected. Switching to `MIDI inst.` sends a
+  note-off for each internal note still held on MIDI out; MIDI instrument notes are untouched. It
+  is a System setting, not saved with patches.
 - `MIDI Host` lists `MIDI Out` then `MIDI In`. Each starts with `Disconnect`, followed by one action
   per detected port.
 - `USB Device` is the computer-facing gadget interface. While `USB MIDI` is on it owns both Gadget

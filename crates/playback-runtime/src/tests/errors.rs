@@ -13,6 +13,7 @@ fn panic_clears_pending_notes_and_sends_all_notes_off() {
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: false,
         midi_out_enabled: true,
+        midi_out_internal_notes: true,
     });
     let mut runner = FakeRunner::default();
     let mut host = FakeHost::default();

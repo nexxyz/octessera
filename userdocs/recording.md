@@ -30,6 +30,11 @@ right on their own.
 External MIDI instruments aren't in either recording. Their sound is made by
 the other device, so record that separately.
 
+Want the notes rather than the audio? Point a DAW at Octessera's MIDI out and
+set `System > MIDI > Send MIDI` to `all inst.`: the synth, FM and Plucked
+slots then send their notes too, one MIDI channel per slot. Leave it on `MIDI inst.`
+and only `midi` slots send.
+
 What the OLED tells you:
 
 - A small red disc in the bottom right, gently pulsing, for as long as a take

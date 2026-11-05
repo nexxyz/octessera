@@ -243,6 +243,7 @@ impl SystemPersistenceState {
                 "clockOutEnabled": runner.midi_clock_out_enabled,
                 "clockInEnabled": runner.midi_clock_in_enabled,
                 "respondToStartStop": runner.midi_respond_to_start_stop,
+                "sendInstruments": runner.midi_send_instruments,
             },
             "usb": {
                 "dataRole": runner.usb_data_role,

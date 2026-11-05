@@ -17,6 +17,7 @@ pub(super) fn validate_midi(runtime: &Map<String, Value>) -> Result<(), String> 
         }
     }
     enum_field(midi, "syncMode", path, &["internal", "external"])?;
+    enum_field(midi, "sendInstruments", path, &["midi", "all"])?;
     for key in ["clockOutEnabled", "clockInEnabled", "respondToStartStop"] {
         bool_field(midi, key, path)?;
     }

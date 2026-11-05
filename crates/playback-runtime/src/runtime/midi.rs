@@ -28,7 +28,7 @@ impl PlaybackRuntime {
                 }
             }
             if self.config.midi_out_enabled {
-                self.send_musical_event_midi(event, host)?;
+                self.mirror_internal_event(event, host)?;
             }
         }
         Ok(())
@@ -50,7 +50,7 @@ impl PlaybackRuntime {
         Ok(())
     }
 
-    fn send_musical_event_midi<H: HostAdapter>(
+    pub(super) fn send_musical_event_midi<H: HostAdapter>(
         &mut self,
         event: MusicalEvent,
         host: &mut H,

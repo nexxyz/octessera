@@ -3160,6 +3160,7 @@
       "inId": null,
       "outId": "1",
       "respondToStartStop": true,
+      "sendInstruments": "midi",
       "syncMode": "internal"
     },
     "mixer": {

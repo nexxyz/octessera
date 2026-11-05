@@ -302,6 +302,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     for field in ["clockOutEnabled", "clockInEnabled", "respondToStartStop"] {
         source_runtime["midi"][field] = alternate_bool(&canonical_runtime["midi"][field]);
     }
+    source_runtime["midi"]["sendInstruments"] =
+        alternate_enum(&canonical_runtime["midi"]["sendInstruments"], "midi", "all");
     source_runtime["usb"]["midiOutEnabled"] =
         alternate_bool(&canonical_runtime["usb"]["midiOutEnabled"]);
     for field in ["dac", "usb", "hdmi"] {
@@ -390,6 +392,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
             "clockOutEnabled",
             "clockInEnabled",
             "respondToStartStop",
+            "sendInstruments",
         ])
     );
     assert_eq!(
@@ -400,6 +403,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
             "clockOutEnabled",
             "clockInEnabled",
             "respondToStartStop",
+            "sendInstruments",
         ])
     );
 
@@ -443,6 +447,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         "clockOutEnabled",
         "clockInEnabled",
         "respondToStartStop",
+        "sendInstruments",
     ] {
         assert_eq!(
             applied["runtimeConfig"]["midi"][field],

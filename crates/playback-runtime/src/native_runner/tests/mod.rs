@@ -151,6 +151,7 @@ mod sampler_tiles;
 mod scan_note_offs;
 mod scan_replacement;
 mod selected_menu_row;
+mod send_to_midi;
 mod sequencer_transport_origin;
 mod setup_portal;
 mod show_hold;

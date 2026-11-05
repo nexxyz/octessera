@@ -13,6 +13,7 @@ mod api;
 mod default_load_tests;
 mod dispatch;
 mod dispatch_profile;
+mod internal_note_mirror;
 mod midi;
 mod midi_cc_input;
 mod midi_realtime_input;
@@ -71,6 +72,8 @@ pub struct RuntimeConfig {
     pub sync_source: SyncSource,
     pub midi_clock_out_enabled: bool,
     pub midi_out_enabled: bool,
+    /// Internal instruments' notes also go to MIDI out (System > MIDI > Send MIDI).
+    pub midi_out_internal_notes: bool,
 }
 
 impl Default for RuntimeConfig {
@@ -80,6 +83,7 @@ impl Default for RuntimeConfig {
             sync_source: SyncSource::Internal,
             midi_clock_out_enabled: false,
             midi_out_enabled: true,
+            midi_out_internal_notes: true,
         }
     }
 }
@@ -187,6 +191,7 @@ pub struct PlaybackRuntime {
     scheduled_note_offs: VecDeque<ScheduledMidiMessage>,
     scheduled_note_offs_dirty: bool,
     sounding_notes: sounding_notes::SoundingNotes,
+    mirrored_held_notes: internal_note_mirror::MirroredHeldNotes,
     request_next_snapshot: bool,
     next_request_id: u64,
     oled: oled::RuntimeOled,

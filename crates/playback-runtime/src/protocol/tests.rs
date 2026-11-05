@@ -261,6 +261,7 @@ fn runtime_protocol_json_uses_public_field_names_and_defaults() {
                 sync_source: SyncSource::External,
                 midi_clock_out_enabled: true,
                 midi_out_enabled: true,
+                midi_out_internal_notes: true,
             },
         })
         .unwrap(),
@@ -271,6 +272,7 @@ fn runtime_protocol_json_uses_public_field_names_and_defaults() {
                 "syncSource": "external",
                 "midiClockOutEnabled": true,
                 "midiOutEnabled": true,
+                "midiOutInternalNotes": true,
             },
         })
     );

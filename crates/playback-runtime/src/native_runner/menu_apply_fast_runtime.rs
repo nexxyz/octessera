@@ -20,6 +20,9 @@ impl NativeRunner {
             "midi.respondToStartStop" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_respond_to_start_stop, value)
             })),
+            "midi.sendInstruments" => Some(self.fast_string_menu_key(key, |runner, value| {
+                value_changed(&mut runner.midi_send_instruments, value)
+            })),
             "audioOutputs.usb" | "audioOutputs.hdmi" => Some(self.fast_audio_outputs_menu_key(key)),
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
             "usb.dataRole" => Some(self.fast_usb_data_role_menu_key()),

@@ -101,6 +101,7 @@ impl HeadlessSession {
                 sync_source: playback_runtime::SyncSource::Internal,
                 midi_clock_out_enabled: false,
                 midi_out_enabled: false,
+                midi_out_internal_notes: false,
             }),
             runner: NativeRunner::new_with_unbuilt_menu(
                 crate::runtime_worker::desktop_native_runner_config(),

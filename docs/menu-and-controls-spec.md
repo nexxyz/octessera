@@ -344,6 +344,10 @@ change; only the distance per detent does.
   second and reconnects the remembered ports. An output that stops taking messages (unplugged, or a
   computer that is not reading the USB MIDI gadget) is logged, not shown as an error. The same
   watch reconnects the USB MIDI gadget port after a live gadget rebuild.
+- `System > MIDI > Send MIDI` gates only the copy of internal instruments' notes to MIDI out.
+  With `MIDI inst.` (the default) internal notes never reach the MIDI sender; `all inst.` sends
+  them on their slot's channel. Clock and CC out are unaffected. Switching to `MIDI inst.` sends
+  exact note-offs for the copied notes still held, and leaves MIDI instrument notes alone.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.
@@ -1052,7 +1056,7 @@ Some ownership decisions do not follow the menu headings:
 | Control or data | Owner | Note |
 | --- | --- | --- |
 | Build worlds, saved grids and Looper events; Link mappings, scale, probability, tempo and swing; Shape instruments, mixer and FX; persistent Play FX and XY | Musical patch | Held notes, transport phase and live gestures are never saved. |
-| System output route, global MIDI ports and sync, USB roles, audio buffer/optimization, master volume, display/HDMI, Auto Save/Backups policy, recording limits | System settings | Device paths and ports stay local. A MIDI instrument's channel and note settings still travel with the patch. |
+| System output route, global MIDI ports, sync and Send MIDI, USB roles, audio buffer/optimization, master volume, display/HDMI, Auto Save/Backups policy, recording limits | System settings | Device paths and ports stay local. A MIDI instrument's channel and note settings still travel with the patch. |
 | System → Notes (note length, velocity scale/curve) | Musical patch | Menu-location exception. |
 | System → Audio → Polyphony (`voiceStealingMode`) | Musical patch | Menu-location exception; moving it would change musical behavior. |
 | Link → Paused Events | System settings | Menu-location exception. |

@@ -69,6 +69,7 @@ fn started(midi: bool) -> (PlaybackRuntime, FakeHost, Instant) {
         sync_source: SyncSource::Internal,
         midi_clock_out_enabled: midi,
         midi_out_enabled: midi,
+        midi_out_internal_notes: true,
     });
     let origin = Instant::now();
     let mut host = FakeHost {

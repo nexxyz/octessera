@@ -3419,6 +3419,7 @@
       "inId": null,
       "outId": null,
       "respondToStartStop": true,
+      "sendInstruments": "midi",
       "syncMode": "internal"
     },
     "midiCcMappings": [
