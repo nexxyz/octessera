@@ -229,6 +229,15 @@ The Raspberry's worst waits (up to about 0.7 ms) were `avahi-daemon` and
 worst waits were the app's own CPU 0 threads; interrupts took at most about
 45 µs on either board.
 
+The Orange keeps Armbian's `ondemand` governor, but its dips to 480 and 720 MHz
+(about 200 ms every 2 seconds, right in the runtime's heavy layer steps)
+doubled the worst dispatch time. `octessera-orange-cpu-floor.service` sets
+only `scaling_min_freq` to 1.2 GHz and logs instead of failing if that step is
+missing. In 2026-11 cloned-store smokes (10 minutes OLED awake, 45 minutes
+asleep) the dispatch maximum fell from 1.49 and 1.80 ms to 0.79 and 0.82 ms;
+the CPU stayed below 60 °C with no cooling-device steps either way. The
+Raspberry runs the `performance` governor at a fixed 1 GHz instead.
+
 The Raspberry's Wi-Fi was the last outside cause. Its SDIO controller
 (`mmcnr`, mmc-bcm2835) sometimes hangs mid DMA transfer
 (raspberrypi/linux#5770). The kernel logs `Controller never released inhibit

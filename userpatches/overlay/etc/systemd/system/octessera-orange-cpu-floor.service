@@ -1,0 +1,12 @@
+[Unit]
+Description=octessera Orange CPU Clock Floor
+Before=octessera.service
+
+[Service]
+Type=oneshot
+# ondemand stays; the floor only stops it from dipping to 480/720 MHz during the runtime's work.
+ExecStart=/bin/sh -c 'for policy in /sys/devices/system/cpu/cpufreq/policy*; do [ -e "$$policy/scaling_min_freq" ] || continue; if grep -qw 1200000 "$$policy/scaling_available_frequencies"; then echo 1200000 > "$$policy/scaling_min_freq" || echo "$$policy: could not set the 1200000 kHz floor" >&2; else echo "$$policy: no 1200000 kHz step, keeping the vendor minimum" >&2; fi; done'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

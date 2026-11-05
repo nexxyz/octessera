@@ -11,6 +11,7 @@ octessera_validate_orange_runtime_assets() {
     etc/modules-load.d/octessera-orange-midi.conf \
     usr/local/sbin/octessera-sd-card \
     etc/systemd/system/octessera-orange-sd-card.service \
+    etc/systemd/system/octessera-orange-cpu-floor.service \
     etc/udev/rules.d/99-octessera-orange-sd-card.rules \
     etc/systemd/system/octessera-orange-storage-control.socket \
     etc/systemd/system/octessera-orange-storage-control@.service \
@@ -66,6 +67,7 @@ octessera_install_orange_runtime_assets() {
   install_overlay_file usr/local/sbin/octessera-orange-storage /usr/local/sbin/octessera-orange-storage 0755
   install_overlay_file usr/local/sbin/octessera-orange-storage-control /usr/local/sbin/octessera-orange-storage-control 0755
   install_overlay_file etc/systemd/system/octessera-orange-sd-card.service /etc/systemd/system/octessera-orange-sd-card.service 0644
+  install_overlay_file etc/systemd/system/octessera-orange-cpu-floor.service /etc/systemd/system/octessera-orange-cpu-floor.service 0644
   install_overlay_file etc/udev/rules.d/99-octessera-orange-sd-card.rules /etc/udev/rules.d/99-octessera-orange-sd-card.rules 0644
   install_overlay_file etc/systemd/system/octessera-orange-storage-control.socket /etc/systemd/system/octessera-orange-storage-control.socket 0644
   install_overlay_file etc/systemd/system/octessera-orange-storage-control@.service /etc/systemd/system/octessera-orange-storage-control@.service 0644
@@ -132,4 +134,5 @@ octessera_enable_orange_runtime_services() {
   systemctl enable octessera-orange-boot-splash.service >/dev/null
   systemctl enable octessera-orange-oled-shutdown.service >/dev/null
   systemctl enable octessera-orange-oled-suspend.service >/dev/null
+  systemctl enable octessera-orange-cpu-floor.service >/dev/null
 }
