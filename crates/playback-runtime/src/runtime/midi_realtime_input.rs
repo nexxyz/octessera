@@ -39,61 +39,31 @@ impl PlaybackRuntime {
         let mut output = RuntimeIngest::default();
         let mut clock_pulses = 0_u32;
         for byte in bytes {
-            match *byte {
-                0xF8 => clock_pulses = clock_pulses.saturating_add(1),
-                0xFA => {
-                    if clock_pulses > 0 {
-                        output.merge(self.dispatch(
-                            RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
-                                pulses: clock_pulses,
-                            }),
-                            runner,
-                            host,
-                        )?);
-                        clock_pulses = 0;
-                    }
-                    output.merge(self.dispatch(
-                        RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeStart),
-                        runner,
-                        host,
-                    )?);
+            let message = match *byte {
+                0xF8 => {
+                    clock_pulses = clock_pulses.saturating_add(1);
+                    continue;
                 }
-                0xFB => {
-                    if clock_pulses > 0 {
-                        output.merge(self.dispatch(
-                            RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
-                                pulses: clock_pulses,
-                            }),
-                            runner,
-                            host,
-                        )?);
-                        clock_pulses = 0;
-                    }
-                    output.merge(self.dispatch(
-                        RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeContinue),
-                        runner,
-                        host,
-                    )?);
-                }
-                0xFC => {
-                    if clock_pulses > 0 {
-                        output.merge(self.dispatch(
-                            RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
-                                pulses: clock_pulses,
-                            }),
-                            runner,
-                            host,
-                        )?);
-                        clock_pulses = 0;
-                    }
-                    output.merge(self.dispatch(
-                        RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeStop),
-                        runner,
-                        host,
-                    )?);
-                }
-                _ => {}
+                0xFA => HostMessage::MidiRealtimeStart,
+                0xFB => HostMessage::MidiRealtimeContinue,
+                0xFC => HostMessage::MidiRealtimeStop,
+                _ => continue,
+            };
+            if clock_pulses > 0 {
+                output.merge(self.dispatch(
+                    RuntimeDispatchInput::HostMessage(HostMessage::MidiRealtimeClock {
+                        pulses: clock_pulses,
+                    }),
+                    runner,
+                    host,
+                )?);
+                clock_pulses = 0;
             }
+            output.merge(self.dispatch(
+                RuntimeDispatchInput::HostMessage(message),
+                runner,
+                host,
+            )?);
         }
 
         if clock_pulses > 0 {
