@@ -1,62 +1,33 @@
 //! SSD1351 OLED driver (128x128, 16-bit color, SPI interface)
 //! For Adafruit 1431 / generic SSD1351 breakout.
 
+#[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
+mod orange;
 #[cfg(feature = "raspberry-pi-zero-2w")]
-use rppal::gpio::{Gpio, OutputPin};
-#[cfg(feature = "raspberry-pi-zero-2w")]
-use spidev::Spidev;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-use std::io::Write;
+mod raspberry;
+#[cfg(any(
+    not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")),
+    all(feature = "orange-pi-zero-2w", not(target_os = "linux"))
+))]
+mod stub;
 
-#[cfg(not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")))]
-use std::fmt;
+#[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
+pub use orange::OledSsd1351;
+#[cfg(feature = "raspberry-pi-zero-2w")]
+pub use raspberry::OledSsd1351;
+#[cfg(any(
+    not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")),
+    all(feature = "orange-pi-zero-2w", not(target_os = "linux"))
+))]
+pub use stub::OledSsd1351;
+
+#[cfg(any(
+    feature = "raspberry-pi-zero-2w",
+    all(feature = "orange-pi-zero-2w", target_os = "linux"),
+    test
+))]
 use std::ops::Range;
 
-/// SSD1351 commands
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_COLUMN_ADDR: u8 = 0x15;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_ROW_ADDR: u8 = 0x75;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_WRITE_RAM: u8 = 0x5C;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_DISPLAY_ON: u8 = 0xAF;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_DISPLAY_OFF: u8 = 0xAE;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_NORMAL_DISPLAY: u8 = 0xA6;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_REMAP: u8 = 0xA0;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_START_LINE: u8 = 0xA1;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_DISPLAY_OFFSET: u8 = 0xA2;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_GPIO: u8 = 0xB5;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_FUNCTION_SELECTION: u8 = 0xAB;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_PRECHARGE1: u8 = 0xB1;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_CLOCK_DIV: u8 = 0xB3;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_VSL: u8 = 0xB4;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_PRECHARGE2: u8 = 0xB6;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_PRECHARGE_VOLTAGE: u8 = 0xBB;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_VCOMH: u8 = 0xBE;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_CONTRAST: u8 = 0xC1;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_MASTER_CONTRAST: u8 = 0xC7;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_MUX_RATIO: u8 = 0xCA;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const CMD_SET_COMMAND_LOCK: u8 = 0xFD;
-#[cfg(feature = "raspberry-pi-zero-2w")]
-const SPI_CHUNK_BYTES: usize = 4096;
 #[cfg(any(
     feature = "raspberry-pi-zero-2w",
     all(feature = "orange-pi-zero-2w", target_os = "linux"),
@@ -81,190 +52,6 @@ const BYTES_PER_PIXEL: usize = 2;
     test
 ))]
 const FRAME_BYTES: usize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
-
-/// OLED display driver
-#[cfg(feature = "raspberry-pi-zero-2w")]
-pub struct OledSsd1351 {
-    spi: Spidev,
-    dc: OutputPin,
-    _rst: OutputPin,
-    rotated_frame: Vec<u8>,
-    window: Vec<u8>,
-}
-
-#[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
-pub struct OledSsd1351 {
-    transport: Option<crate::orange_hardware::OrangeOledTransport>,
-    rotated_frame: Vec<u8>,
-    window: Vec<u8>,
-}
-
-#[cfg(feature = "raspberry-pi-zero-2w")]
-impl OledSsd1351 {
-    /// Initialize OLED on SPI bus 0
-    pub fn new() -> Result<Self, String> {
-        Self::open(false)
-    }
-
-    pub fn adopt_existing() -> Result<Self, String> {
-        Self::open(true)
-    }
-
-    pub fn detach_preserving(&mut self) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn reacquire_existing(&mut self) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn open(preserve_existing: bool) -> Result<Self, String> {
-        let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
-        // Open SPI device
-        let mut spi =
-            Spidev::open("/dev/spidev0.0").map_err(|e| format!("SPI open failed: {}", e))?;
-
-        // Configure SPI: mode 0, 8-bit, 16MHz for the Adafruit SSD1351 breakout.
-        let mut config = spidev::SpidevOptions::new();
-        config.mode(spidev::SpiModeFlags::SPI_MODE_0);
-        config.max_speed_hz(16_000_000);
-        config.bits_per_word(8);
-        spi.configure(&config)
-            .map_err(|e| format!("SPI configure failed: {}", e))?;
-
-        // Get GPIO handles
-        let gpio = Gpio::new().map_err(|e| e.to_string())?;
-        let mut dc = gpio
-            .get(crate::pinmap::OLED_DC)
-            .map_err(|e| e.to_string())?
-            .into_output();
-        let mut rst = gpio
-            .get(crate::pinmap::OLED_RST)
-            .map_err(|e| e.to_string())?
-            .into_output_high();
-
-        if !startup_plan.operations().is_empty() {
-            std::thread::sleep(std::time::Duration::from_millis(250));
-
-            // Hardware reset pulse
-            rst.set_high();
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            rst.set_low();
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            rst.set_high();
-            std::thread::sleep(std::time::Duration::from_millis(250));
-
-            // Init sequence for SSD1351 / Adafruit 1431.
-            Self::write_command(&mut spi, &mut dc, CMD_SET_COMMAND_LOCK, &[0x12])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_COMMAND_LOCK, &[0xB1])?;
-            Self::write_command(&mut spi, &mut dc, CMD_DISPLAY_OFF, &[])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_CLOCK_DIV, &[0xF1])?;
-
-            Self::write_command(&mut spi, &mut dc, CMD_SET_MUX_RATIO, &[0x7F])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_REMAP, &[0x74])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_COLUMN_ADDR, &[0x00, 0x7F])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_START_LINE, &[0x00])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_DISPLAY_OFFSET, &[0x00])?;
-
-            Self::write_command(&mut spi, &mut dc, CMD_SET_GPIO, &[0x00])?;
-            Self::write_command(&mut spi, &mut dc, CMD_FUNCTION_SELECTION, &[0x01])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE1, &[0x32])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE_VOLTAGE, &[0x17])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_VCOMH, &[0x05])?;
-            Self::write_command(&mut spi, &mut dc, CMD_NORMAL_DISPLAY, &[])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_CONTRAST, &[0xC8, 0x80, 0xC8])?;
-            Self::write_command(&mut spi, &mut dc, CMD_MASTER_CONTRAST, &[0x0F])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_VSL, &[0xA0, 0xB5, 0x55])?;
-            Self::write_command(&mut spi, &mut dc, CMD_SET_PRECHARGE2, &[0x01])?;
-
-            Self::write_command(&mut spi, &mut dc, CMD_DISPLAY_ON, &[])?;
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-
-        Ok(Self {
-            spi,
-            dc,
-            _rst: rst,
-            rotated_frame: vec![0_u8; FRAME_BYTES],
-            window: Vec::with_capacity(FRAME_BYTES),
-        })
-    }
-
-    /// Write command + optional data bytes
-    fn write_command(
-        spi: &mut Spidev,
-        dc: &mut OutputPin,
-        cmd: u8,
-        data: &[u8],
-    ) -> Result<(), String> {
-        // DC low = command
-        dc.set_low();
-        spi.write_all(&[cmd])
-            .map_err(|e| format!("SPI write failed: {}", e))?;
-
-        if !data.is_empty() {
-            // DC high = data
-            dc.set_high();
-            write_all_chunked(spi, data).map_err(|e| format!("SPI write failed: {}", e))?;
-        }
-
-        Ok(())
-    }
-
-    /// Write pre-rendered RGB565 frame (128x128x2 bytes)
-    pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
-        // Set column address: 0-127
-        Self::write_command(
-            &mut self.spi,
-            &mut self.dc,
-            CMD_SET_COLUMN_ADDR,
-            &[0x00, 0x7F],
-        )?;
-
-        // Set row address: 0-127
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
-
-        // Write to RAM
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_WRITE_RAM, &[])?;
-        self.dc.set_high();
-        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
-        write_all_chunked(&mut self.spi, frame)
-            .map_err(|e| format!("SPI frame write failed: {}", e))?;
-
-        Ok(())
-    }
-
-    /// Writes only logical rows `rows` of a pre-rendered frame, as one RAM window.
-    pub fn write_rows(&mut self, pixels: &[u8], rows: Range<usize>) -> Result<(), String> {
-        let columns = rotated_row_window(pixels, rows, &mut self.window);
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_COLUMN_ADDR, &columns)?;
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_SET_ROW_ADDR, &[0x00, 0x7F])?;
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_WRITE_RAM, &[])?;
-        self.dc.set_high();
-        write_all_chunked(&mut self.spi, &self.window)
-            .map_err(|e| format!("SPI window write failed: {}", e))
-    }
-
-    pub fn display_on(&mut self) -> Result<(), String> {
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_NORMAL_DISPLAY, &[])?;
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_ON, &[])
-    }
-
-    pub fn display_off(&mut self) -> Result<(), String> {
-        Self::write_command(&mut self.spi, &mut self.dc, CMD_DISPLAY_OFF, &[])
-    }
-
-    /// Sets the master contrast current step (C7h), 0..=15.
-    pub fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
-        Self::write_command(
-            &mut self.spi,
-            &mut self.dc,
-            CMD_MASTER_CONTRAST,
-            &[step.min(0x0F)],
-        )
-    }
-}
 
 #[cfg(any(
     feature = "raspberry-pi-zero-2w",
@@ -304,189 +91,6 @@ fn rotated_row_window(pixels: &[u8], rows: Range<usize>, window: &mut Vec<u8>) -
         }
     }
     [columns.start as u8, (columns.end - 1) as u8]
-}
-
-#[cfg(feature = "raspberry-pi-zero-2w")]
-fn write_all_chunked(spi: &mut Spidev, data: &[u8]) -> std::io::Result<()> {
-    for chunk in data.chunks(SPI_CHUNK_BYTES) {
-        spi.write_all(chunk)?;
-    }
-    Ok(())
-}
-
-/// Stub for non-Pi builds
-#[cfg(all(feature = "orange-pi-zero-2w", target_os = "linux"))]
-impl OledSsd1351 {
-    pub fn new() -> Result<Self, String> {
-        Self::open(false)
-    }
-
-    pub fn adopt_existing() -> Result<Self, String> {
-        Self::open(true)
-    }
-
-    fn open(preserve_existing: bool) -> Result<Self, String> {
-        let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
-        let hardware = if startup_plan.operations().is_empty() {
-            crate::orange_hardware::OrangeHardware::open_preserve_existing()?
-        } else {
-            crate::orange_hardware::OrangeHardware::open()?
-        };
-        Ok(Self {
-            transport: Some(hardware.into_oled()),
-            rotated_frame: vec![0_u8; FRAME_BYTES],
-            window: Vec::with_capacity(FRAME_BYTES),
-        })
-    }
-
-    pub fn write_frame(&mut self, pixels: &[u8]) -> Result<(), String> {
-        let frame = rotate_clockwise_rgb565(pixels, &mut self.rotated_frame);
-        self.transport
-            .as_mut()
-            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .write_frame(frame)
-    }
-
-    /// Writes only logical rows `rows` of a pre-rendered frame, as one RAM window.
-    pub fn write_rows(&mut self, pixels: &[u8], rows: Range<usize>) -> Result<(), String> {
-        let columns = rotated_row_window(pixels, rows, &mut self.window);
-        self.transport
-            .as_mut()
-            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .write_columns(columns, &self.window)
-    }
-
-    pub fn display_on(&mut self) -> Result<(), String> {
-        self.transport
-            .as_mut()
-            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .display_on()
-    }
-
-    pub fn display_off(&mut self) -> Result<(), String> {
-        self.transport
-            .as_mut()
-            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .display_off()
-    }
-
-    pub fn set_master_contrast(&mut self, step: u8) -> Result<(), String> {
-        self.transport
-            .as_mut()
-            .ok_or_else(|| "Orange OLED hardware is detached".to_string())?
-            .set_master_contrast(step)
-    }
-
-    pub fn detach_preserving(&mut self) -> Result<(), String> {
-        let transport = self
-            .transport
-            .take()
-            .ok_or_else(|| "Orange OLED hardware is already detached".to_string())?;
-        transport.detach_preserving();
-        Ok(())
-    }
-
-    pub fn reacquire_existing(&mut self) -> Result<(), String> {
-        if self.transport.is_some() {
-            return Err("Orange OLED hardware is already attached".into());
-        }
-        let hardware = crate::orange_hardware::OrangeHardware::open_preserve_existing()?;
-        self.transport = Some(hardware.into_oled());
-        Ok(())
-    }
-}
-
-#[cfg(all(feature = "orange-pi-zero-2w", not(target_os = "linux")))]
-pub struct OledSsd1351;
-
-#[cfg(all(feature = "orange-pi-zero-2w", not(target_os = "linux")))]
-impl OledSsd1351 {
-    pub fn new() -> Result<Self, String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn adopt_existing() -> Result<Self, String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn detach_preserving(&mut self) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn reacquire_existing(&mut self) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn write_rows(&mut self, _pixels: &[u8], _rows: Range<usize>) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn display_on(&mut self) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn display_off(&mut self) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-
-    pub fn set_master_contrast(&mut self, _step: u8) -> Result<(), String> {
-        Err("Orange OLED requires a Linux target".into())
-    }
-}
-
-#[cfg(not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")))]
-pub struct OledSsd1351 {
-    _private: (),
-}
-
-#[cfg(not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")))]
-impl OledSsd1351 {
-    pub fn new() -> Result<Self, String> {
-        Ok(Self { _private: () })
-    }
-
-    pub fn adopt_existing() -> Result<Self, String> {
-        Self::new()
-    }
-
-    pub fn detach_preserving(&mut self) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn reacquire_existing(&mut self) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn write_frame(&mut self, _pixels: &[u8]) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn write_rows(&mut self, _pixels: &[u8], _rows: Range<usize>) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn display_on(&mut self) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn display_off(&mut self) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn set_master_contrast(&mut self, _step: u8) -> Result<(), String> {
-        Ok(())
-    }
-}
-
-#[cfg(not(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w")))]
-impl fmt::Debug for OledSsd1351 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "OledSsd1351 {{ ... }}")
-    }
 }
 
 #[cfg(test)]
