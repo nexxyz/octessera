@@ -35,8 +35,12 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
         return "MIDI Drum".into();
     }
     if key.starts_with("instruments.") && key.ends_with(".midiDrum.tileNote") {
-        let note = raw.parse::<i32>().unwrap_or(0);
-        return super::voice::gm_percussion_name(note).map_or(raw, |name| format!("{note} {name}"));
+        let note = raw.parse::<i32>().unwrap_or(0).clamp(0, 127);
+        let shown = format!("{note} {}", note_name(note));
+        return match super::voice::gm_percussion_name(note) {
+            Some(name) => format!("{shown} {name}"),
+            None => shown,
+        };
     }
     if key.starts_with("instruments.") && key.contains(".drum.voices.") && key.ends_with(".sound") {
         return match raw.as_str() {
@@ -212,9 +216,14 @@ fn format_reverb_decay_seconds(value: f64) -> String {
 
 fn format_note_with_midi(note: i32) -> String {
     let note = note.clamp(0, 127);
+    format!("{} ({note})", note_name(note))
+}
+
+/// Sharp note name with middle C as C4, so MIDI 0 is C-1: `C4`, `F#2`.
+fn note_name(note: i32) -> String {
     let name = platform_core::NOTE_SET_ROOTS[(note % 12) as usize];
     let octave = note / 12 - 1;
-    format!("{name}{octave} ({note})")
+    format!("{name}{octave}")
 }
 
 fn format_pan_position(value: i32) -> String {

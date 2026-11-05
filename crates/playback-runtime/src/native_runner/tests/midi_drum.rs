@@ -183,17 +183,22 @@ fn type_picker_names_midi_inst_and_midi_drum_and_auto_labels_follow() {
         .iter()
         .any(|line| line == "  Type MIDI Drum"));
     assert_eq!(rig.runner.instruments[0].name, "MIDI Drum");
+    let shown = |rig: &Rig, value: &str| {
+        let snapshot = rig.runner.menu.snapshot();
+        let row = snapshot.rows[snapshot.selected_row.unwrap()]
+            .clone()
+            .unwrap();
+        assert_eq!((row.label.as_str(), row.value.as_str()), ("Note", value));
+    };
     assert!(rig
         .runner
         .menu
         .focus_item_key("instruments.0.midiDrum.tileNote"));
-    assert!(rig
-        .runner
-        .menu
-        .snapshot()
-        .lines
-        .iter()
-        .any(|line| line.ends_with("Tile Note 36 Kick")));
+    shown(&rig, "36 C2 Kick");
+    rig.turn("instruments.0.midiDrum.tileNote", 6);
+    shown(&rig, "42 F#2 Clsd Hat");
+    rig.turn("instruments.0.midiDrum.tileNote", 48);
+    shown(&rig, "90 F#6");
     assert!(!rig.runner.menu.focus_item_key("instruments.0.noteBehavior"));
 }
 

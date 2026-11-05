@@ -3,8 +3,8 @@ use super::{
     NativeMenuItem,
 };
 
-/// General MIDI percussion names for notes 35..=81, cut to eight characters so `81 Tri Open`
-/// still fits the Tile Note row while it is being edited.
+/// General MIDI percussion names for notes 35..=81, cut to eight characters so `81 A5 Tri Open`
+/// still fits the Note row.
 const GM_PERCUSSION: [&str; 47] = [
     "Kick 2", "Kick", "Rim", "Snare", "Clap", "Snare 2", "LoFl Tom", "Clsd Hat", "HiFl Tom",
     "Pedl Hat", "Low Tom", "Open Hat", "LMd Tom", "HMd Tom", "Crash", "High Tom", "Ride", "China",
@@ -47,7 +47,7 @@ pub(super) fn midi_drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -
                 10,
             ),
             number_item(
-                "Tile Note",
+                "Note",
                 format!("{prefix}.midiDrum.tileNote"),
                 i32::from(drum.tile_note),
                 0,

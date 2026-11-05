@@ -165,7 +165,7 @@ point at them.
 | `Drum` | An eight-voice kit; tiles are stamped with voices | **Kit** > Load, set the **Tile** rows, then **Assign** |
 | `sampler` | Eight WAV slots; tiles are stamped with samples | **Browse** for a sample, set the **Tile** rows, then **Assign** |
 | `MIDI Inst.` | Sends notes to external gear instead of making sound | **MIDI** > Enabled, then Channel, Velocity and Duration |
-| `MIDI Drum` | Turns stamped tiles into MIDI drum notes for external gear | **MIDI Drum** > Enabled, set **Tile Note** and **Tile Vel**, then **Assign** |
+| `MIDI Drum` | Turns stamped tiles into MIDI drum notes for external gear | **MIDI Drum** > Enabled, set **Note** and **Tile Vel**, then **Assign** |
 
 - **Presets and kits.** Synth, FM and Plucked have **Preset > Load**; Drum and
   Sampler have **Kit > Load**. Loading asks first and only changes that slot.
@@ -224,9 +224,9 @@ kit swaps the sounds but keeps your stamps.
 ### MIDI Drum tiles are stamps too
 
 A `MIDI Drum` slot works like a Drum kit whose sounds live in another box.
-Set **Tile Note** (it shows the General MIDI drum name, so `38 Snare` is
-easy to spot) and **Tile Vel**, click **Assign** and press tiles, with the
-same *Shift* row and *Shift* + *Fn* column tricks. **Back** finishes.
+Set **Note** (it shows the note name and General MIDI drum name, so
+`38 D2 Snare` is easy to spot) and **Tile Vel**, click **Assign** and press
+tiles, with the same *Shift* row and *Shift* + *Fn* column tricks. **Back** finishes.
 
 When Link strikes a stamped tile, the slot sends that note and velocity on
 its **Channel** (10, the usual drum channel, unless you change it) and lets

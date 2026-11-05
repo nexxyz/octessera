@@ -767,7 +767,7 @@ The grid is composed in this order; each step paints over the previous one.
      green (Low), or gray (Base); tiles of other sample slots light dim gray.
    - Drum assignment: the selected voice's tiles are bright white, other assigned tiles dim white,
      empty tiles dark.
-   - MIDI Drum assignment: tiles with the current Tile Note and Tile Vel are bright white, other
+   - MIDI Drum assignment: tiles with the current Note and Tile Vel are bright white, other
      stamped tiles dim white, empty tiles dark.
    - Probability map: black `0%`, magenta `low`, yellow `high`, green `100%`.
 5. Param-mod lanes, only while Shift is held without Fn, no Play page or assignment is active, and

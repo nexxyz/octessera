@@ -176,7 +176,7 @@ impl NativeRunner {
         true
     }
 
-    /// Stamps the Tile Note and Tile Vel onto the pressed tile, or with Shift its row and with
+    /// Stamps the Note and Tile Vel onto the pressed tile, or with Shift its row and with
     /// Shift+Fn its column; pressing a line that already carries exactly that stamp clears it.
     pub(super) fn handle_midi_drum_assignment_grid_press(
         &mut self,

@@ -170,7 +170,7 @@ tile applies to the whole row and *Shift* + *Fn* + tile to the whole column.
 |---|---|---|
 | Sample assignment | `Sampler > Assign` | Stamps the sample slot plus Tile Tune, Fine and Level. High, Medium and Low tiles light magenta, yellow and green; Base tiles pale white; other slots dim gray. |
 | Drum assignment | `Drum > Assign` | Stamps the selected voice plus the Tile values. The selected voice's tiles light bright white, other voices dim white. |
-| MIDI Drum assignment | `MIDI Drum > Assign` | Stamps Tile Note and Tile Vel. Tiles with that exact stamp light bright white, other stamped tiles dim white. |
+| MIDI Drum assignment | `MIDI Drum > Assign` | Stamps Note and Tile Vel. Tiles with that exact stamp light bright white, other stamped tiles dim white. |
 | Trigger probability map | `Link > Lx > Trigger Prob. > Map Prob Grid` | Cycles the tile through zero, low, high and full (dark, magenta, yellow, green). |
 | Play FX mapping | `Play > FX > Map to Grid` | Stores the current momentary effect on the tile. |
 

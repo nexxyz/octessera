@@ -78,9 +78,9 @@ Shape
 │   │   │   ├── Enabled: [on | off]              ← default off
 │   │   │   ├── Channel: [1..16]                 ← default 10
 │   │   │   ├── Duration: [10..2000] ms (time steps)  ← default 100
-│   │   │   ├── Tile Note: [0..127]              ← stamp value, default 36; shows its GM drum name, e.g. `36 Kick`
+│   │   │   ├── Note: [0..127]                   ← stamp value, default 36; shows number, note name and GM drum name, e.g. `36 C2 Kick`
 │   │   │   ├── Tile Vel: [1..127]               ← stamp value, default 100
-│   │   │   └── Assign (action)                  ← stamps Tile Note + Tile Vel onto grid tiles
+│   │   │   └── Assign (action)                  ← stamps Note + Tile Vel onto grid tiles
 │   │   ├── Mixer (group)                        ← internal types only (synth, sampler, fm, pluck, drum)
 │   │   │   ├── Route: [direct | fx_bus_1 | fx_bus_2 | fx_bus_3 | fx_bus_4]  default direct
 │   │   │   ├── Volume: [0..100]                 default 100
@@ -285,7 +285,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
 
 ### MIDI Drum assignment
 
-- MIDI Drum `Assign` stamps Tile Note and Tile Vel with the same gestures and clear rule. The mode
+- MIDI Drum `Assign` stamps Note and Tile Vel with the same gestures and clear rule. The mode
   toasts `N36 v100: press tiles to assign`; a stamp toasts `N36 v100`, `row N36 v100` or
   `col N36 v100`, and a clear `Cleared`, `Cleared row` or `Cleared col`. Back exits.
 - When Link strikes a stamped tile (any note-on routed to the slot), the slot sends that tile's
