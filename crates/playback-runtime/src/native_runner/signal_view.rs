@@ -6,6 +6,7 @@ use crate::oled_frame::{
 use realtime_engine::synth::{master_signal_tap, SignalSource, SignalTap};
 use spectrum::SpectrumHistory;
 use std::cell::RefCell;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 mod fft;
@@ -74,7 +75,7 @@ pub(super) struct SignalTapReader {
 #[derive(Clone)]
 struct ReaderState {
     live: Option<LiveRun>,
-    visual: OledSignalVisual,
+    visual: Arc<OledSignalVisual>,
     samples: Vec<f32>,
     spectrum: SpectrumHistory,
 }
@@ -105,7 +106,7 @@ impl SignalTapReader {
             tap,
             state: RefCell::new(ReaderState {
                 live: None,
-                visual: OledSignalVisual::Flat,
+                visual: Arc::new(OledSignalVisual::Flat),
                 samples: vec![0.0; WINDOW],
                 spectrum: SpectrumHistory::new(WINDOW),
             }),
@@ -114,15 +115,17 @@ impl SignalTapReader {
 
     /// The picture for a capture at `now`: the current step of `live`, or the flat line when
     /// nothing shows live. The tap writes only while a view is live.
-    pub(super) fn visual(&self, live: Option<LiveView>, now: Instant) -> OledSignalVisual {
+    pub(super) fn visual(&self, live: Option<LiveView>, now: Instant) -> Arc<OledSignalVisual> {
         let mut state = self.state.borrow_mut();
         let state = &mut *state;
         let Some(view) = live else {
             if state.live.take().is_some() {
                 self.tap.select(None);
             }
-            state.visual = OledSignalVisual::Flat;
-            return OledSignalVisual::Flat;
+            if *state.visual != OledSignalVisual::Flat {
+                state.visual = Arc::new(OledSignalVisual::Flat);
+            }
+            return state.visual.clone();
         };
         let fresh = state.live.is_none_or(|run| run.view != view);
         if fresh {
@@ -150,11 +153,11 @@ impl SignalTapReader {
             }
             run.last_written = written;
             let (samples, rate) = (&state.samples, self.tap.sample_rate());
-            state.visual = match view.kind {
+            state.visual = Arc::new(match view.kind {
                 VisualKind::Scope => scope::scope_visual(samples),
                 VisualKind::Spectrum => state.spectrum.spectrum(samples, rate),
                 VisualKind::Waterfall => state.spectrum.waterfall(samples, rate, view.rows),
-            };
+            });
         }
         state.visual.clone()
     }

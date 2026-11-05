@@ -104,12 +104,13 @@ pub struct OledDisplayInput {
     pub signal: Option<OledSignalView>,
 }
 
-/// A picture of a tapped signal and where the body shows it.
+/// A picture of a tapped signal and where the body shows it. The picture is shared, so captures,
+/// scenes and body animations of one live step do not copy it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OledSignalView {
     pub area: OledSignalArea,
-    pub visual: OledSignalVisual,
+    pub visual: Arc<OledSignalVisual>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

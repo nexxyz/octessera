@@ -56,7 +56,7 @@ pub(super) fn draw_signal_view(frame: &mut [u8], view: &OledSignalView, body_top
             height: SIGNAL_BODY_HEIGHT,
         },
     };
-    match &view.visual {
+    match view.visual.as_ref() {
         OledSignalVisual::Flat => fill_rect(
             frame,
             LEFT_X,

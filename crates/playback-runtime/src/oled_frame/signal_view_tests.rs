@@ -25,7 +25,7 @@ fn home(visual: Option<OledSignalVisual>) -> OledPresentationInput {
     input.display.scroll = None;
     input.display.signal = visual.map(|visual| OledSignalView {
         area: OledSignalArea::Band { slot: 4 },
-        visual,
+        visual: visual.into(),
     });
     input.selected_row = Some(5);
     input
@@ -144,7 +144,7 @@ fn full_screen(visual: OledSignalVisual) -> OledPresentationInput {
     input.display.scroll = None;
     input.display.signal = Some(OledSignalView {
         area: OledSignalArea::Body,
-        visual,
+        visual: visual.into(),
     });
     input.selected_row = None;
     input

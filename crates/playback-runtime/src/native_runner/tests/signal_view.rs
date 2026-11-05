@@ -44,7 +44,7 @@ fn the_stopped_home_page_shows_a_flat_band_and_schedules_nothing() {
         band(&mut runner),
         Some(OledSignalView {
             area: OledSignalArea::Band { slot: 4 },
-            visual: OledSignalVisual::Flat
+            visual: OledSignalVisual::Flat.into()
         })
     );
     assert_eq!(runner.display.signal.next_step_at(), None);
@@ -57,7 +57,7 @@ fn a_playing_home_page_steps_its_scope_every_66_ms_until_the_transport_stops() {
     let start = Instant::now();
     let (mut runner, tap) = home_runner(start);
     runner.transport.transport = RuntimeTransportState::Playing;
-    assert_eq!(band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
+    assert_eq!(*band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
     runner.display.transients.acknowledge_snapshot_pending();
     assert_eq!(
         runner.next_timed_display_snapshot_deadline_after(Some(start)),
@@ -73,7 +73,7 @@ fn a_playing_home_page_steps_its_scope_every_66_ms_until_the_transport_stops() {
     runner.display.transients.set_test_now(start + STEP);
     assert!(runner.pending_display_scene_generation().is_some());
     assert!(matches!(
-        band(&mut runner).unwrap().visual,
+        *band(&mut runner).unwrap().visual,
         OledSignalVisual::Scope { .. }
     ));
     runner.display.transients.acknowledge_snapshot_pending();
@@ -83,7 +83,7 @@ fn a_playing_home_page_steps_its_scope_every_66_ms_until_the_transport_stops() {
     );
 
     runner.transport.transport = RuntimeTransportState::Stopped;
-    assert_eq!(band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
+    assert_eq!(*band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
     assert_eq!(runner.display.signal.next_step_at(), None);
     let written = tap.written();
     sound(tap);
@@ -133,22 +133,22 @@ fn spectrum_and_waterfall_draw_the_same_tap_once_it_sounds() {
     let _ = commit_setting(&mut runner, "homeVisual", 1);
     assert_eq!(runner.display.ui.home_visual, "spectrum");
     runner.menu.state.stack.clear();
-    assert_eq!(band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
+    assert_eq!(*band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
     sound(tap);
     runner.display.transients.set_test_now(start + STEP);
     assert!(matches!(
-        band(&mut runner).unwrap().visual,
+        *band(&mut runner).unwrap().visual,
         OledSignalVisual::Spectrum { .. }
     ));
 
     let _ = commit_setting(&mut runner, "homeVisual", 1);
     assert_eq!(runner.display.ui.home_visual, "waterfall");
     runner.menu.state.stack.clear();
-    assert_eq!(band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
+    assert_eq!(*band(&mut runner).unwrap().visual, OledSignalVisual::Flat);
     sound(tap);
     runner.display.transients.set_test_now(start + STEP * 2);
     assert!(matches!(
-        band(&mut runner).unwrap().visual,
+        *band(&mut runner).unwrap().visual,
         OledSignalVisual::Waterfall { .. }
     ));
 }

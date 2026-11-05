@@ -59,35 +59,63 @@ fn the_reader_taps_only_while_live_and_reads_once_per_step() {
     let block: Vec<f32> = tone(0, 0.5).iter().flat_map(|s| [*s, *s]).collect();
     let start = Instant::now();
     let at = |ms: u64| start + Duration::from_millis(ms);
-    assert_eq!(reader.visual(None, start), OledSignalVisual::Flat);
+    assert_eq!(*reader.visual(None, start), OledSignalVisual::Flat);
     assert_eq!(reader.next_step_at(), None);
     tap.publish_master(&block, block.len() / 2, 48_000);
     assert_eq!(tap.written(), 0);
 
     assert_eq!(
-        reader.visual(Some(MASTER_SCOPE), start),
+        *reader.visual(Some(MASTER_SCOPE), start),
         OledSignalVisual::Flat
     );
     assert_eq!(reader.next_step_at(), Some(at(66)));
     tap.publish_master(&block, block.len() / 2, 48_000);
     assert!(!reader.take_new_step(at(65)));
     assert_eq!(
-        reader.visual(Some(MASTER_SCOPE), at(65)),
+        *reader.visual(Some(MASTER_SCOPE), at(65)),
         OledSignalVisual::Flat
     );
     assert!(reader.take_new_step(at(66)));
     assert!(!reader.take_new_step(at(70)));
     assert!(matches!(
-        reader.visual(Some(MASTER_SCOPE), at(70)),
+        *reader.visual(Some(MASTER_SCOPE), at(70)),
         OledSignalVisual::Scope { .. }
     ));
     assert_eq!(reader.next_step_at(), Some(at(132)));
     assert!(reader.take_new_step(at(200)));
 
-    assert_eq!(reader.visual(None, at(200)), OledSignalVisual::Flat);
+    assert_eq!(*reader.visual(None, at(200)), OledSignalVisual::Flat);
     assert_eq!(reader.next_step_at(), None);
     assert!(!reader.take_new_step(at(300)));
     let written = tap.written();
     tap.publish_master(&block, block.len() / 2, 48_000);
     assert_eq!(tap.written(), written);
+}
+
+#[test]
+fn captures_within_one_step_share_the_waterfall_picture() {
+    let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
+    let reader = SignalTapReader::new(tap);
+    let view = LiveView {
+        kind: VisualKind::Waterfall,
+        rows: crate::oled_frame::SIGNAL_BODY_HEIGHT,
+        ..MASTER_SCOPE
+    };
+    let block: Vec<f32> = tone(0, 0.5).iter().flat_map(|s| [*s, *s]).collect();
+    let start = Instant::now();
+    let _ = reader.visual(Some(view), start);
+    tap.publish_master(&block, block.len() / 2, 48_000);
+
+    let step = start + STEP;
+    let first = reader.visual(Some(view), step);
+    assert!(matches!(*first, OledSignalVisual::Waterfall { .. }));
+    assert!(Arc::ptr_eq(
+        &first,
+        &reader.visual(Some(view), step + Duration::from_millis(10))
+    ));
+    tap.publish_master(&block, block.len() / 2, 48_000);
+    assert!(!Arc::ptr_eq(
+        &first,
+        &reader.visual(Some(view), step + STEP)
+    ));
 }

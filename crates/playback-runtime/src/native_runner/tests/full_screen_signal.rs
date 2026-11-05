@@ -76,7 +76,7 @@ fn a_stopped_signal_view_fills_the_body_with_a_flat_line_under_its_page() {
     assert!(shown.display.lines.is_empty());
     let view = shown.display.signal.unwrap();
     assert_eq!(view.area, OledSignalArea::Body);
-    assert_eq!(view.visual, crate::oled_frame::OledSignalVisual::Flat);
+    assert_eq!(*view.visual, crate::oled_frame::OledSignalVisual::Flat);
     assert_eq!(tap.selected(), None);
     assert_eq!(runner.display.signal.next_step_at(), None);
 }
@@ -118,7 +118,7 @@ fn a_playing_signal_view_taps_its_own_source() {
         .set_test_now(start + Duration::from_millis(66));
     let view = presented(&mut runner).display.signal.unwrap();
     assert!(matches!(
-        view.visual,
+        *view.visual,
         crate::oled_frame::OledSignalVisual::Scope { .. }
     ));
 
