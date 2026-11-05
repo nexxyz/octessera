@@ -33,6 +33,10 @@ impl NativeRunner {
             tile: 0,
             pitch_cents: 0,
             velocity: 100,
+            midi_note: super::drum_config::drum_voice_midi_note(
+                &self.instruments[slot].drum_config,
+                voice as u8,
+            ),
         });
     }
 }

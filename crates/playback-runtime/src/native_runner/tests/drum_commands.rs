@@ -205,6 +205,7 @@ fn preview_is_one_transient_hit_without_tile_offset_or_config_command() {
             tile: 0,
             pitch_cents: 0,
             velocity: 100,
+            midi_note: 45,
         }]
     );
     assert!(commands(&preview).is_empty());

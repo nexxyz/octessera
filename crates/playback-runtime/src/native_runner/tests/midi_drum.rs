@@ -374,3 +374,66 @@ fn midi_drum_stamps_and_settings_survive_a_patch_save_and_load() {
     let error = compose_local_system_patch_documents(&documents.system, &old_patch).unwrap_err();
     assert!(error.contains("instruments[3].midiDrum"), "{error}");
 }
+
+fn mirror_rig(kind: &str) -> Rig {
+    let mut rig = Rig::new(kind);
+    let instrument = &mut rig.runner.instruments[0];
+    if kind == "drum" {
+        instrument.drum_config["assignments"] = json!([{ "x": 2, "y": 3, "voice": 6 }]);
+    } else {
+        instrument.sample_assignments = vec![NativeSampleAssignment {
+            x: 2,
+            y: 3,
+            sample_slot: 4,
+            level: None,
+            tune_semis: 7,
+            tune_cents: 0,
+        }];
+    }
+    rig
+}
+
+#[test]
+fn drum_and_sampler_hits_go_to_midi_only_under_send_midi_all() {
+    let struck = |rig: &Rig| {
+        rig.host
+            .tile_hits
+            .iter()
+            .filter(|hit| hit.velocity > 0)
+            .map(|hit| hit.velocity)
+            .collect::<Vec<_>>()
+    };
+    for (kind, note) in [("drum", 39), ("sampler", 40)] {
+        let mut rig = mirror_rig(kind);
+        rig.press(2, 3);
+        assert_eq!(struck(&rig).len(), 1, "{kind}");
+        assert!(rig.take_notes().is_empty(), "{kind} under MIDI inst.");
+
+        rig.turn("midi.sendInstruments", 1);
+        rig.press(2, 3);
+        let velocity = struck(&rig)[1];
+        assert_eq!(rig.take_notes(), vec![vec![0x90, note, velocity]], "{kind}");
+        rig.advance(100);
+        assert_eq!(rig.take_notes(), vec![vec![0x80, note, 0]], "{kind}");
+
+        rig.turn("midi.sendInstruments", -1);
+        rig.press(2, 3);
+        rig.advance(100);
+        assert_eq!(struck(&rig).len(), 3, "{kind}");
+        assert!(rig.take_notes().is_empty(), "{kind} back on MIDI inst.");
+    }
+}
+
+#[test]
+fn a_drum_voice_sends_the_gm_note_of_its_current_sound() {
+    let mut rig = mirror_rig("drum");
+    rig.turn("midi.sendInstruments", 1);
+    rig.turn("instruments.0.drum.voice", 6);
+    rig.turn("instruments.0.drum.voices.6.sound", -6);
+    assert_eq!(
+        rig.runner.instruments[0].drum_config["voices"][6]["sound"],
+        "kick"
+    );
+    rig.press(2, 3);
+    assert_eq!(rig.take_notes()[0][..2], [0x90, 36]);
+}

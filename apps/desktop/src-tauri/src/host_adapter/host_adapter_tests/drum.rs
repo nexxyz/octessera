@@ -11,6 +11,7 @@ fn desktop_tile_hit_is_typed_musical_audio_not_midi_and_rejects_invalid_fields()
         tile: 9,
         pitch_cents: -2450,
         velocity: 100,
+        midi_note: 36,
     };
     adapter.handle_runtime_tile_hit(&hit, None).unwrap();
     assert!(matches!(

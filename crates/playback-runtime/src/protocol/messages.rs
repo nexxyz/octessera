@@ -17,6 +17,8 @@ pub struct TileHit {
     pub tile: u8,
     pub pitch_cents: i16,
     pub velocity: u8,
+    /// The General MIDI note System > MIDI > Send MIDI: all inst. copies this hit to.
+    pub midi_note: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

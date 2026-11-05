@@ -35,6 +35,7 @@ fn raspberry_drum_hit_goes_to_audio_fifo_and_rejects_invalid_fields() {
         tile: 0,
         pitch_cents: -2400,
         velocity: 100,
+        midi_note: 36,
     };
     adapter.handle_runtime_tile_hit(&hit, None).unwrap();
     assert!(matches!(

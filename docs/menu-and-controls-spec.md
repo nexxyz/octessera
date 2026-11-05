@@ -346,7 +346,9 @@ change; only the distance per detent does.
   watch reconnects the USB MIDI gadget port after a live gadget rebuild.
 - `System > MIDI > Send MIDI` gates only the copy of internal instruments' notes to MIDI out.
   With `MIDI inst.` (the default) internal notes never reach the MIDI sender; `all inst.` sends
-  them on their slot's channel. Clock and CC out are unaffected. Switching to `MIDI inst.` sends exact note-offs for the copied notes still held, and
+  them on their slot's channel. Drum hits send the GM note of their voice's Sound, Sampler hits
+  notes 36..43 for slots 1..8, each a fixed 100 ms note at the hit's velocity. Clock and CC out are
+  unaffected. Switching to `MIDI inst.` sends exact note-offs for the copied notes still held, and
   leaves MIDI Inst. and MIDI Drum notes alone.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error

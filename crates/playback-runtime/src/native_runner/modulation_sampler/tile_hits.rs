@@ -1,10 +1,13 @@
-use super::super::drum_config::drum_velocity_level;
+use super::super::drum_config::{drum_velocity_level, drum_voice_midi_note};
 use super::super::sample_assignment_payload::tile_offset;
 use super::super::{NativeInstrumentSlot, NativeSampleAssignment, GRID_WIDTH};
 use crate::protocol::TileHit;
 use platform_core::TileTriggerIntent;
 use realtime_engine::synth::TILE_PITCH_CENTS_LIMIT;
 use serde_json::Value;
+
+/// Sampler slots 1..8 copy to MIDI out as C1..G1 (36..43) under Send MIDI: all inst.
+const SAMPLER_FIRST_MIDI_NOTE: u8 = 36;
 
 pub(in super::super) fn tile_index(x: usize, y: usize) -> u8 {
     (y * GRID_WIDTH + x) as u8
@@ -60,6 +63,7 @@ pub(in super::super) fn drum_hit_for_intent(
             Some(level_velocity) => scale_velocity(level_velocity, velocity),
             None => velocity,
         },
+        midi_note: drum_voice_midi_note(&instrument.drum_config, voice),
     })
 }
 
@@ -85,6 +89,7 @@ pub(in super::super) fn sampler_hit_for_intent(
             instrument.sample_follow_pitch.then_some(link_note),
         ),
         velocity: super::sampler_assignment_velocity(velocity, assignment, instrument),
+        midi_note: SAMPLER_FIRST_MIDI_NOTE + assignment.sample_slot.min(7) as u8,
     })
 }
 
@@ -108,6 +113,7 @@ pub(in super::super) fn tile_release(slot: u8, voice: u8, tile: u8) -> TileHit {
         tile,
         pitch_cents: 0,
         velocity: 0,
+        midi_note: 0,
     }
 }
 

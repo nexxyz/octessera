@@ -16,6 +16,21 @@ const DRUM_SWEEP_SEMIS: [u8; 8] = [24, 3, 0, 0, 8, 6, 0, 0];
 const DRUM_SWEEP_MS: [u8; 8] = [55, 25, 0, 0, 70, 50, 0, 0];
 const DRUM_NOISE_MIX_PCT: [u8; 8] = [12, 80, 95, 95, 15, 15, 95, 35];
 const DRUM_VELOCITY_LEVELS: [(&str, u8); 3] = [("high", 120), ("medium", 85), ("low", 45)];
+/// The General MIDI percussion note each Sound sends under Send MIDI: all inst.
+const DRUM_SOUND_MIDI_NOTES: [u8; 8] = [36, 38, 42, 46, 45, 50, 39, 37];
+
+/// The GM note of a kit voice's current Sound, which a hit of that voice copies to MIDI out.
+pub(super) fn drum_voice_midi_note(drum: &Value, voice: u8) -> u8 {
+    let sound = drum
+        .get("voices")
+        .and_then(|voices| voices.get(usize::from(voice)))
+        .and_then(|voice| voice.get("sound"))
+        .and_then(Value::as_str);
+    let index = sound
+        .and_then(|sound| DRUM_SOUNDS.iter().position(|id| *id == sound))
+        .unwrap_or(usize::from(voice).min(DRUM_SOUNDS.len() - 1));
+    DRUM_SOUND_MIDI_NOTES[index]
+}
 
 pub(super) fn drum_voice_default(sound: &str) -> Option<Value> {
     let index = DRUM_SOUNDS.iter().position(|id| *id == sound)?;

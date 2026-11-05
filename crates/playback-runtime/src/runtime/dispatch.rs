@@ -399,7 +399,7 @@ impl PlaybackRuntime {
                 }
                 RunnerMessage::TileHits { hits } => {
                     for hit in hits {
-                        if let Err(error) = host.handle_tile_hit(&hit, self.sequenced_at) {
+                        if let Err(error) = self.play_tile_hit(&hit, host) {
                             let error = self.adapter_error_metadata(
                                 error,
                                 RuntimeErrorDomain::Audio,

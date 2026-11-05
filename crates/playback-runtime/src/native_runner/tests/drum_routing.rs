@@ -65,14 +65,16 @@ fn paired_intents_select_world_tiles_not_melodic_notes_and_unpaired_notes_are_si
                 voice: 2,
                 tile: 2,
                 pitch_cents: -700,
-                velocity: 93
+                velocity: 93,
+                midi_note: 42,
             },
             crate::protocol::TileHit {
                 instrument_slot: 0,
                 voice: 2,
                 tile: 3,
                 pitch_cents: 400,
-                velocity: 93
+                velocity: 93,
+                midi_note: 42,
             },
         ]
     );
@@ -221,6 +223,7 @@ fn kit_plus_twelve_and_tile_plus_twenty_four_emit_valid_local_hit_from_device_in
             tile: 1,
             pitch_cents: 2400,
             velocity: 96,
+            midi_note: 42,
         }]
     );
     assert!(!press

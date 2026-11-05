@@ -102,6 +102,7 @@ mod tests {
             tile: 12,
             pitch_cents: -2450,
             velocity: 120,
+            midi_note: 36,
         };
         assert!(matches!(
             tile_hit_to_engine_event(&hit, None).unwrap(),
