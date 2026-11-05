@@ -25,7 +25,7 @@ impl Rig {
         runner.instruments[0].midi_enabled = kind == "midi";
         runner.instruments[0].midi_channel = MIDI_CHANNEL + 1;
         runner.link_layers[0].x_filter_cutoff.enabled = true;
-        runner.midi_enabled = true;
+        runner.midi_active = true;
         runner.midi_clock_out_enabled = true;
         runner.selected_midi_output_id = Some("out-1".into());
         runner.transport.transport = RuntimeTransportState::Playing;

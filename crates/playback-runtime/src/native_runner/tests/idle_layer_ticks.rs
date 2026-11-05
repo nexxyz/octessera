@@ -7,7 +7,7 @@ fn mixed_patch_runner() -> NativeRunner {
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     for (index, behavior_id) in runner.layer_behavior_ids.iter().enumerate() {
         assert_eq!(behavior_id == "none", index >= 4, "factory layer {index}");
     }

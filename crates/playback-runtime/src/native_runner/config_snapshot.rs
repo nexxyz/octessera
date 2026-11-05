@@ -59,7 +59,7 @@ pub struct NativeConfigSnapshot {
     play_mode: String,
     aux_bindings: Vec<Option<NativeAuxBinding>>,
     shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
-    midi_enabled: bool,
+    midi_active: bool,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     sync_source: SyncSource,
@@ -206,7 +206,7 @@ impl NativeConfigSnapshot {
                 "auxBindings": aux_bindings_payload(&self.aux_bindings),
                 "shiftAuxBindings": aux_bindings_payload(&self.shift_aux_bindings),
                 "midi": {
-                    "enabled": self.midi_enabled,
+                    "enabled": self.midi_active,
                     "outId": self.selected_midi_output_id,
                     "inId": self.selected_midi_input_id,
                     "syncMode": match self.sync_source {
@@ -368,7 +368,7 @@ impl NativeConfigSnapshot {
             play_mode: runner.play_mode.clone(),
             aux_bindings: runner.aux_bindings.clone(),
             shift_aux_bindings: runner.shift_aux_bindings.clone(),
-            midi_enabled: runner.midi_enabled,
+            midi_active: runner.midi_active,
             selected_midi_output_id: runner.selected_midi_output_id.clone(),
             selected_midi_input_id: runner.selected_midi_input_id.clone(),
             sync_source: runner.transport.sync_source.clone(),

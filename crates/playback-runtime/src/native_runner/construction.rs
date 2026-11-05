@@ -85,7 +85,7 @@ impl NativeRunner {
             emitted_route_note_owners: vec![BTreeSet::new(); LAYER_COUNT],
             emitted_route_tile_owners: vec![BTreeSet::new(); LAYER_COUNT],
             display: NativeDisplayState::new(seed.ui, seed.now, seed.hdmi),
-            midi_enabled: seed.midi_enabled,
+            midi_active: seed.midi_active,
             audio_outputs: seed.audio_outputs,
             usb_data_role: seed.usb_data_role,
             usb_midi_out_enabled: seed.usb_midi_out_enabled,

@@ -94,7 +94,7 @@ pub(super) fn midi_group(
     host_role: bool,
 ) -> NativeMenuItem {
     let mut children = vec![
-        bool_item("MIDI Active", "midiEnabled", config.midi_enabled),
+        bool_item("MIDI Active", "midiEnabled", config.midi_active),
         enum_item(
             "Send MIDI",
             "midi.sendInstruments",

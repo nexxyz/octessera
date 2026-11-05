@@ -81,7 +81,7 @@ pub(super) fn board_runner(usb_data_role_available: bool) -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.menu.rebuild(runner.menu_config());
     runner
         .send(HostMessage::DeviceInput {
@@ -467,7 +467,7 @@ fn inactive_midi_retains_host_ids_through_usb_status_and_reload() {
             .iter()
             .any(|message| matches!(message, RunnerMessage::MidiEvents { .. })));
     }
-    assert!(!runner.midi_enabled);
+    assert!(!runner.midi_active);
     assert_eq!(
         runner.selected_midi_output_id.as_deref(),
         Some("name:Host Out")
@@ -485,7 +485,7 @@ fn inactive_midi_retains_host_ids_through_usb_status_and_reload() {
     assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], false);
 
     let reloaded = reload_system_payload(saved);
-    assert!(!reloaded.midi_enabled);
+    assert!(!reloaded.midi_active);
     assert!(!reloaded.usb_midi_out_enabled);
     assert_eq!(
         reloaded.selected_midi_output_id.as_deref(),

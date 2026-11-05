@@ -12,7 +12,7 @@ fn scanned_empty_note_off_runtime(
     })
     .unwrap();
     runner.instruments[0].note_behavior = note_behavior.into();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.selected_midi_output_id = Some("out-1".into());
     runner.midi_send_instruments = "all".into();
     runner.transport.transport = RuntimeTransportState::Playing;

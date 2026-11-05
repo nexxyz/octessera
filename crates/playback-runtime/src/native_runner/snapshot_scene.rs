@@ -238,7 +238,7 @@ impl NativeRunner {
             auto_save_flash: self.auto_save_flash_active(),
             auto_save_flash_serial: self.display.auto_save_flash_serial,
             cpu_warn_percent: self.dsp_config.worker_warning_threshold.percent(),
-            midi_enabled: self.midi_enabled,
+            midi_enabled: self.midi_active,
             selected_midi_output_id: self.selected_midi_output_id.clone(),
             selected_midi_input_id: self.selected_midi_input_id.clone(),
             midi_outputs: self.midi_outputs.clone(),

@@ -387,7 +387,7 @@ pub struct NativeRunner {
     emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
     emitted_route_tile_owners: Vec<BTreeSet<(u8, u8)>>,
     display: NativeDisplayState,
-    midi_enabled: bool,
+    midi_active: bool,
     preset_names: Vec<String>,
     current_preset_name: Option<String>,
     preset_draft_name: String,

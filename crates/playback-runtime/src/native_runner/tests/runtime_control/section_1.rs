@@ -29,7 +29,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
         })
         .unwrap();
     runner.select_active_layer(0).unwrap();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let first = runner
@@ -94,7 +94,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.aux_auto_map_enabled = false;
     runner.display.ui.ghost_tiles = false;
     runner.display.ui.master_volume = 77;
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.transport.transport = RuntimeTransportState::Playing;
 
     runner
@@ -136,7 +136,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     assert!(!runner.aux_auto_map_enabled);
     assert!(!runner.display.ui.ghost_tiles);
     assert_eq!(runner.display.ui.master_volume, 77);
-    assert!(runner.midi_enabled);
+    assert!(runner.midi_active);
     assert_eq!(runner.audio_config_revision, 1);
     assert_eq!(
         runner.menu.value_for_key("instruments.0.type").as_deref(),
@@ -177,7 +177,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
 #[test]
 pub(crate) fn external_midi_realtime_respects_clock_in_and_start_stop_settings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.transport.sync_source = SyncSource::External;
 
     runner.send(HostMessage::MidiRealtimeStart).unwrap();

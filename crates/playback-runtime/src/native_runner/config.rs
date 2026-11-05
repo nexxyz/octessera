@@ -166,7 +166,7 @@ impl NativeRunner {
             grid_brightness: self.display.ui.grid_brightness,
             display_brightness: self.display.ui.display_brightness,
             button_brightness: self.display.ui.button_brightness,
-            midi_enabled: self.midi_enabled,
+            midi_active: self.midi_active,
             midi_clock_out_enabled: self.midi_clock_out_enabled,
             midi_clock_in_enabled: self.midi_clock_in_enabled,
             midi_respond_to_start_stop: self.midi_respond_to_start_stop,

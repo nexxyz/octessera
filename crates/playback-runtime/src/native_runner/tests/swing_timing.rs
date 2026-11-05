@@ -217,7 +217,7 @@ fn external_sync_swing_lands_on_the_first_clock_at_or_after_its_time() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.midi_clock_in_enabled = true;
     runner.transport.sync_source = SyncSource::External;
     let mut runner = start_eighth_note_layer(runner, (4, 5));

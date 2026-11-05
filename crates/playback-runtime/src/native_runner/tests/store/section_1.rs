@@ -46,7 +46,7 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.current_ppqn_pulse = 96;
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     let mut full = runner.config_payload();
     full["runtimeConfig"]["activeLayerIndex"] = json!(1);
     full["runtimeConfig"]["activeBehavior"] = json!("sequencer");
@@ -96,7 +96,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 7;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
 
     let patch = runner.patch_payload().unwrap();
     assert_eq!(patch["kind"], "octessera.patch");
@@ -120,7 +120,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 3;
     runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.midi_enabled = false;
+    runner.midi_active = false;
 
     runner
         .send(HostMessage::RuntimeResult {
@@ -145,7 +145,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
         runner.audio_outputs,
         AudioOutputSet::from_flags(true, true, false).unwrap()
     );
-    assert!(!runner.midi_enabled);
+    assert!(!runner.midi_active);
 }
 
 #[test]
@@ -160,7 +160,7 @@ pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
         }))
         .unwrap();
     assert_eq!(runner.display.ui.display_brightness, 13);
-    assert!(runner.midi_enabled);
+    assert!(runner.midi_active);
 
     runner
         .apply_device_config_payload_preserving_patch(json!({

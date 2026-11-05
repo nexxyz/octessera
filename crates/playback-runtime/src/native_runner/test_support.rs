@@ -11,7 +11,7 @@ impl NativeRunner {
     }
 
     pub fn test_enable_midi(&mut self) {
-        self.midi_enabled = true;
+        self.midi_active = true;
     }
 
     #[cfg(test)]

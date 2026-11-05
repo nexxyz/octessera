@@ -188,7 +188,7 @@ pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("midiEnabled"));
 
-    assert!(!runner.midi_enabled);
+    assert!(!runner.midi_active);
 
     let enter = runner
         .send(HostMessage::DeviceInput {
@@ -197,19 +197,19 @@ pub(crate) fn bool_menu_items_edit_like_two_option_enums() {
         })
         .unwrap();
     assert_eq!(snapshot_from(&enter)["display"]["editing"], true);
-    assert!(!runner.midi_enabled);
+    assert!(!runner.midi_active);
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
         request_snapshot: None,
     });
-    assert!(runner.midi_enabled);
+    assert!(runner.midi_active);
 
     let _ = runner.send(HostMessage::DeviceInput {
         input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
         request_snapshot: None,
     });
-    assert!(!runner.midi_enabled);
+    assert!(!runner.midi_active);
 
     let exit = runner
         .send(HostMessage::DeviceInput {

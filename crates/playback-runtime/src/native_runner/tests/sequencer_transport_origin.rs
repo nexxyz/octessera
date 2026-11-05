@@ -42,7 +42,7 @@ fn pulse(runner: &mut NativeRunner, pulses: u32) -> Vec<RunnerMessage> {
 }
 
 fn start(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap()
 }
 
@@ -162,7 +162,7 @@ fn origin_prime_uses_each_scanning_layer_rate() {
 #[test]
 fn transport_origin_primes_only_scanning_sequencers_and_play_scans_tick_zero() {
     let mut runner = scanning_runner(1, "1/16");
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     add_tile(&mut runner, 0, 0);
     let start_messages = runner
         .send(HostMessage::DeviceInput {
@@ -288,7 +288,7 @@ fn pause_resume_and_combined_trigger_gate_preserve_sequencer_phase() {
 #[test]
 fn external_resync_boundary_emits_origin_tick_at_zero_without_following_duplicate() {
     let mut runner = scanning_runner(1, "1/16");
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.transport.sync_source = SyncSource::External;
     runner.midi_clock_in_enabled = true;
     add_tile(&mut runner, 0, 0);

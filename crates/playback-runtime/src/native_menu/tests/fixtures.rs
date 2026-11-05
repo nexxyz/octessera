@@ -180,7 +180,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         grid_brightness: 25,
         display_brightness: 12,
         button_brightness: 35,
-        midi_enabled: false,
+        midi_active: false,
         midi_clock_out_enabled: false,
         midi_clock_in_enabled: false,
         midi_respond_to_start_stop: true,

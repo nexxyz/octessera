@@ -96,7 +96,7 @@ pub struct NativeMenuConfig {
     pub grid_brightness: u8,
     pub display_brightness: u8,
     pub button_brightness: u8,
-    pub midi_enabled: bool,
+    pub midi_active: bool,
     pub midi_clock_out_enabled: bool,
     pub midi_clock_in_enabled: bool,
     pub midi_respond_to_start_stop: bool,

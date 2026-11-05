@@ -300,7 +300,7 @@ impl NativeRunner {
         let Some(midi) = runtime.get("midi") else {
             return;
         };
-        self.apply_midi_enabled_payload(midi);
+        self.apply_midi_active_payload(midi);
         self.apply_midi_port_payload(midi);
         self.apply_midi_sync_payload(midi);
         self.queue_midi_selection_effects();
@@ -340,9 +340,9 @@ impl NativeRunner {
         }
     }
 
-    fn apply_midi_enabled_payload(&mut self, midi: &Value) {
+    fn apply_midi_active_payload(&mut self, midi: &Value) {
         if let Some(enabled) = midi.get("enabled").and_then(Value::as_bool) {
-            self.midi_enabled = enabled;
+            self.midi_active = enabled;
         }
     }
 

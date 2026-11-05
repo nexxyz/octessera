@@ -233,7 +233,7 @@ impl SystemPersistenceState {
             "auxBindings": super::aux_bindings_payload(&runner.aux_bindings),
             "shiftAuxBindings": super::aux_bindings_payload(&runner.shift_aux_bindings),
             "midi": {
-                "enabled": runner.midi_enabled,
+                "enabled": runner.midi_active,
                 "outId": runner.selected_midi_output_id,
                 "inId": runner.selected_midi_input_id,
                 "syncMode": match runner.transport.sync_source {

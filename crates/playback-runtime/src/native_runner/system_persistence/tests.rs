@@ -20,7 +20,7 @@ fn system_document_matches_the_device_projection_for_mixed_runtime_config() {
     runner.sample_favourite_dirs = vec!["/samples/favourites".into()];
     runner.auto_save_default = true;
     runner.rolling_backups = false;
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.selected_midi_output_id = Some("midi-out-2".into());
     runner.selected_midi_input_id = Some("midi-in-3".into());
     runner.recording_max_minutes = 23;

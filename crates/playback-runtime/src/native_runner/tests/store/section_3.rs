@@ -38,7 +38,7 @@ pub(crate) fn patch_envelope_round_trips_and_preserves_local_aux_bindings() {
 #[test]
 pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_enabled = true;
+    runner.midi_active = true;
     runner.selected_midi_output_id = Some("local-out".into());
     runner.selected_midi_input_id = Some("local-in".into());
 
@@ -60,7 +60,7 @@ pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects(
         })
         .unwrap();
 
-    assert!(runner.midi_enabled);
+    assert!(runner.midi_active);
     assert_eq!(runner.selected_midi_output_id.as_deref(), Some("local-out"));
     assert_eq!(runner.selected_midi_input_id.as_deref(), Some("local-in"));
     assert!(!messages.iter().any(|message| matches!(

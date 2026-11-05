@@ -10,7 +10,7 @@ impl NativeRunner {
             "transport.bpm" => Some(self.fast_bpm_menu_key()),
             "transport.swingA" | "transport.swingB" => Some(self.fast_swing_menu_key(key)),
             "midiSyncMode" => Some(self.fast_sync_source_menu_key()),
-            "midiEnabled" => Some(self.fast_midi_enabled_menu_key()),
+            "midiEnabled" => Some(self.fast_midi_active_menu_key()),
             "midi.clockOutEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi_clock_out_enabled, value)
             })),
@@ -218,7 +218,7 @@ impl NativeRunner {
         true
     }
 
-    fn fast_midi_enabled_menu_key(&mut self) -> bool {
+    fn fast_midi_active_menu_key(&mut self) -> bool {
         let Some(value) = self
             .menu
             .value_for_key("midiEnabled")
@@ -226,7 +226,7 @@ impl NativeRunner {
         else {
             return false;
         };
-        if bool_changed(&mut self.midi_enabled, value) {
+        if bool_changed(&mut self.midi_active, value) {
             if !value {
                 self.drain_all_layer_engine_notes();
                 self.drain_all_play_transpose_notes();
