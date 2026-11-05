@@ -209,5 +209,5 @@ impl PlaybackRuntime {
 struct ScheduledMidiMessage {
     due_at: Duration,
     at: Option<Instant>,
-    bytes: Vec<u8>,
+    bytes: [u8; 3],
 }

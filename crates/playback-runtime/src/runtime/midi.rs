@@ -77,7 +77,7 @@ impl PlaybackRuntime {
                     self.scheduled_note_offs.push_back(ScheduledMidiMessage {
                         due_at: self.now + duration,
                         at: self.sequenced_at.and_then(|at| at.checked_add(duration)),
-                        bytes: vec![0x80 | (channel & 0x0F), note.min(127), 0],
+                        bytes: [0x80 | (channel & 0x0F), note.min(127), 0],
                     });
                     self.scheduled_note_offs_dirty = true;
                 }
@@ -299,7 +299,7 @@ impl PlaybackRuntime {
             let (bytes, at) = self
                 .scheduled_note_offs
                 .front()
-                .map(|message| (message.bytes.clone(), message.at))
+                .map(|message| (message.bytes, message.at))
                 .expect("front checked");
             self.send_midi_message(&bytes, at, RuntimeOperation::MidiMessage, host)?;
             self.scheduled_note_offs.pop_front();
@@ -318,7 +318,7 @@ impl PlaybackRuntime {
         while let Some(bytes) = self
             .scheduled_note_offs
             .front()
-            .map(|message| message.bytes.clone())
+            .map(|message| message.bytes)
         {
             self.send_midi_message(&bytes, None, RuntimeOperation::MidiMessage, host)?;
             self.scheduled_note_offs.pop_front();
