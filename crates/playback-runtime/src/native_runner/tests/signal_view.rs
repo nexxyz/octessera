@@ -152,3 +152,30 @@ fn spectrum_and_waterfall_draw_the_same_tap_once_it_sounds() {
         OledSignalVisual::Waterfall { .. }
     ));
 }
+
+#[test]
+fn a_snapshot_carries_the_waterfall_compactly_and_decodes_to_the_same_picture() {
+    let start = Instant::now();
+    let (mut runner, tap) = home_runner(start);
+    runner.transport.transport = RuntimeTransportState::Playing;
+    let _ = commit_setting(&mut runner, "homeVisual", 2);
+    assert_eq!(runner.display.ui.home_visual, "waterfall");
+    runner.menu.state.stack.clear();
+    let _ = band(&mut runner);
+    sound(tap);
+    runner.display.transients.set_test_now(start + STEP);
+    let shown = band(&mut runner).unwrap();
+    assert!(matches!(*shown.visual, OledSignalVisual::Waterfall { .. }));
+
+    let snapshot = runner.snapshot().unwrap();
+    let signal = &snapshot["display"]["signal"];
+    assert!(signal["visual"]["levels"].is_string(), "{signal}");
+    assert!(signal.to_string().len() < 20_000);
+    let decoded = crate::oled_frame::presentation_input_from_snapshot(
+        &snapshot,
+        OledPresentationMetrics::default(),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(decoded.display.signal, Some(shown));
+}

@@ -140,7 +140,11 @@ pub enum OledSignalVisual {
     /// One level and one falling peak per bar, 0..=255.
     Spectrum { levels: Vec<u8>, peaks: Vec<u8> },
     /// Columns oldest to newest, each a level per pixel row of the area from the lowest bin up.
-    Waterfall { levels: Vec<u8> },
+    /// Snapshots carry the ~12 KB history as base64 rather than a JSON number array.
+    Waterfall {
+        #[serde(with = "crate::protocol::oled::base64_bytes")]
+        levels: Vec<u8>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,7 +1,7 @@
 mod audio;
 mod bluetooth;
 mod messages;
-mod oled;
+pub(crate) mod oled;
 mod platform;
 mod results;
 mod runtime_error;

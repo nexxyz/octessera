@@ -2,8 +2,9 @@
 
 usage: board-keys.py <usb|bt> <mark-log> <label> "<steps>" [seconds]
 steps: space-separated tokens: a key name with an optional *N repeat, wait:<s>, gap:<s> (pause after
-each tap, default 0.12), or mark:<name> (writes "<uptime> <label>_<name>" to the mark log). With
-seconds, the steps repeat until that much time has passed.
+each tap, default 0.12), or mark:<name> (writes "<uptime> <label>_<name>" to the mark log). A key may
+be a chord like alt+r: the modifiers are held around each tap. Grid keys use their US keycaps (4..0 -,
+r..p [, f..l ; ', c..m , . /). With seconds, the steps repeat until that much time has passed.
 """
 import fcntl
 import os
@@ -13,7 +14,9 @@ import time
 
 KEYS = {"esc": 1, "enter": 28, "space": 57, "shift": 42, "ctrl": 29, "up": 103, "down": 108,
         "left": 105, "right": 106, "1": 2, "2": 3, "3": 4, "q": 16, "w": 17, "e": 18, "a": 30,
-        "s": 31, "d": 32}
+        "s": 31, "d": 32, "alt": 56, "backspace": 14, "rctrl": 97}
+GRID_ROWS = {5: "4567890-", 19: "rtyuiop[", 33: "fghjkl;'", 46: "cvbnm,./"}
+KEYS.update({key: first + column for first, row in GRID_ROWS.items() for column, key in enumerate(row)})
 EV_SYN, EV_KEY = 0, 1
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE, UI_DEV_DESTROY = 0x40045564, 0x40045565, 0x5501, 0x5502
 BUS = {"usb": 0x03, "bt": 0x05}
@@ -47,13 +50,22 @@ def main():
                 with open(log, "a") as out:
                     out.write(f"{open('/proc/uptime').read().split()[0]} {label}_{value}\n")
             else:
-                key, _, count = token.partition("*")
+                chord, _, count = token.partition("*")
+                *held, key = chord.split("+")
                 for _ in range(int(count or 1)):
+                    for name in held:
+                        emit(fd, EV_KEY, KEYS[name], 1)
+                        emit(fd, EV_SYN, 0, 0)
+                        time.sleep(0.03)
                     emit(fd, EV_KEY, KEYS[key], 1)
                     emit(fd, EV_SYN, 0, 0)
                     time.sleep(0.03)
                     emit(fd, EV_KEY, KEYS[key], 0)
                     emit(fd, EV_SYN, 0, 0)
+                    for name in reversed(held):
+                        time.sleep(0.03)
+                        emit(fd, EV_KEY, KEYS[name], 0)
+                        emit(fd, EV_SYN, 0, 0)
                     time.sleep(gap)
         if time.monotonic() >= end:
             break
