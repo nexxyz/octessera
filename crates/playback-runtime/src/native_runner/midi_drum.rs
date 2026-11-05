@@ -84,6 +84,12 @@ impl NativeMidiDrum {
     }
 }
 
+fn set_clamped<T: TryFrom<i32>>(field: &mut T, value: i32, min: i32, max: i32) {
+    if let Ok(value) = T::try_from(value.clamp(min, max)) {
+        *field = value;
+    }
+}
+
 /// The output channels of the enabled MIDI Drum slots, one bit per channel.
 pub(super) fn midi_drum_channels(instruments: &[NativeInstrumentSlot]) -> u16 {
     instruments
@@ -155,13 +161,15 @@ impl NativeRunner {
         let before = *settings;
         match (field, number) {
             ("midiDrum.enabled", _) => settings.enabled = enabled.unwrap_or(settings.enabled),
-            ("midiDrum.channel", Some(value)) => settings.channel = value.clamp(1, 16) as u8,
+            ("midiDrum.channel", Some(value)) => set_clamped(&mut settings.channel, value, 1, 16),
             ("midiDrum.durationMs", Some(value)) => {
-                settings.duration_ms = value.clamp(10, 2000) as u16;
+                set_clamped(&mut settings.duration_ms, value, 10, 2000);
             }
-            ("midiDrum.tileNote", Some(value)) => settings.tile_note = value.clamp(0, 127) as u8,
+            ("midiDrum.tileNote", Some(value)) => {
+                set_clamped(&mut settings.tile_note, value, 0, 127)
+            }
             ("midiDrum.tileVelocity", Some(value)) => {
-                settings.tile_velocity = value.clamp(1, 127) as u8;
+                set_clamped(&mut settings.tile_velocity, value, 1, 127);
             }
             _ => return false,
         }
