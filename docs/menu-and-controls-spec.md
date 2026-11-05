@@ -761,8 +761,8 @@ The grid is composed in this order; each step paints over the previous one.
    red muted) and each volume marker on rows `1..7`, dimmed while that instrument is muted; while
    Shift is held it shows the bus and master view instead (see play.md). Play
    Tempo's Tap tile pulses with the Play key's beat flash while playing.
-4. Unless FX assignment is active: sample assignment, otherwise Drum or MIDI Drum assignment,
-   otherwise probability assignment. Each blacks out the grid first.
+4. The active Sample, Drum, MIDI Drum or probability assignment (only one assignment mode is
+   active at a time). Each blacks out the grid first.
    - Sample assignment: tiles of the selected sample slot light magenta (High), yellow (Medium),
      green (Low), or gray (Base); tiles of other sample slots light dim gray.
    - Drum assignment: the selected voice's tiles are bright white, other assigned tiles dim white,
