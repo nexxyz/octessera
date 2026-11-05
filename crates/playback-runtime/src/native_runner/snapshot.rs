@@ -93,7 +93,7 @@ impl NativeRunner {
             if candidates.is_empty() {
                 return 0;
             }
-            let measure = self.transport.current_ppqn_pulse / 96;
+            let measure = self.transport.current_ppqn_pulse / crate::timing_units::BAR_PULSES;
             let slot = (measure / u64::from(self.display.hdmi.cycle_measures.max(1))) as usize
                 % candidates.len();
             return candidates[slot];

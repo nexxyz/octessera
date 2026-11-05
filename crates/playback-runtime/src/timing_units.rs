@@ -1,3 +1,7 @@
+/// Transport pulses (MIDI clock, 24 PPQN) in a quarter-note beat and in a 4/4 bar.
+pub(crate) const BEAT_PULSES: u64 = 24;
+pub(crate) const BAR_PULSES: u64 = 4 * BEAT_PULSES;
+
 pub(crate) const NOTE_UNIT_OPTIONS: &[&str] = &[
     "1/32T", "1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2T", "1/2", "1/1T", "1/1",
 ];

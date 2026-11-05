@@ -2,8 +2,9 @@
 //! eighth `b / (a + b)`; layer steps run on this warped clock. Straight time is counted in units of
 //! `1 / (a + b)` pulse, so every warped pulse has an exact straight position.
 
-pub(super) const BEAT_PULSES: u64 = 24;
-const HALF_BEAT_PULSES: u64 = 12;
+use crate::timing_units::BEAT_PULSES;
+
+const HALF_BEAT_PULSES: u64 = BEAT_PULSES / 2;
 const NANOS_PER_PULSE_AT_ONE_BPM: f64 = 60e9 / BEAT_PULSES as f64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

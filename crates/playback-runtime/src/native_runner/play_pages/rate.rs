@@ -1,7 +1,7 @@
 use super::super::led_color::LedColor;
 use super::super::{NativeRunner, GRID_HEIGHT, GRID_WIDTH};
+use crate::timing_units::BAR_PULSES;
 
-const BAR_PULSES: u64 = 96;
 const RATE_COLUMNS: [&str; GRID_WIDTH] =
     ["1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2"];
 

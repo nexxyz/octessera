@@ -1,6 +1,7 @@
 use super::modulation::RoutedMusicalEvents;
 use super::trigger_probability::trigger_probability_allows;
 use super::{NativeRunner, RuntimeTransportState, SyncSource, TransportFlash, GRID_HEIGHT};
+use crate::timing_units::{BAR_PULSES, BEAT_PULSES};
 use platform_core::DeviceInput;
 use swing::Swing;
 
@@ -147,11 +148,11 @@ impl NativeRunner {
             .current_ppqn_pulse
             .saturating_sub(u64::from(pulses));
         let current_pulse = self.transport.current_ppqn_pulse;
-        if crossed_ppqn_boundary(previous_pulse, current_pulse, 96) {
+        if crossed_ppqn_boundary(previous_pulse, current_pulse, BAR_PULSES) {
             self.display
                 .transients
                 .trigger_transport_flash(TransportFlash::Measure, now);
-        } else if crossed_ppqn_boundary(previous_pulse, current_pulse, 24) {
+        } else if crossed_ppqn_boundary(previous_pulse, current_pulse, BEAT_PULSES) {
             self.display
                 .transients
                 .trigger_transport_flash(TransportFlash::Beat, now);
@@ -177,7 +178,7 @@ impl NativeRunner {
     /// switching only where nothing of the coming beat has been emitted keeps each step once.
     fn consume_swung_pulses(&mut self) -> u32 {
         let current = self.transport.current_ppqn_pulse;
-        if current / swing::BEAT_PULSES > self.transport.swung_ppqn_pulse / swing::BEAT_PULSES {
+        if current / BEAT_PULSES > self.transport.swung_ppqn_pulse / BEAT_PULSES {
             self.transport.applied_swing = self.swing();
         }
         let swing = self.transport.applied_swing;

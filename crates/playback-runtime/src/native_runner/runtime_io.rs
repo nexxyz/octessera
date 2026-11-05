@@ -1,8 +1,7 @@
 use crate::protocol::RunnerMessage;
+use crate::timing_units::BAR_PULSES;
 
 use super::{NativeRunner, RoutedMusicalEvents, RuntimeTransportState, SyncSource, TransportFlash};
-
-const EXTERNAL_RESYNC_PPQN: u64 = 96;
 
 impl NativeRunner {
     pub(super) fn send_transport_pulse_step(
@@ -124,8 +123,7 @@ impl NativeRunner {
         }
         while remaining > 0 {
             if self.transport.pending_resync {
-                let until_boundary = EXTERNAL_RESYNC_PPQN
-                    - (self.transport.current_ppqn_pulse % EXTERNAL_RESYNC_PPQN);
+                let until_boundary = BAR_PULSES - (self.transport.current_ppqn_pulse % BAR_PULSES);
                 let before_boundary = remaining.min(
                     u32::try_from(until_boundary.saturating_sub(1))
                         .expect("PPQN boundary fits u32"),
