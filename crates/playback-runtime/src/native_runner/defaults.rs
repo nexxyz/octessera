@@ -39,7 +39,8 @@ fn instrument_kind_label(kind: &str) -> &'static str {
         "pluck" => "Plucked",
         "drum" => "Drum",
         "sampler" => "Sampler",
-        "midi" => "MIDI",
+        "midi" => "MIDI Inst.",
+        "midi_drum" => "MIDI Drum",
         _ => "None",
     }
 }

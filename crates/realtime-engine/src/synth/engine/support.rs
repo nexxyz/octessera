@@ -140,7 +140,7 @@ pub(super) fn parse_instrument_kind(kind: &str) -> InstrumentKind {
         "pluck" => InstrumentKind::Pluck,
         "drum" => InstrumentKind::Drum,
         "sampler" => InstrumentKind::Sample,
-        "midi" => InstrumentKind::Midi,
+        "midi" | "midi_drum" => InstrumentKind::Midi,
         "none" => InstrumentKind::None,
         _ => InstrumentKind::None,
     }

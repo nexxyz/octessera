@@ -164,7 +164,8 @@ point at them.
 | `Plucked` | A modelled ringing string | **String** > Decay, Brightness and Pick Pos |
 | `Drum` | An eight-voice kit; tiles are stamped with voices | **Kit** > Load, set the **Tile** rows, then **Assign** |
 | `sampler` | Eight WAV slots; tiles are stamped with samples | **Browse** for a sample, set the **Tile** rows, then **Assign** |
-| `midi` | Sends notes to external gear instead of making sound | **MIDI** > Enabled, then Channel, Velocity and Duration |
+| `MIDI Inst.` | Sends notes to external gear instead of making sound | **MIDI** > Enabled, then Channel, Velocity and Duration |
+| `MIDI Drum` | Turns stamped tiles into MIDI drum notes for external gear | **MIDI Drum** > Enabled, set **Tile Note** and **Tile Vel**, then **Assign** |
 
 - **Presets and kits.** Synth, FM and Plucked have **Preset > Load**; Drum and
   Sampler have **Kit > Load**. Loading asks first and only changes that slot.
@@ -177,10 +178,10 @@ point at them.
   starts fully open, so a sample plays exactly as recorded until you shape it. Give it a slow attack for swells, or a
   short decay and low sustain to chop a loop into stabs. Its Filter Env only
   moves the filter once **Env Amount** is off zero.
-- **MIDI.** A `midi` slot sends nothing until its **MIDI > Enabled** is on
-  (and `System > MIDI > MIDI Active` is on). MIDI never passes through the
-  internal effects.
-- **Internal notes on MIDI out.** Out of the box only `midi` slots talk to
+- **MIDI.** A `MIDI Inst.` or `MIDI Drum` slot sends nothing until its
+  **Enabled** is on (and `System > MIDI > MIDI Active` is on). MIDI never
+  passes through the internal effects.
+- **Internal notes on MIDI out.** Out of the box only the MIDI slots talk to
   MIDI out. Set `System > MIDI > Send MIDI` to `all inst.` and the synth,
   FM and Plucked slots send their notes too, each on its slot's channel (slot 1
   on channel 1, and so on), while still playing here. Drum and Sampler tiles
@@ -216,6 +217,21 @@ kit swaps the sounds but keeps your stamps.
   this sample so it sounds like a C4?". Stamp a bass hit with `-5` and it
   lands on the G below when Link plays C4, then follows Link's melody from
   there. Drums can do it too, for tuned toms that wander with the tune.
+
+### MIDI Drum tiles are stamps too
+
+A `MIDI Drum` slot works like a Drum kit whose sounds live in another box.
+Set **Tile Note** (it shows the General MIDI drum name, so `38 Snare` is
+easy to spot) and **Tile Vel**, click **Assign** and press tiles, with the
+same *Shift* row and *Shift* + *Fn* column tricks. **Back** finishes.
+
+When Link strikes a stamped tile, the slot sends that note and velocity on
+its **Channel** (10, the usual drum channel, unless you change it) and lets
+go after **Duration**. Tiles you didn't stamp stay quiet, which makes it easy
+to leave holes in a pattern. Mute, the trigger gate and trigger probability
+work on it like on any other slot. It never makes a sound of its own, so if
+nothing happens, check that the drum machine on the other end is listening
+on the same channel.
 
 ### Mixer
 

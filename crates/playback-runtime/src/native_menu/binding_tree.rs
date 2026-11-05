@@ -124,6 +124,7 @@ pub(super) fn is_excluded_binding_key(key: &str) -> bool {
             .any(|suffix| key.ends_with(suffix))
         || key.contains(".drum.") && !is_bindable_drum_key(key)
         || key.contains(".tile.")
+        || key.contains(".midiDrum.")
         || key.ends_with(".sample.followTranspose")
         || key.ends_with(".sample.followPitch")
         || key.ends_with(".sample.filter.type")

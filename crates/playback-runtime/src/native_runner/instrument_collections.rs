@@ -34,7 +34,9 @@ pub(super) fn note_behaviors_from_instruments(
 ) -> Vec<NoteBehavior> {
     let mut note_behaviors = vec![NoteBehavior::Oneshot; 16];
     for (index, instrument) in instruments.iter().enumerate().take(note_behaviors.len()) {
-        note_behaviors[index] = if instrument.kind != "drum" && instrument.note_behavior == "hold" {
+        note_behaviors[index] = if !matches!(instrument.kind.as_str(), "drum" | "midi_drum")
+            && instrument.note_behavior == "hold"
+        {
             NoteBehavior::Hold
         } else {
             NoteBehavior::Oneshot

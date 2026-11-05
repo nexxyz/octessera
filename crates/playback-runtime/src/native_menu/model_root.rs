@@ -298,6 +298,11 @@ pub(super) fn instrument_item(
             .get(index)
             .copied()
             .unwrap_or_default(),
+        midi_drum: config
+            .instrument_midi_drums
+            .get(index)
+            .copied()
+            .unwrap_or_default(),
         sample_velocity_high: config
             .instrument_sample_velocity_high
             .get(index)
@@ -355,6 +360,15 @@ pub(super) fn instrument_item_label(
                 .copied()
                 .unwrap_or(1)
         ),
+        "midi_drum" => format!(
+            "ch{}",
+            config
+                .instrument_midi_drums
+                .get(index)
+                .copied()
+                .unwrap_or_default()
+                .channel
+        ),
         "none" => return short,
         _ => compact_route_postfix(
             config
@@ -379,6 +393,7 @@ fn instrument_breadcrumb_label(
         "drum" => "Drum",
         "sampler" => "samp",
         "midi" => "midi",
+        "midi_drum" => "MDrum",
         "none" => "none",
         _ => "synth",
     };

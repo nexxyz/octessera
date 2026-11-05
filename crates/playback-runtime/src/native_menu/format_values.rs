@@ -28,6 +28,16 @@ pub(super) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     if key.starts_with("instruments.") && key.ends_with(".type") && raw == "drum" {
         return "Drum".into();
     }
+    if key.starts_with("instruments.") && key.ends_with(".type") && raw == "midi" {
+        return "MIDI Inst.".into();
+    }
+    if key.starts_with("instruments.") && key.ends_with(".type") && raw == "midi_drum" {
+        return "MIDI Drum".into();
+    }
+    if key.starts_with("instruments.") && key.ends_with(".midiDrum.tileNote") {
+        let note = raw.parse::<i32>().unwrap_or(0);
+        return super::voice::gm_percussion_name(note).map_or(raw, |name| format!("{note} {name}"));
+    }
     if key.starts_with("instruments.") && key.contains(".drum.voices.") && key.ends_with(".sound") {
         return match raw.as_str() {
             "kick" => "Kick".into(),

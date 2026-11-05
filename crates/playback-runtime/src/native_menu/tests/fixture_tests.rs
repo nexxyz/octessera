@@ -135,7 +135,16 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     scanning.link_layers[0].y_filter_resonance.enabled = true;
     configs.push(scanning);
 
-    for instrument_type in ["none", "synth", "sampler", "midi", "fm", "pluck", "drum"] {
+    for instrument_type in [
+        "none",
+        "synth",
+        "sampler",
+        "midi",
+        "fm",
+        "pluck",
+        "drum",
+        "midi_drum",
+    ] {
         let mut cfg = config();
         cfg.instrument_types[0] = instrument_type.into();
         cfg.instrument_sample_velocity_levels_enabled[0] = true;

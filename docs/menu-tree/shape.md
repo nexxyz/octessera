@@ -9,9 +9,9 @@ global FX on the main mix.
 ```
 Shape
 ├── Instruments (group)
-│   ├── <overview label> (group)                 ← one per slot, e.g. `I1: synth direct`, `I2: FM fxb1`, `I3: Pluck direct`, `I4: Drum direct`, `I5: samp fxb1`, `I6: midi ch1`, `I7: none`
-│   │   ├── Type: [none | synth | sampler | midi | fm | pluck | drum]   ← fm shows as FM, pluck as Plucked, drum as Drum
-│   │   ├── Note Mode: [oneshot | hold]          ← default oneshot; hidden for none and Drum (Drum is always one-shot)
+│   ├── <overview label> (group)                 ← one per slot, e.g. `I1: synth direct`, `I2: FM fxb1`, `I3: Pluck direct`, `I4: Drum direct`, `I5: samp fxb1`, `I6: midi ch1`, `I7: MDrum ch10`, `I8: none`
+│   │   ├── Type: [none | synth | sampler | midi | fm | pluck | drum | midi_drum]   ← fm shows as FM, pluck as Plucked, drum as Drum, midi as MIDI Inst., midi_drum as MIDI Drum
+│   │   ├── Note Mode: [oneshot | hold]          ← default oneshot; hidden for none, Drum and MIDI Drum (both are always one-shot)
 │   │   ├── Synth (group)                        ← type synth
 │   │   │   ├── Preset (group) > Load (group)    ← per-slot synth presets, confirmed
 │   │   │   ├── Osc 1 (group)                    ← Wave, Octave, Level, Detune, Pulse Width
@@ -74,12 +74,19 @@ Shape
 │   │   │   ├── Channel: [1..16]
 │   │   │   ├── Velocity: [1..127]
 │   │   │   └── Duration: [10..2000] ms (time steps)
+│   │   ├── MIDI Drum (group)                    ← type midi_drum
+│   │   │   ├── Enabled: [on | off]              ← default off
+│   │   │   ├── Channel: [1..16]                 ← default 10
+│   │   │   ├── Duration: [10..2000] ms (time steps)  ← default 100
+│   │   │   ├── Tile Note: [0..127]              ← stamp value, default 36; shows its GM drum name, e.g. `36 Kick`
+│   │   │   ├── Tile Vel: [1..127]               ← stamp value, default 100
+│   │   │   └── Assign (action)                  ← stamps Tile Note + Tile Vel onto grid tiles
 │   │   ├── Mixer (group)                        ← internal types only (synth, sampler, fm, pluck, drum)
 │   │   │   ├── Route: [direct | fx_bus_1 | fx_bus_2 | fx_bus_3 | fx_bus_4]  default direct
 │   │   │   ├── Volume: [0..100]                 default 100
 │   │   │   └── Pan Pos: [0..32]                 ← 33-position scale, 16 = center; bus-routed slots show an empty `Pan Pos -- (bus)` row instead
 │   │   ├── Signal (action)                      ← internal types only; full-screen scope / spectrum / waterfall of this slot
-│   │   ├── Auto Label: [on | off]               ← on: label follows Type (`Synth`, `FM`, `Plucked`, `Drum`, `Sampler`, `MIDI`)
+│   │   ├── Auto Label: [on | off]               ← on: label follows Type (`Synth`, `FM`, `Plucked`, `Drum`, `Sampler`, `MIDI Inst.`, `MIDI Drum`)
 │   │   ├── Name: (text, max 32)                 ← editing sets Auto Label off; uppercase, lowercase, digits, space, `_`, `-`
 │   │   └── Slot Actions (group)                 ← hidden for none
 │   │       ├── Clone (action)                   ← confirm, then copy to the next free slot
@@ -276,6 +283,22 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - Drum hits follow the normal behavior/Link/probability/timing path. To finger-drum, give a layer
   the `keys` behavior and map it to the Drum slot.
 
+### MIDI Drum assignment
+
+- MIDI Drum `Assign` stamps Tile Note and Tile Vel with the same gestures and clear rule. The mode
+  toasts `N36 v100: press tiles to assign`; a stamp toasts `N36 v100`, `row N36 v100` or
+  `col N36 v100`, and a clear `Cleared`, `Cleared row` or `Cleared col`. Back exits.
+- When Link strikes a stamped tile (any note-on routed to the slot), the slot sends that tile's
+  note and velocity on its Channel and the note-off after Duration. Link's own pitch and velocity
+  do not change it, and unstamped tiles send nothing. Note-offs from Link are ignored. A Link Arp
+  re-times these notes like Drum hits and never re-pitches or re-lengthens them.
+- It is a MIDI instrument: no audio, no audio FX, no Mixer or Signal rows. It follows MIDI Active,
+  the MIDI output, Play Mix mute, the trigger gate and trigger probability; Send MIDI does not
+  touch it. Link CC lanes go out on its Channel.
+- Each slot saves its stamps and rows with the patch as `instruments[i].midiDrum`
+  (`enabled`, `channel`, `durationMs`, `tileNote`, `tileVelocity`, `assignments: [{x, y, note,
+  velocity}]`).
+
 ### Sample browser
 
 - The browser menu carries the slot context (`S1 Browse`). Body rows are browser entries: `..`,
@@ -344,8 +367,8 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - `Route=direct` sends post-fader output to the main mix using the instrument's `Pan Pos`.
 - `Route=fx_bus_n` sends post-fader output to that bus as an exclusive send. The instrument's own
   pan is not editable there because the bus output pan places it.
-- Synth, FM, Plucked, Drum, and Sampler use the same route/pan/bus-FX mixer path. MIDI instruments
-  emit external MIDI and never pass through audio FX.
+- Synth, FM, Plucked, Drum, and Sampler use the same route/pan/bus-FX mixer path. MIDI Inst. and
+  MIDI Drum emit external MIDI and never pass through audio FX.
 - Bus input and the Slot 1→2→3 chain are mono; a `none` slot passes through. Bus `Volume`, `Pan Pos`,
   and delay `Spread %` apply only at the final bus output stage before summing into the main mix.
 - `auto_pan` moves the bus stereo output position after the slot chain.

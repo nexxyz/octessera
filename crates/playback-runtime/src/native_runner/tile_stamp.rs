@@ -110,6 +110,13 @@ impl NativeRunner {
         let Some((slot, voice)) = self.drum_assign else {
             return;
         };
+        if self
+            .instruments
+            .get(slot)
+            .is_some_and(|slot| slot.kind == "midi_drum")
+        {
+            return self.handle_midi_drum_assignment_grid_press(slot, x, y);
+        }
         let stamp = self.tile_stamp(slot);
         let (tiles, line) = self.stamp_line_tiles(x, y);
         let Some(assignments) = self
@@ -165,7 +172,11 @@ impl NativeRunner {
     }
 
     /// The tiles a press stamps and, for a whole row or column, that line's toast word.
-    fn stamp_line_tiles(&self, x: usize, y: usize) -> (Vec<(usize, usize)>, Option<&'static str>) {
+    pub(super) fn stamp_line_tiles(
+        &self,
+        x: usize,
+        y: usize,
+    ) -> (Vec<(usize, usize)>, Option<&'static str>) {
         if x >= GRID_WIDTH || y >= GRID_HEIGHT {
             (Vec::new(), None)
         } else if self.display.ui.combined_modifier_held {

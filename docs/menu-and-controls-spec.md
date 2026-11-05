@@ -59,8 +59,8 @@ Data sources the spec relies on:
 | Combined modifier + rightmost grid column | Select musical Play page | The same for the musical bank. |
 | Combined modifier held | Musical navigation LEDs | Shows the layer column, with the same colors as Fn held, and the musical page column. |
 | Fn or combined modifier + other tile, Play page active | Nothing | The navigation overlay hides the page, so the press neither edits the page nor reaches the behavior. Without a Play page, Fn + tile still goes to the behavior. |
-| Sample/Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
-| Sample/Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
+| Sample/Drum/MIDI Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
+| Sample/Drum/MIDI Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
 | Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or the focused action as its `!` press target. |
 
 ## Control Mapping
@@ -94,8 +94,8 @@ map, so they work on any layout.
 | Fn + rightmost grid column | Ctrl + rightmost grid column | Select/activate a technical Play page; hold Fn to see page indicators |
 | Shift + Fn + rightmost grid column | Shift+Ctrl + rightmost grid column | Select/activate a musical Play page; hold Shift+Fn to see page indicators |
 | Shift + Fn + leftmost grid column | Shift+Ctrl + leftmost grid column | Toggle that layer's trigger gate without changing the active layer (see the Cheat Sheet for note release) |
-| Sample/Drum assign + Shift + tile press | Shift + tile | Stamp the entire row |
-| Sample/Drum assign + combined modifier + tile press | Shift+Ctrl + tile | Stamp the entire column |
+| Sample/Drum/MIDI Drum assign + Shift + tile press | Shift + tile | Stamp the entire row |
+| Sample/Drum/MIDI Drum assign + combined modifier + tile press | Shift+Ctrl + tile | Stamp the entire column |
 
 ### USB-host keyboard
 
@@ -346,8 +346,8 @@ change; only the distance per detent does.
   watch reconnects the USB MIDI gadget port after a live gadget rebuild.
 - `System > MIDI > Send MIDI` gates only the copy of internal instruments' notes to MIDI out.
   With `MIDI inst.` (the default) internal notes never reach the MIDI sender; `all inst.` sends
-  them on their slot's channel. Clock and CC out are unaffected. Switching to `MIDI inst.` sends
-  exact note-offs for the copied notes still held, and leaves MIDI instrument notes alone.
+  them on their slot's channel. Clock and CC out are unaffected. Switching to `MIDI inst.` sends exact note-offs for the copied notes still held, and
+  leaves MIDI Inst. and MIDI Drum notes alone.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.
@@ -758,12 +758,14 @@ The grid is composed in this order; each step paints over the previous one.
    red muted) and each volume marker on rows `1..7`, dimmed while that instrument is muted; while
    Shift is held it shows the bus and master view instead (see play.md). Play
    Tempo's Tap tile pulses with the Play key's beat flash while playing.
-4. Unless FX assignment is active: sample assignment, otherwise Drum assignment, otherwise
-   probability assignment. Each blacks out the grid first.
+4. Unless FX assignment is active: sample assignment, otherwise Drum or MIDI Drum assignment,
+   otherwise probability assignment. Each blacks out the grid first.
    - Sample assignment: tiles of the selected sample slot light magenta (High), yellow (Medium),
      green (Low), or gray (Base); tiles of other sample slots light dim gray.
    - Drum assignment: the selected voice's tiles are bright white, other assigned tiles dim white,
      empty tiles dark.
+   - MIDI Drum assignment: tiles with the current Tile Note and Tile Vel are bright white, other
+     stamped tiles dim white, empty tiles dark.
    - Probability map: black `0%`, magenta `low`, yellow `high`, green `100%`.
 5. Param-mod lanes, only while Shift is held without Fn, no Play page or assignment is active, and
    the highlighted row is a bindable parameter. Rows `y=0..1` and columns `x=0..1` show dim gray
@@ -899,7 +901,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   reinitializing the whole slot.
 - No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout
   (also listed in [`Play > FX > Aux Map`](menu-tree/play.md)).
-- No auto-map applies while an assignment mode is active (Sample, Drum and trigger-probability
+- No auto-map applies while an assignment mode is active (Sample, Drum, MIDI Drum and trigger-probability
   Assign, Play FX and Faders Tile Map `Map to Grid`): no auto caps, no auto hints, and Aux input skips the auto
   layout. Manual bindings keep working, and the layout returns when Back leaves the mode.
 

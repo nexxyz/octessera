@@ -179,6 +179,9 @@ impl NativeRunner {
             suffix if suffix.starts_with("drum.") => {
                 return drum::apply_drum_menu_key(self, index, key, suffix)
             }
+            suffix if suffix.starts_with("midiDrum.") => {
+                return Some(self.fast_midi_drum_key(index, key, suffix))
+            }
             suffix if suffix.starts_with("tile.") => {
                 return Some(self.fast_tile_stamp_key(index, key, suffix))
             }

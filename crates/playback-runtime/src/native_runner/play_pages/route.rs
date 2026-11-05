@@ -272,7 +272,7 @@ impl NativeRunner {
     fn instrument_has_audio(&self, index: usize) -> bool {
         self.instruments
             .get(index)
-            .is_some_and(|slot| !matches!(slot.kind.as_str(), "none" | "midi"))
+            .is_some_and(|slot| !matches!(slot.kind.as_str(), "none" | "midi" | "midi_drum"))
     }
 
     fn override_mixer_payload(&self, config: &mut Value) {

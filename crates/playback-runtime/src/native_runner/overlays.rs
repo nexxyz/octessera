@@ -54,6 +54,13 @@ impl NativeRunner {
         let Some((slot, selected_voice)) = self.drum_assign else {
             return;
         };
+        if self
+            .instruments
+            .get(slot)
+            .is_some_and(|slot| slot.kind == "midi_drum")
+        {
+            return self.apply_midi_drum_assignment_overlay(slot, leds);
+        }
         self.fill_leds(leds, LedColor::BLACK);
         let Some(assignments) = self
             .instruments
@@ -250,7 +257,7 @@ impl NativeRunner {
         }
     }
 
-    fn fill_leds(&self, leds: &mut [LedColor], value: LedColor) {
+    pub(super) fn fill_leds(&self, leds: &mut [LedColor], value: LedColor) {
         for tile in leds.iter_mut() {
             *tile = value;
         }

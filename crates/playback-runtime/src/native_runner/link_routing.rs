@@ -50,7 +50,8 @@ impl NativeRunner {
         routed: RoutedMusicalEvents,
     ) -> RoutedMusicalEvents {
         let sense = self.link_layers.get(layer_index).cloned();
-        self.apply_link_timing_with_sense(layer_index, intents, routed, sense.as_ref())
+        let struck = super::midi_drum::midi_drum_channels(&self.instruments);
+        self.apply_link_timing_with_sense(layer_index, intents, routed, sense.as_ref(), struck)
     }
 
     fn apply_link_timing_with_sense(
@@ -59,6 +60,7 @@ impl NativeRunner {
         intents: &[TileTriggerIntent],
         routed: RoutedMusicalEvents,
         sense: Option<&super::NativeLinkLayer>,
+        midi_drum_channels: u16,
     ) -> RoutedMusicalEvents {
         if routed.is_empty() {
             return routed;
@@ -83,6 +85,7 @@ impl NativeRunner {
                 timing.retrigger_count,
                 &arp,
                 routed,
+                midi_drum_channels,
             );
         }
         if timing.delay_steps == 0 && retrigger_count == 0 {
@@ -171,6 +174,7 @@ impl NativeRunner {
             ));
         }
         let mut out = RoutedMusicalEvents::default();
+        let midi_drum_channels = super::midi_drum::midi_drum_channels(instruments);
         let mut event_index = 0;
         while event_index < events.len() {
             let event = events[event_index].clone();
@@ -221,6 +225,7 @@ impl NativeRunner {
                 &grouped_intents,
                 routed,
                 sense.as_ref(),
+                midi_drum_channels,
             ));
             event_index = end;
         }

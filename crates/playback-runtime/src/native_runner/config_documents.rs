@@ -1,4 +1,6 @@
-use super::config_document_presence::{require_aux_banks, require_full_runtime_presence};
+use super::config_document_presence::{
+    require_aux_banks, require_full_runtime_presence, require_patch_instrument_blocks,
+};
 use super::{
     device_config_payload_from_payload, local_patch_payload_for_save,
     portable_patch_payload_for_save, portable_patch_projection, prepare_config_payload,
@@ -109,6 +111,10 @@ fn require_local_patch_fixed_arrays(runtime: &Value) -> Result<(), String> {
     )?;
 
     for (index, instrument) in instruments.iter().enumerate() {
+        require_patch_instrument_blocks(
+            instrument,
+            &format!("patch.runtimeConfig.instruments[{index}]"),
+        )?;
         let sample = instrument
             .get("sample")
             .and_then(Value::as_object)

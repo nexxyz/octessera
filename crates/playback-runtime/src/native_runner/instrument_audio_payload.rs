@@ -17,7 +17,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
         .collect::<Vec<_>>();
     json!({
         "type": instrument.kind,
-        "noteBehavior": if instrument.kind == "drum" { "oneshot" } else { &instrument.note_behavior },
+        "noteBehavior": if matches!(instrument.kind.as_str(), "drum" | "midi_drum") { "oneshot" } else { &instrument.note_behavior },
         "autoName": instrument.auto_name,
         "name": instrument.name,
         "synth": instrument.synth_config,
@@ -53,6 +53,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
             "velocity": instrument.midi_velocity,
             "durationMs": instrument.midi_duration_ms
         },
+        "midiDrum": instrument.midi_drum.payload(),
         "mixer": {
             "volume": instrument.volume,
             "panPos": instrument.pan_pos,

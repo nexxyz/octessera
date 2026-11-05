@@ -260,9 +260,9 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 
 - `MIDI Active` is the global runtime MIDI gate. It selects no port or device.
 - `Send MIDI` picks which instruments' notes reach MIDI out. `MIDI inst.` (the default) sends
-  only MIDI instrument slots; `all inst.` also sends Synth, FM and Plucked notes on their slot's
-  channel (slot 1 is channel 1); Drum and Sampler tiles stay internal. Clock and CC out are unaffected. Switching to `MIDI inst.` sends a
-  note-off for each internal note still held on MIDI out; MIDI instrument notes are untouched. It
+  only MIDI Inst. and MIDI Drum slots; `all inst.` also sends Synth, FM and Plucked notes on their
+  slot's channel (slot 1 is channel 1); Drum and Sampler tiles stay internal. Clock and CC out are unaffected. Switching to `MIDI inst.` sends a
+  note-off for each internal note still held on MIDI out; MIDI Inst. and MIDI Drum notes are untouched. It
   is a System setting, not saved with patches.
 - `MIDI Host` lists `MIDI Out` then `MIDI In`. Each starts with `Disconnect`, followed by one action
   per detected port.

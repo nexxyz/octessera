@@ -41,7 +41,7 @@ pub(super) fn queue_changed_instrument_commands(
             }
             continue;
         }
-        if instrument.kind == "midi"
+        if matches!(instrument.kind.as_str(), "midi" | "midi_drum")
             || field.starts_with("synth.") && instrument.kind != "synth"
             || field.starts_with("fm.") && instrument.kind != "fm"
             || field.starts_with("pluck.") && instrument.kind != "pluck"
@@ -160,7 +160,7 @@ pub(super) fn materialize_endpoint(
     match endpoint {
         Endpoint::InstrumentMixer { index } => {
             let instrument = runner.instruments.get(*index)?;
-            if instrument.kind == "midi" {
+            if matches!(instrument.kind.as_str(), "midi" | "midi_drum") {
                 return None;
             }
             Some(RuntimeAudioCommand::SetInstrumentMixer {

@@ -28,6 +28,7 @@ impl NativeRunner {
             apply_instrument_pluck_payload(slot, instrument);
             apply_instrument_drum_payload(slot, instrument);
             apply_instrument_midi_payload(slot, instrument);
+            apply_instrument_midi_drum_payload(slot, instrument);
         }
     }
 

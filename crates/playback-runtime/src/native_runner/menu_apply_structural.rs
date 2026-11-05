@@ -123,6 +123,9 @@ impl NativeRunner {
             return;
         }
         instrument.kind = kind;
+        if self.drum_assign.is_some_and(|(slot, _)| slot == index) {
+            self.drum_assign = None;
+        }
         if instrument.auto_name {
             instrument.name = derive_instrument_name(index, &instrument.kind);
         }

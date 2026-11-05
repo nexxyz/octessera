@@ -71,6 +71,14 @@ const PLAY_FX_SELECTED_KEYS: &[&str] = &["fxType", "targetKey", "params"];
 const PLAY_FX_ASSIGNMENT_KEYS: &[&str] = &["x", "y", "config"];
 const HDMI_KEYS: &[&str] = &["mode", "showGridlines", "cycleMeasures"];
 const DSP_KEYS: &[&str] = &["busIdleThreshold", "workerWarningThreshold"];
+const MIDI_DRUM_KEYS: &[&str] = &[
+    "enabled",
+    "channel",
+    "durationMs",
+    "tileNote",
+    "tileVelocity",
+    "assignments",
+];
 
 pub(super) fn require_full_runtime_presence(runtime: &Value, context: &str) -> Result<(), String> {
     require_fields(runtime, REQUIRED_RUNTIME_KEYS, context)?;
@@ -94,6 +102,15 @@ pub(super) fn require_aux_banks(runtime: &Value, context: &str) -> Result<(), St
         }
     }
     Ok(())
+}
+
+/// A saved patch carries every slot's MIDI Drum block, so loading it never keeps the stamps of
+/// the patch before.
+pub(super) fn require_patch_instrument_blocks(
+    instrument: &Value,
+    path: &str,
+) -> Result<(), String> {
+    require_nested(instrument, "midiDrum", MIDI_DRUM_KEYS, path)
 }
 
 fn require_nested(

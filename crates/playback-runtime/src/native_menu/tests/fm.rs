@@ -17,7 +17,7 @@ fn fm_type_and_eight_group_rows_use_standard_navigation() {
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
         matches!(&menu.current_item().value, NativeMenuValue::Enum { options, selected }
-        if options == &["none", "synth", "sampler", "midi", "fm", "pluck", "drum"] && options[*selected] == "fm")
+        if options == &["none", "synth", "sampler", "midi", "fm", "pluck", "drum", "midi_drum"] && options[*selected] == "fm")
     );
     assert!(menu.snapshot().lines.iter().any(|line| line == "  Type FM"));
     let slot = &menu.root.children[2].children[0].children[0];

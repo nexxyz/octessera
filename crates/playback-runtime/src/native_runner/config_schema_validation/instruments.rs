@@ -54,7 +54,16 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
             instrument,
             "type",
             &path,
-            &["none", "synth", "fm", "pluck", "drum", "sampler", "midi"],
+            &[
+                "none",
+                "synth",
+                "fm",
+                "pluck",
+                "drum",
+                "sampler",
+                "midi",
+                "midi_drum",
+            ],
         )?;
         enum_field(instrument, "noteBehavior", &path, &["oneshot", "hold"])?;
         string_field(instrument, "name", &path)?;
@@ -82,6 +91,7 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
         validate_fm(instrument, &path)?;
         validate_pluck(instrument, &path)?;
         validate_drum(instrument, &path)?;
+        validate_midi_drum(instrument, &path)?;
         if let Some(midi) = object_field(instrument, "midi", &path)? {
             let midi_path = format!("{path}.midi");
             bool_field(midi, "enabled", &midi_path)?;
@@ -345,6 +355,45 @@ fn validate_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), Stri
     validate_env(drum, "ampEnv", &path)?;
     validate_filter(drum, "filter", &path)?;
     validate_env(drum, "filterEnv", &path)
+}
+
+fn validate_midi_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), String> {
+    let Some(drum) = object_field(instrument, "midiDrum", path)? else {
+        return Ok(());
+    };
+    let path = format!("{path}.midiDrum");
+    bool_field(drum, "enabled", &path)?;
+    unsigned_field(drum, "channel", &path, 1, 16)?;
+    unsigned_field(drum, "durationMs", &path, 10, 2000)?;
+    unsigned_field(drum, "tileNote", &path, 0, 127)?;
+    unsigned_field(drum, "tileVelocity", &path, 1, 127)?;
+    let mut seen = std::collections::BTreeSet::new();
+    for (index, value) in array_field(drum, "assignments", &path, 64)?
+        .unwrap_or_default()
+        .iter()
+        .enumerate()
+    {
+        let tile_path = format!("{path}.assignments[{index}]");
+        let tile = object_value(value, &tile_path)?;
+        for (key, min, max) in [
+            ("x", 0, 7),
+            ("y", 0, 7),
+            ("note", 0, 127),
+            ("velocity", 1, 127),
+        ] {
+            if !tile.contains_key(key) {
+                return Err(format!("{tile_path}.{key} is required"));
+            }
+            unsigned_field(tile, key, &tile_path, min, max)?;
+        }
+        if !seen.insert((
+            tile.get("x").and_then(Value::as_u64),
+            tile.get("y").and_then(Value::as_u64),
+        )) {
+            return Err(format!("{tile_path} duplicates a MIDI Drum tile"));
+        }
+    }
+    Ok(())
 }
 
 fn validate_env(parent: &Map<String, Value>, key: &str, path: &str) -> Result<(), String> {

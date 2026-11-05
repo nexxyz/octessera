@@ -27,6 +27,8 @@ pub struct InstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi: Option<MidiInstrumentDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) midi_drum: Option<MidiDrumDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) mixer: Option<InstrumentMixerDto>,
 }
 
@@ -307,4 +309,29 @@ pub struct MidiInstrumentDto {
     pub(super) velocity: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) duration_ms: Option<u16>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MidiDrumDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) channel: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) duration_ms: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tile_note: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tile_velocity: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) assignments: Option<Vec<MidiDrumAssignmentDto>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct MidiDrumAssignmentDto {
+    pub(super) x: Option<u8>,
+    pub(super) y: Option<u8>,
+    pub(super) note: Option<u8>,
+    pub(super) velocity: Option<u8>,
 }

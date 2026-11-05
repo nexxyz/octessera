@@ -58,6 +58,7 @@ pub struct NativeMenuConfig {
     pub instrument_sample_follow_transpose: Vec<bool>,
     pub instrument_sample_follow_pitch: Vec<bool>,
     pub instrument_tile_stamps: Vec<NativeMenuTileStamp>,
+    pub instrument_midi_drums: Vec<NativeMenuMidiDrum>,
     pub instrument_sample_velocity_high: Vec<u8>,
     pub instrument_sample_velocity_medium: Vec<u8>,
     pub instrument_sample_velocity_low: Vec<u8>,
@@ -307,6 +308,28 @@ pub struct NativeMenuTileStamp {
     pub tune_semis: i8,
     pub tune_cents: i8,
     pub level_index: usize,
+}
+
+/// The MIDI Drum rows: output settings and the note and velocity Assign stamps next.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NativeMenuMidiDrum {
+    pub enabled: bool,
+    pub channel: u8,
+    pub duration_ms: u16,
+    pub tile_note: u8,
+    pub tile_velocity: u8,
+}
+
+impl Default for NativeMenuMidiDrum {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            channel: 10,
+            duration_ms: 100,
+            tile_note: 36,
+            tile_velocity: 100,
+        }
+    }
 }
 
 pub const TILE_STAMP_LEVELS: [&str; 4] = ["Base", "High", "Medium", "Low"];

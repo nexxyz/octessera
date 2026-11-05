@@ -13,7 +13,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
         matches!(&menu.current_item().value, NativeMenuValue::Enum { options, selected }
-        if options == &["none", "synth", "sampler", "midi", "fm", "pluck", "drum"] && options[*selected] == "drum")
+        if options == &["none", "synth", "sampler", "midi", "fm", "pluck", "drum", "midi_drum"] && options[*selected] == "drum")
     );
     assert!(menu
         .snapshot()

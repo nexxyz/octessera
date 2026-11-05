@@ -79,7 +79,7 @@ fn every_editable_menu_row_is_accepted_by_the_edit_dispatch() {
         &mut seen,
     );
     assert!(seen.len() > 100, "{} keys", seen.len());
-    for kind in ["fm", "pluck", "drum", "sampler", "midi"] {
+    for kind in ["fm", "pluck", "drum", "sampler", "midi", "midi_drum"] {
         rejected.extend(rejected_edits(
             &|runner| {
                 runner.instruments[0].kind = kind.into();

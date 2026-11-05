@@ -58,6 +58,9 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
     if is_drum_assignments_path(path) {
         return validate_drum_assignments(value, path);
     }
+    if path.ends_with(".midiDrum.assignments") {
+        return validate_midi_drum_assignments(value, path);
+    }
     if is_play_assignments_path(path) {
         return validate_play_assignments(value, path);
     }
@@ -174,6 +177,23 @@ fn validate_drum_assignments(value: &Value, path: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_midi_drum_assignments(value: &Value, path: &str) -> Result<(), String> {
+    let assignments = value
+        .as_array()
+        .ok_or_else(|| format!("{path} must be an array"))?;
+    for (index, tile) in assignments.iter().enumerate() {
+        let path = format!("{path}[{index}]");
+        let object = tile
+            .as_object()
+            .ok_or_else(|| format!("{path} must be an object"))?;
+        validate_object_keys(tile, &path, MIDI_DRUM_ASSIGNMENT_FIELDS)?;
+        if object.values().any(|value| value.as_u64().is_none()) {
+            return Err(format!("{path} fields must be unsigned integers"));
+        }
+    }
+    Ok(())
+}
+
 fn validate_play_assignments(value: &Value, path: &str) -> Result<(), String> {
     let assignments = value
         .as_array()
@@ -281,5 +301,6 @@ const SAMPLE_ASSIGNMENT_FIELDS: &[&str] =
     &["level", "sampleSlot", "x", "y", "tuneSemis", "tuneCents"];
 const SAMPLE_ASSIGNMENT_LEVELS: &[&str] = &["high", "medium", "low"];
 const DRUM_ASSIGNMENT_FIELDS: &[&str] = &["x", "y", "voice", "tuneSemis", "tuneCents", "level"];
+const MIDI_DRUM_ASSIGNMENT_FIELDS: &[&str] = &["x", "y", "note", "velocity"];
 const PLAY_ASSIGNMENT_FIELDS: &[&str] = &["config", "x", "y"];
 const PLAY_CONFIG_FIELDS: &[&str] = &["fxType", "params", "targetKey"];

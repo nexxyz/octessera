@@ -1,4 +1,5 @@
 use super::{Value, INSTRUMENT_COUNT};
+use crate::native_runner::midi_drum::NativeMidiDrum;
 use crate::native_runner::{
     drum_config::drum_default_config, fm_default_config, pluck_default_config,
 };
@@ -21,6 +22,9 @@ pub(super) fn default_missing_instrument_blocks_in_full_config(input: &mut Value
                 .entry("pluck")
                 .or_insert_with(pluck_default_config);
             instrument.entry("drum").or_insert_with(drum_default_config);
+            instrument
+                .entry("midiDrum")
+                .or_insert_with(|| NativeMidiDrum::default().payload());
         }
     }
 }

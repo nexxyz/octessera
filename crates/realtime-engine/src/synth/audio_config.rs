@@ -303,7 +303,7 @@ fn normalize_instrument_slot(
     } = slot;
     if !matches!(
         kind.as_str(),
-        "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi"
+        "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi" | "midi_drum"
     ) {
         return Err(format!("unsupported instrument type `{kind}`"));
     }

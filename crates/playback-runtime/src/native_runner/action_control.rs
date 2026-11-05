@@ -47,6 +47,10 @@ impl NativeRunner {
             );
             return Ok(None);
         }
+        if let Some(slot) = action.strip_prefix("midiDrum.assign:") {
+            self.enter_midi_drum_assign(slot.parse().map_err(|_| "invalid MIDI Drum slot")?);
+            return Ok(None);
+        }
         if let Some(rest) = action.strip_prefix("drum.preview:") {
             let (slot, voice) = rest.split_once(':').ok_or("invalid Drum Preview action")?;
             self.preview_drum_voice(
@@ -407,6 +411,7 @@ impl NativeRunner {
         clone.auto_name = true;
         clone.name = derive_instrument_name(target_index, &clone.kind);
         clone.midi_enabled = false;
+        clone.midi_drum.settings.enabled = false;
         clone.midi_channel = (target_index + 1).min(16) as u8;
         let previous = std::mem::replace(&mut self.instruments[target_index], clone);
         self.apply_replaced_instrument(target_index, &previous.route);

@@ -7,6 +7,7 @@ use super::{
 mod drum;
 mod fm;
 mod midi;
+mod midi_drum;
 mod mixer;
 mod pluck;
 mod sampler;
@@ -16,6 +17,8 @@ mod tile_stamp_items;
 use drum::drum_group;
 use fm::fm_group;
 use midi::midi_group;
+pub(super) use midi_drum::gm_percussion_name;
+use midi_drum::midi_drum_group;
 use mixer::mixer_group;
 use pluck::pluck_group;
 use sampler::sampler_group;
@@ -53,6 +56,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_follow_transpose: bool,
     pub(super) sample_follow_pitch: bool,
     pub(super) tile_stamp: super::NativeMenuTileStamp,
+    pub(super) midi_drum: super::NativeMenuMidiDrum,
     pub(super) sample_velocity_high: u8,
     pub(super) sample_velocity_medium: u8,
     pub(super) sample_velocity_low: u8,
@@ -102,12 +106,22 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         "fm" => 4,
         "pluck" => 5,
         "drum" => 6,
+        "midi_drum" => 7,
         _ => 1,
     };
     let mut children = vec![enum_item(
         "Type",
         format!("{prefix}.type"),
-        vec!["none", "synth", "sampler", "midi", "fm", "pluck", "drum"],
+        vec![
+            "none",
+            "synth",
+            "sampler",
+            "midi",
+            "fm",
+            "pluck",
+            "drum",
+            "midi_drum",
+        ],
         type_selected,
     )];
     if config.kind == "none" {
@@ -119,7 +133,7 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         children.push(text_item("Name", format!("{prefix}.name"), config.name, 32));
         return group(config.label.clone(), children);
     }
-    if config.kind != "drum" {
+    if !matches!(config.kind, "drum" | "midi_drum") {
         children.push(enum_item(
             "Note Mode",
             format!("{prefix}.noteBehavior"),
@@ -144,6 +158,9 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
     }
     if config.kind == "midi" {
         children.push(midi_group(&config, &prefix));
+    }
+    if config.kind == "midi_drum" {
+        children.push(midi_drum_group(&config, &prefix));
     }
     if matches!(config.kind, "synth" | "sampler" | "fm" | "pluck" | "drum") {
         children.push(mixer_group(&config, &prefix));

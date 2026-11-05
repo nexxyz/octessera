@@ -33,7 +33,7 @@ the other device, so record that separately.
 Want the notes rather than the audio? Point a DAW at Octessera's MIDI out and
 set `System > MIDI > Send MIDI` to `all inst.`: the synth, FM and Plucked
 slots then send their notes too, one MIDI channel per slot. Leave it on `MIDI inst.`
-and only `midi` slots send.
+and only the `MIDI Inst.` and `MIDI Drum` slots send.
 
 What the OLED tells you:
 

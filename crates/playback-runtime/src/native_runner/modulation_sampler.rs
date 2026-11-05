@@ -121,11 +121,14 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
             }
         }
         let mut event = event.clone();
-        if let Some(instrument) = instruments
-            .get(channel as usize)
-            .filter(|instrument| matches!(instrument.kind.as_str(), "drum" | "sampler"))
-        {
+        if let Some(instrument) = instruments.get(channel as usize).filter(|instrument| {
+            matches!(instrument.kind.as_str(), "drum" | "sampler" | "midi_drum")
+        }) {
             match &mut event {
+                MusicalEvent::NoteOn { .. } if instrument.kind == "midi_drum" => {
+                    routed.midi.extend(instrument.midi_drum_note_on(intent));
+                    continue;
+                }
                 MusicalEvent::NoteOn {
                     note,
                     velocity,
@@ -343,10 +346,10 @@ fn instrument_route(
     let Some(instrument) = instruments.get(slot_channel as usize) else {
         return InstrumentRoute::InternalAudio;
     };
-    if instrument.kind != "midi" {
+    if !matches!(instrument.kind.as_str(), "midi" | "midi_drum") {
         return InstrumentRoute::InternalAudio;
     }
-    if instrument.midi_enabled {
+    if instrument.midi_output_channel().is_some() {
         InstrumentRoute::ExternalMidi
     } else {
         InstrumentRoute::Muted
@@ -362,7 +365,7 @@ fn route_event_without_intent(
     let channel = event_channel(&event);
     if instruments
         .get(channel as usize)
-        .is_some_and(|instrument| instrument.kind == "drum")
+        .is_some_and(|instrument| matches!(instrument.kind.as_str(), "drum" | "midi_drum"))
         && matches!(
             event,
             MusicalEvent::NoteOn { .. } | MusicalEvent::NoteOff { .. }
@@ -457,8 +460,7 @@ pub(super) fn midi_event_channel(
 ) -> u8 {
     instruments
         .get(slot_channel as usize)
-        .filter(|instrument| instrument.kind == "midi" && instrument.midi_enabled)
-        .map(|instrument| instrument.midi_channel.saturating_sub(1).min(15))
+        .and_then(super::NativeInstrumentSlot::midi_output_channel)
         .unwrap_or(slot_channel)
 }
 

@@ -13,7 +13,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(
         matches!(&menu.current_item().value, NativeMenuValue::Enum { options, selected }
-        if options == &["none", "synth", "sampler", "midi", "fm", "pluck", "drum"] && options[*selected] == "pluck")
+        if options == &["none", "synth", "sampler", "midi", "fm", "pluck", "drum", "midi_drum"] && options[*selected] == "pluck")
     );
     assert!(menu
         .snapshot()

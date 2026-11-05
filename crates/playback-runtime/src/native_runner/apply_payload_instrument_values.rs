@@ -12,7 +12,7 @@ pub(super) fn apply_instrument_identity_payload(
     if let Some(kind) = slot.get("type").and_then(Value::as_str) {
         if matches!(
             kind,
-            "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi"
+            "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi" | "midi_drum"
         ) {
             instrument.kind = kind.into();
         }
@@ -199,6 +199,15 @@ pub(super) fn apply_instrument_pluck_payload(slot: &Value, instrument: &mut Nati
 pub(super) fn apply_instrument_drum_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
     if let Some(drum) = slot.get("drum") {
         instrument.drum_config = drum.clone();
+    }
+}
+
+pub(super) fn apply_instrument_midi_drum_payload(
+    slot: &Value,
+    instrument: &mut NativeInstrumentSlot,
+) {
+    if let Some(midi_drum) = slot.get("midiDrum") {
+        instrument.midi_drum.apply_payload(midi_drum);
     }
 }
 

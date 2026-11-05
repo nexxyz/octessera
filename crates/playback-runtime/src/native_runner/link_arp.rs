@@ -34,9 +34,16 @@ impl NativeRunner {
         timing: LinkEventTiming,
         retrigger_count: u8,
         arp: &NativeLinkArp,
-        routed: RoutedMusicalEvents,
+        mut routed: RoutedMusicalEvents,
+        midi_drum_channels: u16,
     ) -> RoutedMusicalEvents {
         let mut immediate = RoutedMusicalEvents::default();
+        // A MIDI Drum note-on is a struck tile: the arp re-times it like a Drum hit, never
+        // re-pitches or re-lengthens it.
+        let (struck, midi) = routed.midi.into_iter().partition(|event| {
+            matches!(event, MusicalEvent::NoteOn { channel, .. } if midi_drum_channels & 1 << channel != 0)
+        });
+        routed.midi = midi;
         self.update_link_arp_held_notes(layer_index, &routed);
         self.update_link_arp_held_tiles(layer_index, &routed);
         let source_routed = if arp.source == "held" {
@@ -55,7 +62,7 @@ impl NativeRunner {
         } else {
             suppress_arp_note_offs(routed)
         };
-        let events = self.arp_routed_events(layer_index, source_routed, arp);
+        let events = self.arp_routed_events(layer_index, source_routed, struck, arp);
         for repeat in 0..=retrigger_count {
             for (offset, event) in events.iter().cloned() {
                 let remaining_steps = u16::from(timing.delay_steps)
@@ -151,17 +158,28 @@ impl NativeRunner {
         &mut self,
         layer_index: usize,
         routed: RoutedMusicalEvents,
+        midi_drum_notes: Vec<MusicalEvent>,
         arp: &NativeLinkArp,
     ) -> Vec<(u16, RoutedMusicalEvents)> {
         let mut out = Vec::new();
-        for (index, hit) in routed.tiles.into_iter().enumerate() {
+        let hits = routed
+            .tiles
+            .into_iter()
+            .map(|hit| RoutedMusicalEvents {
+                tiles: vec![hit],
+                ..RoutedMusicalEvents::default()
+            })
+            .chain(
+                midi_drum_notes
+                    .into_iter()
+                    .map(|note| routed_single(note, false)),
+            );
+        for (index, event) in hits.enumerate() {
             let offset = if matches!(arp.mode.as_str(), "direct" | "chord_strike") {
                 0
             } else {
                 (index as u16).saturating_mul(u16::from(arp.step_interval_steps))
             };
-            let mut event = RoutedMusicalEvents::default();
-            event.tiles.push(hit);
             out.push((offset, event));
         }
         out.extend(self.arp_events_for_lane(layer_index, routed.audio, arp, true));

@@ -182,8 +182,7 @@ impl NativeRunner {
     fn midi_output_channel(&self, index: usize) -> Option<u8> {
         self.instruments
             .get(index)
-            .filter(|instrument| instrument.kind == "midi" && instrument.midi_enabled)
-            .map(|instrument| instrument.midi_channel.saturating_sub(1).min(15))
+            .and_then(super::NativeInstrumentSlot::midi_output_channel)
     }
 }
 
