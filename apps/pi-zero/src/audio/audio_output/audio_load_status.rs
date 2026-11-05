@@ -30,42 +30,34 @@ pub(crate) fn drain_audio_load_status(
     reset_pending: bool,
 ) -> RuntimeIngest {
     let now = Instant::now();
+    let updates = reset_pending
+        .then(RuntimePresentationMetrics::default)
+        .into_iter()
+        .chain(drain_newest_metrics(load_rx));
     if playback
         .last_status()
         .is_some_and(|status| status.transport == RuntimeTransportState::Playing)
     {
-        let mut changed = reset_pending
-            && playback
-                .update_native_presentation_metrics(RuntimePresentationMetrics::default(), now);
-        let mut newest = None;
-        let mut clipped = false;
-        while let Ok(status) = load_rx.try_recv() {
-            log_block_overrun(&status);
-            log_missed_quantum(&status);
-            clipped |= status.output_clipped;
-            newest = Some(status);
-        }
-        if let Some(status) = newest {
-            changed |= playback.update_native_presentation_metrics(
-                RuntimePresentationMetrics {
-                    audio_load_ratio: status.ratio,
-                    worker_utilization: status.worker_utilization,
-                    missed_quantum_flash: status.missed_quantum_flash,
-                    output_clipped: clipped,
-                },
-                now,
-            );
+        let mut changed = false;
+        for metrics in updates {
+            changed |= playback.update_native_presentation_metrics(metrics, now);
         }
         if changed {
             playback.request_next_snapshot();
         }
         return RuntimeIngest::default();
     }
-    let mut output = if reset_pending {
-        playback.update_presentation_metrics(RuntimePresentationMetrics::default(), now)
-    } else {
-        RuntimeIngest::default()
-    };
+    let mut output = RuntimeIngest::default();
+    for metrics in updates {
+        let next = playback.update_presentation_metrics(metrics, now);
+        output.messages.extend(next.messages);
+        output.follow_ups.extend(next.follow_ups);
+    }
+    output
+}
+
+/// Logs every queued status and keeps the newest, with CLIP set when any block clipped.
+fn drain_newest_metrics(load_rx: &AudioLoadStatusReceiver) -> Option<RuntimePresentationMetrics> {
     let mut newest = None;
     let mut clipped = false;
     while let Ok(status) = load_rx.try_recv() {
@@ -74,20 +66,12 @@ pub(crate) fn drain_audio_load_status(
         clipped |= status.output_clipped;
         newest = Some(status);
     }
-    if let Some(status) = newest {
-        let next = playback.update_presentation_metrics(
-            RuntimePresentationMetrics {
-                audio_load_ratio: status.ratio,
-                worker_utilization: status.worker_utilization,
-                missed_quantum_flash: status.missed_quantum_flash,
-                output_clipped: clipped,
-            },
-            now,
-        );
-        output.messages.extend(next.messages);
-        output.follow_ups.extend(next.follow_ups);
-    }
-    output
+    newest.map(|status| RuntimePresentationMetrics {
+        audio_load_ratio: status.ratio,
+        worker_utilization: status.worker_utilization,
+        missed_quantum_flash: status.missed_quantum_flash,
+        output_clipped: clipped,
+    })
 }
 
 /// A render block that took longer than the audio it produced; logged with
