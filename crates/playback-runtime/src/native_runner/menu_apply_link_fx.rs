@@ -1,6 +1,4 @@
-use super::play_fx_config::{
-    play_fx_param_default, play_fx_param_keys, play_fx_target_key, play_fx_type,
-};
+use super::play_fx_config::{play_fx_param_specs, play_fx_target_key, play_fx_type};
 use super::{
     apply_value_lane_menu_state, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, NativeLinkLayer,
@@ -18,20 +16,19 @@ impl NativeRunner {
             .value_for_key("play.fx.target")
             .unwrap_or_else(|| play_fx_target_key(&before).into());
         let mut params = serde_json::Map::new();
-        for key in play_fx_param_keys(&fx_type) {
-            let default = play_fx_param_default(&fx_type, key);
+        for spec in play_fx_param_specs(&fx_type) {
             let value = self
                 .menu
-                .number_for_key(&format!("play.fx.params.{key}"))
+                .number_for_key(&format!("play.fx.params.{}", spec.key))
                 .unwrap_or_else(|| {
                     before
                         .get("params")
-                        .and_then(|params| params.get(key))
+                        .and_then(|params| params.get(spec.key))
                         .and_then(Value::as_i64)
                         .map(|value| value as i32)
-                        .unwrap_or(default)
+                        .unwrap_or(spec.default)
                 });
-            params.insert((*key).into(), Value::from(value));
+            params.insert(spec.key.into(), Value::from(value));
         }
         self.play_fx_selected = json!({ "fxType": fx_type, "targetKey": target, "params": params });
         self.play_fx_selected != before

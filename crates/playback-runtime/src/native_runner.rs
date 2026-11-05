@@ -203,7 +203,7 @@ mod patch_persistence_error;
 mod payload_assign;
 mod persistence_intent;
 mod play_control;
-mod play_fx_config;
+pub(crate) mod play_fx_config;
 mod play_fx_presentation;
 pub(crate) mod play_pages;
 mod play_transpose;

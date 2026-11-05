@@ -5,6 +5,7 @@ use super::{
 };
 use crate::native_menu::binding_picker::play_fx_targets;
 use crate::native_menu::section_labels::PLAY_LABEL;
+use crate::native_runner::play_fx_config::play_fx_param_specs;
 use crate::native_runner::play_pages::PLAY_PAGES;
 
 pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
@@ -63,120 +64,15 @@ pub(super) fn play_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuIte
                 .unwrap_or(0),
         ),
     ];
-    match config.play_fx_type.as_str() {
-        "stutter" => {
-            children.push(number_item(
-                "Rate Hz",
-                "play.fx.params.rateHz",
-                number_param(&config.play_fx_params, "rateHz", 8),
-                1,
-                32,
-                1,
-            ));
-            children.push(number_item(
-                "Depth",
-                "play.fx.params.depthPct",
-                number_param(&config.play_fx_params, "depthPct", 100),
-                0,
-                100,
-                1,
-            ));
-        }
-        "freeze" => {
-            children.push(number_item(
-                "Release Ms",
-                "play.fx.params.releaseMs",
-                number_param(&config.play_fx_params, "releaseMs", 500),
-                10,
-                5000,
-                10,
-            ));
-            children.push(number_item(
-                "Mix",
-                "play.fx.params.mixPct",
-                number_param(&config.play_fx_params, "mixPct", 100),
-                0,
-                100,
-                1,
-            ));
-        }
-        "filter_sweep" => {
-            children.push(number_item(
-                "Cutoff",
-                "play.fx.params.cutoffPct",
-                number_param(&config.play_fx_params, "cutoffPct", 50),
-                0,
-                100,
-                1,
-            ));
-            children.push(number_item(
-                "Res",
-                "play.fx.params.resonancePct",
-                number_param(&config.play_fx_params, "resonancePct", 0),
-                0,
-                100,
-                1,
-            ));
-            children.push(number_item(
-                "Sweep In",
-                "play.fx.params.sweepInMs",
-                number_param(&config.play_fx_params, "sweepInMs", 120),
-                10,
-                3000,
-                10,
-            ));
-            children.push(number_item(
-                "Sweep Out",
-                "play.fx.params.sweepOutMs",
-                number_param(&config.play_fx_params, "sweepOutMs", 180),
-                10,
-                3000,
-                10,
-            ));
-        }
-        "pitch_shift" => {
-            children.push(number_item(
-                "Semitones",
-                "play.fx.params.semitones",
-                number_param(&config.play_fx_params, "semitones", 0),
-                -24,
-                24,
-                1,
-            ));
-            children.push(number_item(
-                "Cents",
-                "play.fx.params.cents",
-                number_param(&config.play_fx_params, "cents", 0),
-                -100,
-                100,
-                1,
-            ));
-            children.push(number_item(
-                "Slide In",
-                "play.fx.params.slideInMs",
-                number_param(&config.play_fx_params, "slideInMs", 120),
-                10,
-                3000,
-                10,
-            ));
-            children.push(number_item(
-                "Slide Out",
-                "play.fx.params.slideOutMs",
-                number_param(&config.play_fx_params, "slideOutMs", 180),
-                10,
-                3000,
-                10,
-            ));
-            children.push(number_item(
-                "Mix",
-                "play.fx.params.mixPct",
-                number_param(&config.play_fx_params, "mixPct", 100),
-                0,
-                100,
-                1,
-            ));
-        }
-        _ => {}
+    for spec in play_fx_param_specs(&config.play_fx_type) {
+        children.push(number_item(
+            spec.label,
+            format!("play.fx.params.{}", spec.key),
+            number_param(&config.play_fx_params, spec.key, spec.default),
+            spec.min,
+            spec.max,
+            spec.step,
+        ));
     }
     children.push(action_item(
         "Map to Grid",
