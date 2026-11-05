@@ -241,17 +241,17 @@ fn momentary_pitch_filter_global_activation_matches_host_render_order() {
     start_filter_and_pitch(&mut engine, false, MomentaryFxTarget::Global);
     let mut filter_first_left: Vec<f32> = input.iter().map(|(left, _)| *left).collect();
     let mut filter_first_right: Vec<f32> = input.iter().map(|(_, right)| *right).collect();
-    engine.finish_persistent_block(
-        RENDER_FRAMES,
-        &mut filter_first_left,
-        &mut filter_first_right,
-    );
+    finish_persistent_blocks(&mut engine, &mut filter_first_left, &mut filter_first_right);
 
     let mut reference = SynthEngine::new(SAMPLE_RATE);
     start_filter_and_pitch(&mut reference, true, MomentaryFxTarget::Global);
     let mut pitch_first_left: Vec<f32> = input.iter().map(|(left, _)| *left).collect();
     let mut pitch_first_right: Vec<f32> = input.iter().map(|(_, right)| *right).collect();
-    reference.finish_persistent_block(RENDER_FRAMES, &mut pitch_first_left, &mut pitch_first_right);
+    finish_persistent_blocks(
+        &mut reference,
+        &mut pitch_first_left,
+        &mut pitch_first_right,
+    );
 
     for frame in 0..RENDER_FRAMES {
         assert_eq!(
@@ -264,6 +264,17 @@ fn momentary_pitch_filter_global_activation_matches_host_render_order() {
             pitch_first_right[frame].to_bits(),
             "right host sample differs at frame {frame}"
         );
+    }
+}
+
+/// Finishes the frames in host-sized blocks, as the routing-tree pipeline does.
+#[cfg(feature = "routing-tree-executor")]
+fn finish_persistent_blocks(engine: &mut SynthEngine, left: &mut [f32], right: &mut [f32]) {
+    for (left, right) in left
+        .chunks_mut(super::BLOCK_SLOT_SCRATCH_FRAMES)
+        .zip(right.chunks_mut(super::BLOCK_SLOT_SCRATCH_FRAMES))
+    {
+        engine.finish_persistent_block(left.len(), left, right);
     }
 }
 

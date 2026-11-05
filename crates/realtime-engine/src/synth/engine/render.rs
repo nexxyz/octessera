@@ -67,14 +67,25 @@ impl SynthEngine {
         }
         left += preview;
         right += preview;
-        let master_signal = self.signal_present(left, right)
-            || synth_active
-            || sample_active
-            || preview_active
-            || !self.momentary_fx.is_empty()
-            || self.active_bus_activity_count > 0;
-        let master_active = master_signal || self.master_activity_frames > 0;
-        if master_active {
+        let sources_active =
+            synth_active || sample_active || preview_active || self.active_bus_activity_count > 0;
+        let (left, right, clipped) = self.finish_master_frame(left, right, sources_active);
+        self.output_clipped |= clipped;
+        (left, right)
+    }
+
+    /// The master stage of one frame: master FX and Global momentary FX while the master is
+    /// active, the activity hold, master volume and the clamp; also returns whether it clipped.
+    #[inline]
+    fn finish_master_frame(
+        &mut self,
+        mut left: f32,
+        mut right: f32,
+        sources_active: bool,
+    ) -> (f32, f32, bool) {
+        let master_signal =
+            self.signal_present(left, right) || sources_active || !self.momentary_fx.is_empty();
+        if master_signal || self.master_activity_frames > 0 {
             (left, right) = self.apply_master_fx_slots(left, right);
             (left, right) =
                 self.process_momentary_fx_target(MomentaryFxTarget::Global, left, right);
@@ -87,8 +98,8 @@ impl SynthEngine {
         self.sample_clock = self.sample_clock.saturating_add(1);
         let left = left * self.master_volume;
         let right = right * self.master_volume;
-        self.output_clipped |= left.abs().max(right.abs()) > 1.0;
-        (left.clamp(-1.0, 1.0), right.clamp(-1.0, 1.0))
+        let clipped = left.abs().max(right.abs()) > 1.0;
+        (left.clamp(-1.0, 1.0), right.clamp(-1.0, 1.0), clipped)
     }
 
     fn block_slot_frame_graph(
@@ -208,33 +219,12 @@ impl SynthEngine {
     ) {
         let mut clipped = false;
         for frame in 0..frames {
-            let mut frame_left = left[frame];
-            let mut frame_right = right[frame];
-            let master_signal = self.signal_present(frame_left, frame_right)
-                || self.block_slot_scratch.source_active[frame]
-                || !self.momentary_fx.is_empty()
+            let sources_active = self.block_slot_scratch.source_active[frame]
                 || self.block_slot_scratch.bus_active[frame];
-            let master_active = master_signal || self.master_activity_frames > 0;
-            if master_active {
-                (frame_left, frame_right) = self.apply_master_fx_slots(frame_left, frame_right);
-                (frame_left, frame_right) = self.process_momentary_fx_target(
-                    MomentaryFxTarget::Global,
-                    frame_left,
-                    frame_right,
-                );
-                self.master_activity_frames =
-                    if master_signal || self.signal_present(frame_left, frame_right) {
-                        self.fx_activity_hold_frames
-                    } else {
-                        self.master_activity_frames.saturating_sub(1)
-                    };
-            }
-            self.sample_clock = self.sample_clock.saturating_add(1);
-            let frame_left = frame_left * self.master_volume;
-            let frame_right = frame_right * self.master_volume;
-            clipped |= frame_left.abs().max(frame_right.abs()) > 1.0;
-            left[frame] = frame_left.clamp(-1.0, 1.0);
-            right[frame] = frame_right.clamp(-1.0, 1.0);
+            let frame_clipped;
+            (left[frame], right[frame], frame_clipped) =
+                self.finish_master_frame(left[frame], right[frame], sources_active);
+            clipped |= frame_clipped;
         }
         self.output_clipped |= clipped;
     }
