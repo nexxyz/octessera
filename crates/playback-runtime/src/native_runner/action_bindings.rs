@@ -11,8 +11,7 @@ use super::modulation_assignment_validation::{
 use super::modulation_source::{ModulationAxis, ModulationSourceId};
 use super::play_pages::faders::fader_target_side;
 use super::{
-    native_binding_from_spec, parse_sample_action, NativeParamBinding, NativeRunner, NativeToast,
-    GRID_HEIGHT,
+    native_binding_from_spec, parse_sample_action, NativeParamBinding, NativeRunner, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -317,10 +316,7 @@ impl NativeRunner {
             _ => "mapped",
         };
         let label = binding.label.as_deref().unwrap_or(&binding.key);
-        self.display.toast = Some(NativeToast {
-            message: format!("{axis_label}: {label} {action}"),
-            offset: 0,
-        });
+        self.show_toast(format!("{axis_label}: {label} {action}"));
         self.mark_config_dirty();
         let layer = self.active_layer_index;
         for (axis, slot) in &targets {

@@ -3,7 +3,7 @@ use crate::protocol::{
     MIDI_INPUTS_ERROR_TITLE,
 };
 
-use super::{DeviceInput, NativeRunner, NativeRuntimeErrorPresentation, NativeToast};
+use super::{DeviceInput, NativeRunner, NativeRuntimeErrorPresentation};
 
 impl NativeRunner {
     pub(super) fn handle_runtime_error_presentation_input(
@@ -39,26 +39,26 @@ impl NativeRunner {
         match result {
             RuntimeStoreResult::StoreError { message } => {
                 self.display.usb_sd_transfer_modal = None;
-                self.display.toast = Some(NativeToast { message, offset: 0 });
+                self.show_toast(message);
             }
             RuntimeStoreResult::UsbSdTransferStatus { active, message } => {
                 if !active {
                     self.display.usb_sd_transfer_modal = None;
                 }
-                self.display.toast = Some(NativeToast { message, offset: 0 });
+                self.show_toast(message);
             }
             RuntimeStoreResult::DeviceConfigStatus { message, .. } => {
                 self.show_toast(message);
             }
             RuntimeStoreResult::DeviceUpdateStatus { message, .. } => {
-                self.display.toast = Some(NativeToast { message, offset: 0 });
+                self.show_toast(message);
             }
             RuntimeStoreResult::RecordingStatus {
                 message, active, ..
             } => {
                 let now = self.display.transients.now();
                 self.display.transients.set_recording(active, now);
-                self.display.toast = Some(NativeToast { message, offset: 0 });
+                self.show_toast(message);
             }
             RuntimeStoreResult::RuntimeFailure { error }
                 if error.operation == crate::RuntimeOperation::SystemInfo =>

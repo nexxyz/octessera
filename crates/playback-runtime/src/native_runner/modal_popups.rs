@@ -1,6 +1,5 @@
 use super::{
-    wrap_help_text, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeToast,
-    NativeUsbSdTransferModal,
+    wrap_help_text, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeUsbSdTransferModal,
 };
 
 const OLED_HELP_LINE_WIDTH: usize = 18;
@@ -26,17 +25,11 @@ impl NativeRunner {
 
     pub(super) fn open_contextual_help(&mut self) {
         let Some(target) = self.menu.current_help_target() else {
-            self.display.toast = Some(NativeToast {
-                message: "Missing help target".into(),
-                offset: 0,
-            });
+            self.show_toast("Missing help target");
             return;
         };
         let Some(help) = crate::native_help::resolve_native_help(&target) else {
-            self.display.toast = Some(NativeToast {
-                message: format!("Missing help: {}", target.label),
-                offset: 0,
-            });
+            self.show_toast(format!("Missing help: {}", target.label));
             return;
         };
         let title = format!("Help: {}", help.title);
@@ -105,7 +98,7 @@ impl NativeRunner {
         }
         if confirm.cursor == 0 {
             if let Some(message) = confirm.cancel_toast {
-                self.display.toast = Some(NativeToast { message, offset: 0 });
+                self.show_toast(message);
             }
             return Ok(None);
         }

@@ -1,4 +1,4 @@
-use super::{NativeManualSaveRequest, NativePendingPresetWrite, NativeRunner, NativeToast};
+use super::{NativeManualSaveRequest, NativePendingPresetWrite, NativeRunner};
 
 pub(super) enum NativePresetResultAction {
     Complete(NativePendingPresetWrite),
@@ -130,15 +130,9 @@ impl NativeRunner {
         }
         self.current_preset_name = Some(name.clone());
         if let Some(error) = write.cleanup_error {
-            self.display.toast = Some(NativeToast {
-                message: format!("Saved {name}; cleanup failed: {error}"),
-                offset: 0,
-            });
+            self.show_toast(format!("Saved {name}; cleanup failed: {error}"));
         } else if self.config_revision == write.revision {
-            self.display.toast = Some(NativeToast {
-                message: format!("Saved {name}"),
-                offset: 0,
-            });
+            self.show_toast(format!("Saved {name}"));
         }
         self.display.transients.mark_presentation_due();
         self.show_preset_catalog();

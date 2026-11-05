@@ -7,8 +7,8 @@ use super::grid_assign::GridAssign;
 use super::play_fx_config::play_fx_type;
 use super::{
     derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
-    NativeInstrumentSlot, NativeManualSaveRequest, NativeRunner, NativeToast,
-    RuntimeTransportState, Value, GRID_HEIGHT,
+    NativeInstrumentSlot, NativeManualSaveRequest, NativeRunner, RuntimeTransportState, Value,
+    GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -28,10 +28,7 @@ impl NativeRunner {
             let config = self.play_fx_selected.clone();
             self.grid_assign = Some(GridAssign::PlayFx(config.clone()));
             self.active_play_mode = "fx".into();
-            self.display.toast = Some(NativeToast {
-                message: format!("Map FX: {}", play_fx_type(&config)),
-                offset: 0,
-            });
+            self.show_toast(format!("Map FX: {}", play_fx_type(&config)));
             return Ok(None);
         }
         if let Some(rest) = action.strip_prefix("sample.assign:") {
@@ -126,10 +123,7 @@ impl NativeRunner {
         }
         instrument.synth_config = synth_config;
         instrument.synth_gain_pct = gain;
-        self.display.toast = Some(NativeToast {
-            message: format!("Loaded synth {preset}"),
-            offset: 0,
-        });
+        self.show_toast(format!("Loaded synth {preset}"));
         if let Some(config) = self.instrument_audio_config(slot) {
             self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
                 instrument_slot: slot,
@@ -204,16 +198,10 @@ impl NativeRunner {
                     Ok(None)
                 } else if action_type == "preset.saveCurrent" && self.current_preset_name.is_none()
                 {
-                    self.display.toast = Some(NativeToast {
-                        message: "No preset loaded".into(),
-                        offset: 0,
-                    });
+                    self.show_toast("No preset loaded");
                     Ok(None)
                 } else if action_type == "midi.panic" {
-                    self.display.toast = Some(NativeToast {
-                        message: "MIDI panic sent".into(),
-                        offset: 0,
-                    });
+                    self.show_toast("MIDI panic sent");
                     self.platform_effect_for_action(&action_type)
                 } else if let Some(slot) = super::midi_cc_in::midi_cc_learn_slot(&action_type) {
                     self.start_midi_cc_learn(slot);
@@ -407,10 +395,7 @@ impl NativeRunner {
             .iter()
             .position(|instrument| instrument.kind == "none")
         else {
-            self.display.toast = Some(NativeToast {
-                message: "All slots in use".into(),
-                offset: 0,
-            });
+            self.show_toast("All slots in use");
             return;
         };
         let mut clone = source;

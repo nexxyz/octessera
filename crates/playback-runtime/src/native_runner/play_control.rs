@@ -4,8 +4,8 @@ use super::grid_assign::GridAssign;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
 use super::play_fx_config::{play_fx_params, play_fx_target_key, play_fx_type};
 use super::{
-    momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner, NativeToast,
-    GRID_HEIGHT, GRID_WIDTH, PLAY_FX_MAX_CONCURRENT, TRIGGER_GATE_MODES,
+    momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner, GRID_HEIGHT,
+    GRID_WIDTH, PLAY_FX_MAX_CONCURRENT, TRIGGER_GATE_MODES,
 };
 
 pub(super) const MIX_MASTER_COLUMN: usize = 5;
@@ -110,10 +110,7 @@ impl NativeRunner {
         });
         if same_existing {
             self.mark_config_dirty();
-            self.display.toast = Some(NativeToast {
-                message: "FX cleared".into(),
-                offset: 0,
-            });
+            self.show_toast("FX cleared");
             return;
         }
         self.play_fx_assignments
@@ -123,10 +120,7 @@ impl NativeRunner {
                 .push(NativePlayFxAssignment { x, y, config });
         }
         self.mark_config_dirty();
-        self.display.toast = Some(NativeToast {
-            message: "FX mapped".into(),
-            offset: 0,
-        });
+        self.show_toast("FX mapped");
     }
 
     pub(super) fn handle_play_grid_press(&mut self, x: usize, y: usize) {
@@ -278,20 +272,14 @@ impl NativeRunner {
             if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = None;
             }
-            self.display.toast = Some(NativeToast {
-                message: format!("L{} triggers {}", index + 1, restore),
-                offset: 0,
-            });
+            self.show_toast(format!("L{} triggers {}", index + 1, restore));
         } else {
             self.drain_layer_owned_notes(index);
             self.apply_trigger_gate_mode_to_layer(index, "zero");
             if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = Some(current);
             }
-            self.display.toast = Some(NativeToast {
-                message: format!("L{} triggers off", index + 1),
-                offset: 0,
-            });
+            self.show_toast(format!("L{} triggers off", index + 1));
         }
         self.mark_config_dirty();
     }

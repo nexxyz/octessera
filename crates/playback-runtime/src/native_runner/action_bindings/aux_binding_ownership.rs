@@ -1,6 +1,4 @@
-use super::super::{
-    aux_turn_binding_spec, NativeAuxBinding, NativeParamBinding, NativeRunner, NativeToast,
-};
+use super::super::{aux_turn_binding_spec, NativeAuxBinding, NativeParamBinding, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn bind_aux_from_current(&mut self, index: usize, shifted: bool) -> bool {
@@ -154,14 +152,11 @@ impl NativeRunner {
         };
         self.menu
             .show_aux_click_binding(index, shifted, action.as_ref());
-        self.display.toast = Some(NativeToast {
-            message: format!(
-                "Aux {}{} click mapped",
-                index + 1,
-                if shifted { " S+" } else { "" }
-            ),
-            offset: 0,
-        });
+        self.show_toast(format!(
+            "Aux {}{} click mapped",
+            index + 1,
+            if shifted { " S+" } else { "" }
+        ));
         if current.press_action != action {
             self.mark_aux_domains_dirty(
                 old_owner == Some(true) || new_owner == Some(true),

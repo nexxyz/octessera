@@ -1,17 +1,14 @@
 use crate::protocol::RuntimeStoreResult;
 
 use super::preset_native_completion::NativePresetResultAction;
-use super::{native_factory_payload, portable_patch_payload_for_save, NativeRunner, NativeToast};
+use super::{native_factory_payload, portable_patch_payload_for_save, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_factory_payload(&mut self) -> Result<(), String> {
         let patch = portable_patch_payload_for_save(&native_factory_payload())?;
         self.apply_patch_payload_preserving_device(patch)?;
         self.stop_for_config_load();
-        self.display.toast = Some(NativeToast {
-            message: "Factory loaded".into(),
-            offset: 0,
-        });
+        self.show_toast("Factory loaded");
         Ok(())
     }
 

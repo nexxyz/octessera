@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::sync::Arc;
 
 use super::restart_settings::{is_restart_setting, DefaultSaveScope, DefaultWriteCompletion};
-use super::{NativeConfirmDialog, NativeManualSaveRequest, NativeRunner, NativeToast};
+use super::{NativeConfirmDialog, NativeManualSaveRequest, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn begin_system_parameter_edit(&mut self, key: &str) {
@@ -266,10 +266,7 @@ impl NativeRunner {
                 self.display.confirm_dialog = Some(restart_choice_dialog());
             } else {
                 self.display.confirm_dialog = None;
-                self.display.toast = Some(NativeToast {
-                    message: "Save failed".into(),
-                    offset: 0,
-                });
+                self.show_toast("Save failed");
             }
         } else {
             self.refresh_restart_save_choice();

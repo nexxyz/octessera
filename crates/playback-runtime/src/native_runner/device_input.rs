@@ -5,8 +5,7 @@ use super::algorithm::LinkRoutingInput;
 use super::grid_assign::GridAssign;
 use super::play_pages::PlayBank;
 use super::{
-    display_layer_index_from_y, DeviceInput, NativeRunner, NativeToast, RuntimeTransportState,
-    SyncSource,
+    display_layer_index_from_y, DeviceInput, NativeRunner, RuntimeTransportState, SyncSource,
 };
 
 impl NativeRunner {
@@ -249,10 +248,7 @@ impl NativeRunner {
                     self.cancel_restart_flow();
                 } else {
                     self.display.confirm_dialog = None;
-                    self.display.toast = Some(NativeToast {
-                        message: "Cancelled".into(),
-                        offset: 0,
-                    });
+                    self.show_toast("Cancelled");
                 }
             }
             _ => {}

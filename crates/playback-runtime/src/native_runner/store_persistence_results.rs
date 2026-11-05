@@ -2,7 +2,7 @@ use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use serde_json::Value;
 use std::sync::Arc;
 
-use super::{NativeRunner, NativeToast};
+use super::NativeRunner;
 
 impl NativeRunner {
     pub(super) fn apply_system_store_result(
@@ -61,10 +61,7 @@ impl NativeRunner {
                 Ok(device_changed) => {
                     let baseline = self.pending.system_persistence.record_system_load(&system);
                     self.restart_settings.update_system_baseline(baseline);
-                    self.display.toast = Some(NativeToast {
-                        message: "System loaded".into(),
-                        offset: 0,
-                    });
+                    self.show_toast("System loaded");
                     if self.restore_rehydration_pending() {
                         self.outbox
                             .push_platform_effect(RuntimePlatformEffect::StoreLoadDefault);
@@ -89,10 +86,7 @@ impl NativeRunner {
                 self.restart_settings
                     .update_system_baseline(Arc::clone(&baseline));
                 if !is_auto_save {
-                    self.display.toast = Some(NativeToast {
-                        message: "System saved".into(),
-                        offset: 0,
-                    });
+                    self.show_toast("System saved");
                 }
                 system_store_success(operation, request_id, revision)
             }
@@ -192,10 +186,7 @@ impl NativeRunner {
                     self.apply_patch_payload_preserving_device(payload)?;
                     self.stop_for_config_load();
                 }
-                self.display.toast = Some(NativeToast {
-                    message: format!("Loaded {name}"),
-                    offset: 0,
-                });
+                self.show_toast(format!("Loaded {name}"));
                 self.current_preset_name = Some(name);
             }
             RuntimeStoreResult::SavePresetResult { name, .. } => {
@@ -206,10 +197,7 @@ impl NativeRunner {
                         );
                     }
                 }
-                self.display.toast = Some(NativeToast {
-                    message: format!("Saved {name}"),
-                    offset: 0,
-                });
+                self.show_toast(format!("Saved {name}"));
                 self.current_preset_name = Some(name);
                 self.acknowledge_config_save(None);
                 self.show_preset_catalog();
@@ -218,10 +206,7 @@ impl NativeRunner {
                 if self.current_preset_name.as_deref() == Some(name.as_str()) {
                     self.current_preset_name = None;
                 }
-                self.display.toast = Some(NativeToast {
-                    message: format!("Deleted {name}"),
-                    offset: 0,
-                });
+                self.show_toast(format!("Deleted {name}"));
             }
             RuntimeStoreResult::SaveDefaultResult { ok, is_auto: _ } if ok => {
                 if self.restart_settings.take_native_payload_missing() {
@@ -405,10 +390,7 @@ impl NativeRunner {
         self.apply_local_patch_payload_preserving_device(payload)?;
         self.pending.saved_patch_baseline = Some(Arc::new(baseline));
         self.stop_for_config_load();
-        self.display.toast = Some(NativeToast {
-            message: "Patch loaded".into(),
-            offset: 0,
-        });
+        self.show_toast("Patch loaded");
         self.current_preset_name = None;
         Ok(())
     }

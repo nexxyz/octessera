@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::native_menu::{NativeMenuAction, NativeMenuSnapshot};
 use crate::protocol::RuntimeStoreResult;
 
-use super::{parse_sample_action, NativeRunner, NativeSampleBrowser, NativeToast};
+use super::{parse_sample_action, NativeRunner, NativeSampleBrowser};
 
 impl NativeRunner {
     pub(super) fn apply_sample_browser_result(
@@ -48,7 +48,7 @@ impl NativeRunner {
                     }),
                     instrument_slot,
                 );
-                self.display.toast = Some(NativeToast { message, offset: 0 });
+                self.show_toast(message);
             }
             RuntimeStoreResult::SamplePreviewStarted { path, duration_ms } => {
                 let now = self.display.transients.now();
