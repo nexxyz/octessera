@@ -47,7 +47,6 @@ impl DeviceDriver {
         self.send_device(json!({ "type": "grid_press", "x": x, "y": y }));
     }
 
-    #[allow(dead_code)]
     pub(super) fn release_grid(&mut self, x: usize, y: usize) {
         self.send_device(json!({ "type": "grid_release", "x": x, "y": y }));
     }
@@ -65,14 +64,8 @@ impl DeviceDriver {
         self.send_device(button_input(id, false));
     }
 
-    #[allow(dead_code)]
     pub(super) fn turn_aux(&mut self, id: &str, delta: i32) {
         self.send_device(json!({ "type": "encoder_turn", "id": id, "delta": delta }));
-    }
-
-    #[allow(dead_code)]
-    pub(super) fn press_aux(&mut self, id: &str) {
-        self.send_device(json!({ "type": "encoder_press", "id": id }));
     }
 
     pub(super) fn start(&mut self) {
