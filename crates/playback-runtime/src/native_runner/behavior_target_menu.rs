@@ -15,17 +15,9 @@ impl NativeRunner {
         if self.layer_behavior_ids.get(layer_index).map(String::as_str) == Some("none") {
             return None;
         }
-        let resident = self
-            .menu
+        self.menu
             .item_for_key(key)
-            .map(|item| self.synchronize_resident_behavior_target(layer_index, key, item));
-        resident
-            .filter(|_| !(self.menu.state.editing && self.menu.current_key() == Some(key)))
-            .or_else(|| {
-                self.menu
-                    .item_for_key(key)
-                    .filter(|_| self.menu.state.editing && self.menu.current_key() == Some(key))
-            })
+            .map(|item| self.synchronize_resident_behavior_target(layer_index, key, item))
             .or_else(|| self.behavior_target_item_for_layer(layer_index, key))
     }
 
@@ -70,17 +62,16 @@ impl NativeRunner {
             return None;
         }
         let behavior = platform_core::get_native_behavior(behavior_id)?;
-        let mut state = self.behavior_state_for_layer(layer_index);
-        if behavior.config_menu(&state).is_err() {
-            state = self.default_behavior_state_for_layer(layer_index, behavior);
-        }
         let field = key.split_once(".build.behaviorConfig.")?.1;
-        let item = behavior
-            .config_menu(&state)
-            .ok()
-            .flatten()?
-            .into_iter()
-            .find(|item| item.key == field)?;
+        let mut state = self.behavior_state_for_layer(layer_index);
+        let items = match behavior.config_menu(&state) {
+            Ok(items) => items,
+            Err(_) => {
+                state = self.default_behavior_state_for_layer(layer_index, behavior);
+                behavior.config_menu(&state).ok()?
+            }
+        };
+        let item = items?.into_iter().find(|item| item.key == field)?;
         let config = self
             .layer_behavior_configs
             .get(layer_index)
