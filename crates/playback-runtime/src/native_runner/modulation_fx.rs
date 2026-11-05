@@ -12,25 +12,22 @@ pub(super) fn apply_fx_bus_binding_value(
     let changed = match (slot, field) {
         ("bus", "panPos") => apply_u8_value(&mut bus.pan_pos, value, PAN_POSITION_COUNT - 1),
         ("bus", "volume") => apply_u8_value(&mut bus.volume_pct, value, 100),
-        ("slot1", "type") => {
-            apply_fx_slot_type_value(&mut bus.slot1_type, &mut bus.slot1_params, value)
+        (slot, field) => {
+            let Some((slot_type, params)) = slot
+                .strip_prefix("slot")
+                .and_then(super::NativeFxBus::slot_index)
+                .and_then(|index| bus.slot_mut(index))
+            else {
+                return false;
+            };
+            if field == "type" {
+                apply_fx_slot_type_value(slot_type, params, value)
+            } else if let Some(param) = field.strip_prefix("params.") {
+                apply_fx_param_binding_value(params, param, value)
+            } else {
+                false
+            }
         }
-        ("slot2", "type") => {
-            apply_fx_slot_type_value(&mut bus.slot2_type, &mut bus.slot2_params, value)
-        }
-        ("slot3", "type") => {
-            apply_fx_slot_type_value(&mut bus.slot3_type, &mut bus.slot3_params, value)
-        }
-        ("slot1", field) if field.starts_with("params.") => {
-            apply_fx_param_binding_value(&mut bus.slot1_params, &field[7..], value)
-        }
-        ("slot2", field) if field.starts_with("params.") => {
-            apply_fx_param_binding_value(&mut bus.slot2_params, &field[7..], value)
-        }
-        ("slot3", field) if field.starts_with("params.") => {
-            apply_fx_param_binding_value(&mut bus.slot3_params, &field[7..], value)
-        }
-        _ => false,
     };
     if changed {
         if bus.auto_name {

@@ -114,11 +114,8 @@ impl NativeRunner {
         let Some(bus) = self.fx_buses.get_mut(bus_index) else {
             return false;
         };
-        let (fx_type, params) = match slot_index {
-            0 => (&bus.slot1_type, &mut bus.slot1_params),
-            1 => (&bus.slot2_type, &mut bus.slot2_params),
-            2 => (&bus.slot3_type, &mut bus.slot3_params),
-            _ => return false,
+        let Some((fx_type, params)) = bus.slot_mut(slot_index) else {
+            return false;
         };
         let before = params.clone();
         if !apply_fx_param_value(params, param_path, value, bpm) {
@@ -171,11 +168,8 @@ impl NativeRunner {
             return false;
         };
         let previous_bus_label = format!("B{}: {}", bus_index + 1, bus.name);
-        let (slot_type, slot_params) = match slot_index {
-            0 => (&mut bus.slot1_type, &mut bus.slot1_params),
-            1 => (&mut bus.slot2_type, &mut bus.slot2_params),
-            2 => (&mut bus.slot3_type, &mut bus.slot3_params),
-            _ => return false,
+        let Some((slot_type, slot_params)) = bus.slot_mut(slot_index) else {
+            return false;
         };
         let changed = if *slot_type == next_type {
             false
@@ -196,20 +190,11 @@ impl NativeRunner {
             bus.name = derive_bus_name(bus);
         }
         let next_bus_label = format!("B{}: {}", bus_index + 1, bus.name);
-        let (fx_type, params) = match slot_index {
-            0 => (
-                bus.slot1_type.clone(),
-                audio_params_for_fx(&bus.slot1_type, &bus.slot1_params),
-            ),
-            1 => (
-                bus.slot2_type.clone(),
-                audio_params_for_fx(&bus.slot2_type, &bus.slot2_params),
-            ),
-            2 => (
-                bus.slot3_type.clone(),
-                audio_params_for_fx(&bus.slot3_type, &bus.slot3_params),
-            ),
-            _ => return false,
+        let Some((fx_type, params)) = bus
+            .slot(slot_index)
+            .map(|(fx_type, params)| (fx_type.clone(), audio_params_for_fx(fx_type, params)))
+        else {
+            return false;
         };
         let slot_key = format!("mixer.buses.{bus_index}.slot{}.type", slot_index + 1);
         let slot_prefix = format!("mixer.buses.{bus_index}.slot{}", slot_index + 1);

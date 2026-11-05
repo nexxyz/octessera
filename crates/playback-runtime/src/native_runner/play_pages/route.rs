@@ -2,9 +2,7 @@ use serde_json::Value;
 
 use super::super::led_color::LedColor;
 use super::super::menu_apply_fast_fx_bus::audio_params_for_fx;
-use super::super::{
-    NativeFxBus, NativeRunner, BUS_COUNT, GLOBAL_FX_SLOT_COUNT, GRID_WIDTH, INSTRUMENT_COUNT,
-};
+use super::super::{NativeRunner, BUS_COUNT, GLOBAL_FX_SLOT_COUNT, GRID_WIDTH, INSTRUMENT_COUNT};
 use crate::protocol::RuntimeAudioCommand;
 
 const ROUTES: [&str; 5] = ["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"];
@@ -153,7 +151,7 @@ impl NativeRunner {
                 continue;
             }
             for slot_index in 0..BUS_SLOT_COUNT {
-                let (fx_type, params) = bus_slot(bus, slot_index);
+                let (fx_type, params) = bus.slot(slot_index).expect("three bus FX slots");
                 commands.push(RuntimeAudioCommand::SetFxBusSlot {
                     bus_index,
                     slot_index,
@@ -246,7 +244,7 @@ impl NativeRunner {
         let mut ducks = Vec::new();
         for (bus_index, bus) in self.fx_buses.iter().enumerate() {
             for slot_index in 0..BUS_SLOT_COUNT {
-                let (fx_type, params) = bus_slot(bus, slot_index);
+                let (fx_type, params) = bus.slot(slot_index).expect("three bus FX slots");
                 if fx_type != "duck" {
                     continue;
                 }
@@ -316,12 +314,4 @@ fn instrument_source_index(source: &str) -> Option<usize> {
         .parse::<usize>()
         .ok()?
         .checked_sub(1)
-}
-
-fn bus_slot(bus: &NativeFxBus, slot: usize) -> (&str, &Value) {
-    match slot {
-        0 => (&bus.slot1_type, &bus.slot1_params),
-        1 => (&bus.slot2_type, &bus.slot2_params),
-        _ => (&bus.slot3_type, &bus.slot3_params),
-    }
 }

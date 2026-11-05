@@ -12,12 +12,7 @@ impl NativeRunner {
         let (bus_index, rest) = rest.split_once(".slot")?;
         let bus = self.fx_buses.get(bus_index.parse::<usize>().ok()?)?;
         let (slot, field) = rest.split_once(".params.")?;
-        let (slot_type, params) = match slot {
-            "1" => (&bus.slot1_type, &bus.slot1_params),
-            "2" => (&bus.slot2_type, &bus.slot2_params),
-            "3" => (&bus.slot3_type, &bus.slot3_params),
-            _ => return None,
-        };
+        let (slot_type, params) = bus.slot(super::NativeFxBus::slot_index(slot)?)?;
         let bpm = self.current_menu_bpm();
         let hidden = slot_type == "delay"
             && matches!(field, "timeMs" | "timeNote")
@@ -38,12 +33,7 @@ impl NativeRunner {
         let mut commands = Vec::new();
         for (bus_index, bus) in self.fx_buses.iter_mut().enumerate() {
             for slot_index in 0..3 {
-                let (fx_type, params) = match slot_index {
-                    0 => (&bus.slot1_type, &mut bus.slot1_params),
-                    1 => (&bus.slot2_type, &mut bus.slot2_params),
-                    2 => (&bus.slot3_type, &mut bus.slot3_params),
-                    _ => unreachable!(),
-                };
+                let (fx_type, params) = bus.slot_mut(slot_index).expect("three bus FX slots");
                 if fx_type != "delay" {
                     continue;
                 }

@@ -296,6 +296,36 @@ pub(super) struct NativePlayFxAssignment {
     pub(super) config: Value,
 }
 
+impl NativeFxBus {
+    /// The 0-based slot of the 1-based slot number in bus keys (`slot2` is `2`).
+    pub(super) fn slot_index(number: &str) -> Option<usize> {
+        match number {
+            "1" => Some(0),
+            "2" => Some(1),
+            "3" => Some(2),
+            _ => None,
+        }
+    }
+
+    pub(super) fn slot(&self, index: usize) -> Option<(&String, &Value)> {
+        match index {
+            0 => Some((&self.slot1_type, &self.slot1_params)),
+            1 => Some((&self.slot2_type, &self.slot2_params)),
+            2 => Some((&self.slot3_type, &self.slot3_params)),
+            _ => None,
+        }
+    }
+
+    pub(super) fn slot_mut(&mut self, index: usize) -> Option<(&mut String, &mut Value)> {
+        match index {
+            0 => Some((&mut self.slot1_type, &mut self.slot1_params)),
+            1 => Some((&mut self.slot2_type, &mut self.slot2_params)),
+            2 => Some((&mut self.slot3_type, &mut self.slot3_params)),
+            _ => None,
+        }
+    }
+}
+
 impl Default for NativeFxBus {
     fn default() -> Self {
         Self {

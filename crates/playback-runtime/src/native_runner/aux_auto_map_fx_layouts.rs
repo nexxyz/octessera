@@ -112,12 +112,8 @@ impl NativeRunner {
             .and_then(|rest| rest.split_once(".slot"))
             .and_then(|(bus, rest)| {
                 let bus = self.fx_buses.get(bus.parse::<usize>().ok()?)?;
-                match rest.strip_suffix(".params")? {
-                    "1" => Some(&bus.slot1_params),
-                    "2" => Some(&bus.slot2_params),
-                    "3" => Some(&bus.slot3_params),
-                    _ => None,
-                }
+                let slot = NativeFxBus::slot_index(rest.strip_suffix(".params")?)?;
+                bus.slot(slot).map(|(_, params)| params)
             });
         params.map_or("timeMs", |params| {
             crate::native_menu::delay_time_field(params, self.current_menu_bpm())
@@ -142,12 +138,8 @@ impl NativeRunner {
     fn fx_bus_slot_auto_map_context(&self, layers: &[&str]) -> Option<(&str, String)> {
         let bus_index = layers.get(2)?.parse::<usize>().ok()?;
         let slot_name = *layers.get(3)?;
-        let slot_type = match slot_name {
-            "slot1" => self.fx_buses.get(bus_index)?.slot1_type.as_str(),
-            "slot2" => self.fx_buses.get(bus_index)?.slot2_type.as_str(),
-            "slot3" => self.fx_buses.get(bus_index)?.slot3_type.as_str(),
-            _ => return None,
-        };
+        let slot = NativeFxBus::slot_index(slot_name.strip_prefix("slot")?)?;
+        let (slot_type, _) = self.fx_buses.get(bus_index)?.slot(slot)?;
         Some((
             slot_type,
             format!("mixer.buses.{bus_index}.{slot_name}.params"),

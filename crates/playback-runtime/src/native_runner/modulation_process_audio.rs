@@ -125,12 +125,8 @@ pub(super) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> 
             ("bus", "volume") => Some(f64::from(bus.volume_pct)),
             ("bus", "panPos") => Some(f64::from(bus.pan_pos)),
             (slot, field) => {
-                let params = match slot {
-                    "slot1" => &bus.slot1_params,
-                    "slot2" => &bus.slot2_params,
-                    "slot3" => &bus.slot3_params,
-                    _ => return None,
-                };
+                let (_, params) =
+                    bus.slot(super::NativeFxBus::slot_index(slot.strip_prefix("slot")?)?)?;
                 params
                     .get(field.strip_prefix("params.")?)
                     .and_then(Value::as_f64)
@@ -232,15 +228,10 @@ pub(super) fn materialize_endpoint(
         }
         Endpoint::FxBusSlot { bus_index, slot } => {
             let bus = runner.fx_buses.get(*bus_index)?;
-            let (slot_name, fx_type, persistent) = match slot {
-                0 => ("slot1", &bus.slot1_type, &bus.slot1_params),
-                1 => ("slot2", &bus.slot2_type, &bus.slot2_params),
-                2 => ("slot3", &bus.slot3_type, &bus.slot3_params),
-                _ => return None,
-            };
+            let (fx_type, persistent) = bus.slot(*slot)?;
             let mut params =
                 super::menu_apply_fast_fx_bus::audio_params_for_fx(fx_type, persistent);
-            let prefix = format!("mixer.buses.{bus_index}.{slot_name}.params.");
+            let prefix = format!("mixer.buses.{bus_index}.slot{}.params.", slot + 1);
             for (key, value) in values {
                 if let Some(field) = key.strip_prefix(&prefix) {
                     params.insert(
