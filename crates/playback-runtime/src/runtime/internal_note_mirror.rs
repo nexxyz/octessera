@@ -1,5 +1,5 @@
 use super::{HostAdapter, PlaybackRuntime, RuntimeConfig};
-use crate::protocol::{RuntimeAdapterError, RuntimeOperation, TileHit};
+use crate::protocol::{RuntimeAdapterError, TileHit};
 use platform_core::MusicalEvent;
 use std::collections::BTreeSet;
 
@@ -74,12 +74,7 @@ impl PlaybackRuntime {
             .partition(|(channel, _)| copies_channel(next, *channel));
         self.mirrored_held_notes = kept;
         for (channel, note) in ended {
-            self.send_midi_message(
-                &[0x80 | (channel & 0x0F), note.min(127), 0],
-                self.sequenced_at,
-                RuntimeOperation::MidiEvent,
-                host,
-            )?;
+            self.send_musical_event_midi(MusicalEvent::NoteOff { channel, note }, host)?;
         }
         Ok(())
     }
