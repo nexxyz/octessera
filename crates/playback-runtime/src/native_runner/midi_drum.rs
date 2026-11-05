@@ -2,6 +2,7 @@
 
 use super::grid_assign::GridAssign;
 use super::led_color::LedColor;
+use super::tile_stamp::toggle_tile_stamps;
 use super::{NativeInstrumentSlot, NativeRunner, Value};
 use crate::native_menu::NativeMenuMidiDrum;
 use platform_core::{MusicalEvent, TileTriggerIntent};
@@ -191,30 +192,26 @@ impl NativeRunner {
         else {
             return;
         };
-        let clear = tiles
-            .iter()
-            .all(|&(x, y)| drum.assignments.contains(&drum.stamp_at(x, y)));
-        drum.assignments
-            .retain(|tile| !tiles.contains(&(tile.x, tile.y)));
-        if !clear {
-            let stamped = tiles
-                .iter()
-                .map(|&(x, y)| drum.stamp_at(x, y))
-                .collect::<Vec<_>>();
-            drum.assignments.extend(stamped);
-        }
         let settings = drum.settings;
-        let toast = match (clear, line) {
-            (true, None) => "Cleared".to_string(),
-            (true, Some(line)) => format!("Cleared {line}"),
-            (false, line) => format!(
-                "{}N{} v{}",
-                line.map_or_else(String::new, |line| format!("{line} ")),
-                settings.tile_note,
-                settings.tile_velocity
-            ),
+        let stamped = |x, y| NativeMidiDrumTile {
+            x,
+            y,
+            note: settings.tile_note,
+            velocity: settings.tile_velocity,
         };
-        self.show_toast(toast);
+        let clear = toggle_tile_stamps(
+            &mut drum.assignments,
+            &tiles,
+            |tile| Some((tile.x, tile.y)),
+            |tile, x, y| *tile == stamped(x, y),
+            stamped,
+        );
+        self.show_stamp_toast(
+            clear,
+            line,
+            None,
+            format!("N{} v{}", settings.tile_note, settings.tile_velocity),
+        );
         self.mark_config_dirty();
     }
 

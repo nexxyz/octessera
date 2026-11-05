@@ -37,19 +37,12 @@ impl NativeRunner {
     }
 
     fn handle_trigger_probability_grid_press(&mut self, layer_index: usize, x: usize, y: usize) {
-        if x >= GRID_WIDTH || y >= GRID_HEIGHT {
+        let (tiles, _) = self.stamp_line_tiles(x, y);
+        if tiles.is_empty() {
             return;
         }
         let next = self.next_probability_state(layer_index, x, y);
-        if self.display.ui.combined_modifier_held {
-            for row in 0..GRID_HEIGHT {
-                self.set_probability_tile(layer_index, x, row, &next);
-            }
-        } else if self.display.ui.shift_held {
-            for column in 0..GRID_WIDTH {
-                self.set_probability_tile(layer_index, column, y, &next);
-            }
-        } else {
+        for (x, y) in tiles {
             self.set_probability_tile(layer_index, x, y, &next);
         }
         self.mark_config_dirty();

@@ -94,18 +94,19 @@ impl NativeRunner {
             tune_semis: stamp.tune_semis,
             tune_cents: stamp.tune_cents,
         };
-        let clear = tiles
-            .iter()
-            .all(|&(x, y)| instrument.sample_assignments.contains(&stamped(x, y)));
-        instrument
-            .sample_assignments
-            .retain(|assignment| !tiles.contains(&(assignment.x, assignment.y)));
-        if !clear {
-            instrument
-                .sample_assignments
-                .extend(tiles.iter().map(|&(x, y)| stamped(x, y)));
-        }
-        self.show_stamp_toast(clear, line, 'S', sample_slot, &stamp, level.as_deref());
+        let clear = toggle_tile_stamps(
+            &mut instrument.sample_assignments,
+            &tiles,
+            |assignment| Some((assignment.x, assignment.y)),
+            |assignment, x, y| *assignment == stamped(x, y),
+            stamped,
+        );
+        self.show_stamp_toast(
+            clear,
+            line,
+            Some(format!("S{}", sample_slot + 1)),
+            tune_stamp_text(&stamp, level.as_deref()),
+        );
         self.mark_config_dirty();
     }
 
@@ -149,23 +150,20 @@ impl NativeRunner {
                 && offset(tile, "tuneCents") == i64::from(stamp.tune_cents)
                 && tile.get("level").and_then(Value::as_str) == stamp.level.as_deref()
         };
-        let clear = tiles
-            .iter()
-            .all(|&(x, y)| assignments.iter().any(|tile| matches(tile, x, y)));
-        assignments.retain(|tile| {
-            let at = |key: &str| tile.get(key).and_then(Value::as_u64).map(|v| v as usize);
-            !matches!((at("x"), at("y")), (Some(x), Some(y)) if tiles.contains(&(x, y)))
-        });
-        if !clear {
-            assignments.extend(tiles.iter().map(|&(x, y)| stamped(x, y)));
-        }
+        let at =
+            |tile: &Value, key: &str| tile.get(key).and_then(Value::as_u64).map(|v| v as usize);
+        let clear = toggle_tile_stamps(
+            assignments,
+            &tiles,
+            |tile| Some((at(tile, "x")?, at(tile, "y")?)),
+            matches,
+            stamped,
+        );
         self.show_stamp_toast(
             clear,
             line,
-            'V',
-            usize::from(voice),
-            &stamp,
-            stamp.level.as_deref(),
+            Some(format!("V{}", voice + 1)),
+            tune_stamp_text(&stamp, stamp.level.as_deref()),
         );
         self.mark_config_dirty();
     }
@@ -191,31 +189,52 @@ impl NativeRunner {
     }
 
     /// A line toast names the line instead of the slot, so `row -24 +100c Base` still fits.
-    fn show_stamp_toast(
+    pub(super) fn show_stamp_toast(
         &mut self,
         cleared: bool,
         line: Option<&str>,
-        prefix: char,
-        index: usize,
-        stamp: &NativeTileStamp,
-        level: Option<&str>,
+        slot: Option<String>,
+        stamp: String,
     ) {
-        if cleared {
-            self.show_toast(
-                line.map_or_else(|| "Cleared".into(), |line| format!("Cleared {line}")),
-            );
-            return;
-        }
-        let level = match level {
-            Some("high") => "High",
-            Some("medium") => "Med",
-            Some("low") => "Low",
-            _ => "Base",
+        let message = if cleared {
+            line.map_or_else(|| "Cleared".into(), |line| format!("Cleared {line}"))
+        } else {
+            match line.map(str::to_owned).or(slot) {
+                Some(target) => format!("{target} {stamp}"),
+                None => stamp,
+            }
         };
-        let target = line.map_or_else(|| format!("{prefix}{}", index + 1), str::to_owned);
-        self.show_toast(format!(
-            "{target} {:+} {:+}c {level}",
-            stamp.tune_semis, stamp.tune_cents
-        ));
+        self.show_toast(message);
     }
+}
+
+/// Clears the pressed tiles when each already carries the stamp, else replaces them with it;
+/// returns whether the press cleared.
+pub(super) fn toggle_tile_stamps<T>(
+    assignments: &mut Vec<T>,
+    tiles: &[(usize, usize)],
+    tile_of: impl Fn(&T) -> Option<(usize, usize)>,
+    carries_stamp: impl Fn(&T, usize, usize) -> bool,
+    stamped: impl Fn(usize, usize) -> T,
+) -> bool {
+    let clear = tiles.iter().all(|&(x, y)| {
+        assignments
+            .iter()
+            .any(|assignment| carries_stamp(assignment, x, y))
+    });
+    assignments.retain(|assignment| !tile_of(assignment).is_some_and(|tile| tiles.contains(&tile)));
+    if !clear {
+        assignments.extend(tiles.iter().map(|&(x, y)| stamped(x, y)));
+    }
+    clear
+}
+
+fn tune_stamp_text(stamp: &NativeTileStamp, level: Option<&str>) -> String {
+    let level = match level {
+        Some("high") => "High",
+        Some("medium") => "Med",
+        Some("low") => "Low",
+        _ => "Base",
+    };
+    format!("{:+} {:+}c {level}", stamp.tune_semis, stamp.tune_cents)
 }
