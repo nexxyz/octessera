@@ -13,7 +13,7 @@ Shape
 │   │   ├── Type: [none | synth | sampler | midi | fm | pluck | drum | midi_drum]   ← fm shows as FM, pluck as Plucked, drum as Drum, midi as MIDI Inst., midi_drum as MIDI Drum
 │   │   ├── Note Mode: [oneshot | hold]          ← default oneshot; hidden for none, Drum and MIDI Drum (both are always one-shot)
 │   │   ├── Synth (group)                        ← type synth
-│   │   │   ├── Preset (group) > Load (group)    ← per-slot synth presets, confirmed
+│   │   │   ├── Preset (group) > Load (group)    ← Init | Round Bass | Acid Bass | Saw Lead | Soft Pad | Bright Pluck | Brass Stab | Organ | Hollow PWM | Chip Blip | Zap
 │   │   │   ├── Osc 1 (group)                    ← Wave, Octave, Level, Detune, Pulse Width
 │   │   │   ├── Osc 2 (group)                    ← same rows
 │   │   │   ├── Filter (group)                   ← Type [lowpass | highpass | bandpass | notch], Cutoff, Res, Env Amount, Key Tracking
@@ -21,7 +21,7 @@ Shape
 │   │   │   ├── Amp Env (group)                  ← Attack, Decay, Sustain, Release
 │   │   │   └── Filter Env (group)               ← Attack, Decay, Sustain, Release
 │   │   ├── FM (group)                           ← type fm
-│   │   │   ├── Preset (group) > Load (group)    ← Init | Soft Keys | Bell
+│   │   │   ├── Preset (group) > Load (group)    ← Init | Soft Keys | Tine EP | Thump Bass | Swell Bass | Reed Lead | Warm Pad | Mallet | Bell | Glass | Clang
 │   │   │   ├── Tone (group)                     ← Ratio, Fine cents, Index, Vel to Index, Mod Shape, Mod Mix
 │   │   │   ├── Index Env (group)                ← Attack, Decay, Sustain, Release
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
@@ -29,14 +29,14 @@ Shape
 │   │   │   ├── Amp Env (group)
 │   │   │   └── Filter Env (group)
 │   │   ├── Plucked (group)                      ← type pluck
-│   │   │   ├── Preset (group) > Load (group)    ← Init | Nylon | Steel | Muted
+│   │   │   ├── Preset (group) > Load (group)    ← Init | Nylon | Steel | Muted | Harp | Koto | Kalimba | Pizz | Pluck Bass | Sitar Buzz | Droplet
 │   │   │   ├── String (group)                   ← Decay, Brightness, Pick Pos, Pick Depth, Stiffness, Body Amt, Body Hz
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
 │   │   │   ├── Volume (group)                   ← Gain, Vel Sens
 │   │   │   ├── Amp Env (group)
 │   │   │   └── Filter Env (group)
 │   │   ├── Drum (group)                         ← type drum
-│   │   │   ├── Kit (group) > Load (group)       ← Default | Tight | Heavy
+│   │   │   ├── Kit (group) > Load (group)       ← Default | Tight | Heavy | Boom | Lo-Fi | Electro | Brush | Hand Perc | Minimal | Toy Box
 │   │   │   ├── Voice: [V1: Kick .. V8: Rim]     ← names follow each voice's current Sound
 │   │   │   ├── Edit (group)                     ← Sound, Tune, Decay, Tone, Attack, Sweep st, Sweep ms, Noise %, Level % of the selected voice
 │   │   │   ├── Tile Tune: [-24..24] st          ← stamp value
@@ -134,6 +134,10 @@ Shape
 - A confirmed load changes only that slot and shows which slot, type, and entry loaded. The custom
   name and mixer routing stay. No load plays a preview.
 - `System > Saves` remains the separate whole-patch workflow; there is no per-slot kit save manager.
+- The Synth, FM, Plucked and Drum lists come from `resources/instrument-presets.json`: each entry
+  is a set of overrides on that type's default, and the first entry (Init, or Default for Drum) is
+  the default itself. Every entry has its own help row carrying its one-liner. A load copies values
+  into the slot and saves no preset id, so renaming or reworking a preset never breaks a save.
 
 ### FM
 
@@ -175,8 +179,8 @@ Shape
 
 - Eight one-shot voices and no assigned tiles to start with. The thirteen Drum rows scroll in the
   eight-row OLED body down to Volume without covering the footer.
-- `Kit > Load` (Default, Tight, Heavy) changes the eight voice sounds/settings, never the stamped
-  tiles.
+- `Kit > Load` changes the eight voices' settings (Tune, Decay, Tone, Attack, Sweep, Noise, Level),
+  never their Sound, the slot Filter or Gain, or the stamped tiles.
 - Voice lists `V1: Kick` through `V8: Rim`, each name taken from the voice's current Sound.
 - Edit acts on the selected voice: Sound (`kick`, `snare`, `closed_hat`, `open_hat`, `low_tom`,
   `high_tom`, `clap`, `rim`), Tune `-12..12` st, Decay `20..2000 ms`, Tone `0..100%`, Attack

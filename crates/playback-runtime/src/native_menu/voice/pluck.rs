@@ -1,7 +1,7 @@
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
 use super::{
-    enum_item, factory_load_group, group, number_item, selected_index, InstrumentMenuConfig,
-    NativeMenuItem,
+    enum_item, factory_load_group, factory_preset_choices, group, number_item, selected_index,
+    InstrumentMenuConfig, NativeMenuItem,
 };
 
 pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
@@ -14,12 +14,7 @@ pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
                 config.index,
                 "preset",
                 "Preset",
-                &[
-                    ("init", "Init"),
-                    ("nylon", "Nylon"),
-                    ("steel", "Steel"),
-                    ("muted", "Muted"),
-                ],
+                factory_preset_choices("pluck"),
             ),
             group(
                 "String",

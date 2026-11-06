@@ -104,10 +104,14 @@ pub(crate) fn midi_panic_and_synth_preset_actions_show_toasts() {
         "MIDI panic sent"
     );
 
-    runner.load_synth_preset(0, "lead");
+    runner
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+            "synth.preset:0:saw_lead".into(),
+        ))
+        .unwrap();
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "Loaded synth lead"
+        "Loaded I1 synth saw_lead"
     );
 }
 

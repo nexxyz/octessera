@@ -17,7 +17,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             config.index,
             "kit",
             "Kit",
-            &[
+            [
                 ("sdbkit", "SDB Kit"),
                 ("synthkit", "Synth Kit"),
                 ("distkit", "Dist Kit"),

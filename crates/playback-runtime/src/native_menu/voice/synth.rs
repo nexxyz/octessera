@@ -1,17 +1,20 @@
-use super::super::synth_preset_items::synth_preset_items;
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
 use super::super::voice_env_groups::synth_env_group;
 use super::{
-    enum_item, group, number_item, pick_list, selected_index, InstrumentMenuConfig, NativeMenuItem,
+    enum_item, factory_load_group, factory_preset_choices, group, number_item, selected_index,
+    InstrumentMenuConfig, NativeMenuItem,
 };
 
 pub(super) fn synth_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     group(
         "Synth",
         vec![
-            group(
+            factory_load_group(
+                "synth",
+                config.index,
+                "preset",
                 "Preset",
-                vec![pick_list(group("Load", synth_preset_items(config.index)))],
+                factory_preset_choices("synth"),
             ),
             oscillator_group(
                 config,

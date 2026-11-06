@@ -1,4 +1,5 @@
 use super::*;
+use crate::instrument_presets::instrument_presets;
 use crate::native_menu::NativeMenuAction;
 use realtime_engine::synth::{InstrumentSlotConfig, SynthEngine};
 
@@ -78,25 +79,14 @@ fn assert_sane(action: &str, drum: bool) {
 
 #[test]
 fn every_factory_sound_plays_stays_below_clipping_and_ends() {
-    for preset in [
-        "init",
-        "soft_pad",
-        "bright_pluck",
-        "bass_mono",
-        "hollow_pwm",
-        "lead",
-        "bell",
-        "perc_hit",
+    for (family, action) in [
+        ("synth", "synth.preset"),
+        ("fm", "fm.preset"),
+        ("pluck", "pluck.preset"),
+        ("drum", "drum.kit"),
     ] {
-        assert_sane(&format!("synth.preset:0:{preset}"), false);
-    }
-    for preset in ["init", "soft_keys", "bell"] {
-        assert_sane(&format!("fm.preset:0:{preset}"), false);
-    }
-    for preset in ["init", "nylon", "steel", "muted"] {
-        assert_sane(&format!("pluck.preset:0:{preset}"), false);
-    }
-    for kit in ["default", "tight", "heavy"] {
-        assert_sane(&format!("drum.kit:0:{kit}"), true);
+        for preset in instrument_presets(family) {
+            assert_sane(&format!("{action}:0:{}", preset.id), family == "drum");
+        }
     }
 }

@@ -2,8 +2,9 @@ use crate::protocol::RuntimeAudioCommand;
 
 use super::super::{
     derive_instrument_name, drum_config::drum_default_config, fm_default_config,
-    pluck_default_config, NativeRunner, NativeSampleAvailability, Value,
+    pluck_default_config, synth_default_config, NativeRunner, NativeSampleAvailability, Value,
 };
+use crate::instrument_presets::instrument_preset_config;
 
 const SDBKIT: [&str; 8] = [
     "samples/Drum/kick/sdbkit-kick.wav",
@@ -36,56 +37,6 @@ const DISTKIT: [&str; 8] = [
     "samples/Drum/percussion/distkit-cowbell.wav",
 ];
 
-fn fm_preset(id: &str) -> Result<Value, String> {
-    let mut config = fm_default_config();
-    match id {
-        "init" => {}
-        "soft_keys" => {
-            config["ratio"] = "1".into();
-            config["index"] = 24.into();
-            config["indexEnv"]["attackMs"] = 12.into();
-            config["indexEnv"]["decayMs"] = 420.into();
-            config["indexEnv"]["sustainPct"] = 12.into();
-            config["ampEnv"]["releaseMs"] = 650.into();
-        }
-        "bell" => {
-            config["ratio"] = "3".into();
-            config["index"] = 78.into();
-            config["indexEnv"]["decayMs"] = 850.into();
-            config["indexEnv"]["sustainPct"] = 0.into();
-            config["ampEnv"]["decayMs"] = 900.into();
-            config["ampEnv"]["sustainPct"] = 0.into();
-            config["ampEnv"]["releaseMs"] = 700.into();
-        }
-        _ => return Err(format!("unknown FM preset {id}")),
-    }
-    Ok(config)
-}
-
-fn pluck_preset(id: &str) -> Result<Value, String> {
-    let mut config = pluck_default_config();
-    match id {
-        "init" => {}
-        "nylon" => {
-            config["decayMs"] = 2400.into();
-            config["brightnessPct"] = 35.into();
-            config["pickPositionPct"] = 32.into();
-        }
-        "steel" => {
-            config["decayMs"] = 3200.into();
-            config["brightnessPct"] = 88.into();
-            config["pickPositionPct"] = 17.into();
-        }
-        "muted" => {
-            config["decayMs"] = 350.into();
-            config["brightnessPct"] = 22.into();
-            config["pickPositionPct"] = 38.into();
-        }
-        _ => return Err(format!("unknown Plucked preset {id}")),
-    }
-    Ok(config)
-}
-
 fn sample_kit(id: &str) -> Result<&'static [&'static str; 8], String> {
     let paths = match id {
         "sdbkit" => &SDBKIT,
@@ -96,33 +47,16 @@ fn sample_kit(id: &str) -> Result<&'static [&'static str; 8], String> {
     Ok(paths)
 }
 
-fn drum_kit(id: &str) -> Result<Value, String> {
-    let mut voices = drum_default_config()["voices"].clone();
-    let (decay, tone, tune) = match id {
-        "default" => return Ok(voices),
-        "tight" => (
-            [260, 140, 50, 260, 300, 190, 135, 65],
-            [50, 82, 95, 90, 65, 75, 90, 90],
-            [0; 8],
-        ),
-        "heavy" => (
-            [750, 360, 110, 850, 880, 590, 320, 150],
-            [25, 55, 75, 72, 40, 48, 65, 60],
-            [-4, 0, 0, 0, -3, -2, 0, 0],
-        ),
-        _ => return Err(format!("unknown Drum kit {id}")),
+/// A factory preset's config for `family`: its overrides on that family's default.
+fn factory_preset(family: &str, id: &str) -> Result<Value, String> {
+    let defaults = match family {
+        "synth" => synth_default_config(),
+        "fm" => fm_default_config(),
+        "pluck" => pluck_default_config(),
+        _ => drum_default_config(),
     };
-    for (index, voice) in voices
-        .as_array_mut()
-        .expect("default Drum voices")
-        .iter_mut()
-        .enumerate()
-    {
-        voice["decayMs"] = decay[index].into();
-        voice["tonePct"] = tone[index].into();
-        voice["tuneSemis"] = tune[index].into();
-    }
-    Ok(voices)
+    instrument_preset_config(family, id, defaults)
+        .ok_or_else(|| format!("unknown {family} preset {id}"))
 }
 
 impl NativeRunner {
@@ -138,10 +72,11 @@ impl NativeRunner {
             return Err(format!("invalid factory instrument slot {slot}"));
         }
         let (type_name, config, paths) = match kind {
-            "fm.preset" => ("fm", Some(fm_preset(id)?), None),
-            "pluck.preset" => ("pluck", Some(pluck_preset(id)?), None),
+            "synth.preset" => ("synth", Some(factory_preset("synth", id)?), None),
+            "fm.preset" => ("fm", Some(factory_preset("fm", id)?), None),
+            "pluck.preset" => ("pluck", Some(factory_preset("pluck", id)?), None),
             "sample.kit" => ("sampler", None, Some(sample_kit(id)?)),
-            "drum.kit" => ("drum", Some(drum_kit(id)?), None),
+            "drum.kit" => ("drum", Some(factory_preset("drum", id)?), None),
             _ => return Err(format!("unknown factory load action {kind}")),
         };
         let instrument = &mut self.instruments[slot];
@@ -150,9 +85,16 @@ impl NativeRunner {
             instrument.name = derive_instrument_name(slot, type_name);
         }
         match kind {
+            "synth.preset" => {
+                let config = config.expect("Synth preset");
+                instrument.synth_gain_pct = config["amp"]["gainPct"].as_u64().unwrap_or(80) as u8;
+                instrument.synth_config = config;
+            }
             "fm.preset" => instrument.fm_config = config.expect("FM preset"),
             "pluck.preset" => instrument.pluck_config = config.expect("Plucked preset"),
-            "drum.kit" => instrument.drum_config["voices"] = config.expect("Drum voices"),
+            "drum.kit" => {
+                instrument.drum_config["voices"] = config.expect("Drum kit")["voices"].take();
+            }
             "sample.kit" => {
                 instrument.sample_paths = paths
                     .expect("Sampler kit")

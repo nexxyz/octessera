@@ -6,9 +6,8 @@ mod factory_instrument_load;
 use super::grid_assign::GridAssign;
 use super::play_fx_config::play_fx_type;
 use super::{
-    derive_instrument_name, native_binding_from_spec, parse_sample_action, synth_preset_config,
-    NativeInstrumentSlot, NativeManualSaveRequest, NativeRunner, RuntimeTransportState, Value,
-    GRID_HEIGHT,
+    derive_instrument_name, native_binding_from_spec, parse_sample_action, NativeInstrumentSlot,
+    NativeManualSaveRequest, NativeRunner, RuntimeTransportState, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -69,20 +68,15 @@ impl NativeRunner {
             }
             return Ok(None);
         }
-        if let Some(rest) = action.strip_prefix("synth.preset:") {
-            let mut layers = rest.splitn(2, ':');
-            let slot = layers.next().and_then(|value| value.parse::<usize>().ok());
-            let preset = layers.next();
-            if let (Some(slot), Some(preset)) = (slot, preset) {
-                self.load_synth_preset(slot, preset);
-            } else {
-                self.show_toast("Invalid synth preset action");
-            }
-            return Ok(None);
-        }
-        if ["fm.preset:", "pluck.preset:", "sample.kit:", "drum.kit:"]
-            .iter()
-            .any(|prefix| action.starts_with(prefix))
+        if [
+            "synth.preset:",
+            "fm.preset:",
+            "pluck.preset:",
+            "sample.kit:",
+            "drum.kit:",
+        ]
+        .iter()
+        .any(|prefix| action.starts_with(prefix))
         {
             if let Err(error) = self.load_factory_instrument_action(action) {
                 self.show_toast(format!("Factory load rejected: {error}"));
@@ -90,49 +84,6 @@ impl NativeRunner {
             return Ok(None);
         }
         self.handle_sample_browser_action(action)
-    }
-
-    pub(super) fn load_synth_preset(&mut self, slot: usize, preset: &str) {
-        if !matches!(
-            preset,
-            "init"
-                | "soft_pad"
-                | "bright_pluck"
-                | "bass_mono"
-                | "hollow_pwm"
-                | "lead"
-                | "bell"
-                | "perc_hit"
-        ) {
-            self.show_toast(format!("Unknown synth preset {preset}"));
-            return;
-        }
-        let Some(instrument) = self.instruments.get_mut(slot) else {
-            self.show_toast(format!("Invalid instrument slot {slot}"));
-            return;
-        };
-        let synth_config = synth_preset_config(preset);
-        let gain = synth_config
-            .get("amp")
-            .and_then(|amp| amp.get("gainPct"))
-            .and_then(Value::as_u64)
-            .unwrap_or(80) as u8;
-        instrument.kind = "synth".into();
-        if instrument.auto_name {
-            instrument.name = derive_instrument_name(slot, "synth");
-        }
-        instrument.synth_config = synth_config;
-        instrument.synth_gain_pct = gain;
-        self.show_toast(format!("Loaded synth {preset}"));
-        if let Some(config) = self.instrument_audio_config(slot) {
-            self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: slot,
-                generation: 0,
-                config,
-            });
-        }
-        self.mark_fast_autosave_dirty();
-        self.show_instrument_identity_rows(slot);
     }
 
     pub(super) fn execute_confirmed_action(

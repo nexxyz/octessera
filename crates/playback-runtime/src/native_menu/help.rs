@@ -240,15 +240,19 @@ fn sample_effect_help_key(effect: &str) -> Option<String> {
     }
 }
 
+/// Sampler kits share one help row; every factory instrument preset has its own.
 fn synth_effect_help_key(effect: &str) -> Option<String> {
-    match effect {
-        value if value.starts_with("synth.preset:") => Some("action:synth_preset_load".into()),
-        value if value.starts_with("fm.preset:") => Some("action:fm_preset_load".into()),
-        value if value.starts_with("pluck.preset:") => Some("action:pluck_preset_load".into()),
-        value if value.starts_with("sample.kit:") => Some("action:sample_kit_load".into()),
-        value if value.starts_with("drum.kit:") => Some("action:drum_kit_load".into()),
-        _ => None,
-    }
+    let (kind, rest) = effect.split_once(':')?;
+    let action = match kind {
+        "sample.kit" => return Some("action:sample_kit_load".into()),
+        "synth.preset" => "synth_preset_load",
+        "fm.preset" => "fm_preset_load",
+        "pluck.preset" => "pluck_preset_load",
+        "drum.kit" => "drum_kit_load",
+        _ => return None,
+    };
+    let (_, id) = rest.split_once(':')?;
+    Some(format!("action:{action}:{id}"))
 }
 
 fn trigger_probability_effect_help_key(effect: &str) -> Option<String> {

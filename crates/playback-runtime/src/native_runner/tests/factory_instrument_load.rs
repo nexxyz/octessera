@@ -34,7 +34,7 @@ fn factory_load_cancel_and_back_do_not_change_patch_or_send_audio() {
         ("pluck", "pluck.preset:0:steel"),
         ("sampler", "sample.kit:0:sdbkit"),
         ("drum", "drum.kit:0:heavy"),
-        ("synth", "synth.preset:0:lead"),
+        ("synth", "synth.preset:0:saw_lead"),
     ] {
         runner.instruments[0].kind = kind.into();
         runner.menu.rebuild(runner.menu_config());
@@ -75,7 +75,7 @@ fn factory_load_confirm_replaces_one_slot_only_and_schedules_autosave() {
             "samples/Drum/kick/synthkit-kick.wav",
         ),
         ("drum", "drum.kit:2:tight", "drum", "260"),
-        ("synth", "synth.preset:2:bell", "synth", "sine"),
+        ("synth", "synth.preset:2:organ", "synth", "sine"),
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.auto_save_default = true;

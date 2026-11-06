@@ -22,7 +22,7 @@ pub(super) fn instrument_pluck_configs(instruments: &[NativeInstrumentSlot]) -> 
 }
 
 pub(super) fn pluck_default_config() -> Value {
-    let synth = synth_preset_config("init");
+    let synth = synth_default_config();
     json!({
         "decayMs": 1500,
         "brightnessPct": 65,
@@ -39,7 +39,7 @@ pub(super) fn pluck_default_config() -> Value {
 }
 
 pub(super) fn fm_default_config() -> Value {
-    let synth = synth_preset_config("init");
+    let synth = synth_default_config();
     json!({
         "ratio": "2",
         "ratioFineCents": 0,
@@ -139,77 +139,13 @@ pub(super) fn cutoff_hz_to_display(hz: i32) -> i32 {
     ((h / 20.0).ln() / (20_000.0_f64 / 20.0).ln() * 255.0).round() as i32
 }
 
-pub(super) fn synth_preset_config(id: &str) -> Value {
-    match id {
-        "soft_pad" => synth_config(
-            "triangle", 78, 0, -3, 50, "pulse", 64, 0, 3, 42, 72, 85, 240, 360, 78, 460, "lowpass",
-            3800, 18, 28, 20, 190, 420, 72, 500,
-        ),
-        "bright_pluck" => synth_config(
-            "saw", 86, 0, 0, 50, "pulse", 52, 1, 6, 30, 84, 100, 3, 120, 18, 70, "lowpass", 7200,
-            34, 54, 34, 2, 180, 16, 120,
-        ),
-        "bass_mono" => synth_config(
-            "saw", 84, -1, 0, 50, "square", 68, -1, -4, 50, 88, 72, 5, 160, 56, 120, "lowpass",
-            2100, 30, 22, 24, 7, 170, 44, 150,
-        ),
-        "hollow_pwm" => synth_config(
-            "pulse", 74, 0, -6, 34, "pulse", 74, 0, 6, 66, 82, 96, 9, 260, 60, 180, "bandpass",
-            2500, 48, 30, 28, 5, 220, 40, 180,
-        ),
-        "lead" => synth_config(
-            "saw", 88, 0, 5, 50, "triangle", 64, 1, -2, 50, 85, 100, 2, 130, 26, 110, "highpass",
-            650, 24, 46, 30, 3, 140, 24, 130,
-        ),
-        "bell" => synth_config(
-            "sine", 76, 0, 0, 50, "triangle", 60, 1, 12, 50, 76, 100, 1, 540, 0, 360, "notch",
-            3000, 52, 34, 12, 1, 380, 0, 280,
-        ),
-        "perc_hit" => synth_config(
-            "square", 84, 0, 0, 50, "pulse", 48, 1, 0, 20, 88, 100, 0, 90, 0, 120, "lowpass", 4200,
-            26, 72, 8, 0, 120, 0, 140,
-        ),
-        _ => synth_config(
-            "saw", 80, 0, 0, 50, "square", 72, 0, 0, 50, 80, 100, 5, 120, 70, 180, "lowpass", 8000,
-            0, 0, 0, 5, 120, 70, 180,
-        ),
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(super) fn synth_config(
-    osc1_wave: &str,
-    osc1_level: i32,
-    osc1_octave: i32,
-    osc1_detune: i32,
-    osc1_pulse_width: i32,
-    osc2_wave: &str,
-    osc2_level: i32,
-    osc2_octave: i32,
-    osc2_detune: i32,
-    osc2_pulse_width: i32,
-    gain: i32,
-    velocity_sensitivity: i32,
-    amp_attack: i32,
-    amp_decay: i32,
-    amp_sustain: i32,
-    amp_release: i32,
-    filter_type: &str,
-    cutoff: i32,
-    resonance: i32,
-    env_amount: i32,
-    key_tracking: i32,
-    filter_attack: i32,
-    filter_decay: i32,
-    filter_sustain: i32,
-    filter_release: i32,
-) -> Value {
+pub(super) fn synth_default_config() -> Value {
     json!({
-        "osc1": { "waveform": osc1_wave, "levelPct": osc1_level, "octave": osc1_octave, "detuneCents": osc1_detune, "pulseWidthPct": osc1_pulse_width },
-        "osc2": { "waveform": osc2_wave, "levelPct": osc2_level, "octave": osc2_octave, "detuneCents": osc2_detune, "pulseWidthPct": osc2_pulse_width },
-        "amp": { "gainPct": gain, "velocitySensitivityPct": velocity_sensitivity },
-        "ampEnv": { "attackMs": amp_attack, "decayMs": amp_decay, "sustainPct": amp_sustain, "releaseMs": amp_release },
-        "filter": { "type": filter_type, "cutoffHz": cutoff, "resonance": resonance, "envAmountPct": env_amount, "keyTrackingPct": key_tracking },
-        "filterEnv": { "attackMs": filter_attack, "decayMs": filter_decay, "sustainPct": filter_sustain, "releaseMs": filter_release }
+        "osc1": { "waveform": "saw", "levelPct": 80, "octave": 0, "detuneCents": 0, "pulseWidthPct": 50 },
+        "osc2": { "waveform": "square", "levelPct": 72, "octave": 0, "detuneCents": 0, "pulseWidthPct": 50 },
+        "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
+        "ampEnv": { "attackMs": 5, "decayMs": 120, "sustainPct": 70, "releaseMs": 180 },
+        "filter": { "type": "lowpass", "cutoffHz": 8000, "resonance": 0, "envAmountPct": 0, "keyTrackingPct": 0 },
+        "filterEnv": { "attackMs": 5, "decayMs": 120, "sustainPct": 70, "releaseMs": 180 }
     })
 }

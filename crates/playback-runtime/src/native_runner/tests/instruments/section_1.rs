@@ -5,7 +5,11 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let initial = runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"].clone();
 
-    runner.load_synth_preset(0, "bright_pluck");
+    runner
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+            "synth.preset:0:bright_pluck".into(),
+        ))
+        .unwrap();
     let changed = runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"].clone();
 
     assert_ne!(changed, initial);

@@ -88,7 +88,7 @@ pub(super) struct NativeSampleBrowser {
 impl NativeInstrumentSlot {
     pub(super) fn new(index: usize) -> Self {
         let kind = "synth".to_string();
-        let synth_config = synth_preset_config("init");
+        let synth_config = synth_default_config();
         let sample_amp_env =
             json!({ "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 5 });
         let sample_filter = json!({

@@ -1,8 +1,9 @@
 use super::super::voice_config_read::{cutoff_hz_to_display, synth_number};
 use super::tile_stamp_items::tile_stamp_items;
 use super::{
-    action_item, bool_item, enum_item, enum_item_from_strings, factory_load_group, group,
-    number_item, selected_index, InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
+    action_item, bool_item, enum_item, enum_item_from_strings, factory_load_group,
+    factory_preset_choices, group, number_item, selected_index, InstrumentMenuConfig,
+    NativeMenuAction, NativeMenuItem,
 };
 
 const SOUNDS: [&str; 8] = [
@@ -47,11 +48,7 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
             config.index,
             "kit",
             "Kit",
-            &[
-                ("default", "Default"),
-                ("tight", "Tight"),
-                ("heavy", "Heavy"),
-            ],
+            factory_preset_choices("drum"),
         ),
         enum_item_from_strings(
             "Voice",

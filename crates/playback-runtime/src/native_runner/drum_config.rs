@@ -1,4 +1,4 @@
-use super::{json, synth_preset_config, NativeInstrumentSlot, Value};
+use super::{json, synth_default_config, NativeInstrumentSlot, Value};
 
 pub(super) const DRUM_SOUNDS: [&str; 8] = [
     "kick",
@@ -96,7 +96,7 @@ pub(super) fn normalize_complete_voice_bank(payload: &mut Value) {
 }
 
 pub(super) fn drum_default_config() -> Value {
-    let synth = synth_preset_config("init");
+    let synth = synth_default_config();
     json!({
         "voices": DRUM_SOUNDS.iter().map(|sound| drum_voice_default(sound).expect("fixed drum sound")).collect::<Vec<_>>(),
         "assignments": [],

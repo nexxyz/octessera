@@ -1,0 +1,481 @@
+{
+  "synth": [
+    { "id": "init", "label": "Init", "set": {} },
+    {
+      "id": "round_bass",
+      "label": "Round Bass",
+      "set": {
+        "osc1": { "octave": -1 },
+        "osc2": { "levelPct": 60, "octave": -1, "detuneCents": -4 },
+        "amp": { "velocitySensitivityPct": 70 },
+        "ampEnv": { "attackMs": 2, "decayMs": 220, "sustainPct": 65, "releaseMs": 120 },
+        "filter": { "cutoffHz": 900, "resonance": 18, "envAmountPct": 40, "keyTrackingPct": 30 },
+        "filterEnv": { "attackMs": 2, "decayMs": 180, "sustainPct": 30, "releaseMs": 120 }
+      }
+    },
+    {
+      "id": "acid_bass",
+      "label": "Acid Bass",
+      "set": {
+        "osc1": { "levelPct": 85, "octave": -1 },
+        "osc2": { "levelPct": 0 },
+        "amp": { "gainPct": 70 },
+        "ampEnv": { "attackMs": 1, "decayMs": 240, "sustainPct": 45, "releaseMs": 80 },
+        "filter": { "cutoffHz": 500, "resonance": 70, "envAmountPct": 75, "keyTrackingPct": 20 },
+        "filterEnv": { "attackMs": 0, "decayMs": 170, "sustainPct": 0, "releaseMs": 90 }
+      }
+    },
+    {
+      "id": "saw_lead",
+      "label": "Saw Lead",
+      "set": {
+        "osc1": { "levelPct": 82, "detuneCents": 6 },
+        "osc2": { "waveform": "saw", "levelPct": 70, "detuneCents": -6 },
+        "ampEnv": { "attackMs": 4, "decayMs": 180, "sustainPct": 85, "releaseMs": 220 },
+        "filter": { "cutoffHz": 3200, "resonance": 28, "envAmountPct": 30, "keyTrackingPct": 50 },
+        "filterEnv": { "attackMs": 3, "decayMs": 220, "sustainPct": 50, "releaseMs": 200 }
+      }
+    },
+    {
+      "id": "soft_pad",
+      "label": "Soft Pad",
+      "set": {
+        "osc1": { "waveform": "triangle", "levelPct": 75, "detuneCents": -7 },
+        "osc2": { "waveform": "saw", "levelPct": 45, "detuneCents": 7 },
+        "amp": { "velocitySensitivityPct": 60 },
+        "ampEnv": { "attackMs": 50, "decayMs": 600, "sustainPct": 75, "releaseMs": 1400 },
+        "filter": { "cutoffHz": 2400, "resonance": 10, "envAmountPct": 15, "keyTrackingPct": 30 },
+        "filterEnv": { "attackMs": 60, "decayMs": 700, "sustainPct": 60, "releaseMs": 1200 }
+      }
+    },
+    {
+      "id": "bright_pluck",
+      "label": "Bright Pluck",
+      "set": {
+        "osc1": { "levelPct": 86 },
+        "osc2": { "waveform": "pulse", "levelPct": 52, "octave": 1, "detuneCents": 6, "pulseWidthPct": 30 },
+        "amp": { "gainPct": 84 },
+        "ampEnv": { "attackMs": 3, "sustainPct": 18, "releaseMs": 70 },
+        "filter": { "cutoffHz": 7200, "resonance": 34, "envAmountPct": 54, "keyTrackingPct": 34 },
+        "filterEnv": { "attackMs": 2, "decayMs": 180, "sustainPct": 16, "releaseMs": 120 }
+      }
+    },
+    {
+      "id": "brass_stab",
+      "label": "Brass Stab",
+      "set": {
+        "osc1": { "detuneCents": -8 },
+        "osc2": { "waveform": "saw", "levelPct": 80, "detuneCents": 8 },
+        "ampEnv": { "attackMs": 12, "decayMs": 320, "sustainPct": 70, "releaseMs": 200 },
+        "filter": { "cutoffHz": 1100, "resonance": 14, "envAmountPct": 55, "keyTrackingPct": 40 },
+        "filterEnv": { "attackMs": 30, "decayMs": 260, "sustainPct": 35, "releaseMs": 200 }
+      }
+    },
+    {
+      "id": "organ",
+      "label": "Organ",
+      "set": {
+        "osc1": { "waveform": "sine" },
+        "osc2": { "waveform": "triangle", "levelPct": 55, "octave": 1 },
+        "amp": { "velocitySensitivityPct": 40 },
+        "ampEnv": { "attackMs": 2, "decayMs": 0, "sustainPct": 100, "releaseMs": 70 },
+        "filter": { "cutoffHz": 20000 }
+      }
+    },
+    {
+      "id": "hollow_pwm",
+      "label": "Hollow PWM",
+      "set": {
+        "osc1": { "waveform": "pulse", "levelPct": 74, "detuneCents": -6, "pulseWidthPct": 34 },
+        "osc2": { "waveform": "pulse", "levelPct": 74, "detuneCents": 6, "pulseWidthPct": 66 },
+        "amp": { "gainPct": 82, "velocitySensitivityPct": 96 },
+        "ampEnv": { "attackMs": 9, "decayMs": 260, "sustainPct": 60 },
+        "filter": { "type": "bandpass", "cutoffHz": 2500, "resonance": 48, "envAmountPct": 30, "keyTrackingPct": 28 },
+        "filterEnv": { "decayMs": 220, "sustainPct": 40 }
+      }
+    },
+    {
+      "id": "chip_blip",
+      "label": "Chip Blip",
+      "set": {
+        "osc1": { "waveform": "square" },
+        "osc2": { "waveform": "pulse", "levelPct": 35, "octave": 1, "pulseWidthPct": 12 },
+        "ampEnv": { "attackMs": 0, "decayMs": 90, "sustainPct": 40, "releaseMs": 40 },
+        "filter": { "cutoffHz": 20000 }
+      }
+    },
+    {
+      "id": "zap",
+      "label": "Zap",
+      "set": {
+        "osc1": { "levelPct": 75 },
+        "osc2": { "waveform": "pulse", "levelPct": 60, "octave": 1, "pulseWidthPct": 25 },
+        "amp": { "gainPct": 62 },
+        "ampEnv": { "attackMs": 0, "decayMs": 140, "sustainPct": 0, "releaseMs": 90 },
+        "filter": { "cutoffHz": 250, "resonance": 82, "envAmountPct": 90, "keyTrackingPct": 40 },
+        "filterEnv": { "attackMs": 0, "decayMs": 70, "sustainPct": 0, "releaseMs": 60 }
+      }
+    }
+  ],
+  "fm": [
+    { "id": "init", "label": "Init", "set": {} },
+    {
+      "id": "soft_keys",
+      "label": "Soft Keys",
+      "set": {
+        "ratio": "1",
+        "index": 24,
+        "indexEnv": { "attackMs": 12, "decayMs": 420, "sustainPct": 12 },
+        "ampEnv": { "releaseMs": 650 }
+      }
+    },
+    {
+      "id": "tine_ep",
+      "label": "Tine EP",
+      "set": {
+        "ratio": "1",
+        "index": 35,
+        "velocityToIndexPct": 70,
+        "modShapePct": 20,
+        "indexEnv": { "attackMs": 0, "decayMs": 700, "sustainPct": 10, "releaseMs": 300 },
+        "ampEnv": { "attackMs": 2, "decayMs": 1600, "sustainPct": 20, "releaseMs": 450 }
+      }
+    },
+    {
+      "id": "thump_bass",
+      "label": "Thump Bass",
+      "set": {
+        "ratio": "1",
+        "index": 55,
+        "velocityToIndexPct": 30,
+        "indexEnv": { "attackMs": 0, "decayMs": 140, "sustainPct": 15, "releaseMs": 60 },
+        "ampEnv": { "attackMs": 1, "decayMs": 350, "sustainPct": 55, "releaseMs": 110 }
+      }
+    },
+    {
+      "id": "swell_bass",
+      "label": "Swell Bass",
+      "set": {
+        "index": 38,
+        "indexEnv": { "attackMs": 170, "decayMs": 230, "sustainPct": 54, "releaseMs": 85 },
+        "filter": { "cutoffHz": 8000, "resonance": 20 }
+      }
+    },
+    {
+      "id": "reed_lead",
+      "label": "Reed Lead",
+      "set": {
+        "index": 40,
+        "velocityToIndexPct": 25,
+        "modShapePct": 30,
+        "indexEnv": { "attackMs": 20, "decayMs": 250, "sustainPct": 65, "releaseMs": 150 },
+        "ampEnv": { "attackMs": 10, "decayMs": 200, "sustainPct": 85, "releaseMs": 160 }
+      }
+    },
+    {
+      "id": "warm_pad",
+      "label": "Warm Pad",
+      "set": {
+        "ratio": "1",
+        "ratioFineCents": 6,
+        "index": 22,
+        "modMixPct": 15,
+        "indexEnv": { "attackMs": 300, "decayMs": 900, "sustainPct": 45, "releaseMs": 1000 },
+        "ampEnv": { "attackMs": 60, "decayMs": 700, "sustainPct": 70, "releaseMs": 1300 }
+      }
+    },
+    {
+      "id": "mallet",
+      "label": "Mallet",
+      "set": {
+        "ratio": "4",
+        "velocityToIndexPct": 40,
+        "indexEnv": { "attackMs": 0, "decayMs": 55, "sustainPct": 0, "releaseMs": 40 },
+        "ampEnv": { "attackMs": 0, "decayMs": 500, "sustainPct": 0, "releaseMs": 250 }
+      }
+    },
+    {
+      "id": "bell",
+      "label": "Bell",
+      "set": {
+        "ratio": "3",
+        "index": 78,
+        "indexEnv": { "decayMs": 850, "sustainPct": 0 },
+        "ampEnv": { "decayMs": 900, "sustainPct": 0, "releaseMs": 700 }
+      }
+    },
+    {
+      "id": "glass",
+      "label": "Glass",
+      "set": {
+        "ratio": "5",
+        "ratioFineCents": 4,
+        "index": 30,
+        "indexEnv": { "attackMs": 0, "decayMs": 900, "sustainPct": 0, "releaseMs": 500 },
+        "ampEnv": { "attackMs": 0, "decayMs": 1300, "sustainPct": 0, "releaseMs": 800 }
+      }
+    },
+    {
+      "id": "clang",
+      "label": "Clang",
+      "set": {
+        "ratio": "3",
+        "ratioFineCents": 37,
+        "index": 90,
+        "velocityToIndexPct": 50,
+        "modShapePct": 45,
+        "indexEnv": { "attackMs": 0, "decayMs": 1100, "sustainPct": 15, "releaseMs": 600 },
+        "ampEnv": { "attackMs": 0, "decayMs": 1700, "sustainPct": 0, "releaseMs": 900 }
+      }
+    }
+  ],
+  "pluck": [
+    { "id": "init", "label": "Init", "set": {} },
+    { "id": "nylon", "label": "Nylon", "set": { "decayMs": 2400, "brightnessPct": 35, "pickPositionPct": 32 } },
+    { "id": "steel", "label": "Steel", "set": { "decayMs": 3200, "brightnessPct": 88, "pickPositionPct": 17 } },
+    { "id": "muted", "label": "Muted", "set": { "decayMs": 350, "brightnessPct": 22, "pickPositionPct": 38 } },
+    {
+      "id": "harp",
+      "label": "Harp",
+      "set": {
+        "decayMs": 2800,
+        "brightnessPct": 55,
+        "pickPositionPct": 12,
+        "pickDepthPct": 50,
+        "bodyAmountPct": 20,
+        "bodyFrequencyHz": 700,
+        "ampEnv": { "releaseMs": 1400 },
+        "filter": { "cutoffHz": 20000 }
+      }
+    },
+    {
+      "id": "koto",
+      "label": "Koto",
+      "set": {
+        "decayMs": 1800,
+        "brightnessPct": 80,
+        "pickPositionPct": 8,
+        "pickDepthPct": 85,
+        "dispersionPct": 15,
+        "bodyAmountPct": 40,
+        "bodyFrequencyHz": 1200
+      }
+    },
+    {
+      "id": "kalimba",
+      "label": "Kalimba",
+      "set": {
+        "brightnessPct": 81,
+        "pickPositionPct": 41,
+        "pickDepthPct": 78,
+        "dispersionPct": 37,
+        "bodyAmountPct": 81,
+        "bodyFrequencyHz": 884,
+        "filter": { "cutoffHz": 16000 }
+      }
+    },
+    {
+      "id": "pizz",
+      "label": "Pizz",
+      "set": {
+        "decayMs": 420,
+        "brightnessPct": 40,
+        "pickPositionPct": 30,
+        "pickDepthPct": 45,
+        "bodyAmountPct": 60,
+        "bodyFrequencyHz": 450,
+        "ampEnv": { "releaseMs": 220 }
+      }
+    },
+    {
+      "id": "pluck_bass",
+      "label": "Pluck Bass",
+      "set": {
+        "decayMs": 1100,
+        "brightnessPct": 28,
+        "pickPositionPct": 35,
+        "pickDepthPct": 75,
+        "bodyAmountPct": 55,
+        "bodyFrequencyHz": 180,
+        "ampEnv": { "releaseMs": 200 },
+        "filter": { "cutoffHz": 1800, "resonance": 10 }
+      }
+    },
+    {
+      "id": "sitar_buzz",
+      "label": "Sitar Buzz",
+      "set": {
+        "decayMs": 2600,
+        "brightnessPct": 95,
+        "pickPositionPct": 6,
+        "pickDepthPct": 90,
+        "dispersionPct": 70,
+        "bodyAmountPct": 35,
+        "bodyFrequencyHz": 1500,
+        "ampEnv": { "releaseMs": 1000 }
+      }
+    },
+    {
+      "id": "droplet",
+      "label": "Droplet",
+      "set": {
+        "decayMs": 260,
+        "brightnessPct": 100,
+        "pickPositionPct": 50,
+        "pickDepthPct": 20,
+        "dispersionPct": 60,
+        "bodyAmountPct": 30,
+        "bodyFrequencyHz": 1800,
+        "ampEnv": { "releaseMs": 150 },
+        "filter": { "cutoffHz": 20000 }
+      }
+    }
+  ],
+  "drum": [
+    { "id": "default", "label": "Default", "set": {} },
+    {
+      "id": "tight",
+      "label": "Tight",
+      "set": {
+        "voices": [
+          { "decayMs": 260, "tonePct": 50 },
+          { "decayMs": 140, "tonePct": 82 },
+          { "decayMs": 50, "tonePct": 95 },
+          { "decayMs": 260, "tonePct": 90 },
+          { "decayMs": 300, "tonePct": 65 },
+          { "decayMs": 190, "tonePct": 75 },
+          { "decayMs": 135, "tonePct": 90 },
+          { "decayMs": 65, "tonePct": 90 }
+        ]
+      }
+    },
+    {
+      "id": "heavy",
+      "label": "Heavy",
+      "set": {
+        "voices": [
+          { "decayMs": 750, "tonePct": 25, "tuneSemis": -4 },
+          { "decayMs": 360, "tonePct": 55 },
+          { "decayMs": 110, "tonePct": 75 },
+          { "decayMs": 850, "tonePct": 72 },
+          { "decayMs": 880, "tonePct": 40, "tuneSemis": -3 },
+          { "decayMs": 590, "tonePct": 48, "tuneSemis": -2 },
+          { "decayMs": 320, "tonePct": 65 },
+          { "decayMs": 150, "tonePct": 60 }
+        ]
+      }
+    },
+    {
+      "id": "boom",
+      "label": "Boom",
+      "set": {
+        "voices": [
+          { "decayMs": 1400, "tonePct": 15, "sweepSemis": 12, "sweepMs": 90, "noiseMixPct": 3 },
+          { "decayMs": 260, "tonePct": 55, "noiseMixPct": 65 },
+          { "decayMs": 45, "tonePct": 100 },
+          { "decayMs": 480 },
+          { "decayMs": 900, "sweepSemis": 5, "sweepMs": 120, "tuneSemis": -2 },
+          { "decayMs": 650, "tuneSemis": 3 },
+          {},
+          { "decayMs": 45 }
+        ]
+      }
+    },
+    {
+      "id": "lo_fi",
+      "label": "Lo-Fi",
+      "set": {
+        "voices": [
+          { "tonePct": 20, "tuneSemis": -2, "levelPct": 90 },
+          { "tonePct": 40, "tuneSemis": -2, "noiseMixPct": 90, "levelPct": 90 },
+          { "tonePct": 55, "tuneSemis": -2, "decayMs": 70, "levelPct": 90 },
+          { "tonePct": 50, "tuneSemis": -2, "decayMs": 350, "levelPct": 90 },
+          { "tonePct": 30, "tuneSemis": -2, "levelPct": 90 },
+          { "tonePct": 35, "tuneSemis": -2, "levelPct": 90 },
+          { "tonePct": 45, "tuneSemis": -2, "levelPct": 90 },
+          { "tonePct": 50, "tuneSemis": -2, "levelPct": 90 }
+        ]
+      }
+    },
+    {
+      "id": "electro",
+      "label": "Electro",
+      "set": {
+        "voices": [
+          { "decayMs": 380, "tonePct": 45, "sweepSemis": 36, "sweepMs": 30, "noiseMixPct": 0 },
+          { "decayMs": 180, "tonePct": 92, "noiseMixPct": 55, "tuneSemis": 3 },
+          { "decayMs": 40 },
+          {},
+          { "decayMs": 350, "sweepSemis": 24, "sweepMs": 140, "noiseMixPct": 0 },
+          { "decayMs": 280, "sweepSemis": 24, "sweepMs": 110, "noiseMixPct": 0 },
+          {},
+          { "decayMs": 60, "sweepSemis": 12, "sweepMs": 20 }
+        ]
+      }
+    },
+    {
+      "id": "brush",
+      "label": "Brush",
+      "set": {
+        "voices": [
+          { "decayMs": 260, "tonePct": 20, "sweepSemis": 6, "sweepMs": 40, "levelPct": 80 },
+          { "attackMs": 20, "decayMs": 400, "tonePct": 40, "noiseMixPct": 100 },
+          { "attackMs": 2, "decayMs": 70, "tonePct": 60 },
+          { "decayMs": 1300, "tonePct": 75, "noiseMixPct": 85, "levelPct": 75 },
+          { "decayMs": 450, "tonePct": 35 },
+          { "decayMs": 330, "tonePct": 40 },
+          { "decayMs": 160, "levelPct": 70 },
+          { "decayMs": 80, "tonePct": 70 }
+        ]
+      }
+    },
+    {
+      "id": "hand_perc",
+      "label": "Hand Perc",
+      "set": {
+        "voices": [
+          { "decayMs": 280, "tonePct": 55, "sweepSemis": 6, "sweepMs": 30 },
+          { "decayMs": 110, "tonePct": 90, "noiseMixPct": 40 },
+          { "attackMs": 8, "decayMs": 60, "tonePct": 70, "noiseMixPct": 100 },
+          { "attackMs": 15, "decayMs": 220, "tonePct": 65 },
+          { "tuneSemis": 5, "decayMs": 260, "sweepSemis": 3, "sweepMs": 20 },
+          { "tuneSemis": 9, "decayMs": 180, "sweepSemis": 3, "sweepMs": 15 },
+          { "decayMs": 90, "tonePct": 60 },
+          { "tuneSemis": 7, "decayMs": 50, "tonePct": 95 }
+        ]
+      }
+    },
+    {
+      "id": "minimal",
+      "label": "Minimal",
+      "set": {
+        "voices": [
+          { "decayMs": 300, "tonePct": 30, "sweepSemis": 18, "sweepMs": 40, "noiseMixPct": 0 },
+          { "decayMs": 120, "tonePct": 85, "noiseMixPct": 90 },
+          { "decayMs": 30, "tonePct": 100 },
+          { "decayMs": 180, "tonePct": 100 },
+          { "decayMs": 120, "tuneSemis": 5, "sweepSemis": 0, "sweepMs": 0, "noiseMixPct": 0 },
+          { "decayMs": 90, "tuneSemis": 12, "sweepSemis": 0, "sweepMs": 0, "noiseMixPct": 0 },
+          { "decayMs": 180, "tonePct": 85 },
+          { "decayMs": 45, "tonePct": 100 }
+        ]
+      }
+    },
+    {
+      "id": "toy_box",
+      "label": "Toy Box",
+      "set": {
+        "voices": [
+          { "tuneSemis": 12, "decayMs": 210, "tonePct": 85, "sweepSemis": 12, "sweepMs": 20, "levelPct": 85 },
+          { "tuneSemis": 9, "decayMs": 110, "tonePct": 95, "levelPct": 85 },
+          { "tuneSemis": 7, "decayMs": 43, "tonePct": 100, "levelPct": 85 },
+          { "tuneSemis": 7, "decayMs": 325, "tonePct": 100, "levelPct": 85 },
+          { "tuneSemis": 10, "decayMs": 250, "tonePct": 90, "noiseMixPct": 0, "levelPct": 85 },
+          { "tuneSemis": 12, "decayMs": 160, "tonePct": 95, "noiseMixPct": 0, "levelPct": 85 },
+          { "tuneSemis": 8, "decayMs": 120, "tonePct": 95, "levelPct": 85 },
+          { "tuneSemis": 11, "decayMs": 48, "tonePct": 100, "levelPct": 85 }
+        ]
+      }
+    }
+  ]
+}

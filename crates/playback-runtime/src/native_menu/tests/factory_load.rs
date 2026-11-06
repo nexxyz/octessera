@@ -2,28 +2,24 @@ use super::*;
 
 #[test]
 fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
+    let presets = |family: &str| {
+        crate::instrument_presets::instrument_presets(family)
+            .iter()
+            .map(|preset| (preset.id.as_str(), preset.label.as_str()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        presets("synth")[..3],
+        [
+            ("init", "Init"),
+            ("round_bass", "Round Bass"),
+            ("acid_bass", "Acid Bass")
+        ]
+    );
     for (kind, effect_kind, family, choices) in [
-        (
-            "fm",
-            "fm",
-            "preset",
-            vec![
-                ("init", "Init"),
-                ("soft_keys", "Soft Keys"),
-                ("bell", "Bell"),
-            ],
-        ),
-        (
-            "pluck",
-            "pluck",
-            "preset",
-            vec![
-                ("init", "Init"),
-                ("nylon", "Nylon"),
-                ("steel", "Steel"),
-                ("muted", "Muted"),
-            ],
-        ),
+        ("synth", "synth", "preset", presets("synth")),
+        ("fm", "fm", "preset", presets("fm")),
+        ("pluck", "pluck", "preset", presets("pluck")),
         (
             "sampler",
             "sample",
@@ -34,16 +30,7 @@ fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
                 ("distkit", "Dist Kit"),
             ],
         ),
-        (
-            "drum",
-            "drum",
-            "kit",
-            vec![
-                ("default", "Default"),
-                ("tight", "Tight"),
-                ("heavy", "Heavy"),
-            ],
-        ),
+        ("drum", "drum", "kit", presets("drum")),
     ] {
         let mut cfg = config();
         cfg.instrument_types[0] = kind.into();
@@ -65,7 +52,7 @@ fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
                 ))
             );
         }
-        for other in ["fm", "pluck", "sample", "drum"] {
+        for other in ["synth", "fm", "pluck", "sample", "drum"] {
             if other != effect_kind {
                 assert!(menu
                     .item_for_key(&format!("{other}.kit.0.default"))
@@ -76,11 +63,12 @@ fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
             }
         }
     }
-    for kind in ["synth", "midi", "none"] {
+    for kind in ["midi", "none"] {
         let mut cfg = config();
         cfg.instrument_types[0] = kind.into();
         let menu = NativeMenuModel::new(cfg);
         for key in [
+            "synth.preset.0.init",
             "fm.preset.0.init",
             "pluck.preset.0.init",
             "sample.kit.0.sdbkit",
@@ -95,15 +83,21 @@ fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
 fn factory_load_help_has_specific_confirmation_and_selector_copy() {
     for (kind, label, help_key, selector) in [
         (
+            "synth",
+            "Acid Bass",
+            "action:synth_preset_load:acid_bass",
+            "key:instruments.*.synth.osc1.waveform",
+        ),
+        (
             "fm",
             "Soft Keys",
-            "action:fm_preset_load",
+            "action:fm_preset_load:soft_keys",
             "key:instruments.*.fm.ratio",
         ),
         (
             "pluck",
             "Nylon",
-            "action:pluck_preset_load",
+            "action:pluck_preset_load:nylon",
             "key:instruments.*.pluck.filter.type",
         ),
         (
@@ -115,7 +109,7 @@ fn factory_load_help_has_specific_confirmation_and_selector_copy() {
         (
             "drum",
             "Heavy",
-            "action:drum_kit_load",
+            "action:drum_kit_load:heavy",
             "key:instruments.*.drum.voice",
         ),
     ] {
@@ -132,7 +126,11 @@ fn factory_load_help_has_specific_confirmation_and_selector_copy() {
         let help =
             crate::native_help::resolve_native_help_entry(action).expect("factory action help");
         assert_eq!(help.key, help_key);
-        assert!(format!("{} {}", help.line1, help.line2).contains("Cancel"));
+        if kind == "sampler" {
+            assert!(format!("{} {}", help.line1, help.line2).contains("Cancel"));
+        } else {
+            assert_eq!(help.title, label);
+        }
         let group_path = action.path.rsplit_once(" > Load > ").unwrap().0;
         for path in [group_path, &format!("{group_path} > Load")] {
             let target = targets

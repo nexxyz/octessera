@@ -2,6 +2,7 @@
 
 mod deferred_default_save;
 mod delay_timing;
+mod instrument_presets;
 mod native_help;
 mod native_menu;
 mod native_runner;

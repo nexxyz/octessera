@@ -171,6 +171,8 @@ point at them.
 
 - **Presets and kits.** Synth, FM and Plucked have **Preset > Load**; Drum and
   Sampler have **Kit > Load**. Loading asks first and only changes that slot.
+  The list below says what each one is for, and so does *Shift* + *Fn* +
+  **Main** on its row.
 - **Note Mode.** `oneshot` gives each trigger a finite note. `hold` keeps the
   note sounding until a matching `note_off`, which is what Off events and the
   scan's empty action are for. Drum hits are always one-shot.
@@ -193,6 +195,75 @@ point at them.
   gear. Flip it back to `MIDI inst.` and any note still held gets its
   note-off, so nothing hangs on the other end. Muting a slot in Play Mix
   silences its MIDI copy too, the same tidy way.
+
+### Factory sounds
+
+Every list starts with the plain default (Init, or Default for Drum), and the rest are
+starting points I liked enough to keep. Load one, then turn knobs until it's yours. Drum kits
+never change a voice's Sound, so V1 stays the kick and your stamps keep their jobs.
+
+**Synth**
+
+| Preset | What it is |
+|---|---|
+| Init | The honest blank page: a saw and a square through a gentle lowpass. |
+| Round Bass | Warm, rubbery low end that sits under anything. |
+| Acid Bass | One saw, one squelchy resonant filter, no apologies. |
+| Saw Lead | Two detuned saws that actually sing a line. |
+| Soft Pad | A soft cushion that blooms after short notes. |
+| Bright Pluck | Sparkly, short and generous with the delay. |
+| Brass Stab | Fat detuned saws with a brassy filter blip. |
+| Organ | Two drawbars and a draught: clicky stabs, or held chords. |
+| Hollow PWM | Nasal, hollow and a little woody. |
+| Chip Blip | Square-wave game sounds. Also the cheapest synth here. |
+| Zap | Resonant laser bloops for accents and nonsense. |
+
+**FM**
+
+| Preset | What it is |
+|---|---|
+| Init | A neutral 2:1 FM starting point. |
+| Soft Keys | A mellow electric piano, rounded off. |
+| Tine EP | The electric piano that barks when you play it hard. |
+| Thump Bass | Punchy, woody FM bass with a growl up top. |
+| Swell Bass | A bass whose harmonics creep in after each note starts. |
+| Reed Lead | A woody, clarinet-ish line. |
+| Warm Pad | A slow-beating FM haze. |
+| Mallet | A marimba-ish knock with a quick bloom. |
+| Bell | Big, bright and churchy. |
+| Glass | Small, high and fragile. |
+| Clang | Detuned metal: gongs, pipes, the odd bin lid. |
+
+**Plucked**
+
+| Preset | What it is |
+|---|---|
+| Init | A plain ringing string. |
+| Nylon | A warm classical guitar. |
+| Steel | A bright, long-ringing steel string. |
+| Muted | A palm-muted chug. |
+| Harp | Clean, long and gentle, with lots of room for arps. |
+| Koto | A twangy near-bridge pluck made for pentatonics. |
+| Kalimba | Tines and a wooden box. |
+| Pizz | A string section plucking politely. |
+| Pluck Bass | An upright-ish thump. |
+| Sitar Buzz | Wiry, buzzy, sympathetic jangle. |
+| Droplet | A water plink, not really a string at all. |
+
+**Drum kits**
+
+| Preset | What it is |
+|---|---|
+| Default | A balanced all-rounder. |
+| Tight | Dry and short. |
+| Heavy | Big, boomy and tuned down. |
+| Boom | A long sub kick and a snappy top, with 808 energy. |
+| Lo-Fi | Dusty and dark, slightly flat. |
+| Electro | A zappy kick and laser toms. |
+| Brush | Jazz brushes, a ride on V4 and a cross-stick on V8. |
+| Hand Perc | Congas, bongos, a shaker and a clave. |
+| Minimal | Ticks, blips and a polite thud. |
+| Toy Box | Everything pitched up and a bit too cheerful. |
 
 ### Drum and Sampler tiles are stamps
 

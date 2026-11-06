@@ -204,7 +204,7 @@ fn factory_sound_and_synth_preset_loads_update_their_instrument_in_place() {
         ("fm", "fm.preset.2.bell"),
         ("drum", "drum.kit.2.tight"),
         ("sampler", "sample.kit.2.synthkit"),
-        ("synth", "synth.preset.2.bell"),
+        ("synth", "synth.preset.2.organ"),
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.instruments[2].kind = kind.into();

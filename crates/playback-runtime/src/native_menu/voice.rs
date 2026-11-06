@@ -14,6 +14,7 @@ mod sampler;
 mod synth;
 mod tile_stamp_items;
 
+use crate::instrument_presets::instrument_presets;
 use drum::drum_group;
 use fm::fm_group;
 use midi::midi_group;
@@ -72,22 +73,22 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_browser: Option<&'a NativeSampleBrowserConfig>,
 }
 
-pub(super) fn factory_load_group(
+pub(super) fn factory_load_group<'c>(
     kind: &str,
     index: usize,
     family: &str,
     label: &str,
-    choices: &[(&str, &str)],
+    choices: impl IntoIterator<Item = (&'c str, &'c str)>,
 ) -> NativeMenuItem {
     group(
         label,
         vec![pick_list(group(
             "Load",
             choices
-                .iter()
+                .into_iter()
                 .map(|(id, label)| {
                     action_item(
-                        *label,
+                        label,
                         format!("{kind}.{family}.{index}.{id}"),
                         NativeMenuAction::PlatformEffect(format!("{kind}.{family}:{index}:{id}")),
                     )
@@ -95,6 +96,15 @@ pub(super) fn factory_load_group(
                 .collect(),
         ))],
     )
+}
+
+/// The factory presets of an instrument family as menu `(id, label)` choices.
+pub(super) fn factory_preset_choices(
+    family: &str,
+) -> impl Iterator<Item = (&'static str, &'static str)> {
+    instrument_presets(family)
+        .iter()
+        .map(|preset| (preset.id.as_str(), preset.label.as_str()))
 }
 
 pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
