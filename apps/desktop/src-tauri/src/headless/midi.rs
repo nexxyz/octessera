@@ -16,7 +16,8 @@ pub struct PlayedMidi {
 impl HeadlessSession {
     /// Answers as the platform service does after listing one MIDI output and one input, so the
     /// MIDI Host menus can pick them. The port id names no real port: a pick connects nothing,
-    /// and the runtime still sends to its MIDI out, which [`Self::midi_out`] records.
+    /// and the runtime still sends to its MIDI out, which [`Self::midi_out`] records. Opening a
+    /// port list scans the real ports, so call this after that scan has answered.
     pub fn list_test_midi_ports(&mut self) -> Result<(), String> {
         let ports = vec![MidiPort {
             id: "999".into(),

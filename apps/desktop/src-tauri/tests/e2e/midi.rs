@@ -26,18 +26,19 @@ fn config(session: &HeadlessSession) -> Value {
     session.config_payload()["runtimeConfig"].clone()
 }
 
-/// MIDI Active on, then the listed test port picked under MIDI Host for MIDI Out and MIDI In.
+/// MIDI Active on, then the test port picked under MIDI Host for MIDI Out and MIDI In. Opening
+/// a port list scans this computer's ports; the test port replaces that answer once it is in.
 fn enable_midi(session: &mut HeadlessSession) {
-    session.list_test_midi_ports().unwrap();
     open(session, &["System", "MIDI"]);
     set_until(session, "MIDI Active", |session| {
         config(session)["midi"]["enabled"] == true
     });
     for direction in ["MIDI Out", "MIDI In"] {
-        open(
-            session,
-            &["System", "MIDI", "MIDI Host", direction, "e2e port"],
-        );
+        open(session, &["System", "MIDI", "MIDI Host", direction]);
+        session.settle().unwrap();
+        session.list_test_midi_ports().unwrap();
+        select(session, "e2e port");
+        tap(session, press_main());
     }
     let midi = config(session)["midi"].clone();
     assert_eq!(
