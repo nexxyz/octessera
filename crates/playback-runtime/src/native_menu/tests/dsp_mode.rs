@@ -74,8 +74,8 @@ fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
     let enabled_entry = crate::native_help::resolve_native_help_entry(&enabled)
         .expect("global MIDI enabled help entry");
     let enabled_copy = format!("{} {}", enabled_entry.line1, enabled_entry.line2).to_lowercase();
-    assert!(enabled_copy.contains("global runtime gate"));
-    assert!(enabled_copy.contains("does not select a port or device"));
+    assert!(enabled_copy.contains("switches all midi"));
+    assert!(enabled_copy.contains("pick the ports under midi host"));
 
     let usb_midi = menu
         .help_targets()

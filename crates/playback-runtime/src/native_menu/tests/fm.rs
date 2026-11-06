@@ -63,7 +63,7 @@ fn fm_type_and_eight_group_rows_use_standard_navigation() {
             .collect::<Vec<_>>(),
         [
             "Ratio",
-            "Fine cents",
+            "Fine",
             "Index",
             "Vel to Index",
             "Mod Shape",
@@ -203,28 +203,28 @@ fn fm_fine_cents_display_signed_values_and_back_returns_to_tone_row() {
     let key = "instruments.0.fm.ratioFineCents";
     assert!(menu.focus_item_key(key));
     let selected_row = menu.snapshot().selected_row.unwrap();
-    assert_eq!(menu.snapshot().lines[selected_row], "  Fine cents +0c");
+    assert_eq!(menu.snapshot().lines[selected_row], "  Fine +0c");
 
     let _ = menu.press();
     menu.turn(25);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "  Fine cents +25c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine +25c");
 
     menu.turn(-50);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "  Fine cents -25c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine -25c");
 
     menu.turn(25);
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "  Fine cents +0c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine +0c");
 
     menu.back();
     let snapshot = menu.snapshot();
     let selected_row = snapshot.selected_row.unwrap();
-    assert_eq!(snapshot.lines[selected_row], "  Fine cents +0c");
+    assert_eq!(snapshot.lines[selected_row], "  Fine +0c");
 
     menu.back();
     assert_eq!(menu.current_label(), Some("Tone"));

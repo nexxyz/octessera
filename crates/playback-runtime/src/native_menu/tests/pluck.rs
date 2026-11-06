@@ -21,7 +21,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
         .iter()
         .any(|line| line == "  Type Plucked"));
     let slot = &menu.root.children[2].children[0].children[0];
-    assert_eq!(slot.label, "I1: Pluck direct");
+    assert_eq!(slot.label, "I1: Plucked direct");
     assert_eq!(
         slot.children
             .iter()
@@ -66,7 +66,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
             "Pick Depth",
             "Stiffness",
             "Body Amt",
-            "Body Hz"
+            "Body Freq"
         ]
     );
     assert!(menu.focus_current_group_label("Plucked"));
@@ -97,7 +97,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.lines.len(), 7);
     let selected_row = snapshot.selected_row.unwrap();
-    assert!(snapshot.lines[selected_row].starts_with("  Body Hz"));
+    assert!(snapshot.lines[selected_row].starts_with("  Body Freq"));
     menu.back();
     assert_eq!(menu.current_label(), Some("String"));
 }

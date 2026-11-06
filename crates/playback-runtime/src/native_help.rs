@@ -136,17 +136,18 @@ fn match_tier(entry: &NativeHelpEntry, target: &NativeMenuHelpTarget) -> i32 {
     }
 }
 
+/// Whether a help path matches the row's path or one of its trailing segments, one pattern
+/// segment per path segment: a `*` never reaches into a deeper submenu.
 fn path_match(pattern: &str, value: &str) -> bool {
-    if glob_match(pattern, value) {
-        return true;
-    }
-    let normalized_pattern = pattern.strip_prefix("Menu > ").unwrap_or(pattern);
-    let normalized_value = value.strip_prefix("Menu > ").unwrap_or(value);
-    if glob_match(normalized_pattern, normalized_value) {
-        return true;
-    }
-    let segments = normalized_value.split(" > ").collect::<Vec<_>>();
-    (1..segments.len()).any(|index| glob_match(normalized_pattern, &segments[index..].join(" > ")))
+    let pattern = pattern.strip_prefix("Menu > ").unwrap_or(pattern);
+    let value = value.strip_prefix("Menu > ").unwrap_or(value);
+    let pattern = pattern.split(" > ").collect::<Vec<_>>();
+    let segments = value.split(" > ").collect::<Vec<_>>();
+    segments.len() >= pattern.len()
+        && pattern
+            .iter()
+            .zip(&segments[segments.len() - pattern.len()..])
+            .all(|(pattern, segment)| glob_match(pattern, segment))
 }
 
 fn glob_match(pattern: &str, value: &str) -> bool {

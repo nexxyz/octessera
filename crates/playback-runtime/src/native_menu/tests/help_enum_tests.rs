@@ -100,7 +100,12 @@ fn assert_specific_enum_help(target: &EnumHelpTarget) {
     let missing = target
         .options
         .iter()
-        .filter(|option| !contains_help_option(&copy, option))
+        .filter(|option| {
+            let key = target.target.key.strip_prefix("key:");
+            let shown = crate::native_menu::format_values::format_display_value(key, option);
+            !contains_help_option(&copy, &shown)
+                && !(shown.starts_with(option.as_str()) && contains_help_option(&copy, option))
+        })
         .collect::<Vec<_>>();
     assert!(
         missing.is_empty(),
@@ -150,8 +155,12 @@ fn bounded_contains(copy: &str, option: &str) -> bool {
         let start = offset + found;
         let end = start + option.len();
         let before = copy[..start].chars().next_back();
-        let after = copy[end..].chars().next();
-        if !before.is_some_and(is_enum_value_char) && !after.is_some_and(is_enum_value_char) {
+        let mut rest = copy[end..].chars();
+        let after = rest.next();
+        let sentence_end = after == Some('.') && rest.next().is_none_or(char::is_whitespace);
+        if !before.is_some_and(is_enum_value_char)
+            && (sentence_end || !after.is_some_and(is_enum_value_char))
+        {
             return true;
         }
         offset = end;

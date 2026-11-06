@@ -6,8 +6,10 @@ const MENU_HELP_TSV: &str = include_str!("../../../../../resources/menu-help-tex
 #[test]
 pub(crate) fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
     let mut targets = Vec::new();
-    let mut missing = Vec::new();
-    for config in representative_help_configs() {
+    for config in representative_help_configs()
+        .into_iter()
+        .chain(super::row_width::behavior_configs())
+    {
         let menu = NativeMenuModel::new(config);
         targets.extend(
             menu.help_targets()
@@ -17,12 +19,11 @@ pub(crate) fn native_menu_help_targets_resolve_to_specific_tsv_rows() {
     }
     targets.sort_by(|a, b| (&a.kind, &a.key, &a.path).cmp(&(&b.kind, &b.key, &b.path)));
     targets.dedup_by(|a, b| a.kind == b.kind && a.key == b.key && a.path == b.path);
-    missing.extend(
-        targets
-            .into_iter()
-            .filter(|target| crate::native_help::resolve_native_help_entry(target).is_none())
-            .map(|target| format!("{} {} {}", target.kind, target.key, target.path)),
-    );
+    let mut missing = targets
+        .into_iter()
+        .filter(|target| crate::native_help::resolve_native_help_entry(target).is_none())
+        .map(|target| format!("{} {} {}", target.kind, target.key, target.path))
+        .collect::<Vec<_>>();
     missing.sort();
     missing.dedup();
     assert!(missing.is_empty(), "missing help entries: {missing:#?}");
@@ -61,7 +62,7 @@ pub(crate) fn hdmi_help_covers_terminal_and_bars_per_cycle_copy() {
     let mode_entry =
         crate::native_help::resolve_native_help_entry(&mode_target).expect("HDMI mode help entry");
     let mode_copy = format!("{} {}", mode_entry.line1, mode_entry.line2).to_lowercase();
-    for phrase in ["terminal", "live-grid", "cycle-behaviors"] {
+    for phrase in ["terminal", "live grid", "cycle"] {
         assert!(
             mode_copy.contains(phrase),
             "HDMI mode help omitted {phrase}"
@@ -77,8 +78,8 @@ pub(crate) fn hdmi_help_covers_terminal_and_bars_per_cycle_copy() {
         .expect("Bars per cycle help entry");
     assert_eq!(cycle_entry.title, "Bars per cycle");
     let cycle_copy = format!("{} {}", cycle_entry.line1, cycle_entry.line2);
-    assert!(cycle_copy.contains("musical bars each behavior remains shown"));
-    assert!(cycle_copy.contains("before Cycle Behaviors advances"));
+    assert!(cycle_copy.contains("bars each behavior stays on screen"));
+    assert!(cycle_copy.contains("Cycle mode"));
 }
 
 #[test]
@@ -271,7 +272,7 @@ pub(crate) fn affected_behavior_help_targets_keep_one_accurate_row() {
             "*",
             "key:layers.*.build.behaviorConfig.seed",
             "number",
-            &["twinkle", "pattern"],
+            &["stars", "pattern"],
         ),
         (
             "Menu > Build > L*: * > Erosion",
@@ -406,7 +407,7 @@ pub(crate) fn native_menu_group_help_rows_match_current_paths() {
                 || entry.path.contains("Instrument * > Assign")
                 || entry.path.contains("Instrument * > Velocity Levels")
                 || entry.path.contains("Instrument * > Level ")
-                || entry.path.contains("Instrument * > Base Velocity")
+                || entry.path.contains("Instrument * > Base Vel")
                 || entry.path.contains("Instrument * > Volume")
                 || entry.path.contains("Instrument * > Filter")
                 || entry.path.contains("Volume > Envelope")

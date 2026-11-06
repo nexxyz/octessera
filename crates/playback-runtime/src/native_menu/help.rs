@@ -121,6 +121,18 @@ fn menu_action_help_target(action: &NativeMenuAction) -> (String, String) {
         NativeMenuAction::ClearParamBinding { .. } => {
             ("action:param_clear".into(), "action".into())
         }
+        NativeMenuAction::SetAuxClick {
+            action: Some(action),
+            ..
+        }
+        | NativeMenuAction::SetShiftAuxClick {
+            action: Some(action),
+            ..
+        }
+        | NativeMenuAction::SetFaderTileAction {
+            action: Some(action),
+            ..
+        } => menu_action_help_target(action),
         NativeMenuAction::SetAuxClick { .. } | NativeMenuAction::SetShiftAuxClick { .. } => {
             ("action:aux_click_set_target".into(), "action".into())
         }

@@ -1,20 +1,20 @@
 id	path	key	kind	title	line1	line2
 life_spawn_shared	*	action:behavior_action:spawnRandom	action	Spawn Cells	Adds random live cells to Conway's Life grid.	Use it to reseed activity without changing Life's rules.
 life_spawn_shared_brain	*	action:behavior_action:seedRandom	action	Seed Brain	Seeds random firing cells in Brian's Brain.	The cells then fire, recover, and return to rest under the three-state rules.
-life_spawn_shared_ant	*	action:behavior_action:spawnAnt	action	Spawn Ant	Adds one ant at a deterministic grid position.	The ant then follows its movement and turn rules on later ticks.
+life_spawn_shared_ant	*	action:behavior_action:spawnAnt	action	Spawn Ant	Adds one ant at a fixed starting spot.	It then walks and turns by its rules on the next steps.
 life_spawn_shared_forest_fire	*	action:behavior_action:igniteRandom	action	Ignite Random	Plants and ignites one forest-fire cell.	Use it to kick a quiet forest back into motion.
-life_spawn_shared_bounce	*	action:behavior_action:addBall	action	Add Ball	Adds one ball at a deterministic position.	The ball then moves and reflects from the grid boundaries.
+life_spawn_shared_bounce	*	action:behavior_action:addBall	action	Add Ball	Adds one ball at a fixed starting spot.	It then flies and bounces off the grid edges.
 life_spawn_shared_bubbles	*	action:behavior_action:addBubble	action	Add Bubble	Adds one bubble at the bottom of the grid.	It rises, drifts sideways, and merges when it touches another bubble.
 life_spawn_shared_pulse	*	action:behavior_action:spawnPulse	action	Spawn Pulse	Starts one expanding pulse using the selected shape.	The pulse expands until Max Radius and its tiles age out.
-life_spawn_shared_rain	*	action:behavior_action:dropNow	action	Drop Now	Drops one raindrop at a deterministic position.	Its impact adds water and the ripple spreads on later ticks.
-life_spawn_shared_dla	*	action:behavior_action:seedCluster	action	Seed Cluster	Seeds a deterministic DLA starter cluster.	Wandering particles then attach to the cluster and grow its branches.
+life_spawn_shared_rain	*	action:behavior_action:dropNow	action	Drop Now	Drops one raindrop right now.	Its splash ripples outward over the next steps.
+life_spawn_shared_dla	*	action:behavior_action:seedCluster	action	Seed Cluster	Plants a small starter cluster.	Wandering particles stick to it and grow branches.
 life_spawn_shared_glider	*	action:behavior_action:spawnGlider	action	Spawn Glider	Spawns a glider pattern in Life.	Use Glider Interval for automatic injections.
 preset_save_current	System > Saves > Library > Save Current	action:preset_save_current	action	Save Current	Saves changes to the currently loaded preset file.	If no preset is loaded, this action is unavailable.
 preset_load_root	System > Load Preset	key:preset.load	group	Load Preset	Direct root shortcut to the named preset-load list.	Use Saves for the same load list alongside other save management.
-preset_load_root_dynamic	System > Load Preset > *	action:preset_load:*	action	Load Preset	Loads the selected preset and replaces current runtime configuration.	Use Save Current or Save As first if you want to keep edits.
+preset_load_root_dynamic	System > Load Preset > *	action:preset_load:*	action	Load Preset	Loads this preset and replaces what is playing now.	Save first (Save Current or Save As) if you want to keep your edits.
 preset_refresh	System > Saves > Library > Refresh List	action:refresh_presets	action	Refresh List	Refreshes preset names from storage.	Use this if files changed outside the app.
-preset_save	System > Saves > Library > Save As > Save	action:preset_save	action	Save As	Saves the current configuration to the name you entered.	If the name exists, confirmation is required.
-preset_load_dynamic	System > Saves > Library > Load > *	action:preset_load:*	action	Load Preset	Loads the selected preset and replaces current runtime configuration.	Use Save Current or Save As first if you want to keep edits.
+preset_save	System > Saves > Library > Save As > Save	action:preset_save	action	Save As	Saves everything you have set up under the name you entered.	If that name exists, you get asked before it is overwritten.
+preset_load_dynamic	System > Saves > Library > Load > *	action:preset_load:*	action	Load Preset	Loads this preset and replaces what is playing now.	Save first (Save Current or Save As) if you want to keep your edits.
 preset_delete_dynamic	System > Saves > Library > Delete > *	action:preset_delete:*	action	Delete Preset	Deletes the selected preset from storage.	This action asks for confirmation.
 preset_rename_pick	System > Saves > Library > Rename > *	action:preset_rename_pick:*	action	Rename Preset	Chooses the preset that will be renamed.	Then enter a new name and apply.
 midi_panic	System > Panic	action:midi_panic	action	Panic	Sends all-notes-off style panic to clear stuck notes.	Use this if external devices hang notes.
@@ -27,8 +27,8 @@ midi_clock_in	System > MIDI > Sync / Clock > Clock In	key:midi.clockInEnabled	bo
 midi_respond_start_stop	System > MIDI > Sync / Clock > Follow S/S	key:midi.respondToStartStop	bool	Follow S/S	When enabled, external MIDI Start/Stop controls transport.	When disabled, transport reacts only to local controls.
 build_section	Menu > Build		group	Build	Configures each layer's grid behavior and step timing.	Shape the tile process here before Link turns activity into notes.
 link_section	Menu > Link		group	Link	Controls how grid activity is interpreted into trigger intents.	This is where scan/event sources get routed toward instruments.
-build_layer_group	Menu > Build > L*: *		group	Layer	Configures the selected layer's behavior, timing, and runtime settings.	Each of the 8 layers runs its own behavior and Build/Link config independently.
-link_layer_group	Menu > Link > L*: *		group	Layer	Per-layer Link interpretation, scanning, and trigger routing settings.	Organized into submenus including Instrument Targets, Trigger Prob., Note Mapping, and X/Y axis modulation.
+build_layer_group	Menu > Build > L*: *		group	Layer	This layer's behavior, its speed and its settings.	All eight layers run their own little world side by side.
+link_layer_group	Menu > Link > L*: *		group	Layer	How this layer's grid turns into notes: scanning, events, instruments, pitch and X/Y.	Each submenu covers one part.
 layer_behavior_quantize	*	key:layers.*.build.behaviorConfig.quantize	enum	Quantize	immediate applies grid presses and releases at once; step waits for the next behavior step.	Use immediate for direct playing or step for transport-aligned keys.
 layer_behavior_pulse_shape	*	key:layers.*.build.behaviorConfig.pulseShape	enum	Pulse Shape	ring draws an expanding outline; filled grows a solid disk; diamond uses Manhattan distance; cross uses arms; x uses diagonals.	The selected shape is used by Shapes grid presses and Spawn Pulse actions.
 layer_spawn_count	*	key:layers.*.build.behaviorConfig.randomCellsPerTick	number	Spawn Count	Sets how many new cells, agents or other entities this layer's behavior adds with each spawn action.	Higher values create denser bursts and faster pattern disruption.
@@ -45,7 +45,7 @@ layer_seed_interval	*	key:layers.*.build.behaviorConfig.seedInterval	number	Seed
 layer_crystal_seed_step	*	key:layers.*.build.behaviorConfig.seedStep	number	Seed Step	Sets the timing phase for scheduled Crystal Growth seeds.	It is compared modulo Seed Interval; it is not a grid coordinate.
 layer_crystal_cell_life	*	key:layers.*.build.behaviorConfig.cellLife	number	Cell Life	Sets how many ticks a Crystal Growth or DLA cell lasts before aging out.	0 disables aging; Crystal Growth dissolves old cells, while DLA removes old aggregate cells and reseeds when needed.
 layer_crystal_symmetry	*	key:layers.*.build.behaviorConfig.symmetry	enum	Symmetry	cross grows from cardinal neighbors; diagonal uses diagonal neighbors; snowflake alternates diagonal sets by grid parity.	All three choices change which neighboring cells Crystal Growth can add.
-life_spawn_shared_crystal	*	action:behavior_action:seedCrystal	action	Seed Crystal	Seeds a deterministic empty crystal cell, or refreshes one if the grid is full.	Use it to start a fresh icy branch wherever the world has gone quiet.
+life_spawn_shared_crystal	*	action:behavior_action:seedCrystal	action	Seed Crystal	Plants a new crystal seed, or refreshes one if the grid is full.	Use it to start a fresh icy branch wherever things went quiet.
 layer_lightning_branch	*	key:layers.*.build.behaviorConfig.branchChancePct	number	Branch Chance	Sets the percent chance that Lightning adds a branch from each leader step.	Higher values make wider strikes before the flash.
 layer_lightning_jitter	*	key:layers.*.build.behaviorConfig.jitterChancePct	number	Jitter Chance	Sets the percent chance that Lightning steps sideways while moving toward the target edge.	Use less jitter for straight bolts and more for crooked ones.
 layer_lightning_decay	*	key:layers.*.build.behaviorConfig.decayTicks	number	Decay Ticks	Sets how long the connected flash remains visible before clearing.	After decay, Lightning starts a new strike automatically.
@@ -67,27 +67,27 @@ layer_twinkle_birth	*	key:layers.*.build.behaviorConfig.birthChancePct	number	Bi
 layer_twinkle_fade	*	key:layers.*.build.behaviorConfig.fadeChancePct	number	Fade Chance	Sets the chance of one eligible star fading on a tick.	Only stars at least Star Life ticks old can fade.
 layer_twinkle_life	*	key:layers.*.build.behaviorConfig.starLife	number	Star Life	Sets the minimum age before a star can be selected to fade.	Young stars get to linger even when Fade Chance is high.
 layer_twinkle_cluster	*	key:layers.*.build.behaviorConfig.clusterBiasPct	number	Cluster Bias	Sets the chance that a birth chooses a clipped neighborhood near existing stars.	Edges do not wrap around to the opposite side of the grid.
-layer_twinkle_seed	*	key:layers.*.build.behaviorConfig.seed	number	Seed	Sets the deterministic seed for Twinkle stars or Pattern variation.	The saved seed and counter replay the same result; change it for a fresh constellation or pattern shuffle.
-life_spawn_shared_twinkle	*	action:behavior_action:reseedStars	action	Reseed Stars	Rebuilds the deterministic constellation from the current seed.	Use it when the little sky needs a fresh arrangement.
-life_clear_shared_twinkle	*	action:behavior_action:clearStars	action	Clear Stars	Clears every Twinkle star without changing its configuration.	The next births still follow the saved deterministic random stream.
+layer_twinkle_seed	*	key:layers.*.build.behaviorConfig.seed	number	Seed	Picks which variation of stars or pattern you get.	The same seed always gives the same result; change it for a fresh shuffle.
+life_spawn_shared_twinkle	*	action:behavior_action:reseedStars	action	Reseed Stars	Lays out the stars again from the current Seed.	Use it when the little sky needs a fresh arrangement.
+life_clear_shared_twinkle	*	action:behavior_action:clearStars	action	Clear Stars	Clears every star but keeps the settings.	New stars keep appearing as before.
 layer_cyclic_states	*	key:layers.*.build.behaviorConfig.states	number	States	Sets how many discrete states the Cyclic world chases through.	Higher values make longer wave-front cycles.
-layer_cyclic_threshold	*	key:layers.*.build.behaviorConfig.threshold	number	Threshold	Sets how many neighbors in the next state are needed for a cell to advance.	Higher values make fronts more selective.
+layer_cyclic_threshold	*	key:layers.*.build.behaviorConfig.threshold	number	Threshold	How many neighbors already in the next color a cell needs before it moves on.	Higher values make the waves pickier.
 layer_cyclic_range	*	key:layers.*.build.behaviorConfig.range	number	Range	Sets whether Cyclic checks nearby neighbors at range 1 or 2.	Range 2 makes broader fronts without wrapping edges.
-life_spawn_shared_cyclic	*	action:behavior_action:seedCycle	action	Seed Cycle	Seeds a deterministic clipped Cyclic pattern.	Use it to start a new chasing wave without randomness.
+life_spawn_shared_cyclic	*	action:behavior_action:seedCycle	action	Seed Cycle	Starts a fresh Cyclic pattern.	Use it to set off a new chasing wave.
 layer_kuramoto_coupling	*	key:layers.*.build.behaviorConfig.couplingPct	number	Coupling	Sets how strongly neighboring Kuramoto phases pull each other toward sync.	Higher values make wrap flashes gather into shared pulses.
 layer_kuramoto_spread	*	key:layers.*.build.behaviorConfig.frequencySpread	number	Frequency Spread	Sets how far oscillator speeds vary across the grid.	Lower values drift together more easily.
-layer_kuramoto_jitter	*	key:layers.*.build.behaviorConfig.jitterPct	number	Jitter	Sets the chance of a tiny deterministic phase wobble each tick.	Use a little to keep the field breathing.
-life_spawn_shared_kuramoto	*	action:behavior_action:desyncPulse	action	Desync Pulse	Applies a deterministic phase shove without firing notes immediately.	The next flashes come from the oscillators catching up again.
+layer_kuramoto_jitter	*	key:layers.*.build.behaviorConfig.jitterPct	number	Jitter	The chance of a tiny wobble in each oscillator each step.	Use a little to keep the field breathing.
+life_spawn_shared_kuramoto	*	action:behavior_action:desyncPulse	action	Desync Pulse	Knocks the oscillators out of step without playing a note.	The next flashes come as they find each other again.
 layer_wave_damping	*	key:layers.*.build.behaviorConfig.dampingPct	number	Damping	Sets how strongly Wave motion fades each tick.	Higher values calm the membrane faster.
 layer_wave_tension	*	key:layers.*.build.behaviorConfig.tensionPct	number	Tension	Sets how strongly neighboring tiles pull displacement back toward balance.	Higher values make impulses travel more sharply.
 layer_wave_impulse	*	key:layers.*.build.behaviorConfig.impulseStrength	number	Impulse Strength	Sets how hard a grid press or Drop Impulse strikes the wave field.	Stronger impulses cross the musical threshold more easily.
-layer_wave_auto_impulse	*	key:layers.*.build.behaviorConfig.autoImpulseInterval	number	Impulse Interval	Sets how often Wave adds a scheduled deterministic impulse.	0 disables the automatic taps; Spawn Step controls the phase.
-life_spawn_shared_wave	*	action:behavior_action:dropImpulse	action	Drop Impulse	Drops a deterministic impulse into the Wave field and emits the affected impact accents.	Use it to tap the membrane without touching the grid.
-layer_gravity_spawn	*	key:layers.*.build.behaviorConfig.spawnRatePct	number	Spawn Rate	Sets the deterministic chance that new sand appears along the edge opposite gravity.	Higher values keep avalanches fed.
+layer_wave_auto_impulse	*	key:layers.*.build.behaviorConfig.autoImpulseInterval	number	Impulse Interval	How often Wave taps itself, in steps.	Off stops the automatic taps; Spawn Step sets where in the cycle they land.
+life_spawn_shared_wave	*	action:behavior_action:dropImpulse	action	Drop Impulse	Taps the water once and plays the tiles it hits.	Use it to poke the surface without touching the grid.
+layer_gravity_spawn	*	key:layers.*.build.behaviorConfig.spawnRatePct	number	Spawn Rate	The chance that new sand trickles in along the far edge.	Higher values keep the avalanches fed.
 layer_gravity_slide	*	key:layers.*.build.behaviorConfig.slideChancePct	number	Slide Chance	Sets how often blocked sand tries diagonal slides.	Higher values make piles slump more readily.
 layer_gravity_settle	*	key:layers.*.build.behaviorConfig.settleAge	number	Settle Age	Sets the age cap for unchanged settled grains.	Settled grains stay stable until movement, clearing, or the bounded anti-saturation drain changes them.
-layer_gravity_dir	*	key:layers.*.build.behaviorConfig.gravityDir	enum	Gravity Dir	down pulls sand toward the lower edge; left, up, and right pull toward those world-space edges.	Invert Gravity advances down, left, up, right; existing sand moves on later ticks.
-life_spawn_shared_gravity_drop	*	action:behavior_action:dropSand	action	Drop Sand	Seeds deterministic sand along the edge opposite gravity.	Use it to pour in a fresh little avalanche.
+layer_gravity_dir	*	key:layers.*.build.behaviorConfig.gravityDir	enum	Gravity Dir	Which edge the sand falls toward: down, left, up or right.	Invert Gravity turns it one step further; sand already there moves on the next steps.
+life_spawn_shared_gravity_drop	*	action:behavior_action:dropSand	action	Drop Sand	Pours sand in along the edge opposite gravity.	Use it for a fresh little avalanche.
 life_spawn_shared_gravity_clear	*	action:behavior_action:clearBottom	action	Clear Bottom	Clears the destination edge for the current gravity direction.	Cleared grains emit deactivate triggers.
 life_spawn_shared_gravity_invert	*	action:behavior_action:invertGravity	action	Invert Gravity	Rotates gravity down, left, up, right, then down again.	Existing grains remain stable until they move.
 layer_boids_size	*	key:layers.*.build.behaviorConfig.flockSize	number	Flock Size	Sets how many Boids agents are active.	More agents make denser flock paths and more tile entries.
@@ -95,13 +95,13 @@ layer_boids_separation	*	key:layers.*.build.behaviorConfig.separationPct	number	
 layer_boids_alignment	*	key:layers.*.build.behaviorConfig.alignmentPct	number	Alignment	Sets how strongly boids match neighboring velocity.	Higher values make smoother shared motion.
 layer_boids_cohesion	*	key:layers.*.build.behaviorConfig.cohesionPct	number	Cohesion	Sets how strongly boids steer toward nearby flockmates.	Higher values pull the flock together.
 life_spawn_shared_boids_scatter	*	action:behavior_action:scatterFlock	action	Scatter Flock	Perturbs flock velocities without moving agents immediately.	The next notes come from where the flock flies afterward.
-life_spawn_shared_boids_seed	*	action:behavior_action:seedFlock	action	Seed Flock	Places a deterministic center flock and activates newly occupied tiles.	Use it to gather the birds back into formation.
+life_spawn_shared_boids_seed	*	action:behavior_action:seedFlock	action	Seed Flock	Gathers the flock in the middle again.	The birds fly off in formation from there.
 layer_orbit_count	*	key:layers.*.build.behaviorConfig.particleCount	number	Particle Count	Sets how many Orbit particles circle the attractor.	More particles make denser orbital accents.
 layer_orbit_attraction	*	key:layers.*.build.behaviorConfig.attractionPct	number	Attraction	Sets how strongly particles pull toward the attractor.	Higher values tighten the orbit.
 layer_orbit_orbit	*	key:layers.*.build.behaviorConfig.orbitPct	number	Orbit	Sets how strongly particles steer tangentially around the attractor.	Higher values make wider circling motion.
 layer_orbit_repel	*	key:layers.*.build.behaviorConfig.repelMode	enum	Repel Mode	off pulls particles toward the attractor; always reverses that pull so particles are pushed away.	Orbit's tangential motion still applies in both modes.
-life_spawn_shared_orbit_reset	*	action:behavior_action:resetOrbit	action	Reset Orbit	Places particles in a deterministic ring around the center attractor.	It accents the new occupied tiles once.
-life_spawn_shared_orbit_nudge	*	action:behavior_action:nudgeAttractor	action	Nudge Attractor	Applies a deterministic velocity nudge to the attractor.	Particles respond on following ticks.
+life_spawn_shared_orbit_reset	*	action:behavior_action:resetOrbit	action	Reset Orbit	Puts the particles back in a ring around the center.	The new spots play once.
+life_spawn_shared_orbit_nudge	*	action:behavior_action:nudgeAttractor	action	Nudge Attractor	Gives the attractor a little push.	The particles follow over the next steps.
 layer_sand_wind	*	key:layers.*.build.behaviorConfig.windStrengthPct	number	Wind Strength	Sets how much sand moves downwind each tick.	Gust gives the next tick an extra shove.
 layer_sand_deposition	*	key:layers.*.build.behaviorConfig.depositionPct	number	Deposition	Sets how often transported grains refresh dune crests.	Crests decay slowly when not refreshed.
 layer_sand_erosion	*	key:layers.*.build.behaviorConfig.erosionPct	number	Erosion	Sets Sand Ripples grain pickup and Rivers terrain erosion chance.	Higher values intensify transport or terrain change; both behaviors keep movement inside grid edges.
@@ -113,40 +113,40 @@ layer_lava_viscosity	*	key:layers.*.build.behaviorConfig.viscosityPct	number	Vis
 layer_lava_heat	*	key:layers.*.build.behaviorConfig.heatPct	number	Heat	Controls upward push and split chance.	Heat Lamp adds a one-tick boost.
 layer_lava_merge	*	key:layers.*.build.behaviorConfig.mergePct	number	Merge	Sets how often close blobs merge.	Only one scan-order pair can merge per tick.
 life_spawn_shared_lava_heat	*	action:behavior_action:heatLamp	action	Heat Lamp	Adds one tick of extra heat without immediate notes.	The next tick may move or split blobs.
-life_spawn_shared_lava_reset	*	action:behavior_action:resetBlobs	action	Reset Blobs	Restores four deterministic lava blobs.	Changed visible blob centers emit activate accents.
+life_spawn_shared_lava_reset	*	action:behavior_action:resetBlobs	action	Reset Blobs	Brings back the four starting blobs.	Blobs that moved play as they appear.
 layer_ink_diffusion	*	key:layers.*.build.behaviorConfig.diffusionPct	number	Diffusion	Sets how strongly Ink pigment or Reaction Diffusion chemicals spread to cardinal neighbors.	Higher values spread the field faster; edges stay clipped and do not wrap.
 layer_ink_fade	*	key:layers.*.build.behaviorConfig.fadePct	number	Fade	Sets how much pigment fades each tick.	Higher values clear the wash sooner.
 layer_ink_strength	*	key:layers.*.build.behaviorConfig.dropStrength	number	Drop Strength	Sets how much pigment a press or Drop Ink adds.	Strong drops cross the musical threshold immediately.
-layer_ink_auto_drop	*	key:layers.*.build.behaviorConfig.autoDropInterval	number	Drop Interval	Sets how often Ink adds a scheduled deterministic drop.	0 disables automatic drops; Spawn Step controls the phase.
-life_spawn_shared_ink_drop	*	action:behavior_action:dropInk	action	Drop Ink	Adds a deterministic ink splash near the center and accents the affected tiles.	Good for starting a bloom without touching the grid.
+layer_ink_auto_drop	*	key:layers.*.build.behaviorConfig.autoDropInterval	number	Drop Interval	How often Ink drips by itself, in steps.	Off stops the automatic drops; Spawn Step sets where in the cycle they land.
+life_spawn_shared_ink_drop	*	action:behavior_action:dropInk	action	Drop Ink	Drops an ink splash near the center and plays the tiles it touches.	Good for starting a bloom without touching the grid.
 life_spawn_shared_ink_clear	*	action:behavior_action:clearInk	action	Clear Ink	Clears all pigment and deactivates tiles that were visible.	Use it when the page needs a fresh blot.
-layer_cracks_stress	*	key:layers.*.build.behaviorConfig.stressPct	number	Stress	Sets the deterministic chance that clear pane tiles gain stress each tick.	Stressed glass becomes visible before it breaks.
+layer_cracks_stress	*	key:layers.*.build.behaviorConfig.stressPct	number	Stress	The chance that clear glass picks up stress each step.	Stressed glass shows before it breaks.
 layer_coral_growth	*	key:layers.*.build.behaviorConfig.growthPct	number	Growth	Sets the chance for Coral colony growth or Vines tip growth in empty cardinal neighbors.	Higher values expand the living structure faster; each behavior keeps its own competition or light rules.
 layer_coral_competition	*	key:layers.*.build.behaviorConfig.competitionPct	number	Competition	Sets how often adjacent opposing colonies die into skeleton.	Higher values make contested borders crumble.
 layer_coral_breakaway	*	key:layers.*.build.behaviorConfig.breakawayAge	number	Breakaway Age	Sets how long skeleton remains before clearing.	Old skeleton chunks deactivate as they break away; full colonies shed a few tiles so they do not stay solid.
-life_spawn_shared_coral_seed	*	action:behavior_action:seedCoral	action	Seed Coral	Plants two deterministic colonies along the lower edge.	Seeded tiles emit activate accents.
+life_spawn_shared_coral_seed	*	action:behavior_action:seedCoral	action	Seed Coral	Plants two colonies along the bottom edge.	The new tiles play as they appear.
 life_spawn_shared_coral_break	*	action:behavior_action:breakCoral	action	Break Coral	Removes old skeletons and exposed colony tiles.	Removed visible tiles emit deactivate events.
 layer_cracks_branch	*	key:layers.*.build.behaviorConfig.branchPct	number	Branch	Sets the chance for Cracks or Vines to create an extra branch from a propagating tip.	Higher values make wider fractures or fuller tendrils; reservations keep each grid update bounded.
 layer_cracks_propagation	*	key:layers.*.build.behaviorConfig.propagationPct	number	Propagation	Sets the chance each crack tip advances on a tick.	Higher values make cracks run faster.
 layer_cracks_shatter	*	key:layers.*.build.behaviorConfig.shatterThreshold	number	Shatter Threshold	Sets how many crack tiles trigger a pending pane shatter.	The pane clears in bounded staged passes instead of one large wipe.
-life_spawn_shared_cracks_impact	*	action:behavior_action:impact	action	Impact	Adds a deterministic center impact and stress burst.	Use it to start a fracture in quiet glass.
+life_spawn_shared_cracks_impact	*	action:behavior_action:impact	action	Impact	Hits the middle of the glass.	Use it to start a fracture in quiet glass.
 life_spawn_shared_cracks_replace	*	action:behavior_action:replacePane	action	Replace Pane	Clears cracks and stress from the pane.	Visible tiles emit deactivate as the glass is replaced.
 layer_physarum_agents	*	key:layers.*.build.behaviorConfig.agentCount	number	Agent Count	Sets how many slime agents are active.	More agents lay down denser trails.
 layer_physarum_sense	*	key:layers.*.build.behaviorConfig.senseDistance	number	Sense Distance	Sets how far agents sample trail and food.	Short sensing makes tighter wandering.
 layer_physarum_turn	*	key:layers.*.build.behaviorConfig.turnBiasPct	number	Turn Bias	Sets how decisively agents turn toward stronger samples.	Higher values make food and trails more persuasive.
 layer_physarum_deposit	*	key:layers.*.build.behaviorConfig.depositAmount	number	Deposit Amount	Sets how much trail each agent leaves behind.	Stronger deposits stay visible longer.
 layer_physarum_evap	*	key:layers.*.build.behaviorConfig.evaporationPct	number	Evaporation	Sets how quickly Physarum slime trails fade or Rivers water dries.	Higher values clear old paths or dry streams sooner; edges remain clipped.
-life_spawn_shared_physarum_food	*	action:behavior_action:relocateFood	action	Relocate Food	Cycles through deterministic food layouts without firing notes.	Agents will follow the new scent on later ticks.
-life_spawn_shared_physarum_seed	*	action:behavior_action:seedSlime	action	Seed Slime	Resets agents into a deterministic cluster while preserving food.	New agent tiles emit activate accents.
+life_spawn_shared_physarum_food	*	action:behavior_action:relocateFood	action	Relocate Food	Moves the food to the next layout without playing a note.	The slime follows the new scent over the next steps.
+life_spawn_shared_physarum_seed	*	action:behavior_action:seedSlime	action	Seed Slime	Gathers the slime into one cluster again; the food stays.	The new slime tiles play as they appear.
 layer_vines_prune	*	key:layers.*.build.behaviorConfig.pruneAge	number	Prune Age	Sets how long stems age before turning into leaves and pruning back.	Lower values shed sooner; full vines also drop a few old tiles to keep gaps open.
 layer_vines_light	*	key:layers.*.build.behaviorConfig.lightBiasPct	number	Light Bias	Weights growth upward toward brighter space.	Set it low for more sideways wandering.
-life_spawn_shared_vines_seed	*	action:behavior_action:plantSeed	action	Plant Seed	Plants deterministic vine tips along the lower edge.	Seeded tiles emit activate accents.
+life_spawn_shared_vines_seed	*	action:behavior_action:plantSeed	action	Plant Seed	Plants vine tips along the bottom edge.	The new tiles play as they appear.
 life_spawn_shared_vines_prune	*	action:behavior_action:pruneVines	action	Prune Vines	Removes up to eight of the oldest non-tip vine tiles.	Removed tiles emit deactivate events.
 layer_fractal_zoom	*	key:layers.*.build.behaviorConfig.zoomRatePct	number	Zoom Rate	Sets how quickly Fractal Explorer zooms inward.	Higher values move through regions faster.
 layer_fractal_drift	*	key:layers.*.build.behaviorConfig.driftPct	number	Drift	Sets how strongly the fractal center follows its regional drift vector.	Use it for slow scanning or restless travel.
 layer_fractal_iterations	*	key:layers.*.build.behaviorConfig.iterationLimit	number	Iteration Limit	Sets the bounded iteration depth for each sampled grid tile.	Higher values reveal finer detail at a higher cost.
 layer_fractal_mode	*	key:layers.*.build.behaviorConfig.fractalMode	enum	Fractal Mode	mandelbrot samples the z²+c escape set; julia samples a fixed c across the grid.	The mode changes the recursive field that Fractal Explorer zooms and drifts through.
-life_spawn_shared_fractal_jump	*	action:behavior_action:jumpRegion	action	Jump Region	Moves to the next deterministic fractal region and recomputes the grid.	Use it when the current window gets too empty or too full.
+life_spawn_shared_fractal_jump	*	action:behavior_action:jumpRegion	action	Jump Region	Flies to the next spot of the fractal.	Use it when the view gets too empty or too full.
 life_spawn_shared_fractal_toggle	*	action:behavior_action:toggleFractalMode	action	Toggle Fractal Mode	Switches between Mandelbrot and Julia mode and recomputes the grid.	Changed visible classes emit the corresponding grid triggers.
 layer_maze_carve	*	key:layers.*.build.behaviorConfig.carvePct	number	Carve	Sets the chance frontier tiles carve new maze corridors.	Carving uses cardinal neighbors only.
 layer_maze_collapse	*	key:layers.*.build.behaviorConfig.collapseAge	number	Collapse Age	Sets how long non-walker corridors age before they can crumble.	Walker tiles are protected from collapse.
@@ -156,18 +156,18 @@ life_spawn_shared_maze_collapse	*	action:behavior_action:collapseMaze	action	Col
 layer_reaction_feed	*	key:layers.*.build.behaviorConfig.feedPct	number	Feed	Sets how quickly chemical A refills empty space.	Higher values keep fresh material moving into the reaction.
 layer_reaction_kill	*	key:layers.*.build.behaviorConfig.killPct	number	Kill	Sets how quickly chemical B is removed.	Higher values thin out the visible pattern sooner.
 layer_reaction_reaction	*	key:layers.*.build.behaviorConfig.reactionPct	number	Reaction	Sets how strongly A and B convert into new B detail.	Higher values make sharper chemical blooms.
-life_spawn_shared_reaction_seed	*	action:behavior_action:seedChemicals	action	Seed Chemicals	Adds deterministic chemical splashes near the center and corners.	Only tiles whose B chemical increases fire accents.
+life_spawn_shared_reaction_seed	*	action:behavior_action:seedChemicals	action	Seed Chemicals	Splashes chemicals near the center and the corners.	Only tiles that get stronger play.
 life_spawn_shared_reaction_clear	*	action:behavior_action:clearChemicals	action	Clear Chemicals	Resets A and clears all visible B chemical.	Visible tiles emit deactivate as the field is rinsed clean.
 layer_rivers_rain	*	key:layers.*.build.behaviorConfig.rainPct	number	Rain	Sets the chance each tile receives rain on a tick.	Rain feeds visible streams when enough water gathers.
 layer_rivers_flow	*	key:layers.*.build.behaviorConfig.flowPct	number	Flow	Sets how much water moves downhill each tick.	Movement uses cardinal neighbors without wrapping.
-life_spawn_shared_rivers_rain	*	action:behavior_action:rainBurst	action	Rain Burst	Adds water to deterministic high tiles.	Changed visible water emits activate accents.
+life_spawn_shared_rivers_rain	*	action:behavior_action:rainBurst	action	Rain Burst	Rains on the high ground.	Tiles where the water changes play.
 life_spawn_shared_rivers_reset	*	action:behavior_action:resetTerrain	action	Reset Terrain	Restores the terrain and clears water and sediment.	Previously visible water emits deactivate.
 layer_ising_temperature	*	key:layers.*.build.behaviorConfig.temperaturePct	number	Temperature	Sets how much domain pressure is needed before a spin flips.	Higher values resist neighbor and field pressure.
 layer_ising_field	*	key:layers.*.build.behaviorConfig.fieldStrengthPct	number	Field Strength	Sets how strongly the global field biases spins.	Flip Field reverses the preferred magnetic direction.
-layer_ising_noise	*	key:layers.*.build.behaviorConfig.noisePct	number	Noise	Sets the chance of deterministic noise flips on each tick.	Use it to keep magnetic domains unsettled.
+layer_ising_noise	*	key:layers.*.build.behaviorConfig.noisePct	number	Noise	The chance of random flips each step.	Use it to keep the magnetic patches restless.
 life_spawn_shared_ising_heat	*	action:behavior_action:heatPulse	action	Heat Pulse	Adds one tick of extra spin noise without firing immediately.	The next behavior tick may kick domains loose.
 life_spawn_shared_ising_flip	*	action:behavior_action:flipField	action	Flip Field	Reverses the global magnetic field without immediate notes.	Spin changes happen on later ticks.
-life_spawn_shared_ising_randomize	*	action:behavior_action:randomizeSpins	action	Randomize Spins	Applies a deterministic mixed spin pattern.	Changed tiles emit activate or deactivate according to their new spin.
+life_spawn_shared_ising_randomize	*	action:behavior_action:randomizeSpins	action	Randomize Spins	Scrambles the spins into a fresh mix.	Tiles that flip on play, tiles that flip off release.
 layer_bubbles_spawn_interval	*	key:layers.*.build.behaviorConfig.spawnInterval	number	Spawn Interval	Sets how many behavior ticks pass between automatic bubble spawns.	Use 0 to turn automatic spawning off.
 layer_bubbles_spawn_count	*	key:layers.*.build.behaviorConfig.spawnCount	number	Spawn Count	Sets how many bubbles are attempted at each spawn tick.	The Max Bubbles cap still limits the active population.
 layer_bubbles_radius_min	*	key:layers.*.build.behaviorConfig.minRadius	number	Min Radius	Sets the smallest bubble size level spawned by Bubbles.	Radius 1 is one tile; larger sizes use compact or hollow outlines.
@@ -184,22 +184,22 @@ layer_looper_length	*	key:layers.*.build.behaviorConfig.lengthSteps	number	Lengt
 layer_looper_clear	*	action:behavior_action:clearLoop	action	Clear Loop	Clears the recorded looper sequence for this layer.	Live-held tiles stay active; loop playback tiles are released.
 layer_auto_name	*	key:layers.*.autoName	bool	Auto Label	When On, the layer label follows the active behavior or generated default label.	Turn it Off before typing a custom layer label you want to keep.
 layer_name	*	key:layers.*.name	text	Layer Label	Sets the user-visible label for this layer.	Used across menus and overlays when Auto Label is off.
-scan_mode	*	key:layers.*.link.scanMode	enum	Scan Mode	none interprets the whole grid without a cursor; scanning advances one cursor through the selected axis.	scanning emits filled and empty scan triggers; none uses the normal event/state interpretation.
+scan_mode	*	key:layers.*.link.scanMode	enum	Scan Mode	none plays the whole grid as tiles change; scanning sweeps a cursor across it.	Scanning plays filled tiles, and empty ones too if you set Empty Act.
 scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	rows scans across row lanes; columns scans down column lanes.	The selected axis defines which coordinate the cursor advances.
-scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	T values are triplets; the number is the exact 24-PPQN pulse count between scan moves.
+scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	How often the scan cursor moves: every 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8,	1/4T, 1/4, 1/2T, 1/2, 1/1T or 1/1 (T means triplet).
 scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward advances from the first lane toward the last; reverse advances from the last toward the first.	Direction is a one-way choice; it does not automatically bounce.
 scan_sections	*	key:layers.*.link.scanSections	enum	Sections	1 scans one full grid; 2, 4, or 8 divides it into that many lane sections.	More sections make smaller scan regions play in sequence.
-event_enabled	*	key:layers.*.link.eventEnabled	bool	Event Triggers	Enables transition triggers such as activate, deactivate, and stable for this layer.	Turn it Off to suppress event-based note generation while keeping other Link settings intact.
-targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Maps each trigger kind to an action and destination instrument slot.	Use note_off actions for release-style lifecycle behavior.
-map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	none ignores activation; note_on starts or retriggers a note; note_off releases a matching held note.	The action runs when a tile becomes active.
+event_enabled	*	key:layers.*.link.eventEnabled	bool	Event Triggers	Plays notes when tiles light up, stay lit or go dark.	Off silences those triggers but keeps the rest of Link.
+targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Which instrument each kind of trigger plays, and how.	Use note off for triggers that should end a held note.
+map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
 map_activate_slot	*	key:layers.*.link.mapping.activate.slot	enum	On Inst	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 send to that instrument slot.	The displayed I# label also shows the slot's current instrument name/type.
-map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	none ignores stable tiles; note_on retriggers them; note_off releases matching held notes.	The action runs for tiles that remain active across updates.
+map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What a tile does while it stays lit: none, note on or note off.	note on plays it again; note off ends a held note.
 map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 receive stable triggers.	The displayed I# label also shows the slot's current instrument name/type.
-map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Trig	none ignores deactivation; note_on starts a note; note_off releases a matching held note.	The action runs when a tile becomes inactive.
+map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Trig	What a tile does when it goes dark: none, note on or note off.	note off ends a held note; note on plays one.
 map_deactivate_slot	*	key:layers.*.link.mapping.deactivate.slot	enum	Off Inst	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 receive deactivation triggers.	The displayed I# label also shows the slot's current instrument name/type.
-map_scanned_action	*	key:layers.*.link.mapping.scanned.action	enum	Scanned Action	none ignores a filled scan hit; note_on starts or retriggers; note_off releases a matching held note.	The action runs when scanning reaches a filled tile.
+map_scanned_action	*	key:layers.*.link.mapping.scanned.action	enum	Action	What a lit tile does when the scan reaches it: none, note on or note off.	note on plays it; note off ends a held note.
 map_scanned_slot	*	key:layers.*.link.mapping.scanned.slot	enum	Scanned Instrument	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 receive filled scan hits.	The displayed I# label also shows the slot's current instrument name/type.
-map_scanned_empty_action	*	key:layers.*.link.mapping.scanned_empty.action	enum	Empty Act	none ignores an empty scan hit; note_on starts a note; note_off releases a matching held note.	The action runs when scanning reaches an empty tile.
+map_scanned_empty_action	*	key:layers.*.link.mapping.scanned_empty.action	enum	Empty Act	What an empty tile does when the scan reaches it: none, note on or note off.	note off here is handy for ending held notes on rests.
 map_scanned_empty_slot	*	key:layers.*.link.mapping.scanned_empty.slot	enum	Empty Inst	none sends no destination; I1, I2, I3, I4, I5, I6, I7, and I8 receive empty scan hits.	The displayed I# label also shows the slot's current instrument name/type.
 voices_section	Menu > Shape		group	Shape	Defines pitch mapping and instrument slot sound engines.	This layer controls how sensed events become audible voices.
 note_mapping_group	Menu > Shape > Note Mapping		group	Note Mapping	Sets pitch quantization, range, and root/scale behavior.	Applied before per-instrument synth shaping.
@@ -236,35 +236,35 @@ inst_sample_preview	*	action:sample_preview	action	Preview Sample	Plays the high
 inst_sample_browse_up	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > ..	action:sample.up	action	Browse Up	Moves to the parent folder within `samples/`.	Cannot navigate outside the `samples/` root.
 inst_sample_browse_enter	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > *	action:sample.enter	action	Enter Folder	Opens the highlighted `[folder]` or sample favorite.	Navigation stays inside the `samples/` folder tree; file rows use Pick Sample instead.
 inst_sample_pick	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > *	action:sample.pick	action	Pick Sample	Assigns the highlighted wav to the selected sample slot.	The slot path updates immediately.
-inst_sample_favourite_set	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Set favorite	action:sample_favourite_set	action	Set Favorite	Adds the current folder to the sample favorites list. It saves with System right away.	The action applies to the open folder, not the highlighted file.
-inst_sample_favourite_remove	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Remove fav	action:sample_favourite_remove	action	Remove fav	Removes the current folder from the sample favorites list. It saves with System right away.	The action applies to the open folder, not the highlighted file.
+inst_sample_favourite_set	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Set Favorite	action:sample_favourite_set	action	Set Favorite	Adds the current folder to the sample favorites list. It saves with System right away.	The action applies to the open folder, not the highlighted file.
+inst_sample_favourite_remove	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Remove Favorite	action:sample_favourite_remove	action	Remove Favorite	Removes the current folder from the sample favorites list. It saves with System right away.	The action applies to the open folder, not the highlighted file.
 link_scanning_group	Menu > Link > L*: * > Scanning		group	Scanning	Controls scan cursor movement, subdivision, and cursor-based instrument targets.	Scan mode, axis, unit, direction, sections; plus action/instrument mappings for scanned-filled and scanned-empty.
 link_scan_targets_group	Menu > Link > L*: * > Scanning > Instrument Targets		group	Scan Instrument Targets	Maps scan cursor hits (filled and empty) to action and instrument slot.	Action defaults to none so you opt into scan-based triggering.
-link_events_group	Menu > Link > L*: * > Events		group	Events	Controls transition event triggering and event-based instrument targets.	Event Triggers toggle, plus activate/stable/deactivate action/instrument mappings.
-link_note_mapping_group	Menu > Link > L*: * > Note Mapping		group	Link Note Mapping	Per-layer pitch mapping used during Link interpretation and instrument routing.	Defines starting note, range, scale, and root before events reach instrument slots.
+link_events_group	Menu > Link > L*: * > Events		group	Events	What happens when a tile lights up, stays lit or goes dark.	Each has its own instrument, trigger, delay and retrigger.
+link_note_mapping_group	Menu > Link > L*: * > Note Mapping		group	Note Mapping	Which notes this layer plays: first note, range, set and root.	
 link_trigger_probability_group	Menu > Link > L*: * > Trigger Prob.		group	Trigger Prob.	Controls saved trigger probability for this layer.	Mode, low/high values, and the probability grid decide which triggers pass.
-link_trigger_probability_mode	Menu > Link > L*: * > Trigger Prob. > Mode	key:layers.*.link.triggerProbabilityMode	enum	Trigger Probability Mode	zero blocks this layer, custom uses the grid, full passes all triggers.	Play Trigger Gate can override live playback without changing this saved mode.
+link_trigger_probability_mode	Menu > Link > L*: * > Trigger Prob. > Mode	key:layers.*.link.triggerProbabilityMode	enum	Mode	0% mutes this layer's triggers, custom uses the grid you painted, 100% plays them all.	The Trigger Gate page can override it live without changing it.
 link_trigger_probability_low	Menu > Link > L*: * > Trigger Prob. > Prob Low	key:layers.*.link.triggerProbabilityLowPct	number	Low Probability	Sets the low custom trigger probability percentage from 0 to 100.	Clamped so it never exceeds High Prob.
 link_trigger_probability_high	Menu > Link > L*: * > Trigger Prob. > Prob High	key:layers.*.link.triggerProbabilityHighPct	number	High Probability	Sets the high custom trigger probability percentage from 0 to 100.	Clamped so it is never below Low Prob.
 link_trigger_probability_map	Menu > Link > L*: * > Trigger Prob. > Map Probability Grid	action:trigger_probability_assign_enter	action	Map Probability Grid	Edits the saved per-tile probability map for this layer.	Tiles cycle zero, low, high, full; Shift applies rows and Shift+Fn columns.
-link_lfos_group	Menu > Link > LFOs		group	Link LFOs	Eight global Link LFO slots live here, independent of the active layer.	Each slot keeps its own target, period, depth, and enable state.
-link_lfo_group	Menu > Link > LFOs > L*		group	Link LFO	One global sine LFO slot, clocked from transport PPQN and composed by playback-runtime with other live sources.	The slot is not associated with a layer; its phase and live contribution are transient.
-link_lfo_enabled	Menu > Link > LFOs > L* > Enabled	key:linkLfos.*.enabled	bool	LFO Enabled	Turns this global Link LFO slot on or off.	It does nothing until Target is set to a live-safe additive numeric parameter.
-link_lfo_target	Menu > Link > LFOs > L* > Target	key:linkLfos.*.target	group	LFO Target	Chooses a live-safe additive numeric parameter for this global LFO slot.	Exclusive controls and all LFO configuration targets are excluded; rejected claims leave focus unchanged and show a Mapping rejected toast.
-link_lfo_period	Menu > Link > LFOs > L* > Period	key:linkLfos.*.period	enum	LFO Period	One sine cycle per period: 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2T, 1/2, 1/1T, 1/1,	2/1T, 2/1, 4/1T, 4/1, 8/1T, 8/1 (eight bars). T are triplets. A period change keeps the wave at its point in the cycle.
-link_lfo_depth	Menu > Link > LFOs > L* > Depth %	key:linkLfos.*.depthPct	number	LFO Depth	Sets modulation depth from 0 to 100 percent around the target range center.	Target range and invert settings are preserved.
+link_lfos_group	Menu > Link > LFOs		group	LFOs	Eight LFOs that wobble any setting you point them at.	They belong to the whole patch, not to one layer.
+link_lfo_group	Menu > Link > LFOs > LFO*		group	LFO	One LFO: a slow wave in time with the tempo.	Pick a Target, a Period and a Depth, then switch it on.
+link_lfo_enabled	Menu > Link > LFOs > LFO* > Enabled	key:linkLfos.*.enabled	bool	Enabled	Switches this LFO on or off.	It does nothing until it has a Target.
+link_lfo_target	Menu > Link > LFOs > LFO* > Target	key:linkLfos.*.target	group	Target	The setting this LFO moves.	Only settings that can move smoothly are listed.
+link_lfo_period	Menu > Link > LFOs > LFO* > Period	key:linkLfos.*.period	enum	Period	How long one wave takes: 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2T, 1/2, 1/1T, 1/1,	2/1T, 2/1, 4/1T, 4/1, 8/1T or 8/1 (eight bars). T means triplet; changing it keeps the wave where it is.
+link_lfo_depth	Menu > Link > LFOs > LFO* > Depth	key:linkLfos.*.depthPct	number	Depth	How far the LFO swings around the middle of the target's range.	Range Min/Max and Invert on the target still apply.
 link_midi_cc_group	Menu > Link > MIDI CC In		group	MIDI CC In	Eight slots that turn incoming MIDI Control Change messages into parameter moves.	They follow System > MIDI: MIDI Active and the connected MIDI In. The last value of each slot holds.
 link_midi_cc_slot_group	Menu > Link > MIDI CC In > CC*		group	MIDI CC Slot	One CC In slot: which CC and channel it listens to, and the parameter it moves.	Saved with the patch; a loaded patch moves nothing until the slot's CC arrives.
 link_midi_cc_number	Menu > Link > MIDI CC In > CC* > CC	key:midiCc.*.cc	number	CC Number	The Control Change number this slot listens to, 0 to 127.	Learn sets it from the next CC that arrives.
 link_midi_cc_channel	Menu > Link > MIDI CC In > CC* > Channel	key:midiCc.*.channel	enum	CC Channel	any listens on every MIDI channel; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 or 16	listens on that channel only. Learn sets the channel the CC came in on.
 link_midi_cc_learn	Menu > Link > MIDI CC In > CC* > Learn	action:midiCc.learn:*	action	Learn CC	Waits for the next incoming Control Change and sets this slot's CC and Channel from it.	Back or 10 s without a CC cancels it. Needs System > MIDI > MIDI Active on.
-link_midi_cc_target	Menu > Link > MIDI CC In > CC* > Target	key:midiCc.*.target	group	CC Target	Chooses the parameter this slot moves; CC 0 to 127 sweeps Range Min to Range Max.	Exclusive targets take one claim; rejected claims show a Mapping rejected toast.
+link_midi_cc_target	Menu > Link > MIDI CC In > CC* > Target	key:midiCc.*.target	group	Target	The setting this CC moves; CC 0 to 127 sweeps Range Min to Range Max.	A setting another control already owns cannot be taken; you get a toast.
 link_midi_cc_invert	Menu > Link > MIDI CC In > CC* > Invert	key:midiCc.*.invert	bool	CC Invert	When On, CC 0 gives the top of the range and CC 127 the bottom.	Needs a Target; the held value flips at once.
-link_arp_mode	Menu > Link > L*: * > Arp > Mode	key:layers.*.link.arp.mode	enum	Arp Mode	none keeps Link order; direct strikes together; up rises; down falls; bounce reverses at each end; outside_in moves edges inward.	rotating changes the starting voice; random shuffles; octave_spread alternates octaves; chord_strike strikes together; strum strikes in sequence.
-link_arp_source	Menu > Link > L*: * > Arp > Source	key:layers.*.link.arp.source	enum	Arp Source	simultaneous arpeggiates notes arriving in one event batch; held arpeggiates notes currently held by the layer.	The source decides which note set the selected Arp Mode orders.
+link_arp_mode	Menu > Link > L*: * > Arp > Mode	key:layers.*.link.arp.mode	enum	Mode	How the arp plays the notes: up, down, bounce, outside in, rotating, random, octave spread,	chord strike (all at once) or strum (one after another); none and direct play them as they come.
+link_arp_source	Menu > Link > L*: * > Arp > Source	key:layers.*.link.arp.source	enum	Source	together arpeggiates notes that start at the same time; held arpeggiates the notes held now.	
 link_arp_step	Menu > Link > L*: * > Arp > Step	key:layers.*.link.arp.stepIntervalSteps	number	Arp Step	Sets the Link-step spacing between arpeggiated notes.	Direct and chord strike modes keep notes together.
-link_arp_length	Menu > Link > L*: * > Arp > Length ms	key:layers.*.link.arp.noteLengthMs	number	Arp Length	Sets the finite note length for arpeggiated notes.	Arp output does not create held notes.
-link_arp_gate	Menu > Link > L*: * > Arp > Gate %	key:layers.*.link.arp.gatePct	number	Arp Gate	Scales the configured note length for shorter or fuller plucks.	The range is 1 to 100 percent.
+link_arp_length	Menu > Link > L*: * > Arp > Length	key:layers.*.link.arp.noteLengthMs	number	Arp Length	Sets the finite note length for arpeggiated notes.	Arp output does not create held notes.
+link_arp_gate	Menu > Link > L*: * > Arp > Gate	key:layers.*.link.arp.gatePct	number	Arp Gate	Scales the configured note length for shorter or fuller plucks.	The range is 1 to 100 percent.
 note_set_category_scales	*	key:note_set.category.scales	group	Note Set Folder	Opens the Scales folder for selecting an allowed pitch set.	Choose a leaf to set the layer's allowed pitch classes.
 note_set_category_chord_tones	*	key:note_set.category.chord_tones	group	Note Set Folder	Opens the Chord Tones folder for selecting an allowed pitch set.	Choose a leaf to set the layer's allowed pitch classes.
 note_set_category_pentatonic	*	key:note_set.category.pentatonic	group	Note Set Folder	Opens the Pentatonic folder for selecting an allowed pitch set.	Choose a leaf to set the layer's allowed pitch classes.
@@ -294,10 +294,10 @@ note_set_select_iwato_like	*	action:note_set_select:iwato_like	action	Iwato-like
 note_set_select_whole_tone	*	action:note_set_select:whole_tone	action	Whole Tone	Selects Whole Tone for Link mapping and returns to Note Mapping focused on Set.	Constrains allowed pitch classes.
 note_set_select_octatonic_half_whole	*	action:note_set_select:octatonic_half_whole	action	Octatonic H-W	Selects Octatonic H-W for Link mapping and returns to Note Mapping focused on Set.	Constrains allowed pitch classes.
 note_set_select_octatonic_whole_half	*	action:note_set_select:octatonic_whole_half	action	Octatonic W-H	Selects Octatonic W-H for Link mapping and returns to Note Mapping focused on Set.	Constrains allowed pitch classes.
-link_arp_octaves	Menu > Link > L*: * > Arp > Octaves	key:layers.*.link.arp.octaveSpread	number	Arp Octaves	Adds octave transposition for octave_spread mode.	Notes are clamped to the MIDI note range.
-link_mappings_group	Menu > Link > L*: * > Mappings		group	Mappings	Explicit menu-based assignment for Link X/Y param-mod slots and aux encoder turn targets.	These pickers reuse the same parameter browser as Play X/Y target selection.
-link_mappings_x_group	Menu > Link > L*: * > Mappings > X Axis		group	X Axis Targets	Holds the two explicit X-axis param-mod slot assignments for this layer.	Use Slot 1 and Slot 2 to pick targets, then use the invert toggles to reverse each lane.
-link_mappings_y_group	Menu > Link > L*: * > Mappings > Y Axis		group	Y Axis Targets	Holds the two explicit Y-axis param-mod slot assignments for this layer.	Use Slot 1 and Slot 2 to pick targets, then use the invert toggles to reverse each lane.
+link_arp_octaves	Menu > Link > L*: * > Arp > Octaves	key:layers.*.link.arp.octaveSpread	number	Octaves	How many octaves octave spread climbs.	Notes stay inside the playable range.
+link_mappings_group	Menu > Link > L*: * > Mappings		group	Mappings	Points this layer's X and Y position at settings to play.	The pickers list the same settings as Play X/Y.
+link_mappings_x_group	Menu > Link > L*: * > Mappings > X Axis		group	X Axis	Two settings that follow where tiles light up, left to right.	Pick them in Slot 1 and Slot 2; Invert flips the direction.
+link_mappings_y_group	Menu > Link > L*: * > Mappings > Y Axis		group	Y Axis	Two settings that follow where tiles light up, bottom to top.	Pick them in Slot 1 and Slot 2; Invert flips the direction.
 link_aux_mappings_group	Menu > Link > Aux Mappings		group	Aux Mappings	Assigns each aux encoder's Turn target and Switch/press action. Bindings save with the patch, whatever they target.	Fn + click Main opens the Aux map: every encoder's turn (T) and click (C), plain and Shift bank.
 link_aux_mapping_group	Menu > Link > Aux Mappings > Aux *		group	Aux Mapping	Binding submenu for one Aux encoder.	Trn and Clk pick its plain turn and click; S+Trn and S+Clk pick the ones it runs while Shift is held.
 link_aux_turn_group	Menu > Link > Aux Mappings > Aux * > *Trn: *		group	Aux Turn	Picks the parameter this Aux encoder turns; S+Trn picks the one it turns while Shift is held.	You can also highlight a value row and press Fn + click that Aux, or Shift+Fn + click for the Shift bank.
@@ -307,14 +307,14 @@ link_aux_click_sample_group	Menu > Link > Aux Mappings > Aux * > *Clk: * > Sampl
 link_aux_click_fx_group	Menu > Link > Aux Mappings > Aux * > *Clk: * > Actions		group	Actions	Map FX enters Play FX map-to-grid with the current FX settings; Reset Behavior re-initializes the active layer.	Pick one to bind it to this Aux click.
 link_mappings_x_slot_group	Menu > Link > L*: * > Mappings > X Axis > Slot *		group	X Slot	Selects which parameter this X-axis modulation slot controls.	The browser is shared with Play X/Y target selection so available targets stay consistent.
 link_mappings_y_slot_group	Menu > Link > L*: * > Mappings > Y Axis > Slot *		group	Y Slot	Selects which parameter this Y-axis modulation slot controls.	The browser is shared with Play X/Y target selection so available targets stay consistent.
-link_mappings_param_none	*	action:param_mod_set_target	action	Clear Slot Target	Clears the selected Link param-mod slot so that lane no longer writes any parameter.	Existing invert state is preserved if you later assign a new target.
+link_mappings_param_none	*	action:param_mod_set_target	action	(none)	Clears this slot, so it moves nothing.	Invert stays as it is for the next target.
 link_mappings_aux_turn_none	*	action:aux_turn_set_target	action	Clear Aux Turn	Clears the selected aux encoder turn binding.	Any existing aux click binding for that encoder is preserved.
 link_mappings_aux_click_none	*	action:aux_click_set_target	action	Clear Aux Click	Clears the selected aux encoder click binding.	Any existing aux turn binding for that encoder is preserved.
-link_mappings_x_invert_1	*	key:layers.*.paramMods.x.0.invert	bool	Slot 1 Invert	When On, X Slot 1 writes the selected parameter using an inverted lane direction.	Low positions become high values and vice versa.
-link_mappings_x_invert_2	*	key:layers.*.paramMods.x.1.invert	bool	Slot 2 Invert	When On, X Slot 2 writes the selected parameter using an inverted lane direction.	Low positions become high values and vice versa.
-link_mappings_y_invert_1	*	key:layers.*.paramMods.y.0.invert	bool	Slot 1 Invert	When On, Y Slot 1 writes the selected parameter using an inverted lane direction.	Low positions become high values and vice versa.
-link_mappings_y_invert_2	*	key:layers.*.paramMods.y.1.invert	bool	Slot 2 Invert	When On, Y Slot 2 writes the selected parameter using an inverted lane direction.	Low positions become high values and vice versa.
-inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot gives each trigger a finite note; hold keeps the note active until a matching note_off or release.	Choose hold for lifecycle mappings and scanned-empty release.
+link_mappings_x_invert_1	*	key:layers.*.paramMods.x.0.invert	bool	Slot 1 Invert	Flips Slot 1: the left edge gives high values, the right edge low ones.	
+link_mappings_x_invert_2	*	key:layers.*.paramMods.x.1.invert	bool	Slot 2 Invert	Flips Slot 2: the left edge gives high values, the right edge low ones.	
+link_mappings_y_invert_1	*	key:layers.*.paramMods.y.0.invert	bool	Slot 1 Invert	Flips Slot 1: the bottom gives high values, the top low ones.	
+link_mappings_y_invert_2	*	key:layers.*.paramMods.y.1.invert	bool	Slot 2 Invert	Flips Slot 2: the bottom gives high values, the top low ones.	
+inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot plays each note for its Note Length; hold keeps it sounding until a note off.	Use hold with Off Trig or Empty Act set to note off.
 inst_midi_enabled	*	key:instruments.*.midi.enabled	bool	MIDI Enabled	Enables this slot's external MIDI note output.	Global MIDI and an output port must also be enabled.
 inst_midi_channel	*	key:instruments.*.midi.channel	number	MIDI Channel	Selects this slot's external MIDI channel.	Shown as 1..16 while stored internally as 0..15.
 osc_wave	*	key:instruments.*.synth.osc*.waveform	enum	Oscillator Wave	sine is smooth; triangle is softer with odd harmonics; saw is bright and full; square is hollow; pulse is variable-duty square.	The selected waveform is generated by that oscillator; Pulse Width affects pulse.
@@ -324,28 +324,26 @@ osc_detune	*	key:instruments.*.synth.osc*.detuneCents	number	Oscillator Detune	O
 osc_pw	*	key:instruments.*.synth.osc*.pulseWidthPct	number	Pulse Width	Sets pulse duty cycle when pulse waveform is used.	Ignored for non-pulse waveforms.
 amp_gain	*	key:instruments.*.synth.amp.gainPct	number	Amp Gain	Sets base loudness for this instrument slot.	Use with Master Vol to balance global versus per-slot level.
 amp_vel	*	key:instruments.*.synth.amp.velocitySensitivityPct	number	Velocity Sensitivity	Controls how strongly note velocity affects loudness.	Lower values flatten dynamics; higher values increase response.
-amp_env_adsr	*	key:instruments.*.synth.ampEnv.*	number	Amp Envelope	Shapes loudness over time using ADSR stages.	Attack/Decay/Release are in ms; Sustain is level percentage.
 filt_type	*	key:instruments.*.synth.filter.type	enum	Filter Type	lowpass keeps lows; highpass keeps highs; bandpass keeps a band; notch removes a band around cutoff.	Cutoff, resonance, and Filter Env shape the selected response.
 filt_cutoff	*	key:instruments.*.synth.filter.cutoffHz	number	Filter Cutoff	Sets base cutoff frequency for tone brightness.	Higher values pass more high content.
 filt_res	*	key:instruments.*.synth.filter.resonance	number	Filter Resonance	Boosts emphasis near cutoff frequency.	High resonance can create pronounced tonal peaks.
 filt_env_amt	*	key:instruments.*.synth.filter.envAmountPct	number	Filter Env Amount	Sets how much filter envelope modulates cutoff.	Positive values open with envelope; negative values invert.
 filt_keytrack	*	key:instruments.*.synth.filter.keyTrackingPct	number	Filter Key Tracking	Sets how cutoff follows played pitch across notes.	Higher values keep timbre more consistent by pitch.
-filt_env_adsr	*	key:instruments.*.synth.filterEnv.*	number	Filter Envelope	Shapes filter movement over time using ADSR stages.	Use with Env Amount for plucks, swells, and contour motion.
-engine_group	Menu > System > Audio > Engine		group	Engine	Holds the CPU meter warning threshold and the bus-idle threshold.	CPU Warn % only colors the header CPU meter; Bus Idle sets when a quiet FX bus counts as silent.
-dsp_worker_warning	Menu > System > Audio > Engine > CPU Warn %	key:dsp.workerWarningThreshold	enum	CPU Warn %	Sets the CPU percentage at which the header CPU meter shows three red bars: 70, 75, 80, 85, 90, or 95 percent.	One green bar starts at about a third of it and two yellow bars at about two thirds; below that the meter stays dark.
+engine_group	Menu > System > Audio > Engine		group	Engine	Holds the CPU meter warning threshold and the bus-idle threshold.	CPU Warn only colors the header CPU meter; Bus Idle sets when a quiet FX bus counts as silent.
+dsp_worker_warning	Menu > System > Audio > Engine > CPU Warn	key:dsp.workerWarningThreshold	enum	CPU Warn	Sets the CPU percentage at which the header CPU meter shows three red bars: 70, 75, 80, 85, 90, or 95 percent.	One green bar starts at about a third of it and two yellow bars at about two thirds; below that the meter stays dark.
 dsp_bus_idle	Menu > System > Audio > Engine > Bus Idle	key:dsp.busIdleThreshold	enum	Bus Idle	Sets the linear-amplitude threshold used by DSP bus-idle handling: exact, -140, -120, -100, or -80 dB.	Exact requires a zero signal; the dB choices allow a small residual to count as quiet.
 notes_group	Menu > System > Notes		group	Notes	Controls note duration and global velocity shaping.	These values affect note events without changing the selected instrument.
 audio_group	Menu > System > Audio		group	Audio	Controls master volume, supported audio outputs, performance mode, polyphony, and engine thresholds.	Board output mirrors stay separate from external MIDI instruments.
 master_vol	Menu > System > Audio > Master Vol	key:masterVolume	number	Master Vol	Sets overall output volume scaling.	Use this for final level trim without changing patch balance.
-tones_stealing_mode	Menu > System > Audio > Polyphony	key:sound.voiceStealingMode	enum	Polyphony	fixed12=12 voices; fixed16=16 voices; auto-soft=adaptive soft; auto-balanced=adaptive middle; auto-hard=adaptive hard; none=no cap.	At a cap, older voices are stolen; softer modes preserve more tails and harder modes leave more CPU headroom.
+tones_stealing_mode	Menu > System > Audio > Polyphony	key:sound.voiceStealingMode	enum	Polyphony	How many voices play at once: 12, 16, soft, bal, hard or none (no cap).	soft, bal and hard adapt to the load; hard keeps the most headroom. Old voices give way first.
 audio_optimization	Menu > System > Audio > Perf. Mode	key:sound.optimizeFor	enum	Perf. Mode	Latency: quickest response, about 6-8 ms press to sound. Capacity: renders ahead on two cores, about 13-15 ms.	The OLED uses compact Lat/Cap labels; the setting applies after an app restart and does not change voice or FX limits.
-presets_group	Menu > System > Saves		group	Presets	Save, load, and manage configuration snapshots.	Use defaults for boot state and library for named variants.
+presets_group	Menu > System > Saves		group	Saves	Save, load and manage your patches.	Default is what starts up; Library holds your named presets.
 default_save	System > Saves > Default > Save Patch	action:default_save	action	Save Patch	Stores the current musical patch as the startup patch.	Device settings stay on this instrument.
-default_load	System > Saves > Default > Load Patch	action:default_load	action	Load Patch	Loads the saved default patch into the current musical state.	Device settings stay on this instrument.
+default_load	System > Saves > Default > Load Patch	action:default_load	action	Load Patch	Loads your saved default patch.	Device settings stay as they are.
 system_save	System > Saves > System > Save System	action:system_save	action	Save System	Stores this instrument's device settings.	Patch data is saved separately.
 system_load	System > Saves > System > Load System	action:system_load	action	Load System	Loads device settings for this instrument.	Restart-sensitive settings use the existing Apply confirmation.
-system_shutdown	System	action:system_shutdown	action	Shutdown	Confirms, saves recovery state, silences audio, then shows the shutdown splash and closes or powers off gracefully.	The native runtime acknowledges final OLED/LED state before the fixed board power request.
-system_reboot	System	action:system_reboot	action	Reboot	Confirms, saves recovery state, silences audio, then shows the reboot splash and reboots gracefully.	The native runtime acknowledges final OLED/LED state before the fixed board power request.
+system_shutdown	System	action:system_shutdown	action	Shutdown	Saves your work, goes quiet and switches off safely.	Wait for the screen to go dark before you pull the power.
+system_reboot	System	action:system_reboot	action	Reboot	Saves your work, goes quiet and restarts.	Back in a moment, right where you left off.
 sd_card_2_group	Menu > System > Connections > SD Card 2		group	SD Card 2	Exposes the second card to a USB host for file transfer in Gadget mode on Pi boards; Host mode hides Start Transfer.	USB audio, MIDI, and recording must be inactive during transfer; Stop Transfer remains available for cleanup.
 audio_usb	Menu > System > Audio > USB Audio	key:audioOutputs.usb	bool	USB Audio	Sets whether USB Audio mirrors the canonical Jack mix in Gadget mode; changes apply right away.	Host mode hides and disables USB Audio. With no computer plugged in, it just waits.
 audio_hdmi	Menu > System > Audio > HDMI Audio	key:audioOutputs.hdmi	bool	HDMI Audio	Sets whether HDMI Audio mirrors the canonical Jack mix; changes apply right away.	HDMI Audio is optional and separate from HDMI video.
@@ -353,10 +351,10 @@ usb_midi_out	Menu > System > MIDI > USB Device > USB MIDI	key:usb.midiOutEnabled
 usb_data_role	System > Connections > USB Role	key:usb.dataRole	enum	USB Role	Switches the Raspberry USB role right away. Gadget allows USB Audio, USB MIDI, and SD2 transfer; Host disables all three.	Stop SD2 transfer before selecting Host. If a switch fails, the next boot applies it.
 usb_sd_transfer_start	System > Connections > SD Card 2 > Start Transfer	action:usb.sdTransferStart	action	Start Transfer	Exposes the second card to a USB host as writable storage.	USB audio, MIDI, and recording must be inactive before transfer starts.
 usb_sd_transfer_stop	System > Connections > SD Card 2 > Stop Transfer	action:usb.sdTransferStop	action	Stop Transfer	Restores the normal USB audio/MIDI gadget after host file transfer.	Eject OLED SD2 on the host before stopping transfer.
-hdmi_group	Menu > System > Display > HDMI Video		group	HDMI Video	Controls the optional Pi framebuffer grid output.	This display follows snapshots only and does not change playback.
-hdmi_mode	System > Display > HDMI Video > Mode	key:hdmi.mode	enum	Mode	Terminal releases/disables Octessera framebuffer output so Linux terminal ownership can show; live-grid shows overlays; plain-grid shows no overlays.	active-behavior shows selected behavior; cycle-behaviors rotates behaviors using Bars per cycle.
-hdmi_cycle	System > Display > HDMI Video > Bars per cycle	key:hdmi.cycleMeasures	number	Bars per cycle	Sets how many musical bars each behavior remains shown before Cycle Behaviors advances.	Applies only to Cycle Behaviors mode and clamps from 1 to 64.
-hdmi_gridlines	System > Display > HDMI Video > Grid Lines	key:hdmi.showGridlines	bool	Grid Lines	Draws separator lines on the optional HDMI grid.	Only affects the HDMI framebuffer renderer.
+hdmi_group	Menu > System > Display > HDMI Video		group	HDMI Video	Shows the grid on a screen plugged into HDMI.	Just for show: it never changes what plays.
+hdmi_mode	System > Display > HDMI Video > Mode	key:hdmi.mode	enum	Mode	Terminal shows the Linux console; Live Grid the grid with overlays; Plain Grid without them.	Behavior shows the active layer's behavior; Cycle steps through the behaviors every few bars.
+hdmi_cycle	System > Display > HDMI Video > Bars per cycle	key:hdmi.cycleMeasures	number	Bars per cycle	How many bars each behavior stays on screen in Cycle mode.	1 to 64 bars.
+hdmi_gridlines	System > Display > HDMI Video > Grid Lines	key:hdmi.showGridlines	bool	Grid Lines	Draws lines between the tiles on the HDMI screen.	
 bluetooth_group	Menu > System > Connections > Bluetooth		group	Bluetooth	Pairs Bluetooth keyboards and speakers with the board.	The radio stays silent unless Bluetooth is On; paired devices are remembered.
 bluetooth_enabled	System > Connections > Bluetooth > Bluetooth	key:bluetooth.enabled	bool	Bluetooth	Turns the board's Bluetooth radio on or off.	Off is the default; turning it on lets paired keyboards reconnect.
 bluetooth_audio	System > Connections > Bluetooth > Audio Out	key:bluetooth.audio	bool	Audio Out	Sends a copy of the final mix to the connected Bluetooth speaker.	It lags by a few hundred ms, so it is for listening, not tight playing.
@@ -373,8 +371,8 @@ recording_start_audio	System > Recording	action:recording.startAudio	action	Star
 recording_start_audio_oled	System > Recording	action:recording.startAudioOled	action	Audio+Video	Starts a synchronized 272x128 lossless PNG-frame AVI at 20 fps: OLED, NeoKey column and NeoTrellis grid, with 44.1 kHz stereo signed-16 PCM audio.	Audio is the master clock; OLED frames and full-brightness LED colors are held between 2,205-frame video ticks.
 recording_stop	System > Recording	action:recording.stop	action	Stop	Stops the active WAV or Audio+Video AVI and finalizes it.	Manual stop shows Recording saved or Recording incomplete; complete files use .wav/.avi and damaged takes use .incomplete.*.
 autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	Saves this System preference on edit exit; when enabled, later eligible Patch edits autosave.	Patch autosave is coalesced; changing this setting does not immediately save the Patch.
-rolling_backups	*	key:rollingBackups	bool	Backups	When enabled, config edits write rolling backup files at most every five minutes.	The host keeps the latest 20 backups and writes a recovery save during shutdown or reboot.
-note_length	*	key:sound.noteLengthMs	number	Note Length	Default note duration when note_on has no explicit length.	Hold-mode notes may bypass duration and wait for note_off.
+rolling_backups	*	key:rollingBackups	bool	Backups	Keeps backup copies of your settings, at most every five minutes.	The latest 20 are kept, and a recovery save is written on shutdown or reboot.
+note_length	*	key:sound.noteLengthMs	number	Note Length	How long a note plays when nothing else sets its length.	Notes in hold mode wait for their note off instead.
 velocity_scale	*	key:sound.velocityScalePct	number	Vel Scale	Scales velocity values globally after mapping.	Use to tame or boost overall dynamic output.
 ui_group	Menu > System > Display		group	Display	OLED, grid and button lighting, display helpers, and HDMI video.	These do not change musical generation.
 controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Covers help, Back, transport, Fn and Shift+Fn grid navigation, the layer mute, Fn+Aux binding and the Fn+Main Aux map.
@@ -393,28 +391,28 @@ aux_auto_map	*	key:auxAutoMapEnabled	bool	Auto Map	Enables context-sensitive aux
 aux_priority	*	key:auxPriority	enum	Aux Priority	Manual: your own Aux bindings win over the page's auto map. Auto: the auto map wins on pages that have one.	Decided per turn and per click; a side the winner leaves empty still goes to the other. Shown only while Auto Map is on.
 aux_auto_hints	*	key:auxAutoHints	bool	Auto Hints	Shows what the auto-mapped Aux encoders turn and click in the footer.	Hold Shift to see the Shift layer. The caps on menu rows stay either way.
 aux_manual_hints	*	key:auxManualHints	bool	Manual Hints	Shows your own Aux bindings in the footer.	Each hint takes the color of the section that owns its target.
-link_x_axis_group	Menu > Link > L*: * > X Axis		group	X Axis Modulation	Maps X position into pitch/velocity/filter modulation lanes.	Use offsets and ranges to reshape horizontal influence.
+link_x_axis_group	Menu > Link > L*: * > X Axis		group	X Axis	Lets a tile's left-right position shape pitch, velocity and the filter.	Each lane has its own range.
 link_x_pitch_group	Menu > Link > L*: * > X Axis > Pitch Steps		group	X Pitch Steps	Controls pitch stepping derived from X position.	Disable to remove X-axis pitch influence.
-link_x_velocity_group	Menu > Link > L*: * > X Axis > Velocity		group	X Velocity Lane	Maps X position to velocity output range.	Use this for left-right dynamic shaping.
-link_x_cutoff_group	Menu > Link > L*: * > X Axis > Filter Cutoff		group	X Cutoff Lane	Maps X position to CC74 cutoff modulation range.	Works when filter cutoff lane is enabled.
-link_x_res_group	Menu > Link > L*: * > X Axis > Filter Res		group	X Resonance Lane	Maps X position to CC71 resonance modulation range.	Use carefully to avoid excessive resonance peaks.
-link_y_axis_group	Menu > Link > L*: * > Y Axis		group	Y Axis Modulation	Maps Y position into pitch/velocity/filter modulation lanes.	Use alongside X axis for two-dimensional mapping.
+link_x_velocity_group	Menu > Link > L*: * > X Axis > Velocity		group	Velocity	Lets left-right position set how hard notes play.	From and To set the softest and hardest.
+link_x_cutoff_group	Menu > Link > L*: * > X Axis > Filter Cutoff		group	Filter Cutoff	Lets left-right position open or close the filter.	Sent as MIDI CC74 to external gear too.
+link_x_res_group	Menu > Link > L*: * > X Axis > Filter Res		group	Filter Res	Lets left-right position set the filter resonance.	Sent as MIDI CC71. Go easy, it can squeal.
+link_y_axis_group	Menu > Link > L*: * > Y Axis		group	Y Axis	Lets a tile's bottom-top position shape pitch, velocity and the filter.	Combine it with X Axis for two-handed shaping.
 link_y_pitch_group	Menu > Link > L*: * > Y Axis > Pitch Steps		group	Y Pitch Steps	Controls pitch stepping derived from Y position.	Disable to remove Y-axis pitch influence.
-link_y_velocity_group	Menu > Link > L*: * > Y Axis > Velocity		group	Y Velocity Lane	Maps Y position to velocity output range.	Useful for top-bottom accent patterns.
-link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Y Cutoff Lane	Maps Y position to CC74 cutoff modulation range.	Combine with X lane for richer filter motion.
-link_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Y Resonance Lane	Maps Y position to CC71 resonance modulation range.	Lower ranges are usually easier to control musically.
+link_y_velocity_group	Menu > Link > L*: * > Y Axis > Velocity		group	Velocity	Lets bottom-top position set how hard notes play.	From and To set the softest and hardest.
+link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Filter Cutoff	Lets bottom-top position open or close the filter.	Sent as MIDI CC74 to external gear too.
+link_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Filter Res	Lets bottom-top position set the filter resonance.	Sent as MIDI CC71. Go easy, it can squeal.
 axis_pitch_enabled_x_part	*	key:layers.*.link.x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence for this layer.
 axis_pitch_steps_x_part	*	key:layers.*.link.x.pitch.steps	number	X Pitch Steps	Sets semitone-step influence per X grid step.	Larger values create wider horizontal intervals.
-axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Sect	When On with row scan sections, X pitch counts from the left edge of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
+axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Section	When On with row scan sections, X pitch counts from the left edge of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_x_part	*	key:layers.*.link.x.velocity.enabled	bool	X Velocity Enabled	Enables velocity modulation from X position.	Disable for fixed mapped velocity from the trigger target.
-axis_cut_enabled_x_part	*	key:layers.*.link.x.filterCutoff.enabled	bool	X Cutoff Enabled	Enables cutoff CC modulation from X position.	Outputs CC74 when this lane is active.
-axis_res_enabled_x_part	*	key:layers.*.link.x.filterResonance.enabled	bool	X Resonance Enabled	Enables resonance CC modulation from X position.	Outputs CC71 when this lane is active.
+axis_cut_enabled_x_part	*	key:layers.*.link.x.filterCutoff.enabled	bool	Enabled	Lets left-right position move the filter cutoff.	Also sends MIDI CC74.
+axis_res_enabled_x_part	*	key:layers.*.link.x.filterResonance.enabled	bool	Enabled	Lets left-right position move the filter resonance.	Also sends MIDI CC71.
 axis_pitch_enabled_y_part	*	key:layers.*.link.y.pitch.enabled	bool	Y Pitch Enabled	Enables pitch stepping derived from Y position.	Disable to remove vertical pitch influence for this layer.
 axis_pitch_steps_y_part	*	key:layers.*.link.y.pitch.steps	number	Y Pitch Steps	Sets semitone-step influence per Y grid step.	Larger values create wider vertical intervals.
-axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Sect	When On with column scan sections, Y pitch counts from the bottom of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
+axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Section	When On with column scan sections, Y pitch counts from the bottom of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_y_part	*	key:layers.*.link.y.velocity.enabled	bool	Y Velocity Enabled	Enables velocity modulation from Y position.	Disable for fixed mapped velocity from the trigger target.
-axis_cut_enabled_y_part	*	key:layers.*.link.y.filterCutoff.enabled	bool	Y Cutoff Enabled	Enables cutoff CC modulation from Y position.	Outputs CC74 when this lane is active.
-axis_res_enabled_y_part	*	key:layers.*.link.y.filterResonance.enabled	bool	Y Resonance Enabled	Enables resonance CC modulation from Y position.	Outputs CC71 when this lane is active.
+axis_cut_enabled_y_part	*	key:layers.*.link.y.filterCutoff.enabled	bool	Enabled	Lets bottom-top position move the filter cutoff.	Also sends MIDI CC74.
+axis_res_enabled_y_part	*	key:layers.*.link.y.filterResonance.enabled	bool	Enabled	Lets bottom-top position move the filter resonance.	Also sends MIDI CC71.
 shape_x_axis_group	Menu > Shape > X Axis		group	Shape X Axis	Alternate X-axis modulation settings at Shape layer.	Use this when you want different mapping emphasis in Shape context.
 shape_x_pitch_group	Menu > Shape > X Axis > Pitch Steps		group	Shape X Pitch Steps	Controls X-based pitch stepping in Shape layer.	Can diverge from Route defaults for performance tuning.
 shape_x_velocity_group	Menu > Shape > X Axis > Velocity		group	Shape X Velocity Lane	Controls X-based velocity modulation in Shape layer.	Use to rebalance loudness response per performance profile.
@@ -425,8 +423,8 @@ shape_y_pitch_group	Menu > Shape > Y Axis > Pitch Steps		group	Shape Y Pitch Ste
 shape_y_velocity_group	Menu > Shape > Y Axis > Velocity		group	Shape Y Velocity Lane	Controls Y-based velocity modulation in Shape layer.	Use to weight top/bottom tile dynamics.
 shape_y_cutoff_group	Menu > Shape > Y Axis > Filter Cutoff		group	Shape Y Cutoff Lane	Controls Y-based cutoff modulation in Shape layer.	Affects generated CC74 values.
 shape_y_res_group	Menu > Shape > Y Axis > Filter Res		group	Shape Y Resonance Lane	Controls Y-based resonance modulation in Shape layer.	Affects generated CC71 values.
-system_group	Menu > System		group	System	Global configuration area for presets, sound, MIDI, and UI.	Use this for environment and persistence behavior.
-system_info	Menu > System > Maintenance > Sys. Info	action:system.info	action	Sys. Info	Shows native OS/version, Octessera version, network identity when available, hostname, and board profile details.	The native host loads the result asynchronously; unavailable fields remain labeled explicitly.
+system_group	Menu > System		group	System	Settings for the instrument itself: saves, sound, MIDI and display.	These stay on the device when you load a patch.
+system_info	Menu > System > Maintenance > Sys. Info	action:system.info	action	Sys. Info	Shows the Octessera and system versions, the network name and address, and the board.	It takes a moment to fill in; anything unknown says so.
 system_configure_wifi	Menu > System > Connections > Wi-Fi > Setup Portal	action:system_configure_wifi	action	Setup Portal	Stops playback and opens the full setup portal for Wi-Fi, hostname, SSH, and login settings.	Use the portal to apply device setup changes.
 system_backup_restore	Menu > System > Maintenance > Backup / Restore	action:system_backup_restore	action	Backup / Restore	Provides the standalone LAN backup and restore API on a Pi device.	Use the authenticated local client with the displayed endpoint; stop the service when finished.
 system_maintenance_group	Menu > System > Maintenance		group	Maintenance	Updates, backup/restore, hardware test, reset, and system info.	Nothing here changes the music until you confirm an action.
@@ -441,14 +439,14 @@ wifi_enabled	Menu > System > Connections > Wi-Fi > Wi-Fi	key:wifi.enabled	bool	W
 system_update_apply	Menu > System > Maintenance > Updates > Apply	action:system_update_apply	action	Apply	Downloads and applies the selected device release.	Requires confirmation before changing the active release.
 system_rollback	Menu > System > Maintenance > Updates > Rollback	action:system_rollback	action	Rollback	Restores the previous release.	Requires confirmation before switching versions.
 system_hardware_test	Menu > System > Maintenance > Hardware Test	action:system_hardware_test	action	Hardware Test	Walks through grid LEDs, pads, keys, encoders and a test tone.	Main moves on; Back leaves, except while testing the keys.
-presets_library_group	Menu > System > Saves > Library		group	Preset Library	Named save/load/rename/delete workflow for patch states.	Use Refresh if external files were changed.
-save_as_group	Menu > System > Saves > Library > Save As		group	Save As	Creates a preset from the current runtime state.	Enter a name then run Save to write it.
-load_group	Menu > System > Saves > Library > Load		group	Load Preset	Lists available presets to load into current state.	Loading replaces current runtime config.
+presets_library_group	Menu > System > Saves > Library		group	Library	Save, load, rename and delete your named presets.	Use Refresh if you changed the files on the card.
+save_as_group	Menu > System > Saves > Library > Save As		group	Save As	Saves what you have now as a new preset.	Enter a name, then press Save.
+load_group	Menu > System > Saves > Library > Load		group	Load	Your presets. Pick one to load it.	Loading replaces what is playing now.
 rename_group	Menu > System > Saves > Library > Rename		group	Rename Preset	Select a preset then edit new name before applying.	Useful for versioning variants.
 delete_group	Menu > System > Saves > Library > Delete		group	Delete Preset	Select a preset to delete from storage.	Deletion requires confirmation.
-default_group_specific	Menu > System > Saves > Default		group	Default Preset	Controls boot/default payload save and load behavior.	Auto Save can keep default synced with edits.
-reset_group	Menu > System > Maintenance > Reset		group	Reset	Loads an empty or factory baseline patch.	Use these actions to return the musical state to a known starting point.
-midi_group	Menu > System > MIDI		group	MIDI	MIDI Active is the global runtime gate; MIDI Host and USB Device expose separate interfaces.	Sync / Clock controls transport timing and clock I/O.
+default_group_specific	Menu > System > Saves > Default		group	Default	The patch Octessera starts up with.	Save Patch stores what you have now; Load Patch brings it back.
+reset_group	Menu > System > Maintenance > Reset		group	Reset	Start over with an empty patch or the factory one.	Handy when you want a clean slate.
+midi_group	Menu > System > MIDI		group	MIDI	MIDI Active switches all MIDI on or off; MIDI Host is for gear on the USB port, USB Device for a computer.	Sync / Clock sets who keeps time.
 midi_host_group	Menu > System > MIDI > MIDI Host		group	MIDI Host	MIDI Host provides the external MIDI output and input selectors.	MIDI Out sends events; MIDI In receives transport and sync input.
 midi_out_group	Menu > System > MIDI > MIDI Host > MIDI Out		group	MIDI Output	Selects a Host target for outgoing MIDI events.	On Orange, USB Device MIDI stays active; Host choice is retained for later. Disconnect clears it without disabling USB Device MIDI.
 midi_in_group	Menu > System > MIDI > MIDI Host > MIDI In		group	MIDI Input	Selects the Host input device for incoming clock/start/stop.	On Orange, USB Device uses the gadget input while enabled and this Host choice is retained for later; Disconnect clears it.
@@ -459,26 +457,26 @@ life_spawn_interval	*	key:behaviorConfig.life.randomTickInterval	number	Spawn In
 axis_pitch_enabled	*	key:x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence.
 axis_pitch_steps_x	*	key:x.pitch.steps	number	X Pitch Steps	Sets semitone-step influence per X grid step.	Larger values create wider horizontal intervals.
 axis_vel_enabled_x	*	key:x.velocity.enabled	bool	X Velocity Enabled	Enables velocity modulation from X position.	Disable for fixed mapped velocity from trigger target.
-axis_cut_enabled_x	*	key:x.filterCutoff.enabled	bool	X Cutoff Enabled	Enables cutoff CC modulation from X position.	Outputs CC74 when enabled.
-axis_res_enabled_x	*	key:x.filterResonance.enabled	bool	X Resonance Enabled	Enables resonance CC modulation from X position.	Outputs CC71 when enabled.
+axis_cut_enabled_x	*	key:x.filterCutoff.enabled	bool	Enabled	Lets left-right position move the filter cutoff.	Also sends MIDI CC74.
+axis_res_enabled_x	*	key:x.filterResonance.enabled	bool	Enabled	Lets left-right position move the filter resonance.	Also sends MIDI CC71.
 axis_pitch_enabled_y	*	key:y.pitch.enabled	bool	Y Pitch Enabled	Enables pitch stepping derived from Y position.	Disable to remove vertical pitch influence.
 axis_pitch_steps_y	*	key:y.pitch.steps	number	Y Pitch Steps	Sets semitone-step influence per Y grid step.	Larger values create wider vertical intervals.
 axis_vel_enabled_y	*	key:y.velocity.enabled	bool	Y Velocity Enabled	Enables velocity modulation from Y position.	Disable for fixed mapped velocity from trigger target.
-axis_cut_enabled_y	*	key:y.filterCutoff.enabled	bool	Y Cutoff Enabled	Enables cutoff CC modulation from Y position.	Outputs CC74 when enabled.
-axis_res_enabled_y	*	key:y.filterResonance.enabled	bool	Y Resonance Enabled	Enables resonance CC modulation from Y position.	Outputs CC71 when enabled.
+axis_cut_enabled_y	*	key:y.filterCutoff.enabled	bool	Enabled	Lets bottom-top position move the filter cutoff.	Also sends MIDI CC74.
+axis_res_enabled_y	*	key:y.filterResonance.enabled	bool	Enabled	Lets bottom-top position move the filter resonance.	Also sends MIDI CC71.
 draft_name_field	*	key:system.draftName	text	Preset Name Field	Text field used for Save As and Rename preset flows.	Save/Apply actions consume this value as the target preset name.
 preset_rename_apply	Menu > System > Saves > Library > Rename > Apply	action:preset_rename_apply	action	Apply Rename	Runs rename from selected preset to entered New Name.	Requires a valid selected source preset.
 signal_view	Menu > Shape > * > Signal	action:signal_view	action	Signal	Shows this instrument's, bus's or the master's sound across the whole screen while the transport plays.	Main switches between scope, spectrum and waterfall; Back closes it.
 instrument_actions	Menu > Shape > Instruments > Instrument * > Slot Actions		group	Instrument Actions	Rare destructive or copy actions for this instrument slot.	Clone or reset only after confirming the target action.
-instrument_clone	Menu > Shape > Instruments > Instrument * > Slot Actions > Clone	action:instrument_clone	action	Clone	Copies this instrument slot's configuration into another instrument slot.	Use this to duplicate a sound before making variations.
-instrument_reset	Menu > Shape > Instruments > Instrument * > Slot Actions > Reset	action:instrument_reset	action	Reset	Restores this instrument slot to its default state for the current type.	Useful when you want to clear experimental edits on one slot only.
+instrument_clone	Menu > Shape > Instruments > Instrument * > Slot Actions > Clone	action:instrument_clone	action	Clone	Copies this instrument into another slot.	Handy for trying a variation without losing the original.
+instrument_reset	Menu > Shape > Instruments > Instrument * > Slot Actions > Reset	action:instrument_reset	action	Reset	Puts this instrument back to its defaults for its type.	Only this slot is affected.
 instrument_auto_name	*	key:instruments.*.autoName	bool	Auto Label	When On, the instrument label follows its current type or generated label.	Turn it Off before typing a custom instrument label you want to keep.
 instrument_name	*	key:instruments.*.name	text	Instrument Name	Sets the user-visible label for this instrument slot.	Shown in menus, routing targets, and overlays when Auto Label is off.
 bus_auto_name	*	key:mixer.buses.*.autoName	bool	Auto Label	When On, the FX bus label follows its generated default label.	Turn it Off before typing a custom bus label you want to keep.
 bus_name	*	key:mixer.buses.*.name	text	Bus Name	Sets the user-visible label for this FX bus.	Shown in routing menus and bus-related overlays when Auto Label is off.
 velocity_curve	*	key:sound.velocityCurve	enum	Vel Curve	linear keeps the scaled velocity proportional; soft compresses accents; hard increases contrast between quiet and loud hits.	The curve is applied globally after Link mapping and velocity scaling.
-factory_load_action	Menu > System > Maintenance > Reset > Load Factory	action:factory_load	action	Load Factory	Loads built-in factory default configuration.	Use this to quickly recover a known baseline state.
-system_clear_all_action	Menu > System > Maintenance > Reset > Load Empty	action:system_clear_all	action	Load Empty	Stops playback and loads an empty patch state after confirmation.	Preserves device preferences such as brightness, MIDI settings, audio buffer, favorites, and preset names.
+factory_load_action	Menu > System > Maintenance > Reset > Load Factory	action:factory_load	action	Load Factory	Loads the factory patch.	A known good place to start from.
+system_clear_all_action	Menu > System > Maintenance > Reset > Load Empty	action:system_clear_all	action	Load Empty	Stops and loads an empty patch.	Device settings such as brightness, MIDI and favorites stay.
 synth_preset_group	Menu > Shape > Instruments > Instrument * > Synth > Preset		group	Synth Preset	Preset tools for this instrument slot's synth parameters.	Use Load to replace the slot's synth block with a named preset.
 synth_preset_load_group	Menu > Shape > Instruments > Instrument * > Synth > Preset > Load		group	Load Synth Preset	Eleven synth starting points, from Init to Zap.	Selecting a preset asks for confirmation before overwriting synth settings.
 synth_preset_load_init	Menu > Shape > Instruments > Instrument * > Synth > Preset > Load > Init	action:synth_preset_load:init	action	Init	The honest blank page: a saw and a square through a gentle lowpass.	Start here when you want to build a sound from scratch.
@@ -534,7 +532,7 @@ drum_kit_load_hand_perc	Menu > Shape > Instruments > Instrument * > Drum > Kit >
 drum_kit_load_minimal	Menu > Shape > Instruments > Instrument * > Drum > Kit > Load > Minimal	action:drum_kit_load:minimal	action	Minimal	Ticks, blips and a polite thud.	Good for groove or fills at 1/16.
 drum_kit_load_toy_box	Menu > Shape > Instruments > Instrument * > Drum > Kit > Load > Toy Box	action:drum_kit_load:toy_box	action	Toy Box	Everything pitched up and a bit too cheerful.	Good for bounce, bubbles and gravity.
 inst_mixer_group	Menu > Shape > Instruments > Instrument * > Mixer		group	Instrument Mixer	Sets this slot's audio level, route, and pan.	Mixer settings affect synth and sampler audio, not external MIDI notes.
-inst_mixer_route	Menu > Shape > Instruments > Instrument * > Mixer > Route	key:instruments.*.mixer.route	enum	Route	direct sends internal synth/sample audio to the main mix; fx_bus_1, fx_bus_2, fx_bus_3, or fx_bus_4 sends it through that bus.	External MIDI instruments do not enter the internal audio route or FX buses.
+inst_mixer_route	Menu > Shape > Instruments > Instrument * > Mixer > Route	key:instruments.*.mixer.route	enum	Route	direct sends this instrument straight to the main mix; fxb1, fxb2, fxb3 or fxb4 sends it through that FX bus.	MIDI instruments go out as MIDI and skip the internal effects.
 inst_mixer_pan	Menu > Shape > Instruments > Instrument * > Mixer > Pan Pos	key:instruments.*.mixer.panPos	number	Pan Position	Sets direct-output pan for this slot's audio.	0 is left, 16 center, 32 right; bus-routed audio uses the bus pan.
 fx_buses_group	Menu > Shape > FX Buses		group	FX Buses	Configures shared audio buses used by instrument routes.	Each bus runs Slot 1, Slot 2, then Slot 3, pans the result, and joins the main mix.
 fx_bus_names_group	Menu > Shape > FX Buses > Names		group	Bus Names	Sets auto-naming and custom name for each bus.	Auto name is computed from the assigned FX slot types; turning off auto lets you edit the name freely.
@@ -546,9 +544,9 @@ fx_bus_pan	Menu > Shape > FX Buses > B*: * > Pan Pos	key:mixer.buses.*.panPos	nu
 fx_bus_slot1_group	Menu > Shape > FX Buses > B*: * > Slot 1		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.
 fx_bus_slot2_group	Menu > Shape > FX Buses > B*: * > Slot 2		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.
 fx_bus_slot3_group	Menu > Shape > FX Buses > B*: * > Slot 3		group	FX Slot	Configures one effect slot in the bus chain.	Choose Type, then edit effect parameters below.
-fx_bus_slot1_type	Menu > Shape > FX Buses > B*: * > Slot 1 > Type	key:mixer.buses.*.slot1.type	enum	Slot Type	none=pass; tremolo=AM; delay=echo; vibrato=pitch; chorus=double; flanger=comb; filter_lfo=filter; wah=sweep.	vinyl=lo-fi; eq=EQ; compressor=level; reverb=space; glitch=stutter; auto_pan=pan; duck=duck; saturator=soft; distortion=hard; bitcrusher=grit.
-fx_bus_slot2_type	Menu > Shape > FX Buses > B*: * > Slot 2 > Type	key:mixer.buses.*.slot2.type	enum	Slot Type	none=pass; tremolo=AM; delay=echo; vibrato=pitch; chorus=double; flanger=comb; filter_lfo=filter; wah=sweep.	vinyl=lo-fi; eq=EQ; compressor=level; reverb=space; glitch=stutter; auto_pan=pan; duck=duck; saturator=soft; distortion=hard; bitcrusher=grit.
-fx_bus_slot3_type	Menu > Shape > FX Buses > B*: * > Slot 3 > Type	key:mixer.buses.*.slot3.type	enum	Slot Type	none=pass; tremolo=AM; delay=echo; vibrato=pitch; chorus=double; flanger=comb; filter_lfo=filter; wah=sweep.	vinyl=lo-fi; eq=EQ; compressor=level; reverb=space; glitch=stutter; auto_pan=pan; duck=duck; saturator=soft; distortion=hard; bitcrusher=grit.
+fx_bus_slot1_type	Menu > Shape > FX Buses > B*: * > Slot 1 > Type	key:mixer.buses.*.slot1.type	enum	Type	The effect in this slot: delay, reverb, chorus, flanger, vibrato, tremolo, filter LFO, wah,	vinyl, EQ, compressor, glitch, auto pan, duck, saturator, distortion or bitcrusher; None passes the sound through.
+fx_bus_slot2_type	Menu > Shape > FX Buses > B*: * > Slot 2 > Type	key:mixer.buses.*.slot2.type	enum	Type	The effect in this slot: delay, reverb, chorus, flanger, vibrato, tremolo, filter LFO, wah,	vinyl, EQ, compressor, glitch, auto pan, duck, saturator, distortion or bitcrusher; None passes the sound through.
+fx_bus_slot3_type	Menu > Shape > FX Buses > B*: * > Slot 3 > Type	key:mixer.buses.*.slot3.type	enum	Type	The effect in this slot: delay, reverb, chorus, flanger, vibrato, tremolo, filter LFO, wah,	vinyl, EQ, compressor, glitch, auto pan, duck, saturator, distortion or bitcrusher; None passes the sound through.
 fx_bus_slot1_duck_group	Menu > Shape > FX Buses > B*: * > Slot 1 > duck		group	duck	Sidechain-style ducking effect.	Reduces this bus level when the selected source is loud.
 fx_bus_slot2_duck_group	Menu > Shape > FX Buses > B*: * > Slot 2 > duck		group	duck	Sidechain-style ducking effect.	Reduces this bus level when the selected source is loud.
 fx_bus_slot3_duck_group	Menu > Shape > FX Buses > B*: * > Slot 3 > duck		group	duck	Sidechain-style ducking effect.	Reduces this bus level when the selected source is loud.
@@ -578,7 +576,7 @@ play_page_mix	Menu > Play > Mix	key:play.page.mix	group	Mix Page	Live grid page:
 play_page_pan	Menu > Play > Pan	key:play.page.pan	group	Pan Page	Live grid page: one row per instrument, hard left to hard right.	Instruments routed to an FX bus move that bus's pan instead.
 play_page_route	Menu > Play > Route	key:play.page.route	group	Route Page	Live grid page per instrument: rows 0-4 route direct or to B1-B4, row 5 bypasses B1-B4 and Global FX 1-2, row 7 sets every bus duck's Source.	Routes and duck sources are saved. Bypass is live only and resets on load; press the same tile again to undo.
 play_page_tempo	Menu > Play > Tempo	key:play.page.tempo	group	Tempo Page	Live grid page: tempo tiles 50-240, nudges, Tap, and the Swing A and B rows.	Under external sync, tempo, nudge and Tap are locked to the incoming clock; Swing still works.
-play_page_lfo	Menu > Play > LFO	key:play.page.lfo	group	LFO Page	Live grid page: one row per global LFO (L1 bottom); column 0 switches it, columns 1-7 pick its period.	Press the lit period again for its triplet; Shift + columns 1-7 set Depth 15-100%. Column 0 follows the LFO.
+play_page_lfo	Menu > Play > LFO	key:play.page.lfo	group	LFO	One row per LFO, LFO1 at the bottom: column 0 switches it, columns 1-7 pick its period.	Press a lit period again for its triplet; Shift + columns 1-7 set Depth.
 play_page_faders	Menu > Play > Faders	key:play.page.faders	group	Faders Page	Live grid page: eight vertical sliders, one per column; a press sets that column's target, Shift + press its second one.	A press writes the value like a menu edit; each bar shows its target's current value, so menu edits and preset loads move it too.
 play_faders_column_group	Menu > Play > Faders > Fader *		group	Fader Column	One grid column: a plain press sets Target, Shift + press sets S+Target.	A side without a target ignores presses and stays dark.
 play_faders_target	Menu > Play > Faders > Fader * > Target: *	key:play.faders.*.target	group	Fader Target	Chooses the parameter a plain press sets; the bottom row gives Range Min, the top row Range Max.	A new target changes nothing until the next press.
@@ -603,30 +601,30 @@ play_aux_map_group	Menu > Play > FX > Aux Map		group	Aux Map	Shows the Play FX p
 link_bpm	Menu > Link > BPM	key:transport.bpm	number	BPM	Sets master tempo, 40-240 BPM.	This is the main tempo control; Play Tempo sets it from the grid.
 link_swing_a	Menu > Link > Swing A	key:transport.swingA	number	Swing A	Swing is the ratio A:B of each beat's on-beat eighth to its offbeat eighth.	Equal values (4:4) are straight; 5:3 delays the offbeat, 3:5 pulls it early. A change waits for the next beat. MIDI clock out stays straight.
 link_swing_b	Menu > Link > Swing B	key:transport.swingB	number	Swing B	Sets B, the offbeat eighth's share of the A:B swing ratio (1-7).	Equal to Swing A is straight; higher than A pulls the offbeat earlier.
-play_fx_type	Menu > Play > FX > FX Type	key:play.fx.type	enum	FX Type	none=no FX; stutter=slice loop; freeze=held tail; filter_sweep (flt_sweep)=lowpass; pitch_shift (pitch)=transpose; tape_stop=slow to a stop.	reverse=backwards; trance_gate (gate)=chop; dub_throw (dub)=echo; wash=reverb swell; hp_riser=highpass rise; crush=grit. A type change seeds defaults.
-play_fx_rate	Menu > Play > FX > Rate Hz	key:play.fx.params.rateHz	number	Rate Hz	Sets the captured segment repeat rate (1-32 Hz). Higher rate = shorter captured segment.	Stored per grid tile when Map to Grid is used.
-play_fx_depth	Menu > Play > FX > Depth	key:play.fx.params.depthPct	number	Depth	Sets stutter wet mix, or trance_gate chop depth, from 0 (dry) to 100 (full) for the config being mapped.	Stored per grid tile when Map to Grid is used.
-play_fx_release_ms	Menu > Play > FX > Release Ms	key:play.fx.params.releaseMs	number	Release Ms	Sets the release fade time: freeze fades its capture (10-5000 ms), wash fades its reverb tail (100-8000 ms).	It controls how quickly the effect fades after releasing its grid tile; Map to Grid stores it per tile.
-play_fx_mix	Menu > Play > FX > Mix	key:play.fx.params.mixPct	number	Mix	Sets wet mix from 0 to 100 for the config being mapped (freeze, pitch_shift, reverse, dub_throw, wash, crush).	Stored per grid tile when Map to Grid is used.
-play_fx_cutoff	Menu > Play > FX > Cutoff	key:play.fx.params.cutoffPct	number	Cutoff	Sets the target cutoff. filter_sweep lowpass: 0 about 120 Hz (darkest) to 100 about 8 kHz. hp_riser highpass: 0 about 80 Hz to 100 about 8 kHz.	Stored per grid tile when Map to Grid is used.
-play_fx_res	Menu > Play > FX > Res	key:play.fx.params.resonancePct	number	Res	Sets filter_sweep or hp_riser resonance from 0 to 100 for the config being mapped.	Stored per grid tile when Map to Grid is used.
-play_fx_sweep_in	Menu > Play > FX > Sweep In	key:play.fx.params.sweepInMs	number	Sweep In	Sets the sweep-in time (filter_sweep 10-3000 ms, hp_riser 10-8000 ms) from the open filter toward the target cutoff on press.	Stored per grid tile when Map to Grid is used.
-play_fx_sweep_out	Menu > Play > FX > Sweep Out	key:play.fx.params.sweepOutMs	number	Sweep Out	Sets the sweep-out time (10-3000 ms) of filter_sweep or hp_riser from the target back to the open filter on release.	Stored per grid tile when Map to Grid is used.
-play_fx_semitones	Menu > Play > FX > Semitones	key:play.fx.params.semitones	number	Semitones	Sets pitch_shift semitone offset (-24..24) for the config being mapped. Combined with Cents for fine tuning.	Stored per grid tile when Map to Grid is used.
-play_fx_cents	Menu > Play > FX > Cents	key:play.fx.params.cents	number	Cents	Sets pitch_shift cents offset (-100..100) for fine detuning the config being mapped. Added to Semitones for the total shift.	Stored per grid tile when Map to Grid is used.
+play_fx_type	Menu > Play > FX > FX Type	key:play.fx.type	enum	FX Type	The effect a mapped tile plays while held: none, stutter, freeze, filter sweep, pitch, tape stop,	reverse, gate, dub (echo throw), wash, HP riser or crush; changing it loads that effect's defaults.
+play_fx_rate	Menu > Play > FX > Rate	key:play.fx.params.rateHz	number	Rate	Sets the captured segment repeat rate (1-32 Hz). Higher rate = shorter captured segment.	Stored per grid tile when Map to Grid is used.
+play_fx_depth	Menu > Play > FX > Depth	key:play.fx.params.depthPct	number	Depth	How much stutter or gate you hear, from 0 (dry) to 100 (full).	Each tile keeps the value it was mapped with.
+play_fx_release_ms	Menu > Play > FX > Release	key:play.fx.params.releaseMs	number	Release	Sets the release fade time: freeze fades its capture (10-5000 ms), wash fades its reverb tail (100-8000 ms).	It controls how quickly the effect fades after releasing its grid tile; Map to Grid stores it per tile.
+play_fx_mix	Menu > Play > FX > Mix	key:play.fx.params.mixPct	number	Mix	How much of the effect you hear, from 0 (dry) to 100 (all effect).	Each tile keeps the value it was mapped with.
+play_fx_cutoff	Menu > Play > FX > Cutoff	key:play.fx.params.cutoffPct	number	Cutoff	Where the filter sweep ends: filter sweep darkens toward it, HP riser thins toward it.	Each tile keeps the value it was mapped with.
+play_fx_res	Menu > Play > FX > Res	key:play.fx.params.resonancePct	number	Res	How much the swept filter rings, 0 to 100.	Each tile keeps the value it was mapped with.
+play_fx_sweep_in	Menu > Play > FX > Sweep In	key:play.fx.params.sweepInMs	number	Sweep In	How long the filter takes to reach Cutoff after you press the tile.	Each tile keeps the value it was mapped with.
+play_fx_sweep_out	Menu > Play > FX > Sweep Out	key:play.fx.params.sweepOutMs	number	Sweep Out	How long the filter takes to open again after you let go.	Each tile keeps the value it was mapped with.
+play_fx_semitones	Menu > Play > FX > Semitones	key:play.fx.params.semitones	number	Semitones	How far pitch shifts, up to two octaves either way.	Cents adds fine tuning on top.
+play_fx_cents	Menu > Play > FX > Cents	key:play.fx.params.cents	number	Cents	Fine tuning on top of Semitones, up to a semitone either way.	Each tile keeps the value it was mapped with.
 play_fx_slide_in	Menu > Play > FX > Slide In	key:play.fx.params.slideInMs	number	Slide In	Sets pitch glide-in time (10-3000 ms) with linear octave motion. Wet activation still uses a fixed 10 ms anti-click ramp.	Stored per grid tile when Map to Grid is used.
-play_fx_slide_out	Menu > Play > FX > Slide Out	key:play.fx.params.slideOutMs	number	Slide Out	Sets pitch_shift pitch glide-out time (10-3000 ms). Release wet fade still uses the final fixed 10 ms anti-click portion.	Stored per grid tile when Map to Grid is used.
-play_fx_stop	Menu > Play > FX > Stop	key:play.fx.params.stopMs	number	Stop	Sets tape_stop slow-down time (50-2000 ms): pitch and speed glide to a halt while the tile is held.	Stored per grid tile when Map to Grid is used.
-play_fx_start	Menu > Play > FX > Start	key:play.fx.params.startMs	number	Start	Sets tape_stop spin-up time (10-2000 ms) after release, back to normal speed.	Stored per grid tile when Map to Grid is used.
+play_fx_slide_out	Menu > Play > FX > Slide Out	key:play.fx.params.slideOutMs	number	Slide Out	How long the pitch takes to glide back after you let go.	Each tile keeps the value it was mapped with.
+play_fx_stop	Menu > Play > FX > Stop	key:play.fx.params.stopMs	number	Stop	How long the tape takes to grind to a halt while you hold the tile.	Each tile keeps the value it was mapped with.
+play_fx_start	Menu > Play > FX > Start	key:play.fx.params.startMs	number	Start	How long the tape takes to spin back up after you let go.	Each tile keeps the value it was mapped with.
 play_fx_length	Menu > Play > FX > Length	key:play.fx.params.lengthMs	number	Length	Sets the reverse window (50-1000 ms). Reverse listens for one Length, then plays each latest Length backwards.	Stored per grid tile when Map to Grid is used.
-play_fx_gate_rate	Menu > Play > FX > Rate	key:play.fx.params.rateNote	number	Rate	Sets the trance_gate chop length as a note value (1/32T to 1/4). It follows the tempo, or the incoming clock under external sync.	Stored per grid tile when Map to Grid is used.
-play_fx_smooth	Menu > Play > FX > Smooth	key:play.fx.params.smoothPct	number	Smooth	Sets trance_gate edge softness from 0 (hard, still click-free) to 100 (rounded swells).	Stored per grid tile when Map to Grid is used.
-play_fx_delay_time	Menu > Play > FX > Time	key:play.fx.params.delayNote	number	Time	Sets the dub_throw echo time as a note value (1/16T to 1/2), following the tempo like Rate.	Stored per grid tile when Map to Grid is used.
-play_fx_feedback	Menu > Play > FX > Feedback	key:play.fx.params.feedbackPct	number	Feedback	Sets how much of each dub_throw echo comes back (0-90). The echoes keep trailing off after release.	Stored per grid tile when Map to Grid is used.
+play_fx_gate_rate	Menu > Play > FX > Rate	key:play.fx.params.rateNote	number	Rate	How fast the gate chops, as a note value from 1/32T to 1/4.	It follows the tempo, or the incoming clock.
+play_fx_smooth	Menu > Play > FX > Smooth	key:play.fx.params.smoothPct	number	Smooth	How soft the gate's edges are, from 0 (hard) to 100 (round swells).	Each tile keeps the value it was mapped with.
+play_fx_delay_time	Menu > Play > FX > Time	key:play.fx.params.delayNote	number	Time	The echo time of the dub throw, as a note value from 1/16T to 1/2.	It follows the tempo like Rate.
+play_fx_feedback	Menu > Play > FX > Feedback	key:play.fx.params.feedbackPct	number	Feedback	How much of each echo comes back, 0 to 90.	The echoes keep trailing off after you let go.
 play_fx_size	Menu > Play > FX > Size	key:play.fx.params.sizePct	number	Size	Sets the wash reverb size from 0 (short tail) to 100 (long swell).	Stored per grid tile when Map to Grid is used.
 play_fx_bits	Menu > Play > FX > Bits	key:play.fx.params.bits	number	Bits	Sets the crush bit depth (1-16). Fewer bits sound grittier.	Stored per grid tile when Map to Grid is used.
 play_fx_downsample	Menu > Play > FX > Downsample	key:play.fx.params.rateDiv	number	Downsample	Sets the crush sample-rate divider (1-32). Higher values hold each sample longer for aliasing crunch.	Stored per grid tile when Map to Grid is used.
-native_behavior_id	*	key:behaviorId	group	Behavior	Opens the behavior browser for this layer.	Choose a category, then choose a behavior. Selection updates only this layer's Build rows and keeps the saved behaviorId payload field.
+native_behavior_id	*	key:behaviorId	group	Behavior	Picks the little world this layer runs.	Choose a category, then a behavior. Only this layer changes.
 native_layer_behavior_id	*	key:layers.*.behaviorId	group	Layer Behavior	Opens the behavior browser for this layer.	Choose a category, then choose a behavior. Selection updates that layer's Build rows without switching the active layer.
 native_behavior_category_play	*	key:behavior.category.play	group	Human Behaviors	Playable and manually-steered layer behaviors.	Use these for direct input, looping, sequencing, and hand-shaped world-bubbles.
 native_behavior_category_rhythm	*	key:behavior.category.rhythm	group	Rhythm Behaviors	Pattern engines for pulses, breaks, fills, and grooves.	These worlds focus on timing structure before pitch or cellular motion.
@@ -636,16 +634,16 @@ native_behavior_category_fields	*	key:behavior.category.fields	group	Field Behav
 native_behavior_category_geometry	*	key:behavior.category.geometry	group	Geometry Behaviors	Shape, maze, and fractal pattern builders.	Good for spatial structure and crisp visual-musical forms.
 native_behavior_category_growth	*	key:behavior.category.growth	group	Growth Behaviors	Organic spreading, branching, and accretion systems.	Use these when you want the grid to feel like it is growing something.
 native_behavior_category_motion	*	key:behavior.category.motion	group	Motion Behaviors	Moving particles, orbits, gravity, and flowing systems.	These worlds put travel and momentum at the center of the pattern.
-native_behavior_id_legacy_enum	*	key:behaviorId	enum	Behavior	Compatibility values none, life, and brain are selectable in legacy behavior rows.	none=empty; life=Conway cellular life; brain=three-state firing and recovery.
-native_algorithm_step	*	key:algorithmStep	enum	Step Rate	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	T values are triplets; each number is the exact 24-PPQN pulse interval for this layer's ticks; Link scanning uses Scan Unit.
-native_layer_algorithm_step	*	key:layers.*.algorithmStep	enum	Step Rate	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	T values are triplets; each number is the exact 24-PPQN pulse interval for that layer's ticks; Link scanning uses Scan Unit.
+native_behavior_id_legacy_enum	*	key:behaviorId	enum	Behavior	The behavior this layer runs: none, life or brain.	none is an empty layer; life is Conway's Life; brain fires, rests and recovers.
+native_algorithm_step	*	key:algorithmStep	enum	Step Rate	How fast this layer's world moves: one step per 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8,	1/4T, 1/4, 1/2T, 1/2, 1/1T or 1/1 (T means triplet). A scanning layer plays at its Scan Unit.
+native_layer_algorithm_step	*	key:layers.*.algorithmStep	enum	Step Rate	How fast this layer's world moves: one step per 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8,	1/4T, 1/4, 1/2T, 1/2, 1/1T or 1/1 (T means triplet). A scanning layer plays at its Scan Unit.
 native_behavior_spawn_count	*	key:behavior.randomCellsPerTick	number	Spawn Count	Sets how many new cells, agents or other entities this behavior's spawn action adds.	Higher values make spawn actions denser and more disruptive.
 native_behavior_spawn_interval	*	key:behavior.randomTickInterval	number	Spawn Interval	Sets the tick interval between automatic random spawn bursts.	Lower values spawn more frequently.
-native_reset_behavior	*	action:reset_behavior	action	Reset Behavior	Reinitializes the selected layer's active behavior state.	Configuration stays in place while the live grid/runtime state is reset.
-native_behavior_select	*	action:behavior_select:*	action	Select Behavior	Selects this behavior for the active layer.	The runtime switches behavior immediately through the native engine without a full menu rebuild.
+native_reset_behavior	*	action:reset_behavior	action	Reset	Starts this layer's world over.	Its settings stay as they are.
+native_behavior_select	*	action:behavior_select:*	action	Select Behavior	Runs this behavior on the layer.	It switches right away.
 native_behavior_select_none	*	action:behavior_select:none	action	None	Keeps the layer's grid empty and ignores grid input and behavior ticks.	Choose it for a deliberately silent layer; Keys and Sequencer provide manual grid playing.
 native_behavior_select_keys	*	action:behavior_select:keys	action	Keys	Turns the grid into a direct playable key surface.	Good for hands-on notes and real-time input instead of autonomous rules.
-native_behavior_select_sequencer	*	action:behavior_select:sequencer	action	Sequencer	Provides a manual 8x8 step grid; pressing a tile toggles its stored state.	It does not evolve on ticks, so Link can turn the selected steps into notes.
+native_behavior_select_sequencer	*	action:behavior_select:sequencer	action	Sequencer	A plain 8x8 step grid; press a tile to switch it on or off.	It never changes by itself, so Link plays exactly what you drew.
 native_behavior_select_looper	*	action:behavior_select:looper	action	Looper	Captures and repeats played gestures on the layer.	Nudge it live to build loops that still belong to the grid world.
 native_behavior_select_weave	*	action:behavior_select:weave	action	Weave	Interlaces repeating strands into a woven pattern.	Useful for braided motion where simple parts keep crossing in musical ways.
 native_behavior_select_polyrhythm	*	action:behavior_select:polyrhythm	action	Polyrhythm	Layers pulse cycles with different lengths.	Use it for rhythms that phase against each other without losing the beat.
@@ -666,10 +664,10 @@ native_behavior_select_brain	*	action:behavior_select:brain	action	Brain	Uses th
 native_behavior_select_cyclic	*	action:behavior_select:cyclic	action	Cyclic	Cells advance to the next state when enough nearby cells already have that state.	States sets the cycle count; Threshold and Range control how readily fronts advance.
 native_behavior_select_forest_fire	*	action:behavior_select:forest_fire	action	Forest Fire	Lets growth and ignition compete across the grid.	Sparse sparks can become crackling bursts and then empty space again.
 native_behavior_select_predator_prey	*	action:behavior_select:predator_prey	action	Predator Prey	Runs chasing populations that feed and fade.	Good for unstable musical ecosystems with pursuit and collapse.
-native_behavior_select_twinkle	*	action:behavior_select:twinkle	action	Twinkle	Keeps a sparse deterministic constellation of short-lived stars.	A tiny sky of blue-white tiles makes a lovely restless layer.
+native_behavior_select_twinkle	*	action:behavior_select:twinkle	action	Twinkle	A sparse little sky of short-lived stars.	Blue-white tiles come and go, a lovely restless layer.
 native_behavior_select_ant	*	action:behavior_select:ant	action	Ant	Walks rule-driven agents across cell trails.	Simple turns can carve surprisingly organized paths.
-native_behavior_select_boids	*	action:behavior_select:boids	action	Boids	Moves agents with separation, shared heading, and flock-center steering, reflecting at edges.	Scatter Flock changes velocities; Seed Flock restores a centered deterministic flock.
-native_behavior_select_physarum	*	action:behavior_select:physarum	action	Physarum	Moves agents toward sensed trail and food while depositing trails that evaporate over time.	Relocate Food cycles deterministic food layouts; Seed Slime clears trails and reseeds agents.
+native_behavior_select_boids	*	action:behavior_select:boids	action	Boids	A flock of birds that keep apart, line up and stick together.	Scatter Flock sends them off; Seed Flock gathers them in the middle.
+native_behavior_select_physarum	*	action:behavior_select:physarum	action	Physarum	Slime mold that follows its own trails and food; the trails fade over time.	Relocate Food moves the food; Seed Slime gathers the slime again.
 native_behavior_select_bounce	*	action:behavior_select:bounce	action	Bounce	Sends motion bouncing around boundaries.	A lively choice for ricochets, repeats, and kinetic accents.
 native_behavior_select_bubbles	*	action:behavior_select:bubbles	action	Bubbles	Lets soft moving blobs rise and overlap.	Use it for buoyant motion with rounded, drifting events.
 native_behavior_select_coral	*	action:behavior_select:coral	action	Coral	Grows two competing cardinal-neighbor colonies, turning contested tiles into aging skeleton.	Seed Coral restores the two lower-edge colonies; Break Coral removes old skeleton and exposed tiles.
@@ -677,37 +675,37 @@ native_behavior_select_cracks	*	action:behavior_select:cracks	action	Cracks	Buil
 native_behavior_select_crystal_growth	*	action:behavior_select:crystal_growth	action	Crystal Growth	Builds faceted growth from ordered rules.	Good for patterns that feel mineral, angular, and accumulative.
 native_behavior_select_dla	*	action:behavior_select:dla	action	DLA	Aggregates wandering particles into branching clusters.	Use it when you want chance walks to freeze into structure.
 native_behavior_select_ink	*	action:behavior_select:ink	action	Ink	Stores pigment strength per tile, diffuses it toward neighbors, and fades it each tick.	Drop Ink adds a center splash; Clear Ink removes all pigment; scheduled drops use Drop Interval.
-native_behavior_select_ising	*	action:behavior_select:ising	action	Ising	Updates binary spins toward neighboring agreement while temperature, field, and noise allow flips.	Heat Pulse adds one noisy tick; Flip Field reverses bias; Randomize Spins writes a deterministic mix.
+native_behavior_select_ising	*	action:behavior_select:ising	action	Ising	Little magnets that want to agree with their neighbors, unless heat and noise shake them.	Heat Pulse adds one hot step; Flip Field turns the pull around.
 native_behavior_select_kuramoto	*	action:behavior_select:kuramoto	action	Kuramoto	Synchronizes oscillators across the grid.	Good for phase-locking motion that can drift into collective pulses.
 native_behavior_select_lightning	*	action:behavior_select:lightning	action	Lightning	Advances leaders toward a selected edge, branches them, then turns the connected strike into a decaying flash.	Branch, Jitter, Decay, and Leader Limit shape the strike; Strike Now starts it over.
 native_behavior_select_wave	*	action:behavior_select:wave	action	Wave	Simulates displacement and velocity on every tile; tension spreads an impulse and damping removes energy.	Grid press or Drop Impulse hits a tile; Impulse Interval adds scheduled hits.
 native_behavior_select_raindrops	*	action:behavior_select:raindrops	action	Raindrops	Drops impacts that ripple outward.	Use it for scattered events that bloom into circles.
 native_behavior_select_reaction_diffusion	*	action:behavior_select:reaction_diffusion	action	Reaction Diffusion	Evolves chemical-like patterns in a field.	Good for spots, stripes, and slow transformations.
 native_behavior_select_rivers	*	action:behavior_select:rivers	action	Rivers	Moves flow through channels across the grid.	Use it for current, branching streams, and directional drift.
-native_behavior_select_gravity	*	action:behavior_select:gravity	action	Gravity	Moves sand grains toward the selected world-space edge, with diagonal slides when blocked and bounded edge spawning.	Drop Sand feeds the opposite edge; Clear Bottom empties the destination edge; Invert Gravity rotates direction.
+native_behavior_select_gravity	*	action:behavior_select:gravity	action	Gravity	Sand that falls toward an edge and slides off piles.	Drop Sand pours more; Clear Bottom empties the floor; Invert Gravity turns it.
 native_behavior_select_orbit	*	action:behavior_select:orbit	action	Orbit	Moves particles with attractor pull and tangential steering; particles and attractor reflect at grid edges.	Reset Orbit restores a centered ring; Nudge Attractor changes its velocity for later ticks.
 native_behavior_select_lava_lamp	*	action:behavior_select:lava_lamp	action	Lava Lamp	Moves blobs in slow merging currents.	Good for warm, drifting motion that never quite repeats.
 native_behavior_select_sand_ripples	*	action:behavior_select:sand_ripples	action	Sand Ripples	Forms granular ripples and shifting ridges.	Use it for textured motion that rolls through the field.
-native_behavior_select_fractal_explorer	*	action:behavior_select:fractal_explorer	action	Fractal Explorer	Samples bounded Mandelbrot or Julia iterations into visible classes while the window zooms and drifts.	Jump Region changes the deterministic window; Toggle Fractal Mode switches the sampled set.
+native_behavior_select_fractal_explorer	*	action:behavior_select:fractal_explorer	action	Fractal Explorer	Flies slowly through the Mandelbrot or Julia set.	Jump Region flies elsewhere; Toggle Fractal Mode switches sets.
 native_behavior_select_maze_growth	*	action:behavior_select:maze_growth	action	Maze Growth	Carves maze-like paths as it expands.	Use it for corridors, turns, and branching travel.
 native_behavior_select_shapes	*	action:behavior_select:shapes	action	Shapes	Creates geometric figures and spatial motifs.	Good for crisp forms that other layers can answer.
 native_behavior_select_vines	*	action:behavior_select:vines	action	Vines	Grows tendrils that curl and branch.	Use it for reaching lines and organic melodic creep.
 native_navigate_back	*	action:navigate_back	action	Back	Returns to the parent browser level.	Use it like the hardware Back button when browsing synthetic folders.
-native_param_bind	*	action:param_bind	action	Bind Parameter	Assigns this parameter to the selected modulation, XY, or aux target slot.	Exclusive claims are checked before commit; rejection leaves the slot and focus unchanged with a Mapping rejected toast.
+native_param_bind	*	action:param_bind	action	Bind Parameter	Puts this setting on the control you are picking for.	A setting another control already owns cannot be taken; you get a toast.
 native_binding_group_behavior_params	*	key:binding.group.behavior_params	group	Behavior Params	Targets from the selected layer's behavior settings.	Choose these to let modulation steer the active world-bubble itself.
-native_binding_group_link	*	key:binding.group.link	group	Link Targets	Targets from transport and pulse-link lanes.	Use these for tempo-aware motion and grid-derived modulation lanes.
+native_binding_group_link	*	key:binding.group.link	group	Link	Tempo and Link settings.	Bind these for tempo-aware moves.
 native_binding_group_shape	*	key:binding.group.shape	group	Shape Targets	Instrument, mixer, FX, and voice-shaping targets.	This is where modulation reaches the sound-making machinery.
 native_binding_group_instruments	*	key:binding.group.instruments	group	Instruments	Targets from individual instrument slots.	Pick a slot, then bind synth, sample, MIDI, mixer, or routing parameters.
 native_binding_group_play_fx	*	key:binding.group.play_fx	group	Play FX	Targets from live performance FX pages.	Bind these when aux or grid gestures should push performance effects.
 native_binding_group_system	*	key:binding.group.system	group	System Targets	Global sound settings that are safe to modulate.	These apply outside a single behavior or instrument slot.
-native_binding_group_sound	*	key:binding.group.sound	group	Sound Targets	Global note length, velocity scale, and voice-limit targets.	Useful for performance controls that affect the runtime's note output.
-native_param_clear	*	action:param_clear	action	Clear Binding	Clears the selected modulation, XY, or aux target binding.	The target slot becomes unassigned and visible claim labels refresh.
-native_midi_enabled	Menu > System > MIDI > MIDI Active	key:midiEnabled	bool	MIDI Active	MIDI Active is the global runtime gate for MIDI activity.	It does not select a port or device; choose ports under MIDI Host.
+native_binding_group_sound	*	key:binding.group.sound	group	Sound	Note length, velocity scale and polyphony.	Handy for performance controls over all notes.
+native_param_clear	*	action:param_clear	action	(none)	Clears this control, so it moves nothing.	
+native_midi_enabled	Menu > System > MIDI > MIDI Active	key:midiEnabled	bool	MIDI Active	Switches all MIDI in and out on or off.	Pick the ports under MIDI Host.
 native_midi_send_instruments	Menu > System > MIDI > Send MIDI	key:midi.sendInstruments	enum	Send MIDI	MIDI inst. sends only MIDI Inst. and MIDI Drum notes; all inst. also sends Synth, FM, Plucked, Drum and Sampler notes.	Internal notes go out on their slot's channel, 1 to 8. Drum hits use GM notes, Sampler slots 36 to 43, 100 ms each. Muted slots send nothing.
 native_midi_sync	*	key:midiSyncMode	enum	Sync Mode	internal uses Octessera's transport clock; external follows incoming MIDI clock when Clock In is enabled.	The selected source controls transport timing; Clock Out independently sends MIDI clock.
-native_state_notes	*	key:layers.*.link.stateNotesEnabled	bool	State Notes	Enables state-derived notes during transport ticks for this layer.	Turn it off to keep input events without continuous state playback.
-native_lane_curve_x	*	key:layers.*.link.x.*.curve	enum	X Lane Curve	linear maps the lane directly; curve uses a quadratic ease-in, t², after the grid offset.	The normalized endpoints still map exactly to From and To, including reversed ranges; curve lingers near From before rising toward To.
-native_lane_curve_y	*	key:layers.*.link.y.*.curve	enum	Y Lane Curve	linear maps the lane directly; curve uses a quadratic ease-in, t², after the grid offset.	The normalized endpoints still map exactly to From and To, including reversed ranges; curve lingers near From before rising toward To.
+native_state_notes	*	key:layers.*.link.stateNotesEnabled	bool	State Notes	Plays lit tiles on every step, not only when they change.	Turn it off to hear only changes.
+native_lane_curve_x	*	key:layers.*.link.x.*.curve	enum	Curve	linear spreads values evenly; curve starts slow and rises late.	From and To stay the ends either way.
+native_lane_curve_y	*	key:layers.*.link.y.*.curve	enum	Curve	linear spreads values evenly; curve starts slow and rises late.	From and To stay the ends either way.
 native_lane_from_x	*	key:layers.*.link.x.*.from	number	X Lane From	Sets the low endpoint for this X-axis value lane.	The lane scales grid position between From and To.
 native_lane_to_x	*	key:layers.*.link.x.*.to	number	X Lane To	Sets the high endpoint for this X-axis value lane.	The lane scales grid position between From and To.
 native_lane_offset_x	*	key:layers.*.link.x.*.gridOffset	number	X Grid Offset	Rotates the X-axis lane index before scaling values.	Useful for shifting where low and high modulation points fall on the grid.
@@ -731,14 +729,12 @@ native_drum_level_medium	*	key:instruments.*.drum.velocityLevels.medium	number	L
 native_drum_level_low	*	key:instruments.*.drum.velocityLevels.low	number	Level Low	Velocity played by drum tiles stamped with Tile Level Low.	Final velocity is still scaled by Link/global velocity shaping.
 native_sampler_amp_gain	*	key:instruments.*.sample.amp.gainPct	number	Sample Gain	Sets base sampler loudness for this instrument slot.	Use with mixer volume and master volume for level balance.
 native_sampler_amp_vel	*	key:instruments.*.sample.amp.velocitySensitivityPct	number	Sample Velocity Sensitivity	Controls how strongly trigger velocity affects sampler loudness.	Lower values flatten dynamics; higher values increase response.
-native_sampler_amp_env	*	key:instruments.*.sample.ampEnv.*	number	Sample Amp Envelope	Shapes sampler loudness over time using ADSR stages.	Attack/Decay/Release are in ms; Sustain is level percentage.
 native_sampler_filter_type	*	key:instruments.*.sample.filter.type	enum	Sample Filter Type	lowpass keeps lows; highpass keeps highs; bandpass keeps a band; notch removes a band around cutoff.	Cutoff, resonance, and Filter Env shape the selected sampler response.
 native_sampler_filter_cutoff	*	key:instruments.*.sample.filter.cutoffHz	number	Sample Filter Cutoff	Sets the sampler filter cutoff; 0..255 spans 20 Hz to 20 kHz.	Samples start fully open (top, Res 0), which skips the filter; a highpass at 0 is open too.
 native_sampler_filter_res	*	key:instruments.*.sample.filter.resonance	number	Sample Filter Resonance	Boosts emphasis near the sampler filter cutoff.	High values create stronger peaks.
 native_sampler_filter_env_amt	*	key:instruments.*.sample.filter.envAmountPct	number	Sample Filter Env Amount	Sets how much the sampler filter envelope moves cutoff.	Positive values open with envelope; negative values invert.
 native_sampler_filter_keytrack	*	key:instruments.*.sample.filter.keyTrackingPct	number	Sample Filter Key Tracking	Sets how sampler filter cutoff follows played pitch.	Higher values keep timbre more consistent across pitch.
-native_sampler_filter_env	*	key:instruments.*.sample.filterEnv.*	number	Sample Filter Envelope	Shapes sampler filter movement over time using ADSR stages.	Use with Env Amount for plucks, swells, and contour motion.
-native_instrument_type	*	key:instruments.*.type	enum	Instrument Type	none is silent; synth plays oscillators; sampler plays samples; MIDI Inst. sends notes out; fm bends sine tones; pluck rings strings; drum makes hits.	MIDI Drum sends its stamped tiles as MIDI notes. Only rows for the selected type show; MIDI types bypass internal audio FX.
+native_instrument_type	*	key:instruments.*.type	enum	Type	None is silent; Synth plays oscillators; Sampler plays samples; FM bends sine tones; Plucked rings strings; Drum makes hits.	MIDI Inst. sends notes to MIDI gear; MIDI Drum sends its stamped tiles as MIDI drum notes. Only the rows of the chosen type show.
 native_midi_velocity	*	key:instruments.*.midi.velocity	number	MIDI Velocity	Sets fixed outgoing note velocity for this MIDI instrument slot.	Use when Link should drive pitch/timing but not velocity dynamics.
 native_midi_duration	*	key:instruments.*.midi.durationMs	number	MIDI Duration	Sets default outgoing MIDI note length in milliseconds.	Useful for shaping external MIDI staccato or sustain.
 native_midi_drum_group	Menu > Shape > Instruments > Instrument * > MIDI Drum		group	MIDI Drum	Turns Link hits on stamped tiles into MIDI notes for external drum gear.	It sends MIDI only, never sound or audio FX. Unstamped tiles stay silent.
@@ -752,30 +748,27 @@ native_synth_group	Menu > Shape > Instruments > Instrument * > Synth		group	Synt
 native_synth_amp_env_group	Menu > Shape > Instruments > Instrument * > Synth > Amp Env		group	Amp Envelope	Shapes synth loudness over time with ADSR stages.	Attack/Decay/Release are milliseconds; Sustain is percentage.
 native_synth_filter_env_group	Menu > Shape > Instruments > Instrument * > Synth > Filter Env		group	Filter Envelope	Shapes synth filter motion over time with ADSR stages.	Use with filter Env Amount for plucks and sweeps.
 native_fm_group	Menu > Shape > Instruments > Instrument * > FM		group	FM	Shapes a sine carrier with a sine modulator for this slot.	Preset loads a starting sound; Tone, Index Env, Filter, Volume, Amp Env, and Filter Env shape it.
-native_fm_tone_group	Menu > Shape > Instruments > Instrument * > FM > Tone		group	Tone	Ratio and Fine cents set modulator pitch against the carrier; Index controls modulation depth.	Tone edits can reshape a note already ringing.
+native_fm_tone_group	Menu > Shape > Instruments > Instrument * > FM > Tone		group	Tone	Ratio and Fine set modulator pitch against the carrier; Index controls modulation depth.	Tone edits can reshape a note already ringing.
 native_fm_index_env_group	Menu > Shape > Instruments > Instrument * > FM > Index Env		group	Index Envelope	Shapes FM modulation depth with its own ADSR, separate from loudness and filter movement.	Attack/Decay/Release are in ms; Sustain is a percentage.
 native_fm_filter_group	Menu > Shape > Instruments > Instrument * > FM > Filter		group	Filter	Shapes this FM voice after the two-operator tone is made.	Type, cutoff, resonance, envelope amount, and key tracking work like Synth.
 native_fm_volume_group	Menu > Shape > Instruments > Instrument * > FM > Volume		group	Volume	Sets FM voice gain and its velocity response.	The separate Mixer volume and route set the slot's place in the full mix.
 native_fm_amp_env_group	Menu > Shape > Instruments > Instrument * > FM > Amp Env		group	Amp Envelope	Shapes FM loudness over time with ADSR stages.	Attack/Decay/Release are in ms; Sustain is a percentage.
 native_fm_filter_env_group	Menu > Shape > Instruments > Instrument * > FM > Filter Env		group	Filter Envelope	Shapes FM filter movement over time with ADSR stages.	Use with filter Env Amount to open or close the tone.
 native_fm_ratio	*	key:instruments.*.fm.ratio	enum	FM Ratio	0.5 (1:2) places the modulator below the carrier; 1 (1:1) matches it; 2 (2:1), 3 (3:1), and 4 (4:1) climb higher.	5 (5:1), 6 (6:1), and 8 (8:1) add brighter harmonics. Stored as exact ratio strings.
-native_fm_ratio_fine_cents	*	key:instruments.*.fm.ratioFineCents	number	Fine cents	Offsets the modulator relative to the carrier by -100 to +100 cents.	This tunes the modulator interval, not the carrier's pitch.
+native_fm_ratio_fine_cents	*	key:instruments.*.fm.ratioFineCents	number	Fine	Offsets the modulator relative to the carrier by -100 to +100 cents.	This tunes the modulator interval, not the carrier's pitch.
 native_fm_index	*	key:instruments.*.fm.index	number	FM Index	Sets modulation depth from 0 to 100; 50 means 2 radians, and 100 means 4 radians.	Index Env shapes this depth independently of the Amp and Filter envelopes.
 native_fm_velocity_to_index	*	key:instruments.*.fm.velocityToIndexPct	number	Vel to Index	Sets how much note velocity scales Index from 0 to 100%.	Changes harmonic depth rather than directly scaling amplitude or Volume.
 native_fm_mod_shape	*	key:instruments.*.fm.modShapePct	number	Mod Shape	Blends in a second harmonic of the modulator from 0 to 100%.	Only adds shape when Index is above 0.
 native_fm_mod_mix	*	key:instruments.*.fm.modMixPct	number	Mod Mix	Adds an audible modulator tone from 0 to 100%, even when Index is 0.	At Ratio 1, the modulator can reinforce the carrier.
-native_fm_index_env	*	key:instruments.*.fm.indexEnv.*	number	Index Envelope	Shapes modulation depth over time with Attack, Decay, Sustain, and Release.	Time controls use ms; Sustain uses percent. Defaults are 0/250/20/120.
 native_fm_amp_gain	*	key:instruments.*.fm.amp.gainPct	number	FM Gain	Sets base FM loudness from 0 to 100, starting at 80.	Mixer volume and Master Vol also affect the final internal-audio level.
 native_fm_amp_vel	*	key:instruments.*.fm.amp.velocitySensitivityPct	number	FM Velocity Sensitivity	Sets how much trigger velocity changes FM loudness from 0 to 100, starting at 100.	Lower values flatten the response; higher values keep more dynamics.
-native_fm_amp_env	*	key:instruments.*.fm.ampEnv.*	number	FM Amp Envelope	Shapes loudness with Attack, Decay, Sustain, and Release.	Time controls use ms; Sustain uses percent. Defaults are 5/300/70/350.
 native_fm_filter_type	*	key:instruments.*.fm.filter.type	enum	FM Filter Type	lowpass keeps lows; highpass keeps highs; bandpass keeps a band; notch removes a band around cutoff.	Cutoff, resonance, and Filter Env shape the selected response.
 native_fm_filter_cutoff	*	key:instruments.*.fm.filter.cutoffHz	number	FM Filter Cutoff	Sets base cutoff on the same 0..255 display scale as Synth.	Higher values pass more high content.
 native_fm_filter_res	*	key:instruments.*.fm.filter.resonance	number	FM Filter Resonance	Boosts emphasis near the filter cutoff on the same 0..255 scale as Synth.	High resonance can make sharp tonal peaks.
 native_fm_filter_env_amt	*	key:instruments.*.fm.filter.envAmountPct	number	FM Filter Env Amount	Sets how much the filter envelope moves cutoff, from -100 to 100.	Positive values open with the envelope; negative values invert.
 native_fm_filter_keytrack	*	key:instruments.*.fm.filter.keyTrackingPct	number	FM Filter Key Tracking	Sets how cutoff follows played pitch from 0 to 100.	Higher values keep timbre more consistent across pitches.
-native_fm_filter_env	*	key:instruments.*.fm.filterEnv.*	number	FM Filter Envelope	Shapes filter movement with Attack, Decay, Sustain, and Release.	Time controls use ms; Sustain uses percent, just like Synth.
 native_pluck_group	Menu > Shape > Instruments > Instrument * > Plucked		group	Plucked	Sets up the string voice for this instrument slot.	Preset loads a starting sound; String, Filter, Volume, Amp Env, and Filter Env shape it.
-native_pluck_string_group	Menu > Shape > Instruments > Instrument * > Plucked > String		group	String	Decay and Brightness can reshape ringing notes; Pick Pos, Pick Depth, Stiffness, and body controls shape the next pluck.	Body Hz moves body coloration when Body Amt is enabled; it is dormant at zero Body Amt.
+native_pluck_string_group	Menu > Shape > Instruments > Instrument * > Plucked > String		group	String	Decay and Brightness can reshape ringing notes; Pick Pos, Pick Depth, Stiffness, and body controls shape the next pluck.	Body Freq moves body coloration when Body Amt is enabled; it is dormant at zero Body Amt.
 native_pluck_filter_group	Menu > Shape > Instruments > Instrument * > Plucked > Filter		group	Plucked Filter	Shapes the plucked voice after string excitation.	Type, cutoff, resonance, envelope amount, and key tracking use Synth's control scales.
 native_pluck_volume_group	Menu > Shape > Instruments > Instrument * > Plucked > Volume		group	Plucked Volume	Sets string gain and response to trigger velocity.	Mixer volume and route place the slot in the full mix.
 native_pluck_amp_env_group	Menu > Shape > Instruments > Instrument * > Plucked > Amp Env		group	Plucked Amp Envelope	Shapes the plucked voice's loudness with ADSR stages.	Time controls are in ms; Sustain is a percentage.
@@ -785,29 +778,27 @@ native_pluck_brightness	*	key:instruments.*.pluck.brightnessPct	number	String Br
 native_pluck_pick_pos	*	key:instruments.*.pluck.pickPositionPct	number	Pick Position	Sets where the next pluck excites the string, from 5 to 50%, starting at 25%.	This fast next-pluck setting does not reshape a note already ringing.
 native_pluck_pick_depth	*	key:instruments.*.pluck.pickDepthPct	number	Pick Depth	Sets the next pluck's excitation depth from 0 to 100%, starting at 65%.	Changes excitation color, not Pick Pos or string Brightness.
 native_pluck_stiffness	*	key:instruments.*.pluck.dispersionPct	number	Stiffness	Shapes the next pluck's upper partials toward wire-like inharmonicity, from 0 to 100%.	This is not a literal steel, nylon, string-weight, or tension model.
-native_pluck_body_amount	*	key:instruments.*.pluck.bodyAmountPct	number	Body Amt	Adds body coloration outside the string feedback from 0 to 100%, starting at 0.	Applies to the next pluck; Body Hz is dormant while Body Amt is 0.
-native_pluck_body_frequency	*	key:instruments.*.pluck.bodyFrequencyHz	number	Body Hz	Sets the next pluck's body-coloration frequency from 100 to 2000 Hz, starting at 500 Hz.	It moves body coloration when enabled; it is not the shared Filter cutoff.
+native_pluck_body_amount	*	key:instruments.*.pluck.bodyAmountPct	number	Body Amt	Adds body coloration outside the string feedback from 0 to 100%, starting at 0.	Applies to the next pluck; Body Freq is dormant while Body Amt is 0.
+native_pluck_body_frequency	*	key:instruments.*.pluck.bodyFrequencyHz	number	Body Freq	Sets the next pluck's body-coloration frequency from 100 to 2000 Hz, starting at 500 Hz.	It moves body coloration when enabled; it is not the shared Filter cutoff.
 native_pluck_amp_gain	*	key:instruments.*.pluck.amp.gainPct	number	Plucked Gain	Sets base string loudness from 0 to 100%, starting at 80%.	Mixer volume and Master Vol also affect the final internal-audio level.
 native_pluck_amp_vel	*	key:instruments.*.pluck.amp.velocitySensitivityPct	number	Plucked Velocity Sensitivity	Sets how much trigger velocity changes string loudness from 0 to 100%, starting at 100%.	Lower values flatten the response; higher values keep more dynamics.
-native_pluck_amp_env	*	key:instruments.*.pluck.ampEnv.*	number	Plucked Amp Envelope	Shapes loudness over Attack, Decay, Sustain, and Release.	Time controls use ms; Sustain uses percent. Defaults are 0/0/100/900.
 native_pluck_filter_type	*	key:instruments.*.pluck.filter.type	enum	Plucked Filter Type	lowpass keeps lows; highpass keeps highs; bandpass keeps a band; notch removes a band near cutoff.	Cutoff, resonance, and Filter Env shape the selected response.
 native_pluck_filter_cutoff	*	key:instruments.*.pluck.filter.cutoffHz	number	Plucked Filter Cutoff	Sets base cutoff on Synth's 0..255 display scale.	Higher values pass more high content.
 native_pluck_filter_res	*	key:instruments.*.pluck.filter.resonance	number	Plucked Filter Resonance	Boosts emphasis near the filter cutoff on Synth's 0..255 scale.	High resonance can make sharp tonal peaks.
 native_pluck_filter_env_amt	*	key:instruments.*.pluck.filter.envAmountPct	number	Plucked Filter Env Amount	Sets how much Filter Env moves the cutoff, from -100 to 100%.	Positive values open with the envelope; negative values invert it.
 native_pluck_filter_keytrack	*	key:instruments.*.pluck.filter.keyTrackingPct	number	Plucked Filter Key Tracking	Sets how cutoff follows pitch from 0 to 100%.	Higher values keep timbre more consistent across pitches.
-native_pluck_filter_env	*	key:instruments.*.pluck.filterEnv.*	number	Plucked Filter Envelope	Shapes filter movement over Attack, Decay, Sustain, and Release.	Time controls use ms; Sustain uses percent, just like Synth.
 native_drum_group	Menu > Shape > Instruments > Instrument * > Drum		group	Drum	Configures one eight-voice drum kit in this instrument slot.	Kit loads voice settings; Voice picks a sound to edit; Assign maps it to tiles.
 native_drum_voice	*	key:instruments.*.drum.voice	enum	Drum Voice	Selects V1: Kick, V2: Snare, V3: Closed Hat, V4: Open Hat, V5: Low Tom, V6: High Tom, V7: Clap, or V8: Rim by default.	Each V1..V8 name follows its current Sound; changing Voice chooses which kit voice to edit or assign.
 native_drum_edit_group	Menu > Shape > Instruments > Instrument * > Drum > Edit		group	Edit Drum Voice	Adjusts Sound, Tune, Decay, Tone, Attack, Sweep, Noise, and Level on the selected kit voice.	Changes affect future hits using that voice, including tiles already assigned to it.
-native_drum_sound	*	key:instruments.*.drum.voices.*.sound	enum	Drum Sound	Choose kick, snare, closed_hat, open_hat, low_tom, high_tom, clap, or rim sound.	Changing Sound resets only this voice's Tune, Decay, Tone, Attack, Sweep, Noise, and Level to its style defaults.
+native_drum_sound	*	key:instruments.*.drum.voices.*.sound	enum	Sound	The drum this voice plays: Kick, Snare, Closed Hat, Open Hat, Low Tom, High Tom, Clap or Rim.	Changing it resets this voice's sound settings to suit the new drum.
 native_drum_tune	*	key:instruments.*.drum.voices.*.tuneSemis	number	Drum Voice Tune	Offsets the selected kit voice from its Sound's base pitch by -12..12 semitones.	Applies to future hits; individual assigned tiles may have their own extra Tile Tune.
 native_drum_decay	*	key:instruments.*.drum.voices.*.decayMs	number	Drum Voice Decay	Sets the selected voice's next-hit decay from 20 to 2000 ms.	The default depends on Sound; editing does not morph a hit already ringing.
 native_drum_tone	*	key:instruments.*.drum.voices.*.tonePct	number	Drum Voice Tone	Sets the next hit's tone from 0 to 100%.	Higher values emphasize brightness/noise and upper modes without changing a ringing hit.
 native_drum_attack	*	key:instruments.*.drum.voices.*.attackMs	number	Drum Voice Attack	Sets the onset fade for the next hit from 0 to 50 ms.	Short attacks make a sharper strike; it does not retarget an active hit.
-native_drum_sweep_semis	*	key:instruments.*.drum.voices.*.sweepSemis	number	Drum Sweep st	Sets next-hit pitch-sweep depth from 0 to 36 semitones.	Sweep ms sets its duration; at 0 ms, the hit has no sweep excursion.
-native_drum_sweep_ms	*	key:instruments.*.drum.voices.*.sweepMs	number	Drum Sweep ms	Sets next-hit pitch-sweep duration from 0 to 200 ms.	At 0 ms, the hit has no sweep excursion even when Sweep st is above 0.
-native_drum_noise_mix	*	key:instruments.*.drum.voices.*.noiseMixPct	number	Drum Noise %	Sets the next hit's mix from pitched tone at 0% to noise at 100%.	The default depends on Sound; editing does not change a hit already ringing.
-native_drum_level	*	key:instruments.*.drum.voices.*.levelPct	number	Drum Voice Level %	Attenuates the selected kit voice's next hit from 0 to 100%.	This is per-voice level, not the kit-wide Gain in Volume.
+native_drum_sweep_semis	*	key:instruments.*.drum.voices.*.sweepSemis	number	Drum Sweep Pitch	Sets next-hit pitch-sweep depth from 0 to 36 semitones.	Sweep Time sets its duration; at 0 ms, the hit has no sweep excursion.
+native_drum_sweep_ms	*	key:instruments.*.drum.voices.*.sweepMs	number	Drum Sweep Time	Sets next-hit pitch-sweep duration from 0 to 200 ms.	At 0 ms, the hit has no sweep excursion even when Sweep Pitch is above 0.
+native_drum_noise_mix	*	key:instruments.*.drum.voices.*.noiseMixPct	number	Drum Noise	Sets the next hit's mix from pitched tone at 0% to noise at 100%.	The default depends on Sound; editing does not change a hit already ringing.
+native_drum_level	*	key:instruments.*.drum.voices.*.levelPct	number	Drum Voice Level	Attenuates the selected kit voice's next hit from 0 to 100%.	This is per-voice level, not the kit-wide Gain in Volume.
 native_drum_assign	*	action:drum.assign:*	action	Assign Drum Tiles	Stamps the selected kit voice plus the Tile rows onto each grid tile you press.	Pressing an exact match clears it; Shift does a row (bottom is y=0), the combined modifier a column.
 native_drum_preview	*	action:drum.preview:*	action	Preview Drum Voice	Main press plays one hit from the selected voice at its own Tune, without a tile offset.	This is not Space or a sample-browser preview; it emits an internal Drum hit.
 native_drum_filter_group	Menu > Shape > Instruments > Instrument * > Drum > Filter		group	Drum Filter	Shapes this slot's drum voices through the shared filter.	Type, cutoff, resonance, envelope amount, and key tracking use Synth's control scales.
@@ -820,20 +811,20 @@ native_drum_filter_env_amt	*	key:instruments.*.drum.filter.envAmountPct	number	D
 native_drum_filter_keytrack	*	key:instruments.*.drum.filter.keyTrackingPct	number	Drum Filter Key Tracking	Sets cutoff tracking with pitch from 0 to 100% for future hits.	Higher values keep timbre steadier across tuned hits.
 native_drum_amp_gain	*	key:instruments.*.drum.amp.gainPct	number	Drum Gain	Sets kit-wide gain from 0 to 100%, starting at 80%.	Mixer volume and Master Vol still set the final level.
 native_drum_amp_vel	*	key:instruments.*.drum.amp.velocitySensitivityPct	number	Drum Vel Sens	Sets how strongly trigger velocity changes drum loudness from 0 to 100%, starting at 100%.	This setting applies to future hits.
-native_play_fx_target	*	key:play.fx.target	enum	FX Target	master targets the full mix; fx_bus_1, fx_bus_2, fx_bus_3, and fx_bus_4 target those buses.	instrument_1, instrument_2, instrument_3, instrument_4, instrument_5, instrument_6, instrument_7, and instrument_8 target those instrument outputs.
-native_xy_axis_group	Menu > Play > * Axis: *		group	XY Axis Target	Chooses a parameter target for this Play XY axis.	Exclusive claims are checked before commit; rejection leaves the binding and focus unchanged with a Mapping rejected toast.
+native_play_fx_target	*	key:play.fx.target	enum	Target	What the Play FX processes: master (the whole mix), fxb1, fxb2, fxb3 or fxb4 (one FX bus),	or I1, I2, I3, I4, I5, I6, I7 or I8 (one instrument); MIDI instruments make no sound here.
+native_xy_axis_group	Menu > Play > * Axis: *		group	XY Axis	The setting this axis of the XY pad moves.	A setting another control already owns cannot be taken; you get a toast.
 native_param_browser_behavior	Menu > * > Behavior		group	Behavior Parameters	Lists behavior parameters available for binding.	Selecting a row binds that parameter to the current target slot.
 native_param_browser_instruments	Menu > * > Instruments		group	Instrument Parameters	Lists instrument parameters available for binding.	Selecting a row binds that parameter to the current target slot.
-native_param_browser_instrument	Menu > * > Instruments > Instrument *		group	Instrument Slot Parameters	Lists bindable parameters for this instrument slot.	Only active parameter families should be used at performance time.
-native_param_browser_sample	Menu > * > Instruments > Instrument * > Sample		group	Sample Parameters	Lists bindable sampler parameters for this instrument slot.	Selecting a row binds that parameter to the current target slot.
-native_param_browser_synth	Menu > * > Instruments > Instrument * > Synth		group	Synth Parameters	Lists bindable synth parameters for this instrument slot.	Selecting a row binds that parameter to the current target slot.
-native_param_browser_drum	Menu > * > Instruments > Instrument * > Drum		group	Drum Parameters	Lists bindable settings for this slot's selected Drum voice and its shared audio controls.	Kit Tune, Decay, Tone, and Attack affect the next hit, not a ringing one.
+native_param_browser_instrument	Menu > * > Instruments > Instrument *		group	Instrument	The settings of this instrument you can pick.	Only the current type's settings have an effect.
+native_param_browser_sample	Menu > * > Instruments > Instrument * > Sample		group	Sampler	The sampler settings you can pick.	
+native_param_browser_synth	Menu > * > Instruments > Instrument * > Synth		group	Synth	The synth settings you can pick.	
+native_param_browser_drum	Menu > * > Instruments > Instrument * > Drum		group	Drum	The settings of the selected drum voice and the whole kit you can pick.	Tune, Decay, Tone and Attack change the next hit, not one already ringing.
 native_param_browser_drum_edit	Menu > * > Instruments > Instrument * > Drum > Edit		group	Drum Voice Targets	Bind Tune, Decay, Tone, or Attack for the selected kit voice.	The saved binding names its voice number; edits affect later hits.
 native_param_browser_drum_filter	Menu > * > Instruments > Instrument * > Drum > Filter		group	Drum Filter Targets	Bind this slot's audible Cutoff or Res controls.	Filter Type is a structural menu choice, not a smooth numeric target.
 native_param_browser_drum_volume	Menu > * > Instruments > Instrument * > Drum > Volume		group	Drum Volume Target	Bind kit-wide Gain before the slot's Mixer volume.	The value changes audio without replacing a voice or kit assignment.
-native_param_browser_pluck	Menu > * > Instruments > Instrument * > Plucked		group	Plucked Parameters	Lists the bindable Plucked controls for this instrument slot.	Pick Pos applies to the next pluck, not an already-ringing note.
+native_param_browser_pluck	Menu > * > Instruments > Instrument * > Plucked		group	Plucked	The Plucked settings you can pick.	Pick Pos changes the next pluck, not one already ringing.
 native_param_browser_sound	Menu > * > Sound		group	Sound Parameters	Lists global sound parameters available for binding.	Selecting a row binds that parameter to the current target slot.
-native_binding_range_min	*	key:*.rangeMin	number	Range Min	Sets the low end of the current numeric binding's user range.	Target min/max metadata is preserved; this only narrows modulation output.
+native_binding_range_min	*	key:*.rangeMin	number	Range Min	The lowest value this control may set.	Use Min and Max to keep a control in a sweet spot.
 native_binding_range_max	*	key:*.rangeMax	number	Range Max	Sets the high end of the current numeric binding's user range.	Set equal to Range Min for a fixed modulation value.
 native_link_delay	*	key:layers.*.link.mapping.*.delaySteps	number	Link Delay	Delays this Link event target by layer link ticks.	0 is immediate; delayed events use the already-routed event and do not re-roll probability.
 native_link_retrigger	*	key:layers.*.link.mapping.*.retriggerCount	number	Link Retrig	Adds extra repeats after this Link event target.	A value of 2 repeats at delay+1 and delay+2 layer ticks.
@@ -845,15 +836,15 @@ native_fx_release_duck	Menu > Shape > FX Buses > B*: * > Slot *: Duck > Release	
 native_fx_threshold	*	key:mixer.buses.*.slot*.params.threshold	number	Threshold	Sets the normalized trigger level for this effect from 0 to 1.	Lower values trigger more easily.
 native_fx_threshold_db	*	key:mixer.*.slots.*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_mix	*	key:mixer.*.slots.*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
-native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Delay Time Mode	ms stores a fixed millisecond delay; note follows a musical note unit and current BPM.	This is the only mode switch: ms mode shows Time ms, note mode shows Time Note.
-native_fx_time_note	*	key:mixer.buses.*.slot*.params.timeNote	enum	Delay Time Note	1/32T=2, 1/32=3, 1/16T=4, 1/16=6, 1/8T=8, 1/8=12, 1/4T=16, 1/4=24, 1/2T=32, 1/2=48, 1/1T=64, 1/1=96 PPQN.	Each note is the tempo-synced Delay time; shown in note mode. T values are triplets and the number is its 24-PPQN pulse count.
+native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Time Mode	ms sets a fixed delay time; note follows the tempo.	Only the matching time row shows.
+native_fx_time_note	*	key:mixer.buses.*.slot*.params.timeNote	enum	Time Note	The delay time as a note: 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4,	1/2T, 1/2, 1/1T or 1/1 (T means triplet). It follows the tempo.
 native_fx_time	*	key:mixer.buses.*.slot*.params.timeMs	number	Delay Time	Sets delay time in milliseconds; shown in ms mode.	Longer values create wider echoes.
 native_fx_spread	*	key:mixer.buses.*.slot*.params.spreadPct	number	Delay Spread	Widens Delay at the FX bus output.	0% keeps the current mono bus output; Mix 0 produces no spread.
 native_fx_feedback	*	key:mixer.buses.*.slot*.params.feedback	number	Feedback	Sets how much output feeds back into the effect.	Higher values increase repeats or resonance.
-native_fx_rate_hz	*	key:mixer.*.slots.*.params.rateHz	number	Rate Hz	Sets modulation rate in Hertz.	Higher rates move faster.
+native_fx_rate_hz	*	key:mixer.*.slots.*.params.rateHz	number	Rate	Sets modulation rate in Hertz.	Higher rates move faster.
 native_fx_depth_pct	*	key:mixer.buses.*.slot*.params.depthPct	number	Depth	Sets modulation depth as a percentage.	Higher values create stronger movement.
-native_fx_depth_ms	*	key:mixer.buses.*.slot*.params.depthMs	number	Depth ms	Sets modulation depth in milliseconds.	Used by chorus, flanger, and vibrato style effects.
-native_fx_base_ms	*	key:mixer.buses.*.slot*.params.baseMs	number	Base ms	Sets the base delay time in milliseconds.	Depth is applied around this base.
+native_fx_depth_ms	*	key:mixer.buses.*.slot*.params.depthMs	number	Depth	Sets modulation depth in milliseconds.	Used by chorus, flanger, and vibrato style effects.
+native_fx_base_ms	*	key:mixer.buses.*.slot*.params.baseMs	number	Base	Sets the base delay time in milliseconds.	Depth is applied around this base.
 native_fx_drive	*	key:mixer.*.slots.*.params.drive	number	Drive	Sets nonlinear drive amount.	Higher values add more saturation or distortion.
 native_fx_clip	*	key:mixer.*.slots.*.params.clip	number	Clip	Sets distortion clipping threshold.	Lower values clip harder.
 native_fx_bits	*	key:mixer.buses.*.slot*.params.bits	number	Bits	Sets bit depth for bitcrushing.	Lower values sound rougher.
@@ -863,9 +854,9 @@ native_fx_q	*	key:mixer.buses.*.slot*.params.q	number	Q	Sets filter resonance/Q.
 native_fx_decay	*	key:mixer.buses.*.slot*.params.decay	number	Decay	Sets reverb feedback decay.	Displayed as approximate tail time.
 native_fx_damp	*	key:mixer.buses.*.slot*.params.damp	number	Damp	Sets reverb high-frequency damping.	Higher values darken the tail faster.
 native_fx_chance	*	key:mixer.buses.*.slot*.params.chancePct	number	Chance	Sets glitch trigger probability.	Higher values glitch more often.
-native_fx_slice	*	key:mixer.buses.*.slot*.params.sliceMs	number	Slice ms	Sets glitch slice length.	Shorter slices sound tighter and more fragmented.
+native_fx_slice	*	key:mixer.buses.*.slot*.params.sliceMs	number	Slice	Sets glitch slice length.	Shorter slices sound tighter and more fragmented.
 native_fx_ratio	*	key:mixer.*.slots.*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
-native_fx_makeup	*	key:mixer.*.slots.*.params.makeupDb	number	Makeup dB	Adds gain after compression.	Use it to recover level after gain reduction.
+native_fx_makeup	*	key:mixer.*.slots.*.params.makeupDb	number	Makeup	Adds gain after compression.	Use it to recover level after gain reduction.
 native_fx_low_gain	*	key:mixer.*.slots.*.params.lowGainDb	number	Low Gain	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
 native_fx_mid_gain	*	key:mixer.*.slots.*.params.midGainDb	number	Mid Gain	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
 native_fx_high_gain	*	key:mixer.*.slots.*.params.highGainDb	number	High Gain	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
@@ -879,7 +870,7 @@ native_fx_bus_crackle	*	key:mixer.buses.*.slot*.params.cracklePct	number	Crackle
 native_fx_bus_warp	*	key:mixer.buses.*.slot*.params.warpDepthPct	number	Warp Depth	Sets vinyl pitch/time warp depth.	Higher values add more wobble.
 native_fx_bus_threshold_db	*	key:mixer.*.slot*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_bus_ratio	*	key:mixer.*.slot*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
-native_fx_bus_makeup	*	key:mixer.*.slot*.params.makeupDb	number	Makeup dB	Adds gain after compression.	Use it to recover level after gain reduction.
+native_fx_bus_makeup	*	key:mixer.*.slot*.params.makeupDb	number	Makeup	Adds gain after compression.	Use it to recover level after gain reduction.
 native_fx_bus_low_gain	*	key:mixer.*.slot*.params.lowGainDb	number	Low Gain	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
 native_fx_bus_mid_gain	*	key:mixer.*.slot*.params.midGainDb	number	Mid Gain	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
 native_fx_bus_high_gain	*	key:mixer.*.slot*.params.highGainDb	number	High Gain	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
@@ -888,7 +879,7 @@ native_fx_bus_mid_q	*	key:mixer.*.slot*.params.midQ	number	Mid Q	Sets the EQ mid
 native_fx_bus_clip	*	key:mixer.*.slot*.params.clip	number	Clip	Sets distortion clipping threshold.	Lower values clip harder.
 native_fx_bus_drive	*	key:mixer.*.slot*.params.drive	number	Drive	Sets nonlinear drive amount.	Higher values add more saturation or distortion.
 native_fx_bus_mix	*	key:mixer.*.slot*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
-native_fx_bus_rate_hz	*	key:mixer.*.slot*.params.rateHz	number	Rate Hz	Sets modulation rate in Hertz.	Higher rates move faster.
+native_fx_bus_rate_hz	*	key:mixer.*.slot*.params.rateHz	number	Rate	Sets modulation rate in Hertz.	Higher rates move faster.
 native_fx_global_attack	*	key:mixer.master.slots.*.params.attackMs	number	Attack	Sets how quickly this global effect reacts.	Short values respond faster.
 native_fx_global_release	*	key:mixer.master.slots.*.params.releaseMs	number	Release	Sets how quickly this global effect returns.	Longer values decay more slowly.
 play_fx_map	Menu > Play > FX > Map to Grid	action:fx_assign_enter	action	Map to Grid	Enters FX assignment mode using the current effect type and values.	Press a grid tile to store it; Back exits assignment mode.
@@ -901,3 +892,77 @@ xy_invert_y	Menu > Play > XY > Invert Y	key:play.xy.invertY	bool	Invert Y	Flips 
 random_seed	*	key:randomSeed	number	Seed	The shared seed for every layer and Link section you've switched to Seeded.	Reload the patch with the same seed and play it the same way for the same surprises; change it to reroll them all.
 layer_build_seeded	*	key:layers.*.build.seeded	bool	Seeded	When On, this layer's behavior draws its randomness from the Build Seed.	Its dice restart on play-from-stop and patch load, but an evolved world keeps its tiles; reload or Reset to replay. Off keeps it freshly random.
 layer_link_seeded	*	key:layers.*.link.seeded	bool	Seeded	When On, this layer's trigger probability and random arp order follow the Build Seed.	Off keeps them on the shared unseeded stream, as before.
+layer_brain_fire_threshold	*	key:layers.*.build.behaviorConfig.fireThreshold	number	Fire Threshold	How many firing neighbors wake a resting cell.	2 is the classic Brian's Brain; 1 spreads wildly, 3 and 4 calm it down.
+layer_brain_spawn_count	*	key:layers.*.build.behaviorConfig.randomSeedCells	number	Spawn Count	How many cells Seed Brain and Seed Interval light up.	Off seeds nothing.
+layer_ant_max_ants	*	key:layers.*.build.behaviorConfig.maxAnts	number	Max Ants	The most ants that walk at once.	Spawn Ant and Spawn Interval stop adding ants at this count.
+layer_ant_spawn_interval	*	key:layers.*.build.behaviorConfig.autoSpawnInterval	number	Spawn Interval	Adds an ant every this many steps.	Off adds ants only when you ask.
+layer_bounce_max_balls	*	key:layers.*.build.behaviorConfig.maxBalls	number	Max Balls	The most balls that bounce at once.	New balls wait until there is room.
+layer_shapes_lifespan	*	key:layers.*.build.behaviorConfig.lifespan	number	Lifespan	How many steps a shape grows before it fades.	Longer lifespans draw bigger shapes.
+layer_shapes_spawn_interval	*	key:layers.*.build.behaviorConfig.autoPulseInterval	number	Spawn Interval	Starts a new shape every this many steps.	Off starts shapes only when you press the grid.
+layer_raindrops_splash_radius	*	key:layers.*.build.behaviorConfig.splashRadius	number	Splash Radius	How far a raindrop's ripple travels.	Off keeps splashes to the tile they land on.
+link_axis_slot_x	*	key:param:*:x:*	group	X Slot	Picks a setting that follows a tile's left-right position.	Pick (none) to clear it.
+link_axis_slot_y	*	key:param:*:y:*	group	Y Slot	Picks a setting that follows a tile's bottom-top position.	Pick (none) to clear it.
+link_arp_group	Menu > Link > L*: * > Arp		group	Arp	Turns this layer's notes into arpeggios.	Pick a Mode, then shape it with Step, Length and Gate.
+binding_link_filter_cutoff	Link > L*: * > Filter Cutoff		group	Filter Cutoff	This layer's X and Y filter cutoff lanes.	
+binding_link_filter_res	Link > L*: * > Filter Res		group	Filter Res	This layer's X and Y filter resonance lanes.	
+binding_link_velocity	Link > L*: * > Velocity		group	Velocity	This layer's X and Y velocity lanes.	
+binding_play_fx_group	Play > Play FX		group	Play FX	The settings of the momentary Play FX.	
+inst_mixer_pan_from_bus	Mixer > Pan Pos: from bus		group	Pan Pos: from bus	This instrument plays through an FX bus, so the bus's Pan Pos places it.	Set Route to direct to pan it here.
+fx_slot_none	Slot *: None		group	Empty Slot	An empty effect slot.	Open it and pick a Type to add an effect.
+fx_slot_delay	Slot *: Delay		group	Delay	Echoes, either in milliseconds or in time with the tempo.	Feedback sets how many repeats; Spread widens them.
+fx_slot_reverb	Slot *: Reverb		group	Reverb	A room around the sound.	Decay sets its size, Damp darkens the tail.
+fx_slot_duck	Slot *: Duck		group	Duck	Turns this bus down while another instrument or bus plays.	The classic pumping sidechain trick.
+fx_slot_tremolo	Slot *: Tremolo		group	Tremolo	Wobbles the volume.	Rate sets the speed, Depth how deep.
+fx_slot_saturator	Slot *: Saturator		group	Saturator	Gentle warmth and grit.	Drive pushes it harder.
+fx_slot_distortion	Slot *: Distortion		group	Distortion	Hard clipping crunch.	Drive and Clip set how nasty.
+fx_slot_bitcrusher	Slot *: Bitcrusher		group	Bitcrusher	Lo-fi digital grit.	Fewer Bits and a higher Rate Div crush harder.
+fx_slot_vibrato	Slot *: Vibrato		group	Vibrato	Wobbles the pitch.	Rate sets the speed, Depth how far.
+fx_slot_chorus	Slot *: Chorus		group	Chorus	Thickens the sound with slightly detuned copies.	
+fx_slot_flanger	Slot *: Flanger		group	Flanger	A swooshing jet sweep.	Feedback makes it ring.
+fx_slot_filter_lfo	Slot *: Filter LFO		group	Filter LFO	A filter that sweeps up and down by itself.	Center sets where, Depth how far.
+fx_slot_wah	Slot *: Wah		group	Wah	A vocal wah-wah sweep.	
+fx_slot_auto_pan	Slot *: Auto Pan		group	Auto Pan	Swings the sound from left to right.	
+fx_slot_glitch	Slot *: Glitch		group	Glitch	Randomly repeats short slices.	Chance sets how often.
+fx_slot_compressor	Slot *: Compressor		group	Compressor	Evens out loud and quiet parts.	Threshold and Ratio set how hard it squeezes.
+fx_slot_eq	Slot *: EQ		group	EQ	Three-band tone control.	Boost or cut lows, mids and highs.
+fx_slot_vinyl	Slot *: Vinyl		group	Vinyl	Old record charm: warmth, crackle and wobble.	
+env_synth_ampEnv_attackMs	*	key:instruments.*.synth.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
+env_synth_ampEnv_decayMs	*	key:instruments.*.synth.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
+env_synth_ampEnv_sustainPct	*	key:instruments.*.synth.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_synth_ampEnv_releaseMs	*	key:instruments.*.synth.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_synth_filterEnv_attackMs	*	key:instruments.*.synth.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
+env_synth_filterEnv_decayMs	*	key:instruments.*.synth.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
+env_synth_filterEnv_sustainPct	*	key:instruments.*.synth.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_synth_filterEnv_releaseMs	*	key:instruments.*.synth.filterEnv.releaseMs	number	Release	How long the filter takes to fade after the note ends.	
+env_sample_ampEnv_attackMs	*	key:instruments.*.sample.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
+env_sample_ampEnv_decayMs	*	key:instruments.*.sample.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
+env_sample_ampEnv_sustainPct	*	key:instruments.*.sample.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_sample_ampEnv_releaseMs	*	key:instruments.*.sample.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_sample_filterEnv_attackMs	*	key:instruments.*.sample.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
+env_sample_filterEnv_decayMs	*	key:instruments.*.sample.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
+env_sample_filterEnv_sustainPct	*	key:instruments.*.sample.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_sample_filterEnv_releaseMs	*	key:instruments.*.sample.filterEnv.releaseMs	number	Release	How long the filter takes to fade after the note ends.	
+env_fm_ampEnv_attackMs	*	key:instruments.*.fm.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
+env_fm_ampEnv_decayMs	*	key:instruments.*.fm.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
+env_fm_ampEnv_sustainPct	*	key:instruments.*.fm.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_fm_ampEnv_releaseMs	*	key:instruments.*.fm.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_fm_filterEnv_attackMs	*	key:instruments.*.fm.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
+env_fm_filterEnv_decayMs	*	key:instruments.*.fm.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
+env_fm_filterEnv_sustainPct	*	key:instruments.*.fm.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_fm_filterEnv_releaseMs	*	key:instruments.*.fm.filterEnv.releaseMs	number	Release	How long the filter takes to fade after the note ends.	
+env_fm_indexEnv_attackMs	*	key:instruments.*.fm.indexEnv.attackMs	number	Attack	How long the FM brightness takes to rise after a note starts.	0 starts at full strength right away.
+env_fm_indexEnv_decayMs	*	key:instruments.*.fm.indexEnv.decayMs	number	Decay	How long the FM brightness takes to fall from the peak to the Sustain level.	
+env_fm_indexEnv_sustainPct	*	key:instruments.*.fm.indexEnv.sustainPct	number	Sustain	The FM brightness level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_fm_indexEnv_releaseMs	*	key:instruments.*.fm.indexEnv.releaseMs	number	Release	How long the FM brightness takes to fade after the note ends.	
+env_pluck_ampEnv_attackMs	*	key:instruments.*.pluck.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
+env_pluck_ampEnv_decayMs	*	key:instruments.*.pluck.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
+env_pluck_ampEnv_sustainPct	*	key:instruments.*.pluck.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_pluck_ampEnv_releaseMs	*	key:instruments.*.pluck.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_pluck_filterEnv_attackMs	*	key:instruments.*.pluck.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
+env_pluck_filterEnv_decayMs	*	key:instruments.*.pluck.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
+env_pluck_filterEnv_sustainPct	*	key:instruments.*.pluck.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
+env_pluck_filterEnv_releaseMs	*	key:instruments.*.pluck.filterEnv.releaseMs	number	Release	How long the filter takes to fade after the note ends.	
+sampler_filter_group	Instrument * > Sampler > Filter		group	Filter	The sampler's filter: type, cutoff, resonance and how much the envelope moves it.	Cutoff all the way up with Res 0 leaves samples untouched.
+sampler_vel_levels_group	Instrument * > Sampler > Vel Levels		group	Vel Levels	How hard tiles stamped High, Medium and Low play.	Stamp levels onto tiles with Tile Level and Assign.
+faders_tile_action_actions	Tile Map > *Action: * > Actions		group	Actions	Map FX and Reset Behavior for a tile press.	Pick one to put it on the tile.
+faders_tile_action_sample	Tile Map > *Action: * > Sample Assign		group	Sample Assign	Lets a tile press open sample assignment for one instrument.	Pick the instrument.
