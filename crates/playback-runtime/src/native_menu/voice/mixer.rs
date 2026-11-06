@@ -28,7 +28,7 @@ pub(super) fn mixer_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
 
 fn pan_item(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     if config.route.starts_with("fx_bus_") {
-        group("Pan Pos -- (bus)", vec![])
+        group("Pan Pos: from bus", vec![])
     } else {
         number_item(
             "Pan Pos",

@@ -288,7 +288,7 @@ fn native_update_menu_fixture_exercises_pi_update_flow() {
     fixture.focus_and_press("system.updateApply", "Apply");
     fixture.assert_dialog(
         "Confirm Update",
-        json!(["Apply the update now?", "> Cancel", "  Confirm"]),
+        json!(["Apply the update now?", "Cancel", "Confirm"]),
     );
     fixture.default_current_dialog();
     fixture.wait_for_service_barrier();
@@ -297,7 +297,7 @@ fn native_update_menu_fixture_exercises_pi_update_flow() {
     fixture.focus_and_press("system.updateApply", "Apply");
     fixture.assert_dialog(
         "Confirm Update",
-        json!(["Apply the update now?", "> Cancel", "  Confirm"]),
+        json!(["Apply the update now?", "Cancel", "Confirm"]),
     );
     fixture.cancel_current_dialog();
     fixture.wait_for_service_barrier();
@@ -306,7 +306,7 @@ fn native_update_menu_fixture_exercises_pi_update_flow() {
     fixture.focus_and_press("system.updateApply", "Apply");
     fixture.assert_dialog(
         "Confirm Update",
-        json!(["Apply the update now?", "> Cancel", "  Confirm"]),
+        json!(["Apply the update now?", "Cancel", "Confirm"]),
     );
     fixture.confirm_current_dialog();
     fixture.assert_playing();
@@ -321,12 +321,7 @@ fn native_update_menu_fixture_exercises_pi_update_flow() {
     fixture.focus_and_press("system.rollback", "Rollback");
     fixture.assert_dialog(
         "Confirm Rollback",
-        json!([
-            "Rollback to the previous",
-            "release?",
-            "> Cancel",
-            "  Confirm"
-        ]),
+        json!(["Rollback to the", "previous release?", "Cancel", "Confirm"]),
     );
     fixture.default_current_dialog();
     fixture.wait_for_service_barrier();
@@ -338,12 +333,7 @@ fn native_update_menu_fixture_exercises_pi_update_flow() {
     fixture.focus_and_press("system.rollback", "Rollback");
     fixture.assert_dialog(
         "Confirm Rollback",
-        json!([
-            "Rollback to the previous",
-            "release?",
-            "> Cancel",
-            "  Confirm"
-        ]),
+        json!(["Rollback to the", "previous release?", "Cancel", "Confirm"]),
     );
     fixture.cancel_current_dialog();
     fixture.wait_for_service_barrier();
@@ -355,12 +345,7 @@ fn native_update_menu_fixture_exercises_pi_update_flow() {
     fixture.focus_and_press("system.rollback", "Rollback");
     fixture.assert_dialog(
         "Confirm Rollback",
-        json!([
-            "Rollback to the previous",
-            "release?",
-            "> Cancel",
-            "  Confirm"
-        ]),
+        json!(["Rollback to the", "previous release?", "Cancel", "Confirm"]),
     );
     fixture.confirm_current_dialog();
     fixture.assert_last_platform_effect(RuntimePlatformEffect::Rollback);

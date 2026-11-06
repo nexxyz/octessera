@@ -9,8 +9,8 @@ pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
     let _ = menu.press();
     let _ = menu.press();
     let snapshot = menu.snapshot();
-    assert_eq!(snapshot.path, "/S/Instruments/I1: synth");
-    assert!(snapshot.lines.iter().any(|line| line == "  Type synth"));
+    assert_eq!(snapshot.path, "/S/Instruments/I1: Synth");
+    assert!(snapshot.lines.iter().any(|line| line == "  Type Synth"));
     assert!(snapshot.lines.iter().any(|line| line == "  Synth >"));
     assert!(!snapshot.lines.iter().any(|line| line == "  Sampler >"));
     assert!(menu
@@ -70,21 +70,21 @@ pub(crate) fn missing_instrument_config_shows_runtime_defaults() {
     config.instrument_synth_filter_types.clear();
     let mut menu = NativeMenuModel::new(config);
 
-    menu.open_labels(&["Shape", "Instruments", "I1: synth direct"]);
+    menu.open_labels(&["Shape", "Instruments", "I1: Synth direct"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Note Mode"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "oneshot")));
 
-    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 1"]);
+    menu.open_labels(&["Shape", "Instruments", "I1: Synth direct", "Synth", "Osc 1"]);
     assert!(menu
         .current_siblings()
         .iter()
         .any(|item| item.label == "Wave"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "saw")));
 
-    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 2"]);
+    menu.open_labels(&["Shape", "Instruments", "I1: Synth direct", "Synth", "Osc 2"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -94,7 +94,7 @@ pub(crate) fn missing_instrument_config_shows_runtime_defaults() {
     menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Filter",
     ]);
@@ -104,7 +104,7 @@ pub(crate) fn missing_instrument_config_shows_runtime_defaults() {
         .any(|item| item.label == "Type"
             && matches!(item.value, NativeMenuValue::Enum { ref options, selected } if options[selected] == "lowpass")));
 
-    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
+    menu.open_labels(&["Shape", "Instruments", "I1: Synth direct", "Mixer"]);
     assert!(menu
         .current_siblings()
         .iter()
@@ -141,7 +141,7 @@ pub(crate) fn missing_fx_bus_config_shows_default_slots_and_params() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Time ms"
+        .any(|item| item.label == "Time"
             && matches!(item.value, NativeMenuValue::Number { value: 250, .. })));
     assert!(!menu
         .current_siblings()
@@ -150,7 +150,7 @@ pub(crate) fn missing_fx_bus_config_shows_default_slots_and_params() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Mix %"
+        .any(|item| item.label == "Mix"
             && matches!(item.value, NativeMenuValue::Number { value: 35, .. })));
 
     menu.open_labels(&["Shape", "FX Buses", "B1: Delay+Duck", "Slot 2: Duck"]);
@@ -182,7 +182,7 @@ pub(crate) fn partial_fx_params_show_effect_defaults() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Mix %"
+        .any(|item| item.label == "Mix"
             && matches!(item.value, NativeMenuValue::Number { value: 35, .. })));
     assert!(menu
         .current_siblings()
@@ -194,7 +194,7 @@ pub(crate) fn partial_fx_params_show_effect_defaults() {
 #[test]
 pub(crate) fn number_params_emit_bar_values_and_pan_uses_marker_format() {
     let mut menu = NativeMenuModel::new(config());
-    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
+    menu.open_labels(&["Shape", "Instruments", "I1: Synth direct", "Mixer"]);
     menu.select_label("Pan Pos");
     let pan = menu.snapshot();
     assert!(pan.lines.iter().any(|line| line == "  Pan Pos C"));
@@ -233,7 +233,7 @@ pub(crate) fn mixer_menu_uses_current_volume_and_pan_values() {
     config.instrument_volumes = vec![70];
     config.instrument_pan_positions = vec![10];
     let mut menu = NativeMenuModel::new(config);
-    menu.open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
+    menu.open_labels(&["Shape", "Instruments", "I1: Synth direct", "Mixer"]);
     menu.select_label("Volume");
     let _snapshot = menu.snapshot();
     let NativeMenuValue::Number { value, .. } = menu.current_siblings()[1].value else {
@@ -250,13 +250,13 @@ pub(crate) fn mixer_pan_is_non_editable_when_routed_to_fx_bus() {
     let mut config = config();
     config.instrument_routes = vec!["fx_bus_1".into()];
     let mut menu = NativeMenuModel::new(config);
-    menu.open_labels(&["Shape", "Instruments", "I1: synth fxb1", "Mixer"]);
-    menu.select_label("Pan Pos -- (bus)");
+    menu.open_labels(&["Shape", "Instruments", "I1: Synth fxb1", "Mixer"]);
+    menu.select_label("Pan Pos: from bus");
     let snapshot = menu.snapshot();
     assert!(snapshot
         .lines
         .iter()
-        .any(|line| line == "  Pan Pos -- (bus)"));
+        .any(|line| line == "  Pan Pos: from bus"));
     assert_eq!(menu.current_siblings()[2].key, None);
     assert!(matches!(
         menu.current_siblings()[2].value,
@@ -296,7 +296,7 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Spread %"
+        .any(|item| item.label == "Spread"
             && matches!(
                 item.value,
                 NativeMenuValue::Number {
@@ -315,7 +315,7 @@ pub(crate) fn fx_slot_groups_show_selected_effect_params() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Crackle %"
+        .any(|item| item.label == "Crackle"
             && matches!(item.value, NativeMenuValue::Number { value: 9, .. })));
 }
 

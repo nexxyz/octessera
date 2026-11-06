@@ -96,9 +96,8 @@ impl NativeRunner {
                 }
             }
             if let Some(auto_name) = self.layer_auto_names.get_mut(index) {
-                if *auto_name {
+                if changed && *auto_name {
                     *auto_name = false;
-                    changed = true;
                 }
             }
             if changed {
@@ -122,10 +121,10 @@ impl NativeRunner {
             let Some(instrument) = self.instruments.get_mut(index) else {
                 return false;
             };
-            let changed = instrument.name != name || instrument.auto_name;
-            instrument.name = name;
-            instrument.auto_name = false;
+            let changed = instrument.name != name;
             if changed {
+                instrument.name = name;
+                instrument.auto_name = false;
                 self.show_instrument_identity_rows(index);
                 self.mark_config_dirty();
             }
@@ -144,10 +143,10 @@ impl NativeRunner {
             let Some(bus) = self.fx_buses.get_mut(index) else {
                 return false;
             };
-            let changed = bus.name != name || bus.auto_name;
-            bus.name = name;
-            bus.auto_name = false;
+            let changed = bus.name != name;
             if changed {
+                bus.name = name;
+                bus.auto_name = false;
                 self.show_fx_bus_name(index);
                 self.menu
                     .set_bool_value_for_key(&format!("mixer.buses.{index}.autoName"), false);

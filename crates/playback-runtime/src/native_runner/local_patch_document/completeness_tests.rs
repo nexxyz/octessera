@@ -144,7 +144,7 @@ fn setting_only_system_save_remains_available_with_local_samples() {
         snapshot["display"]["title"] == "Apply System"
             && snapshot["display"]["lines"]
                 .as_array()
-                .is_some_and(|lines| lines.iter().any(|line| line == "  Save this one"))
+                .is_some_and(|lines| lines.iter().any(|line| line == "Save this one"))
     }));
 
     let _ = input(

@@ -109,6 +109,15 @@ impl NativeRunner {
             .unwrap_or_default()
     }
 
+    /// The line the display's selection bar is on.
+    pub fn test_selected_display_line(&self) -> Option<String> {
+        let snapshot = self.snapshot().ok()?;
+        let row = usize::try_from(snapshot["selectedRow"].as_u64()?).ok()?;
+        snapshot["display"]["lines"][row]
+            .as_str()
+            .map(str::to_owned)
+    }
+
     pub fn test_display_lines(&self) -> Vec<String> {
         self.snapshot()
             .ok()

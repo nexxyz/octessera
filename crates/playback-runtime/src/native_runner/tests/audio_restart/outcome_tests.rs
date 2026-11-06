@@ -85,8 +85,8 @@ fn perf_mode_save_offers_app_restart_through_recovery_lifecycle() {
             "System saved.",
             "Restart the app",
             "to apply?",
-            "> Continue",
-            "  Restart now"
+            "Continue",
+            "Restart now"
         ]
     );
 

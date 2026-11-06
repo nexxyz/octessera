@@ -41,7 +41,7 @@ fn confirm_load(runner: &mut NativeRunner, key: &str) -> Vec<RunnerMessage> {
     let snapshot = snapshot_from(&opened);
     assert_eq!(snapshot["display"]["title"], expected);
     let lines = snapshot["display"]["lines"].as_array().unwrap();
-    let cancel_index = lines.iter().position(|line| line == "> Cancel").unwrap();
+    let cancel_index = lines.iter().position(|line| line == "Cancel").unwrap();
     let confirm_index = lines
         .iter()
         .position(|line| line.as_str().is_some_and(|line| line.trim() == "Confirm"))
@@ -233,7 +233,7 @@ fn eligible_default_load_opens_cancel_first_confirmation() {
     let snapshot = snapshot_from(&opened);
     assert_eq!(snapshot["display"]["title"], "Confirm Patch");
     let lines = snapshot["display"]["lines"].as_array().unwrap();
-    let cancel_index = lines.iter().position(|line| line == "> Cancel").unwrap();
+    let cancel_index = lines.iter().position(|line| line == "Cancel").unwrap();
     let confirm_index = lines
         .iter()
         .position(|line| line.as_str().is_some_and(|line| line.trim() == "Confirm"))

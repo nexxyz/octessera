@@ -175,8 +175,8 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
     let committed_snapshot = snapshot_from(&messages);
     assert_eq!(committed_snapshot["display"]["title"], "Apply System");
     let lines = committed_snapshot["display"]["lines"].as_array().unwrap();
-    assert!(lines.iter().any(|line| line == "> Cancel"));
-    assert!(lines.iter().any(|line| line == "  Save this one"));
+    assert!(lines.iter().any(|line| line == "Cancel"));
+    assert!(lines.iter().any(|line| line == "Save this one"));
     assert!(runner.pending.system_persistence.dirty_revision.is_some());
 }
 

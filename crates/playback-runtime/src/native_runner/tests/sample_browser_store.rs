@@ -265,3 +265,23 @@ pub(crate) fn unavailable_status_survives_a_same_path_config_transaction() {
         Some("S1: N/A-missing.wav".into())
     );
 }
+
+#[test]
+pub(crate) fn repicking_a_missing_sample_from_the_browser_drops_its_na_prefix() {
+    let path = "samples/Drum/kick/missing.wav";
+    let mut runner = sampler_with_path(path);
+    runner.apply_store_result(sample_failure(path)).unwrap();
+
+    runner
+        .handle_sample_browser_action(&format!("sample.pick:0:0:{path}"))
+        .unwrap();
+
+    assert_eq!(
+        runner.sample_availability[0][0],
+        NativeSampleAvailability::Unknown
+    );
+    assert_eq!(
+        item_label(&runner.menu.root, &format!("sample.loaded:0:0:{path}")),
+        Some("S1: missing.wav".into())
+    );
+}

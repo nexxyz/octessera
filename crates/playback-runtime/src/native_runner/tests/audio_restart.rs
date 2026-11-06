@@ -202,17 +202,17 @@ fn restart_sensitive_edit_opens_save_setting_dialog() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "> Cancel"));
+        .any(|line| line == "Cancel"));
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save this one"));
+        .any(|line| line == "Save this one"));
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save System"));
+        .any(|line| line == "Save System"));
 }
 
 #[test]

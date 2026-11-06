@@ -184,7 +184,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     assert_eq!(help["display"]["title"], "Help: Basic Help");
     assert_eq!(
         help["display"]["lines"].as_array().unwrap().last().unwrap(),
-        "> Close"
+        "Close"
     );
 }
 
@@ -318,7 +318,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     let help = converted_scene(&runner, false);
     assert_typed_oled_matches_legacy(&runner);
     assert_eq!(help["display"]["title"], "Help");
-    assert_eq!(help["display"]["lines"], json!(["Use the grid", "> Close"]));
+    assert_eq!(help["display"]["lines"], json!(["Use the grid", "Close"]));
     assert_eq!(help["selectedRow"], 1);
     runner.display.confirm_dialog = Some(NativeConfirmDialog {
         title: "Confirm".into(),
@@ -334,7 +334,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     assert_eq!(confirm["display"]["title"], "Confirm");
     assert_eq!(
         confirm["display"]["lines"],
-        json!(["Really?", "  Cancel", "> Confirm"])
+        json!(["Really?", "Cancel", "Confirm"])
     );
     assert_eq!(confirm["selectedRow"], 2);
     runner.display.runtime_error_presentation = Some(NativeRuntimeErrorPresentation {

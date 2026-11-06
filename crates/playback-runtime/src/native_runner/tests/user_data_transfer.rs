@@ -56,7 +56,7 @@ pub(crate) fn ready_transfer_card_has_semantic_lines_and_bounded_oled_frame() {
             "PORT 8081",
             "CODE Ab2Cd3Ef4G",
             "Ends in 15 min",
-            "> Stop service"
+            "Stop service"
         ])
     );
     assert_eq!(snapshot["selectedRow"], 5);
@@ -121,7 +121,7 @@ pub(crate) fn closed_status_clears_and_unsupported_is_dismissible() {
     let unsupported = runner.messages_with_snapshot().unwrap();
     assert_eq!(
         snapshot_from(&unsupported)["display"]["lines"],
-        json!(["Not supported here", "Use a Pi device", "> Close"])
+        json!(["Not supported here", "Use a Pi device", "Close"])
     );
     let dismissed = send_main(&mut runner, json!({ "type": "button_a", "pressed": true }));
     assert_eq!(snapshot_from(&dismissed)["display"]["title"], "Octessera");

@@ -93,6 +93,9 @@ fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> Nativ
         };
     }
     match &item.value {
+        NativeMenuValue::Group if is_play_page_select_row(item) => {
+            row(NativeMenuRowKind::Action, String::new())
+        }
         NativeMenuValue::Group if item.children.is_empty() => {
             row(NativeMenuRowKind::Value, String::new())
         }
@@ -140,6 +143,15 @@ fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> Nativ
             if value.is_empty() { "(empty)" } else { value }.into(),
         ),
     }
+}
+
+/// A Play row that selects its grid page on press, like an action, instead of opening a page.
+fn is_play_page_select_row(item: &NativeMenuItem) -> bool {
+    item.children.is_empty()
+        && item
+            .key
+            .as_deref()
+            .is_some_and(|key| key.starts_with("play.page."))
 }
 
 pub(super) fn is_link_instrument_target(item: &NativeMenuItem) -> bool {

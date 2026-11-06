@@ -73,12 +73,7 @@ fn assert_dialog_snapshot(
         .iter()
         .map(|line| (*line).to_string())
         .collect::<Vec<_>>();
-    expected.extend(
-        options
-            .iter()
-            .enumerate()
-            .map(|(index, option)| format!("{} {option}", if index == cursor { ">" } else { " " })),
-    );
+    expected.extend(options.iter().map(|option| option.to_string()));
     let lines = snapshot["display"]["lines"]
         .as_array()
         .unwrap()

@@ -124,7 +124,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
     for (phase, expected) in [
         (
             RuntimeSetupPortalPhase::Starting,
-            vec!["Starting hotspot...", "> Hide"],
+            vec!["Starting hotspot...", "Hide"],
         ),
         (
             RuntimeSetupPortalPhase::PortalReady,
@@ -133,12 +133,12 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
                 "Octessera Setup 1a2f",
                 "Open 192.168.42.1",
                 "Portal: 10 minutes",
-                "> Hide",
+                "Hide",
             ],
         ),
         (
             RuntimeSetupPortalPhase::Finalizing,
-            vec!["Applying settings...", "> Hide"],
+            vec!["Applying settings...", "Hide"],
         ),
         (
             RuntimeSetupPortalPhase::Succeeded,
@@ -146,20 +146,20 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
                 "Setup complete",
                 "IP in Maintenance > Sys. Info",
                 "No reboot needed",
-                "> Close",
+                "Close",
             ],
         ),
         (
             RuntimeSetupPortalPhase::Failed,
-            vec!["Setup failed", "Check the device status", "> Close"],
+            vec!["Setup failed", "Check the device status", "Close"],
         ),
         (
             RuntimeSetupPortalPhase::TimedOut,
-            vec!["Setup timed out", "Portal closed", "> Close"],
+            vec!["Setup timed out", "Portal closed", "Close"],
         ),
         (
             RuntimeSetupPortalPhase::Unsupported,
-            vec!["Not available on", "desktop", "> Close"],
+            vec!["Not available on", "desktop", "Close"],
         ),
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -193,7 +193,6 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             Some((lines.len() - 1) as u64)
         );
         assert!(snapshot["display"]["scrollOffset"].is_null());
-        assert!(lines.last().unwrap().starts_with("> "));
     }
 }
 
@@ -464,6 +463,6 @@ pub(crate) fn stopped_wifi_chip_failure_asks_for_a_restart() {
         .unwrap();
     assert_eq!(
         display_lines(&messages),
-        vec!["Wi-Fi chip stopped", "Restart the device", "> Close"]
+        vec!["Wi-Fi chip stopped", "Restart the device", "Close"]
     );
 }

@@ -41,7 +41,7 @@ pub(crate) fn fn_shift_enter_opens_contextual_help_and_enter_closes_it() {
     assert!(help_lines
         .iter()
         .any(|line| line.as_str().unwrap_or("").contains("destination")));
-    assert_eq!(help_lines.last().unwrap(), "> Close");
+    assert_eq!(help_lines.last().unwrap(), "Close");
 
     let closed = runner
         .send(HostMessage::DeviceInput {
@@ -73,7 +73,7 @@ pub(crate) fn instrument_pan_menu_edit_moves_monotonically_from_current_value() 
     runner.menu.rebuild(runner.menu_config());
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: synth direct", "Mixer"]);
+        .open_labels(&["Shape", "Instruments", "I1: Synth direct", "Mixer"]);
     runner.menu.select_label("Pan Pos");
     runner.menu.state.editing = true;
 

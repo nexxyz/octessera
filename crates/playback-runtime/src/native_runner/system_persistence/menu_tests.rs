@@ -24,7 +24,7 @@ fn confirm(runner: &mut NativeRunner, action_key: &str, title: &str) -> Vec<Runn
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "> Cancel"));
+        .any(|line| line == "Cancel"));
     let _ = input(
         runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),

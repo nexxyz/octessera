@@ -187,27 +187,25 @@ impl ScenarioBuilder {
 
     /// Confirms an open confirmation dialog (its `Confirm` option).
     pub fn confirm(&mut self) {
+        let confirm_selected =
+            |play: &Self| play.runner.test_selected_display_line().as_deref() == Some("Confirm");
         for _ in 0..4 {
-            if self.lines_contain("> Confirm") {
+            if confirm_selected(self) {
                 break;
             }
             self.input(turn(1));
         }
-        assert!(self.lines_contain("> Confirm"), "no confirmation dialog");
+        assert!(
+            self.runner.test_confirmation_is_open() && confirm_selected(self),
+            "no confirmation dialog"
+        );
         self.input(press_main());
     }
 
     pub fn confirm_if_asked(&mut self) {
-        if self.lines_contain("> Cancel") {
+        if self.runner.test_confirmation_is_open() {
             self.confirm();
         }
-    }
-
-    fn lines_contain(&self, text: &str) -> bool {
-        self.runner
-            .test_display_lines()
-            .iter()
-            .any(|line| line.contains(text))
     }
 
     /// Runs inputs now, while holding `mods` around them.

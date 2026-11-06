@@ -88,10 +88,14 @@ impl NativeMenuModel {
             NativeMenuValue::Text {
                 value,
                 max_len,
-                cursor: _,
+                cursor,
             } => {
                 let max_len = *max_len;
-                if self.state.editing {
+                let at_end = *cursor >= value.len().min(max_len);
+                if self.state.editing && at_end {
+                    self.state.editing = false;
+                    Some(NativeMenuPressResult::EditingToggled { editing: false })
+                } else if self.state.editing {
                     self.advance_text_cursor(max_len);
                     Some(NativeMenuPressResult::TextCursorAdvanced)
                 } else {

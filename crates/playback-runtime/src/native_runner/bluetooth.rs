@@ -220,7 +220,7 @@ pub(super) fn bluetooth_pairing_display(pairing: &RuntimeBluetoothPairing) -> Di
         }
         None => lines.push("Pairing...".into()),
     }
-    lines.push("> Cancel".into());
+    lines.push("Cancel".into());
     lines.truncate(OLED_BODY_ROWS);
     let line_count = lines.len();
     DisplaySnapshot {

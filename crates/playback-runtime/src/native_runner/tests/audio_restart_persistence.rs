@@ -206,7 +206,7 @@ fn restart_save_waits_for_pending_ordinary_write_without_overwriting_it() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save this one"));
+        .any(|line| line == "Save this one"));
     assert!(runner.restart_settings.has_pending_write());
     let blocked_apply = choose_save_everything(&mut runner);
     assert!(!blocked_apply.iter().any(|message| matches!(message,
@@ -225,7 +225,7 @@ fn restart_save_waits_for_pending_ordinary_write_without_overwriting_it() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save this one"));
+        .any(|line| line == "Save this one"));
     let messages = choose_save_everything(&mut runner);
     assert_eq!(messages
         .iter()
@@ -327,7 +327,7 @@ fn invalid_audio_baseline_omits_setting_only_save() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "  Save this one"));
+        .any(|line| line == "Save this one"));
     let messages = choose_save_everything(&mut runner);
     assert!(messages.iter().any(|message| matches!(
         message,

@@ -78,7 +78,7 @@ pub(crate) fn usb_sd_transfer_start_stops_playback_and_opens_blocking_modal() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line == "> Stop Transfer"));
+        .any(|line| line == "Stop Transfer"));
 
     let blocked_messages = runner
         .send(HostMessage::DeviceInput {
@@ -207,7 +207,7 @@ pub(crate) fn synth_gain_edits_into_config_payload() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Volume",
     ]);
@@ -258,7 +258,7 @@ pub(crate) fn sampler_tune_edits_into_config_payload() {
     runner.menu.rebuild(runner.menu_config());
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+        .open_labels(&["Shape", "Instruments", "I1: Sampler direct", "Sampler"]);
     runner.menu.select_label("Tune");
 
     let _ = runner
@@ -307,8 +307,8 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
 
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
-    runner.menu.select_label("Base Velocity");
+        .open_labels(&["Shape", "Instruments", "I1: Sampler direct", "Sampler"]);
+    runner.menu.select_label("Base Vel");
     runner.menu.state.editing = true;
     runner.menu.turn(-20);
     runner.apply_current_menu_edit().unwrap();
@@ -320,7 +320,7 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: samp direct",
+        "I1: Sampler direct",
         "Sampler",
         "Vel Levels",
     ]);
@@ -332,7 +332,7 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: samp direct",
+        "I1: Sampler direct",
         "Sampler",
         "Filter",
     ]);
@@ -346,7 +346,7 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
 
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+        .open_labels(&["Shape", "Instruments", "I1: Sampler direct", "Sampler"]);
     runner.menu.select_label("Vel Sens");
     runner.menu.state.editing = true;
     runner.menu.turn(-25);
@@ -355,7 +355,7 @@ pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: samp direct",
+        "I1: Sampler direct",
         "Sampler",
         "Amp Env",
     ]);

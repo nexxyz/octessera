@@ -234,7 +234,7 @@ pub(crate) fn restore_lifecycle_stays_visible_until_patch_rehydration_finishes()
         snapshot_from(&succeeded)["display"]["title"],
         "Restore complete"
     );
-    assert_eq!(display_lines(&succeeded), vec!["Data restored", "> Close"]);
+    assert_eq!(display_lines(&succeeded), vec!["Data restored", "Close"]);
     assert!(display_lines(&succeeded)
         .iter()
         .all(|line| line.chars().count() <= 20));
@@ -272,10 +272,7 @@ pub(crate) fn restore_failure_is_distinct_and_terminal_status_does_not_rewind() 
         snapshot_from(&messages)["display"]["title"],
         "Restore failed"
     );
-    assert_eq!(
-        display_lines(&messages),
-        vec!["Pre-restore kept", "> Close"]
-    );
+    assert_eq!(display_lines(&messages), vec!["Pre-restore kept", "Close"]);
 }
 
 #[test]

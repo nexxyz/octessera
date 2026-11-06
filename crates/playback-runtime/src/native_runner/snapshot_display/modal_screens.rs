@@ -15,12 +15,12 @@ pub(super) fn user_data_restore_display(state: &NativeUserDataRestoreState) -> D
         }
         RuntimeUserDataRestorePhase::Succeeded => (
             "Restore complete".into(),
-            vec!["Data restored".into(), "> Close".into()],
+            vec!["Data restored".into(), "Close".into()],
             Some(1),
         ),
         RuntimeUserDataRestorePhase::Failed => (
             "Restore failed".into(),
-            vec!["Pre-restore kept".into(), "> Close".into()],
+            vec!["Pre-restore kept".into(), "Close".into()],
             Some(1),
         ),
     };
@@ -40,10 +40,7 @@ pub(super) fn user_data_restore_display(state: &NativeUserDataRestoreState) -> D
 
 pub(super) fn confirm_dialog_display(confirm: &NativeConfirmDialog) -> DisplaySnapshot {
     let mut lines = confirm.lines.clone();
-    for (index, option) in confirm.options.iter().enumerate() {
-        let marker = if index == confirm.cursor { ">" } else { " " };
-        lines.push(format!("{marker} {option}"));
-    }
+    lines.extend(confirm.options.iter().cloned());
     lines.truncate(OLED_BODY_ROWS);
     let line_count = lines.len();
     DisplaySnapshot {
@@ -125,7 +122,7 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
             "Close",
         ),
     };
-    lines.push(format!("> {action}"));
+    lines.push(action.to_string());
     let line_count = lines.len();
     DisplaySnapshot {
         body_layout: OledDisplayLayout::Card,
@@ -158,7 +155,7 @@ pub(super) fn user_data_transfer_display(state: &NativeUserDataTransferState) ->
                     format!("PORT {port}"),
                     format!("CODE {}", state.status.code.as_deref().unwrap_or_default()),
                     format!("Ends in {expires} min"),
-                    "> Stop service".into(),
+                    "Stop service".into(),
                 ],
             )
         }
@@ -167,7 +164,7 @@ pub(super) fn user_data_transfer_display(state: &NativeUserDataTransferState) ->
             vec![
                 "Not supported here".into(),
                 "Use a Pi device".into(),
-                "> Close".into(),
+                "Close".into(),
             ],
         ),
         RuntimeUserDataTransferPhase::Closed => unreachable!("closed transfer is cleared"),
@@ -202,7 +199,7 @@ fn transfer_url_host_port(url: &str) -> (&str, &str) {
 
 pub(super) fn usb_sd_transfer_modal_display(modal: &NativeUsbSdTransferModal) -> DisplaySnapshot {
     let mut lines = modal.lines.clone();
-    lines.push("> Stop Transfer".into());
+    lines.push("Stop Transfer".into());
     lines.truncate(OLED_BODY_ROWS);
     let line_count = lines.len();
     DisplaySnapshot {
@@ -220,7 +217,7 @@ pub(super) fn usb_sd_transfer_modal_display(modal: &NativeUsbSdTransferModal) ->
 
 pub(super) fn system_info_modal_display(modal: &NativeSystemInfoModal) -> DisplaySnapshot {
     let mut lines = modal.lines();
-    lines.push("> Back".into());
+    lines.push("Back".into());
     let line_count = lines.len();
     DisplaySnapshot {
         body_layout: OledDisplayLayout::Rows,
@@ -247,7 +244,7 @@ pub(super) fn help_popup_display(help: &NativeHelpPopup) -> DisplaySnapshot {
         .take(OLED_BODY_ROWS - 1)
         .cloned()
         .collect::<Vec<_>>();
-    lines.push("> Close".into());
+    lines.push("Close".into());
     let line_count = lines.len();
     DisplaySnapshot {
         body_layout: OledDisplayLayout::Rows,

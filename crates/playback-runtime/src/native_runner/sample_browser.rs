@@ -81,7 +81,7 @@ impl NativeRunner {
             let Some(path) = path else {
                 return Ok(None);
             };
-            let keep_unavailable = self
+            let repicked_missing = self
                 .current_sample_path(instrument_slot, sample_slot)
                 .is_some_and(|current| same_sample_path(current, &path))
                 && self
@@ -93,14 +93,16 @@ impl NativeRunner {
             if let Some(instrument) = self.instruments.get_mut(instrument_slot) {
                 if sample_slot < instrument.sample_paths.len() {
                     instrument.sample_paths[sample_slot] = Some(path);
-                    if !keep_unavailable {
-                        if let Some(availability) = self
-                            .sample_availability
-                            .get_mut(instrument_slot)
-                            .and_then(|slots| slots.get_mut(sample_slot))
-                        {
-                            *availability = NativeSampleAvailability::Available;
-                        }
+                    if let Some(availability) = self
+                        .sample_availability
+                        .get_mut(instrument_slot)
+                        .and_then(|slots| slots.get_mut(sample_slot))
+                    {
+                        *availability = if repicked_missing {
+                            NativeSampleAvailability::Unknown
+                        } else {
+                            NativeSampleAvailability::Available
+                        };
                     }
                     changed = true;
                 }
