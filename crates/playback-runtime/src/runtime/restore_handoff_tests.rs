@@ -89,10 +89,14 @@ impl HostAdapter for RestoreHost {
 pub(super) fn runtime_runner() -> (PlaybackRuntime, NativeRunner, RestoreHost) {
     let full: Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    let bpm = full["runtimeConfig"]["transport"]["bpm"].as_f64().unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(full).unwrap();
     runner.skip_startup_splash();
-    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig {
+        bpm,
+        ..RuntimeConfig::default()
+    });
     let mut host = RestoreHost::default();
     runtime
         .dispatch_runner_messages(

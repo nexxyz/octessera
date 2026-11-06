@@ -76,8 +76,10 @@ fn adapter(root: &std::path::Path, audio: Option<crate::audio::AudioService>) ->
 }
 
 pub(super) fn playing_runner(adapter: &mut PiHostAdapter) -> (PlaybackRuntime, NativeRunner) {
-    let payload: serde_json::Value =
+    let mut payload: serde_json::Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    // The 500 ms advance below is one beat at 120 BPM.
+    payload["runtimeConfig"]["transport"]["bpm"] = serde_json::json!(120);
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();

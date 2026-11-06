@@ -42,16 +42,29 @@ I'd go for the Orange.
 
 ## 4. Make music
 
-The shipped patch is wired up and ready: Layer 1 runs `life` into Instrument 1,
-a synth.
+The shipped patch is wired up and ready. Layer 1 runs a `life` colony into a
+bright plucky synth, Layer 2 a drum `sequencer`, Layer 3 a `looper` into a
+kalimba and Layer 4 a bass line, at 110 BPM with a little swing. Layer 5 is a
+`twinkle` sky that sleeps until you wake it, and every instrument is one of the
+factory presets, so `Preset > Load` on any slot is a quick "what else could
+this be?".
 
-1. In **Build**, stay on Layer 1 and draw a few tiles on the grid. Try swapping
-   its behavior for `brain` or `raindrops` too.
-2. Press **Play** (or **Space** in the simulator).
-3. Hold **Fn** and press the bottom tile of the right-hand grid column to open
-   **Play Mix**. Each column is an instrument; press higher for louder, and tap
-   the bottom tile to mute it.
-4. Press **Back** to leave Play Mix, then go and poke at the other layers.
+1. Press **Play** (or **Space** in the simulator).
+2. Hold *Shift* + *Fn* and press the fifth tile up in the left-hand column: the
+   stars on Layer 5 wake up and start chiming. Same again puts them back to
+   sleep.
+3. Hold **Fn** and press the sixth tile up in the right-hand column to open
+   **Faders**. The first five columns are the synth's cutoff, the kalimba's
+   decay, the bass's FM index, the reverb and the bitcrusher. The right-hand
+   column pokes the stars: the top tile reseeds them (*Shift* clears them), the
+   yellow ones below nudge Density, Birth Chance, Star Life, Fade Chance and
+   the step rate.
+4. *Shift* + *Fn* and the bottom right tile opens **Play FX**: hold a tile on
+   the top two rows for stutter, freeze, a filter sweep or a pitch jump. Two at
+   a time, one of each kind.
+5. In **Build**, draw a few tiles on Layer 1, or swap its behavior for `brain`
+   or `raindrops`. Then try `Shape > I3 > Plucked > Preset > Load > Koto` and
+   `Shape > I2 > Drum > Kit > Load > Brush`.
 
 **Save what you like.** Auto Save is off, so your edits live in memory until
 you save them: `System > Saves > Default > Save Patch`, or a named preset under

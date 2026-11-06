@@ -36,6 +36,31 @@ Data sources the spec relies on:
 - Display palette: `resources/display-palette.json`. Generated TypeScript, CSS, and Rust constants
   must match it. See [Palette](#palette).
 - Shipped defaults: `config/defaults/base.json` with the `desktop.json` and `pi.json` overrides.
+  The shipped patch (also what `Load Factory` restores):
+  - L1 `life` 1/16 into I1 Synth Bright Pluck on B1 (its saved colony is pinned by
+    `factory_life_layer.json`); L2 `sequencer` scanning 1/8 into I2 Drum Default kit (kick, snare,
+    eighth hats with the open hat on x7, a Low rim on x5), Trigger Prob. `custom` with the offbeat
+    hats High and the rim Low; L3 `looper` into I3 Plucked Kalimba, hold, on B1; L4 `sequencer` bass
+    into I4 FM Swell Bass on B2; L5 `twinkle` 1/8, Seeded, at Trigger Prob. `zero`, into I5 FM Glass
+    on B1, one octave above L1. L6-L8 and I6-I8 are empty. Every instrument is its named factory
+    preset.
+  - 110 BPM, swing 5:4. B1 `Delay+Reverb+Duck` (delay 1/8 note mode, reverb Mix 20 %, duck from
+    I2); B2 bitcrusher and saturator; global compressor.
+  - LFO1 on, I1 Osc 2 Pulse Width, `2/1`, 29 %; LFO2 off, I3 Plucked Brightness, `1/1`, 43 %.
+  - Faders F1 I1 Cutoff, F2 I3 Decay, F3 I4 FM Index, F4 B1 Reverb Mix, F5 B2 Bitcrusher Mix,
+    each ranged so the patch value sits on a row. One action column (x7) for L5: y7 Reseed
+    Stars (Shift: Clear Stars), then param tiles Density, Birth Chance, Star Life, Fade Chance
+    and Step Rate on y6..y2.
+  - XY: X B1 Delay Feedback 10..60, Y I1 Res 10..58, Glide 300 ms, Release `center`.
+  - MIDI CC In: CC 74 to I1 Cutoff, CC 1 to I4 FM Index, CC 71 to I1 Res, any channel; CC4-CC8
+    free. No Aux bindings, so Auto Map has the encoders.
+  - Play FX: one 2x2 block per type on the top two rows, top-left tile the plainest stamp. Bottom
+    rows are kept for more types:
+
+    | y | x0 x1 | x2 x3 | x4 x5 | x6 x7 |
+    |---|---|---|---|---|
+    | 7 | stutter 8 Hz 100 %, 16 Hz 100 % | freeze 500 ms, 2000 ms | sweep 50/0 120-180 ms, 20/60 120-300 ms | pitch +12, +7 |
+    | 6 | stutter 4 Hz 100 %, 32 Hz 60 % | freeze 100 ms, 1500 ms at 50 % | sweep 10/30 1500-1500 ms, 70/80 40-80 ms | pitch -12, -5 |
 
 ## Cheat Sheet
 

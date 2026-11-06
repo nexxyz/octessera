@@ -3,7 +3,7 @@
 //! live-only ones (mutes, FX bypass, XY latch) are gone.
 use crate::support::{
     assert_clean_audio, bright_white, builder, events_between, frame_at_pulse, heard_bpm,
-    keep_audio, led, reload_differences, rms_frames_db, session_root, BEAT,
+    keep_audio, led, reload_differences, rms_frames_db, seed_scenario_store, session_root, BEAT,
 };
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedScenario};
 use playback_runtime::scenario::{back, button, grid, turn, ScenarioBuilder, BAR};
@@ -194,6 +194,7 @@ fn after_restart() -> ScenarioBuilder {
 fn performance_across_both_banks_saves_and_restarts_clean() {
     let root = session_root("performance-pass");
     let _ = std::fs::remove_dir_all(&root);
+    seed_scenario_store(&root);
     let mut first = start(&root);
 
     let opening = opening(&mut first);

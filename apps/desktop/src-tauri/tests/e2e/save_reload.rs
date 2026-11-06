@@ -43,6 +43,7 @@ fn saved_patch_reloads_unchanged_after_a_restart() {
         .join("octessera-e2e")
         .join(format!("save-reload-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
+    crate::support::seed_scenario_store(&root);
     let start = || {
         HeadlessSession::start(root.join("store"), root.join("media"))
             .unwrap_or_else(|error| panic!("save-reload: session failed to start: {error}"))

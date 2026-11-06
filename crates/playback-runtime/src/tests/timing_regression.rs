@@ -7,9 +7,10 @@ use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
 fn default_playback() -> (PlaybackRuntime, NativeRunner, FakeHost, Instant) {
-    let payload: Value =
+    let mut payload: Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
-    assert_eq!(payload["runtimeConfig"]["transport"]["bpm"], 120);
+    // The 500 ms beats below assume 120 BPM.
+    payload["runtimeConfig"]["transport"]["bpm"] = json!(120);
     assert_eq!(payload["runtimeConfig"]["midi"]["syncMode"], "internal");
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();

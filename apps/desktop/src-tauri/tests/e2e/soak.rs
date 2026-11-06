@@ -1,5 +1,6 @@
-//! Ten virtual minutes of the default patch: the audio stays clean, every layer keeps playing,
-//! and events stay on the beat grid without drifting, gaps or bursts.
+//! Ten virtual minutes of the scenario patch (the straight 120 BPM factory patch before 0.9):
+//! the audio stays clean, every layer keeps playing, and events stay on the beat grid without
+//! drifting, gaps or bursts.
 use crate::support::{assert_clean_audio, builder, keep_audio, session, Timeline};
 use playback_runtime::scenario::BAR;
 
@@ -14,7 +15,7 @@ const STAMP_SLACK_FRAMES: f64 = 2.0 * 64.0;
 const LAYER_WINDOW_BARS: u64 = 8;
 
 #[test]
-fn default_patch_soaks_for_ten_virtual_minutes() {
+fn scenario_patch_soaks_for_ten_virtual_minutes() {
     let mut session = session("soak");
     let played = session
         .play_scenario(&builder().build(), 0.0, BARS as f64 * 2.0)

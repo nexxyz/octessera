@@ -1,6 +1,7 @@
 use super::*;
 
-/// The factory patch (Life, two Sequencers and a Looper over four `none` layers) with swing,
+/// The factory patch (Life, two Sequencers, a Looper and a gated Twinkle over three `none` layers)
+/// with swing,
 /// Link delays and retrigs, an arp, shared and seeded probability and a scanning `none` layer.
 fn mixed_patch_runner() -> NativeRunner {
     let payload: Value =
@@ -9,7 +10,7 @@ fn mixed_patch_runner() -> NativeRunner {
     runner.apply_config_payload(payload).unwrap();
     runner.midi_active = true;
     for (index, behavior_id) in runner.layer_behavior_ids.iter().enumerate() {
-        assert_eq!(behavior_id == "none", index >= 4, "factory layer {index}");
+        assert_eq!(behavior_id == "none", index >= 5, "factory layer {index}");
     }
     for (key, value) in [("transport.swingA", 4), ("transport.swingB", 3)] {
         if runner.menu.set_number_value_for_key(key, value) {
@@ -44,7 +45,7 @@ fn mixed_patch_runner() -> NativeRunner {
 /// A `none` layer that scans with every scan action off still ticks, sets up and routes each
 /// step, yet plays nothing and draws no probability at full chance.
 fn scan_none_layers_silently(runner: &mut NativeRunner) {
-    for index in 4..LAYER_COUNT {
+    for index in 5..LAYER_COUNT {
         if runner.link_layers[index].scan_mode == "scanning" {
             continue;
         }

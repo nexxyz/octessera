@@ -124,6 +124,10 @@ scenario checks in a few seconds and its timing is sample-exact.
   (feature `test-support`): menu paths become the encoder turns and presses a
   player would make, with checkpoints on the OLED title, then timed inputs cued
   on transport pulses.
+- The feature scenarios start from a fixed scenario patch
+  (`tests/e2e/fixtures/scenario_patch.json`, the straight 120 BPM factory patch
+  from before 0.9), so a new shipped patch does not move their ground;
+  `default_patch.rs` plays the shipped default as a new install boots it.
 - The tests live in `apps/desktop/src-tauri/tests/e2e/`. A failing scenario
   keeps its audio as a WAV under the system temp folder
   (`octessera-e2e/`) so you can listen to it.

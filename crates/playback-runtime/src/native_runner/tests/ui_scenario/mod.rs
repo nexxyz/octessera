@@ -1,6 +1,7 @@
 use super::*;
 
 mod captured_output;
+mod default_patch_liveness;
 mod device_driver;
 mod factory_patch_configuration;
 mod factory_patch_playback;
@@ -15,6 +16,11 @@ mod visible_menu_driver;
 #[ignore = "heavy UI scenario; run explicitly/pre-push"]
 pub(crate) fn factory_patch_ui_scenario() {
     factory_patch_scenario::run();
+}
+
+#[test]
+pub(crate) fn factory_default_patch_plays_every_awake_layer_and_wakes_l5() {
+    default_patch_liveness::run();
 }
 
 #[test]

@@ -235,3 +235,40 @@ fn normalize_sample_paths(payload: &mut Value) {
         }
     }
 }
+
+#[test]
+fn factory_life_layer_keeps_its_pattern() {
+    let pinned: Value =
+        serde_json::from_str(include_str!("fixtures/factory_life_layer.json")).unwrap();
+    for defaults in [
+        include_str!("../../../../../config/defaults/base.json"),
+        include_str!("../../../../../config/generated/desktop/default.json"),
+        include_str!("../../../../../config/generated/pi/default.json"),
+    ] {
+        let defaults: Value = serde_json::from_str(defaults).unwrap();
+        assert_eq!(defaults["runtimeConfig"]["layers"][0], pinned);
+    }
+}
+
+#[test]
+fn factory_instruments_are_their_named_presets() {
+    use super::super::{drum_config::drum_default_config, synth_config::*};
+    use crate::instrument_presets::instrument_preset_config;
+    let base: Value =
+        serde_json::from_str(include_str!("../../../../../config/defaults/base.json")).unwrap();
+    let instruments = &base["runtimeConfig"]["instruments"];
+    for (slot, block, family, id, defaults) in [
+        (0, "synth", "synth", "bright_pluck", synth_default_config()),
+        (1, "drum", "drum", "default", drum_default_config()),
+        (2, "pluck", "pluck", "kalimba", pluck_default_config()),
+        (3, "fm", "fm", "swell_bass", fm_default_config()),
+        (4, "fm", "fm", "glass", fm_default_config()),
+    ] {
+        let mut preset = instrument_preset_config(family, id, defaults).unwrap();
+        let saved = &instruments[slot][block];
+        if slot == 1 {
+            preset["assignments"] = saved["assignments"].clone();
+        }
+        assert_eq!(*saved, preset, "I{} is {family} {id}", slot + 1);
+    }
+}

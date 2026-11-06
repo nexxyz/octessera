@@ -3,7 +3,7 @@
 //! stamped notes, and a MIDI CC In mapping swept from an input port, kept across Save Patch and
 //! a restart.
 use crate::device_menu::{confirm, open, press_back, select, set_number, set_until, tap};
-use crate::support::{reload_differences, session_root};
+use crate::support::{reload_differences, seed_scenario_store, session_root};
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedMidi};
 use playback_runtime::scenario::{button, grid, press_main, BAR};
 use serde_json::Value;
@@ -197,6 +197,7 @@ fn stamp_bottom_row(session: &mut HeadlessSession, group: &str) {
 fn send_midi_all_copies_internal_notes_until_a_mute_or_the_switch_back() {
     let root = session_root("midi-copies");
     let _ = std::fs::remove_dir_all(&root);
+    seed_scenario_store(&root);
     let mut session = start(&root);
     enable_midi(&mut session);
     send_midi(&mut session, "all");
@@ -338,6 +339,7 @@ fn assert_drum_stamps_play(session: &HeadlessSession, from: usize, what: &str) {
 fn midi_drum_stamps_and_a_cc_in_mapping_play_and_survive_a_restart() {
     let root = session_root("midi-drum-cc");
     let _ = std::fs::remove_dir_all(&root);
+    seed_scenario_store(&root);
     let mut first = start(&root);
     enable_midi(&mut first);
     stamp_midi_drum(&mut first);

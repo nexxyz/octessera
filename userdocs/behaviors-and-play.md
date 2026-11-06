@@ -18,9 +18,13 @@ How a behavior's tiles turn into notes is covered in
 ## Start with a small patch
 
 The shipped patch is a good place to start. Layer 1 runs a self-sustaining
-`life` pattern into a synth, Layer 2 a `sequencer` into the sampler, Layer 3 a
-`looper` into a plucked string, and Layer 4 another `sequencer` into the FM
-voice. These five behaviors make a good first tour:
+`life` pattern into the Bright Pluck synth, Layer 2 a `sequencer` into the
+Default drum kit, Layer 3 a `looper` into a Kalimba, Layer 4 another
+`sequencer` into the Swell Bass FM voice, and Layer 5 a `twinkle` sky into FM
+Glass. Layer 5 starts asleep at a 0% Trigger Gate: *Shift* + *Fn* and its
+left-column tile wakes it. The Faders page is set up to play with it, and the
+other pages all have something on them to press. These five behaviors make a
+good first tour:
 
 | Behavior | First thing to try |
 |---|---|

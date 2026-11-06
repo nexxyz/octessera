@@ -14,7 +14,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     assert_eq!(runner.transport.layer_algorithm_step_pulses[1], 12);
     assert_eq!(runner.link_layers[1].scan_unit, "1/8");
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
-    assert_eq!(runner.instruments[1].name, "Sampler");
+    assert_eq!(runner.instruments[1].name, "Drum");
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
         "Factory loaded"
@@ -49,11 +49,20 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
             request_snapshot: Some(false),
         })
         .unwrap();
+    let third = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
     let mut note_ons = musical_note_ons(&first);
     note_ons.extend(musical_note_ons(&second));
     assert!(note_ons.iter().any(|(channel, _)| *channel == 0));
     let mut hits = tile_hit_ons(&first);
     hits.extend(tile_hit_ons(&second));
+    hits.extend(tile_hit_ons(&third));
     assert!(hits.iter().any(|(slot, _)| *slot == 1));
 }
 

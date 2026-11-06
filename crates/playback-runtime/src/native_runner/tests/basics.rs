@@ -90,12 +90,24 @@ pub(crate) fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps(
             request_snapshot: Some(false),
         })
         .unwrap();
+    let third = runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 6,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap();
     let mut notes = musical_note_ons(&first);
     notes.extend(musical_note_ons(&second));
     assert!(notes.iter().any(|(channel, _)| *channel == 0));
     let mut hits = tile_hit_ons(&first);
     hits.extend(tile_hit_ons(&second));
-    assert!(hits.iter().any(|(slot, _)| *slot == 1));
+    hits.extend(tile_hit_ons(&third));
+    assert!(
+        hits.iter().any(|(slot, _)| *slot == 1),
+        "the 5:4 swing lands the first scanned offbeat in the third step"
+    );
 }
 
 #[test]
