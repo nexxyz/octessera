@@ -113,12 +113,17 @@ on CPU1 at verified `SCHED_FIFO` 70, and USB/HDMI mirror callbacks on CPU0 at
 
 ## Raspberry USB data role
 
-`usb.dataRole` in `/home/pi/presets/system.json` selects the next-boot role.
-`gadget` (the default) enables the image-side Audio/MIDI gadget and the SD2
-transfer path; `host` disables both and requires USB Audio and USB MIDI to be
-off. Applying a role is a confirmed System-only save, a checked edit of the
-exact `[all]` boot-config line, and a reboot. It is not a live switch. An active
-SD2 transfer rejects Host before `system.json` is written.
+`usb.dataRole` in `/home/pi/presets/system.json` selects the role. `gadget`
+(the default) enables the image-side Audio/MIDI gadget and the SD2 transfer
+path; `host` disables both and turns USB Audio and USB MIDI off in the same
+apply. The role applies live: finishing the `USB Role` edit saves System and
+runs `octessera-usb-role`, which tears the gadget down for Host, rebinds the
+dwc2 controller with the new `dr_mode` through a runtime overlay, and sets the
+gadget up again for Gadget. It also rewrites the exact `[all]` boot-config line,
+so the next boot keeps the role; if the live step fails, the OLED shows
+`USB apply failed, reboot to apply`. An active SD2 transfer rejects Host before
+`system.json` is written. See
+[Live device settings](menu-tree/system.md#live-device-settings).
 
 Full image construction or Pi provisioning installs the role helper and boot
 contract. Runtime updates and fast binary deploys never touch boot
