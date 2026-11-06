@@ -23,6 +23,13 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     ))
     .unwrap();
     let documents = playback_runtime::split_system_patch_documents(&expected).unwrap();
+    let scenario: Value = serde_json::from_str(include_str!(
+        "../../../../desktop/src-tauri/tests/e2e/fixtures/scenario_patch.json"
+    ))
+    .unwrap();
+    let saved_patch = playback_runtime::split_system_patch_documents(&scenario)
+        .unwrap()
+        .patch;
     std::fs::write(
         store.join("system.json"),
         serde_json::to_vec(&documents.system).unwrap(),
@@ -30,7 +37,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     .unwrap();
     std::fs::write(
         store.join("default.patch.json"),
-        serde_json::to_vec(&documents.patch).unwrap(),
+        serde_json::to_vec(&saved_patch).unwrap(),
     )
     .unwrap();
     let (audio, control_rx, mut event_rx, prep_tx) = test_service_with_prep_sender();
@@ -59,7 +66,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     else {
         panic!("expected loaded Orange default payload");
     };
-    assert_eq!(loaded, documents.patch);
+    assert_eq!(loaded, saved_patch);
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         sample_builtin_favourite_dirs: crate::sample_browser::builtin_favourite_dirs(),
@@ -149,7 +156,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
         .filter_map(|slot| slot.buffer.as_ref())
         .count();
     assert_eq!(decoded, sample_assignment_count(&audio_config));
-    let orange_patch = loaded;
+    assert!(decoded > 0);
     for source in [
         include_str!("../../../../../config/defaults/base.json"),
         include_str!("../../../../../config/generated/desktop/default.json"),
@@ -157,7 +164,7 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
     ] {
         let payload: Value = serde_json::from_str(source).unwrap();
         assert_eq!(
-            orange_patch,
+            documents.patch,
             playback_runtime::split_system_patch_documents(&payload)
                 .unwrap()
                 .patch
@@ -177,10 +184,8 @@ fn orange_default_load_runs_native_patch_and_audio_sample_parity() {
         device["runtimeConfig"]["sound"]["optimizeFor"],
         native_payload["runtimeConfig"]["sound"]["optimizeFor"]
     );
-    assert!(orange_patch["runtimeConfig"]
-        .get("displayBrightness")
-        .is_none());
-    assert!(orange_patch["runtimeConfig"].get("audioOutputs").is_none());
+    assert!(loaded["runtimeConfig"].get("displayBrightness").is_none());
+    assert!(loaded["runtimeConfig"].get("audioOutputs").is_none());
     crate::sample_browser::assert_builtin_favourite_menu(&mut runner);
     let _ = std::fs::remove_dir_all(store.parent().unwrap());
 }
