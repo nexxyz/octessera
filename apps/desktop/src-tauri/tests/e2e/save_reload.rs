@@ -1,9 +1,8 @@
 //! Save Patch from the menu, then a fresh start on the same store: the edited patch comes back
 //! as it was saved, and its sequencer pattern plays.
-use crate::support::{assert_clean_audio, builder, keep_audio};
+use crate::support::{assert_clean_audio, builder, keep_audio, reload_differences};
 use octessera_desktop_lib::headless::HeadlessSession;
 use playback_runtime::scenario::ScenarioBuilder;
-use serde_json::Value;
 
 const SYNTH_SLOT: u8 = 4;
 /// Sequencer tiles on distinct degrees, so each plays its own note.
@@ -38,30 +37,6 @@ fn l5_notes(session: &HeadlessSession, from_frame: usize) -> Vec<u8> {
     notes
 }
 
-/// Paths (and the two values) where `reloaded` differs from `saved`.
-fn differences(saved: &Value, reloaded: &Value, path: String, out: &mut Vec<String>) {
-    match (saved, reloaded) {
-        (Value::Object(a), Value::Object(b)) => {
-            for key in a.keys().chain(b.keys().filter(|key| !a.contains_key(*key))) {
-                let (left, right) = (&a.get(key), &b.get(key));
-                match (left, right) {
-                    (Some(left), Some(right)) => {
-                        differences(left, right, format!("{path}.{key}"), out);
-                    }
-                    _ => out.push(format!("{path}.{key}: {left:?} -> {right:?}")),
-                }
-            }
-        }
-        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => {
-            for (index, (left, right)) in a.iter().zip(b).enumerate() {
-                differences(left, right, format!("{path}[{index}]"), out);
-            }
-        }
-        _ if saved != reloaded => out.push(format!("{path}: {saved} -> {reloaded}")),
-        _ => {}
-    }
-}
-
 #[test]
 fn saved_patch_reloads_unchanged_after_a_restart() {
     let root = std::env::temp_dir()
@@ -85,14 +60,7 @@ fn saved_patch_reloads_unchanged_after_a_restart() {
     drop(first);
 
     let mut second = start();
-    let mut changed = Vec::new();
-    differences(
-        &saved,
-        &second.config_payload(),
-        String::new(),
-        &mut changed,
-    );
-    changed.retain(|path| !path.starts_with(".revision:"));
+    let changed = reload_differences(&saved, &second.config_payload());
     assert!(changed.is_empty(), "reloaded differently: {changed:#?}");
     let played = second.play_scenario(&builder().build(), 0.5, 4.0).unwrap();
     let wav = keep_audio(&second, "save-reload");

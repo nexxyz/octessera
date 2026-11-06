@@ -34,3 +34,4 @@ tauri-plugin-dialog = "2"
 
 [dev-dependencies]
 playback-runtime = { path = "../../../crates/playback-runtime", features = ["test-support"] }
+platform-core = { path = "../../../crates/platform-core" }

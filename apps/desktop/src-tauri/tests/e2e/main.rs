@@ -6,6 +6,7 @@ mod follow_transpose;
 mod gestures;
 mod instruments;
 mod link_mapping;
+mod performance_pass;
 mod play_fx;
 mod recording;
 mod save_reload;

@@ -1,6 +1,10 @@
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedEvent, PlayedScenario};
 use playback_runtime::scenario::{ScenarioBuilder, BAR};
+use serde_json::Value;
 use std::path::PathBuf;
+
+/// Pulses per beat.
+pub const BEAT: u64 = 24;
 
 pub const DEFAULT_PATCH: &str =
     include_str!("../../../../../config/generated/desktop/default.json");
@@ -113,4 +117,92 @@ pub fn assert_clean_audio(session: &HeadlessSession, name: &str) {
     );
     let peak = audio.iter().fold(0.0_f32, |peak, s| peak.max(s.abs()));
     assert!(peak < 1.0, "{name}: clips (peak {peak})");
+}
+
+/// Paths (and the two values) where `reloaded` differs from `saved`.
+fn differences(saved: &Value, reloaded: &Value, path: String, out: &mut Vec<String>) {
+    match (saved, reloaded) {
+        (Value::Object(a), Value::Object(b)) => {
+            for key in a.keys().chain(b.keys().filter(|key| !a.contains_key(*key))) {
+                let (left, right) = (&a.get(key), &b.get(key));
+                match (left, right) {
+                    (Some(left), Some(right)) => {
+                        differences(left, right, format!("{path}.{key}"), out);
+                    }
+                    _ => out.push(format!("{path}.{key}: {left:?} -> {right:?}")),
+                }
+            }
+        }
+        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => {
+            for (index, (left, right)) in a.iter().zip(b).enumerate() {
+                differences(left, right, format!("{path}[{index}]"), out);
+            }
+        }
+        _ if saved != reloaded => out.push(format!("{path}: {saved} -> {reloaded}")),
+        _ => {}
+    }
+}
+
+/// Saved fields that came back differently after a restart (the save revision aside).
+pub fn reload_differences(saved: &Value, reloaded: &Value) -> Vec<String> {
+    let mut changed = Vec::new();
+    differences(saved, reloaded, String::new(), &mut changed);
+    changed.retain(|path| !path.starts_with(".revision:"));
+    changed
+}
+
+/// Events whose pulse falls in `[from, to)`, for takes whose tempo changes.
+pub fn events_between(session: &HeadlessSession, from: u64, to: u64) -> Vec<&PlayedEvent> {
+    session
+        .events()
+        .iter()
+        .filter(|event| event.pulse >= from && event.pulse < to)
+        .collect()
+}
+
+/// Tempo heard between two pulses, from the frames of the events on its beats.
+pub fn heard_bpm(session: &HeadlessSession, origin: u64, from: u64, to: u64) -> f64 {
+    let beats: Vec<&PlayedEvent> = events_between(session, from, to)
+        .into_iter()
+        .filter(|event| (event.pulse - origin).is_multiple_of(BEAT))
+        .collect();
+    let (first, last) = (beats.first().unwrap(), beats.last().unwrap());
+    assert!(
+        last.pulse > first.pulse,
+        "too few beats between {from} and {to}"
+    );
+    let frames_per_pulse = (last.frame - first.frame) as f64 / (last.pulse - first.pulse) as f64;
+    60.0 * f64::from(session.sample_rate()) / (frames_per_pulse * BEAT as f64)
+}
+
+/// The frame of the first event at or after `pulse`.
+pub fn frame_at_pulse(session: &HeadlessSession, pulse: u64) -> usize {
+    session
+        .events()
+        .iter()
+        .find(|event| event.pulse >= pulse)
+        .map(|event| event.frame)
+        .unwrap_or_else(|| panic!("no event from pulse {pulse} on"))
+}
+
+/// RMS level in dBFS between two frames.
+pub fn rms_frames_db(session: &HeadlessSession, from_frame: usize, to_frame: usize) -> f64 {
+    let slice = &session.audio()[from_frame * 2..to_frame * 2];
+    let mean = slice
+        .iter()
+        .map(|s| f64::from(*s) * f64::from(*s))
+        .sum::<f64>()
+        / slice.len().max(1) as f64;
+    10.0 * (mean + 1e-18).log10()
+}
+
+/// A grid LED's color in a snapshot, at world-space `x`, `y`.
+pub fn led(snapshot: &Value, x: usize, y: usize) -> [u64; 3] {
+    let index = platform_core::logical_to_display_index(x, y) * 3;
+    let rgb = &snapshot["leds"]["rgb"];
+    [0, 1, 2].map(|channel| rgb[index + channel].as_u64().unwrap())
+}
+
+pub fn bright_white(rgb: [u64; 3]) -> bool {
+    rgb.iter().all(|channel| *channel >= 200)
 }

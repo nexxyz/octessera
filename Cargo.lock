@@ -2812,6 +2812,7 @@ version = "0.8.15"
 dependencies = [
  "media-recording",
  "midir",
+ "platform-core",
  "playback-runtime",
  "realtime-engine",
  "rodio",
