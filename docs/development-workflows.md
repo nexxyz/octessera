@@ -187,7 +187,11 @@ the [factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage
 (which runs the `platform-core`, `playback-runtime`, and `realtime-engine`
 tests), the Tauri build smoke, desktop tests, the desktop end-to-end
 scenarios, the Pi crate's tests in both the production and the `profiling`
-shape, and both Clippy passes. It takes a
+shape, both Clippy passes, and the Linux-only Pi feature tests (both boards'
+`hardware-*` features with their production cognitive Clippy, as CI's Pi Zero
+host tests job runs them) in a `rust:1-bookworm` container through WSL Docker,
+with cargo target and registry cached in named volumes. If WSL or Docker is
+unavailable the step warns and is skipped; CI still runs it. It takes a
 while. Give `git push` a long timeout rather than skipping the hook.
 
 If git does not already run hooks from `.githooks/`, point it there:

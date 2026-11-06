@@ -60,6 +60,27 @@ check_file_length() {
   return "$failed"
 }
 
+check_pi_linux_host_tests() {
+  if ! command -v wsl.exe >/dev/null 2>&1 || ! MSYS2_ARG_CONV_EXCL='*' wsl.exe docker info >/dev/null 2>&1; then
+    echo "Linux Pi host tests skipped: Docker/WSL unavailable; CI will run them" >&2
+    return 0
+  fi
+  local root_wsl script
+  root_wsl="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe wslpath -u "$(cygpath -m "$ROOT")" | tr -d '\r')"
+  script='set -e
+for feature in hardware-raspberry-pi-zero-2w hardware-orange-pi-zero-2w; do
+  cargo test -p octessera-pi --no-default-features --features "$feature profiling"
+  cargo clippy -p octessera-pi --no-default-features --features "$feature" --bin octessera-pi -- -W clippy::cognitive_complexity -D warnings
+done'
+  printf 'FROM rust:1-bookworm\nRUN rustup component add clippy && apt-get update && apt-get install -y --no-install-recommends pkg-config libasound2-dev && rm -rf /var/lib/apt/lists/*\n' |
+    MSYS2_ARG_CONV_EXCL='*' wsl.exe docker build -q -t octessera-pi-host-tests - >/dev/null || return 1
+  MSYS2_ARG_CONV_EXCL='*' wsl.exe docker run -i --rm \
+    -v "$root_wsl:/src" -w /src \
+    -v octessera-pi-host-target:/target -v octessera-pi-host-cargo:/usr/local/cargo/registry \
+    -e CARGO_TARGET_DIR=/target \
+    octessera-pi-host-tests bash -s <<<"$script"
+}
+
 run_pre_push_checks() {
   local profile="$1"
   if [ "$profile" = fast ]; then
@@ -97,6 +118,7 @@ run_pre_push_checks() {
   run_check "cargo test desktop" cargo test -p octessera-desktop
   run_check "desktop e2e" corepack pnpm run e2e
   run_check "cargo test pi production" cargo test -p octessera-pi
+  run_check "linux pi host tests" check_pi_linux_host_tests
   run_check "cargo clippy production cognitive" \
     cargo clippy --workspace --lib --bins -- -W clippy::cognitive_complexity -D warnings
   run_check "cargo clippy" \
