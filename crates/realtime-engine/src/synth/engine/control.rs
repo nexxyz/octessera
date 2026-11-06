@@ -104,14 +104,7 @@ impl SynthEngine {
             return retired;
         }
 
-        let fx = &mut self.momentary_fx[pos];
-        fx.releasing = true;
-        fx.release_pos = 0;
-        if fx.kind == MomentaryFxKind::Freeze {
-            if let MomentaryFxRuntimeParams::Freeze { release_len, .. } = fx.runtime_params {
-                fx.release_len = release_len;
-            }
-        }
+        self.momentary_fx[pos].begin_release();
         retired
     }
 
@@ -126,6 +119,15 @@ impl SynthEngine {
         if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
             if fx.kind == MomentaryFxKind::PitchShift {
                 super::pitch_shift_control::update(fx, params, self.sample_rate);
+                return;
+            }
+            if let Some(update) = super::momentary_fx_voice::prepare_voice_update(
+                fx.kind,
+                fx.epoch,
+                params,
+                self.sample_rate,
+            ) {
+                let _ = fx.voice.apply_update(update);
                 return;
             }
             fx.runtime_params =

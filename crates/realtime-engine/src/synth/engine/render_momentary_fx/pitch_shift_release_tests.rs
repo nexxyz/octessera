@@ -1,5 +1,5 @@
 use super::super::super::scalar_param::ScalarMutation;
-use super::super::prepared_control_prepare::PreparedMomentaryFxUpdate;
+use super::super::prepared_momentary_fx::PreparedMomentaryFxUpdate;
 use super::{MomentaryFxKind, MomentaryFxState, SynthEngine, PITCH_FILL_FRAMES};
 use crate::synth::MomentaryFxTarget;
 use serde_json::json;

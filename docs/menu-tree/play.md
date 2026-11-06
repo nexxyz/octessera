@@ -28,7 +28,8 @@ Play
 │       ├── Target: <target | (none)> (picker)     ← param: the row a press steps
 │       └── Map to Grid (action)
 ├── FX (group)
-│   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch]   ← stored as filter_sweep, pitch_shift
+│   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch | tape_stop | reverse | gate | dub |
+│   │             wash | hp_riser | crush]   ← stored as filter_sweep, pitch_shift, trance_gate, dub_throw
 │   ├── Target: [master | fx_bus_1..fx_bus_4 | I1..I8]   ← instruments stored as instrument_n
 │   ├── ... params of the FX Type (see Play FX)
 │   ├── Map to Grid (action)
@@ -260,8 +261,9 @@ The menu lists the technical bank, then the musical bank.
   momentary FX run at once (Play FX concurrency capability), and only one per type. A press that
   would exceed either limit is ignored with `Momentary FX limit reached (2)` or
   `Momentary FX type active (<type>)`.
-- LEDs: stutter yellow, freeze blue, filter_sweep green, pitch_shift magenta. Assigned idle tiles are
-  bright, active tiles add white, and tiles blocked by a limit are dimmed.
+- LEDs: stutter yellow, freeze blue, filter_sweep green, pitch_shift magenta, tape_stop orange,
+  reverse purple, trance_gate red, dub_throw deep blue, wash peach, hp_riser lime, crush rose.
+  Assigned idle tiles are bright, active tiles add white, and tiles blocked by a limit are dimmed.
 - `Aux Map` lists the Play FX params and `Map to Grid` that auto-map to aux. Rows are editable but
   do not change the mapping target; they wear the same Aux caps as the live auto-mapped rows.
 
@@ -271,6 +273,17 @@ The menu lists the technical bank, then the musical bank.
 | `freeze` | Release Ms `10..5000` (default 500), Mix `0..100` (default 100) | Captures the early sound burst (about a 120 ms injection window) into an infinite reverb tail that sustains while held with no new input. On release the tail fades over Release Ms, then the effect is removed. |
 | `filter_sweep` | Cutoff `0..100` (default 50), Res `0..100` (default 0), Sweep In `10..3000 ms` (default 120), Sweep Out `10..3000 ms` (default 180) | Starts fully open (about 20 kHz, inaudible) and sweeps to the target lowpass cutoff over Sweep In; on release sweeps back open over Sweep Out and is removed. Cutoff 0 targets about 120 Hz (darkest), 100 about 8 kHz. |
 | `pitch_shift` | Semitones `-24..24`, Cents `-100..100`, Slide In `10..3000 ms` (default 120), Slide Out `10..3000 ms` (default 180), Mix `0..100` (default 100) | Pitch glides linearly in octaves. The fixed `PITCH_FILL_FRAMES=1088` live-input fill and the fixed 10 ms wet/dry anti-click envelopes are independent of the slides. |
+| `tape_stop` | Stop `50..2000 ms` (default 700), Start `10..2000 ms` (default 300) | Plays the target from a 2 s capture ring whose read speed ramps linearly to zero over Stop while held, so pitch and speed fall together; the last 15 % of the slowdown fades to silence. On release the speed ramps back to one over Start (from the live input if the tape had stopped), then a 10 ms crossfade hands back to the dry signal. |
+| `reverse` | Length `50..1000 ms` (default 250), Mix `0..100` (default 100) | Passes the dry signal while it captures one Length after the press, then plays each latest Length backwards, window after window. Windows overlap by a 5 ms crossfade, and the wet mix ramps in and out over 10 ms. |
+| `trance_gate` (`gate`) | Rate `1/32T..1/4` (default 1/16), Depth `0..100` (default 100), Smooth `0..100` (default 20) | A square volume chop, open for the first half of each Rate period and starting open at the press. Smooth sets the smoothstep edge length (at least 1 ms, at most a quarter period). Depth eases in and out over 5 ms. |
+| `dub_throw` (`dub`) | Time `1/16T..1/2` (default 1/4), Feedback `0..90` (default 55), Mix `0..100` (default 70) | Sends the target into a stereo pair of bus delay lines while held and adds the echoes to the dry signal. On release the send closes over 5 ms and the echoes trail off; the effect is removed once a whole delay time has passed below -80 dB. |
+| `wash` | Size `0..100` (default 80), Mix `0..100` (default 60), Release Ms `100..8000` (default 2500) | Diffuses the target into freeze's comb network at twice the size, with Size setting the feedback, and swells the wet mix in over 250 ms while held. Unlike freeze it keeps taking input. On release the send closes and the tail fades out over Release, then the effect is removed. |
+| `hp_riser` | Cutoff `0..100` (default 60), Res `0..100` (default 30), Sweep In `10..8000 ms` (default 2000), Sweep Out `10..3000 ms` (default 150) | filter_sweep's highpass counterpart: from fully open (20 Hz) it rises evenly in octaves to the target over Sweep In, with the resonance following, and sweeps back open over Sweep Out on release. Cutoff 0 targets about 80 Hz, 100 about 8 kHz. The wet path blends in over the first tenth of the sweep. |
+| `crush` | Bits `1..16` (default 6), Downsample `1..32` (default 6), Mix `0..100` (default 100) | The bus bitcrusher on each channel: bit depth plus sample-and-hold rate reduction. The mix eases in and out over 5 ms. |
+
+`trance_gate` and `dub_throw` follow the tempo: the transport tempo, or under external sync the
+incoming clock measured over each beat. A tempo change while one is held retimes it: the gate keeps
+its place in the period, and the echo time glides over about 50 ms.
 
 The `ms` rows use the curved time steps from
 [Numeric steps](../menu-and-controls-spec.md#numeric-steps).

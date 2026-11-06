@@ -2,7 +2,7 @@ use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
 use super::grid_assign::GridAssign;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
-use super::play_fx_config::{play_fx_params, play_fx_target_key, play_fx_type};
+use super::play_fx_config::{play_fx_audio_params, play_fx_target_key, play_fx_type};
 use super::{
     momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner, GRID_HEIGHT,
     GRID_WIDTH, PLAY_FX_MAX_CONCURRENT, TRIGGER_GATE_MODES,
@@ -26,7 +26,7 @@ impl NativeRunner {
                 id: play_fx_tile_id(x, y),
                 epoch: 0,
                 fx_type,
-                params: play_fx_params(&assignment.config),
+                params: play_fx_audio_params(&assignment.config, self.play_fx_tempo_bpm()),
                 target: momentary_fx_target(play_fx_target_key(&assignment.config)),
             },
         })

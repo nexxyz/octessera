@@ -169,7 +169,7 @@ fn pitch_direct_and_prepared_complete_updates_match() {
     }
     direct.momentary_fx_update("pitch", &complete);
     let epoch = prepared.momentary_fx[0].epoch;
-    let update = super::super::prepared_control_prepare::prepare_momentary_fx_update(
+    let update = super::super::prepared_momentary_fx::prepare_momentary_fx_update(
         epoch,
         "pitch_shift".into(),
         complete,
@@ -206,7 +206,7 @@ fn pitch_update_omissions_use_canonical_defaults() {
     }
     direct.momentary_fx_update("pitch", &empty);
     let epoch = prepared.momentary_fx[0].epoch;
-    let update = super::super::prepared_control_prepare::prepare_momentary_fx_update(
+    let update = super::super::prepared_momentary_fx::prepare_momentary_fx_update(
         epoch,
         "pitch_shift".into(),
         empty.clone(),

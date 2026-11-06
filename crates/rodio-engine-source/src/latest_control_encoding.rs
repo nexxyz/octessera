@@ -320,6 +320,56 @@ pub(super) fn encode_momentary(update: PreparedMomentaryFxUpdate) -> (u8, [u32; 
                 slide_out_len,
             ],
         ),
+        PreparedMomentaryFxUpdate::TapeStop {
+            stop_len,
+            start_len,
+            ..
+        } => (4, [stop_len, start_len, 0, 0]),
+        PreparedMomentaryFxUpdate::Reverse {
+            window_len, mix, ..
+        } => (5, [window_len, mix.to_bits(), 0, 0]),
+        PreparedMomentaryFxUpdate::TranceGate {
+            period,
+            depth,
+            smooth,
+            ..
+        } => (6, [period.to_bits(), depth.to_bits(), smooth.to_bits(), 0]),
+        PreparedMomentaryFxUpdate::DubThrow {
+            delay_len,
+            feedback,
+            mix,
+            ..
+        } => (
+            7,
+            [delay_len.to_bits(), feedback.to_bits(), mix.to_bits(), 0],
+        ),
+        PreparedMomentaryFxUpdate::Wash {
+            feedback,
+            mix,
+            release_len,
+            ..
+        } => (8, [feedback.to_bits(), mix.to_bits(), release_len, 0]),
+        PreparedMomentaryFxUpdate::HpRiser {
+            target_octaves,
+            q,
+            sweep_in_step,
+            sweep_out_step,
+            ..
+        } => (
+            9,
+            [
+                target_octaves.to_bits(),
+                q.to_bits(),
+                sweep_in_step.to_bits(),
+                sweep_out_step.to_bits(),
+            ],
+        ),
+        PreparedMomentaryFxUpdate::Crush {
+            bits,
+            rate_div,
+            mix,
+            ..
+        } => (10, [bits, rate_div, mix.to_bits(), 0]),
     }
 }
 
@@ -352,6 +402,47 @@ pub(super) fn decode_momentary(
             mix: f32::from_bits(values[1]),
             slide_in_len: values[2].max(1),
             slide_out_len: values[3].max(1),
+        },
+        4 => PreparedMomentaryFxUpdate::TapeStop {
+            epoch,
+            stop_len: values[0].max(1),
+            start_len: values[1].max(1),
+        },
+        5 => PreparedMomentaryFxUpdate::Reverse {
+            epoch,
+            window_len: values[0],
+            mix: f32::from_bits(values[1]),
+        },
+        6 => PreparedMomentaryFxUpdate::TranceGate {
+            epoch,
+            period: f32::from_bits(values[0]),
+            depth: f32::from_bits(values[1]),
+            smooth: f32::from_bits(values[2]),
+        },
+        7 => PreparedMomentaryFxUpdate::DubThrow {
+            epoch,
+            delay_len: f32::from_bits(values[0]),
+            feedback: f32::from_bits(values[1]),
+            mix: f32::from_bits(values[2]),
+        },
+        8 => PreparedMomentaryFxUpdate::Wash {
+            epoch,
+            feedback: f32::from_bits(values[0]),
+            mix: f32::from_bits(values[1]),
+            release_len: values[2].max(1),
+        },
+        9 => PreparedMomentaryFxUpdate::HpRiser {
+            epoch,
+            target_octaves: f32::from_bits(values[0]),
+            q: f32::from_bits(values[1]),
+            sweep_in_step: f32::from_bits(values[2]),
+            sweep_out_step: f32::from_bits(values[3]),
+        },
+        10 => PreparedMomentaryFxUpdate::Crush {
+            epoch,
+            bits: values[0],
+            rate_div: values[1],
+            mix: f32::from_bits(values[2]),
         },
         _ => return None,
     })

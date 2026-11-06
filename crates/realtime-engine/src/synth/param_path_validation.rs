@@ -8,7 +8,7 @@ pub fn validate_fx_type(kind: &str) -> Result<(), String> {
 }
 
 pub fn validate_momentary_fx_type(kind: &str) -> Result<(), String> {
-    if matches!(kind, "stutter" | "freeze" | "filter_sweep" | "pitch_shift") {
+    if super::engine::is_momentary_fx_type(kind) {
         return Ok(());
     }
     Err(format!("unsupported momentary FX type `{kind}`"))

@@ -1,4 +1,5 @@
 use super::super::scalar_param::ScalarMutation;
+use super::momentary_fx_voice::comb_bank_frame;
 use super::retired_state::{store_retired_momentary, PREVIEW_AUDITION_SLOTS};
 use super::*;
 
@@ -111,7 +112,7 @@ pub(super) fn apply_prepared_momentary_fx_update(
                 },
             )
         }
-        _ => ScalarMutation::Rejected,
+        (_, update) => fx.voice.apply_update(update),
     }
 }
 
@@ -188,6 +189,13 @@ pub(super) fn process_momentary_fx_states(
                     MomentaryFxKind::FilterSweep => fx.sweep_pos <= 0.0,
                     MomentaryFxKind::Freeze => fx.release_pos >= fx.release_len,
                     MomentaryFxKind::PitchShift => fx.release_pos >= fx.release_len,
+                    MomentaryFxKind::TapeStop
+                    | MomentaryFxKind::Reverse
+                    | MomentaryFxKind::TranceGate
+                    | MomentaryFxKind::DubThrow
+                    | MomentaryFxKind::Wash
+                    | MomentaryFxKind::HpRiser
+                    | MomentaryFxKind::Crush => fx.voice.finished(),
                 }
         };
         if completed {
@@ -216,6 +224,13 @@ fn process_momentary_fx_state(
         MomentaryFxKind::Freeze => process_freeze(fx, left, right),
         MomentaryFxKind::FilterSweep => process_filter_sweep(fx, left, right, sample_rate),
         MomentaryFxKind::PitchShift => process_pitch_shift(fx, left, right),
+        MomentaryFxKind::TapeStop
+        | MomentaryFxKind::Reverse
+        | MomentaryFxKind::TranceGate
+        | MomentaryFxKind::DubThrow
+        | MomentaryFxKind::Wash
+        | MomentaryFxKind::HpRiser
+        | MomentaryFxKind::Crush => fx.voice.process(left, right),
     })
 }
 
@@ -273,26 +288,19 @@ fn process_freeze(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32
     };
     let feedback = 0.997_f32;
     let damp = 0.35_f32;
-    let mut wet_l = 0.0_f32;
-    let mut wet_r = 0.0_f32;
 
     if fx.releasing {
         let total = fx.release_len.max(1) as f32;
         let fade = 1.0 - (fx.release_pos as f32 / total);
         fx.release_pos += 1;
-        for i in 0..4 {
-            let delayed = fx.freeze_bufs[i][fx.freeze_idxs[i]];
-            fx.freeze_lp[i] = delayed * (1.0 - damp) + fx.freeze_lp[i] * damp;
-            fx.freeze_bufs[i][fx.freeze_idxs[i]] = fx.freeze_lp[i] * feedback;
-            fx.freeze_idxs[i] = (fx.freeze_idxs[i] + 1) % fx.freeze_bufs[i].len();
-            if i < 2 {
-                wet_l += delayed;
-            } else {
-                wet_r += delayed;
-            }
-        }
-        wet_l *= 0.5;
-        wet_r *= 0.5;
+        let (wet_l, wet_r) = comb_bank_frame(
+            &mut fx.freeze_bufs,
+            &mut fx.freeze_idxs,
+            &mut fx.freeze_lp,
+            (0.0, 0.0),
+            feedback,
+            damp,
+        );
         let activation_gain = freeze_activation_gain(fx);
         mix_freeze_output(left, right, wet_l, wet_r, mix * activation_gain * fade)
     } else {
@@ -302,21 +310,14 @@ fn process_freeze(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32
         if injecting {
             fx.freeze_inject_pos += 1;
         }
-        for i in 0..4 {
-            let delayed = fx.freeze_bufs[i][fx.freeze_idxs[i]];
-            fx.freeze_lp[i] = delayed * (1.0 - damp) + fx.freeze_lp[i] * damp;
-            let channel_in = if i < 2 { left } else { right };
-            fx.freeze_bufs[i][fx.freeze_idxs[i]] =
-                channel_in * inject_gain + fx.freeze_lp[i] * feedback;
-            fx.freeze_idxs[i] = (fx.freeze_idxs[i] + 1) % fx.freeze_bufs[i].len();
-            if i < 2 {
-                wet_l += delayed;
-            } else {
-                wet_r += delayed;
-            }
-        }
-        wet_l *= 0.5;
-        wet_r *= 0.5;
+        let (wet_l, wet_r) = comb_bank_frame(
+            &mut fx.freeze_bufs,
+            &mut fx.freeze_idxs,
+            &mut fx.freeze_lp,
+            (left * inject_gain, right * inject_gain),
+            feedback,
+            damp,
+        );
         mix_freeze_output(left, right, wet_l, wet_r, mix * activation_gain)
     }
 }

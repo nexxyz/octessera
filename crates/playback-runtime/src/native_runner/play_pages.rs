@@ -4,6 +4,7 @@ use super::{NativeRunner, BUS_COUNT, GRID_HEIGHT, INSTRUMENT_COUNT};
 
 mod fader_tiles;
 pub(crate) mod faders;
+mod fx_tempo;
 mod lfo;
 mod rate;
 mod route;
@@ -72,6 +73,7 @@ pub(super) struct PlayLiveState {
     pub(super) bus_mutes: [bool; BUS_COUNT],
     /// Shift + press on the XY page holds that position after release, even with center release.
     pub(super) xy_latched: bool,
+    pub(super) external_clock: fx_tempo::ExternalClockTempo,
 }
 
 impl NativeRunner {

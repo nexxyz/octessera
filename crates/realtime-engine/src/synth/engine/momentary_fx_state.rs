@@ -2,6 +2,7 @@ use super::live_pitch_shift::{
     pitch_activation_ramp_len, LivePitchShift, PITCH_DEFAULT_SLIDE_IN_MS,
     PITCH_DEFAULT_SLIDE_OUT_MS,
 };
+use super::momentary_fx_voice::MomentaryFxVoice;
 use super::support::param_f32;
 use super::*;
 
@@ -13,6 +14,13 @@ pub(super) enum MomentaryFxKind {
     Freeze,
     FilterSweep,
     PitchShift,
+    TapeStop,
+    Reverse,
+    TranceGate,
+    DubThrow,
+    Wash,
+    HpRiser,
+    Crush,
 }
 
 #[derive(Clone)]
@@ -52,6 +60,7 @@ pub(super) struct MomentaryFxState {
     pub(super) freeze_ready_len: u32,
     pub(super) freeze_activation_pos: u32,
     pub(super) freeze_activation_len: u32,
+    pub(super) voice: MomentaryFxVoice,
 }
 
 #[derive(Clone, Copy)]
@@ -75,6 +84,8 @@ pub(super) enum MomentaryFxRuntimeParams {
         slide_in_len: u32,
         slide_out_len: u32,
     },
+    /// The type keeps its parameters in its `MomentaryFxVoice`.
+    Voice,
 }
 
 impl MomentaryFxRuntimeParams {
@@ -128,6 +139,13 @@ impl MomentaryFxRuntimeParams {
                     slide_out_len,
                 }
             }
+            MomentaryFxKind::TapeStop
+            | MomentaryFxKind::Reverse
+            | MomentaryFxKind::TranceGate
+            | MomentaryFxKind::DubThrow
+            | MomentaryFxKind::Wash
+            | MomentaryFxKind::HpRiser
+            | MomentaryFxKind::Crush => Self::Voice,
         }
     }
 }
@@ -205,6 +223,17 @@ impl MomentaryFxState {
             freeze_ready_len,
             freeze_activation_pos: 0,
             freeze_activation_len,
+            voice: MomentaryFxVoice::new(kind, params, sample_rate),
+        }
+    }
+
+    /// Starts the release of a type that fades out instead of being removed at once.
+    pub(super) fn begin_release(&mut self) {
+        self.releasing = true;
+        self.release_pos = 0;
+        self.voice.release();
+        if let MomentaryFxRuntimeParams::Freeze { release_len, .. } = self.runtime_params {
+            self.release_len = release_len;
         }
     }
 }
@@ -214,12 +243,23 @@ pub(super) fn stutter_segment_len(sample_rate: u32, params: &BTreeMap<String, Va
     ((sample_rate as f32 / rate) as usize).clamp(48, sample_rate as usize)
 }
 
+pub(in crate::synth) fn is_momentary_fx_type(kind: &str) -> bool {
+    parse_momentary_fx_kind(kind).is_some()
+}
+
 pub(super) fn parse_momentary_fx_kind(kind: &str) -> Option<MomentaryFxKind> {
     match kind {
         "stutter" => Some(MomentaryFxKind::Stutter),
         "freeze" => Some(MomentaryFxKind::Freeze),
         "filter_sweep" => Some(MomentaryFxKind::FilterSweep),
         "pitch_shift" => Some(MomentaryFxKind::PitchShift),
+        "tape_stop" => Some(MomentaryFxKind::TapeStop),
+        "reverse" => Some(MomentaryFxKind::Reverse),
+        "trance_gate" => Some(MomentaryFxKind::TranceGate),
+        "dub_throw" => Some(MomentaryFxKind::DubThrow),
+        "wash" => Some(MomentaryFxKind::Wash),
+        "hp_riser" => Some(MomentaryFxKind::HpRiser),
+        "crush" => Some(MomentaryFxKind::Crush),
         _ => None,
     }
 }

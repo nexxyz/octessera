@@ -10,6 +10,7 @@ use super::mixer_fx;
 use super::modulation;
 use super::Value;
 use crate::native_menu::HOME_VISUALS;
+use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_types};
 use crate::native_runner::play_pages::PLAY_PAGES;
 use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::Map;
@@ -110,7 +111,7 @@ fn validate_play(runtime: &Map<String, Value>) -> Result<(), String> {
 
 fn validate_play_config(value: &Value, path: &str) -> Result<(), String> {
     let object = object_value(value, path)?;
-    enum_field(object, "fxType", path, PLAY_FX_TYPES)?;
+    enum_field(object, "fxType", path, &play_fx_types().collect::<Vec<_>>())?;
     enum_field(object, "targetKey", path, PLAY_TARGETS)?;
     if let Some(params) = object_field(object, "params", path)? {
         let fx_type = object
@@ -128,26 +129,16 @@ fn validate_play_config(value: &Value, path: &str) -> Result<(), String> {
 }
 
 fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
-    match (fx_type, key) {
-        ("stutter", "rateHz") => Some((1, 32)),
-        ("stutter", "depthPct") => Some((0, 100)),
-        ("freeze", "releaseMs") => Some((10, 5000)),
-        ("freeze", "mixPct") => Some((0, 100)),
-        ("filter_sweep", "cutoffPct" | "resonancePct") => Some((0, 100)),
-        ("filter_sweep", "sweepInMs" | "sweepOutMs") => Some((10, 3000)),
-        ("pitch_shift", "semitones") => Some((-24, 24)),
-        ("pitch_shift", "cents") => Some((-100, 100)),
-        ("pitch_shift", "slideInMs" | "slideOutMs") => Some((10, 3000)),
-        ("pitch_shift", "mixPct") => Some((0, 100)),
-        _ => None,
-    }
+    play_fx_param_specs(fx_type)
+        .iter()
+        .find(|spec| spec.key == key)
+        .map(|spec| (i64::from(spec.min), i64::from(spec.max)))
 }
 
 const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
 const AUX_PRIORITIES: &[&str] = &["manual", "auto"];
 const FONT_SETS: &[&str] = &["octessera", "original"];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
-const PLAY_FX_TYPES: &[&str] = &["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
 const PLAY_TARGETS: &[&str] = &[
     "master",
     "fx_bus_1",

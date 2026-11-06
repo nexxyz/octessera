@@ -98,3 +98,60 @@ fn pitch_update_encoding_round_trips_finite_concrete_values() {
     assert_eq!(slide_in_len, 5_292);
     assert_eq!(slide_out_len, 7_938);
 }
+
+#[test]
+fn every_momentary_type_update_round_trips_through_its_cell() {
+    use realtime_engine::synth::prepare_momentary_fx_update;
+    use serde_json::json;
+    let params = |pairs: &[(&str, f64)]| {
+        pairs
+            .iter()
+            .map(|(key, value)| ((*key).to_string(), json!(value)))
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    let updates = [
+        (
+            "tape_stop",
+            params(&[("stopMs", 900.0), ("startMs", 120.0)]),
+        ),
+        ("reverse", params(&[("lengthMs", 320.0), ("mixPct", 65.0)])),
+        (
+            "trance_gate",
+            params(&[("ratePulses", 4.0), ("depthPct", 80.0), ("tempoBpm", 133.0)]),
+        ),
+        (
+            "dub_throw",
+            params(&[
+                ("timePulses", 18.0),
+                ("feedbackPct", 70.0),
+                ("tempoBpm", 97.0),
+            ]),
+        ),
+        (
+            "wash",
+            params(&[("sizePct", 35.0), ("mixPct", 45.0), ("releaseMs", 4_000.0)]),
+        ),
+        (
+            "hp_riser",
+            params(&[
+                ("cutoffPct", 75.0),
+                ("resonancePct", 55.0),
+                ("sweepOutMs", 400.0),
+            ]),
+        ),
+        (
+            "crush",
+            params(&[("bits", 3.0), ("rateDiv", 12.0), ("mixPct", 50.0)]),
+        ),
+    ];
+    let mut kinds = Vec::new();
+    for (fx_type, params) in updates {
+        let update = prepare_momentary_fx_update(9, fx_type.into(), params, 48_000).expect(fx_type);
+        let (kind, values) = encode_momentary(update);
+        assert_eq!(decode_momentary(9, kind, values), Some(update), "{fx_type}");
+        kinds.push(kind);
+    }
+    kinds.sort_unstable();
+    kinds.dedup();
+    assert_eq!(kinds.len(), 7, "each type has its own cell kind");
+}

@@ -5,7 +5,7 @@ use super::{
 };
 use crate::native_menu::binding_picker::play_fx_targets;
 use crate::native_menu::section_labels::PLAY_LABEL;
-use crate::native_runner::play_fx_config::play_fx_param_specs;
+use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_types};
 use crate::native_runner::play_pages::PLAY_PAGES;
 
 pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
@@ -45,7 +45,7 @@ fn play_aux_map_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
 }
 
 pub(super) fn play_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
-    let fx_types = vec!["none", "stutter", "freeze", "filter_sweep", "pitch_shift"];
+    let fx_types = play_fx_types().collect::<Vec<_>>();
     let targets = play_fx_targets();
     let mut children = vec![
         enum_item(

@@ -165,6 +165,7 @@ impl NativeRunner {
         if (self.transport.bpm - bpm).abs() > f64::EPSILON {
             self.transport.bpm = bpm;
             self.retime_note_mode_bus_delays();
+            self.retime_held_play_fx();
             self.mark_fast_autosave_dirty();
         }
         true

@@ -159,10 +159,27 @@ are just one more little world in the mix.
 
 ## Play FX
 
-Set up momentary effects under `Play > FX`: choose an **FX Type** (`stutter`,
-`freeze`, `sweep` or `pitch`), a **Target**, and its settings,
-then use **Map to Grid** and press a tile. That tile remembers the whole lot.
-Mapping `none` clears a tile.
+Set up momentary effects under `Play > FX`: choose an **FX Type**, a
+**Target**, and its settings, then use **Map to Grid** and press a tile. That
+tile remembers the whole lot. Mapping `none` clears a tile. Hold the tile to
+play the effect; let go and it winds down on its own terms.
+
+| Type (shown as) | What happens while you hold it |
+|---|---|
+| `stutter` | Grabs a slice and loops it. |
+| `freeze` | Catches the moment in an endless shimmering tail. |
+| `filter_sweep` (`flt_sweep`) | Closes a lowpass down, then opens it back up. |
+| `pitch_shift` (`pitch`) | Glides the sound up or down by semitones. |
+| `tape_stop` | The tape slows to a halt, pitch and all. Let go and it spins back up. |
+| `reverse` | After one Length of listening, plays what it heard backwards. |
+| `trance_gate` (`gate`) | Chops the sound in time with the tempo, from 1/32T to 1/4. |
+| `dub_throw` (`dub`) | Throws the sound into tempo-synced echoes that keep trailing after you let go. |
+| `wash` | Swells into a big reverb that keeps listening, then fades over Release. |
+| `hp_riser` | Sweeps a highpass up for a build-up, then drops back open. |
+| `crush` | Bitcrush and sample-rate grit, from a light fizz to a broken radio. |
+
+The two tempo-synced types, `trance_gate` and `dub_throw`, follow the tempo,
+including an external MIDI clock when you sync to one.
 
 - **Target** is `master` (the whole mix), one of the FX buses, or a single
   instrument.

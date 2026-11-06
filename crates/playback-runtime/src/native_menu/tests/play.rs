@@ -425,3 +425,26 @@ fn collect_set_bindings<'a>(node: &'a NativeMenuItem, entries: &mut Vec<&'a Nati
         collect_set_bindings(child, entries);
     }
 }
+
+#[test]
+pub(crate) fn play_fx_rows_show_short_type_names_and_note_values() {
+    use crate::native_menu::format_values::format_display_value;
+    for (fx_type, shown) in [
+        ("trance_gate", "gate"),
+        ("dub_throw", "dub"),
+        ("tape_stop", "tape_stop"),
+        ("hp_riser", "hp_riser"),
+    ] {
+        assert_eq!(format_display_value(Some("play.fx.type"), fx_type), shown);
+    }
+    for (index, note) in [(0, "1/32T"), (3, "1/16"), (7, "1/4"), (9, "1/2")] {
+        assert_eq!(
+            format_display_value(Some("play.fx.params.rateNote"), index),
+            note
+        );
+        assert_eq!(
+            format_display_value(Some("play.fx.params.delayNote"), index),
+            note
+        );
+    }
+}

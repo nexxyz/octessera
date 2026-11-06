@@ -1,6 +1,7 @@
 use super::*;
 
 mod interaction_driver;
+mod play_fx_types;
 
 use interaction_driver::*;
 

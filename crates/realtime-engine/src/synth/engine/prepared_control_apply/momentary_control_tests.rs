@@ -109,6 +109,7 @@ fn prepared_momentary_updates_cover_every_kind_and_reject_stale_or_wrong_epochs(
                     slide_out_len: 200,
                 }
             }
+            other => panic!("not one of the four original types: {other:?}"),
         };
         assert_eq!(
             engine.apply_prepared_momentary_fx_update(changed),

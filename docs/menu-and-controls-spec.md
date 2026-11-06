@@ -925,7 +925,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   | vinyl | Crackle, Warp, Sat | Mix |
 
 - Play FX layouts (Aux 1 click is always `Map`): stutter Rate, Depth; freeze Release, Mix;
-  filter_sweep Cutoff, Res, In | Out; pitch_shift Semi, Cents, Mix | In, Out.
+  filter_sweep Cutoff, Res, In | Out; pitch_shift Semi, Cents, Mix | In, Out; tape_stop Stop,
+  Start; reverse Length, Mix; trance_gate Rate, Depth, Smooth; dub_throw Time, Fdbk, Mix; wash
+  Size, Mix, Release; hp_riser Cutoff, Res, In | Out; crush Bits, Down, Mix.
 - FM Index, Plucked Decay, and the selected Drum voice Tone emit typed controls without
   reinitializing the whole slot.
 - No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout

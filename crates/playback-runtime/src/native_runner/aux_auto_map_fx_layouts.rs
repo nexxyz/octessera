@@ -173,6 +173,34 @@ impl NativeRunner {
                 turn("slideInMs", "In"),
                 turn("slideOutMs", "Out"),
             ]),
+            "tape_stop" => aux_auto_map([turn("stopMs", "Stop"), turn("startMs", "Start")]),
+            "reverse" => aux_auto_map([turn("lengthMs", "Length"), turn("mixPct", "Mix")]),
+            "trance_gate" => aux_auto_map([
+                turn("rateNote", "Rate"),
+                turn("depthPct", "Depth"),
+                turn("smoothPct", "Smooth"),
+            ]),
+            "dub_throw" => aux_auto_map([
+                turn("delayNote", "Time"),
+                turn("feedbackPct", "Fdbk"),
+                turn("mixPct", "Mix"),
+            ]),
+            "wash" => aux_auto_map([
+                turn("sizePct", "Size"),
+                turn("mixPct", "Mix"),
+                turn("releaseMs", "Release"),
+            ]),
+            "hp_riser" => aux_auto_map([
+                turn("cutoffPct", "Cutoff"),
+                turn("resonancePct", "Res"),
+                turn("sweepInMs", "In"),
+                turn("sweepOutMs", "Out"),
+            ]),
+            "crush" => aux_auto_map([
+                turn("bits", "Bits"),
+                turn("rateDiv", "Down"),
+                turn("mixPct", "Mix"),
+            ]),
             _ => AuxAutoMap::default(),
         };
         let first = slots[0].take();

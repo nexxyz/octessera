@@ -100,8 +100,11 @@ impl NativeRunner {
         if !self.midi_active
             || self.transport.sync_source != SyncSource::External
             || !self.midi_clock_in_enabled
-            || self.transport.transport != RuntimeTransportState::Playing
         {
+            return self.clock_status_messages();
+        }
+        self.observe_external_clock_tempo(pulses);
+        if self.transport.transport != RuntimeTransportState::Playing {
             return self.clock_status_messages();
         }
         self.send_external_clock_pulses(pulses)

@@ -34,6 +34,7 @@ mod inline_source_executor;
 mod lifecycle_tests;
 mod live_pitch_shift;
 mod momentary_fx_state;
+mod momentary_fx_voice;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
@@ -42,6 +43,7 @@ mod pitch_shift_control;
 mod pitch_shift_routing_tree_tests;
 mod prepared_control_apply;
 mod prepared_control_prepare;
+mod prepared_momentary_fx;
 mod render;
 #[cfg(test)]
 mod render_block_tests;
@@ -146,9 +148,11 @@ mod voice_budget;
 
 pub use prepared_control_prepare::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
-    prepare_instrument_slot_config, prepare_instruments_config, prepare_momentary_fx_start,
-    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, PreparedAudioConfig,
+    prepare_instrument_slot_config, prepare_instruments_config, PreparedAudioConfig,
     PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
+};
+pub use prepared_momentary_fx::{
+    prepare_momentary_fx_start, prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update,
     PreparedMomentaryFxStart, PreparedMomentaryFxUpdate,
 };
 pub use retired_state::RetiredAudioState;
@@ -185,6 +189,7 @@ pub use bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
 use control::MAX_MOMENTARY_FX;
 use live_pitch_shift::PITCH_FILL_FRAMES;
+pub(super) use momentary_fx_state::is_momentary_fx_type;
 use momentary_fx_state::{
     parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState,
 };
