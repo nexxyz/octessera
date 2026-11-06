@@ -289,7 +289,7 @@ fn sound_binding_items(target: &str) -> Vec<NativeMenuItem> {
             target,
         ),
         binding_action(
-            "Voice Limit",
+            "Polyphony",
             "sound.voiceStealingMode",
             "enum",
             None,

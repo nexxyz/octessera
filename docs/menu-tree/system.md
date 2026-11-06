@@ -46,7 +46,7 @@ System
 │   ├── Perf. Mode: [latency | capacity] ← Raspberry and Orange; shown as Lat | Cap; restart-sensitive
 │   ├── Polyphony: [fixed12 | fixed16 | auto-soft | auto-balanced | auto-hard | none]
 │   └── Engine (group)
-│       ├── CPU Warn %: [70 | 75 | 80 | 85 | 90 | 95]  default 85
+│       ├── CPU Warn: [70 | 75 | 80 | 85 | 90 | 95]  default 85
 │       └── Bus Idle: [exact | -140 | -120 | -100 | -80]  default -120
 ├── MIDI (group)
 │   ├── MIDI Active: [on | off]
@@ -91,8 +91,8 @@ System
 │   ├── Grid Bright: [10..100] step 5
 │   ├── Button Bright: [10..100] step 5
 │   └── HDMI Video (group)               ← Raspberry and Orange
-│       ├── Mode: [Terminal | live-grid | plain-grid | active-behavior | cycle-behaviors]
-│       ├── Bars per cycle: [1..64]      ← cycle-behaviors only
+│       ├── Mode: [Terminal | Live Grid | Plain Grid | Behavior | Cycle]   ← stored as Terminal, live-grid, plain-grid, active-behavior, cycle-behaviors
+│       ├── Bars per cycle: [1..64]      ← Cycle only
 │       └── Grid Lines: [on | off]
 ├── Live Show Mode (group)               ← Raspberry and Orange
 │   ├── Start 48h: (action)              ← confirm, then Wi-Fi off and housekeeping postponed for 48 h
@@ -136,24 +136,24 @@ Conditional branches:
 
 ```
 Desktop
-  Audio: Master Vol; Polyphony; Engine (CPU Warn %, Bus Idle)
+  Audio: Master Vol; Polyphony; Engine (CPU Warn, Bus Idle)
   MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Display: Ghost Tiles … Button Bright; no HDMI Video
 
 Orange
-  Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
+  Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn, Bus Idle)
   MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer)
   Display: Ghost Tiles … Button Bright; HDMI Video (Mode; Bars per cycle when cycle-behaviors; Grid Lines)
 
 Raspberry Gadget
-  Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
+  Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn, Bus Idle)
   MIDI: MIDI Active; Send MIDI; USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer); USB Role
   Display: Ghost Tiles … Button Bright; HDMI Video
 
 Raspberry Host
-  Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn %, Bus Idle)
+  Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn, Bus Idle)
   MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
   Display: Ghost Tiles … Button Bright; HDMI Video
@@ -249,8 +249,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 - `Perf. Mode` persists `runtimeConfig.sound.optimizeFor` as `latency` or `capacity` and shows the
   compact values `Lat` and `Cap`. Neither mode changes voice or FX limits. Desktop hides it.
 - `Polyphony` stores `sound.voiceStealingMode`.
-- `Engine > CPU Warn %` persists `runtimeConfig.dsp.workerWarningThreshold` and `Bus Idle` persists
-  `runtimeConfig.dsp.busIdleThreshold`. `CPU Warn %` only sets where the header CPU meter turns red
+- `Engine > CPU Warn` persists `runtimeConfig.dsp.workerWarningThreshold` and `Bus Idle` persists
+  `runtimeConfig.dsp.busIdleThreshold`. `CPU Warn` only sets where the header CPU meter turns red
   ([status icons](../menu-and-controls-spec.md#status-icons-and-transport-indicators)) and sends
   nothing to the engine. `Bus Idle` propagates straight to the realtime engine without rebuilding
   prepared audio or changing structural render-plan revisions; bus silence handling is a separate
@@ -339,7 +339,7 @@ changed edit saves System like any other System preference, shows `Applying...`,
 
 - Stable key `system.configureWifi`, on Raspberry and Orange. The confirmation is `Open Wi-Fi Setup`
   (`Playback stops.`, `Wi-Fi disconnects.`, `Setup may change:`, `SSH, hostname,`, `and login.`)
-  with `Cancel` and `Open Portal`; Cancel toasts `Cancelled`.
+  with `Cancel` and `Open Portal`; Cancel toasts `Canceled`.
 - `Open Portal` stops and resets playback, clears note state, and sends MIDI panic/all-notes-off
   cleanup. Playback never auto-resumes. It emits the typed setup portal effect, and opening the
   portal switches the Wi-Fi setting back on and removes the switch file before the radio comes on.

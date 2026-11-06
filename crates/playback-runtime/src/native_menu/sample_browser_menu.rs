@@ -117,9 +117,9 @@ pub(super) fn sample_browser_group(
                     "sample.favorite.set"
                 };
                 let favorite_label = if favorite_action.ends_with("remove") {
-                    "Remove fav"
+                    "Remove Favorite"
                 } else {
-                    "Set favorite"
+                    "Set Favorite"
                 };
                 children.push(action_item(
                     favorite_label,

@@ -70,10 +70,12 @@ fn map_type_to_tile(runner: &mut NativeRunner, fx_type: &str, target: &str, x: u
     turn_until(runner, "play.fx.target", target);
     assert!(runner.menu.focus_item_key("play.fx.map"));
     let _ = press_main(runner);
-    assert_eq!(toast(runner), format!("Map FX: {fx_type}"));
+    let shown =
+        crate::native_menu::format_values::format_display_value(Some("play.fx.type"), fx_type);
+    assert_eq!(toast(runner), format!("FX {shown}: press tiles to assign"));
     assert_snapshot(grid_press(runner, x, 6));
     let _ = grid_release(runner, x, 6);
-    assert_eq!(toast(runner), "FX mapped");
+    assert_eq!(toast(runner), format!("FX {shown}"));
 }
 
 #[test]
@@ -127,10 +129,10 @@ pub(crate) fn new_play_fx_types_respect_the_concurrency_limits() {
 
     assert_eq!(momentary_starts(&grid_press(&mut runner, 0, 6)).len(), 1);
     assert!(momentary_starts(&grid_press(&mut runner, 3, 6)).is_empty());
-    assert_eq!(toast(&runner), "Momentary FX type active (tape_stop)");
+    assert_eq!(toast(&runner), "FX tape stop already on");
     assert_eq!(momentary_starts(&grid_press(&mut runner, 1, 6)).len(), 1);
     assert!(momentary_starts(&grid_press(&mut runner, 2, 6)).is_empty());
-    assert_eq!(toast(&runner), "Momentary FX limit reached (2)");
+    assert_eq!(toast(&runner), "FX limit: 2 at once");
     assert_eq!(runner.active_play_fx.len(), 2);
 
     let _ = grid_release(&mut runner, 0, 6);

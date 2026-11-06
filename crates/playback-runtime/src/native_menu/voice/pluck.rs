@@ -68,7 +68,7 @@ pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
                         1,
                     ),
                     number_item(
-                        "Body Hz",
+                        "Body Freq",
                         format!("{prefix}.pluck.bodyFrequencyHz"),
                         synth_number(pluck, &["bodyFrequencyHz"], 500),
                         100,

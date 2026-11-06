@@ -26,12 +26,12 @@ Under **Events**, three moments in a tile's life can each trigger something:
 
 | Event | When it fires | Usual job |
 |---|---|---|
-| **On** | A tile turns on | `note_on` |
-| **Hold** | A tile stays on | Often `none`; `note_on` for droning, insistent layers |
-| **Off** | A tile turns off | `note_off`, so held notes stop |
+| **On** | A tile turns on | `note on` |
+| **Hold** | A tile stays on | Often `none`; `note on` for droning, insistent layers |
+| **Off** | A tile turns off | `note off`, so held notes stop |
 
 Each event has an **Inst** (instrument slot 1 to 8), a **Trig** (`none`,
-`note_on` or `note_off`), a **Delay** (0 to 16 layer ticks) and a **Retrig**
+`note on` or `note off`), a **Delay** (0 to 16 layer ticks) and a **Retrig**
 (0 to 8 extra repeats, one tick apart). Delay and Retrig are a cheap way to
 turn one blip into a little echo figure without touching an effect.
 
@@ -75,7 +75,7 @@ one chord, so even chaos sounds like it meant it.
 has its own **Enabled** switch.
 
 - **Pitch Steps** moves the pitch by **Steps** (-16 to 16) per tile along that
-  axis. **Restart Sect** turns scan sections into little grids of their own:
+  axis. **Restart Section** turns scan sections into little grids of their own:
   each lane counts from its own edge, so they all play in the same register.
   It works on the axis the lanes split (Y for column sections, X for row
   sections).
@@ -103,13 +103,13 @@ saved.
 ### Arp: notes in a line instead of a lump
 
 When several notes arrive together, **Arp > Mode** can spread them out: `up`,
-`down`, `bounce`, `outside_in`, `rotating`, `random`, `octave_spread` or
-`strum`. `direct` and `chord_strike` keep them together; `none` leaves Link
+`down`, `bounce`, `outside in`, `rotating`, `random`, `octave spread` or
+`strum`. `direct` and `chord strike` keep them together; `none` leaves Link
 alone.
 
 - **Source** picks notes arriving in one batch (`simultaneous`) or notes the
   layer is holding (`held`).
-- **Step**, **Length ms**, **Gate %** and **Octaves** shape the run.
+- **Step**, **Length**, **Gate** and **Octaves** shape the run.
 
 ### LFOs, tempo and swing
 
@@ -117,7 +117,7 @@ These live at the top of **Link**, not under a layer.
 
 - **LFOs** has eight global sine LFOs. Switch one **Enabled**, pick a
   **Target** (the list only offers parameters that are safe to wobble while
-  playing), a **Period** in note lengths (up to eight bars) and a **Depth %**. An LFO adds its
+  playing), a **Period** in note lengths (up to eight bars) and a **Depth**. An LFO adds its
   wobble on top of anything else steering the same parameter. A switched-off LFO keeps counting
   along with the music, so when you switch it back on it comes in right where it would have been.
 - **BPM** sets the tempo (40 to 240).
@@ -174,7 +174,7 @@ point at them.
   The list below says what each one is for, and so does *Shift* + *Fn* +
   **Main** on its row.
 - **Note Mode.** `oneshot` gives each trigger a finite note. `hold` keeps the
-  note sounding until a matching `note_off`, which is what Off events and the
+  note sounding until a matching `note off`, which is what Off events and the
   scan's empty action are for. Drum hits are always one-shot.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and
   Decay runs after the attack whatever the attack length. A sampler's Amp Env
@@ -312,7 +312,7 @@ on the same channel.
 ### Mixer
 
 Each internal instrument's **Mixer** has **Route** (`direct` to the main mix,
-or `fx_bus_1` to `fx_bus_4`), **Volume** and **Pan Pos**. A slot routed to a
+or `fxb1` to `fxb4`), **Volume** and **Pan Pos**. A slot routed to a
 bus takes its pan from the bus. Play Mix and Play Pan edit the same values.
 
 ## FX buses: shared effect chains
@@ -358,11 +358,11 @@ so a short attack or a long reverb tail is easy to set. The details are in the
 
 1. **Layer 1:** `sequencer` → Inst 1 set to `Drum`. Stamp a kick, snare and
    hat onto a few tiles.
-2. **Layer 2:** `boids` → Inst 2 set to `synth`, Route `fx_bus_1`. Note
+2. **Layer 2:** `boids` → Inst 2 set to `synth`, Route `fxb1`. Note
    Mapping Set `Minor Pentatonic`; X Axis **Filter Cutoff** enabled.
 3. **Bus 1:** Slot 1 `delay` synced to a note, Slot 2 `duck` sourced from
    `I1`.
-4. **Link > LFOs > L1:** Enabled, target Bus 1's delay mix, Period `1/1`,
+4. **Link > LFOs > LFO1:** Enabled, target Bus 1's delay mix, Period `1/1`,
    Depth around 30%.
 5. Press **Play**, then open the **XY** Play page and steer it by hand.
 

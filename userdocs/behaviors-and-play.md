@@ -120,7 +120,7 @@ column, leaves the page.
 | Pan | One row per instrument; left edge is hard left, right edge hard right. | Placing instruments in the stereo field. Bus-routed instruments move their bus pan. |
 | Route | One column per instrument. The bottom five rows pick direct or FX bus 1-4; row 6 switches bus and Global FX chains off and on; the top row picks the instrument every duck listens to and saves it as each duck's Source. | Sending a part through an effect bus, cutting the effects for a dry break, or pumping everything off a different kick. Routes and duck sources stick with the patch; bypass is never saved, so press the lit tile again to undo it. |
 | Tempo | The top five rows are tempo tiles from 50 to 240 BPM (the top-left one is Tap), then a row of -4..+4 nudges, then the two swing rows. | Grabbing a tempo, tapping one in, or dialing in swing: Swing A against Swing B, `4:4` straight. The Tap tile blinks with the beat. |
-| LFO | One row per global LFO, bottom row is LFO 1. The first tile switches it and glows with its wave; the rest pick a period from 1/8 to eight bars. Press a lit period again for its triplet; hold *Shift* for depth. | Slowing a wobble down to a long swell, or snapping it to the beat, without menu diving. |
+| LFO | One row per global LFO, bottom row is LFO1. The first tile switches it and glows with its wave; the rest pick a period from 1/8 to eight bars. Press a lit period again for its triplet; hold *Shift* for depth. | Slowing a wobble down to a long swell, or snapping it to the beat, without menu diving. |
 | Faders | Eight vertical sliders, one per column; press a row to set that column's parameter there. Hold *Shift* for a second set of eight. Columns from the right can become action tiles instead (see below). | Riding 16 parameters of your choice, like a little fader box. Each bar shows where its parameter is right now, whoever moved it last. |
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
@@ -164,21 +164,21 @@ Set up momentary effects under `Play > FX`: choose an **FX Type**, a
 tile remembers the whole lot. Mapping `none` clears a tile. Hold the tile to
 play the effect; let go and it winds down on its own terms.
 
-| Type (shown as) | What happens while you hold it |
+| Type | What happens while you hold it |
 |---|---|
 | `stutter` | Grabs a slice and loops it. |
 | `freeze` | Catches the moment in an endless shimmering tail. |
-| `filter_sweep` (`flt_sweep`) | Closes a lowpass down, then opens it back up. |
-| `pitch_shift` (`pitch`) | Glides the sound up or down by semitones. |
-| `tape_stop` | The tape slows to a halt, pitch and all. Let go and it spins back up. |
+| `filter sweep` | Closes a lowpass down, then opens it back up. |
+| `pitch` | Glides the sound up or down by semitones. |
+| `tape stop` | The tape slows to a halt, pitch and all. Let go and it spins back up. |
 | `reverse` | After one Length of listening, plays what it heard backwards. |
-| `trance_gate` (`gate`) | Chops the sound in time with the tempo, from 1/32T to 1/4. |
-| `dub_throw` (`dub`) | Throws the sound into tempo-synced echoes that keep trailing after you let go. |
+| `gate` | Chops the sound in time with the tempo, from 1/32T to 1/4. |
+| `dub` | Throws the sound into tempo-synced echoes that keep trailing after you let go. |
 | `wash` | Swells into a big reverb that keeps listening, then fades over Release. |
-| `hp_riser` | Sweeps a highpass up for a build-up, then drops back open. |
+| `HP riser` | Sweeps a highpass up for a build-up, then drops back open. |
 | `crush` | Bitcrush and sample-rate grit, from a light fizz to a broken radio. |
 
-The two tempo-synced types, `trance_gate` and `dub_throw`, follow the tempo,
+The two tempo-synced types, `gate` and `dub`, follow the tempo,
 including an external MIDI clock when you sync to one.
 
 - **Target** is `master` (the whole mix), one of the FX buses, or a single

@@ -111,7 +111,7 @@ pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
     runner.menu.rebuild(runner.menu_config());
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+        .open_labels(&["Shape", "Instruments", "I1: Sampler direct", "Sampler"]);
     runner.menu.select_label("Assign");
 
     let opened = runner.messages_with_snapshot().unwrap();

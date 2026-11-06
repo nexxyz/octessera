@@ -9,7 +9,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     runner.menu.rebuild(runner.menu_config());
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: samp direct", "Sampler"]);
+        .open_labels(&["Shape", "Instruments", "I1: Sampler direct", "Sampler"]);
     runner.menu.select_label("S1 Browse");
 
     let messages = runner
@@ -46,7 +46,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: samp direct",
+        "I1: Sampler direct",
         "Sampler",
         "S1 Browse",
     ]);
@@ -74,7 +74,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: samp direct",
+        "I1: Sampler direct",
         "Sampler",
         "S1 Browse",
     ]);
@@ -108,7 +108,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
         "Drums/kick.wav"
     );
     assert!(runner.sample_browser.is_none());
-    assert_eq!(snapshot["display"]["title"], "../I1: samp/Sampler");
+    assert_eq!(snapshot["display"]["title"], "../I1: Sampler/Sampler");
     let selected_row = snapshot["selectedRow"].as_u64().expect("selected row") as usize;
     assert_eq!(snapshot["display"]["lines"][selected_row], "  S1 Browse >");
     runner.make_deferred_menu_apply_due_for_test();
@@ -142,7 +142,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Filter",
     ]);
@@ -152,7 +152,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     let snapshot = runner.menu.snapshot();
     assert_eq!(
         snapshot.lines,
-        vec![" !..", " !kick.wav", "", " !Set favorite"]
+        vec![" !..", " !kick.wav", "", " !Set Favorite"]
     );
 
     let _ = runner
@@ -169,7 +169,7 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
 
     let snapshot = runner.menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], " !Remove fav");
+    assert_eq!(snapshot.lines[selected_row], " !Remove Favorite");
 
     let payload = runner.config_payload();
     assert_eq!(
@@ -185,14 +185,14 @@ pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config()
     loaded.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: samp direct",
+        "I1: Sampler direct",
         "Sampler",
         "S1 Browse",
     ]);
-    loaded.menu.select_label("Remove fav");
+    loaded.menu.select_label("Remove Favorite");
     let snapshot = loaded.menu.snapshot();
     let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], " !Remove fav");
+    assert_eq!(snapshot.lines[selected_row], " !Remove Favorite");
 
     let _ = loaded
         .send(HostMessage::DeviceInput {
@@ -224,7 +224,7 @@ pub(crate) fn sample_browser_shows_non_deletable_builtin_favourites() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Filter",
     ]);
@@ -249,7 +249,7 @@ pub(crate) fn sample_browser_shows_non_deletable_builtin_favourites() {
     assert!(!snapshot
         .lines
         .iter()
-        .any(|line| line.contains("Remove fav")));
+        .any(|line| line.contains("Remove Favorite")));
 }
 
 #[test]

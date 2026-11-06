@@ -77,11 +77,11 @@ fn sample_favorites_save_system_when_set_and_removed() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: samp direct",
+        "I1: Sampler direct",
         "Sampler",
         "S1 Browse",
     ]);
-    runner.menu.select_label("Set favorite");
+    runner.menu.select_label("Set Favorite");
 
     let set = device_input(
         &mut runner,
@@ -97,7 +97,7 @@ fn sample_favorites_save_system_when_set_and_removed() {
         vec![String::from("Samples")]
     );
 
-    runner.menu.select_label("Remove fav");
+    runner.menu.select_label("Remove Favorite");
     let removed = device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),

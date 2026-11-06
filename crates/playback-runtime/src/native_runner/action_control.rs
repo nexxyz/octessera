@@ -4,7 +4,6 @@ use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 mod factory_instrument_load;
 
 use super::grid_assign::GridAssign;
-use super::play_fx_config::play_fx_type;
 use super::{
     derive_instrument_name, native_binding_from_spec, parse_sample_action, NativeInstrumentSlot,
     NativeManualSaveRequest, NativeRunner, RuntimeTransportState, GRID_HEIGHT,
@@ -27,7 +26,10 @@ impl NativeRunner {
             let config = self.play_fx_selected.clone();
             self.grid_assign = Some(GridAssign::PlayFx(config.clone()));
             self.active_play_mode = "fx".into();
-            self.show_toast(format!("Map FX: {}", play_fx_type(&config)));
+            self.show_toast(format!(
+                "FX {}: press tiles to assign",
+                super::play_control::play_fx_type_label(&config)
+            ));
             return Ok(None);
         }
         if let Some(rest) = action.strip_prefix("sample.assign:") {

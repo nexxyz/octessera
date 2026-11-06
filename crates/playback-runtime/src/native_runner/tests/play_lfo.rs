@@ -53,7 +53,7 @@ fn lfo_runner() -> NativeRunner {
         json!({ "type": "button_fn", "pressed": false }),
     );
     assert_eq!(runner.active_play_mode, "lfo");
-    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: lfo");
+    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: LFO");
     runner
 }
 
@@ -86,7 +86,7 @@ fn column_zero_toggles_an_lfo_or_says_it_has_no_target() {
     let mut runner = lfo_runner();
 
     let _ = press(&mut runner, 0, 0);
-    assert_eq!(toast(&runner), "L1 off");
+    assert_eq!(toast(&runner), "LFO1 off");
     assert!(!runner.link_lfos[0].enabled);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["linkLfos"][0]["enabled"],
@@ -97,11 +97,11 @@ fn column_zero_toggles_an_lfo_or_says_it_has_no_target() {
         led_rgb(dim_rgb(platform_core::palette::GRAY, 6))
     );
     let _ = press(&mut runner, 0, 0);
-    assert_eq!(toast(&runner), "L1 on");
+    assert_eq!(toast(&runner), "LFO1 on");
     assert!(runner.link_lfos[0].enabled);
 
     let _ = press(&mut runner, 0, 1);
-    assert_eq!(toast(&runner), "L2: no target");
+    assert_eq!(toast(&runner), "LFO2: no target");
     assert!(!runner.link_lfos[1].enabled);
     assert_eq!(tile(&runner, 0, 1), led_rgb(platform_core::palette::BLACK));
 }
@@ -152,10 +152,10 @@ fn period_tiles_set_the_period_and_a_second_press_toggles_triplet() {
     assert_eq!(tile(&runner, 4, 0), led_rgb(platform_core::palette::GREEN));
 
     let _ = press(&mut runner, 2, 0);
-    assert_eq!(toast(&runner), "L1 period 1/4");
+    assert_eq!(toast(&runner), "LFO1 period 1/4");
     assert_eq!(runner.link_lfos[0].period, "1/4");
     let _ = press(&mut runner, 2, 0);
-    assert_eq!(toast(&runner), "L1 period 1/4T");
+    assert_eq!(toast(&runner), "LFO1 period 1/4T");
     assert_eq!(runner.link_lfos[0].period, "1/4T");
     assert_eq!(tile(&runner, 2, 0), led_rgb(platform_core::palette::BLUE));
     let _ = press(&mut runner, 2, 0);
@@ -194,7 +194,7 @@ fn a_period_change_keeps_the_wave_position() {
 fn shift_tiles_set_depth_in_seven_steps() {
     let mut runner = lfo_runner();
     shift_press(&mut runner, 3, 0);
-    assert_eq!(toast(&runner), "L1 depth 43%");
+    assert_eq!(toast(&runner), "LFO1 depth 43%");
     assert_eq!(runner.link_lfos[0].depth_pct, 43);
     assert_eq!(
         runner.link_lfos[0].period, "1/1",

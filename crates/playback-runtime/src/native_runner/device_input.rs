@@ -248,7 +248,7 @@ impl NativeRunner {
                     self.cancel_restart_flow();
                 } else {
                     self.display.confirm_dialog = None;
-                    self.show_toast("Cancelled");
+                    self.show_toast("Canceled");
                 }
             }
             _ => {}

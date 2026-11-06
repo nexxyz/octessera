@@ -158,7 +158,7 @@ pub(crate) fn preset_load_lists_use_the_list_layout_without_a_pointer() {
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Preset",
     ]);

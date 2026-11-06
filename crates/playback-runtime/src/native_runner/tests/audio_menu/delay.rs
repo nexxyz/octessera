@@ -60,14 +60,7 @@ pub(crate) fn delay_menu_shows_only_the_time_row_of_its_time_mode() {
     };
     assert_eq!(
         labels(&runner),
-        [
-            "Type",
-            "Mix %",
-            "Spread %",
-            "Time Mode",
-            "Time ms",
-            "Feedback"
-        ]
+        ["Type", "Mix", "Spread", "Time Mode", "Time", "Feedback"]
     );
     assert_eq!(runner.menu.value_for_key(time_note), None);
 
@@ -79,8 +72,8 @@ pub(crate) fn delay_menu_shows_only_the_time_row_of_its_time_mode() {
         labels(&runner),
         [
             "Type",
-            "Mix %",
-            "Spread %",
+            "Mix",
+            "Spread",
             "Time Mode",
             "Time Note",
             "Feedback"
@@ -117,7 +110,7 @@ pub(crate) fn aux_binding_to_the_hidden_time_ms_row_reports_the_synced_time() {
     assert!(
         toast
             .as_deref()
-            .is_some_and(|toast| toast.contains("Time ms") && toast.contains("250")),
+            .is_some_and(|toast| toast.contains("Time") && toast.contains("250")),
         "{toast:?}"
     );
 }

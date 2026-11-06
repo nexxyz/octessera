@@ -84,7 +84,7 @@ fn cancelling_live_show_mode_changes_nothing() {
         &cancelled,
         RuntimePlatformEffect::MaintenanceHold { active: true }
     ));
-    assert_eq!(runner.display.toast.as_ref().unwrap().message, "Cancelled");
+    assert_eq!(runner.display.toast.as_ref().unwrap().message, "Canceled");
 }
 
 #[test]

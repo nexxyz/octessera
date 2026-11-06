@@ -28,7 +28,7 @@ pub(super) fn link_axis_binding_group(prefix: &str, label: &str, target: &str) -
                     target,
                 ),
                 binding_action(
-                    "Restart Sect",
+                    "Restart Section",
                     &format!("{prefix}.pitch.restartEachSection"),
                     "bool",
                     None,

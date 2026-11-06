@@ -143,7 +143,7 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&play)["display"]["toast"], "Play: pan");
+    assert_eq!(snapshot_from(&play)["display"]["toast"], "Play: Pan");
 }
 
 #[test]

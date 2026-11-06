@@ -72,7 +72,7 @@ fn a_stopped_signal_view_fills_the_body_with_a_flat_line_under_its_page() {
     let (mut runner, tap) = open_signal_view("signal.instrument.0");
     assert!(!runner.is_canonical_menu_presentation());
     let shown = presented(&mut runner);
-    assert_eq!(shown.display.title, "../I1: synth/Scope");
+    assert_eq!(shown.display.title, "../I1: Synth/Scope");
     assert!(shown.display.lines.is_empty());
     let view = shown.display.signal.unwrap();
     assert_eq!(view.area, OledSignalArea::Body);

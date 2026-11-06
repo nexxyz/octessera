@@ -88,7 +88,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             1,
         ),
         number_item(
-            "Base Velocity",
+            "Base Vel",
             format!("{prefix}.sample.baseVelocity"),
             i32::from(config.sample_base_velocity),
             1,

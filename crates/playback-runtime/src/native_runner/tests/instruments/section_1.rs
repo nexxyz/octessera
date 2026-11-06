@@ -30,7 +30,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
 
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 1"]);
+        .open_labels(&["Shape", "Instruments", "I1: Synth direct", "Synth", "Osc 1"]);
     runner.menu.select_label("Wave");
     runner.menu.state.editing = true;
     runner.menu.turn(1);
@@ -51,7 +51,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Filter",
     ]);
@@ -63,7 +63,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Filter",
     ]);
@@ -75,7 +75,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Filter",
     ]);
@@ -87,7 +87,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Volume",
     ]);
@@ -99,7 +99,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Amp Env",
     ]);

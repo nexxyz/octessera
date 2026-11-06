@@ -15,7 +15,7 @@ pub(crate) fn duck_menu_exposes_canonical_parameter_ranges() {
 
     for (label, value, min, max) in [
         ("Threshold", 100, 0, 100),
-        ("Amount %", 100, 0, 100),
+        ("Amount", 100, 0, 100),
         ("Attack", 500, 1, 500),
         ("Release", 5000, 1, 5000),
     ] {

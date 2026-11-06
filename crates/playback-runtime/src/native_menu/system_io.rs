@@ -66,7 +66,7 @@ pub(super) fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeM
     ));
     let engine_children = vec![
         enum_item(
-            "CPU Warn %",
+            "CPU Warn",
             "dsp.workerWarningThreshold",
             vec!["70", "75", "80", "85", "90", "95"],
             selected_index(

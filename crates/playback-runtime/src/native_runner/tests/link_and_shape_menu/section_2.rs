@@ -69,7 +69,7 @@ pub(crate) fn midi_instrument_params_edit_through_menu() {
     runner.menu.rebuild(runner.menu_config());
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: midi ch1", "MIDI"]);
+        .open_labels(&["Shape", "Instruments", "I1: MIDI Inst. ch1", "MIDI"]);
     runner.menu.select_label("Channel");
 
     let _ = runner

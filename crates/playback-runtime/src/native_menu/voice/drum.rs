@@ -98,7 +98,7 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
                     1,
                 ),
                 number_item(
-                    "Sweep st",
+                    "Sweep Pitch",
                     format!("{voice_key}.sweepSemis"),
                     synth_number(voice, &["sweepSemis"], sweep_semis),
                     0,
@@ -106,7 +106,7 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
                     1,
                 ),
                 number_item(
-                    "Sweep ms",
+                    "Sweep Time",
                     format!("{voice_key}.sweepMs"),
                     synth_number(voice, &["sweepMs"], sweep_ms),
                     0,
@@ -114,7 +114,7 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
                     1,
                 ),
                 number_item(
-                    "Noise %",
+                    "Noise",
                     format!("{voice_key}.noiseMixPct"),
                     synth_number(voice, &["noiseMixPct"], noise_mix_pct),
                     0,
@@ -122,7 +122,7 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
                     1,
                 ),
                 number_item(
-                    "Level %",
+                    "Level",
                     format!("{voice_key}.levelPct"),
                     synth_number(voice, &["levelPct"], level_pct),
                     0,

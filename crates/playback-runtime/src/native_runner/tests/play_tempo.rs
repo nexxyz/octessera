@@ -28,7 +28,7 @@ fn tempo_runner() -> NativeRunner {
         json!({ "type": "button_fn", "pressed": false }),
     );
     assert_eq!(runner.active_play_mode, "tempo");
-    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: tempo");
+    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Tempo");
     assert_eq!(runner.menu.current_key(), Some("play.page.tempo"));
     runner
 }

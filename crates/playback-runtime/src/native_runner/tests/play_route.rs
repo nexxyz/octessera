@@ -51,7 +51,7 @@ fn open_route_page(runner: &mut NativeRunner) {
     let opened = press(runner, GRID_WIDTH - 1, 2);
     let _ = input(runner, json!({ "type": "button_fn", "pressed": false }));
     assert_eq!(runner.active_play_mode, "route");
-    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: route");
+    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Route");
 }
 
 fn toast(runner: &NativeRunner) -> String {
@@ -286,7 +286,7 @@ fn duck_source_press_saves_the_instrument_on_every_bus_duck() {
 fn duck_source_press_on_the_lit_tile_does_nothing() {
     let mut runner = route_runner();
     let pressed = press(&mut runner, 0, 7);
-    assert_eq!(toast(&runner), "Play: route");
+    assert_eq!(toast(&runner), "Play: Route");
     assert_eq!(resent_slots(&pressed), (vec![], vec![]));
     assert!(!runner.config_dirty);
     assert_eq!(tile(&runner, 0, 7), red(1));

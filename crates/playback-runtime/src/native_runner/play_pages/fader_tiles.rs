@@ -233,7 +233,7 @@ impl NativeRunner {
         }
         self.grid_assign = Some(GridAssign::FaderTiles);
         self.active_play_mode = "faders".into();
-        self.show_toast("Map tiles: press to assign");
+        self.show_toast("Tile map: press tiles to assign");
     }
 
     /// Stores the Tile Map on a reserved tile, or clears it with type none, and leaves the
@@ -251,10 +251,10 @@ impl NativeRunner {
         let mapping = self.faders.draft.stamped();
         self.faders.tiles.retain(|tile| tile.x != x || tile.y != y);
         let toast = if mapping.kind == FaderTileKind::None {
-            "Tile cleared"
+            "Cleared"
         } else {
             self.faders.tiles.push(NativeFaderTile { x, y, mapping });
-            "Tile mapped"
+            "Mapped"
         };
         self.mark_fast_autosave_dirty();
         self.show_toast(toast);

@@ -108,7 +108,7 @@ impl ModulationSourceId {
         match self.0 - LAYER_COUNT * AXIS_SLOT_COUNT * 2 {
             0 => "Play X".into(),
             1 => "Play Y".into(),
-            _ if self.is_global_lfo() => format!("LFO {}", self.0 - GLOBAL_LFO_BASE + 1),
+            _ if self.is_global_lfo() => format!("LFO{}", self.0 - GLOBAL_LFO_BASE + 1),
             _ => format!("CC{}", self.0 - MIDI_CC_BASE + 1),
         }
     }
@@ -126,8 +126,8 @@ mod tests {
         assert_eq!(sources[31].label(), "L8 Y2");
         assert_eq!(sources[32].label(), "Play X");
         assert_eq!(sources[33].label(), "Play Y");
-        assert_eq!(sources[34].label(), "LFO 1");
-        assert_eq!(sources[41].label(), "LFO 8");
+        assert_eq!(sources[34].label(), "LFO1");
+        assert_eq!(sources[41].label(), "LFO8");
         assert_eq!(sources[42].label(), "CC1");
         assert_eq!(sources[49].label(), "CC8");
         assert!(!sources[42].is_global_lfo());

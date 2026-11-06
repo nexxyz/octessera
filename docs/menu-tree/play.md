@@ -28,9 +28,9 @@ Play
 │       ├── Target: <target | (none)> (picker)     ← param: the row a press steps
 │       └── Map to Grid (action)
 ├── FX (group)
-│   ├── FX Type: [none | stutter | freeze | flt_sweep | pitch | tape_stop | reverse | gate | dub |
-│   │             wash | hp_riser | crush]   ← stored as filter_sweep, pitch_shift, trance_gate, dub_throw
-│   ├── Target: [master | fx_bus_1..fx_bus_4 | I1..I8]   ← instruments stored as instrument_n
+│   ├── FX Type: [none | stutter | freeze | filter sweep | pitch | tape stop | reverse | gate | dub |
+│   │             wash | HP riser | crush]   ← stored as filter_sweep, pitch_shift, tape_stop, trance_gate, dub_throw, hp_riser
+│   ├── Target: [master | fxb1..fxb4 | I1..I8]   ← stored as fx_bus_n and instrument_n
 │   ├── ... params of the FX Type (see Play FX)
 │   ├── Map to Grid (action)
 │   └── Aux Map (group)                  ← the Play FX params/actions that auto-map to aux, with their aux markers
@@ -62,13 +62,13 @@ The menu lists the technical bank, then the musical bank.
   | 5 | `faders` | |
 
   Other rows are free and do nothing. Fn or Shift+Fn + right column always selects and activates
-  that bank's page, moves the menu to its Play row, and toasts `Play: <page>`
-  (`Play: trig` for Trigger Gate). While Fn or Shift+Fn is held, the other tiles do nothing on a
+  that bank's page, moves the menu to its Play row, and toasts `Play: <page>` with the page's
+  menu name (`Play: Trigger Gate`). While Fn or Shift+Fn is held, the other tiles do nothing on a
   Play page: the navigation overlay hides it, so brushing a tile while switching pages edits
   nothing.
 - In the Play menu, `Mix`, `Pan`, `Route`, `Tempo`, `LFO`, `Transpose`, `Rate`, and `Trigger Gate` are page-select
-  rows: Main press
-  selects and activates the page without entering an empty submenu. `Faders`, `FX` and `XY` are
+  rows: they show `!` like an action, and Main press selects and activates the page without
+  entering an empty submenu. `Faders`, `FX` and `XY` are
   enterable groups and activate their page too.
 - Entering `Play` activates the saved page. Back, Fn + left column (layer select), and entering
   Build, Link, Shape, or System leave the Play overlay without changing the saved page. Layer
@@ -186,15 +186,15 @@ The menu lists the technical bank, then the musical bank.
 
 ## LFO
 
-- Rows are the global LFOs `Link > LFOs > L1..L8`, L1 on the bottom row. Every press goes through
+- Rows are the global LFOs `Link > LFOs > LFO1..LFO8`, LFO1 on the bottom row. Every press goes through
   the menu edit of that LFO, so it is saved with the patch.
-- Column 0 switches `Enabled` (`L3 on` / `L3 off`). An LFO without a target cannot be switched on:
-  its tile is dark and a press toasts `L3: no target`. The phase keeps running while off, so an
+- Column 0 switches `Enabled` (`LFO3 on` / `LFO3 off`). An LFO without a target cannot be switched on:
+  its tile is dark and a press toasts `LFO3: no target`. The phase keeps running while off, so an
   LFO switched back on comes in at the same point as one that stayed on.
 - Columns `1..7` set `Period` to `1/8`, `1/4`, `1/2`, `1/1`, `2/1`, `4/1`, `8/1`. Pressing the lit
-  period again toggles its triplet (`1/4` and `1/4T`). Toast `L3 period 1/4T`. The phase is scaled
+  period again toggles its triplet (`1/4` and `1/4T`). Toast `LFO3 period 1/4T`. The phase is scaled
   to the new period, so the wave keeps its position.
-- Shift + columns `1..7` set `Depth %` to 15, 29, 43, 57, 71, 86, 100 (`L3 depth 43%`).
+- Shift + columns `1..7` set `Depth` to 15, 29, 43, 57, 71, 86, 100 (`LFO3 depth 43%`).
 - LEDs: column 0 is green while enabled, brightening and darkening with the LFO's current value
   (updated with the playing display), dim gray while off, dark without a target. Period columns:
   the current straight period green, a triplet blue, the others dim green. While Shift is held the
@@ -236,10 +236,10 @@ The menu lists the technical bank, then the musical bank.
     like an Aux detent turn (coarse, no Fn), through the menu edit, so it saves and autosaves like
     a menu edit. The toast is the Aux turn toast without its cap (`Volume: 86`).
 - Setup: in `Tile Map` pick `Type`, then the actions or the target, then `Map to Grid` and press
-  an action-column tile. The toast is `Map tiles: press to assign`; the press stores the mapping
-  (`Tile mapped`) and leaves the mode, a press outside the action columns toasts
+  an action-column tile. The toast is `Tile map: press tiles to assign`; the press stores the mapping
+  (`Mapped`) and leaves the mode, a press outside the action columns toasts
   `Not an action column` and keeps waiting, and Back leaves without changes. Mapping `none` clears
-  the tile (`Tile cleared`). With `Action Cols` at 0, `Map to Grid` only toasts `Action Cols is 0`.
+  the tile (`Cleared`). With `Action Cols` at 0, `Map to Grid` only toasts `Action Cols is 0`.
   The Tile Map rows themselves are live only.
 - Tiles and `Action Cols` are saved with the patch. Lowering `Action Cols` keeps the tiles of the
   freed columns, so they return when the columns do.
@@ -249,7 +249,8 @@ The menu lists the technical bank, then the musical bank.
 ## Play FX
 
 - Choose `FX Type`, edit its rows, then `Map to Grid` and press a tile. The toast is
-  `Map FX: <type>`, placing it on a tile toasts `FX mapped`, and Back leaves assignment without
+  `FX <type>: press tiles to assign`, placing it on a tile toasts `FX <type>` (pressing a tile that
+  already holds the same FX clears it: `Cleared`), and Back leaves assignment without
   changing stored tiles. The tile stores the
   type, `Target`, and current parameter values. Mapping `none` clears a tile.
 - `Target` defaults to `master`. Options list `master`, then the FX buses, then the instruments.
@@ -259,8 +260,8 @@ The menu lists the technical bank, then the musical bank.
   the DSP.
 - On the `fx` page, pressing a mapped tile starts its effect and releasing stops it. At most two
   momentary FX run at once (Play FX concurrency capability), and only one per type. A press that
-  would exceed either limit is ignored with `Momentary FX limit reached (2)` or
-  `Momentary FX type active (<type>)`.
+  would exceed either limit is ignored with `FX limit: 2 at once` or `FX <type> already on`.
+  Toasts and rows show the display names (`filter sweep`, `tape stop`, `HP riser`).
 - The seven types after `pitch_shift` finish their release on their own, from a 5 ms crush fade
   to the dub_throw and wash tails. A press of the same type and Target during that release takes
   it over instead of cutting it. The engine counts a releasing effect toward its two, so a press
@@ -273,15 +274,15 @@ The menu lists the technical bank, then the musical bank.
 
 | FX Type | Rows | Behavior |
 |---|---|---|
-| `stutter` | Rate Hz `1..32` (default 8), Depth `0..100` (default 100) | Captures a short segment on press and loops it. Rate sets segment length (longer at lower rates); Depth sets wet mix. A ~2 ms ease-in and a loop-wrap crossfade prevent clicks. |
-| `freeze` | Release Ms `10..5000` (default 500), Mix `0..100` (default 100) | Captures the early sound burst (about a 120 ms injection window) into an infinite reverb tail that sustains while held with no new input. On release the tail fades over Release Ms, then the effect is removed. |
+| `stutter` | Rate `1..32` (default 8), Depth `0..100` (default 100) | Captures a short segment on press and loops it. Rate sets segment length (longer at lower rates); Depth sets wet mix. A ~2 ms ease-in and a loop-wrap crossfade prevent clicks. |
+| `freeze` | Release `10..5000` (default 500), Mix `0..100` (default 100) | Captures the early sound burst (about a 120 ms injection window) into an infinite reverb tail that sustains while held with no new input. On release the tail fades over Release, then the effect is removed. |
 | `filter_sweep` | Cutoff `0..100` (default 50), Res `0..100` (default 0), Sweep In `10..3000 ms` (default 120), Sweep Out `10..3000 ms` (default 180) | Starts fully open (about 20 kHz, inaudible) and sweeps to the target lowpass cutoff over Sweep In; on release sweeps back open over Sweep Out and is removed. Cutoff 0 targets about 120 Hz (darkest), 100 about 8 kHz. |
 | `pitch_shift` | Semitones `-24..24`, Cents `-100..100`, Slide In `10..3000 ms` (default 120), Slide Out `10..3000 ms` (default 180), Mix `0..100` (default 100) | Pitch glides linearly in octaves. The fixed `PITCH_FILL_FRAMES=1088` live-input fill and the fixed 10 ms wet/dry anti-click envelopes are independent of the slides. |
 | `tape_stop` | Stop `50..2000 ms` (default 700), Start `10..2000 ms` (default 300) | Plays the target from a 2 s capture ring whose read speed ramps linearly to zero over Stop while held, so pitch and speed fall together; the last 15 % of the slowdown fades to silence. On release the speed ramps back to one over Start (from the live input if the tape had stopped), then a 10 ms crossfade hands back to the dry signal. |
 | `reverse` | Length `50..1000 ms` (default 250), Mix `0..100` (default 100) | Passes the dry signal while it captures one Length after the press, then plays each latest Length backwards, window after window. Windows overlap by a 5 ms crossfade, and the wet mix ramps in and out over 10 ms. |
 | `trance_gate` (`gate`) | Rate `1/32T..1/4` (default 1/16), Depth `0..100` (default 100), Smooth `0..100` (default 20) | A square volume chop, open for the first half of each Rate period and starting open at the press. Smooth sets the smoothstep edge length (at least 1 ms, at most a quarter period). Depth eases in and out over 5 ms. |
 | `dub_throw` (`dub`) | Time `1/16T..1/2` (default 1/4), Feedback `0..90` (default 55), Mix `0..100` (default 70) | Sends the target into a stereo pair of bus delay lines while held and adds the echoes to the dry signal. On release the send closes over 5 ms and the echoes trail off; the effect is removed once a whole delay time has passed below -80 dB, or fades out over 1 s once it has rung for 10 s. |
-| `wash` | Size `0..100` (default 80), Mix `0..100` (default 60), Release Ms `100..8000` (default 2500) | Diffuses the target into freeze's comb network at twice the size, with Size setting the feedback, and swells the wet mix in over 250 ms while held. Unlike freeze it keeps taking input. On release the send closes and the tail fades out over Release, then the effect is removed. |
+| `wash` | Size `0..100` (default 80), Mix `0..100` (default 60), Release `100..8000` (default 2500) | Diffuses the target into freeze's comb network at twice the size, with Size setting the feedback, and swells the wet mix in over 250 ms while held. Unlike freeze it keeps taking input. On release the send closes and the tail fades out over Release, then the effect is removed. |
 | `hp_riser` | Cutoff `0..100` (default 60), Res `0..100` (default 30), Sweep In `10..8000 ms` (default 2000), Sweep Out `10..3000 ms` (default 150) | filter_sweep's highpass counterpart: from fully open (20 Hz) it rises evenly in octaves to the target over Sweep In, with the resonance following, and sweeps back open over Sweep Out on release. Cutoff 0 targets about 80 Hz, 100 about 8 kHz. The wet path blends in over the first tenth of the sweep. |
 | `crush` | Bits `1..16` (default 6), Downsample `1..32` (default 6), Mix `0..100` (default 100) | The bus bitcrusher on each channel: bit depth plus sample-and-hold rate reduction. The mix eases in and out over 5 ms. |
 

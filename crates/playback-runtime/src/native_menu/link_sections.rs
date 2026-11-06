@@ -56,7 +56,7 @@ pub(super) fn arp_group(prefix: &str, arp: &NativeLinkArpConfig) -> NativeMenuIt
                 1,
             ),
             number_item(
-                "Length ms",
+                "Length",
                 format!("{prefix}.noteLengthMs"),
                 i32::from(arp.note_length_ms),
                 10,
@@ -64,7 +64,7 @@ pub(super) fn arp_group(prefix: &str, arp: &NativeLinkArpConfig) -> NativeMenuIt
                 10,
             ),
             number_item(
-                "Gate %",
+                "Gate",
                 format!("{prefix}.gatePct"),
                 i32::from(arp.gate_pct),
                 1,
@@ -107,7 +107,7 @@ pub(super) fn link_lfo_group(
                     .unwrap_or_else(|| crate::timing_units::note_unit_selection_index(&lfo.period)),
             ),
             number_item(
-                "Depth %",
+                "Depth",
                 format!("{prefix}.depthPct"),
                 i32::from(lfo.depth_pct),
                 0,
@@ -126,7 +126,11 @@ pub(super) fn global_link_lfos_group(config: &NativeMenuConfig) -> NativeMenuIte
             .iter()
             .enumerate()
             .map(|(index, lfo)| {
-                link_lfo_group(format!("L{}", index + 1), &format!("linkLfos.{index}"), lfo)
+                link_lfo_group(
+                    format!("LFO{}", index + 1),
+                    &format!("linkLfos.{index}"),
+                    lfo,
+                )
             })
             .collect(),
     )

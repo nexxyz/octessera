@@ -269,7 +269,7 @@ pub(crate) fn repeated_aux_turns_keep_the_toast_at_its_end_and_update_the_value(
     runner.menu.open_labels(&[
         "Shape",
         "Instruments",
-        "I1: synth direct",
+        "I1: Synth direct",
         "Synth",
         "Filter",
     ]);

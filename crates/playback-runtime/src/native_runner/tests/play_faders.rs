@@ -48,7 +48,7 @@ fn note_length(runner: &NativeRunner) -> u32 {
 fn open_faders(runner: &mut NativeRunner) {
     held(runner, "button_fn", |runner| tap(runner, GRID_WIDTH - 1, 5));
     assert_eq!(runner.active_play_mode, "faders");
-    assert_eq!(toast(runner), "Play: faders");
+    assert_eq!(toast(runner), "Play: Faders");
 }
 
 fn bind(runner: &mut NativeRunner, target: &str, key: &str) {

@@ -66,8 +66,15 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
             .map(|row| row.label.as_str())
             .collect::<Vec<_>>(),
         [
-            "Sound", "Tune", "Decay", "Tone", "Attack", "Sweep st", "Sweep ms", "Noise %",
-            "Level %"
+            "Sound",
+            "Tune",
+            "Decay",
+            "Tone",
+            "Attack",
+            "Sweep Pitch",
+            "Sweep Time",
+            "Noise",
+            "Level"
         ]
     );
     assert!(menu.item_for_key("instruments.0.noteBehavior").is_none());
@@ -93,7 +100,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.lines.len(), 8);
     let selected_row = snapshot.selected_row.unwrap();
-    assert!(snapshot.lines[selected_row].starts_with("  Level %"));
+    assert!(snapshot.lines[selected_row].starts_with("  Level"));
 }
 
 #[test]

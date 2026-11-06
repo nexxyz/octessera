@@ -162,7 +162,7 @@ pub(super) fn link_binding_group(
                         target,
                     ),
                     binding_action(
-                        "Scale",
+                        "Set",
                         &format!("{prefix}.pitch.scale"),
                         "enum",
                         None,

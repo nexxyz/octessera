@@ -98,7 +98,7 @@ pub(crate) fn native_snapshot_reserves_bottom_oled_row_for_status() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
         .menu
-        .open_labels(&["Shape", "Instruments", "I1: synth direct", "Synth", "Osc 1"]);
+        .open_labels(&["Shape", "Instruments", "I1: Synth direct", "Synth", "Osc 1"]);
     runner.menu.select_label("Wave");
     let snapshot = runner.snapshot().unwrap();
 

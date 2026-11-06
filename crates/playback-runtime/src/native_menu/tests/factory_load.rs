@@ -181,7 +181,7 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
             "Follow Transp.",
             "Follow Pitch",
             "Gain",
-            "Base Velocity",
+            "Base Vel",
             "Vel Levels",
         ]);
         if enabled {

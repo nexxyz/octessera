@@ -14,7 +14,7 @@ impl NativeRunner {
         let column = x.min(GRID_WIDTH - 1);
         if column == 0 {
             if lfo.target.is_none() {
-                self.show_toast(format!("L{}: no target", index + 1));
+                self.show_toast(format!("LFO{}: no target", index + 1));
                 return;
             }
             let enabled = !lfo.enabled;
@@ -22,7 +22,7 @@ impl NativeRunner {
             self.menu.set_bool_value_for_key(&key, enabled);
             if self.dispatch_play_menu_key(&key) {
                 self.show_toast(format!(
-                    "L{} {}",
+                    "LFO{} {}",
                     index + 1,
                     if enabled { "on" } else { "off" }
                 ));
@@ -32,7 +32,7 @@ impl NativeRunner {
             let key = format!("{prefix}.depthPct");
             self.menu.set_number_value_for_key(&key, i32::from(depth));
             if self.dispatch_play_menu_key(&key) {
-                self.show_toast(format!("L{} depth {depth}%", index + 1));
+                self.show_toast(format!("LFO{} depth {depth}%", index + 1));
             }
         } else {
             let base = PERIODS[column - 1];
@@ -44,7 +44,7 @@ impl NativeRunner {
             let key = format!("{prefix}.period");
             self.menu.set_enum_value_for_key(&key, &period);
             if self.dispatch_play_menu_key(&key) {
-                self.show_toast(format!("L{} period {period}", index + 1));
+                self.show_toast(format!("LFO{} period {period}", index + 1));
             }
         }
     }

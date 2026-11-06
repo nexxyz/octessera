@@ -134,7 +134,7 @@ pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
         "xy:y",
         Some(NativeParamBinding {
             key: "play.fx.params.rateHz".into(),
-            label: Some("Rate Hz".into()),
+            label: Some("Rate".into()),
             kind: "number".into(),
             min: Some(1.0),
             max: Some(32.0),

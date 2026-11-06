@@ -129,7 +129,7 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
         snapshot["display"]["lines"]
             .as_array()
             .unwrap()
-            .contains(&json!("S2-Fine cents +0c")),
+            .contains(&json!("S2-Fine +0c")),
         "{snapshot:?}"
     );
     assert_eq!(snapshot["display"]["editing"], true);
@@ -158,7 +158,7 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
             snapshot["display"]["lines"]
                 .as_array()
                 .unwrap()
-                .contains(&json!(format!("S2-Fine cents {label}"))),
+                .contains(&json!(format!("S2-Fine {label}"))),
             "{snapshot:?}"
         );
         assert_eq!(runner.instruments[0].fm_config["ratioFineCents"], expected);
@@ -186,7 +186,7 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
         snapshot["display"]["lines"]
             .as_array()
             .unwrap()
-            .contains(&json!("S2-Fine cents +0c")),
+            .contains(&json!("S2-Fine +0c")),
         "{snapshot:?}"
     );
 }

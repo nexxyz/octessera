@@ -5,7 +5,7 @@ use crate::protocol::RuntimeAudioCommand;
 use super::NativeRunner;
 
 impl NativeRunner {
-    /// The delay time row its Time Mode hides (Time ms in note mode, Time Note in ms mode),
+    /// The delay time row its Time Mode hides (Time in note mode, Time Note in ms mode),
     /// built from the stored params so a binding to it still reads the stored value.
     pub(super) fn hidden_delay_time_item(&self, key: &str) -> Option<NativeMenuItem> {
         let rest = key.strip_prefix("mixer.buses.")?;

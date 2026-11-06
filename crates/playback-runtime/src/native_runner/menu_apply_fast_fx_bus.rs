@@ -335,7 +335,7 @@ impl NativeRunner {
             .unwrap_or(Value::Null)
     }
 
-    /// Time Mode swaps the delay's time row in place: Time ms in ms mode, Time Note in note mode.
+    /// Time Mode swaps the delay's time row in place: Time in ms mode, Time Note in note mode.
     fn show_delay_time_row(&mut self, bus_index: usize, slot_index: usize, params: &Value) {
         let slot_prefix = format!("mixer.buses.{bus_index}.slot{}", slot_index + 1);
         let children = fx_bus_slot_children_for_key(

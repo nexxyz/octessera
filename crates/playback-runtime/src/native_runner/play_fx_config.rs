@@ -37,14 +37,14 @@ const PLAY_FX_PARAMS: [(&str, &[PlayFxParam]); 11] = [
     (
         "stutter",
         &[
-            param("rateHz", "Rate Hz", 8, 1, 32, 1),
+            param("rateHz", "Rate", 8, 1, 32, 1),
             param("depthPct", "Depth", 100, 0, 100, 1),
         ],
     ),
     (
         "freeze",
         &[
-            param("releaseMs", "Release Ms", 500, 10, 5000, 10),
+            param("releaseMs", "Release", 500, 10, 5000, 10),
             param("mixPct", "Mix", 100, 0, 100, 1),
         ],
     ),
@@ -102,7 +102,7 @@ const PLAY_FX_PARAMS: [(&str, &[PlayFxParam]); 11] = [
         &[
             param("sizePct", "Size", 80, 0, 100, 1),
             param("mixPct", "Mix", 60, 0, 100, 1),
-            param("releaseMs", "Release Ms", 2500, 100, 8000, 10),
+            param("releaseMs", "Release", 2500, 100, 8000, 10),
         ],
     ),
     (

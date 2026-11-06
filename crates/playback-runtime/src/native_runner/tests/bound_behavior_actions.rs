@@ -80,7 +80,7 @@ fn bound_runner() -> NativeRunner {
     );
     press_key(&mut runner, "play.faders.tile.map");
     tap(&mut runner, 7, 7);
-    assert_eq!(toast(&runner), "Tile mapped");
+    assert_eq!(toast(&runner), "Mapped");
     select_layer(&mut runner, 0);
     assert_eq!(l5_stars(&runner), 0);
     runner

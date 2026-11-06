@@ -31,7 +31,7 @@ pub(super) fn fm_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nativ
                         ),
                     ),
                     number_item(
-                        "Fine cents",
+                        "Fine",
                         format!("{prefix}.fm.ratioFineCents"),
                         synth_number(fm, &["ratioFineCents"], 0),
                         -100,

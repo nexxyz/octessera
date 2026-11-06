@@ -9,7 +9,7 @@ global FX on the main mix.
 ```
 Shape
 ├── Instruments (group)
-│   ├── <overview label> (group)                 ← one per slot, e.g. `I1: synth direct`, `I2: FM fxb1`, `I3: Pluck direct`, `I4: Drum direct`, `I5: samp fxb1`, `I6: midi ch1`, `I7: MDrum ch10`, `I8: none`
+│   ├── <overview label> (group)                 ← one per slot, e.g. `I1: Synth direct`, `I2: FM fxb1`, `I3: Plucked direct`, `I4: Drum direct`, `I5: Sampler fxb1`, `I6: MIDI Inst. ch1`, `I7: MIDI Drum ch10`, `I8: None`
 │   │   ├── Type: [none | synth | sampler | midi | fm | pluck | drum | midi_drum]   ← fm shows as FM, pluck as Plucked, drum as Drum, midi as MIDI Inst., midi_drum as MIDI Drum
 │   │   ├── Note Mode: [oneshot | hold]          ← default oneshot; hidden for none, Drum and MIDI Drum (both are always one-shot)
 │   │   ├── Synth (group)                        ← type synth
@@ -22,7 +22,7 @@ Shape
 │   │   │   └── Filter Env (group)               ← Attack, Decay, Sustain, Release
 │   │   ├── FM (group)                           ← type fm
 │   │   │   ├── Preset (group) > Load (group)    ← Init | Soft Keys | Tine EP | Thump Bass | Swell Bass | Reed Lead | Warm Pad | Mallet | Bell | Glass | Clang
-│   │   │   ├── Tone (group)                     ← Ratio, Fine cents, Index, Vel to Index, Mod Shape, Mod Mix
+│   │   │   ├── Tone (group)                     ← Ratio, Fine, Index, Vel to Index, Mod Shape, Mod Mix
 │   │   │   ├── Index Env (group)                ← Attack, Decay, Sustain, Release
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
 │   │   │   ├── Volume (group)                   ← Gain, Vel Sens
@@ -30,7 +30,7 @@ Shape
 │   │   │   └── Filter Env (group)
 │   │   ├── Plucked (group)                      ← type pluck
 │   │   │   ├── Preset (group) > Load (group)    ← Init | Nylon | Steel | Muted | Harp | Koto | Kalimba | Pizz | Pluck Bass | Sitar Buzz | Droplet
-│   │   │   ├── String (group)                   ← Decay, Brightness, Pick Pos, Pick Depth, Stiffness, Body Amt, Body Hz
+│   │   │   ├── String (group)                   ← Decay, Brightness, Pick Pos, Pick Depth, Stiffness, Body Amt, Body Freq
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
 │   │   │   ├── Volume (group)                   ← Gain, Vel Sens
 │   │   │   ├── Amp Env (group)
@@ -38,7 +38,7 @@ Shape
 │   │   ├── Drum (group)                         ← type drum
 │   │   │   ├── Kit (group) > Load (group)       ← Default | Tight | Heavy | Boom | Lo-Fi | Electro | Brush | Hand Perc | Minimal | Toy Box
 │   │   │   ├── Voice: [V1: Kick .. V8: Rim]     ← names follow each voice's current Sound
-│   │   │   ├── Edit (group)                     ← Sound, Tune, Decay, Tone, Attack, Sweep st, Sweep ms, Noise %, Level % of the selected voice
+│   │   │   ├── Edit (group)                     ← Sound, Tune, Decay, Tone, Attack, Sweep Pitch, Sweep Time, Noise, Level of the selected voice
 │   │   │   ├── Tile Tune: [-24..24] st          ← stamp value
 │   │   │   ├── Tile Fine: [-100..100] cents     ← stamp value
 │   │   │   ├── Tile Level: [Base | High | Medium | Low]  ← stamp value
@@ -82,9 +82,9 @@ Shape
 │   │   │   ├── Tile Vel: [1..127]               ← stamp value, default 100
 │   │   │   └── Assign (action)                  ← stamps Note + Tile Vel onto grid tiles
 │   │   ├── Mixer (group)                        ← internal types only (synth, sampler, fm, pluck, drum)
-│   │   │   ├── Route: [direct | fx_bus_1 | fx_bus_2 | fx_bus_3 | fx_bus_4]  default direct
+│   │   │   ├── Route: [direct | fxb1 | fxb2 | fxb3 | fxb4]  default direct; stored as fx_bus_n
 │   │   │   ├── Volume: [0..100]                 default 100
-│   │   │   └── Pan Pos: [0..32]                 ← 33-position scale, 16 = center; bus-routed slots show an empty `Pan Pos -- (bus)` row instead
+│   │   │   └── Pan Pos: [0..32]                 ← 33-position scale, 16 = center; bus-routed slots show a dim `Pan Pos: from bus` row instead (the bus pans them)
 │   │   ├── Signal (action)                      ← internal types only; full-screen scope / spectrum / waterfall of this slot
 │   │   ├── Auto Label: [on | off]               ← on: label follows Type (`Synth`, `FM`, `Plucked`, `Drum`, `Sampler`, `MIDI Inst.`, `MIDI Drum`)
 │   │   ├── Name: (text, max 32)                 ← editing sets Auto Label off; uppercase, lowercase, digits, space, `_`, `-`
@@ -145,7 +145,7 @@ Shape
 - Tone, in order:
   - Ratio `0.5|1|2|3|4|5|6|8` (default `2`), displayed `1:2|1:1|2:1|3:1|4:1|5:1|6:1|8:1`: the
     modulator-to-carrier pitch relationship.
-  - Fine cents `-100..100` (default `0`, shown signed with `c`): offsets the modulator interval,
+  - Fine `-100..100` (default `0`, shown signed with `c`): offsets the modulator interval,
     not carrier tuning.
   - Index `0..100` (default `50`), mapped to `0..4` radians: adds harmonics.
   - Vel to Index `0..100%` (default `0`): scales harmonic depth, not amplitude or Volume.
@@ -164,13 +164,13 @@ Shape
   eight rows, a full OLED body.
 - String, in order: Decay `100..5000 ms` (default `1500`), Brightness `0..100%` (`65`), Pick Pos
   `5..50%` (`25`), Pick Depth `0..100%` (`65`), Stiffness `0..100%` (`0`), Body Amt `0..100%`
-  (`0`), Body Hz `100..2000 Hz` (`500`). The seven rows fit the OLED body.
+  (`0`), Body Freq `100..2000 Hz` (`500`). The seven rows fit the OLED body.
 - Decay and Brightness edits can reshape ringing notes. Pick Pos, Pick Depth, Stiffness, Body Amt,
-  and Body Hz apply to the next pluck.
+  and Body Freq apply to the next pluck.
 - Pick Depth changes excitation color, not Pick Pos or Brightness. Stiffness shapes wire-like
   inharmonic upper partials; it is not a literal material, weight, or tension model, so measure
   rendered pitch rather than assume it. Body Amt adds coloration outside the string feedback, and
-  Body Hz moves that coloration (not the shared filter cutoff); Body Hz does nothing at zero Body
+  Body Freq moves that coloration (not the shared filter cutoff); Body Freq does nothing at zero Body
   Amt.
 - Defaults: Volume Gain 80%, Vel Sens 100%; Amp Env 0/0/100/900; Filter Env 5/120/70/180. Filter
   uses Synth's scales, saved under the slot's `pluck` block.
@@ -184,14 +184,14 @@ Shape
 - Voice lists `V1: Kick` through `V8: Rim`, each name taken from the voice's current Sound.
 - Edit acts on the selected voice: Sound (`kick`, `snare`, `closed_hat`, `open_hat`, `low_tom`,
   `high_tom`, `clap`, `rim`), Tune `-12..12` st, Decay `20..2000 ms`, Tone `0..100%`, Attack
-  `0..50 ms`, Sweep st `0..36`, Sweep ms `0..200`, Noise % `0..100`, Level % `0..100`. The nine rows
+  `0..50 ms`, Sweep Pitch `0..36`, Sweep Time `0..200`, Noise `0..100`, Level `0..100`. The nine rows
   scroll in the OLED body.
 - Changing Sound resets that voice's style controls; other voices and stamped tiles stay. Data
-  missing the sweep/noise/level controls uses per-Sound defaults (Sweep st/Sweep ms/Noise %/Level %):
+  missing the sweep/noise/level controls uses per-Sound defaults (Sweep Pitch/Sweep Time/Noise/Level):
   Kick 24/55/12/100, Snare 3/25/80/100, Closed and Open Hat 0/0/95/100, Low Tom 8/70/15/100, High
   Tom 6/50/15/100, Clap 0/0/95/100, Rim 0/0/35/100.
-- Sweep and Noise shape the next hit, not one already ringing. Sweep ms 0 means no pitch excursion
-  even with a positive Sweep st. Noise % blends noise against the pitched tone. Level % attenuates
+- Sweep and Noise shape the next hit, not one already ringing. Sweep Time 0 means no pitch excursion
+  even with a positive Sweep Pitch. Noise blends noise against the pitched tone. Level attenuates
   the selected voice, not the kit-wide Gain.
 - Filter and Volume are Drum's own values on Synth's control scales (default Gain 80%, Vel Sens
   100%). There is no Amp Env or Filter Env page.
@@ -225,6 +225,8 @@ Shape
   silent; the rest of the instrument loads. The host reports affected paths once per audio
   preparation, and the runtime opens a scrollable `Samples missing` popup listing each newly
   unavailable slot as `I<n> <path>`. Slots already shown as `N/A-` do not reopen it.
+- Picking the same file again from the browser drops the `N/A-` mark (the browser just listed
+  it); if it still fails to load, the mark comes back.
 
 ### Tile stamps (Sampler and Drum)
 
@@ -328,36 +330,36 @@ Instrument rows offered as modulation, XY, and Aux targets:
 
 | Type | Rows, in order |
 |---|---|
-| `reverb` | Decay, Damp, Mix % |
-| `delay` | Mix %, Spread %, Time Mode [ms \| note], Time ms (ms mode) or Time Note (note mode), Feedback |
-| `tremolo` | Rate Hz, Depth % |
-| `vibrato`, `chorus`, `flanger` | Mix %, Rate Hz, Depth ms, Base ms, Feedback |
-| `filter_lfo`, `wah` | Rate Hz, Center, Depth %, Q |
-| `auto_pan` | Rate Hz, Depth % |
-| `vinyl` | Saturation %, Crackle %, Warp Depth %, Mix % |
-| `eq` | Low Gain, Mid Gain, High Gain (dB), Mid Freq Hz, Mid Q, Mix % |
-| `compressor` | Thresh dB, Ratio, Attack, Release, Makeup dB, Mix % |
-| `duck` | Source, Source Tap, Threshold, Amount %, Attack, Release |
-| `saturator` | Drive, Mix % |
-| `distortion` | Drive, Clip, Mix % |
-| `bitcrusher` | Bits, Rate Div, Mix % |
-| `glitch` | Chance %, Slice ms, Mix % |
+| `reverb` | Decay, Damp, Mix |
+| `delay` | Mix, Spread, Time Mode [ms \| note], Time (ms mode) or Time Note (note mode), Feedback |
+| `tremolo` | Rate, Depth |
+| `vibrato`, `chorus`, `flanger` | Mix, Rate, Depth, Base, Feedback |
+| `filter_lfo`, `wah` | Rate, Center, Depth, Q |
+| `auto_pan` | Rate, Depth |
+| `vinyl` | Saturation, Crackle, Warp Depth, Mix |
+| `eq` | Low Gain, Mid Gain, High Gain (dB), Mid Freq, Mid Q, Mix |
+| `compressor` | Threshold, Ratio, Attack, Release, Makeup, Mix |
+| `duck` | Source, Source Tap, Threshold, Amount, Attack, Release |
+| `saturator` | Drive, Mix |
+| `distortion` | Drive, Clip, Mix |
+| `bitcrusher` | Bits, Rate Div, Mix |
+| `glitch` | Chance, Slice, Mix |
 
 - Selecting a slot Type initializes that effect's parameter defaults immediately. Loaded presets or
   defaults with missing or invalid params are repaired to those defaults.
 - Reverb `Decay` is stored as a feedback coefficient (`0..0.995`) and displayed as approximate tail
   time in seconds (for example `3.1s`) in menu rows and Aux toasts.
-- Delay: `Time Mode` is the only mode switch, and only the row of the active mode shows: `Time ms`
+- Delay: `Time Mode` is the only mode switch, and only the row of the active mode shows: `Time`
   in ms mode, `Time Note` in note mode. Changing `Time Mode` swaps that row in place. In note mode
   `timeMs` is materialized from `Time Note` and the current BPM, and later BPM edits retime it; ms
   mode stays manual. Runtime/audio commands carry `timeMs` only; `timeMode` and `timeNote` persist
   as patch metadata and are not modulation, Aux binding, or XY targets (auto-map Aux 3 still turns
-  `Time Note` in note mode). An Aux binding to `Time ms` keeps working in note mode: its toast
-  shows the note-synced time, which the turn cannot change. `Spread %` (`0..100`) widens only the final bus
+  `Time Note` in note mode). An Aux binding to `Time` keeps working in note mode: its toast
+  shows the note-synced time, which the turn cannot change. `Spread` (`0..100`) widens only the final bus
   output; with Mix 0 and Spread 100 there is no widening.
 - Duck: `Source` lists `I1..I8`, then the other buses `B<n>` (never the duck's own bus). `Source Tap`
   stores `pre|post` and displays `Pre|Post`; a missing value in a legacy patch behaves as `pre`.
-  `Threshold` is `0..1` (shown as `0..100`), `Amount %` `0..100`, `Attack` `1..500 ms`, `Release`
+  `Threshold` is `0..1` (shown as `0..100`), `Amount` `0..100`, `Attack` `1..500 ms`, `Release`
   `1..5000 ms`. These menu, saved-config, and realtime ranges are the same; accepted values go to the
   ducking renderer without a narrower range. Tap points are under
   [Routing semantics](#routing-semantics).
@@ -374,7 +376,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - Synth, FM, Plucked, Drum, and Sampler use the same route/pan/bus-FX mixer path. MIDI Inst. and
   MIDI Drum emit external MIDI and never pass through audio FX.
 - Bus input and the Slot 1→2→3 chain are mono; a `none` slot passes through. Bus `Volume`, `Pan Pos`,
-  and delay `Spread %` apply only at the final bus output stage before summing into the main mix.
+  and delay `Spread` apply only at the final bus output stage before summing into the main mix.
 - `auto_pan` moves the bus stereo output position after the slot chain.
 - Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed,
   before global momentary FX and `Master Vol`. Global FX stays two stereo slots and is limited to

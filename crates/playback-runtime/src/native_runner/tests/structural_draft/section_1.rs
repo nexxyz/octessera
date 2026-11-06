@@ -307,7 +307,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
     assert_eq!(
         runner.menu.root.children[2].children[0].children[0].label,
-        "I1: synth fxb1"
+        "I1: Synth fxb1"
     );
     let display_lines = snapshot_from(&messages)["display"]["lines"]
         .as_array()
@@ -336,7 +336,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     assert!(snapshot
         .lines
         .iter()
-        .any(|line| line.contains("Pan Pos -- (bus)")));
+        .any(|line| line.contains("Pan Pos: from bus")));
     assert!(runner.menu.focus_item_key("instruments.0.mixer.route"));
     runner.menu.state.editing = true;
     let _ = turn_main(&mut runner, -1);

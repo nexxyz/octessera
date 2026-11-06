@@ -73,8 +73,8 @@ fn drum_set_up_from_the_menu_plays_its_stamped_tunes() {
     take.set_value("Voice", "instruments.4.drum.voice", "V6");
     take.enter("Edit");
     for (row, field, value) in [
-        ("Sweep st", "sweepSemis", 0),
-        ("Noise %", "noiseMixPct", 0),
+        ("Sweep Pitch", "sweepSemis", 0),
+        ("Noise", "noiseMixPct", 0),
         ("Decay", "decayMs", 400),
     ] {
         take.set_number(row, &format!("instruments.4.drum.voices.5.{field}"), value);

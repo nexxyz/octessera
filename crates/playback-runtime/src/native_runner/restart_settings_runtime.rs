@@ -385,7 +385,7 @@ fn save_choice_dialog(can_save_setting: bool) -> NativeConfirmDialog {
         options,
         cursor: 0,
         action: NativeMenuAction::PlatformEffect("restart.saveChoice".into()),
-        cancel_toast: Some("Cancelled".into()),
+        cancel_toast: Some("Canceled".into()),
         confirm_before_execute: false,
     }
 }

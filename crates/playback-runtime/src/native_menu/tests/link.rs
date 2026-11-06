@@ -267,7 +267,7 @@ pub(crate) fn link_event_instrument_targets_keep_item_specific_headings() {
         let row = snapshot.selected_row.expect("selected row");
         let parts = snapshot.rows[row].as_ref().expect("row parts");
         assert_eq!(parts.label, heading);
-        assert_eq!(parts.value, "I1: synth");
+        assert_eq!(parts.value, "I1: Synth");
     }
 }
 
@@ -301,6 +301,6 @@ pub(crate) fn event_section_rows_and_boundary_selection_use_exact_budget() {
     assert_eq!(row, 4);
     assert_eq!(
         selected.full_lines[row].as_deref(),
-        Some("  Off Inst I1: synth")
+        Some("  Off Inst I1: Synth")
     );
 }

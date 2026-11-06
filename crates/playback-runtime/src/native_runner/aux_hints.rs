@@ -209,7 +209,7 @@ mod tests {
             .focus_item_key("mixer.buses.0.slot1.params.feedback"));
         assert_eq!(
             runner.aux_hints().normal[1].turn.as_ref().unwrap().text,
-            "Spread %"
+            "Spread"
         );
 
         runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();

@@ -20,12 +20,12 @@ Link
 │   ├── Aux 2 (group)
 │   └── Aux 3 (group)
 ├── LFOs (group)                                  ← exactly eight global slots
-│   ├── L1 (group)
+│   ├── LFO1 (group)
 │   │   ├── Enabled: [on | off]                   default off
 │   │   ├── Target: <target | (none)> (picker)    ← numeric, live-safe targets only
 │   │   ├── Period: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1 | 2/1T | 2/1 | 4/1T | 4/1 | 8/1T | 8/1]  default 1/1
-│   │   └── Depth %: [0..100] step 1              default 100
-│   └── L2 .. L8 (group)
+│   │   └── Depth: [0..100] step 1              default 100
+│   └── LFO2 .. LFO8 (group)
 ├── MIDI CC In (group)                            ← exactly eight slots, saved with the patch
 │   ├── CC1 (group)
 │   │   ├── CC: [0..127] step 1                   default 1 (CC2 listens to 2, .. CC8 to 8)
@@ -43,11 +43,11 @@ Link
 │   │   ├── Scan Dir: [forward | reverse]
 │   │   ├── Sections: [1 | 2 | 4 | 8]
 │   │   ├── Instr.: [none | I1: <name> .. I8: <name>]
-│   │   ├── Action: [none | note_on | note_off]
+│   │   ├── Action: [none | note on | note off]
 │   │   ├── Scan Delay: [0..16]
 │   │   ├── Scan Retrig: [0..8]
 │   │   ├── Empty Inst: [none | I1: <name> .. I8: <name>]
-│   │   ├── Empty Act: [none | note_on | note_off]
+│   │   ├── Empty Act: [none | note on | note off]
 │   │   ├── Empty Delay: [0..16]
 │   │   └── Empty Retrig: [0..8]
 │   ├── Events (group)
@@ -56,9 +56,9 @@ Link
 │   │   ├── On Inst / On Trig / On Delay / On Retrig          ← activate
 │   │   ├── Hold Inst / Hold Trig / Hold Delay / Hold Retrig  ← stable
 │   │   └── Off Inst / Off Trig / Off Delay / Off Retrig      ← deactivate
-│   │       (Inst: [none | I1: <name> .. I8: <name>]; Trig: [none | note_on | note_off]; Delay: [0..16]; Retrig: [0..8])
+│   │       (Inst: [none | I1: <name> .. I8: <name>]; Trig: [none | note on | note off]; Delay: [0..16]; Retrig: [0..8])
 │   ├── Trigger Prob. (group)
-│   │   ├── Mode: [zero | custom | full]          default full
+│   │   ├── Mode: [0% | custom | 100%]           default 100%; stored as zero, custom, full
 │   │   ├── Prob Low: [0..100] step 1             default 0
 │   │   ├── Prob High: [0..100] step 1            default 100
 │   │   └── Map Prob Grid (action)
@@ -81,18 +81,18 @@ Link
 │   │   ├── Pitch Steps (group)
 │   │   │   ├── Enabled: [on | off]               default on
 │   │   │   ├── Steps: [-16..16] step 1           ← while enabled; default 1 (X), 3 (Y)
-│   │   │   └── Restart Sect: [on | off]          ← while enabled
+│   │   │   └── Restart Section: [on | off]          ← while enabled
 │   │   ├── Velocity (group)                      ← default From 1, To 127
 │   │   ├── Filter Cutoff (group)                 ← default From 20, To 127
 │   │   └── Filter Res (group)                    ← default From 10, To 90
 │   │       (each lane: Enabled [on | off] default off; while enabled: From [0..127], To [0..127], Grid Offs [-7..7], Curve [linear | curve])
 │   ├── Y Axis (group)                            ← same structure; picker targets param:N:y:slot, config keys y.*
 │   ├── Arp (group)
-│   │   ├── Mode: [none | direct | up | down | bounce | outside_in | rotating | random | octave_spread | chord_strike | strum]  default none
+│   │   ├── Mode: [none | direct | up | down | bounce | outside in | rotating | random | octave spread | chord strike | strum]  default none; stored with `_`
 │   │   ├── Source: [simultaneous | held]         default simultaneous
 │   │   ├── Step: [1..16] step 1                  default 1
-│   │   ├── Length ms: [10..2000]                 default 120
-│   │   ├── Gate %: [1..100] step 1               default 80
+│   │   ├── Length: [10..2000]                 default 120
+│   │   ├── Gate: [1..100] step 1               default 80
 │   │   └── Octaves: [0..3] step 1                default 0
 │   └── Seeded: [on | off]                        default off
 ├── L2: <label> (group)
@@ -163,7 +163,7 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 ## LFOs
 
-- `Link > LFOs > L1..L8` is the global bank stored as `runtimeConfig.linkLfos`, exactly eight slots,
+- `Link > LFOs > LFO1..LFO8` is the global bank stored as `runtimeConfig.linkLfos`, exactly eight slots,
   independent of the active layer.
 - Targets are additive, numeric, and live-safe; exclusive controls and every LFO configuration key
   are excluded. Claims are validated as described under

@@ -58,12 +58,13 @@ impl NativeRunner {
             .iter()
             .any(|(_, active_type)| active_type == &fx_type)
         {
-            self.show_toast(format!("Momentary FX type active ({fx_type})"));
+            self.show_toast(format!(
+                "FX {} already on",
+                play_fx_type_label(&assignment.config)
+            ));
             return Vec::new();
         } else if self.active_play_fx.len() >= PLAY_FX_MAX_CONCURRENT {
-            self.show_toast(format!(
-                "Momentary FX limit reached ({PLAY_FX_MAX_CONCURRENT})"
-            ));
+            self.show_toast(format!("FX limit: {PLAY_FX_MAX_CONCURRENT} at once"));
             return Vec::new();
         }
         if let Some(start) = self.play_fx_start_effect_for_assignment(&assignment) {
@@ -110,17 +111,18 @@ impl NativeRunner {
         });
         if same_existing {
             self.mark_config_dirty();
-            self.show_toast("FX cleared");
+            self.show_toast("Cleared");
             return;
         }
         self.play_fx_assignments
             .retain(|assignment| assignment.x != x || assignment.y != y);
+        let toast = format!("FX {}", play_fx_type_label(&config));
         if play_fx_type(&config) != "none" {
             self.play_fx_assignments
                 .push(NativePlayFxAssignment { x, y, config });
         }
         self.mark_config_dirty();
-        self.show_toast("FX mapped");
+        self.show_toast(toast);
     }
 
     pub(super) fn handle_play_grid_press(&mut self, x: usize, y: usize) {
@@ -290,4 +292,12 @@ impl NativeRunner {
         }
         self.mark_config_dirty();
     }
+}
+
+/// The display name of a Play FX config's type (`filter sweep`, not `filter_sweep`).
+pub(super) fn play_fx_type_label(config: &serde_json::Value) -> String {
+    crate::native_menu::format_values::format_display_value(
+        Some("play.fx.type"),
+        play_fx_type(config),
+    )
 }

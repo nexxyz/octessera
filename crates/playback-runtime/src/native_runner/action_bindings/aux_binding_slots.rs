@@ -11,9 +11,9 @@ impl NativeRunner {
             self.show_toast(super::BindingValidationError::UnsupportedTarget.toast_message());
             return false;
         }
-        let prefix = if shifted { "S+Clk" } else { "Clk" };
+        let bank = if shifted { "S+" } else { "" };
         if turn_key.is_none() && press_action.is_none() {
-            self.show_toast(format!("{prefix}-{}: No binding", index + 1));
+            self.show_toast(format!("{bank}Aux-{}: No binding", index + 1));
             return false;
         }
         let Some(current) = self.aux_bindings_for_bank(shifted).get(index) else {
@@ -31,18 +31,18 @@ impl NativeRunner {
             .is_some_and(|next| current.press_action.as_ref() != Some(next));
         let message = if let Some(key) = turn_key.as_deref() {
             format!(
-                "{prefix}-{}: Bound turn: {}",
+                "{bank}Trn-{}: Bound {}",
                 index + 1,
                 self.aux_binding_key_label(key)
             )
         } else if let Some(action) = press_action.as_ref() {
             format!(
-                "{prefix}-{}: Bound click: {}",
+                "{bank}Clk-{}: Bound {}",
                 index + 1,
                 self.aux_binding_action_label(action)
             )
         } else {
-            format!("{prefix}-{}: Bound", index + 1)
+            format!("{bank}Aux-{}: Bound", index + 1)
         };
         let next_turn_key = turn_key.or(current.turn_key.clone());
         let next_press_action = press_action.or(current.press_action.clone());
@@ -51,13 +51,26 @@ impl NativeRunner {
         };
         *slot = if next_turn_key.is_some() || next_press_action.is_some() {
             Some(NativeAuxBinding {
-                turn_key: next_turn_key,
-                press_action: next_press_action,
+                turn_key: next_turn_key.clone(),
+                press_action: next_press_action.clone(),
             })
         } else {
             None
         };
         self.show_toast(message);
+        if turn_changed {
+            let picker = if shifted {
+                format!("shiftAux:{index}:turn")
+            } else {
+                format!("aux:{index}:turn")
+            };
+            let binding = next_turn_key.as_deref().map(aux_turn_binding_spec);
+            self.menu.show_param_binding(&picker, binding.as_ref());
+        }
+        if click_changed {
+            self.menu
+                .show_aux_click_binding(index, shifted, next_press_action.as_ref());
+        }
         if turn_changed || click_changed {
             self.mark_fast_autosave_dirty();
         }
@@ -93,9 +106,13 @@ impl NativeRunner {
         self.menu
             .show_aux_click_binding(index, shifted, action.as_ref());
         self.show_toast(format!(
-            "Aux {}{} click mapped",
+            "{}Clk-{}: Bound {}",
+            if shifted { "S+" } else { "" },
             index + 1,
-            if shifted { " S+" } else { "" }
+            action.as_ref().map_or_else(
+                || "none".into(),
+                |action| self.aux_binding_action_label(action)
+            )
         ));
         if current.press_action != action {
             self.mark_fast_autosave_dirty();
@@ -127,7 +144,14 @@ impl NativeRunner {
         } else {
             None
         };
-        self.show_toast(format!("Mapped {}", next_key.as_deref().unwrap_or("none")));
+        self.show_toast(format!(
+            "{}Trn-{}: Bound {}",
+            if shifted { "S+" } else { "" },
+            index + 1,
+            next_key
+                .as_deref()
+                .map_or_else(|| "none".into(), |key| self.aux_binding_key_label(key))
+        ));
         if current.turn_key != next_key {
             self.mark_fast_autosave_dirty();
         }

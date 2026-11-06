@@ -206,6 +206,12 @@ Grid keys, left to right = grid columns 1..8. Grid rows count from the bottom (w
 Help popup:
 
 - Combined modifier + Main press opens it. Main turn scrolls the text; Main press closes it.
+- The title is `Help: <title>`, or the bare title when that does not fit the header. The body,
+  like a confirm dialog's detail, wraps to the pixel width of a plain body line in both glyph sets;
+  a word wider than a line breaks after `/`, `-` or `_`, else between letters. Every menu row has
+  its own help entry; a picker list's entries get the help of what they pick.
+- Overlays (help, confirm, setup and transfer cards) mark the selected option with the bar alone,
+  like menu rows: no `>` text marker.
 
 Aux mappings modal:
 
@@ -218,6 +224,7 @@ Aux mappings modal:
   | Normal | 1..3 | Mapping or `-` | Mapping or `-` |
   | Shifted | 1..3 | Mapping or `-` | Mapping or `-` |
 
+- The first line names the auto-map context it shows (`Auto: Synth Filter`, `Auto: Play FX`).
 - Both banks show the custom binding first, then auto-map.
 - Main turn scrolls. Aux turns and clicks do nothing while it is open and do not touch the
   underlying menu or bindings.
@@ -280,8 +287,8 @@ Aux mappings modal:
 - Breadcrumbs show the current page label in full and its ancestors short, fitted to the 15
   OLED title columns. Short forms: `Build`/`B`, `Link`/`L`, `Shape`/`S`, `Play`/`P`,
   `System`/`SYS`; the root menu's breadcrumb is `Octessera`; ancestor labels starting `Layer N` or `Bus N` shorten to `LN`/`BN`. Instrument
-  pages use the short instrument name without its route (`I1: synth`, `I1: midi`), while the
-  Instruments list rows keep the route (`I1: synth direct`). When the path does not fit, ancestors
+  pages use the instrument's type name without its route (`I1: Synth`, `I1: MIDI Inst.`), while
+  the Instruments list rows keep the route (`I1: Synth direct`). When the path does not fit, ancestors
   drop from the left behind `../` (`../Synth/Filter`, `../Filter Env`); if even `../` plus the page
   does not fit, only the page shows, and a page label longer than 15 characters is clipped at its
   end. Real paths look like `/B/L1: life`, `/S/FX Buses`, and `../Reset`. Section color follows
@@ -317,7 +324,9 @@ Faders slider targets share one menu-mirrored picker.
   restart flow, Back means Cancel at the `Apply System` choice and Continue at the `Restart?`
   choice.
 - Bool rows behave like a two-option enum, display `On`/`Off`, and change on encoder turn, not on
-  row press. Text rows show an in-text cursor while editing.
+  row press. Text rows show an in-text cursor while editing: Main moves the cursor one character
+  on, and Main on the empty cell after the text, or Back, finishes the row. A name row left without
+  a change keeps its Auto Label on.
 - Structural selector edits apply immediately while the row is in edit mode, through key-specific
   fast paths: instrument type, instrument route, FX bus slot type, and master FX slot type. A
   behavior applies when its selector item is pressed. Dynamic parameter rows also apply while
@@ -338,12 +347,12 @@ change; only the distance per detent does.
 - Time steps snap to the step size; frequency steps always move at least one stored unit. Curved
   rows ignore the row's linear `step`.
 - Time rows include envelope Attack/Decay/Release on every instrument; Plucked Decay; Drum Decay,
-  Attack, and Sweep ms; `Note Length`, Arp `Length ms`, MIDI `Duration`, bus FX delay/slice/
-  compressor/duck times, mod-delay `Base ms` and `Depth ms` (stored in tenths), and the Play FX
-  times (Freeze `Release Ms`, Filter Sweep `Sweep In`/`Sweep Out`, Pitch Shift `Slide In`/
+  Attack, and Sweep Time; `Note Length`, Arp `Length`, MIDI `Duration`, bus FX delay/slice/
+  compressor/duck times, mod-delay `Base` and `Depth` (stored in tenths), and the Play FX
+  times (Freeze `Release`, Filter Sweep `Sweep In`/`Sweep Out`, Pitch Shift `Slide In`/
   `Slide Out`).
-- Frequency rows include Plucked `Body Hz`, FX `Rate Hz`, `Center`, EQ `Mid Freq Hz`, and the Play
-  Stutter `Rate Hz`. Instrument filter cutoffs keep their logarithmic `0..255` index with linear
+- Frequency rows include Plucked `Body Freq`, FX `Rate`, `Center`, EQ `Mid Freq`, and the Play
+  Stutter `Rate`. Instrument filter cutoffs keep their logarithmic `0..255` index with linear
   steps.
 - Bipolar mod-delay `Feedback` stays linear. `Play > XY > Glide` is a time row like the others.
 
@@ -550,14 +559,32 @@ behavior primary red), so a mute never reads as a section color.
   before the value's ink and otherwise clips with `..`; on the selected row it scrolls through its
   room instead, one character every four snapshot attempts with a three-space gap. A text value
   longer than the room the whole label leaves clips with `..`, but always keeps at least a mini
-  bar's 30 px. Fixed labels are sized so that, with their widest value or mini bar, no row clips;
-  only names (sample files, layer, instrument, bus and preset names, and picked values such as
-  behaviors and targets) may clip or scroll. A picker's label leaves its value at least 30 px. A
-  native test measures every row in m5x7 pixels.
+  bar's 30 px; on the selected row that value scrolls instead of the label. Fixed labels are
+  sized so that, with their widest value or mini bar, no row clips; only names (sample files,
+  layer, instrument, bus and preset names, and picked values such as behaviors and targets) may
+  clip or scroll. A picker's label leaves its value at least 30 px. A native test measures every
+  row in m5x7 pixels, and the pre-push `every_walked_screen_fits_and_has_help` sweep walks every
+  reachable screen in both glyph sets with device input and fails on any fixed label, value,
+  overlay line or breadcrumb that clips, a selected name that does not scroll, a row without its
+  own help, and a value that shows a raw `snake_case` id or a bare number for a text option.
 - Editing (E2): the label part of the bar stays filled; the value sits in a black box from 2 px
   left of the value to the bar's right end, full bar height, drawn in the row colour. A text row
   being edited shows its cursor character inverted (a row-colour block with a black glyph), with
-  room for a trailing cursor cell.
+  room for a trailing cursor cell; when the text does not fit, it shows the part that keeps the
+  cursor in view.
+- Values show their unit right after the number (`80ms`, `35%`, `120bpm`, `-140dB`, `1.6kHz`,
+  `5min`), so labels carry none (`Mix`, not `Mix %`). Rows whose 0 switches their job off show
+  `Off` there (spawn intervals and counts, Retrig, Glide, OLED Sleep, Dim Timer). Stored ids show
+  display labels while saves keep the ids: Link triggers `note on`/`note off`, Arp modes
+  (`outside in`), Trigger Prob. Mode `0%`/`custom`/`100%`, FX types (`Filter LFO`), Play FX types
+  (`filter sweep`, `HP riser`) and targets (`fxb1`), HDMI modes (`Live Grid`) and instrument types
+  (`Synth`, `Plucked`). Ratios read `4:1`.
+- An auto-labelled layer is named by its behavior's display name (`L5: fractal explorer`); the
+  patch still saves the behavior id as its name. Instrument rows, breadcrumbs and pickers use the
+  type name (`I3: Plucked fxb1`, `/S/Instruments/I3: Plucked`).
+- Play's page-select rows (`Mix`, `Pan`, `Route`, `Tempo`, `LFO`, `Transpose`, `Rate`,
+  `Trigger Gate`) show `!`: a press selects the page. A bus-routed instrument's mixer shows a dim
+  `Pan Pos: from bus` row, because its bus pans it.
 - Mini bars are 30×5 at `x=94..123`, `y=s+2..s+6`: a 1 px outline around a 28×3 inside. `fill`
   fills to the fraction; `marker` draws a centre dot and a 2×3 position block. They draw at 70 %
   of the row colour on black when unselected, black on the selection bar, and in the row colour
@@ -642,7 +669,7 @@ behavior primary red), so a mute never reads as a section color.
   `y=0..4`) and is always shown on menu frames. It reads the highest load reported
   over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker
   utilization on the boards, the audio block render ratio on the desktop, which has no persistent
-  workers. With `W` = `System > Audio > Engine > CPU Warn %` (default 85): below
+  workers. With `W` = `System > Audio > Engine > CPU Warn` (default 85): below
   `W/3` rounded to the nearest multiple of 5 no bar is lit (all three dark gray: no significant
   load); from there up to `floor(2W/3)` rounded down to a multiple of 5 one full green bar; from
   there up to `W` two full yellow bars; at or above `W` three red bars. Unlit bars are dark gray.
@@ -688,7 +715,8 @@ behavior primary red), so a mute never reads as a section color.
 - Long Aux turn toasts scroll once to their rightmost position and hold there without wrapping, so
   the changing value stays visible (for example `...r Cutoff: 56`). A held toast stops scheduling
   scroll attempts.
-- Context changes show toasts such as `Layer: L3 rain` or `Play: fx`. Help and confirm modals keep
+- Context changes show toasts such as `Layer: L3 raindrops` or `Play: FX`, with the page's menu
+  name. Help and confirm modals keep
   display priority over them.
 - Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a hint
   toast: `Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Main`. Startup shows
@@ -851,7 +879,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
     bottom to top through lane 1, then lane 2. Total steps: `gridHeight * sections`.
   - `reverse` runs the same step sequence backwards.
 - Stop and emergency reset return the scan index to origin.
-- `Restart Sect` on Pitch Steps makes pitch stepping local to each lane on the axis the lanes
+- `Restart Section` on Pitch Steps makes pitch stepping local to each lane on the axis the lanes
   split: Y Restart applies to `columns` sections (Y counts from the bottom row of each lane), X
   Restart applies to `rows` sections (X counts from the left column of each lane). It changes the
   pitch of every trigger on that layer, scanned or not. With `Sections=1`, the other scan axis, or
@@ -916,7 +944,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   | FX | Aux 1-3 | Shift + Aux 1-3 |
   |---|---|---|
   | reverb | Mix, Decay, Damp | |
-  | delay | FB, Mix, Time (`Time ms` in ms mode, `Time Note` in note mode) | Spread |
+  | delay | FB, Mix, Time (`Time` in ms mode, `Time Note` in note mode) | Spread |
   | tremolo, auto_pan | Rate, Depth | |
   | vibrato | Rate, Depth, Base | Mix, FB |
   | chorus | Mix, Depth, Rate | FB, Base |
@@ -973,7 +1001,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 
 - Compact labels: `Trn-1`, `Clk-1`, `S+Trn-1`, `S+Clk-1`.
 - Unbound: `Trn-1: No binding`, `S+Clk-1: No binding`.
-- Turn: current value, for example `Trn-1: Spawn Count: 3`.
+- Turn: current value as the row shows it, for example `Trn-1: Spawn Count: 3`,
+  `Trn-2: Feedback: 49`.
+- Fn + Aux bind: `Trn-1: Bound Cutoff` for a value, `Clk-3: Bound L1 Spawn Random` for an action
+  (`S+Trn-1`/`S+Clk-1` for the Shift bank); with nothing bindable selected `Aux-1: No binding`. The
+  `Link > Aux Mappings` pickers show the new binding at once. Picking a target in those pickers
+  toasts the same way.
 - Repeated turns of the same target keep the visible toast: only the value changes in place and the
   1.2 s timeout restarts with each turn. A different target, or a turn after the toast expired or
   was replaced, starts a fresh toast. Fresh turn toasts for different targets are throttled to one
@@ -984,12 +1017,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Bindings are not removed when their target context changes. If a bound target is inactive, the
   input is ignored, a scoped `not active` toast is shown, and the binding stays for later.
 - Turn examples:
-  - FX param missing for the current slot type: `Trn-1: B1 Time ms not active`
+  - FX param missing for the current slot type: `Trn-1: B1 Time not active`
   - Instrument type changed away from the bound subtree: `Trn-1: I1 Filter cutoff not active`
   - Layer scan field while `scanMode` is not `scanning`: `Trn-1: L1 Scan Dir not active`
   - Behavior config param missing from the current behavior's `configMenu()`:
     `Trn-1: L1 Spawn Count not active`
-- A delay in note mode hides `Time ms`, but a binding to it is not stale: its toast shows the
+- A delay in note mode hides `Time`, but a binding to it is not stale: its toast shows the
   note-synced time, which the turn cannot change.
 - Press bindings store the behavior action key and the layer it was bound on (`layer`, 0-based, in
   the saved `pressAction`). A press runs that layer's action whichever layer is active, so a tile
@@ -1046,8 +1079,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   step, and System edits never dirty the musical patch. If a System write is pending when another
   edit completes, only the latest completed snapshot is kept for the follow-up; overlapping edits do
   not each guarantee a physical write. A `MIDI Out` or `MIDI In` port pick saves System the same way
-  once the host reports the new port, and so do the sample browser's `Set favorite` and
-  `Remove fav`.
+  once the host reports the new port, and so do the sample browser's `Set Favorite` and
+  `Remove Favorite`.
 - `System > Saves > System > Save System` is an optional explicit flush; `Load System` loads local
   device settings without stopping music or silently rebooting. Perf. Mode, the one
   restart-sensitive setting, saves through the confirmed Apply flow

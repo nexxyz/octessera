@@ -7,7 +7,7 @@ use crate::protocol::RuntimeStoreResult;
 
 const FADER_TARGET: &[&str] = &["Play", "Faders", "Fader 1", "Target"];
 const CC_TARGET: &[&str] = &["Link", "MIDI CC In", "CC1", "Target"];
-const LFO_TARGET: &[&str] = &["Link", "LFOs", "L1", "Target"];
+const LFO_TARGET: &[&str] = &["Link", "LFOs", "LFO1", "Target"];
 const SYNTH_ROWS: [&str; 3] = ["Note Mode", "Synth", "Mixer"];
 
 fn open_from_root(device: &mut DeviceDriver, path: &[&str]) {

@@ -101,8 +101,8 @@ impl NativeRunner {
 }
 
 fn play_mode_label(mode: &str) -> &str {
-    match mode {
-        "trigger-gate" => "trig",
-        other => other,
-    }
+    PLAY_PAGES
+        .iter()
+        .find(|page| page.mode == mode)
+        .map_or(mode, |page| page.label)
 }

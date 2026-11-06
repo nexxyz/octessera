@@ -219,9 +219,9 @@ fn picker_lists_have_no_gutter() {
     input.display.rows = vec![
         menu_row(Entry, "..", "", None),
         menu_row(Entry, "kick_01.wav", "", None),
-        menu_row(Action, "Set favorite", "", None),
+        menu_row(Action, "Set Favorite", "", None),
     ];
-    input.display.lines = vec!["..".into(), "kick_01.wav".into(), "Set favorite".into()];
+    input.display.lines = vec!["..".into(), "kick_01.wav".into(), "Set Favorite".into()];
     input.display.bars = vec![None; 3];
     input.selected_row = Some(1);
     let frame = render_oled_frame(&input);

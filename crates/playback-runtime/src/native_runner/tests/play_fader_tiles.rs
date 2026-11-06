@@ -61,7 +61,7 @@ fn set_tile_type(runner: &mut NativeRunner, tile_type: &str) {
 /// Presses Map to Grid in the Tile Map, then the tile.
 fn map_tile(runner: &mut NativeRunner, x: usize, y: usize) {
     press_key(runner, "play.faders.tile.map");
-    assert_eq!(toast(runner), "Map tiles: press to assign");
+    assert_eq!(toast(runner), "Tile map: press tiles to assign");
     tap(runner, x, y);
 }
 
@@ -79,11 +79,11 @@ fn tiles_runner() -> NativeRunner {
     press_key(&mut runner, "play.faders.tile.action.reset");
     press_key(&mut runner, "play.faders.tile.shiftAction.fx_map");
     map_tile(&mut runner, 6, 0);
-    assert_eq!(toast(&runner), "Tile mapped");
+    assert_eq!(toast(&runner), "Mapped");
     set_tile_type(&mut runner, "param");
     press_key(&mut runner, &format!("play.faders.tile.target.{VOLUME}"));
     map_tile(&mut runner, 7, 3);
-    assert_eq!(toast(&runner), "Tile mapped");
+    assert_eq!(toast(&runner), "Mapped");
     assert_eq!(runner.active_play_mode, "faders");
     runner
 }
@@ -129,7 +129,7 @@ fn map_to_grid_stores_clears_and_back_leaves_unchanged() {
 
     set_tile_type(&mut runner, "none");
     map_tile(&mut runner, 6, 0);
-    assert_eq!(toast(&runner), "Tile cleared");
+    assert_eq!(toast(&runner), "Cleared");
     assert_eq!(runner.faders.tiles.len(), 1);
     assert_eq!(led(&mut runner, 6, 0), LedColor::BLACK);
 

@@ -22,8 +22,8 @@ pub(super) fn fx_param_items(
     match slot_type {
         "duck" => duck_param_items(prefix, params, bus_index),
         "delay" => vec![
-            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 35.0),
-            fx_number_item("Spread %", prefix, params, "spreadPct", 0, 100, 1, 1.0, 0.0),
+            fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 35.0),
+            fx_number_item("Spread", prefix, params, "spreadPct", 0, 100, 1, 1.0, 0.0),
             delay_time_mode_item(prefix, params, bpm),
             delay_time_row_item(prefix, params, bpm, delay_time_field(params, bpm)),
             fx_number_item(
@@ -31,45 +31,45 @@ pub(super) fn fx_param_items(
             ),
         ],
         "tremolo" => vec![
-            fx_number_item("Rate Hz", prefix, params, "rateHz", 5, 4000, 5, 100.0, 4.0),
-            fx_number_item("Depth %", prefix, params, "depthPct", 0, 100, 1, 1.0, 60.0),
+            fx_number_item("Rate", prefix, params, "rateHz", 5, 4000, 5, 100.0, 4.0),
+            fx_number_item("Depth", prefix, params, "depthPct", 0, 100, 1, 1.0, 60.0),
         ],
         "saturator" => vec![
             fx_number_item("Drive", prefix, params, "drive", 0, 200, 1, 10.0, 1.8),
-            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+            fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
         ],
         "distortion" => vec![
             fx_number_item("Drive", prefix, params, "drive", 0, 500, 5, 10.0, 2.5),
             fx_number_item("Clip", prefix, params, "clip", 5, 200, 5, 100.0, 0.6),
-            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+            fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
         ],
         "bitcrusher" => vec![
             fx_number_item("Bits", prefix, params, "bits", 1, 16, 1, 1.0, 6.0),
             fx_number_item("Rate Div", prefix, params, "rateDiv", 1, 128, 1, 1.0, 4.0),
-            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+            fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
         ],
         "vibrato" | "chorus" | "flanger" => modulation_param_items(prefix, params),
         "filter_lfo" | "wah" => vec![
-            fx_number_item("Rate Hz", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.5),
+            fx_number_item("Rate", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.5),
             fx_number_item(
                 "Center", prefix, params, "centerHz", 40, 12000, 20, 1.0, 1600.0,
             ),
-            fx_number_item("Depth %", prefix, params, "depthPct", 0, 100, 1, 1.0, 70.0),
+            fx_number_item("Depth", prefix, params, "depthPct", 0, 100, 1, 1.0, 70.0),
             fx_number_item("Q", prefix, params, "q", 25, 2000, 25, 100.0, 1.0),
         ],
         "reverb" => vec![
             fx_number_item("Decay", prefix, params, "decay", 0, 995, 5, 1000.0, 0.72),
             fx_number_item("Damp", prefix, params, "damp", 0, 98, 1, 100.0, 0.35),
-            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 30.0),
+            fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 30.0),
         ],
         "auto_pan" => vec![
-            fx_number_item("Rate Hz", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.5),
-            fx_number_item("Depth %", prefix, params, "depthPct", 0, 100, 1, 1.0, 100.0),
+            fx_number_item("Rate", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.5),
+            fx_number_item("Depth", prefix, params, "depthPct", 0, 100, 1, 1.0, 100.0),
         ],
         "glitch" => vec![
-            fx_number_item("Chance %", prefix, params, "chancePct", 0, 100, 1, 1.0, 8.0),
-            fx_number_item("Slice ms", prefix, params, "sliceMs", 5, 500, 5, 1.0, 80.0),
-            fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+            fx_number_item("Chance", prefix, params, "chancePct", 0, 100, 1, 1.0, 8.0),
+            fx_number_item("Slice", prefix, params, "sliceMs", 5, 500, 5, 1.0, 80.0),
+            fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
         ],
         "compressor" => compressor_param_items(prefix, params),
         "eq" => eq_param_items(prefix, params),
@@ -114,7 +114,7 @@ pub(crate) fn delay_time_row_item(
     if field == "timeNote" {
         delay_time_note_item(prefix, params, bpm)
     } else {
-        fx_number_item("Time ms", prefix, params, "timeMs", 1, 2000, 5, 1.0, 250.0)
+        fx_number_item("Time", prefix, params, "timeMs", 1, 2000, 5, 1.0, 250.0)
     }
 }
 
@@ -172,7 +172,7 @@ fn duck_param_items(
             0.08,
         ),
         fx_number_item(
-            "Amount %",
+            "Amount",
             prefix,
             params,
             "amountPct",
@@ -209,10 +209,10 @@ fn duck_param_items(
 
 fn modulation_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuItem> {
     vec![
-        fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
-        fx_number_item("Rate Hz", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.8),
-        fx_number_item("Depth ms", prefix, params, "depthMs", 0, 400, 1, 10.0, 6.0),
-        fx_number_item("Base ms", prefix, params, "baseMs", 1, 800, 1, 10.0, 8.0),
+        fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        fx_number_item("Rate", prefix, params, "rateHz", 2, 2000, 5, 100.0, 0.8),
+        fx_number_item("Depth", prefix, params, "depthMs", 0, 400, 1, 10.0, 6.0),
+        fx_number_item("Base", prefix, params, "baseMs", 1, 800, 1, 10.0, 8.0),
         fx_number_item(
             "Feedback", prefix, params, "feedback", -95, 95, 1, 100.0, 0.0,
         ),
@@ -222,7 +222,7 @@ fn modulation_param_items(prefix: &str, params: &serde_json::Value) -> Vec<Nativ
 fn compressor_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuItem> {
     vec![
         fx_number_item(
-            "Thresh dB",
+            "Threshold",
             prefix,
             params,
             "thresholdDb",
@@ -245,8 +245,8 @@ fn compressor_param_items(prefix: &str, params: &serde_json::Value) -> Vec<Nativ
             1.0,
             100.0,
         ),
-        fx_number_item("Makeup dB", prefix, params, "makeupDb", 0, 48, 1, 2.0, 0.0),
-        fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        fx_number_item("Makeup", prefix, params, "makeupDb", 0, 48, 1, 2.0, 0.0),
+        fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
     ]
 }
 
@@ -286,7 +286,7 @@ fn eq_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuIte
             0.0,
         ),
         fx_number_item(
-            "Mid Freq Hz",
+            "Mid Freq",
             prefix,
             params,
             "midFreqHz",
@@ -297,14 +297,14 @@ fn eq_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuIte
             1000.0,
         ),
         fx_number_item("Mid Q", prefix, params, "midQ", 25, 2000, 25, 100.0, 1.0),
-        fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
     ]
 }
 
 fn vinyl_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenuItem> {
     vec![
         fx_number_item(
-            "Saturation %",
+            "Saturation",
             prefix,
             params,
             "saturationPct",
@@ -314,19 +314,9 @@ fn vinyl_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenu
             1.0,
             15.0,
         ),
+        fx_number_item("Crackle", prefix, params, "cracklePct", 0, 100, 1, 1.0, 8.0),
         fx_number_item(
-            "Crackle %",
-            prefix,
-            params,
-            "cracklePct",
-            0,
-            100,
-            1,
-            1.0,
-            8.0,
-        ),
-        fx_number_item(
-            "Warp Depth %",
+            "Warp Depth",
             prefix,
             params,
             "warpDepthPct",
@@ -336,7 +326,7 @@ fn vinyl_param_items(prefix: &str, params: &serde_json::Value) -> Vec<NativeMenu
             1.0,
             5.0,
         ),
-        fx_number_item("Mix %", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
+        fx_number_item("Mix", prefix, params, "mixPct", 0, 100, 1, 1.0, 100.0),
     ]
 }
 
