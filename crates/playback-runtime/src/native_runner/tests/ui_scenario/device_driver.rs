@@ -181,7 +181,7 @@ impl DeviceDriver {
     }
 
     pub(super) fn layer_muted(&self, layer_index: usize) -> bool {
-        self.runner.trigger_gate_modes[layer_index] == "zero"
+        self.runner.link_layers[layer_index].trigger_probability_mode == "zero"
     }
 
     pub(super) fn respond_to_latest_sample_list_request(&mut self, entries: Vec<SampleEntry>) {

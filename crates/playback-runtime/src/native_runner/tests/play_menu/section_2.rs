@@ -331,8 +331,8 @@ pub(crate) fn fn_leftmost_grid_column_switches_active_layer() {
 pub(crate) fn play_trigger_gate_leds_show_layer_modes_and_all_layers_actions() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "trigger-gate".into();
-    runner.trigger_gate_modes[0] = "custom".into();
-    runner.trigger_gate_modes[1] = "full".into();
+    runner.link_layers[0].trigger_probability_mode = "custom".into();
+    runner.link_layers[1].trigger_probability_mode = "full".into();
 
     let snapshot = runner.snapshot().unwrap();
     let tiles = led_tiles(&snapshot);

@@ -122,14 +122,14 @@ impl NativeRunner {
 
     pub(super) fn apply_play_trigger_gate_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
-        for (row, mode) in self.trigger_gate_modes.iter().enumerate().take(GRID_HEIGHT) {
+        for (row, layer) in self.link_layers.iter().enumerate().take(GRID_HEIGHT) {
             for (x, candidate) in TRIGGER_GATE_MODES.into_iter().enumerate() {
                 let color = trigger_gate_color(candidate);
                 self.set_display_led(
                     leds,
                     x,
                     row,
-                    if mode == candidate {
+                    if layer.trigger_probability_mode == candidate {
                         color
                     } else {
                         color.dim(4)
