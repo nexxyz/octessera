@@ -4334,6 +4334,366 @@
           },
           "x": 7,
           "y": 6
+        },
+        {
+          "config": {
+            "fxType": "tape_stop",
+            "params": {
+              "startMs": 300,
+              "stopMs": 700
+            },
+            "targetKey": "master"
+          },
+          "x": 0,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "tape_stop",
+            "params": {
+              "startMs": 100,
+              "stopMs": 200
+            },
+            "targetKey": "master"
+          },
+          "x": 1,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "tape_stop",
+            "params": {
+              "startMs": 700,
+              "stopMs": 1600
+            },
+            "targetKey": "master"
+          },
+          "x": 0,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "tape_stop",
+            "params": {
+              "startMs": 40,
+              "stopMs": 1200
+            },
+            "targetKey": "master"
+          },
+          "x": 1,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "reverse",
+            "params": {
+              "lengthMs": 250,
+              "mixPct": 100
+            },
+            "targetKey": "master"
+          },
+          "x": 2,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "reverse",
+            "params": {
+              "lengthMs": 125,
+              "mixPct": 100
+            },
+            "targetKey": "master"
+          },
+          "x": 3,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "reverse",
+            "params": {
+              "lengthMs": 500,
+              "mixPct": 100
+            },
+            "targetKey": "master"
+          },
+          "x": 2,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "reverse",
+            "params": {
+              "lengthMs": 1000,
+              "mixPct": 60
+            },
+            "targetKey": "master"
+          },
+          "x": 3,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "trance_gate",
+            "params": {
+              "depthPct": 100,
+              "rateNote": 3,
+              "smoothPct": 20
+            },
+            "targetKey": "master"
+          },
+          "x": 4,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "trance_gate",
+            "params": {
+              "depthPct": 100,
+              "rateNote": 5,
+              "smoothPct": 40
+            },
+            "targetKey": "master"
+          },
+          "x": 5,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "trance_gate",
+            "params": {
+              "depthPct": 80,
+              "rateNote": 2,
+              "smoothPct": 20
+            },
+            "targetKey": "master"
+          },
+          "x": 4,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "trance_gate",
+            "params": {
+              "depthPct": 100,
+              "rateNote": 1,
+              "smoothPct": 0
+            },
+            "targetKey": "master"
+          },
+          "x": 5,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "dub_throw",
+            "params": {
+              "delayNote": 7,
+              "feedbackPct": 55,
+              "mixPct": 70
+            },
+            "targetKey": "master"
+          },
+          "x": 6,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "dub_throw",
+            "params": {
+              "delayNote": 5,
+              "feedbackPct": 45,
+              "mixPct": 60
+            },
+            "targetKey": "master"
+          },
+          "x": 7,
+          "y": 5
+        },
+        {
+          "config": {
+            "fxType": "dub_throw",
+            "params": {
+              "delayNote": 4,
+              "feedbackPct": 65,
+              "mixPct": 70
+            },
+            "targetKey": "master"
+          },
+          "x": 6,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "dub_throw",
+            "params": {
+              "delayNote": 9,
+              "feedbackPct": 80,
+              "mixPct": 80
+            },
+            "targetKey": "master"
+          },
+          "x": 7,
+          "y": 4
+        },
+        {
+          "config": {
+            "fxType": "wash",
+            "params": {
+              "mixPct": 60,
+              "releaseMs": 2500,
+              "sizePct": 80
+            },
+            "targetKey": "master"
+          },
+          "x": 0,
+          "y": 3
+        },
+        {
+          "config": {
+            "fxType": "wash",
+            "params": {
+              "mixPct": 85,
+              "releaseMs": 6000,
+              "sizePct": 100
+            },
+            "targetKey": "master"
+          },
+          "x": 1,
+          "y": 3
+        },
+        {
+          "config": {
+            "fxType": "wash",
+            "params": {
+              "mixPct": 40,
+              "releaseMs": 800,
+              "sizePct": 50
+            },
+            "targetKey": "master"
+          },
+          "x": 0,
+          "y": 2
+        },
+        {
+          "config": {
+            "fxType": "wash",
+            "params": {
+              "mixPct": 100,
+              "releaseMs": 4000,
+              "sizePct": 95
+            },
+            "targetKey": "master"
+          },
+          "x": 1,
+          "y": 2
+        },
+        {
+          "config": {
+            "fxType": "hp_riser",
+            "params": {
+              "cutoffPct": 60,
+              "resonancePct": 30,
+              "sweepInMs": 2000,
+              "sweepOutMs": 150
+            },
+            "targetKey": "master"
+          },
+          "x": 2,
+          "y": 3
+        },
+        {
+          "config": {
+            "fxType": "hp_riser",
+            "params": {
+              "cutoffPct": 80,
+              "resonancePct": 60,
+              "sweepInMs": 4000,
+              "sweepOutMs": 150
+            },
+            "targetKey": "master"
+          },
+          "x": 3,
+          "y": 3
+        },
+        {
+          "config": {
+            "fxType": "hp_riser",
+            "params": {
+              "cutoffPct": 40,
+              "resonancePct": 10,
+              "sweepInMs": 500,
+              "sweepOutMs": 400
+            },
+            "targetKey": "master"
+          },
+          "x": 2,
+          "y": 2
+        },
+        {
+          "config": {
+            "fxType": "hp_riser",
+            "params": {
+              "cutoffPct": 95,
+              "resonancePct": 75,
+              "sweepInMs": 8000,
+              "sweepOutMs": 80
+            },
+            "targetKey": "master"
+          },
+          "x": 3,
+          "y": 2
+        },
+        {
+          "config": {
+            "fxType": "crush",
+            "params": {
+              "bits": 12,
+              "mixPct": 60,
+              "rateDiv": 2
+            },
+            "targetKey": "master"
+          },
+          "x": 4,
+          "y": 3
+        },
+        {
+          "config": {
+            "fxType": "crush",
+            "params": {
+              "bits": 8,
+              "mixPct": 100,
+              "rateDiv": 4
+            },
+            "targetKey": "master"
+          },
+          "x": 5,
+          "y": 3
+        },
+        {
+          "config": {
+            "fxType": "crush",
+            "params": {
+              "bits": 5,
+              "mixPct": 100,
+              "rateDiv": 10
+            },
+            "targetKey": "master"
+          },
+          "x": 4,
+          "y": 2
+        },
+        {
+          "config": {
+            "fxType": "crush",
+            "params": {
+              "bits": 2,
+              "mixPct": 100,
+              "rateDiv": 24
+            },
+            "targetKey": "master"
+          },
+          "x": 5,
+          "y": 2
         }
       ],
       "selected": {

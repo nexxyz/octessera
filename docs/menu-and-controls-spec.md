@@ -54,13 +54,20 @@ Data sources the spec relies on:
   - XY: X B1 Delay Feedback 10..60, Y I1 Res 10..58, Glide 300 ms, Release `center`.
   - MIDI CC In: CC 74 to I1 Cutoff, CC 1 to I4 FM Index, CC 71 to I1 Res, any channel; CC4-CC8
     free. No Aux bindings, so Auto Map has the encoders.
-  - Play FX: one 2x2 block per type on the top two rows, top-left tile the plainest stamp. Bottom
-    rows are kept for more types:
+  - Play FX: one 2x2 block per type, top-left tile the plainest stamp, all on `master`. The
+    bottom two rows and x6-x7 of y3-y2 are free:
 
     | y | x0 x1 | x2 x3 | x4 x5 | x6 x7 |
     |---|---|---|---|---|
     | 7 | stutter 8 Hz 100 %, 16 Hz 100 % | freeze 500 ms, 2000 ms | sweep 50/0 120-180 ms, 20/60 120-300 ms | pitch +12, +7 |
     | 6 | stutter 4 Hz 100 %, 32 Hz 60 % | freeze 100 ms, 1500 ms at 50 % | sweep 10/30 1500-1500 ms, 70/80 40-80 ms | pitch -12, -5 |
+    | 5 | tape_stop 700/300 ms, fast 200/100 ms | reverse 250 ms, 125 ms | gate 1/16, 1/8 smooth 40 | dub 1/4 55/70, 1/8 45/60 |
+    | 4 | tape_stop slow 1600/700 ms, 1200/40 ms | reverse 500 ms, 1000 ms at 60 % | gate 1/16T depth 80, 1/32 hard | dub 1/8T 65/70, 1/2 80/80 |
+    | 3 | wash 80/60 2.5 s, 100/85 6 s | hp_riser 60/30 2 s, 80/60 4 s | crush 12 bit /2 at 60 %, 8 bit /4 | |
+    | 2 | wash 50/40 0.8 s, 95/100 4 s | hp_riser 40/10 0.5 s, 95/75 8 s | crush 5 bit /10, 2 bit /24 | |
+
+    Notation: tape_stop Stop/Start; dub Feedback/Mix; wash Size/Mix Release; hp_riser
+    Cutoff/Res Sweep In (Sweep Out 150 ms, or 400 and 80 ms on y2); crush Bits/Downsample.
 
 ## Cheat Sheet
 

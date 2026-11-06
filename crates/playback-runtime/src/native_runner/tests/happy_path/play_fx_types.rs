@@ -177,3 +177,37 @@ pub(crate) fn every_play_fx_type_has_its_own_led_color() {
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(colors.len(), 11);
 }
+
+#[test]
+pub(crate) fn the_shipped_patch_maps_four_distinct_stamps_of_every_play_fx_type() {
+    let base: Value =
+        serde_json::from_str(include_str!("../../../../../../config/defaults/base.json")).unwrap();
+    let assignments = base["runtimeConfig"]["playFx"]["assignments"]
+        .as_array()
+        .unwrap();
+    let tiles = assignments
+        .iter()
+        .map(|assignment| (assignment["x"].as_u64(), assignment["y"].as_u64()))
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(tiles.len(), assignments.len(), "one stamp per tile");
+    for fx_type in crate::native_runner::play_fx_config::play_fx_types().skip(1) {
+        let stamps = assignments
+            .iter()
+            .map(|assignment| &assignment["config"])
+            .filter(|config| config["fxType"] == fx_type)
+            .collect::<Vec<_>>();
+        assert_eq!(stamps.len(), 4, "{fx_type} has one 2x2 block");
+        let distinct = stamps
+            .iter()
+            .map(|config| config["params"].to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(distinct.len(), 4, "{fx_type} stamps differ");
+        for config in stamps {
+            assert_eq!(
+                &crate::native_runner::play_fx_config::sanitize_play_fx_config(config),
+                config,
+                "{fx_type} stamp is in range and complete"
+            );
+        }
+    }
+}

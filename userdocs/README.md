@@ -59,9 +59,10 @@ this be?".
    column pokes the stars: the top tile reseeds them (*Shift* clears them), the
    yellow ones below nudge Density, Birth Chance, Star Life, Fade Chance and
    the step rate.
-4. *Shift* + *Fn* and the bottom right tile opens **Play FX**: hold a tile on
-   the top two rows for stutter, freeze, a filter sweep or a pitch jump. Two at
-   a time, one of each kind.
+4. *Shift* + *Fn* and the bottom right tile opens **Play FX**: hold a tile for
+   stutter, freeze, a filter sweep or a pitch jump on the top two rows, then a
+   tape stop, reverse, trance gate, dub throw, wash, riser or bitcrush below
+   them. Two at a time, one of each kind.
 5. In **Build**, draw a few tiles on Layer 1, or swap its behavior for `brain`
    or `raindrops`. Then try `Shape > I3 > Plucked > Preset > Load > Koto` and
    `Shape > I2 > Drum > Kit > Load > Brush`.
