@@ -2,17 +2,18 @@ use std::time::{Duration, Instant};
 
 use crate::delay_timing::clamp_visible_bpm;
 use crate::protocol::RuntimeAudioCommand;
-use crate::timing_units::BEAT_PULSES;
+use crate::timing_units::{BAR_PULSES, BEAT_PULSES};
 
 use super::super::play_fx_config::play_fx_synced_audio_params;
 use super::super::{play_fx_tile_id, NativeRunner, SyncSource};
 
 /// A clock gap this long means the external clock stopped, so the next beat is measured anew.
 const CLOCK_GAP: Duration = Duration::from_millis(250);
-/// Tempo-synced Play FX are retimed when the measured clock moves by more than this.
-const RETIME_BPM: f64 = 0.25;
+/// Tempo-synced Play FX are retimed when the measured clock moves by more than this share, so
+/// clock jitter does not keep bending a held dub throw's echoes.
+const RETIME_SHARE: f64 = 0.01;
 
-/// The external MIDI clock's tempo, measured over each whole beat of clock pulses.
+/// The external MIDI clock's tempo, measured over each whole 4/4 bar of clock pulses.
 #[derive(Debug, Default)]
 pub(in crate::native_runner) struct ExternalClockTempo {
     beat_start: Option<Instant>,
@@ -22,7 +23,7 @@ pub(in crate::native_runner) struct ExternalClockTempo {
 }
 
 impl ExternalClockTempo {
-    /// Counts `pulses` clocks that arrived at `now`; returns the tempo once a beat completes.
+    /// Counts `pulses` clocks that arrived at `now`; returns the tempo once a bar completes.
     pub(in crate::native_runner) fn observe(&mut self, pulses: u32, now: Instant) -> Option<f64> {
         let gap = self
             .last_clock
@@ -35,7 +36,7 @@ impl ExternalClockTempo {
         }
         self.pulses += u64::from(pulses);
         let start = self.beat_start?;
-        if self.pulses < BEAT_PULSES {
+        if self.pulses < BAR_PULSES {
             return None;
         }
         let seconds = now.saturating_duration_since(start).as_secs_f64();
@@ -68,7 +69,7 @@ impl NativeRunner {
             .play_live
             .external_clock
             .observe(pulses, Instant::now());
-        if measured.is_some_and(|bpm| (bpm - before).abs() > RETIME_BPM) {
+        if measured.is_some_and(|bpm| (bpm - before).abs() > before * RETIME_SHARE) {
             self.retime_held_play_fx();
         }
     }
@@ -112,10 +113,10 @@ mod tests {
     }
 
     #[test]
-    fn measures_each_beat_of_clock_pulses() {
+    fn measures_each_bar_of_clock_pulses() {
         let mut tempo = ExternalClockTempo::default();
         let start = Instant::now();
-        let measured = clocks(&mut tempo, start, 128.0, 24 * 3 + 1);
+        let measured = clocks(&mut tempo, start, 128.0, 96 * 3 + 1);
         assert_eq!(measured.len(), 3);
         for bpm in measured {
             assert!((bpm - 128.0).abs() < 0.01, "{bpm}");
@@ -126,10 +127,10 @@ mod tests {
     fn a_clock_gap_restarts_the_beat_instead_of_reading_a_slow_tempo() {
         let mut tempo = ExternalClockTempo::default();
         let start = Instant::now();
-        let _ = clocks(&mut tempo, start, 120.0, 25);
+        let _ = clocks(&mut tempo, start, 120.0, 97);
         let resumed = start + Duration::from_secs(5);
         assert_eq!(tempo.observe(1, resumed), None);
-        let measured = clocks(&mut tempo, resumed, 90.0, 24);
+        let measured = clocks(&mut tempo, resumed, 90.0, 96);
         assert_eq!(measured.len(), 1);
         assert!((measured[0] - 90.0).abs() < 0.01, "{}", measured[0]);
     }

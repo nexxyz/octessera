@@ -60,6 +60,12 @@ impl WashVoice {
         }
     }
 
+    /// A new press of the same type takes over the releasing voice with its own settings.
+    pub(super) fn revive(&mut self, params: WashParams) {
+        self.params = params;
+        self.releasing = false;
+    }
+
     pub(super) fn release(&mut self) {
         self.releasing = true;
         self.release_step = self.swell.value() / self.params.release_len.max(1) as f32;

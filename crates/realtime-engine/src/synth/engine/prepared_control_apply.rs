@@ -250,7 +250,15 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return retired;
         }
-        let state = prepared.state;
+        let mut state = prepared.state;
+        if self
+            .momentary_fx
+            .iter_mut()
+            .any(|tail| tail.take_over_tail(&mut state))
+        {
+            store_retired_momentary(&mut retired.displaced_momentary_fx, state);
+            return retired;
+        }
         if let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == state.id) {
             store_retired_momentary(
                 &mut retired.displaced_momentary_fx,

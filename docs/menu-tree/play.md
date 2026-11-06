@@ -261,6 +261,10 @@ The menu lists the technical bank, then the musical bank.
   momentary FX run at once (Play FX concurrency capability), and only one per type. A press that
   would exceed either limit is ignored with `Momentary FX limit reached (2)` or
   `Momentary FX type active (<type>)`.
+- The seven types after `pitch_shift` finish their release on their own, from a 5 ms crush fade
+  to the dub_throw and wash tails. A press of the same type and Target during that release takes
+  it over instead of cutting it. The engine counts a releasing effect toward its two, so a press
+  of another type then may stay silent.
 - LEDs: stutter yellow, freeze blue, filter_sweep green, pitch_shift magenta, tape_stop orange,
   reverse purple, trance_gate red, dub_throw deep blue, wash peach, hp_riser lime, crush rose.
   Assigned idle tiles are bright, active tiles add white, and tiles blocked by a limit are dimmed.
@@ -276,13 +280,13 @@ The menu lists the technical bank, then the musical bank.
 | `tape_stop` | Stop `50..2000 ms` (default 700), Start `10..2000 ms` (default 300) | Plays the target from a 2 s capture ring whose read speed ramps linearly to zero over Stop while held, so pitch and speed fall together; the last 15 % of the slowdown fades to silence. On release the speed ramps back to one over Start (from the live input if the tape had stopped), then a 10 ms crossfade hands back to the dry signal. |
 | `reverse` | Length `50..1000 ms` (default 250), Mix `0..100` (default 100) | Passes the dry signal while it captures one Length after the press, then plays each latest Length backwards, window after window. Windows overlap by a 5 ms crossfade, and the wet mix ramps in and out over 10 ms. |
 | `trance_gate` (`gate`) | Rate `1/32T..1/4` (default 1/16), Depth `0..100` (default 100), Smooth `0..100` (default 20) | A square volume chop, open for the first half of each Rate period and starting open at the press. Smooth sets the smoothstep edge length (at least 1 ms, at most a quarter period). Depth eases in and out over 5 ms. |
-| `dub_throw` (`dub`) | Time `1/16T..1/2` (default 1/4), Feedback `0..90` (default 55), Mix `0..100` (default 70) | Sends the target into a stereo pair of bus delay lines while held and adds the echoes to the dry signal. On release the send closes over 5 ms and the echoes trail off; the effect is removed once a whole delay time has passed below -80 dB. |
+| `dub_throw` (`dub`) | Time `1/16T..1/2` (default 1/4), Feedback `0..90` (default 55), Mix `0..100` (default 70) | Sends the target into a stereo pair of bus delay lines while held and adds the echoes to the dry signal. On release the send closes over 5 ms and the echoes trail off; the effect is removed once a whole delay time has passed below -80 dB, or fades out over 1 s once it has rung for 10 s. |
 | `wash` | Size `0..100` (default 80), Mix `0..100` (default 60), Release Ms `100..8000` (default 2500) | Diffuses the target into freeze's comb network at twice the size, with Size setting the feedback, and swells the wet mix in over 250 ms while held. Unlike freeze it keeps taking input. On release the send closes and the tail fades out over Release, then the effect is removed. |
 | `hp_riser` | Cutoff `0..100` (default 60), Res `0..100` (default 30), Sweep In `10..8000 ms` (default 2000), Sweep Out `10..3000 ms` (default 150) | filter_sweep's highpass counterpart: from fully open (20 Hz) it rises evenly in octaves to the target over Sweep In, with the resonance following, and sweeps back open over Sweep Out on release. Cutoff 0 targets about 80 Hz, 100 about 8 kHz. The wet path blends in over the first tenth of the sweep. |
 | `crush` | Bits `1..16` (default 6), Downsample `1..32` (default 6), Mix `0..100` (default 100) | The bus bitcrusher on each channel: bit depth plus sample-and-hold rate reduction. The mix eases in and out over 5 ms. |
 
 `trance_gate` and `dub_throw` follow the tempo: the transport tempo, or under external sync the
-incoming clock measured over each beat. A tempo change while one is held retimes it: the gate keeps
+incoming clock measured over each bar (a change of more than 1 % retimes them). A tempo change while one is held retimes it: the gate keeps
 its place in the period, and the echo time glides over about 50 ms.
 
 The `ms` rows use the curved time steps from

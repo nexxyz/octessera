@@ -61,6 +61,12 @@ impl ReverseVoice {
         }
     }
 
+    /// A new press of the same type takes over the releasing voice with its own settings.
+    pub(super) fn revive(&mut self, params: ReverseParams) {
+        self.params = params;
+        self.releasing = false;
+    }
+
     pub(super) fn release(&mut self) {
         self.releasing = true;
     }

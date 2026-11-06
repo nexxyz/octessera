@@ -58,6 +58,12 @@ impl HpRiserVoice {
         }
     }
 
+    /// A new press of the same type takes over the releasing voice with its own settings.
+    pub(super) fn revive(&mut self, params: HpRiserParams) {
+        self.params = params;
+        self.releasing = false;
+    }
+
     pub(super) fn release(&mut self) {
         self.releasing = true;
     }

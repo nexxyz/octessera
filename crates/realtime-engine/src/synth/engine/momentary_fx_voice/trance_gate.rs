@@ -44,6 +44,12 @@ impl TranceGateVoice {
         }
     }
 
+    /// A new press takes over the releasing gate; it keeps its place in the period.
+    pub(super) fn revive(&mut self, params: TranceGateParams) {
+        self.retime(params);
+        self.releasing = false;
+    }
+
     pub(super) fn release(&mut self) {
         self.releasing = true;
     }

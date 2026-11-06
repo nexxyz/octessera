@@ -1,6 +1,6 @@
 use super::{pct_param, GainRamp, ENVELOPE_MS};
 use crate::synth::engine::support::param_f32;
-use crate::synth::fx::{fx_bus_state_from_params, process_fx_bus_slot, FxBusState};
+use crate::synth::fx::{fx_bus_state_from_params, process_bitcrusher, FxBusState};
 use crate::synth::fx_params::FxBusParams;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -38,7 +38,6 @@ pub(in crate::synth::engine) struct CrushVoice {
     crush_r: FxBusState,
     pub(super) envelope: GainRamp,
     releasing: bool,
-    sample_rate: u32,
 }
 
 impl CrushVoice {
@@ -50,8 +49,13 @@ impl CrushVoice {
             crush_r: fx_bus_state_from_params(&line, sample_rate),
             envelope: GainRamp::new(0.0, ENVELOPE_MS, sample_rate),
             releasing: false,
-            sample_rate,
         }
+    }
+
+    /// A new press of the same type takes over the releasing voice with its own settings.
+    pub(super) fn revive(&mut self, params: CrushParams) {
+        self.params = params;
+        self.releasing = false;
     }
 
     pub(super) fn release(&mut self) {
@@ -64,10 +68,15 @@ impl CrushVoice {
 
     pub(super) fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         let envelope = self.envelope.toward(if self.releasing { 0.0 } else { 1.0 });
-        let line = self.params.line(self.params.mix * envelope);
+        let CrushParams {
+            bits,
+            rate_div,
+            mix,
+        } = self.params;
+        let mix = mix * envelope;
         (
-            process_fx_bus_slot(&line, &mut self.crush_l, left, 0.0, self.sample_rate),
-            process_fx_bus_slot(&line, &mut self.crush_r, right, 0.0, self.sample_rate),
+            process_bitcrusher(&mut self.crush_l, left, rate_div, bits, mix),
+            process_bitcrusher(&mut self.crush_r, right, rate_div, bits, mix),
         )
     }
 }

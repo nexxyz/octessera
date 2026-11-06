@@ -409,3 +409,5 @@ fn crush_quantizes_to_its_bit_depth_and_holds_samples() {
         "downsampling holds each sample"
     );
 }
+
+mod tail_tests;

@@ -227,6 +227,23 @@ impl MomentaryFxState {
         }
     }
 
+    /// Lets a new press of the same type and target take over this releasing tail, so a dub
+    /// throw's echoes or a wash keep ringing instead of being cut. `incoming` keeps the old id.
+    pub(super) fn take_over_tail(&mut self, incoming: &mut MomentaryFxState) -> bool {
+        if !self.releasing
+            || self.kind != incoming.kind
+            || self.target != incoming.target
+            || !self.voice.revive_with(&incoming.voice)
+        {
+            return false;
+        }
+        std::mem::swap(&mut self.id, &mut incoming.id);
+        self.epoch = incoming.epoch;
+        self.releasing = false;
+        self.release_pos = 0;
+        true
+    }
+
     /// Starts the release of a type that fades out instead of being removed at once.
     pub(super) fn begin_release(&mut self) {
         self.releasing = true;

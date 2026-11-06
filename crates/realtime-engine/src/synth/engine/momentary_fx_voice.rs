@@ -118,6 +118,21 @@ impl MomentaryFxVoice {
         }
     }
 
+    /// Hands a releasing voice the settings of a new press of its type; false for other pairs.
+    pub(super) fn revive_with(&mut self, incoming: &Self) -> bool {
+        match (self, incoming) {
+            (Self::TapeStop(voice), Self::TapeStop(next)) => voice.revive(next.params),
+            (Self::Reverse(voice), Self::Reverse(next)) => voice.revive(next.params),
+            (Self::TranceGate(voice), Self::TranceGate(next)) => voice.revive(next.params),
+            (Self::DubThrow(voice), Self::DubThrow(next)) => voice.revive(next.params),
+            (Self::Wash(voice), Self::Wash(next)) => voice.revive(next.params),
+            (Self::HpRiser(voice), Self::HpRiser(next)) => voice.revive(next.params),
+            (Self::Crush(voice), Self::Crush(next)) => voice.revive(next.params),
+            _ => return false,
+        }
+        true
+    }
+
     pub(super) fn finished(&self) -> bool {
         match self {
             Self::None => true,

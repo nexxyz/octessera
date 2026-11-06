@@ -8,6 +8,7 @@ mod bus;
 mod master;
 mod state;
 
+pub(super) use algorithms::{process_bitcrusher, process_delay};
 pub(super) use bus::process_fx_bus_slot;
 pub(super) use master::process_master_fx_slot;
 #[cfg(test)]

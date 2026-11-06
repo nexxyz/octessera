@@ -8,9 +8,8 @@ mod vinyl;
 #[cfg(test)]
 mod bitcrusher_tests;
 
-pub(super) use delay::{
-    process_delay, process_mod_delay, DelayCache, ModDelayCache, ModDelayParams,
-};
+pub(in crate::synth) use delay::process_delay;
+pub(super) use delay::{process_mod_delay, DelayCache, ModDelayCache, ModDelayParams};
 pub(super) use eq::{process_eq, process_eq_channel, EqChannelState, EqParams};
 pub(super) use filter_lfo::{process_filter_lfo, FilterLfoCache, FilterLfoParams};
 pub(in crate::synth) use vinyl::VinylState;
@@ -113,7 +112,7 @@ pub(super) fn process_duck_source(
     input * (1.0 - params.amount * over)
 }
 
-pub(super) fn process_bitcrusher(
+pub(in crate::synth) fn process_bitcrusher(
     state: &mut FxBusState,
     input: f32,
     rate_div: u32,

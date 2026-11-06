@@ -47,6 +47,12 @@ impl TapeStopVoice {
         }
     }
 
+    /// A new press of the same type takes over the releasing voice with its own settings.
+    pub(super) fn revive(&mut self, params: TapeStopParams) {
+        self.params = params;
+        self.releasing = false;
+    }
+
     pub(super) fn release(&mut self) {
         self.releasing = true;
         if self.speed <= 0.0 {
@@ -74,7 +80,7 @@ impl TapeStopVoice {
         let wet = if self.releasing && self.speed >= 1.0 {
             self.handoff.toward(0.0)
         } else {
-            1.0
+            self.handoff.toward(1.0)
         };
         let tape_gain = level * wet;
         let dry_gain = 1.0 - wet;
