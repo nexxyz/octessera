@@ -180,9 +180,9 @@ pub(crate) fn xy_smoothing_duration_change_advances_old_glide_before_retargeting
 #[test]
 pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let start = Instant::now() - Duration::from_millis(30);
-    runner.handle_play_xy_press_at(7, 7, start);
-    let before = runner.xy_touch.x;
+    runner.xy_smoothing_ms = crate::native_menu::XY_GLIDE_MAX_MS.unsigned_abs() as u16;
+    runner.handle_play_xy_press_at(7, 7, Instant::now());
+    let old_glide = runner.xy_x_glide.clone().unwrap();
 
     assert!(runner.menu.focus_item_key("play.xy.smoothingMs"));
     runner.menu.state.editing = true;
@@ -205,13 +205,12 @@ pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
         })
         .unwrap();
 
-    assert!(runner.xy_touch.x > before);
-    assert!(runner.xy_touch.x < 1.0);
     assert_eq!(runner.xy_smoothing_ms, 92);
-    assert_eq!(
-        runner.xy_x_glide.as_ref().map(|glide| glide.duration),
-        Some(Duration::from_millis(92))
-    );
+    let replacement = runner.xy_x_glide.as_ref().unwrap();
+    assert_eq!(replacement.duration, Duration::from_millis(92));
+    assert_eq!(replacement.target, old_glide.target);
+    assert!(replacement.started_at >= old_glide.started_at);
+    assert!(replacement.from >= old_glide.from && replacement.from < old_glide.target);
 }
 
 #[test]
