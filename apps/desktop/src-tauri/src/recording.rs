@@ -222,6 +222,14 @@ impl DesktopRecording {
         Ok(())
     }
 
+    /// A manual Stop whose take is still being finalized.
+    #[cfg(feature = "headless")]
+    pub(crate) fn stop_pending(&self) -> bool {
+        self.recorder
+            .lock()
+            .is_ok_and(|recorder| recorder.active.is_some() && recorder.stop_requested)
+    }
+
     /// The finished take, if any, and whether a manual Stop ended it.
     pub(crate) fn poll_completion(&self) -> Result<Option<(RecordingOutcome, bool)>, String> {
         let mut recorder = match self.recorder.lock() {

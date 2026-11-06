@@ -118,6 +118,11 @@ impl super::DesktopPlaybackHostAdapter {
         poll_status(&self.audio.recording)
     }
 
+    #[cfg(feature = "headless")]
+    pub(crate) fn recording_stop_pending(&self) -> bool {
+        self.audio.recording.stop_pending()
+    }
+
     pub(crate) fn submit_recording_frames(&self, playback: &PlaybackRuntime) -> Result<(), String> {
         self.audio
             .recording
