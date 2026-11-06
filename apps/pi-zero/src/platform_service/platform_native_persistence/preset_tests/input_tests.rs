@@ -273,8 +273,9 @@ fn save_as_with_held_worker(
 fn check_catalog_rows(runner: &mut NativeRunner, name: &str) {
     for key in [
         format!("preset.load.{name}"),
+        format!("preset.library.load.{name}"),
         format!("preset.renamePick.{name}"),
-        format!("preset.delete.{name}"),
+        format!("preset.library.delete.{name}"),
     ] {
         assert_eq!(runner.test_focus_menu_item(&key).unwrap(), name);
     }

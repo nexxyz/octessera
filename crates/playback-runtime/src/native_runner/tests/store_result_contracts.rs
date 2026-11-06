@@ -235,3 +235,42 @@ fn a_deleted_preset_leaves_the_load_lists() {
 
     assert_eq!(library_load_labels(&runner), vec!["Bass"]);
 }
+
+#[test]
+fn a_library_load_keeps_the_menu_on_the_library_row() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    host_result(
+        &mut runner,
+        RuntimeStoreResult::ListPresetsResult {
+            names: vec!["Alpha".into(), "Beta".into()],
+        },
+    );
+    let mut payload = runner.patch_payload().unwrap();
+    payload["runtimeConfig"]["transport"]["bpm"] = json!(97);
+    runner
+        .menu
+        .open_labels(&["System", "Saves", "Library", "Load"]);
+    runner.menu.state.cursor = 1;
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    confirm_current_dialog(&mut runner);
+
+    host_result(
+        &mut runner,
+        RuntimeStoreResult::LoadPresetResult {
+            name: "Beta".into(),
+            payload: Some(payload),
+        },
+    );
+
+    assert_eq!(runner.transport.bpm, 97.0);
+    assert_eq!(
+        runner.test_current_menu_path(),
+        "Menu > System > Saves > Library > Load > Beta"
+    );
+}

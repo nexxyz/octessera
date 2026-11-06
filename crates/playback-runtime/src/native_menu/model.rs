@@ -78,7 +78,8 @@ impl NativeMenuModel {
             .get(self.state.cursor)
             .and_then(|item| item.key.clone());
         if let Some(load) = find_item_by_key_mut(&mut self.root, "preset.load") {
-            load.children = super::system_saves::preset_action_children("preset.load", names);
+            load.children =
+                super::system_saves::preset_action_children("preset.load", "preset.load", names);
         }
         if let Some(save_as) = find_item_by_key_mut(&mut self.root, "preset.library.saveAs") {
             *save_as = super::system_saves::save_as_group(draft_name);

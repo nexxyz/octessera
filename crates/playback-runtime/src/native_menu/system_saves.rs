@@ -7,7 +7,7 @@ pub(super) fn load_preset_group(names: &[String]) -> NativeMenuItem {
     pick_list(keyed_group(
         "Load Preset",
         "preset.load",
-        preset_action_children("preset.load", names),
+        preset_action_children("preset.load", "preset.load", names),
     ))
 }
 
@@ -108,15 +108,20 @@ pub(super) fn preset_action_group(
     keyed_group(
         label,
         group_key,
-        preset_action_children(action_prefix, names),
+        preset_action_children(group_key, action_prefix, names),
     )
 }
 
-pub(super) fn preset_action_children(action_prefix: &str, names: &[String]) -> Vec<NativeMenuItem> {
+/// One action per preset, keyed under its own list so a focus restore finds the list it was in.
+pub(super) fn preset_action_children(
+    group_key: &str,
+    action_prefix: &str,
+    names: &[String],
+) -> Vec<NativeMenuItem> {
     if names.is_empty() {
         vec![action_item(
             "(none)",
-            format!("{action_prefix}.none"),
+            format!("{group_key}.none"),
             NativeMenuAction::PlatformEffect("preset.refresh".into()),
         )]
     } else {
@@ -125,7 +130,7 @@ pub(super) fn preset_action_children(action_prefix: &str, names: &[String]) -> V
             .map(|name| {
                 action_item(
                     name.clone(),
-                    format!("{action_prefix}.{name}"),
+                    format!("{group_key}.{name}"),
                     NativeMenuAction::PlatformEffect(format!("{action_prefix}:{name}")),
                 )
             })
