@@ -80,3 +80,12 @@ cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
 ```
 
 The documented input recipe is [`../factory-patch-ui-scenario.md`](../factory-patch-ui-scenario.md).
+
+The screen sweep walks every reachable menu screen, in both glyph sets, with the same kind of
+device input. It fails on fixed text that clips, a selected name that does not scroll, a row
+without its own help entry, or a value that shows a raw id. Run it after menu, label, value
+format or help text changes (the pre-push hook runs it too, in about five seconds):
+
+```bash
+cargo test -p playback-runtime every_walked_screen_fits_and_has_help -- --ignored
+```

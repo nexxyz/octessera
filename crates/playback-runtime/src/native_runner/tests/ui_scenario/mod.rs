@@ -8,9 +8,18 @@ mod factory_patch_playback;
 mod factory_patch_scenario;
 mod picker_refresh_scenario;
 mod resync_scenario;
+mod screen_sweep;
+mod screen_sweep_checks;
+mod screen_sweep_scenario;
 mod switch_playback_scenario;
 mod system_edit_exit_scenario;
 mod visible_menu_driver;
+
+#[test]
+#[ignore = "heavy UI sweep; run explicitly/pre-push"]
+fn every_walked_screen_fits_and_has_help() {
+    screen_sweep_scenario::run();
+}
 
 #[test]
 #[ignore = "heavy UI scenario; run explicitly/pre-push"]

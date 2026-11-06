@@ -90,6 +90,8 @@ run_pre_push_checks() {
     cargo test -p realtime-engine -p rodio-engine-source --features rodio-engine-source/routing-tree-executor
   run_check "factory patch UI scenario" \
     cargo test -p playback-runtime factory_patch_ui_scenario -- --ignored
+  run_check "UI screen sweep" \
+    cargo test -p playback-runtime every_walked_screen_fits_and_has_help -- --ignored
   run_check "cargo llvm-cov" bash ./tools/quality/check-rust-coverage.sh
   run_check "tauri build smoke" corepack pnpm run tauri:build:ci
   run_check "cargo test desktop" cargo test -p octessera-desktop
