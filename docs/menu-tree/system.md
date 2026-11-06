@@ -269,7 +269,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   instrument muted in Play Mix sends no copies, and muting it ends its held copies the same way. It
   is a System setting, not saved with patches.
 - `MIDI Host` lists `MIDI Out` then `MIDI In`. Each starts with `Disconnect`, followed by one action
-  per detected port.
+  per detected port. A pick or Disconnect saves System as soon as the host reports the new port,
+  like any other System preference and whether or not `Auto Save` is on; port IDs stay local.
 - `USB Device` is the computer-facing gadget interface. While `USB MIDI` is on it owns both Gadget
   MIDI input and output, and Host-selected input/output IDs are ignored. Orange keeps those Host
   selections for use after USB MIDI is turned off. USB MIDI applies live: turning it on or off

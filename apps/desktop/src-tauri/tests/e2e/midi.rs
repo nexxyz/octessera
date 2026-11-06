@@ -26,8 +26,9 @@ fn config(session: &HeadlessSession) -> Value {
     session.config_payload()["runtimeConfig"].clone()
 }
 
-/// MIDI Active on, then the test port picked under MIDI Host for MIDI Out and MIDI In. Opening
-/// a port list scans this computer's ports; the test port replaces that answer once it is in.
+/// MIDI Active on, then the test port picked under MIDI Host for MIDI Out and MIDI In; both save
+/// System without Save System. Opening a port list scans this computer's ports; the test port
+/// replaces that answer once it is in.
 fn enable_midi(session: &mut HeadlessSession) {
     open(session, &["System", "MIDI"]);
     set_until(session, "MIDI Active", |session| {
@@ -45,8 +46,6 @@ fn enable_midi(session: &mut HeadlessSession) {
         (&midi["outId"], &midi["inId"]),
         (&Value::from("999"), &Value::from("999"))
     );
-    open(session, &["System", "Saves", "System", "Save System"]);
-    confirm(session);
     session.settle().unwrap();
 }
 
@@ -368,6 +367,10 @@ fn midi_drum_stamps_and_a_cc_in_mapping_play_and_survive_a_restart() {
     let changed = reload_differences(&saved, &second.config_payload());
     assert!(changed.is_empty(), "reloaded differently: {changed:#?}");
     let reloaded = config(&second);
+    assert_eq!(
+        (&reloaded["midi"]["outId"], &reloaded["midi"]["inId"]),
+        (&Value::from("999"), &Value::from("999"))
+    );
     assert_eq!(
         reloaded["midiCcMappings"][0]["target"]["key"],
         "instruments.0.synth.filter.cutoffHz"

@@ -207,16 +207,8 @@ pub(crate) fn unrelated_unsaved_system_change_keeps_reboot_blocked_after_noop_ed
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::MidiStatus {
-                ok: true,
-                message: None,
-                selected_out_id: Some("external-output".into()),
-                selected_in_id: None,
-            },
-        })
-        .unwrap();
+    runner.sample_favourite_dirs.push("drums".into());
+    runner.mark_system_dirty();
     let exit = device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),

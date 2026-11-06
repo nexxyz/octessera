@@ -42,6 +42,22 @@ impl NativeRunner {
             }
             return;
         }
+        self.save_system_document(&document);
+        if super::device_config_apply::is_device_config_key(key) {
+            self.apply_device_config(document);
+        }
+    }
+
+    /// Saves a System change that is not a menu edit, such as a MIDI port choice.
+    pub(super) fn save_system_change(&mut self) {
+        if let Ok(document) =
+            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)
+        {
+            self.save_system_document(&document);
+        }
+    }
+
+    fn save_system_document(&mut self, document: &Value) {
         let Some(dirty_revision) = self.pending.system_persistence.dirty_revision else {
             return;
         };
@@ -54,9 +70,6 @@ impl NativeRunner {
                 .push_platform_effect(RuntimePlatformEffect::StoreSaveSystem {
                     payload: document.clone(),
                 });
-        }
-        if super::device_config_apply::is_device_config_key(key) {
-            self.apply_device_config(document);
         }
     }
 

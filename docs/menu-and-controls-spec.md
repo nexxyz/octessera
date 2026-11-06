@@ -1007,7 +1007,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   exited with Main or Back. Unchanged or reverted edits do not save, turning does not write on every
   step, and System edits never dirty the musical patch. If a System write is pending when another
   edit completes, only the latest completed snapshot is kept for the follow-up; overlapping edits do
-  not each guarantee a physical write.
+  not each guarantee a physical write. A `MIDI Out` or `MIDI In` port pick saves System the same way
+  once the host reports the new port.
 - `System > Saves > System > Save System` is an optional explicit flush; `Load System` loads local
   device settings without stopping music or silently rebooting. Perf. Mode, the one
   restart-sensitive setting, saves through the confirmed Apply flow

@@ -39,6 +39,7 @@ impl NativeRunner {
                 self.selected_midi_input_id = selected_in_id;
                 if selection_changed {
                     self.mark_system_dirty();
+                    self.save_system_change();
                 }
             }
             _ => {}
