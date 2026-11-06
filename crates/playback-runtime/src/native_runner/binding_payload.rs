@@ -14,25 +14,34 @@ pub(super) fn param_binding_payload(binding: Option<&NativeParamBinding>) -> Val
     }
     value.insert("kind".into(), json!(binding.kind));
     if let Some(min) = binding.min {
-        value.insert("min".into(), json!(min));
+        value.insert("min".into(), binding_number(min));
     }
     if let Some(max) = binding.max {
-        value.insert("max".into(), json!(max));
+        value.insert("max".into(), binding_number(max));
     }
     if let Some(step) = binding.step {
-        value.insert("step".into(), json!(step));
+        value.insert("step".into(), binding_number(step));
     }
     if let Some(user_min) = binding.user_min {
-        value.insert("userMin".into(), json!(user_min));
+        value.insert("userMin".into(), binding_number(user_min));
     }
     if let Some(user_max) = binding.user_max {
-        value.insert("userMax".into(), json!(user_max));
+        value.insert("userMax".into(), binding_number(user_max));
     }
     if !binding.options.is_empty() {
         value.insert("options".into(), json!(binding.options));
     }
     value.insert("invert".into(), json!(binding.invert));
     Value::Object(value)
+}
+
+/// A binding bound as saved: a whole number as an integer, like the config DTO writes it.
+fn binding_number(value: f64) -> Value {
+    if value.fract() == 0.0 && value.abs() < 1e15 {
+        json!(value as i64)
+    } else {
+        json!(value)
+    }
 }
 
 pub(super) fn param_mods_from_payload(payload: &Value) -> NativeParamMods {

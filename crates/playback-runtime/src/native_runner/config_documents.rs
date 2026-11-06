@@ -352,6 +352,8 @@ fn validate_projection_preserves_data(
                 validate_projection_preserves_data(value, projected, &format!("{path}[{index}]"))?;
             }
         }
+        (Value::Number(source), Value::Number(projection))
+            if source.as_f64() == projection.as_f64() => {}
         _ if source != projection => {
             return Err(format!("{path} is normalized by the native config DTO"));
         }

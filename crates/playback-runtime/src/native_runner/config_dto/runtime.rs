@@ -163,15 +163,30 @@ pub struct ParamBindingDto {
     pub(super) label: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) kind: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_binding_number"
+    )]
     pub(super) min: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_binding_number"
+    )]
     pub(super) max: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_binding_number"
+    )]
     pub(super) step: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_binding_number"
+    )]
     pub(super) user_min: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_binding_number"
+    )]
     pub(super) user_max: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) options: Option<Vec<String>>,
@@ -381,5 +396,20 @@ impl RuntimeConfigDto {
             sound.remove("optimizeFor");
         }
         Ok(value)
+    }
+}
+
+/// Writes a whole binding bound as an integer (`255`, not `255.0`), the way any JSON tool
+/// writes it back, so a save round-trips through the JavaScript config generator unchanged.
+fn serialize_binding_number<S: serde::Serializer>(
+    value: &Option<f64>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    match value {
+        Some(number) if number.fract() == 0.0 && number.abs() < 1e15 => {
+            serializer.serialize_i64(*number as i64)
+        }
+        Some(number) => serializer.serialize_f64(*number),
+        None => serializer.serialize_none(),
     }
 }

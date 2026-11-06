@@ -237,3 +237,20 @@ fn slider_targets_and_positions_round_trip_through_a_saved_patch() {
     assert!(loaded.menu.focus_item_key("play.faders.0.target"));
     assert_eq!(loaded.menu.current_label(), Some("Target: Velocity Scale"));
 }
+
+#[test]
+fn whole_binding_bounds_save_as_integers_and_older_float_saves_still_load() {
+    let runner = faders_runner();
+    let full = runner.config_payload();
+    let target = &full["runtimeConfig"]["faders"]["sliders"][0]["target"];
+    assert!(target["max"].is_u64(), "{target}");
+    let documents = crate::split_system_patch_documents(&full).unwrap();
+    assert_eq!(
+        documents.patch["runtimeConfig"]["faders"]["sliders"][0]["target"]["max"],
+        json!(200)
+    );
+
+    let mut older = full.clone();
+    older["runtimeConfig"]["faders"]["sliders"][0]["target"]["max"] = json!(200.0);
+    assert!(crate::split_system_patch_documents(&older).is_ok());
+}
