@@ -63,13 +63,12 @@ impl NativeRunner {
     }
 
     /// Stores a picked binding with each target's side effects: the matching invert row, an
-    /// LFO that loses its target switching off, and the XY or Faders source following it.
+    /// LFO that loses its target switching off, and the XY source following it.
     fn store_binding(&mut self, target: BindingTarget, binding: Option<NativeParamBinding>) {
         match target {
             BindingTarget::MidiCc(slot) => self.set_midi_cc_target(slot, binding),
             BindingTarget::Fader { column, shifted } => {
                 self.set_fader_target(column, shifted, binding);
-                self.apply_fader_source(column, shifted);
             }
             BindingTarget::LayerAxis { layer, axis, slot } => {
                 let invert = binding.as_ref().is_some_and(|binding| binding.invert);
@@ -152,9 +151,6 @@ impl NativeRunner {
                 BindingTarget::PlayX | BindingTarget::PlayY => self.refresh_xy_runtime_sources(),
                 BindingTarget::MidiCc(slot) => {
                     self.apply_midi_cc_source(slot);
-                }
-                BindingTarget::Fader { column, shifted } => {
-                    self.apply_fader_source(column, shifted);
                 }
                 _ => {}
             }

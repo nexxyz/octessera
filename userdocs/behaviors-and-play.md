@@ -117,7 +117,7 @@ column, leaves the page.
 | Route | One column per instrument. The bottom five rows pick direct or FX bus 1-4; row 6 switches bus and Global FX chains off and on; the top row picks the instrument every duck listens to and saves it as each duck's Source. | Sending a part through an effect bus, cutting the effects for a dry break, or pumping everything off a different kick. Routes and duck sources stick with the patch; bypass is never saved, so press the lit tile again to undo it. |
 | Tempo | The top five rows are tempo tiles from 50 to 240 BPM (the top-left one is Tap), then a row of -4..+4 nudges, then the two swing rows. | Grabbing a tempo, tapping one in, or dialing in swing: Swing A against Swing B, `4:4` straight. The Tap tile blinks with the beat. |
 | LFO | One row per global LFO, bottom row is LFO 1. The first tile switches it and glows with its wave; the rest pick a period from 1/8 to eight bars. Press a lit period again for its triplet; hold *Shift* for depth. | Slowing a wobble down to a long swell, or snapping it to the beat, without menu diving. |
-| Faders | Eight vertical sliders, one per column; press a row to move that column's slider there. Hold *Shift* for a second set of eight. Columns from the right can become action tiles instead (see below). | Riding 16 parameters of your choice, like a little fader box. Slider positions are saved with the patch, so it comes back sounding the same. |
+| Faders | Eight vertical sliders, one per column; press a row to set that column's parameter there. Hold *Shift* for a second set of eight. Columns from the right can become action tiles instead (see below). | Riding 16 parameters of your choice, like a little fader box. Each bar shows where its parameter is right now, whoever moved it last. |
 | FX | Tiles you've mapped with momentary effects. | Press to start an effect, release to stop it. |
 | Trigger Gate | One row per layer, bottom row is Layer 1. The first three columns pick `0%`, `custom` or `100%`. | Blocking, allowing or probability-gating each layer live. The bottom row's right three tiles set every layer at once. |
 | Transpose | Left column picks which layers follow; the rest is a three-octave piano. | Shifting Synth, FM, Plucked and enabled MIDI notes. Sampler and Drum tiles only follow when their **Follow Transp.** is on. Not saved with the patch. |
@@ -134,7 +134,9 @@ Each column of the Faders page is a slider with two targets: `Target` for a
 plain press and `S+Target` for *Shift* + press, picked under
 `Play > Faders > Fader 1..8` from the same list as the LFOs and Aux turns. The
 bottom row gives the target's **Range Min**, the top row its **Range Max**, and
-**Invert** flips that. Columns without a target stay dark and ignore you.
+**Invert** flips that. A press sets the value and lets go: turn the same knob in
+the menu or load a preset and the bar follows. Columns without a target stay
+dark and ignore you.
 
 Want buttons too? Turn up **Action Cols** and that many columns, counted from
 the right, become tiles. Set one up in `Play > Faders > Tile Map`: pick a

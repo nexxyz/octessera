@@ -119,13 +119,6 @@ fn validate_canonical_modulation(runtime: &Map<String, Value>) -> Result<(), Str
             }
         }
     }
-    for (path, binding) in super::faders::fader_slider_targets(runtime) {
-        if claim_is_exclusive(binding, &mut claimed) {
-            return Err(format!(
-                "{path} conflicts with an earlier exclusive binding"
-            ));
-        }
-    }
     if let Some(xy) = runtime.get("xy").and_then(Value::as_object) {
         for axis in ["x", "y"] {
             let Some(binding) = xy.get(axis) else {

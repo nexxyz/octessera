@@ -194,11 +194,6 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
 #[test]
 pub(crate) fn validation_rejects_bad_fader_sliders_and_tiles() {
     assert_validation_error(
-        "fader position",
-        "runtimeConfig.faders.sliders[2].shiftPosition is outside the supported range",
-        |payload| payload["runtimeConfig"]["faders"]["sliders"][2]["shiftPosition"] = json!(8),
-    );
-    assert_validation_error(
         "fader action columns",
         "runtimeConfig.faders.actionCols is outside the supported range",
         |payload| payload["runtimeConfig"]["faders"]["actionCols"] = json!(9),

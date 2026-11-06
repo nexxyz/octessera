@@ -139,9 +139,7 @@ pub struct FaderTileDto {
 #[serde(rename_all = "camelCase")]
 pub struct FaderSliderDto {
     pub(super) target: Option<Option<ParamBindingDto>>,
-    pub(super) position: Option<u8>,
     pub(super) shift_target: Option<Option<ParamBindingDto>>,
-    pub(super) shift_position: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

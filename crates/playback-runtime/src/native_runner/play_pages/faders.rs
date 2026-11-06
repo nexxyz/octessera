@@ -2,25 +2,23 @@ use serde_json::{json, Value};
 
 use super::super::action_bindings::BindingTarget;
 use super::super::led_color::LedColor;
-use super::super::menu_apply_fast::value_changed;
 use super::super::menu_apply_fast_values::parse_indexed_key;
-use super::super::modulation_source::ModulationSourceId;
-use super::super::modulation_value::quantize_binding_value;
+use super::super::modulation_value::{binding_normalized, quantize_binding_value};
 use super::super::{
     aux_turn_binding_spec, param_binding_from_payload, param_binding_payload,
     param_binding_spec_from_native, NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
 };
 use super::fader_tiles::{NativeFaderTile, NativeFaderTileMapping};
 use crate::native_menu::NativeFadersConfig;
+use crate::native_menu::NativeMenuValue;
 
 pub(in crate::native_runner) const FADER_COUNT: usize = GRID_WIDTH;
-const TOP_POSITION: u8 = (GRID_HEIGHT - 1) as u8;
+const TOP_ROW: usize = GRID_HEIGHT - 1;
 
 /// A slider side's field names in saves and `play.faders.N.<field>` menu keys.
 pub(crate) struct FaderSideFields {
     pub(crate) target: &'static str,
     pub(crate) invert: &'static str,
-    position: &'static str,
 }
 
 /// The plain side, then the Shift side.
@@ -28,27 +26,19 @@ pub(crate) const FADER_SIDE_FIELDS: [FaderSideFields; 2] = [
     FaderSideFields {
         target: "target",
         invert: "invert",
-        position: "position",
     },
     FaderSideFields {
         target: "shiftTarget",
         invert: "shiftInvert",
-        position: "shiftPosition",
     },
 ];
 
-/// One side of a slider: its target and its position, row 0 (bottom) to 7 (top).
-#[derive(Clone, Debug, Default, PartialEq)]
-pub(in crate::native_runner) struct NativeFaderSide {
-    pub(in crate::native_runner) target: Option<NativeParamBinding>,
-    pub(in crate::native_runner) position: u8,
-}
-
-/// The Faders page. Saved with the patch: each column's plain and Shift slider, how many columns
-/// from the right are action columns instead, and their tiles.
+/// The Faders page. Saved with the patch: each column's plain and Shift slider target, how many
+/// columns from the right are action columns instead, and their tiles. A slider holds no value of
+/// its own: a press sets its target, and its bar shows the target's current value.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(in crate::native_runner) struct NativeFaders {
-    pub(in crate::native_runner) sliders: [[NativeFaderSide; 2]; FADER_COUNT],
+    pub(in crate::native_runner) sliders: [[Option<NativeParamBinding>; 2]; FADER_COUNT],
     pub(in crate::native_runner) action_cols: u8,
     pub(in crate::native_runner) tiles: Vec<NativeFaderTile>,
     /// Live only: the Tile Map rows, a waiting Map to Grid and the held action tile.
@@ -73,23 +63,38 @@ pub(in crate::native_runner) fn fader_target_side(target: &str) -> Option<(usize
     fader_key_side(target, |side| side.target)
 }
 
-pub(in crate::native_runner) fn fader_target_key(column: usize, shifted: bool) -> String {
-    let field = FADER_SIDE_FIELDS[usize::from(shifted)].target;
-    format!("play.faders.{column}.{field}")
-}
-
 fn fader_invert_key(column: usize, shifted: bool) -> String {
     let field = FADER_SIDE_FIELDS[usize::from(shifted)].invert;
     format!("play.faders.{column}.{field}")
 }
 
-fn fader_normalized(position: u8, invert: bool) -> f64 {
-    let normalized = f64::from(position.min(TOP_POSITION)) / f64::from(TOP_POSITION);
-    if invert {
+/// The value of row `y` (0 bottom .. 7 top) on a slider over `binding`'s range.
+fn fader_row_value(y: usize, binding: &NativeParamBinding) -> Value {
+    let normalized = y.min(TOP_ROW) as f32 / TOP_ROW as f32;
+    let normalized = if binding.invert {
         1.0 - normalized
     } else {
         normalized
-    }
+    };
+    quantize_binding_value(normalized, binding)
+}
+
+/// The row nearest to a target's current value on a slider over `binding`'s range.
+fn fader_value_row(value: &NativeMenuValue, binding: &NativeParamBinding) -> Option<usize> {
+    let normalized = match value {
+        NativeMenuValue::Number { value, .. } => binding_normalized(f64::from(*value), binding),
+        NativeMenuValue::Enum { options, selected } => {
+            *selected as f32 / options.len().saturating_sub(1).max(1) as f32
+        }
+        NativeMenuValue::Bool { value } => f32::from(u8::from(*value)),
+        _ => return None,
+    };
+    let normalized = if binding.invert {
+        1.0 - normalized
+    } else {
+        normalized
+    };
+    Some((normalized.clamp(0.0, 1.0) * TOP_ROW as f32).round() as usize)
 }
 
 fn fader_value_text(value: &Value) -> String {
@@ -112,11 +117,7 @@ impl NativeFaders {
             .map(|sides| {
                 let mut slider = serde_json::Map::new();
                 for (side, fields) in sides.iter().zip(&FADER_SIDE_FIELDS) {
-                    slider.insert(
-                        fields.target.into(),
-                        param_binding_payload(side.target.as_ref()),
-                    );
-                    slider.insert(fields.position.into(), json!(side.position));
+                    slider.insert(fields.target.into(), param_binding_payload(side.as_ref()));
                 }
                 Value::Object(slider)
             })
@@ -135,17 +136,9 @@ impl NativeFaders {
         };
         for (sides, value) in self.sliders.iter_mut().zip(sliders) {
             for (side, fields) in sides.iter_mut().zip(&FADER_SIDE_FIELDS) {
-                side.target = value
+                *side = value
                     .get(fields.target)
                     .and_then(param_binding_from_payload);
-                side.position =
-                    value
-                        .get(fields.position)
-                        .and_then(Value::as_u64)
-                        .map_or(0, |position| {
-                            u8::try_from(position.min(u64::from(TOP_POSITION)))
-                                .expect("clamped position fits u8")
-                        });
             }
         }
     }
@@ -155,7 +148,7 @@ impl NativeFaders {
             targets: self.sliders.each_ref().map(|sides| {
                 sides
                     .each_ref()
-                    .map(|side| side.target.as_ref().map(param_binding_spec_from_native))
+                    .map(|side| side.as_ref().map(param_binding_spec_from_native))
             }),
             action_cols: self.action_cols,
             tile_type: self.draft.kind.as_str().into(),
@@ -166,36 +159,65 @@ impl NativeFaders {
 }
 
 impl NativeRunner {
-    /// A press moves the column's slider to that row, Shift + press its Shift slider; a side
-    /// without a target ignores the press.
+    /// A press sets the column's target to that row's value, Shift + press its Shift target,
+    /// through the menu edit, so it saves and autosaves like one; a side without a target
+    /// ignores the press.
     pub(in crate::native_runner) fn handle_play_faders_press(&mut self, x: usize, y: usize) {
         let shifted = self.display.ui.shift_held;
         let column = x.min(FADER_COUNT - 1);
-        let side = &mut self.faders.sliders[column][usize::from(shifted)];
-        let Some(binding) = side.target.clone() else {
+        let Some(binding) = self.faders.sliders[column][usize::from(shifted)].clone() else {
             return;
         };
-        let position = u8::try_from(y.min(GRID_HEIGHT - 1)).expect("grid row fits u8");
-        if value_changed(&mut side.position, position) {
-            self.mark_fast_autosave_dirty();
-        }
-        if self.apply_fader_source(column, shifted) {
-            if let Err(error) = self.process_dirty_modulation_step(true) {
-                self.show_modulation_unavailable(&error);
-                return;
-            }
-        }
-        let value =
-            quantize_binding_value(fader_normalized(position, binding.invert) as f32, &binding);
+        let value = fader_row_value(y, &binding);
         let label = binding.label.as_deref().unwrap_or(&binding.key);
         let prefix = if shifted { "S+" } else { "" };
-        self.show_toast(format!(
-            "{prefix}F{}: {label} {}",
-            column + 1,
-            fader_value_text(&value)
-        ));
+        match self.set_bound_key_value(&binding.key, &value) {
+            Ok(true) => self.show_toast(format!(
+                "{prefix}F{}: {label} {}",
+                column + 1,
+                fader_value_text(&value)
+            )),
+            Ok(false) => self.show_toast(format!("{prefix}F{}: {label} not active", column + 1)),
+            Err(error) => self.show_toast(error),
+        }
     }
 
+    /// Writes `value` to a bound key as a menu edit would; false when nothing offers the key.
+    fn set_bound_key_value(&mut self, key: &str, value: &Value) -> Result<bool, String> {
+        if self.generated_behavior_target_item(key).is_some() {
+            self.apply_generated_behavior_target_value(key, &fader_value_text(value))?;
+            return Ok(true);
+        }
+        if self.menu.item_for_key(key).is_none() {
+            return Ok(false);
+        }
+        match value {
+            Value::Number(number) => {
+                let value = number.as_f64().unwrap_or_default().round() as i32;
+                self.menu.set_number_value_for_key(key, value);
+            }
+            Value::String(option) => {
+                self.menu.set_enum_value_for_key(key, option);
+            }
+            Value::Bool(on) => {
+                self.menu.set_bool_value_for_key(key, *on);
+            }
+            _ => return Ok(false),
+        }
+        self.apply_or_schedule_menu_key(key)?;
+        Ok(true)
+    }
+
+    /// The current value of a bound key, from the menu or a generated behavior row.
+    fn bound_key_value(&self, key: &str) -> Option<NativeMenuValue> {
+        self.generated_behavior_target_item(key)
+            .or_else(|| self.menu.item_for_key(key))
+            .map(|item| item.value)
+    }
+
+    /// Each targeted column is a bar up to the row nearest its target's current value, green
+    /// for the plain sliders and magenta while Shift is held; columns without a target, or
+    /// whose target is not active, are dark.
     pub(in crate::native_runner) fn apply_play_faders_overlay(&self, leds: &mut [LedColor]) {
         let shifted = self.display.ui.shift_held;
         let color = if shifted {
@@ -205,11 +227,13 @@ impl NativeRunner {
         };
         let sliders = self.faders.first_action_column();
         for (x, sides) in self.faders.sliders.iter().enumerate().take(sliders) {
-            let side = &sides[usize::from(shifted)];
+            let row = sides[usize::from(shifted)]
+                .as_ref()
+                .and_then(|binding| fader_value_row(&self.bound_key_value(&binding.key)?, binding));
             for y in 0..GRID_HEIGHT {
-                let value = match side.target {
+                let value = match row {
                     None => LedColor::BLACK,
-                    Some(_) if y <= usize::from(side.position) => color,
+                    Some(row) if y <= row => color,
                     Some(_) => color.dim(6),
                 };
                 self.set_display_led(leds, x, y, value);
@@ -218,36 +242,12 @@ impl NativeRunner {
         self.apply_fader_tiles_overlay(leds);
     }
 
-    /// Holds the side's position as its source input; false without a target.
-    pub(in crate::native_runner) fn apply_fader_source(
-        &mut self,
-        column: usize,
-        shifted: bool,
-    ) -> bool {
-        let side = &self.faders.sliders[column][usize::from(shifted)];
-        let Some(binding) = side.target.clone() else {
-            return false;
-        };
-        let normalized = fader_normalized(side.position, binding.invert);
-        let source = ModulationSourceId::fader(column, shifted).expect("validated Faders column");
-        self.set_runtime_source_input(source, binding, normalized)
-    }
-
-    /// Every slider with a target holds its saved position, so a loaded patch sounds as saved.
-    pub(in crate::native_runner) fn apply_fader_sources(&mut self) {
-        for column in 0..FADER_COUNT {
-            for shifted in [false, true] {
-                self.apply_fader_source(column, shifted);
-            }
-        }
-    }
-
     pub(in crate::native_runner) fn fader_target_mut(
         &mut self,
         column: usize,
         shifted: bool,
     ) -> &mut Option<NativeParamBinding> {
-        &mut self.faders.sliders[column][usize::from(shifted)].target
+        &mut self.faders.sliders[column][usize::from(shifted)]
     }
 
     pub(in crate::native_runner) fn set_fader_target(

@@ -272,7 +272,8 @@ Faders slider targets share one menu-mirrored picker.
 - The tree mirrors the root order (`Build`, `Link`, `Shape`, `Play`, `System`). Under Build, layers
   with behavior `none` expose no behavior targets; other layers expose their own Step Rate as
   `layers.N.algorithmStep` and their config fields/actions as `layers.N.build.behaviorConfig.*`.
-- `Range Min`/`Range Max` constrain the output of every source (slots, XY, LFOs, MIDI CC In, Faders) while
+- `Range Min`/`Range Max` constrain the output of every source (slots, XY, LFOs, MIDI CC In) and the
+  values a Faders press sets, while
   keeping the target's capability `min`/`max` metadata. Missing sides fall back to the target range; equal
   values produce a fixed value. Enum and bool bindings ignore user ranges.
 - LFO target pickers list only numeric, live-safe targets and never another LFO's settings. The
@@ -982,13 +983,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Every LFO phase advances and wraps while playing, also when the LFO is off, untargeted, or at
   depth zero; only enabled targeted LFOs trigger modulation work. Other PPQN paths and wall-clock
   timing never advance LFOs or process unrelated held sources.
-- Modulation sources, in their stable order: layer X/Y slots, Play X/Y, the eight Link LFOs, the
-  eight MIDI CC In slots, then the 16 Play Faders sliders (F1..F8, then S+F1..S+F8). A CC slot
-  holds its last `value / 127` like a held XY position; a loaded patch starts with none
-  ([link.md](menu-tree/link.md#midi-cc-in)). A slider holds its saved position, also after a load
-  ([play.md](menu-tree/play.md#faders)).
-- Layer X/Y, Play XY, LFO, MIDI CC In, and Faders assignments are staged through the native claim
-  validator. An exclusive target may have one layer/Play/CC/slider claim, and an LFO may never claim one. A rejected
+- Modulation sources, in their stable order: layer X/Y slots, Play X/Y, the eight Link LFOs, then
+  the eight MIDI CC In slots. A CC slot holds its last `value / 127` like a held XY position; a
+  loaded patch starts with none ([link.md](menu-tree/link.md#midi-cc-in)). Play Faders are not
+  sources: a press sets its target like a menu edit ([play.md](menu-tree/play.md#faders)).
+- Layer X/Y, Play XY, LFO, and MIDI CC In assignments are staged through the native claim
+  validator. An exclusive target may have one layer/Play/CC claim, and an LFO may never claim one. A rejected
   assignment leaves binding, contribution, revision, autosave state, and menu focus unchanged and
   shows `Mapping rejected: unsupported target`, `Mapping rejected: target type mismatch`,
   `Mapping rejected: LFO needs a live numeric target`, or

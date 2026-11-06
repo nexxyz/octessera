@@ -132,6 +132,19 @@ pub(super) fn quantize_binding_value(norm: f32, binding: &NativeParamBinding) ->
     json!(stepped.clamp(min, max))
 }
 
+/// Where `value` sits in `binding`'s range, `0.0` at Range Min and `1.0` at Range Max.
+pub(super) fn binding_normalized(value: f64, binding: &NativeParamBinding) -> f32 {
+    let (min, max) = effective_numeric_range(
+        binding,
+        binding.min.unwrap_or(0.0),
+        binding.max.unwrap_or(127.0),
+    );
+    if max <= min {
+        return 0.0;
+    }
+    ((value - min) / (max - min)).clamp(0.0, 1.0) as f32
+}
+
 fn effective_numeric_range(
     binding: &NativeParamBinding,
     target_min: f64,

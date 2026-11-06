@@ -71,10 +71,7 @@ impl BindingTarget {
             Self::MidiCc(slot) => {
                 Some(ModulationSourceId::midi_cc(slot).expect("validated MIDI CC slot"))
             }
-            Self::Fader { column, shifted } => {
-                Some(ModulationSourceId::fader(column, shifted).expect("validated Faders column"))
-            }
-            Self::Lfo(_) => None,
+            Self::Fader { .. } | Self::Lfo(_) => None,
         }
     }
 }
@@ -134,7 +131,6 @@ impl NativeRunner {
         self.mark_fast_autosave_dirty();
         let source_changed = match target {
             BindingTarget::MidiCc(slot) => self.apply_midi_cc_source(slot),
-            BindingTarget::Fader { column, shifted } => self.apply_fader_source(column, shifted),
             _ => true,
         };
         if source_changed {

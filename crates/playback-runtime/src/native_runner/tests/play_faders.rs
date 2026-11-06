@@ -81,34 +81,93 @@ fn faders_runner() -> NativeRunner {
     runner
 }
 
+fn pulses(runner: &mut NativeRunner, steps: usize) {
+    runner.send(HostMessage::MidiRealtimeStart).unwrap();
+    for _ in 0..steps {
+        runner
+            .send(HostMessage::TransportPulseStep {
+                pulses: 6,
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+    }
+}
+
+fn bar_top(runner: &mut NativeRunner, column: usize, color: LedColor) -> Option<usize> {
+    let tiles = led_tiles(&runner.snapshot().unwrap());
+    let lit = json!({ "r": color.r, "g": color.g, "b": color.b });
+    (0..GRID_HEIGHT)
+        .rev()
+        .find(|y| tiles[display_index(column, *y)] == lit)
+}
+
 #[test]
-fn a_press_moves_the_slider_and_its_target_through_the_range_and_invert() {
+fn a_press_sets_its_target_through_the_range_and_invert() {
     let mut runner = faders_runner();
     tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 200);
-    assert_eq!(runner.faders.sliders[0][0].position, 7);
     assert_eq!(toast(&runner), "F1: Velocity Scale 200");
+    assert_eq!(runner.menu.number_for_key(VELOCITY), Some(200));
     tap(&mut runner, 0, 0);
     assert_eq!(velocity(&runner), 0);
 
     set_menu_number(&mut runner, "play.faders.0.target.rangeMin", 30);
     set_menu_number(&mut runner, "play.faders.0.target.rangeMax", 170);
-    assert_eq!(velocity(&runner), 30, "a new range moves the held slider");
+    assert_eq!(velocity(&runner), 0, "a new range waits for the next press");
+    runner.active_play_mode = "faders".into();
     tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 170);
     tap(&mut runner, 0, 1);
     assert_eq!(velocity(&runner), 50);
 
     switch_on(&mut runner, "play.faders.0.invert");
-    assert!(runner.faders.sliders[0][0].target.as_ref().unwrap().invert);
-    assert_eq!(velocity(&runner), 150, "invert flips the held slider");
+    assert!(runner.faders.sliders[0][0].as_ref().unwrap().invert);
+    assert_eq!(velocity(&runner), 50, "invert waits for the next press");
     runner.active_play_mode = "faders".into();
     tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 30);
 }
 
 #[test]
-fn shift_presses_move_the_second_slider_of_the_column() {
+fn a_menu_edit_after_a_press_changes_the_value_and_it_stays() {
+    let mut runner = faders_runner();
+    tap(&mut runner, 0, 5);
+    assert_eq!(velocity(&runner), 143);
+    set_menu_number(&mut runner, VELOCITY, 60);
+    pulses(&mut runner, 16);
+    assert_eq!(velocity(&runner), 60, "the fader does not hold its target");
+}
+
+#[test]
+fn a_preset_load_keeps_the_preset_value() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    bind(
+        &mut runner,
+        "play.faders.0.target",
+        "instruments.0.synth.filter.cutoffHz",
+    );
+    open_faders(&mut runner);
+    tap(&mut runner, 0, 7);
+    assert_eq!(
+        runner.instruments[0].synth_config["filter"]["cutoffHz"],
+        20_000
+    );
+    runner
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+            "synth.preset:0:acid_bass".into(),
+        ))
+        .unwrap();
+    pulses(&mut runner, 16);
+    assert_eq!(
+        runner.instruments[0].synth_config["filter"]["cutoffHz"],
+        500
+    );
+}
+
+#[test]
+fn shift_presses_set_the_second_target_of_the_column() {
     let mut runner = faders_runner();
     tap(&mut runner, 0, 3);
     let plain_velocity = velocity(&runner);
@@ -117,34 +176,32 @@ fn shift_presses_move_the_second_slider_of_the_column() {
 
     assert_eq!(note_length(&runner), 2000);
     assert_eq!(velocity(&runner), plain_velocity);
-    assert_eq!(runner.faders.sliders[0][0].position, 3);
-    assert_eq!(runner.faders.sliders[0][1].position, 7);
     assert_eq!(toast(&runner), "S+F1: Note Length 2000");
 }
 
 #[test]
-fn the_leds_show_each_bank_as_a_bar_and_columns_without_a_target_dark() {
+fn the_bar_follows_the_target_value_in_each_bank() {
     let mut runner = faders_runner();
     tap(&mut runner, 0, 2);
-    let tiles = led_tiles(&runner.snapshot().unwrap());
-    let rgb = |tiles: &[Value], x: usize, y: usize| tiles[display_index(x, y)].clone();
-    let green = json!({ "r": LedColor::GREEN.r, "g": LedColor::GREEN.g, "b": LedColor::GREEN.b });
-    assert_eq!(rgb(&tiles, 0, 2), green);
-    assert_eq!(rgb(&tiles, 0, 0), green);
-    assert_ne!(rgb(&tiles, 0, 3), green);
-    assert_eq!(rgb(&tiles, 1, 0), json!({ "r": 0, "g": 0, "b": 0 }));
-
-    runner.display.ui.shift_held = true;
-    let tiles = led_tiles(&runner.snapshot().unwrap());
-    let magenta = LedColor::MAGENTA;
+    assert_eq!(bar_top(&mut runner, 0, LedColor::GREEN), Some(2));
+    let off = json!({ "r": 0, "g": 0, "b": 0 });
     assert_eq!(
-        rgb(&tiles, 0, 0),
-        json!({ "r": magenta.r, "g": magenta.g, "b": magenta.b })
+        led_tiles(&runner.snapshot().unwrap())[display_index(1, 0)],
+        off
     );
-    assert_ne!(
-        rgb(&tiles, 0, 2),
-        json!({ "r": magenta.r, "g": magenta.g, "b": magenta.b })
+
+    set_menu_number(&mut runner, VELOCITY, 171);
+    runner.active_play_mode = "faders".into();
+    assert_eq!(
+        bar_top(&mut runner, 0, LedColor::GREEN),
+        Some(6),
+        "a menu edit moves the bar"
     );
+
+    set_menu_number(&mut runner, "sound.noteLengthMs", 30);
+    runner.active_play_mode = "faders".into();
+    runner.display.ui.shift_held = true;
+    assert_eq!(bar_top(&mut runner, 0, LedColor::MAGENTA), Some(0));
 }
 
 #[test]
@@ -152,38 +209,19 @@ fn a_side_without_a_target_ignores_presses() {
     let mut runner = faders_runner();
     runner.display.toast = None;
     let revision = runner.config_revision;
+    let before = runner.config_payload();
     tap(&mut runner, 3, 6);
     held(&mut runner, "button_shift", |runner| tap(runner, 3, 6));
-    assert_eq!(runner.faders.sliders[3][0].position, 0);
-    assert_eq!(runner.faders.sliders[3][1].position, 0);
     assert_eq!(runner.config_revision, revision);
+    assert_eq!(runner.config_payload(), before);
     assert!(runner.display.toast.is_none());
-}
-
-#[test]
-fn a_second_claim_on_an_exclusive_target_is_rejected() {
-    let mut runner = faders_runner();
-    bind(
-        &mut runner,
-        "play.faders.1.target",
-        "sound.voiceStealingMode",
-    );
-    assert!(runner.faders.sliders[1][0].target.is_some());
-
-    bind(
-        &mut runner,
-        "play.faders.2.shiftTarget",
-        "sound.voiceStealingMode",
-    );
-
-    assert_eq!(toast(&runner), "Mapping rejected: target already claimed");
-    assert!(runner.faders.sliders[2][1].target.is_none());
 }
 
 #[test]
 fn fn_and_shift_fn_presses_do_not_edit_the_page_and_releases_are_consumed() {
     let mut runner = faders_runner();
     tap(&mut runner, 0, 2);
+    let set = velocity(&runner);
     held(&mut runner, "button_fn", |runner| tap(runner, 0, 6));
     assert_eq!(
         runner.active_play_mode, "none",
@@ -194,7 +232,7 @@ fn fn_and_shift_fn_presses_do_not_edit_the_page_and_releases_are_consumed() {
         tap(runner, 3, 6)
     });
     held(&mut runner, "button_fn", |runner| tap(runner, 3, 6));
-    assert_eq!(runner.faders.sliders[0][0].position, 2);
+    assert_eq!(velocity(&runner), set);
 
     let revision = runner.config_revision;
     let released = grid_release(&mut runner, 0, 5);
@@ -206,19 +244,18 @@ fn fn_and_shift_fn_presses_do_not_edit_the_page_and_releases_are_consumed() {
 }
 
 #[test]
-fn slider_targets_and_positions_round_trip_through_a_saved_patch() {
+fn slider_targets_and_set_values_round_trip_through_a_saved_patch() {
     let mut runner = faders_runner();
     set_menu_number(&mut runner, "play.faders.0.target.rangeMax", 120);
+    runner.active_play_mode = "faders".into();
     tap(&mut runner, 0, 4);
     held(&mut runner, "button_shift", |runner| tap(runner, 0, 1));
     let expected_velocity = velocity(&runner);
     let expected_length = note_length(&runner);
     let saved = runner.config_payload();
-    assert_eq!(
-        saved["runtimeConfig"]["faders"]["sliders"][0]["position"],
-        json!(4),
-        "{saved}"
-    );
+    let slider = &saved["runtimeConfig"]["faders"]["sliders"][0];
+    assert!(slider.get("position").is_none(), "{slider}");
+    assert_eq!(slider["target"]["userMax"], json!(120));
     let payload = portable_patch_payload_for_save(&saved).unwrap();
 
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -236,6 +273,15 @@ fn slider_targets_and_positions_round_trip_through_a_saved_patch() {
     assert_eq!(note_length(&loaded), expected_length);
     assert!(loaded.menu.focus_item_key("play.faders.0.target"));
     assert_eq!(loaded.menu.current_label(), Some("Target: Velocity Scale"));
+}
+
+#[test]
+fn a_saved_slider_position_is_rejected() {
+    let runner = faders_runner();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["faders"]["sliders"][0]["position"] = json!(3);
+    let error = crate::split_system_patch_documents(&payload).unwrap_err();
+    assert!(error.contains("sliders[0].position"), "{error}");
 }
 
 #[test]

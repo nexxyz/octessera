@@ -327,7 +327,10 @@ fn performance_across_both_banks_saves_and_restarts_clean() {
         config["faders"]["sliders"][0]["target"]["key"],
         "instruments.0.mixer.volume"
     );
-    assert_eq!(config["faders"]["sliders"][0]["position"], 3);
+    assert_eq!(
+        config["instruments"][0]["mixer"]["volume"], 43,
+        "F1 row 3 set I1 Volume"
+    );
     assert_eq!(config["layers"][0]["build"]["stepRate"], "1/8");
     assert_eq!(config["layers"][1]["link"]["scanUnit"], "1/8T");
     assert_eq!(

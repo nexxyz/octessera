@@ -80,51 +80,35 @@
       "sliders": [
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         },
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         },
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         },
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         },
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         },
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         },
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         },
         {
           "target": null,
-          "position": 0,
-          "shiftTarget": null,
-          "shiftPosition": 0
+          "shiftTarget": null
         }
       ],
       "actionCols": 0,

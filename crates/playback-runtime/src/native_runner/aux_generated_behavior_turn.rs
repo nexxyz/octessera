@@ -36,7 +36,7 @@ impl NativeRunner {
         Ok(Some(value))
     }
 
-    fn apply_generated_behavior_target_value(
+    pub(super) fn apply_generated_behavior_target_value(
         &mut self,
         key: &str,
         value: &str,

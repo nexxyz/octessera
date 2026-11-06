@@ -94,7 +94,10 @@ fn action_cols_turn_the_right_columns_into_tiles() {
     press_key(&mut runner, "play.faders.6.target.sound.velocityScalePct");
     runner.active_play_mode = "faders".into();
     tap(&mut runner, 6, 5);
-    assert_eq!(runner.faders.sliders[6][0].position, 0, "no slider here");
+    assert_eq!(
+        runner.global_sound.velocity_scale_pct, 100,
+        "no slider here"
+    );
     assert_eq!(led(&mut runner, 6, 5), LedColor::BLACK);
     assert_eq!(led(&mut runner, 6, 0), LedColor::WHITE.dim(2));
     assert_eq!(led(&mut runner, 7, 3), LedColor::YELLOW.dim(2));
@@ -102,7 +105,7 @@ fn action_cols_turn_the_right_columns_into_tiles() {
     set_menu_number(&mut runner, "play.faders.actionCols", 0);
     runner.active_play_mode = "faders".into();
     tap(&mut runner, 6, 5);
-    assert_eq!(runner.faders.sliders[6][0].position, 5);
+    assert_eq!(runner.global_sound.velocity_scale_pct, 143);
     assert_eq!(runner.faders.tiles.len(), 2, "tiles stay for later");
 }
 

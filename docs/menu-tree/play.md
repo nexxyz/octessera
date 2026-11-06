@@ -202,27 +202,28 @@ The menu lists the technical bank, then the musical bank.
 
 ## Faders
 
-- Each column is a vertical slider; rows `0..7` are its positions `0`, `1/7` .. `1`. A press
-  moves that column's slider to the row, Shift + press moves its second slider, so the page drives
-  16 parameters.
-- Each slider is a modulation source with its own picked target, `Range Min`/`Range Max` and
-  `Invert` (`Play > Faders > Fader n > Target`/`S+Target`): the bottom row gives Range Min, the top row
-  Range Max, reversed when inverted. The usual claim rules apply, so a second claim on an exclusive
-  target shows `Mapping rejected: target already claimed`. A new target, range or invert moves the
-  target to the slider's position at once.
+- Each column is a vertical slider; rows `0..7` stand for `0`, `1/7` .. `1` of its range. A press
+  sets that column's target to the row's value, Shift + press sets its second target, so the page
+  drives 16 parameters.
+- Each slider side has its own picked target, `Range Min`/`Range Max` and `Invert`
+  (`Play > Faders > Fader n > Target`/`S+Target`): the bottom row gives Range Min, the top row Range
+  Max, reversed when inverted. A new target, range or invert changes nothing until the next press.
+- A press writes the value through the menu edit, like the Mix page sets Volume, so it saves,
+  autosaves and rebases modulation like one. The slider does not hold it: a menu edit, an Aux turn
+  or a Preset > Load changes it freely afterwards. Sliders are not modulation sources and take no
+  claim.
 - Toast: `F3: Volume 57`, `S+F3: ...` for the Shift slider. A side without a target ignores
-  presses.
-- Targets and positions are saved with the patch, and a load sets every targeted slider's source
-  to its saved position, so a reloaded patch sounds as saved.
-- LEDs: each targeted column is a bar, bright up to the slider's row and dim above it, green for
-  the plain sliders and magenta while Shift is held. Columns without a target on the shown side
-  are dark.
+  presses; one whose target is not offered right now toasts `F3: Cutoff not active`.
+- Targets, ranges and inverts are saved with the patch; a slider has no saved position.
+- LEDs: each targeted column is a bar, bright up to the row nearest its target's current value
+  and dim above it, green for the plain sliders and magenta while Shift is held. Columns without a
+  target on the shown side, or whose target is not active, are dark.
 
 ### Action columns
 
 - `Action Cols: 0..8` turns that many columns, counted from the right, from sliders into tiles.
-  A slider in such a column keeps its target and holds its saved position, but presses no longer
-  move it. Each of the column's tiles holds one mapping:
+  A slider in such a column keeps its target, but presses no longer set it. Each of the column's
+  tiles holds one mapping:
   - `action`: a plain press runs `Action`, Shift + press runs `S+Action`, from the same list as an
     Aux click (the active layer's behavior actions, Sample Assign per instrument, Map FX, Reset
     Behavior) and through the same menu action. A behavior action keeps the layer it was picked

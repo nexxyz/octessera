@@ -16,9 +16,8 @@ pub(super) fn validate_faders(runtime: &Map<String, Value>) -> Result<(), String
     for (index, value) in sliders.iter().enumerate() {
         let path = format!("{PATH}.sliders[{index}]");
         let slider = object_value(value, &path)?;
-        for (target, position) in [("target", "position"), ("shiftTarget", "shiftPosition")] {
+        for target in ["target", "shiftTarget"] {
             validate_binding_field(slider, target, &path)?;
-            unsigned_field(slider, position, &path, 0, top)?;
         }
     }
     unsigned_field(faders, "actionCols", PATH, 0, count as u64)?;
@@ -71,26 +70,4 @@ fn validate_tile(
             "{path}.target must be null or a supported key on a param tile"
         )),
     }
-}
-
-/// The slider targets in claim order, for the exclusive-target check.
-pub(super) fn fader_slider_targets(
-    runtime: &Map<String, Value>,
-) -> impl Iterator<Item = (String, &Value)> {
-    runtime
-        .get("faders")
-        .and_then(|faders| faders.get("sliders"))
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .enumerate()
-        .flat_map(|(index, slider)| {
-            ["target", "shiftTarget"]
-                .into_iter()
-                .filter_map(move |field| {
-                    slider
-                        .get(field)
-                        .map(|binding| (format!("{PATH}.sliders[{index}].{field}"), binding))
-                })
-        })
 }
