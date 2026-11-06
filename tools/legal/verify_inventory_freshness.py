@@ -39,7 +39,7 @@ def verify_cargo_inventory(root: Path, errors: list[str]) -> None:
         return
     actual = sha256(lock_path.read_bytes())
     if inventory.get("cargo_lock_sha256") != actual:
-        errors.append("licenses/cargo/inventory.json is stale: cargo_lock_sha256 does not match Cargo.lock. Run corepack pnpm run licenses:cargo:generate.")
+        errors.append("licenses/cargo/inventory.json is stale: cargo_lock_sha256 does not match Cargo.lock. Run python3 tools/legal/dependency_license_generate.py.")
     errors.extend(
         check_checksum_manifest(root, root / "licenses/cargo/SHA256SUMS", "licenses/cargo")
     )
@@ -57,7 +57,7 @@ def verify_pnpm_inventory(root: Path, errors: list[str]) -> None:
         return
     actual = sha256(lock_path.read_bytes())
     if inventory.get("pnpm_lock_sha256") != actual:
-        errors.append("licenses/pnpm/inventory.json is stale: pnpm_lock_sha256 does not match pnpm-lock.yaml. Run corepack pnpm run licenses:pnpm:generate.")
+        errors.append("licenses/pnpm/inventory.json is stale: pnpm_lock_sha256 does not match pnpm-lock.yaml. Run python3 tools/legal/dependency_license_generate.py.")
     errors.extend(
         check_checksum_manifest(root, root / "licenses/pnpm/SHA256SUMS", "licenses/pnpm")
     )
