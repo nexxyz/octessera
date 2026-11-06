@@ -172,3 +172,66 @@ fn persistence_no_ops_and_store_errors_keep_confirmation_priority() {
         "Store unavailable"
     );
 }
+
+fn library_load_labels(runner: &NativeRunner) -> Vec<String> {
+    runner
+        .menu
+        .item_for_key("preset.library.load")
+        .unwrap()
+        .children
+        .iter()
+        .map(|item| item.label.clone())
+        .collect()
+}
+
+fn host_result(runner: &mut NativeRunner, result: RuntimeStoreResult) {
+    runner.send(HostMessage::RuntimeResult { result }).unwrap();
+}
+
+#[test]
+fn a_host_saved_preset_joins_the_load_lists_once_in_name_order() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    host_result(
+        &mut runner,
+        RuntimeStoreResult::ListPresetsResult {
+            names: vec!["Bass".into()],
+        },
+    );
+
+    for _ in 0..2 {
+        host_result(
+            &mut runner,
+            RuntimeStoreResult::SavePresetResult {
+                name: "Arp".into(),
+                outcome: "created".into(),
+            },
+        );
+    }
+
+    assert_eq!(library_load_labels(&runner), vec!["Arp", "Bass"]);
+    let shortcut = runner.menu.item_for_key("preset.load").unwrap();
+    assert_eq!(shortcut.children.len(), 2);
+}
+
+#[test]
+fn a_deleted_preset_leaves_the_load_lists() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    host_result(
+        &mut runner,
+        RuntimeStoreResult::ListPresetsResult {
+            names: vec!["Arp".into(), "Bass".into()],
+        },
+    );
+
+    host_result(
+        &mut runner,
+        RuntimeStoreResult::DeletePresetResult {
+            name: "Arp".into(),
+            ok: true,
+        },
+    );
+
+    assert_eq!(library_load_labels(&runner), vec!["Bass"]);
+}

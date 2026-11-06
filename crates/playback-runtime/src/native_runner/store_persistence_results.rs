@@ -198,6 +198,10 @@ impl NativeRunner {
                     }
                 }
                 self.show_toast(format!("Saved {name}"));
+                if !self.preset_names.contains(&name) {
+                    self.preset_names.push(name.clone());
+                    self.preset_names.sort_unstable();
+                }
                 self.current_preset_name = Some(name);
                 self.acknowledge_config_save(None);
                 self.show_preset_catalog();
@@ -206,6 +210,8 @@ impl NativeRunner {
                 if self.current_preset_name.as_deref() == Some(name.as_str()) {
                     self.current_preset_name = None;
                 }
+                self.preset_names.retain(|entry| *entry != name);
+                self.show_preset_catalog();
                 self.show_toast(format!("Deleted {name}"));
             }
             RuntimeStoreResult::SaveDefaultResult { ok, is_auto: _ } if ok => {
