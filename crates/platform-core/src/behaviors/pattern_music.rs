@@ -173,10 +173,10 @@ pub fn pattern_render_model(state: &PatternBehaviorState) -> BehaviorRenderModel
 
 pub fn pattern_config_menu() -> Vec<BehaviorConfigItem> {
     vec![
-        number_item("densityPct", "density", 10, 80, 5),
-        number_item("variationPct", "variation", 0, 100, 5),
-        number_item("cycleLength", "cycle", 4, 32, 1),
-        number_item("seed", "seed", 1, 9999, 1),
+        number_item("densityPct", "Density", 10, 80, 5),
+        number_item("variationPct", "Variation", 0, 100, 5),
+        number_item("cycleLength", "Cycle", 4, 32, 1),
+        number_item("seed", "Seed", 1, 9999, 1),
     ]
 }
 

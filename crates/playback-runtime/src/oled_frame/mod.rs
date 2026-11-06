@@ -1,5 +1,6 @@
 mod aux_cap;
 mod body_animation;
+mod body_wrap;
 mod error_layout;
 mod font;
 mod font_5x7;
@@ -25,13 +26,18 @@ pub const OLED_WIDTH: usize = 128;
 pub const OLED_HEIGHT: usize = 128;
 pub const OLED_FRAME_BYTES: usize = OLED_WIDTH * OLED_HEIGHT * 2;
 
+pub(crate) use body_wrap::{body_text_fits, wrap_body_text};
 pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
+#[cfg(test)]
+pub(crate) use font::clip_log;
 pub use font::OledFont;
 pub(crate) use header::breadcrumb_fits;
 pub use master_contrast::{oled_master_contrast_step, OLED_MASTER_CONTRAST_STEPS};
 #[cfg(test)]
 pub(crate) use menu_row_layout::menu_row_clips;
-pub(crate) use menu_row_layout::menu_row_text_overflows;
+pub(crate) use menu_row_layout::{
+    menu_row_scrolls_value, menu_row_text_overflows, text_edit_window_start,
+};
 pub(crate) use menu_rows::rows_show_aux_caps;
 pub use model::{
     OledAnimationInput, OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle,

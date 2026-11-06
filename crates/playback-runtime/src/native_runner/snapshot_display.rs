@@ -4,8 +4,8 @@ use crate::native_menu::{
     NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
 };
 use crate::oled_frame::{
-    menu_row_text_overflows, rows_show_aux_caps, OledAuxCap, OledDisplayLayout, OledFont,
-    OledMenuRowInput, OledMenuRowKind,
+    menu_row_scrolls_value, menu_row_text_overflows, rows_show_aux_caps, text_edit_window_start,
+    OledAuxCap, OledDisplayLayout, OledFont, OledMenuRowInput, OledMenuRowKind,
 };
 
 mod modal_screens;
@@ -121,12 +121,11 @@ impl NativeRunner {
                     }
                 })
                 .collect();
+            let font = OledFont::from_setting(&self.display.ui.main_font);
             if !self.menu.state.editing || selected_link_instrument_target {
-                scroll_selected_label(
-                    &mut display,
-                    self.display.menu_scroll_offset,
-                    OledFont::from_setting(&self.display.ui.main_font),
-                );
+                scroll_selected_label(&mut display, self.display.menu_scroll_offset, font);
+            } else {
+                keep_text_cursor_in_view(&mut display, font);
             }
         }
         display.colors.truncate(display.lines.len());
@@ -165,6 +164,24 @@ fn scroll_display_line_once(line: &str, full_line: Option<&str>, ticks: usize) -
 
 /// Scrolls the selected row's label, or a picker's value, through its slot when it is wider
 /// than its room.
+/// A text row being edited shows the part of its value that keeps the cursor in view.
+fn keep_text_cursor_in_view(display: &mut DisplaySnapshot, font: OledFont) {
+    let Some(index) = display.selected_row else {
+        return;
+    };
+    let has_bar = display.bar_values.get(index).is_some_and(Option::is_some);
+    let gutter =
+        display.body_layout == OledDisplayLayout::Rows && rows_show_aux_caps(&display.rows);
+    let Some(row) = display.rows.get_mut(index).and_then(Option::as_mut) else {
+        return;
+    };
+    let start = text_edit_window_start(row, has_bar, gutter, font);
+    if start > 0 {
+        row.value.replace_range(..start, "");
+        row.text_cursor = row.text_cursor.map(|cursor| cursor - start);
+    }
+}
+
 fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize, font: OledFont) {
     if ticks < SELECTED_LINE_SCROLL_TICKS_PER_CHAR {
         return;
@@ -181,7 +198,7 @@ fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize, font: Oled
     if !menu_row_text_overflows(row, has_bar, gutter, font) {
         return;
     }
-    let text = if row.kind == OledMenuRowKind::Picker {
+    let text = if menu_row_scrolls_value(row, has_bar, gutter, font) {
         &mut row.value
     } else {
         &mut row.label

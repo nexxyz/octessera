@@ -70,11 +70,12 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
     }
     if runner.layer_auto_names.get(index).copied().unwrap_or(true) {
         if let Some(target) = runner.layer_names.get_mut(index) {
-            *target = runner
-                .layer_behavior_ids
-                .get(index)
-                .cloned()
-                .unwrap_or_else(|| runner.behavior.id().into());
+            *target = super::behavior_menu::behavior_display_label(
+                runner
+                    .layer_behavior_ids
+                    .get(index)
+                    .map_or_else(|| runner.behavior.id(), String::as_str),
+            );
         }
         return;
     }

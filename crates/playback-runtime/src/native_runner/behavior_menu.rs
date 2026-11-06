@@ -427,9 +427,14 @@ pub(super) fn serialized_behavior_state_enum_default(
 }
 
 fn behavior_selector_label(behavior_id: &str) -> String {
-    let label = platform_core::behavior_catalog()
+    format!("Beh.: {}", behavior_display_label(behavior_id))
+}
+
+/// A behavior's catalog label (`fractal explorer`), which also names an auto-labelled layer.
+pub(super) fn behavior_display_label(behavior_id: &str) -> String {
+    platform_core::behavior_catalog()
         .iter()
         .find(|entry| entry.id == behavior_id)
-        .map_or(behavior_id, |entry| entry.label);
-    format!("Beh.: {label}")
+        .map_or(behavior_id, |entry| entry.label)
+        .into()
 }

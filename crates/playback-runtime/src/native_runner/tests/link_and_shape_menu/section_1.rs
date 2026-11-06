@@ -235,8 +235,8 @@ pub(crate) fn instrument_list_shows_compact_name_labels() {
         .clone();
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("").contains("I1: synth")));
+        .any(|line| line.as_str().unwrap_or("").contains("I1: Synth")));
     assert!(lines
         .iter()
-        .any(|line| line.as_str().unwrap_or("").contains("I2: samp direct")));
+        .any(|line| line.as_str().unwrap_or("").contains("I2: Sampler")));
 }

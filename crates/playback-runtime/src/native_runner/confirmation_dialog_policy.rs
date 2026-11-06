@@ -19,11 +19,11 @@ impl NativeRunner {
         if let Some((title, detail)) = instrument_detail {
             return Some(NativeConfirmDialog {
                 title: title.into(),
-                lines: wrap_help_text(&detail, 28),
+                lines: wrap_help_text(&detail),
                 options: vec!["Cancel".into(), "Confirm".into()],
                 cursor: 0,
                 action: action.clone(),
-                cancel_toast: Some("Cancelled".into()),
+                cancel_toast: Some("Canceled".into()),
                 confirm_before_execute: false,
             });
         }
@@ -68,7 +68,7 @@ impl NativeRunner {
                     options: vec!["Cancel".into(), "Open Portal".into()],
                     cursor: 0,
                     action: action.clone(),
-                    cancel_toast: Some("Cancelled".into()),
+                    cancel_toast: Some("Canceled".into()),
                     confirm_before_execute: false,
                 });
             } else if action_type == "maintenance.hold" {
@@ -84,7 +84,7 @@ impl NativeRunner {
                     options: vec!["Cancel".into(), "Start".into()],
                     cursor: 0,
                     action: action.clone(),
-                    cancel_toast: Some("Cancelled".into()),
+                    cancel_toast: Some("Canceled".into()),
                     confirm_before_execute: false,
                 });
             } else if action_type == "system.updateApply" {
@@ -96,7 +96,7 @@ impl NativeRunner {
                 )
             } else {
                 let (title, kind, rest) = [
-                    ("Confirm Synth", "synth preset", "synth.preset:"),
+                    ("Confirm Synth", "Synth preset", "synth.preset:"),
                     ("Confirm FM", "FM preset", "fm.preset:"),
                     ("Confirm Plucked", "Plucked preset", "pluck.preset:"),
                     ("Confirm Sampler", "Sampler kit", "sample.kit:"),
@@ -110,21 +110,20 @@ impl NativeRunner {
                 })?;
                 let (slot, choice) = rest.split_once(':')?;
                 let slot = slot.parse::<usize>().ok()?.checked_add(1)?;
-                (title, format!("Load I{slot} {kind} {choice}?"))
+                let name = self
+                    .menu
+                    .action_label(action)
+                    .unwrap_or_else(|| choice.to_string());
+                (title, format!("Load I{slot} {kind} {name}?"))
             };
         let options = vec!["Cancel".into(), "Confirm".into()];
-        let detail_width = if matches!(action_type.as_str(), "system.save" | "system.load") {
-            19
-        } else {
-            28
-        };
         Some(NativeConfirmDialog {
             title: title.into(),
-            lines: wrap_help_text(&detail, detail_width),
+            lines: wrap_help_text(&detail),
             options,
             cursor: 0,
             action: action.clone(),
-            cancel_toast: Some("Cancelled".into()),
+            cancel_toast: Some("Canceled".into()),
             confirm_before_execute: false,
         })
     }

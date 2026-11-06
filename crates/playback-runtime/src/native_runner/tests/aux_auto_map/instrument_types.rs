@@ -69,7 +69,7 @@ fn assert_overlay(runner: &mut NativeRunner, title: &str, labels: [&str; 3]) {
     let snapshot = runner.snapshot().unwrap();
     assert_eq!(snapshot["display"]["title"], "AUX MAP");
     let lines = &runner.display.help_popup.as_ref().unwrap().lines;
-    assert_eq!(lines[0], title);
+    assert_eq!(lines[0], format!("Auto: {title}"));
     for (index, label) in labels.into_iter().enumerate() {
         let prefix = format!("A{} T ", index + 1);
         let rows = lines

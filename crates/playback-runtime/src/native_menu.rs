@@ -20,7 +20,7 @@ mod binding_picker_voice;
 mod binding_tree;
 mod bindings;
 mod format;
-mod format_values;
+pub(crate) mod format_values;
 mod fx;
 mod fx_params;
 mod help;

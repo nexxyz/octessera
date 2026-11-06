@@ -82,11 +82,10 @@ impl NativeRunner {
         let Some(name) = self.layer_names.get_mut(layer_index) else {
             return false;
         };
-        if name == behavior_id {
-            return false;
-        }
-        *name = behavior_id.into();
-        true
+        super::menu_apply_fast::value_changed(
+            name,
+            super::behavior_menu::behavior_display_label(behavior_id),
+        )
     }
 
     pub(super) fn refresh_active_mapping_config(&mut self) {

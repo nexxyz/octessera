@@ -1,4 +1,5 @@
 use super::NativeRunner;
+use crate::native_menu::format_values::format_display_value;
 use crate::native_menu::{NativeMenuItem, NativeMenuValue};
 
 impl NativeRunner {
@@ -42,7 +43,7 @@ impl NativeRunner {
         coarse: bool,
     ) -> Result<Option<(String, String)>, String> {
         if let Some(value) = self.turn_generated_behavior_target(key, delta, coarse)? {
-            return Ok(Some((label.into(), value.to_string())));
+            return Ok(Some((label.into(), format_display_value(Some(key), value))));
         }
         if self.menu.turn_key_with_precision(key, delta, coarse) {
             self.apply_or_schedule_menu_key(key)?;
@@ -50,6 +51,7 @@ impl NativeRunner {
                 .menu
                 .value_for_key(key)
                 .or_else(|| self.menu.number_for_key(key).map(|value| value.to_string()))
+                .map(|value| format_display_value(Some(key), value))
                 .unwrap_or_else(|| "changed".into());
             return Ok(Some((label.into(), value)));
         }
@@ -59,14 +61,15 @@ impl NativeRunner {
     }
 }
 
-/// A turn on a hidden delay time row reports its stored value: in note mode Time ms follows the
+/// A turn on a hidden delay time row reports its stored value: in note mode Time follows the
 /// note, so there is nothing for the turn to change.
 fn hidden_row_value(item: &NativeMenuItem) -> String {
-    match &item.value {
+    let value = match &item.value {
         NativeMenuValue::Number { value, .. } => value.to_string(),
         NativeMenuValue::Enum { options, selected } => {
             options.get(*selected).cloned().unwrap_or_default()
         }
-        _ => String::new(),
-    }
+        _ => return String::new(),
+    };
+    format_display_value(item.key.as_deref(), value)
 }

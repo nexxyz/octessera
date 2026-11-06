@@ -32,7 +32,7 @@ The pre-push hook runs it too. The recipe lives in
 ### 2. Build and paint
 
 1. `Build > L1 > Behavior > Cellular > life`; `Step Rate 1/16`; turn
-   `Spawn Count` and `Spawn Interval` all the way down (`0` and `1`).
+   `Spawn Count` and `Spawn Interval` all the way down (`Off` and `1`).
 2. Paint the L1 double-line cross: rows 3 and 4, then columns 3 and 4.
 3. `L2 > Behavior > Human > sequencer`; `Step Rate 1/8`.
 4. Paint L2: `0,0 2,0 4,0 6,0`, then `2,1 4,1`, then `1,2 3,2 5,2 7,2`.
@@ -40,22 +40,22 @@ The pre-push hook runs it too. The recipe lives in
 
 ### 3. Link
 
-1. `Link`: check `BPM 120`.
-2. `L1 > Events`: check `On Trig note_on` and `On Inst I1`.
+1. `Link`: check `BPM 120bpm`.
+2. `L1 > Events`: check `On Trig note on` and `On Inst I1`.
 3. `L1 > Note Mapping > Set > Pentatonic > Major Pentatonic`; check
    `Set Maj Pent` and `Root D`; turn `1st Note` up by 2.
 4. `L2 > Scanning`: `Scan Mode scanning`, `Scan Axis rows`, `Sections 1`,
    `Scan Unit 1/8`.
 5. `L2 > Events`: `Event Triggers On`; check `On Inst I2`.
-6. `L3 > Events`: `Event Triggers On`; check `On Inst I3`, `On Trig note_on`,
-   and `Off Inst I3`; set the deactivation trigger to `note_off`.
+6. `L3 > Events`: `Event Triggers On`; check `On Inst I3`, `On Trig note on`,
+   and `Off Inst I3`; set the deactivation trigger to `note off`.
 7. `L3 > Note Mapping`: same scale, root, and `1st Note` steps as L1.
 
 ### 4. Shape and samples
 
-1. `Shape > Instruments > I1`: `Type synth`; `Synth > Filter`, turn `Cutoff`
+1. `Shape > Instruments > I1`: `Type Synth`; `Synth > Filter`, turn `Cutoff`
    up by 10; `Mixer > Route fxb1`.
-2. `I2`: `Type sampler`, then `Sampler`. For each sample, turn `Sample Slot`,
+2. `I2`: `Type Sampler`, then `Sampler`. For each sample, turn `Sample Slot`,
    open `Browse`, answer the sample-list request with one file, pick it, choose
    `Assign`, and press a whole grid row:
    - `Kick2.wav` on row 0;
@@ -64,9 +64,9 @@ The pre-push hook runs it too. The recipe lives in
 
    The slot turns are relative (0, then +1, then +2), so the hat ends up in
    the fourth slot; the expected fixture records exactly that.
-3. `I3`: `Type synth`, `Note Mode hold`, `Mixer > Route fxb1`.
-4. `FX Buses > B1 > Slot 1`: `Type delay`. `Slot 2`: `Type duck`,
-   `Source I2`; check `Amount 60`.
+3. `I3`: `Type Synth`, `Note Mode hold`, `Mixer > Route fxb1`.
+4. `FX Buses > B1 > Slot 1`: `Type Delay`. `Slot 2`: `Type Duck`,
+   `Source I2`; check `Amount 60%`.
 
 ### 5. Aux, XY, and Play FX
 

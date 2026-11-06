@@ -2,7 +2,8 @@ use super::*;
 use crate::native_menu::format::{format_item_bar_value, format_item_row};
 use crate::native_runner::{NativeRunner, NativeRunnerConfig};
 use crate::oled_frame::{
-    menu_row_clips, menu_row_text_overflows, OledFont, OledMenuRowInput, OledMenuRowKind,
+    menu_row_clips, menu_row_scrolls_value, menu_row_text_overflows, OledFont, OledMenuRowInput,
+    OledMenuRowKind,
 };
 
 const FONTS: [OledFont; 2] = [OledFont::Octessera, OledFont::Original];
@@ -88,10 +89,10 @@ fn first_clipped_row(item: &NativeMenuItem) -> Option<String> {
         }
         if matches!(item.value, NativeMenuValue::Text { .. }) {
             row.value = "W".repeat(40);
-            if FONTS
-                .into_iter()
-                .any(|font| menu_row_text_overflows(&row, false, true, font))
-            {
+            if FONTS.into_iter().any(|font| {
+                menu_row_text_overflows(&row, false, true, font)
+                    && !menu_row_scrolls_value(&row, false, true, font)
+            }) {
                 return Some(format!("{} | <name>", row.label));
             }
             continue;
@@ -138,7 +139,7 @@ fn collect_clipped(
     }
 }
 
-fn behavior_configs() -> Vec<NativeMenuConfig> {
+pub(super) fn behavior_configs() -> Vec<NativeMenuConfig> {
     platform_core::list_native_behavior_ids()
         .iter()
         .map(|behavior_id| {

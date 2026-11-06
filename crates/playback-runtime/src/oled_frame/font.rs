@@ -95,6 +95,10 @@ impl PixelFont {
                 marker: false,
             };
         }
+        #[cfg(test)]
+        if !marker.is_empty() {
+            clip_log::push(text);
+        }
         let marker_advance = self.advance(marker);
         let mut advance = 0;
         let mut end = None;
@@ -177,5 +181,31 @@ impl PixelFont {
             ink.leading_zeros() as usize,
             7 - ink.trailing_zeros() as usize,
         )
+    }
+}
+
+/// The texts the renderer clipped with a marker since `start`, for the screen sweep test.
+#[cfg(test)]
+pub(crate) mod clip_log {
+    use std::cell::RefCell;
+
+    thread_local! {
+        static LOG: RefCell<Option<Vec<String>>> = const { RefCell::new(None) };
+    }
+
+    pub(crate) fn push(text: &str) {
+        LOG.with(|log| {
+            if let Some(log) = log.borrow_mut().as_mut() {
+                log.push(text.to_string());
+            }
+        });
+    }
+
+    pub(crate) fn start() {
+        LOG.with(|log| *log.borrow_mut() = Some(Vec::new()));
+    }
+
+    pub(crate) fn take() -> Vec<String> {
+        LOG.with(|log| log.borrow_mut().take().unwrap_or_default())
     }
 }

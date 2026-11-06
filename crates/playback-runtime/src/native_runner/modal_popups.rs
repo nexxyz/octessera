@@ -2,8 +2,6 @@ use super::{
     wrap_help_text, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeUsbSdTransferModal,
 };
 
-const OLED_HELP_LINE_WIDTH: usize = 18;
-
 #[cfg(test)]
 mod terminal_tests;
 
@@ -13,7 +11,6 @@ impl NativeRunner {
             title: "Help: Basic Help".into(),
             lines: wrap_help_text(
                 "Help Sh+Fn+Main. Back Back. Play/Pause Play. Stop/Sync Sh+Play. Reset Stop Fn+Play. Fn nav: left layer, right Play. Sh+Fn right: musical. Sh+Fn left: mute layer. Fn+Aux bind. Fn+Main Aux map.",
-                OLED_HELP_LINE_WIDTH,
             ),
             scroll: 0,
         });
@@ -32,10 +29,12 @@ impl NativeRunner {
             self.show_toast(format!("Missing help: {}", target.label));
             return;
         };
-        let title = format!("Help: {}", help.title);
+        let title = Some(format!("Help: {}", help.title))
+            .filter(|title| crate::oled_frame::breadcrumb_fits(title))
+            .unwrap_or(help.title);
         self.display.help_popup = Some(NativeHelpPopup {
             title,
-            lines: wrap_help_text(&help.detail, OLED_HELP_LINE_WIDTH),
+            lines: wrap_help_text(&help.detail),
             scroll: 0,
         });
     }
@@ -60,10 +59,7 @@ impl NativeRunner {
     pub(super) fn open_usb_sd_transfer_modal(&mut self) {
         self.display.usb_sd_transfer_modal = Some(NativeUsbSdTransferModal {
             title: "SD2 Transfer".into(),
-            lines: wrap_help_text(
-                "SD2 active/waiting. Eject on host, then Back/Main to stop.",
-                OLED_HELP_LINE_WIDTH,
-            ),
+            lines: wrap_help_text("SD2 active/waiting. Eject on host, then Back/Main to stop."),
         });
     }
 

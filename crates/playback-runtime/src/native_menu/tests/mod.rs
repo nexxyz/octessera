@@ -3,6 +3,7 @@ use platform_core::AUX_ENCODER_COUNT;
 use platform_core::LAYER_COUNT;
 
 mod breadcrumb;
+mod display_values;
 mod drum;
 mod dsp_mode;
 mod duck_ranges;

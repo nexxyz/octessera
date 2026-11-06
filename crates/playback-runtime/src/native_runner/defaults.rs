@@ -1,3 +1,5 @@
+use crate::native_menu::format_values::{fx_type_label, instrument_kind_label};
+
 use super::{
     json, NativeFxBus, NativeInstrumentSlot, NativeLinkLayer, Value, BUS_COUNT,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT, LAYER_COUNT,
@@ -30,43 +32,6 @@ pub(super) fn derive_bus_name_from_slots(slots: [&str; 3]) -> String {
 
 fn non_none_bus_slots(slots: [&str; 3]) -> Vec<&str> {
     slots.into_iter().filter(|slot| *slot != "none").collect()
-}
-
-fn instrument_kind_label(kind: &str) -> &'static str {
-    match kind {
-        "synth" => "Synth",
-        "fm" => "FM",
-        "pluck" => "Plucked",
-        "drum" => "Drum",
-        "sampler" => "Sampler",
-        "midi" => "MIDI Inst.",
-        "midi_drum" => "MIDI Drum",
-        _ => "None",
-    }
-}
-
-fn fx_type_label(slot_type: &str) -> &str {
-    match slot_type {
-        "none" => "None",
-        "delay" => "Delay",
-        "duck" => "Duck",
-        "reverb" => "Reverb",
-        "tremolo" => "Tremolo",
-        "saturator" => "Saturator",
-        "distortion" => "Distortion",
-        "bitcrusher" => "Bitcrusher",
-        "vibrato" => "Vibrato",
-        "chorus" => "Chorus",
-        "flanger" => "Flanger",
-        "filter_lfo" => "Filter LFO",
-        "wah" => "Wah",
-        "auto_pan" => "Auto Pan",
-        "glitch" => "Glitch",
-        "compressor" => "Compressor",
-        "eq" => "EQ",
-        "vinyl" => "Vinyl",
-        _ => slot_type,
-    }
 }
 
 pub(super) fn default_instruments() -> Vec<NativeInstrumentSlot> {

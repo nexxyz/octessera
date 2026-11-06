@@ -43,7 +43,7 @@ pub(crate) fn auto_map_context_updates_after_navigation_only_group_enter() {
     }
     assert_eq!(
         runner.display.help_popup.as_ref().unwrap().lines[0],
-        "Build"
+        "Auto: Build"
     );
 }
 
@@ -231,7 +231,7 @@ pub(crate) fn fn_aux_bind_sets_explicit_toast_and_marks_patch_dirty() {
 
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "Clk-1: Bound turn: Master Vol"
+        "Trn-1: Bound Master Vol"
     );
     assert!(runner.config_dirty);
     assert!(runner.pending.system_persistence.dirty_revision.is_none());
@@ -336,7 +336,7 @@ pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
     );
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "S+Clk-1: Bound turn: Master Vol"
+        "S+Trn-1: Bound Master Vol"
     );
 
     runner.display.ui.combined_modifier_held = false;

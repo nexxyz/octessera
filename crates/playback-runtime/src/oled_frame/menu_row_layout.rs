@@ -79,8 +79,13 @@ pub(super) fn row_layout<'a>(
             (marker_width('>'), fit.end, fit.marker)
         }
         RowValue::Text(text) => {
+            let cursor = if row.text_cursor.is_some() {
+                usize::from(font.glyph(' ').advance)
+            } else {
+                0
+            };
             let room = (VALUE_LAST + 1)
-                .saturating_sub(name_x + font.width(&name) + NAME_VALUE_GAP)
+                .saturating_sub(name_x + font.width(&name) + NAME_VALUE_GAP + cursor)
                 .max(MINI_WIDTH);
             let fit = font.fit(text, room, CLIP_MARKER);
             let shown = font.advance(&text[..fit.end])
@@ -89,11 +94,6 @@ pub(super) fn row_layout<'a>(
                 } else {
                     0
                 };
-            let cursor = if row.text_cursor.is_some() {
-                usize::from(font.glyph(' ').advance)
-            } else {
-                0
-            };
             (shown.saturating_sub(1) + cursor, fit.end, fit.marker)
         }
     };
@@ -116,8 +116,8 @@ pub(super) fn row_layout<'a>(
     }
 }
 
-/// Whether a row's scrolling text, its label or a picker's value, is wider than its room, so
-/// the selected row scrolls it.
+/// Whether a row's scrolling text, its label, a picker's value or a clipped text value, is wider
+/// than its room, so the selected row scrolls it.
 pub(crate) fn menu_row_text_overflows(
     row: &OledMenuRowInput,
     has_bar: bool,
@@ -130,8 +130,57 @@ pub(crate) fn menu_row_text_overflows(
     let layout = row_layout(row, bar.as_ref(), name_x, font);
     match layout.value {
         RowValue::Picked(_) => layout.value_clipped,
+        RowValue::Text(_) if layout.value_clipped => true,
         _ => font.width(&layout.name) > layout.name_room,
     }
+}
+
+/// Whether the selected row scrolls its value rather than its label: a picker's value, or a
+/// text value clipped next to a label that fits.
+pub(crate) fn menu_row_scrolls_value(
+    row: &OledMenuRowInput,
+    has_bar: bool,
+    gutter: bool,
+    font: OledFont,
+) -> bool {
+    let font = font.main();
+    let bar = has_bar.then(OledBarInput::default);
+    let name_x = if gutter { NAME_X } else { LIST_NAME_X };
+    let layout = row_layout(row, bar.as_ref(), name_x, font);
+    match layout.value {
+        RowValue::Picked(_) => true,
+        RowValue::Text(_) => layout.value_clipped && font.width(&layout.name) <= layout.name_room,
+        _ => false,
+    }
+}
+
+/// Where a text row being edited starts showing its value: the first character that lets the
+/// rest fit, never past the cursor, so the cursor stays in view.
+pub(crate) fn text_edit_window_start(
+    row: &OledMenuRowInput,
+    has_bar: bool,
+    gutter: bool,
+    font: OledFont,
+) -> usize {
+    let Some(cursor) = row.text_cursor else {
+        return 0;
+    };
+    let font = font.main();
+    let bar = has_bar.then(OledBarInput::default);
+    let name_x = if gutter { NAME_X } else { LIST_NAME_X };
+    row.value
+        .char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= cursor)
+        .find(|start| {
+            let shown = OledMenuRowInput {
+                value: row.value[*start..].to_string(),
+                text_cursor: Some(cursor - start),
+                ..row.clone()
+            };
+            !row_layout(&shown, bar.as_ref(), name_x, font).value_clipped
+        })
+        .unwrap_or(0)
 }
 
 /// Whether a row clips its label or a value that does not scroll.

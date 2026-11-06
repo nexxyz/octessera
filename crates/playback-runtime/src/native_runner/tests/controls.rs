@@ -23,7 +23,7 @@ pub(crate) fn controls_action_opens_help_without_platform_effects() {
         .as_array()
         .unwrap()
         .iter()
-        .all(|line| line.as_str().unwrap_or_default().chars().count() <= 18));
+        .all(|line| crate::oled_frame::body_text_fits(line.as_str().unwrap_or_default())));
     let text = runner.display.help_popup.as_ref().unwrap().lines.join(" ");
     for shortcut in ["Help Sh+Fn+Main", "Sh+Fn right: musical", "Fn+Main Aux map"] {
         assert!(text.contains(shortcut), "{shortcut} missing from {text}");
@@ -157,7 +157,7 @@ pub(crate) fn system_info_popup_formats_scrolls_and_dismisses_natively() {
         .as_array()
         .unwrap()
         .iter()
-        .all(|line| line.as_str().unwrap().chars().count() <= 18));
+        .all(|line| crate::oled_frame::body_text_fits(line.as_str().unwrap())));
     let scrolled = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
@@ -176,7 +176,7 @@ pub(crate) fn system_info_popup_formats_scrolls_and_dismisses_natively() {
         .as_array()
         .unwrap()
         .iter()
-        .all(|line| line.as_str().unwrap().chars().count() <= 18));
+        .all(|line| crate::oled_frame::body_text_fits(line.as_str().unwrap())));
 
     let closed = runner
         .send(HostMessage::DeviceInput {

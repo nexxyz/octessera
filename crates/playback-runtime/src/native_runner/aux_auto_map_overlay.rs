@@ -1,7 +1,7 @@
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxSlot};
 use super::*;
 use crate::native_menu::section_labels::{BUILD_LABEL, PLAY_LABEL};
-use crate::oled_frame::{wrap_text, MENU_BODY_RECT};
+use crate::oled_frame::body_text_fits;
 
 impl NativeRunner {
     pub(super) fn aux_mapping_popup(&self) -> NativeHelpPopup {
@@ -10,8 +10,8 @@ impl NativeRunner {
             .map(|index| self.effective_shift_aux_slot(index))
             .collect::<Vec<_>>();
         let mut lines = Vec::new();
-        let context = self.aux_overlay_context_label();
-        if context.chars().count() <= MENU_BODY_RECT.columns() {
+        let context = format!("Auto: {}", self.aux_overlay_context_label());
+        if body_text_fits(&context) {
             lines.push(context);
         }
         append_aux_mapping_lines(&mut lines, &normal_slots, false);
@@ -86,12 +86,21 @@ fn append_aux_binding_line(
         (Some(label), AuxBindingSource::Custom) => format!("custom: {label}"),
         _ => "-".into(),
     };
-    let content_width = MENU_BODY_RECT.columns() - prefix.chars().count();
-    lines.extend(
-        wrap_text(&value, content_width)
-            .into_iter()
-            .map(|row| format!("{prefix}{row}")),
-    );
+    let mut row = String::new();
+    for word in value.split_whitespace() {
+        let joined = if row.is_empty() {
+            word.to_string()
+        } else {
+            format!("{row} {word}")
+        };
+        if row.is_empty() || body_text_fits(&format!("{prefix}{joined}")) {
+            row = joined;
+        } else {
+            lines.push(format!("{prefix}{row}"));
+            row = word.to_string();
+        }
+    }
+    lines.push(format!("{prefix}{row}"));
 }
 
 fn overlay_title() -> &'static str {
@@ -210,9 +219,7 @@ mod tests {
                 }
             }
         }
-        assert!(lines
-            .iter()
-            .all(|line| line.chars().count() <= MENU_BODY_RECT.columns()));
+        assert!(lines.iter().all(|line| body_text_fits(line)));
         assert!(lines.iter().any(|line| line == "A1 T auto: Cutoff"));
         assert!(lines.iter().any(|line| line == "A1 C -"));
         assert!(lines.iter().any(|line| line == "A2 T custom:"));
@@ -239,9 +246,7 @@ mod tests {
             .filter(|line| line.starts_with("A1 T "))
             .collect::<Vec<_>>();
         assert!(wrapped.len() > 1);
-        assert!(wrapped
-            .iter()
-            .all(|line| line.chars().count() <= MENU_BODY_RECT.columns()));
+        assert!(wrapped.iter().all(|line| body_text_fits(line)));
         assert_eq!(
             wrapped
                 .iter()

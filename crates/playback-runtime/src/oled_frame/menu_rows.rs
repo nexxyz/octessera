@@ -68,6 +68,8 @@ const PLAIN_INSET: LeftInset = LeftInset {
     bar_x: 0,
     name_x: 2,
 };
+/// The pixels a plain overlay line has for its text.
+pub(super) const PLAIN_LINE_ROOM: usize = VALUE_LAST + 1 - PLAIN_INSET.name_x;
 
 pub(super) fn left_inset(display: &OledDisplayInput) -> LeftInset {
     if has_gutter(display) {

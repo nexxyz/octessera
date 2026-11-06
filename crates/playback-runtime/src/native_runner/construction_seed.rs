@@ -100,7 +100,10 @@ impl NativeRunnerConstructionSeed {
             aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
             shift_aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
             layer_behavior_ids: vec![behavior_id.clone(); LAYER_COUNT],
-            layer_names: vec![behavior_id; LAYER_COUNT],
+            layer_names: vec![
+                super::behavior_menu::behavior_display_label(&behavior_id);
+                LAYER_COUNT
+            ],
             layer_auto_names: vec![true; LAYER_COUNT],
             sample_favourite_dirs: Vec::new(),
             sample_builtin_favourite_dirs: config.sample_builtin_favourite_dirs.clone(),

@@ -176,7 +176,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
             .flatten()
             .find(|line| line.contains("Glide"))
             .map(String::as_str),
-        Some("  Glide 120 ms")
+        Some("  Glide 120ms")
     );
 }
 
@@ -198,11 +198,11 @@ pub(crate) fn play_fx_page_is_flat_and_shows_selected_type_params() {
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Rate Hz"));
+        .any(|item| item.label == "Rate"));
     assert!(menu
         .current_siblings()
         .iter()
-        .any(|item| item.label == "Rate Hz"
+        .any(|item| item.label == "Rate"
             && matches!(item.value, NativeMenuValue::Number { value: 12, .. })));
     assert!(menu
         .current_siblings()
@@ -259,7 +259,7 @@ pub(crate) fn play_aux_map_rows_show_the_mapped_controls() {
         .iter()
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
-    assert!(labels.contains(&"Rate Hz"));
+    assert!(labels.contains(&"Rate"));
     assert!(labels.contains(&"Depth"));
     assert!(labels.contains(&"Map to Grid"));
 }
@@ -432,8 +432,9 @@ pub(crate) fn play_fx_rows_show_short_type_names_and_note_values() {
     for (fx_type, shown) in [
         ("trance_gate", "gate"),
         ("dub_throw", "dub"),
-        ("tape_stop", "tape_stop"),
-        ("hp_riser", "hp_riser"),
+        ("tape_stop", "tape stop"),
+        ("hp_riser", "HP riser"),
+        ("filter_sweep", "filter sweep"),
     ] {
         assert_eq!(format_display_value(Some("play.fx.type"), fx_type), shown);
     }

@@ -17,11 +17,11 @@ pub(super) fn navigate_to_cutoff(
     press_main(playback, runner, dispatch)?;
     expect_focus(playback, "Shape", "Instruments", board)?;
     press_main(playback, runner, dispatch)?;
-    expect_focus(playback, "Instruments", "I1: synth", board)?;
+    expect_focus(playback, "Instruments", "I1: Synth", board)?;
     press_main(playback, runner, dispatch)?;
-    expect_focus(playback, "synth", "Type synth", board)?;
+    expect_focus(playback, "I1: Synth", "Type Synth", board)?;
     turn_main(playback, runner, dispatch, 2)?;
-    expect_focus(playback, "synth", "Synth", board)?;
+    expect_focus(playback, "I1: Synth", "Synth", board)?;
     press_main(playback, runner, dispatch)?;
     expect_focus(playback, "Synth", "Preset", board)?;
     turn_main(playback, runner, dispatch, 3)?;

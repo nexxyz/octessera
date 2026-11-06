@@ -44,7 +44,7 @@ fn assert_build_menu_generated_values(device: &mut DeviceDriver) {
     menu.open_group("L1:");
     menu.expect_visible_value("Beh.", "life");
     menu.expect_visible_value("Step Rate", "1/16");
-    menu.expect_visible_value("Spawn Count", "0");
+    menu.expect_visible_value("Spawn Count", "Off");
     menu.expect_visible_value("Spawn Interval", "1");
     menu.back();
 

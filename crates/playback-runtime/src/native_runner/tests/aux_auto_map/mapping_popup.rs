@@ -49,7 +49,7 @@ fn fn_main_opens_scrollable_aux_mapping_popup_and_aux_inputs_are_ignored() {
     let snapshot = runner.snapshot().unwrap();
     let lines = &runner.display.help_popup.as_ref().unwrap().lines;
     assert_eq!(snapshot["display"]["title"], "AUX MAP");
-    assert_eq!(lines[0], "Synth Filter");
+    assert_eq!(lines[0], "Auto: Synth Filter");
     assert_mapping_entry(lines, "A1 T ", "custom:", "Master Vol");
     assert_mapping_entry(lines, "A1 C ", "custom:", "MIDI Panic");
     assert_mapping_entry(lines, "A2 T ", "auto:", "Res");
@@ -58,7 +58,9 @@ fn fn_main_opens_scrollable_aux_mapping_popup_and_aux_inputs_are_ignored() {
     assert_mapping_entry(lines, "S2 T ", "auto:", "Type");
     assert_mapping_entry(lines, "S3 T ", "custom:", "Master Vol");
     assert_mapping_entry(lines, "S3 C ", "custom:", "Refresh");
-    assert!(lines.iter().all(|line| line.chars().count() <= 19));
+    assert!(lines
+        .iter()
+        .all(|line| crate::oled_frame::body_text_fits(line)));
     assert!(!runner.display.ui.fn_held);
     assert!(runner.menu.state.editing);
 
@@ -103,7 +105,7 @@ fn aux_mapping_popup_shows_empty_slots_stopped_and_playing_and_help_has_priority
     assert_eq!(popup.title, "AUX MAP");
     assert!(popup.lines[1..]
         .iter()
-        .all(|line| line.chars().count() <= 19 && line.ends_with("-")));
+        .all(|line| crate::oled_frame::body_text_fits(line) && line.ends_with("-")));
     for bank in ["A", "S"] {
         for slot in 1..=3 {
             for kind in ["T", "C"] {

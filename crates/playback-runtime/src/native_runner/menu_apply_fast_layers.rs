@@ -54,7 +54,8 @@ impl NativeRunner {
                 .unwrap_or_else(|| self.behavior.id().into());
             if let Some(name) = self.layer_names.get_mut(index) {
                 let previous_label = format!("L{}: {name}", index + 1);
-                if super::menu_apply_fast::value_changed(name, behavior_id) {
+                let label = super::behavior_menu::behavior_display_label(&behavior_id);
+                if super::menu_apply_fast::value_changed(name, label) {
                     changed = true;
                     self.update_layer_menu_label(index, Some(&previous_label));
                 }

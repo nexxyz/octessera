@@ -387,16 +387,7 @@ fn instrument_breadcrumb_label(
     base_label: &str,
 ) -> String {
     let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
-    let kind = match instrument_kind(config, index) {
-        "fm" => "FM",
-        "pluck" => "Pluck",
-        "drum" => "Drum",
-        "sampler" => "samp",
-        "midi" => "midi",
-        "midi_drum" => "MDrum",
-        "none" => "none",
-        _ => "synth",
-    };
+    let kind = super::format_values::instrument_kind_label(instrument_kind(config, index));
     format!("{prefix} {kind}")
 }
 

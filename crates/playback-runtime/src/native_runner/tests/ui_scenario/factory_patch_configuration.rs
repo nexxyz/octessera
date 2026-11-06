@@ -73,11 +73,11 @@ pub(super) fn configure_build_and_paint_from_visible_ui(device: &mut DeviceDrive
 pub(super) fn configure_link_from_visible_ui(device: &mut DeviceDriver) {
     let mut menu = VisibleMenuDriver::new(device);
     menu.open_group("Link");
-    menu.expect_visible_value("BPM", "120");
+    menu.expect_visible_value("BPM", "120bpm");
 
     menu.open_group("L1:");
     menu.open_group("Events");
-    menu.expect_visible_value("On Trig", "note_on");
+    menu.expect_visible_value("On Trig", "note on");
     menu.expect_visible_value("On Inst", "I1");
     menu.back();
     menu.open_group("Note Mapping");
@@ -109,10 +109,10 @@ pub(super) fn configure_link_from_visible_ui(device: &mut DeviceDriver) {
     menu.edit_bool_to("Event Triggers", "On");
     menu.expect_visible_value("Event Triggers", "On");
     menu.expect_visible_value("On Inst", "I3");
-    menu.expect_visible_value("On Trig", "note_on");
+    menu.expect_visible_value("On Trig", "note on");
     menu.expect_visible_value("Off Inst", "I3");
     menu.move_selection(1);
-    menu.edit_selected_enum_to("note_off");
+    menu.edit_selected_enum_to("note off");
     menu.back();
     menu.open_group("Note Mapping");
     menu.open_group("Set");
@@ -131,7 +131,7 @@ pub(super) fn configure_shape_from_visible_ui(device: &mut DeviceDriver) {
         menu.open_group("Shape");
         menu.open_group("Instruments");
         menu.open_group("I1:");
-        menu.edit_enum_to("Type", "synth");
+        menu.edit_enum_to("Type", "Synth");
         menu.open_group("Synth >");
         menu.open_group("Filter");
         menu.edit_number_by("Cutoff", 10);
@@ -143,7 +143,7 @@ pub(super) fn configure_shape_from_visible_ui(device: &mut DeviceDriver) {
         menu.back();
 
         menu.open_group("I2:");
-        menu.edit_enum_to("Type", "sampler");
+        menu.edit_enum_to("Type", "Sampler");
         menu.open_group("Sampler >");
     }
     pick_sample_and_assign_rows(device, 1, "Kick2.wav", "samples/Drum/kick/Kick2.wav", 0);
@@ -166,7 +166,7 @@ pub(super) fn configure_shape_from_visible_ui(device: &mut DeviceDriver) {
         menu.back();
         menu.back();
         menu.open_group("I3:");
-        menu.edit_enum_to("Type", "synth");
+        menu.edit_enum_to("Type", "Synth");
         menu.edit_enum_to("Note Mode", "hold");
         menu.open_group("Mixer >");
         menu.edit_enum_to("Route", "fxb1");
@@ -177,12 +177,12 @@ pub(super) fn configure_shape_from_visible_ui(device: &mut DeviceDriver) {
         menu.open_group("FX Buses");
         menu.open_group("B1:");
         menu.open_group("Slot 1");
-        menu.edit_enum_to("Type", "delay");
+        menu.edit_enum_to("Type", "Delay");
         menu.back();
         menu.open_group("Slot 2");
-        menu.edit_enum_to("Type", "duck");
+        menu.edit_enum_to("Type", "Duck");
         menu.edit_enum_to("Source", "I2");
-        menu.expect_visible_value("Amount", "60");
+        menu.expect_visible_value("Amount", "60%");
         menu.back_to_root();
     }
     if device.output().set_instrument_slot_count <= before_audio_slots {
