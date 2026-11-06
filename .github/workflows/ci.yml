@@ -494,6 +494,8 @@ jobs:
         run: cargo clippy -p octessera-desktop --lib --bins -- -W clippy::cognitive_complexity -D warnings
       - name: Run desktop Rust adapter tests
         run: cargo test -p octessera-desktop
+      - name: Run desktop e2e scenarios
+        run: pnpm run e2e
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v7

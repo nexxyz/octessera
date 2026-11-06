@@ -128,8 +128,8 @@ scenario checks in a few seconds and its timing is sample-exact.
   keeps its audio as a WAV under the system temp folder
   (`octessera-e2e/`) so you can listen to it.
 
-They are not part of the pre-push hook; run them after changes to playback,
-menus, Link mapping, instruments or FX.
+The pre-push hook and the CI desktop job run them; run them yourself after
+changes to playback, menus, Link mapping, MIDI, instruments or FX.
 
 ## Saved-key changes
 
@@ -181,8 +181,9 @@ freshness, legal inventories, links, and the quality audit), the `tools/legal`
 packaging tests, the remaining workspace and routing-tree-executor Rust tests,
 the [factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage
 (which runs the `platform-core`, `playback-runtime`, and `realtime-engine`
-tests), the Tauri build smoke, desktop tests, the Pi crate's tests in both the
-production and the `profiling` shape, and both Clippy passes. It takes a
+tests), the Tauri build smoke, desktop tests, the desktop end-to-end
+scenarios, the Pi crate's tests in both the production and the `profiling`
+shape, and both Clippy passes. It takes a
 while. Give `git push` a long timeout rather than skipping the hook.
 
 If git does not already run hooks from `.githooks/`, point it there:
