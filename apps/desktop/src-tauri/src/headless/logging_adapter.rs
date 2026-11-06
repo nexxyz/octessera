@@ -18,6 +18,8 @@ pub(super) struct HeardEvent {
 pub(super) struct LoggingAdapter {
     pub(super) inner: DesktopPlaybackHostAdapter,
     pub(super) heard: Vec<HeardEvent>,
+    /// MIDI out messages, in send order.
+    pub(super) midi: Vec<Vec<u8>>,
 }
 
 impl HostAdapter for LoggingAdapter {
@@ -84,6 +86,7 @@ impl HostAdapter for LoggingAdapter {
         bytes: &[u8],
         _at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
+        self.midi.push(bytes.to_vec());
         self.inner.handle_midi_message(bytes, None)
     }
 

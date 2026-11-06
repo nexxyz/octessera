@@ -4,6 +4,7 @@
 //! pulls audio from the engine itself and advances the runtime clock by exactly the audio it
 //! rendered, so musical timing is sample-exact and repeatable.
 mod logging_adapter;
+mod midi;
 mod scenario_player;
 
 use crate::audio_prep_service::{
@@ -15,6 +16,7 @@ use crate::recording::{DesktopRecording, RecordingEngineSource, RecordingTapStat
 use crate::sample_decode_cache::SampleDecodeCache;
 use crate::store_startup::ensure_store_dir_at;
 use logging_adapter::LoggingAdapter;
+pub use midi::PlayedMidi;
 use playback_runtime::{
     HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeDispatchInput, RuntimeIngest,
     RuntimePlatformEffect,
@@ -54,6 +56,7 @@ pub struct HeadlessSession {
     platform_rx: Receiver<Vec<HostMessage>>,
     audio: Vec<f32>,
     events: Vec<PlayedEvent>,
+    midi_out: Vec<PlayedMidi>,
     recording_tap: RecordingTapState,
     recording_started_frame: Option<usize>,
     last_snapshot_at: f64,
@@ -109,12 +112,14 @@ impl HeadlessSession {
             adapter: LoggingAdapter {
                 inner: adapter,
                 heard: Vec::new(),
+                midi: Vec::new(),
             },
             source,
             prep_rx,
             platform_rx: platform_service.result_rx,
             audio: Vec::new(),
             events: Vec::new(),
+            midi_out: Vec::new(),
             recording_tap,
             recording_started_frame: None,
             last_snapshot_at: 0.0,
@@ -342,6 +347,13 @@ impl HeadlessSession {
                 voice: heard.voice,
                 velocity: heard.velocity,
                 pitch_cents: heard.pitch_cents,
+            });
+        }
+        for bytes in self.adapter.midi.drain(..) {
+            self.midi_out.push(PlayedMidi {
+                pulse,
+                frame,
+                bytes,
             });
         }
     }
