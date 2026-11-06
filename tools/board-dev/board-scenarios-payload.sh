@@ -95,12 +95,14 @@ gadget_from_clone() {
   fi
   echo "gadget from clone: $(gadget_functions)" >> host.log
 }
+# Waits with a builtin read: forking sleep on CPU 0 every second delayed USB MIDI clock-in by up to 2 ms.
 gate() {
   mark "${1}_ready"
   touch "$root/$1.ready"
+  [ -p "$root/gate.fifo" ] || { mkfifo "$root/gate.fifo" && exec 9<>"$root/gate.fifo"; }
   for _ in $(seq 1 900); do
     [ -e "$root/$1.go" ] && { mark "${1}_go"; return 0; }
-    sleep 1
+    read -rt 1 -u 9
   done
   mark "${1}_timeout"
   return 1
