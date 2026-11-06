@@ -108,7 +108,7 @@ drift or echo; nothing aligns them.
 Thread placement (both boards, from `apps/pi-zero/src/audio_priority.rs`): the
 runtime and helper threads run on CPU0 under `SCHED_OTHER`, the Jack callback
 on CPU1 at verified `SCHED_FIFO` 70, and USB/HDMI mirror callbacks on CPU0 at
-60. Orange Capacity workers use CPUs 2 and 3 at 70. Startup names the `DAC` or
+60. The MIDI sender and the MIDI input thread run on CPU0 at 50. Orange Capacity workers use CPUs 2 and 3 at 70. Startup names the `DAC` or
 `UAC2` sink and rejects the Jack stream if callback promotion is not verified.
 
 ## Raspberry USB data role

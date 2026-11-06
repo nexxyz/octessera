@@ -58,21 +58,22 @@ pub(crate) fn pin_background_worker_to_dsp_cpus() {
     }
 }
 
-// The MIDI sender sleeps until each timestamped message is due. It shares CPU0 with the
-// runtime, away from the audio callback (CPU1) and the DSP workers (CPU2/3), and stays below
-// the CPU0 mirror callback so a send never delays mirrored audio.
+// The MIDI sender sleeps until each timestamped message is due, and the MIDI input thread
+// stamps each clock byte on arrival. Both share CPU0 with the runtime, away from the audio
+// callback (CPU1) and the DSP workers (CPU2/3), and stay below the CPU0 mirror callback so
+// MIDI never delays mirrored audio.
 #[cfg(any(
     feature = "hardware-orange-pi-zero-2w",
     feature = "hardware-raspberry-pi-zero-2w"
 ))]
-pub(crate) fn pin_midi_sender_thread() {
+pub(crate) fn pin_midi_thread(_role: &str) {
     #[cfg(not(test))]
     {
-        const MIDI_SENDER_PRIORITY: i32 = 50;
-        if let Err(failure) = configure_strict(super::PI_RUNTIME_CPU, MIDI_SENDER_PRIORITY) {
+        const MIDI_THREAD_PRIORITY: i32 = 50;
+        if let Err(failure) = configure_strict(super::PI_RUNTIME_CPU, MIDI_THREAD_PRIORITY) {
             eprintln!(
-                "MIDI sender scheduling failed: {}",
-                syscalls::format_failure("midi sender", failure)
+                "{_role} scheduling failed: {}",
+                syscalls::format_failure(_role, failure)
             );
         }
     }

@@ -206,11 +206,15 @@ impl MidiHost {
 }
 
 fn midi_sender_start_hook() {
+    place_midi_thread("MIDI sender");
+}
+
+fn place_midi_thread(_role: &str) {
     #[cfg(any(
         feature = "hardware-raspberry-pi-zero-2w",
         feature = "hardware-orange-pi-zero-2w"
     ))]
-    crate::audio_priority::pin_midi_sender_thread();
+    crate::audio_priority::pin_midi_thread(_role);
 }
 
 mod connections;

@@ -366,13 +366,12 @@ impl MidiConnections {
         let port = ports
             .get(index)
             .ok_or_else(|| "MIDI input disappeared".to_string())?;
-        let handler = self.midi_in_handler.clone();
         self.midi_in = Some(
             input
                 .connect(
                     port,
                     "octessera-pi-in",
-                    move |_timestamp, message, _| handler(message.to_vec()),
+                    input_callback(self.midi_in_handler.clone(), midi_input_start_hook),
                     (),
                 )
                 .map_err(|error| error.to_string())?,
@@ -398,6 +397,25 @@ impl MidiConnections {
             None
         }
     }
+}
+
+/// Places midir's input thread on its first message: it stamps clock bytes on arrival, so
+/// it must not wait behind ordinary CPU0 threads.
+pub(super) fn input_callback(
+    handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
+    on_start: fn(),
+) -> impl FnMut(u64, &[u8], &mut ()) + Send + 'static {
+    let mut started = false;
+    move |_timestamp, message, _| {
+        if !std::mem::replace(&mut started, true) {
+            on_start();
+        }
+        handler(message.to_vec());
+    }
+}
+
+fn midi_input_start_hook() {
+    super::place_midi_thread("MIDI input");
 }
 
 fn list_failure(effect: &RuntimePlatformEffect, error: String) -> RuntimeStoreResult {

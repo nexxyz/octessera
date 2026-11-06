@@ -255,3 +255,25 @@ fn midi_requests_answer_later_through_the_connection_worker() {
         }]
     ));
 }
+
+#[test]
+fn input_callback_places_its_thread_once_and_forwards_every_message() {
+    static PLACEMENTS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    fn count_placement() {
+        PLACEMENTS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = received.clone();
+    let mut callback = super::connections::input_callback(
+        Arc::new(move |bytes| sink.lock().unwrap().push(bytes)),
+        count_placement,
+    );
+    for message in [[0xF8], [0xFA], [0xF8]] {
+        callback(0, &message, &mut ());
+    }
+    assert_eq!(PLACEMENTS.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(
+        *received.lock().unwrap(),
+        vec![vec![0xF8], vec![0xFA], vec![0xF8]]
+    );
+}
