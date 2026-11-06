@@ -8,6 +8,7 @@ mod instruments;
 mod link_mapping;
 mod performance_pass;
 mod play_fx;
+mod preset_loads;
 mod recording;
 mod save_reload;
 mod sequencer_pages;
