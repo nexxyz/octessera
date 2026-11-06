@@ -297,18 +297,18 @@ fn expected_factory_patch_fixture() -> Value {
                     "key": "instruments.0.synth.filter.cutoffHz",
                     "kind": "number",
                     "label": "Cutoff",
-                    "max": 255.0,
-                    "min": 0.0,
-                    "step": 1.0
+                    "max": 255,
+                    "min": 0,
+                    "step": 1
                 },
                 "y": {
                     "invert": false,
                     "key": "instruments.0.synth.filter.resonance",
                     "kind": "number",
                     "label": "Res",
-                    "max": 100.0,
-                    "min": 0.0,
-                    "step": 1.0
+                    "max": 100,
+                    "min": 0,
+                    "step": 1
                 }
             }
         },
