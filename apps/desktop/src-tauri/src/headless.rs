@@ -202,10 +202,11 @@ impl HeadlessSession {
         self.poll_services()?;
         if std::env::var_os("OCTESSERA_E2E_TRACE").is_some() {
             let display = self.snapshot().map(|snapshot| &snapshot["display"]);
-            let selected = display
-                .and_then(|display| {
-                    let row = display["selectedRow"].as_u64()? as usize;
-                    display["lines"].get(row)?.as_str()
+            let selected = self
+                .snapshot()
+                .and_then(|snapshot| {
+                    let row = snapshot["selectedRow"].as_u64()? as usize;
+                    snapshot["display"]["lines"].get(row)?.as_str()
                 })
                 .unwrap_or("");
             eprintln!(
