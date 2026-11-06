@@ -122,9 +122,9 @@ impl NativeRunner {
 /// The colour of the menu section that owns an Aux click action.
 fn action_home_color(action: &NativeMenuAction) -> u16 {
     match action {
-        NativeMenuAction::BehaviorAction(_) | NativeMenuAction::ResetBehavior => {
-            section_color(BUILD_LABEL)
-        }
+        NativeMenuAction::BehaviorAction(_)
+        | NativeMenuAction::LayerBehaviorAction { .. }
+        | NativeMenuAction::ResetBehavior => section_color(BUILD_LABEL),
         NativeMenuAction::PlatformEffect(effect) => key_home_section_color(effect),
         _ => key_home_section_color(""),
     }

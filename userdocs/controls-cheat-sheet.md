@@ -129,7 +129,9 @@ the page's auto-map wins and your bindings fill in wherever it has nothing.
 `System > Display > Auto Map` switches auto-map off.
 
 - Bind your own: highlight a row and press *Fn* + click that Aux encoder. A
-  value becomes its turn binding, an action its click binding.
+  value becomes its turn binding, an action its click binding. A behavior
+  action stays with the layer you bound it on: bind L5's *Reseed Stars* and
+  the click reseeds L5 even while you play L1.
 - *Shift* + *Fn* + click an Aux encoder binds into the *Shift* bank instead.
   Hold *Shift* while turning or clicking to use it. Auto-map puts the three
   most-used controls on the plain encoders and the next three on the *Shift*

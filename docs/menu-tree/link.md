@@ -218,6 +218,7 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - `Trn` pickers are the shared parameter picker without `Range Min`/`Range Max`.
 - `Clk` pickers list `(none)`, `Current` when bound, a `Behavior` group with the active layer's
   behavior actions (when it has any), a `Sample Assign` group with one row per instrument, and an
-  `Actions` group with `Map FX` and `Reset Behavior`.
+  `Actions` group with `Map FX` and `Reset Behavior`. A behavior action is bound to the layer it
+  was picked on and keeps running there after you select another layer.
 - Binding rules, auto-map, and toasts are defined under
   [Aux Encoder Binding](../menu-and-controls-spec.md#aux-encoder-binding).

@@ -225,8 +225,10 @@ The menu lists the technical bank, then the musical bank.
   move it. Each of the column's tiles holds one mapping:
   - `action`: a plain press runs `Action`, Shift + press runs `S+Action`, from the same list as an
     Aux click (the active layer's behavior actions, Sample Assign per instrument, Map FX, Reset
-    Behavior) and through the same menu action. A behavior action the active layer lacks, or
-    Sample Assign on a non-sampler, only toasts `Tile: Spawn not active`; an empty side toasts
+    Behavior) and through the same menu action. A behavior action keeps the layer it was picked
+    on and runs there whichever layer is active (`Tile: L5 Reseed Stars`). If that layer's
+    behavior no longer has it, or Sample Assign is on a non-sampler, the press only toasts
+    `Tile: L5 Reseed Stars not active`; an empty side toasts
     `S+Tile: No binding`. Otherwise the toast is `Tile: <action>` (`S+Tile: ...` for Shift).
   - `param`: a plain press steps `Target` up one menu step, Shift + press one step down, exactly
     like an Aux detent turn (coarse, no Fn), through the menu edit, so it saves and autosaves like

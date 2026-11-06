@@ -234,7 +234,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["auxBindings"] = json!({
         "aux1": {
             "turnKey": "sound.noteLengthMs",
-            "pressAction": { "kind": "behavior_action", "actionType": "source.patch" }
+            "pressAction": { "kind": "behavior_action", "actionType": "source.patch" , "layer": 0 }
         },
         "aux2": {
             "turnKey": "displayBrightness",
@@ -245,7 +245,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["shiftAuxBindings"] = json!({
         "aux1": {
             "turnKey": "sound.velocityScalePct",
-            "pressAction": { "kind": "behavior_action", "actionType": "source.shift" }
+            "pressAction": { "kind": "behavior_action", "actionType": "source.shift" , "layer": 0 }
         },
         "aux2": {
             "turnKey": "gridBrightness",

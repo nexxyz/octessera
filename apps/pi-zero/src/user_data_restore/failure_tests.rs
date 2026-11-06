@@ -385,7 +385,7 @@ fn restore_rehydrates_canonical_patch_preferences_and_patch_aux_bindings() {
     current_patch["runtimeConfig"]["auxBindings"] = json!({
         "aux1": {
             "turnKey": "sound.noteLengthMs",
-            "pressAction": { "kind": "behavior_action", "actionType": "clear" }
+            "pressAction": { "kind": "behavior_action", "actionType": "clear" , "layer": 0 }
         },
         "aux2": {
             "turnKey": "displayBrightness",

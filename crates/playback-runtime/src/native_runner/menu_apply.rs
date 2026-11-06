@@ -33,11 +33,7 @@ impl NativeRunner {
             *layer_behavior_id = behavior_id.to_string();
         }
         self.sync_active_layer_auto_name(behavior_id);
-        self.remap_bindings_for_behavior_change(
-            &previous_behavior_id,
-            behavior_id,
-            self.active_layer_index,
-        );
+        self.remap_bindings_for_behavior_change(behavior_id, self.active_layer_index);
         self.set_layer_behavior_config(self.active_layer_index, behavior_id, next_config);
         Ok(true)
     }
@@ -66,7 +62,7 @@ impl NativeRunner {
         }
         self.set_layer_behavior_config(layer_index, behavior_id, next_config);
         self.sync_layer_auto_name(layer_index, behavior_id);
-        self.remap_bindings_for_behavior_change(&current_behavior_id, behavior_id, layer_index);
+        self.remap_bindings_for_behavior_change(behavior_id, layer_index);
         Ok(true)
     }
 

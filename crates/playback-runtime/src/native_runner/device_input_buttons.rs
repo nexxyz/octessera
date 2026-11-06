@@ -155,7 +155,7 @@ impl NativeRunner {
         let Some(press) = self.effective_aux_slot(index).press else {
             return Ok(None);
         };
-        let NativeMenuAction::BehaviorAction(action_type) = press.action.clone() else {
+        let Some((layer_index, action_type)) = self.behavior_click(&press.action) else {
             return Ok(None);
         };
         if !self.bound_action_active(&press.action) {
@@ -166,12 +166,14 @@ impl NativeRunner {
             ));
             return Ok(Some(self.messages_with_snapshot()?));
         }
-        let suppress_aux_toast = self.behavior.id() == "looper" && action_type == "toggleMode";
-        let result = self.trigger_behavior_action_result(action_type)?;
+        let suppress_aux_toast = self.quiet_behavior_click(&press.action);
+        let result = self.trigger_layer_behavior_action_result(layer_index, action_type)?;
         if !suppress_aux_toast {
             self.show_toast(format!("{click_prefix}-{}: {}", index + 1, press.label));
         }
-        Ok(Some(self.messages_with_input_result(result)?))
+        Ok(Some(
+            self.messages_with_layer_input_result(layer_index, result)?,
+        ))
     }
 
     pub(super) fn handle_button_a_input(

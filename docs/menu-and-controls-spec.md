@@ -956,8 +956,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
     `Trn-1: L1 Spawn Count not active`
 - A delay in note mode hides `Time ms`, but a binding to it is not stale: its toast shows the
   note-synced time, which the turn cannot change.
-- Press bindings store the behavior action key. A press fires only if the active layer's behavior
-  exposes the same key, otherwise `Clk-1: L1 Spawn Random not active`. A Sample Assign press whose
+- Press bindings store the behavior action key and the layer it was bound on (`layer`, 0-based, in
+  the saved `pressAction`). A press runs that layer's action whichever layer is active, so a tile
+  bound to L5 Reseed Stars reseeds L5 while L1 is selected; its toast names the layer
+  (`Clk-1: L5 Reseed Stars`). Only when that layer's behavior no longer has the action is it
+  `Clk-1: L5 Reseed Stars not active`; changing the behavior does not move the binding to another
+  action. Auto-mapped clicks keep acting on the active layer. A Sample Assign press whose
   instrument is no longer a Sampler is also `not active`.
 - Scope prefixes are 1-indexed: `B<N>` bus, `I<N>` instrument, `L<N>` layer. Behavior config uses
   the active layer scope.

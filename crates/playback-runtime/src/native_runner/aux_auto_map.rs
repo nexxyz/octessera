@@ -1,5 +1,4 @@
 use super::*;
-use crate::native_menu::NativeMenuValue;
 use crate::oled_frame::OledAuxCap;
 
 #[derive(Clone)]
@@ -152,6 +151,15 @@ impl NativeRunner {
                 NativeMenuAction::BehaviorAction(id) | NativeMenuAction::PlatformEffect(id) => {
                     id.clone()
                 }
+                NativeMenuAction::LayerBehaviorAction {
+                    layer_index,
+                    action_type,
+                } => format!(
+                    "L{} {}",
+                    layer_index + 1,
+                    super::bound_behavior_click::behavior_action_name(action_type)
+                        .unwrap_or_else(|| action_type.clone())
+                ),
                 _ => "?".into(),
             })
     }
@@ -159,17 +167,15 @@ impl NativeRunner {
     /// The short name of a bound click action, `None` when nothing runs it any more.
     pub(super) fn aux_action_target_label(&self, action: &NativeMenuAction) -> Option<String> {
         match action {
-            NativeMenuAction::BehaviorAction(action_type) => self
-                .build_menu_items()
-                .into_iter()
-                .find_map(|item| match item.value {
-                    NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current))
-                        if current == action_type =>
-                    {
-                        Some(item.label)
-                    }
-                    _ => None,
-                }),
+            NativeMenuAction::BehaviorAction(action_type) => {
+                self.layer_behavior_action_label(self.active_layer_index, action_type)
+            }
+            NativeMenuAction::LayerBehaviorAction {
+                layer_index,
+                action_type,
+            } => self
+                .layer_behavior_action_label(*layer_index, action_type)
+                .map(|label| format!("L{} {label}", layer_index + 1)),
             NativeMenuAction::PlatformEffect(action_type) if action_type == "play.fx.map" => {
                 Some("Map".into())
             }
@@ -197,9 +203,10 @@ impl NativeRunner {
         right: &NativeMenuAction,
     ) -> bool {
         match (left, right) {
-            (NativeMenuAction::BehaviorAction(lhs), NativeMenuAction::BehaviorAction(rhs)) => {
-                lhs == rhs
-            }
+            (
+                NativeMenuAction::BehaviorAction(_) | NativeMenuAction::LayerBehaviorAction { .. },
+                NativeMenuAction::BehaviorAction(_) | NativeMenuAction::LayerBehaviorAction { .. },
+            ) => self.behavior_click(left) == self.behavior_click(right),
             (NativeMenuAction::PlatformEffect(lhs), NativeMenuAction::PlatformEffect(rhs)) => {
                 lhs == rhs
             }

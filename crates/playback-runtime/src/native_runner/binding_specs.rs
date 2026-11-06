@@ -75,8 +75,11 @@ pub(super) fn aux_bindings_payload(bindings: &[Option<NativeAuxBinding>]) -> Val
 /// A bound click action as saved: an Aux click or a Faders action tile.
 pub(super) fn press_action_payload(action: Option<&NativeMenuAction>) -> Value {
     match action {
-        Some(NativeMenuAction::BehaviorAction(action)) => {
-            json!({ "kind": "behavior_action", "actionType": action })
+        Some(NativeMenuAction::LayerBehaviorAction {
+            layer_index,
+            action_type,
+        }) => {
+            json!({ "kind": "behavior_action", "actionType": action_type, "layer": layer_index })
         }
         Some(NativeMenuAction::PlatformEffect(action)) => {
             json!({ "kind": "platform_effect", "action": action })
@@ -258,16 +261,4 @@ pub(super) fn behavior_param_analogue_keys(param_key: &str) -> Vec<&str> {
         .find(|group| group.contains(&param_key))
         .map(|group| group.to_vec())
         .unwrap_or_else(|| vec![param_key])
-}
-
-pub(super) fn primary_behavior_action(behavior: NativeBehavior) -> Option<(String, String)> {
-    let state = behavior.init(Value::Null).ok()?;
-    let items = behavior.config_menu(&state).ok()??;
-    items.into_iter().find_map(|item| {
-        if item.item_type == BehaviorConfigItemType::Action {
-            Some((item.key, item.label))
-        } else {
-            None
-        }
-    })
 }

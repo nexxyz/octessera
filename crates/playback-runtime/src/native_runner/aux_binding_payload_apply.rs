@@ -1,6 +1,6 @@
 use crate::native_menu::NativeMenuAction;
 
-use super::{supported_aux_turn_key, NativeAuxBinding, Value};
+use super::{supported_aux_turn_key, NativeAuxBinding, Value, LAYER_COUNT};
 
 pub(super) fn apply_aux_bindings_payload(
     bindings: &mut [Option<NativeAuxBinding>],
@@ -34,10 +34,12 @@ pub(super) fn apply_aux_bindings_payload(
 
 pub(super) fn parse_aux_press_action(value: &Value) -> Option<NativeMenuAction> {
     match value.get("kind").and_then(Value::as_str)? {
-        "behavior_action" => value
-            .get("actionType")
-            .and_then(Value::as_str)
-            .map(|action| NativeMenuAction::BehaviorAction(action.into())),
+        "behavior_action" => Some(NativeMenuAction::LayerBehaviorAction {
+            layer_index: usize::try_from(value.get("layer")?.as_u64()?)
+                .ok()
+                .filter(|layer| *layer < LAYER_COUNT)?,
+            action_type: value.get("actionType")?.as_str()?.into(),
+        }),
         "platform_effect" => value
             .get("action")
             .and_then(Value::as_str)

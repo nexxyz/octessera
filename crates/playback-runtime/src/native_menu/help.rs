@@ -109,7 +109,8 @@ fn menu_action_help_target(action: &NativeMenuAction) -> (String, String) {
             "action".into(),
         ),
         NativeMenuAction::NavigateBack => ("action:navigate_back".into(), "action".into()),
-        NativeMenuAction::BehaviorAction(action_type) => (
+        NativeMenuAction::BehaviorAction(action_type)
+        | NativeMenuAction::LayerBehaviorAction { action_type, .. } => (
             format!("action:behavior_action:{action_type}"),
             "action".into(),
         ),

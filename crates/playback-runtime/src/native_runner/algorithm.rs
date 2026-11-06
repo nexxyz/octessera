@@ -15,10 +15,36 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<platform_core::NativeInputResult, String> {
-        if self.transport.transport != RuntimeTransportState::Playing
-            && !self.input_events_while_paused
-        {
-            let model = self.engine.on_input(input, self.transport.bpm as f32)?;
+        self.layer_engine_input_result(self.active_layer_index, input)
+    }
+
+    /// Sends `input` to the engine of `layer_index`, active or not, under that layer's trigger
+    /// probability.
+    pub(super) fn layer_engine_input_result(
+        &mut self,
+        layer_index: usize,
+        input: DeviceInput,
+    ) -> Result<platform_core::NativeInputResult, String> {
+        let paused = self.transport.transport != RuntimeTransportState::Playing
+            && !self.input_events_while_paused;
+        let bpm = self.transport.bpm as f32;
+        let sense = self.link_layers.get(layer_index).cloned();
+        let probability_map = self
+            .trigger_probability_maps
+            .get(layer_index)
+            .cloned()
+            .unwrap_or_default();
+        let mut rng = self.probability_rng(layer_index);
+        let engine = if layer_index == self.active_layer_index {
+            &mut self.engine
+        } else {
+            self.layer_engines
+                .get_mut(layer_index)
+                .and_then(Option::as_mut)
+                .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?
+        };
+        if paused {
+            let model = engine.on_input(input, bpm)?;
             return Ok(platform_core::NativeInputResult {
                 events: Vec::new(),
                 emitted_events: Vec::new(),
@@ -27,19 +53,9 @@ impl NativeRunner {
                 model,
             });
         }
-        let layer_index = self.active_layer_index;
-        let sense = self.link_layers.get(layer_index).cloned();
-        let probability_map = self
-            .trigger_probability_maps
-            .get(layer_index)
-            .cloned()
-            .unwrap_or_default();
-        let mut rng = self.probability_rng(layer_index);
-        let result = self.engine.on_input_with_events_filtered(
-            input,
-            self.transport.bpm as f32,
-            |intent| trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent),
-        )?;
+        let result = engine.on_input_with_events_filtered(input, bpm, |intent| {
+            trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
+        })?;
         self.store_probability_rng(layer_index, rng);
         Ok(result)
     }

@@ -294,7 +294,7 @@ const PARAM_BINDING_FIELDS: &[&str] = &[
     "key", "label", "kind", "min", "max", "step", "userMin", "userMax", "options", "invert",
 ];
 const AUX_BINDING_FIELDS: &[&str] = &["turnKey", "pressAction"];
-const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "action", "slot"];
+const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "layer", "action", "slot"];
 const FADER_TILE_FIELDS: &[&str] = &["x", "y", "type", "action", "shiftAction", "target"];
 const SYSTEM_FIELDS: &[&str] = &["playMode"];
 const SAMPLE_ASSIGNMENT_FIELDS: &[&str] =

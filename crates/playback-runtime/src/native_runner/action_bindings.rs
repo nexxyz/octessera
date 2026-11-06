@@ -1,4 +1,4 @@
-use crate::native_menu::{NativeMenuAction, NativeMenuValue};
+use crate::native_menu::NativeMenuAction;
 use crate::protocol::RuntimePlatformEffect;
 
 mod aux_binding_slots;
@@ -307,10 +307,7 @@ impl NativeRunner {
             return Ok(None);
         }
         let result = self.execute_menu_action(press.action.clone())?;
-        if !matches!(
-            press.action,
-            NativeMenuAction::BehaviorAction(ref action) if action == "toggleMode" && self.behavior.id() == "looper"
-        ) {
+        if !self.quiet_behavior_click(&press.action) {
             self.show_toast(format!("{click_prefix}-{}: {}", index + 1, press.label));
         }
         Ok(result)
@@ -318,18 +315,20 @@ impl NativeRunner {
 }
 
 impl NativeRunner {
-    /// Whether a bound click action can run now: a behavior action must be one the active layer
-    /// offers, and a sample assign needs a sampler slot.
+    /// Whether a bound click action can run now: a behavior action must be one its layer's
+    /// behavior offers (the active layer's for an auto-mapped one), and a sample assign needs a
+    /// sampler slot.
     pub(super) fn bound_action_active(&self, action: &NativeMenuAction) -> bool {
         match action {
-            NativeMenuAction::BehaviorAction(action_type) => {
-                self.build_menu_items().into_iter().any(|item| {
-                    matches!(
-                        item.value,
-                        NativeMenuValue::Action(NativeMenuAction::BehaviorAction(ref current)) if current == action_type
-                    )
-                })
-            }
+            NativeMenuAction::BehaviorAction(action_type) => self
+                .layer_behavior_action_label(self.active_layer_index, action_type)
+                .is_some(),
+            NativeMenuAction::LayerBehaviorAction {
+                layer_index,
+                action_type,
+            } => self
+                .layer_behavior_action_label(*layer_index, action_type)
+                .is_some(),
             NativeMenuAction::PlatformEffect(action) => action
                 .strip_prefix("sample.assign:")
                 .and_then(|rest| parse_sample_action(rest).ok())

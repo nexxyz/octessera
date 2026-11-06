@@ -119,9 +119,10 @@ pub(super) fn click_picker_group(
             NativeMenuValue::Action(NativeMenuAction::BehaviorAction(action)) => Some(action_item(
                 item.label.clone(),
                 format!("{root}.behavior.{action}"),
-                slot.action(Some(Box::new(NativeMenuAction::BehaviorAction(
-                    action.clone(),
-                )))),
+                slot.action(Some(Box::new(NativeMenuAction::LayerBehaviorAction {
+                    layer_index: config.active_layer_index,
+                    action_type: action.clone(),
+                }))),
             )),
             _ => None,
         })

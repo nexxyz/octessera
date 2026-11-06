@@ -67,6 +67,7 @@ mod behavior_target_menu;
 mod binding_payload;
 mod binding_specs;
 mod bluetooth;
+mod bound_behavior_click;
 mod canonical_presentation;
 mod clear_patch_state;
 mod config;

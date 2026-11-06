@@ -212,10 +212,13 @@ pub(crate) fn behavior_change_remaps_behavior_param_mods_and_aux_bindings() {
     });
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("behaviorConfig.life.randomTickInterval".into()),
-        press_action: Some(NativeMenuAction::BehaviorAction("spawnRandom".into())),
+        press_action: Some(NativeMenuAction::LayerBehaviorAction {
+            layer_index: 0,
+            action_type: "spawnRandom".into(),
+        }),
     });
 
-    runner.remap_bindings_for_behavior_change("life", "brain", 0);
+    runner.remap_bindings_for_behavior_change("brain", 0);
 
     let x_binding = runner.param_mods[0].x[0].as_ref().unwrap();
     assert_eq!(x_binding.key, "layers.0.build.behaviorConfig.seedInterval");
@@ -236,6 +239,7 @@ pub(crate) fn behavior_change_remaps_behavior_param_mods_and_aux_bindings() {
         Some("behaviorConfig.brain.seedInterval")
     );
     assert!(
-        matches!(aux.press_action.as_ref(), Some(NativeMenuAction::BehaviorAction(action)) if action == "seedRandom")
+        matches!(aux.press_action.as_ref(), Some(NativeMenuAction::LayerBehaviorAction { action_type, .. }) if action_type == "spawnRandom"),
+        "a bound click keeps its action; on brain it is not active"
     );
 }

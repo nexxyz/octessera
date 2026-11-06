@@ -139,7 +139,8 @@ bottom row gives the target's **Range Min**, the top row its **Range Max**, and
 Want buttons too? Turn up **Action Cols** and that many columns, counted from
 the right, become tiles. Set one up in `Play > Faders > Tile Map`: pick a
 **Type**, then either two actions (`Action` for a plain press, `S+Action` for
-*Shift* + press, the same ones an Aux click can run) or a parameter `Target`
+*Shift* + press, the same ones an Aux click can run, and a behavior action
+keeps working on the layer you picked it on) or a parameter `Target`
 that a press nudges up one step (*Shift* + press: down), just like turning an
 Aux encoder by one detent. Then **Map to Grid** and press the tile. Action
 tiles glow white, parameter tiles yellow; *Back* leaves without changing

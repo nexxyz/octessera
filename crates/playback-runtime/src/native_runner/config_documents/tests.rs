@@ -32,13 +32,13 @@ fn distinct_full_config(source: &str) -> Value {
         },
         "aux2": {
             "turnKey": "displayBrightness",
-            "pressAction": { "kind": "behavior_action", "actionType": "source.patch" }
+            "pressAction": { "kind": "behavior_action", "actionType": "source.patch" , "layer": 0 }
         }
     });
     runtime["shiftAuxBindings"] = json!({
         "aux1": {
             "turnKey": "sound.velocityScalePct",
-            "pressAction": { "kind": "behavior_action", "actionType": "source.shift" }
+            "pressAction": { "kind": "behavior_action", "actionType": "source.shift" , "layer": 0 }
         },
         "aux2": {
             "turnKey": "gridBrightness",

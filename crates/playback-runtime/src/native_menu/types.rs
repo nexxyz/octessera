@@ -4,7 +4,13 @@ pub use super::types_config::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeMenuAction {
+    /// A Build row's action, which runs on the active layer.
     BehaviorAction(String),
+    /// A bound click (Aux or Faders tile) that runs on its own layer whichever is active.
+    LayerBehaviorAction {
+        layer_index: usize,
+        action_type: String,
+    },
     SelectBehavior(String),
     SelectLayerBehavior {
         layer_index: usize,

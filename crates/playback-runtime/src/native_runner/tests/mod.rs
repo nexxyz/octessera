@@ -61,6 +61,7 @@ mod basics;
 mod behavior_menu_defaults;
 mod behavior_palette;
 mod bluetooth;
+mod bound_behavior_actions;
 mod browser_and_help;
 mod canonical_defaults;
 mod config_dto;

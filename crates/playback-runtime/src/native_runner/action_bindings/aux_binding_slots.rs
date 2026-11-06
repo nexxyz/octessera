@@ -3,6 +3,7 @@ use super::super::{aux_turn_binding_spec, NativeAuxBinding, NativeParamBinding, 
 impl NativeRunner {
     pub(super) fn bind_aux_from_current(&mut self, index: usize, shifted: bool) -> bool {
         let (turn_key, press_action) = self.menu.current_binding_target();
+        let press_action = press_action.map(|action| self.bound_click_action(action));
         if turn_key
             .as_deref()
             .is_some_and(super::inert_sample_binding_key)
@@ -69,6 +70,7 @@ impl NativeRunner {
         shifted: bool,
         action: Option<super::NativeMenuAction>,
     ) {
+        let action = action.map(|action| self.bound_click_action(action));
         let Some(current) = self.aux_bindings_for_bank(shifted).get(index) else {
             return;
         };

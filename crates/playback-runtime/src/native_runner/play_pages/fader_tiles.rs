@@ -189,13 +189,13 @@ impl NativeRunner {
             return self.messages_with_snapshot();
         }
         let toast = format!("{prefix}: {label}");
-        if let NativeMenuAction::BehaviorAction(action_type) = action {
-            let quiet = self.behavior.id() == "looper" && action_type == "toggleMode";
-            let result = self.trigger_behavior_action_result(action_type)?;
+        if let Some((layer_index, action_type)) = self.behavior_click(&action) {
+            let quiet = self.quiet_behavior_click(&action);
+            let result = self.trigger_layer_behavior_action_result(layer_index, action_type)?;
             if !quiet {
                 self.show_toast(toast);
             }
-            return self.messages_with_input_result(result);
+            return self.messages_with_layer_input_result(layer_index, result);
         }
         let effect = self.execute_menu_action(action)?;
         self.show_toast(toast);
@@ -265,6 +265,7 @@ impl NativeRunner {
         shifted: bool,
         action: Option<NativeMenuAction>,
     ) {
+        let action = action.map(|action| self.bound_click_action(action));
         self.menu.show_fader_tile_action(shifted, action.as_ref());
         self.faders.draft.actions[usize::from(shifted)] = action;
     }

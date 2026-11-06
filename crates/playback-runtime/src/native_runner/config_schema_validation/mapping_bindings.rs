@@ -3,7 +3,7 @@ use super::canonical::{
     string_field, unsigned_field, unsigned_value_range,
 };
 use super::Value;
-use platform_core::INSTRUMENT_COUNT;
+use platform_core::{INSTRUMENT_COUNT, LAYER_COUNT};
 use serde_json::Map;
 
 pub(super) fn validate_bindings(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -49,7 +49,13 @@ pub(super) fn validate_press_action(action: &Value, action_path: &str) -> Result
         .and_then(Value::as_str)
         .ok_or_else(|| format!("{action_path}.kind must be a string"))?;
     match kind {
-        "behavior_action" => string_field(action, "actionType", action_path)?,
+        "behavior_action" => {
+            string_field(action, "actionType", action_path)?;
+            if !action.contains_key("layer") {
+                return Err(format!("{action_path}.layer is required"));
+            }
+            unsigned_field(action, "layer", action_path, 0, (LAYER_COUNT - 1) as u64)?;
+        }
         "platform_effect" => string_field(action, "action", action_path)?,
         "instrument_clone" | "instrument_reset" => unsigned_field(
             action,

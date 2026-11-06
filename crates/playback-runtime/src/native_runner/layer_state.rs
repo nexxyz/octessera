@@ -210,7 +210,6 @@ impl NativeRunner {
 
     pub(super) fn remap_bindings_for_behavior_change(
         &mut self,
-        from_behavior_id: &str,
         to_behavior_id: &str,
         layer_index: usize,
     ) {
@@ -229,9 +228,6 @@ impl NativeRunner {
             }
         }
 
-        let from_action =
-            platform_core::get_native_behavior(from_behavior_id).and_then(primary_behavior_action);
-        let to_action = primary_behavior_action(to_behavior);
         for binding in &mut self.aux_bindings {
             let Some(aux) = binding else {
                 continue;
@@ -239,15 +235,6 @@ impl NativeRunner {
             if let Some(turn_key) = aux.turn_key.clone() {
                 if let Some(remapped) = remap_behavior_binding_key(&turn_key, to_behavior, None) {
                     aux.turn_key = Some(remapped.key);
-                }
-            }
-            if let (Some((from_action, _)), Some(NativeMenuAction::BehaviorAction(action))) =
-                (&from_action, aux.press_action.as_ref())
-            {
-                if action == from_action {
-                    aux.press_action = to_action
-                        .as_ref()
-                        .map(|(action, _)| NativeMenuAction::BehaviorAction(action.clone()));
                 }
             }
             if aux.turn_key.is_none() && aux.press_action.is_none() {

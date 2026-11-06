@@ -304,7 +304,7 @@ fn system_aux_device_sides_merge_with_patch_sides() {
     });
     full["runtimeConfig"]["shiftAuxBindings"]["aux2"] = json!({
         "turnKey": "gridBrightness",
-        "pressAction": { "kind": "behavior_action", "actionType": "source.shift" }
+        "pressAction": { "kind": "behavior_action", "actionType": "source.shift" , "layer": 0 }
     });
     let documents = split_system_patch_documents(&full).unwrap();
     let system = documents.system;

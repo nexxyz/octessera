@@ -302,12 +302,21 @@ impl NativeRunner {
         &mut self,
         result: platform_core::NativeInputResult,
     ) -> Result<Vec<RunnerMessage>, String> {
+        self.messages_with_layer_input_result(self.active_layer_index, result)
+    }
+
+    /// Routes an input result of `layer_index` through that layer's Link, active or not.
+    pub(super) fn messages_with_layer_input_result(
+        &mut self,
+        layer_index: usize,
+        result: platform_core::NativeInputResult,
+    ) -> Result<Vec<RunnerMessage>, String> {
         let mut messages = Vec::new();
-        self.apply_runtime_modulation(&result.mapped_intents, self.active_layer_index);
-        let transpose_offset = self.play_transpose_offset_for_layer(self.active_layer_index);
-        let sense = self.link_layers.get(self.active_layer_index).cloned();
+        self.apply_runtime_modulation(&result.mapped_intents, layer_index);
+        let transpose_offset = self.play_transpose_offset_for_layer(layer_index);
+        let sense = self.link_layers.get(layer_index).cloned();
         let events = self.route_events_with_link_timing(
-            self.active_layer_index,
+            layer_index,
             LinkRoutingInput {
                 events: result.events,
                 event_intents: &result.event_intents,
@@ -315,7 +324,7 @@ impl NativeRunner {
                 transpose_offset,
             },
         )?;
-        self.track_emitted_route_notes(self.active_layer_index, &events);
+        self.track_emitted_route_notes(layer_index, &events);
         self.append_music_first_audio_commands(&mut messages);
         if !events.is_empty() {
             let now = self.display.transients.now();

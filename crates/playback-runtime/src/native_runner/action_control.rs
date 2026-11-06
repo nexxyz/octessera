@@ -116,6 +116,13 @@ impl NativeRunner {
                 self.trigger_behavior_action(action_type)?;
                 Ok(None)
             }
+            NativeMenuAction::LayerBehaviorAction {
+                layer_index,
+                action_type,
+            } => {
+                let _ = self.trigger_layer_behavior_action_result(layer_index, action_type)?;
+                Ok(None)
+            }
             NativeMenuAction::SelectBehavior(behavior_id) => {
                 self.select_behavior(&behavior_id)?;
                 Ok(None)
