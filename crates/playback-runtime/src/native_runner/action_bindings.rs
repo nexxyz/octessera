@@ -1,7 +1,7 @@
 use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 use crate::protocol::RuntimePlatformEffect;
 
-mod aux_binding_ownership;
+mod aux_binding_slots;
 mod binding_target;
 
 pub(super) use binding_target::BindingTarget;

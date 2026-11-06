@@ -65,6 +65,8 @@ const PATCH_FIELDS: &[&str] = &[
     "mixer",
     "playMode",
     "randomSeed",
+    "auxBindings",
+    "shiftAuxBindings",
 ];
 
 const PREFERENCE_FIELDS: &[&str] = &[
@@ -94,7 +96,7 @@ const PREFERENCE_FIELDS: &[&str] = &[
 ];
 
 const DEVICE_FIELDS: &[&str] = &["sampleFavouriteDirs", "dsp", "wifi"];
-const SHARED_FIELDS: &[&str] = &["sound", "auxBindings", "shiftAuxBindings", "midi"];
+const SHARED_FIELDS: &[&str] = &["sound", "midi"];
 const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "hdmi",
     "bluetooth",
@@ -169,8 +171,6 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "audioOutputs",
     "recording",
     "sound",
-    "auxBindings",
-    "shiftAuxBindings",
     "midi",
 ];
 
@@ -239,7 +239,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         "aux2": {
             "turnKey": "displayBrightness",
             "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
-        }
+        },
+        "aux3": null
     });
     source_runtime["shiftAuxBindings"] = json!({
         "aux1": {
@@ -249,7 +250,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         "aux2": {
             "turnKey": "gridBrightness",
             "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
-        }
+        },
+        "aux3": null
     });
     source_runtime["masterVolume"] = alternate_unsigned(&canonical_runtime["masterVolume"], 0, 100);
     source_runtime["randomSeed"] = alternate_unsigned(&canonical_runtime["randomSeed"], 1, 9999);
@@ -376,10 +378,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         keys(&portable["runtimeConfig"]["auxBindings"]["aux1"]),
         expected(&["turnKey", "pressAction"])
     );
-    assert!(portable["runtimeConfig"]["auxBindings"]["aux2"].is_null());
-    assert!(device["runtimeConfig"]["auxBindings"]["aux1"].is_null());
     assert_eq!(
-        keys(&device["runtimeConfig"]["auxBindings"]["aux2"]),
+        keys(&portable["runtimeConfig"]["auxBindings"]["aux2"]),
         expected(&["turnKey", "pressAction"])
     );
     assert_eq!(
@@ -432,14 +432,6 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     assert_eq!(
         applied["runtimeConfig"]["sound"],
         source["runtimeConfig"]["sound"]
-    );
-    assert_eq!(
-        applied["runtimeConfig"]["auxBindings"]["aux1"],
-        source["runtimeConfig"]["auxBindings"]["aux1"]
-    );
-    assert_eq!(
-        applied["runtimeConfig"]["auxBindings"]["aux2"],
-        canonical["runtimeConfig"]["auxBindings"]["aux2"]
     );
     for field in [
         "enabled",

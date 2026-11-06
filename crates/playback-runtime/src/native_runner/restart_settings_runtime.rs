@@ -48,7 +48,7 @@ impl NativeRunner {
         }
     }
 
-    /// Saves a System change that is not a menu edit, such as a MIDI port choice.
+    /// Saves a System change that is not a menu edit, such as a MIDI port or a sample favorite.
     pub(super) fn save_system_change(&mut self) {
         if let Ok(document) =
             super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)

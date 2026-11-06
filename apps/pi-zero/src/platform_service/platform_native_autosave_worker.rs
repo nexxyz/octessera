@@ -39,7 +39,7 @@ pub(super) fn run(
                 let prepared = result
                     .as_ref()
                     .ok()
-                    .map(|()| Arc::new(playback_runtime::saved_patch_aux_claims(&payload)));
+                    .map(|()| Arc::new(playback_runtime::saved_patch_header(&payload)));
                 let result = match result {
                     Ok(()) => RuntimeStoreResult::SaveDefaultResult {
                         ok: true,

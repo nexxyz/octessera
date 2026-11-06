@@ -363,9 +363,8 @@ fn injected_post_swap_rollback_failure_propagates_and_preserves_recovery_trees()
 }
 
 #[test]
-fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
+fn restore_rehydrates_canonical_patch_preferences_and_patch_aux_bindings() {
     let fixture = Fixture::new("rehydrate-runtime-owned-config");
-    let canonical = user_data_archive::canonical_defaults();
     let mut staged = fixture.staged(false);
     staged
         .bundle
@@ -433,9 +432,10 @@ fn restore_rehydrates_canonical_patch_preferences_and_split_aux_ownership() {
         "sound.noteLengthMs"
     );
     assert_eq!(
-        current["runtimeConfig"]["auxBindings"]["aux2"],
-        canonical["runtimeConfig"]["auxBindings"]["aux2"]
+        current["runtimeConfig"]["auxBindings"]["aux2"]["turnKey"],
+        "displayBrightness"
     );
+    assert!(system["runtimeConfig"].get("auxBindings").is_none());
     assert_eq!(default["kind"], "octessera.patch");
     assert_eq!(
         current["runtimeConfig"]["instruments"][0]["sample"]["assignments"][0]["sampleSlot"],

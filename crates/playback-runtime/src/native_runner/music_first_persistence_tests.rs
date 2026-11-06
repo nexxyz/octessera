@@ -60,10 +60,6 @@ fn native_save_result_is_music_first_without_snapshot_or_payload_serialization()
             .map(|toast| toast.message.as_str()),
         Some("Saved Patch")
     );
-    assert!(Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &worker_payload
-    ));
     assert!(!runner.config_dirty);
     assert_eq!(
         runner.behavior_state_serialization_calls.get(),

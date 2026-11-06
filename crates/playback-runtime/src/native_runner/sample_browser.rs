@@ -250,6 +250,7 @@ impl NativeRunner {
             if !self.sample_favourite_dirs.iter().any(|entry| entry == &dir) {
                 self.sample_favourite_dirs.push(dir);
                 self.mark_system_dirty();
+                self.save_system_change();
             }
             self.show_toast("Favorite set");
         } else if let Some(index) = self
@@ -259,6 +260,7 @@ impl NativeRunner {
         {
             self.sample_favourite_dirs.remove(index);
             self.mark_system_dirty();
+            self.save_system_change();
             self.show_toast("Favorite removed");
         } else {
             return Ok(None);

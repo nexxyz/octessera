@@ -58,12 +58,6 @@ fn explicit_orange_default_payload(mut payload: Value) -> Value {
         "usb": true,
         "hdmi": false
     });
-    payload["runtimeConfig"]["auxBindings"]["aux1"] = json!({
-        "turnKey": "displayBrightness"
-    });
-    payload["runtimeConfig"]["shiftAuxBindings"]["aux1"] = json!({
-        "turnKey": "gridBrightness"
-    });
     payload
 }
 
@@ -163,8 +157,6 @@ pub(crate) fn portable_projection_excludes_history_and_device_fields_without_num
         .unwrap()
         .get("optimizeFor")
         .is_none());
-    assert!(orange_patch["runtimeConfig"]["auxBindings"]["aux1"].is_null());
-    assert!(orange_patch["runtimeConfig"]["shiftAuxBindings"]["aux1"].is_null());
     assert_eq!(pi_patch, orange_patch);
 }
 

@@ -8,8 +8,7 @@ use super::{
     without_retired_keys, ConfigDto, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION, GLOBAL_LFO_COUNT,
     GRID_HEIGHT, GRID_WIDTH, PATCH_KIND,
 };
-use serde_json::{json, Map};
-use std::collections::BTreeSet;
+use serde_json::json;
 
 const SYSTEM_DOCUMENT_KIND: &str = "octessera.system";
 const SYSTEM_DOCUMENT_VERSION: u64 = 1;
@@ -47,21 +46,12 @@ fn split_normalized_documents(
         "schemaVersion": SYSTEM_DOCUMENT_VERSION,
         "runtimeConfig": device["runtimeConfig"],
     });
-    require_aux_banks(&system["runtimeConfig"], "system.runtimeConfig")?;
     require_aux_banks(&patch["runtimeConfig"], "patch.runtimeConfig")?;
     Ok(SystemPatchDocuments { system, patch })
 }
 
-pub fn saved_patch_aux_claims(patch: &Value) -> Value {
-    let runtime = &patch["runtimeConfig"];
-    json!({
-        "kind": patch["kind"],
-        "schemaVersion": patch["schemaVersion"],
-        "runtimeConfig": {
-            "auxBindings": runtime["auxBindings"],
-            "shiftAuxBindings": runtime["shiftAuxBindings"],
-        },
-    })
+pub fn saved_patch_header(patch: &Value) -> Value {
+    json!({ "kind": patch["kind"], "schemaVersion": patch["schemaVersion"] })
 }
 
 pub fn compose_system_patch_documents(system: &Value, patch: &Value) -> Result<Value, String> {
@@ -186,10 +176,8 @@ fn compose_system_patch_documents_structure(
     let system_runtime =
         document_runtime(system, SYSTEM_DOCUMENT_KIND, SYSTEM_DOCUMENT_VERSION, false)?;
     let patch_runtime = document_runtime(patch, PATCH_KIND, CONFIG_SCHEMA_VERSION, true)?;
-    require_aux_banks(system_runtime, "system.runtimeConfig")?;
     require_aux_banks(patch_runtime, "patch.runtimeConfig")?;
     validate_patch_structure(patch)?;
-    validate_aux_claim_conflicts(patch_runtime, system_runtime)?;
 
     let runtime_config = compose_runtime_config(patch_runtime, system_runtime)?;
     require_full_runtime_presence(&runtime_config, "composed runtimeConfig")?;
@@ -372,34 +360,6 @@ fn validate_projection_preserves_data(
     Ok(())
 }
 
-fn validate_aux_claim_conflicts(patch: &Value, system: &Value) -> Result<(), String> {
-    for bank in ["auxBindings", "shiftAuxBindings"] {
-        let Some(patch_slots) = patch.get(bank).and_then(Value::as_object) else {
-            continue;
-        };
-        let Some(system_slots) = system.get(bank).and_then(Value::as_object) else {
-            continue;
-        };
-        for (slot, patch_binding) in patch_slots {
-            let Some(system_binding) = system_slots.get(slot) else {
-                continue;
-            };
-            for side in ["turnKey", "pressAction"] {
-                if has_aux_side(patch_binding, side) && has_aux_side(system_binding, side) {
-                    return Err(format!(
-                        "{bank}.{slot}.{side} is claimed by both System and Patch"
-                    ));
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-fn has_aux_side(binding: &Value, side: &str) -> bool {
-    binding.get(side).is_some_and(|value| !value.is_null())
-}
-
 fn compose_runtime_config(patch: &Value, system: &Value) -> Result<Value, String> {
     let mut runtime = patch
         .as_object()
@@ -410,10 +370,6 @@ fn compose_runtime_config(patch: &Value, system: &Value) -> Result<Value, String
         .ok_or_else(|| "system runtimeConfig must be an object".to_string())?;
     for (key, value) in system {
         match key.as_str() {
-            "auxBindings" | "shiftAuxBindings" => {
-                let patch_bank = runtime.get(key).unwrap_or(&Value::Null);
-                runtime.insert(key.clone(), merge_aux_bank(patch_bank, value, key)?);
-            }
             "sound" => {
                 let patch_sound = runtime.get(key).unwrap_or(&Value::Null);
                 runtime.insert(key.clone(), merge_sound(patch_sound, value)?);
@@ -427,47 +383,6 @@ fn compose_runtime_config(patch: &Value, system: &Value) -> Result<Value, String
         }
     }
     Ok(Value::Object(runtime))
-}
-
-fn merge_aux_bank(patch: &Value, system: &Value, path: &str) -> Result<Value, String> {
-    let patch = patch.as_object();
-    let system = system.as_object();
-    let slots = patch
-        .into_iter()
-        .flat_map(|slots| slots.keys().cloned())
-        .chain(system.into_iter().flat_map(|slots| slots.keys().cloned()))
-        .collect::<BTreeSet<_>>();
-    let mut merged = Map::new();
-    for slot in slots {
-        let patch_binding = patch
-            .and_then(|slots| slots.get(&slot))
-            .unwrap_or(&Value::Null);
-        let system_binding = system
-            .and_then(|slots| slots.get(&slot))
-            .unwrap_or(&Value::Null);
-        let mut binding = Map::new();
-        for side in ["turnKey", "pressAction"] {
-            let patch_side = patch_binding.get(side).filter(|value| !value.is_null());
-            let system_side = system_binding.get(side).filter(|value| !value.is_null());
-            if patch_side.is_some() && system_side.is_some() {
-                return Err(format!("{path}.{slot}.{side} is claimed by both documents"));
-            }
-            if let Some(value) = patch_side {
-                binding.insert(side.into(), value.clone());
-            } else if let Some(value) = system_side {
-                binding.insert(side.into(), value.clone());
-            }
-        }
-        merged.insert(
-            slot,
-            if binding.is_empty() {
-                Value::Null
-            } else {
-                Value::Object(binding)
-            },
-        );
-    }
-    Ok(Value::Object(merged))
 }
 
 fn merge_sound(patch: &Value, system: &Value) -> Result<Value, String> {

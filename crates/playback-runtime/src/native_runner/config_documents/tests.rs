@@ -116,30 +116,16 @@ fn assert_round_trip(source: &str) {
         79
     );
     assert_eq!(
-        documents.patch["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
-        "sound.noteLengthMs"
-    );
-    assert!(documents.patch["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"].is_null());
-    assert_eq!(
-        documents.system["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"]["action"],
-        "midi.panic"
+        documents.patch["runtimeConfig"]["auxBindings"],
+        full["runtimeConfig"]["auxBindings"]
     );
     assert_eq!(
-        documents.system["runtimeConfig"]["auxBindings"]["aux2"]["turnKey"],
-        "displayBrightness"
+        documents.patch["runtimeConfig"]["shiftAuxBindings"],
+        full["runtimeConfig"]["shiftAuxBindings"]
     );
-    assert_eq!(
-        documents.patch["runtimeConfig"]["auxBindings"]["aux2"]["pressAction"]["actionType"],
-        "source.patch"
-    );
-    assert_eq!(
-        documents.patch["runtimeConfig"]["shiftAuxBindings"]["aux1"]["pressAction"]["actionType"],
-        "source.shift"
-    );
-    assert_eq!(
-        documents.system["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"],
-        "gridBrightness"
-    );
+    for bank in ["auxBindings", "shiftAuxBindings"] {
+        assert!(documents.system["runtimeConfig"].get(bank).is_none());
+    }
     assert!(documents.patch["runtimeConfig"]["instruments"]
         .as_array()
         .unwrap()
@@ -207,37 +193,6 @@ fn generated_pi_and_desktop_defaults_split_and_compose_without_losing_owned_data
 }
 
 #[test]
-fn composition_preserves_the_other_aux_side_when_one_document_clears_its_side() {
-    let full = distinct_full_config(PI_DEFAULT);
-    let documents = split_system_patch_documents(&full).unwrap();
-    let mut cleared_system = documents.system.clone();
-    cleared_system["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"] = Value::Null;
-
-    let composed = compose_system_patch_documents(&cleared_system, &documents.patch).unwrap();
-
-    assert_eq!(
-        composed["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
-        "sound.noteLengthMs"
-    );
-    assert!(composed["runtimeConfig"]["auxBindings"]["aux1"]
-        .get("pressAction")
-        .is_none());
-
-    let mut cleared_patch = documents.patch.clone();
-    cleared_patch["runtimeConfig"]["auxBindings"]["aux1"] = Value::Null;
-
-    let composed = compose_system_patch_documents(&documents.system, &cleared_patch).unwrap();
-
-    assert_eq!(
-        composed["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"]["action"],
-        "midi.panic"
-    );
-    assert!(composed["runtimeConfig"]["auxBindings"]["aux1"]
-        .get("turnKey")
-        .is_none());
-}
-
-#[test]
 fn present_null_or_empty_midi_ids_and_omitted_saved_state_round_trip() {
     let mut full = distinct_full_config(PI_DEFAULT);
     full["runtimeConfig"]["midi"]["outId"] = Value::Null;
@@ -261,21 +216,13 @@ fn present_null_or_empty_midi_ids_and_omitted_saved_state_round_trip() {
 }
 
 #[test]
-fn composition_rejects_same_aux_side_claims_from_both_documents() {
+fn composition_rejects_aux_bindings_in_the_system_document() {
     let documents = split_system_patch_documents(&distinct_full_config(PI_DEFAULT)).unwrap();
-    for (bank, slot, side, value) in [
-        ("auxBindings", "aux1", "turnKey", json!("displayBrightness")),
-        (
-            "shiftAuxBindings",
-            "aux1",
-            "pressAction",
-            json!({ "kind": "platform_effect", "action": "midi.panic" }),
-        ),
-    ] {
+    for bank in ["auxBindings", "shiftAuxBindings"] {
         let mut system = documents.system.clone();
-        system["runtimeConfig"][bank][slot][side] = value;
+        system["runtimeConfig"][bank] = json!({ "aux1": { "turnKey": "masterVolume" } });
         let error = compose_system_patch_documents(&system, &documents.patch).unwrap_err();
-        assert!(error.contains(&format!("{bank}.{slot}.{side}")));
+        assert!(error.contains(bank), "{error}");
     }
 }
 
@@ -320,16 +267,9 @@ fn presence_checks_require_patch_transport_playfx_and_musical_sound_member() {
 }
 
 #[test]
-fn presence_checks_require_both_aux_bank_containers_in_both_documents() {
+fn presence_checks_require_both_aux_bank_containers_in_the_patch() {
     let documents = split_system_patch_documents(&distinct_full_config(PI_DEFAULT)).unwrap();
     for bank in ["auxBindings", "shiftAuxBindings"] {
-        let mut system = documents.system.clone();
-        system["runtimeConfig"]
-            .as_object_mut()
-            .unwrap()
-            .remove(bank);
-        assert!(compose_system_patch_documents(&system, &documents.patch).is_err());
-
         let mut patch = documents.patch.clone();
         patch["runtimeConfig"].as_object_mut().unwrap().remove(bank);
         assert!(compose_system_patch_documents(&documents.system, &patch).is_err());

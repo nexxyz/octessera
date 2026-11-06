@@ -1,7 +1,7 @@
 use super::{
-    merge_preserved_aux_payloads, patch_payload_from_payload, strip_device_audio_fields,
-    validate_audio_outputs, validate_canonical_lfo_bank_shape, validate_config_payload,
-    validate_portable_patch_fields, ConfigDto, Value, INSTRUMENT_COUNT,
+    patch_payload_from_payload, strip_device_audio_fields, validate_audio_outputs,
+    validate_canonical_lfo_bank_shape, validate_config_payload, validate_portable_patch_fields,
+    ConfigDto, Value, INSTRUMENT_COUNT,
 };
 
 mod derived_names;
@@ -114,7 +114,6 @@ pub(super) fn prepare_patch_payload(
     if version.is_unversioned() {
         derived_names::canonicalize_partial_payload_names(&mut patch, current);
     }
-    merge_preserved_aux_payloads(&mut patch, current, true);
     super::random_streams::default_missing_seed_fields(&mut patch);
     let mut payload = merge_values(current, &patch);
     if !version.is_unversioned() {
@@ -155,8 +154,7 @@ pub(super) fn prepare_device_payload(
         normalize_missing_usb_data_role(&mut input, false);
     }
     validate_supplied_audio_outputs(&input)?;
-    let mut device = super::device_config_payload_from_payload(input)?;
-    merge_preserved_aux_payloads(&mut device, current, false);
+    let device = super::device_config_payload_from_payload(input)?;
     let merge_base = current.clone();
     let mut payload = merge_values(&merge_base, &device);
     set_config_envelope(

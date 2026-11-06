@@ -12,7 +12,7 @@ fn runner() -> NativeRunner {
 }
 
 #[test]
-fn system_document_matches_the_device_projection_for_mixed_runtime_config() {
+fn system_document_matches_the_device_projection_and_leaves_aux_bindings_to_the_patch() {
     let mut runner = runner();
     runner.display.ui.master_volume = 37;
     runner.display.ui.display_brightness = 9;
@@ -30,25 +30,6 @@ fn system_document_matches_the_device_projection_for_mixed_runtime_config() {
             "midi.panic".into(),
         )),
     });
-    runner.aux_bindings[1] = Some(crate::native_runner::NativeAuxBinding {
-        turn_key: Some("layers.0.algorithmStep".into()),
-        press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "midi.panic".into(),
-        )),
-    });
-    runner.shift_aux_bindings[0] = Some(crate::native_runner::NativeAuxBinding {
-        turn_key: Some("masterVolume".into()),
-        press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "preset.load".into(),
-        )),
-    });
-    runner.shift_aux_bindings[1] = Some(crate::native_runner::NativeAuxBinding {
-        turn_key: Some("instruments.0.synth.osc1.levelPct".into()),
-        press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "midi.panic".into(),
-        )),
-    });
-
     let expected =
         super::super::device_config_payload_from_payload(runner.config_payload()).unwrap();
     runner.behavior_state_serialization_calls.set(0);
@@ -64,38 +45,8 @@ fn system_document_matches_the_device_projection_for_mixed_runtime_config() {
         })
     );
     assert_eq!(runner.behavior_state_serialization_calls.get(), 0);
-    assert_eq!(
-        actual["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
-        "displayBrightness"
-    );
-    assert_eq!(
-        actual["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"]["action"],
-        "midi.panic"
-    );
-    assert_eq!(
-        actual["runtimeConfig"]["auxBindings"]["aux2"]["turnKey"],
-        Value::Null
-    );
-    assert_eq!(
-        actual["runtimeConfig"]["auxBindings"]["aux2"]["pressAction"]["action"],
-        "midi.panic"
-    );
-    assert_eq!(
-        actual["runtimeConfig"]["shiftAuxBindings"]["aux1"]["turnKey"],
-        "masterVolume"
-    );
-    assert_eq!(
-        actual["runtimeConfig"]["shiftAuxBindings"]["aux1"]["pressAction"],
-        Value::Null
-    );
-    assert_eq!(
-        actual["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"],
-        Value::Null
-    );
-    assert_eq!(
-        actual["runtimeConfig"]["shiftAuxBindings"]["aux2"]["pressAction"]["action"],
-        "midi.panic"
-    );
+    assert!(actual["runtimeConfig"].get("auxBindings").is_none());
+    assert!(actual["runtimeConfig"].get("shiftAuxBindings").is_none());
 }
 
 #[test]

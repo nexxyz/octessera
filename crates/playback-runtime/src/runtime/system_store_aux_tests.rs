@@ -8,14 +8,13 @@ use platform_core::NoteBehavior;
 use serde_json::{json, Value};
 
 #[test]
-fn conflicting_system_aux_load_reaches_outer_status_as_typed_native_failure() {
-    let mut full: Value =
+fn system_aux_bindings_load_reaches_outer_status_as_typed_native_failure() {
+    let full: Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
-    full["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"] = json!("sound.noteLengthMs");
     let documents = crate::split_system_patch_documents(&full).unwrap();
-    let mut conflicting_system = documents.system;
-    conflicting_system["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"] =
-        json!("displayBrightness");
+    let mut system_with_aux = documents.system;
+    system_with_aux["runtimeConfig"]["shiftAuxBindings"] =
+        json!({ "aux2": { "turnKey": "displayBrightness" } });
 
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
@@ -36,7 +35,7 @@ fn conflicting_system_aux_load_reaches_outer_status_as_typed_native_failure() {
         .unwrap();
     let request = RuntimePlatformRequest::new(
         RuntimePlatformEffect::StoreLoadSystem,
-        "aux-conflict-load".into(),
+        "system-aux-load".into(),
         Some(23),
     );
     runner.register_platform_request(&request);
@@ -45,7 +44,7 @@ fn conflicting_system_aux_load_reaches_outer_status_as_typed_native_failure() {
         .dispatch_host_message(
             HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::LoadSystemResult {
-                    payload: Some(conflicting_system),
+                    payload: Some(system_with_aux),
                 }
                 .with_identity(request.request_id.clone(), request.revision),
             },
@@ -57,12 +56,12 @@ fn conflicting_system_aux_load_reaches_outer_status_as_typed_native_failure() {
     let error = runtime.last_status().unwrap().error.as_ref().unwrap();
     assert_eq!(error.domain, RuntimeErrorDomain::Storage);
     assert_eq!(error.operation, RuntimeOperation::StoreLoadSystem);
-    assert_eq!(error.request_id.as_deref(), Some("aux-conflict-load"));
+    assert_eq!(error.request_id.as_deref(), Some("system-aux-load"));
     assert_eq!(error.revision, Some(23));
     assert_eq!(error.recovery, RuntimeRecovery::RetainLastGood);
     assert!(output.messages.iter().any(|message| matches!(message,
         crate::RunnerMessage::Snapshot { snapshot }
             if snapshot["runtimeError"]["operation"] == "store_load_system"
-                && snapshot["runtimeError"]["requestId"] == "aux-conflict-load"
+                && snapshot["runtimeError"]["requestId"] == "system-aux-load"
     )));
 }

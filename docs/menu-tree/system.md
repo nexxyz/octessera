@@ -465,7 +465,8 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   fonts, Home Visual, timers, brightness, HDMI Video), master volume, Auto Save/Backups, MIDI
   setup/status/sync, sync source, audio output buffer frames, sample favorites, Paused Events, and
   the preset name list. `Notes` (Note Length 120 ms, Vel Scale 100, Vel Curve linear) and
-  `Polyphony` (`auto-balanced`) return to their defaults.
+  `Polyphony` (`auto-balanced`) return to their defaults. Aux bindings belong to the patch, so
+  all of them are cleared.
 - `Load Factory` (`factory.load`) opens `Confirm Factory` / `Load factory settings?` and loads the
   factory payload on Confirm.
 

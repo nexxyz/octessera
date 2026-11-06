@@ -192,8 +192,8 @@ fn native_default_autosave_backup_recovery_and_load_preserve_local_sample_paths(
 }
 
 #[test]
-fn native_default_completion_hands_the_runner_only_the_saved_aux_claims() {
-    let (service, root) = service_and_root("aux-claims-handoff");
+fn native_default_completion_hands_the_runner_only_the_saved_patch_header() {
+    let (service, root) = service_and_root("saved-patch-handoff");
     let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let mut runner = runner_with_aux_mapping(true, false);
     let mut pending = PendingPiPersistence::default();
@@ -232,21 +232,13 @@ fn native_default_completion_hands_the_runner_only_the_saved_aux_claims() {
     )
     .unwrap()
     .unwrap();
-    let written_runtime = &written["runtimeConfig"];
     assert_eq!(
-        prepared["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
+        written["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
         json!("instruments.0.synth.osc1.levelPct")
     );
     assert_eq!(
         *prepared,
-        json!({
-            "kind": written["kind"],
-            "schemaVersion": written["schemaVersion"],
-            "runtimeConfig": {
-                "auxBindings": written_runtime["auxBindings"],
-                "shiftAuxBindings": written_runtime["shiftAuxBindings"],
-            },
-        })
+        json!({ "kind": written["kind"], "schemaVersion": written["schemaVersion"] })
     );
     let _ = std::fs::remove_dir_all(root);
 }

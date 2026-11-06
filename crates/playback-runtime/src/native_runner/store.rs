@@ -124,7 +124,6 @@ impl NativeRunner {
                 }
                 if let Some(completion) = restart_completion {
                     if completion.succeeded && completion.scope.is_patch() {
-                        self.pending.saved_patch_baseline = completion.saved_patch_payload;
                         self.acknowledge_patch_save(completion.captured_patch_dirty_revision);
                     }
                 }

@@ -267,11 +267,6 @@ fn rejected_or_unmatched_restore_patch_is_typed_nonfatal_and_never_acks() {
         .as_array_mut()
         .unwrap()
         .pop();
-    let mut conflict_system = system.clone();
-    let mut conflicting_patch = valid_patch.clone();
-    conflict_system["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"] = json!("displayBrightness");
-    conflicting_patch["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"] =
-        json!("displayBrightness");
 
     for patch_reply in [
         RuntimeStoreResult::LoadDefaultResult { payload: None },
@@ -281,14 +276,11 @@ fn rejected_or_unmatched_restore_patch_is_typed_nonfatal_and_never_acks() {
         RuntimeStoreResult::LoadDefaultResult {
             payload: Some(truncated),
         },
-        RuntimeStoreResult::LoadDefaultResult {
-            payload: Some(conflicting_patch),
-        },
     ] {
         let (mut runtime, mut runner, mut host) = runtime_runner();
         let old_bpm = runtime.config().bpm;
         host.system_reply = Some(RuntimeStoreResult::LoadSystemResult {
-            payload: Some(conflict_system.clone()),
+            payload: Some(system.clone()),
         });
         host.patch_reply = Some(patch_reply);
         let output = begin_restore(&mut runtime, &mut runner, &mut host);

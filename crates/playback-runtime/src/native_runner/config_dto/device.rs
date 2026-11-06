@@ -1,11 +1,10 @@
 use super::{
-    AudioOptimization, AudioOutputsDto, AuxBindingDto, BluetoothDto, HdmiDto, MidiDto,
-    RuntimeConfigDto, UsbDto, WifiDto,
+    AudioOptimization, AudioOutputsDto, BluetoothDto, HdmiDto, MidiDto, RuntimeConfigDto, UsbDto,
+    WifiDto,
 };
 use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,10 +55,6 @@ pub struct DeviceRuntimeConfigDto {
     pub(super) aux_auto_map_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) aux_priority: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) aux_bindings: Option<BTreeMap<String, Option<AuxBindingDto>>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) shift_aux_bindings: Option<BTreeMap<String, Option<AuxBindingDto>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) midi: Option<MidiDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -112,8 +107,6 @@ impl DeviceRuntimeConfigDto {
             rolling_backups: runtime.rolling_backups,
             aux_auto_map_enabled: runtime.aux_auto_map_enabled,
             aux_priority: runtime.aux_priority.clone(),
-            aux_bindings: runtime.aux_bindings.clone(),
-            shift_aux_bindings: runtime.shift_aux_bindings.clone(),
             midi: runtime.midi.clone(),
             usb: runtime.usb.clone(),
             audio_outputs: runtime.audio_outputs.clone(),

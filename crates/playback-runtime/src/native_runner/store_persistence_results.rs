@@ -392,9 +392,7 @@ impl NativeRunner {
     }
 
     fn apply_default_patch_document(&mut self, payload: Value) -> Result<(), String> {
-        let baseline = super::saved_patch_aux_claims(&payload);
         self.apply_local_patch_payload_preserving_device(payload)?;
-        self.pending.saved_patch_baseline = Some(Arc::new(baseline));
         self.stop_for_config_load();
         self.show_toast("Patch loaded");
         self.current_preset_name = None;

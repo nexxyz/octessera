@@ -1,38 +1,72 @@
 use super::*;
 
 #[test]
-pub(crate) fn patch_envelope_round_trips_and_preserves_local_aux_bindings() {
+pub(crate) fn patch_load_brings_its_own_aux_layout_including_system_targets() {
     let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    source
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "activeBehavior": "sequencer",
-                "layers": [{ "build": { "behaviorId": "sequencer" } }]
-            }
-        }))
-        .unwrap();
-    let payload = source.patch_payload().unwrap();
+    source.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+    });
+    source.aux_bindings[1] = Some(NativeAuxBinding {
+        turn_key: Some("sound.noteLengthMs".into()),
+        press_action: Some(NativeMenuAction::PlatformEffect("play.fx.map".into())),
+    });
+    source.shift_aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("displayBrightness".into()),
+        press_action: None,
+    });
+    let patch = source.patch_payload().unwrap();
+    assert_eq!(
+        patch["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
+        "masterVolume"
+    );
+    assert!(source.device_config_payload().unwrap()["runtimeConfig"]
+        .get("auxBindings")
+        .is_none());
 
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    loaded.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("displayBrightness".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+    loaded.aux_bindings[2] = Some(NativeAuxBinding {
+        turn_key: Some("gridBrightness".into()),
+        press_action: None,
     });
-    loaded.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("displayBrightness".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+    loaded.shift_aux_bindings[1] = Some(NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: None,
     });
-    loaded
-        .apply_patch_payload_preserving_device(payload)
+    loaded.apply_patch_payload_preserving_device(patch).unwrap();
+
+    assert_eq!(loaded.aux_bindings, source.aux_bindings);
+    assert_eq!(loaded.shift_aux_bindings, source.shift_aux_bindings);
+}
+
+#[test]
+pub(crate) fn device_config_apply_keeps_the_patch_aux_layout() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let device = runner.device_config_payload().unwrap();
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: None,
+    });
+    runner.shift_aux_bindings[1] = Some(NativeAuxBinding {
+        turn_key: Some("transport.bpm".into()),
+        press_action: None,
+    });
+    let bindings = (
+        runner.aux_bindings.clone(),
+        runner.shift_aux_bindings.clone(),
+    );
+
+    runner
+        .apply_device_config_payload_preserving_patch(device)
         .unwrap();
 
-    assert_eq!(loaded.behavior.id(), "sequencer");
-    let binding = loaded.aux_bindings[0].as_ref().expect("local aux binding");
-    assert_eq!(binding.turn_key.as_deref(), Some("displayBrightness"));
-    assert!(matches!(
-        binding.press_action.as_ref(),
-        Some(NativeMenuAction::PlatformEffect(action)) if action == "midi.panic"
-    ));
+    assert_eq!(
+        (
+            runner.aux_bindings.clone(),
+            runner.shift_aux_bindings.clone()
+        ),
+        bindings
+    );
 }
 
 #[test]
@@ -72,144 +106,6 @@ pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects(
                     | RuntimePlatformEffect::MidiSelectInput { .. }
             ))
     )));
-}
-
-#[test]
-pub(crate) fn patch_and_device_apply_split_mixed_aux_binding_sides() {
-    let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    source.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("sound.noteLengthMs".into()),
-        press_action: Some(NativeMenuAction::BehaviorAction("clear".into())),
-    });
-    source.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("displayBrightness".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
-    });
-    let patch = source.patch_payload().unwrap();
-    let device = source.device_config_payload().unwrap();
-    assert!(!patch["runtimeConfig"]["auxBindings"]["aux1"].is_null());
-    assert!(patch["runtimeConfig"]["auxBindings"]["aux2"].is_null());
-    assert!(device["runtimeConfig"]["auxBindings"]["aux1"].is_null());
-    assert!(!device["runtimeConfig"]["auxBindings"]["aux2"].is_null());
-
-    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    loaded.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("displayBrightness".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
-    });
-    loaded.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("displayBrightness".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
-    });
-    loaded.apply_patch_payload_preserving_device(patch).unwrap();
-    let binding = loaded.aux_bindings[0].as_ref().unwrap();
-    assert_eq!(binding.turn_key.as_deref(), Some("sound.noteLengthMs"));
-    assert!(matches!(
-        binding.press_action.as_ref(),
-        Some(NativeMenuAction::BehaviorAction(action)) if action == "clear"
-    ));
-    let device_binding = loaded.aux_bindings[1].as_ref().unwrap();
-    assert_eq!(
-        device_binding.turn_key.as_deref(),
-        Some("displayBrightness")
-    );
-
-    loaded
-        .apply_device_config_payload_preserving_patch(device)
-        .unwrap();
-    let musical_binding = loaded.aux_bindings[0].as_ref().unwrap();
-    assert_eq!(
-        musical_binding.turn_key.as_deref(),
-        Some("sound.noteLengthMs")
-    );
-    let device_binding = loaded.aux_bindings[1].as_ref().unwrap();
-    assert_eq!(
-        device_binding.turn_key.as_deref(),
-        Some("displayBrightness")
-    );
-}
-
-#[test]
-pub(crate) fn aux_platform_effect_clicks_split_musical_from_device_actions() {
-    let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    source.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("sample.assign:0:1".into())),
-    });
-    source.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("play.fx.map".into())),
-    });
-    source.aux_bindings[2] = Some(NativeAuxBinding {
-        turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
-    });
-
-    let patch = source.patch_payload().unwrap();
-    let device = source.device_config_payload().unwrap();
-    assert!(!patch["runtimeConfig"]["auxBindings"]["aux1"].is_null());
-    assert!(!patch["runtimeConfig"]["auxBindings"]["aux2"].is_null());
-    assert!(patch["runtimeConfig"]["auxBindings"]["aux3"].is_null());
-    assert!(device["runtimeConfig"]["auxBindings"]["aux1"].is_null());
-    assert!(device["runtimeConfig"]["auxBindings"]["aux2"].is_null());
-    assert!(!device["runtimeConfig"]["auxBindings"]["aux3"].is_null());
-
-    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    loaded.aux_bindings[2] = Some(NativeAuxBinding {
-        turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
-    });
-    loaded.apply_patch_payload_preserving_device(patch).unwrap();
-
-    assert!(matches!(
-        loaded.aux_bindings[0]
-            .as_ref()
-            .and_then(|binding| binding.press_action.as_ref()),
-        Some(NativeMenuAction::PlatformEffect(action)) if action == "sample.assign:0:1"
-    ));
-    assert!(matches!(
-        loaded.aux_bindings[1]
-            .as_ref()
-            .and_then(|binding| binding.press_action.as_ref()),
-        Some(NativeMenuAction::PlatformEffect(action)) if action == "play.fx.map"
-    ));
-    assert!(matches!(
-        loaded.aux_bindings[2]
-            .as_ref()
-            .and_then(|binding| binding.press_action.as_ref()),
-        Some(NativeMenuAction::PlatformEffect(action)) if action == "midi.panic"
-    ));
-}
-
-#[test]
-pub(crate) fn patch_load_preserves_device_aux_turn_keys() {
-    let source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let patch = source.patch_payload().unwrap();
-
-    let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    loaded.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("masterVolume".into()),
-        press_action: None,
-    });
-    loaded.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("displayBrightness".into()),
-        press_action: None,
-    });
-
-    loaded.apply_patch_payload_preserving_device(patch).unwrap();
-
-    assert_eq!(
-        loaded.aux_bindings[0]
-            .as_ref()
-            .and_then(|binding| binding.turn_key.as_deref()),
-        Some("masterVolume")
-    );
-    assert_eq!(
-        loaded.aux_bindings[1]
-            .as_ref()
-            .and_then(|binding| binding.turn_key.as_deref()),
-        Some("displayBrightness")
-    );
 }
 
 #[test]

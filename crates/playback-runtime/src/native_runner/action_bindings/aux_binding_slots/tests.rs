@@ -1,9 +1,6 @@
 use crate::native_menu::NativeMenuAction;
 use crate::native_runner::{NativeRunner, NativeRunnerConfig};
-use crate::{
-    CoreRunner, HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimePlatformEffect,
-    RuntimePlatformRequest, RuntimeStoreResult,
-};
+use crate::{CoreRunner, HostMessage, RunnerMessage, RuntimeAudioCommand};
 use serde_json::{json, Value};
 
 fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
@@ -36,53 +33,6 @@ fn clear_aux_turn(runner: &mut NativeRunner, shifted: bool) {
     };
     assert!(runner.menu.focus_item_key(key));
     let _ = input(runner, json!({ "type": "encoder_press", "id": "main" }));
-}
-
-fn complete_patch_save(runner: &mut NativeRunner, request_id: &str) {
-    let effect = runner
-        .platform_effect_for_action("default.save")
-        .unwrap()
-        .unwrap();
-    assert!(
-        matches!(&effect, RuntimePlatformEffect::StoreSaveDefault { payload, .. }
-        if payload["kind"] == "octessera.patch" && payload["schemaVersion"] == 2)
-    );
-    runner.register_platform_request(&RuntimePlatformRequest::new(
-        effect,
-        request_id.into(),
-        None,
-    ));
-    let _ = runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveDefaultResult {
-                ok: true,
-                is_auto: None,
-            }
-            .with_identity(request_id.into(), None),
-        })
-        .unwrap();
-}
-
-fn complete_system_save(runner: &mut NativeRunner, request_id: &str) {
-    let effect = runner
-        .platform_effect_for_action("system.save")
-        .unwrap()
-        .unwrap();
-    assert!(
-        matches!(&effect, RuntimePlatformEffect::StoreSaveSystem { payload }
-        if payload["kind"] == "octessera.system" && payload["schemaVersion"] == 1)
-    );
-    runner.register_platform_request(&RuntimePlatformRequest::new(
-        effect,
-        request_id.into(),
-        None,
-    ));
-    let _ = runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SaveSystemResult { ok: true }
-                .with_identity(request_id.into(), None),
-        })
-        .unwrap();
 }
 
 #[test]
@@ -148,7 +98,7 @@ fn device_menu_edits_dirty_only_their_domain_and_preserve_system_backups_policy(
 }
 
 #[test]
-fn normal_and_shift_aux_sides_can_be_mixed_between_system_and_patch() {
+fn normal_and_shift_aux_sides_with_system_targets_dirty_only_the_patch() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     bind_current_to_aux(&mut runner, "transport.bpm", false);
     bind_current_to_aux(&mut runner, "system.info", false);
@@ -180,31 +130,24 @@ fn normal_and_shift_aux_sides_can_be_mixed_between_system_and_patch() {
         Some(&NativeMenuAction::PlatformEffect("system.clearAll".into()))
     );
     assert!(runner.config_dirty);
-    assert!(runner.pending.system_persistence.dirty_revision.is_some());
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+    assert!(runner.pending.system_persistence.dirty_revision.is_none());
 }
 
 #[test]
-fn cross_owner_aux_turn_requires_old_document_to_be_cleared_and_saved() {
+fn aux_turn_moves_between_musical_and_system_targets_without_a_save() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    bind_current_to_aux(&mut runner, "transport.bpm", false);
-    complete_patch_save(&mut runner, "aux-patch-old");
-    bind_current_to_aux(&mut runner, "displayBrightness", false);
-    assert_eq!(
-        runner.aux_bindings[0]
-            .as_ref()
-            .and_then(|binding| binding.turn_key.as_deref()),
-        Some("transport.bpm")
-    );
-
+    for key in ["transport.bpm", "displayBrightness", "transport.bpm"] {
+        bind_current_to_aux(&mut runner, key, false);
+        assert_eq!(
+            runner.aux_bindings[0]
+                .as_ref()
+                .and_then(|binding| binding.turn_key.as_deref()),
+            Some(key)
+        );
+    }
     clear_aux_turn(&mut runner, false);
-    bind_current_to_aux(&mut runner, "displayBrightness", false);
-    assert_eq!(
-        runner.aux_bindings[0]
-            .as_ref()
-            .and_then(|binding| binding.turn_key.as_deref()),
-        None
-    );
-    complete_patch_save(&mut runner, "aux-patch-clear");
+    assert!(runner.aux_bindings[0].is_none());
     bind_current_to_aux(&mut runner, "displayBrightness", false);
     assert_eq!(
         runner.aux_bindings[0]
@@ -212,29 +155,5 @@ fn cross_owner_aux_turn_requires_old_document_to_be_cleared_and_saved() {
             .and_then(|binding| binding.turn_key.as_deref()),
         Some("displayBrightness")
     );
-    complete_system_save(&mut runner, "aux-system-old");
-
-    bind_current_to_aux(&mut runner, "transport.bpm", false);
-    assert_eq!(
-        runner.aux_bindings[0]
-            .as_ref()
-            .and_then(|binding| binding.turn_key.as_deref()),
-        Some("displayBrightness")
-    );
-    clear_aux_turn(&mut runner, false);
-    bind_current_to_aux(&mut runner, "transport.bpm", false);
-    assert_eq!(
-        runner.aux_bindings[0]
-            .as_ref()
-            .and_then(|binding| binding.turn_key.as_deref()),
-        None
-    );
-    complete_system_save(&mut runner, "aux-system-clear");
-    bind_current_to_aux(&mut runner, "transport.bpm", false);
-    assert_eq!(
-        runner.aux_bindings[0]
-            .as_ref()
-            .and_then(|binding| binding.turn_key.as_deref()),
-        Some("transport.bpm")
-    );
+    assert!(runner.pending.system_persistence.dirty_revision.is_none());
 }

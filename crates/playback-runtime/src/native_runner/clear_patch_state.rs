@@ -108,8 +108,8 @@ impl NativeRunner {
         self.midi_cc_mappings = super::midi_cc_in::default_midi_cc_mappings();
         self.midi_cc_learn = None;
         self.faders = Default::default();
-        clear_patch_aux_sides(&mut self.aux_bindings);
-        clear_patch_aux_sides(&mut self.shift_aux_bindings);
+        self.aux_bindings.fill(None);
+        self.shift_aux_bindings.fill(None);
         self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];
         self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
         self.play_live = Default::default();
@@ -126,30 +126,5 @@ impl NativeRunner {
         self.show_toast("Cleared all");
         self.menu.rebuild(self.menu_config());
         Ok(())
-    }
-}
-
-fn clear_patch_aux_sides(bindings: &mut [Option<NativeAuxBinding>]) {
-    for slot in bindings {
-        let Some(binding) = slot.as_mut() else {
-            continue;
-        };
-        if binding
-            .turn_key
-            .as_deref()
-            .is_some_and(super::patch_device_payload::is_musical_aux_turn_key)
-        {
-            binding.turn_key = None;
-        }
-        if binding
-            .press_action
-            .as_ref()
-            .is_some_and(super::patch_device_payload::is_musical_aux_click_action)
-        {
-            binding.press_action = None;
-        }
-        if binding.turn_key.is_none() && binding.press_action.is_none() {
-            *slot = None;
-        }
     }
 }

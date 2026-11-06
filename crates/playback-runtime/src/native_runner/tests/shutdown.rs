@@ -201,14 +201,35 @@ pub(crate) fn reverted_system_edits_clear_only_system_dirtiness_and_allow_reboot
 
 #[test]
 pub(crate) fn unrelated_unsaved_system_change_keeps_reboot_blocked_after_noop_edit() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut runner = optimization_capable_runner();
+    assert!(runner.menu.focus_item_key("sound.optimizeFor"));
+    let _ = device_input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    let _ = device_input(
+        &mut runner,
+        json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
+    );
+    let apply = device_input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert_eq!(snapshot_from(&apply)["display"]["title"], "Apply System");
+    let cancelled = device_input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert!(runner.display.confirm_dialog.is_none());
+    assert!(system_save_effect_optional(&cancelled).is_none());
+    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert!(runner.pending.system_persistence.dirty_revision.is_some());
+
     assert!(runner.menu.focus_item_key("displayBrightness"));
     let _ = device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    runner.sample_favourite_dirs.push("drums".into());
-    runner.mark_system_dirty();
     let exit = device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),

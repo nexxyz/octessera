@@ -213,28 +213,6 @@ fn reconstruct_user_data_archive_blocks_host_usb_preferences_but_restores_other_
 }
 
 #[test]
-fn reconstruct_user_data_archive_rejects_shift_aux_same_side_conflicts() {
-    let mut target = destination_full();
-    target["runtimeConfig"]["shiftAuxBindings"]["aux2"]["pressAction"] =
-        json!({ "kind": "platform_effect", "action": "midi.panic" });
-    let target = split_system_patch_documents(&target).unwrap();
-    let mut archive = canonical_defaults();
-    archive["runtimeConfig"]["shiftAuxBindings"]["aux2"]["pressAction"] =
-        json!({ "kind": "behavior_action", "actionType": "source.shift" });
-    let archive_patch = split_system_patch_documents(&archive).unwrap().patch;
-
-    let error = reconstruct(
-        &target.system,
-        &target.patch,
-        &archive_patch,
-        &archive_patch,
-        &UserPreferenceDelta::empty(),
-    )
-    .unwrap_err();
-    assert!(error.contains("shiftAuxBindings.aux2.pressAction"));
-}
-
-#[test]
 fn reconstruct_user_data_archive_rejects_malformed_target_archive_and_preferences() {
     let destination = destination_documents();
     let (current, default) = archive_patches();

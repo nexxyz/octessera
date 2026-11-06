@@ -194,7 +194,6 @@ fn unsafe_local_paths_fail_without_mutation_or_save_effect_and_remain_visible_di
         runner.instruments[0].sample_paths[0] = Some(path.into());
         runner.config_dirty = true;
         let before = runner.config_payload();
-        let baseline = runner.pending.saved_patch_baseline.clone();
         assert!(runner
             .platform_effect_for_action("default.save")
             .unwrap()
@@ -210,7 +209,6 @@ fn unsafe_local_paths_fail_without_mutation_or_save_effect_and_remain_visible_di
 
         assert_eq!(runner.config_payload(), before, "{path}");
         assert!(runner.config_dirty, "{path}");
-        assert_eq!(runner.pending.saved_patch_baseline, baseline, "{path}");
         assert!(
             runner.display.runtime_error_presentation.is_some(),
             "{path}"

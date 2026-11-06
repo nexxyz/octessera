@@ -190,19 +190,8 @@ impl SystemPersistenceState {
         self.auto_save_request_ids.retain(|id| id != request_id);
     }
 
-    pub(super) fn has_saved_aux_side(&self, bank: &str, slot: usize, side: &str) -> bool {
-        let slot = format!("aux{}", slot + 1);
-        self.saved_baseline
-            .as_deref()
-            .and_then(|system| system.get("runtimeConfig"))
-            .and_then(|runtime| runtime.get(bank))
-            .and_then(|bindings| bindings.get(slot.as_str()))
-            .and_then(|binding| binding.get(side))
-            .is_some_and(|value| !value.is_null())
-    }
-
     pub(super) fn system_document(runner: &NativeRunner) -> Result<Value, String> {
-        let mut runtime = json!({
+        let runtime = json!({
             "masterVolume": runner.display.ui.master_volume,
             "sampleFavouriteDirs": runner.sample_favourite_dirs,
             "hdmi": {
@@ -230,8 +219,6 @@ impl SystemPersistenceState {
             "rollingBackups": runner.rolling_backups,
             "auxAutoMapEnabled": runner.aux_auto_map_enabled,
             "auxPriority": runner.aux_priority,
-            "auxBindings": super::aux_bindings_payload(&runner.aux_bindings),
-            "shiftAuxBindings": super::aux_bindings_payload(&runner.shift_aux_bindings),
             "midi": {
                 "enabled": runner.midi_active,
                 "outId": runner.selected_midi_output_id,
@@ -255,10 +242,6 @@ impl SystemPersistenceState {
             },
             "recording": { "maxMinutes": runner.recording_max_minutes },
         });
-        super::split_aux_payloads(
-            runtime.as_object_mut().expect("runtime is an object"),
-            false,
-        );
         Ok(json!({
             "kind": "octessera.system",
             "schemaVersion": 1,

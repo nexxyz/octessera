@@ -105,31 +105,19 @@ fn native_registration_and_payload_attachment_are_revision_checked_and_zero_clon
 }
 
 #[test]
-fn native_success_installs_the_same_worker_patch_arc_and_clears_only_its_revision() {
+fn native_success_clears_only_its_revision() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.mark_config_dirty();
     let revision = runner.config_revision;
     assert!(runner.register_native_default_write("native-save-2", revision, true));
-    let mut written = (*payload(revision)).clone();
-    written["runtimeConfig"]["auxBindings"]["aux1"] =
-        json!({ "turnKey": "mixer.buses.0.slot1.params.mixPct" });
-    let worker_payload = Arc::new(written);
-    runner.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("masterVolume".into()),
-        press_action: None,
-    });
     assert!(runner.attach_native_default_write_payload(
         "native-save-2",
         revision,
-        Arc::clone(&worker_payload),
+        payload(revision),
     ));
 
     send_save_result(&mut runner, "native-save-2", revision, true);
 
-    assert!(Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &worker_payload
-    ));
     assert!(runner.restart_settings.pending_write_revision().is_none());
     assert!(runner.pending.pending_save_revision.is_none());
     assert!(!runner.config_dirty);
@@ -151,20 +139,15 @@ fn native_manual_write_uses_the_existing_ordinary_save_scope() {
 
     send_save_result(&mut runner, "native-manual-save", revision, true);
 
-    assert!(Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &worker_payload
-    ));
     assert!(!runner.config_dirty);
 }
 
 #[test]
-fn old_native_success_advances_patch_baseline_but_keeps_newer_patch_edit_dirty() {
+fn old_native_success_keeps_newer_patch_edit_dirty() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.mark_config_dirty();
     let old_revision = runner.config_revision;
     let system_baseline = Arc::clone(&runner.restart_settings.persisted_default);
-    let patch_baseline = Arc::clone(runner.pending.saved_patch_baseline.as_ref().unwrap());
     assert!(runner.register_native_default_write("native-save-old", old_revision, true));
     let old_payload = current_patch_payload(&runner);
     assert!(runner.attach_native_default_write_payload(
@@ -178,16 +161,8 @@ fn old_native_success_advances_patch_baseline_but_keeps_newer_patch_edit_dirty()
     send_save_result(&mut runner, "native-save-old", old_revision, true);
 
     assert!(Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &old_payload
-    ));
-    assert!(Arc::ptr_eq(
         &runner.restart_settings.persisted_default,
         &system_baseline
-    ));
-    assert!(!Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &patch_baseline
     ));
     assert_eq!(runner.pending.pending_save_revision, None);
     assert!(runner.config_dirty);
@@ -195,7 +170,7 @@ fn old_native_success_advances_patch_baseline_but_keeps_newer_patch_edit_dirty()
 }
 
 #[test]
-fn older_native_arc_completion_advances_patch_baseline_without_clearing_newer_edit() {
+fn older_native_completion_keeps_newer_edit_dirty() {
     let mut runner = playing_default();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
@@ -273,10 +248,6 @@ fn older_native_arc_completion_advances_patch_baseline_without_clearing_newer_ed
         .messages
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-    assert!(Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &worker_payload
-    ));
     assert!(runner.config_dirty);
     assert_eq!(runner.dirty_revision, Some(current_revision));
     assert_eq!(runner.pending.pending_save_revision, None);
@@ -394,10 +365,6 @@ fn duplicate_native_success_after_pending_write_is_gone_does_not_repeat_saved_fe
         .messages
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-    assert!(Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &payload
-    ));
     assert!(!runner.config_dirty);
     let saved_flash_serial = runner.display.auto_save_flash_serial;
 
@@ -410,10 +377,6 @@ fn duplicate_native_success_after_pending_write_is_gone_does_not_repeat_saved_fe
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
     assert_eq!(runner.display.auto_save_flash_serial, saved_flash_serial);
-    assert!(Arc::ptr_eq(
-        runner.pending.saved_patch_baseline.as_ref().unwrap(),
-        &payload
-    ));
     assert!(!runner.config_dirty);
 }
 
@@ -425,7 +388,6 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
         runner.mark_config_dirty();
         let revision = runner.config_revision;
         let baseline = Arc::clone(&runner.restart_settings.persisted_default);
-        let patch_baseline = Arc::clone(runner.pending.saved_patch_baseline.as_ref().unwrap());
         assert!(runner.register_native_default_write("native-save-fail", revision, true));
         if attach_payload {
             assert!(runner.attach_native_default_write_payload(
@@ -441,10 +403,6 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
             &runner.restart_settings.persisted_default,
             &baseline
         ));
-        assert!(Arc::ptr_eq(
-            runner.pending.saved_patch_baseline.as_ref().unwrap(),
-            &patch_baseline
-        ));
         assert!(runner.config_dirty);
         assert!(runner.pending.pending_autosave_payload_due_at.is_some());
         assert!(runner.restart_settings.pending_write_revision().is_none());
@@ -459,7 +417,6 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
     missing.mark_config_dirty();
     let revision = missing.config_revision;
     let baseline = Arc::clone(&missing.restart_settings.persisted_default);
-    let patch_baseline = Arc::clone(missing.pending.saved_patch_baseline.as_ref().unwrap());
     assert!(missing.register_native_default_write("native-save-missing", revision, true));
 
     let _messages = send_save_result(&mut missing, "native-save-missing", revision, true);
@@ -467,10 +424,6 @@ fn native_failure_or_missing_payload_keeps_baseline_and_schedules_retry() {
     assert!(Arc::ptr_eq(
         &missing.restart_settings.persisted_default,
         &baseline
-    ));
-    assert!(Arc::ptr_eq(
-        missing.pending.saved_patch_baseline.as_ref().unwrap(),
-        &patch_baseline
     ));
     assert!(missing.config_dirty);
     assert!(missing.pending.pending_autosave_payload_due_at.is_some());

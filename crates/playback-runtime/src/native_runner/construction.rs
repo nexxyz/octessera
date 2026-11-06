@@ -208,8 +208,6 @@ impl NativeRunner {
         let documents = super::split_system_patch_documents(&runner.config_payload())?;
         runner.restart_settings = RestartSettingsState::new(documents.system.clone());
         runner.pending.system_persistence.saved_baseline = Some(Arc::new(documents.system));
-        runner.pending.saved_patch_baseline =
-            Some(Arc::new(super::saved_patch_aux_claims(&documents.patch)));
         Ok(runner)
     }
 }

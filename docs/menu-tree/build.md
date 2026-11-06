@@ -115,8 +115,8 @@ Build
   playback tiles are not saved, and a loaded loop restarts from step 1.
 - Patch-persistent, and round-tripped through preset/default/autosave payloads: Step Rate, behavior
   selection and config, Link mapping, trigger probabilities, instruments, mixer, the selected Play
-  page, Play FX assignments, X/Y bindings, and musical aux bindings. Device/System settings and
-  device/System aux bindings stay local when a preset loads.
+  page, Play FX assignments, X/Y bindings, and all aux bindings, including ones that turn a System
+  setting. Device/System settings stay local when a preset loads.
 - Transient, never restored from those payloads: active overlays, assignment modes, held modifiers,
   active momentary FX, live X/Y touch, help popups, and toasts.
 

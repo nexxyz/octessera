@@ -96,6 +96,10 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.display.ui.master_volume = 77;
     runner.midi_active = true;
     runner.transport.transport = RuntimeTransportState::Playing;
+    runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("masterVolume".into()),
+        press_action: None,
+    });
 
     runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
@@ -124,6 +128,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
         .all(|bus| bus.slot1_type == "none" && bus.slot2_type == "none"));
     assert!(runner.global_fx_slots.iter().all(|slot| slot == "none"));
     assert_eq!(runner.grid_assign, None);
+    assert!(runner.shift_aux_bindings.iter().all(Option::is_none));
     assert!(runner
         .trigger_probability_maps
         .iter()
