@@ -5,6 +5,7 @@ mod device_driver;
 mod factory_patch_configuration;
 mod factory_patch_playback;
 mod factory_patch_scenario;
+mod picker_refresh_scenario;
 mod resync_scenario;
 mod switch_playback_scenario;
 mod system_edit_exit_scenario;
@@ -29,4 +30,9 @@ pub(crate) fn structural_type_switches_preserve_playback_through_visible_menu() 
 #[test]
 pub(crate) fn changed_system_setting_saves_after_visible_main_edit_exit() {
     system_edit_exit_scenario::run();
+}
+
+#[test]
+pub(crate) fn shared_pickers_follow_an_instrument_type_change_and_a_load() {
+    picker_refresh_scenario::run();
 }

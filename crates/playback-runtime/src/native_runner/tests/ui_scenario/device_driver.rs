@@ -119,6 +119,15 @@ impl DeviceDriver {
         &self.output
     }
 
+    /// Every row of the open menu page, not only the visible ones.
+    pub(super) fn menu_labels(&self) -> Vec<String> {
+        self.runner.test_menu_sibling_labels()
+    }
+
+    pub(super) fn patch_payload(&self) -> Value {
+        self.runner.patch_payload().unwrap()
+    }
+
     pub(super) fn config_payload(&self) -> Value {
         self.runner.config_payload()
     }
