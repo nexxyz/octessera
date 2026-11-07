@@ -2,13 +2,13 @@ use super::super::synth_voice_pool::SynthVoicePool;
 use super::super::types::BUS_COUNT;
 #[cfg(feature = "routing-tree-executor")]
 use super::bus_chain_owner::BusChainOwner;
+use super::render_plan::InstrumentKind;
 use super::render_plan::RenderPlan;
 use super::routing_tree_plan::{RoutingTreePlan, INVALID_COMPONENT_ID, ROUTING_NODE_COUNT};
 use super::sample_voice_pool::SampleVoicePool;
 use super::source_worker_load::{
     SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS,
 };
-use super::support::InstrumentKind;
 #[cfg(feature = "routing-tree-executor")]
 use super::SynthEngine;
 use crate::synth::types::INSTRUMENT_SLOT_COUNT;

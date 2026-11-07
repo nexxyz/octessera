@@ -1,5 +1,5 @@
+use super::sample_voice::{SampleBufferView, SampleVoice};
 use super::sample_voice_loop::{SampleCursor, SampleVoiceLoop};
-use super::support::{SampleBufferView, SampleVoice};
 
 #[derive(Clone, Copy)]
 pub(super) struct SampleSourceContext {

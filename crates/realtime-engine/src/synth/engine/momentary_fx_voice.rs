@@ -1,5 +1,4 @@
 use super::momentary_fx_state::MomentaryFxKind;
-use super::support::param_f32;
 use crate::synth::runtime_state::ms_to_samples;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -254,6 +253,15 @@ impl GainRamp {
         self.value = (self.value - step).max(0.0);
         self.value
     }
+}
+
+pub(super) fn param_f32(params: &BTreeMap<String, Value>, key: &str, fallback: f32) -> f32 {
+    params
+        .get(key)
+        .and_then(Value::as_f64)
+        .map(|value| value as f32)
+        .filter(|value| value.is_finite())
+        .unwrap_or(fallback)
 }
 
 fn pct_param(params: &BTreeMap<String, Value>, key: &str, fallback: f32) -> f32 {

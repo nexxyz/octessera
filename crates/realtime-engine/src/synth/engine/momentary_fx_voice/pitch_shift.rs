@@ -3,8 +3,7 @@ use super::super::live_pitch_shift::{
     pitch_activation_ramp_len, LivePitchShift, PITCH_DEFAULT_SLIDE_IN_MS,
     PITCH_DEFAULT_SLIDE_OUT_MS, PITCH_FILL_FRAMES,
 };
-use super::pct_param;
-use crate::synth::engine::support::param_f32;
+use super::{param_f32, pct_param};
 use crate::synth::runtime_state::ms_to_samples;
 use serde_json::Value;
 use std::collections::BTreeMap;

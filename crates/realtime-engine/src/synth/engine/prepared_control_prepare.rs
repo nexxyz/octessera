@@ -6,11 +6,11 @@ use super::super::types::{
     INSTRUMENT_SLOT_COUNT,
 };
 use super::bus_chain_owner::{fx_kind_cost, BusChainOwner};
+use super::render_plan::{parse_instrument_kind, InstrumentKind};
 use super::render_plan::{
     prepared_instrument_topology, render_plan_fx_slot, PreparedInstrumentTopology, RenderPlan,
 };
 use super::render_routing::FxBusOutputSpreadState;
-use super::support::{parse_instrument_kind, InstrumentKind};
 use super::*;
 
 #[derive(Clone)]
@@ -257,7 +257,7 @@ fn prepare_bus_mixer_state(
         output.pan_pos.push(pan_pos);
         output
             .pan_gains
-            .push(super::support::pan_gains(pan_pos, pan_positions));
+            .push(super::pan_law::pan_gains(pan_pos, pan_positions));
         output
             .volumes
             .push((bus.volume_pct / 100.0).clamp(0.0, 1.0));

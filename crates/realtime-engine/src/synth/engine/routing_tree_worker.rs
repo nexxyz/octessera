@@ -8,9 +8,9 @@ use super::routing_tree_source_bank::RoutingTreeSourceBank;
 use super::routing_tree_source_renderer::{
     render_routing_tree_sources, RoutingTreeSourceBlockScratch,
 };
+use super::sample_voice::PreviewSampleVoice;
 use super::source_worker_lifecycle::OwnerEnvelope;
 use super::source_worker_protocol::WorkStamp;
-use super::support::PreviewSampleVoice;
 use super::SynthEngine;
 use crate::synth::dsp_config::BusIdleThreshold;
 use crate::synth::signal_tap::{SignalSource, SignalTap};

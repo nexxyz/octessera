@@ -5,7 +5,7 @@ use super::super::types::{
     SAMPLE_VOICE_RETIREMENT_CAPACITY, VOICE_PARTITION_COUNT,
 };
 use super::retired_state::RetiredSampleVoices;
-use super::support::SampleVoice;
+use super::sample_voice::SampleVoice;
 
 mod filter;
 mod identity;

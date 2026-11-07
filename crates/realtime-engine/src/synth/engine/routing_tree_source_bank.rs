@@ -1,5 +1,5 @@
 use super::routing_tree_executor::RoutingTreeAssignment;
-use super::support::SampleVoice;
+use super::sample_voice::SampleVoice;
 use crate::synth::pluck_string::PluckRings;
 use crate::synth::runtime_state::Voice;
 use crate::synth::types::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};

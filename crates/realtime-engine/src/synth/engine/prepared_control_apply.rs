@@ -96,7 +96,7 @@ impl SynthEngine {
         next_render_plan.normalize_routes();
         for index in 0..INSTRUMENT_SLOT_COUNT {
             self.slot_pan_gains[index] =
-                super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
+                super::pan_law::pan_gains(self.slot_pan_pos[index], self.pan_positions);
         }
 
         let previous_master_slot_state = preserve_master_states(
@@ -194,7 +194,7 @@ impl SynthEngine {
         );
         if has_mixer {
             self.slot_pan_gains[index] =
-                super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
+                super::pan_law::pan_gains(self.slot_pan_pos[index], self.pan_positions);
         }
         let mut render_plan = prepared.render_plan;
         render_plan.route = render_plan.route.map(|route| match route {

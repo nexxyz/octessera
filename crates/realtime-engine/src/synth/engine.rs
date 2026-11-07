@@ -40,6 +40,7 @@ mod momentary_fx_voice;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
+mod pan_law;
 #[cfg(all(test, feature = "routing-tree-executor"))]
 mod pitch_shift_routing_tree_tests;
 mod prepared_control_apply;
@@ -111,6 +112,7 @@ mod sample_loop_identity_tests;
 mod sample_loop_tests;
 #[cfg(test)]
 mod sample_shape_tests;
+mod sample_voice;
 mod sample_voice_loop;
 mod sample_voice_pool;
 mod sample_voice_renderer;
@@ -148,7 +150,6 @@ mod source_worker_test_fixtures;
 mod source_worker_transfer;
 #[cfg(test)]
 mod steal_fade_tests;
-mod support;
 #[cfg(test)]
 mod test_support;
 mod voice_block_sum;
@@ -202,17 +203,16 @@ pub(super) use momentary_fx_state::is_momentary_fx_type;
 #[cfg(test)]
 use momentary_fx_state::parse_momentary_fx_kind;
 use momentary_fx_state::{MomentaryFxKind, MomentaryFxState};
+use pan_law::{pan_gains, pan_gains_float};
 use render_plan::RenderPlan;
+use render_plan::{parse_instrument_kind, parse_route, InstrumentKind};
 use render_routing::FxBusOutputSpreadState;
 #[cfg(feature = "routing-tree-executor")]
 use routing_tree_executor::RoutingTreeAssignment;
 #[cfg(test)]
 use routing_tree_executor::RoutingTreeBlockScratch;
+use sample_voice::{mono_frame, sample_slot_for_note, PreviewSampleVoice, SampleVoice};
 use sample_voice_pool::SampleVoicePool;
-use support::{
-    midi_note_to_hz, mono_frame, pan_gains, pan_gains_float, parse_instrument_kind, parse_route,
-    sample_slot_for_note, InstrumentKind, PreviewSampleVoice, SampleVoice,
-};
 
 #[cfg(test)]
 pub(in crate::synth) const FREEZE_INJECT_MS: u32 = momentary_fx_voice::FREEZE_INJECT_MS;

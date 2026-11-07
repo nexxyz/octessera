@@ -1,10 +1,10 @@
 use super::super::runtime_state::BiquadState;
 use super::super::types::SampleBuffer;
-use super::sample_voice_renderer::{render_sample_voice_block, render_sample_voice_frame};
-use super::support::{
+use super::sample_voice::{
     mono_frame, reset_sample_buffer_view_resolves_for_test, sample_buffer_view_resolves_for_test,
     SampleBufferView, SampleVoice,
 };
+use super::sample_voice_renderer::{render_sample_voice_block, render_sample_voice_frame};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 const SAMPLE_RATE: u32 = 48_000;

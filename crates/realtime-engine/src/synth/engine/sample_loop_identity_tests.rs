@@ -3,9 +3,9 @@
 
 use super::super::runtime_state::BiquadState;
 use super::super::types::{EnvConfig, SampleBuffer, SamplePlaybackConfig, SampleShapeConfig};
+use super::sample_voice::SampleVoice;
 use super::sample_voice_loop::SampleVoiceLoop;
 use super::sample_voice_renderer::{render_sample_voice_block, render_sample_voice_frame};
-use super::support::SampleVoice;
 
 const IDENTITY_RATE: u32 = 48_000;
 

@@ -3,7 +3,7 @@
 //! each block runs the read loop built for that cursor.
 
 use super::super::types::{SampleLoopMode, SamplePlaybackConfig};
-use super::support::{mono_frame, SampleBufferView};
+use super::sample_voice::{mono_frame, SampleBufferView};
 use crate::synth::SampleBuffer;
 
 /// The forward loop's seam crossfade, in seconds of the sample itself.

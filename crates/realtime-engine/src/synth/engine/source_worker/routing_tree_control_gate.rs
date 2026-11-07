@@ -3,7 +3,8 @@ use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_health::SourceWorkerHealth;
 use super::super::source_worker_protocol::SourceWorkerMode;
 use super::super::SynthEngine;
-use super::SourceWorkerRuntime;
+use super::{SourceWorkerLoadSnapshot, SourceWorkerRuntime};
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
 impl SourceWorkerRuntime {
     pub(in crate::synth::engine) fn with_routing_tree_controls_ready<R>(
@@ -65,6 +66,23 @@ impl SourceWorkerRuntime {
                 self.latch_completion_failure(0b11);
                 None
             }
+        }
+    }
+}
+
+impl SynthEngine {
+    fn with_source_worker_load<R>(
+        &mut self,
+        load: Option<SourceWorkerLoadSnapshot>,
+        apply: impl FnOnce(&mut SynthEngine) -> R,
+    ) -> R {
+        let previous = self.source_worker_load;
+        self.source_worker_load = load;
+        let result = catch_unwind(AssertUnwindSafe(|| apply(self)));
+        self.source_worker_load = previous;
+        match result {
+            Ok(result) => result,
+            Err(payload) => resume_unwind(payload),
         }
     }
 }

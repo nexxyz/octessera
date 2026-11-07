@@ -3,7 +3,6 @@ use super::super::types::{
     FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, BUS_SLOTS_PER_BUS,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
 };
-use super::support::{parse_instrument_kind, parse_route, InstrumentKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum RenderPlanRoute {
@@ -214,5 +213,52 @@ fn render_plan_route(route: usize) -> RenderPlanRoute {
         RenderPlanRoute::Direct
     } else {
         RenderPlanRoute::Bus(route - 1)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum InstrumentKind {
+    Synth,
+    Fm,
+    Pluck,
+    Drum,
+    Sample,
+    Midi,
+    None,
+}
+
+pub(super) fn parse_route(route: &str) -> usize {
+    if route == "direct" {
+        return 0;
+    }
+    if let Some(rest) = route.strip_prefix("fx_bus_") {
+        if let Ok(n) = rest.parse::<usize>() {
+            if n >= 1 {
+                return n;
+            }
+        }
+    }
+    0
+}
+
+pub(super) fn parse_instrument_kind(kind: &str) -> InstrumentKind {
+    match kind {
+        "synth" => InstrumentKind::Synth,
+        "fm" => InstrumentKind::Fm,
+        "pluck" => InstrumentKind::Pluck,
+        "drum" => InstrumentKind::Drum,
+        "sampler" => InstrumentKind::Sample,
+        "midi" | "midi_drum" => InstrumentKind::Midi,
+        _ => InstrumentKind::None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_route;
+
+    #[test]
+    fn obsolete_bus_route_falls_back_to_direct() {
+        assert_eq!(parse_route("bus_1"), 0);
     }
 }

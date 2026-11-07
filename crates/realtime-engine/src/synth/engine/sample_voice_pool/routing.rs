@@ -1,7 +1,7 @@
 use super::super::super::types::{
     INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, VOICE_PARTITION_COUNT,
 };
-use super::super::support::SampleVoice;
+use super::super::sample_voice::SampleVoice;
 use super::{SampleVoicePartition, SampleVoicePool};
 
 #[cfg(feature = "routing-tree-executor")]

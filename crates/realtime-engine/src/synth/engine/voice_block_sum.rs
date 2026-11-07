@@ -5,9 +5,9 @@ use super::super::types::INSTRUMENT_SLOT_COUNT;
 use super::render_voice::synth_voice_render::{
     render_synth_voice_block, SynthSourceContext, SynthVoiceFrameContext,
 };
+use super::sample_voice::SampleVoice;
 use super::sample_voice_pool::SampleVoicePartition;
 use super::sample_voice_renderer::render_sample_voice_block;
-use super::support::SampleVoice;
 #[cfg(test)]
 use std::cell::Cell;
 

@@ -1,4 +1,4 @@
-use super::super::support::SampleVoice;
+use super::super::sample_voice::SampleVoice;
 use super::SampleVoicePool;
 
 impl SampleVoicePool {

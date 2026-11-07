@@ -121,6 +121,14 @@ impl SourceWorkerRuntime {
     }
 }
 
+impl Drop for SourceWorkerRuntime {
+    fn drop(&mut self) {
+        if let Some(close) = self.runtime_close.as_ref() {
+            close.closed.store(true, Ordering::Release);
+        }
+    }
+}
+
 mod mailboxes;
 
 mod deadlines;
@@ -147,7 +155,5 @@ mod feature_support;
 
 mod routing_tree_control_gate;
 mod routing_tree_pipeline;
-
-mod runtime_helpers;
 
 mod construction;
