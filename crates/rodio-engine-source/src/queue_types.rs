@@ -71,10 +71,6 @@ impl QueueSendError {
             }
         )
     }
-
-    pub fn is_ordered_full(&self) -> bool {
-        self.is_musical_full()
-    }
 }
 
 impl Display for QueueSendError {
