@@ -385,7 +385,10 @@ change; only the distance per detent does.
   an error and connects when it appears; the runtime looks for added or removed MIDI devices once a
   second and reconnects the remembered ports. An output that stops taking messages (unplugged, or a
   computer that is not reading the USB MIDI gadget) is logged, not shown as an error. The same
-  watch reconnects the USB MIDI gadget port after a live gadget rebuild.
+  watch reconnects the USB MIDI gadget port after a live gadget rebuild. A remembered port that
+  fails to connect stays selected and saved too, and its connect error shows as a MIDI error. The
+  desktop has no such watch: its remembered ports connect at the next launch or when they are
+  picked again.
 - `System > MIDI > Send MIDI` gates only the copy of internal instruments' notes to MIDI out.
   With `MIDI inst.` (the default) internal notes never reach the MIDI sender; `all inst.` sends
   them on their slot's channel. Drum hits send the GM note of their voice's Sound, Sampler hits

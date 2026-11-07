@@ -145,6 +145,63 @@ fn midi_panic_returns_native_status_result() {
     assert!(matches!(next_event(&mut rx), EngineEvent::AllNotesOff));
 }
 
+fn midi_status(
+    adapter: &mut crate::host_adapter::DesktopPlaybackHostAdapter,
+    effect: RuntimePlatformEffect,
+) -> (bool, Option<String>, Option<String>, Option<String>) {
+    let follow_ups = adapter
+        .handle_platform_effect(&platform_request(effect))
+        .unwrap();
+    match follow_ups.as_slice() {
+        [HostMessage::RuntimeResult {
+            result:
+                RuntimeStoreResult::MidiStatus {
+                    ok,
+                    message,
+                    selected_out_id,
+                    selected_in_id,
+                },
+        }] => (
+            *ok,
+            message.clone(),
+            selected_out_id.clone(),
+            selected_in_id.clone(),
+        ),
+        other => panic!("expected one MIDI status, got {other:?}"),
+    }
+}
+
+#[test]
+fn midi_ports_that_fail_to_connect_stay_selected_until_a_later_select() {
+    let (mut adapter, _) = test_adapter();
+    let failing = Some("not-a-port".to_string());
+
+    let (ok, message, out_id, in_id) = midi_status(
+        &mut adapter,
+        RuntimePlatformEffect::MidiSelectOutput {
+            id: failing.clone(),
+        },
+    );
+    assert!(!ok && message.is_some());
+    assert_eq!((out_id, in_id), (failing.clone(), None));
+
+    let (ok, message, out_id, in_id) = midi_status(
+        &mut adapter,
+        RuntimePlatformEffect::MidiSelectInput {
+            id: failing.clone(),
+        },
+    );
+    assert!(!ok && message.is_some());
+    assert_eq!((out_id, in_id), (failing.clone(), failing.clone()));
+
+    let (ok, message, out_id, in_id) = midi_status(
+        &mut adapter,
+        RuntimePlatformEffect::MidiSelectOutput { id: None },
+    );
+    assert!(ok && message.is_none());
+    assert_eq!((out_id, in_id), (None, failing));
+}
+
 #[test]
 fn desktop_update_apply_returns_typed_unsupported() {
     let (mut adapter, _) = test_adapter();

@@ -146,9 +146,7 @@ impl DesktopPlaybackHostAdapter {
             }]),
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = midi::select_output(id.clone(), &mut self.midi_out);
-                if result.is_ok() {
-                    self.selected_midi_output_id = id.clone();
-                }
+                self.selected_midi_output_id = id.clone();
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::MidiStatus {
                         ok: result.is_ok(),
@@ -164,9 +162,7 @@ impl DesktopPlaybackHostAdapter {
                     midi::select_input_with_handler(id.clone(), &self.midi_in, move |bytes| {
                         handler(bytes);
                     });
-                if result.is_ok() {
-                    self.selected_midi_input_id = id.clone();
-                }
+                self.selected_midi_input_id = id.clone();
                 Ok(vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::MidiStatus {
                         ok: result.is_ok(),
