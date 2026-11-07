@@ -141,7 +141,7 @@ fn compose_scroll(
     slot: usize,
     shift: Shift,
 ) {
-    let (bar_x, _) = selection_bar_span(display);
+    let (bar_x, bar_right) = selection_bar_span(display);
     let band_top = row_top(display, slot) - 1;
     let band = band_top..band_top + BAR_HEIGHT;
     let mut new_band = [0_u8; BAR_HEIGHT * ROW_BYTES];
@@ -167,13 +167,13 @@ fn compose_scroll(
     draw_body(scratch, &from.display, Some(slot), false);
     let area = row_area(display, slot);
     for y in band.clone() {
-        let lens = bar_x..SCROLLBAR_X;
+        let lens = bar_x..bar_right + 1;
         if let Some(src) = shift.behind(y, 0).filter(|src| band.contains(src)) {
             copy_span(frame, y, scratch.as_slice(), src, lens);
         } else if let Some(src) = shift.behind(y, PITCH).filter(|src| band.contains(src)) {
             copy_span(frame, y, &new_band, src - band_top, lens);
         } else {
-            fill_rect(frame, bar_x, y, SCROLLBAR_X - bar_x, 1, area);
+            fill_rect(frame, bar_x, y, bar_right + 1 - bar_x, 1, area);
         }
     }
     fill_rect(

@@ -166,6 +166,75 @@ fn a_scroll_onto_a_page_that_fits_draws_no_scrollbar() {
     assert!((10..112).all(|y| pixel(&frame, 126, y) == 0));
 }
 
+/// A scrolling page's bar ends at x=124, one dark column before the scrollbar at x=126.
+const GAP_X: usize = 125;
+
+fn gap_lit_rows(frame: &[u8], gap_x: usize) -> Vec<usize> {
+    BODY.filter(|y| pixel(frame, gap_x, *y) != 0).collect()
+}
+
+#[test]
+fn a_scrolling_page_keeps_the_gap_before_its_scrollbar_in_every_scroll_frame() {
+    let (old, new) = (base(), scrolled_down());
+    for (input, from_input, down) in [(&new, &old, true), (&old, &new, false)] {
+        for moved in 0..=13 {
+            let frame = animated(
+                input.clone(),
+                OledBodyAnimation::Scroll {
+                    from: from(from_input),
+                    down,
+                    moved,
+                },
+            );
+            assert_eq!(
+                gap_lit_rows(&frame, GAP_X),
+                Vec::<usize>::new(),
+                "down {down}, moved {moved}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_slide_carries_each_page_with_its_own_gap_and_scrollbar() {
+    let scrolling = selected(2);
+    let mut fits = selected(0);
+    fits.display.scroll = None;
+    fits.display.title = "../I1: synth/Synth".into();
+    for (input, from_input) in [(&scrolling, &fits), (&fits, &scrolling)] {
+        for forward in [true, false] {
+            for moved in [48, 88, 116] {
+                let frame = animated(
+                    input.clone(),
+                    OledBodyAnimation::Slide {
+                        from: from(from_input),
+                        forward,
+                        moved,
+                    },
+                );
+                let keep = 128 - moved;
+                let (old_x, new_x) = if forward {
+                    (GAP_X - moved, GAP_X + keep)
+                } else {
+                    (GAP_X + moved, GAP_X - keep)
+                };
+                let gap_x = if input.display.scroll.is_some() {
+                    new_x
+                } else {
+                    old_x
+                };
+                if gap_x < 128 {
+                    assert_eq!(
+                        gap_lit_rows(&frame, gap_x),
+                        Vec::<usize>::new(),
+                        "forward {forward}, moved {moved}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn enter_and_back_slide_only_the_body_in_from_their_side() {
     let mut parent = selected(5);
