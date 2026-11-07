@@ -108,13 +108,7 @@ impl NativeRunner {
                 }
             }
             if changed {
-                if let Some(config) = self.instrument_audio_config(instrument_slot) {
-                    self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                        instrument_slot,
-                        generation: 0,
-                        config,
-                    });
-                }
+                self.queue_instrument_slot_config(instrument_slot);
                 self.mark_fast_autosave_dirty();
                 self.show_sample_browser(None, instrument_slot);
                 let _ = self

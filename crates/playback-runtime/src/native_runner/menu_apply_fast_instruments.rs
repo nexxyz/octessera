@@ -22,54 +22,6 @@ impl NativeRunner {
                 "synth.amp.gainPct",
                 fast_instrument_synth_gain,
             ),
-            "synth.osc1.levelPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.osc1.levelPct",
-                &["osc1", "levelPct"],
-                0,
-                100,
-            ),
-            "synth.osc1.detuneCents" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.osc1.detuneCents",
-                &["osc1", "detuneCents"],
-                -50,
-                50,
-            ),
-            "synth.osc1.pulseWidthPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.osc1.pulseWidthPct",
-                &["osc1", "pulseWidthPct"],
-                5,
-                95,
-            ),
-            "synth.osc2.levelPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.osc2.levelPct",
-                &["osc2", "levelPct"],
-                0,
-                100,
-            ),
-            "synth.osc2.detuneCents" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.osc2.detuneCents",
-                &["osc2", "detuneCents"],
-                -50,
-                50,
-            ),
-            "synth.osc2.pulseWidthPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.osc2.pulseWidthPct",
-                &["osc2", "pulseWidthPct"],
-                5,
-                95,
-            ),
             "synth.filter.cutoffHz" => self.fast_instrument_synth_key(
                 index,
                 number_value,
@@ -81,94 +33,6 @@ impl NativeRunner {
                 number_value,
                 "synth.filter.resonance",
                 fast_instrument_filter_resonance,
-            ),
-            "synth.filter.envAmountPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.filter.envAmountPct",
-                &["filter", "envAmountPct"],
-                -100,
-                100,
-            ),
-            "synth.filter.keyTrackingPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.filter.keyTrackingPct",
-                &["filter", "keyTrackingPct"],
-                0,
-                100,
-            ),
-            "synth.amp.velocitySensitivityPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.amp.velocitySensitivityPct",
-                &["amp", "velocitySensitivityPct"],
-                0,
-                100,
-            ),
-            "synth.ampEnv.attackMs" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.ampEnv.attackMs",
-                &["ampEnv", "attackMs"],
-                0,
-                5000,
-            ),
-            "synth.ampEnv.decayMs" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.ampEnv.decayMs",
-                &["ampEnv", "decayMs"],
-                0,
-                5000,
-            ),
-            "synth.ampEnv.sustainPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.ampEnv.sustainPct",
-                &["ampEnv", "sustainPct"],
-                0,
-                100,
-            ),
-            "synth.ampEnv.releaseMs" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.ampEnv.releaseMs",
-                &["ampEnv", "releaseMs"],
-                0,
-                10000,
-            ),
-            "synth.filterEnv.attackMs" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.filterEnv.attackMs",
-                &["filterEnv", "attackMs"],
-                0,
-                5000,
-            ),
-            "synth.filterEnv.decayMs" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.filterEnv.decayMs",
-                &["filterEnv", "decayMs"],
-                0,
-                5000,
-            ),
-            "synth.filterEnv.sustainPct" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.filterEnv.sustainPct",
-                &["filterEnv", "sustainPct"],
-                0,
-                100,
-            ),
-            "synth.filterEnv.releaseMs" => self.fast_instrument_synth_number_key(
-                index,
-                number_value,
-                "synth.filterEnv.releaseMs",
-                &["filterEnv", "releaseMs"],
-                0,
-                10000,
             ),
             suffix if suffix.starts_with("fm.") => {
                 return fm::apply_fm_menu_key(self, index, key, suffix)
@@ -218,6 +82,9 @@ impl NativeRunner {
             suffix if suffix.starts_with("sample.") => {
                 return Some(self.fast_full_instrument_sample_key(index, key));
             }
+            suffix if super::synth_scalar_field(suffix).is_some() => {
+                self.fast_instrument_synth_number_key(index, number_value, suffix)
+            }
             suffix if suffix.starts_with("synth.") => {
                 self.fast_full_instrument_synth_key(index, key)
             }
@@ -244,13 +111,7 @@ impl NativeRunner {
         let sampler = instrument.kind == "sampler";
         self.sync_engine_runtime_config();
         if !self.rebase_and_recompose_modulation_key(key) && sampler {
-            if let Some(config) = self.instrument_audio_config(index) {
-                self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                    instrument_slot: index,
-                    generation: 0,
-                    config,
-                });
-            }
+            self.queue_instrument_slot_config(index);
         }
         true
     }
@@ -281,15 +142,8 @@ impl NativeRunner {
             {
                 self.show_instrument_rows_around_key(index, key);
             }
-            let rebased = self.rebase_and_recompose_modulation_key(key);
-            if !rebased {
-                if let Some(config) = self.instrument_audio_config(index) {
-                    self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                        instrument_slot: index,
-                        generation: 0,
-                        config,
-                    });
-                } else {
+            if !self.rebase_and_recompose_modulation_key(key) {
+                if !self.queue_instrument_slot_config(index) {
                     self.commit_full_configuration_runtime_plan();
                 }
             } else if self.instrument_audio_config(index).is_none() {
@@ -400,12 +254,11 @@ impl NativeRunner {
         &mut self,
         index: usize,
         value: Option<i32>,
-        command_path: &'static str,
-        json_path: &[&str],
-        min: i32,
-        max: i32,
+        command_path: &str,
     ) -> bool {
-        let Some(value) = value else {
+        let (Some(value), Some((json_path, min, max))) =
+            (value, super::synth_scalar_field(command_path))
+        else {
             return false;
         };
         let Some(audio_value) = (|| {
@@ -449,6 +302,19 @@ impl NativeRunner {
                 value: audio_value,
             });
         }
+        true
+    }
+
+    /// Sends slot `index` its whole audio config; false when the slot has none.
+    pub(super) fn queue_instrument_slot_config(&mut self, index: usize) -> bool {
+        let Some(config) = self.instrument_audio_config(index) else {
+            return false;
+        };
+        self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
+            instrument_slot: index,
+            generation: 0,
+            config,
+        });
         true
     }
 

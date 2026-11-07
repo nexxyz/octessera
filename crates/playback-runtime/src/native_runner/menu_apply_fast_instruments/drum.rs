@@ -71,13 +71,7 @@ fn apply_drum_voice_sound(
     let current = voices.get_mut(voice)?;
     if current["sound"] != sound {
         *current = next;
-        if let Some(config) = runner.instrument_audio_config(slot) {
-            runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: slot,
-                generation: 0,
-                config,
-            });
-        }
+        runner.queue_instrument_slot_config(slot);
         runner.show_instrument_rows_around_key(slot, key);
         runner.mark_fast_autosave_dirty();
     }
@@ -120,13 +114,7 @@ fn apply_drum_filter_type(runner: &mut NativeRunner, slot: usize, key: &str) -> 
     let instrument = runner.instruments.get_mut(slot)?;
     if instrument.drum_config["filter"]["type"] != value {
         instrument.drum_config["filter"]["type"] = json!(value);
-        if let Some(config) = runner.instrument_audio_config(slot) {
-            runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: slot,
-                generation: 0,
-                config,
-            });
-        }
+        runner.queue_instrument_slot_config(slot);
         runner.mark_fast_autosave_dirty();
     }
     Some(true)

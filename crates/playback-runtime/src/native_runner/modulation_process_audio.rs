@@ -32,13 +32,7 @@ pub(super) fn queue_changed_instrument_commands(
             continue;
         };
         if field == "type" {
-            if let Some(config) = runner.instrument_audio_config(index) {
-                runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                    instrument_slot: index,
-                    generation: 0,
-                    config,
-                });
-            }
+            runner.queue_instrument_slot_config(index);
             continue;
         }
         if matches!(instrument.kind.as_str(), "midi" | "midi_drum")
@@ -76,13 +70,7 @@ pub(super) fn queue_changed_instrument_commands(
     }
     for (index, fields) in affected {
         if fields.iter().any(|(_, _, command)| command.is_none()) {
-            if let Some(config) = runner.instrument_audio_config(index) {
-                runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                    instrument_slot: index,
-                    generation: 0,
-                    config,
-                });
-            }
+            runner.queue_instrument_slot_config(index);
         } else {
             for (_, _, command) in fields {
                 if let Some(command) = command {

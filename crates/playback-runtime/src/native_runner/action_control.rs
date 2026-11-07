@@ -1,5 +1,5 @@
 use crate::native_menu::NativeMenuAction;
-use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
+use crate::protocol::RuntimePlatformEffect;
 
 mod factory_instrument_load;
 
@@ -381,12 +381,8 @@ impl NativeRunner {
     fn apply_replaced_instrument(&mut self, index: usize, previous_route: &str) {
         if self.instruments[index].route != previous_route {
             self.commit_full_configuration_runtime_plan();
-        } else if let Some(config) = self.instrument_audio_config(index) {
-            self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: index,
-                generation: 0,
-                config,
-            });
+        } else {
+            self.queue_instrument_slot_config(index);
         }
         self.mark_config_dirty();
         self.show_instrument_identity_rows(index);

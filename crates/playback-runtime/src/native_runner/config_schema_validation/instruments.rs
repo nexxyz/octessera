@@ -1,3 +1,4 @@
+use super::super::SYNTH_NUMERIC_FIELDS;
 use super::canonical::{
     array_field, bool_field, enum_field, enum_value, object_field, object_value, signed_field,
     string_field, unsigned_field,
@@ -193,10 +194,14 @@ fn validate_synth(instrument: &Map<String, Value>, path: &str) -> Result<(), Str
                 &osc_path,
                 &["sine", "triangle", "saw", "square", "pulse"],
             )?;
-            signed_field(value, "octave", &osc_path, -2, 2)?;
-            signed_field(value, "levelPct", &osc_path, 0, 100)?;
-            signed_field(value, "detuneCents", &osc_path, -50, 50)?;
-            signed_field(value, "pulseWidthPct", &osc_path, 5, 95)?;
+            for (suffix, _, min, max) in SYNTH_NUMERIC_FIELDS {
+                if let Some(field) = suffix
+                    .strip_prefix(osc)
+                    .and_then(|rest| rest.strip_prefix('.'))
+                {
+                    signed_field(value, field, &osc_path, i64::from(*min), i64::from(*max))?;
+                }
+            }
         }
     }
     if let Some(amp) = object_field(synth, "amp", &path)? {

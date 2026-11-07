@@ -1,7 +1,7 @@
 use super::{
     cutoff_display_to_hz, cutoff_hz_to_display, set_json_path_number, set_json_path_string,
     synth_filter_cutoff, synth_filter_resonance, synth_i32_at, synth_string_at,
-    NativeInstrumentSlot,
+    NativeInstrumentSlot, SYNTH_NUMERIC_FIELDS,
 };
 use crate::native_menu::NativeMenuModel;
 
@@ -120,7 +120,7 @@ fn apply_synth_numeric_fields(
     instrument: &mut NativeInstrumentSlot,
 ) -> bool {
     let mut changed = false;
-    for (suffix, path, min, max) in synth_numeric_field_specs() {
+    for (suffix, path, min, max) in SYNTH_NUMERIC_FIELDS {
         if let Some(value) = menu.number_for_key(&format!("instruments.{index}.synth.{suffix}")) {
             let value = value.clamp(*min, *max);
             if synth_i32_at(instrument, path, i32::MIN) != value {
@@ -130,43 +130,4 @@ fn apply_synth_numeric_fields(
         }
     }
     changed
-}
-
-fn synth_numeric_field_specs() -> &'static [(&'static str, &'static [&'static str], i32, i32)] {
-    &[
-        ("osc1.octave", &["osc1", "octave"], -2, 2),
-        ("osc1.levelPct", &["osc1", "levelPct"], 0, 100),
-        ("osc1.detuneCents", &["osc1", "detuneCents"], -50, 50),
-        ("osc1.pulseWidthPct", &["osc1", "pulseWidthPct"], 5, 95),
-        ("osc2.octave", &["osc2", "octave"], -2, 2),
-        ("osc2.levelPct", &["osc2", "levelPct"], 0, 100),
-        ("osc2.detuneCents", &["osc2", "detuneCents"], -50, 50),
-        ("osc2.pulseWidthPct", &["osc2", "pulseWidthPct"], 5, 95),
-        (
-            "filter.envAmountPct",
-            &["filter", "envAmountPct"],
-            -100,
-            100,
-        ),
-        (
-            "filter.keyTrackingPct",
-            &["filter", "keyTrackingPct"],
-            0,
-            100,
-        ),
-        (
-            "amp.velocitySensitivityPct",
-            &["amp", "velocitySensitivityPct"],
-            0,
-            100,
-        ),
-        ("ampEnv.attackMs", &["ampEnv", "attackMs"], 0, 5000),
-        ("ampEnv.decayMs", &["ampEnv", "decayMs"], 0, 5000),
-        ("ampEnv.sustainPct", &["ampEnv", "sustainPct"], 0, 100),
-        ("ampEnv.releaseMs", &["ampEnv", "releaseMs"], 0, 10000),
-        ("filterEnv.attackMs", &["filterEnv", "attackMs"], 0, 5000),
-        ("filterEnv.decayMs", &["filterEnv", "decayMs"], 0, 5000),
-        ("filterEnv.sustainPct", &["filterEnv", "sustainPct"], 0, 100),
-        ("filterEnv.releaseMs", &["filterEnv", "releaseMs"], 0, 10000),
-    ]
 }

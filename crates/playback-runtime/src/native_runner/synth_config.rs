@@ -129,6 +129,57 @@ pub(super) fn synth_string_at(
     value_string_at(&instrument.synth_config, path, fallback)
 }
 
+/// The plain numeric synth rows: their menu suffix, JSON path, and range.
+pub(super) const SYNTH_NUMERIC_FIELDS: &[(&str, &[&str], i32, i32)] = &[
+    ("osc1.octave", &["osc1", "octave"], -2, 2),
+    ("osc1.levelPct", &["osc1", "levelPct"], 0, 100),
+    ("osc1.detuneCents", &["osc1", "detuneCents"], -50, 50),
+    ("osc1.pulseWidthPct", &["osc1", "pulseWidthPct"], 5, 95),
+    ("osc2.octave", &["osc2", "octave"], -2, 2),
+    ("osc2.levelPct", &["osc2", "levelPct"], 0, 100),
+    ("osc2.detuneCents", &["osc2", "detuneCents"], -50, 50),
+    ("osc2.pulseWidthPct", &["osc2", "pulseWidthPct"], 5, 95),
+    (
+        "filter.envAmountPct",
+        &["filter", "envAmountPct"],
+        -100,
+        100,
+    ),
+    (
+        "filter.keyTrackingPct",
+        &["filter", "keyTrackingPct"],
+        0,
+        100,
+    ),
+    (
+        "amp.velocitySensitivityPct",
+        &["amp", "velocitySensitivityPct"],
+        0,
+        100,
+    ),
+    ("ampEnv.attackMs", &["ampEnv", "attackMs"], 0, 5000),
+    ("ampEnv.decayMs", &["ampEnv", "decayMs"], 0, 5000),
+    ("ampEnv.sustainPct", &["ampEnv", "sustainPct"], 0, 100),
+    ("ampEnv.releaseMs", &["ampEnv", "releaseMs"], 0, 10000),
+    ("filterEnv.attackMs", &["filterEnv", "attackMs"], 0, 5000),
+    ("filterEnv.decayMs", &["filterEnv", "decayMs"], 0, 5000),
+    ("filterEnv.sustainPct", &["filterEnv", "sustainPct"], 0, 100),
+    ("filterEnv.releaseMs", &["filterEnv", "releaseMs"], 0, 10000),
+];
+
+/// The JSON path and range of a synth row the engine takes as a scalar param
+/// (`synth.osc1.levelPct`); an octave change rebuilds the slot instead.
+pub(super) fn synth_scalar_field(suffix: &str) -> Option<(&'static [&'static str], i32, i32)> {
+    let field = suffix.strip_prefix("synth.")?;
+    if field.ends_with(".octave") {
+        return None;
+    }
+    SYNTH_NUMERIC_FIELDS
+        .iter()
+        .find(|(name, ..)| *name == field)
+        .map(|&(_, path, min, max)| (path, min, max))
+}
+
 pub(super) fn cutoff_display_to_hz(display: i32) -> i32 {
     let t = f64::from(display.clamp(0, 255)) / 255.0;
     (20.0 * (20_000.0_f64 / 20.0).ln().mul_add(t, 0.0).exp()).round() as i32

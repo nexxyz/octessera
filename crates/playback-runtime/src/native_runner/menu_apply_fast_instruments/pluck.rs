@@ -15,13 +15,7 @@ pub(super) fn apply_pluck_menu_key(
         let instrument = runner.instruments.get_mut(index)?;
         if value_string_at(&instrument.pluck_config, &["filter", "type"], "") != value {
             set_json_path_string(&mut instrument.pluck_config, &["filter", "type"], &value);
-            if let Some(config) = runner.instrument_audio_config(index) {
-                runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                    instrument_slot: index,
-                    generation: 0,
-                    config,
-                });
-            }
+            runner.queue_instrument_slot_config(index);
             runner.mark_fast_autosave_dirty();
         }
         return Some(true);

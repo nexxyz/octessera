@@ -1,6 +1,5 @@
 use super::grid_assign::GridAssign;
 use super::{derive_instrument_name, NativeRunner};
-use crate::protocol::RuntimeAudioCommand;
 
 impl NativeRunner {
     pub(super) fn commit_behavior_structural_draft(&mut self) -> Result<(), String> {
@@ -137,13 +136,7 @@ impl NativeRunner {
         self.show_instrument_identity_rows(index);
         self.menu
             .keep_focus_on_key(&format!("instruments.{index}.type"));
-        if let Some(config) = self.instrument_audio_config(index) {
-            self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot: index,
-                generation: 0,
-                config,
-            });
-        }
+        self.queue_instrument_slot_config(index);
         self.mark_fast_autosave_dirty();
     }
 

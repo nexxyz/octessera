@@ -20,13 +20,7 @@ pub(super) fn apply_fm_menu_key(
         };
         if value_string_at(&instrument.fm_config, path, "") != value {
             set_json_path_string(&mut instrument.fm_config, path, &value);
-            if let Some(config) = runner.instrument_audio_config(index) {
-                runner.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
-                    instrument_slot: index,
-                    generation: 0,
-                    config,
-                });
-            }
+            runner.queue_instrument_slot_config(index);
             runner.mark_fast_autosave_dirty();
         }
         return Some(true);
