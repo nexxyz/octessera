@@ -1,10 +1,10 @@
-use super::comb_bank::comb_bank_frame;
 use super::{ms_param_len, pct_param, GainRamp, ENVELOPE_MS};
+use crate::synth::fx::{comb_bank_frame, comb_buffers};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-/// Freeze's comb lengths doubled for a larger room, at 44.1 kHz.
-const COMB_LENS: [usize; 4] = [3114, 3234, 2982, 2844];
+/// The shared combs at twice their length, for a larger room than freeze's.
+const COMB_SCALE: usize = 2;
 const DIFFUSER_LENS: [usize; 4] = [556, 225, 579, 241];
 const DIFFUSION: f32 = 0.5;
 const DAMP: f32 = 0.3;
@@ -59,7 +59,7 @@ impl WashVoice {
         let scaled = |n: usize| vec![0.0; (n * sample_rate as usize / 44_100).max(1)];
         Self {
             params,
-            combs: COMB_LENS.map(scaled),
+            combs: comb_buffers(COMB_SCALE, sample_rate),
             comb_idxs: [0; 4],
             comb_lp: [0.0; 4],
             diffusers: DIFFUSER_LENS.map(scaled),

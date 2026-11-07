@@ -1,5 +1,6 @@
 use super::*;
 
+mod comb_bank;
 mod delay;
 mod eq;
 mod filter_lfo;
@@ -8,6 +9,7 @@ mod vinyl;
 #[cfg(test)]
 mod bitcrusher_tests;
 
+pub(in crate::synth) use comb_bank::{comb_bank_frame, comb_bank_step, comb_buffers};
 pub(in crate::synth) use delay::process_delay;
 pub(super) use delay::{process_mod_delay, DelayCache, ModDelayCache, ModDelayParams};
 pub(super) use eq::{process_eq, process_eq_channel, EqChannelState, EqParams};

@@ -5,7 +5,6 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 mod capture_ring;
-mod comb_bank;
 mod crush;
 mod dub_throw;
 mod filter_sweep;

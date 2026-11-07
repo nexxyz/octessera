@@ -1,5 +1,6 @@
 use super::algorithms::{
-    DelayCache, EqChannelState, FilterLfoCache, ModDelayCache, ModDelayParams, VinylState,
+    comb_buffers, DelayCache, EqChannelState, FilterLfoCache, ModDelayCache, ModDelayParams,
+    VinylState,
 };
 use super::{BiquadState, FxBusParams};
 
@@ -120,8 +121,7 @@ pub(in crate::synth) fn fx_bus_state_from_params(
             last: 0.0,
         },
         FxBusParams::Reverb { .. } => FxBusState::Reverb {
-            bufs: [1557, 1617, 1491, 1422]
-                .map(|n| vec![0.0; (n * sample_rate as usize / 44_100).max(1)]),
+            bufs: comb_buffers(1, sample_rate),
             idxs: [0; 4],
             lp: [0.0; 4],
         },

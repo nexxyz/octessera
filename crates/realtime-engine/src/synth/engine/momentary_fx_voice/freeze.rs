@@ -1,12 +1,10 @@
-use super::comb_bank::comb_bank_frame;
 use super::pct_param;
 use crate::synth::engine::support::param_f32;
+use crate::synth::fx::{comb_bank_frame, comb_buffers};
 use crate::synth::runtime_state::ms_to_samples;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-/// The comb lengths of the tail network, at 44.1 kHz.
-const DELAY_LENS: [usize; 4] = [1557, 1617, 1491, 1422];
 pub(in crate::synth::engine) const FREEZE_INJECT_MS: u32 = 120;
 const FEEDBACK: f32 = 0.997;
 const DAMP: f32 = 0.35;
@@ -47,8 +45,7 @@ pub(in crate::synth::engine) struct FreezeVoice {
 
 impl FreezeVoice {
     pub(super) fn new(params: FreezeParams, sample_rate: u32) -> Self {
-        let bufs: [Vec<f32>; 4] =
-            DELAY_LENS.map(|n| vec![0.0; (n * sample_rate as usize / 44_100).max(1)]);
+        let bufs = comb_buffers(1, sample_rate);
         let ready_len = bufs.iter().map(Vec::len).max().unwrap_or(1) as u32;
         Self {
             params,

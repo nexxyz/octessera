@@ -66,14 +66,9 @@ pub(in crate::synth) fn process_fx_bus_slot(
                 *state = fx_bus_state_from_params(params, sample_rate);
                 return input;
             };
-            let mut wet = 0.0;
-            for i in 0..4 {
-                let delayed = bufs[i][idxs[i]];
-                lp[i] = delayed * (1.0 - damp) + lp[i] * damp;
-                bufs[i][idxs[i]] = input + lp[i] * decay;
-                idxs[i] = (idxs[i] + 1) % bufs[i].len();
-                wet += delayed;
-            }
+            let wet = comb_bank_step(bufs, idxs, lp, [input; 4], decay, damp)
+                .iter()
+                .fold(0.0, |wet, delayed| wet + delayed);
             (input * (1.0 - mix) + wet * 0.25 * mix).clamp(-1.5, 1.5)
         }
         FxBusParams::Glitch {
