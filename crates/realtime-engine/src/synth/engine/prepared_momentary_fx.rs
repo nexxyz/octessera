@@ -1,5 +1,7 @@
+use super::super::scalar_param::ScalarMutation;
 use super::momentary_fx_state::{parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxState};
 use super::momentary_fx_voice::{prepare_voice_update, voice_param_keys};
+use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::*;
 
 #[derive(Clone)]
@@ -100,6 +102,105 @@ impl PreparedMomentaryFxUpdate {
     }
 }
 
+impl SynthEngine {
+    pub fn apply_prepared_momentary_fx_start(
+        &mut self,
+        prepared: PreparedMomentaryFxStart,
+    ) -> RetiredAudioState {
+        let mut retired = RetiredAudioState::default();
+        #[cfg(feature = "routing-tree-executor")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            store_retired_momentary(&mut retired.displaced_momentary_fx, prepared.state);
+            self.reject_routing_tree_mutation_for_control();
+            return retired;
+        }
+        let mut state = prepared.state;
+        if self
+            .momentary_fx
+            .iter_mut()
+            .any(|tail| tail.take_over_tail(&mut state))
+        {
+            store_retired_momentary(&mut retired.displaced_momentary_fx, state);
+            return retired;
+        }
+        if let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == state.id) {
+            store_retired_momentary(
+                &mut retired.displaced_momentary_fx,
+                self.momentary_fx.remove(pos),
+            );
+        }
+        if !self.make_room_for_momentary_press(state.kind, &mut retired) {
+            store_retired_momentary(&mut retired.displaced_momentary_fx, state);
+            return retired;
+        }
+        self.momentary_fx.push(state);
+        retired
+    }
+
+    /// Two Play FX run at once, one per type. A releasing tail in the way fades out for the
+    /// new press; held effects in the way turn it down.
+    fn make_room_for_momentary_press(
+        &mut self,
+        kind: MomentaryFxKind,
+        retired: &mut RetiredAudioState,
+    ) -> bool {
+        let running = |fx: &MomentaryFxState| fx.retire_fade.is_none();
+        let same_kind = self
+            .momentary_fx
+            .iter()
+            .position(|fx| running(fx) && fx.kind == kind);
+        let full = self.momentary_fx.iter().filter(|fx| running(fx)).count()
+            >= super::control::MAX_MOMENTARY_FX;
+        if same_kind.is_none() && !full {
+            return true;
+        }
+        let Some(mut victim) = same_kind.or_else(|| {
+            self.momentary_fx
+                .iter()
+                .position(|fx| running(fx) && fx.releasing)
+        }) else {
+            return false;
+        };
+        if !self.momentary_fx[victim].releasing {
+            return false;
+        }
+        if let Some(fading) = self.momentary_fx.iter().position(|fx| !running(fx)) {
+            store_retired_momentary(
+                &mut retired.displaced_momentary_fx,
+                self.momentary_fx.remove(fading),
+            );
+            if fading < victim {
+                victim -= 1;
+            }
+        }
+        self.momentary_fx[victim].begin_retire_fade(self.sample_rate);
+        true
+    }
+
+    pub fn apply_prepared_momentary_fx_update(
+        &mut self,
+        update: PreparedMomentaryFxUpdate,
+    ) -> ScalarMutation {
+        #[cfg(feature = "routing-tree-executor")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return ScalarMutation::Rejected;
+        }
+        let Some(fx) = self
+            .momentary_fx
+            .iter_mut()
+            .find(|fx| fx.epoch == update.epoch())
+        else {
+            return ScalarMutation::Rejected;
+        };
+        fx.voice.apply_update(update)
+    }
+}
+
 pub fn prepare_momentary_fx_start(
     id: String,
     fx_type: String,
@@ -156,5 +257,7 @@ fn validate_momentary_params(
         .then_some(())
 }
 
+#[cfg(test)]
+mod momentary_control_tests;
 #[cfg(test)]
 mod shipped_stamp_tests;
