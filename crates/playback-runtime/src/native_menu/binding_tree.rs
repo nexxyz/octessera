@@ -160,7 +160,10 @@ fn is_bindable_drum_key(key: &str) -> bool {
         .is_some_and(|(_, field)| matches!(field, "tuneSemis" | "decayMs" | "tonePct" | "attackMs"))
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "binding picker rows are spec data rows"
+)]
 pub(super) fn binding_action(
     label: &str,
     key: &str,
