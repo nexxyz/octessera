@@ -1,7 +1,7 @@
 use super::*;
 use crate::synth::{
-    EnvConfig, InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer,
-    SampleLoopMode, SamplePlaybackConfig,
+    InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer, SampleLoopMode,
+    SamplePlaybackConfig,
 };
 
 const RATE: u32 = 48_000;
@@ -40,77 +40,6 @@ fn tone(frames: usize, channels: u16, sample_rate: u32) -> SampleBuffer {
         channels,
         sample_rate,
     }
-}
-
-fn identity_banks() -> Vec<SampleBankConfig> {
-    let mut plain = SampleBankConfig::default();
-    plain.slots[0].buffer = Some(tone(3_000, 1, 22_050));
-    plain.slots[1].buffer = Some(tone(2_000, 2, 48_000));
-    plain.tune_semis = 3.0;
-    let mut shaped = SampleBankConfig::default();
-    shaped.slots[0].buffer = Some(tone(4_000, 2, 44_100));
-    shaped.filter_cutoff_hz = 3_000.0;
-    shaped.filter_resonance = 30.0;
-    shaped.shape.filter_env_amount_pct = 40.0;
-    shaped.shape.amp_env = EnvConfig {
-        attack_ms: 10.0,
-        decay_ms: 50.0,
-        sustain_pct: 60.0,
-        release_ms: 30.0,
-    };
-    let mut banks = vec![plain, shaped];
-    banks.resize(INSTRUMENT_SLOT_COUNT, SampleBankConfig::default());
-    banks
-}
-
-fn identity_events(engine: &mut SynthEngine, frame: usize) {
-    match frame {
-        0 => {
-            engine.note_on(0, 36, 110, 1_000);
-            engine.tile_hit(0, 1, 9, 150, 90);
-            engine.note_on(1, 36, 100, 1_000);
-        }
-        1_024 => engine.note_off(1, 36),
-        2_048 => engine.tile_hit(0, 1, 9, 0, 0),
-        _ => {}
-    }
-}
-
-fn fnv(hash: u64, value: f32) -> u64 {
-    (hash ^ u64::from(value.to_bits())).wrapping_mul(0x0000_0100_0000_01b3)
-}
-
-fn identity_hash_blocks() -> u64 {
-    let mut engine = sampler_engine(identity_banks());
-    let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
-    let mut hash = 0xcbf2_9ce4_8422_2325;
-    for block in 0..64 {
-        identity_events(&mut engine, block * 128);
-        engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
-        hash = out.iter().fold(hash, |hash, value| fnv(hash, *value));
-    }
-    hash
-}
-
-fn identity_hash_frames() -> u64 {
-    let mut engine = sampler_engine(identity_banks());
-    let mut hash = 0xcbf2_9ce4_8422_2325;
-    for frame in 0..8_192 {
-        identity_events(&mut engine, frame);
-        let (left, right) = engine.next_stereo_sample();
-        hash = fnv(fnv(hash, left), right);
-    }
-    hash
-}
-
-/// Hashes of `identity_hash_blocks` and `identity_hash_frames` rendered by the engine before
-/// sample looping existed (b00241fa): default slot playback must not change a single bit.
-const PRE_LOOP_IDENTITY_HASH: u64 = 0x3fff_dfcb_e7c4_3a69;
-
-#[test]
-fn default_playback_renders_bit_identically_to_the_pre_loop_engine() {
-    assert_eq!(identity_hash_blocks(), PRE_LOOP_IDENTITY_HASH);
-    assert_eq!(identity_hash_frames(), PRE_LOOP_IDENTITY_HASH);
 }
 
 fn ramp(frames: usize) -> SampleBuffer {

@@ -103,6 +103,8 @@ mod sample_buffer_view_tests;
 #[cfg(test)]
 mod sample_filter_block_tests;
 #[cfg(test)]
+mod sample_loop_identity_tests;
+#[cfg(test)]
 mod sample_loop_tests;
 #[cfg(test)]
 mod sample_shape_tests;
