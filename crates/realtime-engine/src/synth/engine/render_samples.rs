@@ -315,7 +315,8 @@ fn render_preview_frame(
     let mut out = 0.0;
     let mut active = false;
     for voice in voices.iter_mut().flatten() {
-        let voice_frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
+        let view = SampleBufferView::from_buffer(&voice.buffer);
+        let voice_frames = view.frames();
         if voice_frames == 0 || voice.pos >= voice_frames as f32 {
             voice.pos = voice_frames as f32;
             continue;
@@ -323,8 +324,7 @@ fn render_preview_frame(
         let source_frame = voice.pos.floor() as usize;
         let frac = voice.pos - source_frame as f32;
         let next_frame = (source_frame + 1).min(voice_frames - 1);
-        out += mono_frame(&voice.buffer, source_frame) * (1.0 - frac)
-            + mono_frame(&voice.buffer, next_frame) * frac;
+        out += view.mono_frame(source_frame) * (1.0 - frac) + view.mono_frame(next_frame) * frac;
         voice.pos += voice.step;
         active = true;
     }

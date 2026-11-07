@@ -211,7 +211,7 @@ use render_routing::FxBusOutputSpreadState;
 use routing_tree_executor::RoutingTreeAssignment;
 #[cfg(test)]
 use routing_tree_executor::RoutingTreeBlockScratch;
-use sample_voice::{mono_frame, sample_slot_for_note, PreviewSampleVoice, SampleVoice};
+use sample_voice::{sample_slot_for_note, PreviewSampleVoice, SampleBufferView, SampleVoice};
 use sample_voice_pool::SampleVoicePool;
 
 #[cfg(test)]

@@ -3,65 +3,24 @@
 //! each block runs the read loop built for that cursor.
 
 use super::super::types::{SampleLoopMode, SamplePlaybackConfig};
-use super::sample_voice::{mono_frame, SampleBufferView};
+use super::sample_voice::SampleBufferView;
 use crate::synth::SampleBuffer;
 
 /// The forward loop's seam crossfade, in seconds of the sample itself.
 const LOOP_CROSSFADE_SECONDS: f32 = 0.010;
 
-/// A sample's frames, as the block path's borrowed view or the frame path's buffer.
-pub(super) trait MonoFrames {
-    fn mono(&self, frame: usize) -> f32;
-    fn last_frame(&self) -> usize;
-    fn end_position(&self) -> f32;
-}
-
-impl MonoFrames for SampleBufferView<'_> {
-    #[inline(always)]
-    fn mono(&self, frame: usize) -> f32 {
-        self.mono_frame(frame)
-    }
-
-    #[inline(always)]
-    fn last_frame(&self) -> usize {
-        self.frames() - 1
-    }
-
-    #[inline(always)]
-    fn end_position(&self) -> f32 {
-        SampleBufferView::end_position(self)
-    }
-}
-
-impl MonoFrames for SampleBuffer {
-    #[inline(always)]
-    fn mono(&self, frame: usize) -> f32 {
-        mono_frame(self, frame)
-    }
-
-    #[inline(always)]
-    fn last_frame(&self) -> usize {
-        self.samples.len() / self.channels as usize - 1
-    }
-
-    #[inline(always)]
-    fn end_position(&self) -> f32 {
-        (self.samples.len() / self.channels as usize) as f32
-    }
-}
-
 #[inline(always)]
-fn lerp_at(source: &impl MonoFrames, pos: f32) -> f32 {
+fn lerp_at(source: &SampleBufferView, pos: f32) -> f32 {
     let frame = pos.floor() as usize;
     let frac = pos - frame as f32;
-    let next_frame = (frame + 1).min(source.last_frame());
-    source.mono(frame) * (1.0 - frac) + source.mono(next_frame) * frac
+    let next_frame = (frame + 1).min(source.frames() - 1);
+    source.mono_frame(frame) * (1.0 - frac) + source.mono_frame(next_frame) * frac
 }
 
 /// Reads the input at `pos` and moves `pos` on by `step`; `None` once a one-shot read has run
 /// off the end of the sample.
 pub(super) trait SampleCursor: Copy {
-    fn read(&mut self, source: &impl MonoFrames, pos: &mut f32, step: f32) -> Option<f32>;
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32>;
     fn into_loop(self) -> SampleVoiceLoop;
 }
 
@@ -115,7 +74,7 @@ pub(super) struct OnceThrough;
 
 impl SampleCursor for OnceThrough {
     #[inline(always)]
-    fn read(&mut self, source: &impl MonoFrames, pos: &mut f32, step: f32) -> Option<f32> {
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32> {
         if *pos >= source.end_position() {
             return None;
         }
@@ -141,7 +100,7 @@ pub(super) struct ForwardLoop {
 
 impl SampleCursor for ForwardLoop {
     #[inline(always)]
-    fn read(&mut self, source: &impl MonoFrames, pos: &mut f32, step: f32) -> Option<f32> {
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32> {
         let at = *pos;
         let mut input = lerp_at(source, at);
         if at >= self.fade_start {
@@ -173,7 +132,7 @@ pub(super) struct PingPongLoop {
 
 impl SampleCursor for PingPongLoop {
     #[inline(always)]
-    fn read(&mut self, source: &impl MonoFrames, pos: &mut f32, step: f32) -> Option<f32> {
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32> {
         let input = lerp_at(source, *pos);
         if self.reverse {
             let next = *pos - step;

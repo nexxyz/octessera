@@ -1,7 +1,7 @@
 use super::super::runtime_state::BiquadState;
 use super::super::types::SampleBuffer;
 use super::sample_voice::{
-    mono_frame, reset_sample_buffer_view_resolves_for_test, sample_buffer_view_resolves_for_test,
+    reset_sample_buffer_view_resolves_for_test, sample_buffer_view_resolves_for_test,
     SampleBufferView, SampleVoice,
 };
 use super::sample_voice_renderer::{render_sample_voice_block, render_sample_voice_frame};
@@ -25,10 +25,13 @@ fn sample_buffer_view_matches_scalar_reads_at_one_and_two_frame_edges() {
         assert_eq!(view.frames(), frames);
         assert_eq!(view.end_position().to_bits(), (frames as f32).to_bits());
         for frame in 0..frames {
-            assert_eq!(
-                view.mono_frame(frame).to_bits(),
-                mono_frame(&buffer, frame).to_bits()
-            );
+            let base = frame * channels as usize;
+            let expected = if channels == 1 {
+                buffer.samples[base]
+            } else {
+                (buffer.samples[base] + buffer.samples[base + 1]) * 0.5
+            };
+            assert_eq!(view.mono_frame(frame).to_bits(), expected.to_bits());
         }
     }
 }
@@ -96,7 +99,7 @@ fn malformed_and_empty_sample_geometry_matches_scalar_failure() {
 }
 
 #[test]
-fn sample_buffer_view_resolves_once_per_voice_block_not_per_frame() {
+fn sample_buffer_view_resolves_once_per_voice_block_and_once_per_lone_frame() {
     let mut voice = sample_voice(vec![0.25; 4_096], 1, 0.0, 1.0, 3_200.0, 47.0);
     reset_sample_buffer_view_resolves_for_test();
     let _ = render_block(&mut voice, 2_048);
@@ -105,7 +108,21 @@ fn sample_buffer_view_resolves_once_per_voice_block_not_per_frame() {
     reset_sample_buffer_view_resolves_for_test();
     let mut scalar = sample_voice(vec![0.25; 4_096], 1, 0.0, 1.0, 3_200.0, 47.0);
     let _ = render_scalar(&mut scalar, 2_048);
-    assert_eq!(sample_buffer_view_resolves_for_test(), 0);
+    assert_eq!(sample_buffer_view_resolves_for_test(), 2_048);
+
+    let mut shaped = sample_voice(vec![0.25; 4_096], 1, 0.0, 1.0, 3_200.0, 47.0);
+    shaped.shape = super::sample_voice_shape::SampleVoiceShape::start(
+        &crate::synth::SampleShapeConfig {
+            filter_env_amount_pct: 40.0,
+            ..crate::synth::SampleShapeConfig::default()
+        },
+        0.0,
+        SAMPLE_RATE,
+    );
+    assert!(!shaped.shape.is_static());
+    reset_sample_buffer_view_resolves_for_test();
+    let _ = render_block(&mut shaped, 2_048);
+    assert_eq!(sample_buffer_view_resolves_for_test(), 1);
 }
 
 #[test]

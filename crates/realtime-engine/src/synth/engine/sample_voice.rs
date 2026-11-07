@@ -115,14 +115,3 @@ pub(super) fn sample_slot_for_note(note: u8) -> usize {
     note.saturating_sub(36)
         .min((SAMPLE_SLOTS_PER_INSTRUMENT - 1) as u8) as usize
 }
-
-pub(super) fn mono_frame(buffer: &SampleBuffer, frame: usize) -> f32 {
-    let channels = buffer.channels.max(1) as usize;
-    let base = frame.saturating_mul(channels);
-    if channels == 1 {
-        return buffer.samples.get(base).copied().unwrap_or(0.0);
-    }
-    let left = buffer.samples.get(base).copied().unwrap_or(0.0);
-    let right = buffer.samples.get(base + 1).copied().unwrap_or(left);
-    (left + right) * 0.5
-}

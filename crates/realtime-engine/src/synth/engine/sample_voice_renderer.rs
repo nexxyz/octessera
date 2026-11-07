@@ -24,29 +24,37 @@ fn render_sample_voice_frame_once(
     mut cursor: impl SampleCursor,
     sample_rate: u32,
 ) -> Option<f32> {
-    let sample = render_sample_voice_frame_with(voice, &mut cursor, sample_rate);
+    let sample = if !voice.active {
+        None
+    } else if let Some(buffer) = voice.buffer.take() {
+        let view = SampleBufferView::from_buffer(&buffer);
+        let sample = render_sample_voice_frame_with(voice, &view, &mut cursor, sample_rate);
+        voice.buffer = Some(buffer);
+        sample
+    } else {
+        voice.active = false;
+        None
+    };
     voice.cursor = cursor.into_loop();
     sample
 }
 
+/// One frame of a voice whose buffer `view` reads; the voice's own buffer is out meanwhile.
 #[inline(always)]
 fn render_sample_voice_frame_with(
     voice: &mut SampleVoice,
+    view: &SampleBufferView,
     cursor: &mut impl SampleCursor,
     sample_rate: u32,
 ) -> Option<f32> {
     if !voice.active {
         return None;
     }
-    let Some(buffer) = voice.buffer.as_ref() else {
-        voice.active = false;
-        return None;
-    };
-    if buffer.samples.len() / (buffer.channels as usize) == 0 {
+    if view.frames() == 0 {
         voice.active = false;
         return None;
     }
-    let Some(sample) = cursor.read(buffer, &mut voice.pos, voice.step) else {
+    let Some(sample) = cursor.read(view, &mut voice.pos, voice.step) else {
         voice.active = false;
         return None;
     };
@@ -230,9 +238,14 @@ fn render_shaped_sample_voice_block(
     sample_rate: u32,
     samples: &mut [f32],
 ) -> usize {
+    let Some(buffer) = voice.buffer.take() else {
+        voice.active = false;
+        return 0;
+    };
+    let view = SampleBufferView::from_buffer(&buffer);
     let mut rendered_frames = 0;
     for sample in samples[..frames].iter_mut() {
-        let Some(value) = render_sample_voice_frame_with(voice, cursor, sample_rate) else {
+        let Some(value) = render_sample_voice_frame_with(voice, &view, cursor, sample_rate) else {
             break;
         };
         *sample = value;
@@ -241,6 +254,7 @@ fn render_shaped_sample_voice_block(
             break;
         }
     }
+    voice.buffer = Some(buffer);
     rendered_frames
 }
 
