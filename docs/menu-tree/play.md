@@ -258,7 +258,8 @@ The menu lists the technical bank, then the musical bank.
   on the bus output after its slot FX; `master` after the final mix. Platform-core resolves grid
   semantics into audio commands; desktop forwards them without interpreting Play meaning; Rust runs
   the DSP.
-- On the `fx` page, pressing a mapped tile starts its effect and releasing stops it. At most two
+- On the `fx` page, pressing a mapped tile starts its effect and releasing stops it, even when
+  Back, a layer select, or a page switch left the page while it was held. At most two
   momentary FX run at once (Play FX concurrency capability), and only one per type. A press that
   would exceed either limit is ignored with `FX limit: 2 at once` or `FX <type> already on`.
   Toasts and rows show the display names (`filter sweep`, `tape stop`, `HP riser`).
@@ -374,6 +375,8 @@ The `ms` rows use the curved time steps from
   A plain press clears the latch and behaves as above. The latch is live only: never saved, never
   marks the patch dirty, and clears on boot, patch loads and Clear All. When a patch load clears
   it under `reset-center`, the marker and the axes return to the center.
+- Releasing the pressed tile ends the touch even when Back, a layer select, or a page switch left
+  the page while it was held; other tiles' releases do not.
 - LEDs: the touched tile is bright white while pressed, and stays bright white while latched.
   After release, `sample-hold` leaves a dim gray marker at the held value and `reset-center` a
   dimmer gray marker at center.

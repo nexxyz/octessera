@@ -134,6 +134,7 @@ mod picker_rows;
 mod play_fader_tiles;
 mod play_faders;
 mod play_fx;
+mod play_held_page_leave;
 mod play_lfo;
 mod play_live_reset;
 mod play_menu;

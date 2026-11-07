@@ -323,17 +323,15 @@ impl NativeRunner {
         ) {
             return self.messages_with_snapshot();
         }
-        if self.active_play_mode != "none" {
+        let fx_effects = self.play_fx_release_effects(x, y);
+        let xy_held = self.xy_touch.active && self.play_live.xy_held_tile == Some((x, y));
+        if self.active_play_mode != "none" || !fx_effects.is_empty() || xy_held {
             self.release_fader_tile(x, y);
-            if self.active_play_mode == "fx" {
-                let effects = self.play_fx_release_effects(x, y);
-                if !effects.is_empty() {
-                    return self.messages_with_effects(effects);
-                }
-                return self.messages_with_snapshot();
-            }
-            if self.active_play_mode == "xy" {
+            if self.active_play_mode == "xy" || xy_held {
                 self.handle_play_xy_release();
+            }
+            if !fx_effects.is_empty() {
+                return self.messages_with_effects(fx_effects);
             }
             return self.messages_with_snapshot();
         }

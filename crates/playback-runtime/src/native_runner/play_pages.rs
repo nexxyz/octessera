@@ -73,6 +73,8 @@ pub(super) struct PlayLiveState {
     pub(super) bus_mutes: [bool; BUS_COUNT],
     /// Shift + press on the XY page holds that position after release, even with center release.
     pub(super) xy_latched: bool,
+    /// The XY tile last pressed, whose release ends the touch even after leaving the page.
+    pub(super) xy_held_tile: Option<(usize, usize)>,
     pub(super) external_clock: fx_tempo::ExternalClockTempo,
 }
 

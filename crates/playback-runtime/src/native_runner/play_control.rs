@@ -209,6 +209,7 @@ impl NativeRunner {
 
     pub(super) fn handle_play_xy_press_at(&mut self, x: usize, y: usize, now: std::time::Instant) {
         self.play_live.xy_latched = self.display.ui.shift_held;
+        self.play_live.xy_held_tile = Some((x, y));
         let physical_x = x.min(GRID_WIDTH - 1) as f32 / (GRID_WIDTH - 1) as f32;
         let physical_y = y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32;
         self.xy_touch.display_x = physical_x;
@@ -226,6 +227,7 @@ impl NativeRunner {
     }
 
     pub(super) fn handle_play_xy_release_at(&mut self, now: std::time::Instant) {
+        self.play_live.xy_held_tile = None;
         if self.xy_release == "reset-center" && !self.play_live.xy_latched {
             self.xy_touch.display_x = 0.5;
             self.xy_touch.display_y = 0.5;
