@@ -288,7 +288,7 @@ The menu lists the technical bank, then the musical bank.
 | `crush` | Bits `1..16` (default 6), Downsample `1..32` (default 6), Mix `0..100` (default 100) | The bus bitcrusher on each channel: bit depth plus sample-and-hold rate reduction. The mix eases in and out over 5 ms. |
 
 `trance_gate` and `dub_throw` follow the tempo: the transport tempo, or under external sync the
-incoming clock measured over each bar (a change of more than 1 % retimes them). A tempo change while one is held retimes it: the gate keeps
+incoming clock measured over each bar (once it is more than 1 % off the tempo they were timed to, it retimes them). A tempo change while one is held retimes it: the gate keeps
 its place in the period, and the echo time glides over about 50 ms.
 
 The `ms` rows use the curved time steps from

@@ -64,12 +64,25 @@ impl NativeRunner {
     }
 
     pub(in crate::native_runner) fn observe_external_clock_tempo(&mut self, pulses: u32) {
-        let before = self.play_fx_tempo_bpm();
-        let measured = self
+        self.observe_external_clock_tempo_at(pulses, Instant::now());
+    }
+
+    /// Retimes the held Play FX once the tempo has moved off the one they were timed to, so a
+    /// slow drift retimes them once it adds up.
+    pub(in crate::native_runner) fn observe_external_clock_tempo_at(
+        &mut self,
+        pulses: u32,
+        now: Instant,
+    ) {
+        if self.play_live.external_clock.observe(pulses, now).is_none() {
+            return;
+        }
+        let bpm = self.play_fx_tempo_bpm();
+        if self
             .play_live
-            .external_clock
-            .observe(pulses, Instant::now());
-        if measured.is_some_and(|bpm| (bpm - before).abs() > before * RETIME_SHARE) {
+            .held_fx_bpm
+            .is_some_and(|timed| (bpm - timed).abs() > timed * RETIME_SHARE)
+        {
             self.retime_held_play_fx();
         }
     }
@@ -77,6 +90,7 @@ impl NativeRunner {
     /// Sends the held tempo-synced Play FX their lengths at the current tempo.
     pub(in crate::native_runner) fn retime_held_play_fx(&mut self) {
         let bpm = self.play_fx_tempo_bpm();
+        self.play_live.held_fx_bpm = Some(bpm);
         let updates = self
             .play_fx_assignments
             .iter()

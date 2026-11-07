@@ -69,6 +69,7 @@ impl NativeRunner {
         }
         if let Some(start) = self.play_fx_start_effect_for_assignment(&assignment) {
             self.active_play_fx.push((id, fx_type));
+            self.play_live.held_fx_bpm = Some(self.play_fx_tempo_bpm());
             effects.push(start);
         }
         effects

@@ -227,3 +227,41 @@ pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
         180
     );
 }
+
+#[test]
+pub(crate) fn a_slow_clock_drift_retimes_a_held_dub_throw_once_it_adds_up() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.sync_source = SyncSource::External;
+    runner.active_play_mode = "fx".into();
+    runner.play_fx_assignments.push(NativePlayFxAssignment {
+        x: 0,
+        y: 0,
+        config: json!({ "fxType": "dub_throw", "targetKey": "master", "params": { "delayNote": 3 } }),
+    });
+    let mut at = std::time::Instant::now();
+    runner.observe_external_clock_tempo_at(1, at);
+    let mut bar = |runner: &mut NativeRunner, bpm: f64| {
+        let pulse = std::time::Duration::from_secs_f64(60.0 / bpm / 24.0);
+        for _ in 0..96 {
+            at += pulse;
+            runner.observe_external_clock_tempo_at(1, at);
+        }
+        runner
+            .outbox
+            .drain_audio_commands()
+            .iter()
+            .filter(|command| matches!(command, RuntimeAudioCommand::MomentaryFxUpdate { .. }))
+            .count()
+    };
+    assert_eq!(bar(&mut runner, 120.0), 0);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+
+    assert_eq!(bar(&mut runner, 120.7), 0, "0.6 % is jitter");
+    assert_eq!(bar(&mut runner, 121.4), 1, "1.2 % off the timed tempo");
+    assert_eq!(bar(&mut runner, 122.1), 0, "0.6 % off the retimed tempo");
+}

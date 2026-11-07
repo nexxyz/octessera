@@ -76,6 +76,8 @@ pub(super) struct PlayLiveState {
     /// The XY tile last pressed, whose release ends the touch even after leaving the page.
     pub(super) xy_held_tile: Option<(usize, usize)>,
     pub(super) external_clock: fx_tempo::ExternalClockTempo,
+    /// The tempo the held tempo-synced Play FX were last timed to.
+    pub(super) held_fx_bpm: Option<f64>,
 }
 
 impl NativeRunner {
