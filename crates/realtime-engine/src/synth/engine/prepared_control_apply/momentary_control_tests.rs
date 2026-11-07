@@ -181,10 +181,10 @@ fn prepared_momentary_updates_preserve_buffers_and_are_allocation_free() {
         .unwrap(),
     );
     let fx = &engine.momentary_fx[0];
-    let left_ptr = fx.stutter_l.as_ptr();
-    let right_ptr = fx.stutter_r.as_ptr();
-    let left_capacity = fx.stutter_l.capacity();
-    let right_capacity = fx.stutter_r.capacity();
+    let left_ptr = fx.voice.stutter().left.as_ptr();
+    let right_ptr = fx.voice.stutter().right.as_ptr();
+    let left_capacity = fx.voice.stutter().left.capacity();
+    let right_capacity = fx.voice.stutter().right.capacity();
     let update = PreparedMomentaryFxUpdate::Stutter {
         epoch: 17,
         depth: 0.2,
@@ -202,10 +202,10 @@ fn prepared_momentary_updates_preserve_buffers_and_are_allocation_free() {
     assert_eq!(allocations, 0);
     assert_eq!(deallocations, 0);
     let fx = &engine.momentary_fx[0];
-    assert_eq!(fx.stutter_l.as_ptr(), left_ptr);
-    assert_eq!(fx.stutter_r.as_ptr(), right_ptr);
-    assert_eq!(fx.stutter_l.capacity(), left_capacity);
-    assert_eq!(fx.stutter_r.capacity(), right_capacity);
+    assert_eq!(fx.voice.stutter().left.as_ptr(), left_ptr);
+    assert_eq!(fx.voice.stutter().right.as_ptr(), right_ptr);
+    assert_eq!(fx.voice.stutter().left.capacity(), left_capacity);
+    assert_eq!(fx.voice.stutter().right.capacity(), right_capacity);
 }
 
 #[test]

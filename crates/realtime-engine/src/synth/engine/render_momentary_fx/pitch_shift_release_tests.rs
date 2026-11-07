@@ -23,15 +23,20 @@ fn pitch_release_uses_full_rate_scaled_complementary_fade() {
             render_full_activation(&mut engine, &mut wet_state, release_len);
             let retired = engine.momentary_fx_stop("pitch");
             assert!(retired.displaced_momentary_fx.iter().all(Option::is_none));
-            assert_eq!(engine.momentary_fx[0].release_len, release_len);
-            let release_start_octaves = engine.momentary_fx[0].pitch_amount_octaves;
+            assert_eq!(
+                engine.momentary_fx[0].voice.pitch().release_len,
+                release_len
+            );
+            let release_start_octaves = engine.momentary_fx[0].voice.pitch().amount_octaves;
 
             for release_pos in 0..release_len {
                 let input = (0.35, -0.2);
                 let ratio =
                     pitch_ratio_for_release(release_start_octaves, release_pos, release_len);
                 let wet = wet_state
-                    .pitch_shifter
+                    .voice
+                    .pitch_mut()
+                    .shifter
                     .process_frame(input.0, input.1, ratio);
                 let output = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
                 if release_pos == 0
@@ -41,7 +46,10 @@ fn pitch_release_uses_full_rate_scaled_complementary_fade() {
                 {
                     let wet_gain = mix / 100.0 * (1.0 - release_pos as f32 / release_len as f32);
                     if release_pos + 1 < release_len {
-                        assert_eq!(engine.momentary_fx[0].release_pos, release_pos + 1);
+                        assert_eq!(
+                            engine.momentary_fx[0].voice.pitch().release_pos,
+                            release_pos + 1
+                        );
                     } else {
                         assert!(engine.momentary_fx.is_empty());
                     }
@@ -87,23 +95,27 @@ fn pitch_partial_activation_release_starts_at_current_wet_and_only_declines() {
             pitch_ratio_for_slide(frame - PITCH_FILL_FRAMES + 1, release_len)
         };
         let _ = wet_state
-            .pitch_shifter
+            .voice
+            .pitch_mut()
+            .shifter
             .process_frame(input.0, input.1, ratio);
         let _ = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
     }
-    let activation =
-        engine.momentary_fx[0].pitch_ramp_pos as f32 / engine.momentary_fx[0].pitch_ramp_len as f32;
+    let activation = engine.momentary_fx[0].voice.pitch().ramp_pos as f32
+        / engine.momentary_fx[0].voice.pitch().ramp_len as f32;
     assert!(activation > 0.0 && activation < 1.0);
     engine.momentary_fx_stop("pitch");
-    assert_eq!(engine.momentary_fx[0].release_pos, 0);
+    assert_eq!(engine.momentary_fx[0].voice.pitch().release_pos, 0);
 
     let mut previous_gain = activation;
-    let release_start_octaves = engine.momentary_fx[0].pitch_amount_octaves;
+    let release_start_octaves = engine.momentary_fx[0].voice.pitch().amount_octaves;
     for release_pos in 0..release_len {
         let input = (1.0, 1.0);
         let ratio = pitch_ratio_for_release(release_start_octaves, release_pos, release_len);
         let wet = wet_state
-            .pitch_shifter
+            .voice
+            .pitch_mut()
+            .shifter
             .process_frame(input.0, input.1, ratio);
         let output = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
         let wet_gain = activation * (1.0 - release_pos as f32 / release_len as f32);
@@ -128,14 +140,19 @@ fn pitch_slide_out_holds_wet_until_the_final_fixed_activation_window() {
     );
     render_full_activation(&mut engine, &mut wet_state, release_len);
     engine.momentary_fx_stop("pitch");
-    assert_eq!(engine.momentary_fx[0].release_len, release_len);
-    let start_octaves = engine.momentary_fx[0].pitch_amount_octaves;
-    let fixed_len = engine.momentary_fx[0].pitch_ramp_len.max(1);
+    assert_eq!(
+        engine.momentary_fx[0].voice.pitch().release_len,
+        release_len
+    );
+    let start_octaves = engine.momentary_fx[0].voice.pitch().amount_octaves;
+    let fixed_len = engine.momentary_fx[0].voice.pitch().ramp_len.max(1);
     let input = (0.35, -0.2);
     for release_pos in 0..release_len {
         let ratio = pitch_ratio_for_release(start_octaves, release_pos, release_len);
         let wet = wet_state
-            .pitch_shifter
+            .voice
+            .pitch_mut()
+            .shifter
             .process_frame(input.0, input.1, ratio);
         let output = engine.process_momentary_fx_target(GLOBAL, input.0, input.1);
         let fade_start = release_len - fixed_len;
@@ -189,12 +206,18 @@ fn pitch_repeated_stop_does_not_reset_release_and_releasing_updates_are_rejected
     );
     render_full_activation(&mut engine, &mut wet_state, 480);
     engine.momentary_fx_stop("pitch");
-    let release_len = engine.momentary_fx[0].release_len;
+    let release_len = engine.momentary_fx[0].voice.pitch().release_len;
     let _ = engine.process_momentary_fx_target(GLOBAL, 0.2, -0.1);
-    let release_pos = engine.momentary_fx[0].release_pos;
+    let release_pos = engine.momentary_fx[0].voice.pitch().release_pos;
     engine.momentary_fx_stop("pitch");
-    assert_eq!(engine.momentary_fx[0].release_pos, release_pos);
-    assert_eq!(engine.momentary_fx[0].release_len, release_len);
+    assert_eq!(
+        engine.momentary_fx[0].voice.pitch().release_pos,
+        release_pos
+    );
+    assert_eq!(
+        engine.momentary_fx[0].voice.pitch().release_len,
+        release_len
+    );
 
     engine.momentary_fx_update("pitch", &pitch_params(50.0));
     assert_eq!(pitch_mix(&engine.momentary_fx[0]), 1.0);
@@ -227,9 +250,9 @@ fn pitch_release_respects_target_isolation_and_retrigger_resets() {
     render_full_activation_for_target(&mut engine, &mut wet_state, target, 480);
     engine.momentary_fx_stop("pitch");
     let _ = engine.process_momentary_fx_target(GLOBAL, 0.2, -0.1);
-    assert_eq!(engine.momentary_fx[0].release_pos, 0);
+    assert_eq!(engine.momentary_fx[0].voice.pitch().release_pos, 0);
     let _ = engine.process_momentary_fx_target(target, 0.2, -0.1);
-    assert_eq!(engine.momentary_fx[0].release_pos, 1);
+    assert_eq!(engine.momentary_fx[0].voice.pitch().release_pos, 1);
 
     engine.momentary_fx_start(
         "pitch".into(),
@@ -238,9 +261,9 @@ fn pitch_release_respects_target_isolation_and_retrigger_resets() {
         target,
     );
     assert!(!engine.momentary_fx[0].releasing);
-    assert_eq!(engine.momentary_fx[0].pitch_fill_pos, 0);
-    assert_eq!(engine.momentary_fx[0].pitch_ramp_pos, 0);
-    assert_eq!(engine.momentary_fx[0].release_pos, 0);
+    assert_eq!(engine.momentary_fx[0].voice.pitch().fill_pos, 0);
+    assert_eq!(engine.momentary_fx[0].voice.pitch().ramp_pos, 0);
+    assert_eq!(engine.momentary_fx[0].voice.pitch().release_pos, 0);
 }
 
 fn render_full_activation(
@@ -257,7 +280,7 @@ fn render_full_activation_for_target(
     target: MomentaryFxTarget,
     release_len: u32,
 ) {
-    let slide_in_len = engine.momentary_fx[0].pitch_slide_len;
+    let slide_in_len = engine.momentary_fx[0].voice.pitch().slide_len;
     for frame in 0..PITCH_FILL_FRAMES + release_len + 1 {
         let input = if frame < PITCH_FILL_FRAMES {
             (-1.0, -1.0)
@@ -270,7 +293,9 @@ fn render_full_activation_for_target(
             pitch_ratio_for_slide(frame - PITCH_FILL_FRAMES + 1, slide_in_len)
         };
         let _ = wet_state
-            .pitch_shifter
+            .voice
+            .pitch_mut()
+            .shifter
             .process_frame(input.0, input.1, ratio);
         let _ = engine.process_momentary_fx_target(target, input.0, input.1);
     }
@@ -313,10 +338,7 @@ fn pitch_params_with_slides(
 }
 
 fn pitch_mix(fx: &MomentaryFxState) -> f32 {
-    match fx.runtime_params {
-        super::MomentaryFxRuntimeParams::PitchShift { mix, .. } => mix,
-        _ => unreachable!("pitch test state has non-pitch runtime parameters"),
-    }
+    fx.voice.pitch().params.mix
 }
 
 fn pitch_ratio_for_slide(position: u32, slide_len: u32) -> f32 {

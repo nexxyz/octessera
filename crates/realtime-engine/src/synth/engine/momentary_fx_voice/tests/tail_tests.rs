@@ -12,7 +12,7 @@ fn a_new_press_takes_over_a_ringing_dub_throw_without_a_cut() {
     let mut retired: Retired = std::array::from_fn(|_| None);
     for frame in 0..30_000 {
         if frame == 4_000 {
-            states[0].begin_release();
+            states[0].stop();
         }
         if frame == 20_000 {
             let mut incoming = MomentaryFxState::new_with_epoch(
@@ -34,8 +34,7 @@ fn a_new_press_takes_over_a_ringing_dub_throw_without_a_cut() {
         } else {
             0.0
         };
-        let (left, _) =
-            process_momentary_fx_states(&mut states, TARGET, x, x, Some(&mut retired), RATE);
+        let (left, _) = process_momentary_fx_states(&mut states, TARGET, x, x, Some(&mut retired));
         output.push(left);
     }
     assert_eq!(states.len(), 1);
@@ -58,7 +57,7 @@ fn a_held_tail_never_takes_over_and_other_types_or_targets_are_left_alone() {
     let mut states = state("wash", &params(&[]));
     let mut incoming = state("wash", &params(&[])).remove(0);
     assert!(!states[0].take_over_tail(&mut incoming), "still held");
-    states[0].begin_release();
+    states[0].stop();
     let mut other_type = state("crush", &params(&[])).remove(0);
     assert!(!states[0].take_over_tail(&mut other_type));
     let kind = states[0].kind;

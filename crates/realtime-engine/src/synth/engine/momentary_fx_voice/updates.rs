@@ -2,8 +2,8 @@ use super::super::super::scalar_param::ScalarMutation;
 use super::super::momentary_fx_state::MomentaryFxKind;
 use super::super::PreparedMomentaryFxUpdate;
 use super::{
-    CrushParams, DubThrowParams, HpRiserParams, MomentaryFxVoice, ReverseParams, TapeStopParams,
-    TranceGateParams, WashParams,
+    CrushParams, DubThrowParams, FilterSweepParams, FreezeParams, HpRiserParams, MomentaryFxVoice,
+    PitchShiftParams, ReverseParams, StutterParams, TapeStopParams, TranceGateParams, WashParams,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -21,6 +21,58 @@ impl MomentaryFxVoice {
             ScalarMutation::Changed
         }
         match (self, update) {
+            (
+                Self::Stutter(voice),
+                PreparedMomentaryFxUpdate::Stutter {
+                    depth, segment_len, ..
+                },
+            ) => {
+                let next = StutterParams { depth, segment_len };
+                if voice.params == next {
+                    return ScalarMutation::Unchanged;
+                }
+                voice.retime(next);
+                ScalarMutation::Changed
+            }
+            (
+                Self::Freeze(voice),
+                PreparedMomentaryFxUpdate::Freeze {
+                    mix, release_len, ..
+                },
+            ) => replace(&mut voice.params, FreezeParams { mix, release_len }),
+            (
+                Self::FilterSweep(voice),
+                PreparedMomentaryFxUpdate::FilterSweep {
+                    target_cutoff,
+                    q,
+                    sweep_in_step,
+                    sweep_out_step,
+                    ..
+                },
+            ) => replace(
+                &mut voice.params,
+                FilterSweepParams {
+                    target_cutoff,
+                    q,
+                    sweep_in_step,
+                    sweep_out_step,
+                },
+            ),
+            (
+                Self::PitchShift(voice),
+                PreparedMomentaryFxUpdate::PitchShift {
+                    target_octaves,
+                    mix,
+                    slide_in_len,
+                    slide_out_len,
+                    ..
+                },
+            ) => voice.update(PitchShiftParams {
+                target_octaves,
+                mix,
+                slide_in_len,
+                slide_out_len,
+            }),
             (
                 Self::TapeStop(voice),
                 PreparedMomentaryFxUpdate::TapeStop {
@@ -132,14 +184,60 @@ impl MomentaryFxVoice {
     }
 }
 
-/// The prepared live update for a voice type, or `None` for the other Play FX types.
+/// The prepared live update of a Play FX type.
 pub(in crate::synth::engine) fn prepare_voice_update(
     kind: MomentaryFxKind,
     epoch: u64,
     params: &BTreeMap<String, Value>,
     sample_rate: u32,
-) -> Option<PreparedMomentaryFxUpdate> {
-    Some(match kind {
+) -> PreparedMomentaryFxUpdate {
+    match kind {
+        MomentaryFxKind::Stutter => {
+            let StutterParams { depth, segment_len } = StutterParams::from_map(params, sample_rate);
+            PreparedMomentaryFxUpdate::Stutter {
+                epoch,
+                depth,
+                segment_len,
+            }
+        }
+        MomentaryFxKind::Freeze => {
+            let FreezeParams { mix, release_len } = FreezeParams::from_map(params, sample_rate);
+            PreparedMomentaryFxUpdate::Freeze {
+                epoch,
+                mix,
+                release_len,
+            }
+        }
+        MomentaryFxKind::FilterSweep => {
+            let FilterSweepParams {
+                target_cutoff,
+                q,
+                sweep_in_step,
+                sweep_out_step,
+            } = FilterSweepParams::from_map(params, sample_rate);
+            PreparedMomentaryFxUpdate::FilterSweep {
+                epoch,
+                target_cutoff,
+                q,
+                sweep_in_step,
+                sweep_out_step,
+            }
+        }
+        MomentaryFxKind::PitchShift => {
+            let PitchShiftParams {
+                target_octaves,
+                mix,
+                slide_in_len,
+                slide_out_len,
+            } = PitchShiftParams::from_map(params, sample_rate);
+            PreparedMomentaryFxUpdate::PitchShift {
+                epoch,
+                target_octaves,
+                mix,
+                slide_in_len,
+                slide_out_len,
+            }
+        }
         MomentaryFxKind::TapeStop => {
             let TapeStopParams {
                 stop_len,
@@ -226,18 +324,16 @@ pub(in crate::synth::engine) fn prepare_voice_update(
                 mix,
             }
         }
-        MomentaryFxKind::Stutter
-        | MomentaryFxKind::Freeze
-        | MomentaryFxKind::FilterSweep
-        | MomentaryFxKind::PitchShift => return None,
-    })
+    }
 }
 
-/// The parameter keys a voice type accepts, or `None` for the other Play FX types.
-pub(in crate::synth::engine) fn voice_param_keys(
-    kind: MomentaryFxKind,
-) -> Option<&'static [&'static str]> {
-    Some(match kind {
+/// The parameter keys a Play FX type accepts.
+pub(in crate::synth::engine) fn voice_param_keys(kind: MomentaryFxKind) -> &'static [&'static str] {
+    match kind {
+        MomentaryFxKind::Stutter => &["depthPct", "rateHz"],
+        MomentaryFxKind::Freeze => &["mixPct", "releaseMs"],
+        MomentaryFxKind::FilterSweep => &["cutoffPct", "resonancePct", "sweepInMs", "sweepOutMs"],
+        MomentaryFxKind::PitchShift => &["semitones", "cents", "mixPct", "slideInMs", "slideOutMs"],
         MomentaryFxKind::TapeStop => &["stopMs", "startMs"],
         MomentaryFxKind::Reverse => &["lengthMs", "mixPct"],
         MomentaryFxKind::TranceGate => &["ratePulses", "depthPct", "smoothPct", "tempoBpm"],
@@ -245,9 +341,5 @@ pub(in crate::synth::engine) fn voice_param_keys(
         MomentaryFxKind::Wash => &["sizePct", "mixPct", "releaseMs"],
         MomentaryFxKind::HpRiser => &["cutoffPct", "resonancePct", "sweepInMs", "sweepOutMs"],
         MomentaryFxKind::Crush => &["bits", "rateDiv", "mixPct"],
-        MomentaryFxKind::Stutter
-        | MomentaryFxKind::Freeze
-        | MomentaryFxKind::FilterSweep
-        | MomentaryFxKind::PitchShift => return None,
-    })
+    }
 }

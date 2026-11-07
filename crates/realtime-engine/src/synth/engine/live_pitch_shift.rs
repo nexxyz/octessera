@@ -12,7 +12,7 @@ pub(super) fn pitch_activation_ramp_len(sample_rate: u32) -> u32 {
     (sample_rate.saturating_mul(PITCH_ACTIVATION_RAMP_MS) / 1_000).max(1)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(super) struct LivePitchShift {
     buf: Vec<f32>,
     buf_len: usize,

@@ -34,7 +34,6 @@ pub(super) fn stage_components(
                     sample,
                     sample,
                     Some(&mut routing.retired_momentary_fx),
-                    context.sample_rate,
                 );
                 let sample = (fx_l + fx_r) * 0.5;
                 let target_active = routing.momentary_fx.iter().any(|fx| fx.target == target);
@@ -168,7 +167,6 @@ pub(super) fn stage_components(
                     mono,
                     mono,
                     Some(&mut routing.retired_momentary_fx),
-                    context.sample_rate,
                 )
             } else {
                 (mono, mono)

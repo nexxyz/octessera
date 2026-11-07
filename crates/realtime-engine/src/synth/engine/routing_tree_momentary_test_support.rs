@@ -1,42 +1,55 @@
+use super::momentary_fx_voice::MomentaryFxVoice;
 use super::SynthEngine;
 
+/// The positions and filter memories of each running Play FX; capture buffers are left out, as
+/// the routed and inline renders they hold may differ by reassociation.
 pub(super) fn momentary_state(engine: &SynthEngine) -> Vec<String> {
     engine
         .momentary_fx
         .iter()
         .map(|fx| {
+            let voice = match &fx.voice {
+                MomentaryFxVoice::Stutter(voice) => format!(
+                    "{:?}",
+                    (voice.write, voice.ready, voice.params, voice.ramp_pos)
+                ),
+                MomentaryFxVoice::Freeze(voice) => format!(
+                    "{:?}",
+                    (
+                        voice.idxs,
+                        voice.lp,
+                        voice.inject_pos,
+                        voice.ready_len,
+                        voice.activation_pos,
+                        voice.activation_len,
+                        voice.release_pos,
+                        voice.release_len,
+                    )
+                ),
+                MomentaryFxVoice::FilterSweep(voice) => {
+                    format!("{:?}", (voice.sweep_pos, voice.filt_l, voice.filt_r))
+                }
+                MomentaryFxVoice::PitchShift(voice) => format!(
+                    "{:?}",
+                    (
+                        voice.fill_pos,
+                        voice.ramp_pos,
+                        voice.ramp_len,
+                        voice.amount_octaves,
+                        voice.slide_start_octaves,
+                        voice.slide_target_octaves,
+                        voice.slide_pos,
+                        voice.slide_len,
+                        voice.release_pos,
+                        voice.release_len,
+                        voice.shifter.write_pos,
+                    )
+                ),
+                _ => String::new(),
+            };
             format!(
-                "{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
-                fx.id,
-                fx.kind,
-                fx.target,
-                fx.releasing,
-                fx.release_pos,
-                fx.release_len,
-                fx.sweep_pos,
-                fx.filt_l,
-                fx.filt_r,
-                fx.pitch_fill_pos,
-                fx.pitch_ramp_pos,
-                fx.pitch_ramp_len,
-                fx.pitch_amount_octaves,
-                fx.pitch_slide_start_octaves,
-                fx.pitch_slide_target_octaves,
-                fx.pitch_slide_pos,
-                fx.pitch_slide_len,
-                fx.stutter_write,
-                fx.stutter_ready,
-                fx.stutter_segment_len,
-                fx.stutter_ramp_len,
-                fx.stutter_ramp_pos,
-                fx.freeze_idxs,
-                fx.freeze_lp,
-                fx.freeze_inject_pos,
-                fx.freeze_inject_len,
-                fx.freeze_ready_len,
-                fx.freeze_activation_pos,
-                fx.freeze_activation_len,
-                fx.pitch_shifter.write_pos,
+                "{}|{:?}|{:?}|{}|{:?}|{voice}",
+                fx.id, fx.kind, fx.target, fx.releasing, fx.retire_fade
             )
         })
         .collect()

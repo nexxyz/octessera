@@ -97,12 +97,10 @@ impl SynthEngine {
 
     #[cfg(test)]
     pub(in crate::synth) fn pitch_buf_probe(&self, id: &str) -> Option<usize> {
-        for fx in &self.momentary_fx {
-            if fx.id == id && matches!(fx.kind, MomentaryFxKind::PitchShift) {
-                return Some(fx.pitch_shifter.write_pos);
-            }
-        }
-        None
+        self.momentary_fx
+            .iter()
+            .find(|fx| fx.id == id && fx.kind == MomentaryFxKind::PitchShift)
+            .map(|fx| fx.voice.pitch().shifter.write_pos)
     }
 
     #[cfg(test)]
@@ -111,18 +109,19 @@ impl SynthEngine {
         &self,
         id: &str,
     ) -> Option<(Vec<f32>, Vec<f32>, usize, bool, usize)> {
-        for fx in &self.momentary_fx {
-            if fx.id == id && matches!(fx.kind, MomentaryFxKind::Stutter) {
-                return Some((
-                    fx.stutter_l.clone(),
-                    fx.stutter_r.clone(),
-                    fx.stutter_write,
-                    fx.stutter_ready,
-                    fx.stutter_ramp_pos,
-                ));
-            }
-        }
-        None
+        self.momentary_fx
+            .iter()
+            .find(|fx| fx.id == id && fx.kind == MomentaryFxKind::Stutter)
+            .map(|fx| {
+                let voice = fx.voice.stutter();
+                (
+                    voice.left.clone(),
+                    voice.right.clone(),
+                    voice.write,
+                    voice.ready,
+                    voice.ramp_pos,
+                )
+            })
     }
 
     #[cfg(test)]
@@ -133,17 +132,60 @@ impl SynthEngine {
     ) -> Option<([Vec<f32>; 4], [usize; 4], [f32; 4], u32, u32, u32, u32)> {
         self.momentary_fx
             .iter()
-            .find(|fx| fx.id == id && matches!(fx.kind, MomentaryFxKind::Freeze))
+            .find(|fx| fx.id == id && fx.kind == MomentaryFxKind::Freeze)
             .map(|fx| {
+                let voice = fx.voice.freeze();
                 (
-                    fx.freeze_bufs.clone(),
-                    fx.freeze_idxs,
-                    fx.freeze_lp,
-                    fx.freeze_inject_pos,
-                    fx.freeze_ready_len,
-                    fx.freeze_activation_pos,
-                    fx.freeze_activation_len,
+                    voice.bufs.clone(),
+                    voice.idxs,
+                    voice.lp,
+                    voice.inject_pos,
+                    voice.ready_len,
+                    voice.activation_pos,
+                    voice.activation_len,
                 )
             })
+    }
+
+    /// Test shorthand for a Play FX press through the prepared path.
+    pub(in crate::synth) fn momentary_fx_start(
+        &mut self,
+        id: String,
+        fx_type: String,
+        params: BTreeMap<String, Value>,
+        target: MomentaryFxTarget,
+    ) {
+        let Some(start) =
+            super::prepare_momentary_fx_start(id, fx_type, params, target, self.sample_rate)
+        else {
+            return;
+        };
+        drop(self.apply_prepared_momentary_fx_start(start));
+    }
+
+    /// Test shorthand for the release of the Play FX press `id`.
+    pub(in crate::synth) fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
+        match self.momentary_fx.iter().position(|fx| fx.id == id) {
+            Some(pos) => self.stop_momentary_fx_at(pos),
+            None => RetiredAudioState::default(),
+        }
+    }
+
+    /// Test shorthand for a live update of the Play FX press `id`.
+    pub(in crate::synth) fn momentary_fx_update(
+        &mut self,
+        id: &str,
+        params: &BTreeMap<String, Value>,
+    ) {
+        let sample_rate = self.sample_rate;
+        if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
+            let update = super::momentary_fx_voice::prepare_voice_update(
+                fx.kind,
+                fx.epoch,
+                params,
+                sample_rate,
+            );
+            let _ = fx.voice.apply_update(update);
+        }
     }
 }

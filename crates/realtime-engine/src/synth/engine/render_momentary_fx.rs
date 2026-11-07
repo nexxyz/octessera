@@ -1,120 +1,5 @@
-use super::super::scalar_param::ScalarMutation;
-use super::momentary_fx_voice::comb_bank_frame;
 use super::retired_state::store_retired_momentary;
 use super::*;
-
-pub(super) fn apply_prepared_momentary_fx_update(
-    fx: &mut MomentaryFxState,
-    update: PreparedMomentaryFxUpdate,
-) -> ScalarMutation {
-    match (fx.kind, update) {
-        (
-            MomentaryFxKind::Stutter,
-            PreparedMomentaryFxUpdate::Stutter {
-                depth, segment_len, ..
-            },
-        ) => {
-            let MomentaryFxRuntimeParams::Stutter {
-                depth: current_depth,
-            } = fx.runtime_params
-            else {
-                return ScalarMutation::Rejected;
-            };
-            if current_depth.to_bits() == depth.to_bits() && fx.stutter_segment_len == segment_len {
-                return ScalarMutation::Unchanged;
-            }
-            fx.runtime_params = MomentaryFxRuntimeParams::Stutter { depth };
-            fx.stutter_segment_len = segment_len;
-            fx.stutter_write = 0;
-            fx.stutter_ready = false;
-            fx.stutter_ramp_pos = 0;
-            ScalarMutation::Changed
-        }
-        (
-            MomentaryFxKind::Freeze,
-            PreparedMomentaryFxUpdate::Freeze {
-                mix, release_len, ..
-            },
-        ) => {
-            let MomentaryFxRuntimeParams::Freeze {
-                mix: current_mix,
-                release_len: current_release_len,
-            } = fx.runtime_params
-            else {
-                return ScalarMutation::Rejected;
-            };
-            if current_mix.to_bits() == mix.to_bits() && current_release_len == release_len {
-                return ScalarMutation::Unchanged;
-            }
-            fx.runtime_params = MomentaryFxRuntimeParams::Freeze { mix, release_len };
-            ScalarMutation::Changed
-        }
-        (
-            MomentaryFxKind::FilterSweep,
-            PreparedMomentaryFxUpdate::FilterSweep {
-                target_cutoff,
-                q,
-                sweep_in_step,
-                sweep_out_step,
-                ..
-            },
-        ) => {
-            let MomentaryFxRuntimeParams::FilterSweep {
-                target_cutoff: current_cutoff,
-                q: current_q,
-                sweep_in_step: current_in_step,
-                sweep_out_step: current_out_step,
-            } = fx.runtime_params
-            else {
-                return ScalarMutation::Rejected;
-            };
-            if current_cutoff.to_bits() == target_cutoff.to_bits()
-                && current_q.to_bits() == q.to_bits()
-                && current_in_step.to_bits() == sweep_in_step.to_bits()
-                && current_out_step.to_bits() == sweep_out_step.to_bits()
-            {
-                return ScalarMutation::Unchanged;
-            }
-            fx.runtime_params = MomentaryFxRuntimeParams::FilterSweep {
-                target_cutoff,
-                q,
-                sweep_in_step,
-                sweep_out_step,
-            };
-            ScalarMutation::Changed
-        }
-        (
-            MomentaryFxKind::PitchShift,
-            PreparedMomentaryFxUpdate::PitchShift {
-                target_octaves,
-                mix,
-                slide_in_len,
-                slide_out_len,
-                ..
-            },
-        ) => {
-            if !matches!(
-                fx.runtime_params,
-                MomentaryFxRuntimeParams::PitchShift { .. }
-            ) {
-                return ScalarMutation::Rejected;
-            }
-            if fx.releasing {
-                return ScalarMutation::Rejected;
-            }
-            super::pitch_shift_control::update_runtime_params(
-                fx,
-                MomentaryFxRuntimeParams::PitchShift {
-                    target_octaves,
-                    mix,
-                    slide_in_len,
-                    slide_out_len,
-                },
-            )
-        }
-        (_, update) => fx.voice.apply_update(update),
-    }
-}
 
 impl SynthEngine {
     pub(super) fn process_momentary_fx_target(
@@ -129,7 +14,6 @@ impl SynthEngine {
             left,
             right,
             Some(&mut self.pending_render_retired.displaced_momentary_fx),
-            self.sample_rate,
         )
     }
 }
@@ -140,7 +24,6 @@ pub(super) fn process_momentary_fx_states(
     left: f32,
     right: f32,
     mut retired: Option<&mut [Option<MomentaryFxState>; MOMENTARY_FX_CAPACITY]>,
-    sample_rate: u32,
 ) -> (f32, f32) {
     if states.is_empty() {
         return (left, right);
@@ -164,15 +47,14 @@ pub(super) fn process_momentary_fx_states(
                 .map(|offset| index + 1 + offset);
             if let Some(pitch_index) = pitch_index {
                 if let Some((next_l, next_r)) =
-                    process_momentary_fx_state(&mut states[pitch_index], target, l, r, sample_rate)
+                    process_momentary_fx_state(&mut states[pitch_index], target, l, r)
                 {
                     l = next_l;
                     r = next_r;
                 }
             }
         }
-        if let Some((next_l, next_r)) =
-            process_momentary_fx_state(&mut states[index], target, l, r, sample_rate)
+        if let Some((next_l, next_r)) = process_momentary_fx_state(&mut states[index], target, l, r)
         {
             l = next_l;
             r = next_r;
@@ -182,22 +64,7 @@ pub(super) fn process_momentary_fx_states(
     for index in (0..states.len()).rev() {
         let completed = {
             let fx = &states[index];
-            fx.target == target
-                && (fx.retire_faded()
-                    || fx.releasing
-                        && match fx.kind {
-                            MomentaryFxKind::Stutter => true,
-                            MomentaryFxKind::FilterSweep => fx.sweep_pos <= 0.0,
-                            MomentaryFxKind::Freeze => fx.release_pos >= fx.release_len,
-                            MomentaryFxKind::PitchShift => fx.release_pos >= fx.release_len,
-                            MomentaryFxKind::TapeStop
-                            | MomentaryFxKind::Reverse
-                            | MomentaryFxKind::TranceGate
-                            | MomentaryFxKind::DubThrow
-                            | MomentaryFxKind::Wash
-                            | MomentaryFxKind::HpRiser
-                            | MomentaryFxKind::Crush => fx.voice.finished(),
-                        })
+            fx.target == target && (fx.retire_faded() || fx.releasing && fx.voice.finished())
         };
         if completed {
             let state = states.remove(index);
@@ -215,234 +82,16 @@ fn process_momentary_fx_state(
     target: MomentaryFxTarget,
     left: f32,
     right: f32,
-    sample_rate: u32,
 ) -> Option<(f32, f32)> {
     if fx.target != target {
         return None;
     }
-    let (wet_l, wet_r) = match fx.kind {
-        MomentaryFxKind::Stutter => process_stutter(fx, left, right),
-        MomentaryFxKind::Freeze => process_freeze(fx, left, right),
-        MomentaryFxKind::FilterSweep => process_filter_sweep(fx, left, right, sample_rate),
-        MomentaryFxKind::PitchShift => process_pitch_shift(fx, left, right),
-        MomentaryFxKind::TapeStop
-        | MomentaryFxKind::Reverse
-        | MomentaryFxKind::TranceGate
-        | MomentaryFxKind::DubThrow
-        | MomentaryFxKind::Wash
-        | MomentaryFxKind::HpRiser
-        | MomentaryFxKind::Crush => fx.voice.process(left, right),
-    };
+    let (wet_l, wet_r) = fx.voice.process(left, right);
     let Some(fade) = fx.retire_fade.as_mut() else {
         return Some((wet_l, wet_r));
     };
     let gain = fade.toward(0.0);
     Some((left + (wet_l - left) * gain, right + (wet_r - right) * gain))
-}
-
-fn process_stutter(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32) {
-    let MomentaryFxRuntimeParams::Stutter { depth } = fx.runtime_params else {
-        return (left, right);
-    };
-    let segment_len = fx.stutter_segment_len.min(fx.stutter_l.len()).max(1);
-    let ramp_len = fx.stutter_ramp_len.min(segment_len / 4).max(1);
-    let mut l = left;
-    let mut r = right;
-
-    if !fx.stutter_ready {
-        fx.stutter_l[fx.stutter_write] = l;
-        fx.stutter_r[fx.stutter_write] = r;
-        fx.stutter_write += 1;
-        if fx.stutter_write >= segment_len {
-            fx.stutter_ready = true;
-            fx.stutter_write = 0;
-            fx.stutter_ramp_pos = 0;
-        }
-    } else {
-        let read = fx.stutter_write;
-        let mut wet_l = fx.stutter_l[read];
-        let mut wet_r = fx.stutter_r[read];
-        let eff_wet = if fx.stutter_ramp_pos < ramp_len {
-            let ramp = fx.stutter_ramp_pos as f32 / ramp_len as f32;
-            fx.stutter_ramp_pos += 1;
-            depth * ramp
-        } else {
-            depth
-        };
-
-        if read < ramp_len {
-            let fade_in = read as f32 / ramp_len as f32;
-            let end_read = segment_len - ramp_len + read;
-            wet_l = wet_l * fade_in + fx.stutter_l[end_read] * (1.0 - fade_in);
-            wet_r = wet_r * fade_in + fx.stutter_r[end_read] * (1.0 - fade_in);
-        }
-
-        l = l * (1.0 - eff_wet) + wet_l * eff_wet;
-        r = r * (1.0 - eff_wet) + wet_r * eff_wet;
-        fx.stutter_write += 1;
-        if fx.stutter_write >= segment_len {
-            fx.stutter_write = 0;
-        }
-    }
-
-    (l, r)
-}
-
-fn process_freeze(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32) {
-    let MomentaryFxRuntimeParams::Freeze { mix, .. } = fx.runtime_params else {
-        return (left, right);
-    };
-    let feedback = 0.997_f32;
-    let damp = 0.35_f32;
-
-    if fx.releasing {
-        let total = fx.release_len.max(1) as f32;
-        let fade = 1.0 - (fx.release_pos as f32 / total);
-        fx.release_pos += 1;
-        let (wet_l, wet_r) = comb_bank_frame(
-            &mut fx.freeze_bufs,
-            &mut fx.freeze_idxs,
-            &mut fx.freeze_lp,
-            (0.0, 0.0),
-            feedback,
-            damp,
-        );
-        let activation_gain = freeze_activation_gain(fx);
-        mix_freeze_output(left, right, wet_l, wet_r, mix * activation_gain * fade)
-    } else {
-        let activation_gain = freeze_activation_gain(fx);
-        let injecting = fx.freeze_inject_pos < fx.freeze_inject_len;
-        let inject_gain = if injecting { 1.0 } else { 0.0 };
-        if injecting {
-            fx.freeze_inject_pos += 1;
-        }
-        let (wet_l, wet_r) = comb_bank_frame(
-            &mut fx.freeze_bufs,
-            &mut fx.freeze_idxs,
-            &mut fx.freeze_lp,
-            (left * inject_gain, right * inject_gain),
-            feedback,
-            damp,
-        );
-        mix_freeze_output(left, right, wet_l, wet_r, mix * activation_gain)
-    }
-}
-
-fn freeze_activation_gain(fx: &mut MomentaryFxState) -> f32 {
-    if fx.freeze_inject_pos < fx.freeze_ready_len {
-        return 0.0;
-    }
-    if fx.freeze_activation_pos >= fx.freeze_activation_len {
-        return 1.0;
-    }
-    let gain = fx.freeze_activation_pos as f32 / fx.freeze_activation_len as f32;
-    if !fx.releasing {
-        fx.freeze_activation_pos += 1;
-    }
-    gain
-}
-
-fn mix_freeze_output(
-    left: f32,
-    right: f32,
-    wet_l: f32,
-    wet_r: f32,
-    effective_mix: f32,
-) -> (f32, f32) {
-    if effective_mix == 0.0 {
-        return (left, right);
-    }
-    (
-        left * (1.0 - effective_mix) + wet_l * effective_mix,
-        right * (1.0 - effective_mix) + wet_r * effective_mix,
-    )
-}
-
-fn process_filter_sweep(
-    fx: &mut MomentaryFxState,
-    left: f32,
-    right: f32,
-    sample_rate: u32,
-) -> (f32, f32) {
-    let MomentaryFxRuntimeParams::FilterSweep {
-        target_cutoff,
-        q,
-        sweep_in_step,
-        sweep_out_step,
-    } = fx.runtime_params
-    else {
-        return (left, right);
-    };
-
-    if fx.releasing {
-        fx.sweep_pos -= sweep_out_step;
-        if fx.sweep_pos < 0.0 {
-            fx.sweep_pos = 0.0;
-        }
-    } else {
-        fx.sweep_pos += sweep_in_step;
-        if fx.sweep_pos > 1.0 {
-            fx.sweep_pos = 1.0;
-        }
-    }
-
-    let cutoff = 20_000.0 + (target_cutoff - 20_000.0) * fx.sweep_pos;
-    (
-        fx.filt_l
-            .process(left, FilterType::Lowpass, cutoff, q, sample_rate),
-        fx.filt_r
-            .process(right, FilterType::Lowpass, cutoff, q, sample_rate),
-    )
-}
-
-fn process_pitch_shift(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32) {
-    let MomentaryFxRuntimeParams::PitchShift { mix, .. } = fx.runtime_params else {
-        return (left, right);
-    };
-    if fx.pitch_fill_pos < PITCH_FILL_FRAMES {
-        let _ = fx.pitch_shifter.process_frame(left, right, 1.0);
-        fx.pitch_fill_pos += 1;
-        return (left, right);
-    }
-    let pitch_octaves = if fx.pitch_slide_pos < fx.pitch_slide_len {
-        fx.pitch_slide_pos = (fx.pitch_slide_pos + 1).min(fx.pitch_slide_len);
-        let progress = fx.pitch_slide_pos as f32 / fx.pitch_slide_len.max(1) as f32;
-        fx.pitch_slide_start_octaves
-            + (fx.pitch_slide_target_octaves - fx.pitch_slide_start_octaves) * progress
-    } else {
-        fx.pitch_slide_target_octaves
-    };
-    fx.pitch_amount_octaves = pitch_octaves;
-    let ratio = 2.0_f32.powf(pitch_octaves);
-    let (wet_l, wet_r) = fx.pitch_shifter.process_frame(left, right, ratio);
-    if fx.releasing {
-        let activation =
-            (fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len.max(1) as f32).clamp(0.0, 1.0);
-        let fade_start = fx.release_len.saturating_sub(fx.pitch_ramp_len);
-        let release_gain = if fx.release_pos < fade_start {
-            1.0
-        } else {
-            fx.release_len.saturating_sub(fx.release_pos) as f32 / fx.pitch_ramp_len.max(1) as f32
-        };
-        let wet_gain = mix * activation * release_gain;
-        fx.release_pos += 1;
-        return (
-            left * (1.0 - wet_gain) + wet_l * wet_gain,
-            right * (1.0 - wet_gain) + wet_r * wet_gain,
-        );
-    }
-    let ramp = if fx.pitch_ramp_pos < fx.pitch_ramp_len {
-        let ramp = fx.pitch_ramp_pos as f32 / fx.pitch_ramp_len as f32;
-        fx.pitch_ramp_pos += 1;
-        ramp
-    } else {
-        1.0
-    };
-    let wet_mix = mix * ramp;
-    (
-        left * (1.0 - wet_mix) + wet_l * wet_mix,
-        right * (1.0 - wet_mix) + wet_r * wet_mix,
-    )
 }
 
 #[cfg(test)]

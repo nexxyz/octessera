@@ -1,6 +1,5 @@
 use super::super::fx_params::FxKind;
 use super::bus_chain_owner::fx_kind_cost;
-use super::momentary_fx_state::stutter_segment_len;
 use super::render_plan::{prepared_instrument_topology, RenderPlan, RenderPlanInstrumentSlot};
 use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::*;
@@ -19,56 +18,6 @@ struct CompiledBusMixerState {
 }
 
 impl SynthEngine {
-    pub fn momentary_fx_start(
-        &mut self,
-        id: String,
-        fx_type: String,
-        params: BTreeMap<String, Value>,
-        target: MomentaryFxTarget,
-    ) {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
-            return;
-        }
-        let Some(kind) = parse_momentary_fx_kind(&fx_type) else {
-            return;
-        };
-        if let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) {
-            self.momentary_fx.remove(pos);
-        }
-        if self.momentary_fx.iter().any(|fx| fx.kind == kind) {
-            return;
-        }
-        if self.momentary_fx.len() >= MAX_MOMENTARY_FX {
-            return;
-        }
-        self.momentary_fx.push(MomentaryFxState::new(
-            id,
-            kind,
-            &params,
-            target,
-            self.sample_rate,
-        ));
-    }
-
-    pub fn momentary_fx_stop(&mut self, id: &str) -> RetiredAudioState {
-        let retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
-            return retired;
-        }
-        let Some(pos) = self.momentary_fx.iter().position(|fx| fx.id == id) else {
-            return retired;
-        };
-        self.stop_momentary_fx_at(pos)
-    }
-
     pub fn momentary_fx_stop_by_epoch(&mut self, epoch: u64) -> RetiredAudioState {
         let retired = RetiredAudioState::default();
         #[cfg(feature = "routing-tree-executor")]
@@ -84,63 +33,15 @@ impl SynthEngine {
         self.stop_momentary_fx_at(pos)
     }
 
-    fn stop_momentary_fx_at(&mut self, pos: usize) -> RetiredAudioState {
+    pub(super) fn stop_momentary_fx_at(&mut self, pos: usize) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        if self.momentary_fx[pos].kind == MomentaryFxKind::Stutter {
+        if self.momentary_fx[pos].stop() {
             store_retired_momentary(
                 &mut retired.displaced_momentary_fx,
                 self.momentary_fx.remove(pos),
             );
-            return retired;
         }
-        if self.momentary_fx[pos].kind == MomentaryFxKind::PitchShift {
-            if matches!(
-                super::pitch_shift_control::stop(&mut self.momentary_fx[pos]),
-                super::pitch_shift_control::PitchStopAction::Retire
-            ) {
-                store_retired_momentary(
-                    &mut retired.displaced_momentary_fx,
-                    self.momentary_fx.remove(pos),
-                );
-            }
-            return retired;
-        }
-
-        self.momentary_fx[pos].begin_release();
         retired
-    }
-
-    pub fn momentary_fx_update(&mut self, id: &str, params: &BTreeMap<String, Value>) {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
-            return;
-        }
-        if let Some(fx) = self.momentary_fx.iter_mut().find(|fx| fx.id == id) {
-            if fx.kind == MomentaryFxKind::PitchShift {
-                super::pitch_shift_control::update(fx, params, self.sample_rate);
-                return;
-            }
-            if let Some(update) = super::momentary_fx_voice::prepare_voice_update(
-                fx.kind,
-                fx.epoch,
-                params,
-                self.sample_rate,
-            ) {
-                let _ = fx.voice.apply_update(update);
-                return;
-            }
-            fx.runtime_params =
-                MomentaryFxRuntimeParams::from_params(fx.kind, params, self.sample_rate);
-            if fx.kind == MomentaryFxKind::Stutter {
-                fx.stutter_segment_len = stutter_segment_len(self.sample_rate, params);
-                fx.stutter_write = 0;
-                fx.stutter_ready = false;
-                fx.stutter_ramp_pos = 0;
-            }
-        }
     }
 
     pub fn set_voice_stealing_mode(&mut self, mode: VoiceStealingMode) {

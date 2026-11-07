@@ -35,7 +35,7 @@ impl DubThrowParams {
 /// Sends the target into a pair of bus delay lines while held. After release the send closes and
 /// the echoes keep trailing off; the voice ends once a full delay time has passed in silence, or
 /// after the tail limit and its fade.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct DubThrowVoice {
     pub(super) params: DubThrowParams,
     delay_l: FxBusState,

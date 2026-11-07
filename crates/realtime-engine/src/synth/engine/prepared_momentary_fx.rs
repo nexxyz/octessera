@@ -1,6 +1,4 @@
-use super::momentary_fx_state::{
-    parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState,
-};
+use super::momentary_fx_state::{parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxState};
 use super::momentary_fx_voice::{prepare_voice_update, voice_param_keys};
 use super::*;
 
@@ -133,111 +131,29 @@ pub fn prepare_momentary_fx_update(
     params: BTreeMap<String, Value>,
     sample_rate: u32,
 ) -> Option<PreparedMomentaryFxUpdate> {
-    if sample_rate == 0 {
-        return None;
-    }
     let kind = parse_momentary_fx_kind(&fx_type)?;
     validate_momentary_params(kind, &params, sample_rate)?;
-    if let Some(update) = prepare_voice_update(kind, epoch, &params, sample_rate) {
-        return Some(update);
-    }
-    let value = |key: &str, fallback: f32| strict_param_f32(&params, key, fallback);
-    Some(match kind {
-        MomentaryFxKind::Stutter => {
-            let depth = (value("depthPct", 100.0)? / 100.0).clamp(0.0, 1.0);
-            let rate = value("rateHz", 8.0)?.clamp(1.0, 32.0);
-            PreparedMomentaryFxUpdate::Stutter {
-                epoch,
-                depth,
-                segment_len: ((sample_rate as f32 / rate) as usize).clamp(48, sample_rate as usize),
-            }
-        }
-        MomentaryFxKind::Freeze => PreparedMomentaryFxUpdate::Freeze {
-            epoch,
-            mix: (value("mixPct", 100.0)? / 100.0).clamp(0.0, 1.0),
-            release_len: ms_to_samples(value("releaseMs", 500.0)?, sample_rate).max(1),
-        },
-        MomentaryFxKind::FilterSweep => {
-            let cutoff_pct = (value("cutoffPct", 35.0)? / 100.0).clamp(0.0, 1.0);
-            let resonance_pct = (value("resonancePct", 70.0)? / 100.0).clamp(0.0, 1.0);
-            let in_len = ms_to_samples(value("sweepInMs", 200.0)?, sample_rate).max(1) as f32;
-            let out_len = ms_to_samples(value("sweepOutMs", 500.0)?, sample_rate).max(1) as f32;
-            PreparedMomentaryFxUpdate::FilterSweep {
-                epoch,
-                target_cutoff: 120.0 + cutoff_pct * 8_000.0,
-                q: 0.5 + resonance_pct * 11.5,
-                sweep_in_step: 1.0 / in_len,
-                sweep_out_step: 1.0 / out_len,
-            }
-        }
-        MomentaryFxKind::PitchShift => {
-            let MomentaryFxRuntimeParams::PitchShift {
-                target_octaves,
-                mix,
-                slide_in_len,
-                slide_out_len,
-            } = MomentaryFxRuntimeParams::from_params(kind, &params, sample_rate)
-            else {
-                unreachable!("pitch_shift kind must produce pitch parameters")
-            };
-            PreparedMomentaryFxUpdate::PitchShift {
-                epoch,
-                target_octaves,
-                mix,
-                slide_in_len,
-                slide_out_len,
-            }
-        }
-        _ => return None,
-    })
+    Some(prepare_voice_update(kind, epoch, &params, sample_rate))
 }
 
 fn validate_momentary_params(
-    kind: super::momentary_fx_state::MomentaryFxKind,
+    kind: MomentaryFxKind,
     params: &BTreeMap<String, Value>,
     sample_rate: u32,
 ) -> Option<()> {
     if sample_rate == 0 {
         return None;
     }
-    for (key, value) in params {
-        let allowed = match kind {
-            super::momentary_fx_state::MomentaryFxKind::Stutter => {
-                matches!(key.as_str(), "depthPct" | "rateHz")
-            }
-            super::momentary_fx_state::MomentaryFxKind::Freeze => {
-                matches!(key.as_str(), "mixPct" | "releaseMs")
-            }
-            super::momentary_fx_state::MomentaryFxKind::FilterSweep => matches!(
-                key.as_str(),
-                "cutoffPct" | "resonancePct" | "sweepInMs" | "sweepOutMs"
-            ),
-            super::momentary_fx_state::MomentaryFxKind::PitchShift => {
-                matches!(
-                    key.as_str(),
-                    "semitones" | "cents" | "mixPct" | "slideInMs" | "slideOutMs"
-                )
-            }
-            _ => voice_param_keys(kind).is_some_and(|keys| keys.contains(&key.as_str())),
-        };
-        if !allowed
-            || !value
-                .as_f64()
-                .map(|value| (value as f32).is_finite())
-                .unwrap_or(false)
-        {
-            return None;
-        }
-    }
-    Some(())
-}
-
-fn strict_param_f32(params: &BTreeMap<String, Value>, key: &str, fallback: f32) -> Option<f32> {
+    let keys = voice_param_keys(kind);
     params
-        .get(key)
-        .map(|value| value.as_f64().map(|value| value as f32))
-        .unwrap_or(Some(fallback))
-        .filter(|value| value.is_finite())
+        .iter()
+        .all(|(key, value)| {
+            keys.contains(&key.as_str())
+                && value
+                    .as_f64()
+                    .is_some_and(|value| (value as f32).is_finite())
+        })
+        .then_some(())
 }
 
 #[cfg(test)]

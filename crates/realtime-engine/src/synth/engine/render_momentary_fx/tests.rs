@@ -22,24 +22,17 @@ fn freeze_startup_passes_stage_input_until_all_taps_are_ready() {
             target,
             sample_rate,
         )];
-        assert_eq!(states[0].freeze_ready_len, expected_ready);
-        assert_eq!(states[0].freeze_activation_len, expected_ramp);
+        assert_eq!(states[0].voice.freeze().ready_len, expected_ready);
+        assert_eq!(states[0].voice.freeze().activation_len, expected_ramp);
 
         for frame in 0..expected_ready as usize {
             let input = (0.25 + frame as f32 * 0.0001, -0.5);
-            let output = process_momentary_fx_states(
-                &mut states,
-                target,
-                input.0,
-                input.1,
-                None,
-                sample_rate,
-            );
+            let output = process_momentary_fx_states(&mut states, target, input.0, input.1, None);
             assert_eq!(output.0.to_bits(), input.0.to_bits(), "left frame {frame}");
             assert_eq!(output.1.to_bits(), input.1.to_bits(), "right frame {frame}");
             assert!(output.0 != 0.0 || output.1 != 0.0, "silent frame {frame}");
         }
-        assert_eq!(states[0].freeze_inject_pos, expected_ready);
+        assert_eq!(states[0].voice.freeze().inject_pos, expected_ready);
     }
 }
 
@@ -65,9 +58,9 @@ fn freeze_activation_uses_shared_ramp_and_requested_mix() {
         for frame in 0..=ready + ramp {
             let input = (0.2 + (frame % 17) as f32 * 0.01, -0.35);
             let full_output =
-                process_momentary_fx_states(&mut full, target, input.0, input.1, None, sample_rate);
+                process_momentary_fx_states(&mut full, target, input.0, input.1, None);
             let half_output =
-                process_momentary_fx_states(&mut half, target, input.0, input.1, None, sample_rate);
+                process_momentary_fx_states(&mut half, target, input.0, input.1, None);
             if frame == ready {
                 assert_eq!(
                     full_output.0.to_bits(),
@@ -79,17 +72,17 @@ fn freeze_activation_uses_shared_ramp_and_requested_mix() {
                     input.1.to_bits(),
                     "rate {sample_rate} frame {frame} ready {ready}"
                 );
-                assert_eq!(full[0].freeze_activation_pos, 1);
+                assert_eq!(full[0].voice.freeze().activation_pos, 1);
             }
             if frame == ready + ramp / 2 || frame == ready + ramp {
                 assert!((half_output.0 - (input.0 + (full_output.0 - input.0) * 0.5)).abs() < 1e-6);
                 assert!((half_output.1 - (input.1 + (full_output.1 - input.1) * 0.5)).abs() < 1e-6);
             }
             if frame == ready + ramp / 2 {
-                assert_eq!(full[0].freeze_activation_pos, (ramp / 2 + 1) as u32);
+                assert_eq!(full[0].voice.freeze().activation_pos, (ramp / 2 + 1) as u32);
             }
             if frame == ready + ramp {
-                assert_eq!(full[0].freeze_activation_pos, ramp as u32);
+                assert_eq!(full[0].voice.freeze().activation_pos, ramp as u32);
             }
         }
     }
@@ -100,45 +93,39 @@ fn freeze_release_during_startup_does_not_advance_or_expose_silence() {
     let target = MomentaryFxTarget::Global;
     let mut states = vec![new_fx("freeze", MomentaryFxKind::Freeze, target)];
     for _ in 0..100 {
-        let output = process_momentary_fx_states(&mut states, target, 0.4, -0.2, None, SAMPLE_RATE);
+        let output = process_momentary_fx_states(&mut states, target, 0.4, -0.2, None);
         assert_eq!(output.0.to_bits(), 0.4_f32.to_bits());
         assert_eq!(output.1.to_bits(), (-0.2_f32).to_bits());
     }
-    states[0].releasing = true;
-    states[0].release_len = 32;
-    states[0].release_pos = 0;
+    states[0].stop();
+    states[0].voice.freeze_mut().release_len = 32;
+    states[0].voice.freeze_mut().release_pos = 0;
     for _ in 0..8 {
-        let output = process_momentary_fx_states(&mut states, target, 0.4, -0.2, None, SAMPLE_RATE);
+        let output = process_momentary_fx_states(&mut states, target, 0.4, -0.2, None);
         assert_eq!(output.0.to_bits(), 0.4_f32.to_bits());
         assert_eq!(output.1.to_bits(), (-0.2_f32).to_bits());
-        assert_eq!(states[0].freeze_activation_pos, 0);
+        assert_eq!(states[0].voice.freeze().activation_pos, 0);
     }
 
     let mut states = vec![new_fx("freeze", MomentaryFxKind::Freeze, target)];
-    for frame in 0..(states[0].freeze_ready_len as usize + 4) {
+    for frame in 0..(states[0].voice.freeze().ready_len as usize + 4) {
         let input = (0.4, -0.2);
-        let _ =
-            process_momentary_fx_states(&mut states, target, input.0, input.1, None, SAMPLE_RATE);
-        if frame == states[0].freeze_ready_len as usize + 2 {
-            states[0].releasing = true;
-            states[0].release_len = 32;
-            states[0].release_pos = 0;
-            let activation_pos = states[0].freeze_activation_pos;
+        let _ = process_momentary_fx_states(&mut states, target, input.0, input.1, None);
+        if frame == states[0].voice.freeze().ready_len as usize + 2 {
+            states[0].stop();
+            states[0].voice.freeze_mut().release_len = 32;
+            states[0].voice.freeze_mut().release_pos = 0;
+            let activation_pos = states[0].voice.freeze().activation_pos;
             let mut previous_effective =
-                activation_pos as f32 / states[0].freeze_activation_len as f32;
+                activation_pos as f32 / states[0].voice.freeze().activation_len as f32;
             for _ in 0..8 {
-                let output = process_momentary_fx_states(
-                    &mut states,
-                    target,
-                    input.0,
-                    input.1,
-                    None,
-                    SAMPLE_RATE,
-                );
+                let output =
+                    process_momentary_fx_states(&mut states, target, input.0, input.1, None);
                 assert!(output.0 != 0.0 || output.1 != 0.0);
-                assert_eq!(states[0].freeze_activation_pos, activation_pos);
-                let effective = activation_pos as f32 / states[0].freeze_activation_len as f32
-                    * (32 - states[0].release_pos) as f32
+                assert_eq!(states[0].voice.freeze().activation_pos, activation_pos);
+                let effective = activation_pos as f32
+                    / states[0].voice.freeze().activation_len as f32
+                    * (32 - states[0].voice.freeze().release_pos) as f32
                     / 32.0;
                 assert!(effective <= previous_effective);
                 previous_effective = effective;
@@ -156,42 +143,16 @@ fn freeze_to_pitch_keeps_pitch_startup_bit_identical_to_freeze_only() {
     let mut freeze_then_pitch = vec![new_fx("freeze", MomentaryFxKind::Freeze, target)];
     for frame in 0..2_000 {
         let input = (0.2 + (frame % 13) as f32 * 0.01, -0.3);
-        let _ = process_momentary_fx_states(
-            &mut freeze_only,
-            target,
-            input.0,
-            input.1,
-            None,
-            SAMPLE_RATE,
-        );
-        let _ = process_momentary_fx_states(
-            &mut freeze_then_pitch,
-            target,
-            input.0,
-            input.1,
-            None,
-            SAMPLE_RATE,
-        );
+        let _ = process_momentary_fx_states(&mut freeze_only, target, input.0, input.1, None);
+        let _ = process_momentary_fx_states(&mut freeze_then_pitch, target, input.0, input.1, None);
     }
     freeze_then_pitch.push(new_fx("pitch", MomentaryFxKind::PitchShift, target));
     for frame in 0..PITCH_FILL_FRAMES {
         let input = (0.15 + (frame % 11) as f32 * 0.01, -0.25);
-        let freeze_output = process_momentary_fx_states(
-            &mut freeze_only,
-            target,
-            input.0,
-            input.1,
-            None,
-            SAMPLE_RATE,
-        );
-        let pitch_output = process_momentary_fx_states(
-            &mut freeze_then_pitch,
-            target,
-            input.0,
-            input.1,
-            None,
-            SAMPLE_RATE,
-        );
+        let freeze_output =
+            process_momentary_fx_states(&mut freeze_only, target, input.0, input.1, None);
+        let pitch_output =
+            process_momentary_fx_states(&mut freeze_then_pitch, target, input.0, input.1, None);
         assert_eq!(
             pitch_output.0.to_bits(),
             freeze_output.0.to_bits(),
@@ -296,9 +257,7 @@ fn render_combined_fx(
     };
     input
         .iter()
-        .map(|(left, right)| {
-            process_momentary_fx_states(&mut states, target, *left, *right, None, SAMPLE_RATE)
-        })
+        .map(|(left, right)| process_momentary_fx_states(&mut states, target, *left, *right, None))
         .collect()
 }
 

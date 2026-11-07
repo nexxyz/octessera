@@ -29,7 +29,7 @@ impl WashParams {
 
 /// Diffuses the target into a comb reverb and swells its wet mix in while held. On release the
 /// send closes and the tail fades out over Release, then the voice ends.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct WashVoice {
     pub(super) params: WashParams,
     combs: [Vec<f32>; 4],

@@ -280,51 +280,7 @@ pub(super) fn assert_routing_tree_matches_reference(
 }
 
 pub(super) fn assert_momentary_state_matches(actual: &SynthEngine, expected: &SynthEngine) {
-    assert_eq!(actual.momentary_fx.len(), expected.momentary_fx.len());
-    for (actual, expected) in actual.momentary_fx.iter().zip(&expected.momentary_fx) {
-        assert_eq!(actual.id, expected.id);
-        assert_eq!(actual.kind, expected.kind);
-        assert_eq!(actual.target, expected.target);
-        assert_eq!(actual.releasing, expected.releasing);
-        assert_eq!(actual.release_pos, expected.release_pos);
-        assert_eq!(actual.release_len, expected.release_len);
-        assert_eq!(actual.sweep_pos.to_bits(), expected.sweep_pos.to_bits());
-        assert_eq!(actual.filt_l, expected.filt_l);
-        assert_eq!(actual.filt_r, expected.filt_r);
-        assert_eq!(actual.pitch_fill_pos, expected.pitch_fill_pos);
-        assert_eq!(actual.pitch_ramp_pos, expected.pitch_ramp_pos);
-        assert_eq!(actual.pitch_ramp_len, expected.pitch_ramp_len);
-        assert_eq!(
-            actual.pitch_amount_octaves.to_bits(),
-            expected.pitch_amount_octaves.to_bits()
-        );
-        assert_eq!(
-            actual.pitch_slide_start_octaves.to_bits(),
-            expected.pitch_slide_start_octaves.to_bits()
-        );
-        assert_eq!(
-            actual.pitch_slide_target_octaves.to_bits(),
-            expected.pitch_slide_target_octaves.to_bits()
-        );
-        assert_eq!(actual.pitch_slide_pos, expected.pitch_slide_pos);
-        assert_eq!(actual.pitch_slide_len, expected.pitch_slide_len);
-        assert_eq!(actual.stutter_write, expected.stutter_write);
-        assert_eq!(actual.stutter_ready, expected.stutter_ready);
-        assert_eq!(actual.stutter_segment_len, expected.stutter_segment_len);
-        assert_eq!(actual.stutter_ramp_len, expected.stutter_ramp_len);
-        assert_eq!(actual.stutter_ramp_pos, expected.stutter_ramp_pos);
-        assert_eq!(actual.freeze_idxs, expected.freeze_idxs);
-        assert_eq!(actual.freeze_lp, expected.freeze_lp);
-        assert_eq!(actual.freeze_inject_pos, expected.freeze_inject_pos);
-        assert_eq!(actual.freeze_inject_len, expected.freeze_inject_len);
-        assert_eq!(actual.freeze_ready_len, expected.freeze_ready_len);
-        assert_eq!(actual.freeze_activation_pos, expected.freeze_activation_pos);
-        assert_eq!(actual.freeze_activation_len, expected.freeze_activation_len);
-        assert_eq!(
-            actual.pitch_shifter.write_pos,
-            expected.pitch_shifter.write_pos
-        );
-    }
+    assert_eq!(momentary_state(actual), momentary_state(expected));
 }
 
 pub(super) fn engine_state_signature(engine: &SynthEngine) -> String {

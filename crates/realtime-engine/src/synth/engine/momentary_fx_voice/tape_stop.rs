@@ -25,7 +25,7 @@ impl TapeStopParams {
 
 /// Plays the target from a capture ring whose read speed ramps to zero while held and back to
 /// one after release; the read point falls behind by the integral of `1 - speed`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct TapeStopVoice {
     pub(super) params: TapeStopParams,
     ring: CaptureRing,

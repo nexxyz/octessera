@@ -31,7 +31,7 @@ impl CrushParams {
 }
 
 /// The bus bitcrusher on each channel, its mix eased in and out over a few milliseconds.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct CrushVoice {
     pub(super) params: CrushParams,
     crush_l: FxBusState,

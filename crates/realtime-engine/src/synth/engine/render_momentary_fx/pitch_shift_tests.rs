@@ -1,8 +1,6 @@
 use super::super::super::scalar_param::ScalarMutation;
 use super::process_momentary_fx_states;
-use super::{
-    MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState, SynthEngine, PITCH_FILL_FRAMES,
-};
+use super::{MomentaryFxKind, MomentaryFxState, SynthEngine, PITCH_FILL_FRAMES};
 use crate::synth::MomentaryFxTarget;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -15,17 +13,17 @@ fn pitch_ramp_is_rate_scaled_and_fill_is_bit_exact() {
         let mut states = vec![new_pitch_with_slides(sample_rate, 100.0, 1_000.0, 10.0)];
         for frame in 0..PITCH_FILL_FRAMES {
             let input = (0.17 + frame as f32 * 0.0001, -0.43);
-            let output = process(&mut states, sample_rate, input);
+            let output = process(&mut states, input);
             assert_eq!(output.0.to_bits(), input.0.to_bits(), "left frame {frame}");
             assert_eq!(output.1.to_bits(), input.1.to_bits(), "right frame {frame}");
         }
-        assert_eq!(states[0].pitch_fill_pos, PITCH_FILL_FRAMES);
-        assert_eq!(states[0].pitch_ramp_len, expected_ramp);
+        assert_eq!(states[0].voice.pitch().fill_pos, PITCH_FILL_FRAMES);
+        assert_eq!(states[0].voice.pitch().ramp_len, expected_ramp);
         let input = (0.31, -0.27);
-        let output = process(&mut states, sample_rate, input);
+        let output = process(&mut states, input);
         assert_eq!(output.0.to_bits(), input.0.to_bits());
         assert_eq!(output.1.to_bits(), input.1.to_bits());
-        assert_eq!(states[0].pitch_ramp_pos, 1);
+        assert_eq!(states[0].voice.pitch().ramp_pos, 1);
     }
 }
 
@@ -40,9 +38,13 @@ fn pitch_ramp_uses_complementary_gain_at_key_phases_for_all_mixes() {
         let mut wet_state = new_pitch(sample_rate, 100.0);
         for _ in 0..PITCH_FILL_FRAMES {
             let input = (-1.0, -1.0);
-            let _ = wet_state.pitch_shifter.process_frame(input.0, input.1, 1.0);
+            let _ = wet_state
+                .voice
+                .pitch_mut()
+                .shifter
+                .process_frame(input.0, input.1, 1.0);
             for state in &mut states {
-                let _ = process(state, sample_rate, input);
+                let _ = process(state, input);
             }
         }
 
@@ -52,11 +54,13 @@ fn pitch_ramp_uses_complementary_gain_at_key_phases_for_all_mixes() {
             let input = (1.0, 1.0);
             let ratio = pitch_ratio_for_offset(offset + 1, expected_ramp);
             let wet = wet_state
-                .pitch_shifter
+                .voice
+                .pitch_mut()
+                .shifter
                 .process_frame(input.0, input.1, ratio);
             saw_wet_difference |= (wet.0 - input.0).abs() > 0.1;
             for (state, mix_pct) in states.iter_mut().zip([0.0, 0.5, 1.0]) {
-                let output = process(state, sample_rate, input);
+                let output = process(state, input);
                 if key_offsets.contains(&offset) {
                     let gain = offset as f32 / expected_ramp as f32;
                     let effective_mix = mix_pct * gain;
@@ -68,9 +72,9 @@ fn pitch_ramp_uses_complementary_gain_at_key_phases_for_all_mixes() {
             }
         }
         assert!(saw_wet_difference);
-        assert_eq!(states[0][0].pitch_ramp_pos, expected_ramp as u32);
-        assert_eq!(states[1][0].pitch_ramp_pos, expected_ramp as u32);
-        assert_eq!(states[2][0].pitch_ramp_pos, expected_ramp as u32);
+        assert_eq!(states[0][0].voice.pitch().ramp_pos, expected_ramp as u32);
+        assert_eq!(states[1][0].voice.pitch().ramp_pos, expected_ramp as u32);
+        assert_eq!(states[2][0].voice.pitch().ramp_pos, expected_ramp as u32);
     }
 }
 
@@ -80,7 +84,7 @@ fn pitch_same_phase_unity_stays_unity() {
         for mix_pct in [0.0, 50.0, 100.0] {
             let mut states = vec![new_pitch(sample_rate, mix_pct)];
             for frame in 0..(PITCH_FILL_FRAMES + expected_ramp + 1) {
-                let output = process(&mut states, sample_rate, (1.0, 1.0));
+                let output = process(&mut states, (1.0, 1.0));
                 if frame >= PITCH_FILL_FRAMES {
                     assert!((output.0 - 1.0).abs() < 1.0e-6);
                     assert!((output.1 - 1.0).abs() < 1.0e-6);
@@ -103,23 +107,26 @@ fn pitch_slide_is_octave_linear_and_fill_does_not_advance_it() {
             )];
             for frame in 0..PITCH_FILL_FRAMES {
                 let input = (0.17 + frame as f32 * 0.0001, -0.43);
-                let output = process(&mut states, sample_rate, input);
+                let output = process(&mut states, input);
                 assert_eq!(output.0.to_bits(), input.0.to_bits());
                 assert_eq!(output.1.to_bits(), input.1.to_bits());
             }
-            assert_eq!(states[0].pitch_slide_pos, 0);
-            assert_eq!(states[0].pitch_amount_octaves.to_bits(), 0.0_f32.to_bits());
-            let slide_len = states[0].pitch_slide_len;
+            assert_eq!(states[0].voice.pitch().slide_pos, 0);
+            assert_eq!(
+                states[0].voice.pitch().amount_octaves.to_bits(),
+                0.0_f32.to_bits()
+            );
+            let slide_len = states[0].voice.pitch().slide_len;
             let midpoint = slide_len / 2;
             for _ in 0..midpoint {
-                let _ = process(&mut states, sample_rate, (1.0, 1.0));
+                let _ = process(&mut states, (1.0, 1.0));
             }
-            assert!((states[0].pitch_amount_octaves - target_octaves * 0.5).abs() < 1.0e-6);
+            assert!((states[0].voice.pitch().amount_octaves - target_octaves * 0.5).abs() < 1.0e-6);
             for _ in midpoint..slide_len {
-                let _ = process(&mut states, sample_rate, (1.0, 1.0));
+                let _ = process(&mut states, (1.0, 1.0));
             }
-            assert_eq!(states[0].pitch_slide_pos, slide_len);
-            assert!((states[0].pitch_amount_octaves - target_octaves).abs() < 1.0e-6);
+            assert_eq!(states[0].voice.pitch().slide_pos, slide_len);
+            assert!((states[0].voice.pitch().amount_octaves - target_octaves).abs() < 1.0e-6);
         }
     }
 }
@@ -134,16 +141,16 @@ fn pitch_wet_activation_finishes_while_a_long_pitch_slide_continues() {
         44_100,
     )];
     for _ in 0..PITCH_FILL_FRAMES {
-        let _ = process(&mut states, 44_100, (-1.0, -1.0));
+        let _ = process(&mut states, (-1.0, -1.0));
     }
-    let activation_len = states[0].pitch_ramp_len;
+    let activation_len = states[0].voice.pitch().ramp_len;
     let mut output = (1.0, 1.0);
     for _ in 0..=activation_len {
-        output = process(&mut states, 44_100, (1.0, 1.0));
+        output = process(&mut states, (1.0, 1.0));
     }
-    assert_eq!(states[0].pitch_ramp_pos, activation_len);
-    assert!(states[0].pitch_slide_pos < states[0].pitch_slide_len);
-    assert!((states[0].pitch_amount_octaves - 1.0).abs() > 0.01);
+    assert_eq!(states[0].voice.pitch().ramp_pos, activation_len);
+    assert!(states[0].voice.pitch().slide_pos < states[0].voice.pitch().slide_len);
+    assert!((states[0].voice.pitch().amount_octaves - 1.0).abs() > 0.01);
     assert!((output.0 - 1.0).abs() > 0.1);
 }
 
@@ -185,7 +192,11 @@ fn pitch_direct_and_prepared_complete_updates_match() {
         pitch_runtime_snapshot(&prepared.momentary_fx[0])
     );
     assert_eq!(
-        direct.momentary_fx[0].pitch_slide_target_octaves.to_bits(),
+        direct.momentary_fx[0]
+            .voice
+            .pitch()
+            .slide_target_octaves
+            .to_bits(),
         ((-5.0 + 0.25) / 12.0_f32).to_bits()
     );
 }
@@ -235,7 +246,7 @@ fn pitch_phase_continuous_activation_has_no_transient_click() {
         let mut maximum_effect_difference = 0.0_f32;
         for frame in 0..=PITCH_FILL_FRAMES + expected_ramp {
             let input = continuous_test_signal(frame);
-            let output = process(&mut states, sample_rate, input);
+            let output = process(&mut states, input);
             if let Some(previous) = previous_input {
                 maximum_input_delta = maximum_input_delta
                     .max((input.0 - previous.0).abs())
@@ -278,32 +289,32 @@ fn pitch_update_preserves_progress_and_retrigger_resets() {
         for frame in 0..(PITCH_FILL_FRAMES + 16) {
             let _ = engine.process_momentary_fx_target(TARGET, frame as f32 * 0.001, -0.2);
         }
-        assert_eq!(engine.momentary_fx[0].pitch_ramp_len, expected_ramp);
-        assert_eq!(engine.momentary_fx[0].pitch_ramp_pos, 16);
-        let fill_pos = engine.momentary_fx[0].pitch_fill_pos;
-        let ramp_pos = engine.momentary_fx[0].pitch_ramp_pos;
-        let slide_pos = engine.momentary_fx[0].pitch_slide_pos;
+        assert_eq!(engine.momentary_fx[0].voice.pitch().ramp_len, expected_ramp);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().ramp_pos, 16);
+        let fill_pos = engine.momentary_fx[0].voice.pitch().fill_pos;
+        let ramp_pos = engine.momentary_fx[0].voice.pitch().ramp_pos;
+        let slide_pos = engine.momentary_fx[0].voice.pitch().slide_pos;
         engine.momentary_fx_update("pitch", &pitch_params_with_target(7.0, 50.0, 10.0, 10.0));
-        assert_eq!(engine.momentary_fx[0].pitch_slide_pos, slide_pos);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().slide_pos, slide_pos);
         engine.momentary_fx_update("pitch", &pitch_params_with_target(7.0, 50.0, 10.0, 30.0));
-        assert_eq!(engine.momentary_fx[0].pitch_slide_pos, slide_pos);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().slide_pos, slide_pos);
         engine.momentary_fx_update("pitch", &pitch_params_with_target(5.0, 50.0, 120.0, 180.0));
-        assert_eq!(engine.momentary_fx[0].pitch_fill_pos, fill_pos);
-        assert_eq!(engine.momentary_fx[0].pitch_ramp_pos, ramp_pos);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().fill_pos, fill_pos);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().ramp_pos, ramp_pos);
         engine.momentary_fx_start(
             "pitch".to_string(),
             "pitch_shift".to_string(),
             pitch_params(100.0),
             TARGET,
         );
-        assert_eq!(engine.momentary_fx[0].pitch_fill_pos, 0);
-        assert_eq!(engine.momentary_fx[0].pitch_ramp_pos, 0);
-        assert_eq!(engine.momentary_fx[0].pitch_shifter.write_pos, 0);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().fill_pos, 0);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().ramp_pos, 0);
+        assert_eq!(engine.momentary_fx[0].voice.pitch().shifter.write_pos, 0);
     }
 }
 
-fn process(states: &mut Vec<MomentaryFxState>, sample_rate: u32, input: (f32, f32)) -> (f32, f32) {
-    process_momentary_fx_states(states, TARGET, input.0, input.1, None, sample_rate)
+fn process(states: &mut Vec<MomentaryFxState>, input: (f32, f32)) -> (f32, f32) {
+    process_momentary_fx_states(states, TARGET, input.0, input.1, None)
 }
 
 fn new_pitch(sample_rate: u32, mix_pct: f32) -> MomentaryFxState {
@@ -368,40 +379,24 @@ fn continuous_test_signal(frame: u32) -> (f32, f32) {
 }
 
 fn pitch_runtime_snapshot(fx: &MomentaryFxState) -> (u32, u32, u32, u32) {
-    match fx.runtime_params {
-        MomentaryFxRuntimeParams::PitchShift {
-            target_octaves,
-            mix,
-            slide_in_len,
-            slide_out_len,
-        } => (
-            target_octaves.to_bits(),
-            mix.to_bits(),
-            slide_in_len,
-            slide_out_len,
-        ),
-        _ => unreachable!("pitch test state has non-pitch runtime parameters"),
-    }
+    let params = fx.voice.pitch().params;
+    (
+        params.target_octaves.to_bits(),
+        params.mix.to_bits(),
+        params.slide_in_len,
+        params.slide_out_len,
+    )
 }
 
 fn pitch_runtime_snapshot_params(
     params: &BTreeMap<String, serde_json::Value>,
     sample_rate: u32,
 ) -> (u32, u32, u32, u32) {
-    let runtime =
-        MomentaryFxRuntimeParams::from_params(MomentaryFxKind::PitchShift, params, sample_rate);
-    match runtime {
-        MomentaryFxRuntimeParams::PitchShift {
-            target_octaves,
-            mix,
-            slide_in_len,
-            slide_out_len,
-        } => (
-            target_octaves.to_bits(),
-            mix.to_bits(),
-            slide_in_len,
-            slide_out_len,
-        ),
-        _ => unreachable!("pitch test params have non-pitch runtime parameters"),
-    }
+    pitch_runtime_snapshot(&MomentaryFxState::new(
+        "params".into(),
+        MomentaryFxKind::PitchShift,
+        params,
+        TARGET,
+        sample_rate,
+    ))
 }

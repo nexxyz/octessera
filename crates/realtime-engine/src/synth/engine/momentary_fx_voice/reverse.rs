@@ -22,7 +22,7 @@ impl ReverseParams {
 }
 
 /// One backwards read through the ring: it starts at the newest frame of `start` and walks back.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct ReverseHead {
     start: usize,
     pos: usize,
@@ -30,7 +30,7 @@ struct ReverseHead {
 
 /// Captures one Length after the press, then plays each latest Length backwards. Consecutive
 /// windows overlap by a short crossfade; the wet mix ramps in and out around them.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct ReverseVoice {
     pub(super) params: ReverseParams,
     ring: CaptureRing,

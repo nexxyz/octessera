@@ -8,18 +8,28 @@ mod capture_ring;
 mod comb_bank;
 mod crush;
 mod dub_throw;
+mod filter_sweep;
+mod freeze;
 mod hp_riser;
+mod pitch_shift;
 mod reverse;
+mod stutter;
 mod tape_stop;
 mod trance_gate;
 mod updates;
 mod wash;
 
-pub(super) use comb_bank::comb_bank_frame;
 use crush::{CrushParams, CrushVoice};
 use dub_throw::{DubThrowParams, DubThrowVoice};
+use filter_sweep::{FilterSweepParams, FilterSweepVoice};
+#[cfg(test)]
+pub(super) use freeze::FREEZE_INJECT_MS;
+use freeze::{FreezeParams, FreezeVoice};
 use hp_riser::{HpRiserParams, HpRiserVoice};
+pub(super) use pitch_shift::PitchStopAction;
+use pitch_shift::{PitchShiftParams, PitchShiftVoice};
 use reverse::{ReverseParams, ReverseVoice};
+use stutter::{StutterParams, StutterVoice};
 use tape_stop::{TapeStopParams, TapeStopVoice};
 use trance_gate::{TranceGateParams, TranceGateVoice};
 pub(super) use updates::{prepare_voice_update, voice_param_keys};
@@ -36,11 +46,14 @@ const SLOWEST_BPM: f32 = 40.0;
 const FASTEST_BPM: f32 = 240.0;
 const PULSES_PER_BEAT: f32 = 24.0;
 
-/// The DSP state of the Play FX types that keep their parameters next to their state. The type
-/// is chosen once per frame for the active effect; each type has its own frame function.
-#[derive(Clone)]
+/// The DSP state of a Play FX, with its parameters next to it. The type is chosen once per frame
+/// for the active effect; each type has its own frame function.
+#[derive(Clone, Debug)]
 pub(super) enum MomentaryFxVoice {
-    None,
+    Stutter(Box<StutterVoice>),
+    Freeze(Box<FreezeVoice>),
+    FilterSweep(Box<FilterSweepVoice>),
+    PitchShift(Box<PitchShiftVoice>),
     TapeStop(Box<TapeStopVoice>),
     Reverse(Box<ReverseVoice>),
     TranceGate(Box<TranceGateVoice>),
@@ -57,6 +70,22 @@ impl MomentaryFxVoice {
         sample_rate: u32,
     ) -> Self {
         match kind {
+            MomentaryFxKind::Stutter => Self::Stutter(Box::new(StutterVoice::new(
+                StutterParams::from_map(params, sample_rate),
+                sample_rate,
+            ))),
+            MomentaryFxKind::Freeze => Self::Freeze(Box::new(FreezeVoice::new(
+                FreezeParams::from_map(params, sample_rate),
+                sample_rate,
+            ))),
+            MomentaryFxKind::FilterSweep => Self::FilterSweep(Box::new(FilterSweepVoice::new(
+                FilterSweepParams::from_map(params, sample_rate),
+                sample_rate,
+            ))),
+            MomentaryFxKind::PitchShift => Self::PitchShift(Box::new(PitchShiftVoice::new(
+                PitchShiftParams::from_map(params, sample_rate),
+                sample_rate,
+            ))),
             MomentaryFxKind::TapeStop => Self::TapeStop(Box::new(TapeStopVoice::new(
                 TapeStopParams::from_map(params, sample_rate),
                 sample_rate,
@@ -86,16 +115,15 @@ impl MomentaryFxVoice {
                 CrushParams::from_map(params),
                 sample_rate,
             ))),
-            MomentaryFxKind::Stutter
-            | MomentaryFxKind::Freeze
-            | MomentaryFxKind::FilterSweep
-            | MomentaryFxKind::PitchShift => Self::None,
         }
     }
 
     pub(super) fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         match self {
-            Self::None => (left, right),
+            Self::Stutter(voice) => voice.process(left, right),
+            Self::Freeze(voice) => voice.process(left, right),
+            Self::FilterSweep(voice) => voice.process(left, right),
+            Self::PitchShift(voice) => voice.process(left, right),
             Self::TapeStop(voice) => voice.process(left, right),
             Self::Reverse(voice) => voice.process(left, right),
             Self::TranceGate(voice) => voice.process(left, right),
@@ -108,7 +136,12 @@ impl MomentaryFxVoice {
 
     pub(super) fn release(&mut self) {
         match self {
-            Self::None => {}
+            Self::Stutter(voice) => voice.release(),
+            Self::Freeze(voice) => voice.release(),
+            Self::FilterSweep(voice) => voice.release(),
+            Self::PitchShift(voice) => {
+                let _ = voice.stop();
+            }
             Self::TapeStop(voice) => voice.release(),
             Self::Reverse(voice) => voice.release(),
             Self::TranceGate(voice) => voice.release(),
@@ -119,7 +152,8 @@ impl MomentaryFxVoice {
         }
     }
 
-    /// Hands a releasing voice the settings of a new press of its type; false for other pairs.
+    /// Hands a releasing voice the settings of a new press of its type; false for other pairs
+    /// and for the types that end their release on their own schedule.
     pub(super) fn revive_with(&mut self, incoming: &Self) -> bool {
         match (self, incoming) {
             (Self::TapeStop(voice), Self::TapeStop(next)) => voice.revive(next.params),
@@ -136,7 +170,10 @@ impl MomentaryFxVoice {
 
     pub(super) fn finished(&self) -> bool {
         match self {
-            Self::None => true,
+            Self::Stutter(voice) => voice.finished(),
+            Self::Freeze(voice) => voice.finished(),
+            Self::FilterSweep(voice) => voice.finished(),
+            Self::PitchShift(voice) => voice.finished(),
             Self::TapeStop(voice) => voice.finished(),
             Self::Reverse(voice) => voice.finished(),
             Self::TranceGate(voice) => voice.finished(),
@@ -148,8 +185,46 @@ impl MomentaryFxVoice {
     }
 }
 
+#[cfg(test)]
+impl MomentaryFxVoice {
+    pub(super) fn stutter(&self) -> &StutterVoice {
+        let Self::Stutter(voice) = self else {
+            panic!("not a stutter voice");
+        };
+        voice
+    }
+
+    pub(super) fn freeze(&self) -> &FreezeVoice {
+        let Self::Freeze(voice) = self else {
+            panic!("not a freeze voice");
+        };
+        voice
+    }
+
+    pub(super) fn freeze_mut(&mut self) -> &mut FreezeVoice {
+        let Self::Freeze(voice) = self else {
+            panic!("not a freeze voice");
+        };
+        voice
+    }
+
+    pub(super) fn pitch(&self) -> &PitchShiftVoice {
+        let Self::PitchShift(voice) = self else {
+            panic!("not a pitch_shift voice");
+        };
+        voice
+    }
+
+    pub(super) fn pitch_mut(&mut self) -> &mut PitchShiftVoice {
+        let Self::PitchShift(voice) = self else {
+            panic!("not a pitch_shift voice");
+        };
+        voice
+    }
+}
+
 /// A linear gain envelope moving toward a target by a fixed step per frame.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(super) struct GainRamp {
     value: f32,
     step: f32,

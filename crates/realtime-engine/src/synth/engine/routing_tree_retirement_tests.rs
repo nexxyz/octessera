@@ -22,6 +22,7 @@ fn routing_tree_completed_preview_and_momentary_payloads_retire_with_fifo_owners
         MomentaryFxTarget::Instrument { index: 0 },
     );
     engine.momentary_fx[0].releasing = true;
+    engine.momentary_fx[0].voice.release();
     let (lifecycle, runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
             .expect("routing-tree runtime");

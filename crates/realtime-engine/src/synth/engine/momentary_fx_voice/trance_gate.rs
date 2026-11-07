@@ -24,7 +24,7 @@ impl TranceGateParams {
 
 /// A tempo-synced square gate, open for the first half of each period, with smoothstep edges.
 /// It starts open at the press; Depth eases in and out so the press and release do not click.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct TranceGateVoice {
     pub(super) params: TranceGateParams,
     pub(super) phase: f32,

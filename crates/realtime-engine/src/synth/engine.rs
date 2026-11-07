@@ -40,7 +40,6 @@ mod momentary_fx_voice;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
-mod pitch_shift_control;
 #[cfg(all(test, feature = "routing-tree-executor"))]
 mod pitch_shift_routing_tree_tests;
 mod prepared_control_apply;
@@ -197,11 +196,12 @@ use block_slot_scratch::BlockSlotScratch;
 pub use bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
 use control::MOMENTARY_FX_CAPACITY;
+#[cfg(test)]
 use live_pitch_shift::PITCH_FILL_FRAMES;
 pub(super) use momentary_fx_state::is_momentary_fx_type;
-use momentary_fx_state::{
-    parse_momentary_fx_kind, MomentaryFxKind, MomentaryFxRuntimeParams, MomentaryFxState,
-};
+#[cfg(test)]
+use momentary_fx_state::parse_momentary_fx_kind;
+use momentary_fx_state::{MomentaryFxKind, MomentaryFxState};
 use render_plan::RenderPlan;
 use render_routing::FxBusOutputSpreadState;
 #[cfg(feature = "routing-tree-executor")]
@@ -215,7 +215,7 @@ use support::{
 };
 
 #[cfg(test)]
-pub(in crate::synth) const FREEZE_INJECT_MS: u32 = momentary_fx_state::FREEZE_INJECT_MS;
+pub(in crate::synth) const FREEZE_INJECT_MS: u32 = momentary_fx_voice::FREEZE_INJECT_MS;
 
 pub struct SynthEngine {
     sample_rate: u32,

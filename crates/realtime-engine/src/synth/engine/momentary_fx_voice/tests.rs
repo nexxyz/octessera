@@ -1,7 +1,5 @@
 use super::super::control::MOMENTARY_FX_CAPACITY;
-use super::super::render_momentary_fx::{
-    apply_prepared_momentary_fx_update, process_momentary_fx_states,
-};
+use super::super::render_momentary_fx::process_momentary_fx_states;
 use super::super::{parse_momentary_fx_kind, MomentaryFxState, PreparedMomentaryFxUpdate};
 use super::{prepare_voice_update, MomentaryFxVoice};
 use crate::synth::MomentaryFxTarget;
@@ -88,10 +86,10 @@ fn run(states: &mut Vec<MomentaryFxState>, hold: usize, input: impl Fn(usize) ->
     while !states.is_empty() {
         assert!(frame < hold + 30 * FRAMES, "effect never ended");
         if frame == hold {
-            states[0].begin_release();
+            states[0].stop();
         }
         let x = input(frame);
-        let (left, _) = process_momentary_fx_states(states, TARGET, x, x, Some(&mut retired), RATE);
+        let (left, _) = process_momentary_fx_states(states, TARGET, x, x, Some(&mut retired));
         output.push(left);
         frame += 1;
     }
@@ -152,7 +150,7 @@ fn every_type_leaves_the_signal_untouched_after_removal() {
         let _ = run(&mut states, FRAMES / 4, |n| sine(n, 330.0));
         for frame in 0..256 {
             let x = sine(frame, 330.0);
-            let (left, right) = process_momentary_fx_states(&mut states, TARGET, x, -x, None, RATE);
+            let (left, right) = process_momentary_fx_states(&mut states, TARGET, x, -x, None);
             assert_eq!(left.to_bits(), x.to_bits(), "{fx_type}");
             assert_eq!(right.to_bits(), (-x).to_bits(), "{fx_type}");
         }
@@ -168,17 +166,11 @@ fn processing_release_and_removal_allocate_nothing() {
             crate::synth::test_allocator::count_allocations_and_deallocations(|| {
                 for frame in 0..3 * FRAMES {
                     if frame == FRAMES {
-                        states[0].begin_release();
+                        states[0].stop();
                     }
                     let x = sine(frame, 440.0);
-                    let _ = process_momentary_fx_states(
-                        &mut states,
-                        TARGET,
-                        x,
-                        x,
-                        Some(&mut retired),
-                        RATE,
-                    );
+                    let _ =
+                        process_momentary_fx_states(&mut states, TARGET, x, x, Some(&mut retired));
                 }
             });
         assert!(states.is_empty(), "{fx_type} still running");
@@ -286,20 +278,19 @@ fn trance_gate_tempo_update_keeps_its_place_in_the_period() {
         &params(&[("ratePulses", 6.0), ("tempoBpm", 120.0)]),
     );
     for _ in 0..1_500 {
-        let _ = process_momentary_fx_states(&mut states, TARGET, 0.5, 0.5, None, RATE);
+        let _ = process_momentary_fx_states(&mut states, TARGET, 0.5, 0.5, None);
     }
     let update = prepare_voice_update(
         states[0].kind,
         0,
         &params(&[("ratePulses", 6.0), ("tempoBpm", 60.0)]),
         RATE,
-    )
-    .expect("gate update");
+    );
     let PreparedMomentaryFxUpdate::TranceGate { period, .. } = update else {
         panic!("gate update kind");
     };
     assert_eq!(period, 12_000.0);
-    let _ = apply_prepared_momentary_fx_update(&mut states[0], update);
+    let _ = states[0].voice.apply_update(update);
     let MomentaryFxVoice::TranceGate(voice) = &states[0].voice else {
         panic!("gate voice");
     };

@@ -5,7 +5,6 @@ use super::prepared_control_prepare::{
     PreparedInstrumentsConfig,
 };
 use super::prepared_momentary_fx::{PreparedMomentaryFxStart, PreparedMomentaryFxUpdate};
-use super::render_momentary_fx::apply_prepared_momentary_fx_update;
 use super::render_plan::RenderPlanInstrumentSlot;
 use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::*;
@@ -331,7 +330,7 @@ impl SynthEngine {
         else {
             return ScalarMutation::Rejected;
         };
-        apply_prepared_momentary_fx_update(fx, update)
+        fx.voice.apply_update(update)
     }
 
     pub fn apply_prepared_fx_bus_slot(

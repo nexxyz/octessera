@@ -36,7 +36,7 @@ impl HpRiserParams {
 
 /// filter_sweep's highpass counterpart: from fully open it rises to the target cutoff over
 /// Sweep In, evenly in octaves, with the resonance following; release sweeps back open.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct HpRiserVoice {
     pub(super) params: HpRiserParams,
     pub(super) sweep_pos: f32,

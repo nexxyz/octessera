@@ -1,5 +1,5 @@
 /// A stereo ring of the most recent input frames, read back at a distance behind the newest.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(super) struct CaptureRing {
     left: Vec<f32>,
     right: Vec<f32>,
