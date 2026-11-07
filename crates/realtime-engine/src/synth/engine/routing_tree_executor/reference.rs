@@ -231,6 +231,21 @@ impl SynthEngine {
             let bus_active = self.signal_present_mono(input) || self.bus_chains[bus].is_active();
             if !bus_active {
                 self.observe_bus_chain(bus, input, 0.0);
+                let target = MomentaryFxTarget::FxBus { index: bus };
+                if !self.momentary_fx.iter().any(|fx| fx.target == target) {
+                    continue;
+                }
+                let (left, right) = self.process_momentary_fx_target(target, 0.0, 0.0);
+                let tail = super::super::bus_chain_owner::BusChainFrameOutput {
+                    mono: (left + right) * 0.5,
+                    ..Default::default()
+                };
+                let (left, right) = self.fx_bus_stereo_output(bus, tail);
+                let Some(worker) = self.routing_tree_scratch.worker_for_bus(bus) else {
+                    return false;
+                };
+                self.routing_tree_scratch.worker_left[worker][frame] += left;
+                self.routing_tree_scratch.worker_right[worker][frame] += right;
                 continue;
             }
             let resolved_duck = std::array::from_fn(|slot| {

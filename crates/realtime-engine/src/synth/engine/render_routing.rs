@@ -133,6 +133,17 @@ impl SynthEngine {
                 self.signal_present_mono(bus_input) || self.bus_chains[bus_idx].is_active();
             if !bus_active {
                 self.observe_bus_chain(bus_idx, bus_input, 0.0);
+                let target = MomentaryFxTarget::FxBus { index: bus_idx };
+                if self.momentary_fx.iter().any(|fx| fx.target == target) {
+                    let (fx_l, fx_r) = self.process_momentary_fx_target(target, 0.0, 0.0);
+                    let tail = BusChainFrameOutput {
+                        mono: (fx_l + fx_r) * 0.5,
+                        ..BusChainFrameOutput::default()
+                    };
+                    let (bus_left, bus_right) = self.fx_bus_stereo_output(bus_idx, tail);
+                    left += bus_left;
+                    right += bus_right;
+                }
                 continue;
             }
             let resolved_duck = std::array::from_fn(|slot| {

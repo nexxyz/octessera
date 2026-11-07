@@ -158,21 +158,20 @@ pub(super) fn stage_components(
             .expect("spread state");
         for frame in 0..frames {
             let target = super::super::types::MomentaryFxTarget::FxBus { index: bus };
-            let processed = carrier.scratch.executed && frame < carrier.scratch.processed_prefix;
-            let (fx_l, fx_r) = if processed {
+            let chain_ran = carrier.scratch.chain_ran[frame];
+            let tail_held = !chain_ran && routing.momentary_fx.iter().any(|fx| fx.target == target);
+            let mono = carrier.scratch.mono_output[frame];
+            let (fx_l, fx_r) = if chain_ran || tail_held {
                 process_momentary_fx_states(
                     &mut routing.momentary_fx,
                     target,
-                    carrier.scratch.mono_output[frame],
-                    carrier.scratch.mono_output[frame],
+                    mono,
+                    mono,
                     Some(&mut routing.retired_momentary_fx),
                     context.sample_rate,
                 )
             } else {
-                (
-                    carrier.scratch.mono_output[frame],
-                    carrier.scratch.mono_output[frame],
-                )
+                (mono, mono)
             };
             let target_active = routing.momentary_fx.iter().any(|fx| fx.target == target);
             routing.output.bus_active[frame] |= carrier.scratch.active[frame] || target_active;
@@ -180,14 +179,22 @@ pub(super) fn stage_components(
                 routing.output.source_active[frame] = true;
             }
             routing.scratch.momentary_active[frame] |= target_active;
-            if !processed {
+            if !chain_ran && !tail_held {
                 continue;
             }
-            let output = BusChainFrameOutput {
-                mono: (fx_l + fx_r) * 0.5,
-                auto_pan_pos: (!carrier.scratch.auto_pan_pos[frame].is_nan())
-                    .then_some(carrier.scratch.auto_pan_pos[frame]),
-                spread: carrier.scratch.spread,
+            let mono = (fx_l + fx_r) * 0.5;
+            let output = if chain_ran {
+                BusChainFrameOutput {
+                    mono,
+                    auto_pan_pos: (!carrier.scratch.auto_pan_pos[frame].is_nan())
+                        .then_some(carrier.scratch.auto_pan_pos[frame]),
+                    spread: carrier.scratch.spread,
+                }
+            } else {
+                BusChainFrameOutput {
+                    mono,
+                    ..BusChainFrameOutput::default()
+                }
             };
             let (left, right) = render_bus_stereo_output(
                 output,

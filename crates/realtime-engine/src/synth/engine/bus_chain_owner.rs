@@ -34,6 +34,8 @@ pub(super) struct BusChainBlockScratch {
     pub(super) mono_output: Vec<f32>,
     pub(super) auto_pan_pos: Vec<f32>,
     pub(super) active: Vec<bool>,
+    /// Frames the chain ran; an idle bus skips its slots.
+    pub(super) chain_ran: Vec<bool>,
     pub(super) processed_prefix: usize,
     pub(super) spread: f32,
     pub(super) executed: bool,
@@ -48,6 +50,7 @@ impl BusChainBlockScratch {
             mono_output: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
             auto_pan_pos: vec![f32::NAN; super::BLOCK_SLOT_SCRATCH_FRAMES],
             active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            chain_ran: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
             processed_prefix: 0,
             spread: 0.0,
             executed: false,
@@ -65,6 +68,7 @@ impl BusChainBlockScratch {
         self.mono_output[..frames].fill(0.0);
         self.auto_pan_pos[..frames].fill(f32::NAN);
         self.active[..frames].fill(false);
+        self.chain_ran[..frames].fill(false);
         self.processed_prefix = 0;
         self.spread = 0.0;
         self.executed = false;
@@ -78,6 +82,7 @@ impl BusChainBlockScratch {
         self.mono_output[..frames].fill(0.0);
         self.auto_pan_pos[..frames].fill(f32::NAN);
         self.active[..frames].fill(false);
+        self.chain_ran[..frames].fill(false);
         self.processed_prefix = 0;
         self.spread = 0.0;
         self.executed = false;
@@ -240,6 +245,7 @@ impl BusChainOwner {
                 continue;
             }
             scratch.executed = true;
+            scratch.chain_ran[frame] = true;
             let mut processed = input;
             let mut auto_pan_pos = None;
             for slot_index in self

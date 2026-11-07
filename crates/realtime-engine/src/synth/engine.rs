@@ -18,6 +18,8 @@ mod block_slot_scratch;
 mod bus_chain_owner;
 #[cfg(test)]
 mod bus_chain_owner_tests;
+#[cfg(test)]
+mod bus_momentary_tail_tests;
 mod construction;
 mod control;
 #[cfg(test)]
