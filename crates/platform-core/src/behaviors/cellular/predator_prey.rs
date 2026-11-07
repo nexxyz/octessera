@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -59,7 +60,7 @@ pub fn predator_prey_init(config: Value) -> Result<PredatorPreyState, String> {
     let mut state = PredatorPreyState {
         tiles: norm_tiles(config.tiles.map(array_values).unwrap_or_default()),
         energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
-        trigger_types: norm_triggers(parse_triggers(config.trigger_types)),
+        trigger_types: restore_trigger_types(parse_triggers(config.trigger_types)),
         grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
         herbivore_reproduce_pct: num(config.herbivore_reproduce_pct, 15, 100),
         predator_reproduce_pct: num(config.predator_reproduce_pct, 8, 100),
@@ -79,7 +80,7 @@ pub fn predator_prey_deserialize(data: Value) -> Result<PredatorPreyState, Strin
     let mut state = PredatorPreyState {
         tiles: norm_tiles(config.tiles.map(array_values).unwrap_or_default()),
         energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
-        trigger_types: norm_triggers(parse_triggers(config.trigger_types)),
+        trigger_types: restore_trigger_types(parse_triggers(config.trigger_types)),
         grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
         herbivore_reproduce_pct: num(config.herbivore_reproduce_pct, 15, 100),
         predator_reproduce_pct: num(config.predator_reproduce_pct, 8, 100),
@@ -302,7 +303,7 @@ pub fn predator_prey_config_menu() -> Vec<BehaviorConfigItem> {
 fn normalize(s: &mut PredatorPreyState) {
     s.tiles = norm_tiles(s.tiles.iter().map(|c| Value::from(*c)).collect());
     s.energy = norm_energy(s.energy.iter().map(|e| Value::from(*e)).collect());
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.grass_grow_chance_pct = s.grass_grow_chance_pct.min(100);
     s.herbivore_reproduce_pct = s.herbivore_reproduce_pct.min(100);
     s.predator_reproduce_pct = s.predator_reproduce_pct.min(100);
@@ -350,12 +351,5 @@ fn norm_energy(v: Vec<Value>) -> Vec<u8> {
     o.truncate(TILE_COUNT);
     o
 }
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
-    o.truncate(TILE_COUNT);
-    o
-}
-
 #[cfg(test)]
 mod tests;

@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -211,7 +212,7 @@ fn from_config(v: Value) -> FractalExplorerState {
         },
         region_index: valu(c.region_index, 0, 0, 7) as u8,
         classes: norm_classes(c.classes),
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         zoom_rate_pct: valu(c.zoom_rate_pct, 8, 0, 100) as u8,
         drift_pct: valu(c.drift_pct, 20, 0, 100) as u8,
         iteration_limit: valu(c.iteration_limit, 24, 8, 64) as u8,
@@ -233,7 +234,7 @@ fn normalize(s: &mut FractalExplorerState) {
     }
     s.region_index = s.region_index.min(7);
     s.classes = norm_classes(Some(s.classes.iter().map(|v| Value::from(*v)).collect()));
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.zoom_rate_pct = s.zoom_rate_pct.min(100);
     s.drift_pct = s.drift_pct.min(100);
     s.iteration_limit = s.iteration_limit.clamp(8, 64)
@@ -255,12 +256,6 @@ fn norm_classes(v: Option<Vec<Value>>) -> Vec<u8> {
         .map(|v| v.as_u64().unwrap_or(0).min(2) as u8)
         .collect::<Vec<_>>();
     o.resize(TILE_COUNT, 0);
-    o.truncate(TILE_COUNT);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
     o.truncate(TILE_COUNT);
     o
 }

@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -190,7 +191,7 @@ fn from_config(v: Value) -> OrbitState {
         attractor_vx: val(c.attractor_vx, 3, -SPEED, SPEED),
         attractor_vy: val(c.attractor_vy, 2, -SPEED, SPEED),
         active_count: num(c.particle_count.or(c.active_count), 8, 16) as usize,
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         attraction_pct: num(c.attraction_pct, 45, 100),
         orbit_pct: num(c.orbit_pct, 55, 100),
         repel_mode: repel(c.repel_mode),
@@ -228,7 +229,7 @@ fn normalize(s: &mut OrbitState) {
     s.attraction_pct = s.attraction_pct.min(100);
     s.orbit_pct = s.orbit_pct.min(100);
     s.repel_mode = repel(Some(s.repel_mode.clone()));
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     for i in s.active_count..MAX_PARTICLES {
         s.x[i] = 0;
         s.y[i] = 0;
@@ -259,12 +260,6 @@ fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
     v.and_then(|v| v.as_u64())
         .map(|v| v.clamp(1, u64::from(max)) as u8)
         .unwrap_or(d)
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
-    o.truncate(TILE_COUNT);
-    o
 }
 fn repel(v: Option<String>) -> String {
     let v = v.unwrap_or_else(|| "off".into());

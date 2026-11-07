@@ -2,8 +2,10 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_roll_pct;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -118,7 +120,7 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
     let mut changed = [false; TILE_COUNT];
     let mut forced = Vec::new();
     for (i, water) in nw.iter_mut().enumerate().take(TILE_COUNT) {
-        if hash_pct(state.tick_counter, i, 7) < u32::from(state.rain_pct) {
+        if tile_roll_pct(state.tick_counter, i, 7) < u32::from(state.rain_pct) {
             let old = *water;
             *water = water.saturating_add(16);
             if *water > old && *water >= VISIBLE {
@@ -140,7 +142,7 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
                     .min(u16::from(w)) as u8;
                 nw[i] = nw[i].saturating_add(w - amt);
                 nw[dest] = nw[dest].saturating_add(amt);
-                if hash_pct(state.tick_counter, i, 13) < u32::from(state.erosion_pct) {
+                if tile_roll_pct(state.tick_counter, i, 13) < u32::from(state.erosion_pct) {
                     nh[i] = nh[i].saturating_sub(1);
                     ns[dest] = ns[dest].saturating_add(1);
                     changed[i] = true
@@ -155,7 +157,7 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
             let evap = (u16::from(nw[i]) * u16::from(state.evaporation_pct) / 100).max(1) as u8;
             nw[i] = nw[i].saturating_sub(evap)
         }
-        if ns[i] > 0 && hash_pct(state.tick_counter, i, 29) < u32::from(state.erosion_pct) {
+        if ns[i] > 0 && tile_roll_pct(state.tick_counter, i, 29) < u32::from(state.erosion_pct) {
             nh[i] = nh[i].saturating_add(1);
             ns[i] = ns[i].saturating_sub(1);
             changed[i] = true
@@ -200,7 +202,7 @@ fn from_config(v: Value) -> RiversState {
         height: norm_with_defaults(c.height, default_height()),
         water: norm(c.water, vec![0; TILE_COUNT]),
         sediment: norm(c.sediment, vec![0; TILE_COUNT]),
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         rain_pct: num(c.rain_pct, 20),
         flow_pct: num(c.flow_pct, 50),
         erosion_pct: num(c.erosion_pct, 15),
@@ -224,7 +226,7 @@ fn normalize(s: &mut RiversState) {
         Some(s.sediment.iter().map(|v| Value::from(*v)).collect()),
         vec![0; TILE_COUNT],
     );
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.rain_pct = s.rain_pct.min(100);
     s.flow_pct = s.flow_pct.min(100);
     s.erosion_pct = s.erosion_pct.min(100);
@@ -262,12 +264,6 @@ fn norm_with_defaults(v: Option<Vec<Value>>, defaults: Vec<u8>) -> Vec<u8> {
     }
     out
 }
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
-    o.truncate(TILE_COUNT);
-    o
-}
 fn num(v: Option<Value>, d: u8) -> u8 {
     v.and_then(|v| v.as_u64())
         .map(|v| v.min(100) as u8)
@@ -287,15 +283,6 @@ fn lowest(h: &[u8], w: &[u8], i: usize) -> Option<usize> {
     neigh(i)
         .filter(|n| u16::from(h[*n]) + u16::from(w[*n]) < here)
         .min_by_key(|n| u16::from(h[*n]) + u16::from(w[*n]))
-}
-fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
-    let tick = tick ^ crate::behavior_random::salt();
-    let mut x = tick
-        .wrapping_mul(0x9E37_79B9)
-        .wrapping_add(index as u64 * 0x85EB_CA6B)
-        .wrapping_add(salt * 0xC2B2_AE35);
-    x ^= x >> 16;
-    ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
 fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
     let mut t = (0..TILE_COUNT)

@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -175,7 +176,7 @@ fn from_config(config: Value) -> GravityState {
         age: norm_age(config.age.unwrap_or_default()),
         gravity_dir: norm_dir(config.gravity_dir),
         tick_counter: 0,
-        trigger_types: norm_triggers(config.trigger_types),
+        trigger_types: restore_trigger_types(config.trigger_types),
         spawn_rate_pct: num(config.spawn_rate_pct, 20, 100),
         slide_chance_pct: num(config.slide_chance_pct, 60, 100),
         settle_age: num(config.settle_age, 8, 32).max(1),
@@ -188,7 +189,7 @@ fn normalize(state: &mut GravityState) {
     state.tiles = norm_tiles(state.tiles.iter().map(|tile| Value::from(*tile)).collect());
     state.age = norm_age(state.age.iter().map(|age| Value::from(*age)).collect());
     state.gravity_dir = norm_dir(Some(state.gravity_dir.clone()));
-    state.trigger_types = norm_triggers(Some(state.trigger_types.clone()));
+    state.trigger_types = restore_trigger_types(Some(state.trigger_types.clone()));
     state.spawn_rate_pct = state.spawn_rate_pct.min(100);
     state.slide_chance_pct = state.slide_chance_pct.min(100);
     state.settle_age = state.settle_age.clamp(1, 32);
@@ -214,12 +215,6 @@ fn norm_age(values: Vec<Value>) -> Vec<u8> {
         .map(|v| v.as_u64().unwrap_or(0).min(u8::MAX.into()) as u8)
         .collect::<Vec<_>>();
     out.resize(TILE_COUNT, 0);
-    out.truncate(TILE_COUNT);
-    out
-}
-fn norm_triggers(values: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut out = values.unwrap_or_default();
-    out.resize(TILE_COUNT, TileTriggerType::None);
     out.truncate(TILE_COUNT);
     out
 }

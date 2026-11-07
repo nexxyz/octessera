@@ -2,8 +2,10 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_roll_pct;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -126,11 +128,11 @@ pub fn lava_lamp_on_tick(mut s: LavaLampState, _: &mut BehaviorContext) -> LavaL
     let mut forced = Vec::new();
     for i in 0..usize::from(s.active_count) {
         if s.tick_counter.is_multiple_of(2) {
-            s.vx[i] += hash_pct(s.tick_counter, i, 41) as i16 % 5 - 2;
-            s.vy[i] += hash_pct(s.tick_counter, i, 43) as i16 % 5 - 2;
+            s.vx[i] += tile_roll_pct(s.tick_counter, i, 41) as i16 % 5 - 2;
+            s.vy[i] += tile_roll_pct(s.tick_counter, i, 43) as i16 % 5 - 2;
         }
         s.vy[i] -= i16::from(s.heat_pct / 20) + i16::from(s.heat_ticks) * 2;
-        s.vx[i] += hash_pct(s.tick_counter, i, 5) as i16 % 3 - 1;
+        s.vx[i] += tile_roll_pct(s.tick_counter, i, 5) as i16 % 3 - 1;
         let damp = 100 - i16::from(s.viscosity_pct / 2);
         s.vx[i] = (s.vx[i] * damp / 100).clamp(-12, 12);
         s.vy[i] = (s.vy[i] * damp / 100).clamp(-12, 12);
@@ -183,7 +185,7 @@ fn from_config(v: Value) -> LavaLampState {
     s.radius = norm_r(c.radius, &s.radius);
     s.blob_count = num(c.blob_count, 4, 8).max(1);
     s.active_count = num(c.active_count, s.blob_count, 8).max(1);
-    s.trigger_types = norm_triggers(c.trigger_types);
+    s.trigger_types = restore_trigger_types(c.trigger_types);
     s.viscosity_pct = num(c.viscosity_pct, 30, 100);
     s.heat_pct = num(c.heat_pct, 45, 100);
     s.merge_pct = num(c.merge_pct, 25, 100);
@@ -237,7 +239,7 @@ fn normalize(s: &mut LavaLampState) {
     s.viscosity_pct = s.viscosity_pct.min(100);
     s.heat_pct = s.heat_pct.min(100);
     s.merge_pct = s.merge_pct.min(100);
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()))
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()))
 }
 fn norm_pos(v: Option<Vec<Value>>, d: &[i16]) -> Vec<i16> {
     let mut o = v
@@ -276,12 +278,6 @@ fn norm_r(v: Option<Vec<Value>>, d: &[u8]) -> Vec<u8> {
     }
     o.resize(BLOBS, 18);
     o.truncate(BLOBS);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
-    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
@@ -370,7 +366,7 @@ fn merge(s: &mut LavaLampState, f: &mut Vec<usize>) {
             let dy = i32::from(s.y[i] - s.y[j]);
             let avg = i32::from((s.radius[i] + s.radius[j]) / 2);
             if dx * dx + dy * dy < avg * avg
-                && hash_pct(s.tick_counter, i * 8 + j, 17) < u32::from(s.merge_pct)
+                && tile_roll_pct(s.tick_counter, i * 8 + j, 17) < u32::from(s.merge_pct)
             {
                 s.x[i] = (s.x[i] + s.x[j]) / 2;
                 s.y[i] = (s.y[i] + s.y[j]) / 2;
@@ -399,7 +395,7 @@ fn split(s: &mut LavaLampState, f: &mut Vec<usize>) {
     }
     for i in 0..usize::from(s.active_count) {
         if s.radius[i] >= 32
-            && hash_pct(s.tick_counter, i, 29)
+            && tile_roll_pct(s.tick_counter, i, 29)
                 < u32::from(s.heat_pct) + u32::from(s.heat_ticks) * 20
         {
             let j = usize::from(s.active_count);
@@ -427,12 +423,12 @@ fn renew_static_tail(s: &mut LavaLampState, prev: &[u8], forced: &mut Vec<usize>
     }
     let i = (s.tick_counter as usize) % usize::from(s.active_count);
     let old = tile_of(s.x[i], s.y[i]);
-    let dx = if hash_pct(s.tick_counter, i, 47) < 50 {
+    let dx = if tile_roll_pct(s.tick_counter, i, 47) < 50 {
         16
     } else {
         -16
     };
-    let dy = if hash_pct(s.tick_counter, i, 53) < 50 {
+    let dy = if tile_roll_pct(s.tick_counter, i, 53) < 50 {
         16
     } else {
         -16
@@ -451,15 +447,6 @@ fn visible_tiles(values: &[u8]) -> Vec<bool> {
 }
 fn tile_of(x: i16, y: i16) -> usize {
     grid_index((x / 16).clamp(0, 7) as usize, (y / 16).clamp(0, 7) as usize)
-}
-fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
-    let tick = tick ^ crate::behavior_random::salt();
-    let mut x = tick
-        .wrapping_mul(0x9E37_79B9)
-        .wrapping_add(index as u64 * 0x85EB_CA6B)
-        .wrapping_add(salt * 0xC2B2_AE35);
-    x ^= x >> 16;
-    ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
 fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
     let mut t = (0..TILE_COUNT)

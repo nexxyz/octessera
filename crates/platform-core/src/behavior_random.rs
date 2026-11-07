@@ -76,6 +76,18 @@ pub fn salt() -> u64 {
     ACTIVE_SALT.get()
 }
 
+/// A repeatable `0..100` roll for tile `index` on `tick`, varied by `salt` per use and by the
+/// layer's random stream.
+pub(crate) fn tile_roll_pct(tick: u64, index: usize, salt: u64) -> u32 {
+    let tick = tick ^ self::salt();
+    let mut x = tick
+        .wrapping_mul(0x9E37_79B9)
+        .wrapping_add(index as u64 * 0x85EB_CA6B)
+        .wrapping_add(salt * 0xC2B2_AE35);
+    x ^= x >> 16;
+    ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
+}
+
 impl RngCore for BehaviorRng {
     fn next_u32(&mut self) -> u32 {
         with_active(|rng| rng.next_u32())

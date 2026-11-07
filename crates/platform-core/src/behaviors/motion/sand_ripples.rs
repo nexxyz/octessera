@@ -2,8 +2,10 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_roll_pct;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -129,7 +131,7 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
         if wind == 0 {
             continue;
         }
-        if ps[i] <= pc[i] / 2 || hash_pct(s.tick_counter, i, 7) >= u32::from(s.erosion_pct) {
+        if ps[i] <= pc[i] / 2 || tile_roll_pct(s.tick_counter, i, 7) >= u32::from(s.erosion_pct) {
             continue;
         }
         if let Some(d) = downwind(i, &s.wind_dir) {
@@ -139,7 +141,7 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
             ns[i] = ns[i].saturating_sub(amt);
             ns[d] = ns[d].saturating_add(amt);
             forced.push(d);
-            if hash_pct(s.tick_counter, d, 17) < u32::from(s.deposition_pct) {
+            if tile_roll_pct(s.tick_counter, d, 17) < u32::from(s.deposition_pct) {
                 nc[d] = nc[d].saturating_add((amt / 2).max(1))
             }
         }
@@ -189,7 +191,7 @@ fn from_config(v: Value) -> SandRipplesState {
         crest: norm(c.crest),
         wind_dir: wind(c.wind_dir),
         gust_ticks: 0,
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         wind_strength_pct: num(c.wind_strength_pct, 45),
         deposition_pct: num(c.deposition_pct, 35),
         erosion_pct: num(c.erosion_pct, 25),
@@ -205,7 +207,7 @@ fn normalize(s: &mut SandRipplesState) {
     s.wind_strength_pct = s.wind_strength_pct.min(100);
     s.deposition_pct = s.deposition_pct.min(100);
     s.erosion_pct = s.erosion_pct.min(100);
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()))
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()))
 }
 fn norm(v: Option<Vec<Value>>) -> Vec<u8> {
     let mut o = v
@@ -214,12 +216,6 @@ fn norm(v: Option<Vec<Value>>) -> Vec<u8> {
         .map(|v| v.as_u64().unwrap_or(0).min(255) as u8)
         .collect::<Vec<_>>();
     o.resize(TILE_COUNT, 0);
-    o.truncate(TILE_COUNT);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
     o.truncate(TILE_COUNT);
     o
 }
@@ -314,15 +310,6 @@ fn visible_tiles(values: &[u8]) -> Vec<bool> {
 }
 fn rendered_tile(s: &SandRipplesState, i: usize) -> u8 {
     s.sand[i].max(s.crest[i])
-}
-fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
-    let tick = tick ^ crate::behavior_random::salt();
-    let mut x = tick
-        .wrapping_mul(0x9E37_79B9)
-        .wrapping_add(index as u64 * 0x85EB_CA6B)
-        .wrapping_add(salt * 0xC2B2_AE35);
-    x ^= x >> 16;
-    ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
 fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
     let mut t = (0..TILE_COUNT)

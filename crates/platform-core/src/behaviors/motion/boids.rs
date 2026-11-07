@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -202,7 +203,7 @@ fn from_config(v: Value) -> BoidsState {
         vx: norm(c.vx, 1, -SPEED, SPEED),
         vy: norm(c.vy, 1, -SPEED, SPEED),
         active_count: num(c.flock_size.or(c.active_count), 12, 24) as usize,
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         separation_pct: num(c.separation_pct, 45, 100),
         alignment_pct: num(c.alignment_pct, 35, 100),
         cohesion_pct: num(c.cohesion_pct, 25, 100),
@@ -237,7 +238,7 @@ fn normalize(s: &mut BoidsState) {
         SPEED,
     );
     s.active_count = s.active_count.clamp(1, MAX_BOIDS);
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.separation_pct = s.separation_pct.min(100);
     s.alignment_pct = s.alignment_pct.min(100);
     s.cohesion_pct = s.cohesion_pct.min(100);
@@ -260,12 +261,6 @@ fn norm(v: Option<Vec<Value>>, d: i16, min: i16, max: i16) -> Vec<i16> {
         .collect::<Vec<_>>();
     o.resize(MAX_BOIDS, d);
     o.truncate(MAX_BOIDS);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
-    o.truncate(TILE_COUNT);
     o
 }
 fn num(v: Option<Value>, d: u8, max: u8) -> u8 {

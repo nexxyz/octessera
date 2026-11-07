@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -211,7 +212,7 @@ fn from_config(v: Value) -> CracksState {
             .and_then(|value| value.as_bool())
             .unwrap_or(false),
         tick_counter: 0,
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         stress_pct: num(c.stress_pct, 20, 100),
         branch_pct: num(c.branch_pct, 18, 100),
         propagation_pct: num(c.propagation_pct, 100, 100),
@@ -223,7 +224,7 @@ fn from_config(v: Value) -> CracksState {
 fn normalize(s: &mut CracksState) {
     s.tiles = norm_tiles(s.tiles.iter().map(|v| Value::from(*v)).collect());
     s.stress = norm_u8(s.stress.iter().map(|v| Value::from(*v)).collect());
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.stress_pct = s.stress_pct.min(100);
     s.branch_pct = s.branch_pct.min(100);
     s.propagation_pct = s.propagation_pct.min(100);
@@ -244,12 +245,6 @@ fn norm_u8(v: Vec<Value>) -> Vec<u8> {
         .map(|v| v.as_u64().unwrap_or(0).min(255) as u8)
         .collect::<Vec<_>>();
     o.resize(TILE_COUNT, 0);
-    o.truncate(TILE_COUNT);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
     o.truncate(TILE_COUNT);
     o
 }

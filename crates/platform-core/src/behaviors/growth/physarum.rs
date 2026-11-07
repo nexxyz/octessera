@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -211,7 +212,7 @@ fn from_config(v: Value) -> PhysarumState {
         trail: norm_u8(c.trail),
         food: norm_food(c.food),
         food_pattern: num(c.food_pattern, 0, 3),
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         agent_count: ac,
         sense_distance: num(c.sense_distance, 1, 3).max(1),
         turn_bias_pct: num(c.turn_bias_pct, 55, 100),
@@ -241,7 +242,7 @@ fn normalize(s: &mut PhysarumState) {
     s.trail = norm_u8(Some(s.trail.iter().map(|v| Value::from(*v)).collect()));
     s.food = norm_food(Some(s.food.iter().map(|v| Value::from(*v)).collect()));
     s.food_pattern = s.food_pattern.min(3);
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.sense_distance = s.sense_distance.clamp(1, 3);
     s.turn_bias_pct = s.turn_bias_pct.min(100);
     s.deposit_amount = s.deposit_amount.clamp(1, 64);
@@ -293,12 +294,6 @@ fn norm_food(v: Option<Vec<Value>>) -> Vec<u8> {
         .map(|v| u8::from(v.as_u64().unwrap_or(0) > 0))
         .collect::<Vec<_>>();
     o.resize(TILE_COUNT, 0);
-    o.truncate(TILE_COUNT);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
     o.truncate(TILE_COUNT);
     o
 }

@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -168,7 +169,7 @@ fn from_config(config: Value) -> InkState {
     let config: Config = serde_json::from_value(config).unwrap_or_default();
     let mut state = InkState {
         ink: norm_ink(config.ink.unwrap_or_default()),
-        trigger_types: norm_triggers(config.trigger_types),
+        trigger_types: restore_trigger_types(config.trigger_types),
         diffusion_pct: num(config.diffusion_pct, 30, 100),
         fade_pct: num(config.fade_pct, 5, 100),
         drop_strength: num(config.drop_strength, 180, 255).max(1),
@@ -182,7 +183,7 @@ fn from_config(config: Value) -> InkState {
 
 fn normalize(state: &mut InkState) {
     state.ink = norm_ink(state.ink.iter().map(|value| Value::from(*value)).collect());
-    state.trigger_types = norm_triggers(Some(state.trigger_types.clone()));
+    state.trigger_types = restore_trigger_types(Some(state.trigger_types.clone()));
     state.diffusion_pct = state.diffusion_pct.min(100);
     state.fade_pct = state.fade_pct.min(100);
     state.drop_strength = state.drop_strength.clamp(1, 255);
@@ -196,13 +197,6 @@ fn norm_ink(values: Vec<Value>) -> Vec<u8> {
         .map(|value| value.as_u64().unwrap_or(0).min(255) as u8)
         .collect::<Vec<_>>();
     values.resize(TILE_COUNT, 0);
-    values.truncate(TILE_COUNT);
-    values
-}
-
-fn norm_triggers(values: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut values = values.unwrap_or_default();
-    values.resize(TILE_COUNT, TileTriggerType::None);
     values.truncate(TILE_COUNT);
     values
 }

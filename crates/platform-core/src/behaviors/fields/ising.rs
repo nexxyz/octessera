@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -159,7 +160,7 @@ fn from_config(v: Value) -> IsingState {
         spins: norm_spins(c.spins),
         field_sign: sign(c.field_sign, 1),
         heat_ticks: 0,
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         temperature_pct: num(c.temperature_pct, 35),
         field_strength_pct: num(c.field_strength_pct, 15),
         noise_pct: num(c.noise_pct, 8),
@@ -171,7 +172,7 @@ fn from_config(v: Value) -> IsingState {
 fn normalize(s: &mut IsingState) {
     s.spins = norm_spins(Some(s.spins.iter().map(|v| Value::from(*v)).collect()));
     s.field_sign = if s.field_sign < 0 { -1 } else { 1 };
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.temperature_pct = s.temperature_pct.min(100);
     s.field_strength_pct = s.field_strength_pct.min(100);
     s.noise_pct = s.noise_pct.min(100)
@@ -195,12 +196,6 @@ fn norm_spins(v: Option<Vec<Value>>) -> Vec<i8> {
         out.push(spin)
     }
     out
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
-    o.truncate(TILE_COUNT);
-    o
 }
 fn num(v: Option<Value>, d: u8) -> u8 {
     v.and_then(|v| v.as_u64())

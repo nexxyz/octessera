@@ -2,8 +2,10 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_roll_pct;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -113,7 +115,9 @@ pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) 
             continue;
         }
         if let Some(dest) = wall_neighbor(&prev, &prev_visited, i, state.tick_counter) {
-            if !reserved[dest] && hash_pct(state.tick_counter, i, 7) < u32::from(state.carve_pct) {
+            if !reserved[dest]
+                && tile_roll_pct(state.tick_counter, i, 7) < u32::from(state.carve_pct)
+            {
                 reserved[dest] = true;
                 state.tiles[i] = PATH;
                 state.tiles[dest] = FRONTIER;
@@ -154,7 +158,7 @@ pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) 
         if state.tiles[i] != WALKER
             && (state.tiles[i] == PATH || state.tiles[i] == FRONTIER)
             && state.ages[i] > state.collapse_age
-            && hash_pct(state.tick_counter, i, 31) < u32::from(state.carve_pct)
+            && tile_roll_pct(state.tick_counter, i, 31) < u32::from(state.carve_pct)
         {
             state.tiles[i] = WALL;
             state.visited[i] = 0;
@@ -204,7 +208,7 @@ fn from_config(v: Value) -> MazeGrowthState {
         visited: norm(c.visited, 0, 1),
         ages: norm(c.ages, 0, 255),
         walkers: norm_walkers(c.walkers, walker_count),
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         carve_pct: num(c.carve_pct, 100, 100),
         collapse_age: num(c.collapse_age, 32, 64).max(1),
         walker_count,
@@ -233,7 +237,7 @@ fn normalize(s: &mut MazeGrowthState) {
     s.collapse_age = s.collapse_age.clamp(1, 64);
     s.walker_count = s.walker_count.clamp(1, 8);
     s.walkers = clean_walkers(&s.walkers, &mut s.tiles, usize::from(s.walker_count));
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()))
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()))
 }
 fn norm(v: Option<Vec<Value>>, d: u8, max: u8) -> Vec<u8> {
     let mut o = v
@@ -242,12 +246,6 @@ fn norm(v: Option<Vec<Value>>, d: u8, max: u8) -> Vec<u8> {
         .map(|v| v.as_u64().unwrap_or(u64::from(d)).min(u64::from(max)) as u8)
         .collect::<Vec<_>>();
     o.resize(TILE_COUNT, d);
-    o.truncate(TILE_COUNT);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
     o.truncate(TILE_COUNT);
     o
 }
@@ -381,15 +379,6 @@ fn visible_neighbor(
     available: impl Fn(usize) -> bool,
 ) -> Option<usize> {
     neigh(i, tick + i as u64).find(|n| tiles[*n] != WALL && available(*n))
-}
-fn hash_pct(tick: u64, index: usize, salt: u64) -> u32 {
-    let tick = tick ^ crate::behavior_random::salt();
-    let mut x = tick
-        .wrapping_mul(0x9E37_79B9)
-        .wrapping_add(index as u64 * 0x85EB_CA6B)
-        .wrapping_add(salt * 0xC2B2_AE35);
-    x ^= x >> 16;
-    ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
 fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
     let mut t = (0..TILE_COUNT)

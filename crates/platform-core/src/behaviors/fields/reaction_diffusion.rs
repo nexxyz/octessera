@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -183,7 +184,7 @@ fn from_config(v: Value) -> ReactionDiffusionState {
     let mut s = ReactionDiffusionState {
         a: norm(c.a, 255),
         b: norm(c.b, 0),
-        trigger_types: norm_triggers(c.trigger_types),
+        trigger_types: restore_trigger_types(c.trigger_types),
         feed_pct: num(c.feed_pct, 35, 100),
         kill_pct: num(c.kill_pct, 55, 100),
         diffusion_pct: num(c.diffusion_pct, 35, 100),
@@ -198,7 +199,7 @@ fn from_config(v: Value) -> ReactionDiffusionState {
 fn normalize(s: &mut ReactionDiffusionState) {
     s.a = norm(Some(s.a.iter().map(|v| Value::from(*v)).collect()), 255);
     s.b = norm(Some(s.b.iter().map(|v| Value::from(*v)).collect()), 0);
-    s.trigger_types = norm_triggers(Some(s.trigger_types.clone()));
+    s.trigger_types = restore_trigger_types(Some(s.trigger_types.clone()));
     s.feed_pct = s.feed_pct.min(100);
     s.kill_pct = s.kill_pct.min(100);
     s.diffusion_pct = s.diffusion_pct.min(100);
@@ -213,12 +214,6 @@ fn norm(v: Option<Vec<Value>>, d: u8) -> Vec<u8> {
         .map(|v| v.as_u64().unwrap_or(u64::from(d)).min(255) as u8)
         .collect::<Vec<_>>();
     o.resize(TILE_COUNT, d);
-    o.truncate(TILE_COUNT);
-    o
-}
-fn norm_triggers(v: Option<Vec<TileTriggerType>>) -> Vec<TileTriggerType> {
-    let mut o = v.unwrap_or_default();
-    o.resize(TILE_COUNT, TileTriggerType::None);
     o.truncate(TILE_COUNT);
     o
 }
