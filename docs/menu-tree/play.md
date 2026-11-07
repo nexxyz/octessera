@@ -387,7 +387,7 @@ The `ms` rows use the curved time steps from
   config and tile
   assignments, instrument volumes and pans, per-layer trigger mode, `Prob Low`/`Prob High`, the
   probability map, the global X/Y bindings, X/Y glide, invert flags, and release behavior, and the
-  Faders slider targets and positions, `Action Cols` and the action-column tiles.
+  Faders slider targets, `Action Cols` and the action-column tiles.
 - Not saved: the active Play overlay on load/startup, the XY latch, Mix instrument and bus mutes, Route FX bypass, Tap history, Transpose
   selections/enabled state/offsets, the
   live X/Y touch (`playXyTouch`), active momentary FX, assign modes, held modifiers, and other temporary

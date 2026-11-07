@@ -192,7 +192,7 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   connects. A loaded patch starts with no CC input: targets keep their saved values until a CC
   arrives.
 - `Learn` takes the number and channel of the next incoming CC (`CC1: learned CC 74 ch 1`). Back or
-  10 s without a CC cancels it (`Learn cancelled`); with MIDI Active off it only shows
+  10 s without a CC cancels it (`Learn canceled`); with MIDI Active off it only shows
   `Learn: MIDI is off`.
 - Hosts pass Control Change (`0xB0`-`0xBF`) next to clock, Start, Continue and Stop; notes and other
   messages stay out. A drain handles its realtime bytes first, then applies only the latest value

@@ -141,7 +141,7 @@ impl NativeRunner {
         if self.midi_cc_learn.take().is_none() {
             return false;
         }
-        self.show_toast("Learn cancelled");
+        self.show_toast("Learn canceled");
         true
     }
 

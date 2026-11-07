@@ -79,7 +79,7 @@ fn back_or_the_timeout_cancels_learn() {
     let mut runner = midi_runner();
     press_key(&mut runner, "midiCc.0.learn");
     back(&mut runner);
-    assert_eq!(toast(&runner), "Learn cancelled");
+    assert_eq!(toast(&runner), "Learn canceled");
     assert!(runner.menu.focus_item_key("midiCc.0.learn"));
     send_cc_bytes(&mut runner, &[[0xB0, 74, 99]]);
     assert_eq!(runner.midi_cc_mappings[0].cc, 1);
@@ -93,7 +93,7 @@ fn back_or_the_timeout_cancels_learn() {
     );
     runner.midi_cc_learn.as_mut().unwrap().expires_at = Instant::now();
     runner.messages_with_snapshot().unwrap();
-    assert_eq!(toast(&runner), "Learn cancelled");
+    assert_eq!(toast(&runner), "Learn canceled");
     assert!(runner.midi_cc_learn.is_none());
 }
 
