@@ -1,6 +1,6 @@
 use super::{
-    fallback_cleanup_steps, frame_chunk_ranges, CleanupStep, ORANGE_AUDIO_UNAVAILABLE_ERROR,
-    POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS, RESET_LOW_MS, RESET_SETTLE_MS,
+    fallback_cleanup_steps, frame_chunk_ranges, CleanupStep, POST_DISPLAY_ON_MS,
+    PRE_RESET_DELAY_MS, RESET_HIGH_MS, RESET_LOW_MS, RESET_SETTLE_MS,
 };
 use crate::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
 
@@ -10,11 +10,6 @@ fn orange_descriptors_keep_exact_bus_identity() {
     assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.i2c.controller, "5002400.i2c");
     assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.spi.path, "/dev/spidev1.0");
     assert_eq!(ORANGE_PI_ZERO_2W_DEVICES.spi.controller, "5011000.spi");
-}
-
-#[test]
-fn audio_initialization_error_remains_explicit() {
-    assert!(ORANGE_AUDIO_UNAVAILABLE_ERROR.contains("audio/I2S"));
 }
 
 #[test]

@@ -7,7 +7,7 @@ import type { OledFrameCacheFault } from '../runtime/oledFrameCache';
 
 const TOAST_TIMEOUT_MS = 7000;
 
-export function runtimeErrorIdentity(error: RuntimeErrorMetadata): string {
+function runtimeErrorIdentity(error: RuntimeErrorMetadata): string {
   return [
     error.domain,
     error.code,
@@ -17,7 +17,7 @@ export function runtimeErrorIdentity(error: RuntimeErrorMetadata): string {
   ].join(':');
 }
 
-export function runtimeErrorCopy(error: RuntimeErrorMetadata): {
+function runtimeErrorCopy(error: RuntimeErrorMetadata): {
   title: string;
   message: string;
   recovery: string;

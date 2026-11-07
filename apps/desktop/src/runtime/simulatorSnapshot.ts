@@ -22,7 +22,7 @@ export type RuntimeSnapshotCache = {
   masterVolume: number;
 };
 
-export type SnapshotAudioState = {
+type SnapshotAudioState = {
   audioLoad: import('../audio/audioLoadEvents').AudioLoadStatus;
   runtimeStatus: RuntimeStatus | null;
   oledFrameFault?: OledFrameCacheFault | null;

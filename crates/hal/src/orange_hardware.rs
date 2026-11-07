@@ -26,9 +26,6 @@ pub use crate::orange_timing::{
     POST_DISPLAY_ON_MS, PRE_RESET_DELAY_MS, RESET_HIGH_MS, RESET_LOW_MS, RESET_SETTLE_MS,
 };
 
-pub const ORANGE_AUDIO_UNAVAILABLE_ERROR: &str =
-    "Orange Pi audio/I2S backend is intentionally unavailable in this HAL";
-
 #[cfg(target_os = "linux")]
 pub struct OrangeHardware {
     _i2c: File,
@@ -70,10 +67,6 @@ impl OrangeHardware {
             startup_plan.operations().is_empty(),
         )?;
         Ok(Self { _i2c: i2c, oled })
-    }
-
-    pub fn initialize_audio(&self) -> Result<(), String> {
-        Err(ORANGE_AUDIO_UNAVAILABLE_ERROR.into())
     }
 
     pub fn oled_mut(&mut self) -> &mut OrangeOledTransport {

@@ -1,11 +1,11 @@
 import type { RuntimeRunnerMessage } from '@octessera/device-contracts';
 
-export type AsyncRuntimeBatch = {
+type AsyncRuntimeBatch = {
   seq: number;
   messages: RuntimeRunnerMessage[];
 };
 
-export type AsyncRuntimeBatchSuppression = {
+type AsyncRuntimeBatchSuppression = {
   beginDirectDispatch(nowMs: number): void;
   completeDirectDispatch(hasSnapshot: boolean): void;
   rememberDirectResponse(messages: RuntimeRunnerMessage[]): void;

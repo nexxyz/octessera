@@ -1,15 +1,5 @@
 import type { OledFrame } from '@octessera/device-contracts';
 
-export function rgb565ToCss(value: number): string {
-  const r5 = (value >> 11) & 0x1f;
-  const g6 = (value >> 5) & 0x3f;
-  const b5 = value & 0x1f;
-  const r = (r5 << 3) | (r5 >> 2);
-  const g = (g6 << 2) | (g6 >> 4);
-  const b = (b5 << 3) | (b5 >> 2);
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
 const OLED_MASTER_CONTRAST_STEPS = 16;
 
 // The hardware dims the panel current instead of the pixels, so the simulator dims the

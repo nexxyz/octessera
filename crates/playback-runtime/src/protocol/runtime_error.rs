@@ -243,19 +243,6 @@ impl RuntimeAdapterError {
         }
     }
 
-    pub fn from_metadata(metadata: RuntimeErrorMetadata) -> Self {
-        Self {
-            facts: RuntimeErrorFacts {
-                domain: metadata.domain,
-                code: metadata.code,
-                operation: metadata.operation,
-                request_id: metadata.request_id,
-                revision: metadata.revision,
-                message: metadata.message,
-            },
-        }
-    }
-
     pub fn from_facts(facts: RuntimeErrorFacts) -> Self {
         Self { facts }
     }

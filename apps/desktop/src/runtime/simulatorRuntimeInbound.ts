@@ -5,7 +5,7 @@ import type {
   RuntimeStatus,
 } from '@octessera/device-contracts';
 
-export type RuntimeMessageHandlers = {
+type RuntimeMessageHandlers = {
   onOledFrame: (
     message: RuntimeOledFrameMessage,
     allowAsyncOledSplit: boolean,

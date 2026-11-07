@@ -4,7 +4,7 @@ const DIMMED_LED_FACTOR = 0.22;
 const MIN_VISIBLE_NON_BLACK_CHANNEL = 8;
 const MIN_DIMMED_VISIBLE_NON_BLACK_CHANNEL = 2;
 
-export type GridLedColor = { r: number; g: number; b: number };
+type GridLedColor = { r: number; g: number; b: number };
 
 export function gridLedColor(
   frame: RuntimeSnapshot,

@@ -94,13 +94,6 @@ pub struct PresentationScene {
     audio: Option<AudioScene>,
 }
 
-impl PresentationScene {
-    #[cfg(any(test, feature = "test-support"))]
-    pub(super) fn animation_settled(&self) -> bool {
-        self.animation.body.is_none() && self.animation.toast.is_none()
-    }
-}
-
 impl NativeRunner {
     pub(super) fn capture_presentation_scene(
         &self,

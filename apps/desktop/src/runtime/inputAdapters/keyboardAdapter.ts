@@ -5,7 +5,7 @@ type KeyEventLike = Pick<
   'code' | 'repeat' | 'shiftKey' | 'getModifierState'
 >;
 
-export type KeyboardMapper = {
+type KeyboardMapper = {
   keydown(event: KeyEventLike): DeviceInput[];
   keyup(event: KeyEventLike): DeviceInput[];
   releaseAll(): DeviceInput[];

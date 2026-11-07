@@ -5,7 +5,7 @@ import type { SimulatorSnapshot } from '../runtime/types';
 import { OledDisplay } from './OledDisplay';
 
 type EncoderId = 'main' | `aux${number}`;
-export type ModifierKind = 'shift' | 'fn';
+type ModifierKind = 'shift' | 'fn';
 
 export function wheelTurnFromDelta(deltaY: number): {
   delta: -1 | 1;

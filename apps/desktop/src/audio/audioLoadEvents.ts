@@ -6,7 +6,7 @@ export type AudioLoadStatus = {
   missedQuantumFlash: boolean;
 };
 
-export type AudioLoadPayload = {
+type AudioLoadPayload = {
   ratio?: number;
   workerUtilization?: number;
   missedQuantumFlash?: boolean;

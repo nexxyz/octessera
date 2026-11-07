@@ -202,12 +202,6 @@ impl ScenarioBuilder {
         self.input(press_main());
     }
 
-    pub fn confirm_if_asked(&mut self) {
-        if self.runner.test_confirmation_is_open() {
-            self.confirm();
-        }
-    }
-
     /// Runs inputs now, while holding `mods` around them.
     pub fn with_mods_now(&mut self, mods: &[&str], inputs: &[Value]) {
         for kind in mods {

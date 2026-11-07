@@ -34,7 +34,7 @@ import {
 } from './simulatorStartupSplash';
 import type { SimulatorSnapshot } from './types';
 
-export type RuntimeReconciliation = {
+type RuntimeReconciliation = {
   reconcileOledFrame(
     message: RuntimeOledFrameMessage,
     allowAsyncOledSplit: boolean,

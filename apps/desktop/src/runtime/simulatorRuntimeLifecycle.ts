@@ -4,7 +4,7 @@ import type {
 } from '../audio/audioLoadEvents';
 import type { SimulatorSnapshot } from './types';
 
-export type RuntimeLifecycle = {
+type RuntimeLifecycle = {
   listenAudioLoad(service: AudioLoadService): void;
   start(): void;
   publish(): void;

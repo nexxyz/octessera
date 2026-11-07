@@ -13,10 +13,10 @@ import {
 } from './runtimeScheduler';
 import { tauriCoreRunner } from './runner/tauriCoreRunner';
 
-export type EncoderTurnInput = Extract<DeviceInput, { type: 'encoder_turn' }>;
+type EncoderTurnInput = Extract<DeviceInput, { type: 'encoder_turn' }>;
 type EncoderId = NonNullable<EncoderTurnInput['id']>;
 
-export type RuntimeConnection = {
+type RuntimeConnection = {
   dispatchInput(input: DeviceInput): void;
   dispatchEncoderTurn(input: EncoderTurnInput): void;
   enqueue(message: RuntimeHostMessage): void;
