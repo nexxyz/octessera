@@ -576,7 +576,7 @@ behavior primary red), so a mute never reads as a section color.
   room for a trailing cursor cell; when the text does not fit, it shows the part that keeps the
   cursor in view.
 - Values show their unit right after the number (`80ms`, `35%`, `120bpm`, `-140dB`, `1.6kHz`,
-  `5min`), so labels carry none (`Mix`, not `Mix %`). Rows whose 0 switches their job off show
+  `5min`, `24st`, `-25c`), so labels carry none (`Mix`, not `Mix %`). Rows whose 0 switches their job off show
   `Off` there (spawn intervals and counts, Retrig, Glide, OLED Sleep, Dim Timer). Stored ids show
   display labels while saves keep the ids: Link triggers `note on`/`note off`, Arp modes
   (`outside in`), Trigger Prob. Mode `0%`/`custom`/`100%`, FX types (`Filter LFO`), Play FX types
@@ -614,7 +614,7 @@ behavior primary red), so a mute never reads as a section color.
   Play FX controls, System sound/UI controls, Link axis controls, and behavior controls such as
   spawn interval/count, threshold, lifespan, and radius. Selector-like numeric rows stay plain text:
   MIDI channels, instrument/sample slots, layer selectors, and MIDI note ranges.
-- Number value text uses compact units: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones/cents, pan as
+- Number value text uses compact units: `%`, `ms`/`s`, `Hz`, `bpm`, `dB`, semitones `st`/cents `c`, pan as
   `L15`/`C`/`R15`. Internal `0..1` ranges display as `0..100`.
 
 ### Display priority

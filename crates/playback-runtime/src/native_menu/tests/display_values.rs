@@ -35,6 +35,14 @@ fn values_show_their_unit_without_a_space_and_off_where_zero_switches_off() {
         ("layers.0.build.behaviorConfig.randomSeedCells", "0", "Off"),
         ("layers.0.link.mapping.activate.retriggerCount", "0", "Off"),
         ("play.xy.smoothingMs", "80", "80ms"),
+        ("instruments.0.drum.voices.0.sweepSemis", "24", "24st"),
+        ("instruments.0.drum.voices.0.tuneSemis", "-3", "-3st"),
+        ("instruments.0.sample.tuneSemis", "12", "12st"),
+        ("instruments.0.tile.tuneSemis", "0", "0st"),
+        ("instruments.0.tile.tuneCents", "-25", "-25c"),
+        ("instruments.0.synth.osc1.detuneCents", "7", "7c"),
+        ("play.fx.params.semitones", "-12", "-12st"),
+        ("play.fx.params.cents", "50", "50c"),
     ] {
         assert_eq!(shown(key, raw), expected, "{key} = {raw}");
     }

@@ -137,6 +137,12 @@ pub(crate) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     if key.ends_with("Hz") && !key.ends_with("cutoffHz") {
         return format_hz(raw.parse().unwrap_or(0));
     }
+    if key.ends_with("Semis") {
+        return format!("{}st", raw.parse::<i32>().unwrap_or(0));
+    }
+    if key.ends_with("Cents") {
+        return format!("{}c", raw.parse::<i32>().unwrap_or(0));
+    }
     raw
 }
 
@@ -202,6 +208,10 @@ fn format_play_fx_param(param: &str, raw: &str) -> String {
         format!("{value}%")
     } else if param.ends_with("Ms") {
         format_ms(value)
+    } else if param == "semitones" {
+        format!("{value}st")
+    } else if param == "cents" {
+        format!("{value}c")
     } else {
         value.to_string()
     }
