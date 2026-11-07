@@ -36,7 +36,7 @@ pub(in crate::synth::engine) struct CrushVoice {
     pub(super) params: CrushParams,
     crush_l: FxBusState,
     crush_r: FxBusState,
-    pub(super) envelope: GainRamp,
+    envelope: GainRamp,
     releasing: bool,
 }
 
@@ -52,7 +52,6 @@ impl CrushVoice {
         }
     }
 
-    /// A new press of the same type takes over the releasing voice with its own settings.
     pub(super) fn revive(&mut self, params: CrushParams) {
         self.params = params;
         self.releasing = false;

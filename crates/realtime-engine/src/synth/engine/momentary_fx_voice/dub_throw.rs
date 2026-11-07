@@ -41,7 +41,7 @@ pub(in crate::synth::engine) struct DubThrowVoice {
     delay_l: FxBusState,
     delay_r: FxBusState,
     max_len: f32,
-    pub(super) current_len: f32,
+    current_len: f32,
     glide: f32,
     send: GainRamp,
     releasing: bool,
@@ -83,7 +83,6 @@ impl DubThrowVoice {
         }
     }
 
-    /// A new press of the same type takes over the releasing voice with its own settings.
     pub(super) fn revive(&mut self, params: DubThrowParams) {
         self.params = params;
         self.releasing = false;

@@ -81,6 +81,17 @@ impl BiquadState {
         }
     }
 
+    /// Takes `other`'s prepared settings, for the second channel of a filter whose two channels
+    /// always see the same settings, so its coefficients are worked out once.
+    pub(in crate::synth) fn prepare_like(&mut self, other: &Self) {
+        self.mode = other.mode;
+        self.cutoff_hz = other.cutoff_hz;
+        self.q = other.q;
+        self.sample_rate = other.sample_rate;
+        self.coeffs = other.coeffs;
+        self.pass_frames = other.pass_frames;
+    }
+
     /// True while the prepared settings leave audio unchanged, so callers can skip the filter.
     pub(in crate::synth) fn is_open(&self) -> bool {
         self.pass_frames == OPEN

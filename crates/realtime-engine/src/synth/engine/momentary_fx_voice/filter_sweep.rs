@@ -75,13 +75,12 @@ impl FilterSweepVoice {
         }
 
         let cutoff = 20_000.0 + (self.params.target_cutoff - 20_000.0) * self.sweep_pos;
-        let q = self.params.q;
-        let rate = self.sample_rate;
+        self.filt_l
+            .prepare(FilterType::Lowpass, cutoff, self.params.q, self.sample_rate);
+        self.filt_r.prepare_like(&self.filt_l);
         (
-            self.filt_l
-                .process(left, FilterType::Lowpass, cutoff, q, rate),
-            self.filt_r
-                .process(right, FilterType::Lowpass, cutoff, q, rate),
+            self.filt_l.process_prepared(left),
+            self.filt_r.process_prepared(right),
         )
     }
 }

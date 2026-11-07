@@ -29,7 +29,7 @@ impl TapeStopParams {
 pub(in crate::synth::engine) struct TapeStopVoice {
     pub(super) params: TapeStopParams,
     ring: CaptureRing,
-    pub(super) speed: f32,
+    speed: f32,
     lag: f32,
     releasing: bool,
     handoff: GainRamp,
@@ -47,7 +47,6 @@ impl TapeStopVoice {
         }
     }
 
-    /// A new press of the same type takes over the releasing voice with its own settings.
     pub(super) fn revive(&mut self, params: TapeStopParams) {
         self.params = params;
         self.releasing = false;

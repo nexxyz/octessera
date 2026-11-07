@@ -15,15 +15,26 @@ pub(in crate::synth::engine) struct WashParams {
     pub(in crate::synth::engine) feedback: f32,
     pub(in crate::synth::engine) mix: f32,
     pub(in crate::synth::engine) release_len: u32,
+    /// The send level that keeps the comb tail's loudness independent of its feedback.
+    inject: f32,
 }
 
 impl WashParams {
-    pub(super) fn from_map(params: &BTreeMap<String, Value>, sample_rate: u32) -> Self {
+    pub(super) fn new(feedback: f32, mix: f32, release_len: u32) -> Self {
         Self {
-            feedback: 0.75 + 0.22 * pct_param(params, "sizePct", 80.0),
-            mix: pct_param(params, "mixPct", 60.0),
-            release_len: ms_param_len(params, "releaseMs", 2_500.0, 100.0, 8_000.0, sample_rate),
+            feedback,
+            mix,
+            release_len,
+            inject: (1.0 - feedback * feedback).sqrt(),
         }
+    }
+
+    pub(super) fn from_map(params: &BTreeMap<String, Value>, sample_rate: u32) -> Self {
+        Self::new(
+            0.75 + 0.22 * pct_param(params, "sizePct", 80.0),
+            pct_param(params, "mixPct", 60.0),
+            ms_param_len(params, "releaseMs", 2_500.0, 100.0, 8_000.0, sample_rate),
+        )
     }
 }
 
@@ -38,7 +49,7 @@ pub(in crate::synth::engine) struct WashVoice {
     diffusers: [Vec<f32>; 4],
     diffuser_idxs: [usize; 4],
     send: GainRamp,
-    pub(super) swell: GainRamp,
+    swell: GainRamp,
     release_step: f32,
     releasing: bool,
 }
@@ -60,7 +71,6 @@ impl WashVoice {
         }
     }
 
-    /// A new press of the same type takes over the releasing voice with its own settings.
     pub(super) fn revive(&mut self, params: WashParams) {
         self.params = params;
         self.releasing = false;
@@ -83,7 +93,7 @@ impl WashVoice {
             self.swell.toward(1.0)
         };
         let feedback = self.params.feedback;
-        let inject = send * (1.0 - feedback * feedback).sqrt();
+        let inject = send * self.params.inject;
         let in_l = self.diffuse(0, left * inject);
         let in_l = self.diffuse(1, in_l);
         let in_r = self.diffuse(2, right * inject);

@@ -39,7 +39,7 @@ impl HpRiserParams {
 #[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct HpRiserVoice {
     pub(super) params: HpRiserParams,
-    pub(super) sweep_pos: f32,
+    sweep_pos: f32,
     filt_l: BiquadState,
     filt_r: BiquadState,
     releasing: bool,
@@ -58,7 +58,6 @@ impl HpRiserVoice {
         }
     }
 
-    /// A new press of the same type takes over the releasing voice with its own settings.
     pub(super) fn revive(&mut self, params: HpRiserParams) {
         self.params = params;
         self.releasing = false;
@@ -80,13 +79,11 @@ impl HpRiserVoice {
         };
         let cutoff = OPEN_HZ * (self.params.target_octaves * self.sweep_pos).exp2();
         let q = FRAC_1_SQRT_2 + (self.params.q - FRAC_1_SQRT_2) * self.sweep_pos;
-        let rate = self.sample_rate;
-        let wet_l = self
-            .filt_l
-            .process(left, FilterType::Highpass, cutoff, q, rate);
-        let wet_r = self
-            .filt_r
-            .process(right, FilterType::Highpass, cutoff, q, rate);
+        self.filt_l
+            .prepare(FilterType::Highpass, cutoff, q, self.sample_rate);
+        self.filt_r.prepare_like(&self.filt_l);
+        let wet_l = self.filt_l.process_prepared(left);
+        let wet_r = self.filt_r.process_prepared(right);
         let blend = (self.sweep_pos / ENGAGE_SPAN).min(1.0);
         (
             left + (wet_l - left) * blend,

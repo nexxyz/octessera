@@ -139,11 +139,7 @@ impl MomentaryFxVoice {
                 },
             ) => replace(
                 &mut voice.params,
-                WashParams {
-                    feedback,
-                    mix,
-                    release_len,
-                },
+                WashParams::new(feedback, mix, release_len),
             ),
             (
                 Self::HpRiser(voice),
@@ -288,6 +284,7 @@ pub(in crate::synth::engine) fn prepare_voice_update(
                 feedback,
                 mix,
                 release_len,
+                ..
             } = WashParams::from_map(params, sample_rate);
             PreparedMomentaryFxUpdate::Wash {
                 epoch,
