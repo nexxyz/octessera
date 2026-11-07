@@ -160,14 +160,21 @@ fn a_missed_ball_serves_again_after_a_pause() {
 
 #[test]
 fn a_perfect_cpu_never_drops_the_ball() {
-    LayerRandom::new(Some(5)).scope(|| {
-        let mut state = init(json!({ "cpuSkillPct": 100 })).unwrap();
-        for _ in 0..3000 {
-            state = on_tick(state, &mut context());
-            assert!(state.ball.is_some_and(|ball| ball.y > 0));
-        }
-        assert!(state.rows_cleared > 5, "{}", state.rows_cleared);
-    });
+    for start_rows in 1..=MAX_ROWS {
+        LayerRandom::new(Some(5)).scope(|| {
+            let mut state = init(json!({ "cpuSkillPct": 100, "startRows": start_rows })).unwrap();
+            for tick in 0..3000 {
+                state = on_tick(state, &mut context());
+                assert!(
+                    state.ball.is_some_and(|ball| ball.y > 0),
+                    "{start_rows} rows, tick {tick}"
+                );
+            }
+            if start_rows == 3 {
+                assert!(state.rows_cleared > 5, "{}", state.rows_cleared);
+            }
+        });
+    }
 }
 
 #[test]
@@ -217,8 +224,8 @@ fn new_wall_refills_and_serves() {
 #[test]
 fn settings_clamp_and_round_trip() {
     let state = init(json!({ "startRows": 9, "rowSpawn": "sideways" })).unwrap();
-    assert_eq!((state.start_rows, state.row_spawn.as_str()), (4, "new"));
-    assert_eq!(state.rows.len(), 4);
+    assert_eq!((state.start_rows, state.row_spawn.as_str()), (3, "new"));
+    assert_eq!(state.rows.len(), 3);
     let restored = deserialize(serialize(&state).unwrap()).unwrap();
     assert_eq!(restored, state);
 }

@@ -347,7 +347,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 | pong | Color: [classic, lawn, sandcourt] | enum (default classic) |
 | pong | !Serve | action |
 | blockout | CPU Skill: [0..100] | number, step 1 (default 80) |
-| blockout | Start Rows: [1..4] | number, step 1 (default 3) |
+| blockout | Start Rows: [1..3] | number, step 1 (default 3) |
 | blockout | Row Spawn: [stable, new] | enum (default new) |
 | blockout | !Serve | action |
 | blockout | !New Wall | action |

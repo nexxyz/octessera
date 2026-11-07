@@ -22,7 +22,7 @@ mod wall;
 const RIGHT: u8 = GRID_WIDTH as u8 - 1;
 const TOP: u8 = GRID_HEIGHT as u8 - 1;
 const PADDLE: u8 = 3;
-const MAX_ROWS: u8 = 4;
+const MAX_ROWS: u8 = 3;
 const ROW_SPAWNS: &[&str] = &["stable", "new"];
 const BACKGROUND: [u8; 3] = [0, 0, 24];
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
