@@ -66,7 +66,7 @@ Shape
 │   │   │   ├── Follow Transp.: [on | off]       ← default off
 │   │   │   ├── Follow Pitch: [on | off]         ← default off
 │   │   │   ├── Gain: [0..100]
-│   │   │   ├── Base Velocity: [1..127]          ← used by Base-level tiles
+│   │   │   ├── Base Vel: [1..127]               ← used by Base-level tiles
 │   │   │   ├── Vel Levels: [on | off]
 │   │   │   ├── Vel Levels (group)               ← High / Medium / Low [1..127]; only while Vel Levels is on
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
@@ -206,7 +206,7 @@ Shape
 
 - Row order: Kit, Sample Slot, the loaded sample, Browse, Start, Loop, Loop Start and Loop End
   (only while Loop is not off), Tile Tune, Tile Fine, Tile Level (only while Vel Levels is on),
-  Assign, Tune, Follow Transp., Follow Pitch, Gain, Base Velocity, the Vel Levels switch, the Vel
+  Assign, Tune, Follow Transp., Follow Pitch, Gain, Base Vel, the Vel Levels switch, the Vel
   Levels group (only while on), Filter, Vel Sens, Amp Env, Filter Env.
 - SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths and reset each sample
   slot's Start and Loop rows to their defaults. Tile assignments and levels, the selected Sample
