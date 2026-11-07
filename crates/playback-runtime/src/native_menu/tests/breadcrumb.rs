@@ -55,10 +55,10 @@ pub(crate) fn fader_rows_read_fader_n_and_the_breadcrumb_stays_short() {
             group
                 .children
                 .iter()
-                .take(2)
+                .take(4)
                 .map(|i| i.label.as_str())
                 .collect()
         })
         .unwrap();
-    assert_eq!(rows, ["Fader 1", "Fader 2"]);
+    assert_eq!(rows, ["Action Cols", "Tile Map", "Fader 1", "Fader 2"]);
 }

@@ -48,19 +48,21 @@ pub(super) fn faders_page_children(config: &NativeMenuConfig) -> Vec<NativeMenuI
             fader
         })
         .collect::<Vec<_>>();
-    children.push(number_item(
-        "Action Cols",
-        "play.faders.actionCols",
-        i32::from(config.faders.action_cols),
+    children.insert(
         0,
-        8,
+        number_item(
+            "Action Cols",
+            "play.faders.actionCols",
+            i32::from(config.faders.action_cols),
+            0,
+            8,
+            1,
+        ),
+    );
+    children.insert(
         1,
-    ));
-    children.push(keyed_group(
-        "Tile Map",
-        TILE_MAP_KEY,
-        tile_map_children(config),
-    ));
+        keyed_group("Tile Map", TILE_MAP_KEY, tile_map_children(config)),
+    );
     children
 }
 

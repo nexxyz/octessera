@@ -15,18 +15,18 @@ Play
 ├── Tempo                                ← page-select row
 ├── LFO                                  ← page-select row
 ├── Faders (group)
-│   ├── Fader 1..8 (group)              ← one per grid column
-│   │   ├── Target: <target | (none)> (picker)     ← plain press; Range Min/Max inside
-│   │   ├── Invert: [on | off]
-│   │   ├── S+Target: <target | (none)> (picker)   ← Shift + press; its own Range Min/Max
-│   │   └── S+Invert: [on | off]
 │   ├── Action Cols: [0..8]              ← columns from the right that hold tiles, not sliders
-│   └── Tile Map (group)                 ← live only; Map to Grid stores it on a tile
-│       ├── Type: [none | action | param]
-│       ├── Action: <action | (none)> (picker)     ← action: plain press; the Aux click actions
-│       ├── S+Action: <action | (none)> (picker)   ← action: Shift + press
-│       ├── Target: <target | (none)> (picker)     ← param: the row a press steps
-│       └── Map to Grid (action)
+│   ├── Tile Map (group)                 ← live only; Map to Grid stores it on a tile
+│   │   ├── Type: [none | action | param]
+│   │   ├── Action: <action | (none)> (picker)     ← action: plain press; the Aux click actions
+│   │   ├── S+Action: <action | (none)> (picker)   ← action: Shift + press
+│   │   ├── Target: <target | (none)> (picker)     ← param: the row a press steps
+│   │   └── Map to Grid (action)
+│   └── Fader 1..8 (group)              ← one per grid column
+│       ├── Target: <target | (none)> (picker)     ← plain press; Range Min/Max inside
+│       ├── Invert: [on | off]
+│       ├── S+Target: <target | (none)> (picker)   ← Shift + press; its own Range Min/Max
+│       └── S+Invert: [on | off]
 ├── FX (group)
 │   ├── FX Type: [none | stutter | freeze | filter sweep | pitch | tape stop | reverse | gate | dub |
 │   │             wash | HP riser | crush]   ← stored as filter_sweep, pitch_shift, tape_stop, trance_gate, dub_throw, hp_riser
