@@ -1,7 +1,7 @@
 use super::*;
 use crate::synth::{
     FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MixerConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
+    MixerConfig, SampleBankConfig, SampleBuffer,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -474,9 +474,7 @@ fn dynamic_source_engine() -> SynthEngine {
 
 fn sample_bank(samples: Vec<f32>) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(sample_buffer(samples)),
-    };
+    bank.slots[0].buffer = Some(sample_buffer(samples));
     bank
 }
 

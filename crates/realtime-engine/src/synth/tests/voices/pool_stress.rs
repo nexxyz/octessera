@@ -2,13 +2,11 @@ use super::*;
 
 fn sample_bank() -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![1.0; 16_384].into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![1.0; 16_384].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     bank
 }
 

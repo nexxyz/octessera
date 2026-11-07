@@ -5,8 +5,8 @@ use super::SynthEngine;
 use crate::synth::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, SampleBankConfig,
-    SampleBuffer, SampleSlotConfig, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
-    SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
+    SampleBuffer, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
+    SYNTH_VOICE_LANE_CAPACITY,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -226,13 +226,11 @@ pub(super) fn routed_config() -> InstrumentsConfig {
 
 pub(super) fn sample_banks() -> Vec<SampleBankConfig> {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![1.0, 0.5, 0.25, 0.0].into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![1.0, 0.5, 0.25, 0.0].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     let mut banks = vec![SampleBankConfig::default(); INSTRUMENT_SLOT_COUNT];
     banks[0] = bank;
     banks

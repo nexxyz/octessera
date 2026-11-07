@@ -1,9 +1,7 @@
 use super::timing::{
     PROFILE_MAX_MEASURE_FRAMES, PROFILE_MEASUREMENT_OBSERVATIONS, PROFILE_WARMUP_SECONDS,
 };
-use realtime_engine::synth::{
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, INSTRUMENT_SLOT_COUNT,
-};
+use realtime_engine::synth::{SampleBankConfig, SampleBuffer, INSTRUMENT_SLOT_COUNT};
 use std::sync::Arc;
 
 pub fn all_sample_banks(sample_rate: u32) -> Vec<SampleBankConfig> {
@@ -33,13 +31,11 @@ fn sample_banks(sample_rate: u32, frames: usize) -> Vec<SampleBankConfig> {
 
 fn sample_bank(sample_rate: u32, samples: Arc<[f32]>) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples,
-            channels: 1,
-            sample_rate,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples,
+        channels: 1,
+        sample_rate,
+    });
     bank
 }
 

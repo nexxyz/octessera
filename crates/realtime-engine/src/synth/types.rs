@@ -1,6 +1,9 @@
 mod sample_bank;
 
-pub use sample_bank::{SampleBankConfig, SampleBuffer, SampleShapeConfig, SampleSlotConfig};
+pub use sample_bank::{
+    SampleBankConfig, SampleBuffer, SampleLoopMode, SamplePlaybackConfig, SampleShapeConfig,
+    SampleSlotConfig,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

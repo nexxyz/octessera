@@ -27,13 +27,11 @@ fn steady_engine(kind: &str, slots: usize) -> SynthEngine {
         engine.set_instrument_slot(slot, steady_slot(kind));
     }
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![0.1; RATE as usize].into(),
-            channels: 1,
-            sample_rate: RATE,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![0.1; RATE as usize].into(),
+        channels: 1,
+        sample_rate: RATE,
+    });
     engine.set_sample_banks(vec![bank; INSTRUMENT_SLOT_COUNT]);
     for slot in 0..slots {
         for _ in 0..MAX_SYNTH_VOICES_PER_SLOT {

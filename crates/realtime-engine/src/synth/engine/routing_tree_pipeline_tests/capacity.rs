@@ -1,5 +1,5 @@
 use super::*;
-use crate::synth::{SampleBankConfig, SampleBuffer, SampleSlotConfig, VoiceStealingMode};
+use crate::synth::{SampleBankConfig, SampleBuffer, VoiceStealingMode};
 
 fn observed_routing_cost(active: bool) -> [u16; 2] {
     let mut engine = SynthEngine::new(44_100);
@@ -143,13 +143,11 @@ fn routing_tree_synth_note_admission_reaches_global_capacity_without_routing_rej
 fn sample_partition_banks() -> Vec<SampleBankConfig> {
     let mut banks = vec![SampleBankConfig::default(); 8];
     for bank in banks.iter_mut().take(8) {
-        bank.slots[0] = SampleSlotConfig {
-            buffer: Some(SampleBuffer {
-                samples: vec![0.25; 4096].into(),
-                channels: 1,
-                sample_rate: 44_100,
-            }),
-        };
+        bank.slots[0].buffer = Some(SampleBuffer {
+            samples: vec![0.25; 4096].into(),
+            channels: 1,
+            sample_rate: 44_100,
+        });
     }
     banks
 }

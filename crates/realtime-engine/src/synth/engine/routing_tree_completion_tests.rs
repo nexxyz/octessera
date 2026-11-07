@@ -14,9 +14,7 @@ use super::{
     SynthEngine,
 };
 use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
-use crate::synth::{
-    MomentaryFxTarget, SampleBankConfig, SampleBuffer, SampleSlotConfig, VoiceStealingMode,
-};
+use crate::synth::{MomentaryFxTarget, SampleBankConfig, SampleBuffer, VoiceStealingMode};
 use serde_json::json;
 use std::collections::BTreeMap;
 
@@ -374,13 +372,11 @@ fn apply_initial_bus_spread_sources(engine: &mut SynthEngine) {
 fn duplicated_analogue_sample_banks() -> Vec<SampleBankConfig> {
     let mut banks = vec![SampleBankConfig::default(); 8];
     for slot in [1, 5] {
-        banks[slot].slots[0] = SampleSlotConfig {
-            buffer: Some(SampleBuffer {
-                samples: vec![0.25; 128].into(),
-                channels: 1,
-                sample_rate: 44_100,
-            }),
-        };
+        banks[slot].slots[0].buffer = Some(SampleBuffer {
+            samples: vec![0.25; 128].into(),
+            channels: 1,
+            sample_rate: 44_100,
+        });
     }
     banks
 }

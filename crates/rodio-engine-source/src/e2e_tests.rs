@@ -4,7 +4,7 @@ use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_instrument_slot_config,
     prepare_momentary_fx_start, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, DEFAULT_PAN_POSITIONS,
+    SampleBankConfig, SampleBuffer, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 
@@ -69,13 +69,11 @@ fn sample_config() -> InstrumentsConfig {
 
 fn sample_bank() -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![0.8, -0.4, 0.2, -0.1, 0.05].into(),
-            channels: 1,
-            sample_rate: RATE,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![0.8, -0.4, 0.2, -0.1, 0.05].into(),
+        channels: 1,
+        sample_rate: RATE,
+    });
     bank
 }
 
@@ -103,13 +101,11 @@ fn none_slot() -> InstrumentSlotConfig {
 
 fn long_sample_bank() -> SampleBankConfig {
     let mut bank = sample_bank();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![0.8; 16_384].into(),
-            channels: 1,
-            sample_rate: RATE,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![0.8; 16_384].into(),
+        channels: 1,
+        sample_rate: RATE,
+    });
     bank
 }
 

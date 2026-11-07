@@ -24,13 +24,11 @@ fn sample_slot_state(engine: &SynthEngine, slot: usize) -> Vec<(usize, String)> 
 
 fn sample_bank() -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![1.0; 1024].into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![1.0; 1024].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     bank
 }
 
@@ -164,13 +162,11 @@ fn steady_level_across_a_steal(kind: &str, block: bool) -> (f32, f32) {
         },
     );
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![0.1; 48_000].into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![0.1; 48_000].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     engine.set_sample_banks(vec![bank; INSTRUMENT_SLOT_COUNT]);
     let voices = if kind == "sampler" {
         MAX_SAMPLE_VOICES_PER_SLOT

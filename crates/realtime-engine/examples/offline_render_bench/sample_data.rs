@@ -1,4 +1,4 @@
-use realtime_engine::synth::{SampleBankConfig, SampleBuffer, SampleSlotConfig};
+use realtime_engine::synth::{SampleBankConfig, SampleBuffer};
 use std::sync::Arc;
 
 const SAMPLE_RATE: u32 = 32_000;
@@ -7,9 +7,7 @@ const SECONDS: usize = 22;
 
 pub(crate) fn sample_bank() -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(sample_buffer()),
-    };
+    bank.slots[0].buffer = Some(sample_buffer());
     bank.gain_pct = 100.0;
     bank.velocity_sensitivity_pct = 0.0;
     bank

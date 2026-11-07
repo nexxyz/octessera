@@ -1,4 +1,5 @@
-//! A sampler slot's loaded buffers and how they are played: tune, gain, filter and envelopes.
+//! A sampler slot's loaded buffers and how they are played: start, loop, tune, gain, filter and
+//! envelopes.
 
 use super::{EnvConfig, FilterType, SAMPLE_SLOTS_PER_INSTRUMENT};
 use std::sync::Arc;
@@ -21,6 +22,37 @@ impl SampleBuffer {
 #[derive(Clone, Debug, Default)]
 pub struct SampleSlotConfig {
     pub buffer: Option<SampleBuffer>,
+    pub playback: SamplePlaybackConfig,
+}
+
+/// How a held note keeps a sample going once it reaches Loop End.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SampleLoopMode {
+    #[default]
+    Off,
+    Forward,
+    PingPong,
+}
+
+/// Where a slot's sample starts and loops, in percent of its length. The default plays the
+/// whole sample once from the top.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SamplePlaybackConfig {
+    pub loop_mode: SampleLoopMode,
+    pub start_pct: f32,
+    pub loop_start_pct: f32,
+    pub loop_end_pct: f32,
+}
+
+impl Default for SamplePlaybackConfig {
+    fn default() -> Self {
+        Self {
+            loop_mode: SampleLoopMode::Off,
+            start_pct: 0.0,
+            loop_start_pct: 0.0,
+            loop_end_pct: 100.0,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

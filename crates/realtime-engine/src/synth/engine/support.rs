@@ -80,6 +80,8 @@ pub(super) struct SampleVoice {
     pub(super) filter_resonance: f32,
     pub(super) pos: f32,
     pub(super) step: f32,
+    /// Where the next read goes: on to the end, or round the slot's loop.
+    pub(super) cursor: super::sample_voice_loop::SampleVoiceLoop,
     pub(super) gain: f32,
     pub(super) filt: BiquadState,
     pub(super) shape: super::sample_voice_shape::SampleVoiceShape,
@@ -101,6 +103,7 @@ impl SampleVoice {
             filter_resonance: 20.0,
             pos: 0.0,
             step: 1.0,
+            cursor: super::sample_voice_loop::SampleVoiceLoop::OFF,
             gain: 0.0,
             filt: BiquadState::new(),
             shape: super::sample_voice_shape::SampleVoiceShape::off(),

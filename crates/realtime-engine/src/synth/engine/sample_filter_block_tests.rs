@@ -164,6 +164,7 @@ fn sample_voice(
         filter_resonance: resonance,
         pos,
         step,
+        cursor: super::sample_voice_loop::SampleVoiceLoop::OFF,
         gain: 0.75,
         filt: BiquadState::new(),
         shape: super::sample_voice_shape::SampleVoiceShape::start(

@@ -2,8 +2,7 @@ use super::engine::FREEZE_INJECT_MS;
 use super::{
     default_synth_config, FilterType, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, SynthEngine, DEFAULT_PAN_POSITIONS,
-    INSTRUMENT_SLOT_COUNT,
+    SampleBankConfig, SampleBuffer, SynthEngine, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -21,13 +20,11 @@ mod voices;
 
 fn sample_bank(samples: Vec<f32>) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: samples.into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: samples.into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     bank
 }
 

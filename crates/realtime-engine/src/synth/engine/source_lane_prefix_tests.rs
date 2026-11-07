@@ -195,13 +195,11 @@ fn prefix_engine() -> SynthEngine {
         master_volume: 100.0,
     });
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![1.0, -0.5, 0.25].into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![1.0, -0.5, 0.25].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     let _ = engine.set_sample_banks(vec![SampleBankConfig::default(), bank]);
     engine
 }

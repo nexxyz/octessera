@@ -3,7 +3,7 @@ use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_fx_bus_slot, prepare_instruments_config,
     AudioLoadStatus, FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig,
     MasterFxConfig, MixerConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
-    SampleSlotConfig, SourceWorkerHealth, SynthProfileSnapshot, DEFAULT_PAN_POSITIONS,
+    SourceWorkerHealth, SynthProfileSnapshot, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -483,13 +483,11 @@ fn routing_status_config() -> realtime_engine::synth::PreparedAudioConfig {
         master_volume: 100.0,
     };
     let mut sample_bank = SampleBankConfig::default();
-    sample_bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![0.5; 44_100].into(),
-            channels: 1,
-            sample_rate: 44_100,
-        }),
-    };
+    sample_bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![0.5; 44_100].into(),
+        channels: 1,
+        sample_rate: 44_100,
+    });
     prepare_audio_config(
         instruments,
         Some(vec![SampleBankConfig::default(), sample_bank]),

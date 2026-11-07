@@ -17,13 +17,11 @@ fn sampler_engine(shape: SampleShapeConfig, samples: Vec<f32>) -> SynthEngine {
         },
     );
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: samples.into(),
-            channels: 1,
-            sample_rate: RATE,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: samples.into(),
+        channels: 1,
+        sample_rate: RATE,
+    });
     bank.filter_cutoff_hz = 20_000.0;
     bank.shape = shape;
     engine.set_sample_banks(vec![bank; INSTRUMENT_SLOT_COUNT]);

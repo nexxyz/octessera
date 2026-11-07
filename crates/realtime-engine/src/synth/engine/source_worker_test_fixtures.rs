@@ -46,25 +46,21 @@ pub(super) fn dynamic_engine() -> SynthEngine {
 pub(super) fn sample_engine_with_shared_buffer(samples: Arc<[f32]>) -> SynthEngine {
     let mut engine = dynamic_engine();
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples,
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples,
+        channels: 1,
+        sample_rate: 48_000,
+    });
     let _ = engine.set_sample_banks(vec![bank, SampleBankConfig::default()]);
     engine
 }
 
 fn sample_bank(samples: Vec<f32>) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: samples.into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: samples.into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     bank
 }

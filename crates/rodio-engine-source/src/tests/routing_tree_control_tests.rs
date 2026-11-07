@@ -3,8 +3,8 @@ use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_fx_bus_slot,
     prepare_instrument_slot_config, prepare_momentary_fx_start, prepare_momentary_fx_update,
     FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig,
-    MomentaryFxTarget, SampleBankConfig, SampleBankParamId, SampleBuffer, SampleSlotConfig,
-    SourceWorkerHealth, SynthParamId, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    MomentaryFxTarget, SampleBankConfig, SampleBankParamId, SampleBuffer, SourceWorkerHealth,
+    SynthParamId, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -243,9 +243,7 @@ fn instrument(kind: &str, route: &str) -> InstrumentSlotConfig {
 
 fn sample_bank(value: f32) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(sample_buffer(value)),
-    };
+    bank.slots[0].buffer = Some(sample_buffer(value));
     bank
 }
 

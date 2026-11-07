@@ -1,3 +1,4 @@
+use super::sample_voice_loop::SampleVoiceLoop;
 use super::sample_voice_renderer::render_sample_voice_frame;
 use super::source_worker_placement;
 use super::voice_budget::split_steal;
@@ -64,11 +65,10 @@ impl SynthEngine {
             sample_count,
             sample_channels,
             sample_rate,
+            (cursor, start_pos),
         )) = self.sample_banks.get(slot).and_then(|bank| {
-            bank.slots
-                .get(sample_slot)
-                .and_then(|slot| slot.buffer.as_ref())
-                .map(|buffer| {
+            bank.slots.get(sample_slot).and_then(|slot| {
+                slot.buffer.as_ref().map(|buffer| {
                     (
                         bank.velocity_sensitivity_pct,
                         bank.gain_pct,
@@ -79,8 +79,10 @@ impl SynthEngine {
                         buffer.samples.len(),
                         buffer.channels,
                         buffer.sample_rate,
+                        SampleVoiceLoop::start(&slot.playback, buffer),
                     )
                 })
+            })
         })
         else {
             return;
@@ -174,8 +176,9 @@ impl SynthEngine {
             buffer: None,
             filter_cutoff_hz,
             filter_resonance,
-            pos: 0.0,
+            pos: start_pos,
             step,
+            cursor,
             gain,
             filt: BiquadState::new(),
             shape: super::sample_voice_shape::SampleVoiceShape::start(

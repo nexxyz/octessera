@@ -1,7 +1,7 @@
 use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, InstrumentSlotConfig, InstrumentsConfig,
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, DEFAULT_PAN_POSITIONS,
+    SampleBankConfig, SampleBuffer, DEFAULT_PAN_POSITIONS,
 };
 use std::thread;
 use std::time::Duration;
@@ -50,13 +50,11 @@ fn send_to_both(
 
 fn sample_bank(value: f32) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![value, -value, value * 0.5, -value * 0.25].into(),
-            channels: 1,
-            sample_rate: RATE,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![value, -value, value * 0.5, -value * 0.25].into(),
+        channels: 1,
+        sample_rate: RATE,
+    });
     bank
 }
 

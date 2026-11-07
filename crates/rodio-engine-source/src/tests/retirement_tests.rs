@@ -2,9 +2,8 @@ use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig,
-    MixerConfig, PreparedAudioConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
-    INSTRUMENT_SLOT_COUNT, MAX_SAMPLE_VOICES_PER_SLOT, SAMPLE_VOICE_LANE_CAPACITY,
-    SAMPLE_VOICE_RETIREMENT_CAPACITY,
+    MixerConfig, PreparedAudioConfig, SampleBankConfig, SampleBuffer, INSTRUMENT_SLOT_COUNT,
+    MAX_SAMPLE_VOICES_PER_SLOT, SAMPLE_VOICE_LANE_CAPACITY, SAMPLE_VOICE_RETIREMENT_CAPACITY,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -150,13 +149,11 @@ pub(super) fn full_sample_config(value: f32) -> PreparedAudioConfig {
 
 pub(super) fn sample_bank(value: f32) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![value; 16_384].into(),
-            channels: 1,
-            sample_rate: 44_100,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![value; 16_384].into(),
+        channels: 1,
+        sample_rate: 44_100,
+    });
     bank
 }
 

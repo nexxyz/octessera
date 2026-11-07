@@ -314,13 +314,11 @@ fn sample_engine() -> SynthEngine {
 
 fn sample_bank(value: f32) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![value; 128].into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![value; 128].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     bank
 }
 

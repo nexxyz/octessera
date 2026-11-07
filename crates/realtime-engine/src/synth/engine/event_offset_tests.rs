@@ -1,7 +1,5 @@
 use super::*;
-use crate::synth::{
-    InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
-};
+use crate::synth::{InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer};
 
 const BLOCK: usize = 128;
 const OFFSET: usize = 37;
@@ -53,15 +51,13 @@ fn sampler_engine() -> SynthEngine {
         master_volume: 100.0,
     });
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: (0..1_000)
-                .map(|index| 1.0 - index as f32 / 1_000.0)
-                .collect(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: (0..1_000)
+            .map(|index| 1.0 - index as f32 / 1_000.0)
+            .collect(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     engine.set_sample_banks(vec![bank]);
     engine
 }

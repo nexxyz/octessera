@@ -2,9 +2,8 @@ use super::*;
 use crossbeam_channel::bounded;
 use realtime_engine::synth::{
     default_synth_config, install_source_worker_shutdown_probe_for_test, prepare_audio_config,
-    InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer, SampleSlotConfig,
-    SourceWorkerStartHook, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
-    MAX_SAMPLE_VOICES_PER_SLOT,
+    InstrumentSlotConfig, InstrumentsConfig, SampleBankConfig, SampleBuffer, SourceWorkerStartHook,
+    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT, MAX_SAMPLE_VOICES_PER_SLOT,
 };
 use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
@@ -27,13 +26,11 @@ fn fail_schedule_parity_one(parity: usize) -> Result<(), ()> {
 fn shared_sample_engine() -> (SynthEngine, Arc<[f32]>) {
     let shared_samples: Arc<[f32]> = Arc::from(vec![0.25; 4_096]);
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: Arc::clone(&shared_samples),
-            channels: 1,
-            sample_rate: TEST_SAMPLE_RATE,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: Arc::clone(&shared_samples),
+        channels: 1,
+        sample_rate: TEST_SAMPLE_RATE,
+    });
     let config = prepare_audio_config(
         InstrumentsConfig {
             instruments: (0..INSTRUMENT_SLOT_COUNT)

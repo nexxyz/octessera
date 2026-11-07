@@ -16,13 +16,11 @@ fn load(ns_per_unit_ewma: [u64; 2]) -> SourceWorkerLoadSnapshot {
 
 fn sample_bank(seed: f32) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![seed; 1024].into(),
-            channels: 1,
-            sample_rate: 48_000,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![seed; 1024].into(),
+        channels: 1,
+        sample_rate: 48_000,
+    });
     bank
 }
 

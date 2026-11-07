@@ -1,7 +1,7 @@
 use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, InstrumentSlotConfig, InstrumentsConfig,
-    SampleBankConfig, SampleBuffer, SampleSlotConfig, SourceWorkerHealth, DEFAULT_PAN_POSITIONS,
+    SampleBankConfig, SampleBuffer, SourceWorkerHealth, DEFAULT_PAN_POSITIONS,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,13 +17,11 @@ fn block_bits(source: &mut EngineSource) -> Vec<u32> {
 
 pub(super) fn sample_bank(samples: Arc<[f32]>) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples,
-            channels: 1,
-            sample_rate: RATE,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples,
+        channels: 1,
+        sample_rate: RATE,
+    });
     bank
 }
 

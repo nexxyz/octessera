@@ -4,7 +4,7 @@ use super::{
     SourceWorkerRenderDisposition, SynthEngine,
 };
 use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
-use crate::synth::{MomentaryFxTarget, SampleBankConfig, SampleBuffer, SampleSlotConfig};
+use crate::synth::{MomentaryFxTarget, SampleBankConfig, SampleBuffer};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -380,13 +380,11 @@ fn migration_anchor_slot() -> InstrumentSlotConfig {
 
 fn migration_sample_banks() -> Vec<SampleBankConfig> {
     let mut banks = vec![SampleBankConfig::default(); 8];
-    banks[MIGRATION_SOURCE_SLOT].slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![0.25; 4096].into(),
-            channels: 1,
-            sample_rate: 44_100,
-        }),
-    };
+    banks[MIGRATION_SOURCE_SLOT].slots[0].buffer = Some(SampleBuffer {
+        samples: vec![0.25; 4096].into(),
+        channels: 1,
+        sample_rate: 44_100,
+    });
     banks
 }
 

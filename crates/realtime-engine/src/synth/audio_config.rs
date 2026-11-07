@@ -1,11 +1,11 @@
 use super::param_path_validation::validate_fx_type;
 use super::types::{
-    default_synth_config, DrumConfig, EnvConfig, FilterType, FmConfig, FxBusConfig,
-    FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, PluckConfig, SampleBankConfig, SampleShapeConfig,
-    SampleSlotConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
-    SAMPLE_SLOTS_PER_INSTRUMENT,
+    default_synth_config, DrumConfig, FmConfig, FxBusConfig, FxBusSlotConfig,
+    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig,
+    PluckConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
+pub use sample_payload::NormalizedSampleConfig;
+use sample_payload::{normalize_sample, AudioSamplePayload};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -24,32 +24,6 @@ pub struct NormalizedInstrumentSlot {
     pub kind: String,
     pub slot: InstrumentSlotConfig,
     pub sample: Option<NormalizedSampleConfig>,
-}
-
-#[derive(Clone, Debug)]
-pub struct NormalizedSampleConfig {
-    pub slots: Vec<Option<String>>,
-    pub tune_semis: f32,
-    pub gain_pct: f32,
-    pub velocity_sensitivity_pct: f32,
-    pub filter_cutoff_hz: f32,
-    pub filter_resonance: f32,
-    pub shape: SampleShapeConfig,
-}
-
-impl NormalizedSampleConfig {
-    /// The bank a host builds once it has loaded (or failed to load) each slot's buffer.
-    pub fn bank(&self, slots: Vec<SampleSlotConfig>) -> SampleBankConfig {
-        SampleBankConfig {
-            slots,
-            tune_semis: self.tune_semis,
-            gain_pct: self.gain_pct,
-            velocity_sensitivity_pct: self.velocity_sensitivity_pct,
-            filter_cutoff_hz: self.filter_cutoff_hz,
-            filter_resonance: self.filter_resonance,
-            shape: self.shape,
-        }
-    }
 }
 
 impl NormalizedAudioConfig {
@@ -81,13 +55,14 @@ impl NormalizedAudioConfig {
                     .collect::<Vec<_>>()
                     .join("|");
                 format!(
-                    "{paths}|t={}|g={}|v={}|fc={}|fr={}|s={:?}",
+                    "{paths}|t={}|g={}|v={}|fc={}|fr={}|s={:?}|p={:?}",
                     sample.tune_semis,
                     sample.gain_pct,
                     sample.velocity_sensitivity_pct,
                     sample.filter_cutoff_hz,
                     sample.filter_resonance,
-                    sample.shape
+                    sample.shape,
+                    sample.slot_playback
                 )
             })
             .collect::<Vec<_>>()
@@ -120,6 +95,8 @@ struct AudioConfigPayload {
 struct AudioInstrumentPayload {
     #[serde(rename = "type")]
     kind: String,
+    #[serde(default, rename = "noteBehavior")]
+    note_behavior: Option<String>,
     #[serde(default)]
     synth: Option<SynthConfig>,
     #[serde(default)]
@@ -132,50 +109,6 @@ struct AudioInstrumentPayload {
     mixer: Option<AudioInstrumentMixerPayload>,
     #[serde(default)]
     sample: Option<AudioSamplePayload>,
-}
-
-#[derive(Clone, Deserialize)]
-struct AudioSamplePayload {
-    #[serde(default)]
-    slots: Vec<AudioSampleSlotPayload>,
-    #[serde(default, rename = "tuneSemis")]
-    tune_semis: Option<f32>,
-    #[serde(default)]
-    amp: Option<AudioSampleAmpPayload>,
-    #[serde(default)]
-    filter: Option<AudioSampleFilterPayload>,
-    #[serde(default, rename = "ampEnv")]
-    amp_env: Option<EnvConfig>,
-    #[serde(default, rename = "filterEnv")]
-    filter_env: Option<EnvConfig>,
-}
-
-#[derive(Clone, Deserialize)]
-struct AudioSampleSlotPayload {
-    #[serde(default)]
-    path: Option<String>,
-}
-
-#[derive(Clone, Deserialize)]
-struct AudioSampleAmpPayload {
-    #[serde(default, rename = "gainPct")]
-    gain_pct: Option<f32>,
-    #[serde(default, rename = "velocitySensitivityPct")]
-    velocity_sensitivity_pct: Option<f32>,
-}
-
-#[derive(Clone, Deserialize)]
-struct AudioSampleFilterPayload {
-    #[serde(default, rename = "type")]
-    kind: Option<FilterType>,
-    #[serde(default, rename = "cutoffHz")]
-    cutoff_hz: Option<f32>,
-    #[serde(default)]
-    resonance: Option<f32>,
-    #[serde(default, rename = "envAmountPct")]
-    env_amount_pct: Option<f32>,
-    #[serde(default, rename = "keyTrackingPct")]
-    key_tracking_pct: Option<f32>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -294,6 +227,7 @@ fn normalize_instrument_slot(
 ) -> Result<NormalizedInstrumentSlot, String> {
     let AudioInstrumentPayload {
         kind,
+        note_behavior,
         synth,
         fm,
         pluck,
@@ -316,7 +250,9 @@ fn normalize_instrument_slot(
     if let Some(drum) = drum.as_ref() {
         drum.validate()?;
     }
-    let normalized_sample = sample.map(normalize_sample);
+    let normalized_sample = sample
+        .map(|sample| normalize_sample(sample, note_behavior.as_deref() == Some("hold")))
+        .transpose()?;
     Ok(NormalizedInstrumentSlot {
         slot: InstrumentSlotConfig {
             kind: kind.clone(),
@@ -373,60 +309,6 @@ fn validate_fm_config(fm: &FmConfig) -> Result<(), String> {
     Ok(())
 }
 
-fn normalize_sample(sample: AudioSamplePayload) -> NormalizedSampleConfig {
-    let shape = normalize_sample_shape(&sample);
-    NormalizedSampleConfig {
-        slots: sample
-            .slots
-            .into_iter()
-            .take(SAMPLE_SLOTS_PER_INSTRUMENT)
-            .map(|slot| slot.path)
-            .collect(),
-        tune_semis: sample.tune_semis.unwrap_or(0.0),
-        gain_pct: sample
-            .amp
-            .as_ref()
-            .and_then(|amp| amp.gain_pct)
-            .unwrap_or(100.0),
-        velocity_sensitivity_pct: sample
-            .amp
-            .as_ref()
-            .and_then(|amp| amp.velocity_sensitivity_pct)
-            .unwrap_or(100.0),
-        filter_cutoff_hz: sample
-            .filter
-            .as_ref()
-            .and_then(|filter| filter.cutoff_hz)
-            .unwrap_or(20_000.0),
-        filter_resonance: sample
-            .filter
-            .as_ref()
-            .and_then(|filter| filter.resonance)
-            .unwrap_or(0.0),
-        shape,
-    }
-}
-
-fn normalize_sample_shape(sample: &AudioSamplePayload) -> SampleShapeConfig {
-    let neutral = SampleShapeConfig::default();
-    let filter = sample.filter.as_ref();
-    SampleShapeConfig {
-        filter_type: filter
-            .and_then(|filter| filter.kind)
-            .unwrap_or(neutral.filter_type),
-        filter_env_amount_pct: filter
-            .and_then(|filter| filter.env_amount_pct)
-            .map_or(neutral.filter_env_amount_pct, |pct| {
-                pct.clamp(-100.0, 100.0)
-            }),
-        filter_key_tracking_pct: filter
-            .and_then(|filter| filter.key_tracking_pct)
-            .map_or(neutral.filter_key_tracking_pct, |pct| pct.clamp(0.0, 100.0)),
-        amp_env: sample.amp_env.unwrap_or(neutral.amp_env),
-        filter_env: sample.filter_env.unwrap_or(neutral.filter_env),
-    }
-}
-
 fn normalize_mixer(config: AudioMixerPayload) -> Result<MixerConfig, String> {
     let buses = config
         .buses
@@ -476,5 +358,6 @@ fn normalize_mixer(config: AudioMixerPayload) -> Result<MixerConfig, String> {
     Ok(MixerConfig { buses, master })
 }
 
+mod sample_payload;
 #[cfg(test)]
 mod tests;

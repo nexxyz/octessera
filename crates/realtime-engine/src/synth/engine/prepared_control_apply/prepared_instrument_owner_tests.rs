@@ -1,15 +1,13 @@
 use super::*;
-use crate::synth::{SampleBankConfig, SampleBuffer, SampleSlotConfig};
+use crate::synth::{SampleBankConfig, SampleBuffer};
 
 fn sample_bank(value: f32) -> SampleBankConfig {
     let mut bank = SampleBankConfig::default();
-    bank.slots[0] = SampleSlotConfig {
-        buffer: Some(SampleBuffer {
-            samples: vec![value; 256].into(),
-            channels: 1,
-            sample_rate: 44_100,
-        }),
-    };
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![value; 256].into(),
+        channels: 1,
+        sample_rate: 44_100,
+    });
     bank
 }
 
