@@ -1,8 +1,9 @@
 use super::dispatch_profile::Stage;
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
 use crate::protocol::{
-    HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeErrorDomain, RuntimeErrorMetadata,
-    RuntimeOperation, RuntimePlatformEffect, RuntimeRecovery, RuntimeStoreResult,
+    HostMessage, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorDomain,
+    RuntimeErrorMetadata, RuntimeOperation, RuntimePlatformEffect, RuntimeRecovery,
+    RuntimeStoreResult,
 };
 use std::time::Duration;
 
@@ -285,17 +286,13 @@ impl PlaybackRuntime {
                                         )
                                     });
                                 let message = error.to_string();
-                                let error = self.adapter_error_metadata(
+                                self.latch_adapter_failure(
                                     error,
                                     request.error_domain(),
                                     request.operation(),
-                                    RuntimeRecovery::RetainLastGood,
                                     Some(request.request_id.clone()),
                                     request.revision,
                                 );
-                                let recovery = error.recovery.clone();
-                                self.latch_error(error);
-                                self.apply_recovery(recovery, &mut runner, host, &mut output);
                                 if matches!(
                                     request.operation(),
                                     RuntimeOperation::StoreSaveDefault
@@ -322,31 +319,25 @@ impl PlaybackRuntime {
                 }
                 RunnerMessage::MusicalEvents { events } => {
                     if let Err(error) = self.schedule_musical_events(events, host) {
-                        let error = self.adapter_error_metadata(
+                        self.latch_adapter_failure(
                             error,
                             RuntimeErrorDomain::Audio,
                             RuntimeOperation::MusicalEvent,
-                            RuntimeRecovery::RetainLastGood,
                             None,
                             None,
                         );
-                        self.latch_error(error.clone());
-                        self.apply_recovery(error.recovery, &mut runner, host, &mut output);
                         self.append_presentations(&mut output);
                     }
                 }
                 RunnerMessage::MidiEvents { events } => {
                     if let Err(error) = self.schedule_midi_events(events, host) {
-                        let error = self.adapter_error_metadata(
+                        self.latch_adapter_failure(
                             error,
                             RuntimeErrorDomain::Midi,
                             RuntimeOperation::MidiEvent,
-                            RuntimeRecovery::RetainLastGood,
                             None,
                             None,
                         );
-                        self.latch_error(error.clone());
-                        self.apply_recovery(error.recovery, &mut runner, host, &mut output);
                         self.append_presentations(&mut output);
                     }
                 }
@@ -355,22 +346,9 @@ impl PlaybackRuntime {
                         let command = self.identify_audio_command(command);
                         match host.handle_audio_command(&command) {
                             Ok(()) => {
-                                if matches!(&command, RuntimeAudioCommand::SetAudioConfig { .. }) {
-                                    continue;
+                                if !matches!(&command, RuntimeAudioCommand::SetAudioConfig { .. }) {
+                                    self.clear_error(RuntimeOperation::AudioCommand);
                                 }
-                                let (request_id, revision) = match &command {
-                                    RuntimeAudioCommand::SetAudioConfig {
-                                        request_id,
-                                        revision,
-                                        ..
-                                    } => (request_id.as_deref(), Some(*revision)),
-                                    _ => (None, None),
-                                };
-                                self.clear_error_with_identity(
-                                    RuntimeOperation::AudioCommand,
-                                    request_id,
-                                    revision,
-                                );
                             }
                             Err(error) => {
                                 let (request_id, revision) = match &command {
@@ -381,17 +359,13 @@ impl PlaybackRuntime {
                                     } => (request_id.clone(), Some(*revision)),
                                     _ => (None, None),
                                 };
-                                let error = self.adapter_error_metadata(
+                                self.latch_adapter_failure(
                                     error,
                                     RuntimeErrorDomain::Audio,
                                     RuntimeOperation::AudioCommand,
-                                    RuntimeRecovery::RetainLastGood,
                                     request_id,
                                     revision,
                                 );
-                                let recovery = error.recovery.clone();
-                                self.latch_error(error.clone());
-                                self.apply_recovery(recovery, &mut runner, host, &mut output);
                                 self.append_presentations(&mut output);
                             }
                         }
@@ -400,33 +374,26 @@ impl PlaybackRuntime {
                 RunnerMessage::TileHits { hits } => {
                     for hit in hits {
                         if let Err(error) = self.play_tile_hit(&hit, host) {
-                            let error = self.adapter_error_metadata(
+                            self.latch_adapter_failure(
                                 error,
                                 RuntimeErrorDomain::Audio,
                                 RuntimeOperation::AudioCommand,
-                                RuntimeRecovery::RetainLastGood,
                                 None,
                                 None,
                             );
-                            self.latch_error(error.clone());
-                            self.apply_recovery(error.recovery, &mut runner, host, &mut output);
                             self.append_presentations(&mut output);
                         }
                     }
                 }
                 RunnerMessage::RuntimeStatus { status } => {
                     if let Err(error) = self.apply_runtime_status(status, host) {
-                        let error = self.adapter_error_metadata(
+                        self.latch_adapter_failure(
                             error,
                             RuntimeErrorDomain::Midi,
                             RuntimeOperation::MidiMessage,
-                            RuntimeRecovery::RetainLastGood,
                             None,
                             None,
                         );
-                        let recovery = error.recovery.clone();
-                        self.latch_error(error);
-                        self.apply_recovery(recovery, &mut runner, host, &mut output);
                     }
                 }
                 RunnerMessage::RuntimeConfigChanged { config } => {
@@ -444,17 +411,13 @@ impl PlaybackRuntime {
                     }
                     self.set_config(config);
                     if let Some(error) = disable_error {
-                        let error = self.adapter_error_metadata(
+                        self.latch_adapter_failure(
                             error,
                             RuntimeErrorDomain::Midi,
                             RuntimeOperation::MidiMessage,
-                            RuntimeRecovery::RetainLastGood,
                             None,
                             None,
                         );
-                        let recovery = error.recovery.clone();
-                        self.latch_error(error);
-                        self.apply_recovery(recovery, &mut runner, host, &mut output);
                         self.append_presentations(&mut output);
                     }
                 }
@@ -466,6 +429,26 @@ impl PlaybackRuntime {
             received_snapshot || self.last_snapshot_revision != previous_snapshot_revision,
         );
         Ok(output)
+    }
+
+    /// Latches a host adapter failure; the last good state stays presented.
+    fn latch_adapter_failure(
+        &mut self,
+        error: RuntimeAdapterError,
+        domain: RuntimeErrorDomain,
+        operation: RuntimeOperation,
+        request_id: Option<String>,
+        revision: Option<u64>,
+    ) {
+        let error = self.adapter_error_metadata(
+            error,
+            domain,
+            operation,
+            RuntimeRecovery::RetainLastGood,
+            request_id,
+            revision,
+        );
+        self.latch_error(error);
     }
 
     fn append_ingested_presentations(
