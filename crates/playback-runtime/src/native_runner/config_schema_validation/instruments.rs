@@ -4,6 +4,9 @@ use super::canonical::{
     string_field, unsigned_field,
 };
 use super::Value;
+use crate::native_menu::{
+    MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
+};
 use platform_core::{INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
 use serde_json::Map;
 
@@ -369,10 +372,14 @@ fn validate_midi_drum(instrument: &Map<String, Value>, path: &str) -> Result<(),
     };
     let path = format!("{path}.midiDrum");
     bool_field(drum, "enabled", &path)?;
-    unsigned_field(drum, "channel", &path, 1, 16)?;
-    unsigned_field(drum, "durationMs", &path, 10, 2000)?;
-    unsigned_field(drum, "tileNote", &path, 0, 127)?;
-    unsigned_field(drum, "tileVelocity", &path, 1, 127)?;
+    for (key, (min, max)) in [
+        ("channel", MIDI_DRUM_CHANNELS),
+        ("durationMs", MIDI_DRUM_DURATION_MS),
+        ("tileNote", MIDI_DRUM_NOTES),
+        ("tileVelocity", MIDI_DRUM_VELOCITIES),
+    ] {
+        unsigned_field(drum, key, &path, min.into(), max.into())?;
+    }
     let mut seen = std::collections::BTreeSet::new();
     for (index, value) in array_field(drum, "assignments", &path, 64)?
         .unwrap_or_default()
@@ -381,16 +388,16 @@ fn validate_midi_drum(instrument: &Map<String, Value>, path: &str) -> Result<(),
     {
         let tile_path = format!("{path}.assignments[{index}]");
         let tile = object_value(value, &tile_path)?;
-        for (key, min, max) in [
-            ("x", 0, 7),
-            ("y", 0, 7),
-            ("note", 0, 127),
-            ("velocity", 1, 127),
+        for (key, (min, max)) in [
+            ("x", (0, 7)),
+            ("y", (0, 7)),
+            ("note", MIDI_DRUM_NOTES),
+            ("velocity", MIDI_DRUM_VELOCITIES),
         ] {
             if !tile.contains_key(key) {
                 return Err(format!("{tile_path}.{key} is required"));
             }
-            unsigned_field(tile, key, &tile_path, min, max)?;
+            unsigned_field(tile, key, &tile_path, min.into(), max.into())?;
         }
         if !seen.insert((
             tile.get("x").and_then(Value::as_u64),
@@ -404,8 +411,9 @@ fn validate_midi_drum(instrument: &Map<String, Value>, path: &str) -> Result<(),
 
 fn validate_sample_slot_playback(slot: &Map<String, Value>, path: &str) -> Result<(), String> {
     enum_field(slot, "loop", path, &crate::native_menu::SAMPLE_LOOP_MODES)?;
-    unsigned_field(slot, "startPct", path, 0, 99)?;
-    unsigned_field(slot, "loopStartPct", path, 0, 99)?;
+    let start_max = u64::from(crate::native_menu::SAMPLE_START_MAX_PCT);
+    unsigned_field(slot, "startPct", path, 0, start_max)?;
+    unsigned_field(slot, "loopStartPct", path, 0, start_max)?;
     unsigned_field(slot, "loopEndPct", path, 1, 100)?;
     let pct = |key: &str, fallback: u64| slot.get(key).and_then(Value::as_u64).unwrap_or(fallback);
     if pct("loopEndPct", 100) <= pct("loopStartPct", 0) {

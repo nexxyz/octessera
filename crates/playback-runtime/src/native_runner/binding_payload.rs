@@ -35,8 +35,8 @@ pub(super) fn param_binding_payload(binding: Option<&NativeParamBinding>) -> Val
     Value::Object(value)
 }
 
-/// A binding bound as saved: a whole number as an integer, like the config DTO writes it.
-fn binding_number(value: f64) -> Value {
+/// A binding bound as saved: a whole number as an integer (`255`, not `255.0`).
+pub(super) fn binding_number(value: f64) -> Value {
     if value.fract() == 0.0 && value.abs() < 1e15 {
         json!(value as i64)
     } else {

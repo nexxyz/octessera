@@ -3,7 +3,9 @@ use super::{
     set_json_path_number, set_json_path_string, value_i32_at, value_string_at,
     NativeInstrumentSlot, NativeRunner,
 };
-use crate::native_menu::{NativeMenuModel, NativeSamplePlayback, SAMPLE_LOOP_MODES};
+use crate::native_menu::{
+    NativeMenuModel, NativeSamplePlayback, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
+};
 
 impl NativeRunner {
     pub(super) fn apply_sampler_menu_key(&mut self, index: usize, key: &str) -> bool {
@@ -48,7 +50,7 @@ fn apply_sample_playback_field(
         return false;
     };
     let (target, min, max) = match name {
-        "startPct" => (&mut playback.start_pct, 0, 99),
+        "startPct" => (&mut playback.start_pct, 0, i32::from(SAMPLE_START_MAX_PCT)),
         "loopStartPct" => (
             &mut playback.loop_start_pct,
             0,

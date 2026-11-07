@@ -8,7 +8,7 @@ use super::{
 };
 use crate::native_menu::{
     sample_display_name, NativeMenuPick, NativeMenuValue, NativeSampleAvailability,
-    NativeSamplePlayback, SAMPLE_LOOP_MODES,
+    NativeSamplePlayback, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
 };
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
@@ -183,7 +183,7 @@ fn sample_playback_items(slot_key: &str, playback: NativeSamplePlayback) -> Vec<
             format!("{slot_key}.startPct"),
             i32::from(playback.start_pct),
             0,
-            99,
+            i32::from(SAMPLE_START_MAX_PCT),
             1,
         ),
         enum_item(
@@ -200,7 +200,7 @@ fn sample_playback_items(slot_key: &str, playback: NativeSamplePlayback) -> Vec<
                 format!("{slot_key}.loopStartPct"),
                 i32::from(playback.loop_start_pct),
                 0,
-                99,
+                i32::from(SAMPLE_START_MAX_PCT),
                 1,
             ),
             number_item(

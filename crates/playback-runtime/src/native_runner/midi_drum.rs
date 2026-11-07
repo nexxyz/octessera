@@ -4,7 +4,10 @@ use super::grid_assign::GridAssign;
 use super::led_color::LedColor;
 use super::tile_stamp::toggle_tile_stamps;
 use super::{NativeInstrumentSlot, NativeRunner, Value};
-use crate::native_menu::NativeMenuMidiDrum;
+use crate::native_menu::{
+    NativeMenuMidiDrum, MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES,
+    MIDI_DRUM_VELOCITIES,
+};
 use platform_core::{MusicalEvent, TileTriggerIntent};
 use serde_json::json;
 
@@ -41,22 +44,23 @@ impl NativeMidiDrum {
     }
 
     pub(super) fn apply_payload(&mut self, value: &Value) {
-        let number = |key: &str| value.get(key).and_then(Value::as_u64);
+        let number =
+            |key: &str, range| Some(clamped(value.get(key).and_then(Value::as_u64)?, range));
         let settings = &mut self.settings;
         if let Some(enabled) = value.get("enabled").and_then(Value::as_bool) {
             settings.enabled = enabled;
         }
-        if let Some(channel) = number("channel") {
-            settings.channel = channel.clamp(1, 16) as u8;
+        if let Some(channel) = number("channel", MIDI_DRUM_CHANNELS) {
+            settings.channel = channel as u8;
         }
-        if let Some(duration_ms) = number("durationMs") {
-            settings.duration_ms = duration_ms.clamp(10, 2000) as u16;
+        if let Some(duration_ms) = number("durationMs", MIDI_DRUM_DURATION_MS) {
+            settings.duration_ms = duration_ms;
         }
-        if let Some(note) = number("tileNote") {
-            settings.tile_note = note.min(127) as u8;
+        if let Some(note) = number("tileNote", MIDI_DRUM_NOTES) {
+            settings.tile_note = note as u8;
         }
-        if let Some(velocity) = number("tileVelocity") {
-            settings.tile_velocity = velocity.clamp(1, 127) as u8;
+        if let Some(velocity) = number("tileVelocity", MIDI_DRUM_VELOCITIES) {
+            settings.tile_velocity = velocity as u8;
         }
         if let Some(assignments) = value.get("assignments").and_then(Value::as_array) {
             self.assignments = assignments
@@ -66,8 +70,8 @@ impl NativeMidiDrum {
                     Some(NativeMidiDrumTile {
                         x: field("x")? as usize,
                         y: field("y")? as usize,
-                        note: field("note")?.min(127) as u8,
-                        velocity: field("velocity")?.clamp(1, 127) as u8,
+                        note: clamped(field("note")?, MIDI_DRUM_NOTES) as u8,
+                        velocity: clamped(field("velocity")?, MIDI_DRUM_VELOCITIES) as u8,
                     })
                 })
                 .collect();
@@ -84,8 +88,12 @@ impl NativeMidiDrum {
     }
 }
 
-fn set_clamped<T: TryFrom<i32>>(field: &mut T, value: i32, min: i32, max: i32) {
-    if let Ok(value) = T::try_from(value.clamp(min, max)) {
+fn clamped(value: u64, (min, max): (u16, u16)) -> u16 {
+    value.clamp(min.into(), max.into()) as u16
+}
+
+fn set_clamped<T: TryFrom<i32>>(field: &mut T, value: i32, (min, max): (u16, u16)) {
+    if let Ok(value) = T::try_from(value.clamp(min.into(), max.into())) {
         *field = value;
     }
 }
@@ -161,15 +169,17 @@ impl NativeRunner {
         let before = *settings;
         match (field, number) {
             ("midiDrum.enabled", _) => settings.enabled = enabled.unwrap_or(settings.enabled),
-            ("midiDrum.channel", Some(value)) => set_clamped(&mut settings.channel, value, 1, 16),
+            ("midiDrum.channel", Some(value)) => {
+                set_clamped(&mut settings.channel, value, MIDI_DRUM_CHANNELS);
+            }
             ("midiDrum.durationMs", Some(value)) => {
-                set_clamped(&mut settings.duration_ms, value, 10, 2000);
+                set_clamped(&mut settings.duration_ms, value, MIDI_DRUM_DURATION_MS);
             }
             ("midiDrum.tileNote", Some(value)) => {
-                set_clamped(&mut settings.tile_note, value, 0, 127)
+                set_clamped(&mut settings.tile_note, value, MIDI_DRUM_NOTES);
             }
             ("midiDrum.tileVelocity", Some(value)) => {
-                set_clamped(&mut settings.tile_velocity, value, 1, 127);
+                set_clamped(&mut settings.tile_velocity, value, MIDI_DRUM_VELOCITIES);
             }
             _ => return false,
         }

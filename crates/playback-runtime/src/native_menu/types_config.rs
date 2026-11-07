@@ -322,6 +322,8 @@ pub struct NativeSamplePlayback {
 }
 
 pub const SAMPLE_LOOP_MODES: [&str; 3] = ["off", "forward", "pingpong"];
+/// Start and Loop Start stop one percent short of the sample's end, so a loop is never empty.
+pub const SAMPLE_START_MAX_PCT: u8 = 99;
 
 impl Default for NativeSamplePlayback {
     fn default() -> Self {
@@ -343,6 +345,12 @@ pub struct NativeMenuMidiDrum {
     pub tile_note: u8,
     pub tile_velocity: u8,
 }
+
+/// The MIDI Drum ranges its rows, their edits, and loaded patches share.
+pub const MIDI_DRUM_CHANNELS: (u16, u16) = (1, 16);
+pub const MIDI_DRUM_DURATION_MS: (u16, u16) = (10, 2000);
+pub const MIDI_DRUM_NOTES: (u16, u16) = (0, 127);
+pub const MIDI_DRUM_VELOCITIES: (u16, u16) = (1, 127);
 
 impl Default for NativeMenuMidiDrum {
     fn default() -> Self {

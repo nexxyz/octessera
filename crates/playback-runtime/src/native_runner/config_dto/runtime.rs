@@ -403,11 +403,5 @@ fn serialize_binding_number<S: serde::Serializer>(
     value: &Option<f64>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    match value {
-        Some(number) if number.fract() == 0.0 && number.abs() < 1e15 => {
-            serializer.serialize_i64(*number as i64)
-        }
-        Some(number) => serializer.serialize_f64(*number),
-        None => serializer.serialize_none(),
-    }
+    serde::Serialize::serialize(&value.map(super::super::binding_number), serializer)
 }

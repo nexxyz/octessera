@@ -2,6 +2,9 @@ use super::{
     action_item, bool_item, group, number_item, InstrumentMenuConfig, NativeMenuAction,
     NativeMenuItem,
 };
+use crate::native_menu::{
+    MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
+};
 
 /// General MIDI percussion names for notes 35..=81, cut to eight characters so `81 A5 Tri Open`
 /// still fits the Note row.
@@ -34,32 +37,32 @@ pub(super) fn midi_drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -
                 "Channel",
                 format!("{prefix}.midiDrum.channel"),
                 i32::from(drum.channel),
-                1,
-                16,
+                i32::from(MIDI_DRUM_CHANNELS.0),
+                i32::from(MIDI_DRUM_CHANNELS.1),
                 1,
             ),
             number_item(
                 "Duration",
                 format!("{prefix}.midiDrum.durationMs"),
                 i32::from(drum.duration_ms),
-                10,
-                2000,
+                i32::from(MIDI_DRUM_DURATION_MS.0),
+                i32::from(MIDI_DRUM_DURATION_MS.1),
                 10,
             ),
             number_item(
                 "Note",
                 format!("{prefix}.midiDrum.tileNote"),
                 i32::from(drum.tile_note),
-                0,
-                127,
+                i32::from(MIDI_DRUM_NOTES.0),
+                i32::from(MIDI_DRUM_NOTES.1),
                 1,
             ),
             number_item(
                 "Tile Vel",
                 format!("{prefix}.midiDrum.tileVelocity"),
                 i32::from(drum.tile_velocity),
-                1,
-                127,
+                i32::from(MIDI_DRUM_VELOCITIES.0),
+                i32::from(MIDI_DRUM_VELOCITIES.1),
                 1,
             ),
             action_item(

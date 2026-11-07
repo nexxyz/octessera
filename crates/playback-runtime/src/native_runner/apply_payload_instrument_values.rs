@@ -4,7 +4,7 @@ use super::{
     sample_assignment_from_payload, sanitize_pan_position_payload, NativeInstrumentSlot,
     NativeSamplePlayback, NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
 };
-use crate::native_menu::SAMPLE_LOOP_MODES;
+use crate::native_menu::{SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
 
 pub(super) fn apply_instrument_identity_payload(
     slot: &Value,
@@ -106,14 +106,14 @@ fn sample_playback_from_payload(slot: &Value) -> NativeSamplePlayback {
             .and_then(Value::as_u64)
             .map_or(fallback, |value| value.min(100) as u8)
     };
-    let loop_start_pct = pct("loopStartPct", neutral.loop_start_pct).min(99);
+    let loop_start_pct = pct("loopStartPct", neutral.loop_start_pct).min(SAMPLE_START_MAX_PCT);
     NativeSamplePlayback {
         loop_mode: slot
             .get("loop")
             .and_then(Value::as_str)
             .and_then(|mode| SAMPLE_LOOP_MODES.into_iter().find(|known| *known == mode))
             .unwrap_or(neutral.loop_mode),
-        start_pct: pct("startPct", neutral.start_pct).min(99),
+        start_pct: pct("startPct", neutral.start_pct).min(SAMPLE_START_MAX_PCT),
         loop_start_pct,
         loop_end_pct: pct("loopEndPct", neutral.loop_end_pct).max(loop_start_pct + 1),
     }
