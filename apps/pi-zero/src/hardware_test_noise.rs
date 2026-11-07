@@ -12,6 +12,21 @@ pub(crate) struct CheckOutcome {
     pub(crate) failures: Vec<String>,
 }
 
+/// What the no-touch check saw on each control while nobody touched it.
+#[derive(Default)]
+struct IdleNoise {
+    grid_events: Vec<String>,
+    raw_press_counts: [u32; 4],
+    neokey_active_since: [Option<Duration>; 4],
+    neokey_pulse_durations: [Vec<Duration>; 4],
+    neokey_raw_samples: Vec<String>,
+    neokey_reread_samples: Vec<String>,
+    confirmed_neokey_ghosts: u32,
+    encoder_events: Vec<String>,
+    trellis_read_failures: u32,
+    neokey_read_failures: u32,
+}
+
 impl CheckOutcome {
     fn passed_with(warnings: Vec<String>) -> Self {
         Self {
@@ -35,82 +50,36 @@ pub(crate) fn input_idle_noise_check(
     println!("Do not touch the NeoTrellis, NeoKeys, or encoders during this check.");
     let started = Instant::now();
     let deadline = started + INPUT_IDLE_NOISE_CHECK;
-    let mut grid_events = Vec::new();
-    let mut raw_press_counts = [0_u32; 4];
-    let mut neokey_active_since: [Option<Duration>; 4] = [None, None, None, None];
-    let mut neokey_pulse_durations = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
-    let mut neokey_raw_samples = Vec::new();
-    let mut neokey_reread_samples = Vec::new();
-    let mut confirmed_neokey_ghosts = 0_u32;
-    let mut encoder_events = Vec::new();
-    let mut trellis_read_failures = 0_u32;
-    let mut neokey_read_failures = 0_u32;
+    let mut noise = IdleNoise::default();
     while Instant::now() < deadline {
-        poll_trellis_noise(&mut trellis, &mut grid_events, &mut trellis_read_failures);
-        poll_neokey_noise(
-            &mut neokey,
-            started,
-            &mut raw_press_counts,
-            &mut neokey_active_since,
-            &mut neokey_pulse_durations,
-            &mut neokey_raw_samples,
-            &mut neokey_reread_samples,
-            &mut confirmed_neokey_ghosts,
-            &mut neokey_read_failures,
-        );
-        poll_encoder_noise(event_rx, &mut encoder_events);
+        poll_trellis_noise(&mut trellis, &mut noise);
+        poll_neokey_noise(&mut neokey, started, &mut noise);
+        poll_encoder_noise(event_rx, &mut noise.encoder_events);
         thread::sleep(Duration::from_millis(10));
     }
-    close_open_neokey_pulses(
-        started.elapsed(),
-        &mut neokey_active_since,
-        &mut neokey_pulse_durations,
-    );
-    classify_noise(
-        grid_events,
-        raw_press_counts,
-        neokey_pulse_durations,
-        neokey_raw_samples,
-        neokey_reread_samples,
-        confirmed_neokey_ghosts,
-        encoder_events,
-        trellis_read_failures,
-        neokey_read_failures,
-    )
+    close_open_neokey_pulses(started.elapsed(), &mut noise);
+    classify_noise(noise)
 }
 
-fn poll_trellis_noise(
-    trellis: &mut Option<&mut NeoTrellis>,
-    grid_events: &mut Vec<String>,
-    trellis_read_failures: &mut u32,
-) {
+fn poll_trellis_noise(trellis: &mut Option<&mut NeoTrellis>, noise: &mut IdleNoise) {
     if let Some(trellis) = trellis.as_deref_mut() {
         match trellis.scan_keys() {
             Ok(events) => {
-                grid_events.extend(events.into_iter().map(|(x, y, pressed)| {
-                    format!("x={x} y={y} {}", if pressed { "press" } else { "release" })
-                }));
+                noise
+                    .grid_events
+                    .extend(events.into_iter().map(|(x, y, pressed)| {
+                        format!("x={x} y={y} {}", if pressed { "press" } else { "release" })
+                    }));
             }
             Err(error) => {
                 println!("FAIL NeoTrellis idle scan: {error}");
-                *trellis_read_failures += 1;
+                noise.trellis_read_failures += 1;
             }
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn poll_neokey_noise(
-    neokey: &mut Option<&mut NeoKey>,
-    started: Instant,
-    raw_press_counts: &mut [u32; 4],
-    neokey_active_since: &mut [Option<Duration>; 4],
-    neokey_pulse_durations: &mut [Vec<Duration>; 4],
-    neokey_raw_samples: &mut Vec<String>,
-    neokey_reread_samples: &mut Vec<String>,
-    confirmed_neokey_ghosts: &mut u32,
-    neokey_read_failures: &mut u32,
-) {
+fn poll_neokey_noise(neokey: &mut Option<&mut NeoKey>, started: Instant, noise: &mut IdleNoise) {
     let Some(neokey) = neokey.as_deref_mut() else {
         return;
     };
@@ -120,29 +89,23 @@ fn poll_neokey_noise(
             let masked = raw_state & 0xF0;
             let pressed_mask = (!masked) & 0xF0;
             if pressed_mask != 0 {
-                neokey_raw_samples.push(format!(
+                noise.neokey_raw_samples.push(format!(
                     "raw=0x{raw_state:08X} masked=0x{masked:02X} pressed_mask=0x{pressed_mask:02X}"
                 ));
                 let (reread_samples, confirmed) = neokey_reread_burst(neokey);
                 if confirmed {
-                    *confirmed_neokey_ghosts += 1;
+                    noise.confirmed_neokey_ghosts += 1;
                 }
-                neokey_reread_samples.push(format!(
+                noise.neokey_reread_samples.push(format!(
                     "trigger=0x{raw_state:08X} burst={}",
                     reread_samples.join(",")
                 ));
             }
-            update_neokey_pulses(
-                pressed_mask,
-                elapsed,
-                raw_press_counts,
-                neokey_active_since,
-                neokey_pulse_durations,
-            );
+            update_neokey_pulses(pressed_mask, elapsed, noise);
         }
         Err(error) => {
             println!("FAIL NeoKey idle scan: {error}");
-            *neokey_read_failures += 1;
+            noise.neokey_read_failures += 1;
         }
     }
 }
@@ -168,64 +131,44 @@ fn poll_encoder_noise(
     }
 }
 
-fn update_neokey_pulses(
-    pressed_mask: u32,
-    elapsed: Duration,
-    raw_press_counts: &mut [u32; 4],
-    active_since: &mut [Option<Duration>; 4],
-    pulse_durations: &mut [Vec<Duration>; 4],
-) {
+fn update_neokey_pulses(pressed_mask: u32, elapsed: Duration, noise: &mut IdleNoise) {
     for key in 0..4 {
         let pressed = (pressed_mask & (1 << (key + 4))) != 0;
         if pressed {
-            raw_press_counts[key] += 1;
-            if active_since[key].is_none() {
-                active_since[key] = Some(elapsed);
+            noise.raw_press_counts[key] += 1;
+            if noise.neokey_active_since[key].is_none() {
+                noise.neokey_active_since[key] = Some(elapsed);
             }
-        } else if let Some(started_at) = active_since[key].take() {
-            pulse_durations[key].push(elapsed.saturating_sub(started_at));
+        } else if let Some(started_at) = noise.neokey_active_since[key].take() {
+            noise.neokey_pulse_durations[key].push(elapsed.saturating_sub(started_at));
         }
     }
 }
 
-fn close_open_neokey_pulses(
-    elapsed: Duration,
-    active_since: &mut [Option<Duration>; 4],
-    pulse_durations: &mut [Vec<Duration>; 4],
-) {
+fn close_open_neokey_pulses(elapsed: Duration, noise: &mut IdleNoise) {
     for key in 0..4 {
-        if let Some(started_at) = active_since[key].take() {
-            pulse_durations[key].push(elapsed.saturating_sub(started_at));
+        if let Some(started_at) = noise.neokey_active_since[key].take() {
+            noise.neokey_pulse_durations[key].push(elapsed.saturating_sub(started_at));
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn classify_noise(
-    grid_events: Vec<String>,
-    raw_press_counts: [u32; 4],
-    neokey_pulse_durations: [Vec<Duration>; 4],
-    neokey_raw_samples: Vec<String>,
-    neokey_reread_samples: Vec<String>,
-    confirmed_neokey_ghosts: u32,
-    encoder_events: Vec<String>,
-    trellis_read_failures: u32,
-    neokey_read_failures: u32,
-) -> CheckOutcome {
-    let read_failures = trellis_read_failures + neokey_read_failures;
+fn classify_noise(noise: IdleNoise) -> CheckOutcome {
+    let read_failures = noise.trellis_read_failures + noise.neokey_read_failures;
     let mut warnings = Vec::new();
     let mut failures = Vec::new();
-    let ghost_keys = raw_press_counts
+    let ghost_keys = noise
+        .raw_press_counts
         .iter()
         .enumerate()
         .filter(|(_, count)| **count > 0)
         .map(|(index, count)| format!("index={index} samples={count}"))
         .collect::<Vec<_>>();
-    let tolerated_neokey_noise = !ghost_keys.is_empty() && confirmed_neokey_ghosts == 0;
+    let tolerated_neokey_noise = !ghost_keys.is_empty() && noise.confirmed_neokey_ghosts == 0;
     if read_failures == 0
         && (ghost_keys.is_empty() || tolerated_neokey_noise)
-        && grid_events.is_empty()
-        && encoder_events.is_empty()
+        && noise.grid_events.is_empty()
+        && noise.encoder_events.is_empty()
     {
         if tolerated_neokey_noise {
             println!("WARN no-touch input noise check passed within tolerance");
@@ -241,16 +184,9 @@ fn classify_noise(
     append_noise_findings(
         &mut warnings,
         &mut failures,
-        grid_events,
-        ghost_keys,
-        neokey_pulse_durations,
-        neokey_raw_samples,
-        neokey_reread_samples,
-        confirmed_neokey_ghosts,
+        &noise,
+        &ghost_keys,
         tolerated_neokey_noise,
-        encoder_events,
-        trellis_read_failures,
-        neokey_read_failures,
     );
     CheckOutcome {
         passed: read_failures == 0 && failures.is_empty(),
@@ -259,21 +195,24 @@ fn classify_noise(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn append_noise_findings(
     warnings: &mut Vec<String>,
     failures: &mut Vec<String>,
-    grid_events: Vec<String>,
-    ghost_keys: Vec<String>,
-    pulse_durations: [Vec<Duration>; 4],
-    raw_samples: Vec<String>,
-    reread_samples: Vec<String>,
-    confirmed_ghosts: u32,
+    noise: &IdleNoise,
+    ghost_keys: &[String],
     tolerated_neokey_noise: bool,
-    encoder_events: Vec<String>,
-    trellis_read_failures: u32,
-    neokey_read_failures: u32,
 ) {
+    let IdleNoise {
+        grid_events,
+        neokey_pulse_durations,
+        neokey_raw_samples,
+        neokey_reread_samples,
+        confirmed_neokey_ghosts: confirmed_ghosts,
+        encoder_events,
+        trellis_read_failures,
+        neokey_read_failures,
+        ..
+    } = noise;
     if !grid_events.is_empty() {
         println!("FAIL NeoTrellis idle events: {}", grid_events.join("; "));
         failures.push(format!(
@@ -283,11 +222,11 @@ fn append_noise_findings(
     }
     if !ghost_keys.is_empty() {
         print_neokey_noise(
-            &ghost_keys,
-            &raw_samples,
-            &reread_samples,
-            &pulse_durations,
-            confirmed_ghosts,
+            ghost_keys,
+            neokey_raw_samples,
+            neokey_reread_samples,
+            neokey_pulse_durations,
+            *confirmed_ghosts,
         );
         let message = format!(
             "NeoKey idle raw ghost presses: {} confirmed_reread={confirmed_ghosts}",
