@@ -1011,7 +1011,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Fn + Aux bind: `Trn-1: Bound Cutoff` for a value, `Clk-3: Bound L1 Spawn Random` for an action
   (`S+Trn-1`/`S+Clk-1` for the Shift bank); with nothing bindable selected `Aux-1: No binding`. The
   `Link > Aux Mappings` pickers show the new binding at once. Picking a target in those pickers
-  toasts the same way.
+  toasts the same way, and picking `(none)` toasts `Clk-3: Cleared`.
 - Repeated turns of the same target keep the visible toast: only the value changes in place and the
   1.2 s timeout restarts with each turn. A different target, or a turn after the toast expired or
   was replaced, starts a fresh toast. Fresh turn toasts for different targets are throttled to one

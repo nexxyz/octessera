@@ -1,6 +1,15 @@
 use super::NativeToast;
 use crate::oled_frame::TOAST_RECT;
 
+/// A control's toast head in the Shift bank or not: `S+Clk-2` or `Clk-2`.
+pub(super) fn bank_head(shifted: bool, control: &str) -> String {
+    if shifted {
+        format!("S+{control}")
+    } else {
+        control.into()
+    }
+}
+
 pub(super) fn clip_display_line(line: &str, width: usize) -> String {
     let mut out = String::new();
     for ch in line.chars().take(width) {

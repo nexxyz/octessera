@@ -148,6 +148,14 @@ fn aux_turn_moves_between_musical_and_system_targets_without_a_save() {
     }
     clear_aux_turn(&mut runner, false);
     assert!(runner.aux_bindings[0].is_none());
+    assert_eq!(
+        runner
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| toast.message.as_str()),
+        Some("Trn-1: Cleared")
+    );
     bind_current_to_aux(&mut runner, "displayBrightness", false);
     assert_eq!(
         runner.aux_bindings[0]

@@ -1,6 +1,8 @@
 use crate::native_menu::NativeMenuAction;
 use crate::protocol::RunnerMessage;
 
+use super::toast_text::bank_head;
+
 mod aux_binding_slots;
 mod binding_target;
 
@@ -281,20 +283,16 @@ impl NativeRunner {
 
     pub(super) fn handle_aux_press(&mut self, index: usize) -> Result<Vec<RunnerMessage>, String> {
         let shifted = self.display.ui.shift_held || self.display.ui.combined_modifier_held;
-        let click_prefix = if shifted { "S+Clk" } else { "Clk" };
+        let head = bank_head(shifted, &format!("Clk-{}", index + 1));
         if self.display.ui.fn_held || self.display.ui.combined_modifier_held {
             self.bind_aux_from_current(index, shifted);
             return self.messages_with_snapshot();
         }
         let Some(press) = self.effective_aux_slot(index).press else {
-            self.show_toast(format!("{click_prefix}-{}: No binding", index + 1));
+            self.show_toast(format!("{head}: No binding"));
             return self.messages_with_snapshot();
         };
-        self.run_bound_click(
-            press.action,
-            &format!("{click_prefix}-{}", index + 1),
-            &press.label,
-        )
+        self.run_bound_click(press.action, &head, &press.label)
     }
 }
 

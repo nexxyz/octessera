@@ -4,6 +4,7 @@ use super::super::action_bindings::BindingTarget;
 use super::super::led_color::LedColor;
 use super::super::menu_apply_fast_values::parse_indexed_key;
 use super::super::modulation_value::{binding_normalized, quantize_binding_value};
+use super::super::toast_text::bank_head;
 use super::super::{
     aux_turn_binding_spec, param_binding_from_payload, param_binding_payload,
     param_binding_spec_from_native, NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
@@ -170,14 +171,10 @@ impl NativeRunner {
         };
         let value = fader_row_value(y, &binding);
         let label = binding.label.as_deref().unwrap_or(&binding.key);
-        let prefix = if shifted { "S+" } else { "" };
+        let head = bank_head(shifted, &format!("F{}", column + 1));
         match self.set_bound_key_value(&binding.key, &value) {
-            Ok(true) => self.show_toast(format!(
-                "{prefix}F{}: {label} {}",
-                column + 1,
-                fader_value_text(&value)
-            )),
-            Ok(false) => self.show_toast(format!("{prefix}F{}: {label} not active", column + 1)),
+            Ok(true) => self.show_toast(format!("{head}: {label} {}", fader_value_text(&value))),
+            Ok(false) => self.show_toast(format!("{head}: {label} not active")),
             Err(error) => self.show_toast(error),
         }
     }

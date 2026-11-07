@@ -1,3 +1,4 @@
+use super::toast_text::bank_head;
 use super::NativeRunner;
 use crate::native_menu::format_values::format_display_value;
 use crate::native_menu::{NativeMenuItem, NativeMenuValue};
@@ -8,22 +9,19 @@ impl NativeRunner {
             return Ok(());
         }
         let shifted = self.display.ui.shift_held || self.display.ui.combined_modifier_held;
-        let prefix = if shifted { "S+Trn" } else { "Trn" };
+        let head = bank_head(shifted, &format!("Trn-{}", index + 1));
         let binding = self.effective_aux_slot(index);
         let Some(turn) = binding.turn else {
-            self.show_toast(format!("{prefix}-{}: No binding", index + 1));
+            self.show_toast(format!("{head}: No binding"));
             return Ok(());
         };
         let coarse = !(self.display.ui.fn_held || self.display.ui.combined_modifier_held);
         match self.turn_bound_key(&turn.key, &turn.label, delta, coarse) {
             Ok(Some((label, value))) => {
-                self.show_or_queue_aux_turn_toast(
-                    format!("{prefix}-{}: {label}: ", index + 1),
-                    value,
-                );
+                self.show_or_queue_aux_turn_toast(format!("{head}: {label}: "), value);
             }
             Ok(None) => {
-                self.show_toast(format!("{prefix}-{}: {} not active", index + 1, turn.label));
+                self.show_toast(format!("{head}: {} not active", turn.label));
             }
             Err(error) => {
                 self.show_toast(error.clone());

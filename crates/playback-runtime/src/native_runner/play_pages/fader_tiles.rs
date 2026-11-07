@@ -4,6 +4,7 @@ use super::super::aux_binding_payload_apply::parse_aux_press_action;
 use super::super::grid_assign::GridAssign;
 use super::super::led_color::LedColor;
 use super::super::menu_apply_fast::value_changed;
+use super::super::toast_text::bank_head;
 use super::super::{
     aux_turn_binding_spec, press_action_payload, supported_aux_turn_key, NativeParamBinding,
     NativeRunner, GRID_HEIGHT, GRID_WIDTH,
@@ -178,7 +179,7 @@ impl NativeRunner {
         action: Option<NativeMenuAction>,
         shifted: bool,
     ) -> Result<Vec<RunnerMessage>, String> {
-        let prefix = if shifted { "S+Tile" } else { "Tile" };
+        let prefix = &bank_head(shifted, "Tile");
         let Some(action) = action else {
             self.show_toast(format!("{prefix}: No binding"));
             return self.messages_with_snapshot();
