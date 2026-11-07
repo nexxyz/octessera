@@ -322,6 +322,52 @@ pub struct NativeSamplePlayback {
 }
 
 pub const SAMPLE_LOOP_MODES: [&str; 3] = ["off", "forward", "pingpong"];
+/// The factory Sampler kits: id, menu label, and the eight sample paths a load puts in the
+/// slots.
+pub const SAMPLER_KITS: [(&str, &str, [&str; 8]); 3] = [
+    (
+        "sdbkit",
+        "SDB Kit",
+        [
+            "samples/Drum/kick/sdbkit-kick.wav",
+            "samples/Drum/snare/sdbkit-snare.wav",
+            "samples/Drum/hihat closed/sdbkit-hatclsd.wav",
+            "samples/Drum/hihat open/sdbkit-hatopen.wav",
+            "samples/Drum/toms/sdbkit-lotom.wav",
+            "samples/Drum/toms/sdbkit-hitom.wav",
+            "samples/Drum/claps/sdbkit-clap.wav",
+            "samples/Drum/percussion/sdbkit-fmperc.wav",
+        ],
+    ),
+    (
+        "synthkit",
+        "Synth Kit",
+        [
+            "samples/Drum/kick/synthkit-kick.wav",
+            "samples/Drum/snare/synthkit-snare.wav",
+            "samples/Drum/hihat closed/synthkit-hatclsd.wav",
+            "samples/Drum/hihat open/synthkit-hatopen.wav",
+            "samples/Drum/toms/synthkit-lotom.wav",
+            "samples/Drum/toms/synthkit-hitom.wav",
+            "samples/Drum/claps/synthkit-clap.wav",
+            "samples/Drum/percussion/synthkit-8bit.wav",
+        ],
+    ),
+    (
+        "distkit",
+        "Dist Kit",
+        [
+            "samples/Drum/kick/distkit-kick.wav",
+            "samples/Drum/snare/distkit-snare.wav",
+            "samples/Drum/hihat closed/distkit-hatclsd.wav",
+            "samples/Drum/hihat open/distkit-hatopen.wav",
+            "samples/Drum/toms/distkit-lotom.wav",
+            "samples/Drum/toms/distkit-hitom.wav",
+            "samples/Drum/claps/distkit-clap.wav",
+            "samples/Drum/percussion/distkit-cowbell.wav",
+        ],
+    ),
+];
 /// Start and Loop Start stop one percent short of the sample's end, so a loop is never empty.
 pub const SAMPLE_START_MAX_PCT: u8 = 99;
 

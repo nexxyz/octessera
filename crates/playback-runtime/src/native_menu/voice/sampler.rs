@@ -8,7 +8,7 @@ use super::{
 };
 use crate::native_menu::{
     sample_display_name, NativeMenuPick, NativeMenuValue, NativeSampleAvailability,
-    NativeSamplePlayback, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
+    NativeSamplePlayback, SAMPLER_KITS, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
 };
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
@@ -19,11 +19,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             config.index,
             "kit",
             "Kit",
-            [
-                ("sdbkit", "SDB Kit"),
-                ("synthkit", "Synth Kit"),
-                ("distkit", "Dist Kit"),
-            ],
+            SAMPLER_KITS.iter().map(|(id, label, _)| (*id, *label)),
         ),
         enum_item(
             "Sample Slot",
