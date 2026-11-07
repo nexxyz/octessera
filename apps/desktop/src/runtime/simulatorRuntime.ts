@@ -60,7 +60,6 @@ export function createSimulatorRuntime(
   });
 
   const reconciliation = createRuntimeReconciliation({
-    mirrorRuntimeMessage: (message) => connection.enqueue(message),
     publishSnapshot: () => lifecycle.publish(),
   });
 

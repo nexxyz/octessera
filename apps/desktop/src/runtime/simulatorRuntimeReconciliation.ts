@@ -2,7 +2,6 @@ import {
   isPositiveOledFrameRevision,
   type LocalBootstrapSnapshot,
   type NativeRuntimeSnapshot,
-  type RuntimeHostMessage,
   type RuntimeOledFrameMessage,
   type RuntimeSnapshot,
   type RuntimeStatus,
@@ -28,10 +27,6 @@ import {
   snapshotFromCore,
   type RuntimeSnapshotCache,
 } from './simulatorSnapshot';
-import {
-  scheduleStartupSplashRefresh,
-  type StartupSplashTimer,
-} from './simulatorStartupSplash';
 import type { SimulatorSnapshot } from './types';
 
 type RuntimeReconciliation = {
@@ -50,7 +45,6 @@ type RuntimeReconciliation = {
 };
 
 type RuntimeReconciliationOptions = {
-  mirrorRuntimeMessage: (message: RuntimeHostMessage) => void;
   publishSnapshot: () => void;
 };
 
@@ -61,7 +55,6 @@ export function createRuntimeReconciliation(
     createInitialRuntimeSnapshot();
   let runtimeStatus: RuntimeStatus | null = null;
   let visibleOledFrameFault: OledFrameCacheFault | null = null;
-  let startupSplashTimer: StartupSplashTimer = null;
   const snapshotCache: RuntimeSnapshotCache = createRuntimeSnapshotCache();
   const oledFrameCache = createOledFrameCache();
   const oledAsyncReferenceGrace = createOledAsyncReferenceGrace(() => {
@@ -127,14 +120,6 @@ export function createRuntimeReconciliation(
       ...snapshot,
       oled: acceptedOledFrame(oledFrameCache),
     };
-    startupSplashTimer = scheduleStartupSplashRefresh(
-      latestFrame,
-      startupSplashTimer,
-      options.mirrorRuntimeMessage,
-      () => {
-        startupSplashTimer = null;
-      },
-    );
   }
 
   function finishMessageBatch(): void {
@@ -164,10 +149,6 @@ export function createRuntimeReconciliation(
       );
     },
     stop() {
-      if (startupSplashTimer !== null) {
-        clearTimeout(startupSplashTimer);
-        startupSplashTimer = null;
-      }
       oledAsyncReferenceGrace.cancel();
       visibleOledFrameFault = oledFrameCache.fault;
     },
