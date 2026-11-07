@@ -100,6 +100,8 @@ mod routing_tree_state;
 mod routing_tree_validation;
 #[cfg(feature = "routing-tree-executor")]
 mod routing_tree_worker;
+#[cfg(all(test, feature = "routing-tree-executor"))]
+mod routing_tree_worker_parity_tests;
 #[cfg(test)]
 mod sample_buffer_view_tests;
 #[cfg(test)]

@@ -239,3 +239,6 @@ fn strict_param_f32(params: &BTreeMap<String, Value>, key: &str, fallback: f32) 
         .unwrap_or(Some(fallback))
         .filter(|value| value.is_finite())
 }
+
+#[cfg(test)]
+mod shipped_stamp_tests;

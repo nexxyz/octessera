@@ -22,42 +22,101 @@ fn prepared_momentary_start_fits_fixed_control_budget() {
 
 #[test]
 fn prepared_momentary_updates_cover_every_kind_and_reject_stale_or_wrong_epochs() {
-    let cases = vec![
+    let cases = [
         (
             "stutter",
-            vec![("depthPct", json!(60.0)), ("rateHz", json!(12.0))],
+            vec![("depthPct", 60.0), ("rateHz", 12.0)],
+            ("rateHz", 9.0),
         ),
         (
             "freeze",
-            vec![("mixPct", json!(70.0)), ("releaseMs", json!(240.0))],
+            vec![("mixPct", 70.0), ("releaseMs", 240.0)],
+            ("mixPct", 25.0),
         ),
         (
             "filter_sweep",
             vec![
-                ("cutoffPct", json!(55.0)),
-                ("resonancePct", json!(45.0)),
-                ("sweepInMs", json!(160.0)),
-                ("sweepOutMs", json!(360.0)),
+                ("cutoffPct", 55.0),
+                ("resonancePct", 45.0),
+                ("sweepInMs", 160.0),
+                ("sweepOutMs", 360.0),
             ],
+            ("cutoffPct", 20.0),
         ),
         (
             "pitch_shift",
             vec![
-                ("semitones", json!(-5.0)),
-                ("cents", json!(25.0)),
-                ("mixPct", json!(65.0)),
-                ("slideInMs", json!(120.0)),
-                ("slideOutMs", json!(180.0)),
+                ("semitones", -5.0),
+                ("cents", 25.0),
+                ("mixPct", 65.0),
+                ("slideInMs", 120.0),
+                ("slideOutMs", 180.0),
             ],
+            ("semitones", 3.0),
+        ),
+        (
+            "tape_stop",
+            vec![("stopMs", 600.0), ("startMs", 250.0)],
+            ("stopMs", 900.0),
+        ),
+        (
+            "reverse",
+            vec![("lengthMs", 300.0), ("mixPct", 80.0)],
+            ("lengthMs", 500.0),
+        ),
+        (
+            "trance_gate",
+            vec![
+                ("ratePulses", 6.0),
+                ("depthPct", 90.0),
+                ("smoothPct", 30.0),
+                ("tempoBpm", 120.0),
+            ],
+            ("depthPct", 40.0),
+        ),
+        (
+            "dub_throw",
+            vec![
+                ("timePulses", 12.0),
+                ("feedbackPct", 50.0),
+                ("mixPct", 70.0),
+                ("tempoBpm", 120.0),
+            ],
+            ("feedbackPct", 20.0),
+        ),
+        (
+            "wash",
+            vec![("sizePct", 70.0), ("mixPct", 50.0), ("releaseMs", 2_000.0)],
+            ("sizePct", 30.0),
+        ),
+        (
+            "hp_riser",
+            vec![
+                ("cutoffPct", 60.0),
+                ("resonancePct", 30.0),
+                ("sweepInMs", 1_000.0),
+                ("sweepOutMs", 150.0),
+            ],
+            ("resonancePct", 70.0),
+        ),
+        (
+            "crush",
+            vec![("bits", 6.0), ("rateDiv", 4.0), ("mixPct", 100.0)],
+            ("bits", 10.0),
         ),
     ];
+    let to_params = |entries: &[(&str, f64)]| -> BTreeMap<String, Value> {
+        entries
+            .iter()
+            .map(|(key, value)| (key.to_string(), json!(value)))
+            .collect()
+    };
 
-    for (index, (fx_type, entries)) in cases.into_iter().enumerate() {
+    for (index, (fx_type, entries, (changed_key, changed_value))) in cases.into_iter().enumerate() {
         let epoch = index as u64 + 1;
-        let params: BTreeMap<String, Value> = entries
-            .into_iter()
-            .map(|(key, value)| (key.to_string(), value))
-            .collect();
+        let params = to_params(&entries);
+        let mut changed_params = params.clone();
+        changed_params.insert(changed_key.into(), json!(changed_value));
         let mut engine = SynthEngine::new(44_100);
         let start = prepare_momentary_fx_start_with_epoch(
             "shared-id".into(),
@@ -70,72 +129,36 @@ fn prepared_momentary_updates_cover_every_kind_and_reject_stale_or_wrong_epochs(
         .unwrap();
         engine.apply_prepared_momentary_fx_start(start);
 
-        let update =
-            prepare_momentary_fx_update(epoch, fx_type.into(), params.clone(), 44_100).unwrap();
-        assert_eq!(
-            engine.apply_prepared_momentary_fx_update(update),
-            ScalarMutation::Unchanged
-        );
-        let changed = match update {
-            PreparedMomentaryFxUpdate::Stutter {
-                epoch, segment_len, ..
-            } => PreparedMomentaryFxUpdate::Stutter {
-                epoch,
-                depth: 0.25,
-                segment_len: segment_len + 1,
-            },
-            PreparedMomentaryFxUpdate::Freeze {
-                epoch, release_len, ..
-            } => PreparedMomentaryFxUpdate::Freeze {
-                epoch,
-                mix: 0.25,
-                release_len: release_len + 1,
-            },
-            PreparedMomentaryFxUpdate::FilterSweep { epoch, .. } => {
-                PreparedMomentaryFxUpdate::FilterSweep {
-                    epoch,
-                    target_cutoff: 900.0,
-                    q: 2.0,
-                    sweep_in_step: 0.02,
-                    sweep_out_step: 0.01,
-                }
-            }
-            PreparedMomentaryFxUpdate::PitchShift { epoch, .. } => {
-                PreparedMomentaryFxUpdate::PitchShift {
-                    epoch,
-                    target_octaves: 0.25,
-                    mix: 0.25,
-                    slide_in_len: 100,
-                    slide_out_len: 200,
-                }
-            }
-            other => panic!("not one of the four original types: {other:?}"),
+        let update = |params: &BTreeMap<String, Value>, epoch| {
+            prepare_momentary_fx_update(epoch, fx_type.into(), params.clone(), 44_100).unwrap()
         };
         assert_eq!(
-            engine.apply_prepared_momentary_fx_update(changed),
-            ScalarMutation::Changed
+            engine.apply_prepared_momentary_fx_update(update(&params, epoch)),
+            ScalarMutation::Unchanged,
+            "{fx_type}"
         );
+        assert_eq!(
+            engine.apply_prepared_momentary_fx_update(update(&changed_params, epoch)),
+            ScalarMutation::Changed,
+            "{fx_type}"
+        );
+        assert_eq!(
+            engine.apply_prepared_momentary_fx_update(update(&params, epoch + 100)),
+            ScalarMutation::Rejected,
+            "{fx_type}"
+        );
+        let other_type = if fx_type == "stutter" {
+            "crush"
+        } else {
+            "stutter"
+        };
         assert_eq!(
             engine.apply_prepared_momentary_fx_update(
-                prepare_momentary_fx_update(epoch + 100, fx_type.into(), params.clone(), 44_100,)
+                prepare_momentary_fx_update(epoch, other_type.into(), BTreeMap::new(), 44_100)
                     .unwrap()
             ),
-            ScalarMutation::Rejected
-        );
-        assert_eq!(
-            engine.apply_prepared_momentary_fx_update(match fx_type {
-                "stutter" => PreparedMomentaryFxUpdate::Freeze {
-                    epoch,
-                    mix: 0.5,
-                    release_len: 1,
-                },
-                _ => PreparedMomentaryFxUpdate::Stutter {
-                    epoch,
-                    depth: 0.5,
-                    segment_len: 48,
-                },
-            }),
-            ScalarMutation::Rejected
+            ScalarMutation::Rejected,
+            "{fx_type}"
         );
     }
 }
