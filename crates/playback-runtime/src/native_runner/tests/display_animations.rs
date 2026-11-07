@@ -87,3 +87,20 @@ fn desktop_snapshot_and_board_scene_render_the_same_animated_frame() {
     assert_eq!(desktop.animation, board.animation);
     assert_eq!(render_oled_frame(&desktop), render_oled_frame(&board));
 }
+
+#[test]
+fn the_settled_presentation_has_run_out_every_animation() {
+    let start = Instant::now();
+    let mut runner = system_page(start);
+    runner.menu.select_label("Display");
+    runner.messages_with_snapshot().unwrap();
+    let snapshot = turn(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert_eq!(snapshot["oledAnimation"]["body"]["kind"], "slide");
+
+    let settled = runner.test_settled_presentation_input(OledPresentationMetrics::default());
+    assert_eq!(settled.animation, Default::default());
+    assert_eq!(settled.display.title, "/SYS/Display");
+}

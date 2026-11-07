@@ -1,4 +1,5 @@
 use super::{NativeOledMode, NativeRunner, Value};
+use crate::oled_frame::{OledPresentationInput, OledPresentationMetrics};
 use std::time::{Duration, Instant};
 
 impl NativeRunner {
@@ -62,6 +63,22 @@ impl NativeRunner {
     pub fn test_advance_display_time(&mut self, elapsed: Duration) {
         let now = self.display.transients.now() + elapsed;
         self.display.transients.set_test_now(now);
+    }
+
+    /// The presentation once every body and toast animation has run out, for renders that
+    /// must show the screen at rest. Steps the test clock one animation frame at a time.
+    pub fn test_settled_presentation_input(
+        &mut self,
+        metrics: OledPresentationMetrics,
+    ) -> OledPresentationInput {
+        for _ in 0..8 {
+            let scene = self.capture_display_scene().unwrap();
+            if scene.animation_settled() {
+                return scene.oled_presentation_input(metrics, None);
+            }
+            self.test_advance_display_time(Duration::from_millis(33));
+        }
+        panic!("the display animation did not settle within eight frames");
     }
 
     pub fn test_set_oled_off(&mut self) {
