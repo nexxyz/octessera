@@ -8,6 +8,8 @@ use super::*;
 pub(super) mod instrument_slot_control;
 
 pub(super) const MAX_MOMENTARY_FX: usize = 2;
+/// The two Play FX plus one releasing tail fading out after a new press took its place.
+pub(super) const MOMENTARY_FX_CAPACITY: usize = MAX_MOMENTARY_FX + 1;
 
 struct CompiledBusMixerState {
     pan_positions: Vec<usize>,

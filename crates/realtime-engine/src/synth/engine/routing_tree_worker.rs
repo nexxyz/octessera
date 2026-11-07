@@ -117,7 +117,8 @@ pub(super) struct RoutingTreeOwnerData {
     pub(super) preview_sample_orders: [u64; PREVIEW_AUDITION_SLOTS],
     pub(super) momentary_fx: Vec<MomentaryFxState>,
     pub(super) retired_preview_samples: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    pub(super) retired_momentary_fx: [Option<MomentaryFxState>; PREVIEW_AUDITION_SLOTS],
+    pub(super) retired_momentary_fx:
+        [Option<MomentaryFxState>; super::control::MOMENTARY_FX_CAPACITY],
 }
 
 impl RoutingTreeOwnerData {
@@ -128,7 +129,7 @@ impl RoutingTreeOwnerData {
             source_bank: Some(source_bank),
             preview_sample_voices: std::array::from_fn(|_| None),
             preview_sample_orders: [0; PREVIEW_AUDITION_SLOTS],
-            momentary_fx: Vec::with_capacity(super::control::MAX_MOMENTARY_FX),
+            momentary_fx: Vec::with_capacity(super::control::MOMENTARY_FX_CAPACITY),
             retired_preview_samples: std::array::from_fn(|_| None),
             retired_momentary_fx: std::array::from_fn(|_| None),
         }

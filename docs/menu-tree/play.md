@@ -265,8 +265,9 @@ The menu lists the technical bank, then the musical bank.
   Toasts and rows show the display names (`filter sweep`, `tape stop`, `HP riser`).
 - The seven types after `pitch_shift` finish their release on their own, from a 5 ms crush fade
   to the dub_throw and wash tails. A press of the same type and Target during that release takes
-  it over instead of cutting it. The engine counts a releasing effect toward its two, so a press
-  of another type then may stay silent.
+  it over instead of cutting it. Any other press that a releasing effect stands in the way of
+  (the same type on another Target, or a third effect) fades the oldest such tail out over 5 ms
+  and starts; only two held effects, or a held one of the same type, turn a press down.
 - LEDs: stutter yellow, freeze blue, filter_sweep green, pitch_shift magenta, tape_stop orange,
   reverse purple, trance_gate red, dub_throw deep blue, wash peach, hp_riser lime, crush rose.
   Assigned idle tiles are bright, active tiles add white, and tiles blocked by a limit are dimmed.

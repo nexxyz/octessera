@@ -243,7 +243,8 @@ fn preflight_engine_aux(
 ) -> bool {
     first.preview_sample_voices.iter().all(Option::is_none)
         && second.preview_sample_voices.iter().all(Option::is_none)
-        && first.momentary_fx.len() + second.momentary_fx.len() <= super::control::MAX_MOMENTARY_FX
+        && first.momentary_fx.len() + second.momentary_fx.len()
+            <= super::control::MOMENTARY_FX_CAPACITY
         && engine
             .preview_sample_voices
             .iter()

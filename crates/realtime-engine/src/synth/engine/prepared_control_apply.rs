@@ -265,14 +265,52 @@ impl SynthEngine {
                 self.momentary_fx.remove(pos),
             );
         }
-        if self.momentary_fx.iter().any(|fx| fx.kind == state.kind)
-            || self.momentary_fx.len() >= super::control::MAX_MOMENTARY_FX
-        {
+        if !self.make_room_for_momentary_press(state.kind, &mut retired) {
             store_retired_momentary(&mut retired.displaced_momentary_fx, state);
             return retired;
         }
         self.momentary_fx.push(state);
         retired
+    }
+
+    /// Two Play FX run at once, one per type. A releasing tail in the way fades out for the
+    /// new press; held effects in the way turn it down.
+    fn make_room_for_momentary_press(
+        &mut self,
+        kind: MomentaryFxKind,
+        retired: &mut RetiredAudioState,
+    ) -> bool {
+        let running = |fx: &MomentaryFxState| fx.retire_fade.is_none();
+        let same_kind = self
+            .momentary_fx
+            .iter()
+            .position(|fx| running(fx) && fx.kind == kind);
+        let full = self.momentary_fx.iter().filter(|fx| running(fx)).count()
+            >= super::control::MAX_MOMENTARY_FX;
+        if same_kind.is_none() && !full {
+            return true;
+        }
+        let Some(mut victim) = same_kind.or_else(|| {
+            self.momentary_fx
+                .iter()
+                .position(|fx| running(fx) && fx.releasing)
+        }) else {
+            return false;
+        };
+        if !self.momentary_fx[victim].releasing {
+            return false;
+        }
+        if let Some(fading) = self.momentary_fx.iter().position(|fx| !running(fx)) {
+            store_retired_momentary(
+                &mut retired.displaced_momentary_fx,
+                self.momentary_fx.remove(fading),
+            );
+            if fading < victim {
+                victim -= 1;
+            }
+        }
+        self.momentary_fx[victim].begin_retire_fade(self.sample_rate);
+        true
     }
 
     pub fn apply_prepared_momentary_fx_update(

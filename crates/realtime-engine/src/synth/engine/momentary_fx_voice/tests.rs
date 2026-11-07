@@ -1,7 +1,7 @@
+use super::super::control::MOMENTARY_FX_CAPACITY;
 use super::super::render_momentary_fx::{
     apply_prepared_momentary_fx_update, process_momentary_fx_states,
 };
-use super::super::retired_state::PREVIEW_AUDITION_SLOTS;
 use super::super::{parse_momentary_fx_kind, MomentaryFxState, PreparedMomentaryFxUpdate};
 use super::{prepare_voice_update, MomentaryFxVoice};
 use crate::synth::MomentaryFxTarget;
@@ -13,7 +13,7 @@ const RATE: u32 = 48_000;
 const FRAMES: usize = RATE as usize;
 const TARGET: MomentaryFxTarget = MomentaryFxTarget::Global;
 
-type Retired = [Option<MomentaryFxState>; PREVIEW_AUDITION_SLOTS];
+type Retired = [Option<MomentaryFxState>; MOMENTARY_FX_CAPACITY];
 
 fn params(pairs: &[(&str, f64)]) -> BTreeMap<String, Value> {
     pairs

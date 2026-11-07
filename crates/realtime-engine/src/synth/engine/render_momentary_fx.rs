@@ -1,6 +1,6 @@
 use super::super::scalar_param::ScalarMutation;
 use super::momentary_fx_voice::comb_bank_frame;
-use super::retired_state::{store_retired_momentary, PREVIEW_AUDITION_SLOTS};
+use super::retired_state::store_retired_momentary;
 use super::*;
 
 pub(super) fn apply_prepared_momentary_fx_update(
@@ -139,7 +139,7 @@ pub(super) fn process_momentary_fx_states(
     target: MomentaryFxTarget,
     left: f32,
     right: f32,
-    mut retired: Option<&mut [Option<MomentaryFxState>; PREVIEW_AUDITION_SLOTS]>,
+    mut retired: Option<&mut [Option<MomentaryFxState>; MOMENTARY_FX_CAPACITY]>,
     sample_rate: u32,
 ) -> (f32, f32) {
     if states.is_empty() {
@@ -183,20 +183,21 @@ pub(super) fn process_momentary_fx_states(
         let completed = {
             let fx = &states[index];
             fx.target == target
-                && fx.releasing
-                && match fx.kind {
-                    MomentaryFxKind::Stutter => true,
-                    MomentaryFxKind::FilterSweep => fx.sweep_pos <= 0.0,
-                    MomentaryFxKind::Freeze => fx.release_pos >= fx.release_len,
-                    MomentaryFxKind::PitchShift => fx.release_pos >= fx.release_len,
-                    MomentaryFxKind::TapeStop
-                    | MomentaryFxKind::Reverse
-                    | MomentaryFxKind::TranceGate
-                    | MomentaryFxKind::DubThrow
-                    | MomentaryFxKind::Wash
-                    | MomentaryFxKind::HpRiser
-                    | MomentaryFxKind::Crush => fx.voice.finished(),
-                }
+                && (fx.retire_faded()
+                    || fx.releasing
+                        && match fx.kind {
+                            MomentaryFxKind::Stutter => true,
+                            MomentaryFxKind::FilterSweep => fx.sweep_pos <= 0.0,
+                            MomentaryFxKind::Freeze => fx.release_pos >= fx.release_len,
+                            MomentaryFxKind::PitchShift => fx.release_pos >= fx.release_len,
+                            MomentaryFxKind::TapeStop
+                            | MomentaryFxKind::Reverse
+                            | MomentaryFxKind::TranceGate
+                            | MomentaryFxKind::DubThrow
+                            | MomentaryFxKind::Wash
+                            | MomentaryFxKind::HpRiser
+                            | MomentaryFxKind::Crush => fx.voice.finished(),
+                        })
         };
         if completed {
             let state = states.remove(index);
@@ -219,7 +220,7 @@ fn process_momentary_fx_state(
     if fx.target != target {
         return None;
     }
-    Some(match fx.kind {
+    let (wet_l, wet_r) = match fx.kind {
         MomentaryFxKind::Stutter => process_stutter(fx, left, right),
         MomentaryFxKind::Freeze => process_freeze(fx, left, right),
         MomentaryFxKind::FilterSweep => process_filter_sweep(fx, left, right, sample_rate),
@@ -231,7 +232,12 @@ fn process_momentary_fx_state(
         | MomentaryFxKind::Wash
         | MomentaryFxKind::HpRiser
         | MomentaryFxKind::Crush => fx.voice.process(left, right),
-    })
+    };
+    let Some(fade) = fx.retire_fade.as_mut() else {
+        return Some((wet_l, wet_r));
+    };
+    let gain = fade.toward(0.0);
+    Some((left + (wet_l - left) * gain, right + (wet_r - right) * gain))
 }
 
 fn process_stutter(fx: &mut MomentaryFxState, left: f32, right: f32) -> (f32, f32) {

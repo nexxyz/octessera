@@ -25,8 +25,9 @@ use trance_gate::{TranceGateParams, TranceGateVoice};
 pub(super) use updates::{prepare_voice_update, voice_param_keys};
 use wash::{WashParams, WashVoice};
 
-/// Fade length for the press and release envelopes of gate, crush, dub throw and wash sends.
-const ENVELOPE_MS: u32 = 5;
+/// Fade length for the press and release envelopes of gate, crush, dub throw and wash sends, and
+/// for a releasing tail a new press retires.
+pub(super) const ENVELOPE_MS: u32 = 5;
 /// Fade length where a voice hands its wet path back to the dry signal.
 const HANDOFF_MS: u32 = 10;
 /// Tempo-synced lengths follow `tempoBpm`, which the runtime resolves from the transport.
@@ -149,24 +150,24 @@ impl MomentaryFxVoice {
 
 /// A linear gain envelope moving toward a target by a fixed step per frame.
 #[derive(Clone, Copy)]
-struct GainRamp {
+pub(super) struct GainRamp {
     value: f32,
     step: f32,
 }
 
 impl GainRamp {
-    fn new(value: f32, ms: u32, sample_rate: u32) -> Self {
+    pub(super) fn new(value: f32, ms: u32, sample_rate: u32) -> Self {
         Self {
             value,
             step: 1.0 / (sample_rate * ms / 1_000).max(1) as f32,
         }
     }
 
-    fn value(self) -> f32 {
+    pub(super) fn value(self) -> f32 {
         self.value
     }
 
-    fn toward(&mut self, target: f32) -> f32 {
+    pub(super) fn toward(&mut self, target: f32) -> f32 {
         self.value = if self.value < target {
             (self.value + self.step).min(target)
         } else {

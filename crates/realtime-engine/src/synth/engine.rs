@@ -192,7 +192,7 @@ pub use source_worker_retirement::SourceWorkerRetirement;
 use block_slot_scratch::BlockSlotScratch;
 pub use bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
-use control::MAX_MOMENTARY_FX;
+use control::MOMENTARY_FX_CAPACITY;
 use live_pitch_shift::PITCH_FILL_FRAMES;
 pub(super) use momentary_fx_state::is_momentary_fx_type;
 use momentary_fx_state::{

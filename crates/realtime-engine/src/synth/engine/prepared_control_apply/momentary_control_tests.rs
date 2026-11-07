@@ -17,7 +17,7 @@ fn prepared_momentary_start_fits_fixed_control_budget() {
         engine.apply_prepared_momentary_fx_start(prepared);
     }
     assert_eq!(engine.momentary_fx.len(), 1);
-    assert_eq!(engine.momentary_fx.capacity(), 2);
+    assert_eq!(engine.momentary_fx.capacity(), 3);
 }
 
 #[test]
@@ -216,6 +216,112 @@ fn prepared_momentary_epochs_scope_stop_and_restart_retirement() {
         1
     );
     assert!(engine.momentary_fx.is_empty());
+}
+
+fn press(engine: &mut SynthEngine, epoch: u64, fx_type: &str, target: MomentaryFxTarget) {
+    let start = prepare_momentary_fx_start_with_epoch(
+        format!("fx-{epoch}"),
+        epoch,
+        fx_type.into(),
+        BTreeMap::new(),
+        target,
+        44_100,
+    )
+    .unwrap();
+    engine.apply_prepared_momentary_fx_start(start);
+}
+
+fn ring(engine: &mut SynthEngine, frames: usize) {
+    for frame in 0..frames {
+        let input = if frame % 2 == 0 { 0.4 } else { -0.4 };
+        engine.process_momentary_frame_for_test(MomentaryFxTarget::Global, input, input);
+        engine.process_momentary_frame_for_test(
+            MomentaryFxTarget::Instrument { index: 0 },
+            input,
+            input,
+        );
+    }
+}
+
+fn running_epochs(engine: &SynthEngine) -> Vec<u64> {
+    engine.momentary_fx.iter().map(|fx| fx.epoch).collect()
+}
+
+#[test]
+fn prepared_momentary_press_of_a_ringing_type_on_another_target_is_admitted() {
+    let mut engine = SynthEngine::new(44_100);
+    press(&mut engine, 1, "dub_throw", MomentaryFxTarget::Global);
+    ring(&mut engine, 2_000);
+    engine.momentary_fx_stop_by_epoch(1);
+    ring(&mut engine, 64);
+    assert!(engine.momentary_fx[0].releasing);
+
+    press(
+        &mut engine,
+        2,
+        "dub_throw",
+        MomentaryFxTarget::Instrument { index: 0 },
+    );
+    assert!(running_epochs(&engine).contains(&2));
+    ring(&mut engine, 441);
+    assert_eq!(running_epochs(&engine), vec![2]);
+}
+
+#[test]
+fn prepared_momentary_press_past_two_ringing_tails_is_admitted() {
+    let mut engine = SynthEngine::new(44_100);
+    press(&mut engine, 1, "wash", MomentaryFxTarget::Global);
+    press(&mut engine, 2, "dub_throw", MomentaryFxTarget::Global);
+    ring(&mut engine, 2_000);
+    engine.momentary_fx_stop_by_epoch(1);
+    engine.momentary_fx_stop_by_epoch(2);
+    ring(&mut engine, 64);
+    assert_eq!(running_epochs(&engine), vec![1, 2]);
+
+    press(&mut engine, 3, "crush", MomentaryFxTarget::Global);
+    assert!(running_epochs(&engine).contains(&3));
+    ring(&mut engine, 441);
+    assert_eq!(running_epochs(&engine), vec![2, 3]);
+}
+
+#[test]
+fn prepared_momentary_press_past_two_held_effects_is_still_ignored() {
+    let mut engine = SynthEngine::new(44_100);
+    press(&mut engine, 1, "wash", MomentaryFxTarget::Global);
+    press(&mut engine, 2, "dub_throw", MomentaryFxTarget::Global);
+    press(&mut engine, 3, "crush", MomentaryFxTarget::Global);
+    press(
+        &mut engine,
+        4,
+        "wash",
+        MomentaryFxTarget::Instrument { index: 0 },
+    );
+    assert_eq!(running_epochs(&engine), vec![1, 2]);
+}
+
+#[test]
+fn prepared_momentary_press_takes_over_its_own_releasing_tail() {
+    let mut engine = SynthEngine::new(44_100);
+    press(&mut engine, 1, "wash", MomentaryFxTarget::Global);
+    ring(&mut engine, 2_000);
+    engine.momentary_fx_stop_by_epoch(1);
+    ring(&mut engine, 64);
+    let retired = {
+        let start = prepare_momentary_fx_start_with_epoch(
+            "fx-2".into(),
+            2,
+            "wash".into(),
+            BTreeMap::new(),
+            MomentaryFxTarget::Global,
+            44_100,
+        )
+        .unwrap();
+        engine.apply_prepared_momentary_fx_start(start)
+    };
+    assert_eq!(retired.displaced_momentary_fx.iter().flatten().count(), 1);
+    assert_eq!(running_epochs(&engine), vec![2]);
+    assert_eq!(engine.momentary_fx[0].id, "fx-2");
+    assert!(!engine.momentary_fx[0].releasing);
 }
 
 #[test]

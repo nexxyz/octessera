@@ -2,7 +2,7 @@ use super::live_pitch_shift::{
     pitch_activation_ramp_len, LivePitchShift, PITCH_DEFAULT_SLIDE_IN_MS,
     PITCH_DEFAULT_SLIDE_OUT_MS,
 };
-use super::momentary_fx_voice::MomentaryFxVoice;
+use super::momentary_fx_voice::{GainRamp, MomentaryFxVoice, ENVELOPE_MS};
 use super::support::param_f32;
 use super::*;
 
@@ -61,6 +61,8 @@ pub(super) struct MomentaryFxState {
     pub(super) freeze_activation_pos: u32,
     pub(super) freeze_activation_len: u32,
     pub(super) voice: MomentaryFxVoice,
+    /// Set once a new press has taken this releasing tail's place; the tail fades out over it.
+    pub(super) retire_fade: Option<GainRamp>,
 }
 
 #[derive(Clone, Copy)]
@@ -224,6 +226,7 @@ impl MomentaryFxState {
             freeze_activation_pos: 0,
             freeze_activation_len,
             voice: MomentaryFxVoice::new(kind, params, sample_rate),
+            retire_fade: None,
         }
     }
 
@@ -231,6 +234,7 @@ impl MomentaryFxState {
     /// throw's echoes or a wash keep ringing instead of being cut. `incoming` keeps the old id.
     pub(super) fn take_over_tail(&mut self, incoming: &mut MomentaryFxState) -> bool {
         if !self.releasing
+            || self.retire_fade.is_some()
             || self.kind != incoming.kind
             || self.target != incoming.target
             || !self.voice.revive_with(&incoming.voice)
@@ -242,6 +246,15 @@ impl MomentaryFxState {
         self.releasing = false;
         self.release_pos = 0;
         true
+    }
+
+    /// Fades a releasing tail out so a new press can take its place without a click.
+    pub(super) fn begin_retire_fade(&mut self, sample_rate: u32) {
+        self.retire_fade = Some(GainRamp::new(1.0, ENVELOPE_MS, sample_rate));
+    }
+
+    pub(super) fn retire_faded(&self) -> bool {
+        self.retire_fade.is_some_and(|fade| fade.value() <= 0.0)
     }
 
     /// Starts the release of a type that fades out instead of being removed at once.

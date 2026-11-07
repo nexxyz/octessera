@@ -73,7 +73,7 @@ pub struct RetiredAudioState {
     pub(super) displaced_master_fx_states: Vec<MasterFxState>,
     pub(super) preview_sample_buffers: [Option<SampleBuffer>; PREVIEW_AUDITION_SLOTS],
     pub(super) preview_sample_voices: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    pub(super) displaced_momentary_fx: [Option<MomentaryFxState>; PREVIEW_AUDITION_SLOTS],
+    pub(super) displaced_momentary_fx: [Option<MomentaryFxState>; MOMENTARY_FX_CAPACITY],
 }
 
 impl Default for RetiredAudioState {
@@ -155,7 +155,7 @@ pub(super) fn store_retired_preview_buffer(
 }
 
 pub(super) fn store_retired_momentary(
-    slots: &mut [Option<MomentaryFxState>; PREVIEW_AUDITION_SLOTS],
+    slots: &mut [Option<MomentaryFxState>; MOMENTARY_FX_CAPACITY],
     state: MomentaryFxState,
 ) {
     let slot = slots

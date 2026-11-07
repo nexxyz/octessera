@@ -49,7 +49,7 @@ impl SynthEngine {
             #[cfg(any(test, feature = "profiling"))]
             cumulative_voice_steals: 0,
             cumulative_voice_admission_drops: 0,
-            momentary_fx: Vec::with_capacity(MAX_MOMENTARY_FX),
+            momentary_fx: Vec::with_capacity(MOMENTARY_FX_CAPACITY),
             fx_activity_hold_frames: (sample_rate.saturating_mul(150) / 1000).max(1),
             block_slot_scratch: BlockSlotScratch::new(),
             #[cfg(test)]
