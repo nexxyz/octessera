@@ -99,6 +99,25 @@ fn a_held_play_fx_stops_on_release_after_a_page_switch() {
 }
 
 #[test]
+fn clear_all_stops_a_held_play_fx() {
+    let mut runner = fx_runner();
+    let _ = press(&mut runner, 3, 4);
+    let _ = runner.outbox.drain_audio_commands();
+
+    runner.clear_patch_state().unwrap();
+
+    assert!(runner.active_play_fx.is_empty());
+    assert!(runner
+        .outbox
+        .drain_audio_commands()
+        .iter()
+        .any(|command| matches!(
+            command,
+            RuntimeAudioCommand::MomentaryFxStop { id, .. } if id == "momentary-fx:3:4"
+        )));
+}
+
+#[test]
 fn a_held_xy_touch_ends_on_release_after_a_page_switch() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner

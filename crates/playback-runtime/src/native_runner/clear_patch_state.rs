@@ -86,7 +86,12 @@ impl NativeRunner {
         self.global_fx_params = default_global_fx_params();
         self.play_fx_selected = default_play_fx_selected();
         self.play_fx_assignments.clear();
-        self.active_play_fx.clear();
+        for (id, _) in std::mem::take(&mut self.active_play_fx) {
+            self.queue_audio_command(crate::protocol::RuntimeAudioCommand::MomentaryFxStop {
+                id,
+                epoch: 0,
+            });
+        }
         self.play_mode = "mix".into();
         self.active_play_mode = "none".into();
         self.xy_touch = NativeXyTouch {
