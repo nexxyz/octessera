@@ -148,6 +148,7 @@ pub fn ink_render_model(state: &InkState) -> BehaviorRenderModel {
             stable: [40, 30, 140],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

@@ -285,6 +285,7 @@ pub fn ant_render_model(state: &AntState) -> BehaviorRenderModel {
             stable: crate::palette::BLACK,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

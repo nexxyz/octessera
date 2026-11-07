@@ -1,4 +1,6 @@
 use super::cellular::LifeState;
+use super::games::blockout::BlockoutState;
+use super::games::pong::PongState;
 use super::native_impl::{
     AntState, BoidsState, BounceState, BrainState, BubblesState, CoralState, CracksState,
     CrystalGrowthState, CyclicState, DlaState, ForestFireState, FractalExplorerState, GravityState,
@@ -47,6 +49,8 @@ pub enum NativeBehaviorState {
     Dla(DlaState),
     Physarum(PhysarumState),
     Vines(VinesState),
+    Pong(PongState),
+    Blockout(BlockoutState),
     Pattern(PatternBehaviorState),
 }
 
@@ -87,6 +91,8 @@ pub enum NativeBehavior {
     Dla,
     Physarum,
     Vines,
+    Pong,
+    Blockout,
     Weave,
     Polyrhythm,
     Breaks,
@@ -140,6 +146,8 @@ pub fn get_native_behavior(id: &str) -> Option<NativeBehavior> {
         "dla" => Some(NativeBehavior::Dla),
         "physarum" => Some(NativeBehavior::Physarum),
         "vines" => Some(NativeBehavior::Vines),
+        "pong" => Some(NativeBehavior::Pong),
+        "blockout" => Some(NativeBehavior::Blockout),
         "weave" => Some(NativeBehavior::Weave),
         "polyrhythm" => Some(NativeBehavior::Polyrhythm),
         "breaks" => Some(NativeBehavior::Breaks),
@@ -195,6 +203,8 @@ pub fn list_native_behavior_ids() -> &'static [&'static str] {
         "dla",
         "physarum",
         "vines",
+        "pong",
+        "blockout",
         "weave",
         "polyrhythm",
         "breaks",
@@ -250,6 +260,8 @@ impl NativeBehavior {
             NativeBehavior::Dla => "dla",
             NativeBehavior::Physarum => "physarum",
             NativeBehavior::Vines => "vines",
+            NativeBehavior::Pong => "pong",
+            NativeBehavior::Blockout => "blockout",
             NativeBehavior::Weave => "weave",
             NativeBehavior::Polyrhythm => "polyrhythm",
             NativeBehavior::Breaks => "breaks",

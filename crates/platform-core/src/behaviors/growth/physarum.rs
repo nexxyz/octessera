@@ -185,6 +185,7 @@ pub fn physarum_render_model(state: &PhysarumState) -> BehaviorRenderModel {
             stable: [160, 180, 70],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn physarum_config_menu() -> Vec<BehaviorConfigItem> {

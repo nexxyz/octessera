@@ -795,7 +795,9 @@ behavior primary red), so a mute never reads as a section color.
 
 Each tile's LED color comes from its behavior palette and `TileTriggerType`. Every behavior provides
 inactive, active, and stable colors; the defaults are inactive black, active yellow, and stable
-green. Inactive black is preferred unless a behavior needs another off color.
+green. Inactive black is preferred unless a behavior needs another off color. A behavior whose
+things keep their own colors (pong's ball and paddles, blockout's block rows) may give every lit tile its own color, which
+replaces the trigger colors below for lit tiles; off tiles keep the inactive color.
 
 | Condition | Color |
 |---|---|

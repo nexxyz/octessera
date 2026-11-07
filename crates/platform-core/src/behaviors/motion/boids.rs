@@ -180,6 +180,7 @@ pub fn boids_render_model(state: &BoidsState) -> BehaviorRenderModel {
             stable: [120, 200, 255],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn boids_config_menu() -> Vec<BehaviorConfigItem> {

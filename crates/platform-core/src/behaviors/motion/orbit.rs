@@ -164,6 +164,7 @@ pub fn orbit_render_model(state: &OrbitState) -> BehaviorRenderModel {
             stable: [140, 120, 255],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn orbit_config_menu() -> Vec<BehaviorConfigItem> {

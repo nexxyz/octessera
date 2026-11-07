@@ -86,6 +86,11 @@ pub fn behavior_categories() -> &'static [BehaviorCategory] {
                 "sand_ripples",
             ],
         },
+        BehaviorCategory {
+            id: "games",
+            label: "Games",
+            behavior_ids: &["blockout", "pong"],
+        },
     ]
 }
 
@@ -335,6 +340,16 @@ pub fn behavior_catalog() -> &'static [BehaviorCatalogEntry] {
             id: "vines",
             label: "vines",
             category_id: "growth",
+        },
+        BehaviorCatalogEntry {
+            id: "pong",
+            label: "pong",
+            category_id: "games",
+        },
+        BehaviorCatalogEntry {
+            id: "blockout",
+            label: "blockout",
+            category_id: "games",
         },
     ]
 }

@@ -152,6 +152,7 @@ pub fn gravity_render_model(state: &GravityState) -> BehaviorRenderModel {
             stable: [180, 140, 60],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

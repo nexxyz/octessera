@@ -1,4 +1,6 @@
-use super::{cellular, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState};
+use super::{
+    cellular, games, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState,
+};
 use crate::behavior::BehaviorContext;
 
 pub fn on_tick(
@@ -118,6 +120,12 @@ pub fn on_tick(
         ),
         (NativeBehavior::Vines, NativeBehaviorState::Vines(state)) => Ok(
             NativeBehaviorState::Vines(native_impl::vines_on_tick(state, context)),
+        ),
+        (NativeBehavior::Pong, NativeBehaviorState::Pong(state)) => Ok(NativeBehaviorState::Pong(
+            games::pong::on_tick(state, context),
+        )),
+        (NativeBehavior::Blockout, NativeBehaviorState::Blockout(state)) => Ok(
+            NativeBehaviorState::Blockout(games::blockout::on_tick(state, context)),
         ),
         _ => Err(format!("state mismatch for behavior {}", behavior.id())),
     }

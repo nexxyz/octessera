@@ -187,6 +187,7 @@ pub fn cracks_render_model(state: &CracksState) -> BehaviorRenderModel {
             stable: [120, 160, 180],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn cracks_config_menu() -> Vec<BehaviorConfigItem> {

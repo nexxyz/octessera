@@ -43,6 +43,7 @@ impl NativeBehaviorState {
             NativeBehaviorState::Dla(state) => state.tick_counter = 0,
             NativeBehaviorState::Physarum(state) => state.tick_counter = 0,
             NativeBehaviorState::Vines(state) => state.tick_counter = 0,
+            NativeBehaviorState::Pong(_) | NativeBehaviorState::Blockout(_) => {}
             NativeBehaviorState::Pattern(state) => pattern_music::reset_transport_phase(state),
         }
     }

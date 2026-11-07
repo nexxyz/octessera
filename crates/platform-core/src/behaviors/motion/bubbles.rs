@@ -323,6 +323,7 @@ pub fn bubbles_render_model(state: &BubblesState) -> BehaviorRenderModel {
             stable: crate::palette::GRAY,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

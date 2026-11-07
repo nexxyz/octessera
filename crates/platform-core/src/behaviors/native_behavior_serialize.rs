@@ -1,4 +1,4 @@
-use super::{cellular, native_impl, play, NativeBehavior, NativeBehaviorState};
+use super::{cellular, games, native_impl, play, NativeBehavior, NativeBehaviorState};
 use serde_json::Value;
 
 pub fn serialize(behavior: NativeBehavior, state: &NativeBehaviorState) -> Result<Value, String> {
@@ -98,6 +98,10 @@ pub fn serialize(behavior: NativeBehavior, state: &NativeBehaviorState) -> Resul
         }
         (NativeBehavior::Vines, NativeBehaviorState::Vines(state)) => {
             native_impl::vines_serialize(state)
+        }
+        (NativeBehavior::Pong, NativeBehaviorState::Pong(state)) => games::pong::serialize(state),
+        (NativeBehavior::Blockout, NativeBehaviorState::Blockout(state)) => {
+            games::blockout::serialize(state)
         }
         _ => Err(format!("state mismatch for behavior {}", behavior.id())),
     }

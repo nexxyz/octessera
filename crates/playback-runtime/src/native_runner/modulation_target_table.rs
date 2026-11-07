@@ -263,6 +263,11 @@ const BEHAVIOR_CONFIG_FIELDS: &[&str] = &[
     "couplingPct",
     "frequencySpread",
     "jitterPct",
+    "cpuSkillPct",
+    "paddleSize",
+    "colorScheme",
+    "startRows",
+    "rowSpawn",
 ];
 
 const BEHAVIOR_ENUM_FIELDS: &[&str] = &[
@@ -273,6 +278,8 @@ const BEHAVIOR_ENUM_FIELDS: &[&str] = &[
     "targetEdge",
     "symmetry",
     "quantize",
+    "colorScheme",
+    "rowSpawn",
 ];
 
 const PULSES_FIELDS: &[&str] = &[

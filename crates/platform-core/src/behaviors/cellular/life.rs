@@ -160,6 +160,7 @@ pub fn render_model(state: &LifeState) -> BehaviorRenderModel {
             stable: crate::palette::BEHAVIOR_PRIMARY_YELLOW,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

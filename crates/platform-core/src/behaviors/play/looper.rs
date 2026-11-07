@@ -159,6 +159,7 @@ pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
             stable: crate::palette::BLUE,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

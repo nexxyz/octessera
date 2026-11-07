@@ -162,6 +162,7 @@ pub fn reaction_diffusion_render_model(state: &ReactionDiffusionState) -> Behavi
             stable: [40, 120, 100],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn reaction_diffusion_config_menu() -> Vec<BehaviorConfigItem> {

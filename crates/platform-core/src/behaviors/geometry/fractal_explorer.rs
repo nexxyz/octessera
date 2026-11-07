@@ -176,6 +176,7 @@ pub fn fractal_explorer_render_model(s: &FractalExplorerState) -> BehaviorRender
             stable: [100, 80, 200],
         },
         trigger_types: Some(s.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn fractal_explorer_config_menu() -> Vec<BehaviorConfigItem> {

@@ -143,6 +143,11 @@ fn motion_behaviors_follow_their_cadence() {
 }
 
 #[test]
+fn games_behaviors_follow_their_cadence() {
+    check_category("games");
+}
+
+#[test]
 fn every_behavior_sits_in_one_build_category() {
     let listed: usize = platform_core::behavior_categories()
         .iter()

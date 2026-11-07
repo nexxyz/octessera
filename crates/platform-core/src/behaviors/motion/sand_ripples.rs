@@ -169,6 +169,7 @@ pub fn sand_ripples_render_model(s: &SandRipplesState) -> BehaviorRenderModel {
             stable: [150, 120, 70],
         },
         trigger_types: Some(s.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn sand_ripples_config_menu() -> Vec<BehaviorConfigItem> {

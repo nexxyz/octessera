@@ -200,6 +200,7 @@ pub fn bounce_render_model(state: &BounceState) -> BehaviorRenderModel {
             stable: crate::palette::MAGENTA,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

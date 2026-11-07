@@ -3,6 +3,7 @@ mod behavior_native_lifecycle;
 mod catalog;
 mod cellular;
 mod fields;
+mod games;
 mod geometry;
 mod growth;
 mod motion;

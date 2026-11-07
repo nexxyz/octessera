@@ -1,4 +1,4 @@
-use super::{cellular, native_impl, pattern_music, NativeBehavior, NativeBehaviorState};
+use super::{cellular, games, native_impl, pattern_music, NativeBehavior, NativeBehaviorState};
 use crate::behavior::{BehaviorConfigItem, GridInteraction};
 
 impl NativeBehavior {
@@ -112,6 +112,12 @@ impl NativeBehavior {
             }
             (NativeBehavior::Vines, NativeBehaviorState::Vines(_)) => {
                 Ok(Some(native_impl::vines_config_menu()))
+            }
+            (NativeBehavior::Pong, NativeBehaviorState::Pong(_)) => {
+                Ok(Some(games::pong::config_menu()))
+            }
+            (NativeBehavior::Blockout, NativeBehaviorState::Blockout(_)) => {
+                Ok(Some(games::blockout::config_menu()))
             }
             _ => Err(format!("state mismatch for behavior {}", self.id())),
         }

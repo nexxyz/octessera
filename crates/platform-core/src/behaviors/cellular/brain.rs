@@ -248,6 +248,7 @@ pub fn brain_render_model(state: &BrainState) -> BehaviorRenderModel {
             stable: crate::palette::BLUE,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

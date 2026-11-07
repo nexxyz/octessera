@@ -181,6 +181,7 @@ pub fn rivers_render_model(s: &RiversState) -> BehaviorRenderModel {
             stable: [40, 90, 180],
         },
         trigger_types: Some(s.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn rivers_config_menu() -> Vec<BehaviorConfigItem> {

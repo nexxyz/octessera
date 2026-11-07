@@ -146,6 +146,7 @@ pub fn twinkle_render_model(state: &TwinkleState) -> BehaviorRenderModel {
             stable: [18, 48, 82],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

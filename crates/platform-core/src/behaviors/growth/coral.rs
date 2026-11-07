@@ -187,6 +187,7 @@ pub fn coral_render_model(state: &CoralState) -> BehaviorRenderModel {
             stable: [100, 200, 180],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn coral_config_menu() -> Vec<BehaviorConfigItem> {

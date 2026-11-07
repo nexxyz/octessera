@@ -44,6 +44,8 @@ fn lists_and_resolves_native_behaviors() {
             "dla",
             "physarum",
             "vines",
+            "pong",
+            "blockout",
             "weave",
             "polyrhythm",
             "breaks",
@@ -408,6 +410,8 @@ fn direct_native_lifecycle_covers_all_native_variants() {
         NativeBehavior::Dla,
         NativeBehavior::Physarum,
         NativeBehavior::Vines,
+        NativeBehavior::Pong,
+        NativeBehavior::Blockout,
     ];
 
     for behavior in native_variants {

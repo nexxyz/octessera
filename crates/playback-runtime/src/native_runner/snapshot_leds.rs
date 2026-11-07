@@ -80,7 +80,15 @@ pub(super) fn base_led_snapshot(model: &platform_core::BehaviorRenderModel) -> V
             .as_ref()
             .and_then(|types| types.get(logical_index))
             .copied();
-        leds[display_index] = base_led_color(*alive, trigger, &model.palette);
+        let own_color = model
+            .tile_colors
+            .as_ref()
+            .and_then(|colors| colors.get(logical_index))
+            .filter(|_| *alive);
+        leds[display_index] = match own_color {
+            Some(color) => palette_color(*color),
+            None => base_led_color(*alive, trigger, &model.palette),
+        };
     }
     leds
 }

@@ -66,15 +66,19 @@ Build
 │   │   │   ├── dla
 │   │   │   ├── physarum
 │   │   │   └── vines
-│   │   └── [Motion]
+│   │   ├── [Motion]
+│   │   │   ├── ..
+│   │   │   ├── bounce
+│   │   │   ├── bubbles
+│   │   │   ├── gravity
+│   │   │   ├── boids
+│   │   │   ├── lava lamp
+│   │   │   ├── orbit
+│   │   │   └── sand ripples
+│   │   └── [Games]
 │   │       ├── ..
-│   │       ├── bounce
-│   │       ├── bubbles
-│   │       ├── gravity
-│   │       ├── boids
-│   │       ├── lava lamp
-│   │       ├── orbit
-│   │       └── sand ripples
+│   │       ├── blockout
+│   │       └── pong
 │   ├── Auto Label: [on | off]                   ← on: label follows the behavior ID; off: manual text
 │   ├── Layer Label: (text, max 32)              ← editing sets Auto Label off
 │   ├── Step Rate: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]  ← how often the behavior ticks, unless Link scanning is on (then Scan Unit sets it); hidden for none
@@ -132,6 +136,7 @@ Build
 | Geometry | fractal_explorer, maze_growth, shapes | Fractal exploration, maze carving, and explicit geometric pulse patterns. |
 | Growth | coral, cracks, crystal_growth, dla, physarum, vines | Coral, crack, crystal, slime, vine, and diffusion-limited clusters that grow from seeded particles. |
 | Motion | bounce, bubbles, gravity, boids, lava_lamp, orbit, sand_ripples | Moving objects, blobs, flocking/orbiting agents, bubbles, dunes, and falling sand. |
+| Games | blockout, pong | Old arcade games played CPU against CPU: a ball, paddles that chase it, and a wall to break. |
 
 ## Behavior config rows
 
@@ -337,6 +342,15 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase.
 | vines | Light Bias: [0..100] | number, step 1 (default 50) |
 | vines | !Plant Seed | action |
 | vines | !Prune Vines | action |
+| pong | CPU Skill: [0..100] | number, step 1 (default 80; the percent chance a paddle means to reach the ball) |
+| pong | Paddle Size: [2..4] | number, step 1 (default 3) |
+| pong | Color: [classic, lawn, sandcourt] | enum (default classic) |
+| pong | !Serve | action |
+| blockout | CPU Skill: [0..100] | number, step 1 (default 80) |
+| blockout | Start Rows: [1..4] | number, step 1 (default 3) |
+| blockout | Row Spawn: [stable, new] | enum (default new) |
+| blockout | !Serve | action |
+| blockout | !New Wall | action |
 
 ## Behavior notes
 
@@ -371,4 +385,6 @@ Event semantics that the menu rows above do not show. All coordinates are lower-
 | `predator_prey` | Grass persistence and regrowth are visible, quiet `Stable` background events. Animals activate on entry, birth, and reseed, deactivate on move-out or death, and are stable while persisting. A predator eating a herbivore adds a one-tick trigger-only cardinal burst without changing neighbor tiles, so visible grass may briefly activate as accents. Saturated defaults reopen a few tiles. |
 | `twinkle` | Deterministic 1–5 star cap: births activate, deaths deactivate, persisting stars are stable, inactive tiles are quiet. A manual birth at the cap replaces one deterministic star. One tick performs at most one eligible fade and one birth. `Star Life` gates fading; `Cluster Bias` picks clipped, non-wrapping neighborhoods over global empty tiles. Missing saved tiles seed the deterministic default, while an explicit empty array stays empty. `Reseed Stars` and `Clear Stars` are its only actions; Build `Reset` stays the generic reset. |
 | `cyclic` | Cells chase the next discrete state through a clipped Moore neighborhood. Advancing activates, except wrap-to-zero, which deactivates. Zero cells are inactive and quiet. |
+| `pong` | Paddles fill `x=0` and `x=7`, `Paddle Size` tiles tall. The ball moves one column a step plus its slope (-1, 0 or +1) and turns at the top and bottom walls. The receiving CPU predicts where the ball lands and moves at most one tile a step toward the paddle tile it picked for that approach; with a `100 - CPU Skill` percent chance it means to miss. An end-tile hit sends the ball toward that end, a middle hit sends it back flat. A missed ball enters the empty paddle-column tile and scores for the other side (the OLED shows `left : right`), then leaves; after two empty steps the next ball serves from the middle toward the scorer. The ball's new tile activates and its old tile deactivates; paddles are stable, a paddle step activates its new end tile and deactivates the old one, and on a hit the struck paddle tile activates again while it stays lit. A grid press moves the paddle on the pressed half one tile toward the pressed row. `Color` only changes the colors: `classic` is white on black, `lawn` and `sandcourt` put a yellow ball and white paddles on a dark green or reddish-orange court. |
+| `blockout` | A 3-tile CPU paddle on the bottom row and `Start Rows` full rows of blocks at the top. The ball moves one row a step plus its sideways slope, turns at the side and top walls, and breaks the block it would enter and turns back. While the ball rises the paddle follows its column; while it falls the paddle aims like pong's CPU (`100 - CPU Skill` percent miss chance), and an end tile angles the ball while the middle sends it straight up. A broken block deactivates. A row broken clear leaves the wall and a full row drops in at the top, pushing the rows above the cleared one down a row: pushed blocks make no events, and the new row activates (`Row Spawn` `new`) or arrives as stable tiles (`stable`). The ball's path and the paddle's ends activate and deactivate like pong's, the struck paddle tile activates again on a hit, and the rest of the paddle and the wall are stable. Each row keeps its own color (red, orange, green, cyan, blue, violet, cycling as rows arrive) with a white paddle and a yellow ball on dark blue. A dropped ball enters the bottom row, leaves, and after two empty steps serves from just above the paddle. A grid press on an empty block inside the wall rows fills it (activate); a press below the wall moves the paddle one tile toward the pressed column. `New Wall` rebuilds the starting wall and serves; Build `Reset` also zeroes the cleared-row count (OLED `B:<blocks> R:<rows cleared>`). |
 | `dla` | `Cell Life` ages out old aggregate cells so the cluster keeps renewing; `0` disables aging/removal. If aging removes the whole cluster, DLA reseeds its small starter cluster. |

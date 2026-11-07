@@ -233,6 +233,22 @@ fn behavior_render_palettes_match_themes() {
                 stable: GRAY,
             },
         ),
+        (
+            NativeBehavior::Pong,
+            BehaviorRenderPalette {
+                active: WHITE,
+                inactive: BLACK,
+                stable: WHITE,
+            },
+        ),
+        (
+            NativeBehavior::Blockout,
+            BehaviorRenderPalette {
+                active: YELLOW,
+                inactive: [0, 0, 24],
+                stable: WHITE,
+            },
+        ),
     ];
 
     for (behavior, palette) in expected {

@@ -139,6 +139,7 @@ pub fn ising_render_model(state: &IsingState) -> BehaviorRenderModel {
             stable: [80, 150, 255],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn ising_config_menu() -> Vec<BehaviorConfigItem> {

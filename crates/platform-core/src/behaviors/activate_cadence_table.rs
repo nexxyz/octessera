@@ -102,6 +102,16 @@ pub(crate) const CADENCE: &[Row] = &[
     row("physarum", Within(8), "agents keep moving"),
     row("vines", Within(32), "tendrils grow, branch and prune back"),
     row(
+        "pong",
+        Within(6),
+        "the ball moves every step; a miss pauses only two steps before the serve",
+    ),
+    row(
+        "blockout",
+        Within(6),
+        "the ball moves every step; a drop pauses only two steps before the serve",
+    ),
+    row(
         "weave",
         Within(32),
         "a pattern that sounds within every two 16-step bars",

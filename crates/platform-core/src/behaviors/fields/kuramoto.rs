@@ -119,6 +119,7 @@ pub fn kuramoto_render_model(state: &KuramotoState) -> BehaviorRenderModel {
             stable: [120, 80, 255],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

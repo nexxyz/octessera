@@ -146,6 +146,7 @@ pub fn cyclic_render_model(state: &CyclicState) -> BehaviorRenderModel {
             stable: [80, 180, 255],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

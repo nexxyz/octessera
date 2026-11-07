@@ -168,6 +168,7 @@ pub fn pattern_render_model(state: &PatternBehaviorState) -> BehaviorRenderModel
         tiles: state.tiles.clone(),
         palette: Default::default(),
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

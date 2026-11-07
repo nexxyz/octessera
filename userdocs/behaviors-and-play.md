@@ -90,6 +90,8 @@ in **Build**.
 | `dla` | Growth | Diffusion-limited aggregation. Slow-growing clusters; more sculpture than step sequencer. |
 | `physarum` | Growth | Slime agents sniff trails and food, leaving evaporating paths. |
 | `vines` | Growth | Tendrils climb toward light, branch, leaf out and prune themselves back. |
+| `pong` | Games | Two CPU paddles rally a ball, and every step of it is a note. Lower CPU Skill for shorter rallies; press a tile to nudge the nearer paddle and maybe cost it the point. |
+| `blockout` | Games | A CPU paddle knocks the ball into a rainbow wall. Breaks fire Off events, cleared rows drop new ones on top, and a press fills a gap in the wall. Set Off Trig to note on if you want to hear the bricks. |
 
 ## Trigger types
 

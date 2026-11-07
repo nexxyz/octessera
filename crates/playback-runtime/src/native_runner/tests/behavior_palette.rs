@@ -124,6 +124,28 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
 }
 
 #[test]
+fn blockout_rows_keep_their_own_colors_in_runtime_snapshot_led_rgb() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    select_behavior(&mut runner, "blockout");
+    runner.display.oled_splash_text.clear();
+    runner.display.oled_splash_until = None;
+
+    let leds = led_tiles(&runner.snapshot().unwrap());
+    assert_eq!(leds[display_index(0, 7)], led_rgb([255, 40, 40]));
+    assert_eq!(leds[display_index(0, 6)], led_rgb([255, 128, 0]));
+    assert_eq!(leds[display_index(0, 5)], led_rgb([60, 220, 60]));
+    assert_eq!(
+        leds[display_index(2, 0)],
+        led_rgb(platform_core::palette::WHITE)
+    );
+    assert_eq!(
+        leds[display_index(3, 1)],
+        led_rgb(platform_core::palette::YELLOW)
+    );
+    assert_eq!(leds[display_index(0, 3)], led_rgb([0, 0, 24]));
+}
+
+#[test]
 pub(crate) fn ghost_tiles_lift_other_layers_tiles_under_the_active_layer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     select_behavior(&mut runner, "life");

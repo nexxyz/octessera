@@ -166,6 +166,7 @@ pub fn wave_render_model(state: &WaveState) -> BehaviorRenderModel {
             stable: [30, 90, 180],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

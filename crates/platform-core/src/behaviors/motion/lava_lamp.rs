@@ -160,6 +160,7 @@ pub fn lava_lamp_render_model(s: &LavaLampState) -> BehaviorRenderModel {
             stable: [160, 50, 120],
         },
         trigger_types: Some(s.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn lava_lamp_config_menu() -> Vec<BehaviorConfigItem> {

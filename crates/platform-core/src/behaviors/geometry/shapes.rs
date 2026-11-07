@@ -236,6 +236,7 @@ pub fn shapes_render_model(state: &ShapesState) -> BehaviorRenderModel {
             stable: crate::palette::MAGENTA,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

@@ -39,6 +39,7 @@ pub fn render_model(_state: &NoneState) -> BehaviorRenderModel {
             stable: crate::palette::GRAY,
         },
         trigger_types: None,
+        tile_colors: None,
     }
 }
 

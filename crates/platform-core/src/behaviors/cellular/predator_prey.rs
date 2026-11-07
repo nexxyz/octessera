@@ -285,6 +285,7 @@ pub fn predator_prey_render_model(state: &PredatorPreyState) -> BehaviorRenderMo
             stable: crate::palette::GREEN,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

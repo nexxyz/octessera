@@ -128,6 +128,7 @@ pub fn keys_render_model(state: &KeysState) -> BehaviorRenderModel {
             stable: crate::palette::YELLOW,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

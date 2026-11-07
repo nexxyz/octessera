@@ -1,4 +1,6 @@
-use super::{cellular, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState};
+use super::{
+    cellular, games, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState,
+};
 use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput};
 use serde_json::Value;
 
@@ -154,6 +156,12 @@ impl NativeBehavior {
             }
             (NativeBehavior::Vines, NativeBehaviorState::Vines(state)) => Ok(
                 NativeBehaviorState::Vines(native_impl::vines_on_input(state, input, context)),
+            ),
+            (NativeBehavior::Pong, NativeBehaviorState::Pong(state)) => Ok(
+                NativeBehaviorState::Pong(games::pong::on_input(state, input, context)),
+            ),
+            (NativeBehavior::Blockout, NativeBehaviorState::Blockout(state)) => Ok(
+                NativeBehaviorState::Blockout(games::blockout::on_input(state, input, context)),
             ),
             _ => Err(format!("state mismatch for behavior {}", self.id())),
         }

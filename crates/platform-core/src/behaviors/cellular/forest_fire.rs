@@ -289,6 +289,7 @@ pub fn forest_fire_render_model(state: &ForestFireState) -> BehaviorRenderModel 
             stable: crate::palette::GREEN,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

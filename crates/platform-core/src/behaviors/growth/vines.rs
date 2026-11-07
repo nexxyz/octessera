@@ -181,6 +181,7 @@ pub fn vines_render_model(state: &VinesState) -> BehaviorRenderModel {
             stable: [40, 160, 60],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn vines_config_menu() -> Vec<BehaviorConfigItem> {

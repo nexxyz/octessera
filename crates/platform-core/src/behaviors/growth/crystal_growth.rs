@@ -121,6 +121,7 @@ pub fn crystal_growth_render_model(state: &CrystalGrowthState) -> BehaviorRender
             stable: [40, 180, 255],
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

@@ -58,6 +58,7 @@ fn cadence(state: &NativeBehaviorState) -> Option<u64> {
         NativeBehaviorState::Cyclic(_) => None,
         NativeBehaviorState::ForestFire(_) => None,
         NativeBehaviorState::PredatorPrey(_) => None,
+        NativeBehaviorState::Pong(_) | NativeBehaviorState::Blockout(_) => None,
         NativeBehaviorState::Twinkle(_) => None,
         NativeBehaviorState::Ant(state) => Some(state.tick_counter as u64),
         NativeBehaviorState::Boids(state) => Some(state.tick_counter),

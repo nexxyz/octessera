@@ -638,6 +638,7 @@ native_behavior_category_fields	*	key:behavior.category.fields	group	Field Behav
 native_behavior_category_geometry	*	key:behavior.category.geometry	group	Geometry Behaviors	Shape, maze, and fractal pattern builders.	Good for spatial structure and crisp visual-musical forms.
 native_behavior_category_growth	*	key:behavior.category.growth	group	Growth Behaviors	Organic spreading, branching, and accretion systems.	Use these when you want the grid to feel like it is growing something.
 native_behavior_category_motion	*	key:behavior.category.motion	group	Motion Behaviors	Moving particles, orbits, gravity, and flowing systems.	These worlds put travel and momentum at the center of the pattern.
+native_behavior_category_games	*	key:behavior.category.games	group	Game Behaviors	Old arcade games, played CPU against CPU.	You get no joystick, but you can nudge the paddles, and the music follows the ball.
 native_behavior_id_legacy_enum	*	key:behaviorId	enum	Behavior	The behavior this layer runs: none, life or brain.	none is an empty layer; life is Conway's Life; brain fires, rests and recovers.
 native_algorithm_step	*	key:algorithmStep	enum	Step Rate	How fast this layer's world moves: one step per 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8,	1/4T, 1/4, 1/2T, 1/2, 1/1T or 1/1 (T means triplet). A scanning layer plays at its Scan Unit.
 native_layer_algorithm_step	*	key:layers.*.algorithmStep	enum	Step Rate	How fast this layer's world moves: one step per 1/32T, 1/32, 1/16T, 1/16, 1/8T, 1/8,	1/4T, 1/4, 1/2T, 1/2, 1/1T or 1/1 (T means triplet). A scanning layer plays at its Scan Unit.
@@ -694,6 +695,8 @@ native_behavior_select_fractal_explorer	*	action:behavior_select:fractal_explore
 native_behavior_select_maze_growth	*	action:behavior_select:maze_growth	action	Maze Growth	Carves maze-like paths as it expands.	Use it for corridors, turns, and branching travel.
 native_behavior_select_shapes	*	action:behavior_select:shapes	action	Shapes	Creates geometric figures and spatial motifs.	Good for crisp forms that other layers can answer.
 native_behavior_select_vines	*	action:behavior_select:vines	action	Vines	Grows tendrils that curl and branch.	Use it for reaching lines and organic melodic creep.
+native_behavior_select_pong	*	action:behavior_select:pong	action	Pong	Two CPU paddles rally a ball across the grid.	The ball plays a note on every step; after a miss it serves again from the middle.
+native_behavior_select_blockout	*	action:behavior_select:blockout	action	Blockout	A CPU paddle knocks a ball into a rainbow wall of blocks.	Breaks fire Off events, and a cleared row drops a fresh one on top.
 native_navigate_back	*	action:navigate_back	action	Back	Returns to the parent browser level.	Use it like the hardware Back button when browsing synthetic folders.
 native_param_bind	*	action:param_bind	action	Bind Parameter	Puts this setting on the control you are picking for.	A setting another control already owns cannot be taken; you get a toast.
 native_binding_group_behavior_params	*	key:binding.group.behavior_params	group	Behavior Params	Targets from the selected layer's behavior settings.	Choose these to let modulation steer the active world-bubble itself.
@@ -901,6 +904,13 @@ layer_brain_spawn_count	*	key:layers.*.build.behaviorConfig.randomSeedCells	numb
 layer_ant_max_ants	*	key:layers.*.build.behaviorConfig.maxAnts	number	Max Ants	The most ants that walk at once.	Spawn Ant and Spawn Interval stop adding ants at this count.
 layer_ant_spawn_interval	*	key:layers.*.build.behaviorConfig.autoSpawnInterval	number	Spawn Interval	Adds an ant every this many steps.	Off adds ants only when you ask.
 layer_bounce_max_balls	*	key:layers.*.build.behaviorConfig.maxBalls	number	Max Balls	The most balls that bounce at once.	New balls wait until there is room.
+layer_games_cpu_skill	*	key:layers.*.build.behaviorConfig.cpuSkillPct	number	CPU Skill	The chance a CPU paddle means to reach the ball, in Pong and Blockout.	100 never misses; lower values end rallies sooner, and the ball serves again.
+layer_pong_paddle_size	*	key:layers.*.build.behaviorConfig.paddleSize	number	Paddle Size	How many tiles tall the Pong paddles are.	A hit on an end tile angles the ball; the middle sends it back flat.
+layer_pong_color	*	key:layers.*.build.behaviorConfig.colorScheme	enum	Color	classic is white on black; lawn puts a yellow ball on dark green; sandcourt plays on clay.	The paddles stay white in every scheme.
+layer_blockout_start_rows	*	key:layers.*.build.behaviorConfig.startRows	number	Start Rows	How many full rows of blocks the Blockout wall has.	The wall keeps that many rows: clear one and a new row drops in on top.
+layer_blockout_row_spawn	*	key:layers.*.build.behaviorConfig.rowSpawn	enum	Row Spawn	new makes a fresh row fire On events as it lands; stable brings it in as Hold tiles.	Blocks pushed down by the new row move without a sound.
+life_spawn_shared_serve	*	action:behavior_action:serve	action	Serve	Serves a fresh ball right away.	Pong serves from the middle, Blockout from just above the paddle.
+life_spawn_shared_new_wall	*	action:behavior_action:newWall	action	New Wall	Builds the full starting wall again and serves.	With Row Spawn new, the whole wall fires On events.
 layer_shapes_lifespan	*	key:layers.*.build.behaviorConfig.lifespan	number	Lifespan	How many steps a shape grows before it fades.	Longer lifespans draw bigger shapes.
 layer_shapes_spawn_interval	*	key:layers.*.build.behaviorConfig.autoPulseInterval	number	Spawn Interval	Starts a new shape every this many steps.	Off starts shapes only when you press the grid.
 layer_raindrops_splash_radius	*	key:layers.*.build.behaviorConfig.splashRadius	number	Splash Radius	How far a raindrop's ripple travels.	Off keeps splashes to the tile they land on.

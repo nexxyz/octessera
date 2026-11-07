@@ -97,6 +97,10 @@ pub struct BehaviorRenderModel {
     pub palette: BehaviorRenderPalette,
     #[serde(default)]
     pub trigger_types: Option<Vec<TileTriggerType>>,
+    /// Per-tile colors for lit tiles, in place of the palette's trigger colors, for behaviors
+    /// whose things each keep their own color (pong's ball, blockout's block rows).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tile_colors: Option<Vec<[u8; 3]>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -194,6 +198,7 @@ mod tests {
                 tiles: vec![false; 64],
                 palette: Default::default(),
                 trigger_types: None,
+                tile_colors: None,
             }
         }
 

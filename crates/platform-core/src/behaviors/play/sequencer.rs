@@ -141,6 +141,7 @@ pub fn render_model(state: &SequencerState) -> BehaviorRenderModel {
             stable: crate::palette::YELLOW,
         },
         trigger_types: None,
+        tile_colors: None,
     }
 }
 

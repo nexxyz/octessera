@@ -183,6 +183,7 @@ pub fn maze_growth_render_model(state: &MazeGrowthState) -> BehaviorRenderModel 
             stable: crate::palette::GRAY,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 pub fn maze_growth_config_menu() -> Vec<BehaviorConfigItem> {

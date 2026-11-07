@@ -218,6 +218,7 @@ pub fn dla_render_model(state: &DlaState) -> BehaviorRenderModel {
             stable: crate::palette::GREEN,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

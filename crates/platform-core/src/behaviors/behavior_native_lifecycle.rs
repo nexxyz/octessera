@@ -1,4 +1,4 @@
-use super::{native_impl, pattern_music, NativeBehavior, NativeBehaviorState};
+use super::{games, native_impl, pattern_music, NativeBehavior, NativeBehaviorState};
 use serde_json::Value;
 
 impl NativeBehavior {
@@ -96,6 +96,10 @@ impl NativeBehavior {
             NativeBehavior::Vines => {
                 Ok(NativeBehaviorState::Vines(native_impl::vines_init(config)?))
             }
+            NativeBehavior::Pong => Ok(NativeBehaviorState::Pong(games::pong::init(config)?)),
+            NativeBehavior::Blockout => Ok(NativeBehaviorState::Blockout(games::blockout::init(
+                config,
+            )?)),
             _ => Err(format!(
                 "unsupported native init for behavior {}",
                 self.id()
@@ -202,6 +206,10 @@ impl NativeBehavior {
             )),
             NativeBehavior::Vines => Ok(NativeBehaviorState::Vines(
                 native_impl::vines_deserialize(data)?,
+            )),
+            NativeBehavior::Pong => Ok(NativeBehaviorState::Pong(games::pong::deserialize(data)?)),
+            NativeBehavior::Blockout => Ok(NativeBehaviorState::Blockout(
+                games::blockout::deserialize(data)?,
             )),
             _ => Err(format!(
                 "unsupported native deserialize for behavior {}",

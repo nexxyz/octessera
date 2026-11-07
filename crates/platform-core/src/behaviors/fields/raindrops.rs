@@ -174,6 +174,7 @@ pub fn raindrops_render_model(state: &RaindropsState) -> BehaviorRenderModel {
             stable: crate::palette::GRAY,
         },
         trigger_types: Some(state.trigger_types.clone()),
+        tile_colors: None,
     }
 }
 

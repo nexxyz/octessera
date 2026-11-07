@@ -1,4 +1,6 @@
-use super::{cellular, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState};
+use super::{
+    cellular, games, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState,
+};
 use crate::behavior::BehaviorRenderModel;
 
 pub fn render_model(
@@ -113,6 +115,12 @@ pub fn render_model(
         }
         (NativeBehavior::Vines, NativeBehaviorState::Vines(state)) => {
             Ok(native_impl::vines_render_model(state))
+        }
+        (NativeBehavior::Pong, NativeBehaviorState::Pong(state)) => {
+            Ok(games::pong::render_model(state))
+        }
+        (NativeBehavior::Blockout, NativeBehaviorState::Blockout(state)) => {
+            Ok(games::blockout::render_model(state))
         }
         _ => Err(format!("state mismatch for behavior {}", behavior.id())),
     }
