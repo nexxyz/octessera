@@ -157,51 +157,26 @@ pub fn predator_prey_on_tick(
             next[i] = GRASS;
         }
     }
+    let mut buffers = StepBuffers {
+        next: &mut next,
+        energy: &mut energy,
+        reserved: &mut reserved,
+        eaten: &mut eaten,
+        bursts: &mut bursts,
+        force_activate: &mut force_activate,
+    };
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
-            let i = grid_index(x, y);
-            if prev[i] == PREDATOR {
-                let mut buffers = StepBuffers {
-                    next: &mut next,
-                    energy: &mut energy,
-                    reserved: &mut reserved,
-                };
-                ActorStep::Predator.act(
-                    i,
-                    x,
-                    y,
-                    &prev,
-                    &prev_energy,
-                    &mut buffers,
-                    &mut eaten,
-                    &mut bursts,
-                    &mut force_activate,
-                    &state,
-                );
+            if prev[grid_index(x, y)] == PREDATOR {
+                ActorStep::Predator.act(x, y, &prev, &prev_energy, &mut buffers, &state);
             }
         }
     }
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let i = grid_index(x, y);
-            if prev[i] == HERBIVORE && !eaten[i] {
-                let mut buffers = StepBuffers {
-                    next: &mut next,
-                    energy: &mut energy,
-                    reserved: &mut reserved,
-                };
-                ActorStep::Herbivore.act(
-                    i,
-                    x,
-                    y,
-                    &prev,
-                    &prev_energy,
-                    &mut buffers,
-                    &mut eaten,
-                    &mut bursts,
-                    &mut force_activate,
-                    &state,
-                );
+            if prev[i] == HERBIVORE && !buffers.eaten[i] {
+                ActorStep::Herbivore.act(x, y, &prev, &prev_energy, &mut buffers, &state);
             }
         }
     }

@@ -5,10 +5,15 @@ use rand::Rng;
 
 use super::{PredatorPreyState, EMPTY, GRASS, HERBIVORE, PREDATOR};
 
+/// What one tick builds: the next tiles and energies, the tiles already claimed or eaten, and
+/// the tiles whose triggers it forces.
 pub(super) struct StepBuffers<'a> {
     pub(super) next: &'a mut [u8],
     pub(super) energy: &'a mut [u8],
     pub(super) reserved: &'a mut [bool],
+    pub(super) eaten: &'a mut [bool],
+    pub(super) bursts: &'a mut Vec<usize>,
+    pub(super) force_activate: &'a mut Vec<usize>,
 }
 
 pub(super) enum ActorStep {
@@ -17,56 +22,34 @@ pub(super) enum ActorStep {
 }
 
 impl ActorStep {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn act(
         self,
-        i: usize,
         x: usize,
         y: usize,
         prev: &[u8],
         pe: &[u8],
         buffers: &mut StepBuffers<'_>,
-        eaten: &mut [bool],
-        bursts: &mut Vec<usize>,
-        force_activate: &mut Vec<usize>,
         state: &PredatorPreyState,
     ) {
         match self {
-            ActorStep::Predator => act_predator(
-                i,
-                x,
-                y,
-                prev,
-                pe,
-                buffers,
-                eaten,
-                bursts,
-                force_activate,
-                state,
-            ),
-            ActorStep::Herbivore => {
-                act_herbivore(i, x, y, prev, pe, buffers, force_activate, state)
-            }
+            ActorStep::Predator => act_predator(x, y, prev, pe, buffers, state),
+            ActorStep::Herbivore => act_herbivore(x, y, prev, pe, buffers, state),
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn act_predator(
-    i: usize,
     x: usize,
     y: usize,
     prev: &[u8],
     pe: &[u8],
     buffers: &mut StepBuffers<'_>,
-    eaten: &mut [bool],
-    bursts: &mut Vec<usize>,
-    force_activate: &mut Vec<usize>,
     state: &PredatorPreyState,
 ) {
+    let i = grid_index(x, y);
     if let Some(d) = find(x, y, prev, buffers.reserved, |c| c == HERBIVORE) {
         place(buffers, d, PREDATOR, state.starve_ticks);
-        eaten[d] = true;
+        buffers.eaten[d] = true;
         buffers.next[i] =
             if crate::behavior_random::rng().gen_range(0..100) < state.predator_reproduce_pct {
                 PREDATOR
@@ -75,9 +58,9 @@ fn act_predator(
             };
         if buffers.next[i] == PREDATOR {
             buffers.energy[i] = state.starve_ticks;
-            force_activate.push(i);
+            buffers.force_activate.push(i);
         }
-        burst(d, bursts);
+        burst(d, buffers.bursts);
     } else if let Some(d) = find(x, y, prev, buffers.reserved, |c| c == EMPTY || c == GRASS) {
         let energy = pe[i].saturating_sub(1);
         if energy > 0 {
@@ -93,17 +76,15 @@ fn act_predator(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn act_herbivore(
-    i: usize,
     x: usize,
     y: usize,
     prev: &[u8],
     pe: &[u8],
     buffers: &mut StepBuffers<'_>,
-    force_activate: &mut Vec<usize>,
     state: &PredatorPreyState,
 ) {
+    let i = grid_index(x, y);
     if let Some(d) = find(x, y, prev, buffers.reserved, |c| c == GRASS) {
         place(buffers, d, HERBIVORE, state.starve_ticks);
         buffers.next[i] =
@@ -114,7 +95,7 @@ fn act_herbivore(
             };
         if buffers.next[i] == HERBIVORE {
             buffers.energy[i] = state.starve_ticks;
-            force_activate.push(i);
+            buffers.force_activate.push(i);
         }
     } else if let Some(d) = find(x, y, prev, buffers.reserved, |c| c == EMPTY) {
         let energy = pe[i].saturating_sub(1);
