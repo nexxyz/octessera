@@ -12,7 +12,8 @@ mod worker;
 pub(crate) use device::DeviceRecord;
 pub(crate) use monitor::BluetoothAudioMonitor;
 use playback_runtime::{
-    HostMessage, RuntimeBluetoothDeviceAction, RuntimePlatformEffect, RuntimeStoreResult,
+    HostMessage, RuntimeBluetoothDeviceAction, RuntimeBluetoothStatus, RuntimePlatformEffect,
+    RuntimeStoreResult,
 };
 use std::sync::mpsc::{Receiver, Sender};
 
@@ -54,6 +55,7 @@ pub(crate) enum WorkerEvent {
 pub(crate) struct BluetoothHandle {
     events: Sender<WorkerEvent>,
     status: Receiver<HostMessage>,
+    unavailable: Sender<HostMessage>,
 }
 
 impl BluetoothHandle {
@@ -78,6 +80,7 @@ impl BluetoothHandle {
         let (events, rx) = std::sync::mpsc::channel();
         let (status_tx, status) = std::sync::mpsc::channel();
         let worker_events = events.clone();
+        let unavailable = status_tx.clone();
         std::thread::Builder::new()
             .name("octessera-bluetooth".into())
             .spawn(move || match connect(worker_events.clone()) {
@@ -85,14 +88,19 @@ impl BluetoothHandle {
                 Err(error) => eprintln!("Bluetooth unavailable: {error}"),
             })
             .ok()?;
-        Some(Self { events, status })
+        Some(Self {
+            events,
+            status,
+            unavailable,
+        })
     }
 
     pub(crate) fn set_enabled(&self, enabled: bool) {
         let _ = self.events.send(WorkerEvent::SetPower(enabled));
     }
 
-    /// Takes the Bluetooth effects; any other effect is left to the caller.
+    /// Takes the Bluetooth effects; any other effect is left to the caller. Once the
+    /// worker is gone, a request answers `Bluetooth unavailable` so Pair New stops searching.
     pub(crate) fn handle_effect(&self, effect: &RuntimePlatformEffect) -> bool {
         let event = match effect {
             RuntimePlatformEffect::BluetoothScan { active } => WorkerEvent::Scan(*active),
@@ -102,7 +110,15 @@ impl BluetoothHandle {
             },
             _ => return false,
         };
-        let _ = self.events.send(event);
+        let stops_scan = matches!(event, WorkerEvent::Scan(false));
+        if self.events.send(event).is_err() && !stops_scan {
+            let _ = self
+                .unavailable
+                .send(status_message(RuntimeBluetoothStatus {
+                    message: Some("Bluetooth unavailable".into()),
+                    ..RuntimeBluetoothStatus::default()
+                }));
+        }
         true
     }
 
@@ -111,7 +127,7 @@ impl BluetoothHandle {
     }
 }
 
-pub(crate) fn status_message(status: playback_runtime::RuntimeBluetoothStatus) -> HostMessage {
+pub(crate) fn status_message(status: RuntimeBluetoothStatus) -> HostMessage {
     HostMessage::RuntimeResult {
         result: RuntimeStoreResult::BluetoothStatus { status },
     }

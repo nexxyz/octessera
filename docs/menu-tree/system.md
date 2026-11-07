@@ -378,7 +378,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
   page opens. When the host's one-minute scan limit ends with the page still open, the row becomes
   a `Search again` action that emits `BluetoothScan { active: true }` again. A search the host
   cannot start (radio off or BlueZ refusing) answers with a non-scanning status and the toast
-  `Search failed`, so the row turns into `Search again` right away. Pressing a device
+  `Search failed`, so the row turns into `Search again` right away. Without BlueZ at all the
+  Bluetooth worker has stopped, and the host answers with the toast `Bluetooth unavailable`
+  instead. Pressing a device
   row pairs, trusts, then connects. A passkey shows as a modal; Back or a Main click cancels pairing.
 - `Forget` removes a pairing. Results and failures arrive as `BluetoothStatus` toasts.
 - While Bluetooth is on, keyboard capture also accepts Bluetooth keyboards under the same HDMI gate,

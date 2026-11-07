@@ -1,7 +1,8 @@
 use super::worker::Worker;
 use super::{BluetoothHandle, Bluez, DeviceRecord, WorkerEvent};
 use playback_runtime::{
-    RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind, RuntimePlatformEffect,
+    HostMessage, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind, RuntimePlatformEffect,
+    RuntimeStoreResult,
 };
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
@@ -244,6 +245,33 @@ fn a_bluez_change_signal_republishes_the_idle_status() {
     handle.events.send(WorkerEvent::Changed).unwrap();
     let changed = next_status();
     assert!(format!("{changed:?}").contains("\"AA\""));
+}
+
+#[test]
+fn a_scan_after_the_worker_is_gone_answers_unavailable_so_searching_ends() {
+    let handle = BluetoothHandle::spawn(|_| Err::<FakeBluez, _>("no BlueZ".to_string()))
+        .expect("spawn Bluetooth worker");
+    let scan = RuntimePlatformEffect::BluetoothScan { active: true };
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let answer = loop {
+        assert!(handle.handle_effect(&scan));
+        if let Some(message) = handle.drain_status().next() {
+            break message;
+        }
+        assert!(Instant::now() < deadline, "no Bluetooth status");
+        std::thread::sleep(Duration::from_millis(1));
+    };
+    let HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::BluetoothStatus { status },
+    } = answer
+    else {
+        panic!("expected a Bluetooth status, got {answer:?}");
+    };
+    assert!(!status.scanning);
+    assert_eq!(status.message.as_deref(), Some("Bluetooth unavailable"));
+
+    assert!(handle.handle_effect(&RuntimePlatformEffect::BluetoothScan { active: false }));
+    assert!(handle.drain_status().next().is_none());
 }
 
 #[test]
