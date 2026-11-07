@@ -32,38 +32,7 @@ impl SynthEngine {
             return retired;
         }
 
-        let has_mixer = prepared.route.is_some();
-        self.apply_normalized_instrument_slot(
-            index,
-            prepared.kind,
-            prepared.synth,
-            prepared.render_config,
-            prepared.drum_voices,
-            prepared.route.map(|route| {
-                super::control::instrument_slot_control::NormalizedInstrumentMixer {
-                    route,
-                    pan_pos: prepared.pan_pos.min(self.pan_positions - 1),
-                    volume: prepared.volume,
-                }
-            }),
-        );
-        if has_mixer {
-            self.slot_pan_gains[index] =
-                super::support::pan_gains(self.slot_pan_pos[index], self.pan_positions);
-        }
-        let mut render_plan = prepared.render_plan;
-        render_plan.route = render_plan.route.map(|route| match route {
-            super::render_plan::RenderPlanRoute::Bus(bus) if bus >= self.bus_chains.len() => {
-                super::render_plan::RenderPlanRoute::Direct
-            }
-            route => route,
-        });
-        self.render_plan.install_instrument_slot(index, render_plan);
-        self.refresh_routed_bus_slot_count();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some() {
-            let _ = self.refresh_routing_tree_assignment();
-        }
+        self.install_prepared_instrument_slot(index, prepared);
 
         if let Some(bank) = sample_bank {
             let current = self

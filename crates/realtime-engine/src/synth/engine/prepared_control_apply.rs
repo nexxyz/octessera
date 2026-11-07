@@ -172,6 +172,11 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return retired;
         }
+        self.install_prepared_instrument_slot(index, prepared);
+        retired
+    }
+
+    fn install_prepared_instrument_slot(&mut self, index: usize, prepared: PreparedInstrumentSlot) {
         let has_mixer = prepared.route.is_some();
         self.apply_normalized_instrument_slot(
             index,
@@ -204,7 +209,6 @@ impl SynthEngine {
         if self.routing_tree_assignment.is_some() {
             let _ = self.refresh_routing_tree_assignment();
         }
-        retired
     }
 
     pub fn apply_prepared_sample_bank(
