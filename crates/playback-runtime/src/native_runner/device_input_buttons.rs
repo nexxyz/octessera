@@ -9,12 +9,7 @@ impl NativeRunner {
         id: Option<&str>,
     ) -> Result<Vec<RunnerMessage>, String> {
         if let Some(index) = Self::aux_index(id) {
-            if let Some(messages) = self.handle_aux_behavior_action_press(index)? {
-                return Ok(messages);
-            }
-            if let Some(effect) = self.handle_aux_press(index)? {
-                return self.messages_with_effects(vec![effect]);
-            }
+            return self.handle_aux_press(index);
         } else if id.unwrap_or("main") == "main" {
             if self.display.help_popup.is_some() && !self.display.aux_mapping_peek_visible {
                 self.display.help_popup = None;
@@ -138,42 +133,6 @@ impl NativeRunner {
             }
         }
         self.messages_with_snapshot()
-    }
-
-    fn handle_aux_behavior_action_press(
-        &mut self,
-        index: usize,
-    ) -> Result<Option<Vec<RunnerMessage>>, String> {
-        if self.display.ui.fn_held || self.display.ui.combined_modifier_held {
-            return Ok(None);
-        }
-        let click_prefix = if self.display.ui.shift_held {
-            "S+Clk"
-        } else {
-            "Clk"
-        };
-        let Some(press) = self.effective_aux_slot(index).press else {
-            return Ok(None);
-        };
-        let Some((layer_index, action_type)) = self.behavior_click(&press.action) else {
-            return Ok(None);
-        };
-        if !self.bound_action_active(&press.action) {
-            self.show_toast(format!(
-                "{click_prefix}-{}: {} not active",
-                index + 1,
-                press.label
-            ));
-            return Ok(Some(self.messages_with_snapshot()?));
-        }
-        let suppress_aux_toast = self.quiet_behavior_click(&press.action);
-        let result = self.trigger_layer_behavior_action_result(layer_index, action_type)?;
-        if !suppress_aux_toast {
-            self.show_toast(format!("{click_prefix}-{}: {}", index + 1, press.label));
-        }
-        Ok(Some(
-            self.messages_with_layer_input_result(layer_index, result)?,
-        ))
     }
 
     pub(super) fn handle_button_a_input(

@@ -184,25 +184,7 @@ impl NativeRunner {
             return self.messages_with_snapshot();
         };
         let label = self.aux_binding_action_label(&action);
-        if !self.bound_action_active(&action) {
-            self.show_toast(format!("{prefix}: {label} not active"));
-            return self.messages_with_snapshot();
-        }
-        let toast = format!("{prefix}: {label}");
-        if let Some((layer_index, action_type)) = self.behavior_click(&action) {
-            let quiet = self.quiet_behavior_click(&action);
-            let result = self.trigger_layer_behavior_action_result(layer_index, action_type)?;
-            if !quiet {
-                self.show_toast(toast);
-            }
-            return self.messages_with_layer_input_result(layer_index, result);
-        }
-        let effect = self.execute_menu_action(action)?;
-        self.show_toast(toast);
-        match effect {
-            Some(effect) => self.messages_with_effects(vec![effect]),
-            None => self.messages_with_snapshot(),
-        }
+        self.run_bound_click(action, prefix, &label)
     }
 
     fn step_fader_tile_param(&mut self, key: &str, delta: i8) -> Result<(), String> {

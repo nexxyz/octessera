@@ -2,6 +2,7 @@
 //! bound on and runs there whichever layer is active.
 use super::*;
 use crate::native_menu::NativeMenuValue;
+use crate::protocol::RunnerMessage;
 
 impl NativeRunner {
     /// The Build label of `action_type` on the current behavior of `layer_index`, `None` when
@@ -36,6 +37,35 @@ impl NativeRunner {
                 }
             }
             other => other,
+        }
+    }
+
+    /// Runs a bound click, toasting `head: label`: a behavior action on its layer, so its notes
+    /// reach Link and audio, anything else as its menu action.
+    pub(super) fn run_bound_click(
+        &mut self,
+        action: NativeMenuAction,
+        head: &str,
+        label: &str,
+    ) -> Result<Vec<RunnerMessage>, String> {
+        if !self.bound_action_active(&action) {
+            self.show_toast(format!("{head}: {label} not active"));
+            return self.messages_with_snapshot();
+        }
+        let toast = format!("{head}: {label}");
+        if let Some((layer_index, action_type)) = self.behavior_click(&action) {
+            let quiet = self.quiet_behavior_click(&action);
+            let result = self.trigger_layer_behavior_action_result(layer_index, action_type)?;
+            if !quiet {
+                self.show_toast(toast);
+            }
+            return self.messages_with_layer_input_result(layer_index, result);
+        }
+        let effect = self.execute_menu_action(action)?;
+        self.show_toast(toast);
+        match effect {
+            Some(effect) => self.messages_with_effects(vec![effect]),
+            None => self.messages_with_snapshot(),
         }
     }
 

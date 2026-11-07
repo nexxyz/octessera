@@ -115,7 +115,12 @@ pub(crate) fn twinkle_actions_reset_aux_and_autosave_round_trip() {
         Some(crate::native_menu::NativeMenuAction::BehaviorAction(action))
             if action == "reseedStars"
     ));
-    runner.handle_aux_press(2).unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "aux3" }),
+            request_snapshot: None,
+        })
+        .unwrap();
     assert_eq!(state_tiles(&runner).iter().filter(|tile| **tile).count(), 3);
     assert!(runner.config_dirty);
 

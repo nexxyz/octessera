@@ -1,5 +1,5 @@
 use crate::native_menu::NativeMenuAction;
-use crate::protocol::RuntimePlatformEffect;
+use crate::protocol::RunnerMessage;
 
 mod aux_binding_slots;
 mod binding_target;
@@ -279,34 +279,22 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn handle_aux_press(
-        &mut self,
-        index: usize,
-    ) -> Result<Option<RuntimePlatformEffect>, String> {
+    pub(super) fn handle_aux_press(&mut self, index: usize) -> Result<Vec<RunnerMessage>, String> {
         let shifted = self.display.ui.shift_held || self.display.ui.combined_modifier_held;
         let click_prefix = if shifted { "S+Clk" } else { "Clk" };
         if self.display.ui.fn_held || self.display.ui.combined_modifier_held {
             self.bind_aux_from_current(index, shifted);
-            return Ok(None);
+            return self.messages_with_snapshot();
         }
-        let binding = self.effective_aux_slot(index);
-        let Some(press) = binding.press else {
+        let Some(press) = self.effective_aux_slot(index).press else {
             self.show_toast(format!("{click_prefix}-{}: No binding", index + 1));
-            return Ok(None);
+            return self.messages_with_snapshot();
         };
-        if !self.bound_action_active(&press.action) {
-            self.show_toast(format!(
-                "{click_prefix}-{}: {} not active",
-                index + 1,
-                press.label
-            ));
-            return Ok(None);
-        }
-        let result = self.execute_menu_action(press.action.clone())?;
-        if !self.quiet_behavior_click(&press.action) {
-            self.show_toast(format!("{click_prefix}-{}: {}", index + 1, press.label));
-        }
-        Ok(result)
+        self.run_bound_click(
+            press.action,
+            &format!("{click_prefix}-{}", index + 1),
+            &press.label,
+        )
     }
 }
 
